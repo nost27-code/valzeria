@@ -1,0 +1,10 @@
+- [ ] Googleログイン設定手順書（`docs/GOOGLE_OAUTH_SETUP.md`）の作成
+- [ ] 背景画像の生成（AIによるコンセプトアート作成）
+- [ ] DBマイグレーションの作成と実行（`users`, `characters`, `jobs`, `character_jobs`）
+- [ ] 初期データのSeeder作成と実行（`JobSeeder`）
+- [ ] サービス層の作成（`AuthService`, `CharacterService`）
+- [ ] TOPページ（ログイン画面）の作成
+- [ ] ダミーログイン処理の実装
+- [ ] キャラクター作成画面の実装
+- [ ] ホーム画面（ガチャガチャ感のあるUI）の実装とルーティング
+- [ ] 動作確認と `walkthrough.md` の作成

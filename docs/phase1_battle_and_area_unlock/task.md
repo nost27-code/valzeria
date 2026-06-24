@@ -1,0 +1,28 @@
+# フェーズ1: 迷宮探索・戦闘・エリア解放 実装タスク
+
+- `[x]` DB設計・マスターデータ
+  - `[x]` `characters` テーブルへのカラム追加マイグレーション作成
+  - `[x]` 新規テーブル (`areas`, `character_area_progresses`, `enemies`, `battle_logs`, `public_logs`) マイグレーション作成
+  - `[x]` 関連モデル (`Area`, `CharacterAreaProgress`, `Enemy`, `BattleLog`, `PublicLog`) の作成
+  - `[x]` `Phase1Seeder` (初期エリア・敵・公開ログ) の作成と実行
+- `[x]` サービス層の実装
+  - `[x]` `AreaService` (エリア一覧取得・解放状態管理)
+  - `[x]` `ExplorationService` (探索開始・敵抽選・クールタイム・報酬呼び出し)
+  - `[x]` `BattleService` (戦闘計算・勝敗判定)
+  - `[x]` `LevelService` (EXP加算・レベルアップ判定)
+  - `[x]` `PublicLogService` (街ログ記録), `BattleLogService` (個人ログ保存)
+  - `[x]` `InnService` (宿屋HP回復)
+- `[x]` コントローラー・ルーティング
+  - `[x]` `web.php` へ戦闘関連・宿屋関連のルート追加
+  - `[x]` `BattleController` の作成
+  - `[x]` `InnController` の作成
+- `[x]` UI層の実装
+  - `[x]` `resources/views/battle/result.blade.php` の作成
+  - `[x]` `MainScreen.php` をDB連動に書き換え
+  - `[x]` `main-screen.blade.php` のボタンをフォーム送信に書き換え、公開ログ枠の連動
+- `[ ]` 動作検証
+  - `[ ]` 通常探索（敵抽選、勝敗、EXP/GOLD獲得）
+  - `[ ]` レベルアップ処理、HP全回復
+  - `[ ]` ボス挑戦、撃破による次エリア解放
+  - `[ ]` クールタイム制御
+  - `[ ]` ログの記録・表示

@@ -1,0 +1,488 @@
+[
+  {
+    "material_id": "5001",
+    "material_name": "防具の欠片",
+    "material_category": "common_armor",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・通常敵ドロップ",
+    "description": "低〜中ランク防具進化の共通素材。"
+  },
+  {
+    "material_id": "5002",
+    "material_name": "防具の結晶",
+    "material_category": "common_armor",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・素材交換",
+    "description": "中〜高ランク防具進化の共通素材。"
+  },
+  {
+    "material_id": "5003",
+    "material_name": "防具の核",
+    "material_category": "common_armor",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高ランク防具分解・素材交換",
+    "description": "A→S以降の進化に使う高位共通素材。"
+  },
+  {
+    "material_id": "5004",
+    "material_name": "古代防具片",
+    "material_category": "common_armor",
+    "material_grade": "ss",
+    "is_tradeable": "False",
+    "primary_source": "裏ダンジョン",
+    "description": "S→SS進化に使う古代素材。"
+  },
+  {
+    "material_id": "5005",
+    "material_name": "星屑の縫材",
+    "material_category": "common_armor",
+    "material_grade": "sss",
+    "is_tradeable": "False",
+    "primary_source": "裏高位素材・秘境",
+    "description": "SS→SSS進化に使う高位縫材。"
+  },
+  {
+    "material_id": "5006",
+    "material_name": "伝説の縫魂",
+    "material_category": "legend",
+    "material_grade": "epic",
+    "is_tradeable": "False",
+    "primary_source": "伝説条件・高難度報酬",
+    "description": "SSS→EPIC進化に使う伝説素材。"
+  },
+  {
+    "material_id": "5007",
+    "material_name": "守護石の欠片",
+    "material_category": "enhance",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "分解・通常敵ドロップ",
+    "description": "防具+1強化素材。"
+  },
+  {
+    "material_id": "5008",
+    "material_name": "守護石",
+    "material_category": "enhance",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "素材交換・強敵ドロップ",
+    "description": "防具+2〜+3強化素材。"
+  },
+  {
+    "material_id": "5009",
+    "material_name": "高純度守護石",
+    "material_category": "enhance",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高難度探索・裏ダンジョン",
+    "description": "S以上の+3強化で使う想定。"
+  },
+  {
+    "material_id": "5010",
+    "material_name": "軽装の欠片",
+    "material_category": "light_material",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・カテゴリ敵ドロップ",
+    "description": "軽装・旅装・影装束向け素材。"
+  },
+  {
+    "material_id": "5011",
+    "material_name": "軽装の結晶",
+    "material_category": "light_material",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "素材交換・中盤以降ドロップ",
+    "description": "軽装・旅装・影装束向け素材。"
+  },
+  {
+    "material_id": "5012",
+    "material_name": "軽装の核",
+    "material_category": "light_material",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高ランク分解・裏ダンジョン",
+    "description": "軽装・旅装・影装束向け素材。"
+  },
+  {
+    "material_id": "5013",
+    "material_name": "重装の欠片",
+    "material_category": "heavy_material",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・カテゴリ敵ドロップ",
+    "description": "重装向け素材。"
+  },
+  {
+    "material_id": "5014",
+    "material_name": "重装の結晶",
+    "material_category": "heavy_material",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "素材交換・中盤以降ドロップ",
+    "description": "重装向け素材。"
+  },
+  {
+    "material_id": "5015",
+    "material_name": "重装の核",
+    "material_category": "heavy_material",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高ランク分解・裏ダンジョン",
+    "description": "重装向け素材。"
+  },
+  {
+    "material_id": "5016",
+    "material_name": "魔布の欠片",
+    "material_category": "magic_cloth",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・カテゴリ敵ドロップ",
+    "description": "ローブ・魔装向け素材。"
+  },
+  {
+    "material_id": "5017",
+    "material_name": "魔布の結晶",
+    "material_category": "magic_cloth",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "素材交換・中盤以降ドロップ",
+    "description": "ローブ・魔装向け素材。"
+  },
+  {
+    "material_id": "5018",
+    "material_name": "魔布の核",
+    "material_category": "magic_cloth",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高ランク分解・裏ダンジョン",
+    "description": "ローブ・魔装向け素材。"
+  },
+  {
+    "material_id": "5019",
+    "material_name": "聖布の欠片",
+    "material_category": "holy_cloth",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・カテゴリ敵ドロップ",
+    "description": "聖衣向け素材。"
+  },
+  {
+    "material_id": "5020",
+    "material_name": "聖布の結晶",
+    "material_category": "holy_cloth",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "素材交換・中盤以降ドロップ",
+    "description": "聖衣向け素材。"
+  },
+  {
+    "material_id": "5021",
+    "material_name": "聖布の核",
+    "material_category": "holy_cloth",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高ランク分解・裏ダンジョン",
+    "description": "聖衣向け素材。"
+  },
+  {
+    "material_id": "5022",
+    "material_name": "闘具の欠片",
+    "material_category": "martial_material",
+    "material_grade": "low",
+    "is_tradeable": "False",
+    "primary_source": "防具分解・カテゴリ敵ドロップ",
+    "description": "武闘着向け素材。"
+  },
+  {
+    "material_id": "5023",
+    "material_name": "闘具の結晶",
+    "material_category": "martial_material",
+    "material_grade": "mid",
+    "is_tradeable": "False",
+    "primary_source": "素材交換・中盤以降ドロップ",
+    "description": "武闘着向け素材。"
+  },
+  {
+    "material_id": "5024",
+    "material_name": "闘具の核",
+    "material_category": "martial_material",
+    "material_grade": "high",
+    "is_tradeable": "False",
+    "primary_source": "高ランク分解・裏ダンジョン",
+    "description": "武闘着向け素材。"
+  },
+  {
+    "material_id": "5025",
+    "material_name": "王都の織布",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "王都アークレアの通常都市素材。"
+  },
+  {
+    "material_id": "5026",
+    "material_name": "王都の守護布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "王都アークレアの高位都市素材。"
+  },
+  {
+    "material_id": "5027",
+    "material_name": "潮風の布片",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "港町マリネスの通常都市素材。"
+  },
+  {
+    "material_id": "5028",
+    "material_name": "海守りの織布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "港町マリネスの高位都市素材。"
+  },
+  {
+    "material_id": "5029",
+    "material_name": "精霊樹の繊維",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "精霊の森エルフィアの通常都市素材。"
+  },
+  {
+    "material_id": "5030",
+    "material_name": "精霊王の絹糸",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "精霊の森エルフィアの高位都市素材。"
+  },
+  {
+    "material_id": "5031",
+    "material_name": "黒鉄の装甲片",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "鍛冶街グランベルグの通常都市素材。"
+  },
+  {
+    "material_id": "5032",
+    "material_name": "炉心の耐熱布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "鍛冶街グランベルグの高位都市素材。"
+  },
+  {
+    "material_id": "5033",
+    "material_name": "氷晶の織糸",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "雪原の町フロストリアの通常都市素材。"
+  },
+  {
+    "material_id": "5034",
+    "material_name": "氷帝の守護布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "雪原の町フロストリアの高位都市素材。"
+  },
+  {
+    "material_id": "5035",
+    "material_name": "砂金繊維",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "砂漠の宿場サンドラの通常都市素材。"
+  },
+  {
+    "material_id": "5036",
+    "material_name": "砂王の宝布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "砂漠の宿場サンドラの高位都市素材。"
+  },
+  {
+    "material_id": "5037",
+    "material_name": "魔導繊維",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "魔導学院ルミナスの通常都市素材。"
+  },
+  {
+    "material_id": "5038",
+    "material_name": "大魔導の星布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "魔導学院ルミナスの高位都市素材。"
+  },
+  {
+    "material_id": "5039",
+    "material_name": "瘴気の革片",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "死霊街ネクロムの通常都市素材。"
+  },
+  {
+    "material_id": "5040",
+    "material_name": "深魔の黒布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "死霊街ネクロムの高位都市素材。"
+  },
+  {
+    "material_id": "5041",
+    "material_name": "天空の羽布",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "天空神殿セレスティアの通常都市素材。"
+  },
+  {
+    "material_id": "5042",
+    "material_name": "天空竜の織布",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "天空神殿セレスティアの高位都市素材。"
+  },
+  {
+    "material_id": "5043",
+    "material_name": "魔王城の黒布",
+    "material_category": "city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の探索・敵ドロップ",
+    "description": "魔王城ヴァルゼリアの通常都市素材。"
+  },
+  {
+    "material_id": "5044",
+    "material_name": "魔王の黒装片",
+    "material_category": "city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "該当都市の高難度探索・強敵ドロップ",
+    "description": "魔王城ヴァルゼリアの高位都市素材。"
+  },
+  {
+    "material_id": "5045",
+    "material_name": "深淵の裂け目装甲片",
+    "material_category": "back_dungeon",
+    "material_grade": "ss",
+    "is_tradeable": "False",
+    "primary_source": "深淵の裂け目",
+    "description": "S→SS以降の防具進化素材。"
+  },
+  {
+    "material_id": "5046",
+    "material_name": "古代錬成炉の耐熱布",
+    "material_category": "back_dungeon",
+    "material_grade": "ss",
+    "is_tradeable": "False",
+    "primary_source": "古代錬成炉",
+    "description": "S→SS以降の防具進化素材。"
+  },
+  {
+    "material_id": "5047",
+    "material_name": "竜王の聖域鱗布",
+    "material_category": "back_dungeon",
+    "material_grade": "ss",
+    "is_tradeable": "False",
+    "primary_source": "竜王の聖域",
+    "description": "S→SS以降の防具進化素材。"
+  },
+  {
+    "material_id": "5048",
+    "material_name": "次元回廊の歪布",
+    "material_category": "back_dungeon",
+    "material_grade": "ss",
+    "is_tradeable": "False",
+    "primary_source": "次元回廊",
+    "description": "S→SS以降の防具進化素材。"
+  },
+  {
+    "material_id": "5049",
+    "material_name": "裏高位装甲核",
+    "material_category": "back_high",
+    "material_grade": "sss",
+    "is_tradeable": "False",
+    "primary_source": "裏ボス・裏高難度探索",
+    "description": "SS→SSS進化素材。"
+  },
+  {
+    "material_id": "5050",
+    "material_name": "秘境の守護繊維",
+    "material_category": "secret",
+    "material_grade": "epic",
+    "is_tradeable": "False",
+    "primary_source": "秘境探索",
+    "description": "SSS→EPIC進化素材。"
+  },
+  {
+    "material_id": "5051",
+    "material_name": "都市素材（進化対象街）",
+    "material_category": "abstract_city_material",
+    "material_grade": "city_low",
+    "is_tradeable": "False",
+    "primary_source": "city_material_pool参照",
+    "description": "C→Bなどで、進化解放街IDに対応する通常都市素材へ解決する。"
+  },
+  {
+    "material_id": "5052",
+    "material_name": "都市高位素材（進化対象街）",
+    "material_category": "abstract_city_material",
+    "material_grade": "city_high",
+    "is_tradeable": "False",
+    "primary_source": "city_material_pool参照",
+    "description": "B→A/A→Sなどで、進化解放街IDに対応する高位都市素材へ解決する。"
+  },
+  {
+    "material_id": "5053",
+    "material_name": "裏ダンジョン素材（進化用）",
+    "material_category": "abstract_back_material",
+    "material_grade": "ss",
+    "is_tradeable": "False",
+    "primary_source": "裏ダンジョン素材のいずれか",
+    "description": "S→SS進化で使用。実装時は到達/対応裏ダンジョンに応じて解決。"
+  },
+  {
+    "material_id": "5054",
+    "material_name": "裏高位素材（進化用）",
+    "material_category": "abstract_back_material",
+    "material_grade": "sss",
+    "is_tradeable": "False",
+    "primary_source": "裏高位素材のいずれか",
+    "description": "SS→SSS進化で使用。"
+  }
+]

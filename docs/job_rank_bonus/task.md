@@ -1,0 +1,5 @@
+- [x] `app/Services/CharacterStatusService.php` の修正
+  - [x] 現在の職業とランク（`job_level`）を取得する処理の追加
+  - [x] `bonus_xxx` × `job_level` の計算処理の追加
+  - [x] 各種装備ボーナスに職業ボーナスを初期値として加算するように変更
+- [x] 実装・ロジック確認完了

@@ -1,0 +1,22 @@
+# 必殺技のデータ駆動型システムへの改修タスク
+
+- [x] マイグレーションの作成と実行
+  - [x] `skills` テーブルへの新カラム追加（`trigger_rate`, `damage_type`, `power_multiplier` など）
+  - [x] `skills` テーブルから不要カラム削除（`action_class`, `activation_rate` など）
+  - [x] `skills` テーブルへの `job_id` 追加
+  - [x] `job_classes` テーブルからの `skill_id` 削除
+- [x] モデルの更新
+  - [x] `Skill.php` (`$fillable` 更新, `jobClass` リレーション追加)
+  - [x] `JobClass.php` (`skill_id` 削除, `skill` リレーション変更)
+- [x] Seederの更新
+  - [x] `SkillSeeder.php` の大改修（全43職分のスキルデータ登録）
+- [x] バトルロジックの改修
+  - [x] 必殺技の発動判定（毎ターンまたは通常攻撃前）
+  - [x] 必殺技時のクリティカル判定無効化処理
+  - [x] `damage_type` (`physical`, `magical`, `hybrid`, `heal`, `support`, `gold`) に応じたダメージ・回復処理
+  - [x] バフ・デバフの適用（ボス時は半減、重複上書き）
+  - [x] HP/MP回復、反動ダメージの適用
+  - [x] ゴールド・ドロップ補正のリザルト反映
+- [x] 既存の不要な Action クラス群の削除
+- [x] 確認・テスト
+- [x] Walkthroughの作成

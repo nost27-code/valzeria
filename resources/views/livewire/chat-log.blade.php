@@ -1,0 +1,78 @@
+<!-- 3. 下部：全幅チャットログエリア -->
+<div wire:poll.3s class="w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans">
+    <!-- タブ -->
+    <div class="flex items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500 shrink-0">
+        <div class="flex min-w-0 flex-1 overflow-x-auto">
+            <button wire:click="setTab('all')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'all' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">全体</button>
+            <button wire:click="setTab('system')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'system' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">システム</button>
+            <button wire:click="setTab('chat')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'chat' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">チャット</button>
+            <button wire:click="setTab('private')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'private' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">個人(手紙)</button>
+            <button wire:click="setTab('drop')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'drop' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">レアドロップ</button>
+            <button wire:click="setTab('info')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
+        </div>
+        <button
+            wire:click="toggleExpanded"
+            type="button"
+            class="shrink-0 border-l border-gray-200 bg-white px-3 py-2 text-sm font-black leading-none text-[#1e40af] hover:bg-blue-50"
+            aria-label="{{ $isExpanded ? 'チャット欄を短くする' : 'チャット欄を長くする' }}"
+            title="{{ $isExpanded ? 'チャット欄を短くする' : 'チャット欄を長くする' }}"
+        >
+            {{ $isExpanded ? '▲' : '▼' }}
+        </button>
+    </div>
+    <!-- ログ表示部 -->
+    <div class="p-3 flex-grow overflow-y-auto space-y-1 text-[11px] bg-white font-sans leading-relaxed">
+        @foreach($systemLogs as $log)
+            <div class="flex">
+                <span class="text-gray-400 w-10 shrink-0">{{ $log['time'] }}</span>
+                <span class="
+                    @if($log['type'] == 'system') text-orange-600 font-bold
+                    @elseif($log['type'] == 'chat') text-green-700 font-bold
+                    @elseif($log['type'] == 'private')
+                        @if(isset($log['is_sender']) && $log['is_sender']) text-slate-900 font-bold
+                        @else text-pink-600 font-bold
+                        @endif
+                    @elseif($log['type'] == 'drop') text-yellow-600 font-bold
+                    @elseif($log['type'] == 'job') text-purple-600 font-bold
+                    @elseif($log['type'] == 'duel') text-red-600 font-bold
+                    @elseif($log['type'] == 'guild') text-blue-600 font-bold
+                    @else text-gray-700 font-medium
+                    @endif
+                ">
+                    @if(isset($log['reply_prefix']) && $log['reply_prefix'])
+                        @if(isset($log['reply_id']) && $log['reply_id'])
+                            <span wire:click="setReplyTarget({{ $log['reply_id'] }})" onclick="setTimeout(() => { document.getElementById('chat-message-input').focus(); }, 100);" class="cursor-pointer hover:underline" title="タップして返信">{{ $log['reply_prefix'] }}</span>
+                        @else
+                            <span>{{ $log['reply_prefix'] }}</span>
+                        @endif
+                    @endif
+                    {{ $log['message'] }}
+                </span>
+            </div>
+        @endforeach
+    </div>
+    <!-- チャット入力欄 -->
+    <form wire:submit="sendMessage" class="bg-gray-50 border-t border-gray-200 p-2 flex items-center gap-1.5 shrink-0 min-w-0">
+        <select wire:model.live="chatTarget" class="w-[4.75rem] shrink-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700">
+            <option value="all">全体</option>
+            <option value="guild">ギルド</option>
+            <option value="private">個人</option>
+        </select>
+
+        @if($chatTarget === 'private')
+            <select wire:model="receiverId" class="w-[7rem] sm:w-[8.25rem] shrink-0 min-w-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700 truncate">
+                @foreach($availableReceivers as $receiver)
+                    <option value="{{ $receiver->id }}">{{ $receiver->name }}</option>
+                @endforeach
+            </select>
+        @endif
+
+        <input type="text" id="chat-message-input" wire:model="message" placeholder="メッセージ"
+            required maxlength="100"
+            class="min-w-0 basis-0 flex-1 border-gray-300 rounded focus:border-[#1e40af] focus:ring-[#1e40af] text-[11px] py-1.5 px-3">
+            
+        <button type="submit" aria-label="送信" title="送信" class="w-10 h-9 shrink-0 bg-[#1e40af] text-white rounded-lg text-lg font-bold shadow hover:bg-[#1e3a8a] flex items-center justify-center">
+            <span aria-hidden="true">➤</span>
+        </button>
+    </form>
+</div>

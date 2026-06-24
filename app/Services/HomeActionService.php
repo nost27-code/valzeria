@@ -1,0 +1,187 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Character;
+use App\Models\NpcProcurementRequestMaterial;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
+
+class HomeActionService
+{
+    public function __construct(
+        private readonly CharacterNotificationService $notificationService,
+        private readonly CharacterStatusService $statusService
+    ) {
+    }
+
+    public function getActions(Character $character, int $limit = 4): array
+    {
+        $actions = collect();
+
+        $this->appendExplorationBagAction($actions, $character);
+        $this->appendBonusPointAction($actions, $character);
+        $this->appendNpcRequestAction($actions, $character);
+        $this->appendMarketNotificationAction($actions, $character);
+        $this->appendRecoveryAction($actions, $character);
+
+        return $actions
+            ->sortByDesc('priority')
+            ->take($limit)
+            ->values()
+            ->all();
+    }
+
+    public function marketActionCount(Character $character): int
+    {
+        return $this->notificationService->unreadCountByCategory($character, 'market')
+            + $this->unseenDeliverableNpcRequestCount($character);
+    }
+
+    public function unseenDeliverableNpcRequestCount(Character $character): int
+    {
+        $deliverableCount = $this->deliverableNpcRequestCount($character);
+        $seenCount = (int) session($this->npcRequestSeenSessionKey($character), 0);
+
+        return max(0, $deliverableCount - $seenCount);
+    }
+
+    public function markDeliverableNpcRequestsSeen(Character $character): void
+    {
+        session([$this->npcRequestSeenSessionKey($character) => $this->deliverableNpcRequestCount($character)]);
+    }
+
+    public function deliverableNpcRequestCount(Character $character): int
+    {
+        if (! Schema::hasTable('npc_procurement_request_materials')
+            || ! Schema::hasTable('npc_procurement_requests')
+            || ! Schema::hasTable('character_materials')) {
+            return 0;
+        }
+
+        return (int) NpcProcurementRequestMaterial::query()
+            ->join('npc_procurement_requests', 'npc_procurement_requests.id', '=', 'npc_procurement_request_materials.npc_procurement_request_id')
+            ->join('character_materials', function ($join) use ($character) {
+                $join->on('character_materials.material_id', '=', 'npc_procurement_request_materials.material_id')
+                    ->where('character_materials.character_id', '=', $character->id)
+                    ->where('character_materials.quantity', '>', 0);
+            })
+            ->where('npc_procurement_requests.status', 'active')
+            ->where('npc_procurement_requests.starts_at', '<=', now())
+            ->where('npc_procurement_requests.expires_at', '>', now())
+            ->whereColumn('npc_procurement_request_materials.delivered_quantity', '<', 'npc_procurement_request_materials.required_quantity')
+            ->count();
+    }
+
+    private function appendBonusPointAction(Collection $actions, Character $character): void
+    {
+        $bp = (int) ($character->bonus_points ?? 0);
+        if ($bp <= 0) {
+            return;
+        }
+
+        $actions->push([
+            'key' => 'bonus_points_available',
+            'title' => "未使用BPが{$bp}あります",
+            'body' => '能力を割り振って冒険者を強化できます。',
+            'action_label' => '割り振る',
+            'action_url' => route('bonus-points.index'),
+            'icon' => '✦',
+            'priority' => 90,
+            'category' => 'growth',
+        ]);
+    }
+
+    private function appendNpcRequestAction(Collection $actions, Character $character): void
+    {
+        $count = $this->deliverableNpcRequestCount($character);
+        if ($count <= 0) {
+            return;
+        }
+
+        $actions->push([
+            'key' => 'npc_request_deliverable',
+            'title' => '納品できる依頼があります',
+            'body' => '所持素材で納品できる調達依頼が' . number_format($count) . '件あります。',
+            'action_label' => '依頼を見る',
+            'action_url' => route('market.npc-requests.index'),
+            'icon' => '📋',
+            'priority' => 80,
+            'category' => 'market',
+        ]);
+    }
+
+    private function appendMarketNotificationAction(Collection $actions, Character $character): void
+    {
+        $count = $this->notificationService->unreadCountByCategory($character, 'market');
+        if ($count <= 0) {
+            return;
+        }
+
+        $actions->push([
+            'key' => 'market_notification_unread',
+            'title' => '市場で素材が売れました',
+            'body' => '売却完了した素材があります。',
+            'action_label' => '履歴を見る',
+            'action_url' => route('market.index', ['tab' => 'history']),
+            'icon' => '⚖️',
+            'icon_image' => 'icon/icon_032.webp',
+            'priority' => 70,
+            'category' => 'market',
+        ]);
+    }
+
+    private function appendRecoveryAction(Collection $actions, Character $character): void
+    {
+        $stats = $this->statusService->getFinalStats($character);
+        $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base ?? 1));
+        $maxSp = max(1, (int) ($stats['max_mp'] ?? $character->mp_base ?? 1));
+        $hpRate = (int) ($character->current_hp ?? 0) / $maxHp;
+        $spRate = (int) ($character->current_mp ?? 0) / $maxSp;
+
+        if ($hpRate > 0.35 && $spRate > 0.25) {
+            return;
+        }
+
+        $actions->push([
+            'key' => 'recovery_recommended',
+            'title' => 'HP/SPが減っています',
+            'body' => '街の宿屋で回復してから探索すると安定します。',
+            'action_label' => '街を見る',
+            'tab' => 'town',
+            'icon' => '🛏️',
+            'icon_image' => 'icon/icon_018.webp',
+            'priority' => 50,
+            'category' => 'town',
+        ]);
+    }
+
+    private function appendExplorationBagAction(Collection $actions, Character $character): void
+    {
+        if (! Schema::hasTable('character_exploration_states')) {
+            return;
+        }
+
+        $state = $character->explorationState;
+        if (! $state || ((int) ($state->chain_count ?? 0) <= 0 && (int) ($state->exploration_point ?? 0) <= 0)) {
+            return;
+        }
+
+        $actions->push([
+            'key' => 'exploration_progress_active',
+            'title' => '探索が進行中です',
+            'body' => '探索度や連戦が残っています。続けるか、街に戻って整えましょう。',
+            'action_label' => '再開する',
+            'action_url' => route('battle.resume'),
+            'icon' => '🧭',
+            'icon_image' => 'icon/icon_002.webp',
+            'priority' => 100,
+            'category' => 'dungeon',
+        ]);
+    }
+
+    private function npcRequestSeenSessionKey(Character $character): string
+    {
+        return 'market_npc_request_seen_count_' . $character->id;
+    }
+}

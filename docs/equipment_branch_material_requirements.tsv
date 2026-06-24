@@ -1,0 +1,256 @@
+装備種別	進化段階	分岐キー	分岐名	役割	進化元ID	進化元	進化元ランク	進化先ID	進化先	進化先ランク	強装備の欠片	専用素材コード	専用素材名	専用素材数	入手先	備考
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0007	英雄の剣	A	WPN_BR_SWORD_HOLY_S	聖剣アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_SWORD_HOLY_S	聖剣アークレア	S	WPN_BR_SWORD_HOLY_SS	星冠の誓剣	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_SWORD_HOLY_SS	星冠の誓剣	SS	WPN_BR_SWORD_HOLY_SSS	天命の聖剣	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_SWORD_HOLY_SSS	天命の聖剣	SSS	WPN_BR_SWORD_HOLY_EPIC	星冠聖剣セレスティル	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0007	英雄の剣	A	WPN_BR_SWORD_DARK_S	黒炎の魔剣	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_SWORD_DARK_S	黒炎の魔剣	S	WPN_BR_SWORD_DARK_SS	冥哭剣ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_SWORD_DARK_SS	冥哭剣ネクロム	SS	WPN_BR_SWORD_DARK_SSS	深淵喰らいの魔剣	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_SWORD_DARK_SSS	深淵喰らいの魔剣	SSS	WPN_BR_SWORD_DARK_EPIC	深淵魔剣ネクロディア	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0007	英雄の剣	A	WPN_BR_SWORD_GALE_S	風切りの英雄剣	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_SWORD_GALE_S	風切りの英雄剣	S	WPN_BR_SWORD_GALE_SS	翠嵐剣エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_SWORD_GALE_SS	翠嵐剣エルフィア	SS	WPN_BR_SWORD_GALE_SSS	天翔の迅剣	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_SWORD_GALE_SSS	天翔の迅剣	SSS	WPN_BR_SWORD_GALE_EPIC	天翔迅剣エルフィード	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0018	月影の刃	A	WPN_BR_DAGGER_HOLY_S	白銀の祝刃	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_DAGGER_HOLY_S	白銀の祝刃	S	WPN_BR_DAGGER_HOLY_SS	星祈りの双刃	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_DAGGER_HOLY_SS	星祈りの双刃	SS	WPN_BR_DAGGER_HOLY_SSS	天命の双聖刃	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_DAGGER_HOLY_SSS	天命の双聖刃	SSS	WPN_BR_DAGGER_HOLY_EPIC	聖影双刃アークシェル	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0018	月影の刃	A	WPN_BR_DAGGER_DARK_S	影炎の短剣	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_DAGGER_DARK_S	影炎の短剣	S	WPN_BR_DAGGER_DARK_SS	夜哭きの冥刃ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_DAGGER_DARK_SS	夜哭きの冥刃ネクロム	SS	WPN_BR_DAGGER_DARK_SSS	深淵裂きの双刃	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_DAGGER_DARK_SSS	深淵裂きの双刃	SSS	WPN_BR_DAGGER_DARK_EPIC	冥影刃ネクロヴェイン	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0018	月影の刃	A	WPN_BR_DAGGER_GALE_S	風切りの双刃	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_DAGGER_GALE_S	風切りの双刃	S	WPN_BR_DAGGER_GALE_SS	木霊の翠刃エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_DAGGER_GALE_SS	木霊の翠刃エルフィア	SS	WPN_BR_DAGGER_GALE_SSS	天翔の瞬刃	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_DAGGER_GALE_SSS	天翔の瞬刃	SSS	WPN_BR_DAGGER_GALE_EPIC	風切双刃エルフィネル	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0029	聖騎士の槍	A	WPN_BR_SPEAR_HOLY_S	騎聖槍アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_SPEAR_HOLY_S	騎聖槍アークレア	S	WPN_BR_SPEAR_HOLY_SS	星標の巡礼槍	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_SPEAR_HOLY_SS	星標の巡礼槍	SS	WPN_BR_SPEAR_HOLY_SSS	竜王の誓槍	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_SPEAR_HOLY_SSS	竜王の誓槍	SSS	WPN_BR_SPEAR_HOLY_EPIC	天翼聖槍セレスヴァーン	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0029	聖騎士の槍	A	WPN_BR_SPEAR_DARK_S	黒炎の牙槍	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_SPEAR_DARK_S	黒炎の牙槍	S	WPN_BR_SPEAR_DARK_SS	冥哭槍ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_SPEAR_DARK_SS	冥哭槍ネクロム	SS	WPN_BR_SPEAR_DARK_SSS	深淵穿ちの魔槍	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_SPEAR_DARK_SSS	深淵穿ちの魔槍	SSS	WPN_BR_SPEAR_DARK_EPIC	冥竜魔槍ネクログレイヴ	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0029	聖騎士の槍	A	WPN_BR_SPEAR_GALE_S	風穿ちの英雄槍	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_SPEAR_GALE_S	風穿ちの英雄槍	S	WPN_BR_SPEAR_GALE_SS	翠角槍エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_SPEAR_GALE_SS	翠角槍エルフィア	SS	WPN_BR_SPEAR_GALE_SSS	天翔の迅槍	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_SPEAR_GALE_SSS	天翔の迅槍	SSS	WPN_BR_SPEAR_GALE_EPIC	風穿迅槍エルファリオン	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0040	竜断ちの斧	A	WPN_BR_AXE_HOLY_S	聖斧グランベルグ	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_AXE_HOLY_S	聖斧グランベルグ	S	WPN_BR_AXE_HOLY_SS	王城の断罪斧	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_AXE_HOLY_SS	王城の断罪斧	SS	WPN_BR_AXE_HOLY_SSS	竜王の砕天斧	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_AXE_HOLY_SSS	竜王の砕天斧	SSS	WPN_BR_AXE_HOLY_EPIC	聖断戦斧アークベルグ	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0040	竜断ちの斧	A	WPN_BR_AXE_DARK_S	黒炎の断斧	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_AXE_DARK_S	黒炎の断斧	S	WPN_BR_AXE_DARK_SS	冥獣斧ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_AXE_DARK_SS	冥獣斧ネクロム	SS	WPN_BR_AXE_DARK_SSS	深淵割りの戦斧	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_AXE_DARK_SSS	深淵割りの戦斧	SSS	WPN_BR_AXE_DARK_EPIC	黒炎裂斧ネクロバルグ	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0040	竜断ちの斧	A	WPN_BR_AXE_GALE_S	嵐割りの戦斧	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_AXE_GALE_S	嵐割りの戦斧	S	WPN_BR_AXE_GALE_SS	森断ちの嵐斧	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_AXE_GALE_SS	森断ちの嵐斧	SS	WPN_BR_AXE_GALE_SSS	天翔の旋斧	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_AXE_GALE_SSS	天翔の旋斧	SSS	WPN_BR_AXE_GALE_EPIC	嵐割迅斧エルヴァルト	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0051	星砕きの棍棒	A	WPN_BR_CLUB_HOLY_S	聖棍アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_CLUB_HOLY_S	聖棍アークレア	S	WPN_BR_CLUB_HOLY_SS	星鐘の聖棍	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_CLUB_HOLY_SS	星鐘の聖棍	SS	WPN_BR_CLUB_HOLY_SSS	竜王の破城棍	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_CLUB_HOLY_SSS	竜王の破城棍	SSS	WPN_BR_CLUB_HOLY_EPIC	王守聖棍アークガルド	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0051	星砕きの棍棒	A	WPN_BR_CLUB_DARK_S	黒鉄の魔棍	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_CLUB_DARK_S	黒鉄の魔棍	S	WPN_BR_CLUB_DARK_SS	冥鐘棍ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_CLUB_DARK_SS	冥鐘棍ネクロム	SS	WPN_BR_CLUB_DARK_SSS	深淵砕きの魔棍	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_CLUB_DARK_SSS	深淵砕きの魔棍	SSS	WPN_BR_CLUB_DARK_EPIC	冥砕魔棍ネクロドゥーム	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0051	星砕きの棍棒	A	WPN_BR_CLUB_GALE_S	疾風の棍	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_CLUB_GALE_S	疾風の棍	S	WPN_BR_CLUB_GALE_SS	翠蔓の風棍エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_CLUB_GALE_SS	翠蔓の風棍エルフィア	SS	WPN_BR_CLUB_GALE_SSS	天翔の迅棍	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_CLUB_GALE_SSS	天翔の迅棍	SSS	WPN_BR_CLUB_GALE_EPIC	風鳴棍エルヴェント	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0062	天空弓セレス	A	WPN_BR_BOW_HOLY_S	聖弓セレスティア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_BOW_HOLY_S	聖弓セレスティア	S	WPN_BR_BOW_HOLY_SS	星導きの天弓	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_BOW_HOLY_SS	星導きの天弓	SS	WPN_BR_BOW_HOLY_SSS	天命の白弓	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_BOW_HOLY_SSS	天命の白弓	SSS	WPN_BR_BOW_HOLY_EPIC	天翼聖弓セレスアロー	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0062	天空弓セレス	A	WPN_BR_BOW_DARK_S	黒月の魔弓	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_BOW_DARK_S	黒月の魔弓	S	WPN_BR_BOW_DARK_SS	冥月弓ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_BOW_DARK_SS	冥月弓ネクロム	SS	WPN_BR_BOW_DARK_SSS	深淵射ちの魔弓	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_BOW_DARK_SSS	深淵射ちの魔弓	SSS	WPN_BR_BOW_DARK_EPIC	黒月魔弓ネクロルナ	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0062	天空弓セレス	A	WPN_BR_BOW_GALE_S	風精の長弓	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_BOW_GALE_S	風精の長弓	S	WPN_BR_BOW_GALE_SS	緑葉の狩弓エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_BOW_GALE_SS	緑葉の狩弓エルフィア	SS	WPN_BR_BOW_GALE_SSS	天翔の迅弓	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_BOW_GALE_SSS	天翔の迅弓	SSS	WPN_BR_BOW_GALE_EPIC	風精王弓エルフィオン	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0073	ルミナスロッド	A	WPN_BR_STAFF_HOLY_S	祈星杖アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_STAFF_HOLY_S	祈星杖アークレア	S	WPN_BR_STAFF_HOLY_SS	星詠みの祝杖	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_STAFF_HOLY_SS	星詠みの祝杖	SS	WPN_BR_STAFF_HOLY_SSS	天啓の神杖	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_STAFF_HOLY_SSS	天啓の神杖	SSS	WPN_BR_STAFF_HOLY_EPIC	星祈聖杖セレスティナ	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0073	ルミナスロッド	A	WPN_BR_STAFF_DARK_S	黒炎の呪杖	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_STAFF_DARK_S	黒炎の呪杖	S	WPN_BR_STAFF_DARK_SS	冥府杖ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_STAFF_DARK_SS	冥府杖ネクロム	SS	WPN_BR_STAFF_DARK_SSS	深淵の禁杖	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_STAFF_DARK_SSS	深淵の禁杖	SSS	WPN_BR_STAFF_DARK_EPIC	深淵魔導杖ネクロセイド	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0073	ルミナスロッド	A	WPN_BR_STAFF_GALE_S	星風の短杖	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_STAFF_GALE_S	星風の短杖	S	WPN_BR_STAFF_GALE_SS	森羅の風杖エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_STAFF_GALE_SS	森羅の風杖エルフィア	SS	WPN_BR_STAFF_GALE_SSS	天翔の迅杖	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_STAFF_GALE_SSS	天翔の迅杖	SSS	WPN_BR_STAFF_GALE_EPIC	森羅風杖エルヴェール	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0084	ルミナスの秘典	A	WPN_BR_GRIMOIRE_HOLY_S	聖典アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_GRIMOIRE_HOLY_S	聖典アークレア	S	WPN_BR_GRIMOIRE_HOLY_SS	星律の聖典	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_GRIMOIRE_HOLY_SS	星律の聖典	SS	WPN_BR_GRIMOIRE_HOLY_SSS	天命の啓典	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_GRIMOIRE_HOLY_SSS	天命の啓典	SSS	WPN_BR_GRIMOIRE_HOLY_EPIC	聖律典アークノヴァ	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0084	ルミナスの秘典	A	WPN_BR_GRIMOIRE_DARK_S	黒炎の禁書	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_GRIMOIRE_DARK_S	黒炎の禁書	S	WPN_BR_GRIMOIRE_DARK_SS	冥府の禁書ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_GRIMOIRE_DARK_SS	冥府の禁書ネクロム	SS	WPN_BR_GRIMOIRE_DARK_SSS	深淵写本	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_GRIMOIRE_DARK_SSS	深淵写本	SSS	WPN_BR_GRIMOIRE_DARK_EPIC	冥律魔典ネクロノクス	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0084	ルミナスの秘典	A	WPN_BR_GRIMOIRE_GALE_S	星風の魔導書	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_GRIMOIRE_GALE_S	星風の魔導書	S	WPN_BR_GRIMOIRE_GALE_SS	翠風の魔導環エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_GRIMOIRE_GALE_SS	翠風の魔導環エルフィア	SS	WPN_BR_GRIMOIRE_GALE_SSS	天翔の迅典	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_GRIMOIRE_GALE_SSS	天翔の迅典	SSS	WPN_BR_GRIMOIRE_GALE_EPIC	風詠魔典エルシルフ	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0095	武神の拳	A	WPN_BR_FIST_HOLY_S	聖拳アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_FIST_HOLY_S	聖拳アークレア	S	WPN_BR_FIST_HOLY_SS	星拳の聖甲	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_FIST_HOLY_SS	星拳の聖甲	SS	WPN_BR_FIST_HOLY_SSS	天命の拳甲	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_FIST_HOLY_SSS	天命の拳甲	SSS	WPN_BR_FIST_HOLY_EPIC	聖武拳甲アークガント	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0095	武神の拳	A	WPN_BR_FIST_DARK_S	黒炎の魔拳	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_FIST_DARK_S	黒炎の魔拳	S	WPN_BR_FIST_DARK_SS	冥牙拳ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_FIST_DARK_SS	冥牙拳ネクロム	SS	WPN_BR_FIST_DARK_SSS	深淵の鬼拳	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_FIST_DARK_SSS	深淵の鬼拳	SSS	WPN_BR_FIST_DARK_EPIC	冥獄魔拳ネクロファング	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0095	武神の拳	A	WPN_BR_FIST_GALE_S	疾風の闘拳	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_FIST_GALE_S	疾風の闘拳	S	WPN_BR_FIST_GALE_SS	風牙の拳甲エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_FIST_GALE_SS	風牙の拳甲エルフィア	SS	WPN_BR_FIST_GALE_SSS	天翔の迅拳	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_FIST_GALE_SSS	天翔の迅拳	SSS	WPN_BR_FIST_GALE_EPIC	神速風牙拳エルラッシュ	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+武器	A→S	holy	聖剣系	安定 / 回復職・勇者向け	WPN_0106	錬成炉の魔銃	A	WPN_BR_GUN_HOLY_S	聖銃アークレア	S	10	MAT_BR_WPN_HOLY_PATH	聖剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_GUN_HOLY_S	聖銃アークレア	S	WPN_BR_GUN_HOLY_SS	星穿ちの聖銃	SS	15	MAT_BR_WPN_HOLY_ANCIENT	聖剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_GUN_HOLY_SS	星穿ちの聖銃	SS	WPN_BR_GUN_HOLY_SSS	天命の機聖銃	SSS	25	MAT_BR_WPN_HOLY_SECRET	聖剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	holy	聖剣系	安定 / 回復職・勇者向け	WPN_BR_GUN_HOLY_SSS	天命の機聖銃	SSS	WPN_BR_GUN_HOLY_EPIC	聖機銃セレスバレット	EPIC	35	MAT_BR_WPN_HOLY_CREST	聖剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。聖剣系の最終装備。
+武器	A→S	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_0106	錬成炉の魔銃	A	WPN_BR_GUN_DARK_S	黒炎の魔銃	S	10	MAT_BR_WPN_DARK_PATH	魔剣の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_GUN_DARK_S	黒炎の魔銃	S	WPN_BR_GUN_DARK_SS	冥銃ネクロム	SS	15	MAT_BR_WPN_DARK_ANCIENT	魔剣の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_GUN_DARK_SS	冥銃ネクロム	SS	WPN_BR_GUN_DARK_SSS	深淵の魔銃	SSS	25	MAT_BR_WPN_DARK_SECRET	魔剣の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	dark	魔剣系	火力 / 魔法戦士・暗黒職向け	WPN_BR_GUN_DARK_SSS	深淵の魔銃	SSS	WPN_BR_GUN_DARK_EPIC	冥機銃ネクロヴォルト	EPIC	35	MAT_BR_WPN_DARK_CREST	魔剣の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔剣系の最終装備。
+武器	A→S	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_0106	錬成炉の魔銃	A	WPN_BR_GUN_GALE_S	疾風の機銃	S	10	MAT_BR_WPN_GALE_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。名称は武器種ごとの固有モチーフを優先。S以降は同系統で強化。
+武器	S→SS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_GUN_GALE_S	疾風の機銃	S	WPN_BR_GUN_GALE_SS	風迅銃エルフィア	SS	15	MAT_BR_WPN_GALE_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SS→SSS	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_GUN_GALE_SS	風迅銃エルフィア	SS	WPN_BR_GUN_GALE_SSS	天翔の迅機銃	SSS	25	MAT_BR_WPN_GALE_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。系統感は残しつつ、武器種ごとの名称差を付ける。
+武器	SSS→EPIC	gale	疾風系	先手 / 盗賊・忍者・弓職向け	WPN_BR_GUN_GALE_SSS	天翔の迅機銃	SSS	WPN_BR_GUN_GALE_EPIC	風迅機銃エルストーム	EPIC	35	MAT_BR_WPN_GALE_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+防具	S→SS	heavy	重装系	DEF/HP	4001	王城盾鎧アークレア	S	4002	鋼嶺の守護鎧グランベルグ	SS	15	MAT_BR_ARM_HEAVY_ANCIENT	重装の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SS→SSS	heavy	重装系	DEF/HP	4002	鋼嶺の守護鎧グランベルグ	SS	4003	竜王の城塞鎧	SSS	25	MAT_BR_ARM_HEAVY_SECRET	重装の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SSS→EPIC	heavy	重装系	DEF/HP	4003	竜王の城塞鎧	SSS	4004	鋼神鎧グランヴェルド	EPIC	35	MAT_BR_ARM_HEAVY_CREST	重装の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。重装系の最終装備。
+防具	S→SS	arcane	魔装系	MAG/SPR	4005	星紋法衣ルミナス	S	4006	星律の魔導衣	SS	15	MAT_BR_ARM_ARCANE_ANCIENT	魔装の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SS→SSS	arcane	魔装系	MAG/SPR	4006	星律の魔導衣	SS	4007	次元星衣ルミナス	SSS	25	MAT_BR_ARM_ARCANE_SECRET	魔装の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SSS→EPIC	arcane	魔装系	MAG/SPR	4007	次元星衣ルミナス	SSS	4008	星律法衣ルミナリエ	EPIC	35	MAT_BR_ARM_ARCANE_CREST	魔装の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔装系の最終装備。
+防具	S→SS	light	軽装系	SPD/LUK	4009	風精の狩衣エルフィア	S	4010	翠嵐の影衣	SS	15	MAT_BR_ARM_LIGHT_ANCIENT	軽装の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SS→SSS	light	軽装系	SPD/LUK	4010	翠嵐の影衣	SS	4011	天翔の羽衣セレスティア	SSS	25	MAT_BR_ARM_LIGHT_SECRET	軽装の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SSS→EPIC	light	軽装系	SPD/LUK	4011	天翔の羽衣セレスティア	SSS	4012	風翼影衣エルシルフィア	EPIC	35	MAT_BR_ARM_LIGHT_CREST	軽装の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。軽装系の最終装備。
+防具	S→SS	traveler	旅装系	万能	4013	砂海の旅装サンドラ	S	4014	星巡りの外套	SS	15	MAT_BR_ARM_TRAVELER_ANCIENT	旅装の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SS→SSS	traveler	旅装系	万能	4014	星巡りの外套	SS	4015	次元渡りの旅衣	SSS	25	MAT_BR_ARM_TRAVELER_SECRET	旅装の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。地域感と役割を維持する。
+防具	SSS→EPIC	traveler	旅装系	万能	4015	次元渡りの旅衣	SSS	4016	七都巡りの冒険王装アルヴェリア	EPIC	35	MAT_BR_ARM_TRAVELER_CREST	旅装の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。旅装系の最終装備。
+防具	A→S	heavy	重装系	DEF/HP	3007	月影の戦衣	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3007	月影の戦衣	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3007	月影の戦衣	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3007	月影の戦衣	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3018	聖騎士の鎧	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3018	聖騎士の鎧	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3018	聖騎士の鎧	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3018	聖騎士の鎧	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3029	ルミナスローブ	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3029	ルミナスローブ	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3029	ルミナスローブ	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3029	ルミナスローブ	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3040	星渡りの旅衣	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3040	星渡りの旅衣	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3040	星渡りの旅衣	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3040	星渡りの旅衣	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3051	武神の戦衣	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3051	武神の戦衣	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3051	武神の戦衣	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3051	武神の戦衣	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3062	ルミナス魔装	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3062	ルミナス魔装	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3062	ルミナス魔装	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3062	ルミナス魔装	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3073	天啓の聖衣	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3073	天啓の聖衣	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3073	天啓の聖衣	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3073	天啓の聖衣	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	heavy	重装系	DEF/HP	3084	無音の影衣	A	4001	王城盾鎧アークレア	S	10	MAT_BR_ARM_HEAVY_PATH	重装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	arcane	魔装系	MAG/SPR	3084	無音の影衣	A	4005	星紋法衣ルミナス	S	10	MAT_BR_ARM_ARCANE_PATH	魔装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	light	軽装系	SPD/LUK	3084	無音の影衣	A	4009	風精の狩衣エルフィア	S	10	MAT_BR_ARM_LIGHT_PATH	軽装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+防具	A→S	traveler	旅装系	万能	3084	無音の影衣	A	4013	砂海の旅装サンドラ	S	10	MAT_BR_ARM_TRAVELER_PATH	旅装の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA防具から系統選択する想定。
+装飾	S→SS	power	腕力系	ATK	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	ACC_BR_POWER_SS	炎獅子の腕輪	SS	15	MAT_BR_ACC_POWER_ANCIENT	腕力の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	power	腕力系	ATK	ACC_BR_POWER_SS	炎獅子の腕輪	SS	ACC_BR_POWER_SSS	覇王の剛腕輪	SSS	25	MAT_BR_ACC_POWER_SECRET	腕力の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	power	腕力系	ATK	ACC_BR_POWER_SSS	覇王の剛腕輪	SSS	ACC_BR_POWER_EPIC	鋼覇腕輪グランガルド	EPIC	35	MAT_BR_ACC_POWER_CREST	腕力の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。腕力系の最終装備。
+装飾	S→SS	guard	守護系	DEF/HP	ACC_BR_GUARD_S	王盾の護符アークレア	S	ACC_BR_GUARD_SS	城塞の盾章グランベルグ	SS	15	MAT_BR_ACC_GUARD_ANCIENT	守護の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	guard	守護系	DEF/HP	ACC_BR_GUARD_SS	城塞の盾章グランベルグ	SS	ACC_BR_GUARD_SSS	不滅の守護聖印	SSS	25	MAT_BR_ACC_GUARD_SECRET	守護の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	guard	守護系	DEF/HP	ACC_BR_GUARD_SSS	不滅の守護聖印	SSS	ACC_BR_GUARD_EPIC	王城聖印アークガード	EPIC	35	MAT_BR_ACC_GUARD_CREST	守護の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。守護系の最終装備。
+装飾	S→SS	magic	魔力系	MAG	ACC_BR_MAGIC_S	魔導石ルミナス	S	ACC_BR_MAGIC_SS	星核の魔導石	SS	15	MAT_BR_ACC_MAGIC_ANCIENT	魔力の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	magic	魔力系	MAG	ACC_BR_MAGIC_SS	星核の魔導石	SS	ACC_BR_MAGIC_SSS	次元の魔導核	SSS	25	MAT_BR_ACC_MAGIC_SECRET	魔力の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	magic	魔力系	MAG	ACC_BR_MAGIC_SSS	次元の魔導核	SSS	ACC_BR_MAGIC_EPIC	次元魔導核ルミナーク	EPIC	35	MAT_BR_ACC_MAGIC_CREST	魔力の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。魔力系の最終装備。
+装飾	S→SS	prayer	祈祷系	SPR	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	ACC_BR_PRAYER_SS	星祈りの聖鈴	SS	15	MAT_BR_ACC_PRAYER_ANCIENT	祈祷の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	prayer	祈祷系	SPR	ACC_BR_PRAYER_SS	星祈りの聖鈴	SS	ACC_BR_PRAYER_SSS	天啓の祈祷符	SSS	25	MAT_BR_ACC_PRAYER_SECRET	祈祷の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	prayer	祈祷系	SPR	ACC_BR_PRAYER_SSS	天啓の祈祷符	SSS	ACC_BR_PRAYER_EPIC	天啓聖祈符セレスフィア	EPIC	35	MAT_BR_ACC_PRAYER_CREST	祈祷の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。祈祷系の最終装備。
+装飾	S→SS	wind	疾風系	SPD	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	ACC_BR_WIND_SS	天翔の風翼飾り	SS	15	MAT_BR_ACC_WIND_ANCIENT	疾風の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	wind	疾風系	SPD	ACC_BR_WIND_SS	天翔の風翼飾り	SS	ACC_BR_WIND_SSS	神速の風翼飾り	SSS	25	MAT_BR_ACC_WIND_SECRET	疾風の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	wind	疾風系	SPD	ACC_BR_WIND_SSS	神速の風翼飾り	SSS	ACC_BR_WIND_EPIC	風精王の翼飾エルヴェント	EPIC	35	MAT_BR_ACC_WIND_CREST	疾風の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。疾風系の最終装備。
+装飾	S→SS	luck	幸運系	LUK	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	ACC_BR_LUCK_SS	星導きの幸運鈴	SS	15	MAT_BR_ACC_LUCK_ANCIENT	幸運の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	luck	幸運系	LUK	ACC_BR_LUCK_SS	星導きの幸運鈴	SS	ACC_BR_LUCK_SSS	奇跡呼びの宝鈴	SSS	25	MAT_BR_ACC_LUCK_SECRET	幸運の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	luck	幸運系	LUK	ACC_BR_LUCK_SSS	奇跡呼びの宝鈴	SSS	ACC_BR_LUCK_EPIC	星導幸運鈴マリネア	EPIC	35	MAT_BR_ACC_LUCK_CREST	幸運の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。幸運系の最終装備。
+装飾	S→SS	balance	均衡系	全体少し	ACC_BR_BALANCE_S	調和の護石ルミナス	S	ACC_BR_BALANCE_SS	七都の護石	SS	15	MAT_BR_ACC_BALANCE_ANCIENT	均衡の古代片	5	再戦不可ボス素材の代替。最深部候補・強敵で入手する古代素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SS→SSS	balance	均衡系	全体少し	ACC_BR_BALANCE_SS	七都の護石	SS	ACC_BR_BALANCE_SSS	星環の均衡石	SSS	25	MAT_BR_ACC_BALANCE_SECRET	均衡の秘境晶	5	秘境探索で入手する高位素材。	S以降は同系統で強化。装飾品は形状名で差別化する。
+装飾	SSS→EPIC	balance	均衡系	全体少し	ACC_BR_BALANCE_SSS	星環の均衡石	SSS	ACC_BR_BALANCE_EPIC	七都均衡環アルザリア	EPIC	35	MAT_BR_ACC_BALANCE_CREST	均衡の極印	1	EPIC進化用の特別素材。高難度報酬で入手。	EPIC名は地域名そのままを避け、漢字の地域感＋造語で固有化。均衡系の最終装備。
+装飾	A→S	power	腕力系	ATK	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_POWER_RING_A	英傑の指輪	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_GUARD_RING_A	守護者の指輪	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_MAGIC_RING_A	賢者の指輪	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_PRAYER_AMULET_A	大聖者の護符	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_WIND_CHARM_A	神速の羽飾り	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_LUCK_CHARM_A	運命のお守り	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_LIFE_NECKLACE_A	英傑の首飾り	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_MIND_EARRING_A	大賢者の耳飾り	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_BALANCE_BRACELET_A	天命の腕輪	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	power	腕力系	ATK	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_POWER_S	鉄獅子の腕輪グランベルグ	S	10	MAT_BR_ACC_POWER_PATH	腕力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	guard	守護系	DEF/HP	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_GUARD_S	王盾の護符アークレア	S	10	MAT_BR_ACC_GUARD_PATH	守護の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	magic	魔力系	MAG	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_MAGIC_S	魔導石ルミナス	S	10	MAT_BR_ACC_MAGIC_PATH	魔力の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	prayer	祈祷系	SPR	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_PRAYER_S	祈りの聖鈴アークレア	S	10	MAT_BR_ACC_PRAYER_PATH	祈祷の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	wind	疾風系	SPD	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_WIND_S	風精の羽飾りエルフィア	S	10	MAT_BR_ACC_WIND_PATH	疾風の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	luck	幸運系	LUK	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_LUCK_S	港風の幸運鈴マリネス	S	10	MAT_BR_ACC_LUCK_PATH	幸運の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。
+装飾	A→S	balance	均衡系	全体少し	ACC_ADVENTURER_PROOF_A	救世者の証	A	ACC_BR_BALANCE_S	調和の護石ルミナス	S	10	MAT_BR_ACC_BALANCE_PATH	均衡の導石	3	エリア高位探索・強敵で入手する分岐進化素材。	A→Sは分岐。任意のA装飾品から系統選択する想定。

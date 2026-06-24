@@ -1,0 +1,4 @@
+- `[x]` マイグレーション作成と実行（`job_classes` への `bonus_*` および `special_skill_rate` カラム追加）
+- `[x]` `JobClass.php` モデルのキャスト更新
+- `[x]` `JobSystemSeeder.php` の全データ書き換え（TSVベース）
+- `[x]` シーダーの実行とデータ反映確認

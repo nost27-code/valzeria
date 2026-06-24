@@ -1,0 +1,271 @@
+id	type	sub_type	name	sub_type_name	rarity	recommended_level_min	recommended_level_max	buy_price	unlock_city_id	unlock_city_name	effect	hp_bonus	str_bonus	def_bonus	agi_bonus	mag_bonus	luk_bonus	spr_bonus	price	sell_price	category	shop_type	is_shop_item	recipe_id	recipe_memo
+1	weapon		木の剣		normal							0	1	0	0	0	0	0	10	0			TRUE		
+2	weapon		鉄の剣		normal							0	3	0	0	0	0	0	120	0			TRUE		
+3	weapon	剣	鋼の剣		D							0	7	0	0	0	0	0	450	2305			TRUE		
+4	weapon		魔術師の杖		normal							0	0	0	0	3	0	0	160	0			TRUE		
+5	weapon		盗賊の短剣		normal							0	2	0	1	0	0	0	200	0			TRUE		
+21	weapon		ゴブリンソード		rare							0	6	0	0	0	0	0	120	0			FALSE		
+27	weapon		鋼鉄の剣		normal							0	25	0	0	0	0	0	1000	0			FALSE		
+29	weapon		呪われた魔剣		normal							0	75	0	0	0	0	0	10000	0			FALSE		
+35	weapon		ゴブリン弓兵の弓		rare							0	11	0	0	0	0	0	160	0			FALSE		
+41	weapon		スケルトン見習いの骨剣		rare							0	18	0	0	0	0	0	320	0			FALSE		
+50	weapon		スケルトンの骨剣		rare							0	27	0	0	0	0	0	520	0			FALSE		
+59	weapon		訓練兵の武器		rare							0	36	0	0	0	0	0	720	0			FALSE		
+60	weapon		見習い剣士の剣		rare							0	36	0	0	0	0	0	720	0			FALSE		
+74	weapon		錆びた甲板兵の武器		rare							0	53	0	0	0	0	0	1120	0			FALSE		
+82	weapon		海賊下っ端のカトラス		rare							0	60	0	0	0	0	0	1280	0			FALSE		
+83	weapon		海賊射手のカトラス		rare							0	62	0	0	0	0	0	1320	0			FALSE		
+92	weapon		神殿兵の武器		rare							0	298	0	0	0	0	0	6640	0			FALSE		
+114	weapon		庭園の騎士の剣		rare							0	311	0	0	0	0	0	6920	0			FALSE		
+124	weapon		廃坑スケルトンの骨剣		rare							0	117	0	0	0	0	0	2560	0			FALSE		
+133	weapon		蒸気兵の武器		rare							0	131	0	0	0	0	0	2880	0			FALSE		
+140	weapon		電磁兵の武器		rare							0	246	0	0	0	0	0	5480	0			FALSE		
+143	weapon		古代兵の武器		rare							0	304	0	0	0	0	0	6760	0			FALSE		
+144	weapon		重装機兵の武器		rare							0	142	0	0	0	0	0	3120	0			FALSE		
+177	weapon		砂漠盗賊の短剣		rare							0	190	0	0	0	0	0	4200	0			FALSE		
+181	weapon		石像兵の武器		rare							0	307	0	0	0	0	0	6840	0			FALSE		
+206	weapon		暴走魔導兵の武器		rare							0	209	0	0	25	0	0	5120	0			FALSE		
+220	weapon		死霊兵の武器		rare							0	252	0	0	0	0	0	5600	0			FALSE		
+221	weapon		黒骨犬の骨剣		rare							0	254	0	0	0	0	0	5640	0			FALSE		
+225	weapon		呪い騎士の剣		rare							0	258	0	0	0	0	0	5720	0			FALSE		
+235	weapon		魔王軍兵の武器		rare							0	273	0	0	0	0	0	6080	0			FALSE		
+236	weapon		魔王軍弓兵の弓		rare							0	275	0	0	0	0	0	6120	0			FALSE		
+246	weapon		深淵騎士の剣		rare							0	284	0	0	0	0	0	6320	0			FALSE		
+256	weapon		神殿騎士の剣		rare							0	355	0	0	0	0	0	7920	0			FALSE		
+261	weapon		魔王軍歩兵の武器		rare							0	323	0	0	0	0	0	7200	0			FALSE		
+266	weapon		魔神兵の武器		rare							0	334	0	0	0	0	0	7440	0			FALSE		
+267	weapon		黒騎士将の剣		rare							0	335	0	0	0	0	0	7480	0			FALSE		
+276	weapon		魔王近衛兵の武器		rare							0	344	0	0	0	0	0	7680	0			FALSE		
+277	weapon		黒玉座の騎士の剣		rare							0	346	0	0	0	0	0	7720	0			FALSE		
+361	weapon	剣	旅立ちの剣		E							0	5	0	0	0	0	0	100	25			FALSE		
+362	weapon	斧	木こりの斧		E							0	5	0	0	0	0	0	100	25			FALSE		
+363	weapon	短剣	見習いの短剣		E							0	5	0	2	0	1	0	100	25			FALSE		
+364	weapon	弓	狩人の弓		E							0	5	0	1	0	1	0	100	25			FALSE		
+365	weapon	拳	革のグローブ		E							11	5	0	1	0	0	0	100	25			FALSE		
+366	weapon	杖	見習いの杖		E							0	0	0	0	5	0	1	100	25			FALSE		
+367	weapon	槍	兵士の槍		E							0	5	1	0	0	0	0	100	25			FALSE		
+368	weapon	銃	古びた銃		E							0	5	0	0	0	1	0	100	25			FALSE		
+369	weapon	魔導具	小さな魔導具		E							0	0	0	0	5	1	0	100	25			FALSE		
+370	weapon	斧	鋼の斧		D							0	7	0	0	0	0	0	9220	2305			FALSE		
+371	weapon	短剣	盗賊のナイフ		D							0	7	0	2	0	2	0	9220	2305			FALSE		
+372	weapon	弓	鋼の弓		D							0	7	0	1	0	1	0	9220	2305			FALSE		
+373	weapon	拳	鋼鉄の拳甲		D							17	7	0	2	0	0	0	9220	2305			FALSE		
+374	weapon	杖	魔力の杖		D							0	0	0	0	7	0	1	9220	2305			FALSE		
+375	weapon	槍	鋼の槍		D							0	7	1	0	0	0	0	9220	2305			FALSE		
+376	weapon	銃	整備された銃		D							0	7	0	0	0	1	0	9220	2305			FALSE		
+377	weapon	魔導具	魔導石の器		D							0	0	0	0	7	1	0	9220	2305			FALSE		
+378	weapon	剣	騎士の剣		J				1			0	33	0	3	0	0	0	26520	6630			TRUE		
+379	weapon	斧	バトルアクス		C							0	16	0	0	0	0	0	38500	9625			FALSE		
+380	weapon	短剣	影の短剣		C							0	16	0	5	0	4	0	38500	9625			FALSE		
+381	weapon	弓	ロングボウ		C							0	16	0	2	0	3	0	38500	9625			FALSE		
+382	weapon	拳	鉄拳甲		J				1			49	21	0	5	0	0	0	23860	5965			TRUE		
+383	weapon	杖	賢者見習いの杖		J				1			0	0	0	0	23	0	4	26520	6630			TRUE		
+384	weapon	槍	ハルバード		J				1			0	29	5	2	0	0	0	27700	6925			TRUE		
+385	weapon	銃	連射銃		J				1			0	28	0	2	0	6	0	30640	7660			TRUE		
+386	weapon	魔導具	魔導コア		J				1			0	0	0	0	24	4	0	29170	7293			TRUE		
+387	weapon	剣	ミスリルソード		B							0	31	0	3	0	0	0	87990	21997			FALSE		
+388	weapon	斧	ミスリルアクス		B							0	31	0	0	0	1	0	87990	21997			FALSE		
+389	weapon	短剣	疾風のダガー		B							0	31	0	11	0	7	0	87990	21997			FALSE		
+390	weapon	弓	ミスリルボウ		B							0	31	0	5	0	7	0	87990	21997			FALSE		
+391	weapon	拳	ミスリルナックル		B							70	31	0	7	0	0	0	87990	21997			FALSE		
+392	weapon	杖	ミスリルロッド		B							0	0	0	0	31	0	5	87990	21997			FALSE		
+393	weapon	槍	ミスリルランス		B							0	31	5	3	0	0	0	87990	21997			FALSE		
+394	weapon	銃	魔導銃		B							0	31	0	2	0	7	0	87990	21997			FALSE		
+395	weapon	魔導具	ミスリルオーブ		B							0	0	0	0	31	6	0	87990	21997			FALSE		
+396	weapon	剣	竜牙の剣		A							0	51	0	5	0	0	0	157680	39420			FALSE		
+397	weapon	斧	竜牙の戦斧		A							0	51	0	0	0	2	0	157680	39420			FALSE		
+398	weapon	短剣	月影の短剣		A							0	51	0	18	0	12	0	157680	39420			FALSE		
+399	weapon	弓	竜弦の弓		A							0	51	0	8	0	12	0	157680	39420			FALSE		
+400	weapon	拳	竜鱗の拳甲		A							117	51	0	12	0	0	0	157680	39420			FALSE		
+401	weapon	杖	月光の杖		A							0	0	0	0	51	0	8	157680	39420			FALSE		
+402	weapon	槍	竜牙の槍		A							0	51	9	4	0	0	0	157680	39420			FALSE		
+403	weapon	銃	竜骨銃		A							0	51	0	3	0	11	0	157680	39420			FALSE		
+404	weapon	魔導具	月光の魔導盤		A							0	0	0	0	51	10	0	157680	39420			FALSE		
+405	weapon	剣	星鉄の剣		S							0	78	0	7	0	0	0	247570	61892			FALSE		
+406	weapon	斧	星鉄の大斧		S							0	78	0	0	0	3	0	247570	61892			FALSE		
+407	weapon	短剣	星屑の短剣		S							0	78	0	27	0	18	0	247570	61892			FALSE		
+408	weapon	弓	星弦の弓		S							0	78	0	12	0	17	0	247570	61892			FALSE		
+409	weapon	拳	星鉄の籠手		S							177	78	0	18	0	0	0	247570	61892			FALSE		
+410	weapon	杖	星詠みの杖		B				9			0	0	0	0	216	0	34	1409310	352328			TRUE		
+411	weapon	槍	星鉄の槍		S							0	78	14	7	0	0	0	247570	61892			FALSE		
+412	weapon	銃	星弾銃		B				9			0	265	0	16	0	55	0	1620710	405178			TRUE		
+413	weapon	魔導具	星詠みの魔導具		S							0	0	0	0	78	14	0	247570	61892			FALSE		
+414	weapon	剣	ルーンブレード		D				7			0	215	0	19	0	0	0	746410	186603			TRUE		
+415	weapon	斧	ルーンアクス		D				7			0	226	0	0	0	8	0	783730	195933			TRUE		
+416	weapon	短剣	ルーンダガー		D				7			0	148	0	51	0	34	0	709090	177273			TRUE		
+417	weapon	弓	ルーンボウ		D				7			0	171	0	25	0	37	0	746410	186603			TRUE		
+418	weapon	拳	ルーンナックル		D				7			316	139	0	32	0	0	0	671770	167943			TRUE		
+419	weapon	杖	ルーンスタッフ		D				7			0	0	0	0	150	0	23	746410	186603			TRUE		
+420	weapon	槍	ルーンランス		D				7			0	185	32	16	0	0	0	783730	195933			TRUE		
+421	weapon	銃	ルーンライフル		D				7			0	184	0	11	0	38	0	858370	214593			TRUE		
+422	weapon	魔導具	ルーンオーブ		D				7			0	0	0	0	157	29	0	821050	205263			TRUE		
+423	weapon	剣	神鋼の剣		SSS							0	193	0	17	0	0	0	638430	159607			FALSE		
+424	weapon	斧	神鋼の大斧		SSS							0	193	0	0	0	7	0	638430	159607			FALSE		
+425	weapon	短剣	神速の短剣		SSS							0	193	0	67	0	45	0	638430	159607			FALSE		
+426	weapon	弓	神弓アルテミス		SSS							0	193	0	28	0	43	0	638430	159607			FALSE		
+427	weapon	拳	神鋼の拳甲		SSS							439	193	0	44	0	0	0	638430	159607			FALSE		
+428	weapon	杖	神秘の杖		SSS							0	0	0	0	193	0	30	638430	159607			FALSE		
+429	weapon	槍	神槍グングニル		SSS							0	193	34	17	0	0	0	638430	159607			FALSE		
+430	weapon	銃	神機銃		SSS							0	193	0	12	0	40	0	638430	159607			FALSE		
+431	weapon	魔導具	神秘の魔導核		SSS							0	0	0	0	193	35	0	638430	159607			FALSE		
+432	weapon	剣	終焉の剣		A				10			0	374	0	33	0	0	0	1971640	492910			TRUE		
+433	weapon	斧	終焉の戦斧		EX							0	243	0	0	0	9	0	809110	202277			FALSE		
+434	weapon	短剣	終焉の短剣		EX							0	243	0	84	0	56	0	809110	202277			FALSE		
+435	weapon	弓	終焉の弓		EX							0	243	0	36	0	53	0	809110	202277			FALSE		
+436	weapon	拳	終焉の拳甲		EX							554	243	0	56	0	0	0	809110	202277			FALSE		
+437	weapon	杖	終焉の杖		A				10			0	0	0	0	261	0	41	1971640	492910			TRUE		
+438	weapon	槍	終焉の槍		EX							0	243	43	21	0	0	0	809110	202277			FALSE		
+439	weapon	銃	終焉の銃		EX							0	243	0	15	0	51	0	809110	202277			FALSE		
+440	weapon	魔導具	終焉の魔導具		EX							0	0	0	0	243	45	0	809110	202277			FALSE		
+509	weapon		草原の若葉弓		E							0	10	0	1	0	2	0	620	0			FALSE		
+512	weapon		小鬼狩りの弓		E							0	10	0	1	0	2	0	620	0			FALSE		
+515	weapon		洞窟探検剣		E							0	11	0	1	0	0	0	620	0			FALSE		
+518	weapon		ウルフファング		E							0	11	0	1	0	0	0	620	0			FALSE		
+521	weapon		グレイブアクス		E							0	14	0	0	0	0	0	620	0			FALSE		
+524	weapon		フェアリーランス		E							0	11	2	1	0	0	0	620	0			FALSE		
+527	weapon		ノービスソード		E							0	11	0	1	0	0	0	620	0			FALSE		
+530	weapon		潮騎士の槍		D							0	32	6	3	0	0	0	3250	0			FALSE		
+533	weapon		海蝕の短剣		D							0	31	0	3	0	0	0	3120	0			FALSE		
+536	weapon		難破船のカトラス		D							0	31	0	3	0	0	0	3120	0			FALSE		
+539	weapon		人魚の水槍		D							0	32	6	3	0	0	0	3250	0			FALSE		
+542	weapon	斧	海賊狩りの斧		I				2			0	55	0	0	0	2	0	64450	16113			TRUE		
+545	weapon		珊瑚の魔杖		D							0	32	6	3	0	0	0	3250	0			FALSE		
+548	weapon		深海神殿の聖槍		D							0	0	0	0	31	0	0	3120	0			FALSE		
+551	weapon		若葉の狩弓		C							0	58	0	8	0	12	0	11250	0			FALSE		
+554	weapon		妖精森の短剣		C							0	58	0	8	0	12	0	11250	0			FALSE		
+557	weapon		世界樹根の大槌		C							0	64	11	6	0	0	0	11750	0			FALSE		
+560	weapon		世界樹中層の杖		C							0	58	0	8	0	12	0	11250	0			FALSE		
+563	weapon		世界樹上層の弓		C							0	58	0	8	0	12	0	11250	0			FALSE		
+566	weapon		精霊神殿の霊杖		C							0	0	0	0	63	0	0	11250	0			FALSE		
+569	weapon		月光の細剣		C							0	0	0	0	63	0	0	11250	0			FALSE		
+572	weapon		鉄鉱の戦斧		B							0	109	0	10	0	0	0	31250	0			FALSE		
+575	weapon		廃坑の削岩剣		B							0	129	0	0	0	5	0	32750	0			FALSE		
+578	weapon		溶鉱炉の大剣		B							0	109	0	10	0	0	0	31250	0			FALSE		
+581	weapon		蒸気駆動槍		B							0	109	0	10	0	0	0	31250	0			FALSE		
+584	weapon		機械兵の歯車剣		B							0	109	0	10	0	0	0	31250	0			FALSE		
+587	weapon		雷動ブレード		B							0	109	0	10	0	0	0	31250	0			FALSE		
+590	weapon		古代兵装の剣		B							0	109	0	10	0	0	0	31250	0			FALSE		
+593	weapon		氷雪の槍		A							0	187	34	17	0	0	0	78750	0			FALSE		
+596	weapon		吹雪の大弓		A							0	187	34	17	0	0	0	78750	0			FALSE		
+599	weapon		氷結洞の氷剣		A							0	184	0	17	0	0	0	75000	0			FALSE		
+602	weapon		白銀の狩弓		A							0	187	34	17	0	0	0	78750	0			FALSE		
+605	weapon		凍神殿の聖杖		A							0	0	0	0	184	0	0	75000	0			FALSE		
+608	weapon		氷竜牙の槍		A							0	187	34	17	0	0	0	78750	0			FALSE		
+611	weapon		極寒山脈の大斧		A							0	187	34	17	0	0	0	78750	0			FALSE		
+614	weapon		砂海の曲刀		S							0	299	0	27	0	0	0	175000	0			FALSE		
+617	weapon		流砂の双刃		S							0	299	0	27	0	0	0	175000	0			FALSE		
+620	weapon		遺跡兵装の剣		S							0	299	0	27	0	0	0	175000	0			FALSE		
+623	weapon		王墓のファルシオン		S							0	353	0	0	0	14	0	183750	0			FALSE		
+626	weapon		砂嵐神殿の槍		S							0	0	0	0	299	0	0	175000	0			FALSE		
+629	weapon		地下水路の短剣		S							0	305	55	27	0	0	0	183750	0			FALSE		
+632	weapon		太陽神の曲刀		S							0	0	0	0	299	0	0	175000	0			FALSE		
+635	weapon		魔導書庫の杖		S							0	299	0	27	0	0	0	175000	0			FALSE		
+638	weapon		禁書の呪杖		S							0	353	0	0	0	14	0	183750	0			FALSE		
+641	weapon		魔法研究所の試作杖		S							0	299	0	27	0	0	0	175000	0			FALSE		
+644	weapon		浮遊庭園の花槍		SS							0	0	0	0	460	0	0	400000	0			FALSE		
+647	weapon		星見の星杖		SS							0	0	0	0	460	0	0	400000	0			FALSE		
+650	weapon		異界観測の雷杖		SS							0	460	0	41	0	0	0	400000	0			FALSE		
+653	weapon		次元裂きの剣		SS							0	460	0	41	0	0	0	400000	0			FALSE		
+656	weapon		死者荒野の骨剣		SS							0	543	0	0	0	20	0	420000	0			FALSE		
+659	weapon		呪城の黒剣		SS							0	543	0	0	0	20	0	420000	0			FALSE		
+662	weapon		冥界門の大鎌		SS							0	543	0	0	0	20	0	420000	0			FALSE		
+665	weapon		悪魔神殿の魔槍		SS							0	0	0	0	460	0	0	400000	0			FALSE		
+668	weapon		魔王軍の軍刀		SS							0	460	0	41	0	0	0	400000	0			FALSE		
+671	weapon		瘴気谷の毒刃		SS							0	543	0	0	0	20	0	420000	0			FALSE		
+674	weapon		奈落の階段剣		SS							0	543	0	0	0	20	0	420000	0			FALSE		
+677	weapon		雲海の軽槍		SSS							0	674	119	60	0	0	0	853120	0			FALSE		
+680	weapon		天空回廊の光剣		SSS							0	661	0	60	0	0	0	812500	0			FALSE		
+683	weapon		雷鳴神殿の雷槍		SSS							0	0	0	0	661	0	0	812500	0			FALSE		
+686	weapon		浮遊遺跡の機兵剣		SSS							0	661	0	60	0	0	0	812500	0			FALSE		
+689	weapon		天使庭園の聖弓		SSS							0	0	0	0	661	0	0	812500	0			FALSE		
+692	weapon		星辰塔の星剣		SSS							0	0	0	0	661	0	0	812500	0			FALSE		
+695	weapon		神々の祭壇の神槍		SSS							0	0	0	0	661	0	0	812500	0			FALSE		
+698	weapon		魔王領の黒刃		EX							0	920	0	83	0	0	0	1375000	0			FALSE		
+701	weapon		絶望回廊の絶刃		EX							0	920	0	83	0	0	0	1375000	0			FALSE		
+704	weapon		魔神の大剣		EX							0	0	0	0	920	0	0	1375000	0			FALSE		
+707	weapon		深淵牢の鎖剣		EX							0	920	0	83	0	0	0	1375000	0			FALSE		
+710	weapon		黒玉座の王剣		EX							0	920	0	83	0	0	0	1375000	0			FALSE		
+713	weapon		魔王城中枢の魔導剣		EX							0	920	0	83	0	0	0	1375000	0			FALSE		
+716	weapon		終焉祭壇の滅剣		EX							0	0	0	0	920	0	0	1375000	0			FALSE		
+719	weapon	剣	王都兵の剣		K				1			0	17	0	1	0	0	0	7390	1848			TRUE		
+720	weapon	斧	王都兵の斧		K				1			0	18	0	0	0	0	0	7690	1923			TRUE		
+721	weapon	短剣	王都兵の短剣		K				1			0	12	0	4	0	2	0	7100	1775			TRUE		
+722	weapon	弓	王都兵の弓		K				1			0	13	0	2	0	3	0	7390	1848			TRUE		
+723	weapon	拳	王都兵の拳甲		K				1			25	11	0	2	0	0	0	6510	1628			TRUE		
+724	weapon	杖	王都見習いの杖		K				1			0	0	0	0	12	0	1	7390	1848			TRUE		
+725	weapon	槍	王都兵の槍		K				1			0	14	2	1	0	0	0	7690	1923			TRUE		
+726	weapon	銃	王都式短銃		K				1			0	14	0	1	0	3	0	8580	2145			TRUE		
+727	weapon	魔導具	王都式魔導具		K				1			0	0	0	0	12	2	0	8280	2070			TRUE		
+728	weapon	斧	騎士団の戦斧		J				1			0	35	0	0	0	1	0	27700	6925			TRUE		
+729	weapon	短剣	影歩きの短剣		J				1			0	23	0	8	0	5	0	25340	6335			TRUE		
+730	weapon	弓	王国長弓		J				1			0	26	0	4	0	6	0	26520	6630			TRUE		
+731	weapon	剣	潮騎士の剣		I				2			0	53	0	5	0	0	0	61490	15373			TRUE		
+732	weapon	短剣	潮風の短剣		I				2			0	36	0	13	0	9	0	58540	14635			TRUE		
+733	weapon	弓	波切りの弓		I				2			0	42	0	6	0	9	0	61490	15373			TRUE		
+734	weapon	拳	船乗りの拳甲		I				2			78	34	0	8	0	0	0	55350	13838			TRUE		
+735	weapon	杖	海鳴りの杖		I				2			0	0	0	0	37	0	6	61490	15373			TRUE		
+736	weapon	槍	銛槍トライデント		I				2			0	45	8	4	0	0	0	64450	16113			TRUE		
+737	weapon	銃	潮騒の銃		I				2			0	45	0	3	0	10	0	70600	17650			TRUE		
+738	weapon	魔導具	蒼海の魔導具		I				2			0	0	0	0	38	7	0	67640	16910			TRUE		
+739	weapon	剣	精霊樹の剣		H				3			0	75	0	7	0	0	0	115270	28818			TRUE		
+740	weapon	斧	森守りの戦斧		H				3			0	79	0	0	0	3	0	121030	30258			TRUE		
+741	weapon	短剣	木漏れ日の短剣		H				3			0	51	0	18	0	12	0	109500	27375			TRUE		
+742	weapon	弓	精霊弦の弓		H				3			0	59	0	9	0	13	0	115270	28818			TRUE		
+743	weapon	拳	森霊の拳甲		H				3			110	48	0	11	0	0	0	103740	25935			TRUE		
+744	weapon	杖	精霊樹の杖		H				3			0	0	0	0	52	0	8	115270	28818			TRUE		
+745	weapon	槍	若葉の槍		H				3			0	64	12	6	0	0	0	121030	30258			TRUE		
+746	weapon	銃	翠風の銃		H				3			0	64	0	4	0	14	0	132550	33138			TRUE		
+747	weapon	魔導具	精霊核の魔導具		H				3			0	0	0	0	55	10	0	126790	31698			TRUE		
+748	weapon	剣	黒鉄の剣		G				4			0	105	0	10	0	0	0	212730	53183			TRUE		
+749	weapon	斧	黒鉄の大斧		G				4			0	111	0	0	0	4	0	223370	55843			TRUE		
+750	weapon	短剣	機工短剣		G				4			0	72	0	25	0	17	0	202100	50525			TRUE		
+751	weapon	弓	鋼弦の弓		G				4			0	84	0	12	0	19	0	212730	53183			TRUE		
+752	weapon	拳	鋼鉄拳甲		G				4			155	68	0	16	0	0	0	191460	47865			TRUE		
+753	weapon	杖	炉心の杖		G				4			0	0	0	0	74	0	12	212730	53183			TRUE		
+754	weapon	槍	鋼機の槍		G				4			0	91	16	8	0	0	0	223370	55843			TRUE		
+755	weapon	銃	工房式ライフル		G				4			0	90	0	6	0	19	0	244640	61160			TRUE		
+756	weapon	魔導具	炉心魔導盤		G				4			0	0	0	0	77	14	0	234010	58503			TRUE		
+757	weapon	剣	氷刃の剣		F				5			0	146	0	13	0	0	0	379760	94940			TRUE		
+758	weapon	斧	氷砕きの戦斧		F				5			0	154	0	0	0	6	0	398750	99688			TRUE		
+759	weapon	短剣	霜影の短剣		F				5			0	101	0	35	0	23	0	360770	90193			TRUE		
+760	weapon	弓	氷弦の弓		F				5			0	117	0	17	0	26	0	379760	94940			TRUE		
+761	weapon	拳	霜鉄の拳甲		F				5			216	95	0	22	0	0	0	341790	85448			TRUE		
+762	weapon	杖	氷晶の杖		F				5			0	0	0	0	102	0	16	379760	94940			TRUE		
+763	weapon	槍	氷槍グレイシア		F				5			0	126	22	11	0	0	0	398750	99688			TRUE		
+764	weapon	銃	凍結銃		F				5			0	126	0	8	0	26	0	436730	109183			TRUE		
+765	weapon	魔導具	氷晶魔導具		F				5			0	0	0	0	107	19	0	417740	104435			TRUE		
+766	weapon	剣	砂王の曲剣		E				6			0	183	0	16	0	0	0	565210	141303			TRUE		
+767	weapon	斧	太陽の戦斧		E				6			0	193	0	0	0	7	0	593480	148370			TRUE		
+768	weapon	短剣	砂影の短剣		E				6			0	127	0	44	0	29	0	536950	134238			TRUE		
+769	weapon	弓	砂嵐の弓		E				6			0	146	0	21	0	32	0	565210	141303			TRUE		
+770	weapon	拳	砂鉄の拳甲		E				6			270	119	0	27	0	0	0	508690	127173			TRUE		
+771	weapon	杖	太陽祭司の杖		E				6			0	0	0	0	128	0	20	565210	141303			TRUE		
+772	weapon	槍	砂王の槍		E				6			0	158	28	14	0	0	0	593480	148370			TRUE		
+773	weapon	銃	砂塵銃		E				6			0	157	0	10	0	33	0	650000	162500			TRUE		
+774	weapon	魔導具	古代砂晶盤		E				6			0	0	0	0	134	25	0	621740	155435			TRUE		
+775	weapon	剣	冥界の剣		C				8			0	256	0	23	0	0	0	1020120	255030			TRUE		
+776	weapon	斧	冥府の大斧		C				8			0	269	0	0	0	10	0	1071130	267783			TRUE		
+777	weapon	短剣	死影の短剣		C				8			0	177	0	61	0	41	0	969120	242280			TRUE		
+778	weapon	弓	冥弦の弓		C				8			0	204	0	30	0	45	0	1020120	255030			TRUE		
+779	weapon	拳	冥鉄の拳甲		C				8			377	166	0	38	0	0	0	918110	229528			TRUE		
+780	weapon	杖	死霊王の杖		C				8			0	0	0	0	179	0	28	1020120	255030			TRUE		
+781	weapon	槍	冥槍ノクス		C				8			0	221	39	19	0	0	0	1071130	267783			TRUE		
+782	weapon	銃	冥弾銃		C				8			0	220	0	14	0	46	0	1173140	293285			TRUE		
+783	weapon	魔導具	深淵の魔導核		C				8			0	0	0	0	187	34	0	1122130	280533			TRUE		
+784	weapon	剣	天空の剣		B				9			0	309	0	28	0	0	0	1409310	352328			TRUE		
+785	weapon	斧	天雷の戦斧		B				9			0	324	0	0	0	12	0	1479780	369945			TRUE		
+786	weapon	短剣	星影の短剣		B				9			0	213	0	74	0	49	0	1338840	334710			TRUE		
+787	weapon	弓	星天の弓		B				9			0	246	0	36	0	54	0	1409310	352328			TRUE		
+788	weapon	拳	天翼の拳甲		B				9			454	200	0	46	0	0	0	1268380	317095			TRUE		
+789	weapon	槍	天槍アストラ		B				9			0	266	47	23	0	0	0	1479780	369945			TRUE		
+790	weapon	魔導具	星天の魔導盤		B				9			0	0	0	0	226	41	0	1550240	387560			TRUE		
+791	weapon	斧	覇滅の戦斧		A				10			0	392	0	0	0	15	0	2070220	517555			TRUE		
+792	weapon	短剣	黒翼の短剣		A				10			0	258	0	89	0	59	0	1873060	468265			TRUE		
+793	weapon	弓	終月の弓		A				10			0	298	0	44	0	65	0	1971640	492910			TRUE		
+794	weapon	拳	覇王の拳甲		A				10			549	242	0	55	0	0	0	1774470	443618			TRUE		
+795	weapon	槍	覇滅の魔槍		A				10			0	322	57	28	0	0	0	2070220	517555			TRUE		
+796	weapon	銃	終焉銃		A				10			0	320	0	20	0	67	0	2267380	566845			TRUE		
+797	weapon	魔導具	終焉の魔導核		A				10			0	0	0	0	273	50	0	2168800	542200			TRUE		
+800	weapon		古びた短剣		rare							0	3	0	1	0	0	0	0	0			FALSE		
+802	weapon		小鬼の棍棒		normal							0	4	0	-1	0	0	0	0	0			FALSE		
+807	weapon		骨の短剣		rare							0	8	0	1	0	0	0	0	0			FALSE		

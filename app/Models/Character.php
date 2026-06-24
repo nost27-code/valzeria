@@ -1,0 +1,215 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Character extends Model
+{
+    use HasFactory;
+
+    protected $guarded = [];
+
+    // 日付ミューテータの設定
+    protected $casts = [
+        'is_frozen' => 'boolean',
+        'frozen_at' => 'datetime',
+        'last_seen_at' => 'datetime',
+        'last_battle_at' => 'datetime',
+        'last_champ_battle_at' => 'datetime',
+        'exploration_cooldown_until' => 'datetime',
+        'kiseki' => 'integer',
+        'paid_kiseki' => 'integer',
+        'free_kiseki' => 'integer',
+        'money' => 'integer',
+        'bank_gold' => 'integer',
+        'material_storage_limit' => 'integer',
+        'equipment_storage_limit' => 'integer',
+        'guild_donation_total' => 'integer',
+        'hp_fraction' => 'float',
+        'mp_fraction' => 'float',
+        'attack_fraction' => 'float',
+        'defense_fraction' => 'float',
+        'magic_fraction' => 'float',
+        'speed_fraction' => 'float',
+        'luck_fraction' => 'float',
+        'spirit_fraction' => 'float',
+        'beginner_mission_completed_keys' => 'array',
+        'beginner_mission_reward_claimed' => 'boolean',
+        'home_display_mode' => 'string',
+        'job_art_activation_policy' => 'string',
+        'profile_comment' => 'string',
+        'profile_ranch_background' => 'string',
+        'profile_frame_theme' => 'string',
+        'private_chat_theme' => 'string',
+    ];
+
+    /**
+     * ユーザーとのリレーション
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * 現在の職業とのリレーション
+     */
+    public function jobClass()
+    {
+        return $this->belongsTo(JobClass::class, 'current_job_id');
+    }
+
+    public function currentJob()
+    {
+        return $this->belongsTo(JobClass::class, 'current_job_id');
+    }
+
+    public function currentCity()
+    {
+        return $this->belongsTo(City::class, 'current_city_id');
+    }
+
+    public function highestCity()
+    {
+        return $this->belongsTo(City::class, 'highest_city_id');
+    }
+
+    /**
+     * これまでの転職履歴（マスターした職業など）
+     */
+    public function jobHistories()
+    {
+        return $this->hasMany(CharacterJob::class);
+    }
+
+    public function jobArtSlots()
+    {
+        return $this->hasMany(CharacterJobArtSlot::class);
+    }
+
+    /**
+     * エリア進行状況とのリレーション
+     */
+    public function areaProgresses()
+    {
+        return $this->hasMany(CharacterAreaProgress::class);
+    }
+
+    public function cityDiscoveries()
+    {
+        return $this->hasMany(CharacterCityDiscovery::class);
+    }
+
+    /**
+     * 戦闘ログとのリレーション
+     */
+    public function battleLogs()
+    {
+        return $this->hasMany(BattleLog::class);
+    }
+
+    public function goldTransactions()
+    {
+        return $this->hasMany(GoldTransaction::class);
+    }
+
+    public function marketListings()
+    {
+        return $this->hasMany(MarketListing::class, 'seller_character_id');
+    }
+
+    public function marketSales()
+    {
+        return $this->hasMany(MarketTransaction::class, 'seller_character_id');
+    }
+
+    public function marketPurchases()
+    {
+        return $this->hasMany(MarketTransaction::class, 'buyer_character_id');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(CharacterNotification::class);
+    }
+
+    public function explorationState()
+    {
+        return $this->hasOne(CharacterExplorationState::class);
+    }
+
+    /**
+     * 所持アイテム・装備とのリレーション
+     */
+    public function characterItems()
+    {
+        return $this->hasMany(CharacterItem::class);
+    }
+
+    /**
+     * 所持素材とのリレーション
+     */
+    public function characterMaterials()
+    {
+        return $this->hasMany(CharacterMaterial::class);
+    }
+
+    public function consumableItems()
+    {
+        return $this->hasMany(CharacterConsumableItem::class);
+    }
+
+    public function valmons()
+    {
+        return $this->hasMany(PlayerValmon::class);
+    }
+
+    public function partnerValmon()
+    {
+        return $this->hasOne(PlayerValmon::class)->where('is_partner', true);
+    }
+
+    public function valmonEggs()
+    {
+        return $this->hasMany(PlayerValmonEgg::class);
+    }
+
+    public function titles()
+    {
+        return $this->hasMany(CharacterTitle::class);
+    }
+
+    /**
+     * 転職履歴
+     */
+    public function jobChangeLogs()
+    {
+        return $this->hasMany(JobChangeLog::class);
+    }
+
+    /**
+     * 闘技場ランキング
+     */
+    public function arenaRanking()
+    {
+        return $this->hasOne(ArenaRanking::class);
+    }
+
+    /**
+     * 自分が挑んだ闘技場ログ
+     */
+    public function arenaAttackLogs()
+    {
+        return $this->hasMany(ArenaLog::class, 'attacker_id');
+    }
+
+    /**
+     * 自分が挑まれた闘技場ログ
+     */
+    public function arenaDefenseLogs()
+    {
+        return $this->hasMany(ArenaLog::class, 'defender_id');
+    }
+}

@@ -1,0 +1,11 @@
+- [x] `app/Http/Controllers/BattleController.php` の修正
+  - [x] `explore` メソッドをリダイレクトに変更
+  - [x] `boss` メソッドをリダイレクトに変更
+  - [x] `pvp` メソッドをリダイレクトに変更
+  - [x] 新規メソッド `showResult` を追加
+  - [x] 新規メソッド `showPvpResult` を追加
+- [x] `routes/web.php` の修正
+  - [x] GET `/battle/result` ルートの追加
+  - [x] GET `/battle/pvp-result` ルートの追加
+- [x] `docs/project_knowledge.md` へPRGパターンの教訓を追記
+- [x] ローカル環境での実装と確認完了

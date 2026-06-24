@@ -1,0 +1,8 @@
+- [x] Laravel 11のインストール
+- [x] Livewire 3のインストール
+- [x] Tailwind CSSのインストールと初期設定
+- [x] `characters` テーブルマイグレーションの作成と反映
+- [x] `MainScreen` Livewireコンポーネントの作成と反映
+- [x] ルーティングの設定
+- [x] ローカルサーバーでの表示確認 (Viteビルド完了)
+- [x] `walkthrough.md` の作成

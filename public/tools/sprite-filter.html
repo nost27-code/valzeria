@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Style Filter — ヴァルゼリアの冒険者</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --card: #0f1f3d;
+  --border: #2d2d5e;
+  --accent: #a78bfa;
+  --accent2: #c4b5fd;
+  --text: #e0e0e0;
+  --muted: #8888aa;
+  --green: #4ade80;
+  --yellow: #facc15;
+  --orange: #fb923c;
+  --red: #f87171;
+  --blue: #60a5fa;
+}
+body {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+h2 { font-size: 0.8rem; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+
+/* ── Header ─────────────────────────────────────── */
+#header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+#header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+#stats-bar {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+}
+#stats-bar span { white-space: nowrap; }
+#stats-bar b { color: var(--text); }
+
+/* ── Layout ──────────────────────────────────────── */
+#layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 41px);
+}
+
+/* ── Sidebar ──────────────────────────────────────── */
+#sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.panel { display: flex; flex-direction: column; gap: 6px; }
+
+/* Upload zone */
+#drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  color: var(--muted);
+  line-height: 1.6;
+}
+#drop-zone:hover, #drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(167,139,250,0.06);
+  color: var(--text);
+}
+#drop-zone .icon { font-size: 28px; display: block; margin-bottom: 4px; }
+#file-input { display: none; }
+
+/* Buttons */
+button {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+button:hover { background: #1e2f5a; border-color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.primary { background: #4c1d95; border-color: var(--accent); color: #ede9fe; }
+button.primary:hover { background: #5b21b6; }
+button.danger { background: #3b0a0a; border-color: var(--red); color: var(--red); }
+button.danger:hover { background: #5b1a1a; }
+
+/* Controls */
+label { font-size: 11px; color: var(--muted); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input[type="number"], select {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 12px;
+  width: 100%;
+}
+input[type="number"]:focus, select:focus { outline: none; border-color: var(--accent); }
+
+.control-row { display: flex; align-items: center; gap: 6px; }
+.control-row label { flex: 1; min-width: 0; }
+.control-row input, .control-row select { width: 70px; flex-shrink: 0; }
+
+.weight-row { font-size: 11px; margin-bottom: 4px; }
+.weight-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.weight-row-top label { color: var(--muted); white-space: nowrap; }
+.weight-row-top span { color: var(--accent); font-weight: 700; min-width: 32px; text-align: right; }
+.weight-row input[type="range"] { width: 100%; }
+
+.sep { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+
+/* Progress */
+#progress-wrap { display: none; }
+#progress-bar-outer {
+  background: var(--card);
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+#progress-bar-inner {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.1s;
+}
+#progress-text { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* Reference info */
+#ref-info { font-size: 11px; color: var(--muted); line-height: 1.5; }
+#ref-info b { color: var(--accent); }
+
+/* ── Main content ─────────────────────────────────── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Toolbar */
+#toolbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+#toolbar label { font-size: 11px; color: var(--muted); }
+#toolbar select { width: auto; }
+.toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+#score-filter-wrap { display: flex; align-items: center; gap: 6px; }
+#score-filter-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+#score-filter-val { font-size: 11px; color: var(--accent); font-weight: 700; width: 28px; }
+
+/* Grid */
+#grid-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+#grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+}
+#empty-msg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--muted);
+  line-height: 2;
+  pointer-events: none;
+}
+#empty-msg .big { font-size: 3rem; }
+
+/* Cards */
+.sprite-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+  user-select: none;
+}
+.sprite-card:hover { border-color: #4a4a8a; background: #132040; }
+.sprite-card.selected { border-color: var(--accent); background: #1d1040; }
+.sprite-card.reference { border-color: var(--yellow); background: #1a1200; }
+.sprite-card.reference.selected { border-color: var(--yellow); }
+.sprite-card.excluded { opacity: 0.3; }
+
+/* Checkerboard canvas bg */
+.canvas-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  background-image:
+    linear-gradient(45deg, #333 25%, transparent 25%),
+    linear-gradient(-45deg, #333 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #333 75%),
+    linear-gradient(-45deg, transparent 75%, #333 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+  background-color: #222;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.canvas-wrap canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.card-info {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.card-filename {
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.card-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.score-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  min-width: 36px;
+  text-align: center;
+}
+.score-85 { background: #064e3b; color: var(--green); }
+.score-75 { background: #1a3300; color: #86efac; }
+.score-60 { background: #451a03; color: var(--orange); }
+.score-0  { background: #3b0a0a; color: var(--red); }
+.score-na { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+.cluster-badge {
+  font-size: 10px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-top: 2px;
+}
+.meta-item {
+  font-size: 10px;
+  color: var(--muted);
+}
+.meta-item b { color: var(--text); }
+
+/* Card badges */
+.ref-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: var(--yellow);
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+.sel-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.excl-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--red);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Cluster colors */
+.cl0  { background: #7c3aed; color: #fff; }
+.cl1  { background: #db2777; color: #fff; }
+.cl2  { background: #059669; color: #fff; }
+.cl3  { background: #d97706; color: #fff; }
+.cl4  { background: #2563eb; color: #fff; }
+.cl5  { background: #dc2626; color: #fff; }
+.cl6  { background: #0891b2; color: #fff; }
+.cl7  { background: #65a30d; color: #fff; }
+.cl8  { background: #9333ea; color: #fff; }
+.cl9  { background: #c2410c; color: #fff; }
+
+/* Context menu */
+#ctx-menu {
+  position: fixed;
+  display: none;
+  background: #1e2a4a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 1000;
+  overflow: hidden;
+  min-width: 160px;
+}
+#ctx-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+#ctx-menu button:last-child { border-bottom: none; }
+#ctx-menu button:hover { background: #2a3a60; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #3a3a6a; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🎨 Sprite Style Filter</h1>
+  <div id="stats-bar">
+    <span>総数: <b id="stat-total">0</b></span>
+    <span>処理済: <b id="stat-ready">0</b></span>
+    <span>選択中: <b id="stat-selected">0</b></span>
+    <span>基準: <b id="stat-ref">0</b>枚</span>
+  </div>
+</div>
+
+<div id="layout">
+  <!-- ─── Sidebar ─────────────────────────── -->
+  <div id="sidebar">
+
+    <!-- Upload -->
+    <div class="panel">
+      <h2>📁 アップロード</h2>
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <span class="icon">🖼️</span>
+        クリックまたはドロップ<br>
+        <small>PNG / JPG / WebP 複数可</small>
+      </div>
+      <input id="file-input" type="file" multiple accept="image/png,image/jpeg,image/webp">
+      <button class="danger" onclick="clearAll()" id="btn-clear">すべて削除</button>
+    </div>
+
+    <hr class="sep">
+
+    <!-- Progress -->
+    <div id="progress-wrap" class="panel">
+      <h2>⚙️ 処理中</h2>
+      <div id="progress-bar-outer"><div id="progress-bar-inner"></div></div>
+      <div id="progress-text">0 / 0</div>
+    </div>
+
+    <!-- Reference -->
+    <div class="panel">
+      <h2>🎯 基準画像</h2>
+      <div id="ref-info">右クリックで基準に設定<br><b id="ref-count">0</b> 枚選択中</div>
+      <button onclick="clearRefs()">基準をクリア</button>
+      <button class="primary" onclick="computeAllScores()">スコア再計算</button>
+    </div>
+
+    <hr class="sep">
+
+    <!-- Clustering -->
+    <div class="panel">
+      <h2>🔬 クラスタリング</h2>
+      <div class="control-row">
+        <label>クラスタ数 k</label>
+        <input type="number" id="cluster-k" value="5" min="2" max="10">
+      </div>
+      <button onclick="runClustering()">クラスタリング実行</button>
+    </div>
+
+    <hr class="sep">
+
+    <!-- Weights -->
+    <div class="panel">
+      <h2>⚖️ 重み設定</h2>
+      <div class="weight-row">
+        <div class="weight-row-top"><label>ドットスタイル</label><span id="wl-style">35%</span></div>
+        <input type="range" id="w-style" min="0" max="100" value="35" oninput="updateWeightLabel('style',this.value)">
+      </div>
+      <div class="weight-row">
+        <div class="weight-row-top"><label>カラーパレット</label><span id="wl-color">25%</span></div>
+        <input type="range" id="w-color" min="0" max="100" value="25" oninput="updateWeightLabel('color',this.value)">
+      </div>
+      <div class="weight-row">
+        <div class="weight-row-top"><label>シルエット</label><span id="wl-sil">25%</span></div>
+        <input type="range" id="w-sil" min="0" max="100" value="25" oninput="updateWeightLabel('sil',this.value)">
+      </div>
+      <div class="weight-row">
+        <div class="weight-row-top"><label>知覚ハッシュ</label><span id="wl-hash">15%</span></div>
+        <input type="range" id="w-hash" min="0" max="100" value="15" oninput="updateWeightLabel('hash',this.value)">
+      </div>
+      <button onclick="computeAllScores()">重みを適用</button>
+    </div>
+
+    <hr class="sep">
+
+    <!-- Export -->
+    <div class="panel">
+      <h2>💾 エクスポート</h2>
+      <button class="primary" onclick="exportZip(false)" id="btn-export-zip">選択画像をZIPで保存</button>
+      <button onclick="exportZip(true)">連番リネームしてZIP</button>
+      <button onclick="exportCsv()">CSVを出力</button>
+      <small style="color:var(--muted);font-size:10px;line-height:1.5">
+        ※ チェックマーク付きの画像が対象<br>基準画像は自動選択
+      </small>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ─── Main ─────────────────────────── -->
+  <div id="main">
+    <div id="toolbar">
+      <label>並び順:</label>
+      <select id="sort-by" onchange="renderGrid()">
+        <option value="score-desc">スコア↓</option>
+        <option value="score-asc">スコア↑</option>
+        <option value="name-asc">ファイル名↑</option>
+        <option value="name-desc">ファイル名↓</option>
+        <option value="cluster">クラスタ</option>
+        <option value="colors-desc">色数↓</option>
+      </select>
+      <div class="toolbar-sep"></div>
+      <div id="score-filter-wrap">
+        <span id="score-filter-label">スコア閾値:</span>
+        <input type="range" id="score-filter" min="0" max="100" value="0" style="width:100px" oninput="onFilterChange(this.value)">
+        <span id="score-filter-val">0</span>
+      </div>
+      <div class="toolbar-sep"></div>
+      <label>クラスタ:</label>
+      <select id="filter-cluster" onchange="renderGrid()">
+        <option value="all">すべて</option>
+      </select>
+      <div class="toolbar-sep"></div>
+      <button onclick="selectAllVisible()">全選択</button>
+      <button onclick="deselectAll()">選択解除</button>
+      <button onclick="selectByScore()">閾値以上を選択</button>
+    </div>
+
+    <div id="grid-wrap" style="position:relative">
+      <div id="empty-msg">
+        <div class="big">🎮</div>
+        画像をアップロードしてください<br>
+        <small>PNG / JPG / WebP に対応 / 複数一括アップロード可</small>
+      </div>
+      <div id="grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <button onclick="ctxSetRef()">⭐ 基準画像に設定</button>
+  <button onclick="ctxUnsetRef()">☆ 基準から外す</button>
+  <button onclick="ctxToggleSelect()">✓ 選択/解除</button>
+  <button onclick="ctxToggleExclude()">🚫 非表示/表示</button>
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════ */
+const state = {
+  sprites: [],        // SpriteImage[]
+  referenceIds: new Set(),
+  weights: { style: 0.35, color: 0.25, sil: 0.25, hash: 0.15 },
+  scoreThreshold: 0,
+  clusterK: 5,
+  normalizeSize: 96,
+};
+
+let ctxTargetId = null;
+
+/* ═══════════════════════════════════════════════════════
+   UPLOAD & FILE HANDLING
+═══════════════════════════════════════════════════════ */
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', e => {
+  handleFiles([...e.target.files]);
+  fileInput.value = '';
+});
+
+async function handleFiles(files) {
+  const imgFiles = files.filter(f => /\.(png|jpe?g|webp)$/i.test(f.name));
+  if (!imgFiles.length) return;
+
+  showProgress(true);
+  const existing = new Set(state.sprites.map(s => s.fileName));
+
+  for (let i = 0; i < imgFiles.length; i++) {
+    const file = imgFiles[i];
+    if (existing.has(file.name)) continue;
+
+    updateProgress(i + 1, imgFiles.length, `処理中: ${file.name}`);
+
+    const url = await readFileAsUrl(file);
+    const id = crypto.randomUUID();
+    const sprite = {
+      id,
+      fileName: file.name,
+      originalUrl: url,
+      normalizedCanvas: null,
+      features: null,
+      score: null,
+      clusterId: null,
+      selected: false,
+      excluded: false,
+    };
+
+    try {
+      sprite.normalizedCanvas = await normalizeSprite(url, state.normalizeSize);
+      if (sprite.normalizedCanvas) {
+        sprite.features = extractFeatures(sprite.normalizedCanvas);
+      }
+    } catch(e) {
+      console.warn('Feature extraction failed for', file.name, e);
+    }
+
+    state.sprites.push(sprite);
+    updateStats();
+    // Allow UI to breathe
+    await tick();
+  }
+
+  showProgress(false);
+  computeAllScores();
+  renderGrid();
+  updateStats();
+}
+
+function readFileAsUrl(file) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.readAsDataURL(file);
+  });
+}
+
+function tick() { return new Promise(r => setTimeout(r, 0)); }
+
+/* ═══════════════════════════════════════════════════════
+   IMAGE PREPROCESSING
+═══════════════════════════════════════════════════════ */
+function loadImage(url) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = url;
+  });
+}
+
+async function normalizeSprite(url, targetSize) {
+  const img = await loadImage(url);
+
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = img.width;
+  tmpCanvas.height = img.height;
+  const tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.drawImage(img, 0, 0);
+
+  let imageData = tmpCtx.getImageData(0, 0, img.width, img.height);
+
+  // Remove white background if no existing transparency
+  if (!hasExistingTransparency(imageData)) {
+    removeWhiteBackground(imageData);
+    tmpCtx.putImageData(imageData, 0, 0);
+  }
+
+  // Bounding box
+  const bbox = getBoundingBox(imageData);
+  if (!bbox) return null;
+
+  // Extract bbox region
+  const bboxData = tmpCtx.getImageData(bbox.x, bbox.y, bbox.w, bbox.h);
+
+  // Scale to fit targetSize×targetSize (nearest-neighbor)
+  const scale = Math.min(targetSize / bbox.w, targetSize / bbox.h);
+  const scaledW = Math.max(1, Math.round(bbox.w * scale));
+  const scaledH = Math.max(1, Math.round(bbox.h * scale));
+  const scaledData = nearestNeighborScale(bboxData, bbox.w, bbox.h, scaledW, scaledH);
+
+  // Place on target canvas, bottom-aligned
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = targetSize;
+  outCanvas.height = targetSize;
+  const outCtx = outCanvas.getContext('2d');
+  const offsetX = Math.floor((targetSize - scaledW) / 2);
+  const offsetY = targetSize - scaledH;
+  outCtx.putImageData(scaledData, offsetX, offsetY);
+
+  return outCanvas;
+}
+
+function hasExistingTransparency(imageData) {
+  const d = imageData.data;
+  for (let i = 3; i < d.length; i += 4) {
+    if (d[i] < 250) return true;
+  }
+  return false;
+}
+
+function removeWhiteBackground(imageData) {
+  const { data, width, height } = imageData;
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+
+  const seed = (x, y) => {
+    const idx = y * width + x;
+    if (visited[idx]) return;
+    const pi = idx * 4;
+    if (isNearWhite(data[pi], data[pi+1], data[pi+2])) {
+      visited[idx] = 1;
+      queue.push(idx);
+    }
+  };
+
+  for (let x = 0; x < width; x++) { seed(x, 0); seed(x, height - 1); }
+  for (let y = 0; y < height; y++) { seed(0, y); seed(width - 1, y); }
+
+  while (queue.length) {
+    const idx = queue.pop();
+    data[idx * 4 + 3] = 0;
+    const x = idx % width;
+    const y = Math.floor(idx / width);
+    if (x > 0)        tryVisit(idx - 1);
+    if (x < width-1)  tryVisit(idx + 1);
+    if (y > 0)        tryVisit(idx - width);
+    if (y < height-1) tryVisit(idx + width);
+  }
+
+  function tryVisit(idx) {
+    if (visited[idx]) return;
+    const pi = idx * 4;
+    if (isNearWhite(data[pi], data[pi+1], data[pi+2])) {
+      visited[idx] = 1;
+      queue.push(idx);
+    }
+  }
+}
+
+function isNearWhite(r, g, b) {
+  return r > 228 && g > 228 && b > 228;
+}
+
+function getBoundingBox(imageData) {
+  const { data, width, height } = imageData;
+  let minX = width, maxX = -1, minY = height, maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 20) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+function nearestNeighborScale(srcData, srcW, srcH, dstW, dstH) {
+  const dst = new ImageData(dstW, dstH);
+  for (let y = 0; y < dstH; y++) {
+    const sy = Math.min(srcH - 1, Math.floor(y * srcH / dstH));
+    for (let x = 0; x < dstW; x++) {
+      const sx = Math.min(srcW - 1, Math.floor(x * srcW / dstW));
+      const si = (sy * srcW + sx) * 4;
+      const di = (y * dstW + x) * 4;
+      dst.data[di]   = srcData.data[si];
+      dst.data[di+1] = srcData.data[si+1];
+      dst.data[di+2] = srcData.data[si+2];
+      dst.data[di+3] = srcData.data[si+3];
+    }
+  }
+  return dst;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FEATURE EXTRACTION
+═══════════════════════════════════════════════════════ */
+function extractFeatures(canvas) {
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const { data } = imageData;
+
+  // ── Build mask & bounding box ──
+  let minX = width, maxX = -1, minY = height, maxY = -1;
+  let nonTransCount = 0;
+  const mask = new Uint8Array(width * height);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > 20) {
+        const idx = y * width + x;
+        mask[idx] = 1;
+        nonTransCount++;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  const bboxW = maxX >= 0 ? maxX - minX + 1 : 0;
+  const bboxH = maxY >= 0 ? maxY - minY + 1 : 0;
+  const occupancy = nonTransCount / (width * height);
+
+  // ── Color features ──
+  const colorHistogram = new Float32Array(64);
+  let rSum = 0, gSum = 0, bSum = 0;
+  let satSum = 0, briSum = 0;
+  const colorSet = new Set();
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!mask[y * width + x]) continue;
+      const pi = (y * width + x) * 4;
+      const r = data[pi], g = data[pi+1], b = data[pi+2];
+
+      // 64-bin histogram (4 levels/channel)
+      const r4 = r >> 6, g4 = g >> 6, b4 = b >> 6;
+      colorHistogram[Math.min(3,r4)*16 + Math.min(3,g4)*4 + Math.min(3,b4)]++;
+
+      rSum += r; gSum += g; bSum += b;
+
+      const rn = r/255, gn = g/255, bn = b/255;
+      const mx = Math.max(rn, gn, bn), mn = Math.min(rn, gn, bn);
+      briSum += mx;
+      satSum += mx > 0 ? (mx - mn) / mx : 0;
+
+      // Unique color: quantize to 4-bit per channel (4096 colors max)
+      colorSet.add(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+    }
+  }
+
+  const n = nonTransCount || 1;
+  for (let i = 0; i < 64; i++) colorHistogram[i] /= n;
+
+  const averageColor = [rSum/n, gSum/n, bSum/n];
+  const averageSaturation = satSum / n;
+  const averageBrightness = briSum / n;
+
+  // ── Silhouette vector (16×16) ──
+  const SIL = 16;
+  const silhouetteVector = new Float32Array(SIL * SIL);
+  for (let sy = 0; sy < SIL; sy++) {
+    for (let sx = 0; sx < SIL; sx++) {
+      const srcX = Math.floor(sx * width / SIL);
+      const srcY = Math.floor(sy * height / SIL);
+      silhouetteVector[sy * SIL + sx] = mask[srcY * width + srcX] ? 1 : 0;
+    }
+  }
+
+  // ── Style features ──
+  let edgeCount = 0;
+  let outlineCount = 0, darkOutlineCount = 0;
+  let aaPixels = 0, aaChecked = 0;
+  let smoothCount = 0, smoothChecked = 0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!mask[y * width + x]) continue;
+      const pi = (y * width + x) * 4;
+      const r = data[pi], g = data[pi+1], b = data[pi+2];
+
+      // Outline pixel = adjacent to transparent
+      let isOutline = false;
+      const L = x > 0        && !mask[y*width+(x-1)];
+      const R = x < width-1  && !mask[y*width+(x+1)];
+      const U = y > 0        && !mask[(y-1)*width+x];
+      const D = y < height-1 && !mask[(y+1)*width+x];
+      if (L||R||U||D) { isOutline = true; outlineCount++; }
+      if (isOutline) {
+        const lum = 0.299*r + 0.587*g + 0.114*b;
+        if (lum < 80) darkOutlineCount++;
+      }
+
+      // Edge: strong color diff with any neighbor
+      let isEdge = isOutline;
+      if (!isEdge) {
+        const dirs = [
+          x>0       ? (y*width+x-1)*4 : -1,
+          x<width-1 ? (y*width+x+1)*4 : -1,
+          y>0       ? ((y-1)*width+x)*4 : -1,
+          y<height-1? ((y+1)*width+x)*4 : -1,
+        ];
+        for (const ni of dirs) {
+          if (ni < 0) continue;
+          if (data[ni+3] < 20) { isEdge = true; break; }
+          const dr=data[ni]-r, dg=data[ni+1]-g, db=data[ni+2]-b;
+          if (dr*dr+dg*dg+db*db > 1600) { isEdge = true; break; } // diff>40
+        }
+      }
+      if (isEdge) edgeCount++;
+
+      // Anti-alias check
+      if (x > 0 && x < width-1 && y > 0 && y < height-1) {
+        const ns4 = [
+          (y*width+x-1)*4, (y*width+x+1)*4,
+          ((y-1)*width+x)*4, ((y+1)*width+x)*4,
+        ];
+        let maxD = 0, minD = Infinity;
+        let hasBig = false;
+        const diffs = [];
+        for (const ni of ns4) {
+          if (data[ni+3] < 20) { diffs.push(0); continue; }
+          const dr=data[ni]-r, dg=data[ni+1]-g, db=data[ni+2]-b;
+          const d = Math.sqrt(dr*dr+dg*dg+db*db);
+          diffs.push(d);
+          if (d > maxD) maxD = d;
+          if (d < minD) minD = d;
+          if (d > 60) hasBig = true;
+        }
+        if (hasBig) {
+          aaChecked++;
+          // AA if pixel is between two neighbors with very different colors
+          const avg = diffs.reduce((a,b)=>a+b,0)/diffs.length;
+          const variance = diffs.reduce((a,b)=>a+(b-avg)**2,0)/diffs.length;
+          if (variance > 100 && variance < 3000) aaPixels++;
+        }
+
+        // Smooth area
+        smoothChecked++;
+        let allSmooth = true;
+        for (const ni of ns4) {
+          if (data[ni+3] < 20) { allSmooth = false; break; }
+          const dr=data[ni]-r,dg=data[ni+1]-g,db=data[ni+2]-b;
+          if (dr*dr+dg*dg+db*db > 400) { allSmooth = false; break; } // diff>20
+        }
+        if (allSmooth) smoothCount++;
+      }
+    }
+  }
+
+  const edgeDensity    = edgeCount / n;
+  const outlineDarkRatio = outlineCount > 0 ? darkOutlineCount / outlineCount : 0;
+  const antiAliasScore = aaChecked > 0 ? aaPixels / aaChecked : 0;
+  const gradientScore  = smoothChecked > 0 ? smoothCount / smoothChecked : 0;
+
+  // ── dHash (64-bit) ──
+  const hashCanvas = document.createElement('canvas');
+  hashCanvas.width = 9; hashCanvas.height = 8;
+  const hCtx = hashCanvas.getContext('2d');
+  hCtx.imageSmoothingEnabled = false;
+  hCtx.drawImage(canvas, 0, 0, 9, 8);
+  const hd = hCtx.getImageData(0, 0, 9, 8).data;
+  const dHash = [];
+  for (let row = 0; row < 8; row++) {
+    let byte = 0;
+    for (let col = 0; col < 8; col++) {
+      const i1 = (row * 9 + col) * 4;
+      const i2 = (row * 9 + col + 1) * 4;
+      const l1 = 0.299*hd[i1] + 0.587*hd[i1+1] + 0.114*hd[i1+2];
+      const l2 = 0.299*hd[i2] + 0.587*hd[i2+1] + 0.114*hd[i2+2];
+      if (l1 < l2) byte |= (1 << col);
+    }
+    dHash.push(byte);
+  }
+
+  return {
+    width: bboxW,
+    height: bboxH,
+    occupancy,
+    colorCount: colorSet.size,
+    averageColor,
+    averageSaturation,
+    averageBrightness,
+    edgeDensity,
+    antiAliasScore,
+    outlineDarkRatio,
+    gradientScore,
+    silhouetteVector,
+    colorHistogram,
+    dHash,
+  };
+}
+
+/* ═══════════════════════════════════════════════════════
+   SIMILARITY SCORING
+═══════════════════════════════════════════════════════ */
+function computeSimilarity(a, b, weights) {
+  if (!a || !b) return null;
+
+  // 1. Pixel style (35%)
+  const edgeSim    = 1 - Math.min(1, Math.abs(a.edgeDensity - b.edgeDensity) * 2);
+  const aaSim      = 1 - Math.min(1, Math.abs(a.antiAliasScore - b.antiAliasScore) * 3);
+  const outSim     = 1 - Math.abs(a.outlineDarkRatio - b.outlineDarkRatio);
+  const gradSim    = 1 - Math.abs(a.gradientScore - b.gradientScore);
+  const styleSim   = (edgeSim + aaSim + outSim + gradSim) / 4;
+
+  // 2. Color palette (25%)
+  const histSim    = cosineSimilarity(a.colorHistogram, b.colorHistogram);
+  const ccA = Math.log2(a.colorCount + 2), ccB = Math.log2(b.colorCount + 2);
+  const ccSim      = 1 - Math.min(1, Math.abs(ccA - ccB) / 4);
+  const satSim     = 1 - Math.abs(a.averageSaturation - b.averageSaturation);
+  const briSim     = 1 - Math.abs(a.averageBrightness - b.averageBrightness);
+  const colorSim   = histSim * 0.5 + ccSim * 0.2 + satSim * 0.15 + briSim * 0.15;
+
+  // 3. Silhouette (25%)
+  const silSim     = cosineSimilarity(a.silhouetteVector, b.silhouetteVector);
+  const occSim     = Math.max(0, 1 - Math.abs(a.occupancy - b.occupancy) * 3);
+  const aspA = a.width / Math.max(1, a.height);
+  const aspB = b.width / Math.max(1, b.height);
+  const aspSim     = 1 - Math.min(1, Math.abs(aspA - aspB));
+  const silhouetteSim = Math.max(0, silSim * 0.6 + occSim * 0.2 + aspSim * 0.2);
+
+  // 4. dHash perceptual (15%)
+  const hamming    = hammingDistance(a.dHash, b.dHash);
+  const hashSim    = 1 - hamming / 64;
+
+  const final = styleSim * weights.style
+              + colorSim  * weights.color
+              + silhouetteSim * weights.sil
+              + hashSim   * weights.hash;
+
+  return Math.round(Math.max(0, Math.min(1, final)) * 100);
+}
+
+function cosineSimilarity(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    dot += a[i] * b[i];
+    na  += a[i] * a[i];
+    nb  += b[i] * b[i];
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function hammingDistance(a, b) {
+  let d = 0;
+  for (let i = 0; i < a.length; i++) {
+    let x = a[i] ^ b[i];
+    while (x) { d += x & 1; x >>>= 1; }
+  }
+  return d;
+}
+
+function computeAllScores() {
+  const refs = state.sprites.filter(s => state.referenceIds.has(s.id) && s.features);
+  if (!refs.length) {
+    state.sprites.forEach(s => s.score = null);
+    renderGrid();
+    return;
+  }
+  const w = getWeights();
+  state.sprites.forEach(s => {
+    if (!s.features) { s.score = null; return; }
+    const scores = refs.map(r => computeSimilarity(r.features, s.features, w));
+    const valid = scores.filter(x => x !== null);
+    if (!valid.length) { s.score = null; return; }
+    s.score = Math.round(valid.reduce((a,b)=>a+b,0) / valid.length);
+  });
+  renderGrid();
+}
+
+function getWeights() {
+  const s = parseFloat(document.getElementById('w-style').value) / 100;
+  const c = parseFloat(document.getElementById('w-color').value) / 100;
+  const v = parseFloat(document.getElementById('w-sil').value) / 100;
+  const h = parseFloat(document.getElementById('w-hash').value) / 100;
+  const total = s + c + v + h || 1;
+  return { style: s/total, color: c/total, sil: v/total, hash: h/total };
+}
+
+/* ═══════════════════════════════════════════════════════
+   K-MEANS CLUSTERING
+═══════════════════════════════════════════════════════ */
+function buildStyleVector(f) {
+  if (!f) return null;
+  // Normalize each feature to [0,1] range, then concatenate
+  return [
+    ...Array.from(f.colorHistogram),              // 64
+    ...Array.from(f.silhouetteVector),             // 256
+    Math.min(1, f.edgeDensity),                    // 1
+    f.antiAliasScore,                              // 1
+    f.outlineDarkRatio,                            // 1
+    f.gradientScore,                               // 1
+    Math.min(1, f.colorCount / 200),               // 1
+    f.occupancy,                                   // 1
+    Math.min(1, f.width  / 96),                    // 1
+    Math.min(1, f.height / 96),                    // 1
+  ];
+}
+
+function runClustering() {
+  const k = parseInt(document.getElementById('cluster-k').value) || 5;
+  const ready = state.sprites.filter(s => s.features && !s.excluded);
+  if (ready.length < k) {
+    alert(`クラスタリングには最低 ${k} 枚の画像が必要です。`);
+    return;
+  }
+  const vectors = ready.map(s => buildStyleVector(s.features));
+
+  // 3回試行して最小誤差のクラスタを採用
+  let bestAssignments = null;
+  let bestInertia = Infinity;
+  for (let trial = 0; trial < 3; trial++) {
+    const { assignments, inertia } = kMeans(vectors, k);
+    if (inertia < bestInertia) { bestInertia = inertia; bestAssignments = assignments; }
+  }
+
+  // クラスタ番号を「人数の多い順」に振り直し（安定化）
+  const counts = new Array(k).fill(0);
+  bestAssignments.forEach(c => counts[c]++);
+  const rankMap = counts
+    .map((cnt, idx) => ({ idx, cnt }))
+    .sort((a, b) => b.cnt - a.cnt)
+    .reduce((m, { idx }, rank) => { m[idx] = rank; return m; }, {});
+  const stableAssignments = bestAssignments.map(c => rankMap[c]);
+
+  ready.forEach((s, i) => { s.clusterId = stableAssignments[i]; });
+  state.sprites.filter(s => s.excluded).forEach(s => s.clusterId = null);
+
+  // Update cluster filter dropdown
+  const finalCounts = new Array(k).fill(0);
+  stableAssignments.forEach(c => finalCounts[c]++);
+  const sel = document.getElementById('filter-cluster');
+  sel.innerHTML = '<option value="all">すべて</option>';
+  for (let c = 0; c < k; c++) {
+    if (finalCounts[c] > 0)
+      sel.innerHTML += `<option value="${c}">クラスタ ${c} (${finalCounts[c]}枚)</option>`;
+  }
+
+  renderGrid();
+}
+
+function kMeans(vectors, k, maxIter = 50) {
+  const n = vectors.length;
+  if (n <= k) return vectors.map((_, i) => i);
+  const dim = vectors[0].length;
+
+  // k-means++ initialization
+  const centroids = [];
+  const used = new Set();
+  const firstIdx = Math.floor(Math.random() * n);
+  centroids.push([...vectors[firstIdx]]);
+  used.add(firstIdx);
+
+  for (let c = 1; c < k; c++) {
+    const dists = vectors.map((v, i) => {
+      if (used.has(i)) return 0;
+      let minD = Infinity;
+      for (const cen of centroids) minD = Math.min(minD, l2sq(v, cen));
+      return minD;
+    });
+    const total = dists.reduce((a,b)=>a+b, 0);
+    let rnd = Math.random() * total;
+    let chosen = 0;
+    for (let i = 0; i < n; i++) { rnd -= dists[i]; if (rnd <= 0) { chosen = i; break; } }
+    centroids.push([...vectors[chosen]]);
+    used.add(chosen);
+  }
+
+  let assignments = new Array(n).fill(0);
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    let changed = false;
+
+    // Assign
+    for (let i = 0; i < n; i++) {
+      let best = 0, bestD = l2sq(vectors[i], centroids[0]);
+      for (let c = 1; c < k; c++) {
+        const d = l2sq(vectors[i], centroids[c]);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      if (assignments[i] !== best) { assignments[i] = best; changed = true; }
+    }
+    if (!changed) break;
+
+    // Update
+    const sums = Array.from({length:k}, ()=> new Float64Array(dim));
+    const counts = new Array(k).fill(0);
+    for (let i = 0; i < n; i++) {
+      const c = assignments[i];
+      counts[c]++;
+      for (let d = 0; d < dim; d++) sums[c][d] += vectors[i][d];
+    }
+    for (let c = 0; c < k; c++) {
+      if (counts[c] > 0) {
+        for (let d = 0; d < dim; d++) centroids[c][d] = sums[c][d] / counts[c];
+      }
+    }
+  }
+
+  // 慣性（クラスタ内二乗和）を計算
+  const inertia = assignments.reduce((sum, c, i) => sum + l2sq(vectors[i], centroids[c]), 0);
+  return { assignments, inertia };
+}
+
+function l2sq(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += (a[i]-b[i])**2;
+  return s;
+}
+
+/* ═══════════════════════════════════════════════════════
+   UI RENDERING
+═══════════════════════════════════════════════════════ */
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const emptyMsg = document.getElementById('empty-msg');
+  const sortBy = document.getElementById('sort-by').value;
+  const threshold = state.scoreThreshold;
+  const clusterFilter = document.getElementById('filter-cluster').value;
+
+  // Filter
+  let visible = state.sprites.filter(s => {
+    if (s.excluded) return false;
+    if (threshold > 0 && s.score !== null && s.score < threshold) return false;
+    if (clusterFilter !== 'all' && s.clusterId !== parseInt(clusterFilter)) return false;
+    return true;
+  });
+
+  // Sort
+  visible.sort((a, b) => {
+    switch (sortBy) {
+      case 'score-desc': return (b.score ?? -1) - (a.score ?? -1);
+      case 'score-asc':  return (a.score ?? 999) - (b.score ?? 999);
+      case 'name-asc':   return a.fileName.localeCompare(b.fileName);
+      case 'name-desc':  return b.fileName.localeCompare(a.fileName);
+      case 'cluster':    return (a.clusterId ?? 99) - (b.clusterId ?? 99);
+      case 'colors-desc': return (b.features?.colorCount ?? 0) - (a.features?.colorCount ?? 0);
+      default: return 0;
+    }
+  });
+
+  emptyMsg.style.display = state.sprites.length === 0 ? 'block' : 'none';
+  grid.innerHTML = '';
+
+  for (const sprite of visible) {
+    grid.appendChild(createCard(sprite));
+  }
+  updateStats();
+}
+
+function createCard(sprite) {
+  const isRef = state.referenceIds.has(sprite.id);
+  const card = document.createElement('div');
+  card.className = 'sprite-card' +
+    (isRef ? ' reference' : '') +
+    (sprite.selected ? ' selected' : '');
+  card.dataset.id = sprite.id;
+
+  // Canvas preview
+  const wrap = document.createElement('div');
+  wrap.className = 'canvas-wrap';
+  if (sprite.normalizedCanvas) {
+    const c = document.createElement('canvas');
+    c.width  = sprite.normalizedCanvas.width;
+    c.height = sprite.normalizedCanvas.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(sprite.normalizedCanvas, 0, 0);
+    wrap.appendChild(c);
+  } else {
+    wrap.style.background = '#222';
+    wrap.innerHTML = '<span style="color:#666;font-size:10px">?</span>';
+  }
+  card.appendChild(wrap);
+
+  // Info
+  const info = document.createElement('div');
+  info.className = 'card-info';
+
+  const fname = document.createElement('div');
+  fname.className = 'card-filename';
+  fname.textContent = sprite.fileName;
+  fname.title = sprite.fileName;
+  info.appendChild(fname);
+
+  const scoreRow = document.createElement('div');
+  scoreRow.className = 'card-score-row';
+
+  const scoreBadge = document.createElement('div');
+  if (sprite.score === null) {
+    scoreBadge.className = 'score-badge score-na';
+    scoreBadge.textContent = '—';
+  } else {
+    scoreBadge.className = 'score-badge ' + getScoreClass(sprite.score);
+    scoreBadge.textContent = sprite.score;
+  }
+  scoreRow.appendChild(scoreBadge);
+
+  if (sprite.clusterId !== null && sprite.clusterId !== undefined) {
+    const cb = document.createElement('div');
+    cb.className = `cluster-badge cl${sprite.clusterId % 10}`;
+    cb.textContent = sprite.clusterId;
+    cb.title = `クラスタ ${sprite.clusterId}`;
+    scoreRow.appendChild(cb);
+  }
+
+  info.appendChild(scoreRow);
+
+  // Meta
+  if (sprite.features) {
+    const meta = document.createElement('div');
+    meta.className = 'card-meta';
+    meta.innerHTML =
+      `<div class="meta-item">色: <b>${sprite.features.colorCount}</b></div>` +
+      `<div class="meta-item">占有: <b>${(sprite.features.occupancy*100).toFixed(0)}%</b></div>` +
+      `<div class="meta-item">W: <b>${sprite.features.width}</b></div>` +
+      `<div class="meta-item">H: <b>${sprite.features.height}</b></div>`;
+    info.appendChild(meta);
+  }
+
+  card.appendChild(info);
+
+  // Badges
+  if (isRef) {
+    const rb = document.createElement('div');
+    rb.className = 'ref-badge';
+    rb.textContent = '基準';
+    card.appendChild(rb);
+  }
+  if (sprite.selected) {
+    const sb = document.createElement('div');
+    sb.className = 'sel-badge';
+    sb.textContent = '✓';
+    card.appendChild(sb);
+  }
+
+  // Events
+  card.addEventListener('click', e => {
+    if (e.button !== 0) return;
+    const s = findSprite(sprite.id);
+    if (s) { s.selected = !s.selected; renderGrid(); }
+  });
+  card.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    ctxTargetId = sprite.id;
+    showCtxMenu(e.clientX, e.clientY);
+  });
+
+  return card;
+}
+
+function getScoreClass(score) {
+  if (score >= 85) return 'score-85';
+  if (score >= 75) return 'score-75';
+  if (score >= 60) return 'score-60';
+  return 'score-0';
+}
+
+function findSprite(id) {
+  return state.sprites.find(s => s.id === id) || null;
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent    = state.sprites.length;
+  document.getElementById('stat-ready').textContent    = state.sprites.filter(s => s.features).length;
+  document.getElementById('stat-selected').textContent = state.sprites.filter(s => s.selected).length;
+  document.getElementById('stat-ref').textContent      = state.referenceIds.size;
+  document.getElementById('ref-count').textContent     = state.referenceIds.size;
+}
+
+/* ── Context menu ──────────────────────────────────── */
+const ctxMenu = document.getElementById('ctx-menu');
+
+function showCtxMenu(x, y) {
+  ctxMenu.style.left = Math.min(x, window.innerWidth - 170) + 'px';
+  ctxMenu.style.top  = Math.min(y, window.innerHeight - 160) + 'px';
+  ctxMenu.style.display = 'block';
+}
+
+document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+document.addEventListener('contextmenu', () => { /* keep open until click */ });
+
+function ctxSetRef() {
+  ctxMenu.style.display = 'none';
+  if (!ctxTargetId) return;
+  state.referenceIds.add(ctxTargetId);
+  computeAllScores();
+  renderGrid();
+}
+function ctxUnsetRef() {
+  ctxMenu.style.display = 'none';
+  if (!ctxTargetId) return;
+  state.referenceIds.delete(ctxTargetId);
+  computeAllScores();
+  renderGrid();
+}
+function ctxToggleSelect() {
+  ctxMenu.style.display = 'none';
+  const s = findSprite(ctxTargetId);
+  if (s) { s.selected = !s.selected; renderGrid(); }
+}
+function ctxToggleExclude() {
+  ctxMenu.style.display = 'none';
+  const s = findSprite(ctxTargetId);
+  if (s) { s.excluded = !s.excluded; renderGrid(); }
+}
+
+/* ── Toolbar actions ───────────────────────────────── */
+function onFilterChange(val) {
+  state.scoreThreshold = parseInt(val);
+  document.getElementById('score-filter-val').textContent = val;
+  renderGrid();
+}
+function selectAllVisible() {
+  const ids = new Set([...document.querySelectorAll('.sprite-card')].map(c => c.dataset.id));
+  state.sprites.forEach(s => { if (ids.has(s.id)) s.selected = true; });
+  renderGrid();
+}
+function deselectAll() {
+  state.sprites.forEach(s => s.selected = false);
+  renderGrid();
+}
+function selectByScore() {
+  state.sprites.forEach(s => {
+    if (s.score !== null && s.score >= state.scoreThreshold) s.selected = true;
+  });
+  renderGrid();
+}
+function clearRefs() {
+  state.referenceIds.clear();
+  state.sprites.forEach(s => s.score = null);
+  renderGrid();
+}
+function clearAll() {
+  if (state.sprites.length && !confirm('すべての画像を削除しますか？')) return;
+  state.sprites = [];
+  state.referenceIds.clear();
+  document.getElementById('filter-cluster').innerHTML = '<option value="all">すべて</option>';
+  renderGrid();
+}
+function updateWeightLabel(key, val) {
+  document.getElementById('wl-' + key).textContent = val + '%';
+}
+
+/* ═══════════════════════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════════════════════ */
+async function exportZip(renumber) {
+  const toExport = state.sprites.filter(s => s.selected && s.normalizedCanvas);
+  if (!toExport.length) {
+    alert('エクスポートする画像を選択してください（クリックでチェック）。');
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    alert('JSZipが読み込まれていません。インターネット接続を確認してください。');
+    return;
+  }
+
+  const zip = new JSZip();
+  const folder = zip.folder('valzeria_chars');
+
+  for (let i = 0; i < toExport.length; i++) {
+    const sprite = toExport[i];
+    const name = renumber
+      ? `valzeria_char_${String(i+1).padStart(3,'0')}.png`
+      : sprite.fileName.replace(/\.(jpg|jpeg|webp)$/i, '.png');
+
+    const blob = await canvasToBlob(sprite.normalizedCanvas);
+    folder.file(name, blob);
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, `valzeria_chars_${toExport.length}.zip`);
+}
+
+function canvasToBlob(canvas) {
+  return new Promise(res => canvas.toBlob(res, 'image/png'));
+}
+
+function exportCsv() {
+  const rows = [['filename','score','clusterId','width','height','colorCount','occupancy','selected']];
+  for (const s of state.sprites) {
+    rows.push([
+      `"${s.fileName}"`,
+      s.score ?? '',
+      s.clusterId ?? '',
+      s.features?.width ?? '',
+      s.features?.height ?? '',
+      s.features?.colorCount ?? '',
+      s.features ? s.features.occupancy.toFixed(4) : '',
+      s.selected ? '1' : '0',
+    ]);
+  }
+  const csv = rows.map(r => r.join(',')).join('\n');
+  downloadBlob(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), 'sprite_filter_result.csv');
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PROGRESS
+═══════════════════════════════════════════════════════ */
+function showProgress(show) {
+  document.getElementById('progress-wrap').style.display = show ? 'block' : 'none';
+}
+function updateProgress(current, total, text) {
+  document.getElementById('progress-bar-inner').style.width = (current / total * 100) + '%';
+  document.getElementById('progress-text').textContent = `${text} (${current}/${total})`;
+}
+</script>
+</body>
+</html>

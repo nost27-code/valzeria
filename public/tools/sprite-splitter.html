@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スプライト分割ツール — ヴァルゼリアの冒険者</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  overflow: hidden;
+}
+h1 { font-size: 1.2rem; font-weight: 700; color: #a78bfa; }
+h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+
+/* Header */
+#header {
+  background: #16213e;
+  border-bottom: 1px solid #2d2d5e;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+}
+#header span { color: #7c7c9e; font-size: 0.78rem; }
+
+/* Main layout */
+#main-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  grid-template-rows: 1fr 180px;
+  height: calc(100vh - 44px);
+}
+
+/* Left panel */
+#left-panel {
+  grid-row: 1 / 2;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-right: 1px solid #2d2d5e;
+  overflow: hidden;
+}
+
+/* Toolbar */
+#toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Image slot thumbnail strip */
+#slot-strip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 52px;
+}
+#slot-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  padding: 2px;
+}
+#slot-strip::-webkit-scrollbar { height: 4px; }
+#slot-strip::-webkit-scrollbar-track { background: #1a1a3e; }
+#slot-strip::-webkit-scrollbar-thumb { background: #3d3d6e; border-radius: 2px; }
+
+.slot-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  border: 2px solid #2d2d5e;
+  border-radius: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  background: repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%) 0 0/8px 8px;
+}
+.slot-thumb.active { border-color: #7c3aed; }
+.slot-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.slot-thumb .slot-badge {
+  position: absolute;
+  bottom: 1px; right: 2px;
+  font-size: 0.58rem;
+  color: #a0a0e0;
+  background: rgba(0,0,0,0.6);
+  padding: 0 2px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.slot-thumb .slot-del {
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 14px; height: 14px;
+  background: #dc2626;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  cursor: pointer;
+  display: none;
+  z-index: 5;
+}
+.slot-thumb:hover .slot-del { display: block; }
+#slot-empty { color: #4a4a7a; font-size: 0.75rem; }
+
+/* Canvas area */
+#canvas-wrapper {
+  flex: 1;
+  overflow: auto;
+  background: repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%) 0 0/16px 16px;
+  border: 1px solid #2d2d5e;
+  border-radius: 6px;
+  position: relative;
+  cursor: crosshair;
+}
+#canvas-wrapper canvas { display: block; }
+#overlay-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+#drop-zone {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; color: #5a5a8a; pointer-events: none;
+}
+#drop-zone .icon { font-size: 3rem; }
+#drop-zone p { font-size: 0.85rem; }
+
+/* Detect info */
+#detect-info { font-size: 0.78rem; color: #7c7c9e; min-height: 18px; }
+#detect-info.ok { color: #34d399; }
+#detect-info.warn { color: #fbbf24; }
+#detect-info.err { color: #f87171; }
+
+/* Right panel */
+#right-panel {
+  grid-row: 1 / 2;
+  padding: 12px;
+  overflow-y: auto;
+  background: #16213e;
+  border-bottom: 1px solid #2d2d5e;
+  border-left: 1px solid #2d2d5e;
+}
+
+/* Bottom panel */
+#bottom-panel {
+  grid-column: 1 / 3;
+  border-top: 1px solid #2d2d5e;
+  background: #16213e;
+  padding: 8px 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#bottom-header { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+#sprites-scroll { overflow-x: auto; flex: 1; }
+#sprites-scroll::-webkit-scrollbar { height: 5px; }
+#sprites-scroll::-webkit-scrollbar-track { background: #1a1a3e; }
+#sprites-scroll::-webkit-scrollbar-thumb { background: #3d3d6e; border-radius: 2px; }
+#sprites-container { display: flex; gap: 8px; flex-wrap: nowrap; height: 100%; align-items: flex-end; }
+
+/* Sprite cards */
+.sprite-card {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  flex-shrink: 0; cursor: default;
+}
+.sprite-canvas-wrap {
+  background: repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%) 0 0/8px 8px;
+  border: 1px solid #3d3d6e;
+  border-radius: 4px;
+  position: relative;
+}
+.sprite-label { font-size: 0.62rem; color: #6060a0; text-align: center; }
+.sprite-del-btn {
+  position: absolute; top: -5px; right: -5px;
+  width: 15px; height: 15px;
+  background: #dc2626; border: none; border-radius: 50%;
+  color: #fff; font-size: 9px; line-height: 15px;
+  text-align: center; cursor: pointer; display: none; z-index: 10;
+}
+.sprite-card:hover .sprite-del-btn { display: block; }
+.slot-divider {
+  width: 2px; background: #3d3d6e; border-radius: 2px;
+  align-self: stretch; margin: 0 4px; flex-shrink: 0;
+}
+
+/* Buttons */
+.btn {
+  padding: 6px 12px; border-radius: 5px; border: none;
+  cursor: pointer; font-size: 0.78rem; font-weight: 600;
+  transition: opacity 0.15s;
+}
+.btn:hover:not(:disabled) { opacity: 0.85; }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn-primary { background: #7c3aed; color: #fff; }
+.btn-success { background: #059669; color: #fff; }
+.btn-info    { background: #0891b2; color: #fff; }
+.btn-warning { background: #d97706; color: #fff; }
+.btn-ghost   { background: #2d2d5e; color: #c0c0e0; }
+
+/* Settings */
+.section {
+  background: #0f0f2a; border: 1px solid #2d2d5e;
+  border-radius: 6px; padding: 10px; margin-bottom: 10px;
+}
+.field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.field label { color: #9090b0; font-size: 0.75rem; }
+.field input[type=range] { width: 100%; accent-color: #7c3aed; cursor: pointer; }
+.field input[type=number], .field input[type=text], .field select {
+  background: #1a1a3e; border: 1px solid #3d3d6e; border-radius: 4px;
+  color: #e0e0e0; padding: 4px 6px; font-size: 0.78rem; width: 100%;
+}
+.field-row { display: grid; grid-template-columns: 1fr 48px; gap: 6px; align-items: center; }
+.val-badge {
+  background: #2d2d5e; border-radius: 3px; padding: 2px 5px;
+  font-size: 0.72rem; text-align: center; color: #a0a0c0;
+}
+.radio-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.radio-row label { display: flex; align-items: center; gap: 4px; color: #c0c0e0; cursor: pointer; }
+.divider { border: none; border-top: 1px solid #2d2d5e; margin: 8px 0; }
+.how-to { font-size: 0.72rem; color: #5a5a8a; line-height: 1.6; }
+.how-to li { margin-left: 12px; }
+
+/* BG switcher */
+#bg-switcher { display: flex; gap: 6px; align-items: center; }
+.bg-swatch {
+  width: 18px; height: 18px; border-radius: 3px;
+  border: 1px solid #3d3d6e; cursor: pointer;
+}
+.bg-swatch.active { border-color: #a78bfa; box-shadow: 0 0 0 2px #7c3aed; }
+
+/* Rect list */
+#rect-list { max-height: 130px; overflow-y: auto; }
+.rect-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 6px; border-radius: 3px; font-size: 0.72rem; color: #8080b0;
+}
+.rect-item:nth-child(odd) { background: #1a1a3a; }
+.rect-item .rid { color: #a0a0e0; font-weight: 700; min-width: 24px; }
+.rect-item .rdel { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.7rem; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  background: #2d2d5e; color: #e0e0e0;
+  padding: 8px 18px; border-radius: 20px; font-size: 0.8rem;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🎮 スプライト分割ツール</h1>
+  <span>AI生成ドット絵 → 個別キャラクター切り出し（複数画像対応）</span>
+</div>
+
+<div id="main-layout">
+
+  <!-- LEFT -->
+  <div id="left-panel">
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <button class="btn btn-primary"  onclick="openFilePicker()">📂 画像を追加</button>
+      <button class="btn btn-info"     id="btn-detect"  onclick="runDetectAll()" disabled>🔍 全画像を検出</button>
+      <button class="btn btn-success"  id="btn-preview" onclick="runPreviewAll()" disabled>✂️ 分割プレビュー</button>
+      <button class="btn btn-warning"  id="btn-zip"     onclick="downloadZip()" disabled>📦 ZIP</button>
+      <button class="btn btn-info"     id="btn-indiv"   onclick="downloadIndividual()" disabled>💾 個別保存</button>
+      <button class="btn btn-warning"  id="btn-sheet"   onclick="downloadSheet()" disabled>🖼 シート</button>
+      <button class="btn btn-ghost"    onclick="resetAll()">↺ リセット</button>
+      <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="loadFiles(this)">
+    </div>
+
+    <!-- Slot thumbnail strip -->
+    <div id="slot-strip-wrap">
+      <div id="slot-strip">
+        <span id="slot-empty">画像を追加してください</span>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvas-wrapper" ondrop="onDrop(event)" ondragover="event.preventDefault()">
+      <canvas id="main-canvas"></canvas>
+      <canvas id="overlay-canvas"></canvas>
+      <div id="drop-zone">
+        <div class="icon">🖼</div>
+        <p>画像をドラッグ＆ドロップ、または「画像を追加」</p>
+        <p style="font-size:0.72rem">PNG / JPG / JPEG / WebP ・ 複数枚同時選択可 ・ Ctrl+V 貼り付け対応</p>
+      </div>
+    </div>
+
+    <div id="detect-info">未検出 — 画像を読み込み後、「全画像を検出」を押してください</div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right-panel">
+
+    <div class="section">
+      <h2>プレビュー背景</h2>
+      <div id="bg-switcher">
+        <span style="font-size:0.72rem;color:#6060a0">BG:</span>
+        <div class="bg-swatch active" id="bg-checker"
+          style="background-image:repeating-conic-gradient(#2a2a4a 0% 25%,#222244 0% 50%);background-size:8px 8px"
+          onclick="setBg('checker')"></div>
+        <div class="bg-swatch" id="bg-white"   style="background:#fff"    onclick="setBg('white')"></div>
+        <div class="bg-swatch" id="bg-black"   style="background:#111"    onclick="setBg('black')"></div>
+        <div class="bg-swatch" id="bg-gray"    style="background:#7c7c9e" onclick="setBg('gray')"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>検出設定</h2>
+      <div class="field">
+        <label>白判定しきい値 (whiteThreshold)</label>
+        <div class="field-row">
+          <input type="range" id="s-white" min="180" max="255" value="245" oninput="syncVal('s-white','v-white')">
+          <div class="val-badge" id="v-white">245</div>
+        </div>
+        <span style="font-size:0.68rem;color:#5a5a8a">高いほど白に厳しい</span>
+      </div>
+      <div class="field">
+        <label>最小面積 (minArea px²)</label>
+        <div class="field-row">
+          <input type="range" id="s-area" min="4" max="500" value="50" oninput="syncVal('s-area','v-area')">
+          <div class="val-badge" id="v-area">50</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>近接マージ距離 (mergeDistance px)</label>
+        <div class="field-row">
+          <input type="range" id="s-merge" min="0" max="80" value="12" oninput="syncVal('s-merge','v-merge')">
+          <div class="val-badge" id="v-merge">12</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>余白 (padding px)</label>
+        <div class="field-row">
+          <input type="range" id="s-pad" min="0" max="30" value="4" oninput="syncVal('s-pad','v-pad')">
+          <div class="val-badge" id="v-pad">4</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>出力設定</h2>
+      <div class="field">
+        <label>出力サイズ (px)</label>
+        <select id="s-size" onchange="updateSize()">
+          <option value="32">32×32</option>
+          <option value="48">48×48</option>
+          <option value="64">64×64</option>
+          <option value="96" selected>96×96</option>
+          <option value="128">128×128</option>
+          <option value="160">160×160</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ベースラインオフセット (px 下端から)</label>
+        <div class="field-row">
+          <input type="range" id="s-baseline" min="0" max="24" value="6" oninput="syncVal('s-baseline','v-baseline')">
+          <div class="val-badge" id="v-baseline">6</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>透過モード</label>
+        <div class="radio-row">
+          <label><input type="radio" name="alpha-mode" value="floodfill" checked> エッジFloodFill（推奨）</label>
+          <label><input type="radio" name="alpha-mode" value="threshold"> 全白透過</label>
+        </div>
+        <span style="font-size:0.68rem;color:#5a5a8a">FloodFill: 外側の白のみ除去、白い服・白目を保護</span>
+      </div>
+      <div class="field">
+        <label>拡大処理</label>
+        <div class="radio-row">
+          <label><input type="radio" name="scale-up" value="no" checked> 拡大しない</label>
+          <label><input type="radio" name="scale-up" value="yes"> 拡大あり</label>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="field">
+        <label>ファイル名（プレフィックス）</label>
+        <input type="text" id="s-filename" value="chara" maxlength="40" oninput="updateStartPreview()">
+      </div>
+      <div class="field">
+        <label>ファイル名開始番号</label>
+        <input type="number" id="s-startnum" min="0" max="9999" value="1" style="width:90px"
+          oninput="updateStartPreview()">
+        <span style="font-size:0.68rem;color:#5a5a8a">
+          <b id="startnum-preview">chara_001.webp</b> から連番
+        </span>
+      </div>
+
+      <hr class="divider">
+
+      <div class="field">
+        <label>スプライトシート 列数</label>
+        <select id="s-cols">
+          <option value="auto" selected>自動（横一列）</option>
+          <option value="4">4列</option>
+          <option value="6">6列</option>
+          <option value="8">8列</option>
+          <option value="10">10列</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>検出矩形（表示中の画像）<span id="rect-count" style="color:#6060a0;font-weight:400"></span></h2>
+      <div id="rect-list"></div>
+      <hr class="divider">
+      <button class="btn btn-ghost" style="width:100%;margin-top:4px;font-size:0.72rem"
+        onclick="clearActiveRects()">この画像の矩形をクリア</button>
+    </div>
+
+    <div class="section">
+      <h2>使い方</h2>
+      <ol class="how-to">
+        <li>「画像を追加」で複数枚同時選択（またはD&D）</li>
+        <li>「全画像を検出」で全枚まとめて矩形検出</li>
+        <li>設定調整 → 再検出で精度を上げる</li>
+        <li>「分割プレビュー生成」で下部に全スプライット表示</li>
+        <li>「ZIP」「個別保存」「シート」でダウンロード</li>
+      </ol>
+      <p class="how-to" style="color:#5a5a8a;margin-top:6px">
+        ※ 画像サムネイルをクリックで切り替え表示<br>
+        ※ 個別保存は1枚ずつ順番に保存ダイアログが出ます
+      </p>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM -->
+  <div id="bottom-panel">
+    <div id="bottom-header">
+      <h2 style="margin:0">切り出しプレビュー</h2>
+      <span id="preview-count" style="font-size:0.72rem;color:#6060a0"></span>
+      <span style="font-size:0.68rem;color:#4a4a7a">（画像ごとに区切り線で分割表示）</span>
+    </div>
+    <div id="sprites-scroll">
+      <div id="sprites-container">
+        <p style="font-size:0.78rem;color:#5a5a8a;white-space:nowrap">
+          「分割プレビュー生成」を押すとここにプレビューが表示されます
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =============================================================
+   State
+   imageSlots: [{img, imgW, imgH, name, thumbUrl, rects, normalized}]
+   activeIdx: 現在左パネルに表示中のスロット番号
+============================================================= */
+let imageSlots  = [];
+let activeIdx   = -1;
+let bgMode      = 'checker';
+
+/* =============================================================
+   Helpers
+============================================================= */
+function toast(msg, duration = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function syncVal(sliderId, badgeId) {
+  document.getElementById(badgeId).textContent = document.getElementById(sliderId).value;
+}
+
+function settings() {
+  return {
+    white:    +document.getElementById('s-white').value,
+    area:     +document.getElementById('s-area').value,
+    merge:    +document.getElementById('s-merge').value,
+    pad:      +document.getElementById('s-pad').value,
+    size:     +document.getElementById('s-size').value,
+    baseline: +document.getElementById('s-baseline').value,
+    alphaMode: document.querySelector('input[name="alpha-mode"]:checked').value,
+    scaleUp:  document.querySelector('input[name="scale-up"]:checked').value === 'yes',
+    cols:     document.getElementById('s-cols').value,
+    startNum: +document.getElementById('s-startnum').value,
+    filename: document.getElementById('s-filename').value.trim() || 'sprite',
+  };
+}
+
+function setInfo(msg, cls = '') {
+  const el = document.getElementById('detect-info');
+  el.textContent = msg;
+  el.className = cls;
+}
+
+function spriteFileName(index, startNum, prefix) {
+  return `${prefix || 'sprite'}_${String(startNum + index).padStart(3, '0')}.webp`;
+}
+
+function updateStartPreview() {
+  const prefix = document.getElementById('s-filename').value.trim() || 'sprite';
+  const n = Math.max(0, +document.getElementById('s-startnum').value || 0);
+  document.getElementById('startnum-preview').textContent =
+    `${prefix}_${String(n).padStart(3, '0')}.webp`;
+}
+
+/* =============================================================
+   File loading — 複数枚対応
+============================================================= */
+function openFilePicker() {
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-input').click();
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  if (files.length) loadFilesArray(files);
+}
+
+function loadFiles(input) {
+  if (input.files.length) loadFilesArray([...input.files]);
+}
+
+function loadFilesArray(files) {
+  let loaded = 0;
+  files.forEach(file => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const slot = {
+        img,
+        imgW: img.naturalWidth,
+        imgH: img.naturalHeight,
+        name: file.name,
+        thumbUrl: url,
+        rects: [],
+        normalized: [],
+      };
+      imageSlots.push(slot);
+      loaded++;
+      renderSlotStrip();
+      // 最後の画像を自動的にアクティブに
+      setActiveSlot(imageSlots.length - 1);
+      if (loaded === files.length) {
+        document.getElementById('drop-zone').style.display = 'none';
+        document.getElementById('btn-detect').disabled = false;
+        setInfo(`${files.length} 枚を読み込みました。合計 ${imageSlots.length} 枚。「全画像を検出」を押してください。`);
+        toast(`${files.length} 枚読み込み完了`);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast(`読み込み失敗: ${file.name}`); };
+    img.src = url;
+  });
+}
+
+/* =============================================================
+   Slot management
+============================================================= */
+function setActiveSlot(idx) {
+  activeIdx = idx;
+  if (idx < 0 || idx >= imageSlots.length) return;
+  drawSource();
+  drawOverlay();
+  updateRectList();
+  renderSlotStrip(); // update active highlight
+}
+
+function deleteSlot(idx) {
+  URL.revokeObjectURL(imageSlots[idx].thumbUrl);
+  imageSlots.splice(idx, 1);
+  if (imageSlots.length === 0) {
+    activeIdx = -1;
+    const mc = document.getElementById('main-canvas');
+    mc.width = 0; mc.height = 0;
+    const oc = document.getElementById('overlay-canvas');
+    oc.width = 0; oc.height = 0;
+    document.getElementById('drop-zone').style.display = '';
+    setInfo('未検出 — 画像を読み込み後、「全画像を検出」を押してください');
+    document.getElementById('btn-detect').disabled = true;
+  } else {
+    setActiveSlot(Math.min(idx, imageSlots.length - 1));
+  }
+  renderSlotStrip();
+  renderAllSpritePreviews();
+  updateExportButtons();
+}
+
+function renderSlotStrip() {
+  const strip = document.getElementById('slot-strip');
+  const empty = document.getElementById('slot-empty');
+  // .slot-thumb だけ削除（#slot-empty はDOMに残す）
+  strip.querySelectorAll('.slot-thumb').forEach(el => el.remove());
+  if (imageSlots.length === 0) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  imageSlots.forEach((slot, i) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'slot-thumb' + (i === activeIdx ? ' active' : '');
+    thumb.title = slot.name;
+    thumb.onclick = () => setActiveSlot(i);
+
+    const img = document.createElement('img');
+    img.src = slot.thumbUrl;
+    thumb.appendChild(img);
+
+    // ドット絵検出数バッジ
+    const badge = document.createElement('div');
+    badge.className = 'slot-badge';
+    badge.textContent = slot.rects.length ? slot.rects.length + '体' : '';
+    thumb.appendChild(badge);
+
+    // 削除ボタン
+    const del = document.createElement('button');
+    del.className = 'slot-del';
+    del.textContent = '×';
+    del.onclick = (e) => { e.stopPropagation(); deleteSlot(i); };
+    thumb.appendChild(del);
+
+    strip.appendChild(thumb);
+  });
+}
+
+/* =============================================================
+   Draw active slot on left canvas
+============================================================= */
+function drawSource() {
+  if (activeIdx < 0) return;
+  const slot = imageSlots[activeIdx];
+  const mc = document.getElementById('main-canvas');
+  const oc = document.getElementById('overlay-canvas');
+  mc.width  = slot.imgW; mc.height = slot.imgH;
+  oc.width  = slot.imgW; oc.height = slot.imgH;
+  const ctx = mc.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(slot.img, 0, 0);
+}
+
+function drawOverlay() {
+  if (activeIdx < 0) return;
+  const slot = imageSlots[activeIdx];
+  const oc   = document.getElementById('overlay-canvas');
+  const ctx  = oc.getContext('2d');
+  ctx.clearRect(0, 0, oc.width, oc.height);
+  if (!slot.rects.length) return;
+
+  const lw = Math.max(1, Math.round(Math.min(slot.imgW, slot.imgH) / 400));
+  const fs = Math.max(10, Math.round(slot.imgW / 60));
+  ctx.strokeStyle = 'rgba(255,40,40,0.85)';
+  ctx.lineWidth = lw;
+  ctx.font = `bold ${fs}px monospace`;
+  ctx.fillStyle = '#ff2828';
+  ctx.textBaseline = 'top';
+
+  slot.rects.forEach((r, i) => {
+    ctx.strokeRect(r.x + .5, r.y + .5, r.w, r.h);
+    ctx.fillText(String(i + 1), r.x + 2, r.y + 2);
+  });
+}
+
+/* =============================================================
+   Detection — 全スロット一括
+============================================================= */
+function runDetectAll() {
+  if (!imageSlots.length) return;
+  const cfg = settings();
+  let totalFound = 0;
+
+  imageSlots.forEach(slot => {
+    const oc = document.createElement('canvas');
+    oc.width = slot.imgW; oc.height = slot.imgH;
+    const octx = oc.getContext('2d');
+    octx.imageSmoothingEnabled = false;
+    octx.drawImage(slot.img, 0, 0);
+
+    slot.rects = detectSprites(oc, cfg);
+    slot.normalized = [];
+    totalFound += slot.rects.length;
+  });
+
+  drawOverlay();
+  updateRectList();
+  renderSlotStrip(); // update badges
+  renderAllSpritePreviews();
+
+  if (totalFound === 0) {
+    setInfo('全画像でキャラクターが検出されませんでした。しきい値やminAreaを調整してください。', 'err');
+    document.getElementById('btn-preview').disabled = true;
+  } else {
+    setInfo(`全 ${imageSlots.length} 枚から合計 ${totalFound} 体を検出。「分割プレビュー生成」を押してください。`, 'ok');
+    document.getElementById('btn-preview').disabled = false;
+  }
+}
+
+/* 1枚分の検出ロジック */
+function detectSprites(srcCanvas, cfg) {
+  const W = srcCanvas.width, H = srcCanvas.height;
+  const data = srcCanvas.getContext('2d').getImageData(0, 0, W, H).data;
+
+  // foreground マーク
+  const fg = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const b = i * 4;
+    if (data[b+3] > 0 && (data[b] < cfg.white || data[b+1] < cfg.white || data[b+2] < cfg.white))
+      fg[i] = 1;
+  }
+
+  // BFS 連結成分
+  const labels = new Int32Array(W * H);
+  let labelCnt = 0;
+  const comps  = [];
+  const q = [];
+  const nb8 = [-W-1,-W,-W+1,-1,1,W-1,W,W+1];
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const idx = y * W + x;
+      if (!fg[idx] || labels[idx]) continue;
+      labelCnt++;
+      labels[idx] = labelCnt;
+      q.length = 0; q.push(idx); let qi = 0;
+      let minX=x,maxX=x,minY=y,maxY=y,area=0;
+      while (qi < q.length) {
+        const cur = q[qi++]; area++;
+        const cx = cur % W, cy = (cur/W)|0;
+        if (cx<minX) minX=cx; if (cx>maxX) maxX=cx;
+        if (cy<minY) minY=cy; if (cy>maxY) maxY=cy;
+        for (const d of nb8) {
+          const nb = cur+d; if (nb<0||nb>=W*H) continue;
+          const nx = nb%W; if (Math.abs(nx-cx)>1) continue;
+          if (!fg[nb]||labels[nb]) continue;
+          labels[nb]=labelCnt; q.push(nb);
+        }
+      }
+      comps.push({minX,minY,maxX,maxY,area});
+    }
+  }
+
+  // minArea フィルタ
+  let rects = comps
+    .filter(c => c.area >= cfg.area)
+    .map(c => ({x:c.minX,y:c.minY,w:c.maxX-c.minX+1,h:c.maxY-c.minY+1}));
+
+  // 近接マージ (2 pass)
+  rects = mergeRects(rects, cfg.merge);
+  rects = mergeRects(rects, cfg.merge);
+
+  // padding + clamp
+  rects = rects.map(r => {
+    const x  = Math.max(0, r.x - cfg.pad);
+    const y  = Math.max(0, r.y - cfg.pad);
+    const x2 = Math.min(W-1, r.x+r.w-1+cfg.pad);
+    const y2 = Math.min(H-1, r.y+r.h-1+cfg.pad);
+    return {x,y,w:x2-x+1,h:y2-y+1};
+  });
+
+  return sortRects(rects, cfg.size);
+}
+
+function mergeRects(rects, dist) {
+  const used = new Uint8Array(rects.length);
+  const result = [];
+  for (let i = 0; i < rects.length; i++) {
+    if (used[i]) continue;
+    let cur = {...rects[i]};
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let j = 0; j < rects.length; j++) {
+        if (used[j]||i===j) continue;
+        if (rectDist(cur, rects[j]) <= dist) {
+          cur = unionRect(cur, rects[j]);
+          used[j] = 1; changed = true;
+        }
+      }
+    }
+    result.push(cur);
+  }
+  return result;
+}
+
+function rectDist(a,b) {
+  const dx = Math.max(0, Math.max(a.x,b.x) - Math.min(a.x+a.w,b.x+b.w));
+  const dy = Math.max(0, Math.max(a.y,b.y) - Math.min(a.y+a.h,b.y+b.h));
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+function unionRect(a,b) {
+  const x  = Math.min(a.x,b.x), y  = Math.min(a.y,b.y);
+  const x2 = Math.max(a.x+a.w,b.x+b.w), y2 = Math.max(a.y+a.h,b.y+b.h);
+  return {x,y,w:x2-x,h:y2-y};
+}
+
+function sortRects(rects, outputSize) {
+  if (!rects.length) return rects;
+  const tol = outputSize * 0.5;
+  const sorted = [...rects].sort((a,b) => (a.y+a.h/2)-(b.y+b.h/2));
+  const rows = [];
+  for (const r of sorted) {
+    const cy = r.y+r.h/2;
+    const row = rows.find(row => Math.abs(row.refY-cy)<=tol);
+    if (row) row.rects.push(r);
+    else rows.push({refY:cy,rects:[r]});
+  }
+  rows.sort((a,b)=>a.refY-b.refY);
+  return rows.flatMap(row => row.rects.sort((a,b)=>a.x-b.x));
+}
+
+/* =============================================================
+   Normalize: 全スロット一括プレビュー生成
+============================================================= */
+function runPreviewAll() {
+  if (!imageSlots.length) return;
+  const cfg = settings();
+  let total = 0;
+
+  imageSlots.forEach(slot => {
+    if (!slot.rects.length) { slot.normalized = []; return; }
+    const oc = document.createElement('canvas');
+    oc.width = slot.imgW; oc.height = slot.imgH;
+    const octx = oc.getContext('2d');
+    octx.imageSmoothingEnabled = false;
+    octx.drawImage(slot.img, 0, 0);
+    slot.normalized = slot.rects.map(r => normalizeSprite(oc, r, cfg));
+    total += slot.normalized.length;
+  });
+
+  renderAllSpritePreviews();
+  updateExportButtons();
+  setInfo(`全 ${imageSlots.length} 枚・合計 ${total} 体の正規化完了。ダウンロードできます。`, 'ok');
+  toast('プレビュー生成完了');
+}
+
+function normalizeSprite(srcCanvas, rect, cfg) {
+  const {x,y,w,h} = rect;
+  const outSize = cfg.size;
+
+  const cut = document.createElement('canvas');
+  cut.width = w; cut.height = h;
+  const cctx = cut.getContext('2d');
+  cctx.imageSmoothingEnabled = false;
+  cctx.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+
+  removeBackground(cut, cfg);
+
+  const bounds = nonTransparentBounds(cut);
+  if (!bounds) {
+    const blank = document.createElement('canvas');
+    blank.width = outSize; blank.height = outSize;
+    return blank;
+  }
+
+  const cW = bounds.maxX-bounds.minX+1, cH = bounds.maxY-bounds.minY+1;
+  let scale = Math.min(outSize/cW, (outSize-cfg.baseline)/cH);
+  if (!cfg.scaleUp && scale > 1) scale = 1;
+
+  const dstW = Math.round(cW*scale), dstH = Math.round(cH*scale);
+  const out = document.createElement('canvas');
+  out.width = outSize; out.height = outSize;
+  const octx = out.getContext('2d');
+  octx.imageSmoothingEnabled = false;
+  octx.clearRect(0, 0, outSize, outSize);
+
+  const dstX = Math.floor((outSize-dstW)/2);
+  const dstY = Math.max(0, outSize-cfg.baseline-dstH);
+  octx.drawImage(cut, bounds.minX, bounds.minY, cW, cH, dstX, dstY, dstW, dstH);
+  return out;
+}
+
+function removeBackground(canvas, cfg) {
+  const ctx  = canvas.getContext('2d');
+  const id   = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = id.data;
+  const W    = canvas.width, H = canvas.height;
+  const thr  = cfg.white;
+
+  if (cfg.alphaMode === 'threshold') {
+    for (let i = 0; i < W*H; i++) {
+      const b = i*4;
+      if (data[b]>=thr && data[b+1]>=thr && data[b+2]>=thr) data[b+3]=0;
+    }
+  } else {
+    const visited = new Uint8Array(W*H);
+    const isWhite = idx => {
+      const b=idx*4;
+      return data[b]>=thr&&data[b+1]>=thr&&data[b+2]>=thr&&data[b+3]>0;
+    };
+    const q = [];
+    for (let x=0;x<W;x++) {
+      [x,(H-1)*W+x].forEach(i=>{ if(isWhite(i)&&!visited[i]){visited[i]=1;q.push(i);} });
+    }
+    for (let y=1;y<H-1;y++) {
+      [y*W,y*W+W-1].forEach(i=>{ if(isWhite(i)&&!visited[i]){visited[i]=1;q.push(i);} });
+    }
+    const dirs4=[-W,W,-1,1]; let qi=0;
+    while (qi<q.length) {
+      const cur=q[qi++]; const cx=cur%W,cy=(cur/W)|0;
+      for (const d of dirs4) {
+        const nb=cur+d; if(nb<0||nb>=W*H) continue;
+        const nx=nb%W;
+        if(d===-1&&nx!==cx-1) continue;
+        if(d===1&&nx!==cx+1) continue;
+        if(visited[nb]||!isWhite(nb)) continue;
+        visited[nb]=1; q.push(nb);
+      }
+    }
+    for (let i=0;i<W*H;i++) if(visited[i]) data[i*4+3]=0;
+  }
+  ctx.putImageData(id, 0, 0);
+}
+
+function nonTransparentBounds(canvas) {
+  const ctx  = canvas.getContext('2d');
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const W=canvas.width, H=canvas.height;
+  let minX=W,maxX=-1,minY=H,maxY=-1;
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) {
+    if (data[(y*W+x)*4+3]>0) {
+      if(x<minX)minX=x; if(x>maxX)maxX=x;
+      if(y<minY)minY=y; if(y>maxY)maxY=y;
+    }
+  }
+  return maxX<0 ? null : {minX,minY,maxX,maxY};
+}
+
+/* =============================================================
+   Preview rendering (bottom)
+============================================================= */
+function setBg(mode) {
+  bgMode = mode;
+  document.querySelectorAll('.bg-swatch').forEach(el=>el.classList.remove('active'));
+  document.getElementById('bg-'+mode)?.classList.add('active');
+  renderAllSpritePreviews();
+}
+
+function getBgStyle() {
+  if (bgMode==='white') return '#ffffff';
+  if (bgMode==='black') return '#000000';
+  if (bgMode==='gray')  return '#7c7c9e';
+  return null;
+}
+
+function renderAllSpritePreviews() {
+  const container = document.getElementById('sprites-container');
+  container.innerHTML = '';
+
+  const all = allNormalized();
+  if (!all.length) {
+    container.innerHTML = '<p style="font-size:0.78rem;color:#5a5a8a;white-space:nowrap">「分割プレビュー生成」を押すとここにプレビューが表示されます</p>';
+    document.getElementById('preview-count').textContent = '';
+    return;
+  }
+
+  const outSize = +document.getElementById('s-size').value;
+  const display = Math.min(outSize, 96);
+  const bg = getBgStyle();
+
+  // スロットごとに区切り線を入れて並べる
+  let globalIdx = 0;
+  imageSlots.forEach((slot, si) => {
+    if (!slot.normalized.length) return;
+    if (si > 0 && container.children.length) {
+      const div = document.createElement('div');
+      div.className = 'slot-divider';
+      container.appendChild(div);
+    }
+
+    slot.normalized.forEach((nc, localIdx) => {
+      const card = document.createElement('div');
+      card.className = 'sprite-card';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'sprite-canvas-wrap';
+      wrap.style.width = display+'px'; wrap.style.height = display+'px';
+      if (bg) { wrap.style.background=bg; wrap.style.backgroundImage='none'; }
+      else { wrap.style.background=''; }
+
+      const cv = document.createElement('canvas');
+      cv.width=display; cv.height=display;
+      const dctx=cv.getContext('2d');
+      dctx.imageSmoothingEnabled=false;
+      dctx.clearRect(0,0,display,display);
+      dctx.drawImage(nc,0,0,nc.width,nc.height,0,0,display,display);
+      cv.style.display='block';
+      wrap.appendChild(cv);
+
+      const del = document.createElement('button');
+      del.className='sprite-del-btn'; del.textContent='×';
+      del.onclick=(e)=>{ e.stopPropagation(); deleteSpriteFromSlot(si,localIdx); };
+      wrap.appendChild(del);
+      card.appendChild(wrap);
+
+      const lbl = document.createElement('div');
+      lbl.className='sprite-label';
+      lbl.textContent=`#${String(globalIdx+1).padStart(3,'0')}`;
+      card.appendChild(lbl);
+      container.appendChild(card);
+      globalIdx++;
+    });
+  });
+
+  document.getElementById('preview-count').textContent = `(全 ${all.length} 体)`;
+}
+
+function deleteSpriteFromSlot(slotIdx, localIdx) {
+  imageSlots[slotIdx].rects.splice(localIdx, 1);
+  imageSlots[slotIdx].normalized.splice(localIdx, 1);
+  if (slotIdx === activeIdx) { drawOverlay(); updateRectList(); }
+  renderSlotStrip();
+  renderAllSpritePreviews();
+  updateExportButtons();
+}
+
+/* =============================================================
+   Rect list (active slot only)
+============================================================= */
+function updateRectList() {
+  const list  = document.getElementById('rect-list');
+  const count = document.getElementById('rect-count');
+  list.innerHTML = '';
+  if (activeIdx < 0) { count.textContent=''; return; }
+  const slot = imageSlots[activeIdx];
+  count.textContent = slot.rects.length ? `(${slot.rects.length})` : '';
+  slot.rects.forEach((r,i) => {
+    const item = document.createElement('div');
+    item.className='rect-item';
+    item.innerHTML=`<span class="rid">#${i+1}</span><span>${r.x},${r.y} ${r.w}×${r.h}</span><button class="rdel" onclick="deleteSpriteFromSlot(${activeIdx},${i})">✕</button>`;
+    list.appendChild(item);
+  });
+}
+
+function clearActiveRects() {
+  if (activeIdx < 0) return;
+  imageSlots[activeIdx].rects = [];
+  imageSlots[activeIdx].normalized = [];
+  drawOverlay(); updateRectList(); renderSlotStrip();
+  renderAllSpritePreviews(); updateExportButtons();
+}
+
+/* =============================================================
+   Export helpers
+============================================================= */
+function allNormalized() {
+  return imageSlots.flatMap(s => s.normalized);
+}
+
+function updateExportButtons() {
+  const hasAny = allNormalized().length > 0;
+  document.getElementById('btn-zip').disabled   = !hasAny;
+  document.getElementById('btn-indiv').disabled = !hasAny;
+  document.getElementById('btn-sheet').disabled = !hasAny;
+}
+
+function updateSize() {
+  if (allNormalized().length) renderAllSpritePreviews();
+}
+
+/* =============================================================
+   ZIP download
+============================================================= */
+async function downloadZip() {
+  const all = allNormalized();
+  if (!all.length) return;
+  toast('ZIPを生成中...', 4000);
+  const { startNum, filename } = settings();
+  const zip = new JSZip();
+  const folder = zip.folder('sprites');
+  for (let i=0;i<all.length;i++) {
+    const blob = await canvasToBlob(all[i],'image/webp');
+    folder.file(spriteFileName(i, startNum, filename), blob);
+  }
+  const content = await zip.generateAsync({type:'blob'});
+  saveBlob(content, 'valzeria_sprites.zip');
+  toast('ZIPダウンロード完了！');
+}
+
+/* =============================================================
+   Individual download
+============================================================= */
+async function downloadIndividual() {
+  const all = allNormalized();
+  if (!all.length) return;
+  const { startNum, filename } = settings();
+  for (let i=0;i<all.length;i++) {
+    const blob = await canvasToBlob(all[i],'image/webp');
+    saveBlob(blob, spriteFileName(i, startNum, filename));
+    await new Promise(r=>setTimeout(r,150));
+  }
+  toast(`${all.length} 枚を個別保存しました`);
+}
+
+/* =============================================================
+   Sprite sheet
+============================================================= */
+async function downloadSheet() {
+  const all = allNormalized();
+  if (!all.length) return;
+  const cfg = settings();
+  const outSize = cfg.size;
+  const n = all.length;
+  const cols = cfg.cols==='auto' ? n : Math.min(+cfg.cols, n);
+  const rows = Math.ceil(n/cols);
+
+  const sheet = document.createElement('canvas');
+  sheet.width = outSize*cols; sheet.height = outSize*rows;
+  const sctx = sheet.getContext('2d');
+  sctx.imageSmoothingEnabled = false;
+  sctx.clearRect(0,0,sheet.width,sheet.height);
+  all.forEach((nc,i)=>{
+    sctx.drawImage(nc, (i%cols)*outSize, Math.floor(i/cols)*outSize);
+  });
+  const blob = await canvasToBlob(sheet,'image/webp');
+  saveBlob(blob,'valzeria_sprite_sheet.webp');
+  toast('スプライトシートをダウンロードしました！');
+}
+
+function canvasToBlob(canvas, mime='image/webp') {
+  return new Promise(resolve => canvas.toBlob(resolve, mime));
+}
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* =============================================================
+   Reset
+============================================================= */
+function resetAll() {
+  imageSlots.forEach(s => URL.revokeObjectURL(s.thumbUrl));
+  imageSlots = []; activeIdx = -1;
+
+  const mc=document.getElementById('main-canvas');
+  mc.width=0; mc.height=0;
+  const oc=document.getElementById('overlay-canvas');
+  oc.width=0; oc.height=0;
+
+  document.getElementById('drop-zone').style.display='';
+  setInfo('未検出 — 画像を読み込み後、「全画像を検出」を押してください');
+  renderSlotStrip(); updateRectList(); renderAllSpritePreviews(); updateExportButtons();
+  document.getElementById('btn-detect').disabled=true;
+  document.getElementById('btn-preview').disabled=true;
+
+  // スライダーリセット
+  [['s-white',245,'v-white'],['s-area',50,'v-area'],['s-merge',12,'v-merge'],
+   ['s-pad',4,'v-pad'],['s-baseline',6,'v-baseline']].forEach(([id,val,bid])=>{
+    document.getElementById(id).value=val;
+    document.getElementById(bid).textContent=val;
+  });
+  document.getElementById('s-size').value=96;
+  document.getElementById('s-filename').value='chara';
+  document.getElementById('s-startnum').value=1;
+  updateStartPreview();
+  toast('リセットしました');
+}
+
+/* =============================================================
+   Init
+============================================================= */
+document.getElementById('canvas-wrapper').addEventListener('dragenter', e=>e.preventDefault());
+
+document.addEventListener('paste', (e) => {
+  const items = [...(e.clipboardData?.items || [])];
+  const imageFiles = items
+    .filter(it => it.type.startsWith('image/'))
+    .map((it, i) => {
+      const f = it.getAsFile();
+      if (!f) return null;
+      const ext = it.type.split('/')[1] || 'png';
+      return new File([f], `paste_${Date.now()}_${i}.${ext}`, { type: it.type });
+    })
+    .filter(Boolean);
+  if (!imageFiles.length) return;
+  e.preventDefault();
+  loadFilesArray(imageFiles);
+  toast(`クリップボードから ${imageFiles.length} 枚を貼り付けました`);
+});
+
+renderSlotStrip();
+</script>
+</body>
+</html>

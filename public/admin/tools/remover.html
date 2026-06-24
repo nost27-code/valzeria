@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magic Background Remover</title>
+  <link rel="stylesheet" href="style.css?v=1781571240">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+  <div class="app-container">
+    <header class="header">
+      <h1>✨ Magic Background Remover</h1>
+      <p>AIの力で、画像の背景を一瞬で透過します。すべてブラウザ上で安全に処理されます。</p>
+    </header>
+
+    <main class="main-content">
+      <!-- アップロードエリア (初期表示) -->
+      <div id="uploadArea" class="upload-area">
+        <input type="file" id="fileInput" accept="image/*" class="hidden-input" multiple>
+        <div class="upload-icon-wrapper">
+          <i data-lucide="upload-cloud" class="upload-icon" style="width: 48px; height: 48px;"></i>
+        </div>
+        <h2>画像をアップロード</h2>
+        <p>ドラッグ＆ドロップ、またはクリップボードからの貼り付け(Ctrl+V)で画像を追加できます (PNG, JPG)</p>
+        <button id="selectFileBtn" class="primary-btn mt-4">ファイルを選択</button>
+      </div>
+
+      <!-- プレビュー＆処理エリア (複数ファイル) -->
+      <div id="workspaceContainer" class="workspace-container hidden">
+
+        <div class="workspace-header">
+          <div>
+            <h3><span id="fileCountDisplay">0</span>枚の画像が選択されました</h3>
+            <p id="overallStatusText" class="status-text">準備完了</p>
+          </div>
+          <div class="resize-controls" aria-label="リサイズ設定">
+            <div class="process-mode" aria-label="処理モード">
+              <label>
+                <input type="radio" name="processMode" value="remove" checked>
+                透過
+              </label>
+              <label>
+                <input type="radio" name="processMode" value="resize">
+                サイズ変更のみ
+              </label>
+            </div>
+            <label class="resize-field">
+              <span>幅</span>
+              <input id="targetWidthInput" type="number" min="1" placeholder="自動">
+            </label>
+            <span class="resize-separator">x</span>
+            <label class="resize-field">
+              <span>高さ</span>
+              <input id="targetHeightInput" type="number" min="1" placeholder="自動">
+            </label>
+            <label class="resize-keep-ratio">
+              <input id="keepAspectRatioInput" type="checkbox" checked>
+              比率維持
+            </label>
+            <label class="resize-field" style="margin-left: 1rem; padding-left: 1rem; border-left: 1px solid rgba(255,255,255,0.1);">
+              <span>名前</span>
+              <input id="baseNameInput" type="text" placeholder="例: sample">
+            </label>
+            <label class="resize-field" style="margin-left: 1rem; padding-left: 1rem; border-left: 1px solid rgba(255,255,255,0.1);">
+              <span>出力形式</span>
+              <select id="outputFormatSelect" style="background: var(--surface); color: var(--text); border: 1px solid rgba(255,255,255,0.1); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                <option value="png">PNG</option>
+                <option value="webp">WebP</option>
+                <option value="jpeg">JPEG</option>
+              </select>
+            </label>
+            <label class="resize-field" id="qualityControl" style="display: none;">
+              <span>画質(%)</span>
+              <input id="qualityInput" type="number" min="1" max="100" value="80">
+            </label>
+            <label class="resize-field" style="margin-left: 1rem; padding-left: 1rem; border-left: 1px solid rgba(255,255,255,0.1);">
+              <span>AIモデル</span>
+              <select id="aiModelSelect" style="background: var(--surface); color: var(--text); border: 1px solid rgba(255,255,255,0.1); padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                <option value="medium">標準 (Medium)</option>
+                <option value="small">軽量 (Small)</option>
+              </select>
+            </label>
+          </div>
+          <div class="workspace-actions">
+            <button id="addMoreBtn" class="secondary-btn small" style="margin-top: 0">
+              <i data-lucide="plus" style="width: 16px; height: 16px;"></i> 追加
+            </button>
+            <button id="processAllBtn" class="primary-btn">
+              <span id="processBtnContent">全画像を透過する</span>
+            </button>
+            <button id="downloadAllBtn" class="secondary-btn small hidden" style="margin-top: 0">
+              <i data-lucide="archive" style="width: 16px; height: 16px;"></i> 一括保存
+            </button>
+            <button id="convertAllWebpBtn" class="secondary-btn small hidden" style="margin-top: 0">
+              <i data-lucide="image" style="width: 16px; height: 16px;"></i> 一括WebP化
+            </button>
+            <button id="resetAppBtn" class="secondary-btn small" style="margin-top: 0">はじめから</button>
+          </div>
+        </div>
+
+        <div id="globalProgressContainer" class="progress-bar-container hidden">
+          <div id="globalProgressBar" class="progress-bar" style="width: 0%"></div>
+        </div>
+
+        <!-- 個別の画像リストがここに動的に追加される -->
+        <div id="imageListContainer" class="image-list-container">
+          <!-- JS generated items here -->
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- アプリのメインロジック -->
+  <div id="toastContainer" class="toast-container"></div>
+  <script src="script.js?v=1781571240"></script>
+</body>
+
+</html>

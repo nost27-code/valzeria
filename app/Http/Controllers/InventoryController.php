@@ -1,0 +1,296 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CharacterItem;
+use App\Models\CharacterMaterial;
+use App\Models\CharacterMonsterMark;
+use App\Models\Character;
+use App\Services\GoldService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+
+class InventoryController extends Controller
+{
+    public function index()
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
+        }
+
+        $allMaterials = $character->characterMaterials()
+            ->where('quantity', '>', 0)
+            ->whereHas('material')
+            ->with('material')
+            ->get()
+            ->sort(fn ($a, $b) => [
+                (string) ($a->material?->category ?? ''),
+                (string) ($a->material?->name ?? ''),
+            ] <=> [
+                (string) ($b->material?->category ?? ''),
+                (string) ($b->material?->name ?? ''),
+            ])
+            ->values();
+
+        $keyMaterials = $allMaterials
+            ->filter(fn ($row) => $this->isKeyMaterial($row->material))
+            ->values();
+
+        $materials = $allMaterials
+            ->reject(fn ($row) => $this->isKeyMaterial($row->material))
+            ->values();
+
+        $marks = CharacterMonsterMark::query()
+            ->where('character_id', $character->id)
+            ->where('quantity', '>', 0)
+            ->whereHas('monsterMark')
+            ->with(['monsterMark.enemy'])
+            ->get()
+            ->sortBy(fn ($row) => (string) ($row->monsterMark?->mark_name ?? ''))
+            ->values();
+
+        $allEquipmentItems = $character->characterItems()
+            ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
+            ->with('item')
+            ->get()
+            ->sort(fn (CharacterItem $a, CharacterItem $b) => [
+                (string) ($a->item?->type ?? ''),
+                -1 * $this->itemRankSort($a),
+                (string) ($a->item?->name ?? ''),
+            ] <=> [
+                (string) ($b->item?->type ?? ''),
+                -1 * $this->itemRankSort($b),
+                (string) ($b->item?->name ?? ''),
+            ])
+            ->values();
+
+        $keyEquipmentItems = $allEquipmentItems
+            ->filter(fn (CharacterItem $row) => $this->isKeyItem($row))
+            ->values();
+
+        $equipmentItems = $allEquipmentItems
+            ->reject(fn (CharacterItem $row) => $this->isKeyItem($row))
+            ->values();
+
+        $equipmentGroups = [
+            'weapon' => $equipmentItems->filter(fn ($row) => $row->item?->type === 'weapon')->values(),
+            'armor' => $equipmentItems->filter(fn ($row) => $row->item?->type === 'armor')->values(),
+            'accessory' => $equipmentItems->filter(fn ($row) => $row->item?->type === 'accessory')->values(),
+        ];
+
+        $keyItems = $keyMaterials
+            ->map(fn ($row) => [
+                'kind' => 'material',
+                'name' => (string) ($row->material?->displayName() ?? '不明な大事なもの'),
+                'category' => (string) ($row->material?->category ?? '大事なもの'),
+                'rarity' => (string) ($row->material?->rarity ?? '-'),
+                'description' => (string) ($row->material?->main_use ?? ''),
+                'icon' => $this->keyMaterialIcon($row->material),
+                'icon_image' => ($this->keyMaterialIcon($row->material) === '🏆') ? 'images/icon/icon_010.webp' : null,
+                'quantity' => (int) $row->quantity,
+            ])
+            ->concat($keyEquipmentItems->map(fn (CharacterItem $row) => [
+                'kind' => 'item',
+                'name' => $row->displayName(),
+                'category' => (string) ($row->item?->sub_type ?? '大事なもの'),
+                'rarity' => (string) ($row->item?->rarity ?? '-'),
+                'description' => (string) ($row->item?->description ?? ''),
+                'icon' => '🔑',
+                'icon_image' => null,
+                'quantity' => 1,
+            ]))
+            ->sortBy(fn ($entry) => $entry['name'])
+            ->values();
+
+        $storageSummary = $this->buildStorageSummary($character, $materials, $marks, $equipmentGroups, $keyItems);
+
+        return view('inventory.index', compact(
+            'character',
+            'materials',
+            'marks',
+            'equipmentGroups',
+            'keyItems',
+            'storageSummary'
+        ));
+    }
+
+    private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems): array
+    {
+        $weaponCount = $equipmentGroups['weapon']->count();
+        $armorCount = $equipmentGroups['armor']->count();
+        $accessoryCount = $equipmentGroups['accessory']->count();
+        $keyItemCount = $keyItems->sum('quantity');
+
+        $categories = [
+            'material' => ['label' => '素材', 'count' => $materials->sum('quantity'), 'icon' => '💎', 'icon_image' => 'icon/icon_011.webp'],
+            'weapon' => ['label' => '武器', 'count' => $weaponCount, 'icon' => '🗡️', 'icon_image' => 'icon/icon_006.webp'],
+            'armor' => ['label' => '防具', 'count' => $armorCount, 'icon' => '🛡️', 'icon_image' => 'icon/icon_007.webp'],
+            'accessory' => ['label' => '装飾品', 'count' => $accessoryCount, 'icon' => '💍', 'icon_image' => 'icon/icon_008.webp'],
+        ];
+
+        return [
+            'total' => collect($categories)->sum('count') + $keyItemCount,
+            'material_storage_total' => (int) ($categories['material']['count'] ?? 0),
+            'material_storage_limit' => (int) ($character->material_storage_limit ?? 300),
+            'material_storage_types' => $materials->count(),
+            'equipment_storage_total' => $weaponCount + $armorCount + $accessoryCount,
+            'equipment_storage_limit' => (int) ($character->equipment_storage_limit ?? 200),
+            'key_item_total' => $keyItemCount,
+            'key_item_types' => $keyItems->count(),
+            'mark_collection_total' => $marks->sum('quantity'),
+            'mark_collection_types' => $marks->count(),
+            'categories' => $categories,
+        ];
+    }
+
+    private function isKeyMaterial(?object $material): bool
+    {
+        if (!$material) {
+            return false;
+        }
+
+        $name = (string) ($material->name ?? '');
+        $category = (string) ($material->category ?? '');
+        $mainUse = (string) ($material->main_use ?? '');
+        $materialType = (string) ($material->material_type ?? '');
+        $categoryId = (string) ($material->category_id ?? '');
+
+        return $materialType === 'boss_unique'
+            || $categoryId === 'boss_unique'
+            || str_contains($category, '討伐証')
+            || str_contains($category, 'ボス特異素材')
+            || str_contains($mainUse, 'レシピ解放キー')
+            || str_contains($mainUse, '解放キー')
+            || str_ends_with($name, 'の刻印')
+            || str_ends_with($name, 'の王印')
+            || str_ends_with($name, 'の神印');
+    }
+
+    private function keyMaterialIcon(?object $material): string
+    {
+        if (!$material) {
+            return '🔑';
+        }
+
+        $materialType = (string) ($material->material_type ?? '');
+        $categoryId = (string) ($material->category_id ?? '');
+        $category = (string) ($material->category ?? '');
+
+        return $materialType === 'boss_unique'
+            || $categoryId === 'boss_unique'
+            || str_contains($category, 'ボス特異素材')
+                ? '🏆'
+                : '🔑';
+    }
+
+    private function isKeyItem(CharacterItem $characterItem): bool
+    {
+        $item = $characterItem->item;
+        if (!$item) {
+            return false;
+        }
+
+        $name = (string) ($item->name ?? '');
+        $subType = (string) ($item->sub_type ?? '');
+
+        return in_array($subType, ['刻印', '王印', '神印'], true)
+            || str_ends_with($name, 'の刻印')
+            || str_ends_with($name, 'の王印')
+            || str_ends_with($name, 'の神印');
+    }
+
+    private function itemRankSort(CharacterItem $characterItem): int
+    {
+        $item = $characterItem->item;
+        if (!$item) {
+            return 0;
+        }
+
+        return (int) match ($item->type) {
+            'weapon' => $item->weapon_rank_sort ?? 0,
+            'armor' => $item->armor_rank_sort ?? 0,
+            'accessory' => $item->accessory_rank_sort ?? 0,
+            default => 0,
+        };
+    }
+
+    public function sell(Request $request, GoldService $goldService)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
+        }
+
+        $validated = $request->validate([
+            'character_material_id' => ['required', 'integer'],
+            'quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $characterMaterial = CharacterMaterial::query()
+            ->where('character_id', $character->id)
+            ->where('id', $validated['character_material_id'])
+            ->with('material')
+            ->firstOrFail();
+
+        if ($this->isKeyMaterial($characterMaterial->material)) {
+            return redirect()->route('inventory.index')->with('error', '大事なものは売却できません。');
+        }
+
+        try {
+            $result = $goldService->sellMaterial($character, $characterMaterial, (int) $validated['quantity']);
+        } catch (\RuntimeException $e) {
+            return redirect()->route('inventory.index')->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('inventory.index')
+            ->with('status', "{$result['name']}を{$result['quantity']}個売却し、" . number_format($result['amount']) . 'Gを得ました。');
+    }
+
+    public function discardMaterial(Request $request, CharacterMaterial $characterMaterial)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character || (int) $characterMaterial->character_id !== (int) $character->id) {
+            abort(404);
+        }
+
+        $characterMaterial->loadMissing('material');
+        if ($this->isKeyMaterial($characterMaterial->material)) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => '大事なものは捨てられません。'], 422);
+            }
+
+            return redirect()
+                ->route('inventory.index')
+                ->with('error', '大事なものは捨てられません。');
+        }
+
+        $validated = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1', 'max:' . max(1, (int) $characterMaterial->quantity)],
+        ]);
+
+        $discardQuantity = (int) $validated['quantity'];
+        $materialName = (string) ($characterMaterial->material?->displayName() ?? '素材');
+        $remaining = max(0, (int) $characterMaterial->quantity - $discardQuantity);
+
+        if ($remaining <= 0) {
+            $characterMaterial->delete();
+        } else {
+            $characterMaterial->forceFill(['quantity' => $remaining])->save();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => "{$materialName}を{$discardQuantity}個捨てました。",
+                'discarded_quantity' => $discardQuantity,
+                'remaining_quantity' => $remaining,
+            ]);
+        }
+
+        return redirect()
+            ->route('inventory.index')
+            ->with('status', "{$materialName}を{$discardQuantity}個捨てました。");
+    }
+}

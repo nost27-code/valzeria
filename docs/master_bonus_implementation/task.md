@@ -1,0 +1,5 @@
+- [x] `app/Services/JobService.php` の修正
+  - [x] `calculateFinalStats()` メソッド内にマスター済み職業の取得ロジックを追加
+  - [x] マスター済み職業の `bonus_xxx` をそれぞれ集計
+  - [x] 集計したボーナスをベースステータスに加算して返す
+- [x] 実装およびローカル確認完了

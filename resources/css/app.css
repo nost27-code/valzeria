@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-valzeria-blue: #1e40af;
+    --color-valzeria-blue-dark: #1e3a8a;
+    --color-valzeria-blue-deep: #0a1628;
+    --color-valzeria-gold: #d4af37;
+    --color-valzeria-gold-dark: #b8860b;
+    --color-valzeria-gold-soft: #fef3c7;
+}
+
+@layer base {
+    :root {
+        --valzeria-blue: #1e40af;
+        --valzeria-blue-dark: #1e3a8a;
+        --valzeria-blue-deep: #0a1628;
+        --valzeria-gold: #d4af37;
+        --valzeria-gold-dark: #b8860b;
+        --valzeria-gold-soft: #fef3c7;
+    }
+
+    button,
+    [role='button'],
+    input[type='button'],
+    input[type='submit'],
+    input[type='reset'] {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    [role='button'][aria-disabled='true'],
+    input[type='button']:disabled,
+    input[type='submit']:disabled,
+    input[type='reset']:disabled {
+        cursor: not-allowed;
+    }
+}
+
+@layer components {
+    .town-news-marquee {
+        overflow: hidden;
+        white-space: nowrap;
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    }
+
+    .town-news-marquee span {
+        display: inline-block;
+        min-width: 100%;
+        padding-left: 100%;
+        animation: town-news-marquee 18s linear infinite;
+    }
+
+    @keyframes town-news-marquee {
+        from {
+            transform: translateX(0);
+        }
+
+        to {
+            transform: translateX(-100%);
+        }
+    }
+}

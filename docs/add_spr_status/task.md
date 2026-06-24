@@ -1,0 +1,11 @@
+- [x] データベース（マイグレーション）の修正
+  - [x] `characters` テーブルに `spirit_base` を追加
+  - [x] `enemies` テーブルに `spr` を追加
+  - [x] `items` テーブルに `spr_bonus` を追加
+- [x] ビジネスロジックの修正
+  - [x] `JobService::calculateFinalStats()` に SPR 計算を追加
+  - [x] `CharacterStatusService::getFinalStats()` に SPR 計算を追加
+  - [x] `BattleService` で魔法ダメージ計算等のためにSPRを取得（または連携）できるように調整
+- [x] UI・画面表示の修正
+  - [x] `resources/views/livewire/left-sidebar.blade.php` に SPR を追加表示
+- [ ] ブラウザによる動作確認とテスト

@@ -1,0 +1,829 @@
+<div x-data="{ 
+          isPlayerModalOpen: @entangle('isPlayerModalOpen'), 
+          playerInfo: @entangle('playerInfo'),
+          playersExpanded: false,
+          notificationOpen: false,
+     }">
+    <style>
+        .profile-frame-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            width: 92%;
+            max-width: 420px;
+            max-height: 88vh;
+            overflow-y: auto;
+            isolation: isolate;
+            border-width: 3px !important;
+            border-radius: var(--profile-radius, 18px);
+            padding-top: 20px !important;
+            outline: 1px solid rgba(255, 255, 255, .84);
+            outline-offset: -7px;
+        }
+        .profile-frame-modal::before,
+        .profile-frame-modal::after {
+            content: "";
+            position: absolute;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .profile-frame-modal::before {
+            inset: 8px;
+            border: 1px solid var(--profile-inner-border, rgba(212, 175, 55, .35));
+            border-radius: var(--profile-inner-radius, 12px);
+            background: var(--profile-pattern, transparent);
+            opacity: .78;
+        }
+        .profile-frame-modal::after {
+            right: 14px;
+            bottom: 12px;
+            width: 86px;
+            height: 86px;
+            border-radius: 999px;
+            background: var(--profile-ornament);
+            opacity: .88;
+        }
+        .profile-frame-standard {
+            --profile-main: #b88a09;
+            --profile-main-soft: #f8e7a7;
+            --profile-main-dark: #7c4f00;
+            --profile-inner-border: rgba(184, 134, 11, .35);
+            --profile-radius: 18px;
+            --profile-inner-radius: 12px;
+            --profile-panel-radius: 12px;
+            --profile-avatar-radius: 24px;
+            --profile-pattern: radial-gradient(circle at 16px 16px, rgba(212,175,55,.12) 0 1.5px, transparent 2px);
+            --profile-ornament: radial-gradient(circle, rgba(212, 175, 55, .28) 0 2px, transparent 3px 100%);
+            --profile-title-bg: linear-gradient(135deg, rgba(255, 251, 235, .96), rgba(255, 255, 255, .82));
+            border-color: #d4af37;
+            background:
+                linear-gradient(90deg, rgba(212, 175, 55, .18) 0 4px, transparent 4px calc(100% - 4px), rgba(212, 175, 55, .18) calc(100% - 4px)),
+                linear-gradient(180deg, #fff 0%, #fffaf0 42%, #fff 100%);
+            box-shadow: 0 18px 44px rgba(15, 23, 42, .28), inset 0 0 0 1px rgba(212, 175, 55, .20);
+        }
+        .profile-frame-arclea {
+            --profile-main: #d4af37;
+            --profile-main-soft: #fef3c7;
+            --profile-main-dark: #744210;
+            --profile-inner-border: rgba(212, 175, 55, .48);
+            --profile-radius: 22px;
+            --profile-inner-radius: 16px;
+            --profile-panel-radius: 14px;
+            --profile-avatar-radius: 20px;
+            --profile-pattern: linear-gradient(135deg, rgba(212,175,55,.10) 0 12px, transparent 12px 24px);
+            --profile-ornament: conic-gradient(from 45deg, rgba(212,175,55,.45), transparent 18%, rgba(255,255,255,.55) 26%, transparent 42%, rgba(180,83,9,.24) 62%, transparent 80%, rgba(212,175,55,.45));
+            --profile-title-bg: linear-gradient(135deg, rgba(255, 251, 235, .98), rgba(255,255,255,.88));
+            border-color: #d4af37;
+            background:
+                linear-gradient(180deg, rgba(212, 175, 55, .30) 0 6px, transparent 6px),
+                radial-gradient(circle at 12% 14%, rgba(251, 191, 36, .26), transparent 30%),
+                radial-gradient(circle at 88% 18%, rgba(252, 211, 77, .20), transparent 28%),
+                linear-gradient(180deg, #fffdf5 0%, #fff 48%, #fffbeb 100%);
+            box-shadow: 0 18px 44px rgba(120, 86, 8, .26), inset 0 0 0 1px rgba(212,175,55,.24);
+        }
+        .profile-frame-marine {
+            --profile-main: #0284c7;
+            --profile-main-soft: #bae6fd;
+            --profile-main-dark: #075985;
+            --profile-inner-border: rgba(14, 165, 233, .42);
+            --profile-radius: 28px 14px 28px 14px;
+            --profile-inner-radius: 22px 10px 22px 10px;
+            --profile-panel-radius: 18px 8px 18px 8px;
+            --profile-avatar-radius: 50% 42% 50% 42%;
+            --profile-pattern: radial-gradient(circle at 14px 18px, rgba(14,165,233,.16) 0 4px, transparent 5px),
+                radial-gradient(circle at 42px 36px, rgba(34,211,238,.12) 0 7px, transparent 8px);
+            --profile-ornament: radial-gradient(circle at 22% 22%, rgba(56, 189, 248, .45) 0 4px, transparent 5px),
+                radial-gradient(circle at 64% 52%, rgba(34, 211, 238, .30) 0 7px, transparent 8px),
+                radial-gradient(circle at 36% 78%, rgba(14, 165, 233, .22) 0 5px, transparent 6px);
+            --profile-title-bg: linear-gradient(135deg, rgba(224, 242, 254, .98), rgba(255, 255, 255, .86));
+            border-color: #38bdf8;
+            background:
+                linear-gradient(180deg, rgba(14, 165, 233, .22) 0 6px, transparent 6px),
+                radial-gradient(circle at 8% 11%, rgba(125, 211, 252, .45) 0 28px, transparent 29px),
+                radial-gradient(circle at 94% 17%, rgba(34, 211, 238, .28) 0 34px, transparent 35px),
+                linear-gradient(180deg, #f0fbff 0%, #fff 42%, #eefcff 100%);
+            box-shadow: 0 18px 44px rgba(8, 47, 73, .30), inset 0 0 0 1px rgba(14, 165, 233, .22);
+        }
+        .profile-frame-elphia {
+            --profile-main: #16a34a;
+            --profile-main-soft: #bbf7d0;
+            --profile-main-dark: #166534;
+            --profile-inner-border: rgba(34, 197, 94, .42);
+            --profile-radius: 24px 24px 12px 24px;
+            --profile-inner-radius: 18px 18px 8px 18px;
+            --profile-panel-radius: 18px 18px 8px 18px;
+            --profile-avatar-radius: 34% 58% 42% 56%;
+            --profile-pattern: radial-gradient(ellipse at 18px 14px, rgba(34,197,94,.14) 0 8px, transparent 9px),
+                radial-gradient(ellipse at 44px 38px, rgba(132,204,22,.10) 0 10px, transparent 11px);
+            --profile-ornament: radial-gradient(ellipse at 40% 30%, rgba(34,197,94,.38) 0 18%, transparent 20%),
+                radial-gradient(ellipse at 68% 64%, rgba(132,204,22,.28) 0 22%, transparent 24%);
+            --profile-title-bg: linear-gradient(135deg, rgba(236, 253, 245, .98), rgba(255,255,255,.86));
+            border-color: #4ade80;
+            background:
+                linear-gradient(180deg, rgba(34, 197, 94, .22) 0 6px, transparent 6px),
+                radial-gradient(circle at 10% 14%, rgba(134, 239, 172, .35), transparent 30%),
+                radial-gradient(circle at 92% 22%, rgba(190, 242, 100, .24), transparent 28%),
+                linear-gradient(180deg, #f0fdf4 0%, #fff 42%, #ecfdf5 100%);
+            box-shadow: 0 18px 44px rgba(20, 83, 45, .24), inset 0 0 0 1px rgba(34,197,94,.20);
+        }
+        .profile-frame-granberg {
+            --profile-main: #475569;
+            --profile-main-soft: #fed7aa;
+            --profile-main-dark: #1e293b;
+            --profile-inner-border: rgba(71, 85, 105, .44);
+            --profile-radius: 8px;
+            --profile-inner-radius: 4px;
+            --profile-panel-radius: 6px;
+            --profile-avatar-radius: 10px;
+            --profile-pattern: repeating-linear-gradient(90deg, rgba(71,85,105,.10) 0 6px, transparent 6px 14px),
+                repeating-linear-gradient(0deg, rgba(249,115,22,.08) 0 2px, transparent 2px 18px);
+            --profile-ornament: repeating-linear-gradient(45deg, rgba(71,85,105,.30) 0 7px, transparent 7px 14px),
+                radial-gradient(circle at 50% 50%, rgba(249,115,22,.26), transparent 34%);
+            --profile-title-bg: linear-gradient(135deg, rgba(248,250,252,.98), rgba(255,247,237,.84));
+            border-color: #64748b;
+            background:
+                linear-gradient(180deg, rgba(71, 85, 105, .28) 0 6px, transparent 6px),
+                radial-gradient(circle at 14% 14%, rgba(251, 146, 60, .25), transparent 30%),
+                linear-gradient(180deg, #f8fafc 0%, #fff 44%, #fff7ed 100%);
+            box-shadow: 0 18px 44px rgba(30, 41, 59, .28), inset 0 0 0 1px rgba(71,85,105,.22);
+        }
+        .profile-frame-frostria {
+            --profile-main: #2563eb;
+            --profile-main-soft: #dbeafe;
+            --profile-main-dark: #1e3a8a;
+            --profile-inner-border: rgba(147, 197, 253, .48);
+            --profile-radius: 18px 34px 18px 34px;
+            --profile-inner-radius: 12px 28px 12px 28px;
+            --profile-panel-radius: 10px 24px 10px 24px;
+            --profile-avatar-radius: 28px 10px 28px 10px;
+            --profile-pattern: linear-gradient(135deg, rgba(147,197,253,.14) 0 10px, transparent 10px 22px),
+                linear-gradient(45deg, rgba(219,234,254,.22) 0 8px, transparent 8px 18px);
+            --profile-ornament: conic-gradient(from 45deg, rgba(147, 197, 253, .34), transparent 18%, rgba(219, 234, 254, .44) 30%, transparent 46%, rgba(96, 165, 250, .25) 62%, transparent 78%, rgba(147, 197, 253, .34));
+            --profile-title-bg: linear-gradient(135deg, rgba(239, 246, 255, .98), rgba(255, 255, 255, .86));
+            border-color: #93c5fd;
+            background:
+                linear-gradient(180deg, rgba(147, 197, 253, .25) 0 6px, transparent 6px),
+                linear-gradient(135deg, rgba(191, 219, 254, .28) 0 16%, transparent 16% 34%, rgba(226, 232, 240, .34) 34% 48%, transparent 48%),
+                linear-gradient(180deg, #f8fbff 0%, #fff 45%, #eff6ff 100%);
+            box-shadow: 0 18px 44px rgba(30, 58, 138, .25), inset 0 0 0 1px rgba(147, 197, 253, .28);
+        }
+        .profile-frame-sandra {
+            --profile-main: #ea580c;
+            --profile-main-soft: #fed7aa;
+            --profile-main-dark: #9a3412;
+            --profile-inner-border: rgba(249, 115, 22, .42);
+            --profile-radius: 10px 26px 10px 26px;
+            --profile-inner-radius: 6px 20px 6px 20px;
+            --profile-panel-radius: 8px 20px 8px 20px;
+            --profile-avatar-radius: 14px 30px 14px 30px;
+            --profile-pattern: repeating-linear-gradient(12deg, rgba(234,88,12,.10) 0 4px, transparent 4px 16px),
+                radial-gradient(circle at 70% 20%, rgba(245,158,11,.18), transparent 28%);
+            --profile-ornament: radial-gradient(circle at 30% 36%, rgba(251,146,60,.28), transparent 34%),
+                repeating-conic-gradient(from 14deg, rgba(234,88,12,.20) 0 10deg, transparent 10deg 20deg);
+            --profile-title-bg: linear-gradient(135deg, rgba(255,247,237,.98), rgba(255,255,255,.86));
+            border-color: #fb923c;
+            background:
+                linear-gradient(180deg, rgba(249, 115, 22, .25) 0 6px, transparent 6px),
+                radial-gradient(circle at 12% 16%, rgba(253, 186, 116, .34), transparent 30%),
+                linear-gradient(180deg, #fff7ed 0%, #fff 44%, #fffbeb 100%);
+            box-shadow: 0 18px 44px rgba(154, 52, 18, .24), inset 0 0 0 1px rgba(249,115,22,.20);
+        }
+        .profile-frame-luminous {
+            --profile-main: #7c3aed;
+            --profile-main-soft: #ddd6fe;
+            --profile-main-dark: #4c1d95;
+            --profile-inner-border: rgba(124, 58, 237, .42);
+            --profile-radius: 18px 18px 30px 30px;
+            --profile-inner-radius: 12px 12px 24px 24px;
+            --profile-panel-radius: 12px 12px 22px 22px;
+            --profile-avatar-radius: 50% 18px 50% 18px;
+            --profile-pattern: radial-gradient(circle at 18px 18px, rgba(124,58,237,.15) 0 3px, transparent 4px),
+                radial-gradient(circle at 44px 34px, rgba(99,102,241,.12) 0 5px, transparent 6px);
+            --profile-ornament: radial-gradient(circle at 30% 30%, rgba(167,139,250,.45) 0 4px, transparent 5px),
+                radial-gradient(circle at 68% 62%, rgba(99,102,241,.28) 0 8px, transparent 9px),
+                conic-gradient(from 45deg, transparent, rgba(124,58,237,.18), transparent);
+            --profile-title-bg: linear-gradient(135deg, rgba(245,243,255,.98), rgba(255,255,255,.86));
+            border-color: #a78bfa;
+            background:
+                linear-gradient(180deg, rgba(124, 58, 237, .24) 0 6px, transparent 6px),
+                radial-gradient(circle at 14% 16%, rgba(196, 181, 253, .34), transparent 30%),
+                radial-gradient(circle at 92% 22%, rgba(129, 140, 248, .22), transparent 28%),
+                linear-gradient(180deg, #f5f3ff 0%, #fff 44%, #eef2ff 100%);
+            box-shadow: 0 18px 44px rgba(76, 29, 149, .25), inset 0 0 0 1px rgba(124,58,237,.20);
+        }
+        .profile-frame-necrom {
+            --profile-main: #6d28d9;
+            --profile-main-soft: #e9d5ff;
+            --profile-main-dark: #312e81;
+            --profile-inner-border: rgba(88, 28, 135, .44);
+            --profile-radius: 6px 22px 6px 22px;
+            --profile-inner-radius: 3px 16px 3px 16px;
+            --profile-panel-radius: 5px 16px 5px 16px;
+            --profile-avatar-radius: 12px 34px 12px 34px;
+            --profile-pattern: radial-gradient(circle at 24px 22px, rgba(88,28,135,.16), transparent 18px),
+                repeating-linear-gradient(145deg, rgba(15,23,42,.08) 0 5px, transparent 5px 18px);
+            --profile-ornament: radial-gradient(circle at 28% 34%, rgba(168,85,247,.36), transparent 30%),
+                radial-gradient(circle at 62% 66%, rgba(20,184,166,.18), transparent 26%);
+            --profile-title-bg: linear-gradient(135deg, rgba(245,243,255,.96), rgba(255,255,255,.84));
+            border-color: #7e22ce;
+            background:
+                linear-gradient(180deg, rgba(88, 28, 135, .30) 0 6px, transparent 6px),
+                radial-gradient(circle at 10% 14%, rgba(168, 85, 247, .25), transparent 30%),
+                linear-gradient(180deg, #faf5ff 0%, #fff 44%, #f8fafc 100%);
+            box-shadow: 0 18px 44px rgba(49, 46, 129, .28), inset 0 0 0 1px rgba(88,28,135,.20);
+        }
+        .profile-frame-celestia {
+            --profile-main: #4f46e5;
+            --profile-main-soft: #e0e7ff;
+            --profile-main-dark: #3730a3;
+            --profile-inner-border: rgba(99, 102, 241, .40);
+            --profile-radius: 32px;
+            --profile-inner-radius: 26px;
+            --profile-panel-radius: 24px;
+            --profile-avatar-radius: 38% 38% 18px 18px;
+            --profile-pattern: radial-gradient(circle at 18px 18px, rgba(99,102,241,.14) 0 2px, transparent 3px),
+                radial-gradient(circle at 48px 30px, rgba(125,211,252,.14) 0 4px, transparent 5px);
+            --profile-ornament: conic-gradient(from 0deg, rgba(99,102,241,.26), transparent 22%, rgba(125,211,252,.28) 34%, transparent 52%, rgba(255,255,255,.52) 66%, transparent 84%, rgba(99,102,241,.26));
+            --profile-title-bg: linear-gradient(135deg, rgba(238,242,255,.98), rgba(255,255,255,.88));
+            border-color: #818cf8;
+            background:
+                linear-gradient(180deg, rgba(99, 102, 241, .22) 0 6px, transparent 6px),
+                radial-gradient(circle at 14% 16%, rgba(125, 211, 252, .28), transparent 30%),
+                radial-gradient(circle at 90% 20%, rgba(199, 210, 254, .32), transparent 30%),
+                linear-gradient(180deg, #eef2ff 0%, #fff 44%, #f0f9ff 100%);
+            box-shadow: 0 18px 44px rgba(55, 48, 163, .23), inset 0 0 0 1px rgba(99,102,241,.20);
+        }
+        .profile-frame-valzeria {
+            --profile-main: #be123c;
+            --profile-main-soft: #fecdd3;
+            --profile-main-dark: #881337;
+            --profile-inner-border: rgba(190, 18, 60, .45);
+            --profile-radius: 4px;
+            --profile-inner-radius: 2px;
+            --profile-panel-radius: 4px;
+            --profile-avatar-radius: 6px;
+            --profile-pattern: repeating-linear-gradient(135deg, rgba(190,18,60,.10) 0 6px, transparent 6px 18px),
+                radial-gradient(circle at 82% 18%, rgba(15,23,42,.14), transparent 28%);
+            --profile-ornament: conic-gradient(from 35deg, rgba(190,18,60,.36), transparent 20%, rgba(15,23,42,.28) 34%, transparent 52%, rgba(244,63,94,.24) 68%, transparent 84%, rgba(190,18,60,.36));
+            --profile-title-bg: linear-gradient(135deg, rgba(255,241,242,.98), rgba(255,255,255,.86));
+            border-color: #be123c;
+            background:
+                linear-gradient(180deg, rgba(190, 18, 60, .28) 0 6px, transparent 6px),
+                radial-gradient(circle at 12% 16%, rgba(244, 63, 94, .25), transparent 30%),
+                linear-gradient(180deg, #fff1f2 0%, #fff 44%, #f8fafc 100%);
+            box-shadow: 0 18px 44px rgba(76, 5, 25, .28), inset 0 0 0 1px rgba(190,18,60,.20);
+        }
+        .profile-frame-modal .profile-accent-border {
+            border-color: var(--profile-inner-border, #e5e7eb) !important;
+        }
+        .profile-frame-modal .profile-accent-text {
+            color: var(--profile-main-dark, #1e293b) !important;
+        }
+        .profile-close-button {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 3;
+            color: color-mix(in srgb, var(--profile-main, #64748b) 62%, #64748b);
+            background: rgba(255, 255, 255, .78);
+            border: 1px solid var(--profile-inner-border, #e5e7eb);
+            border-radius: 999px;
+            padding: 4px;
+            box-shadow: 0 6px 14px rgba(15, 23, 42, .10);
+        }
+        .profile-hero {
+            position: relative;
+            margin: 0 -2px 12px;
+            padding: 14px 38px 14px 12px;
+            border: 2px solid var(--profile-inner-border, rgba(226, 232, 240, .8));
+            border-radius: var(--profile-panel-radius, 16px);
+            background: var(--profile-title-bg);
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.70), 0 10px 22px rgba(15,23,42,.08);
+        }
+        .profile-hero::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--profile-main, #d4af37), transparent);
+            opacity: .82;
+        }
+        .profile-avatar-frame {
+            position: relative;
+            display: flex;
+            width: 82px;
+            height: 82px;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--profile-avatar-radius, 24px);
+            background:
+                radial-gradient(circle at 50% 50%, rgba(255,255,255,.95) 0 42%, transparent 43%),
+                conic-gradient(from 45deg, var(--profile-main, #d4af37), #fff, var(--profile-main-soft, #fef3c7), var(--profile-main, #d4af37));
+            border: 3px solid var(--profile-main, #d4af37);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, .16), inset 0 0 0 4px rgba(255, 255, 255, .78);
+        }
+        .profile-avatar-frame::before,
+        .profile-avatar-frame::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-color: var(--profile-main, #d4af37);
+            opacity: .88;
+        }
+        .profile-avatar-frame::before {
+            left: -5px;
+            top: -5px;
+            border-left: 2px solid;
+            border-top: 2px solid;
+            border-top-left-radius: 8px;
+        }
+        .profile-avatar-frame::after {
+            right: -5px;
+            bottom: -5px;
+            border-right: 2px solid;
+            border-bottom: 2px solid;
+            border-bottom-right-radius: 8px;
+        }
+        .profile-avatar-frame img {
+            filter: drop-shadow(0 5px 8px rgba(15, 23, 42, .18));
+        }
+        .profile-name {
+            color: var(--profile-main-dark, #1e293b);
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .82);
+        }
+        .profile-mini-card {
+            border-color: var(--profile-inner-border, #e5e7eb) !important;
+            background: rgba(255, 255, 255, .72) !important;
+            border-radius: var(--profile-panel-radius, 12px) !important;
+        }
+        .profile-rank-card {
+            border-color: color-mix(in srgb, var(--profile-main, #d4af37) 58%, #fff) !important;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--profile-main-soft, #fef3c7) 64%, #fff), rgba(255,255,255,.92)) !important;
+            border-radius: var(--profile-panel-radius, 12px) !important;
+        }
+        .profile-section-panel {
+            border-color: var(--profile-inner-border, #e5e7eb) !important;
+            background: rgba(255, 255, 255, .76) !important;
+            border-radius: var(--profile-panel-radius, 12px) !important;
+        }
+    </style>
+    @if(!empty($topPlayer))
+        <div class="relative left-1/2 z-40 mb-3 -mt-4 w-[100dvw] -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
+            {{-- grid: [icon] [名前/Lv] [HP/SPバー] [gold/輝石] [ベル] --}}
+            <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.5rem,1.35fr)_minmax(4rem,7rem)_auto_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_auto_auto] sm:gap-x-2 sm:px-4 lg:px-6"
+                 style="row-gap:2px;">
+
+                {{-- アイコン (2行にまたがる) --}}
+                <div class="row-span-2 flex h-12 w-10 shrink-0 items-center justify-center sm:h-14 sm:w-11">
+                    <img src="{{ $topPlayer['icon'] }}" alt="{{ $topPlayer['name'] }}" class="h-full w-full object-contain">
+                </div>
+
+                {{-- 名前 (1行目) --}}
+                <div class="col-start-2 row-start-1 min-w-0 self-end pb-0.5">
+                    <div x-init="
+                            const el = $el;
+                            el.style.fontSize = '14px';
+                            if (el.scrollWidth > el.offsetWidth) el.style.fontSize = '11px';
+                         "
+                         class="overflow-hidden whitespace-nowrap font-black leading-tight text-slate-950 sm:!text-base">
+                        {{ $topPlayer['name'] }}
+                    </div>
+                </div>
+
+                {{-- HP バー (1行目) --}}
+                @php
+                    $fmt = fn($v) => $v >= 10000 ? round($v/1000,1).'k' : number_format($v);
+                    $hpPercent = (int) ($topPlayer['hp_percent'] ?? 0);
+                    $hpBarClass = $hpPercent >= 60 ? 'bg-emerald-500' : ($hpPercent >= 30 ? 'bg-amber-400' : 'bg-rose-500');
+                    $hpTextClass = $hpPercent >= 60 ? 'text-emerald-600' : ($hpPercent >= 30 ? 'text-amber-500' : 'text-rose-500');
+                @endphp
+                <div class="col-start-3 row-start-1 min-w-0 self-end pb-0.5">
+                    <div class="mb-0.5 flex items-center justify-between gap-1">
+                        <span class="text-[10px] font-black {{ $hpTextClass }} sm:text-xs">HP</span>
+                        <span class="text-[9px] font-black tabular-nums text-slate-700 sm:hidden">
+                            {{ $fmt($topPlayer['hp']) }}<span class="text-slate-400">/{{ $fmt($topPlayer['max_hp']) }}</span>
+                        </span>
+                        <span class="hidden text-[9px] font-black tabular-nums text-slate-700 sm:inline sm:text-[11px]">
+                            {{ number_format($topPlayer['hp']) }}<span class="text-slate-400">/{{ number_format($topPlayer['max_hp']) }}</span>
+                        </span>
+                    </div>
+                    <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full {{ $hpBarClass }}" style="width: {{ $topPlayer['hp_percent'] }}%"></div>
+                    </div>
+                </div>
+
+                {{-- Gold (1行目) --}}
+                <div class="col-start-4 row-start-1 flex shrink-0 items-center justify-end gap-1 self-end pb-0.5">
+                    <img src="{{ asset('images/icon/gold01.webp') }}" alt="Gold" class="h-4 w-4 object-contain sm:h-4 sm:w-4">
+                    <span class="text-[11px] font-black tabular-nums text-slate-900 sm:text-xs">{{ number_format($topPlayer['gold']) }}<span class="ml-0.5 text-[9px] font-bold text-amber-600">G</span></span>
+                </div>
+
+                {{-- ベル (2行にまたがる) --}}
+                <div class="col-start-5 row-span-2 row-start-1 flex shrink-0 items-center self-center" @click.outside="notificationOpen = false">
+                    <button type="button"
+                            @click="notificationOpen = !notificationOpen"
+                            class="relative flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition active:scale-95 sm:h-10 sm:w-10 sm:rounded-xl"
+                            aria-label="通知">
+                        <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5h-1V10a6 6 0 1 0-12 0v7H5a1 1 0 0 0 0 2h14a1 1 0 1 0 0-2Z"/>
+                        </svg>
+                        @if($unreadNotificationCount > 0)
+                            <span class="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white sm:min-h-5 sm:min-w-5 sm:text-[10px]">
+                                {{ $unreadNotificationCount > 99 ? '99+' : $unreadNotificationCount }}
+                            </span>
+                        @endif
+                    </button>
+
+                    <div x-show="notificationOpen"
+                         x-cloak
+                         x-transition.origin.top.right
+                         class="absolute right-0 top-10 z-50 w-[min(20rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-2xl sm:top-12">
+                        <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                            <div class="text-sm font-black text-slate-900">通知</div>
+                            @if($unreadNotificationCount > 0)
+                                <button type="button"
+                                        wire:click="markAllNotificationsRead"
+                                        class="rounded-md px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-50">
+                                    すべて既読
+                                </button>
+                            @endif
+                        </div>
+                        <div class="max-h-80 overflow-y-auto">
+                            @forelse($notifications as $notification)
+                                <button type="button"
+                                        wire:click="openNotification({{ $notification->id }})"
+                                        class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-200' : 'bg-rose-500' }}"></span>
+                                        <div class="min-w-0">
+                                            <div class="truncate text-xs font-black text-slate-900">{{ $notification->title }}</div>
+                                            @if($notification->body)
+                                                <div class="mt-0.5 line-clamp-2 text-[11px] font-bold leading-snug text-slate-600">{{ $notification->body }}</div>
+                                            @endif
+                                            <div class="mt-1 flex items-center justify-between gap-2">
+                                                <span class="text-[10px] font-bold text-slate-400">{{ $notification->created_at?->diffForHumans() }}</span>
+                                                @if(!empty($notification->action_label))
+                                                    <span class="shrink-0 text-[10px] font-black text-amber-700">{{ $notification->action_label }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
+                            @empty
+                                <div class="px-3 py-5 text-center text-xs font-bold text-slate-500">通知はありません</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Lv/職業 (2行目) --}}
+                <div class="col-start-2 row-start-2 min-w-0 self-start pt-0.5">
+                    <div class="text-[11px] font-bold text-slate-400 sm:text-xs">
+                        Lv {{ number_format($topPlayer['level']) }}<span class="hidden sm:inline"> / {{ $topPlayer['job'] }}</span>
+                    </div>
+                </div>
+
+                {{-- SP バー (2行目) --}}
+                <div class="col-start-3 row-start-2 min-w-0 self-start pt-0.5">
+                    <div class="mb-0.5 flex items-center justify-between gap-1">
+                        <span class="text-[10px] font-black text-sky-500 sm:text-xs">SP</span>
+                        <span class="text-[9px] font-black tabular-nums text-slate-700 sm:hidden">
+                            {{ $fmt($topPlayer['sp']) }}<span class="text-slate-400">/{{ $fmt($topPlayer['max_sp']) }}</span>
+                        </span>
+                        <span class="hidden text-[9px] font-black tabular-nums text-slate-700 sm:inline sm:text-[11px]">
+                            {{ number_format($topPlayer['sp']) }}<span class="text-slate-400">/{{ number_format($topPlayer['max_sp']) }}</span>
+                        </span>
+                    </div>
+                    <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full bg-sky-500" style="width: {{ $topPlayer['sp_percent'] }}%"></div>
+                    </div>
+                </div>
+
+                {{-- 輝石 (2行目) --}}
+                <div class="col-start-4 row-start-2 flex shrink-0 items-center justify-end gap-1 self-start pt-0.5">
+                    <img src="{{ asset('images/icon/kiseki01.webp') }}" alt="輝石" class="h-4 w-4 object-contain">
+                    <span class="text-[11px] font-black tabular-nums text-slate-900 sm:text-xs">{{ number_format($topPlayer['kiseki']) }}<span class="ml-0.5 text-[9px] font-bold text-amber-600">個</span></span>
+                </div>
+
+            </div>
+            <div class="h-px bg-gradient-to-r from-transparent via-[#d4af37] to-transparent"></div>
+        </div>
+    @endif
+
+    <!-- 1. 全幅ヘッダーエリア -->
+    <div class="bg-white rounded-lg shadow-[0_5px_16px_rgba(126,96,28,0.14)] border border-[#d4af37] flex-shrink-0 overflow-hidden w-full font-sans text-xs sm:text-sm">
+        <!-- 街ヘッダー -->
+        <div class="px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col md:flex-row justify-between items-center relative bg-cover bg-right"
+             style="background-image: url('{{ asset('images/' . ($cityBackground ?: 'bg-castle.webp')) }}');">
+            <!-- 背景を薄くするためのオーバーレイ（お城が見えるように薄く調整） -->
+            <div class="absolute inset-0 bg-white/45"></div>
+            <!-- 文字の後ろだけ少し白くするためのグラデーション -->
+            <div class="absolute inset-0 bg-gradient-to-r from-white/95 via-white/82 to-white/25"></div>
+            
+            <div class="relative flex min-w-0 w-full items-center gap-2.5">
+                <!-- エンブレム画像 -->
+                <div class="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center -my-1.5 drop-shadow-md shrink-0">
+                    <img src="{{ asset('images/' . $cityIcon) }}" alt="エンブレム" class="w-full h-full object-contain">
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h1 class="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis font-bold tracking-wide sm:tracking-widest text-[#1e293b] drop-shadow-[0_2px_2px_rgba(255,255,255,1)]"
+                        style="font-size: clamp(1.05rem, 4.8vw, 1.55rem);">
+                        {{ $cityName }}
+                        @if(!empty($locationName))
+                            <span class="text-[0.7em] text-gray-700 tracking-normal ml-1">- {{ $locationName }}</span>
+                        @endif
+                    </h1>
+                    <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-slate-600 sm:text-xs">
+                        <span class="shrink-0 text-[#c0265a]">📢</span>
+                        <span class="shrink-0 font-bold text-[#1e293b]">街のお知らせ</span>
+                        <div class="town-news-marquee min-w-0 flex-1" aria-label="{{ implode('　｜　', $headerInfo['news']) }}">
+                            <span>{{ implode('　｜　', $headerInfo['news']) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button"
+                        wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: 'move' })"
+                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
+                        class="ml-auto flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
+                        aria-label="街を移動する">
+                    <img src="{{ asset('images/icon/move_map.png') }}" alt="" class="h-7 w-7 object-contain drop-shadow-sm sm:h-8 sm:w-8">
+                    <span class="-mt-0.5 whitespace-nowrap text-[9px] font-black leading-none tracking-normal sm:text-[10px]">移動する</span>
+                </button>
+            </div>
+
+            <div class="relative mt-0.5 flex w-full min-w-0 items-start gap-1 text-[10px] font-bold leading-4 sm:text-[11px]">
+                <span class="shrink-0 text-gray-700">現在の冒険者：</span>
+                <div class="min-w-0 flex-1 pr-12 sm:pr-14">
+                    <div class="flex flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
+                         :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
+                        @forelse($onlinePlayers as $player)
+                            <a href="#"
+                               wire:click.prevent="openPlayerModal({{ $player['id'] }})"
+                               class="hover:underline hover:text-blue-800">{{ $player['name'] }}</a>
+                            @if(!$loop->last)
+                                <span class="text-gray-300 mx-1">|</span>
+                            @endif
+                        @empty
+                            <span class="text-gray-500">周辺を巡回中</span>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
+            @if(count($onlinePlayers) > 4)
+                <div class="relative mt-0.5 flex w-full justify-end md:hidden">
+                    <button type="button"
+                            @click="playersExpanded = !playersExpanded"
+                            class="rounded border border-[#d4af37]/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-black text-[#9a6b00]">
+                        <span x-text="playersExpanded ? '閉じる' : '表示'"></span>
+                    </button>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- キャラ詳細モーダル -->
+    <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
+        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
+        <div class="profile-frame-modal rounded-lg border-2 p-5 text-gray-800"
+             :class="`profile-frame-${playerInfo && playerInfo.profile_frame_theme ? playerInfo.profile_frame_theme : 'standard'}`">
+            <!-- 閉じるボタン -->
+            <button wire:click="closePlayerModal" class="profile-close-button hover:opacity-80">
+                <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <template x-if="playerInfo">
+                <div>
+                    <!-- 基本情報 -->
+                    <div class="profile-hero flex items-center gap-4">
+                        <div class="profile-avatar-frame">
+                            <template x-if="playerInfo.icon">
+                                <img :src="playerInfo.icon" alt="アバター" class="h-[84%] w-[84%] object-contain">
+                            </template>
+                            <template x-if="!playerInfo.icon">
+                                <div class="flex h-[84%] w-[84%] items-center justify-center rounded-xl bg-white/70 text-2xl font-bold text-gray-400">?</div>
+                            </template>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="profile-accent-text mb-1 text-[10px] font-black tracking-[.18em]">ADVENTURER PROFILE</div>
+                            <h3 class="profile-name truncate text-xl font-black leading-tight" x-text="playerInfo.name"></h3>
+                            <p class="mt-1 text-sm font-bold text-gray-600">Lv.<span x-text="playerInfo.level"></span> / <span x-text="playerInfo.job"></span></p>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 grid grid-cols-[1fr_1.35fr] gap-2 text-xs font-bold">
+                        <div class="profile-mini-card rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                            <div class="text-gray-500">所属</div>
+                            <div class="mt-0.5 text-[#1e293b]" x-text="playerInfo.guild"></div>
+                        </div>
+                        <div class="profile-rank-card rounded-md border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-3 py-2 shadow-sm">
+                            <div class="profile-accent-text text-[11px] font-black text-amber-700">闘技場順位</div>
+                            <div class="mt-1 flex items-center gap-2">
+                                <template x-if="playerInfo.arena_rank_trophy">
+                                    <img :src="playerInfo.arena_rank_trophy" alt="" class="h-8 w-8 shrink-0 object-contain drop-shadow-sm">
+                                </template>
+                                <div class="text-2xl font-black leading-none text-[#1e293b]" x-text="playerInfo.arena_rank"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HP/SPバー -->
+                    <div class="profile-section-panel mb-3 space-y-2 rounded-md border border-slate-100 px-3 py-2 shadow-sm">
+                        <div>
+                            <div class="flex justify-between text-sm font-bold mb-1">
+                                <span class="text-emerald-600 flex items-center gap-1"><img src="{{ asset('images/icon/icon_039.webp') }}" alt="" class="w-4 h-4 object-contain"> HP</span>
+                                <span class="text-[#1e293b]"><span x-text="playerInfo.hp"></span> / <span x-text="playerInfo.max_hp"></span></span>
+                            </div>
+                            <div class="w-full overflow-hidden bg-gray-200 h-2.5 rounded-full border border-gray-300 shadow-inner">
+                                <div class="bg-emerald-500 h-full rounded-full" :style="`width: ${Math.max(0, Math.min(100, playerInfo.hp_percent || 0))}%`"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm font-bold mb-1">
+                                <span class="text-blue-600 flex items-center gap-1"><img src="{{ asset('images/icon/icon_040.webp') }}" alt="" class="w-4 h-4 object-contain"> SP</span>
+                                <span class="text-[#1e293b]"><span x-text="playerInfo.sp"></span> / <span x-text="playerInfo.max_sp"></span></span>
+                            </div>
+                            <div class="w-full overflow-hidden bg-gray-200 h-2.5 rounded-full border border-gray-300 shadow-inner">
+                                <div class="bg-blue-500 h-full rounded-full" :style="`width: ${Math.max(0, Math.min(100, playerInfo.sp_percent || 0))}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 冒険の記録 -->
+                    <div class="profile-accent-border mb-3 rounded-md border border-amber-100 bg-white/70 px-3 py-2 shadow-sm">
+                        <div class="mb-1.5 flex items-center justify-between">
+                            <div class="profile-accent-text text-xs font-black tracking-widest text-amber-700">冒険の記録</div>
+                            <div class="text-[11px] font-bold text-slate-400">積み上げ</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <template x-for="record in playerInfo.adventure_records" :key="record.label">
+                                <div class="flex min-h-7 items-center justify-between gap-1.5 rounded border border-white/80 bg-white px-2 py-1 shadow-sm">
+                                    <div class="min-w-0 truncate text-[10px] font-bold text-slate-500 sm:text-[11px]" x-text="record.label"></div>
+                                    <div class="flex shrink-0 items-baseline gap-0.5">
+                                        <span class="text-[13px] font-black leading-none text-[#1e293b] sm:text-sm" x-text="record.value"></span>
+                                        <span class="text-[10px] font-black text-amber-700 sm:text-[11px]" x-text="record.unit"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- ヴァルモン牧場 -->
+                    <div class="profile-section-panel mb-3 overflow-hidden rounded-md border border-sky-100 bg-sky-50/50 shadow-sm">
+                        <div class="relative w-full overflow-hidden" style="aspect-ratio: 16/9;">
+                            <div class="absolute inset-0 bg-cover bg-center" :style="`background-image: url('${playerInfo.ranch_background}')`"></div>
+                            <div class="absolute left-2 top-2 z-[60] rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-black text-white shadow">
+                                ヴァルモン牧場
+                            </div>
+                            <template x-if="playerInfo.valmons && playerInfo.valmons.length > 0">
+                                <template x-for="valmon in playerInfo.valmons" :key="valmon.name + valmon.level">
+                                    <div class="absolute" :style="valmon.style">
+                                        <div class="relative" :class="valmon.is_partner ? 'animate-bounce' : ''" style="animation-duration:2.2s;">
+                                            <template x-if="valmon.image">
+                                                <img :src="valmon.image" :alt="valmon.name" class="h-auto w-full object-contain drop-shadow-lg">
+                                            </template>
+                                            <template x-if="!valmon.image">
+                                                <div class="flex aspect-square items-center justify-center rounded-full bg-white/80 shadow"><img src="{{ asset('images/icon/icon_037.webp') }}" alt="" class="w-6 h-6 object-contain"></div>
+                                            </template>
+                                            <template x-if="valmon.is_partner">
+                                                <div class="absolute whitespace-nowrap rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow"
+                                                     style="top:-16px;left:50%;transform:translateX(-50%);">★ 相棒</div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
+                            <template x-if="!playerInfo.valmons || playerInfo.valmons.length === 0">
+                                <div class="absolute inset-0 z-20 flex items-center justify-center text-sm font-bold text-white drop-shadow">
+                                    ヴァルモンはまだいません
+                                </div>
+                            </template>
+                            <div class="absolute inset-x-0 bottom-0 h-[18%] pointer-events-none"
+                                 style="background:linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%);"></div>
+                        </div>
+                    </div>
+
+                    <!-- ステータス -->
+                    <div class="profile-section-panel mb-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-slate-100 px-3 py-2 text-sm shadow-sm">
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="flex items-center gap-1 text-gray-500">
+                                <img src="{{ asset('images/icon/icon_str.webp') }}" class="h-3.5 w-3.5 object-contain" alt="攻撃">
+                                攻撃
+                            </span>
+                            <span class="text-[#1e293b] font-bold whitespace-nowrap">
+                                <span x-text="playerInfo.stats.str.base"></span>
+                                <template x-if="playerInfo.stats.str.bonus > 0"><span class="text-green-600"> +<span x-text="playerInfo.stats.str.bonus"></span></span></template>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="flex items-center gap-1 text-gray-500">
+                                <img src="{{ asset('images/icon/icon_def.webp') }}" class="h-3.5 w-3.5 object-contain" alt="防御">
+                                防御
+                            </span>
+                            <span class="text-[#1e293b] font-bold whitespace-nowrap">
+                                <span x-text="playerInfo.stats.def.base"></span>
+                                <template x-if="playerInfo.stats.def.bonus > 0"><span class="text-green-600"> +<span x-text="playerInfo.stats.def.bonus"></span></span></template>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="flex items-center gap-1 text-gray-500">
+                                <img src="{{ asset('images/icon/icon_agi.webp') }}" class="h-3.5 w-3.5 object-contain" alt="敏捷">
+                                敏捷
+                            </span>
+                            <span class="text-[#1e293b] font-bold whitespace-nowrap">
+                                <span x-text="playerInfo.stats.agi.base"></span>
+                                <template x-if="playerInfo.stats.agi.bonus > 0"><span class="text-green-600"> +<span x-text="playerInfo.stats.agi.bonus"></span></span></template>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="flex items-center gap-1 text-gray-500">
+                                <img src="{{ asset('images/icon/icon_mag.webp') }}" class="h-3.5 w-3.5 object-contain" alt="魔力">
+                                魔力
+                            </span>
+                            <span class="text-[#1e293b] font-bold whitespace-nowrap">
+                                <span x-text="playerInfo.stats.mag.base"></span>
+                                <template x-if="playerInfo.stats.mag.bonus > 0"><span class="text-green-600"> +<span x-text="playerInfo.stats.mag.bonus"></span></span></template>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="flex items-center gap-1 text-gray-500">
+                                <img src="{{ asset('images/icon/icon_spr.webp') }}" class="h-3.5 w-3.5 object-contain" alt="精神">
+                                精神
+                            </span>
+                            <span class="text-[#1e293b] font-bold whitespace-nowrap">
+                                <span x-text="playerInfo.stats.spr.base"></span>
+                                <template x-if="playerInfo.stats.spr.bonus > 0"><span class="text-green-600"> +<span x-text="playerInfo.stats.spr.bonus"></span></span></template>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="flex items-center gap-1 text-gray-500">
+                                <img src="{{ asset('images/icon/icon_luk.webp') }}" class="h-3.5 w-3.5 object-contain" alt="運">
+                                運
+                            </span>
+                            <span class="text-[#1e293b] font-bold whitespace-nowrap">
+                                <span x-text="playerInfo.stats.luk.base"></span>
+                                <template x-if="playerInfo.stats.luk.bonus > 0"><span class="text-green-600"> +<span x-text="playerInfo.stats.luk.bonus"></span></span></template>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 装備 -->
+                    <div class="profile-section-panel space-y-1.5 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
+                        <div class="text-xs text-gray-500 mb-1">✦ 現在の装備</div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 border border-gray-300 bg-white flex items-center justify-center text-gray-600 font-bold shadow-sm text-xs">武</div>
+                            <template x-if="playerInfo.equipment.weapon.rank">
+                                <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                      :style="`background-color: ${playerInfo.equipment.weapon.rank_color}`"
+                                      x-text="playerInfo.equipment.weapon.rank"></span>
+                            </template>
+                            <span class="min-w-0 truncate text-[#1e293b] font-medium" x-text="playerInfo.equipment.weapon.name"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 border border-gray-300 bg-white flex items-center justify-center text-gray-600 font-bold shadow-sm text-xs">盾</div>
+                            <template x-if="playerInfo.equipment.armor.rank">
+                                <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                      :style="`background-color: ${playerInfo.equipment.armor.rank_color}`"
+                                      x-text="playerInfo.equipment.armor.rank"></span>
+                            </template>
+                            <span class="min-w-0 truncate text-[#1e293b] font-medium" x-text="playerInfo.equipment.armor.name"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 border border-gray-300 bg-white flex items-center justify-center text-gray-600 font-bold shadow-sm text-xs">飾</div>
+                            <template x-if="playerInfo.equipment.accessory.rank">
+                                <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                      :style="`background-color: ${playerInfo.equipment.accessory.rank_color}`"
+                                      x-text="playerInfo.equipment.accessory.rank"></span>
+                            </template>
+                            <span class="min-w-0 truncate text-[#1e293b] font-medium" x-text="playerInfo.equipment.accessory.name"></span>
+                        </div>
+                    </div>
+
+                    <div class="profile-accent-border mt-4 rounded-xl border-2 border-[#d4af37] bg-white/90 px-3 py-3 text-sm leading-relaxed text-slate-800 min-h-24 whitespace-pre-line" x-text="playerInfo.profile_comment"></div>
+                </div>
+            </template>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+                <a x-show="playerInfo && playerInfo.is_self"
+                   href="{{ route('profile.edit') }}"
+                   class="bg-[#1e40af] hover:bg-[#1e3a8a] text-white rounded font-bold shadow flex items-center gap-1"
+                   style="padding: 8px 16px; font-size: 12px;">
+                    <img src="{{ asset('images/icon/icon_021.webp') }}" alt="" class="h-4 w-4 object-contain"> プロフ変更
+                </a>
+                <button 
+                    x-show="playerInfo && !playerInfo.is_self"
+                    @click="$dispatch('set-chat-reply', [playerInfo.id]); isPlayerModalOpen = false; setTimeout(() => { const el = document.getElementById('chat-message-input'); if(el) { el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.focus(); } }, 100);" 
+                    class="bg-[#1e40af] hover:bg-[#1e3a8a] text-white rounded font-bold shadow flex items-center gap-1" 
+                    style="padding: 8px 16px; font-size: 12px;">
+                    <img src="{{ asset('images/icon/icon_015.webp') }}" alt="" class="h-4 w-4 object-contain"> 手紙を送る
+                </button>
+                <button wire:click="closePlayerModal" class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded" style="padding: 8px 16px; font-size: 12px; font-weight: bold; cursor: pointer;">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>

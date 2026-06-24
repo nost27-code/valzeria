@@ -1,0 +1,4 @@
+- `[x]` TSVデータを解析してデータベースに直接投入するPHPスクリプト（`update_enemies.php`）の作成
+- `[x]` `php update_enemies.php` などを実行して `enemies` テーブルを更新
+- `[x]` 更新後のデータ確認（正しく反映されているか）
+- `[x]` `walkthrough.md` での報告

@@ -1,0 +1,4 @@
+- `[x]` マイグレーションファイルの作成と適用（`characters` テーブルへの `fraction` カラム追加）
+- `[x]` `Character.php` の編集（`$fillable` と `$casts` の追加）
+- `[x]` `LevelService.php` の編集（確定成長方式・端数ストック処理の実装）
+- `[x]` `CharacterJobChangeService.php` の編集（転職時の端数リセット処理の実装）
