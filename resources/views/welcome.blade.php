@@ -452,6 +452,23 @@
     {{-- ⑨ フッター（深いネイビー） --}}
     <div style="background:#0a1628;padding:30px 20px;">
         <div style="max-width:680px;margin:0 auto;text-align:center;">
+
+            {{-- SNSリンク --}}
+            <div style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
+                <a href="https://note.com/valzeria" target="_blank" rel="noopener noreferrer"
+                   style="display:inline-flex;align-items:center;gap:7px;background:#41c9b4;color:#fff;font-size:13px;font-weight:900;text-decoration:none;padding:8px 16px;border-radius:8px;letter-spacing:.04em;transition:opacity .15s;"
+                   onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+                    <svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3zm0 4h12v2H3V7zm0 4h18v2H3v-2zm0 4h12v2H3v-2zm0 4h18v2H3v-2z"/></svg>
+                    note
+                </a>
+                <a href="https://www.threads.com/@valzeria_dev" target="_blank" rel="noopener noreferrer"
+                   style="display:inline-flex;align-items:center;gap:7px;background:#1c1917;color:#fff;font-size:13px;font-weight:900;text-decoration:none;padding:8px 16px;border-radius:8px;border:1px solid #3f3f46;letter-spacing:.04em;transition:opacity .15s;"
+                   onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+                    <svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.471 12.01v-.017c.029-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.74-1.75-.BlackBerry-.553-1.274-.842-2.234-.876l-.042-.001c-.915 0-1.978.341-2.678 1.03l-1.42-1.464C10.38 4.393 11.862 3.9 13.23 3.9h.06c1.4.046 2.56.504 3.345 1.325.786.822 1.24 1.997 1.35 3.495 1.068.57 1.905 1.372 2.448 2.384.905 1.674.977 3.856-.16 5.925-1.42 2.578-3.951 3.871-7.087 3.871Zm.974-8.083c-1.329.073-2.264.481-2.598.85-.236.263-.354.606-.334.964.022.392.257.74.655.999.492.319 1.178.489 1.94.448 1.037-.055 1.822-.445 2.333-1.156.378-.524.608-1.24.682-2.14a11.127 11.127 0 0 0-2.678.035Z"/></svg>
+                    Threads
+                </a>
+            </div>
+
             <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px 26px;margin-bottom:18px;">
                 <a href="{{ route('help') }}" style="font-size:15px;color:#64748b;text-decoration:none;font-weight:700;" onmouseover="this.style.color='#d4af37'" onmouseout="this.style.color='#64748b'">ヘルプ</a>
                 <span style="color:#1e3a5f;">|</span>

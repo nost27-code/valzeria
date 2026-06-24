@@ -559,6 +559,8 @@ class ValmonService
             || str_contains($category, '旧通常素材')
             || $categoryId === 'legacy_normal_drop'
             || $materialType === 'legacy_normal_drop'
+            || $materialType === 'accessory_city'
+            || $category === 'accessory_city'
             || str_ends_with($name, 'の刻印')
             || str_ends_with($name, 'の王印')
             || str_ends_with($name, 'の神印');

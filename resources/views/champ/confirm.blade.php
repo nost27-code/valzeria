@@ -75,7 +75,7 @@
                         </div>
                         <div class="flex items-start gap-2 rounded bg-white border border-emerald-100 px-2.5 py-2">
                             <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain shrink-0 mt-0.5">
-                            <div><span class="text-emerald-700">挑戦者が先制攻撃</span> — チャンプ戦では挑戦者が必ず先手を取れる。</div>
+                            <div><span class="text-emerald-700">先制チャンス</span> — 50%の確率で挑戦者が先手を取れる。</div>
                         </div>
                     </div>
                     <div class="text-[11px] text-slate-500 mt-1 leading-relaxed">チャンプのHPは全冒険者の挑戦で共有されます。HPを0にした冒険者が新チャンプになります。</div>

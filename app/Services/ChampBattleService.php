@@ -332,12 +332,18 @@ class ChampBattleService
         $log[] = $this->affinityLog($attacker->name, $defender->name, $affinityMultiplier);
         $log[] = $this->affinityLog($defender->name, $attacker->name, $champAttackMultiplier);
 
-        $log[] = "<br><span class=\"text-blue-600 font-bold\">【先制】挑戦者が先手を取った！</span>";
+        $challengerFirst = (bool) random_int(0, 1);
+        if ($challengerFirst) {
+            $log[] = "<br><span class=\"text-blue-600 font-bold\">【先制】挑戦者が先手を取った！</span>";
+        } else {
+            $log[] = "<br><span class=\"text-rose-600 font-bold\">【先制】チャンプが先手を取った！</span>";
+        }
 
         for ($turn = 1; $turn <= self::MAX_TURNS; $turn++) {
             $log[] = "<br><br>--- ターン {$turn} ---";
-            // チャンプ戦は挑戦者が常に先攻
-            $actors = [[$attacker, $defender], [$defender, $attacker]];
+            $actors = $challengerFirst
+                ? [[$attacker, $defender], [$defender, $attacker]]
+                : [[$defender, $attacker], [$attacker, $defender]];
 
             foreach ($actors as [$actor, $target]) {
                 if ($actor->isDead() || $target->isDead()) {
