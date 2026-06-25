@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('market:expire-listings')->hourly();
 Schedule::command('npc-requests:expire')->hourly();
 Schedule::command('npc-requests:generate')->dailyAt('05:00');
+Schedule::command('portal:send-online-count')->everyFiveMinutes()->withoutOverlapping();

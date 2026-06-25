@@ -15,6 +15,7 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}?v=3">
     <meta name="theme-color" content="#ffffff">
     <link rel="apple-touch-icon" href="{{ asset('images/icon-192x192.png') }}?v=3">
+    <link id="admin-favicon" rel="icon" href="{{ asset('images/favicon.webp') }}?v=2" type="image/webp">
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -59,6 +60,7 @@
                     ['route' => 'admin.kiseki-purchases', 'label' => '課金監査', 'abbr' => 'K'],
                     ['route' => 'admin.reward-settings', 'label' => '運営・報酬設定', 'abbr' => 'R'],
                     ['route' => 'admin.top-updates', 'label' => 'TOP更新情報', 'abbr' => 'N'],
+                    ['route' => 'admin.game-texts', 'label' => '画面文言管理', 'abbr' => 'T'],
                 ],
             ],
             [
@@ -175,5 +177,124 @@
     </div>
 
     @livewireScripts
+    <script>
+        (() => {
+            const badgeUrl = @js(route('admin.contact-messages.badge-count'));
+            const baseTitle = document.title;
+            const baseIconHref = @js(asset('images/favicon.webp') . '?v=2');
+            const pollIntervalMs = 5 * 60 * 1000;
+            let faviconLink = document.getElementById('admin-favicon');
+            let objectUrl = null;
+
+            const ensureFaviconLink = () => {
+                if (faviconLink) {
+                    return faviconLink;
+                }
+
+                faviconLink = document.createElement('link');
+                faviconLink.id = 'admin-favicon';
+                faviconLink.rel = 'icon';
+                faviconLink.href = baseIconHref;
+                document.head.appendChild(faviconLink);
+
+                return faviconLink;
+            };
+
+            const drawBadge = async (count) => {
+                const link = ensureFaviconLink();
+                const numericCount = Math.max(0, Number.parseInt(count, 10) || 0);
+
+                if (objectUrl) {
+                    URL.revokeObjectURL(objectUrl);
+                    objectUrl = null;
+                }
+
+                if (numericCount <= 0) {
+                    link.type = 'image/webp';
+                    link.href = baseIconHref;
+                    document.title = baseTitle;
+                    return;
+                }
+
+                document.title = `(${numericCount}) ${baseTitle}`;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+
+                ctx.clearRect(0, 0, 64, 64);
+
+                try {
+                    const img = await new Promise((resolve, reject) => {
+                        const image = new Image();
+                        image.onload = () => resolve(image);
+                        image.onerror = reject;
+                        image.src = baseIconHref;
+                    });
+                    ctx.drawImage(img, 0, 0, 64, 64);
+                } catch (e) {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(0, 0, 64, 64);
+                    ctx.fillStyle = '#facc15';
+                    ctx.font = 'bold 30px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('V', 32, 34);
+                }
+
+                ctx.beginPath();
+                ctx.arc(46, 18, 17, 0, Math.PI * 2);
+                ctx.fillStyle = '#dc2626';
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                const label = numericCount > 99 ? '99+' : String(numericCount);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = label.length >= 3 ? 'bold 13px sans-serif' : 'bold 18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, 46, 18);
+
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        return;
+                    }
+                    objectUrl = URL.createObjectURL(blob);
+                    link.type = 'image/png';
+                    link.href = objectUrl;
+                }, 'image/png');
+            };
+
+            const pollMailBadge = async () => {
+                try {
+                    const response = await fetch(badgeUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    await drawBadge(payload.new_count || 0);
+                } catch (e) {
+                    // 管理画面の操作を妨げないため、ポーリング失敗は黙って次回へ回す。
+                }
+            };
+
+            pollMailBadge();
+            window.setInterval(pollMailBadge, pollIntervalMs);
+            window.addEventListener('focus', pollMailBadge);
+        })();
+    </script>
 </body>
 </html>

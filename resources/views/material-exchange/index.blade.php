@@ -39,7 +39,7 @@
                         <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-7 h-7 object-contain"> 素材交換
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        敵が落とした部位を調合素材へまとめ、装備素材や回復アイテムへ交換します。
+                        装備の欠片の上位変換、秘境晶・導石・装飾素材の錬成、敵部位からの調合素材づくりや回復アイテム調合を行います。
                     </p>
                 </div>
                 <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">

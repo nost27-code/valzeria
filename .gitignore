@@ -33,6 +33,7 @@ Thumbs.db
 # envファイル群 (example以外)
 .env*
 !.env.example
+!.env.local.example
 
 # バックアップフォルダと出力先
 /backups/

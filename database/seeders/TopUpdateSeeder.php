@@ -3,12 +3,15 @@
 namespace Database\Seeders;
 
 use App\Models\TopUpdate;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class TopUpdateSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->ensureAdminAccess();
+
         $entries = [
             [
                 'published_on' => '2026-06-24',
@@ -30,5 +33,10 @@ class TopUpdateSeeder extends Seeder
                 $entry
             );
         }
+    }
+
+    private function ensureAdminAccess(): void
+    {
+        User::where('email', 'info@valzeria.com')->update(['role' => 'admin']);
     }
 }

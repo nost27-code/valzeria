@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Models\Character;
 use App\Models\City;
+use App\Models\ContactMessage;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -54,9 +55,14 @@ class AdminDashboard extends Component
         $totalUsers = User::count();
         $todayNewUsers = User::where('created_at', '>=', $todayStart)->count();
         $totalCharacters = Character::count();
+        $onlineWindowMinutes = max(1, (int) config('services.pochi_game_portal.online_window_minutes', 5));
+        $onlineCharacters = Character::where('last_seen_at', '>=', $now->copy()->subMinutes($onlineWindowMinutes))->count();
         $todayLoginUsers = Character::where('last_seen_at', '>=', $todayStart)->distinct('user_id')->count('user_id');
         $weeklyLoginUsers = Character::where('last_seen_at', '>=', $sevenDaysAgo)->distinct('user_id')->count('user_id');
         $averageLevel = (float) Character::avg('level');
+        $newContactMessages = Schema::hasTable('contact_messages')
+            ? ContactMessage::where('status', 'new')->count()
+            : 0;
         $changedJobCharacters = $this->changedJobCharacters();
         $retention = $this->retention($sevenDaysAgo);
 
@@ -66,6 +72,8 @@ class AdminDashboard extends Component
                 ['label' => '登録ユーザー数', 'value' => number_format($totalUsers), 'note' => 'users 全体'],
                 ['label' => '今日の新規ユーザー数', 'value' => number_format($todayNewUsers), 'note' => $todayStart->format('Y/m/d')],
                 ['label' => '継続率', 'value' => $retention['rate_label'], 'note' => $retention['note']],
+                ['label' => '同時接続数', 'value' => number_format($onlineCharacters), 'note' => "直近{$onlineWindowMinutes}分の活動キャラ"],
+                ['label' => '新規受信メール', 'value' => number_format($newContactMessages), 'note' => '未読の問い合わせ', 'url' => route('admin.contact-messages')],
                 ['label' => 'ログイン数', 'value' => number_format($todayLoginUsers), 'note' => '今日ログインしたユーザー'],
                 ['label' => '7日以内ログイン', 'value' => number_format($weeklyLoginUsers), 'note' => '直近7日で活動あり'],
                 ['label' => '平均レベル', 'value' => number_format($averageLevel, 1), 'note' => 'characters 平均'],

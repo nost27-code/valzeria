@@ -95,6 +95,9 @@
                             $resolvedBgImage = app(\App\Services\CityThemeService::class)->bgImageForCityId($__char->current_city_id);
                         }
                     }
+                    if ($resolvedBgImage && !file_exists(public_path($resolvedBgImage))) {
+                        $resolvedBgImage = 'images/bg-castle.webp';
+                    }
                 @endphp
                 @if($resolvedBgImage)
                     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{ asset($resolvedBgImage) }}');"></div>

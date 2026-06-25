@@ -11,7 +11,9 @@ class HomeActionService
 {
     public function __construct(
         private readonly CharacterNotificationService $notificationService,
-        private readonly CharacterStatusService $statusService
+        private readonly CharacterStatusService $statusService,
+        private readonly DailySupplyService $dailySupplyService,
+        private readonly AreaService $areaService
     ) {
     }
 
@@ -21,8 +23,10 @@ class HomeActionService
 
         $this->appendExplorationBagAction($actions, $character);
         $this->appendBonusPointAction($actions, $character);
+        $this->appendDailySupplyAction($actions, $character);
         $this->appendNpcRequestAction($actions, $character);
         $this->appendMarketNotificationAction($actions, $character);
+        $this->appendExplorationStartAction($actions, $character);
         $this->appendRecoveryAction($actions, $character);
 
         return $actions
@@ -154,6 +158,96 @@ class HomeActionService
             'priority' => 50,
             'category' => 'town',
         ]);
+    }
+
+    private function appendDailySupplyAction(Collection $actions, Character $character): void
+    {
+        if (! Schema::hasTable('character_item_daily_supplies')) {
+            return;
+        }
+
+        $supplyStatuses = collect($this->dailySupplyService->statusFor($character));
+        $claimableItems = $supplyStatuses
+            ->filter(fn (array $entry) => (int) ($entry['owned_count'] ?? 0) < (int) ($entry['target_count'] ?? 10)
+                && (int) ($entry['claimable_count'] ?? 0) > 0)
+            ->values();
+
+        if ($claimableItems->isEmpty()) {
+            return;
+        }
+
+        $itemNames = $claimableItems
+            ->map(fn (array $entry) => ($entry['name'] ?? '回復アイテム') . ' +' . number_format((int) ($entry['claimable_count'] ?? 0)))
+            ->implode(' / ');
+
+        $actions->push([
+            'key' => 'daily_supply_available',
+            'title' => '補給所に行って回復アイテムを受け取ろう',
+            'body' => $itemNames !== '' ? "受け取れる分: {$itemNames}" : '探索用の回復アイテムを補給できます。',
+            'action_label' => '補給所へ',
+            'action_url' => route('shop.items'),
+            'icon' => '✚',
+            'icon_image' => 'icon/icon_044.webp',
+            'priority' => 85,
+            'category' => 'town',
+        ]);
+    }
+
+    private function appendExplorationStartAction(Collection $actions, Character $character): void
+    {
+        $area = collect($this->areaService->getAreasWithProgress($character))
+            ->filter(fn ($area) => (bool) ($area->is_unlocked ?? false)
+                && (bool) ($area->meets_job_requirements ?? true)
+                && ! $this->isExploreHiddenArea($area))
+            ->sortBy([
+                ['sort_order', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->first(fn ($area) => ! $this->isAreaFullyHandled($area));
+
+        $area ??= collect($this->areaService->getAreasWithProgress($character))
+            ->filter(fn ($area) => (bool) ($area->is_unlocked ?? false)
+                && (bool) ($area->meets_job_requirements ?? true)
+                && ! $this->isExploreHiddenArea($area))
+            ->sortBy([
+                ['sort_order', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->first();
+
+        if (!$area) {
+            return;
+        }
+
+        $actions->push([
+            'key' => 'exploration_start',
+            'title' => '探索しよう',
+            'body' => "{$area->name}へ向かい、経験値や素材を集めましょう。",
+            'action_label' => '探索へ',
+            'tab' => 'dungeon',
+            'target_area_id' => (int) $area->id,
+            'icon' => '🧭',
+            'icon_image' => 'icon/icon_002.webp',
+            'priority' => 65,
+            'category' => 'dungeon',
+        ]);
+    }
+
+    private function isAreaFullyHandled($area): bool
+    {
+        $requiredPoint = max(100, (int) ($area->development_required_point ?? 100));
+        $progressPoint = (int) ($area->development_point ?? 0);
+
+        return $progressPoint >= $requiredPoint
+            && (bool) ($area->boss_defeated ?? false);
+    }
+
+    private function isExploreHiddenArea($area): bool
+    {
+        $areaId = (int) ($area->id ?? 0);
+
+        return ! empty($area->hide_explore)
+            || ($areaId >= 71 && $areaId <= 74);
     }
 
     private function appendExplorationBagAction(Collection $actions, Character $character): void

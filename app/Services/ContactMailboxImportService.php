@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ContactMessage;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class ContactMailboxImportService
@@ -48,7 +49,7 @@ class ContactMailboxImportService
                 $raw = $this->retrieve($messageNumber);
                 $parsed = $this->parseMessage($raw);
 
-                ContactMessage::create([
+                $values = [
                     'recipient_email' => $address,
                     'source' => 'pop3',
                     'external_uid' => $uid,
@@ -59,7 +60,13 @@ class ContactMailboxImportService
                     'subject' => $parsed['subject'],
                     'body' => $parsed['body'],
                     'status' => 'new',
-                ]);
+                ];
+
+                if (Schema::hasColumn('contact_messages', 'body_html')) {
+                    $values['body_html'] = $parsed['body_html'];
+                }
+
+                ContactMessage::create($values);
 
                 $imported++;
             }
@@ -178,12 +185,14 @@ class ContactMailboxImportService
         [$senderName, $senderEmail] = $this->parseAddress($from);
         $subject = trim($this->decodeHeader((string) ($headers['subject'] ?? '件名なし'))) ?: '件名なし';
         $receivedAt = $this->parseDate((string) ($headers['date'] ?? ''));
+        $decodedBody = $this->decodeBodyParts($bodyText, $headers);
 
         return [
             'sender_name' => $senderName,
             'sender_email' => $senderEmail ?: 'unknown@example.com',
             'subject' => mb_substr($subject, 0, 160),
-            'body' => mb_substr($this->decodeBody($bodyText, $headers), 0, 5000),
+            'body' => mb_substr($decodedBody['text'], 0, 5000),
+            'body_html' => $decodedBody['html'] ? mb_substr($decodedBody['html'], 0, 20000) : null,
             'received_at' => $receivedAt,
         ];
     }
@@ -258,29 +267,71 @@ class ContactMailboxImportService
         }
     }
 
-    private function decodeBody(string $body, array $headers): string
+    private function decodeBodyParts(string $body, array $headers): array
     {
         $contentType = strtolower((string) ($headers['content-type'] ?? ''));
 
         if (str_contains($contentType, 'multipart/')) {
             $boundary = $this->extractBoundary($contentType);
             if ($boundary) {
-                $body = $this->extractMultipartBody($body, $boundary);
+                return $this->extractMultipartBodyParts($body, $boundary);
             }
         }
 
-        $transferEncoding = strtolower((string) ($headers['content-transfer-encoding'] ?? ''));
-        if ($transferEncoding === 'base64') {
-            $body = (string) base64_decode(preg_replace('/\s+/', '', $body), true);
-        } elseif ($transferEncoding === 'quoted-printable') {
-            $body = quoted_printable_decode($body);
+        $body = $this->decodeTransferEncodedBody($body, $headers);
+
+        if (str_contains($contentType, 'text/html')) {
+            $html = $this->sanitizeHtml($body);
+
+            return [
+                'text' => $this->htmlToText($body),
+                'html' => $html !== '' ? $html : null,
+            ];
         }
 
+        return [
+            'text' => $this->normalizePlainText($body),
+            'html' => null,
+        ];
+    }
+
+    private function decodeTransferEncodedBody(string $body, array $headers): string
+    {
+        $transferEncoding = strtolower((string) ($headers['content-transfer-encoding'] ?? ''));
+        if ($transferEncoding === 'base64') {
+            return (string) base64_decode(preg_replace('/\s+/', '', $body), true);
+        } elseif ($transferEncoding === 'quoted-printable') {
+            return quoted_printable_decode($body);
+        }
+
+        return $body;
+    }
+
+    private function normalizePlainText(string $body): string
+    {
         $body = html_entity_decode(strip_tags($body), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $body = preg_replace("/[ \t]+\n/", "\n", $body) ?? $body;
         $body = preg_replace("/\n{3,}/", "\n\n", $body) ?? $body;
 
         return trim($body) ?: '(本文なし)';
+    }
+
+    private function htmlToText(string $html): string
+    {
+        $html = preg_replace('/<\s*br\s*\/?>/i', "\n", $html) ?? $html;
+        $html = preg_replace('/<\/\s*(p|div|li|tr|h[1-6])\s*>/i', "\n", $html) ?? $html;
+
+        return $this->normalizePlainText($html);
+    }
+
+    private function sanitizeHtml(string $html): string
+    {
+        $html = preg_replace('#<(script|style|iframe|object|embed|form|input|button|textarea|select|meta|link)\b[^>]*>.*?</\1>#is', '', $html) ?? $html;
+        $html = preg_replace('#<(script|style|iframe|object|embed|form|input|button|textarea|select|meta|link)\b[^>]*\/?>#is', '', $html) ?? $html;
+        $html = preg_replace('/\son\w+\s*=\s*(".*?"|\'.*?\'|[^\s>]+)/is', '', $html) ?? $html;
+        $html = preg_replace('/\s(href|src)\s*=\s*([\'"])\s*javascript:[^\'"]*\2/is', ' $1="#"', $html) ?? $html;
+
+        return trim($html);
     }
 
     private function extractBoundary(string $contentType): ?string
@@ -292,29 +343,41 @@ class ContactMailboxImportService
         return null;
     }
 
-    private function extractMultipartBody(string $body, string $boundary): string
+    private function extractMultipartBodyParts(string $body, string $boundary): array
     {
         $parts = preg_split('/--' . preg_quote($boundary, '/') . '(?:--)?\s*/', $body) ?: [];
+        $plainText = null;
+        $html = null;
+
         foreach ($parts as $part) {
             [$partHeadersText, $partBody] = $this->splitHeaderAndBody(trim($part));
             $partHeaders = $this->parseHeaders($partHeadersText);
             $contentType = strtolower((string) ($partHeaders['content-type'] ?? ''));
+
+            if (str_contains($contentType, 'multipart/')) {
+                $nestedBoundary = $this->extractBoundary($contentType);
+                if ($nestedBoundary) {
+                    $nested = $this->extractMultipartBodyParts($partBody, $nestedBoundary);
+                    $plainText ??= $nested['text'] !== '(本文なし)' ? $nested['text'] : null;
+                    $html ??= $nested['html'];
+                }
+                continue;
+            }
 
             if (str_contains($contentType, 'text/plain')) {
-                return $this->decodeBody($partBody, $partHeaders);
+                $plainText ??= $this->normalizePlainText($this->decodeTransferEncodedBody($partBody, $partHeaders));
+                continue;
             }
-        }
-
-        foreach ($parts as $part) {
-            [$partHeadersText, $partBody] = $this->splitHeaderAndBody(trim($part));
-            $partHeaders = $this->parseHeaders($partHeadersText);
-            $contentType = strtolower((string) ($partHeaders['content-type'] ?? ''));
 
             if (str_contains($contentType, 'text/html')) {
-                return $this->decodeBody($partBody, $partHeaders);
+                $decodedHtml = $this->decodeTransferEncodedBody($partBody, $partHeaders);
+                $html ??= $this->sanitizeHtml($decodedHtml);
             }
         }
 
-        return $body;
+        return [
+            'text' => $plainText ?: ($html ? $this->htmlToText($html) : $this->normalizePlainText($body)),
+            'html' => $html ?: null,
+        ];
     }
 }

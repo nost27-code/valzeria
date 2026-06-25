@@ -41,13 +41,18 @@
                 </div>
 
                 <!-- 現在地ヘッダー -->
-                @if(!in_array($currentLocation, ['home', 'town'], true))
+                @if($currentLocation !== 'home')
+                    @php
+                        $locationHeaderTitle = $currentLocation === 'town'
+                            ? '街の施設'
+                            : ($locationData['title'] ?? '');
+                    @endphp
                         <div class="mb-4 pb-2 border-b-2 border-gray-100 flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2">
                                     <span class="shrink-0 text-[#d4af37] text-2xl">⚜</span>
                                     <h3 class="text-xl min-w-0 truncate font-bold text-[#1e293b]">
-                                        {{ $locationData['title'] }}
+                                        {{ $locationHeaderTitle }}
                                     </h3>
                                 </div>
                                 <p class="mt-2 text-xs leading-relaxed text-gray-600">
@@ -814,7 +819,8 @@
     <template x-teleport="body">
         <div class="fixed inset-0 bg-black/60 flex items-center justify-center p-4" style="z-index: 2147483647 !important;">
             <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden border-2 border-[#d4af37]">
-                <div class="p-4 border-b border-[#d4af37]/30 bg-[url('/images/bg-castle.webp')] bg-cover bg-center relative">
+                <div class="p-4 border-b border-[#d4af37]/30 bg-cover bg-center relative"
+                     style="background-image: url('{{ asset('images/bg-castle.webp') }}');">
                     <div class="absolute inset-0 bg-white/80"></div>
                     <h3 class="relative font-bold text-[#1e293b] text-xl z-10 drop-shadow-md text-center">キャラクターアイコン変更</h3>
                 </div>

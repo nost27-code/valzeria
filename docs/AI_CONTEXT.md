@@ -84,6 +84,8 @@ Main player entities: <user/team/player/valmon/etc>
 
 Keep this section short. Current state only, not changelog.
 
+- 補給所は薬草・回復薬・魔力水を各10個/日の無料補給枠で扱い、所持上限で受け取れない分や当日未受取分を補給所に残っている分として表示する。
+- ランク戦で順位が下がった冒険者には通知アイコンへ「ランク戦順位が低下しました」を出す。冒険者タブの「次やること」には、未完了の最前線エリアへの探索誘導と、補給所で受け取れる回復アイテムがある場合の誘導も表示する。
 - <current fact 1>
 - <current fact 2>
 - <current fact 3>

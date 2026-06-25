@@ -218,6 +218,7 @@ if (app()->environment('local')) {
 }
 Route::post('/auth/guest-login', [AuthController::class, 'guestLogin'])->name('auth.guest'); // ゲストログイン用
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+Route::get('/auth/logout', fn () => redirect()->route('top'))->name('auth.logout.get');
 
 // 認証が必要なルート
 Route::middleware('auth')->group(function () {
@@ -405,6 +406,27 @@ Route::get('/admin/tools/{asset}', function (string $asset) {
 
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', \App\Livewire\Admin\AdminDashboard::class)->name('admin.dashboard');
+    Route::get('/admin/contact-messages/badge-count', function () {
+        $imported = null;
+        $importError = null;
+
+        try {
+            $imported = app(\App\Services\ContactMailboxImportService::class)->import();
+        } catch (\Throwable $e) {
+            $importError = $e->getMessage();
+        }
+
+        $newCount = \Illuminate\Support\Facades\Schema::hasTable('contact_messages')
+            ? \App\Models\ContactMessage::where('status', 'new')->count()
+            : 0;
+
+        return response()->json([
+            'new_count' => $newCount,
+            'imported' => $imported,
+            'import_error' => $importError,
+            'checked_at' => now()->toIso8601String(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    })->name('admin.contact-messages.badge-count');
     Route::get('/admin/world-metrics', \App\Livewire\Admin\WorldMetricsManager::class)->name('admin.world-metrics');
     Route::get('/admin/growth-analytics', \App\Livewire\Admin\GrowthAnalyticsManager::class)->name('admin.growth-analytics');
     Route::get('/admin/testers', \App\Livewire\Admin\TesterManager::class)->name('admin.testers');
@@ -425,6 +447,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/kiseki-purchases', \App\Livewire\Admin\KisekiPurchaseManager::class)->name('admin.kiseki-purchases');
     Route::get('/admin/top-updates', \App\Livewire\Admin\TopUpdateManager::class)->name('admin.top-updates');
     Route::get('/admin/top-analytics', \App\Livewire\Admin\TopPageAnalyticsManager::class)->name('admin.top-analytics');
+    Route::get('/admin/game-texts', \App\Livewire\Admin\GameTextManager::class)->name('admin.game-texts');
     Route::get('/admin/tools/remover.html', function () {
         return response()->file(public_path('admin/tools/remover.html'));
     })->name('admin.tools.remover');

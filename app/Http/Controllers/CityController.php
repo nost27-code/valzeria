@@ -45,6 +45,7 @@ class CityController extends Controller
             if ($request->boolean('from_battle_result')) {
                 session()->forget('lastBattleData');
             }
+            session(['current_location' => 'town']);
 
             $routeParams = $request->boolean('from_battle_result') ? ['skip_resume' => 1] : [];
             $redirect = redirect()->route('home', $routeParams)->with('success', "{$city->name} に移動しました。");

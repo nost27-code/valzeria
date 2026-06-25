@@ -337,7 +337,6 @@ class MainScreen extends Component
 
                     if ($explorationCooldownRemaining > 0 && $status === 'active') {
                         $facility['cooldown_remaining_seconds'] = $explorationCooldownRemaining;
-                        $facility['action'] = '待機中';
                     }
                     
                     if (isset($area->meets_job_requirements) && !$area->meets_job_requirements && !empty($area->missing_job_names)) {
@@ -518,13 +517,13 @@ class MainScreen extends Component
                 ],
                 'facilities' => [
                     ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['無料', '探索待機: ' . app(CooldownSettingService::class)->innSeconds() . '秒'], 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true],
-                    ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日、探索用の回復アイテムを10個まで補充する', 'details' => ['薬草・回復薬・魔力水'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
+                    ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
                     ...($hasEquipmentShop ? [
                         ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+3強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
                     ] : []),
                     ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石を使って武器を+1〜+3へ強化する', 'details' => ['武器強化', '成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
                     ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
-                    ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '装備の欠片を上位の欠片へ交換する', 'details' => ['装備→上質→強装備', '10:1'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
+                    ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材を別素材や回復アイテムへ交換・調合する', 'details' => ['欠片・導石・秘境晶', '部位変換・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
                     ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
                     ['category' => '育成', 'name' => '神殿', 'symbol_image' => 'facilities/facility_temple.webp', 'desc' => '職業変更と職業ランクを確認する', 'details' => ['転職', '職業ランク'], 'bg_image' => 'facilities/01_転職所.webp', 'status' => 'active', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false],
                     ['category' => 'その他', 'name' => '案内所', 'symbol_image' => 'facilities/facility_guide_300.webp', 'desc' => 'ヴァルゼリアの遊び方やヘルプを確認する', 'details' => ['初心者おすすめ'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'town.guide', 'is_post' => false],
@@ -608,6 +607,7 @@ class MainScreen extends Component
                     ['name' => 'アイコン変更', 'icon_image' => 'icon/icon_059.webp', 'icon' => '🖼️', 'desc' => 'キャラクターの見た目を変更します', 'details' => ['現在: ' . basename($character->icon_path ?? '')], 'bg_image' => 'facilities/03_アイコン変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openIconModal'],
                     ['name' => '名前変更', 'icon_image' => 'icon/icon_014.webp', 'icon' => '🏷️', 'desc' => 'キャラクターの名前を変更します', 'details' => ['現在の名前: ' . ($character->name ?? '')], 'bg_image' => 'facilities/04_名前変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openNameModal'],
                     ['name' => 'プロフィール編集', 'icon_image' => 'icon/icon_021.webp', 'icon' => '📝', 'desc' => '自己紹介文やプロフィール枠を編集します', 'details' => ['コメント', '枠変更'], 'status' => 'active', 'action' => '編集する', 'route' => 'profile.edit', 'is_post' => false],
+                    ['name' => 'ログアウト', 'icon_image' => 'icon/icon_046.webp', 'icon' => '↩', 'desc' => '現在のアカウントからログアウトします', 'details' => ['ログイン画面へ戻る'], 'status' => 'active', 'action' => 'ログアウト', 'route' => 'auth.logout', 'is_post' => true],
                     ['name' => 'アカウント削除', 'icon_image' => 'icon/icon_046.webp', 'icon' => '⚠️', 'desc' => 'Google連携と作成データを完全に削除します', 'details' => ['取り消し不可'], 'status' => 'active', 'action' => '確認する', 'route' => 'account.delete', 'is_post' => false],
                 ]
             ],

@@ -20,11 +20,19 @@
 
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
         @foreach($summaryCards as $card)
-            <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="text-xs font-black tracking-wide text-slate-500">{{ $card['label'] }}</div>
-                <div class="mt-2 text-2xl font-black text-slate-950">{{ $card['value'] }}</div>
-                <div class="mt-1 text-xs font-bold text-slate-400">{{ $card['note'] }}</div>
-            </div>
+            @if(isset($card['url']))
+                <a href="{{ $card['url'] }}" class="block rounded-md border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/40 hover:shadow">
+                    <div class="text-xs font-black tracking-wide text-slate-500">{{ $card['label'] }}</div>
+                    <div class="mt-2 text-2xl font-black text-slate-950">{{ $card['value'] }}</div>
+                    <div class="mt-1 text-xs font-bold text-slate-400">{{ $card['note'] }}</div>
+                </a>
+            @else
+                <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs font-black tracking-wide text-slate-500">{{ $card['label'] }}</div>
+                    <div class="mt-2 text-2xl font-black text-slate-950">{{ $card['value'] }}</div>
+                    <div class="mt-1 text-xs font-bold text-slate-400">{{ $card['note'] }}</div>
+                </div>
+            @endif
         @endforeach
     </div>
 

@@ -11,11 +11,13 @@ class CharacterItemDailySupply extends Model
         'item_id',
         'claimed_on',
         'supplied_count',
+        'stocked_count',
     ];
 
     protected $casts = [
         'claimed_on' => 'date',
         'supplied_count' => 'integer',
+        'stocked_count' => 'integer',
     ];
 
     public function character()

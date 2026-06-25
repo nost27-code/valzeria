@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\ArenaRanking;
 use App\Models\ArenaLog;
 use App\Models\Skill;
+use App\Services\CharacterNotificationService;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleTypeAffinity;
@@ -178,6 +179,8 @@ class PvPBattleService
                     $targetRanking = ArenaRanking::where('rank', $targetRank)->lockForUpdate()->first();
                     
                     if ($targetRanking) {
+                        $rankDownCharacter = $targetRanking->character;
+
                         // rank はユニーク制約があるため、一時ランクへ退避してから入れ替える。
                         $temporaryRank = -1 * (int) $attackerRanking->id;
                         $attackerRanking->rank = $temporaryRank;
@@ -188,6 +191,24 @@ class PvPBattleService
 
                         if ((int) $defenderRanking->id === (int) $targetRanking->id) {
                             $defenderRanking->rank = $attackerOldRank;
+                        }
+
+                        if ($rankDownCharacter && (int) $rankDownCharacter->id !== (int) $attackerChar->id) {
+                            app(CharacterNotificationService::class)->create(
+                                $rankDownCharacter,
+                                'arena',
+                                'arena_rank_down',
+                                'ランク戦順位が低下しました',
+                                "{$attackerChar->name}さんの勝利により、闘技場順位が{$targetRank}位から{$attackerOldRank}位に下がりました。",
+                                '順位を見る',
+                                route('colosseum.ranking'),
+                                [
+                                    'attacker_id' => (int) $attackerChar->id,
+                                    'old_rank' => (int) $targetRank,
+                                    'new_rank' => (int) $attackerOldRank,
+                                ],
+                                85
+                            );
                         }
 
                         $attackerRanking->rank = $targetRank;

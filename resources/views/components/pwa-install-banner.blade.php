@@ -48,6 +48,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     // Safariかどうかの判定（Chrome for iOSなども考慮）
     const isSafari = isIOS && /WebKit/.test(navigator.userAgent) && !/CriOS/.test(navigator.userAgent) && !/FxiOS/.test(navigator.userAgent);
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    const isSmallViewport = window.matchMedia('(max-width: 767px)').matches;
+
+    if (!isIOS && !isCoarsePointer && !isSmallViewport) {
+        return;
+    }
 
     if (isSafari) {
         // iOS Safari の場合

@@ -206,7 +206,26 @@
                     </div>
                 </div>
 
-                <div class="mt-4 whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-semibold leading-8 text-slate-800">{{ $selectedMessage->body }}</div>
+                @if($selectedMessage->body_html)
+                    @php
+                        $htmlPreview = '<!doctype html><html><head><meta charset="UTF-8"><base target="_blank"><style>body{margin:0;padding:16px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.7;color:#0f172a;background:#fff;}img{max-width:100%;height:auto;}a{color:#b45309;word-break:break-all;}table{max-width:100%;border-collapse:collapse;}td,th{word-break:break-word;}</style></head><body>' . $selectedMessage->body_html . '</body></html>';
+                    @endphp
+                    <div class="mt-4 overflow-hidden rounded-md border border-slate-200 bg-white">
+                        <div class="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-black text-slate-500">HTML本文</div>
+                        <iframe
+                            title="HTMLメール本文"
+                            sandbox="allow-popups"
+                            referrerpolicy="no-referrer"
+                            class="h-[30rem] w-full bg-white"
+                            srcdoc="{{ $htmlPreview }}"></iframe>
+                    </div>
+                    <details class="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+                        <summary class="cursor-pointer text-xs font-black text-slate-600">テキスト本文を表示</summary>
+                        <div class="mt-3 whitespace-pre-wrap text-sm font-semibold leading-8 text-slate-800">{{ $selectedMessage->body }}</div>
+                    </details>
+                @else
+                    <div class="mt-4 whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-semibold leading-8 text-slate-800">{{ $selectedMessage->body }}</div>
+                @endif
 
                 @if($selectedMessage->attachment_path)
                 <div class="mt-3">

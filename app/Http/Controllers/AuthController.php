@@ -30,10 +30,6 @@ class AuthController extends Controller
 
     public function showEmailLoginForm()
     {
-        if (Auth::check()) {
-            return redirect()->route('character.select');
-        }
-
         return view('auth.email-login');
     }
 
@@ -175,12 +171,24 @@ class AuthController extends Controller
     {
         $character = Auth::user()?->currentCharacter();
         if ($character) {
-            app(\App\Services\ExplorationStateService::class)->reset($character);
+            try {
+                app(\App\Services\ExplorationStateService::class)->reset($character);
+            } catch (\Throwable $e) {
+                // reset失敗してもログアウトは継続
+            }
         }
 
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect()->route('top');
+
+        $response = redirect()->route('auth.email.login');
+        foreach ($request->cookies->keys() as $name) {
+            if (str_starts_with($name, 'remember_')) {
+                $response->withCookie(cookie()->forget($name));
+            }
+        }
+
+        return $response;
     }
 }

@@ -27,7 +27,7 @@
         @endphp
 
         <!-- ステータスパネル -->
-        <div class="bg-white p-3 relative mb-4">
+        <div class="relative mb-4 rounded-xl border border-[#d4af37] bg-white p-3 shadow-[0_8px_22px_rgba(126,96,28,0.18)]">
 
             <!-- プロフィール帯 -->
             <div class="mb-2 space-y-2">

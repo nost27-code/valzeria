@@ -47,4 +47,12 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
+    'pochi_game_portal' => [
+        'enabled' => env('POCHI_GAME_PORTAL_ENABLED', false),
+        'endpoint' => env('POCHI_GAME_PORTAL_ENDPOINT', 'https://games-alchemist.com/api/portal/online-count/'),
+        'game_key' => env('POCHI_GAME_PORTAL_GAME_KEY'),
+        'api_key' => env('POCHI_GAME_PORTAL_API_KEY'),
+        'online_window_minutes' => env('POCHI_GAME_PORTAL_ONLINE_WINDOW_MINUTES', 5),
+    ],
+
 ];
