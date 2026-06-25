@@ -145,6 +145,32 @@ class JobArtService
         return (int) $skills->sum(fn (Skill $skill): int => (int) $skill->art_cost);
     }
 
+    public function setupSeenSessionKey(Character $character): string
+    {
+        return 'job_art_setup_seen_' . (int) $character->id;
+    }
+
+    public function setupSignature(Character $character, ?Collection $availableArts = null, ?Collection $selectedSlots = null): string
+    {
+        $availableArts ??= $this->availableArts($character, 'pve');
+        $selectedSlots ??= $this->selectedSlots($character, 'pve');
+        $selectedSkills = $selectedSlots->pluck('skill')->filter()->values();
+
+        return sha1(json_encode([
+            'available' => $availableArts->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all(),
+            'selected' => $selectedSlots
+                ->map(fn (CharacterJobArtSlot $slot): array => [
+                    'slot' => (int) $slot->slot_no,
+                    'skill' => (int) $slot->skill_id,
+                ])
+                ->sortBy('slot')
+                ->values()
+                ->all(),
+            'selected_count' => $selectedSkills->count(),
+            'total_cost' => $this->totalCost($selectedSkills),
+        ], JSON_THROW_ON_ERROR));
+    }
+
     public function contextAllows(Skill $skill, string $context): bool
     {
         return match ($context) {

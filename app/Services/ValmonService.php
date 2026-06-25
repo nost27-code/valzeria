@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Area;
+use App\Models\CharacterTitle;
 use App\Models\Character;
 use App\Models\CharacterExplorationState;
 use App\Models\CharacterItem;
@@ -11,6 +12,7 @@ use App\Models\Item;
 use App\Models\Material;
 use App\Models\PlayerValmon;
 use App\Models\PlayerValmonEgg;
+use App\Models\Title;
 use App\Models\ValmonFeedLog;
 use App\Models\ValmonMaterialFindLog;
 use App\Models\ValmonMaster;
@@ -21,6 +23,11 @@ class ValmonService
 {
     public const MAX_LEVEL = 100;
     private const BASE_EGG_RATE = 0.02;
+    private const ROLE_ATTACK = 'attack';
+    private const ROLE_STANDARD = 'standard';
+    private const ROLE_GATHER = 'gather';
+    private const ROLE_SCOUT = 'scout';
+    private const ROLE_HEAL = 'heal';
 
     public function starters()
     {
@@ -131,7 +138,7 @@ class ValmonService
             ->where('is_partner', true)
             ->first();
 
-        if (!$partner || !$this->rollPercent(3.0)) {
+        if (!$partner || !$this->rollPercent($this->materialFindRate($partner))) {
             return null;
         }
 
@@ -158,6 +165,69 @@ class ValmonService
             'valmon_rarity' => $partner->master?->rarity ?? 'normal',
             'material_name' => $drop['name'] ?? $material->displayName(),
             'quantity' => 1,
+        ];
+    }
+
+    public function tryPartnerRecovery(Character $character, ?CharacterExplorationState $state): ?array
+    {
+        if (!$state || (bool) ($state->valmon_heal_used ?? false)) {
+            return null;
+        }
+
+        $partner = $this->partnerFor($character);
+        $spec = $partner ? $this->recoverySpec($partner) : null;
+        if (!$partner || !$spec) {
+            return null;
+        }
+
+        $stats = app(CharacterStatusService::class)->getFinalStats($character);
+        $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base ?? 1));
+        $currentHp = max(0, (int) ($character->current_hp ?? 0));
+        $hpRate = $currentHp / $maxHp;
+        if ($hpRate > (float) $spec['threshold']) {
+            return null;
+        }
+
+        if (!$this->rollPercent((float) $spec['rate'])) {
+            return null;
+        }
+
+        $healAmount = max(1, (int) floor($maxHp * (float) $spec['heal_rate']));
+        $afterHp = min($maxHp, $currentHp + $healAmount);
+        $actualHeal = max(0, $afterHp - $currentHp);
+        if ($actualHeal <= 0) {
+            return null;
+        }
+
+        $character->current_hp = $afterHp;
+        $character->save();
+        $state->forceFill(['valmon_heal_used' => true])->save();
+
+        return [
+            'valmon_id' => $partner->id,
+            'valmon_name' => $partner->displayName(),
+            'valmon_image_path' => $partner->master?->imageUrl(),
+            'heal_amount' => $actualHeal,
+        ];
+    }
+
+    public function tryDiscoveryHint(Character $character, Area $area): ?array
+    {
+        $partner = $this->partnerFor($character);
+        if (!$partner || (int) $partner->level < 50 || !$this->rollPercent(15.0)) {
+            return null;
+        }
+
+        $hint = app(DiscoveryService::class)->valmonHintForArea($character, $area);
+        if (!$hint) {
+            return null;
+        }
+
+        return [
+            'valmon_id' => $partner->id,
+            'valmon_name' => $partner->displayName(),
+            'valmon_image_path' => $partner->master?->imageUrl(),
+            'hint' => $hint['text'] ?? 'このあたりに、まだ見つけていない気配があるようです。',
         ];
     }
 
@@ -381,10 +451,122 @@ class ValmonService
         return max(0, $this->nextLevelExp((int) $valmon->level) - (int) $valmon->exp);
     }
 
+    public function partnerFor(Character $character): ?PlayerValmon
+    {
+        return PlayerValmon::with('master')
+            ->where('character_id', $character->id)
+            ->where('is_partner', true)
+            ->first();
+    }
+
+    public function materialFindRate(PlayerValmon $valmon): float
+    {
+        $level = (int) $valmon->level;
+
+        return match (true) {
+            $level >= 20 => 3.0,
+            $level >= 10 => 2.5,
+            default => 2.0,
+        };
+    }
+
+    public function role(PlayerValmon $valmon): string
+    {
+        $key = (string) ($valmon->master?->valmon_key ?? '');
+        $category = (string) ($valmon->master?->base_find_material_category ?? '');
+
+        if (in_array($key, ['abysslim', 'shellx', 'bolt_nya', 'dracol'], true)) {
+            return self::ROLE_ATTACK;
+        }
+
+        if (in_array($key, ['miramy'], true) || str_contains($category, '回復')) {
+            return self::ROLE_HEAL;
+        }
+
+        if (in_array($key, ['leafy', 'aquaron', 'tsubasaur', 'lumi_cube'], true)
+            || str_contains($category, '卵')
+            || str_contains($category, '宝箱')
+            || str_contains($category, '危険')
+            || str_contains($category, 'レア')) {
+            return self::ROLE_SCOUT;
+        }
+
+        if (in_array($key, ['rapil', 'piyoram'], true)) {
+            return self::ROLE_STANDARD;
+        }
+
+        return self::ROLE_GATHER;
+    }
+
+    public function roleLabel(PlayerValmon $valmon): string
+    {
+        return match ($this->role($valmon)) {
+            self::ROLE_ATTACK => '攻撃型',
+            self::ROLE_STANDARD => '標準型',
+            self::ROLE_SCOUT => '探知型',
+            self::ROLE_HEAL => '回復型',
+            default => '採集型',
+        };
+    }
+
+    public function assistAttackSpec(PlayerValmon $valmon): ?array
+    {
+        if ((int) $valmon->level < 40) {
+            return null;
+        }
+
+        return match ($this->role($valmon)) {
+            self::ROLE_ATTACK => ['rate' => 5.0, 'power_rate' => 0.20],
+            self::ROLE_STANDARD => ['rate' => 4.0, 'power_rate' => 0.15],
+            default => ['rate' => 3.0, 'power_rate' => 0.10],
+        };
+    }
+
+    public function recoverySpec(PlayerValmon $valmon): ?array
+    {
+        if ((int) $valmon->level < 75) {
+            return null;
+        }
+
+        return match ($this->role($valmon)) {
+            self::ROLE_HEAL => ['threshold' => 0.60, 'heal_rate' => 0.25, 'rate' => 25.0],
+            self::ROLE_STANDARD => ['threshold' => 0.50, 'heal_rate' => 0.22, 'rate' => 25.0],
+            default => ['threshold' => 0.40, 'heal_rate' => 0.20, 'rate' => 25.0],
+        };
+    }
+
+    public function effectSummary(PlayerValmon $valmon): array
+    {
+        $level = (int) $valmon->level;
+        $effects = [
+            '素材発見 ' . rtrim(rtrim(number_format($this->materialFindRate($valmon), 1), '0'), '.') . '%',
+        ];
+
+        if ($level >= 30) {
+            $effects[] = '得意素材補正';
+        }
+        if ($level >= 40) {
+            $spec = $this->assistAttackSpec($valmon);
+            $effects[] = '追撃 ' . rtrim(rtrim(number_format((float) ($spec['rate'] ?? 0), 1), '0'), '.') . '%';
+        }
+        if ($level >= 50) {
+            $effects[] = '未発見ヒント';
+        }
+        if ($level >= 75) {
+            $effects[] = '応急回復';
+        }
+        if ($level >= self::MAX_LEVEL) {
+            $effects[] = '名相棒';
+        }
+
+        return $effects;
+    }
+
     private function grantFeedExp(PlayerValmon $valmon, string $feedType, int $feedId, int $quantity, int $gainedExp): array
     {
         $levelUps = 0;
         $valmon->refresh();
+        $oldLevel = (int) $valmon->level;
         $valmon->exp += $gainedExp;
         $valmon->affection = min(100, (int) $valmon->affection + max(1, $quantity));
 
@@ -395,6 +577,9 @@ class ValmonService
         }
 
         $valmon->save();
+        if ($oldLevel < self::MAX_LEVEL && (int) $valmon->level >= self::MAX_LEVEL) {
+            $this->unlockBestPartnerTitle($valmon);
+        }
 
         ValmonFeedLog::create([
             'character_id' => $valmon->character_id,
@@ -464,7 +649,7 @@ class ValmonService
             });
 
         $categoryHint = (string) ($partner->master?->base_find_material_category ?? '');
-        if ($categoryHint !== '') {
+        if ((int) $partner->level >= 30 && $categoryHint !== '') {
             $query->orderByRaw('CASE WHEN category LIKE ? OR name LIKE ? OR main_use LIKE ? THEN 0 ELSE 1 END', [
                 '%' . $categoryHint . '%',
                 '%' . $categoryHint . '%',
@@ -480,6 +665,34 @@ class ValmonService
             ->limit(30)
             ->get()
             ->first(fn (Material $material) => $this->hasUsablePurpose($material) && !$this->isBlockedMaterial($material));
+    }
+
+    private function unlockBestPartnerTitle(PlayerValmon $valmon): void
+    {
+        $character = $valmon->character()->first();
+        if (!$character) {
+            return;
+        }
+
+        $title = Title::where('unlock_type', 'valmon_level')
+            ->where('target_type', 'valmon_level')
+            ->where('target_id', '100')
+            ->first();
+        if ($title) {
+            CharacterTitle::firstOrCreate([
+                'character_id' => $character->id,
+                'title_id' => $title->id,
+            ], [
+                'is_equipped' => false,
+            ]);
+        }
+
+        app(PublicLogService::class)->addLog(
+            'valmon',
+            "【名相棒】{$character->name}さんの相棒「{$valmon->displayName()}」がLv100に到達しました！",
+            $character,
+            3
+        );
     }
 
     private function hasActiveEgg(Character $character): bool

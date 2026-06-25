@@ -132,6 +132,29 @@ class DiscoveryService
         return $links->values();
     }
 
+    public function valmonHintForArea(Character $character, Area $area): ?array
+    {
+        if (!$this->isAvailable()) {
+            return null;
+        }
+
+        $this->ensureInitialDiscoveries($character);
+
+        $link = AreaDiscoveryLink::query()
+            ->where('from_type', $area->is_route_area ? 'route_area' : 'area')
+            ->where('from_id', (int) $area->id)
+            ->whereNotNull('rumor_text')
+            ->where('rumor_text', '<>', '')
+            ->where('rumor_text', '<>', 'なし')
+            ->orderBy('sort_order')
+            ->get()
+            ->first(function (AreaDiscoveryLink $link) use ($character) {
+                return !$this->isTargetDiscovered($character, $link);
+            });
+
+        return $link ? ['text' => (string) $link->rumor_text] : null;
+    }
+
     public function checkAfterExplore(Character $character, Area $area, bool $applyDiscoveries = true): array
     {
         if (!$this->isAvailable()) {

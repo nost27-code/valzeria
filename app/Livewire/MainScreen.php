@@ -17,6 +17,7 @@ use App\Services\SubAreaDiscoveryService;
 use App\Services\DiscoveryService;
 use App\Services\CooldownSettingService;
 use App\Support\CharacterIconCatalog;
+use App\Support\FacilityConfig;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -187,6 +188,12 @@ class MainScreen extends Component
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
 
         $locationData = $this->getLocationData($currentCity, $this->character);
+        // Apply facility text overrides from admin panel
+        if (isset($locationData['town']['facilities'])) {
+            $locationData['town']['facilities'] = $this->applyFacilityOverrides(
+                $locationData['town']['facilities'], 'town'
+            );
+        }
         if ($this->character && isset($locationData['guild']['facilities'])) {
             $deliverableNpcRequestCount = $homeActionService->deliverableNpcRequestCount($this->character);
             foreach ($locationData['guild']['facilities'] as &$guildFacility) {
@@ -204,6 +211,7 @@ class MainScreen extends Component
             $dungeons = [];
             $allDungeonsCleared = false;
             $totalAreasInCity = 0;
+            $nextCityTravel = null;
             $explorationCooldownRemaining = 0;
             $discoveryRumors = collect();
             if ($currentCity) {
@@ -359,6 +367,20 @@ class MainScreen extends Component
             if ($totalAreasInCity > 0 && $totalAreasInCity === $clearedDungeonsCount) {
                 $allDungeonsCleared = true;
             }
+            if ($allDungeonsCleared && $currentCity && $this->character) {
+                $highestCityOrder = (int) ($this->character->highestCity?->sort_order ?? 0);
+                $nextCity = \App\Models\City::where('sort_order', '>', (int) $currentCity->sort_order)
+                    ->orderBy('sort_order', 'asc')
+                    ->first();
+
+                if (
+                    $nextCity
+                    && (int) $nextCity->sort_order <= $highestCityOrder
+                    && (int) $this->character->current_city_id !== (int) $nextCity->id
+                ) {
+                    $nextCityTravel = $nextCity;
+                }
+            }
             if ($allDungeonsCleared && (
                 collect($dungeons)->contains(fn (array $dungeon) => (int) ($dungeon['id'] ?? 0) >= 75)
                 || ($discoveryRumors instanceof \Illuminate\Support\Collection && $discoveryRumors->isNotEmpty())
@@ -368,6 +390,7 @@ class MainScreen extends Component
 
             $locationData['dungeon']['facilities'] = $dungeons;
             $locationData['dungeon']['all_cleared'] = $allDungeonsCleared;
+            $locationData['dungeon']['next_city_travel'] = $nextCityTravel;
             $locationData['dungeon']['rumors'] = $discoveryRumors
                 ->map(function ($link) {
                     $hint = null;
@@ -419,9 +442,9 @@ class MainScreen extends Component
             'finalStats' => $finalStats,
             'equippedItems' => $equippedItems,
             'homeDisplayMode' => $this->character?->home_display_mode ?: 'normal',
-            'homeMenuItems' => $this->homeMenuItems(),
+            'homeMenuItems' => $this->applyFacilityOverrides($this->homeMenuItems(), 'home'),
             'homeActions' => $this->character ? $homeActionService->getActions($this->character) : [],
-            'simpleFacilities' => $this->simpleFacilities($locationData),
+            'simpleFacilities' => $this->applyFacilityOverrides($this->simpleFacilities($locationData), 'simple'),
             'storageIsFull' => $storageIsFull,
             'storageFullMessage' => $storageFullMessage,
             'subAreaDiscoveries' => $subAreaDiscoveries,
@@ -484,6 +507,32 @@ class MainScreen extends Component
             ['group' => '案内', 'name' => 'ヘルプ', 'icon_image' => 'menu/menu_help.webp', 'icon' => '📘', 'desc' => '遊び方や施設の説明を確認する', 'route' => 'town.guide', 'status' => 'active'],
             ['group' => '設定', 'name' => '設定', 'icon_image' => 'menu/menu_settings.webp', 'icon' => '⚙️', 'desc' => '名前やアイコンなどを変更する', 'tab' => 'settings', 'status' => 'active'],
         ];
+    }
+
+    private function applyFacilityOverrides(array $items, string $section): array
+    {
+        $slugMap = FacilityConfig::nameToSlug($section);
+        return array_map(function (array $item) use ($section, $slugMap) {
+            $name = $item['name'] ?? '';
+            $slug = $slugMap[$name] ?? null;
+            if (!$slug) {
+                return $item;
+            }
+            $prefix = "fac.{$section}.{$slug}";
+            $nameOverride = game_text("{$prefix}.name");
+            $descOverride = game_text("{$prefix}.desc");
+            $iconOverride = game_text("{$prefix}.icon");
+            if ($nameOverride !== '') {
+                $item['name'] = $nameOverride;
+            }
+            if ($descOverride !== '') {
+                $item['desc'] = $descOverride;
+            }
+            if ($iconOverride !== '') {
+                $item['icon_image'] = $iconOverride;
+            }
+            return $item;
+        }, $items);
     }
 
     private function getLocationData($currentCity = null, $character = null)

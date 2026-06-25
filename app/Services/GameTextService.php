@@ -29,4 +29,19 @@ class GameTextService
     {
         Cache::forget("game_text:{$key}");
     }
+
+    /**
+     * Bulk-load all game_text values whose key starts with $prefix.
+     * Returns an associative array of key => value.
+     */
+    public function getAllForPrefix(string $prefix): array
+    {
+        $rows = GameText::where('key', 'like', $prefix . '%')->get(['key', 'value']);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row->key] = $row->value;
+            Cache::put("game_text:{$row->key}", $row->value, self::TTL);
+        }
+        return $result;
+    }
 }

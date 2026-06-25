@@ -32,10 +32,16 @@
                         @if(isset($log['is_sender']) && $log['is_sender']) text-slate-900 font-bold
                         @else text-pink-600 font-bold
                         @endif
-                    @elseif($log['type'] == 'drop') text-yellow-600 font-bold
+                    @elseif($log['type'] == 'drop')
+                        @if(str_contains($log['message'] ?? '', 'SSSランク') || str_contains($log['message'] ?? '', 'EPICランク')) text-fuchsia-600 font-bold
+                        @else text-yellow-600 font-bold
+                        @endif
                     @elseif($log['type'] == 'job') text-purple-600 font-bold
                     @elseif($log['type'] == 'duel') text-red-600 font-bold
                     @elseif($log['type'] == 'guild') text-blue-600 font-bold
+                    @elseif($log['type'] == 'valmon') text-teal-600 font-bold
+                    @elseif($log['type'] == 'sub_area') text-cyan-600 font-bold
+                    @elseif($log['type'] == 'growth') text-emerald-600 font-bold
                     @else text-gray-700 font-medium
                     @endif
                 ">

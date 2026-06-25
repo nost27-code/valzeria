@@ -11,8 +11,9 @@ Purpose: canonical game rules. Keep concise.
 
 ## Progression
 
-- Exploration: <short>
-- Battle: <short>
+- Exploration: 通常探索の輝く宝箱は探索度100以上で抽選対象になる。探索度100到達は宝箱確定ではない。
+- Battle: 通常探索の連戦待機は通常探索に適用する。ボス挑戦と現在表示中の深部入口へ進む確認後の1戦は通常探索の連戦待機では止めないが、HP不足や宿屋直後の待機など開始条件は適用する。
+- Valmon: 相棒ヴァルモンは通常探索勝利後にLv1で素材発見2%、Lv10で2.5%、Lv20で3%。Lv30から得意素材補正、Lv40から通常探索戦闘中1回だけ低確率追撃、Lv50から未発見要素の気配ヒント、Lv75からHP低下時の応急回復を1探索チェーン1回まで、Lv100で称号「名相棒」と特別ログ/プロフィール表示向け効果を解放する。
 - Jobs/class change: <short>
 - Equipment: <short>
 

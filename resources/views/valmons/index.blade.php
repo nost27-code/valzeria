@@ -177,6 +177,12 @@
                             {{ $partner->master?->silhouette_type }} /
                             {{ $partner->is_max_level ? '最大Lv' : '次のLvまであと' . number_format($partner->next_level_remaining ?? 0) }}
                         </div>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-black text-emerald-700">{{ $partner->role_label ?? '標準型' }}</span>
+                            @foreach(($partner->effect_summary ?? []) as $effect)
+                                <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-600">{{ $effect }}</span>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             @else
@@ -229,6 +235,12 @@
                                     </div>
                                     <div class="mt-1 text-sm font-bold text-slate-600">
                                         {{ $valmon->is_max_level ? '最大Lv' : '次のLvまであと' . number_format($valmon->next_level_remaining ?? 0) }}
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-black text-emerald-700">{{ $valmon->role_label ?? '標準型' }}</span>
+                                        @foreach(($valmon->effect_summary ?? []) as $effect)
+                                            <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-600">{{ $effect }}</span>
+                                        @endforeach
                                     </div>
                                 </div>
                             </div>

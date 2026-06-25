@@ -13,7 +13,9 @@ class HomeActionService
         private readonly CharacterNotificationService $notificationService,
         private readonly CharacterStatusService $statusService,
         private readonly DailySupplyService $dailySupplyService,
-        private readonly AreaService $areaService
+        private readonly AreaService $areaService,
+        private readonly EquipmentEvolutionService $equipmentEvolutionService,
+        private readonly JobArtService $jobArtService
     ) {
     }
 
@@ -24,6 +26,8 @@ class HomeActionService
         $this->appendExplorationBagAction($actions, $character);
         $this->appendBonusPointAction($actions, $character);
         $this->appendDailySupplyAction($actions, $character);
+        $this->appendEquipmentEvolutionAction($actions, $character);
+        $this->appendJobArtSetupAction($actions, $character);
         $this->appendNpcRequestAction($actions, $character);
         $this->appendMarketNotificationAction($actions, $character);
         $this->appendExplorationStartAction($actions, $character);
@@ -191,6 +195,152 @@ class HomeActionService
             'priority' => 85,
             'category' => 'town',
         ]);
+    }
+
+    private function appendEquipmentEvolutionAction(Collection $actions, Character $character): void
+    {
+        if (! Schema::hasTable('weapon_evolution_recipes')
+            || ! Schema::hasTable('armor_evolution_recipes')
+            || ! Schema::hasTable('character_items')) {
+            return;
+        }
+
+        try {
+            $equippedCandidates = collect($this->equipmentEvolutionService->candidates($character))
+                ->filter(fn (array $candidate) => (bool) ($candidate['has_equipped_source'] ?? false))
+                ->values();
+        } catch (\Throwable $exception) {
+            report($exception);
+            return;
+        }
+
+        $readyCandidate = $equippedCandidates
+            ->first(fn (array $candidate) => (bool) ($candidate['can_evolve'] ?? false));
+
+        if ($readyCandidate) {
+            $actions->push([
+                'key' => 'equipment_evolution_ready',
+                'title' => '装備品を合成しよう',
+                'body' => $this->equipmentEvolutionBody($readyCandidate, '合成屋で実行できます。'),
+                'action_label' => '合成屋へ',
+                'action_url' => route('smith.index'),
+                'icon' => '✦',
+                'icon_image' => 'icon/icon_034.webp',
+                'priority' => 78,
+                'category' => 'growth',
+            ]);
+            return;
+        }
+
+        $nearCandidate = $equippedCandidates
+            ->filter(fn (array $candidate) => $this->nearEquipmentEvolutionMaterialMissingCount($candidate) > 0
+                && $this->nearEquipmentEvolutionMaterialMissingCount($candidate) <= 3
+                && (int) ($candidate['missing_equipment_count'] ?? 0) <= 0
+                && (int) ($candidate['missing_gold'] ?? 0) <= 0)
+            ->sortBy(fn (array $candidate) => $this->nearEquipmentEvolutionMaterialMissingCount($candidate))
+            ->first();
+
+        if (! $nearCandidate) {
+            return;
+        }
+
+        $missingMaterials = $this->missingEvolutionMaterials($nearCandidate);
+        $materialName = $missingMaterials[0]['name'] ?? '素材';
+        $missingCount = $this->nearEquipmentEvolutionMaterialMissingCount($nearCandidate);
+        $titleMaterialName = count($missingMaterials) > 1 ? "{$materialName}など" : $materialName;
+
+        $actions->push([
+            'key' => 'equipment_evolution_near',
+            'title' => "{$titleMaterialName}を集めて、装備品を合成してみよう",
+            'body' => $this->equipmentEvolutionBody($nearCandidate, 'あと' . number_format($missingCount) . '個で合成できます。'),
+            'action_label' => '探索へ',
+            'tab' => 'dungeon',
+            'icon' => '✦',
+            'icon_image' => 'icon/icon_034.webp',
+            'priority' => 68,
+            'category' => 'growth',
+        ]);
+    }
+
+    private function appendJobArtSetupAction(Collection $actions, Character $character): void
+    {
+        if (! Schema::hasTable('character_job_art_slots') || ! Schema::hasTable('skills')) {
+            return;
+        }
+
+        try {
+            $availableArts = $this->jobArtService->availableArts($character, 'pve');
+            $selectedSlots = $this->jobArtService->selectedSlots($character, 'pve');
+        } catch (\Throwable $exception) {
+            report($exception);
+            return;
+        }
+
+        $availableCount = $availableArts->count();
+        if ($availableCount <= 0) {
+            return;
+        }
+
+        $selectedSkills = $selectedSlots->pluck('skill')->filter()->values();
+        $selectedCount = $selectedSkills->count();
+        $totalCost = $this->jobArtService->totalCost($selectedSkills);
+        $signature = $this->jobArtService->setupSignature($character, $availableArts, $selectedSlots);
+        $seenSignature = (string) session($this->jobArtService->setupSeenSessionKey($character), '');
+
+        $isComplete = $availableCount <= 2
+            ? $selectedCount >= $availableCount
+            : $selectedCount >= JobArtService::MAX_SLOTS
+                || $totalCost >= JobArtService::MAX_COST
+                || ($selectedCount >= 2 && hash_equals($signature, $seenSignature));
+
+        if ($isComplete) {
+            return;
+        }
+
+        $body = $selectedCount <= 0
+            ? '習得済みの奥義があります。戦闘で使えるようにセットしましょう。'
+            : '現在 ' . $selectedCount . '枠 / Cost' . $totalCost . '。空き枠やCostを活かせます。';
+
+        $actions->push([
+            'key' => 'job_art_setup_recommended',
+            'title' => '奥義をセットしよう',
+            'body' => $body,
+            'action_label' => '奥義へ',
+            'action_url' => route('job-arts.index'),
+            'icon' => '✦',
+            'icon_image' => 'icon/icon_041.webp',
+            'priority' => 88,
+            'category' => 'growth',
+        ]);
+    }
+
+    private function equipmentEvolutionBody(array $candidate, string $suffix): string
+    {
+        $from = (string) ($candidate['from_name'] ?? '装備品');
+        $to = (string) ($candidate['to_display_name'] ?? $candidate['to_name'] ?? '上位装備');
+
+        return "{$from}を{$to}へ進化合成できます。{$suffix}";
+    }
+
+    private function nearEquipmentEvolutionMaterialMissingCount(array $candidate): int
+    {
+        return collect($this->missingEvolutionMaterials($candidate))
+            ->sum(fn (array $material) => (int) ($material['missing'] ?? 0));
+    }
+
+    private function missingEvolutionMaterials(array $candidate): array
+    {
+        $materials = collect($candidate['required_materials'] ?? []);
+        if (! empty($candidate['evolution_stone_requirement'])
+            && ! (bool) ($candidate['can_use_evolution_stone'] ?? false)) {
+            $materials->push($candidate['evolution_stone_requirement']);
+        }
+
+        return $materials
+            ->filter(fn (array $material) => (int) ($material['missing'] ?? 0) > 0)
+            ->sortByDesc(fn (array $material) => (int) ($material['missing'] ?? 0))
+            ->values()
+            ->all();
     }
 
     private function appendExplorationStartAction(Collection $actions, Character $character): void

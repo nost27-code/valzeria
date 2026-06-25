@@ -20,7 +20,7 @@ class PlayerLogs extends Component
 
     public function render()
     {
-        $query = Character::with(['user', 'currentCity']);
+        $query = Character::with(['user', 'currentCity', 'currentJob']);
 
         if (!empty($this->searchQuery)) {
             $search = trim($this->searchQuery);

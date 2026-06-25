@@ -101,10 +101,13 @@ class BattleController extends Controller
             return $depthGateRedirect;
         }
 
-        $this->acknowledgeDepthGateIfConfirmed($request, $character, $areaId);
+        $skipBattleCooldown = $this->acknowledgeDepthGateIfConfirmed($request, $character, $areaId);
+        if (!$skipBattleCooldown && $request->boolean('continue_chain')) {
+            $skipBattleCooldown = $this->consumeDepthGateCooldownBypass($character, $areaId);
+        }
 
         $forcedEvent = $request->boolean('challenge_dungeon_lord') ? 'dungeon_lord' : null;
-        $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent);
+        $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
         $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
@@ -370,6 +373,11 @@ class BattleController extends Controller
         }
 
         $result = $this->explorationService->explore($character, $areaId, true);
+        if (isset($result['error'])) {
+            session(['current_location' => 'dungeon']);
+
+            return redirect()->route('home')->with('error', $result['error']);
+        }
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
@@ -505,23 +513,27 @@ class BattleController extends Controller
         return null;
     }
 
-    private function acknowledgeDepthGateIfConfirmed(Request $request, $character, int $areaId): void
+    private function acknowledgeDepthGateIfConfirmed(Request $request, $character, int $areaId): bool
     {
         $confirmed = (string) $request->input('depth_confirmed', '');
         if ($confirmed === '') {
-            return;
+            return false;
+        }
+
+        $area = Area::find($areaId);
+        $gate = $area ? $this->currentDepthGate($character, $area) : null;
+        if (!$gate || (string) ($gate['key'] ?? '') !== $confirmed) {
+            return false;
         }
 
         if (in_array($confirmed, ['deepest', 'otherworld'], true)) {
-            $area = Area::find($areaId);
-            $gate = $area ? $this->currentDepthGate($character, $area) : null;
-            if ($gate && (string) ($gate['key'] ?? '') === $confirmed) {
-                $this->recordDepthGateDiscovery($character, $area, $gate);
-            }
+            $this->recordDepthGateDiscovery($character, $area, $gate);
         }
 
         app(ExplorationDepthService::class)->markGateHandled($character, $areaId, $confirmed);
         app(ExplorationDepthService::class)->markEntered($character, $areaId, $confirmed);
+
+        return true;
     }
 
     private function continueAfterDepthGate($character, Area $area, string $statusMessage)
@@ -531,6 +543,7 @@ class BattleController extends Controller
         $depthKey = (string) ($gate['key'] ?? '');
         if ($depthKey !== '') {
             app(ExplorationDepthService::class)->markGateHandled($character, $areaId, $depthKey);
+            $this->armDepthGateCooldownBypass($character, $areaId);
         }
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
@@ -598,6 +611,27 @@ class BattleController extends Controller
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+    }
+
+    private function armDepthGateCooldownBypass($character, int $areaId): void
+    {
+        session([$this->depthGateCooldownBypassKey($character, $areaId) => true]);
+    }
+
+    private function consumeDepthGateCooldownBypass($character, int $areaId): bool
+    {
+        $key = $this->depthGateCooldownBypassKey($character, $areaId);
+        $enabled = (bool) session()->pull($key, false);
+
+        return $enabled;
+    }
+
+    private function depthGateCooldownBypassKey($character, int $areaId): string
+    {
+        $state = app(ExplorationStateService::class)->currentFor($character);
+        $startedAt = $state?->started_at ? $state->started_at->timestamp : 0;
+
+        return "depth_gate_cooldown_bypass:{$character->id}:{$areaId}:{$startedAt}";
     }
 
     private function currentDepthGate($character, Area $area): ?array

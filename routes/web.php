@@ -448,6 +448,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/top-updates', \App\Livewire\Admin\TopUpdateManager::class)->name('admin.top-updates');
     Route::get('/admin/top-analytics', \App\Livewire\Admin\TopPageAnalyticsManager::class)->name('admin.top-analytics');
     Route::get('/admin/game-texts', \App\Livewire\Admin\GameTextManager::class)->name('admin.game-texts');
+    Route::get('/admin/facility-texts', \App\Livewire\Admin\FacilityTextManager::class)->name('admin.facility-texts');
     Route::get('/admin/tools/remover.html', function () {
         return response()->file(public_path('admin/tools/remover.html'));
     })->name('admin.tools.remover');

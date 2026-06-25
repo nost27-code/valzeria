@@ -350,6 +350,60 @@
                                     </div>
                                 @endif
 
+                                @if(!empty($result['valmon_discovery_hint']))
+                                    @php
+                                        $valmonHint = $result['valmon_discovery_hint'];
+                                        $valmonImagePath = $valmonHint['valmon_image_path'] ?? null;
+                                    @endphp
+                                    <div class="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 shadow-sm">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-indigo-200 bg-white shadow-inner">
+                                                @if($valmonImagePath)
+                                                    <img src="{{ $valmonImagePath }}" alt="{{ $valmonHint['valmon_name'] ?? 'ヴァルモン' }}" class="h-full w-full object-contain p-1">
+                                                @else
+                                                    <img src="{{ asset('images/icon/icon_037.webp') }}" alt="" class="h-full w-full object-contain p-1">
+                                                @endif
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="text-xs font-extrabold tracking-wide text-indigo-700">VALMON SENSE</div>
+                                                <div class="mt-0.5 text-sm font-extrabold text-slate-900">
+                                                    {{ $valmonHint['valmon_name'] ?? 'ヴァルモン' }}が何かの気配に気づいた
+                                                </div>
+                                                <div class="mt-1 text-sm font-bold leading-relaxed text-indigo-900">
+                                                    {{ $valmonHint['hint'] ?? 'このあたりに、まだ見つけていない気配があるようです。' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if(!empty($result['valmon_recovery']))
+                                    @php
+                                        $valmonRecovery = $result['valmon_recovery'];
+                                        $valmonImagePath = $valmonRecovery['valmon_image_path'] ?? null;
+                                    @endphp
+                                    <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-200 bg-white shadow-inner">
+                                                @if($valmonImagePath)
+                                                    <img src="{{ $valmonImagePath }}" alt="{{ $valmonRecovery['valmon_name'] ?? 'ヴァルモン' }}" class="h-full w-full object-contain p-1">
+                                                @else
+                                                    <img src="{{ asset('images/icon/icon_037.webp') }}" alt="" class="h-full w-full object-contain p-1">
+                                                @endif
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="text-xs font-extrabold tracking-wide text-emerald-700">VALMON CARE</div>
+                                                <div class="mt-0.5 text-sm font-extrabold text-slate-900">
+                                                    {{ $valmonRecovery['valmon_name'] ?? 'ヴァルモン' }}が心配そうに寄り添った
+                                                </div>
+                                                <div class="mt-1 inline-flex items-center rounded border border-emerald-100 bg-white px-3 py-1 text-sm font-extrabold text-emerald-800 shadow-sm">
+                                                    HP +{{ number_format((int) ($valmonRecovery['heal_amount'] ?? 0)) }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+
                                 @if(!empty($result['monster_mark_drop']))
                                     @php $markDrop = $result['monster_mark_drop']; @endphp
                                     <div class="mt-4 pt-4 border-t border-amber-200">
@@ -675,7 +729,7 @@
                                                 @if(!empty($explorationSummary['next_milestone']))
                                                     <div style="display:flex;align-items:center;gap:6px;">
                                                         <span style="font-size:9px;font-weight:700;color:#94a3b8;white-space:nowrap;">次の発見</span>
-                                                        <span style="font-size:10px;font-weight:700;color:#d97706;">探索度{{ number_format($explorationSummary['next_milestone']['point']) }}</span>
+                                                        <span style="font-size:10px;font-weight:700;color:#d97706;">{{ $explorationSummary['next_milestone']['point_label'] ?? ('探索度' . number_format($explorationSummary['next_milestone']['point'])) }}</span>
                                                         <span style="font-size:10px;color:#64748b;">{{ $explorationSummary['next_milestone']['name'] }}</span>
                                                     </div>
                                                 @endif

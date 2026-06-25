@@ -36,6 +36,7 @@
 </head>
 <body class="bg-slate-100 font-sans antialiased text-slate-900">
     @php
+        $mailNavItem = ['route' => 'admin.contact-messages', 'label' => 'メール', 'abbr' => 'M'];
         $navGroups = [
             [
                 'key' => 'overview',
@@ -56,11 +57,11 @@
                     ['route' => 'admin.player-controls', 'label' => 'プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
                     ['route' => 'admin.private-chat-logs', 'label' => '個人チャットログ', 'abbr' => 'D'],
-                    ['route' => 'admin.contact-messages', 'label' => 'お問い合わせ受信箱', 'abbr' => 'M'],
                     ['route' => 'admin.kiseki-purchases', 'label' => '課金監査', 'abbr' => 'K'],
                     ['route' => 'admin.reward-settings', 'label' => '運営・報酬設定', 'abbr' => 'R'],
                     ['route' => 'admin.top-updates', 'label' => 'TOP更新情報', 'abbr' => 'N'],
                     ['route' => 'admin.game-texts', 'label' => '画面文言管理', 'abbr' => 'T'],
+                    ['route' => 'admin.facility-texts', 'label' => '施設テキスト管理', 'abbr' => 'F'],
                 ],
             ],
             [
@@ -88,6 +89,7 @@
 
         $activeGroupKey = collect($navGroups)
             ->first(fn ($group) => collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route'])))['key'] ?? 'overview';
+        $mailNavActive = request()->routeIs($mailNavItem['route']);
     @endphp
 
     <div class="min-h-screen lg:flex">
@@ -106,6 +108,11 @@
 
                 <nav class="flex-1 overflow-y-auto px-4 pb-4" x-data="{ openGroup: @js($activeGroupKey) }">
                     <div class="space-y-3">
+                        <a href="{{ route($mailNavItem['route']) }}"
+                           class="group flex items-center gap-3 rounded-md border px-3 py-3 text-sm font-bold transition {{ $mailNavActive ? 'border-amber-300 bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:bg-white/10 hover:text-white' }}">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $mailNavActive ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200 group-hover:bg-white/15' }}">{{ $mailNavItem['abbr'] }}</span>
+                            <span class="truncate">{{ $mailNavItem['label'] }}</span>
+                        </a>
                         @foreach($navGroups as $group)
                             @php
                                 $groupActive = collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route']));
@@ -159,6 +166,9 @@
                     </form>
                 </div>
                 <nav class="flex gap-2 overflow-x-auto px-4 pb-3">
+                    <a href="{{ route($mailNavItem['route']) }}" class="shrink-0 rounded-md px-3 py-2 text-xs font-bold {{ $mailNavActive ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700' }}">
+                        {{ $mailNavItem['label'] }}
+                    </a>
                     @foreach($navGroups as $group)
                         @foreach($group['items'] as $item)
                             @php $active = request()->routeIs($item['route']); @endphp

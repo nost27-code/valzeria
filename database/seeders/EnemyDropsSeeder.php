@@ -483,8 +483,12 @@ class EnemyDropsSeeder extends Seeder
 
         $category = trim($data['素材カテゴリ'] ?? '');
         $mainUse = trim($data['主用途'] ?? '');
+        $originalName = trim($data['レアドロップ品'] ?? '');
 
         return str_contains($materialName, '進化証')
+            || str_contains($originalName, '刻印')
+            || str_contains($originalName, '印')
+            || str_contains($category, '討伐証素材')
             || str_contains($category, 'ボス特異素材')
             || str_contains($category, '進化解放キー')
             || str_contains($mainUse, '進化解放');

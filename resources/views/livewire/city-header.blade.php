@@ -557,7 +557,7 @@
             </div>
 
             <div class="relative mt-0.5 flex w-full min-w-0 items-start gap-1 text-[10px] font-bold leading-4 sm:text-[11px]">
-                <span class="shrink-0 text-gray-700">現在の冒険者：</span>
+                <span class="shrink-0 text-gray-700">現在の冒険者：（{{ count($onlinePlayers) }}人）</span>
                 <div class="min-w-0 flex-1 pr-12 sm:pr-14">
                     <div class="flex flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">

@@ -15,6 +15,7 @@ class CharacterExplorationState extends Model
         'secret_realm_found_count' => 'integer',
         'dungeon_lord_encountered' => 'boolean',
         'valmon_material_found' => 'boolean',
+        'valmon_heal_used' => 'boolean',
         'rescue_insurance_enabled' => 'boolean',
         'started_at' => 'datetime',
     ];

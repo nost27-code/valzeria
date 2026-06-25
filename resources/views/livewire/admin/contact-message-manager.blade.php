@@ -32,26 +32,28 @@
         </div>
     @endif
 
-    <div class="mb-5 rounded-md bg-white p-4 shadow-sm ring-1 ring-slate-200">
-        <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <details class="mb-4 rounded-md bg-white shadow-sm ring-1 ring-slate-200">
+        <summary class="flex cursor-pointer list-none flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-lg font-black text-slate-950">新規メール作成</h2>
                 <p class="mt-1 text-xs font-bold text-slate-500">登録プレイヤーを検索して、info@valzeria.com から個別にメールを送信します。</p>
             </div>
+            <span class="shrink-0 rounded-md bg-slate-950 px-3 py-2 text-xs font-black text-white">開く</span>
+        </summary>
+        <div class="border-t border-slate-100 p-4">
             @if($selectedComposeCharacter)
                 <div class="rounded bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">
                     宛先: {{ $selectedComposeCharacter->name }} / {{ $selectedComposeCharacter->user?->email }}
                 </div>
             @endif
-        </div>
 
-        @if($composeMessage)
-            <div class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900">
-                {{ $composeMessage }}
-            </div>
-        @endif
+            @if($composeMessage)
+                <div class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900">
+                    {{ $composeMessage }}
+                </div>
+            @endif
 
-        <form wire:submit="sendNewMail" class="grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
+            <form wire:submit="sendNewMail" class="grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
             <div class="space-y-3">
                 <div>
                     <label class="text-xs font-black text-slate-600">送信先プレイヤー</label>
@@ -109,73 +111,82 @@
                     <span wire:loading wire:target="sendNewMail">送信中...</span>
                 </button>
             </div>
-        </form>
+            </form>
 
-        @if($recentAdminMails->isNotEmpty())
-            <div class="mt-4 border-t border-slate-100 pt-3">
-                <div class="mb-2 text-xs font-black text-slate-500">最近の新規送信</div>
-                <div class="space-y-2">
-                    @foreach($recentAdminMails as $mail)
-                        <div class="rounded bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">
-                            <span class="font-black text-slate-900">{{ $mail->subject }}</span>
-                            <span class="mx-1">/</span>
-                            <span>{{ $mail->character?->name ?? 'キャラ不明' }} &lt;{{ $mail->to_email }}&gt;</span>
-                            <span class="mx-1">/</span>
-                            <span>{{ ($mail->sent_at ?? $mail->created_at)?->format('Y/m/d H:i') }}</span>
-                        </div>
+            @if($recentAdminMails->isNotEmpty())
+                <div class="mt-4 border-t border-slate-100 pt-3">
+                    <div class="mb-2 text-xs font-black text-slate-500">最近の新規送信</div>
+                    <div class="space-y-2">
+                        @foreach($recentAdminMails as $mail)
+                            <div class="rounded bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">
+                                <span class="font-black text-slate-900">{{ $mail->subject }}</span>
+                                <span class="mx-1">/</span>
+                                <span>{{ $mail->character?->name ?? 'キャラ不明' }} &lt;{{ $mail->to_email }}&gt;</span>
+                                <span class="mx-1">/</span>
+                                <span>{{ ($mail->sent_at ?? $mail->created_at)?->format('Y/m/d H:i') }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        </div>
+    </details>
+
+    <div class="grid gap-4 xl:grid-cols-[23rem_minmax(0,1fr)]">
+        <aside class="flex min-h-[32rem] flex-col overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200 xl:max-h-[calc(100vh-13rem)]">
+            <div class="border-b border-slate-100 bg-slate-50/80 p-3">
+                <div class="mb-3 flex items-center justify-between gap-2">
+                    <div class="text-sm font-black text-slate-950">メール一覧</div>
+                    <div class="text-[11px] font-black text-slate-400">{{ number_format($counts[$status] ?? 0) }}件</div>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    @foreach([
+                        'new' => '未読',
+                        'read' => '対応中',
+                        'replied' => '返信済み',
+                        'archived' => '保管',
+                        'all' => 'すべて',
+                    ] as $key => $label)
+                        <button type="button"
+                                wire:click="$set('status', '{{ $key }}')"
+                                class="rounded-md px-2.5 py-1.5 text-[11px] font-black shadow-sm ring-1 transition {{ $status === $key ? 'bg-slate-950 text-white ring-slate-950' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50' }}">
+                            {{ $label }} {{ number_format($counts[$key] ?? 0) }}
+                        </button>
                     @endforeach
                 </div>
             </div>
-        @endif
-    </div>
 
-    <div class="mb-4 flex flex-wrap gap-2">
-        @foreach([
-            'new' => '未読',
-            'read' => '対応中',
-            'replied' => '返信済み',
-            'archived' => '保管',
-            'all' => 'すべて',
-        ] as $key => $label)
-            <button type="button"
-                    wire:click="$set('status', '{{ $key }}')"
-                    class="rounded-md px-3 py-2 text-xs font-black shadow-sm ring-1 transition {{ $status === $key ? 'bg-slate-950 text-white ring-slate-950' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50' }}">
-                {{ $label }} {{ number_format($counts[$key] ?? 0) }}
-            </button>
-        @endforeach
-    </div>
-
-    <div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
-            @forelse($messages as $message)
-                <button type="button"
-                        wire:click="selectMessage({{ $message->id }})"
-                        class="block w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 {{ $selectedMessage?->id === $message->id ? 'bg-amber-50' : 'bg-white' }}">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <div class="truncate text-sm font-black text-slate-950">{{ $message->subject }}</div>
-                            <div class="mt-1 truncate text-xs font-bold text-slate-500">{{ $message->sender_name ?: '名前なし' }} / {{ $message->sender_email }}</div>
+            <div class="min-h-0 flex-1 overflow-y-auto">
+                @forelse($messages as $message)
+                    <button type="button"
+                            wire:click="selectMessage({{ $message->id }})"
+                            class="block w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 {{ $selectedMessage?->id === $message->id ? 'bg-amber-50' : 'bg-white' }}">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="truncate text-sm font-black text-slate-950">{{ $message->subject }}</div>
+                                <div class="mt-1 truncate text-xs font-bold text-slate-500">{{ $message->sender_name ?: '名前なし' }} / {{ $message->sender_email }}</div>
+                            </div>
+                            <span class="shrink-0 rounded px-2 py-1 text-[11px] font-black {{ $message->status === 'new' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600' }}">
+                                {{ ['new' => '未読', 'read' => '対応中', 'replied' => '返信済み', 'archived' => '保管'][$message->status] ?? $message->status }}
+                            </span>
                         </div>
-                        <span class="shrink-0 rounded px-2 py-1 text-[11px] font-black {{ $message->status === 'new' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600' }}">
-                            {{ ['new' => '未読', 'read' => '対応中', 'replied' => '返信済み', 'archived' => '保管'][$message->status] ?? $message->status }}
-                        </span>
-                    </div>
-                    <div class="mt-2 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{{ $message->body }}</div>
-                    <div class="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-400">
-                        <span>{{ ($message->received_at ?? $message->created_at)?->format('Y/m/d H:i') }}</span>
-                        <span>{{ $message->source === 'pop3' ? 'メール受信' : 'フォーム' }}</span>
-                    </div>
-                </button>
-            @empty
-                <div class="px-4 py-10 text-center text-sm font-bold text-slate-500">お問い合わせはありません。</div>
-            @endforelse
+                        <div class="mt-2 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{{ $message->body }}</div>
+                        <div class="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-400">
+                            <span>{{ ($message->received_at ?? $message->created_at)?->format('Y/m/d H:i') }}</span>
+                            <span>{{ $message->source === 'pop3' ? 'メール受信' : 'フォーム' }}</span>
+                        </div>
+                    </button>
+                @empty
+                    <div class="px-4 py-10 text-center text-sm font-bold text-slate-500">お問い合わせはありません。</div>
+                @endforelse
+            </div>
 
-            <div class="px-4 py-3">
+            <div class="border-t border-slate-100 px-4 py-3">
                 {{ $messages->links() }}
             </div>
-        </div>
+        </aside>
 
-        <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <section class="min-h-[32rem] rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200 xl:max-h-[calc(100vh-13rem)] xl:overflow-y-auto">
             @if($selectedMessage)
                 <div class="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
@@ -283,6 +294,6 @@
             @else
                 <div class="py-16 text-center text-sm font-bold text-slate-500">左の一覧からお問い合わせを選択してください。</div>
             @endif
-        </div>
+        </section>
     </div>
 </div>

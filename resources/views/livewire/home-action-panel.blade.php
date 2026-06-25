@@ -15,41 +15,84 @@
                     $actionIconImage = $action['icon_image'] ?? null;
                     $actionLabel = $action['action_label'] ?? '開く';
                 @endphp
-                <div class="flex items-center gap-3 px-4 py-3 transition hover:bg-amber-50/70">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">
-                        @if($actionIconImage)
-                            <img src="{{ asset('images/' . $actionIconImage) }}" alt="" class="w-6 h-6 object-contain">
-                        @else
-                            <span class="text-lg">{{ $actionIcon }}</span>
-                        @endif
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="text-sm font-black leading-tight text-slate-900">{{ $action['title'] }}</div>
-                        @if(!empty($action['body']))
-                            <div class="mt-0.5 truncate text-[11px] font-bold text-slate-600">{{ $action['body'] }}</div>
-                        @endif
-                    </div>
                     @if(!empty($action['action_url']))
                         <a href="{{ $action['action_url'] }}"
-                           class="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-slate-950 shadow-sm transition hover:bg-amber-400 active:scale-95">
-                            {{ $actionLabel }}
+                           aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
+                           class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">
+                                @if($actionIconImage)
+                                    <img src="{{ asset('images/' . $actionIconImage) }}" alt="" class="w-6 h-6 object-contain">
+                                @else
+                                    <span class="text-lg">{{ $actionIcon }}</span>
+                                @endif
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-black leading-tight text-slate-900">{{ $action['title'] }}</div>
+                                @if(!empty($action['body']))
+                                    <div class="mt-0.5 truncate text-[11px] font-bold text-slate-600">{{ $action['body'] }}</div>
+                                @endif
+                            </div>
+                            <span class="shrink-0 text-xl font-black leading-none text-amber-600 transition group-hover:translate-x-0.5 group-hover:text-amber-700">&gt;</span>
                         </a>
                     @elseif(!empty($action['target_area_id']))
                         <button type="button"
                                 wire:click="openDungeonArea({{ (int) $action['target_area_id'] }})"
                                 @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'dungeon' } }))"
-                                class="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-slate-950 shadow-sm transition hover:bg-amber-400 active:scale-95">
-                            {{ $actionLabel }}
+                                aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
+                                class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">
+                                @if($actionIconImage)
+                                    <img src="{{ asset('images/' . $actionIconImage) }}" alt="" class="w-6 h-6 object-contain">
+                                @else
+                                    <span class="text-lg">{{ $actionIcon }}</span>
+                                @endif
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-black leading-tight text-slate-900">{{ $action['title'] }}</div>
+                                @if(!empty($action['body']))
+                                    <div class="mt-0.5 truncate text-[11px] font-bold text-slate-600">{{ $action['body'] }}</div>
+                                @endif
+                            </div>
+                            <span class="shrink-0 text-xl font-black leading-none text-amber-600 transition group-hover:translate-x-0.5 group-hover:text-amber-700">&gt;</span>
                         </button>
                     @elseif(!empty($action['tab']))
                         <button type="button"
                                 wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: '{{ $action['tab'] }}' })"
                                 @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $action['tab'] }}' } }))"
-                                class="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-black text-slate-950 shadow-sm transition hover:bg-amber-400 active:scale-95">
-                            {{ $actionLabel }}
+                                aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
+                                class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">
+                                @if($actionIconImage)
+                                    <img src="{{ asset('images/' . $actionIconImage) }}" alt="" class="w-6 h-6 object-contain">
+                                @else
+                                    <span class="text-lg">{{ $actionIcon }}</span>
+                                @endif
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-black leading-tight text-slate-900">{{ $action['title'] }}</div>
+                                @if(!empty($action['body']))
+                                    <div class="mt-0.5 truncate text-[11px] font-bold text-slate-600">{{ $action['body'] }}</div>
+                                @endif
+                            </div>
+                            <span class="shrink-0 text-xl font-black leading-none text-amber-600 transition group-hover:translate-x-0.5 group-hover:text-amber-700">&gt;</span>
                         </button>
+                    @else
+                        <div class="flex items-center gap-3 px-4 py-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">
+                                @if($actionIconImage)
+                                    <img src="{{ asset('images/' . $actionIconImage) }}" alt="" class="w-6 h-6 object-contain">
+                                @else
+                                    <span class="text-lg">{{ $actionIcon }}</span>
+                                @endif
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-black leading-tight text-slate-900">{{ $action['title'] }}</div>
+                                @if(!empty($action['body']))
+                                    <div class="mt-0.5 truncate text-[11px] font-bold text-slate-600">{{ $action['body'] }}</div>
+                                @endif
+                            </div>
+                        </div>
                     @endif
-                </div>
             @endforeach
         </div>
         </section>

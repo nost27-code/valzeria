@@ -49,7 +49,7 @@ class ExplorationService
     /**
      * 探索のメイン処理
      */
-    public function explore(Character $character, int $areaId, bool $isBossBattle = false, ?string $forcedEvent = null): array
+    public function explore(Character $character, int $areaId, bool $isBossBattle = false, ?string $forcedEvent = null, bool $skipBattleCooldown = false): array
     {
         // 1. クールタイム・HPチェック
         if ($character->current_hp <= 0) {
@@ -62,7 +62,7 @@ class ExplorationService
         }
 
         $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSeconds();
-        if ($forcedEvent !== 'dungeon_lord' && $battleCooldownSeconds > 0 && $character->last_battle_at) {
+        if (!$skipBattleCooldown && !$isBossBattle && $forcedEvent !== 'dungeon_lord' && $battleCooldownSeconds > 0 && $character->last_battle_at) {
             $elapsed = $character->last_battle_at->lte(now())
                 ? (int) $character->last_battle_at->diffInSeconds(now(), true)
                 : 0;
@@ -161,6 +161,8 @@ class ExplorationService
         $rescueSupport = null;
         $valmonEggFound = null;
         $valmonMaterialFind = null;
+        $valmonDiscoveryHint = null;
+        $valmonRecovery = null;
         $valmonEggLost = [];
         $materialHuntCompletion = null;
 
@@ -371,6 +373,16 @@ class ExplorationService
                     if ($valmonMaterialFind) {
                         $logText .= "<br><span class=\"text-teal-700 font-extrabold\">【ヴァルモン】{$valmonMaterialFind['valmon_name']}が素材を見つけた！ {$valmonMaterialFind['material_name']} ×{$valmonMaterialFind['quantity']} を手に入れた。</span>";
                     }
+
+                    $valmonDiscoveryHint = $valmonService->tryDiscoveryHint($character, $area);
+                    if ($valmonDiscoveryHint) {
+                        $logText .= "<br><span class=\"text-indigo-700 font-extrabold\">【ヴァルモン】{$valmonDiscoveryHint['valmon_name']}が何かの気配に気づいた。{$valmonDiscoveryHint['hint']}</span>";
+                    }
+
+                    $valmonRecovery = $valmonService->tryPartnerRecovery($character, $stateAfterVictory);
+                    if ($valmonRecovery) {
+                        $logText .= "<br><span class=\"text-emerald-700 font-extrabold\">【ヴァルモン】{$valmonRecovery['valmon_name']}が心配そうに寄り添った。<br>不思議な光に包まれ、HPが {$valmonRecovery['heal_amount']} 回復した！</span>";
+                    }
                 }
 
                 if (($specialEvent['type'] ?? null) === 'dungeon_lord') {
@@ -526,6 +538,8 @@ class ExplorationService
             'rescue_support' => $rescueSupport,
             'valmon_egg_found' => $valmonEggFound,
             'valmon_material_find' => $valmonMaterialFind,
+            'valmon_discovery_hint' => $valmonDiscoveryHint,
+            'valmon_recovery' => $valmonRecovery,
             'valmon_egg_lost' => $valmonEggLost,
             'material_hunt_completion' => $materialHuntCompletion,
         ];

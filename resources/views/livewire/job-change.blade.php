@@ -94,6 +94,20 @@
         'advanced' => 'ADVANCE',
         'legend' => 'LEGEND',
     ][$rank] ?? strtoupper((string) $rank);
+
+    $isRequirementMet = function ($req) use ($character, $jobProgress) {
+        if ($req->requirement_type === 'master_job') {
+            $requiredJobId = (int) ($req->required_job_id ?? 0);
+
+            return (bool) ($jobProgress[$requiredJobId]['is_mastered'] ?? false);
+        }
+
+        if ($req->requirement_type === 'character_level') {
+            return (int) $character->level >= (int) $req->required_value;
+        }
+
+        return false;
+    };
 @endphp
 
 <div class="max-w-7xl mx-auto p-4 flex flex-col gap-4 text-sm font-sans text-[#1e293b]" x-data="{ confirming: @entangle('confirmingJobChange') }">
@@ -303,15 +317,21 @@
                                 </div>
                                 <div class="mt-2 pt-2 border-t border-gray-50 space-y-1.5">
                                     @if($job->requirements->isEmpty())
+                                        @php $isLevelRequirementMet = (int) $character->level >= 30; @endphp
                                         <div class="text-xs text-gray-500 flex items-center gap-1.5 font-medium">
-                                            <span class="text-rose-400 text-[10px]">❌</span>
+                                            <span class="{{ $isLevelRequirementMet ? 'text-emerald-500' : 'text-rose-400' }} text-[10px] font-black">
+                                                {{ $isLevelRequirementMet ? '◯' : '✕' }}
+                                            </span>
                                             Lv30 以上
                                         </div>
                                     @else
                                         <div class="text-[10px] text-gray-400 font-bold">【必要条件】</div>
                                         @foreach($job->requirements as $req)
+                                            @php $isMet = $isRequirementMet($req); @endphp
                                             <div class="text-xs text-gray-500 flex items-center gap-1.5 font-medium">
-                                                <span class="text-rose-400 text-[10px]">❌</span>
+                                                <span class="{{ $isMet ? 'text-emerald-500' : 'text-rose-400' }} text-[10px] font-black">
+                                                    {{ $isMet ? '◯' : '✕' }}
+                                                </span>
                                                 @if($req->requirement_type === 'master_job')
                                                     {{ $req->requiredJob->name ?? '不明' }} のマスター
                                                 @elseif($req->requirement_type === 'character_level')

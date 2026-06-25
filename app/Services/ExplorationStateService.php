@@ -27,6 +27,7 @@ class ExplorationStateService
                 'secret_realm_found_count' => 0,
                 'dungeon_lord_encountered' => false,
                 'valmon_material_found' => false,
+                'valmon_heal_used' => false,
                 'rescue_insurance_enabled' => false,
                 'started_at' => now(),
             ]
@@ -43,6 +44,7 @@ class ExplorationStateService
                 'secret_realm_found_count' => 0,
                 'dungeon_lord_encountered' => false,
                 'valmon_material_found' => false,
+                'valmon_heal_used' => false,
                 'rescue_insurance_enabled' => false,
                 'started_at' => now(),
             ])->save();
@@ -349,6 +351,7 @@ class ExplorationStateService
             'secret_realm_found_count' => 0,
             'dungeon_lord_encountered' => false,
             'valmon_material_found' => false,
+            'valmon_heal_used' => false,
             'rescue_insurance_enabled' => $keepInsurance,
             'started_at' => $areaId ? now() : null,
         ])->save();
@@ -369,6 +372,7 @@ class ExplorationStateService
             'secret_realm_found_count' => 0,
             'dungeon_lord_encountered' => false,
             'valmon_material_found' => false,
+            'valmon_heal_used' => false,
         ])->save();
     }
 
@@ -394,6 +398,7 @@ class ExplorationStateService
             'secret_realm_found_count' => 0,
             'dungeon_lord_encountered' => false,
             'valmon_material_found' => false,
+            'valmon_heal_used' => false,
             'rescue_insurance_enabled' => false,
             'started_at' => now(),
         ])->save();
@@ -568,7 +573,7 @@ class ExplorationStateService
     private function milestones(): array
     {
         return [
-            ['point' => 100, 'name' => '輝く宝箱', 'message' => '輝く宝箱を発見できるようになりました。'],
+            ['point' => 100, 'point_label' => '探索度100以上', 'name' => '宝箱抽選対象', 'message' => '輝く宝箱の出現抽選対象になりました。'],
             ['point' => 200, 'name' => '黄金ゴブリン', 'message' => '黄金ゴブリンが出現する可能性があります。'],
             ['point' => 300, 'name' => 'ダンジョン主', 'message' => 'ダンジョン主が出現する可能性があります。'],
             ['point' => 500, 'name' => '秘境への入口', 'message' => '秘境への入口を発見できるかもしれません。'],

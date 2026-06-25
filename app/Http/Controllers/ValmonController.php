@@ -62,6 +62,8 @@ class ValmonController extends Controller
             ->each(function (PlayerValmon $valmon) use ($service) {
                 $valmon->next_level_remaining = $service->nextLevelRemaining($valmon);
                 $valmon->is_max_level = (int) $valmon->level >= ValmonService::MAX_LEVEL;
+                $valmon->role_label = $service->roleLabel($valmon);
+                $valmon->effect_summary = $service->effectSummary($valmon);
             });
 
         $ownedMasterIds = $valmons->pluck('valmon_master_id')->unique();

@@ -20,7 +20,7 @@
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">現在地 (街)</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">Lv (EXP)</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">HP / SP</th>
-                        <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">ステータス (S/D/A/M/L/Sp)</th>
+                        <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">ステータス</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">最終更新</th>
                     </tr>
                 </thead>
@@ -56,15 +56,16 @@
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <div class="font-bold text-gray-900">Lv {{ $character->level }}</div>
                                 <div class="text-xs text-gray-500">EXP: {{ number_format($character->exp) }}</div>
+                                <div class="mt-1 text-xs font-bold text-amber-700">職業: {{ $character->currentJob?->name ?? '未設定' }}</div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <div class="text-green-600 font-semibold">HP: {{ $character->current_hp }} / {{ $character->hp_base }}</div>
                                 <div class="text-blue-600 font-semibold">SP: {{ $character->current_mp }} / {{ $character->mp_base }}</div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-gray-600 text-xs">
-                                <div>STR:{{ $character->attack_base }} DEF:{{ $character->defense_base }}</div>
-                                <div>AGI:{{ $character->speed_base }} MAG:{{ $character->magic_base }}</div>
-                                <div>LUK:{{ $character->luck_base }} SPR:{{ $character->spirit_base ?? 0 }}</div>
+                                <div>攻撃:{{ $character->attack_base }} 防御:{{ $character->defense_base }}</div>
+                                <div>魔力:{{ $character->magic_base }} 精神:{{ $character->spirit_base ?? 0 }}</div>
+                                <div>敏捷:{{ $character->speed_base }} 運:{{ $character->luck_base }}</div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-gray-500 text-xs">
                                 {{ $character->updated_at ? $character->updated_at->format('Y/m/d H:i') : '-' }}

@@ -59,7 +59,7 @@
                                     {{ $locationData['description'] }}
                                 </p>
                             </div>
-                            @if(in_array($currentLocation, ['dungeon', 'guild'], true))
+                            @if(in_array($currentLocation, ['town', 'dungeon', 'guild'], true))
                                 <button type="button"
                                         wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: 'move' })"
                                         @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
@@ -769,7 +769,38 @@
                             </div>
                         </div>
                     @endif
-                    @if($currentLocation === 'dungeon' && isset($locationData['all_cleared']) && $locationData['all_cleared'])
+                    @if($currentLocation === 'dungeon' && !empty($locationData['next_city_travel'] ?? null))
+                        @php
+                            $nextCity = $locationData['next_city_travel'];
+                            $nextCityBgImg = sprintf('images/cities/city%02d.webp', $nextCity->id);
+                            $nextCityBgExists = file_exists(public_path($nextCityBgImg));
+                        @endphp
+                        <div class="col-span-1 xl:col-span-2 overflow-hidden rounded-md border border-[#d4af37]/60 bg-white shadow-md">
+                            <div class="relative flex min-h-[168px] flex-col justify-end p-4">
+                                @if($nextCityBgExists)
+                                    <img src="{{ asset($nextCityBgImg) }}" alt="" class="absolute inset-0 h-full w-full object-cover object-center">
+                                @else
+                                    <div class="absolute inset-0" style="background:{{ app(\App\Services\CityThemeService::class)->backgroundColorForCityId($nextCity->id) }}"></div>
+                                @endif
+                                <div class="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/25"></div>
+                                <div class="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                    <div class="min-w-0">
+                                        <div class="mb-1 inline-flex rounded bg-amber-100/90 px-2 py-0.5 text-[11px] font-black text-amber-800 shadow-sm">新しい街が解放されました</div>
+                                        <h3 class="text-lg font-black leading-tight text-slate-900">{{ $nextCity->name }}</h3>
+                                        <p class="mt-1 text-sm font-semibold leading-relaxed text-slate-700">{{ $nextCity->description }}</p>
+                                    </div>
+                                    <form action="{{ route('city.travel', $nextCity) }}" method="POST" class="shrink-0" x-data="{ submitting: false }" @submit="submitting = true">
+                                        @csrf
+                                        <button type="submit" x-bind:disabled="submitting" class="inline-flex w-full min-w-[140px] cursor-pointer items-center justify-center gap-2 rounded border-2 border-[#1e3a8a] bg-[#1e40af] px-5 py-2 text-sm font-bold text-white shadow transition-all duration-150 hover:bg-[#1e3a8a] active:scale-95 disabled:cursor-wait disabled:opacity-70">
+                                            <x-loading-spinner x-show="submitting" style="display: none;" />
+                                            <span x-show="!submitting">{{ $nextCity->name }}へ</span>
+                                            <span x-show="submitting" style="display: none;">移動中...</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($currentLocation === 'dungeon' && isset($locationData['all_cleared']) && $locationData['all_cleared'])
                         <div class="col-span-1 xl:col-span-2 border-2 border-[#d4af37] bg-amber-50 rounded-lg p-5 mt-4 flex flex-col items-center justify-center text-center shadow-md">
                             <h3 class="text-lg font-bold text-[#b8860b] mb-2 flex items-center justify-center gap-2">この街の探索を全て完了しました。</h3>
                             <p class="text-gray-700 mb-4 font-medium">新しい街へ旅立つ準備が整いました。次の冒険の舞台へ向かいましょう。</p>

@@ -17,6 +17,7 @@ class BattleState
     public int $materialBonusPercent = 0;
     public array $jobArtCooldowns = [];
     public array $jobArtUseCounts = [];
+    public bool $valmonAssistUsed = false;
     public string $battleType;
 
     public function __construct(BattleActor $player, BattleActor $enemy, string $battleType = 'pve')

@@ -17,6 +17,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 | Market | <path> | <short> |
 | Public logs | <path> | <short> |
 | Admin | <path> | <short> |
+| Valmon | `app/Services/ValmonService.php`, `app/Services/BattleService.php`, `app/Services/ExplorationService.php`, `app/Services/DiscoveryService.php`, `resources/views/valmons/index.blade.php`, `resources/views/battle/result.blade.php` | Partner Valmon level effects, material find, exploration assist attack, hints, emergency recovery, ranch display. |
 | Portal online count | `app/Console/Commands/SendPortalOnlineCount.php`, `app/Livewire/Admin/AdminDashboard.php`, `routes/console.php`, `config/services.php` | Sends and displays `characters.last_seen_at >= now()-5min` count for ポチゲーポータル/admin metrics. |
 | Admin contact inbox | `app/Livewire/Admin/ContactMessageManager.php`, `resources/views/livewire/admin/contact-message-manager.blade.php`, `app/Services/ContactMailboxImportService.php`, `app/Livewire/Admin/AdminDashboard.php`, `resources/views/components/layouts/admin.blade.php`, `routes/web.php` | Imports and displays form/POP3 inquiries; POP3 HTML parts are stored in `contact_messages.body_html` and previewed from the admin inbox. Admin pages poll `/admin/contact-messages/badge-count` every 5 minutes and show new-message count on the favicon. |
 | Local sandbox | `.env.local.example`, `scripts/local-setup.ps1`, `scripts/local-dev.ps1`, `docs/LOCAL_DEVELOPMENT.md` | Safe local startup path using SQLite, log mail, disabled portal sending, and empty external service keys. |

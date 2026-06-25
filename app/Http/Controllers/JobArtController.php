@@ -25,6 +25,8 @@ class JobArtController extends Controller
             ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no]);
         $stats = app(CharacterStatusService::class)->getFinalStats($character);
 
+        session([$jobArtService->setupSeenSessionKey($character) => $jobArtService->setupSignature($character, $availableArts, $selectedSlots)]);
+
         return view('job-arts.index', [
             'character' => $character,
             'maxSp' => max(0, (int) ($stats['max_mp'] ?? $character->mp_base ?? 0)),

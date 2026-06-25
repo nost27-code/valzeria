@@ -346,11 +346,47 @@ class BattleService
                 // 通常攻撃
                 $this->executeNormalAttack($attacker, $defender, $state);
             }
+
+            if (!$state->isBattleEnded()) {
+                $this->tryValmonAssistAttack($attacker, $defender, $state);
+            }
         } 
         // 敵の行動（AIロジック）
         else {
             $this->executeEnemyAction($attacker, $defender, $state);
         }
+    }
+
+    private function tryValmonAssistAttack(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+    {
+        if ($state->battleType !== 'pve' || $state->valmonAssistUsed || !$attacker->isPlayer) {
+            return;
+        }
+
+        if (!$attacker->originalModel instanceof Character) {
+            return;
+        }
+
+        $valmonService = app(ValmonService::class);
+        $partner = $valmonService->partnerFor($attacker->originalModel);
+        $spec = $partner ? $valmonService->assistAttackSpec($partner) : null;
+        if (!$partner || !$spec) {
+            return;
+        }
+
+        $rate = max(0, (float) ($spec['rate'] ?? 0));
+        if ($rate <= 0 || random_int(1, 10000) > (int) round($rate * 100)) {
+            return;
+        }
+
+        $normalDamage = $attacker->usesMagForNormalAttack()
+            ? $this->damageCalculator->calculateMagicalDamage($attacker, $defender, 100, false)
+            : $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, 100, false);
+        $damage = max(1, (int) floor($normalDamage * (float) ($spec['power_rate'] ?? 0.1)));
+
+        $defender->takeDamage($damage);
+        $state->valmonAssistUsed = true;
+        $state->addLog("<span class=\"text-teal-700 font-bold\">{$partner->displayName()}が追撃した！<br>{$defender->name}に <span class=\"text-red-600 font-extrabold\">{$damage}</span> ダメージ！</span>");
     }
 
     private function tickJobArtCooldowns(BattleState $state): void
