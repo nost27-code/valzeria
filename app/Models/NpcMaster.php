@@ -15,4 +15,9 @@ class NpcMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function getImagePathAttribute(): string
+    {
+        return sprintf('images/npc/npc_%03d.webp', (int) $this->npc_id);
+    }
 }

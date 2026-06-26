@@ -5,9 +5,17 @@
                 <a href="{{ route('tavern.index') }}" class="inline-flex items-center text-sm font-bold text-slate-500 hover:text-slate-800 mb-5">← 酒場へ戻る</a>
 
                 <div class="rounded-lg border border-amber-200 bg-amber-50 p-5">
-                    <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <h2 class="text-2xl font-extrabold text-slate-800">{{ $npc->npc_name }}</h2>
-                        <span class="text-xs rounded bg-white border border-amber-200 text-amber-700 px-2 py-0.5 font-bold">{{ $npc->npc_title }}</span>
+                    <div class="mb-4 flex items-center gap-4">
+                        <img src="{{ asset($npc->image_path) }}"
+                             alt="{{ $npc->npc_name }}"
+                             class="h-20 w-20 shrink-0 rounded-xl border border-amber-200 bg-white object-cover shadow-sm">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 class="text-2xl font-extrabold text-slate-800">{{ $npc->npc_name }}</h2>
+                                <span class="text-xs rounded bg-white border border-amber-200 text-amber-700 px-2 py-0.5 font-bold">{{ $npc->npc_title }}</span>
+                            </div>
+                            <p class="mt-1 text-sm text-amber-800/80 leading-relaxed">{{ $npc->description }}</p>
+                        </div>
                     </div>
                     <div class="bg-white border border-amber-100 rounded-lg p-4 text-slate-700 font-medium leading-loose whitespace-pre-line">
                         {{ $npc->talk_text }}

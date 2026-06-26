@@ -2,6 +2,55 @@
 
 return [
     [
+        'id' => '2026-06-26-tavern-npc-portraits',
+        'date' => '2026-06-26',
+        'category' => 'added',
+        'title' => '酒場NPCのキャラ画像表示を追加',
+        'detail' => '酒場で出会える冒険者や名簿に、NPCごとのキャラ画像を表示するようにしました。',
+    ],
+    [
+        'id' => '2026-06-26-drop-armor-affixes',
+        'date' => '2026-06-26',
+        'category' => 'added',
+        'title' => '銘付きドロップ防具を追加',
+        'detail' => '敵から落ちる一部の防具に、能力銘や種族耐性が付くことがあります。',
+    ],
+    [
+        'id' => '2026-06-26-storage-expand-price-50',
+        'date' => '2026-06-26',
+        'category' => 'balance',
+        'title' => '倉庫拡張を利用しやすく調整',
+        'detail' => '素材倉庫・装備倉庫の+50拡張に必要な輝石を50個にしました。',
+    ],
+    [
+        'id' => '2026-06-26-job-master-rank-10-balance',
+        'date' => '2026-06-26',
+        'category' => 'balance',
+        'title' => '職業マスター条件を統一',
+        'detail' => '職業は全てランク10でマスターし、上位職ほど必要職業EXPが多くなるよう調整しました。',
+    ],
+    [
+        'id' => '2026-06-26-job-master-display-error-fix',
+        'date' => '2026-06-26',
+        'category' => 'fixed',
+        'title' => '職業マスター表示を修正',
+        'detail' => '職業ランク表示で画面が開けなくなる場合があった不具合を修正しました。',
+    ],
+    [
+        'id' => '2026-06-26-material-storage-limit-500',
+        'date' => '2026-06-26',
+        'category' => 'changed',
+        'title' => '素材倉庫の標準枠を拡張',
+        'detail' => '素材倉庫の標準上限を300個から500個に増やしました。',
+    ],
+    [
+        'id' => '2026-06-26-job-growth-display-fix',
+        'date' => '2026-06-26',
+        'category' => 'fixed',
+        'title' => '職業の伸びやすさ表示を修正',
+        'detail' => '神殿の職業詳細で、成長倍率が高い能力を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-06-26-job-detail-modal',
         'date' => '2026-06-26',
         'category' => 'added',

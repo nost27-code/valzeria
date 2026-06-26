@@ -5,9 +5,17 @@
                 <a href="{{ route('tavern.roster') }}" class="inline-flex items-center text-sm font-bold text-slate-500 hover:text-slate-800 mb-5">← 名簿へ戻る</a>
 
                 <div class="rounded-lg border border-slate-200 bg-white p-5">
-                    <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <h2 class="text-2xl font-extrabold text-slate-800">{{ $npc->npc_name }}</h2>
-                        <span class="text-xs rounded bg-slate-100 text-slate-600 px-2 py-0.5 font-bold">{{ $npc->npc_title }}</span>
+                    <div class="mb-5 flex items-center gap-4">
+                        <img src="{{ asset($npc->image_path) }}"
+                             alt="{{ $npc->npc_name }}"
+                             class="h-24 w-24 shrink-0 rounded-xl border border-slate-200 bg-slate-50 object-cover shadow-sm">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 class="text-2xl font-extrabold text-slate-800">{{ $npc->npc_name }}</h2>
+                                <span class="text-xs rounded bg-slate-100 text-slate-600 px-2 py-0.5 font-bold">{{ $npc->npc_title }}</span>
+                            </div>
+                            <p class="mt-1 text-sm font-bold text-slate-400">No.{{ sprintf('%03d', $npc->npc_id) }}</p>
+                        </div>
                     </div>
 
                     <dl class="grid grid-cols-1 gap-4 text-sm">

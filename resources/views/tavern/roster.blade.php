@@ -19,17 +19,26 @@
                         @php $encounter = $encounters->get($npc->npc_id); @endphp
                         @if($encounter)
                             <a href="{{ route('tavern.roster.detail', $npc) }}" class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3 hover:border-[#d4af37] hover:shadow-sm transition active:scale-[0.99]">
-                                <div class="min-w-0">
-                                    <div class="font-bold text-slate-800">{{ sprintf('%03d', $npc->npc_id) }} {{ $npc->npc_name }}</div>
-                                    <div class="text-xs text-slate-500">{{ $npc->npc_title }} / 会話 {{ $encounter->encounter_count }}回</div>
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <img src="{{ asset($npc->image_path) }}"
+                                         alt="{{ $npc->npc_name }}"
+                                         loading="lazy"
+                                         class="h-12 w-12 shrink-0 rounded-lg border border-slate-100 bg-slate-50 object-cover shadow-sm">
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-slate-800">{{ sprintf('%03d', $npc->npc_id) }} {{ $npc->npc_name }}</div>
+                                        <div class="text-xs text-slate-500">{{ $npc->npc_title }} / 会話 {{ $encounter->encounter_count }}回</div>
+                                    </div>
                                 </div>
                                 <span class="text-xs font-bold text-amber-700">詳細</span>
                             </a>
                         @else
                             <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-80">
-                                <div>
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-lg font-black text-slate-300">?</div>
+                                    <div>
                                     <div class="font-bold text-slate-500">{{ sprintf('%03d', $npc->npc_id) }} ？？？</div>
                                     <div class="text-xs text-slate-400">未遭遇</div>
+                                    </div>
                                 </div>
                             </div>
                         @endif
