@@ -72,6 +72,13 @@ class Material extends Model
             && ! (bool) ($this->is_cash_item ?? false);
     }
 
+    public function isSellTreasure(): bool
+    {
+        return (string) ($this->material_type ?? '') === 'sell_treasure'
+            || (string) ($this->category_id ?? '') === 'sell_treasure'
+            || (string) ($this->category ?? '') === '換金品';
+    }
+
     public function usageTags(): array
     {
         return $this->usage_tags ?? [];

@@ -47,9 +47,12 @@
                             @if(!empty($lootSummary['materials']))
                                 <div class="flex flex-wrap gap-1.5">
                                     @foreach($lootSummary['materials'] as $material)
-                                        <span class="inline-flex items-center rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-slate-700">
+                                        @php
+                                            $isSellTreasure = (bool) ($material['is_sell_treasure'] ?? false);
+                                        @endphp
+                                        <span class="inline-flex items-center rounded border px-2 py-1 text-[11px] font-bold {{ $isSellTreasure ? 'border-yellow-300 bg-yellow-50 text-yellow-900' : 'border-emerald-100 bg-emerald-50 text-slate-700' }}">
                                             {{ $material['name'] }}
-                                            <span class="ml-1 text-emerald-700">x{{ number_format($material['quantity']) }}</span>
+                                            <span class="ml-1 {{ $isSellTreasure ? 'text-yellow-700' : 'text-emerald-700' }}">x{{ number_format($material['quantity']) }}</span>
                                         </span>
                                     @endforeach
                                 </div>

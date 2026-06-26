@@ -27,25 +27,8 @@ class DropService
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const LEGACY_COMMON_FRAGMENT_NAMES = ['武器の欠片', '防具の欠片', '装飾の欠片'];
 
-    private const MATERIAL_KIND_WEIGHTS = [
-        'early' => ['generic' => 50, 'category' => 20, 'regional' => 25, 'enhance' => 5, 'rare' => 0],
-        'middle' => ['generic' => 45, 'category' => 25, 'regional' => 20, 'enhance' => 8, 'rare' => 2],
-        'late' => ['generic' => 35, 'category' => 25, 'regional' => 20, 'enhance' => 10, 'rare' => 10],
-        'demon_castle' => ['generic' => 28, 'category' => 27, 'regional_high' => 30, 'enhance' => 10, 's_evolution' => 5],
-        'back' => ['generic_high' => 35, 'category_high' => 35, 'back' => 25, 'ss_evolution' => 3, 'sss_evolution' => 2],
-    ];
-
-    private const FALLBACK_MATERIAL_CODES = [
-        'generic' => ['MAT_COMMON_MONSTER_FRAGMENT', 'MAT_COMMON_OLD_BADGE'],
-        'generic_high' => ['MAT_COMMON_MAGIC_ORE', 'MAT_COMMON_MONSTER_SHELL', 'MAT_COMMON_BEAST_FANG'],
-        'category' => ['MAT_COMMON_MAGIC_ORE', 'MAT_COMMON_BEAST_FUR', 'MAT_COMMON_WING_MEMBRANE', 'MAT_COMMON_FEATHER'],
-        'category_high' => ['MAT_COMMON_MONSTER_CORE', 'MAT_COMMON_FAIRY_DUST', 'MAT_COMMON_HOLY_FRAGMENT', 'MAT_COMMON_DARK_CRYSTAL'],
-        'enhance' => ['MAT_ENHANCE_FRAGMENT', 'MAT_ENHANCE_STONE', 'MAT_ENHANCE_HIGH_STONE', '5007', '5008', '5009', 'ACC0007', 'ACC0008', 'ACC0009'],
-        's_evolution' => ['MAT_BR_WPN_HOLY_PATH'],
-        'ss_evolution' => ['MAT_REGION_BLACK_IRON_PART', 'MAT_REGION_ICE_CRYSTAL', 'MAT_REGION_MAGIC_CRYSTAL'],
-        'sss_evolution' => ['MAT_REGION_ABYSS_FRAGMENT', 'MAT_REGION_HEAVEN_FEATHER'],
-        'back' => ['MAT_REGION_ABYSS_FRAGMENT', 'MAT_REGION_HEAVEN_FEATHER', 'MAT_COMMON_DARK_CRYSTAL'],
-    ];
+    // drops未登録の敵へのフォールバック用汎用素材コード
+    private const GENERIC_FALLBACK_CODES = ['MAT_COMMON_MONSTER_FRAGMENT', 'MAT_COMMON_OLD_BADGE'];
 
     private const DEPTH_BRANCH_MATERIAL_DROPS = [
         1 => [
@@ -406,19 +389,42 @@ class DropService
 
     private function rollMaterialBySpec(Character $character, Enemy $enemy, bool $trackExplorationLoot = true): ?array
     {
-        $kind = $this->weightedKey(self::MATERIAL_KIND_WEIGHTS[$this->materialBand($enemy)] ?? self::MATERIAL_KIND_WEIGHTS['middle']);
-        if (!$kind) {
-            return null;
+        $drops = MaterialDrop::where('enemy_id', $enemy->id)
+            ->where('is_active', true)
+            ->where('drop_first_clear_only', false)
+            ->where('drop_rate', '>', 0)
+            ->with('material')
+            ->get()
+            ->filter(function (MaterialDrop $drop) {
+                $material = $drop->material;
+                if (!$material) {
+                    return false;
+                }
+                // branch_evolution は rollConfiguredBranchEvolutionMaterial で別途処理
+                if ((string) ($material->material_type ?? '') === 'branch_evolution') {
+                    return false;
+                }
+                // 廃止済み欠片コードは除外
+                if ($this->isDisabledEquipmentFragmentCode((string) $material->material_code)) {
+                    return false;
+                }
+                return true;
+            })
+            ->values();
+
+        if ($drops->isNotEmpty()) {
+            $material = $this->weightedMaterialDrop($drops)?->material;
+            if ($material) {
+                return $this->grantMaterial($character, $material, 'drop', $enemy, $trackExplorationLoot);
+            }
         }
 
-        $material = $this->weightedEnemyMaterial($enemy, $kind);
-        if ($material) {
-            return $this->grantMaterial($character, $material, $kind, $enemy, $trackExplorationLoot);
-        }
-
-        $material = $this->weightedEnemyMaterial($enemy, 'any');
-        if ($material) {
-            return $this->grantMaterial($character, $material, $kind, $enemy, $trackExplorationLoot);
+        // drops未登録の敵への最終フォールバック（汎用素材）
+        $fallback = Material::whereIn('material_code', self::GENERIC_FALLBACK_CODES)
+            ->inRandomOrder()
+            ->first();
+        if ($fallback) {
+            return $this->grantMaterial($character, $fallback, 'generic', $enemy, $trackExplorationLoot);
         }
 
         return null;
@@ -526,30 +532,6 @@ class DropService
         return true;
     }
 
-    private function weightedEnemyMaterial(Enemy $enemy, string $kind): ?Material
-    {
-        $drops = MaterialDrop::where('enemy_id', $enemy->id)
-            ->where('is_active', true)
-            ->where('drop_first_clear_only', false)
-            ->where('drop_rate', '>', 0)
-            ->with('material')
-            ->get()
-            ->filter(function (MaterialDrop $drop) use ($kind, $enemy) {
-                if (!$drop->material) {
-                    return false;
-                }
-
-                return $this->filterMaterialPool(collect([$drop->material]), $kind, $enemy)->isNotEmpty();
-            })
-            ->values();
-
-        if ($drops->isEmpty()) {
-            return null;
-        }
-
-        return $this->weightedMaterialDrop($drops)?->material;
-    }
-
     private function weightedMaterialDrop(Collection $drops): ?MaterialDrop
     {
         $totalWeight = $drops->sum(fn (MaterialDrop $drop) => max(0.01, (float) $drop->drop_rate));
@@ -599,201 +581,9 @@ class DropService
         return $droppedMaterials;
     }
 
-    private function materialPool(Enemy $enemy, string $kind): Collection
-    {
-        $enemyPool = MaterialDrop::where('enemy_id', $enemy->id)
-            ->where('is_active', true)
-            ->where('drop_first_clear_only', false)
-            ->where('drop_rate', '>', 0)
-            ->with('material')
-            ->get()
-            ->pluck('material')
-            ->filter();
-
-        $filteredEnemyPool = $this->filterMaterialPool($enemyPool, $kind, $enemy);
-        if ($filteredEnemyPool->isNotEmpty()) {
-            return $filteredEnemyPool;
-        }
-
-        $fallbackPool = $this->fallbackMaterialPool($enemy, $kind);
-
-        if (in_array($kind, ['regional', 'regional_high'], true)) {
-            $cityId = $this->enemyCityTier($enemy);
-            $regional = Material::where('city_id', $cityId)->get();
-            $filteredRegional = $this->filterMaterialPool($regional, $kind, $enemy);
-            if ($filteredRegional->isNotEmpty()) {
-                return $filteredRegional;
-            }
-        }
-
-        $filteredFallbackPool = $this->filterMaterialPool($fallbackPool, $kind, $enemy);
-        if ($filteredFallbackPool->isNotEmpty()) {
-            return $filteredFallbackPool;
-        }
-
-        return collect();
-    }
-
-    private function fallbackMaterialPool(Enemy $enemy, string $kind): Collection
-    {
-        $fallbackCodes = self::FALLBACK_MATERIAL_CODES[$kind] ?? [];
-        if (empty($fallbackCodes)) {
-            return collect();
-        }
-
-        return Material::whereIn('material_code', $fallbackCodes)->get();
-    }
-
-    private function filterMaterialPool(Collection $materials, string $kind, Enemy $enemy): Collection
-    {
-        $enemyCityTier = $this->enemyCityTier($enemy);
-        $isGrassland = $this->isGrassland($enemy);
-
-        return $materials
-            ->filter(function (Material $material) use ($kind, $isGrassland, $enemyCityTier) {
-                $code = (string) $material->material_code;
-                $name = (string) $material->name;
-                $type = (string) ($material->material_type ?? '');
-                $tier = (int) ($material->rank_tier ?? 1);
-                $cityId = $material->city_id !== null ? (int) $material->city_id : null;
-                $isCommonEquipmentFragment = $this->isCommonEquipmentFragment($code, $name);
-
-                if ($this->isDisabledEquipmentFragmentCode($code)) {
-                    return false;
-                }
-
-                if ($this->isUnlockKeyMaterial($material)) {
-                    return false;
-                }
-
-                if ($type === 'branch_evolution') {
-                    return false;
-                }
-
-                if (!$isCommonEquipmentFragment && $cityId !== null && $cityId !== $enemyCityTier) {
-                    return false;
-                }
-
-                if (!$isCommonEquipmentFragment && $enemyCityTier <= 2 && $this->isHighTierMaterial($material)) {
-                    return false;
-                }
-
-                if (!$isCommonEquipmentFragment && $isGrassland && $this->isHighOrCityMaterial($material)) {
-                    return false;
-                }
-
-                if ($kind === 'any') {
-                    return !$this->isStrongEquipmentFragmentCode($code);
-                }
-
-                return match ($kind) {
-                    'generic' => in_array($code, self::FALLBACK_MATERIAL_CODES['generic'], true) || in_array($code, self::LEGACY_COMMON_FRAGMENT_CODES, true),
-                    'generic_high' => in_array($code, self::FALLBACK_MATERIAL_CODES['generic_high'], true),
-                    'category' => in_array($code, self::FALLBACK_MATERIAL_CODES['category'], true),
-                    'category_high' => in_array($code, self::FALLBACK_MATERIAL_CODES['category_high'], true),
-                    'regional' => $cityId !== null && !$this->isHighMaterialName($name),
-                    'regional_high' => $cityId !== null && ($this->isHighMaterialName($name) || $tier >= 2),
-                    'enhance' => str_contains($type, 'enhance') || str_contains($name, '強化') || str_contains($name, '守護石'),
-                    'rare' => $tier >= 2 || str_contains($name, '結晶') || str_contains($name, '核'),
-                    's_evolution' => $tier >= 3 || $type === 'branch_evolution' || in_array($code, self::FALLBACK_MATERIAL_CODES['s_evolution'], true),
-                    'ss_evolution' => $tier >= 4 || ($type === 'branch_evolution' && $tier >= 4) || in_array($code, self::FALLBACK_MATERIAL_CODES['ss_evolution'], true),
-                    'sss_evolution' => $tier >= 5 || ($type === 'branch_evolution' && $tier >= 5) || in_array($code, self::FALLBACK_MATERIAL_CODES['sss_evolution'], true),
-                    'back' => str_contains($type, 'back') || ($type === 'branch_evolution' && $tier >= 4) || str_contains($name, '秘境') || in_array($code, self::FALLBACK_MATERIAL_CODES['back'], true),
-                    default => false,
-                };
-            })
-            ->values();
-    }
-
-    private function materialBand(Enemy $enemy): string
-    {
-        if ($this->isBackDungeon($enemy)) {
-            return 'back';
-        }
-
-        return match ($this->enemyCityTier($enemy)) {
-            1, 2 => 'early',
-            3, 4 => 'middle',
-            10 => 'demon_castle',
-            default => 'late',
-        };
-    }
-
-    private function isHighOrCityMaterial(Material $material): bool
-    {
-        $name = (string) $material->name;
-        $type = (string) ($material->material_type ?? '');
-        $tier = (int) ($material->rank_tier ?? 1);
-
-        return $material->city_id !== null
-            || $tier >= 2
-            || $this->isHighMaterialName($name)
-            || str_contains($type, 'city')
-            || str_contains($type, 'high')
-            || str_contains($type, 'back')
-            || str_contains($type, 'secret')
-            || str_contains($name, '王都')
-            || str_contains($name, '都市')
-            || str_contains($name, '魔王城')
-            || str_contains($name, '秘境');
-    }
-
-    private function isCommonEquipmentFragment(string $code, string $name): bool
-    {
-        return $code === self::EQUIPMENT_FRAGMENT_CODE
-            || in_array($code, self::LEGACY_COMMON_FRAGMENT_CODES, true)
-            || in_array($name, self::LEGACY_COMMON_FRAGMENT_NAMES, true);
-    }
-
-    private function isEquipmentFragmentCode(string $code): bool
-    {
-        return $this->isDisabledEquipmentFragmentCode($code);
-    }
-
     private function isDisabledEquipmentFragmentCode(string $code): bool
     {
         return in_array($code, self::DISABLED_EQUIPMENT_FRAGMENT_CODES, true);
-    }
-
-    private function isStrongEquipmentFragmentCode(string $code): bool
-    {
-        return $code === self::STRONG_EQUIPMENT_FRAGMENT_CODE;
-    }
-
-    private function isHighTierMaterial(Material $material): bool
-    {
-        $name = (string) $material->name;
-        $type = (string) ($material->material_type ?? '');
-        $tier = (int) ($material->rank_tier ?? 1);
-
-        return $tier >= 2
-            || $this->isHighMaterialName($name)
-            || str_contains($type, 'high')
-            || str_contains($type, 'back')
-            || str_contains($type, 'secret')
-            || str_contains($name, '魔王城')
-            || str_contains($name, '秘境');
-    }
-
-    private function isUnlockKeyMaterial(Material $material): bool
-    {
-        $name = (string) $material->name;
-        $type = (string) ($material->material_type ?? '');
-        $category = (string) ($material->category ?? '');
-
-        return str_contains($name, '進化証')
-            || str_contains($type, 'unlock_key')
-            || str_contains($category, '進化解放キー');
-    }
-
-    private function isHighMaterialName(string $name): bool
-    {
-        return str_contains($name, '高位')
-            || str_contains($name, '結晶')
-            || str_contains($name, '核')
-            || str_contains($name, '星屑')
-            || str_contains($name, '古代')
-            || str_contains($name, '秘境');
     }
 
     private function grantItemDrop(Character $character, Item $item, string $slot, ?Enemy $enemy = null, bool $trackExplorationLoot = true): array
@@ -808,26 +598,36 @@ class DropService
             'equipped_slot' => null,
             'acquired_from' => 'drop',
         ]);
+        $characterItem = app(EquipmentAffixService::class)
+            ->applyRandomAffixToDroppedItem($characterItem);
 
         if ($enemy && $trackExplorationLoot) {
             app(ExplorationStateService::class)->recordItemLoot($character, $enemy, $characterItem);
         }
 
+        $affixLines = $characterItem->affixEffectLines();
+
         return [
             'slot' => $slot,
             'slot_label' => $this->slotLabel($slot),
             'item_id' => $item->id,
-            'item_name' => $item->name,
+            'item_name' => $characterItem->displayName(),
+            'base_item_name' => $item->name,
             'rarity' => $item->rarity,
             'rank' => $this->itemRank($item),
-            'hp_bonus' => $item->hp_bonus,
-            'mp_bonus' => $item->mp_bonus,
-            'str_bonus' => $item->str_bonus,
-            'def_bonus' => $item->def_bonus,
-            'agi_bonus' => $item->agi_bonus,
-            'mag_bonus' => $item->mag_bonus,
-            'spr_bonus' => $item->spr_bonus,
-            'luk_bonus' => $item->luk_bonus,
+            'hp_bonus' => (int) $item->hp_bonus + (int) ($characterItem->affix_hp_bonus ?? 0),
+            'mp_bonus' => (int) $item->mp_bonus,
+            'str_bonus' => (int) $item->str_bonus + (int) ($characterItem->affix_str_bonus ?? 0),
+            'def_bonus' => (int) $item->def_bonus + (int) ($characterItem->affix_def_bonus ?? 0),
+            'agi_bonus' => (int) $item->agi_bonus + (int) ($characterItem->affix_agi_bonus ?? 0),
+            'mag_bonus' => (int) $item->mag_bonus + (int) ($characterItem->affix_mag_bonus ?? 0),
+            'spr_bonus' => (int) $item->spr_bonus + (int) ($characterItem->affix_spr_bonus ?? 0),
+            'luk_bonus' => (int) $item->luk_bonus + (int) ($characterItem->affix_luk_bonus ?? 0),
+            'has_affix' => $characterItem->hasAffix(),
+            'affix_quality' => $characterItem->affix_quality,
+            'affix_effect_lines' => $affixLines,
+            'killer_species_key' => $characterItem->killer_species_key,
+            'killer_damage_rate' => (float) ($characterItem->killer_damage_rate ?? 0),
             'character_item_id' => $characterItem->id,
         ];
     }

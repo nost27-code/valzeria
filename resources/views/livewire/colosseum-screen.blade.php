@@ -76,7 +76,7 @@
                         <h3 class="font-bold text-amber-700 flex items-center">
                             <img src="{{ asset('images/icon/icon_009.webp') }}" alt="" class="w-4 h-4 object-contain mr-2"> 闘技場トップランカー
                         </h3>
-                        <a href="{{ route('colosseum.ranking') }}" class="text-xs font-bold text-amber-700 underline underline-offset-2 hover:text-amber-900">
+                        <a href="{{ route('colosseum.ranking') }}" wire:navigate class="text-xs font-bold text-amber-700 underline underline-offset-2 hover:text-amber-900">
                             さらに順位を見る
                         </a>
                     </div>

@@ -82,20 +82,27 @@ class ExplorationStateService
         $addedPoint = $this->pointForEnemy($enemy);
         $afterPoint = $beforePoint + $addedPoint;
         $dangerResult = $this->rollDangerIncrease($character, $enemy, $beforeDanger);
-        $dangerFloor = app(ExplorationDepthService::class)->minimumDangerForPoint($afterPoint);
-        if ($dangerFloor > (int) $dangerResult['after']) {
-            $dangerResult['after'] = $dangerFloor;
-            $dangerResult['increased'] = $dangerFloor > $beforeDanger;
-            $dangerResult['increase'] = max(0, $dangerFloor - $beforeDanger);
-            $dangerResult['floor_applied'] = true;
-            $dangerResult['floor_minimum'] = $dangerFloor;
-            $dangerResult['label'] = $this->dangerLabel($dangerFloor);
-        }
 
         $state->exploration_point = $afterPoint;
         $state->chain_count = $beforeChain + 1;
         $state->danger_rate = $dangerResult['after'];
         $state->save();
+
+        $depthService = app(ExplorationDepthService::class);
+        $area = $enemy->relationLoaded('area') ? $enemy->area : $enemy->area()->first();
+        $activeBefore = $area
+            ? $depthService->activeTierFor($character, $area, $beforePoint, $beforeDanger)
+            : $depthService->tierFor($beforePoint, $beforeDanger);
+        $activeBeforeIndex = $depthService->tierIndexForKey((string) ($activeBefore['key'] ?? 'surface'));
+        $depthTransitions = collect($depthService->crossedTiers(
+            $beforePoint,
+            $beforeDanger,
+            (int) $state->exploration_point,
+            (int) $state->danger_rate
+        ))
+            ->filter(fn (array $tier): bool => $depthService->tierIndexForKey((string) ($tier['key'] ?? 'surface')) > $activeBeforeIndex)
+            ->values()
+            ->all();
 
         return [
             'state' => $state->fresh(),
@@ -104,12 +111,7 @@ class ExplorationStateService
             'before_chain' => $beforeChain,
             'danger' => $dangerResult,
             'milestones' => $this->crossedMilestones($beforePoint, (int) $state->exploration_point),
-            'depth_transitions' => app(ExplorationDepthService::class)->crossedTiers(
-                $beforePoint,
-                $beforeDanger,
-                (int) $state->exploration_point,
-                (int) $state->danger_rate
-            ),
+            'depth_transitions' => $depthTransitions,
             'next_milestone' => $this->nextMilestone((int) $state->exploration_point),
         ];
     }
@@ -177,6 +179,7 @@ class ExplorationStateService
                     'name' => $material?->displayName() ?? '不明な素材',
                     'rarity' => strtoupper((string) ($material?->rarity ?? '')),
                     'is_sr' => strtoupper((string) ($material?->rarity ?? '')) === 'SR',
+                    'is_sell_treasure' => (bool) $material?->isSellTreasure(),
                     'quantity' => $quantity,
                     'risk_quantity' => intdiv($quantity, 2),
                 ];
@@ -392,7 +395,7 @@ class ExplorationStateService
             'area_id' => $areaId,
             'exploration_point' => (int) $tier['min_point'],
             'chain_count' => 0,
-            'danger_rate' => (int) $tier['min_danger'],
+            'danger_rate' => 0,
             'last_treasure_band' => $this->treasureBand((int) $tier['min_point']),
             'treasure_found_count' => 0,
             'secret_realm_found_count' => 0,
@@ -406,6 +409,16 @@ class ExplorationStateService
         app(ExplorationItemService::class)->reset($character);
 
         return $state->fresh();
+    }
+
+    public function resetDangerForDepthEntrance(Character $character, int $areaId): void
+    {
+        $state = $this->currentFor($character);
+        if (!$state || (int) $state->area_id !== $areaId) {
+            return;
+        }
+
+        $state->forceFill(['danger_rate' => 0])->save();
     }
 
     public function pointForEnemy(Enemy $enemy): int

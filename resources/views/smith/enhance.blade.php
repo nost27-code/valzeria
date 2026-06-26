@@ -39,7 +39,7 @@
                         <span class="text-2xl">🔨</span> 装備強化
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        強化素材を使って武器・防具・装飾品を +1〜+3 に強化します。輝石は使用しません。
+                        武器は強化石、防具は守護石、装飾品は装飾強化石を使って +1〜+5 に強化します。輝石は使用しません。
                     </p>
                 </div>
                 <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">

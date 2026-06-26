@@ -246,7 +246,7 @@
             <div class="mt-2">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-[11px] text-slate-500 font-bold">◆ 現在の装備</span>
-                    <a href="{{ route('equipment.index') }}" class="text-xs text-blue-600 hover:underline">装備変更</a>
+                    <a href="{{ route('equipment.index') }}" wire:navigate class="text-xs text-blue-600 hover:underline">装備変更</a>
                 </div>
                 @php
                     $rankColors = [
@@ -268,9 +268,9 @@
                     }
                     unset($_r);
                     $equippedSlots = [
-                        ['label' => '武器', 'item' => $weapon,    'rank' => $weapon?->item?->weapon_rank],
-                        ['label' => '防具', 'item' => $armor,     'rank' => $armor?->item?->armor_rank],
-                        ['label' => '装飾', 'item' => $accessory, 'rank' => $accessory?->item?->accessory_rank],
+                        ['label' => '武器', 'item' => $weapon,    'rank' => strtoupper((string)($weapon?->item?->weapon_rank    ?? $weapon?->item?->rarity    ?? ''))],
+                        ['label' => '防具', 'item' => $armor,     'rank' => strtoupper((string)($armor?->item?->armor_rank      ?? $armor?->item?->rarity     ?? ''))],
+                        ['label' => '装飾', 'item' => $accessory, 'rank' => strtoupper((string)($accessory?->item?->accessory_rank ?? $accessory?->item?->rarity ?? ''))],
                     ];
                 @endphp
                 <div class="space-y-1">

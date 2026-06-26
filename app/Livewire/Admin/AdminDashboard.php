@@ -85,7 +85,45 @@ class AdminDashboard extends Component
             'popularJobs' => $this->popularJobs($totalCharacters),
             'popularWeapons' => $this->popularWeapons(),
             'dropOffPoints' => $this->dropOffPoints(),
+            'adminUpdateSummaries' => $this->adminUpdateSummaries(),
         ];
+    }
+
+    private function adminUpdateSummaries(): array
+    {
+        $summaries = collect(config('admin_update_summaries', []))
+            ->filter(fn ($summary): bool => is_array($summary))
+            ->values()
+            ->map(fn (array $summary, int $index): array => [
+                'id' => (string) ($summary['id'] ?? 'update-' . $index),
+                'date' => (string) ($summary['date'] ?? ''),
+                'category' => (string) ($summary['category'] ?? 'internal'),
+                'category_label' => $this->adminUpdateCategoryLabel((string) ($summary['category'] ?? 'internal')),
+                'title' => (string) ($summary['title'] ?? ''),
+                'detail' => trim((string) ($summary['detail'] ?? '')),
+                'index' => $index,
+            ])
+            ->filter(fn (array $summary): bool => $summary['date'] !== '' && $summary['title'] !== '')
+            ->sortBy([
+                ['date', 'desc'],
+                ['index', 'asc'],
+            ])
+            ->take(10)
+            ->values()
+            ->all();
+
+        return $summaries;
+    }
+
+    private function adminUpdateCategoryLabel(string $category): string
+    {
+        return match ($category) {
+            'added' => '追加',
+            'changed' => '改善',
+            'fixed' => '修正',
+            'balance' => '調整',
+            default => '内部',
+        };
     }
 
     private function formatAiText(array $data): string

@@ -33,7 +33,7 @@ class SmithController extends Controller
     }
 
     /**
-     * 武器・防具・装飾品を +1〜+3 に強化する
+     * 武器・防具・装飾品を +1〜+5 に強化する
      */
     public function enhance(CharacterItem $characterItem)
     {

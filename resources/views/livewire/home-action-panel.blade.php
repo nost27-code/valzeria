@@ -16,7 +16,7 @@
                     $actionLabel = $action['action_label'] ?? '開く';
                 @endphp
                     @if(!empty($action['action_url']))
-                        <a href="{{ $action['action_url'] }}"
+                        <a href="{{ $action['action_url'] }}" wire:navigate
                            aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
                            class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">
@@ -36,7 +36,7 @@
                         </a>
                     @elseif(!empty($action['target_area_id']))
                         <button type="button"
-                                wire:click="openDungeonArea({{ (int) $action['target_area_id'] }})"
+                                wire:click="openDungeonArea({{ (int) $action['target_area_id'] }}, {{ (int) ($action['target_city_id'] ?? 0) }})"
                                 @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'dungeon' } }))"
                                 aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
                                 class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">
@@ -57,7 +57,7 @@
                         </button>
                     @elseif(!empty($action['tab']))
                         <button type="button"
-                                wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: '{{ $action['tab'] }}' })"
+                                wire:click="$dispatch('changeTab', { newLocation: '{{ $action['tab'] }}' })"
                                 @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $action['tab'] }}' } }))"
                                 aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
                                 class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">

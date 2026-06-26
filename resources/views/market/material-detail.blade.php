@@ -1,7 +1,7 @@
 <x-layouts.facility title="素材詳細" headerIconImage="images/icon/icon_011.webp" bgImage="images/facilities/item.webp">
     <div class="w-full mx-auto pb-10">
         <div class="mb-3 flex items-center justify-between gap-3 px-1">
-            <a href="{{ route('market.index') }}" class="inline-flex items-center text-sm font-black text-slate-500 transition hover:text-amber-700">
+            <a href="{{ route('market.index') }}" wire:navigate class="inline-flex items-center text-sm font-black text-slate-500 transition hover:text-amber-700">
                 ← 市場へ戻る
             </a>
             <div class="text-sm font-black text-slate-950">所持：{{ number_format((int) ($character->money ?? 0)) }}G</div>
@@ -109,7 +109,7 @@
                                 <span class="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">{{ $remainingLabel }}</span>
                             </div>
                             <div class="mt-2 flex gap-2">
-                                <a href="{{ route('market.npc-requests.show', $request) }}" class="inline-flex flex-1 items-center justify-center rounded border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600">
+                                <a href="{{ route('market.npc-requests.show', $request) }}" wire:navigate class="inline-flex flex-1 items-center justify-center rounded border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600">
                                     納品画面へ
                                 </a>
                             </div>
@@ -123,10 +123,10 @@
             </section>
 
             <div class="mt-5 grid grid-cols-2 gap-2">
-                <a href="{{ route('market.index', ['tab' => 'buy']) }}" class="inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700">
+                <a href="{{ route('market.index', ['tab' => 'buy']) }}" wire:navigate class="inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700">
                     市場で買う
                 </a>
-                <a href="{{ route('market.index', ['tab' => 'sell']) }}" class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-white px-3 py-2.5 text-sm font-black text-emerald-700 shadow-sm transition hover:bg-emerald-50">
+                <a href="{{ route('market.index', ['tab' => 'sell']) }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-white px-3 py-2.5 text-sm font-black text-emerald-700 shadow-sm transition hover:bg-emerald-50">
                     出品する
                 </a>
             </div>

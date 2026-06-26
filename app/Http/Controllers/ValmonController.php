@@ -190,7 +190,10 @@ class ValmonController extends Controller
 
         $result = $service->feedMaterial($character, $valmon, $characterMaterial, (int) $request->input('quantity'));
 
-        return back()->with($result['success'] ? 'status' : 'error', $result['message']);
+        return back()
+            ->with($result['success'] ? 'status' : 'error', $result['message'])
+            ->with('valmon_active_tab', 'feed')
+            ->with('valmon_feed_kind', 'material');
     }
 
     public function feedEquipment(PlayerValmon $valmon, CharacterItem $characterItem, ValmonService $service)
@@ -202,7 +205,10 @@ class ValmonController extends Controller
 
         $result = $service->feedEquipment($character, $valmon, $characterItem);
 
-        return back()->with($result['success'] ? 'status' : 'error', $result['message']);
+        return back()
+            ->with($result['success'] ? 'status' : 'error', $result['message'])
+            ->with('valmon_active_tab', 'feed')
+            ->with('valmon_feed_kind', 'equipment');
     }
 
     public function feedEquipmentBulk(Request $request, PlayerValmon $valmon, ValmonService $service)
@@ -219,7 +225,10 @@ class ValmonController extends Controller
 
         $result = $service->feedEquipmentBulk($character, $valmon, $request->input('character_item_ids', []));
 
-        return back()->with($result['success'] ? 'status' : 'error', $result['message']);
+        return back()
+            ->with($result['success'] ? 'status' : 'error', $result['message'])
+            ->with('valmon_active_tab', 'feed')
+            ->with('valmon_feed_kind', 'equipment');
     }
 
     private function trimDisplayName(string $value): string

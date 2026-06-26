@@ -847,6 +847,7 @@ class BattleController extends Controller
         // セッションから復元した際に配列化されている場合の対策
         // ログイン中のキャラクターを再取得
         $battleData['character'] = Auth::user()->currentCharacter();
+        \App\Livewire\MainScreen::clearHomeCache($battleData['character']->id);
         $battleData['finalStats'] = $this->statusService->getFinalStats($battleData['character']);
         if (!($battleData['isBoss'] ?? false)) {
             $battleData['recoveryItems'] = app(ExplorationItemService::class)->carriedItems($battleData['character']);

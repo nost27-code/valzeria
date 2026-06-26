@@ -8,8 +8,6 @@ use Livewire\Component;
 
 class FacilityTextManager extends Component
 {
-    public string $activeTab = 'town';
-
     public array $townValues   = [];
     public array $simpleValues = [];
     public array $homeValues   = [];

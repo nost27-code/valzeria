@@ -44,6 +44,7 @@ class ItemManager extends Component
         'required_level' => 1,
         'unlock_city_id' => '',
         'is_shop_item' => false,
+        'affix_enabled' => false,
         'is_active' => false,
         'sort_order' => 0,
     ];
@@ -105,6 +106,7 @@ class ItemManager extends Component
             'required_level' => (int) $item->required_level,
             'unlock_city_id' => $item->unlock_city_id ? (string) $item->unlock_city_id : '',
             'is_shop_item' => (bool) $item->is_shop_item,
+            'affix_enabled' => (bool) ($item->affix_enabled ?? false),
             'is_active' => (bool) $item->is_active,
             'sort_order' => (int) $item->sort_order,
         ]);
@@ -138,6 +140,7 @@ class ItemManager extends Component
             'form.required_level' => 'required|integer|min:1|max:9999',
             'form.unlock_city_id' => 'nullable',
             'form.is_shop_item' => 'boolean',
+            'form.affix_enabled' => 'boolean',
             'form.is_active' => 'boolean',
             'form.sort_order' => 'required|integer|min:0|max:999999',
         ])['form'];
@@ -148,6 +151,7 @@ class ItemManager extends Component
             $data[$field] = $data[$field] !== '' ? $data[$field] : null;
         }
         $data['is_shop_item'] = (bool) $data['is_shop_item'];
+        $data['affix_enabled'] = (bool) ($data['affix_enabled'] ?? false);
         $data['is_active'] = (bool) $data['is_active'];
 
         if ($this->editingItemId) {

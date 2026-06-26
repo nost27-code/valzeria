@@ -38,6 +38,9 @@ class BattleActor
     public ?string $jobKey = null;
     public array $battleTypeWeights = ['physical' => 1.0, 'speed' => 0.0, 'magical' => 0.0];
     public ?string $normalAttackType = null;
+    public ?string $speciesKey = null;
+    public ?string $weaponKillerSpeciesKey = null;
+    public float $weaponKillerDamageRate = 0.0;
 
     public bool $isDefending = false;
     public int $damageReductionRate = 0;
@@ -83,6 +86,9 @@ class BattleActor
         $this->jobKey = isset($stats['job_key']) ? (string) $stats['job_key'] : null;
         $this->battleTypeWeights = BattleTypeAffinity::normalize($stats['battle_type_weights'] ?? []);
         $this->normalAttackType = $this->normalizeNormalAttackType($stats['normal_attack_type'] ?? null);
+        $this->speciesKey = isset($stats['species_key']) ? (string) $stats['species_key'] : null;
+        $this->weaponKillerSpeciesKey = isset($stats['weapon_killer_species_key']) ? (string) $stats['weapon_killer_species_key'] : null;
+        $this->weaponKillerDamageRate = max(0.0, (float) ($stats['weapon_killer_damage_rate'] ?? 0.0));
 
         $this->originalModel = $originalModel;
     }

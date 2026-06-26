@@ -27,7 +27,7 @@
             }
         </script>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>キャラクター選択 - ヴァルゼリアの冒険者</title>
         <link rel="icon" href="{{ asset('images/favicon.webp') }}?v=2" type="image/webp">
         @include('partials.ogp', ['ogTitle' => 'キャラクター選択 - ヴァルゼリアの冒険者'])

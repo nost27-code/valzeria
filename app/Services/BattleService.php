@@ -9,6 +9,8 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\BattleResult;
+use App\Services\Enemy\EnemyStatGenerationService;
+use App\Services\Enemy\EnemyStatPreviewService;
 
 class BattleService
 {
@@ -36,6 +38,11 @@ class BattleService
 
         // プレイヤーアクターの生成
         $stats = $this->statusService->getFinalStats($character);
+        $equippedWeapon = $character->characterItems()
+            ->where('is_equipped', true)
+            ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
+            ->with('item')
+            ->first();
         $playerActor = new BattleActor($character->name, true, [
             'hp' => $character->current_hp,
             'max_hp' => $stats['max_hp'],
@@ -47,6 +54,8 @@ class BattleService
             'mag' => $stats['mag'],
             'spr' => $stats['spr'],
             'luk' => $stats['luk'],
+            'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
+            'weapon_killer_damage_rate' => (float) ($equippedWeapon?->killer_damage_rate ?? 0),
         ], clone $character);
 
         // プレイヤーの職業技をセット
@@ -71,7 +80,8 @@ class BattleService
             'agi' => $enemyStats['agi'],
             'mag' => $enemyStats['mag'],
             'spr' => $enemyStats['spr'],
-            'luk' => $enemy->luk ?? 10,
+            'luk' => $enemyStats['luk'],
+            'species_key' => (string) ($enemy->species_key ?: $enemy->family_key ?: ''),
         ], clone $enemy);
 
         $battleContext = $enemy->is_boss ? 'boss' : 'pve';
@@ -197,6 +207,7 @@ class BattleService
         $agi = (int) $enemy->agi;
         $mag = (int) $enemy->mag;
         $spr = (int) ($enemy->spr ?? $enemy->def);
+        $luk = (int) ($enemy->luk ?? 10);
         $hp = max(1, (int) $enemy->max_hp);
         $area = $enemy->relationLoaded('area') ? $enemy->area : $enemy->area()->first();
         $cityId = (int) ($area?->city_id ?? 0);
@@ -206,7 +217,15 @@ class BattleService
             $mag = max(1, (int) floor($mag * 0.92));
         }
 
-        $danger = $this->enemyDangerBonus($character, $enemy);
+        $danger = $this->enemyDangerBonus($character, $enemy, [
+            'hp' => $hp,
+            'str' => $str,
+            'def' => $def,
+            'agi' => $agi,
+            'mag' => $mag,
+            'spr' => $spr,
+            'luk' => $luk,
+        ]);
 
         return [
             'base_hp' => $hp,
@@ -218,6 +237,7 @@ class BattleService
             'agi' => $agi + $danger['agi'],
             'mag' => $mag + $danger['mag'],
             'spr' => $spr + $danger['spr'],
+            'luk' => $luk + $danger['luk'],
             'bonus_hp' => $danger['hp'],
             'bonus_str' => $danger['str'],
             'bonus_def' => $danger['def'],
@@ -244,7 +264,7 @@ class BattleService
         return max(1, $amount);
     }
 
-    private function enemyDangerBonus(Character $character, Enemy $enemy): array
+    private function enemyDangerBonus(Character $character, Enemy $enemy, array $baseStats = []): array
     {
         if ($enemy->getAttribute('skip_danger_bonus')) {
             return $this->emptyDangerBonus();
@@ -261,15 +281,16 @@ class BattleService
         }
 
         $dangerRate = max(0, (int) ($state->danger_rate ?? 0));
-        if ($dangerRate <= 0) {
-            return $this->emptyDangerBonus($stateService->dangerLabel($dangerRate));
-        }
 
         $depthService = app(ExplorationDepthService::class);
         $area = $enemy->relationLoaded('area') ? $enemy->area : $enemy->area()->first();
         $depthTier = $area
             ? $depthService->activeTierFor($character, $area, (int) ($state->exploration_point ?? 0), $dangerRate)
             : $depthService->tierFor((int) ($state->exploration_point ?? 0), $dangerRate);
+        if ($dangerRate <= 0 && ($depthTier['key'] ?? 'surface') === 'surface') {
+            return $this->emptyDangerBonus($stateService->dangerLabel($dangerRate));
+        }
+
         $enemyLevel = max(1, (int) ($enemy->level ?? 1));
         $targetLevel = $area
             ? max($enemyLevel, $depthService->targetLevelForTier($area, $depthTier))
@@ -287,15 +308,65 @@ class BattleService
             sqrt($levelScale)
         );
 
+        $base = [
+            'hp' => max(1, (int) ($baseStats['hp'] ?? $enemy->max_hp)),
+            'str' => max(1, (int) ($baseStats['str'] ?? $enemy->str)),
+            'def' => max(1, (int) ($baseStats['def'] ?? $enemy->def)),
+            'agi' => max(1, (int) ($baseStats['agi'] ?? $enemy->agi)),
+            'mag' => max(1, (int) ($baseStats['mag'] ?? $enemy->mag)),
+            'spr' => max(1, (int) ($baseStats['spr'] ?? ($enemy->spr ?? $enemy->def))),
+            'luk' => max(1, (int) ($baseStats['luk'] ?? ($enemy->luk ?? 10))),
+        ];
+
+        $totals = [
+            'hp' => max(1, (int) floor($base['hp'] * $hpMultiplier)),
+            'str' => max(1, (int) floor($base['str'] * $statMultiplier)),
+            'def' => max(1, (int) floor($base['def'] * $statMultiplier)),
+            'agi' => max(1, (int) floor($base['agi'] * $statMultiplier)),
+            'mag' => max(1, (int) floor($base['mag'] * $statMultiplier)),
+            'spr' => max(1, (int) floor($base['spr'] * $statMultiplier)),
+            'luk' => max(1, (int) floor($base['luk'] * $statMultiplier)),
+        ];
+
+        if (($depthTier['key'] ?? 'surface') !== 'surface' && $area) {
+            $generated = $this->generatedEnemyStatsForDepth($enemy, $targetLevel);
+            foreach ($generated as $key => $value) {
+                $totals[$key] = max($totals[$key], $value);
+            }
+        }
+
         return [
             'rate' => $dangerRate,
             'label' => $stateService->dangerLabel($dangerRate),
-            'hp' => max(0, (int) floor((int) $enemy->max_hp * ($hpMultiplier - 1.0))),
-            'str' => max(0, (int) floor((int) $enemy->str * ($statMultiplier - 1.0))),
-            'def' => max(0, (int) floor((int) $enemy->def * ($statMultiplier - 1.0))),
-            'agi' => max(0, (int) floor((int) $enemy->agi * ($statMultiplier - 1.0))),
-            'mag' => max(0, (int) floor((int) $enemy->mag * ($statMultiplier - 1.0))),
-            'spr' => max(0, (int) floor((int) ($enemy->spr ?? $enemy->def) * ($statMultiplier - 1.0))),
+            'hp' => max(0, $totals['hp'] - $base['hp']),
+            'str' => max(0, $totals['str'] - $base['str']),
+            'def' => max(0, $totals['def'] - $base['def']),
+            'agi' => max(0, $totals['agi'] - $base['agi']),
+            'mag' => max(0, $totals['mag'] - $base['mag']),
+            'spr' => max(0, $totals['spr'] - $base['spr']),
+            'luk' => max(0, $totals['luk'] - $base['luk']),
+        ];
+    }
+
+    private function generatedEnemyStatsForDepth(Enemy $enemy, int $targetLevel): array
+    {
+        $metadata = app(EnemyStatPreviewService::class)->metadataFor($enemy);
+        $generated = app(EnemyStatGenerationService::class)->generate(
+            $targetLevel,
+            $metadata['family_key'] ?? null,
+            $metadata['variant_key'] ?? null,
+            $metadata['role_key'] ?? null,
+        );
+        $stats = $generated['stats'];
+
+        return [
+            'hp' => max(1, (int) $stats['hp']),
+            'str' => max(1, (int) $stats['attack']),
+            'def' => max(1, (int) $stats['defense']),
+            'agi' => max(1, (int) $stats['speed']),
+            'mag' => max(1, (int) $stats['magic']),
+            'spr' => max(1, (int) $stats['spirit']),
+            'luk' => max(1, (int) $stats['luck']),
         ];
     }
 
@@ -310,6 +381,7 @@ class BattleService
             'agi' => 0,
             'mag' => 0,
             'spr' => 0,
+            'luk' => 0,
         ];
     }
 
@@ -482,6 +554,7 @@ class BattleService
         $damage = $attacker->usesMagForNormalAttack()
             ? $this->damageCalculator->calculateMagicalDamage($attacker, $defender, $powerMultiplier, $isCrit)
             : $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $powerMultiplier, $isCrit);
+        $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $defender->takeDamage($damage);
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
@@ -498,6 +571,7 @@ class BattleService
 
         $isCrit = $this->damageCalculator->isCritical($attacker, $defender);
         $damage = $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $powerMultiplier, $isCrit);
+        $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $defender->takeDamage($damage);
         
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
@@ -613,6 +687,7 @@ class BattleService
         }
 
         $damage = $this->damageCalculator->calculateMagicalDamage($attacker, $defender, $powerMultiplier, false);
+        $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $defender->takeDamage($damage);
         $state->addLog("{$attacker->name} の魔法攻撃！ {$defender->name} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
     }
@@ -681,6 +756,7 @@ class BattleService
 
             // ダメージ適用
             if ($damage > 0) {
+                $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
                 $defender->takeDamage($damage);
                 $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
             }
@@ -801,6 +877,7 @@ class BattleService
 
         $hybridAtk = (int) floor(($attacker->str + $attacker->mag) / 2);
         $damage = $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $power, false, $hybridAtk);
+        $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $defender->takeDamage($damage);
         $state->addLog("{$defender->name} に <span class=\"text-fuchsia-600 font-extrabold text-lg\">{$damage}</span> の複合ダメージ！");
     }
@@ -914,5 +991,25 @@ class BattleService
             return 0.15;
         }
         return 0.10;
+    }
+
+    private function applyPveKillerDamage(int $damage, BattleActor $attacker, BattleActor $defender, BattleState $state): int
+    {
+        if ($damage <= 0 || !$attacker->isPlayer || $defender->isPlayer) {
+            return $damage;
+        }
+
+        if (!in_array($state->battleType, ['pve', 'boss'], true)) {
+            return $damage;
+        }
+
+        $killerSpecies = (string) ($attacker->weaponKillerSpeciesKey ?? '');
+        $defenderSpecies = (string) ($defender->speciesKey ?? '');
+        $rate = (float) ($attacker->weaponKillerDamageRate ?? 0);
+        if ($killerSpecies === '' || $defenderSpecies === '' || $rate <= 0 || $killerSpecies !== $defenderSpecies) {
+            return $damage;
+        }
+
+        return max(1, (int) floor($damage * (1 + $rate)));
     }
 }

@@ -13,7 +13,7 @@ class ChatLog extends Component
     
     // チャット入力用プロパティ
     public string $message = '';
-    public string $chatTarget = 'all'; // 'all', 'guild', 'private'
+    public string $chatTarget = 'all'; // 'all', 'private'
     public ?int $receiverId = null;
 
     public function mount()
@@ -54,10 +54,6 @@ class ChatLog extends Component
             if ($this->activeTab !== 'private') {
                 $this->activeTab = 'private';
             }
-        } elseif ($this->chatTarget === 'guild') {
-            // ギルド（未実装のためとりあえず全体と同じだが type は guild にする等。今はダミー）
-            $logService->addLog('guild', $this->message, $character);
-            session()->flash('message', 'ギルドチャットに送信しました。');
         } else {
             // 全体
             $logService->addLog('chat', $this->message, $character);
@@ -86,12 +82,16 @@ class ChatLog extends Component
     {
         // フィルタリングのために少し多めに取得（自分のIDを渡す）
         $characterId = auth()->check() && auth()->user()->currentCharacter() ? auth()->user()->currentCharacter()->id : null;
-        $displayLimit = $this->isExpanded ? 25 : 15;
+        $displayLimit = $this->isExpanded ? 30 : 15;
         $publicLogs = $logService->getRecentLogs($this->isExpanded ? 90 : 50, $characterId);
         $systemLogs = [];
         $count = 0;
 
         foreach ($publicLogs as $log) {
+            if ($this->activeTab === 'all' && $log->type === 'private') {
+                continue;
+            }
+
             // タブによるフィルタリング
             if ($this->activeTab !== 'all') {
                 if ($this->activeTab === 'system' && !in_array($log->type, ['system', 'area', 'job', 'growth'])) {
@@ -103,7 +103,7 @@ class ChatLog extends Component
                 if ($this->activeTab === 'chat' && $log->type !== 'chat') {
                     continue;
                 }
-                if ($this->activeTab === 'info' && $log->type !== 'info') {
+                if ($this->activeTab === 'info' && !in_array($log->type, ['info', 'admin'], true)) {
                     continue;
                 }
                 if ($this->activeTab === 'private' && $log->type !== 'private') {
@@ -134,6 +134,8 @@ class ChatLog extends Component
                     $replyPrefix = '【From ' . $senderName . '】';
                     $replyId = $log->character_id;
                 }
+            } elseif ($log->type === 'admin') {
+                $replyPrefix = '【管理人】';
             } elseif ($log->type === 'guild') {
                 $replyPrefix = '【' . ($log->character ? $log->character->name : '名無し') . '】';
                 $replyId = $log->character_id;

@@ -6,6 +6,16 @@
     $restrictionJobs = $canEquipByJob ? [] : $permissionService->representativeJobNames($ci->item);
     $displayName = $ci->displayName();
     $sellPrice = (int) ($ci->sell_price ?? 0);
+    $affixLines = $ci->affixEffectLines();
+    $totalStats = [
+        'hp' => (int) ($ci->item->hp_bonus ?? 0) + (int) ($ci->affix_hp_bonus ?? 0),
+        'str' => (int) ($ci->item->str_bonus ?? 0) + (int) ($ci->affix_str_bonus ?? 0),
+        'def' => (int) ($ci->item->def_bonus ?? 0) + (int) ($ci->affix_def_bonus ?? 0),
+        'agi' => (int) ($ci->item->agi_bonus ?? 0) + (int) ($ci->affix_agi_bonus ?? 0),
+        'mag' => (int) ($ci->item->mag_bonus ?? 0) + (int) ($ci->affix_mag_bonus ?? 0),
+        'spr' => (int) ($ci->item->spr_bonus ?? 0) + (int) ($ci->affix_spr_bonus ?? 0),
+        'luk' => (int) ($ci->item->luk_bonus ?? 0) + (int) ($ci->affix_luk_bonus ?? 0),
+    ];
 @endphp
 
 <div class="equipment-item relative border {{ $ci->is_equipped ? 'border-amber-300 bg-amber-50' : ($canEquipByJob ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50/60') }} rounded-lg transition-all duration-200"
@@ -51,6 +61,9 @@
                 @if($ci->is_equipped)
                     <span class="equipment-equipped-badge shrink-0 text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-bold">装備中</span>
                 @endif
+                @if($ci->hasAffix())
+                    <span class="shrink-0 text-[10px] bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-bold">銘付き</span>
+                @endif
             </div>
 
             {{-- カテゴリ・入手元 --}}
@@ -68,15 +81,23 @@
 
         {{-- ステータス行 --}}
         <div class="text-xs font-semibold text-amber-600 leading-relaxed">
-            @if($ci->item->hp_bonus > 0) HP +{{ $ci->item->hp_bonus }} @endif
-            @if($ci->item->str_bonus > 0) 攻撃 +{{ $ci->item->str_bonus }} @endif
-            @if($ci->item->def_bonus > 0) 防御 +{{ $ci->item->def_bonus }} @endif
-            @if($ci->item->agi_bonus > 0) 敏捷 +{{ $ci->item->agi_bonus }} @endif
-            @if($ci->item->mag_bonus > 0) 魔力 +{{ $ci->item->mag_bonus }} @endif
-            @if($ci->item->spr_bonus > 0) 精神 +{{ $ci->item->spr_bonus }} @endif
-            @if($ci->item->luk_bonus > 0) 運 +{{ $ci->item->luk_bonus }} @endif
-            @if($ci->item->agi_bonus < 0) 敏捷 {{ $ci->item->agi_bonus }} @endif
+            @if($totalStats['hp'] > 0) HP +{{ $totalStats['hp'] }} @endif
+            @if($totalStats['str'] > 0) 攻撃 +{{ $totalStats['str'] }} @endif
+            @if($totalStats['def'] > 0) 防御 +{{ $totalStats['def'] }} @endif
+            @if($totalStats['agi'] > 0) 敏捷 +{{ $totalStats['agi'] }} @endif
+            @if($totalStats['mag'] > 0) 魔力 +{{ $totalStats['mag'] }} @endif
+            @if($totalStats['spr'] > 0) 精神 +{{ $totalStats['spr'] }} @endif
+            @if($totalStats['luk'] > 0) 運 +{{ $totalStats['luk'] }} @endif
+            @if($totalStats['agi'] < 0) 敏捷 {{ $totalStats['agi'] }} @endif
         </div>
+
+        @if(!empty($affixLines))
+            <div class="flex flex-wrap gap-1">
+                @foreach($affixLines as $line)
+                    <span class="rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">{{ $line }}</span>
+                @endforeach
+            </div>
+        @endif
 
         {{-- 装備不可メッセージ --}}
         @if(!$canEquipByJob)

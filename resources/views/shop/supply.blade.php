@@ -89,12 +89,24 @@
                                 @endif
                             </p>
                             <div class="mt-3 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs font-bold">
-                                <span class="text-amber-700">補給所に残っている分</span>
+                                <span class="text-amber-700">補給所に保管中</span>
                                 <span class="text-slate-800">{{ $entry['depot_count'] }}個</span>
                             </div>
-                            @if($entry['stocked_count'] > 0 && $entry['daily_remaining'] > 0)
-                                <p class="mt-1 text-[11px] font-bold text-slate-500">
-                                    内訳: 持ち越し{{ $entry['stocked_count'] }}個 / 今日の未受取{{ $entry['daily_remaining'] }}個
+                            @php
+                                $depotBreakdown = [];
+                                if (($entry['carried_stock_count'] ?? 0) > 0) {
+                                    $depotBreakdown[] = '持ち越し' . number_format($entry['carried_stock_count']) . '個';
+                                }
+                                if (($entry['stocked_today'] ?? 0) > 0) {
+                                    $depotBreakdown[] = '本日ストック' . number_format($entry['stocked_today']) . '個';
+                                }
+                                if (($entry['daily_remaining'] ?? 0) > 0) {
+                                    $depotBreakdown[] = '今日の未受取' . number_format($entry['daily_remaining']) . '個';
+                                }
+                            @endphp
+                            @if(!empty($depotBreakdown))
+                                <p class="mt-1 text-[11px] font-bold leading-5 text-slate-500">
+                                    内訳: {{ implode(' / ', $depotBreakdown) }}
                                 </p>
                             @endif
                         </div>

@@ -19,6 +19,7 @@ use App\Services\CooldownSettingService;
 use App\Support\CharacterIconCatalog;
 use App\Support\FacilityConfig;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -178,11 +179,15 @@ class MainScreen extends Component
         // ジョブが取得できない場合のエラー回避
         $jobName = $this->character && $this->character->jobClass ? $this->character->jobClass->name : '冒険者';
 
+        $isHomeTab = $this->currentLocation === 'home';
+
+        // ホームタブ以外では不要なDB呼び出しをスキップ
         $finalStats = null;
         $equippedItems = [];
-        if ($this->character) {
-            $finalStats = $statusService->getFinalStats($this->character);
-            $equippedItems = $equipmentService->getEquippedItems($this->character);
+        if ($this->character && $isHomeTab) {
+            $cid = $this->character->id;
+            $finalStats = Cache::remember("home_stats_{$cid}", 60, fn() => $statusService->getFinalStats($this->character));
+            $equippedItems = Cache::remember("home_equip_{$cid}", 60, fn() => $equipmentService->getEquippedItems($this->character));
         }
 
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
@@ -310,17 +315,12 @@ class MainScreen extends Component
                                 return null;
                             }
 
-                            $summary = $depthService->summary(
-                                $this->character,
-                                $area,
-                                (int) $tier['min_point'],
-                                (int) $tier['min_danger']
-                            );
+                            $recommended = $depthService->recommendedLevelRangeForTier($area, $tier);
 
                             return [
                                 'key' => (string) $record->depth_key,
                                 'label' => (string) ($record->depth_label ?: $tier['label']),
-                                'recommended' => '推奨Lv ' . number_format((int) $summary['recommended_level_min']) . '〜' . number_format((int) $summary['recommended_level_max']),
+                                'recommended' => '推奨Lv ' . number_format((int) $recommended['min']) . '〜' . number_format((int) $recommended['max']),
                             ];
                         })
                         ->filter()
@@ -410,11 +410,12 @@ class MainScreen extends Component
                 ->all();
         }
 
-        $nextGoal = $this->character ? $goalService->getNextGoal($this->character) : 'エリアのボスを倒して、次の迷宮を解放しよう';
-        $beginnerMissions = $this->character ? $beginnerMissionService->summary($this->character) : null;
-        
+        // ホームタブ専用データ（他タブでは計算不要）
+        $nextGoal = ($this->character && $isHomeTab) ? $goalService->getNextGoal($this->character) : null;
+        $beginnerMissions = ($this->character && $isHomeTab) ? $beginnerMissionService->summary($this->character) : null;
+
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
-        $storageIsFull = $this->character ? $storageCapacityService->isFull($this->character) : false;
+        $storageIsFull = ($this->character && $isHomeTab) ? $storageCapacityService->isFull($this->character) : false;
         $storageFullMessage = $storageIsFull ? $storageCapacityService->fullMessageHtml($this->character) : null;
         $subAreaDiscoveries = ($this->character && $this->currentLocation === 'dungeon')
             ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character)
@@ -442,15 +443,24 @@ class MainScreen extends Component
             'finalStats' => $finalStats,
             'equippedItems' => $equippedItems,
             'homeDisplayMode' => $this->character?->home_display_mode ?: 'normal',
-            'homeMenuItems' => $this->applyFacilityOverrides($this->homeMenuItems(), 'home'),
-            'homeActions' => $this->character ? $homeActionService->getActions($this->character) : [],
-            'simpleFacilities' => $this->applyFacilityOverrides($this->simpleFacilities($locationData), 'simple'),
+            'homeMenuItems' => $isHomeTab ? $this->applyFacilityOverrides($this->homeMenuItems(), 'home') : [],
+            'homeActions' => ($this->character && $isHomeTab)
+                ? Cache::remember("home_actions_{$this->character->id}", 30, fn() => $homeActionService->getActions($this->character, 4, $finalStats))
+                : [],
+            'simpleFacilities' => $isHomeTab ? $this->applyFacilityOverrides($this->simpleFacilities($locationData), 'simple') : [],
             'storageIsFull' => $storageIsFull,
             'storageFullMessage' => $storageFullMessage,
             'subAreaDiscoveries' => $subAreaDiscoveries,
             'targetAreaId' => $targetAreaId,
-            'characterIconPaths' => CharacterIconCatalog::paths(),
+            'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
         ]);
+    }
+
+    public static function clearHomeCache(int $characterId): void
+    {
+        Cache::forget("home_stats_{$characterId}");
+        Cache::forget("home_equip_{$characterId}");
+        Cache::forget("home_actions_{$characterId}");
     }
 
     private function dungeonImageOrder($area, int $fallbackOrder): int
@@ -568,11 +578,11 @@ class MainScreen extends Component
                     ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['無料', '探索待機: ' . app(CooldownSettingService::class)->innSeconds() . '秒'], 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true],
                     ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
                     ...($hasEquipmentShop ? [
-                        ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+3強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
+                        ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
                     ] : []),
-                    ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石を使って武器を+1〜+3へ強化する', 'details' => ['武器強化', '成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
+                    ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石系素材で装備を+1〜+5へ強化する', 'details' => ['装備強化', '成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
                     ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
-                    ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材を別素材や回復アイテムへ交換・調合する', 'details' => ['欠片・導石・秘境晶', '部位変換・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
+                    ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材精製・錬成・調合で必要素材を作る', 'details' => ['強化石・導石・秘境晶', '装飾素材・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
                     ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
                     ['category' => '育成', 'name' => '神殿', 'symbol_image' => 'facilities/facility_temple.webp', 'desc' => '職業変更と職業ランクを確認する', 'details' => ['転職', '職業ランク'], 'bg_image' => 'facilities/01_転職所.webp', 'status' => 'active', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false],
                     ['category' => 'その他', 'name' => '案内所', 'symbol_image' => 'facilities/facility_guide_300.webp', 'desc' => 'ヴァルゼリアの遊び方やヘルプを確認する', 'details' => ['初心者おすすめ'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'town.guide', 'is_post' => false],

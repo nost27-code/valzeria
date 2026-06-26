@@ -255,6 +255,9 @@ class DungeonEnemyManager extends Component
         $data['is_boss'] = (bool) $data['is_boss'];
         $data['is_stat_locked'] = (bool) ($data['is_stat_locked'] ?? true);
         $data['enemy_level'] = filled($data['enemy_level'] ?? null) ? (int) $data['enemy_level'] : null;
+        if (Schema::hasColumn('enemies', 'species_key')) {
+            $data['species_key'] = (string) ($data['family_key'] ?? '');
+        }
 
         return $data;
     }

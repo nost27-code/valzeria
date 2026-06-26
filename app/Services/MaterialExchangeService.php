@@ -21,28 +21,35 @@ class MaterialExchangeService
     private const BREW_MAGIC_POWDER_CODE = 'MAT_BREW_MAGIC_POWDER';
     private const BREW_LOW_MONSTER_CODE = 'MAT_BREW_LOW_MONSTER';
     private const RANDOM_RECOVERY_ITEM_CODE = 'RANDOM_RECOVERY_ITEM';
+    private const ENHANCE_STONE_CONVERSION_RATE = 3;
     private const UPGRADE_RATE = 10;
     private const STRONG_FRAGMENT_UPGRADE_RATE = 15;
     private const SAME_RANK_RATE = 3;
     private const CROSS_CATEGORY_RATE = 5;
     private const CITY_MATERIAL_PATH_STONE_RATE = 10;
 
-    private const COMMON_GROUPS = [
-        'equipment_common' => [
-            'label' => '装備共通',
-            'codes' => [
-                self::EQUIPMENT_FRAGMENT_CODE,
-                self::FINE_EQUIPMENT_FRAGMENT_CODE,
-                self::STRONG_EQUIPMENT_FRAGMENT_CODE,
-            ],
-        ],
-    ];
+    private const COMMON_GROUPS = [];
 
     private const DOMAIN_GROUPS = [];
 
     private const TIER_LABELS = ['欠片', '結晶', '核'];
 
     private const EVOLUTION_STONE_RECIPES = [];
+
+    private const ENHANCEMENT_STONE_RECIPES = [
+        'MAT_ENHANCE_STONE' => [
+            'label' => '武器強化',
+            'source' => 'MAT_ENHANCE_FRAGMENT',
+        ],
+        '5008' => [
+            'label' => '防具強化',
+            'source' => '5007',
+        ],
+        'ACC0008' => [
+            'label' => '装飾強化',
+            'source' => 'ACC0007',
+        ],
+    ];
 
     private const RECOVERY_ITEM_NAMES = ['薬草', '回復薬', '魔力水'];
 
@@ -113,6 +120,7 @@ class MaterialExchangeService
         }
 
         $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $owned));
+        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $owned));
@@ -408,6 +416,7 @@ class MaterialExchangeService
             $recipes = array_merge($recipes, $this->upgradeRecipes($group, $materials, $emptyOwned, false));
         }
         $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $emptyOwned, false));
+        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $emptyOwned, false));
@@ -438,6 +447,36 @@ class MaterialExchangeService
                 $owned,
                 60 + $index
             );
+        }
+
+        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
+    }
+
+    private function enhancementStoneRecipes(array $materials, array $owned, bool $ownedOnly = true): array
+    {
+        $recipes = [];
+        $index = 0;
+
+        foreach (self::ENHANCEMENT_STONE_RECIPES as $targetCode => $recipe) {
+            $sourceCode = $recipe['source'];
+            if (!$this->canBuildRecipe($sourceCode, $targetCode, $materials)) {
+                continue;
+            }
+
+            $recipes[] = $this->recipePayload(
+                'enhancement_stone',
+                '強化石精製',
+                $recipe['label'],
+                -1,
+                $sourceCode,
+                $targetCode,
+                self::ENHANCE_STONE_CONVERSION_RATE,
+                1,
+                $materials,
+                $owned,
+                70 + $index
+            );
+            $index++;
         }
 
         return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
@@ -808,6 +847,7 @@ class MaterialExchangeService
                 self::BREW_MAGIC_POWDER_CODE,
                 self::BREW_LOW_MONSTER_CODE,
             ],
+            $this->enhancementStoneMaterialCodes(),
             $this->pathStoneSourceCodes(),
             array_keys(self::PATH_STONE_RECIPES),
             $this->accessoryEvolutionMaterialCodes(),
@@ -831,6 +871,16 @@ class MaterialExchangeService
         $codes = array_keys(self::ACCESSORY_EVOLUTION_MATERIAL_RECIPES);
         foreach (self::ACCESSORY_EVOLUTION_MATERIAL_RECIPES as $definition) {
             $codes = array_merge($codes, array_column($definition['sources'], 0));
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    private function enhancementStoneMaterialCodes(): array
+    {
+        $codes = array_keys(self::ENHANCEMENT_STONE_RECIPES);
+        foreach (self::ENHANCEMENT_STONE_RECIPES as $recipe) {
+            $codes[] = $recipe['source'];
         }
 
         return array_values(array_unique($codes));

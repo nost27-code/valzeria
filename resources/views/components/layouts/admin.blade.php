@@ -28,7 +28,7 @@
         }
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Valzeria - 管理者ダッシュボード</title>
     @include('partials.ogp', ['ogTitle' => 'Valzeria - 管理者ダッシュボード'])
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -56,11 +56,13 @@
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],
                     ['route' => 'admin.player-controls', 'label' => 'プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
+                    ['route' => 'admin.chat', 'label' => '管理人チャット', 'abbr' => 'Q'],
                     ['route' => 'admin.private-chat-logs', 'label' => '個人チャットログ', 'abbr' => 'D'],
                     ['route' => 'admin.kiseki-purchases', 'label' => '課金監査', 'abbr' => 'K'],
                     ['route' => 'admin.reward-settings', 'label' => '運営・報酬設定', 'abbr' => 'R'],
                     ['route' => 'admin.top-updates', 'label' => 'TOP更新情報', 'abbr' => 'N'],
                     ['route' => 'admin.game-texts', 'label' => '画面文言管理', 'abbr' => 'T'],
+                    ['route' => 'admin.help-texts', 'label' => 'ヘルプ文言管理', 'abbr' => 'H'],
                     ['route' => 'admin.facility-texts', 'label' => '施設テキスト管理', 'abbr' => 'F'],
                 ],
             ],

@@ -172,50 +172,55 @@ class PvPBattleService
                 $attackerRanking->wins += 1;
                 $defenderRanking->losses += 1;
 
-                // 勝利した場合、自分の順位が1つ上がり（-1）、元々その順位にいた人が1つ下がる（+1）
-                // 自分が1位の場合は上がらない
-                if ($attackerOldRank > 1) {
-                    $targetRank = $attackerOldRank - 1;
-                    $targetRanking = ArenaRanking::where('rank', $targetRank)->lockForUpdate()->first();
-                    
-                    if ($targetRanking) {
-                        $rankDownCharacter = $targetRanking->character;
+                // 格上に勝った場合は相手の順位を奪い、間の順位を1つずつ下げる。
+                if ($defenderOldRank < $attackerOldRank) {
+                    $targetRank = (int) $defenderOldRank;
 
-                        // rank はユニーク制約があるため、一時ランクへ退避してから入れ替える。
-                        $temporaryRank = -1 * (int) $attackerRanking->id;
-                        $attackerRanking->rank = $temporaryRank;
-                        $attackerRanking->save();
+                    $temporaryRank = -1 * (int) $attackerRanking->id;
+                    $attackerRanking->rank = $temporaryRank;
+                    $attackerRanking->save();
 
-                        $targetRanking->rank = $attackerOldRank;
-                        $targetRanking->save();
+                    $shiftedRankings = ArenaRanking::with('character')
+                        ->where('rank', '>=', $targetRank)
+                        ->where('rank', '<', $attackerOldRank)
+                        ->lockForUpdate()
+                        ->orderByDesc('rank')
+                        ->get();
 
-                        if ((int) $defenderRanking->id === (int) $targetRanking->id) {
-                            $defenderRanking->rank = $attackerOldRank;
+                    foreach ($shiftedRankings as $shiftedRanking) {
+                        $oldRank = (int) $shiftedRanking->rank;
+                        $newRank = $oldRank + 1;
+
+                        $shiftedRanking->rank = $newRank;
+                        $shiftedRanking->save();
+
+                        if ((int) $defenderRanking->id === (int) $shiftedRanking->id) {
+                            $defenderRanking->rank = $newRank;
                         }
-
-                        if ($rankDownCharacter && (int) $rankDownCharacter->id !== (int) $attackerChar->id) {
-                            app(CharacterNotificationService::class)->create(
-                                $rankDownCharacter,
-                                'arena',
-                                'arena_rank_down',
-                                'ランク戦順位が低下しました',
-                                "{$attackerChar->name}さんの勝利により、闘技場順位が{$targetRank}位から{$attackerOldRank}位に下がりました。",
-                                '順位を見る',
-                                route('colosseum.ranking'),
-                                [
-                                    'attacker_id' => (int) $attackerChar->id,
-                                    'old_rank' => (int) $targetRank,
-                                    'new_rank' => (int) $attackerOldRank,
-                                ],
-                                85
-                            );
-                        }
-
-                        $attackerRanking->rank = $targetRank;
-                    } else {
-                        // 対象がいない場合（データ不整合など）は単純に上がる
-                        $attackerRanking->rank = $targetRank;
                     }
+
+                    if ((int) $defenderRanking->rank !== (int) $defenderOldRank
+                        && $defenderRanking->character
+                        && (int) $defenderRanking->character->id !== (int) $attackerChar->id
+                    ) {
+                        app(CharacterNotificationService::class)->create(
+                            $defenderRanking->character,
+                            'arena',
+                            'arena_rank_down',
+                            'ランク戦順位が低下しました',
+                            "{$attackerChar->name}さんの勝利により、闘技場順位が{$defenderOldRank}位から{$defenderRanking->rank}位に下がりました。",
+                            '順位を見る',
+                            route('colosseum.ranking'),
+                            [
+                                'attacker_id' => (int) $attackerChar->id,
+                                'old_rank' => (int) $defenderOldRank,
+                                'new_rank' => (int) $defenderRanking->rank,
+                            ],
+                            85
+                        );
+                    }
+
+                    $attackerRanking->rank = $targetRank;
                 }
             } else {
                 $attackerRanking->losses += 1;
@@ -238,9 +243,44 @@ class PvPBattleService
                 'defender_old_rank' => $defenderOldRank,
                 'defender_new_rank' => $defenderNewRank,
             ]);
+
+            $this->publishArenaRankPublicLogs(
+                $attackerChar,
+                $isAttackerWin,
+                (int) $attackerOldRank,
+                (int) $attackerNewRank
+            );
         });
 
         return $result;
+    }
+
+    private function publishArenaRankPublicLogs(
+        Character $attackerChar,
+        bool $isAttackerWin,
+        int $attackerOldRank,
+        int $attackerNewRank
+    ): void {
+        if (!$isAttackerWin || $attackerNewRank >= $attackerOldRank) {
+            return;
+        }
+
+        $logService = app(PublicLogService::class);
+        $logService->addLog(
+            'arena',
+            "【闘技場】{$attackerChar->name}さんが強敵を破り、{$attackerOldRank}位から{$attackerNewRank}位へ駆け上がりました！",
+            $attackerChar,
+            2
+        );
+
+        if ($attackerOldRank > 10 && $attackerNewRank <= 10) {
+            $logService->addLog(
+                'arena',
+                "【闘技場】{$attackerChar->name}さんが闘技場番付TOP10入りを果たしました！",
+                $attackerChar,
+                3
+            );
+        }
     }
 
     /**

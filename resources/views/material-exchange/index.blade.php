@@ -3,6 +3,16 @@
     $bgImage = 'images/facilities/item.webp';
     $title = '素材交換所 (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
     $recipeCount = count($recipes);
+    $typeFilters = [
+        'all' => '全て',
+        'enhancement_stone' => '強化石',
+        'secret_crystal' => '秘境晶',
+        'city_path_stone' => '導石',
+        'accessory_evolution_material' => '装飾素材',
+        'enemy_part' => '敵部位',
+        'recovery_brewing' => '回復調合',
+    ];
+    $keywordFilters = ['強化石', '守護石', '装飾強化石', '導石', '秘境晶', '牙', '毒素材', '薬草'];
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
     <div class="w-full mx-auto pb-10" x-data="{
@@ -39,7 +49,7 @@
                         <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-7 h-7 object-contain"> 素材交換
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        装備の欠片の上位変換、秘境晶・導石・装飾素材の錬成、敵部位からの調合素材づくりや回復アイテム調合を行います。
+                        強化石系素材の精製、導石・秘境晶・装飾素材の錬成、敵部位素材の変換、回復アイテムの調合を行います。
                     </p>
                 </div>
                 <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">
@@ -53,24 +63,11 @@
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
-                <button type="button" @click="typeFilter = 'all'" :class="typeFilter === 'all' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    全て
-                </button>
-                <button type="button" @click="typeFilter = 'upgrade'" :class="typeFilter === 'upgrade' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    上位変換
-                </button>
-                <button type="button" @click="typeFilter = 'secret_crystal'" :class="typeFilter === 'secret_crystal' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    秘境晶
-                </button>
-                <button type="button" @click="typeFilter = 'city_path_stone'" :class="typeFilter === 'city_path_stone' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    導石錬成
-                </button>
-                <button type="button" @click="typeFilter = 'enemy_part'" :class="typeFilter === 'enemy_part' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    部位変換
-                </button>
-                <button type="button" @click="typeFilter = 'recovery_brewing'" :class="typeFilter === 'recovery_brewing' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
-                    回復調合
-                </button>
+                @foreach($typeFilters as $type => $label)
+                    <button type="button" @click="typeFilter = @js($type)" :class="typeFilter === @js($type) ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
+                        {{ $label }}
+                    </button>
+                @endforeach
             </div>
 
             <div class="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -79,7 +76,7 @@
                     <input
                         type="search"
                         x-model.debounce.150ms="searchTerm"
-                        placeholder="素材名で検索（例: 装備の欠片、牙、毒素材、薬草）"
+                        placeholder="素材名で検索（例: 強化石、導石、秘境晶、薬草）"
                         class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                     >
                     <button type="button" x-show="searchTerm !== '' || keywordFilter !== ''" @click="searchTerm = ''; keywordFilter = ''" class="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 active:scale-95">
@@ -87,7 +84,7 @@
                     </button>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
-                    @foreach(['装備の欠片', '上質', '強装備', '導石', '牙', '毒素材', '魔粉素材', '薬草'] as $keyword)
+                    @foreach($keywordFilters as $keyword)
                         <button type="button"
                                 @click="keywordFilter = keywordFilter === @js($keyword) ? '' : @js($keyword)"
                                 :class="keywordFilter === @js($keyword) ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-200'"
@@ -100,19 +97,19 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 text-xs text-slate-600">
                 <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                    上位変換: <span class="font-bold text-slate-900">装備の欠片 10 → 上質 1 / 上質 10 → 強装備 1</span>
+                    強化石: <span class="font-bold text-slate-900">各欠片3 → 強化石・守護石・装飾強化石1</span>
                 </div>
                 <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                    秘境晶交換: <span class="font-bold text-slate-900">対応する秘境晶片 5 → 秘境晶 1</span>
+                    導石: <span class="font-bold text-slate-900">指定都市素材7 + 3 → 導石1</span>
                 </div>
                 <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                    導石錬成: <span class="font-bold text-slate-900">指定都市素材 7 + 3 → 導石 1</span>
+                    秘境晶: <span class="font-bold text-slate-900">対応する秘境晶片5 → 秘境晶1</span>
                 </div>
                 <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                    部位変換: <span class="font-bold text-slate-900">敵部位 1 → 調合素材 1</span>
+                    装飾素材: <span class="font-bold text-slate-900">通常素材・地域素材 → 装飾進化素材</span>
                 </div>
                 <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                    回復調合: <span class="font-bold text-slate-900">調合素材 → 薬草・回復薬・魔力水</span>
+                    敵部位・回復: <span class="font-bold text-slate-900">敵部位 → 調合素材 → 回復アイテム</span>
                 </div>
             </div>
 

@@ -172,6 +172,12 @@ PHP;
         \Illuminate\Support\Facades\Artisan::call('view:clear');
         echo "・view:clear 実行完了\n";
 
+        \Illuminate\Support\Facades\Artisan::call('route:clear');
+        echo "・route:clear 実行完了\n";
+
+        \Illuminate\Support\Facades\Artisan::call('event:clear');
+        echo "・event:clear 実行完了\n";
+
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
         echo "・マイグレーション実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
 
@@ -224,6 +230,17 @@ PHP;
 
         \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'NpcProcurementRequestSeeder', '--force' => true]);
         echo "・シーダー(NpcProcurementRequestSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
+
+        \Illuminate\Support\Facades\Artisan::call('config:cache');
+        echo "・config:cache 実行完了\n";
+
+        \Illuminate\Support\Facades\Artisan::call('event:cache');
+        echo "・event:cache 実行完了\n";
+
+        \Illuminate\Support\Facades\Artisan::call('view:cache');
+        echo "・view:cache 実行完了\n";
+
+        echo "・route:cache はクロージャルートがあるため未実行（route:clear のみ）\n";
     } catch (\Exception $e) {
         echo "・Artisan実行エラー: " . $e->getMessage() . "\n";
     }

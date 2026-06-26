@@ -96,7 +96,7 @@ class SubAreaExplorationStateService
             'danger_label' => app(ExplorationStateService::class)->dangerLabel($danger),
             'depth' => [
                 'label' => $subArea?->layer_type === 'otherworld' ? '異界層' : '共有深層',
-                'key' => 'sub_area',
+                'key' => $subArea?->layer_type === 'otherworld' ? 'otherworld' : 'deep',
                 'recommended_level_min' => (int) ($subArea?->recommended_level_min ?? 1),
                 'recommended_level_max' => (int) ($subArea?->recommended_level_max ?? 1),
             ],

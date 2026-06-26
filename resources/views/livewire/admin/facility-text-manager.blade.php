@@ -1,4 +1,4 @@
-<div class="w-full px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+<div class="w-full px-4 sm:px-6 lg:px-8 py-8 lg:py-10" x-data="{ tab: 'town' }">
     <div class="mb-6">
         <p class="text-xs font-black tracking-[0.24em] text-amber-600">FACILITY TEXTS</p>
         <h1 class="mt-2 text-3xl font-black text-slate-950">施設テキスト管理</h1>
@@ -20,19 +20,21 @@
             ['key' => 'town',   'label' => '街タブ施設',       'count' => count($entries['town'])],
             ['key' => 'simple', 'label' => '街リスト（独自）',  'count' => count($entries['simple'])],
             ['key' => 'home',   'label' => '冒険者メニュー',    'count' => count($entries['home'])],
-        ] as $tab)
+        ] as $tabItem)
             <button type="button"
-                    wire:click="$set('activeTab', '{{ $tab['key'] }}')"
-                    class="rounded-md px-4 py-2 text-sm font-black transition {{ $activeTab === $tab['key'] ? 'bg-slate-950 text-white shadow' : 'text-slate-600 hover:bg-slate-100' }}">
-                {{ $tab['label'] }}
-                <span class="ml-1 text-[10px] font-bold {{ $activeTab === $tab['key'] ? 'text-amber-300' : 'text-slate-400' }}">{{ $tab['count'] }}</span>
+                    @click="tab = '{{ $tabItem['key'] }}'"
+                    :class="tab === '{{ $tabItem['key'] }}' ? 'bg-slate-950 text-white shadow' : 'text-slate-600 hover:bg-slate-100'"
+                    class="rounded-md px-4 py-2 text-sm font-black transition">
+                {{ $tabItem['label'] }}
+                <span class="ml-1 text-[10px] font-bold"
+                      :class="tab === '{{ $tabItem['key'] }}' ? 'text-amber-300' : 'text-slate-400'">{{ $tabItem['count'] }}</span>
             </button>
         @endforeach
     </div>
 
     <form wire:submit="save">
         {{-- 街タブ施設 --}}
-        <div @class(['space-y-3', 'hidden' => $activeTab !== 'town'])>
+        <div x-show="tab === 'town'" class="space-y-3">
             <div class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
                 <table class="min-w-full divide-y divide-slate-100 text-sm">
                     <thead class="bg-slate-50">
@@ -71,7 +73,7 @@
         </div>
 
         {{-- 街リスト（独自） --}}
-        <div @class(['space-y-3', 'hidden' => $activeTab !== 'simple'])>
+        <div x-show="tab === 'simple'" class="space-y-3">
             <div class="rounded-md border border-blue-100 bg-blue-50 px-4 py-2.5 text-xs font-bold text-blue-700">
                 宿屋・補給所など街タブから引き継がれる施設は「街タブ施設」タブで編集してください。ここでは簡易モード独自のアイテムのみ管理します。
             </div>
@@ -113,7 +115,7 @@
         </div>
 
         {{-- 冒険者メニュー --}}
-        <div @class(['space-y-3', 'hidden' => $activeTab !== 'home'])>
+        <div x-show="tab === 'home'" class="space-y-3">
             <div class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
                 <table class="min-w-full divide-y divide-slate-100 text-sm">
                     <thead class="bg-slate-50">

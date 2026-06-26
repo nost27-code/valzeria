@@ -22,7 +22,7 @@
             }
         </script>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
         <title>ヴァルモン牧場 - ヴァルゼリアの冒険者</title>
         <link rel="icon" href="{{ asset('images/favicon.webp') }}?v=2" type="image/webp">
         @include('partials.ogp', ['ogTitle' => 'ヴァルモン牧場 - ヴァルゼリアの冒険者'])
@@ -81,6 +81,17 @@
                 <x-back-button href="{{ route('home') }}" label="ヴァルモン牧場から出る" icon="🚪" />
             </div>
         </div>
+
+        @if (session('status'))
+            <div x-data="{ show: true }"
+                 x-init="setTimeout(() => show = false, 3200)"
+                 x-show="show"
+                 x-transition
+                 class="fixed inset-x-4 top-4 mx-auto max-w-md rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black leading-relaxed text-emerald-800 shadow-xl md:top-6"
+                 style="z-index: 2147483647;">
+                {{ session('status') }}
+            </div>
+        @endif
 
         @livewireScripts
     </body>

@@ -70,7 +70,11 @@ Route::post('/top-analytics/event', [TopPageAnalyticsController::class, 'event']
     ->name('top.analytics.event')
     ->middleware('throttle:120,1');
 
-Route::get('/help', fn () => view('help.index'))->name('help');
+Route::get('/help', function (\App\Services\HelpContentService $helpContentService) {
+    return view('help.index', [
+        'helpContent' => $helpContentService->content(),
+    ]);
+})->name('help');
 
 Route::get('/manifest.json', function () {
     return response()->file(public_path('manifest.json'), [
@@ -441,6 +445,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/battle-simulator', \App\Livewire\Admin\BattleSimulator::class)->name('admin.battle-simulator');
     Route::get('/admin/balance-battle-lab', \App\Livewire\Admin\BalanceBattleLab::class)->name('admin.balance-battle-lab');
     Route::get('/admin/action-logs', \App\Livewire\Admin\ActionLogManager::class)->name('admin.action-logs');
+    Route::get('/admin/chat', \App\Livewire\Admin\AdminChatManager::class)->name('admin.chat');
     Route::get('/admin/private-chat-logs', \App\Livewire\Admin\PrivateChatLogManager::class)->name('admin.private-chat-logs');
     Route::get('/admin/contact-messages', \App\Livewire\Admin\ContactMessageManager::class)->name('admin.contact-messages');
     Route::get('/admin/reward-settings', \App\Livewire\Admin\RewardSettingManager::class)->name('admin.reward-settings');
@@ -448,6 +453,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/top-updates', \App\Livewire\Admin\TopUpdateManager::class)->name('admin.top-updates');
     Route::get('/admin/top-analytics', \App\Livewire\Admin\TopPageAnalyticsManager::class)->name('admin.top-analytics');
     Route::get('/admin/game-texts', \App\Livewire\Admin\GameTextManager::class)->name('admin.game-texts');
+    Route::get('/admin/help-texts', \App\Livewire\Admin\HelpTextManager::class)->name('admin.help-texts');
     Route::get('/admin/facility-texts', \App\Livewire\Admin\FacilityTextManager::class)->name('admin.facility-texts');
     Route::get('/admin/tools/remover.html', function () {
         return response()->file(public_path('admin/tools/remover.html'));

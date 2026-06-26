@@ -28,6 +28,24 @@ class EquipmentEvolutionService
     private const EQUIPMENT_FRAGMENT_CODE = 'MAT_EQUIPMENT_FRAGMENT';
     private const FINE_EQUIPMENT_FRAGMENT_CODE = 'MAT_FINE_EQUIPMENT_FRAGMENT';
     private const STRONG_EQUIPMENT_FRAGMENT_CODE = 'MAT_STRONG_EQUIPMENT_FRAGMENT';
+    private const MATERIAL_KIND_WEIGHTS = [
+        'early' => ['generic' => 50, 'category' => 20, 'regional' => 25, 'enhance' => 5, 'rare' => 0],
+        'middle' => ['generic' => 45, 'category' => 25, 'regional' => 20, 'enhance' => 8, 'rare' => 2],
+        'late' => ['generic' => 35, 'category' => 25, 'regional' => 20, 'enhance' => 10, 'rare' => 10],
+        'demon_castle' => ['generic' => 28, 'category' => 27, 'regional_high' => 30, 'enhance' => 10, 's_evolution' => 5],
+        'back' => ['generic_high' => 35, 'category_high' => 35, 'back' => 25, 'ss_evolution' => 3, 'sss_evolution' => 2],
+    ];
+    private const SOURCE_MATERIAL_KIND_CODES = [
+        'generic' => ['MAT_COMMON_MONSTER_FRAGMENT', 'MAT_COMMON_OLD_BADGE'],
+        'generic_high' => ['MAT_COMMON_MAGIC_ORE', 'MAT_COMMON_MONSTER_SHELL', 'MAT_COMMON_BEAST_FANG'],
+        'category' => ['MAT_COMMON_MAGIC_ORE', 'MAT_COMMON_BEAST_FUR', 'MAT_COMMON_WING_MEMBRANE', 'MAT_COMMON_FEATHER'],
+        'category_high' => ['MAT_COMMON_MONSTER_CORE', 'MAT_COMMON_FAIRY_DUST', 'MAT_COMMON_HOLY_FRAGMENT', 'MAT_COMMON_DARK_CRYSTAL'],
+        'enhance' => ['MAT_ENHANCE_FRAGMENT', 'MAT_ENHANCE_STONE', 'MAT_ENHANCE_HIGH_STONE', '5007', '5008', '5009', 'ACC0007', 'ACC0008', 'ACC0009'],
+        's_evolution' => ['MAT_BR_WPN_HOLY_PATH'],
+        'ss_evolution' => ['MAT_REGION_BLACK_IRON_PART', 'MAT_REGION_ICE_CRYSTAL', 'MAT_REGION_MAGIC_CRYSTAL'],
+        'sss_evolution' => ['MAT_REGION_ABYSS_FRAGMENT', 'MAT_REGION_HEAVEN_FEATHER'],
+        'back' => ['MAT_REGION_ABYSS_FRAGMENT', 'MAT_REGION_HEAVEN_FEATHER', 'MAT_COMMON_DARK_CRYSTAL'],
+    ];
 
     private array $materialSourceCache = [];
 
@@ -597,13 +615,28 @@ class EquipmentEvolutionService
             ->where('material_drops.material_id', $material->id)
             ->where('material_drops.is_active', true)
             ->where('material_drops.drop_rate', '>', 0)
+            ->where(function ($query) {
+                $query->where(function ($normalEnemy) {
+                    $normalEnemy->where('enemies.is_boss', false)
+                        ->where(function ($roleQuery) {
+                            $roleQuery->whereNull('enemies.role')
+                                ->orWhere('enemies.role', 'not like', '%ボス%');
+                        });
+                })
+                    ->orWhere('material_drops.drop_first_clear_only', true);
+            })
             ->select(
                 'areas.id as area_id',
                 'areas.name as area_name',
                 'areas.sort_order as area_sort_order',
+                'enemies.id as enemy_id',
+                'enemies.is_boss as enemy_is_boss',
+                'enemies.role as enemy_role',
                 'cities.id as city_id',
                 'cities.name as city_name',
+                'cities.sort_order as city_sort_order',
                 'material_drops.drop_rate',
+                'material_drops.drop_first_clear_only',
                 'material_drops.drop_timing'
             )
             ->orderBy('areas.sort_order')
@@ -612,12 +645,16 @@ class EquipmentEvolutionService
         foreach ($dropRows->groupBy('area_id') as $areaId => $rows) {
             $areaName = (string) ($rows->first()->area_name ?? '');
             $cityName = (string) ($rows->first()->city_name ?? '');
-            $rates = $rows->pluck('drop_rate')->map(fn ($rate): float => (float) $rate);
-            $minRate = $rates->min();
-            $maxRate = $rates->max();
-            $rateText = $minRate === $maxRate
-                ? $this->formatRate($minRate)
-                : $this->formatRate($minRate) . '-' . $this->formatRate($maxRate);
+            $repeatRows = $rows
+                ->filter(fn ($row): bool => !((bool) ($row->drop_first_clear_only ?? false) || $this->isSourceBoss($row)))
+                ->values();
+            $rates = $repeatRows
+                ->map(fn ($row): ?float => $this->effectiveMaterialDropRate($row, $material))
+                ->filter(fn (?float $rate): bool => $rate !== null)
+                ->values();
+            $rateText = $rates->isNotEmpty()
+                ? $this->materialSourceRateLabel((float) $rates->min(), (float) $rates->max())
+                : ($rows->contains(fn ($row): bool => (bool) ($row->drop_first_clear_only ?? false)) ? '初回確定' : '入手率変動');
             $sources[] = $this->sourcePayload(
                 trim(($cityName !== '' ? $cityName . ' / ' : '') . $areaName . '（' . $rateText . '）'),
                 (int) $areaId,
@@ -677,9 +714,181 @@ class EquipmentEvolutionService
         return $sources;
     }
 
-    private function formatRate(float $rate): string
+    private function materialSourceRateLabel(float $minRate, float $maxRate): string
     {
-        return rtrim(rtrim(number_format($rate, 2), '0'), '.') . '%';
+        $minRate = max(0.0, $minRate);
+        $maxRate = max($minRate, $maxRate);
+
+        if (abs($maxRate - $minRate) < 0.005) {
+            return '基礎約' . $this->formatSourceRate($maxRate);
+        }
+
+        return '基礎約' . $this->formatSourceRate($minRate) . '-' . $this->formatSourceRate($maxRate);
+    }
+
+    private function effectiveMaterialDropRate(object $row, Material $material): ?float
+    {
+        $dropRate = (float) ($row->drop_rate ?? 0);
+        if ($dropRate <= 0) {
+            return null;
+        }
+
+        $band = $this->sourceMaterialBand($row);
+        $weights = self::MATERIAL_KIND_WEIGHTS[$band] ?? self::MATERIAL_KIND_WEIGHTS['middle'];
+        $kind = $this->sourceMaterialKind($material, $band);
+        $kindWeight = (float) ($weights[$kind] ?? 0);
+        $totalKindWeight = array_sum(array_map(fn ($weight) => max(0, (float) $weight), $weights));
+        if ($kindWeight <= 0 || $totalKindWeight <= 0) {
+            return null;
+        }
+
+        $sameKindWeight = $this->sameKindMaterialDropWeight((int) $row->enemy_id, $kind, $band);
+        if ($sameKindWeight <= 0) {
+            return null;
+        }
+
+        return $this->sourceMaterialBaseRate($row)
+            * ($kindWeight / $totalKindWeight)
+            * ($dropRate / $sameKindWeight);
+    }
+
+    private function sameKindMaterialDropWeight(int $enemyId, string $kind, string $band): float
+    {
+        return DB::table('material_drops')
+            ->join('materials', 'material_drops.material_id', '=', 'materials.id')
+            ->where('material_drops.enemy_id', $enemyId)
+            ->where('material_drops.is_active', true)
+            ->where('material_drops.drop_first_clear_only', false)
+            ->where('material_drops.drop_rate', '>', 0)
+            ->select(
+                'materials.material_code',
+                'materials.name',
+                'materials.material_type',
+                'materials.rank_tier',
+                'materials.city_id',
+                'material_drops.drop_rate'
+            )
+            ->get()
+            ->filter(fn ($drop): bool => $this->sourceMaterialKindFromRow($drop, $band) === $kind)
+            ->sum(fn ($drop): float => max(0.01, (float) $drop->drop_rate));
+    }
+
+    private function sourceMaterialKind(Material $material, string $band): string
+    {
+        return $this->sourceMaterialKindFromRow((object) [
+            'material_code' => $material->material_code,
+            'name' => $material->name,
+            'material_type' => $material->material_type,
+            'rank_tier' => $material->rank_tier,
+            'city_id' => $material->city_id,
+        ], $band);
+    }
+
+    private function sourceMaterialKindFromRow(object $material, string $band): string
+    {
+        $code = (string) ($material->material_code ?? '');
+        $name = (string) ($material->name ?? '');
+        $type = (string) ($material->material_type ?? '');
+        $tier = (int) ($material->rank_tier ?? 1);
+        $cityId = $material->city_id !== null ? (int) $material->city_id : null;
+
+        if (str_contains($type, 'enhance') || str_contains($name, '強化') || str_contains($name, '守護石')) {
+            return 'enhance';
+        }
+
+        foreach (self::SOURCE_MATERIAL_KIND_CODES as $kind => $codes) {
+            if (in_array($code, $codes, true) && isset(self::MATERIAL_KIND_WEIGHTS[$band][$kind])) {
+                return $kind;
+            }
+        }
+
+        if ($cityId !== null) {
+            return isset(self::MATERIAL_KIND_WEIGHTS[$band]['regional'])
+                ? 'regional'
+                : 'regional_high';
+        }
+
+        if ($tier >= 2 || str_contains($name, '結晶') || str_contains($name, '核')) {
+            return isset(self::MATERIAL_KIND_WEIGHTS[$band]['rare'])
+                ? 'rare'
+                : (isset(self::MATERIAL_KIND_WEIGHTS[$band]['category_high']) ? 'category_high' : 'generic_high');
+        }
+
+        return isset(self::MATERIAL_KIND_WEIGHTS[$band]['category']) ? 'category' : 'generic_high';
+    }
+
+    private function sourceMaterialBaseRate(object $row): float
+    {
+        if ($this->isSourceBackDungeon($row)) {
+            return 65.0;
+        }
+
+        if ($this->isSourceGrassland($row)) {
+            return 40.0;
+        }
+
+        return match ($this->sourceCityTier($row)) {
+            1, 2, 3, 4 => 50.0,
+            5, 6, 7 => 55.0,
+            default => 60.0,
+        };
+    }
+
+    private function sourceMaterialBand(object $row): string
+    {
+        if ($this->isSourceBackDungeon($row)) {
+            return 'back';
+        }
+
+        return match ($this->sourceCityTier($row)) {
+            1, 2 => 'early',
+            3, 4 => 'middle',
+            10 => 'demon_castle',
+            default => 'late',
+        };
+    }
+
+    private function sourceCityTier(object $row): int
+    {
+        $cityId = (int) ($row->city_id ?? 0);
+        if ($cityId >= 1 && $cityId <= 10) {
+            return $cityId;
+        }
+
+        $cityOrder = (int) ($row->city_sort_order ?? 0);
+        if ($cityOrder >= 1 && $cityOrder <= 10) {
+            return $cityOrder;
+        }
+
+        $areaOrder = (int) ($row->area_sort_order ?? $row->area_id ?? 1);
+        return max(1, min(10, (int) ceil($areaOrder / 7)));
+    }
+
+    private function isSourceBackDungeon(object $row): bool
+    {
+        return (int) ($row->area_id ?? 0) >= 71
+            || str_contains((string) ($row->area_name ?? ''), '裏');
+    }
+
+    private function isSourceGrassland(object $row): bool
+    {
+        return (int) ($row->area_id ?? 0) === 1
+            || str_contains((string) ($row->area_name ?? ''), 'はじまりの草原');
+    }
+
+    private function isSourceBoss(object $row): bool
+    {
+        return (bool) ($row->enemy_is_boss ?? false)
+            || str_contains((string) ($row->enemy_role ?? ''), 'ボス');
+    }
+
+    private function formatSourceRate(float $rate): string
+    {
+        if ($rate < 0.1) {
+            return rtrim(rtrim(number_format($rate, 2), '0'), '.') . '%';
+        }
+
+        return rtrim(rtrim(number_format($rate, 1), '0'), '.') . '%';
     }
 
     private function normalizeSourceText(string $source): string

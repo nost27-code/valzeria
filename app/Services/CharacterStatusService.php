@@ -8,13 +8,17 @@ use App\Services\EquipmentEnhancementService;
 
 class CharacterStatusService
 {
-    /**
-     * 装備補正を加算した最終ステータスを返す
-     *
-     * @param Character $character
-     * @return array
-     */
+    private static array $requestCache = [];
+
     public function getFinalStats(Character $character): array
+    {
+        if (isset(self::$requestCache[$character->id])) {
+            return self::$requestCache[$character->id];
+        }
+        return self::$requestCache[$character->id] = $this->computeFinalStats($character);
+    }
+
+    private function computeFinalStats(Character $character): array
     {
         $jobService = new JobService();
         $jobStats = $jobService->calculateFinalStats($character); // [hp, atk, def, mag, spd, luck] (基礎値 + マスターボーナス)
@@ -63,6 +67,14 @@ class CharacterStatusService
                 $mag_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->mag_bonus ?? 0), $enhanceLevel);
                 $spr_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->spr_bonus ?? 0), $enhanceLevel);
                 $luk_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->luk_bonus ?? 0), $enhanceLevel);
+
+                $hp_equip += (int) ($charItem->affix_hp_bonus ?? 0);
+                $atk_equip += (int) ($charItem->affix_str_bonus ?? 0);
+                $def_equip += (int) ($charItem->affix_def_bonus ?? 0);
+                $spd_equip += (int) ($charItem->affix_agi_bonus ?? 0);
+                $mag_equip += (int) ($charItem->affix_mag_bonus ?? 0);
+                $spr_equip += (int) ($charItem->affix_spr_bonus ?? 0);
+                $luk_equip += (int) ($charItem->affix_luk_bonus ?? 0);
             }
         }
 
@@ -127,6 +139,11 @@ class CharacterStatusService
             ],
             'monster_mark_bonuses' => $markBonuses,
         ];
+    }
+
+    public static function clearRequestCache(int $characterId): void
+    {
+        unset(self::$requestCache[$characterId]);
     }
 
     private function isLegacyMarkItem($item): bool

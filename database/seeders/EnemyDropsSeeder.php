@@ -86,6 +86,15 @@ class EnemyDropsSeeder extends Seeder
             ['area_id' => 20, 'enemy_name' => '精霊封印守', 'drop_rate' => 15],
             ['area_id' => 21, 'enemy_name' => '月光星草スライム', 'drop_rate' => 20],
         ],
+        'MAT_COMMON_FAIRY_DUST' => [
+            ['area_id' => 6,  'enemy_name' => 'いたずらピクシー', 'drop_rate' => 20],
+            ['area_id' => 6,  'enemy_name' => '泉の番人',         'drop_rate' => 15],
+            ['area_id' => 15, 'enemy_name' => '若葉フェアリー',   'drop_rate' => 18],
+            ['area_id' => 16, 'enemy_name' => '森フェアリー',     'drop_rate' => 22],
+            ['area_id' => 18, 'enemy_name' => '中層風妖精',       'drop_rate' => 15],
+            ['area_id' => 19, 'enemy_name' => '上層風妖精',       'drop_rate' => 18],
+            ['area_id' => 21, 'enemy_name' => '月光ピクシー',     'drop_rate' => 18],
+        ],
         'MAT_COMMON_FEATHER' => [
             ['area_id' => 15, 'enemy_name' => '若葉フェアリー', 'drop_rate' => 12],
             ['area_id' => 16, 'enemy_name' => '森フェアリー', 'drop_rate' => 15],
@@ -210,7 +219,10 @@ class EnemyDropsSeeder extends Seeder
         }
 
         $supplementalDrops = $this->applySupplementalCommonMaterialDrops();
+        $this->applyEnhanceMaterialDrops();
+        $this->applyGenericFallbackDrops();
         $this->refreshBranchPathObtainMethods();
+        $this->deactivateGrasslandCityMaterialDrops();
 
         $this->command?->info("敵レアドロップを {$itemDropsUpdated} 件、素材ドロップを {$materialsUpdated} 件、補助素材ドロップを {$supplementalDrops} 件更新しました。");
     }
@@ -610,6 +622,119 @@ class EnemyDropsSeeder extends Seeder
                     'obtain_method' => $method,
                 ]));
         }
+    }
+
+    private function applyEnhanceMaterialDrops(): void
+    {
+        // 都市ティア → [素材コード[], ウェイト]
+        // ウェイトは他の drops と合算される相対値（低確率になるよう小さめに設定）
+        $tierConfig = [
+            1 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 5],
+            2 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 5],
+            3 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
+            4 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
+            5 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
+            6 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
+            7 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
+            8 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
+            9 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
+            10 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
+        ];
+
+        $allCodes = array_unique(array_merge(...array_map(fn ($c) => $c[0], $tierConfig)));
+        $materials = Material::whereIn('material_code', $allCodes)->get()->keyBy('material_code');
+
+        // ルートエリアを除く全エリアの非ボス敵をエリアごとにグループ化
+        $grouped = Enemy::where('is_boss', false)
+            ->whereHas('area', fn ($q) => $q->where('is_route_area', false)->whereNotNull('city_id'))
+            ->with('area')
+            ->orderBy('area_id')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('area_id');
+
+        foreach ($grouped as $areaEnemies) {
+            $cityId = (int) ($areaEnemies->first()->area?->city_id ?? 0);
+            if (!isset($tierConfig[$cityId])) {
+                continue;
+            }
+
+            [$codes, $weight] = $tierConfig[$cityId];
+
+            // 偶数インデックスの敵（約半数）に強化石系素材を登録
+            $areaEnemies->values()->each(function (Enemy $enemy, int $idx) use ($codes, $weight, $materials) {
+                if ($idx % 2 !== 0) {
+                    return;
+                }
+                foreach ($codes as $code) {
+                    $material = $materials->get($code);
+                    if (!$material) {
+                        continue;
+                    }
+                    MaterialDrop::updateOrCreate(
+                        ['enemy_id' => $enemy->id, 'material_id' => $material->id],
+                        ['drop_rate' => $weight, 'drop_first_clear_only' => false, 'drop_timing' => null, 'is_active' => true]
+                    );
+                }
+            });
+        }
+    }
+
+    private function applyGenericFallbackDrops(): void
+    {
+        // 旧システムではkind='generic'（50%）で全敵に魔物の欠片・古びた徽章がフォールバックドロップしていた。
+        // 新システムでは敵ごとのdrops定義に統合するため、未登録の敵に汎用素材を一律登録する。
+        // 既にSUPPLEMENTAL_COMMON_MATERIAL_DROPSなどで登録済みの場合はそのウェイトを尊重し変更しない。
+        $genericCodes = [
+            'MAT_COMMON_MONSTER_FRAGMENT' => 20,
+            'MAT_COMMON_OLD_BADGE'        => 15,
+        ];
+
+        $materials = Material::whereIn('material_code', array_keys($genericCodes))
+            ->get()
+            ->keyBy('material_code');
+
+        Enemy::where('is_boss', false)
+            ->get()
+            ->each(function (Enemy $enemy) use ($genericCodes, $materials) {
+                foreach ($genericCodes as $code => $weight) {
+                    $material = $materials->get($code);
+                    if (!$material) {
+                        continue;
+                    }
+
+                    $alreadyActive = MaterialDrop::where('enemy_id', $enemy->id)
+                        ->where('material_id', $material->id)
+                        ->where('is_active', true)
+                        ->exists();
+
+                    if ($alreadyActive) {
+                        continue;
+                    }
+
+                    MaterialDrop::updateOrCreate(
+                        ['enemy_id' => $enemy->id, 'material_id' => $material->id],
+                        ['drop_rate' => $weight, 'drop_first_clear_only' => false, 'drop_timing' => null, 'is_active' => true]
+                    );
+                }
+            });
+    }
+
+    private function deactivateGrasslandCityMaterialDrops(): void
+    {
+        // はじまりの草原（area_id=1）の敵には都市依存素材を落とさせない。
+        // 敵ごと drops 定義方式では filterMaterialPool が存在しないため、データ側で制御する。
+        \DB::statement('
+            UPDATE material_drops md
+            JOIN materials m ON md.material_id = m.id
+            JOIN enemies e ON md.enemy_id = e.id
+            SET md.is_active = 0
+            WHERE e.area_id = 1
+              AND e.is_boss = 0
+              AND m.city_id IS NOT NULL
+              AND md.drop_first_clear_only = 0
+              AND md.is_active = 1
+        ');
     }
 
     private function isLegacyCommonFragment(string $materialCode, string $materialName): bool

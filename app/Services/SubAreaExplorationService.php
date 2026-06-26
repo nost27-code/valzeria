@@ -37,7 +37,8 @@ class SubAreaExplorationService
             return ['error' => "宿屋で休んだ直後です。あと {$remaining} 秒待ってください。"];
         }
 
-        $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSeconds();
+        $depthKey = $subArea?->layer_type === 'otherworld' ? 'otherworld' : 'deep';
+        $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSecondsForDepthKey($depthKey);
         if ($battleCooldownSeconds > 0 && $character->last_battle_at) {
             $elapsed = $character->last_battle_at->lte(now())
                 ? (int) $character->last_battle_at->diffInSeconds(now(), true)

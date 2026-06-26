@@ -1,7 +1,7 @@
 <x-layouts.facility title="調達依頼" headerIconImage="images/facilities/facility_request_board.webp" bgImage="images/facilities/item.webp">
     <div class="w-full mx-auto pb-10">
         <div class="mb-3 flex items-center justify-between gap-3 px-1">
-            <a href="{{ route('home') }}" class="inline-flex items-center text-sm font-black text-slate-500 transition hover:text-amber-700">
+            <a href="{{ route('home') }}" wire:navigate class="inline-flex items-center text-sm font-black text-slate-500 transition hover:text-amber-700">
                 ← 市場・依頼へ戻る
             </a>
             <div class="text-sm font-black text-slate-950">所持：{{ number_format((int) ($character->money ?? 0)) }}G</div>
@@ -97,7 +97,7 @@
                                             </div>
                                             <div class="mt-0.5 text-[11px] font-bold text-slate-400">所持 {{ number_format($owned) }}個 / 納品可能 {{ number_format($deliverable) }}個</div>
                                         </div>
-                                        <a href="{{ $material ? route('market.materials.show', $material) : '#' }}" class="shrink-0 text-[11px] font-black text-slate-500 underline decoration-slate-300 underline-offset-2">詳細</a>
+                                        <a href="{{ $material ? route('market.materials.show', $material) : '#' }}" wire:navigate class="shrink-0 text-[11px] font-black text-slate-500 underline decoration-slate-300 underline-offset-2">詳細</a>
                                     </div>
 
                                     @if($deliverable > 0)
@@ -169,7 +169,7 @@
                         </div>
 
                         <div class="mt-3 text-right">
-                            <a href="{{ route('market.npc-requests.show', $request) }}" class="text-xs font-black text-amber-700 underline decoration-amber-300 underline-offset-2">依頼詳細を見る</a>
+                            <a href="{{ route('market.npc-requests.show', $request) }}" wire:navigate class="text-xs font-black text-amber-700 underline decoration-amber-300 underline-offset-2">依頼詳細を見る</a>
                         </div>
                     </article>
                 @empty

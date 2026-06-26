@@ -61,7 +61,19 @@ class ExplorationService
             return ['error' => "宿屋で休んだ直後です。あと {$remaining} 秒待ってください。"];
         }
 
-        $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSeconds();
+        $area = Area::findOrFail($areaId);
+        $explorationStateService = app(ExplorationStateService::class);
+        $currentState = !$isBossBattle ? $explorationStateService->currentFor($character) : null;
+        $currentDanger = $currentState && (int) $currentState->area_id === $areaId
+            ? (int) ($currentState->danger_rate ?? 0)
+            : 0;
+        $currentPoint = $currentState && (int) $currentState->area_id === $areaId
+            ? (int) ($currentState->exploration_point ?? 0)
+            : 0;
+        $currentDepthTier = !$isBossBattle
+            ? app(ExplorationDepthService::class)->activeTierFor($character, $area, $currentPoint, $currentDanger)
+            : ['key' => 'surface'];
+        $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSecondsForDepthTier($currentDepthTier);
         if (!$skipBattleCooldown && !$isBossBattle && $forcedEvent !== 'dungeon_lord' && $battleCooldownSeconds > 0 && $character->last_battle_at) {
             $elapsed = $character->last_battle_at->lte(now())
                 ? (int) $character->last_battle_at->diffInSeconds(now(), true)
@@ -77,10 +89,6 @@ class ExplorationService
 
         $character->last_battle_at = now();
         $character->save();
-
-        $area = Area::findOrFail($areaId);
-
-        $explorationStateService = app(ExplorationStateService::class);
         $state = !$isBossBattle ? $explorationStateService->getOrStart($character, $areaId) : null;
 
         // 2. 敵の抽選
@@ -315,6 +323,16 @@ class ExplorationService
 
                 if ($rankText === 'LEGEND' || $rarity === 'legend') {
                     $rankText = 'EPIC';
+                }
+
+                if (($equipmentDrop['affix_quality'] ?? null) === 'excellent') {
+                    $this->publicLogService->addLog(
+                        'drop',
+                        "【逸品】{$character->name}さんが「{$equipmentDrop['item_name']}」を手に入れました！",
+                        $character,
+                        3
+                    );
+                    continue;
                 }
 
                 if (!in_array($rankText, ['A', 'SSS', 'EPIC'], true)

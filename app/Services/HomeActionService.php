@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Area;
 use App\Models\Character;
+use App\Models\CharacterAreaProgress;
+use App\Models\JobClass;
 use App\Models\NpcProcurementRequestMaterial;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +22,7 @@ class HomeActionService
     ) {
     }
 
-    public function getActions(Character $character, int $limit = 4): array
+    public function getActions(Character $character, int $limit = 4, ?array $precomputedStats = null): array
     {
         $actions = collect();
 
@@ -27,11 +30,12 @@ class HomeActionService
         $this->appendBonusPointAction($actions, $character);
         $this->appendDailySupplyAction($actions, $character);
         $this->appendEquipmentEvolutionAction($actions, $character);
+        $this->appendJobChangeAction($actions, $character);
         $this->appendJobArtSetupAction($actions, $character);
         $this->appendNpcRequestAction($actions, $character);
         $this->appendMarketNotificationAction($actions, $character);
         $this->appendExplorationStartAction($actions, $character);
-        $this->appendRecoveryAction($actions, $character);
+        $this->appendRecoveryAction($actions, $character, $precomputedStats);
 
         return $actions
             ->sortByDesc('priority')
@@ -139,9 +143,9 @@ class HomeActionService
         ]);
     }
 
-    private function appendRecoveryAction(Collection $actions, Character $character): void
+    private function appendRecoveryAction(Collection $actions, Character $character, ?array $precomputedStats = null): void
     {
-        $stats = $this->statusService->getFinalStats($character);
+        $stats = $precomputedStats ?? $this->statusService->getFinalStats($character);
         $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base ?? 1));
         $maxSp = max(1, (int) ($stats['max_mp'] ?? $character->mp_base ?? 1));
         $hpRate = (int) ($character->current_hp ?? 0) / $maxHp;
@@ -314,6 +318,40 @@ class HomeActionService
         ]);
     }
 
+    private function appendJobChangeAction(Collection $actions, Character $character): void
+    {
+        if ((int) ($character->level ?? 0) < 30 || ! $character->current_job_id) {
+            return;
+        }
+
+        if (! Schema::hasTable('character_jobs')) {
+            return;
+        }
+
+        $isCurrentJobMastered = $character->jobHistories()
+            ->where('job_class_id', (int) $character->current_job_id)
+            ->where('is_mastered', true)
+            ->exists();
+
+        if (! $isCurrentJobMastered) {
+            return;
+        }
+
+        $jobName = $character->jobClass?->name ?? '現在の職業';
+
+        $actions->push([
+            'key' => 'job_change_recommended',
+            'title' => '転職してみよう',
+            'body' => "{$jobName}をマスターしました。神殿で新しい職業を確認できます。",
+            'action_label' => '神殿へ',
+            'action_url' => route('jobs.index'),
+            'icon' => '✦',
+            'icon_image' => 'icon/icon_031.webp',
+            'priority' => 86,
+            'category' => 'growth',
+        ]);
+    }
+
     private function equipmentEvolutionBody(array $candidate, string $suffix): string
     {
         $from = (string) ($candidate['from_name'] ?? '装備品');
@@ -345,25 +383,17 @@ class HomeActionService
 
     private function appendExplorationStartAction(Collection $actions, Character $character): void
     {
-        $area = collect($this->areaService->getAreasWithProgress($character))
-            ->filter(fn ($area) => (bool) ($area->is_unlocked ?? false)
-                && (bool) ($area->meets_job_requirements ?? true)
-                && ! $this->isExploreHiddenArea($area))
-            ->sortBy([
-                ['sort_order', 'asc'],
-                ['id', 'asc'],
-            ])
+        $candidateAreas = $this->reachableExplorationAreas($character);
+
+        $area = $candidateAreas
+            ->where('is_route_area', false)
             ->first(fn ($area) => ! $this->isAreaFullyHandled($area));
 
-        $area ??= collect($this->areaService->getAreasWithProgress($character))
-            ->filter(fn ($area) => (bool) ($area->is_unlocked ?? false)
-                && (bool) ($area->meets_job_requirements ?? true)
-                && ! $this->isExploreHiddenArea($area))
-            ->sortBy([
-                ['sort_order', 'asc'],
-                ['id', 'asc'],
-            ])
-            ->first();
+        $area ??= $candidateAreas
+            ->where('is_route_area', true)
+            ->first(fn ($area) => ! $this->isAreaFullyHandled($area));
+
+        $area ??= $candidateAreas->first();
 
         if (!$area) {
             return;
@@ -376,11 +406,99 @@ class HomeActionService
             'action_label' => '探索へ',
             'tab' => 'dungeon',
             'target_area_id' => (int) $area->id,
+            'target_city_id' => (int) ($area->city_id ?? 0),
             'icon' => '🧭',
             'icon_image' => 'icon/icon_002.webp',
             'priority' => 65,
             'category' => 'dungeon',
         ]);
+    }
+
+    private function reachableExplorationAreas(Character $character): Collection
+    {
+        $highestCityOrder = (int) ($character->highestCity?->sort_order
+            ?? $character->currentCity?->sort_order
+            ?? 0);
+
+        if ($highestCityOrder <= 0) {
+            return collect($this->areaService->getAreasWithProgress($character))
+                ->filter(fn ($area) => (bool) ($area->is_unlocked ?? false)
+                    && (bool) ($area->meets_job_requirements ?? true)
+                    && ! $this->isExploreHiddenArea($area))
+                ->sortBy([
+                    ['sort_order', 'asc'],
+                    ['id', 'asc'],
+                ])
+                ->values();
+        }
+
+        // 最高到達都市に絞って読み込む（全都市ロードを回避）
+        $highestCity = $character->highestCity ?? $character->currentCity;
+        $targetCityIds = $highestCity
+            ? \App\Models\City::query()
+                ->where('sort_order', '<=', $highestCityOrder)
+                ->orderByDesc('sort_order')
+                ->limit(3) // 直近3都市に限定して十分な候補を確保
+                ->pluck('sort_order', 'id')
+            : collect();
+
+        if ($targetCityIds->isEmpty()) {
+            return collect();
+        }
+
+        $progresses = CharacterAreaProgress::query()
+            ->where('character_id', $character->id)
+            ->whereIn('area_id', function ($query) use ($targetCityIds) {
+                $query->select('id')->from('areas')->whereIn('city_id', $targetCityIds->keys()->all());
+            })
+            ->get()
+            ->keyBy('area_id');
+
+        $masteredJobKeys = $character->jobHistories()
+            ->where('is_mastered', true)
+            ->join('job_classes', 'character_jobs.job_class_id', '=', 'job_classes.id')
+            ->pluck('job_classes.key')
+            ->all();
+
+        $jobNamesByKey = JobClass::query()->pluck('name', 'key');
+
+        return Area::query()
+            ->whereIn('city_id', $targetCityIds->keys()->all())
+            ->orderBy('city_id')
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function (Area $area) use ($progresses, $masteredJobKeys, $jobNamesByKey, $targetCityIds) {
+                $progress = $progresses->get($area->id);
+                $isDiscovered = $progress && in_array((string) ($progress->discovery_state ?? ''), ['discovered', 'cleared'], true);
+
+                $area->is_unlocked = $progress ? ((bool) $progress->is_unlocked || $isDiscovered) : false;
+                $area->boss_defeated = $progress ? (bool) $progress->boss_defeated : false;
+                $area->development_point = $progress ? (int) ($progress->development_point ?? 0) : 0;
+                $area->city_sort_order = (int) ($targetCityIds[(int) $area->city_id] ?? 0);
+
+                $requiredKeys = $area->required_master_job_keys
+                    ? json_decode((string) $area->required_master_job_keys, true)
+                    : [];
+                $requiredKeys = is_array($requiredKeys) ? $requiredKeys : [];
+                $missingKeys = array_diff($requiredKeys, $masteredJobKeys);
+                $area->meets_job_requirements = empty($missingKeys);
+                $area->missing_job_names = collect($missingKeys)
+                    ->map(fn (string $key) => $jobNamesByKey[$key] ?? null)
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                return $area;
+            })
+            ->filter(fn ($area) => (bool) ($area->is_unlocked ?? false)
+                && (bool) ($area->meets_job_requirements ?? true)
+                && ! $this->isExploreHiddenArea($area))
+            ->sortBy([
+                ['city_sort_order', 'desc'],
+                ['sort_order', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values();
     }
 
     private function isAreaFullyHandled($area): bool

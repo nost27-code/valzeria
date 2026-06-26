@@ -24,8 +24,8 @@ class ExplorationDepthService
             'message' => '空気が少し重くなってきた……深部に入りました。',
             'min_point' => 150,
             'min_danger' => 10,
-            'level_offset_min' => 10,
-            'level_offset_max' => 20,
+            'level_offset_min' => 5,
+            'level_offset_max' => 5,
             'overlay' => 15,
         ],
         [
@@ -34,8 +34,8 @@ class ExplorationDepthService
             'message' => '周囲の景色が変わった……深層に到達しました。',
             'min_point' => 300,
             'min_danger' => 25,
-            'level_offset_min' => 20,
-            'level_offset_max' => 20,
+            'level_offset_min' => 15,
+            'level_offset_max' => 15,
             'overlay' => 30,
         ],
         [
@@ -44,8 +44,8 @@ class ExplorationDepthService
             'message' => '足元から冷たい気配が立ち上る……最深層の入口が近い。',
             'min_point' => 800,
             'min_danger' => 50,
-            'level_offset_min' => 40,
-            'level_offset_max' => 40,
+            'level_offset_min' => 25,
+            'level_offset_max' => 25,
             'overlay' => 45,
         ],
         [
@@ -54,8 +54,8 @@ class ExplorationDepthService
             'message' => '空間が歪んでいる……異界層の気配を感じます。',
             'min_point' => 1200,
             'min_danger' => 75,
-            'level_offset_min' => 60,
-            'level_offset_max' => 60,
+            'level_offset_min' => 40,
+            'level_offset_max' => 40,
             'overlay' => 60,
         ],
     ];
@@ -86,13 +86,11 @@ class ExplorationDepthService
 
     public function activeTierFor(Character $character, Area $area, int $explorationPoint, int $dangerRate): array
     {
-        $current = $this->tierFor($explorationPoint, $dangerRate);
-        $currentIndex = $this->tierIndex($current['key'] ?? 'surface');
         $active = self::TIERS[0];
 
         foreach (self::TIERS as $tier) {
             $key = (string) ($tier['key'] ?? 'surface');
-            if ($key === 'surface' || $this->tierIndex($key) > $currentIndex) {
+            if ($key === 'surface' || $explorationPoint < (int) ($tier['min_point'] ?? 0)) {
                 continue;
             }
 
@@ -139,7 +137,14 @@ class ExplorationDepthService
     public function markEntered(Character $character, int $areaId, string $depthKey): void
     {
         if ($depthKey !== '' && $depthKey !== 'surface') {
-            session([$this->enteredSessionKey($character, $areaId, $depthKey) => true]);
+            $key = $this->enteredSessionKey($character, $areaId, $depthKey);
+            $wasEntered = (bool) session()->get($key, false);
+
+            session([$key => true]);
+
+            if (!$wasEntered) {
+                app(ExplorationStateService::class)->resetDangerForDepthEntrance($character, $areaId);
+            }
         }
     }
 
@@ -271,6 +276,11 @@ class ExplorationDepthService
         $recommended = $this->recommendedLevelRange($area, $tier);
 
         return max(1, (int) round(($recommended['min'] + $recommended['max']) / 2));
+    }
+
+    public function tierIndexForKey(string $key): int
+    {
+        return $this->tierIndex($key);
     }
 
     public function recommendedLevelRangeForTier(Area $area, array $tier): array

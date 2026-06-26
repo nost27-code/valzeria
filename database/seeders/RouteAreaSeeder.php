@@ -162,7 +162,7 @@ class RouteAreaSeeder extends Seeder
             'agi' => $stats['speed'],
             'mag' => $stats['magic'],
             'luk' => $stats['luck'],
-            'exp_reward' => max(1, (int) round((8 + ($enemyLevel * 3)) * $rewardMultiplier)),
+            'exp_reward' => $this->routeExpReward($enemyLevel, $rewardMultiplier),
             'gold_reward' => max(1, (int) round((10 + ($enemyLevel * 2)) * $rewardMultiplier)),
             'appearance_weight' => (int) ($definition['weight'] ?? 10),
             'is_boss' => false,
@@ -202,5 +202,12 @@ class RouteAreaSeeder extends Seeder
         }
 
         return $values;
+    }
+
+    private function routeExpReward(int $enemyLevel, float $rewardMultiplier): int
+    {
+        $base = (0.18 * $enemyLevel * $enemyLevel) + (18 * $enemyLevel) - 85;
+
+        return max(1, (int) round($base * $rewardMultiplier));
     }
 }

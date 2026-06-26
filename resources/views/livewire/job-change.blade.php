@@ -110,7 +110,9 @@
     };
 @endphp
 
-<div class="max-w-7xl mx-auto p-4 flex flex-col gap-4 text-sm font-sans text-[#1e293b]" x-data="{ confirming: @entangle('confirmingJobChange') }">
+<div class="max-w-7xl mx-auto p-4 flex flex-col gap-4 text-sm font-sans text-[#1e293b]"
+     x-data="{ confirming: @entangle('confirmingJobChange'), showingDetail: @entangle('showingJobDetail') }"
+     @keydown.escape.window="if (showingDetail) $wire.closeJobDetail()">
 
     @if (session()->has('message'))
         <div class="bg-[#f0f9ff] border border-[#bae6fd] text-[#0369a1] px-4 py-3 rounded relative shadow-sm font-medium" role="alert">
@@ -236,7 +238,7 @@
                                 $bonusChips = ($progress['is_mastered'] ?? false) ? $formatMasterBonuses($job) : [];
                                 $rankStyle = $rankStyles[$job->rank] ?? $rankStyles['normal'];
                             @endphp
-                            <button wire:click="confirmJobChange({{ $job->id }})" class="text-left group border {{ $rankStyle['card'] }} rounded-lg p-3 transition-all duration-200 hover:shadow-md relative overflow-hidden">
+                            <div class="text-left group border {{ $rankStyle['card'] }} rounded-lg p-3 transition-all duration-200 hover:shadow-md relative overflow-hidden">
                                 <div class="absolute inset-0 bg-gradient-to-r {{ $rankStyle['hoverOverlay'] }} to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                 <div class="relative z-10 flex justify-between items-start mb-1">
                                     <div class="font-bold text-[#1e293b] {{ $rankStyle['title'] }} transition-colors">{{ $job->name }}</div>
@@ -263,7 +265,19 @@
                                     @endif
                                 </div>
                                 <div class="relative z-10 text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{{ $job->description ?? '説明なし' }}</div>
-                            </button>
+                                <div class="relative z-10 mt-3 flex gap-2">
+                                    <button type="button"
+                                            wire:click="showJobDetail({{ $job->id }})"
+                                            class="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-600 shadow-sm hover:bg-slate-50">
+                                        詳細
+                                    </button>
+                                    <button type="button"
+                                            wire:click="confirmJobChange({{ $job->id }})"
+                                            class="flex-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-amber-600">
+                                        転職する
+                                    </button>
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 @else
@@ -343,6 +357,15 @@
                                         @endforeach
                                     @endif
                                 </div>
+                                @if(!$job->is_hidden && $job->rank !== 'advanced')
+                                    <div class="mt-3">
+                                        <button type="button"
+                                                wire:click="showJobDetail({{ $job->id }})"
+                                                class="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-500 shadow-sm hover:bg-slate-50">
+                                            詳細
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -353,6 +376,158 @@
                 @endif
             </div>
 
+        </div>
+    </div>
+
+    <!-- 職業詳細モーダル -->
+    <div x-show="showingDetail" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div x-show="showingDetail"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+             wire:click="closeJobDetail"></div>
+
+        <div x-show="showingDetail"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-amber-400 bg-white shadow-2xl">
+            @if($detailJob)
+                <div class="border-b border-amber-400 bg-slate-900 px-5 py-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <div class="text-[10px] font-extrabold tracking-[0.18em] text-amber-300">
+                                {{ $rankLabel($detailJob->rank) }}
+                            </div>
+                            <h3 class="mt-1 text-xl font-extrabold text-white">{{ $detailJob->name }}</h3>
+                        </div>
+                        <button type="button"
+                                wire:click="closeJobDetail"
+                                class="rounded-md border border-white/20 px-2 py-1 text-xs font-bold text-white/80 hover:bg-white/10">
+                            閉じる
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-5 p-5">
+                    <section>
+                        <h4 class="text-sm font-extrabold text-slate-900">特徴</h4>
+                        <p class="mt-2 text-sm font-medium leading-relaxed text-slate-600">
+                            {{ $detailJob->description ?? '説明なし' }}
+                        </p>
+                    </section>
+
+                    <section>
+                        <h4 class="text-sm font-extrabold text-slate-900">伸びやすい能力</h4>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @forelse($detailJobGrowthStats as $stat)
+                                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                                    {{ $stat['label'] }}
+                                </span>
+                            @empty
+                                <span class="text-xs font-bold text-slate-400">成長傾向は未設定です。</span>
+                            @endforelse
+                        </div>
+                    </section>
+
+                    <section>
+                        <h4 class="text-sm font-extrabold text-slate-900">覚える奥義</h4>
+                        <div class="mt-2 space-y-2">
+                            @forelse($detailJob->jobArts->sortBy('learn_rank') as $art)
+                                <div class="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div class="text-xs font-extrabold text-indigo-500">Rank {{ $art->learn_rank }}</div>
+                                            <div class="text-sm font-extrabold text-slate-900">{{ $art->name }}</div>
+                                        </div>
+                                        <div class="flex shrink-0 flex-wrap justify-end gap-1">
+                                            <span class="rounded border border-indigo-100 bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                                                発動{{ (int) $art->effectiveActivationRate() }}%
+                                            </span>
+                                            <span class="rounded border border-slate-100 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                                Cost {{ (int) $art->art_cost }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 text-xs font-medium leading-relaxed text-slate-600">
+                                        {{ $art->memo ?? $art->description ?? '効果説明なし' }}
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-bold text-slate-400">
+                                    覚える奥義はまだ登録されていません。
+                                </div>
+                            @endforelse
+                        </div>
+                    </section>
+
+                    <section>
+                        <h4 class="text-sm font-extrabold text-slate-900">マスター恩恵</h4>
+                        @if(!empty($detailJobMasterBonusChips))
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach($detailJobMasterBonusChips as $bonus)
+                                    <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
+                                        {{ $bonus['label'] }}+{{ $bonus['value'] }}{{ $bonus['suffix'] }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+                                この職業を極めると、転職後も成長の証が残ります。
+                            </p>
+                        @endif
+                    </section>
+
+                    <section>
+                        <h4 class="text-sm font-extrabold text-slate-900">必要条件</h4>
+                        <div class="mt-2 space-y-1">
+                            @if($detailJob->requirements->isEmpty())
+                                <div class="text-xs font-bold text-slate-500">なし</div>
+                            @else
+                                @foreach($detailJob->requirements as $req)
+                                    <div class="text-xs font-bold text-slate-500">
+                                        @if($req->requirement_type === 'master_job')
+                                            {{ $req->requiredJob->name ?? '不明な職業' }} のマスター
+                                        @elseif($req->requirement_type === 'character_level')
+                                            Lv {{ $req->required_value }} 以上
+                                        @else
+                                            特定の条件
+                                        @endif
+                                    </div>
+                                @endforeach
+                            @endif
+                        </div>
+                    </section>
+
+                    <div class="flex gap-3 border-t border-slate-100 pt-4">
+                        <button type="button"
+                                wire:click="closeJobDetail"
+                                class="flex-1 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-extrabold text-slate-600 hover:bg-slate-50">
+                            閉じる
+                        </button>
+                        @if($detailJobCanChange)
+                            <button type="button"
+                                    wire:click="confirmJobChangeFromDetail"
+                                    class="flex-1 rounded-md border border-amber-600 bg-amber-500 px-4 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-amber-600">
+                                この職業に転職する
+                            </button>
+                        @else
+                            <button type="button"
+                                    disabled
+                                    class="flex-1 rounded-md border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-400">
+                                条件未達成
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 

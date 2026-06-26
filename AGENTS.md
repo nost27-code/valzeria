@@ -59,10 +59,50 @@ Use project-defined commands when available:
 
 If a command cannot run, report the reason and what was checked instead.
 
+## Admin update summary rule
+
+Maintain `config/admin_update_summaries.php` as the source for the admin dashboard update summary.
+The requested `src/data/adminUpdateSummaries.ts` path is not used because this repository is a Laravel/Blade app, not a TypeScript `src` app.
+If this file is placed elsewhere in the future, follow the actual project path.
+
+After each meaningful implementation task, decide whether to append one update summary entry.
+
+Append an entry when the change affects:
+- player-visible behavior
+- admin-visible behavior
+- UI flow
+- exploration, battle, jobs, equipment, market, public logs, Valmon, ranking, billing, or economy
+- balance values, rewards, drops, costs, limits, or progression
+- user-impacting bugs
+- DB schema, auth, permissions, or operational behavior
+
+Do not append an entry for:
+- typo-only changes
+- formatting-only changes
+- comments-only changes
+- import cleanup
+- lint-only changes
+- AI docs-only changes
+- refactors with no behavior change
+
+When adding an entry:
+- Add the newest entry at the top of the array.
+- Use date format `YYYY-MM-DD`.
+- Write Japanese text.
+- Keep `title` short: 15〜35 Japanese characters.
+- Write in player-facing language that an admin/operator can copy into public update notes.
+- Use `internal` only for admin-only changes that should usually be excluded from player-facing copy.
+- Do not include secrets, private user data, internal IDs, API keys, or sensitive implementation details.
+- Use category: `added`, `changed`, `fixed`, `balance`, or `internal`.
+
+If no entry is needed, report:
+Admin update summary: not needed — <reason>.
+
 ## Final response format
 
 - Summary
 - Changed files
 - Verification
 - Docs update
+- Admin update summary
 - Risks / 未確認

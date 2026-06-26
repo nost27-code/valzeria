@@ -1,4 +1,4 @@
-<div x-data="{ pending: null }">
+<div x-data="{ pending: null }" @main-tab-selected.window="pending = $event.detail.location">
     @php
         $bottomNavs = [
             'town'      => ['label' => '街',      'icon' => '🏰', 'image' => 'tabs/tab_town.webp'],

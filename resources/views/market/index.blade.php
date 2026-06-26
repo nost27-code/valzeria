@@ -124,7 +124,7 @@
                                             @click="qty = Math.min({{ $maxQty }}, qty + 1)"
                                             :disabled="qty >= {{ $maxQty }} || {{ $stock <= 0 ? 'true' : 'false' }}">＋</button>
                                 </div>
-                                <a href="{{ route('market.materials.show', $material) }}"
+                                <a href="{{ route('market.materials.show', $material) }}" wire:navigate
                                    class="inline-flex w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50">
                                     詳細
                                 </a>
@@ -230,7 +230,7 @@
                                 </button>
                             </form>
                             <div class="mt-2 text-right">
-                                <a href="{{ route('market.materials.show', $material) }}" class="text-xs font-black text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-amber-700">
+                                <a href="{{ route('market.materials.show', $material) }}" wire:navigate class="text-xs font-black text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-amber-700">
                                     素材詳細を見る
                                 </a>
                             </div>

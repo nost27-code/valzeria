@@ -58,12 +58,12 @@
     </div>
 
     <div class="mt-3 flex gap-2">
-        <a href="{{ route('market.materials.show', $material) }}"
+        <a href="{{ route('market.materials.show', $material) }}" wire:navigate
            class="inline-flex flex-1 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50">
             詳細
         </a>
         @if((int) $item['owned_quantity'] > 0)
-            <a href="{{ route('market.index', ['tab' => 'sell', 'material_id' => $material->id]) }}"
+            <a href="{{ route('market.index', ['tab' => 'sell', 'material_id' => $material->id]) }}" wire:navigate
                class="inline-flex flex-1 items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700">
                 出品する
             </a>

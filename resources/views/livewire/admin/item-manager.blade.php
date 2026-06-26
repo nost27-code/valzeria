@@ -161,6 +161,10 @@
                         店売り
                     </label>
                     <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" wire:model="form.affix_enabled" class="{{ $checkboxClass }}">
+                        銘対象
+                    </label>
+                    <label class="inline-flex items-center gap-2">
                         <input type="checkbox" wire:model="form.is_active" class="{{ $checkboxClass }}">
                         公開する
                     </label>
@@ -242,6 +246,9 @@
                                         <div class="text-gray-400">{{ $item->unlock_city_id ? '街ID ' . $item->unlock_city_id : '全街' }}</div>
                                     @else
                                         <span class="text-gray-400">非売品</span>
+                                    @endif
+                                    @if($item->affix_enabled)
+                                        <div class="mt-1 text-indigo-700 font-bold">銘対象</div>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">

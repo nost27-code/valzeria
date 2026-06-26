@@ -17,10 +17,16 @@
         ->countBy()
         ->sortBy(fn ($count, $rank) => array_search($rank, ['G', 'F', 'E', 'D', 'C', 'B', 'A'], true) === false ? 999 : array_search($rank, ['G', 'F', 'E', 'D', 'C', 'B', 'A'], true))
         ->all();
+    $initialTab = in_array(session('valmon_active_tab'), ['farm', 'feed', 'background', 'dex'], true)
+        ? session('valmon_active_tab')
+        : 'farm';
+    $initialFeedKind = in_array(session('valmon_feed_kind'), ['material', 'equipment'], true)
+        ? session('valmon_feed_kind')
+        : 'material';
 @endphp
 <div class="w-full" x-data="{
-    tab: 'farm',
-    feedKind: 'material',
+    tab: @js($initialTab),
+    feedKind: @js($initialFeedKind),
     selectedBackground: @js(old('profile_ranch_background', $selectedRanchBackground)),
     selectedEquipmentIds: [],
     equipmentFeedExpById: @js($equipmentFeedExpById),
@@ -76,7 +82,6 @@
         form.submit();
     }
 }">
-
     {{-- ========== ヴァルモンシーン（16:9 全幅） ========== --}}
     <div class="relative w-full overflow-hidden md:rounded-2xl md:shadow-xl md:mb-5"
          style="aspect-ratio: 16/9;">
@@ -151,9 +156,6 @@
         <div class="px-4 md:px-0 pt-4 md:pt-0 space-y-4">
 
             {{-- フラッシュメッセージ --}}
-            @if(session('status'))
-                <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{{ session('status') }}</div>
-            @endif
             @if(session('error'))
                 <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{{ session('error') }}</div>
             @endif

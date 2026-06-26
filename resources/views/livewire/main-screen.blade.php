@@ -61,7 +61,7 @@
                             </div>
                             @if(in_array($currentLocation, ['town', 'dungeon', 'guild'], true))
                                 <button type="button"
-                                        wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: 'move' })"
+                                        wire:click="$dispatch('changeTab', { newLocation: 'move' })"
                                         @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
                                         class="shrink-0 rounded-md border border-[#d4af37] bg-white px-3 py-1.5 text-[12px] font-black text-[#9a6b00] shadow-sm transition hover:bg-amber-50 active:scale-95">
                                     MAPへ
@@ -89,7 +89,7 @@
                                     </div>
                                 </div>
                                 <div class="shrink-0">
-                                    <a href="{{ route('equipment.index') }}"
+                                    <a href="{{ route('equipment.index') }}" wire:navigate
                                        class="inline-flex items-center justify-center rounded bg-[#1e40af] px-3 py-2 text-xs font-bold text-white shadow border border-[#1e3a8a] active:scale-95">
                                         装備変更へ
                                     </a>
@@ -120,13 +120,13 @@
                                 </div>
                                 <div class="shrink-0">
                                     @if(!empty($currentMission['route']))
-                                        <a href="{{ route($currentMission['route']) }}"
+                                        <a href="{{ route($currentMission['route']) }}" wire:navigate
                                            class="inline-flex items-center justify-center rounded bg-[#1e40af] px-3 py-2 text-xs font-bold text-white shadow border border-[#1e3a8a] active:scale-95">
                                             {{ $currentMission['action_label'] }}
                                         </a>
                                     @elseif(!empty($currentMission['tab']))
                                         <button type="button"
-                                                wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: '{{ $currentMission['tab'] }}' })"
+                                                wire:click="$dispatch('changeTab', { newLocation: '{{ $currentMission['tab'] }}' })"
                                                 @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $currentMission['tab'] }}' } }))"
                                                 class="inline-flex items-center justify-center rounded bg-[#1e40af] px-3 py-2 text-xs font-bold text-white shadow border border-[#1e3a8a] active:scale-95">
                                             {{ $currentMission['action_label'] }}
@@ -224,7 +224,7 @@
                                         @endphp
 
                                         @if(!$menuIsInactive && isset($menuItem['route']))
-                                            <a href="{{ route($menuItem['route']) }}" class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
+                                            <a href="{{ route($menuItem['route']) }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
                                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 p-1">{!! $menuIconHtml !!}</div>
                                                 <div class="min-w-0 flex-1">
                                                     <div class="text-sm font-bold leading-tight text-slate-800">{{ $menuItem['name'] }}</div>
@@ -234,7 +234,7 @@
                                             </a>
                                         @elseif(!$menuIsInactive && isset($menuItem['tab']))
                                             <button type="button"
-                                                    wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: '{{ $menuItem['tab'] }}' })"
+                                                    wire:click="$dispatch('changeTab', { newLocation: '{{ $menuItem['tab'] }}' })"
                                                     @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $menuItem['tab'] }}' } }))"
                                                     class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
                                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 p-1">{!! $menuIconHtml !!}</div>
@@ -322,7 +322,7 @@
                                                         </button>
                                                     </form>
                                                 @else
-                                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" x-data="{ submitting: false }" @click="if (submitting) { $event.preventDefault(); } else { submitting = true; }" x-bind:class="submitting ? 'opacity-60 cursor-wait' : ''" class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
+                                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
                                                         @if($iconImage)
                                                             <img src="{{ asset('images/' . $iconImage) }}" alt="" class="h-7 w-7 object-contain">
                                                         @else
@@ -335,7 +335,7 @@
                                                 <button type="button"
                                                         x-data="{ submitting: false }"
                                                         @click="if (submitting) return; submitting = true; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $facility['tab'] }}' } })); $dispatch('tabSelectedFromOutside', { location: '{{ $facility['tab'] }}' }); setTimeout(() => submitting = false, 700);"
-                                                        wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: '{{ $facility['tab'] }}' })"
+                                                        wire:click="$dispatch('changeTab', { newLocation: '{{ $facility['tab'] }}' })"
                                                         x-bind:class="submitting ? 'opacity-60 cursor-wait' : ''"
                                                         class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
                                                     @if($iconImage)
@@ -456,7 +456,7 @@
                                         ? 'bg-rose-50 border-rose-200 text-rose-600'
                                         : 'bg-amber-50 border-amber-200 text-amber-700';
                                 @endphp
-                                <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $sBorder }}">
+                                <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $sBorder }}">
                                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $sIconBg }}">{!! $sIconHtml !!}</div>
                                     <div class="min-w-0 flex-1">
                                         <div class="text-sm font-bold leading-tight {{ $sNameClass }}">{{ $facility['name'] }}</div>
@@ -509,7 +509,7 @@
                                         </button>
                                     </form>
                                     @elseif(!$facIsInactive && isset($facility['route']))
-                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $facBorder }}">
+                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $facBorder }}">
                                         <div class="w-9 h-9 shrink-0 rounded-lg bg-amber-50 flex items-center justify-center overflow-hidden">{!! $facIconHtml !!}</div>
                                         <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
                                         <div class="shrink-0 flex items-center gap-1.5">
@@ -548,12 +548,20 @@
                             $isLocked = $facility['status'] === 'locked';
                             $isComingSoon = $facility['status'] === 'coming_soon';
                             $isInactive = $isLocked || $isComingSoon;
+                            $isTargetArea = isset($facility['id']) && (int) ($targetAreaId ?? 0) === (int) $facility['id'];
                         @endphp
                         
                         <div @if(isset($facility['id'])) id="dungeon-area-{{ $facility['id'] }}" @endif
                             class="border border-[#d4af37]/50 rounded-md flex relative overflow-hidden group scroll-mt-24
-                            {{ (isset($facility['id']) && (int) ($targetAreaId ?? 0) === (int) $facility['id']) ? 'ring-2 ring-amber-400 ring-offset-2' : '' }}
+                            {{ $isTargetArea ? 'ring-4 ring-orange-400 ring-offset-2 border-orange-500 shadow-[0_0_0_4px_rgba(251,146,60,0.18),0_14px_28px_rgba(194,65,12,0.18)] animate-pulse' : '' }}
                             {{ !$isInactive ? 'bg-white hover:border-[#d4af37] shadow hover:shadow-md transition-all' : 'bg-gray-100 border-gray-200 opacity-80 grayscale-[0.6]' }}">
+
+                            @if($isTargetArea)
+                                <div class="absolute inset-y-0 left-0 z-20 w-1.5 bg-orange-500"></div>
+                                <div class="absolute right-2 top-2 z-20 rounded-full border border-orange-300 bg-orange-50 px-2.5 py-1 text-[11px] font-black text-orange-700 shadow-sm">
+                                    素材の入手場所
+                                </div>
+                            @endif
 
                             @if(isset($facility['bg_image']))
                                 <!-- 実際の背景画像 -->
@@ -570,7 +578,7 @@
                                 <div class="absolute inset-0 z-0 bg-gradient-to-r from-amber-50/30 to-white pointer-events-none"></div>
                             @endif
 
-                            <div class="relative z-10 p-3 flex flex-col sm:flex-row w-full sm:items-center sm:justify-between gap-3">
+                            <div class="relative z-10 p-3 {{ $isTargetArea ? 'pt-9 sm:pt-3' : '' }} flex flex-col sm:flex-row w-full sm:items-center sm:justify-between gap-3">
                                 <!-- アイコンとテキストのコンテナ -->
                                 <div class="flex flex-row items-start sm:items-center flex-grow min-w-0 gap-3">
                                     <!-- アイコン（左側） -->
@@ -804,7 +812,7 @@
                         <div class="col-span-1 xl:col-span-2 border-2 border-[#d4af37] bg-amber-50 rounded-lg p-5 mt-4 flex flex-col items-center justify-center text-center shadow-md">
                             <h3 class="text-lg font-bold text-[#b8860b] mb-2 flex items-center justify-center gap-2">この街の探索を全て完了しました。</h3>
                             <p class="text-gray-700 mb-4 font-medium">新しい街へ旅立つ準備が整いました。次の冒険の舞台へ向かいましょう。</p>
-                            <button wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: 'move' })" @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))" class="inline-flex cursor-pointer items-center justify-center bg-[#1e40af] hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] text-white font-bold py-2.5 px-8 rounded text-center shadow-md transition-transform hover:-translate-y-1">
+                            <button wire:click="$dispatch('changeTab', { newLocation: 'move' })" @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))" class="inline-flex cursor-pointer items-center justify-center bg-[#1e40af] hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] text-white font-bold py-2.5 px-8 rounded text-center shadow-md transition-transform hover:-translate-y-1">
                                 <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain inline-block mr-1"> 街を移動する
                             </button>
                         </div>

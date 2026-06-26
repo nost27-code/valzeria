@@ -59,6 +59,25 @@
                             $enemyTypeText = $isHiddenGate
                                 ? '秘境入口'
                                 : ($isSubAreaGate ? '共有サブエリア入口' : ($isSubAreaExplore ? '共有サブエリア' : ($isDepthGate ? '探索深度入口' : ($isSecretRealmLord ? '秘境主' : ($isDungeonLord ? '【ダンジョン主】' : ($isBoss ? '【BOSS】' : '通常モンスター'))))));
+                            $enemyFamilyLabels = [
+                                'standard' => '通常',
+                                'slime' => 'スライム',
+                                'beast' => '獣',
+                                'goblin' => '小鬼',
+                                'soldier' => '人型',
+                                'mage' => '魔術師',
+                                'spirit' => '精霊',
+                                'undead' => 'アンデッド',
+                                'giant' => '巨人',
+                                'insect' => '虫',
+                                'flying' => '飛行',
+                                'aquatic' => '水棲',
+                                'dragon' => '竜',
+                                'demon' => '悪魔',
+                                'machine' => '機械',
+                            ];
+                            $enemyFamilyKey = (string) ($result['enemy']->family_key ?? '');
+                            $enemyFamilyText = $enemyFamilyLabels[$enemyFamilyKey] ?? ($enemyFamilyKey !== '' ? $enemyFamilyKey : $enemyTypeText);
                             $enemyStatDisplay = $result['enemy_stat_display'] ?? [];
                             $enemyStr = $enemyStatDisplay['str'] ?? ['base' => (int) $result['enemy']->str, 'bonus' => 0, 'total' => (int) $result['enemy']->str];
                             $enemyDef = $enemyStatDisplay['def'] ?? ['base' => (int) $result['enemy']->def, 'bonus' => 0, 'total' => (int) $result['enemy']->def];
@@ -180,6 +199,44 @@
                                 </div>
                             </div>
                         @else
+                            @if($isSecretRealmLord)
+                                <style>
+                                    @keyframes srlFadeIn {
+                                        0% { opacity: 0; transform: scale(1.06); filter: blur(8px); }
+                                        60% { opacity: 1; filter: blur(0); }
+                                        100% { opacity: 1; transform: scale(1); }
+                                    }
+                                    @keyframes srlTextIn {
+                                        0% { opacity: 0; transform: translateY(8px) scale(0.96); letter-spacing: 0.45em; }
+                                        100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.25em; }
+                                    }
+                                    @keyframes srlPulse {
+                                        0%, 100% { opacity: 0.6; }
+                                        50% { opacity: 1; }
+                                    }
+                                    .srl-banner { animation: srlFadeIn 1.6s ease-out both; }
+                                    .srl-label  { animation: srlTextIn 1.1s ease-out 0.5s both; }
+                                    .srl-name   { animation: srlTextIn 1.0s ease-out 0.85s both; }
+                                    .srl-sub    { animation: srlPulse 2.4s ease-in-out 1.6s infinite; }
+                                </style>
+                                <div class="srl-banner -mx-6 -mt-6 mb-6 overflow-hidden"
+                                     style="background:linear-gradient(160deg,#0a0a12 0%,#1a0a2e 40%,#0f172a 100%);">
+                                    <div class="relative px-5 py-7 text-center"
+                                         style="background:radial-gradient(ellipse at 50% 0%,rgba(139,92,246,0.18) 0%,transparent 65%);">
+                                        <div class="srl-label mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-950/60 px-4 py-1 text-[11px] font-black tracking-[0.3em] text-violet-300">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-violet-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;"></span>
+                                            SECRET REALM LORD
+                                            <span class="h-1.5 w-1.5 rounded-full bg-violet-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;"></span>
+                                        </div>
+                                        <div class="srl-name mt-2 text-2xl font-black tracking-[0.2em] text-white drop-shadow-[0_2px_8px_rgba(139,92,246,0.6)]">
+                                            秘境主が現れた！
+                                        </div>
+                                        <div class="mt-2 text-xs font-bold text-slate-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;">
+                                            この秘境の番人に遭遇した
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                             <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-8">
                                 {{-- キャラクター情報 --}}
                                 <div class="w-full {{ $isTreasure ? 'md:w-7/12' : 'md:w-5/12' }} border-2 border-amber-200 rounded-lg overflow-hidden">
@@ -245,9 +302,9 @@
                                                     </td>
                                                 </tr>
                                                 <tr>
-                                                    <th class="{{ $enemyThClass }} py-1">属性等</th>
+                                                    <th class="{{ $enemyThClass }} py-1">種族</th>
                                                     <td colspan="3" class="{{ $enemyTdClass ?: 'text-slate-600' }}">
-                                                        {{ $enemyTypeText }}
+                                                        {{ $enemyFamilyText }}
                                                         @if($enemyDangerRate > 0)
                                                             <span class="ml-1 text-orange-700 font-bold">危険度{{ number_format($enemyDangerRate) }}%</span>
                                                         @endif
@@ -481,6 +538,11 @@
                                                     レアドロップ
                                                 </div>
                                             @endif
+                                            @if(!empty($result['drop']['has_affix']))
+                                                <div class="mb-2 ml-1 inline-flex rounded bg-indigo-600 px-2 py-0.5 text-[11px] font-extrabold text-white">
+                                                    {{ ($result['drop']['affix_quality'] ?? null) === 'excellent' ? '逸品装備' : (($result['drop']['affix_quality'] ?? null) === 'good' ? '良品装備' : '銘付き装備') }}
+                                                </div>
+                                            @endif
                                             <p class="font-bold text-slate-800 text-base">
                                                 @if($result['drop']['rarity'] !== 'normal')
                                                     <span class="{{ $rarityColor }} font-extrabold">[{{ $rarityName }}]</span>
@@ -497,6 +559,13 @@
                                                 @if($result['drop']['spr_bonus']) 精神+{{ $result['drop']['spr_bonus'] }} @endif
                                                 @if($result['drop']['luk_bonus']) 運+{{ $result['drop']['luk_bonus'] }} @endif
                                             </p>
+                                            @if(!empty($result['drop']['affix_effect_lines']))
+                                                <div class="mt-2 flex flex-wrap gap-1">
+                                                    @foreach($result['drop']['affix_effect_lines'] as $line)
+                                                        <span class="rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">{{ $line }}</span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
 
                                             @php
                                                 $dropCharacterItem = !empty($result['drop']['character_item_id'])
@@ -545,6 +614,11 @@
                                                             レアドロップ
                                                         </div>
                                                     @endif
+                                                    @if(!empty($equipmentDrop['has_affix']))
+                                                        <div class="mb-1 ml-1 inline-flex rounded bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold text-white">
+                                                            {{ ($equipmentDrop['affix_quality'] ?? null) === 'excellent' ? '逸品装備' : (($equipmentDrop['affix_quality'] ?? null) === 'good' ? '良品装備' : '銘付き装備') }}
+                                                        </div>
+                                                    @endif
                                                     <div class="font-bold text-slate-800">{{ $equipmentDrop['item_name'] }}</div>
                                                     <div class="mt-1 flex flex-wrap gap-1 text-[11px] font-bold text-slate-500">
                                                         @if($equipmentDrop['hp_bonus']) <span>HP+{{ $equipmentDrop['hp_bonus'] }}</span> @endif
@@ -556,6 +630,13 @@
                                                         @if($equipmentDrop['spr_bonus']) <span>精神+{{ $equipmentDrop['spr_bonus'] }}</span> @endif
                                                         @if($equipmentDrop['luk_bonus']) <span>運+{{ $equipmentDrop['luk_bonus'] }}</span> @endif
                                                     </div>
+                                                    @if(!empty($equipmentDrop['affix_effect_lines']))
+                                                        <div class="mt-2 flex flex-wrap gap-1">
+                                                            @foreach($equipmentDrop['affix_effect_lines'] as $line)
+                                                                <span class="rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">{{ $line }}</span>
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         </div>
@@ -791,10 +872,11 @@
                                                     @foreach($chainLootSummary['materials'] as $material)
                                                         @php
                                                             $isSrMaterial = (bool) ($material['is_sr'] ?? false);
+                                                            $isSellTreasure = (bool) ($material['is_sell_treasure'] ?? false);
                                                         @endphp
-                                                        <span class="inline-flex items-center rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-bold {{ $isSrMaterial ? 'text-violet-700' : 'text-slate-700' }}">
+                                                        <span class="inline-flex items-center rounded border px-2 py-1 text-[11px] font-bold {{ $isSellTreasure ? 'border-yellow-300 bg-yellow-50 text-yellow-900' : 'border-emerald-100 bg-emerald-50 ' . ($isSrMaterial ? 'text-violet-700' : 'text-slate-700') }}">
                                                             {{ $material['name'] }}
-                                                            <span class="ml-1 text-emerald-700">x{{ number_format($material['quantity']) }}</span>
+                                                            <span class="ml-1 {{ $isSellTreasure ? 'text-yellow-700' : 'text-emerald-700' }}">x{{ number_format($material['quantity']) }}</span>
                                                         </span>
                                                     @endforeach
                                                 </div>
@@ -848,21 +930,27 @@
                         @endif
                     @endif
 
-                    @if(!isset($result['error']) && (!empty($result['development']) || !empty($result['new_discoveries'] ?? [])))
+                    @php
+                        $development = $result['development'] ?? null;
+                        $showDevelopmentProgress = !empty($development)
+                            && (int) ($development['after'] ?? 0) < (int) ($development['max'] ?? 100);
+                        $hasNewDiscoveries = !empty($result['new_discoveries'] ?? []);
+                    @endphp
+                    @if(!isset($result['error']) && ($showDevelopmentProgress || $hasNewDiscoveries))
                         <div class="mt-4 p-4 bg-sky-50 rounded-lg max-w-md mx-auto mb-6 border border-sky-200">
                             <h3 class="font-bold text-sky-900 text-lg mb-2 flex items-center gap-2">
                                 <img src="{{ asset('images/icon/icon_002.webp') }}" alt="" class="w-5 h-5 object-contain"> 探索の進展
                             </h3>
-                            @if(!empty($result['development']))
+                            @if($showDevelopmentProgress)
                                 <p class="text-sm text-sky-800 font-bold mb-2">
-                                    {{ $result['development']['area_name'] ?? 'この場所' }}の開拓度:
-                                    {{ $result['development']['before'] ?? 0 }}
+                                    {{ $development['area_name'] ?? 'この場所' }}の開拓度:
+                                    {{ $development['before'] ?? 0 }}
                                     →
-                                    {{ $result['development']['after'] ?? 0 }}
-                                    / {{ $result['development']['max'] ?? 100 }}
+                                    {{ $development['after'] ?? 0 }}
+                                    / {{ $development['max'] ?? 100 }}
                                 </p>
                             @endif
-                            @if(!empty($result['new_discoveries'] ?? []))
+                            @if($hasNewDiscoveries)
                                 <div class="space-y-1.5">
                                     @foreach($result['new_discoveries'] as $discovery)
                                         @php
@@ -948,7 +1036,11 @@
                     <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6 pb-6">
 
                         @php
-                            $battleWaitSeconds = app(\App\Services\CooldownSettingService::class)->explorationBattleSeconds();
+                            $battleWaitDepthKey = data_get($result, 'exploration_summary.depth.current.key', 'surface');
+                            if (($result['special_event'] ?? null) === 'sub_area_explore') {
+                                $battleWaitDepthKey = data_get($result, 'exploration_summary.depth.key', $battleWaitDepthKey);
+                            }
+                            $battleWaitSeconds = app(\App\Services\CooldownSettingService::class)->explorationBattleSecondsForDepthKey($battleWaitDepthKey);
                         @endphp
                         @if(!isset($result['error']) && !$isBoss && $isDepthGate)
                             @php

@@ -11,7 +11,7 @@ use RuntimeException;
 
 class EquipmentEnhancementService
 {
-    public const MAX_EQUIPMENT_ENHANCE = 3;
+    public const MAX_EQUIPMENT_ENHANCE = 5;
 
     private const STAT_FIELDS = [
         'hp' => 'hp_bonus',
@@ -37,6 +37,14 @@ class EquipmentEnhancementService
         'WEV0003' => 'MAT_STRONG_EQUIPMENT_FRAGMENT',
         '5003' => 'MAT_STRONG_EQUIPMENT_FRAGMENT',
         'ACC0003' => 'MAT_STRONG_EQUIPMENT_FRAGMENT',
+    ];
+
+    private const ACCESSORY_ENHANCEMENT_MATERIALS = [
+        1 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 1]],
+        2 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 3]],
+        3 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 5]],
+        4 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 7]],
+        5 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 9]],
     ];
 
     public function candidates(Character $character): array
@@ -217,6 +225,19 @@ class EquipmentEnhancementService
 
     private function recipeForLevel(int $level, string $type = 'weapon'): array
     {
+        if ($type === 'accessory') {
+            $materials = self::ACCESSORY_ENHANCEMENT_MATERIALS[$level] ?? null;
+            if (!$materials) {
+                throw new RuntimeException("+{$level} の装飾品強化レシピが見つかりません。");
+            }
+
+            return [
+                'materials' => $materials,
+                'success_rate' => 100,
+                'effect' => '基礎性能+' . ($level * 3) . '%',
+            ];
+        }
+
         if ($type === 'armor' && DB::getSchemaBuilder()->hasTable('armor_enhancement_recipes')) {
             $rows = DB::table('armor_enhancement_recipes')
                 ->where('target_equipment_type', 'armor')

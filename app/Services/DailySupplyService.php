@@ -42,9 +42,11 @@ class DailySupplyService
                     : null;
                 $stockedCount = $item ? $this->stockedCount($character, $item) : 0;
                 $dailyRemaining = $item ? $this->dailyRemaining($todaySupply) : 0;
+                $stockedToday = (int) ($todaySupply?->stocked_count ?? 0);
                 $spaceCount = max(0, self::DAILY_TARGET - $ownedCount);
                 $claimableCount = min($spaceCount, $stockedCount + $dailyRemaining);
                 $depotCount = $stockedCount + $dailyRemaining;
+                $carriedStockCount = max(0, $stockedCount - $stockedToday);
 
                 $canClaim = $item && ($claimableCount > 0 || $dailyRemaining > 0);
 
@@ -57,10 +59,11 @@ class DailySupplyService
                     'claimable_count' => $claimableCount,
                     'stocked_count' => $stockedCount,
                     'depot_count' => $depotCount,
+                    'carried_stock_count' => $carriedStockCount,
                     'daily_remaining' => $dailyRemaining,
                     'claimed_today' => (bool) $todaySupply && $dailyRemaining <= 0,
                     'supplied_count' => (int) ($todaySupply?->supplied_count ?? 0),
-                    'stocked_today' => (int) ($todaySupply?->stocked_count ?? 0),
+                    'stocked_today' => $stockedToday,
                     'can_claim' => $canClaim,
                     'sort' => $config['sort'],
                 ];

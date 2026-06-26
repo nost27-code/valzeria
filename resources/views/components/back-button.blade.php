@@ -5,7 +5,7 @@
     'iconImage' => 'images/icon/icon_001.webp',
 ])
 
-<a href="{{ $href }}"
+<a href="{{ $href }}" wire:navigate
    x-data="{ loading: false }"
    @click="if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) loading = true"
    :class="loading ? 'pointer-events-none opacity-80' : ''"

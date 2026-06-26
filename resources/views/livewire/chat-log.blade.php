@@ -1,5 +1,5 @@
 <!-- 3. 下部：全幅チャットログエリア -->
-<div wire:poll.3s class="w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans">
+<div wire:poll.30s class="w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans">
     <!-- タブ -->
     <div class="flex items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500 shrink-0">
         <div class="flex min-w-0 flex-1 overflow-x-auto">
@@ -14,8 +14,8 @@
             wire:click="toggleExpanded"
             type="button"
             class="shrink-0 border-l border-gray-200 bg-white px-3 py-2 text-sm font-black leading-none text-[#1e40af] hover:bg-blue-50"
-            aria-label="{{ $isExpanded ? 'チャット欄を短くする' : 'チャット欄を長くする' }}"
-            title="{{ $isExpanded ? 'チャット欄を短くする' : 'チャット欄を長くする' }}"
+            aria-label="{{ $isExpanded ? 'チャット欄を短くする' : 'チャットを15行多く表示する' }}"
+            title="{{ $isExpanded ? 'チャット欄を短くする' : 'チャットを15行多く表示する' }}"
         >
             {{ $isExpanded ? '▲' : '▼' }}
         </button>
@@ -37,7 +37,9 @@
                         @else text-yellow-600 font-bold
                         @endif
                     @elseif($log['type'] == 'job') text-purple-600 font-bold
+                    @elseif($log['type'] == 'arena') text-amber-700 font-bold
                     @elseif($log['type'] == 'duel') text-red-600 font-bold
+                    @elseif($log['type'] == 'admin') text-[#1e40af] font-black
                     @elseif($log['type'] == 'guild') text-blue-600 font-bold
                     @elseif($log['type'] == 'valmon') text-teal-600 font-bold
                     @elseif($log['type'] == 'sub_area') text-cyan-600 font-bold
@@ -61,7 +63,6 @@
     <form wire:submit="sendMessage" class="bg-gray-50 border-t border-gray-200 p-2 flex items-center gap-1.5 shrink-0 min-w-0">
         <select wire:model.live="chatTarget" class="w-[4.75rem] shrink-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700">
             <option value="all">全体</option>
-            <option value="guild">ギルド</option>
             <option value="private">個人</option>
         </select>
 

@@ -72,6 +72,10 @@ class EquipmentController extends Controller
 
         $result = $equipmentService->equip($character, $characterItem);
 
+        if ($result['success']) {
+            \App\Livewire\MainScreen::clearHomeCache($character->id);
+        }
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => $result['success'],
@@ -109,6 +113,10 @@ class EquipmentController extends Controller
 
         $result = $equipmentService->unequip($character, $characterItem);
         $tab = $characterItem->item ? $equipmentService->getAccessoryTab($characterItem->item) : 'weapon';
+
+        if ($result['success']) {
+            \App\Livewire\MainScreen::clearHomeCache($character->id);
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -365,13 +373,13 @@ class EquipmentController extends Controller
         $item = $characterItem->item;
         $rank = $this->rankValue($item->rarity ?? null);
 
-        $str = (int) ($item->str_bonus ?? 0);
-        $def = (int) ($item->def_bonus ?? 0);
-        $mag = (int) ($item->mag_bonus ?? 0);
-        $agi = (int) ($item->agi_bonus ?? 0);
-        $spr = (int) ($item->spr_bonus ?? 0);
-        $luk = (int) ($item->luk_bonus ?? 0);
-        $hp = (int) ($item->hp_bonus ?? 0);
+        $str = (int) ($item->str_bonus ?? 0) + (int) ($characterItem->affix_str_bonus ?? 0);
+        $def = (int) ($item->def_bonus ?? 0) + (int) ($characterItem->affix_def_bonus ?? 0);
+        $mag = (int) ($item->mag_bonus ?? 0) + (int) ($characterItem->affix_mag_bonus ?? 0);
+        $agi = (int) ($item->agi_bonus ?? 0) + (int) ($characterItem->affix_agi_bonus ?? 0);
+        $spr = (int) ($item->spr_bonus ?? 0) + (int) ($characterItem->affix_spr_bonus ?? 0);
+        $luk = (int) ($item->luk_bonus ?? 0) + (int) ($characterItem->affix_luk_bonus ?? 0);
+        $hp = (int) ($item->hp_bonus ?? 0) + (int) ($characterItem->affix_hp_bonus ?? 0);
 
         $recommend = match ($item->type) {
             'weapon' => $str + ($mag * 0.8) + ($agi * 0.3) + ($luk * 0.2),

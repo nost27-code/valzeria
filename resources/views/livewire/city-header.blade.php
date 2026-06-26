@@ -16,34 +16,28 @@
             max-height: 88vh;
             overflow-y: auto;
             isolation: isolate;
-            border-width: 3px !important;
             border-radius: var(--profile-radius, 18px);
-            padding-top: 20px !important;
-            outline: 1px solid rgba(255, 255, 255, .84);
-            outline-offset: -7px;
+            border-width: 0 !important;
+            outline: none;
+            scrollbar-color: rgba(100, 116, 139, .56) rgba(241, 245, 249, .72);
+            scrollbar-width: thin;
         }
-        .profile-frame-modal::before,
-        .profile-frame-modal::after {
-            content: "";
-            position: absolute;
-            pointer-events: none;
-            z-index: -1;
+        .profile-frame-modal::-webkit-scrollbar {
+            width: 10px;
         }
-        .profile-frame-modal::before {
-            inset: 8px;
-            border: 1px solid var(--profile-inner-border, rgba(212, 175, 55, .35));
-            border-radius: var(--profile-inner-radius, 12px);
-            background: var(--profile-pattern, transparent);
-            opacity: .78;
-        }
-        .profile-frame-modal::after {
-            right: 14px;
-            bottom: 12px;
-            width: 86px;
-            height: 86px;
+        .profile-frame-modal::-webkit-scrollbar-track {
+            margin: 14px 0;
             border-radius: 999px;
-            background: var(--profile-ornament);
-            opacity: .88;
+            background: rgba(241, 245, 249, .72);
+        }
+        .profile-frame-modal::-webkit-scrollbar-thumb {
+            border: 2px solid rgba(241, 245, 249, .72);
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(148, 163, 184, .82), rgba(71, 85, 105, .72));
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .34);
+        }
+        .profile-frame-modal::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(100, 116, 139, .92), rgba(51, 65, 85, .86));
         }
         .profile-frame-standard {
             --profile-main: #b88a09;
@@ -547,7 +541,7 @@
                     </div>
                 </div>
                 <button type="button"
-                        wire:click="$dispatchTo('nav-menu', 'tabSelectedFromOutside', { location: 'move' })"
+                        wire:click="$dispatch('changeTab', { newLocation: 'move' })"
                         @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
                         class="ml-auto flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
                         aria-label="街を移動する">
@@ -590,7 +584,7 @@
     <!-- キャラ詳細モーダル -->
     <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
-        <div class="profile-frame-modal rounded-lg border-2 p-5 text-gray-800"
+        <div class="profile-frame-modal p-5 text-gray-800"
              :class="`profile-frame-${playerInfo && playerInfo.profile_frame_theme ? playerInfo.profile_frame_theme : 'standard'}`">
             <!-- 閉じるボタン -->
             <button wire:click="closePlayerModal" class="profile-close-button hover:opacity-80">

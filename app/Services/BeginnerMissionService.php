@@ -23,9 +23,17 @@ class BeginnerMissionService
     {
         $completedKeys = $this->completedKeys($character);
         $missions = $this->firstMissions($character, $completedKeys);
-        $completedKeys = $this->syncCompletedKeys($character, $missions, $completedKeys);
-        $character = $character->fresh() ?? $character;
-        $missions = $this->firstMissions($character, $completedKeys);
+        $newKeys = $this->syncCompletedKeys($character, $missions, $completedKeys);
+
+        // syncCompletedKeys がDBに書いた場合のみ fresh() する
+        if ($newKeys !== $completedKeys) {
+            $character = $character->fresh() ?? $character;
+            $completedKeys = $newKeys;
+            $missions = $this->firstMissions($character, $completedKeys);
+        } else {
+            $completedKeys = $newKeys;
+        }
+
         $completed = collect($missions)->where('completed', true)->count();
         $total = count($missions);
         $allPersisted = empty(array_diff($this->missionKeys($missions), $completedKeys));
@@ -48,9 +56,12 @@ class BeginnerMissionService
         }
 
         $missions = $this->arkreaMissions($character, $completedKeys);
-        $completedKeys = $this->syncCompletedKeys($character, $missions, $completedKeys);
-        $character = $character->fresh() ?? $character;
-        $missions = $this->arkreaMissions($character, $completedKeys);
+        $newKeys2 = $this->syncCompletedKeys($character, $missions, $completedKeys);
+        if ($newKeys2 !== $completedKeys) {
+            $character = $character->fresh() ?? $character;
+            $completedKeys = $newKeys2;
+            $missions = $this->arkreaMissions($character, $completedKeys);
+        }
         $completed = collect($missions)->where('completed', true)->count();
         $total = count($missions);
 

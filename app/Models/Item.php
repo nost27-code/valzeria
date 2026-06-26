@@ -15,13 +15,23 @@ class Item extends Model
         'external_item_id', 'weapon_family_id', 'weapon_family_name',
         'weapon_rank', 'weapon_rank_sort', 'weapon_rank_multiplier',
         'evolution_stage', 'next_item_external_id',
-        'is_evolution_enabled', 'is_drop_enabled', 'is_supply_enabled', 'max_enhance',
+        'is_evolution_enabled', 'is_drop_enabled', 'affix_enabled', 'is_supply_enabled', 'max_enhance',
         'armor_category', 'armor_weight', 'armor_role',
         'armor_family_id', 'armor_family_name', 'armor_category_id', 'armor_category_name',
         'armor_rank', 'armor_rank_sort', 'armor_rank_multiplier',
         'evolution_group_id', 'next_armor_external_id',
         'accessory_family_id', 'accessory_family_name', 'accessory_category_id', 'accessory_category_name',
         'accessory_rank', 'accessory_rank_sort', 'accessory_rank_multiplier', 'next_accessory_external_id',
+    ];
+
+    protected $casts = [
+        'is_shop_item' => 'boolean',
+        'is_active' => 'boolean',
+        'is_evolution_enabled' => 'boolean',
+        'is_drop_enabled' => 'boolean',
+        'affix_enabled' => 'boolean',
+        'is_supply_enabled' => 'boolean',
+        'max_enhance' => 'integer',
     ];
 
     public function characterItems()

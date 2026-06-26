@@ -36,6 +36,31 @@ N = not implemented
 ? = unverified
 X = deprecated/removed
 
+## Update log sync
+
+After implementation, check whether docs/UPDATE_LOG.md should be updated.
+
+Update it only for meaningful changes:
+- new feature
+- user-visible UI/behavior change
+- game rule or balance change
+- user-impacting bug fix
+- important admin/auth/DB/operation change
+
+Do not update it for tiny code cleanup or AI docs-only changes.
+
+Write entries under `## Unreleased` in Japanese.
+Prefer short bullets grouped by:
+- Added
+- Changed
+- Fixed
+- Balance
+- Internal
+
+Report either:
+- Update log: updated docs/UPDATE_LOG.md
+- Update log: not needed — <reason>
+
 ## Finish
 
 Report one of:

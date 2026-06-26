@@ -61,9 +61,12 @@ class StorageCapacityService
         }
 
         $details = $lines ? '<br><span class="text-xs">' . e(implode('　', $lines)) . '</span>' : '';
+        $inventoryUrl = route('inventory.index');
         $supportUrl = route('kiseki.support');
 
-        return '倉庫がいっぱいです。探索する前に倉庫の整理をしてください。倉庫の拡張は'
+        return '倉庫がいっぱいです。探索する前に'
+            . '<a href="' . e($inventoryUrl) . '" class="underline underline-offset-2 font-extrabold">倉庫の整理</a>'
+            . 'をしてください。倉庫の拡張は'
             . '<a href="' . e($supportUrl) . '" class="underline underline-offset-2 font-extrabold">こちら</a>'
             . 'で行えます。'
             . $details;

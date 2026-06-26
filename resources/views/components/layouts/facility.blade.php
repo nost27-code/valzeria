@@ -38,7 +38,7 @@
             }
         </script>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>{{ $title ?? '施設' }} - ヴァルゼリアの冒険者</title>
         <link rel="icon" href="{{ asset('images/favicon.webp') }}?v=2" type="image/webp">
         @include('partials.ogp', ['ogTitle' => ($title ?? '施設') . ' - ヴァルゼリアの冒険者'])
@@ -155,7 +155,7 @@
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('home') }}" class="inline-flex items-center text-slate-500 hover:text-[#d4af37] font-bold transition-colors group">
+                        <a href="{{ route('home') }}" wire:navigate class="inline-flex items-center text-slate-500 hover:text-[#d4af37] font-bold transition-colors group">
                             <svg class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                             {{ $exitLabel }}
                         </a>

@@ -6,7 +6,21 @@ class CooldownSettingService
 {
     public function explorationBattleSeconds(): int
     {
-        return $this->seconds('cooldown.exploration_battle_seconds', 20, 0, 3600);
+        return $this->explorationBattleSecondsForDepthKey('surface');
+    }
+
+    public function explorationBattleSecondsForDepthKey(?string $depthKey): int
+    {
+        return match ($depthKey) {
+            'inner' => 15,
+            'deep', 'deepest', 'otherworld' => 20,
+            default => 10,
+        };
+    }
+
+    public function explorationBattleSecondsForDepthTier(?array $tier): int
+    {
+        return $this->explorationBattleSecondsForDepthKey((string) ($tier['key'] ?? 'surface'));
     }
 
     public function innSeconds(): int
