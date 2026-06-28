@@ -6,6 +6,7 @@
             $hpPercent = $maxHp > 0 ? min(100, max(0, ($character->current_hp / $maxHp) * 100)) : 0;
             $mpPercent = $maxMp > 0 ? min(100, max(0, ($character->current_mp / $maxMp) * 100)) : 0;
             $expPercent = $nextExp > 0 ? min(100, max(0, ($character->exp / $nextExp) * 100)) : 0;
+            $combatPower = app(\App\Services\CharacterPowerService::class)->fromFinalStats($finalStats ?? []);
 
             $equippedItems = app(\App\Services\EquipmentService::class)->getEquippedItems($character);
             $weapon = $equippedItems['weapon'] ?? null;
@@ -56,6 +57,14 @@
                             </div>
 
                             <div class="mt-1.5 flex min-w-0 items-center gap-1.5">
+                                <div class="flex min-w-0 items-center gap-1.5">
+                                    <img src="{{ asset('images/icon/icon_009.webp') }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                    <span class="shrink-0 text-[11px] font-black text-slate-500">戦力</span>
+                                    <span class="text-base font-black text-slate-800 tabular-nums">{{ number_format($combatPower) }}</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-1 flex min-w-0 items-center gap-1.5">
                                 <img src="{{ asset('images/icon/colosseum01.webp') }}" alt="ランク" class="h-5 w-5 shrink-0 object-contain">
                                 <span class="shrink-0 text-[11px] font-black text-slate-500">ランク</span>
                                 <div class="shrink-0 leading-none">
@@ -324,8 +333,9 @@
                                 @foreach($allJobs as $job)
                                     @php
                                         $history = $character->jobHistories->where('job_class_id', $job->id)->first();
-                                        $level = $history ? $history->job_level : 0;
-                                        $starString = str_repeat('★', $level) . str_repeat('☆', 10 - $level);
+                                        $level = $history ? (int) $history->job_level : 0;
+                                        $displayLevel = max(0, min(10, $level));
+                                        $starString = str_repeat('★', $displayLevel) . str_repeat('☆', 10 - $displayLevel);
                                         $displayName = ($job->rank === 'legend' && $level === 0) ? '？？？' : $job->name;
                                     @endphp
                                     <div class="flex justify-between items-center p-2 rounded {{ $character->current_job_id === $job->id ? 'bg-amber-100 border border-transparent shadow-sm' : 'bg-white border border-slate-200' }}">

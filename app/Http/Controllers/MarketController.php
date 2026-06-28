@@ -34,6 +34,7 @@ class MarketController extends Controller
 
         $marketStats = MarketListing::query()
             ->active()
+            ->marketSellerEligible()
             ->where('listing_type', 'material')
             ->where('seller_character_id', '!=', $character->id)
             ->select('material_id', DB::raw('SUM(remaining_quantity) as stock'), DB::raw('MIN(unit_price) as lowest_price'))
@@ -79,6 +80,7 @@ class MarketController extends Controller
 
         $ownListings = MarketListing::query()
             ->where('seller_character_id', $character->id)
+            ->where('seller_type', 'character')
             ->with('material')
             ->orderByRaw("CASE status WHEN 'active' THEN 1 WHEN 'sold_out' THEN 2 WHEN 'cancelled' THEN 3 WHEN 'expired' THEN 4 ELSE 9 END")
             ->orderByDesc('created_at')
@@ -90,7 +92,7 @@ class MarketController extends Controller
                 $query->where('seller_character_id', $character->id)
                     ->orWhere('buyer_character_id', $character->id);
             })
-            ->with(['material', 'seller', 'buyer'])
+            ->with(['material', 'seller', 'sellerNpc', 'buyer'])
             ->orderByDesc('created_at')
             ->limit(100)
             ->get();

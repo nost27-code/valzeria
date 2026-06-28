@@ -29,7 +29,7 @@ class NpcProcurementRequestController extends Controller
             return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         }
 
-        $npcProcurementRequest->load(['materials.material', 'city']);
+        $npcProcurementRequest->load(['materials.material', 'city', 'npc']);
         $service->attachDeliveryContext(collect([$npcProcurementRequest]), $character);
 
         return view('market.npc-requests.show', [

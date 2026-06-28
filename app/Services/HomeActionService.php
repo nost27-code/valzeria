@@ -324,6 +324,10 @@ class HomeActionService
             return;
         }
 
+        if ((int) ($character->bonus_points ?? 0) > 0) {
+            return;
+        }
+
         if (! Schema::hasTable('character_jobs')) {
             return;
         }

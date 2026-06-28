@@ -29,6 +29,11 @@ class MarketTransaction extends Model
         return $this->belongsTo(Character::class, 'seller_character_id');
     }
 
+    public function sellerNpc()
+    {
+        return $this->belongsTo(NpcMaster::class, 'seller_npc_id', 'npc_id');
+    }
+
     public function buyer()
     {
         return $this->belongsTo(Character::class, 'buyer_character_id');

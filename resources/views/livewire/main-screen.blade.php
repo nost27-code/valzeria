@@ -179,9 +179,15 @@
                                         </div>
                                     </div>
                                     @if($subArea)
+                                        @php
+                                            $subAreaPowerRange = app(\App\Services\CharacterPowerService::class)->recommendedRangeForLevels(
+                                                (int) ($subArea->recommended_level_min ?? 1),
+                                                (int) ($subArea->recommended_level_max ?? $subArea->recommended_level_min ?? 1)
+                                            );
+                                        @endphp
                                         <div class="flex shrink-0 items-center gap-1.5">
                                             <span class="rounded bg-white px-2 py-1 text-[10px] font-black text-indigo-700 shadow-sm">
-                                                Lv{{ number_format($subArea->recommended_level_min) }}〜
+                                                戦力{{ app(\App\Services\CharacterPowerService::class)->formatRange($subAreaPowerRange) }}
                                             </span>
                                             <a href="{{ route('battle.sub_area.confirm', ['discovery' => $discovery]) }}"
                                                class="rounded bg-indigo-700 px-2.5 py-1 text-[10px] font-black text-white shadow-sm transition hover:bg-indigo-800 active:scale-95">

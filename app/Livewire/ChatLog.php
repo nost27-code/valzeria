@@ -10,7 +10,11 @@ class ChatLog extends Component
 {
     public string $activeTab = 'all';
     public bool $isExpanded = false;
-    
+    public int $logLimit = 15;
+
+    const LOG_STEP = 50;
+    const LOG_MAX  = 200;
+
     // チャット入力用プロパティ
     public string $message = '';
     public string $chatTarget = 'all'; // 'all', 'private'
@@ -33,6 +37,12 @@ class ChatLog extends Component
     public function toggleExpanded()
     {
         $this->isExpanded = !$this->isExpanded;
+    }
+
+    public function loadMore()
+    {
+        $this->logLimit = min(self::LOG_MAX, $this->logLimit + self::LOG_STEP);
+        $this->isExpanded = true;
     }
 
     public function sendMessage(PublicLogService $logService)
@@ -82,8 +92,9 @@ class ChatLog extends Component
     {
         // フィルタリングのために少し多めに取得（自分のIDを渡す）
         $characterId = auth()->check() && auth()->user()->currentCharacter() ? auth()->user()->currentCharacter()->id : null;
-        $displayLimit = $this->isExpanded ? 30 : 15;
-        $publicLogs = $logService->getRecentLogs($this->isExpanded ? 90 : 50, $characterId);
+        $displayLimit = $this->logLimit;
+        $fetchLimit = $displayLimit <= 15 ? 50 : min(800, $displayLimit * 4);
+        $publicLogs = $logService->getRecentLogs($fetchLimit, $characterId);
         $systemLogs = [];
         $count = 0;
 

@@ -14,6 +14,9 @@ use App\Services\Enemy\EnemyStatPreviewService;
 
 class BattleService
 {
+    private const PVE_ENEMY_MIN_HIT_RATE = 82;
+    private const PVE_ENEMY_LATE_MIN_HIT_RATE = 88;
+
     protected CharacterStatusService $statusService;
     protected DamageCalculator $damageCalculator;
     protected JobArtService $jobArtService;
@@ -43,6 +46,11 @@ class BattleService
             ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
             ->with('item')
             ->first();
+        $equippedArmor = $character->characterItems()
+            ->where('is_equipped', true)
+            ->whereHas('item', fn ($query) => $query->where('type', 'armor'))
+            ->with('item')
+            ->first();
         $playerActor = new BattleActor($character->name, true, [
             'hp' => $character->current_hp,
             'max_hp' => $stats['max_hp'],
@@ -56,6 +64,8 @@ class BattleService
             'luk' => $stats['luk'],
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
             'weapon_killer_damage_rate' => (float) ($equippedWeapon?->killer_damage_rate ?? 0),
+            'armor_resist_species_key' => $equippedArmor?->resist_species_key,
+            'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
         ], clone $character);
 
         // プレイヤーの職業技をセット
@@ -160,7 +170,7 @@ class BattleService
             
             // 職業経験値（J-EXP）の算出ロジック
             if ($enemy->job_exp_reward > 0) {
-                $result->jobExp = $enemy->job_exp_reward;
+                $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $enemy->job_exp_reward);
             } else {
                 $levelDiff = $enemy->level - $character->level;
                 $jobExp = 0;
@@ -179,7 +189,7 @@ class BattleService
                     $jobExp += rand(1, 2);
                 }
 
-                $result->jobExp = $jobExp;
+                $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $jobExp);
             }
         } else {
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">双方が疲弊し、戦闘は終了した。</span>");
@@ -545,7 +555,7 @@ class BattleService
      */
     protected function executeNormalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
-        if (!$this->damageCalculator->isHit($attacker, $defender)) {
+        if (!$this->isPveAttackHit($attacker, $defender)) {
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
             return;
         }
@@ -564,7 +574,7 @@ class BattleService
 
     protected function executePhysicalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
-        if (!$this->damageCalculator->isHit($attacker, $defender)) {
+        if (!$this->isPveAttackHit($attacker, $defender)) {
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
             return;
         }
@@ -681,7 +691,7 @@ class BattleService
     protected function executeMagicalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
         // 魔法も回避される可能性がある前提（命中判定）
-        if (!$this->damageCalculator->isHit($attacker, $defender)) {
+        if (!$this->isPveAttackHit($attacker, $defender)) {
             $state->addLog("{$attacker->name} は魔法を唱えた！……しかし、{$defender->name} は抵抗した！");
             return;
         }
@@ -690,6 +700,29 @@ class BattleService
         $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $defender->takeDamage($damage);
         $state->addLog("{$attacker->name} の魔法攻撃！ {$defender->name} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+    }
+
+    private function isPveAttackHit(BattleActor $attacker, BattleActor $defender, int $skillAccuracy = 100): bool
+    {
+        if ($attacker->isPlayer || ! $defender->isPlayer) {
+            return $this->damageCalculator->isHit($attacker, $defender, $skillAccuracy);
+        }
+
+        $enemy = $attacker->originalModel;
+        $enemy?->loadMissing('area');
+        $cityId = (int) ($enemy?->area?->city_id ?? 0);
+        $minHitRate = $cityId >= 10
+            ? self::PVE_ENEMY_LATE_MIN_HIT_RATE
+            : self::PVE_ENEMY_MIN_HIT_RATE;
+
+        return $this->damageCalculator->isHit(
+            $attacker,
+            $defender,
+            $skillAccuracy,
+            0.5,
+            $minHitRate,
+            99
+        );
     }
 
     /**
@@ -842,6 +875,7 @@ class BattleService
             'HYBRID_DAMAGE' => $this->executeHybridJobArtAttack($attacker, $defender, $state, $power),
             'MULTI_HIT' => $this->executeMultiHitJobArt($attacker, $defender, $state, $power),
             'DAMAGE_BUFF' => $this->executeDamageBuffJobArt($attacker, $defender, $state, $power, $skill),
+            'MAGICAL_DAMAGE_BUFF' => $this->executeMagicalDamageBuffJobArt($attacker, $defender, $state, $power, $skill),
             'DAMAGE_DEBUFF' => $this->executeDamageDebuffJobArt($attacker, $defender, $state, $power, $skill),
             'SELF_BUFF' => $this->applySelfBuff($attacker, $state, $skill),
             'ENEMY_DEBUFF' => $this->applyEnemyDebuff($defender, $state, $skill),
@@ -892,6 +926,14 @@ class BattleService
         }
     }
 
+    private function executeMagicalDamageBuffJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, Skill $skill): void
+    {
+        $this->executeMagicalAttack($attacker, $defender, $state, $power);
+        if (!$defender->isDead()) {
+            $this->applySelfBuff($attacker, $state, $skill, true);
+        }
+    }
+
     private function executeDamageDebuffJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, Skill $skill): void
     {
         $attacker->usesMagForNormalAttack()
@@ -902,10 +944,11 @@ class BattleService
         }
     }
 
-    private function applySelfBuff(BattleActor $attacker, BattleState $state, Skill $skill): void
+    private function applySelfBuff(BattleActor $attacker, BattleState $state, Skill $skill, ?bool $forceMagical = null): void
     {
         $rate = $this->buffRate($skill);
-        if ($attacker->usesMagForNormalAttack()) {
+        $isMagical = $forceMagical ?? $attacker->usesMagForNormalAttack();
+        if ($isMagical) {
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * $rate)));
             $attacker->spr = min((int) floor($attacker->baseSpr * 1.5), $attacker->spr + max(1, (int) floor($attacker->baseSpr * ($rate / 2))));
             $state->addLog("<span class=\"text-indigo-600 font-bold\">{$attacker->name} の魔力が高まった！</span>");
@@ -937,6 +980,7 @@ class BattleService
         $heal = max(1, (int) floor($attacker->spr * ($power / 100) * $rate));
         $attacker->healHp($heal);
         $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>");
+        $this->recoverJobArtSp($attacker, $state, $skill, $rate);
     }
 
     private function executeDrainJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, float $rate): void
@@ -945,9 +989,29 @@ class BattleService
         $this->executeMagicalAttack($attacker, $defender, $state, $power);
         $dealt = max(0, $beforeHp - $defender->hp);
         if ($dealt > 0) {
-            $heal = max(1, (int) floor($dealt * 0.35 * $rate));
-            $attacker->healHp($heal);
-            $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>");
+            if (str_contains((string) $skill->description, 'HP')) {
+                $heal = max(1, (int) floor($dealt * 0.35 * $rate));
+                $attacker->healHp($heal);
+                $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>");
+            }
+
+            $this->recoverJobArtSp($attacker, $state, $skill, $rate);
+        }
+    }
+
+    private function recoverJobArtSp(BattleActor $attacker, BattleState $state, Skill $skill, float $rate): void
+    {
+        if ((int) $skill->mp_recover_percent <= 0 || $attacker->maxMp <= 0) {
+            return;
+        }
+
+        $recover = max(1, (int) floor($attacker->maxMp * ((int) $skill->mp_recover_percent / 100) * $rate));
+        $before = $attacker->mp;
+        $attacker->mp = min($attacker->maxMp, $attacker->mp + $recover);
+        $actual = $attacker->mp - $before;
+
+        if ($actual > 0) {
+            $state->addLog("<span class=\"text-blue-500 font-bold\">SPが {$actual} 回復した！</span>");
         }
     }
 
@@ -995,7 +1059,7 @@ class BattleService
 
     private function applyPveKillerDamage(int $damage, BattleActor $attacker, BattleActor $defender, BattleState $state): int
     {
-        if ($damage <= 0 || !$attacker->isPlayer || $defender->isPlayer) {
+        if ($damage <= 0) {
             return $damage;
         }
 
@@ -1003,13 +1067,24 @@ class BattleService
             return $damage;
         }
 
-        $killerSpecies = (string) ($attacker->weaponKillerSpeciesKey ?? '');
-        $defenderSpecies = (string) ($defender->speciesKey ?? '');
-        $rate = (float) ($attacker->weaponKillerDamageRate ?? 0);
-        if ($killerSpecies === '' || $defenderSpecies === '' || $rate <= 0 || $killerSpecies !== $defenderSpecies) {
-            return $damage;
+        if ($attacker->isPlayer && !$defender->isPlayer) {
+            $killerSpecies = (string) ($attacker->weaponKillerSpeciesKey ?? '');
+            $defenderSpecies = (string) ($defender->speciesKey ?? '');
+            $rate = (float) ($attacker->weaponKillerDamageRate ?? 0);
+            if ($killerSpecies !== '' && $defenderSpecies !== '' && $rate > 0 && $killerSpecies === $defenderSpecies) {
+                $damage = max(1, (int) floor($damage * (1 + $rate)));
+            }
         }
 
-        return max(1, (int) floor($damage * (1 + $rate)));
+        if (!$attacker->isPlayer && $defender->isPlayer) {
+            $attackerSpecies = (string) ($attacker->speciesKey ?? '');
+            $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
+            $rate = min(0.10, (float) ($defender->armorSpeciesDamageReductionRate ?? 0));
+            if ($attackerSpecies !== '' && $resistSpecies !== '' && $rate > 0 && $attackerSpecies === $resistSpecies) {
+                $damage = max(1, (int) floor($damage * (1 - $rate)));
+            }
+        }
+
+        return $damage;
     }
 }

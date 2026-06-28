@@ -63,9 +63,7 @@ return new class extends Migration
             }
         });
 
-        // 念のためこのタイミングでジョブシステム全体のデータを初期化・更新する
-        // （すでにデータがある場合は updateOrCreate などで上書きされる）
-        Artisan::call('db:seed', ['--class' => 'JobSystemSeeder', '--force' => true]);
+        // ジョブデータの初期投入は全カラム追加後のマイグレーション(2026_06_17_230000)で行う
     }
 
     /**

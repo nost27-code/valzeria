@@ -1,15 +1,24 @@
 @if(!empty($champSummary))
     @php
         $champ = $champSummary['champ'];
+        $champFatigue = $champSummary['champ_fatigue'] ?? ['percent' => 0, 'defense_count' => (int) ($champ->defense_count ?? 0)];
+        $champStats = $champSummary['champ_effective_stats'] ?? [
+            'atk' => $champ->atk,
+            'def' => $champ->def,
+            'mag' => $champ->mag,
+            'spr' => $champ->spr,
+            'spd' => $champ->spd,
+            'luk' => $champ->luk,
+        ];
         $valmonImagePath = $champValmon?->master?->imageUrl();
         $valmonName = $champValmon?->nickname ?: ($champValmon?->master?->name ?? null);
         $stats = [
-            ['攻撃', $champ->atk, 'images/icon/icon_str.webp'],
-            ['防御', $champ->def, 'images/icon/icon_def.webp'],
-            ['魔法', $champ->mag, 'images/icon/icon_mag.webp'],
-            ['精神', $champ->spr, 'images/icon/icon_spr.webp'],
-            ['速さ', $champ->spd, 'images/icon/icon_agi.webp'],
-            ['運',   $champ->luk, 'images/icon/icon_luk.webp'],
+            ['攻撃', $champStats['atk'], 'images/icon/icon_str.webp'],
+            ['防御', $champStats['def'], 'images/icon/icon_def.webp'],
+            ['魔法', $champStats['mag'], 'images/icon/icon_mag.webp'],
+            ['精神', $champStats['spr'], 'images/icon/icon_spr.webp'],
+            ['速さ', $champStats['spd'], 'images/icon/icon_agi.webp'],
+            ['運',   $champStats['luk'], 'images/icon/icon_luk.webp'],
         ];
         $equipment = [
             ['武', $champ->weapon_name],
@@ -55,8 +64,16 @@
                 <div class="min-w-0 flex-1">
                     <div class="truncate text-base font-black leading-tight text-slate-900">{{ $champ->player_name }}</div>
                     <div class="mt-0.5 truncate text-[11px] font-bold text-slate-500">
-                        Lv{{ $champ->level }} / {{ $champ->job_name ?? '冒険者' }} Rank {{ $champ->job_rank }}
+                        Lv {{ number_format((int) $champ->level) }} / {{ $champ->job_name ?? '冒険者' }}★{{ number_format((int) $champ->job_rank) }}
                     </div>
+                    <div class="mt-0.5 text-[11px] font-black text-amber-700">
+                        戦力 {{ number_format((int) ($champSummary['champ_power'] ?? 0)) }}
+                    </div>
+                    @if(($champFatigue['percent'] ?? 0) > 0)
+                        <div class="mt-1 inline-flex rounded border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-black text-orange-700">
+                            連勝疲労 -{{ $champFatigue['percent'] }}%
+                        </div>
+                    @endif
                     <div class="mt-2">
                         <div class="mb-0.5 flex justify-between text-[10px] font-bold text-slate-400">
                             <span>HP</span>
@@ -64,6 +81,13 @@
                         </div>
                         <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
                             <div class="h-full rounded-full bg-rose-500 transition-all" style="width:{{ $champSummary['hp_percent'] }}%"></div>
+                        </div>
+                        <div class="mt-1 mb-0.5 flex justify-between text-[10px] font-bold text-slate-400">
+                            <span>SP</span>
+                            <span class="tabular-nums">{{ number_format((int) ($champ->current_mp ?? 0)) }}/{{ number_format((int) ($champ->max_mp ?? 0)) }}</span>
+                        </div>
+                        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-sky-500 transition-all" style="width:{{ $champSummary['mp_percent'] ?? 0 }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -142,6 +166,13 @@
                         </div>
                         <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
                             <div class="h-full rounded-full bg-rose-500 transition-all" style="width:{{ $champSummary['hp_percent'] }}%"></div>
+                        </div>
+                        <div class="mt-1 mb-0.5 flex justify-between text-[10px] font-bold text-slate-400">
+                            <span>SP</span>
+                            <span class="tabular-nums">{{ number_format((int) ($champ->current_mp ?? 0)) }}/{{ number_format((int) ($champ->max_mp ?? 0)) }}</span>
+                        </div>
+                        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-sky-500 transition-all" style="width:{{ $champSummary['mp_percent'] ?? 0 }}%"></div>
                         </div>
                     </div>
                 </div>

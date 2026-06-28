@@ -27,7 +27,7 @@ class StorageCapacityService
             ->reject(fn (CharacterItem $row) => $this->isKeyItem($row))
             ->count();
 
-        $materialLimit = (int) ($character->material_storage_limit ?? 300);
+        $materialLimit = (int) ($character->material_storage_limit ?? 500);
         $equipmentLimit = (int) ($character->equipment_storage_limit ?? 200);
 
         return [

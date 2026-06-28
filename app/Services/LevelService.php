@@ -8,8 +8,15 @@ use App\Services\CharacterStatusService;
 
 class LevelService
 {
+    public const MAX_JOB_EXP_GAIN = 3;
+
     private const GROWTH_MULTIPLIER = 1.12;
     private const BONUS_POINTS_PER_LEVEL = 1;
+
+    public function capJobExpGain(int $jobExpGained): int
+    {
+        return max(0, min(self::MAX_JOB_EXP_GAIN, $jobExpGained));
+    }
 
     /**
      * 報酬（EXPなど）を付与し、レベルアップ処理を行う
@@ -18,6 +25,8 @@ class LevelService
      */
     public function addRewardAndCheckLevelUp(Character $character, int $expGained, int $goldGained, int $jobExpGained = 0): array
     {
+        $jobExpGained = $this->capJobExpGain($jobExpGained);
+
         if ($goldGained > 0) {
             app(GoldService::class)->add($character, $goldGained, 'battle_reward', '戦闘でGoldを獲得');
         }

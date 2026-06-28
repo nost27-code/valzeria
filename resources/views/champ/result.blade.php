@@ -2,7 +2,7 @@
     @php
         $nextAvailableAt = $result['next_available_at'] ?? null;
         $nextAvailableText = $nextAvailableAt
-            ? \Illuminate\Support\Carbon::parse($nextAvailableAt)->format('H:i')
+            ? \Illuminate\Support\Carbon::parse($nextAvailableAt)->timezone('Asia/Tokyo')->format('H:i')
             : '未定';
         $challenger = $result['challenger_actor'] ?? [
             'name' => 'あなた',
@@ -35,6 +35,7 @@
         $champ['current_hp'] = $result['champ_hp_after'] ?? ($champ['current_hp'] ?? 0);
         $challengerName = $challenger['name'] ?? 'あなた';
         $champName = $champ['player_name'] ?? $champ['name'] ?? 'チャンピオン';
+        $champFatigue = $result['champ_fatigue'] ?? ['percent' => 0, 'defense_count' => 0];
 
         $actorHpPercent = fn (array $actor) => min(100, (int) floor((max(0, (int) ($actor['current_hp'] ?? 0)) / max(1, (int) ($actor['max_hp'] ?? 1))) * 100));
         $actorMpPercent = fn (array $actor) => (int) ($actor['max_mp'] ?? 0) > 0
@@ -70,6 +71,11 @@
                     <span class="inline-flex items-center gap-1 rounded border {{ $affinityClass }} px-2 py-0.5 text-[11px] font-black">
                         戦型相性：{{ $affinityLabel }}{{ $affinityPct ? ' ' . $affinityPct : '' }}
                     </span>
+                    @if(($champFatigue['percent'] ?? 0) > 0)
+                        <span class="inline-flex items-center gap-1 rounded border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] font-black text-orange-700">
+                            連勝疲労 -{{ $champFatigue['percent'] }}%
+                        </span>
+                    @endif
                 </div>
                 <div class="mt-1 flex flex-wrap items-center justify-center gap-2 text-xl font-extrabold text-slate-900">
                     <span class="truncate max-w-[42%]">{{ $challengerName }}</span>

@@ -31,6 +31,7 @@ $excludes = [
     'deploy_temp.zip',
     'ffa_backup',
     'local_deploy.php',
+    'public/hot',
 ];
 
 // vendor 配下でデプロイに含めるパス（Stripe SDK + composer オートローダー）

@@ -28,6 +28,8 @@ class EquipmentEvolutionService
     private const EQUIPMENT_FRAGMENT_CODE = 'MAT_EQUIPMENT_FRAGMENT';
     private const FINE_EQUIPMENT_FRAGMENT_CODE = 'MAT_FINE_EQUIPMENT_FRAGMENT';
     private const STRONG_EQUIPMENT_FRAGMENT_CODE = 'MAT_STRONG_EQUIPMENT_FRAGMENT';
+    private const HIDDEN_AREA_MIN_ID = 71;
+    private const HIDDEN_AREA_MAX_ID = 74;
     private const MATERIAL_KIND_WEIGHTS = [
         'early' => ['generic' => 50, 'category' => 20, 'regional' => 25, 'enhance' => 5, 'rare' => 0],
         'middle' => ['generic' => 45, 'category' => 25, 'regional' => 20, 'enhance' => 8, 'rare' => 2],
@@ -1371,7 +1373,7 @@ class EquipmentEvolutionService
             return false;
         }
 
-        if ($this->truthy($recipe->requires_hidden_boss_cleared ?? false) && !$this->hasClearedAnyAreaInRange($character, 71, null)) {
+        if ($this->truthy($recipe->requires_hidden_boss_cleared ?? false) && !$this->hasClearedAnyAreaInRange($character, self::HIDDEN_AREA_MIN_ID, self::HIDDEN_AREA_MAX_ID)) {
             return false;
         }
 
@@ -1402,7 +1404,7 @@ class EquipmentEvolutionService
             return '秘境の解放が必要です。';
         }
 
-        if ($this->truthy($recipe->requires_hidden_boss_cleared ?? false) && !$this->hasClearedAnyAreaInRange($character, 71, null)) {
+        if ($this->truthy($recipe->requires_hidden_boss_cleared ?? false) && !$this->hasClearedAnyAreaInRange($character, self::HIDDEN_AREA_MIN_ID, self::HIDDEN_AREA_MAX_ID)) {
             return '秘境主の撃破が必要です。';
         }
 
@@ -1425,7 +1427,7 @@ class EquipmentEvolutionService
     private function hasUnlockedHiddenArea(Character $character): bool
     {
         return CharacterAreaProgress::where('character_id', $character->id)
-            ->where('area_id', '>=', 71)
+            ->whereBetween('area_id', [self::HIDDEN_AREA_MIN_ID, self::HIDDEN_AREA_MAX_ID])
             ->where('is_unlocked', true)
             ->exists();
     }

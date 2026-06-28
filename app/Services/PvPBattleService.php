@@ -154,14 +154,8 @@ class PvPBattleService
 
         // DBトランザクションで順位変動とログ記録
         DB::transaction(function () use ($attackerChar, $defenderChar, $isAttackerWin) {
-            $attackerRanking = ArenaRanking::firstOrCreate(
-                ['character_id' => $attackerChar->id],
-                ['rank' => ArenaRanking::max('rank') + 1, 'wins' => 0, 'losses' => 0]
-            );
-            $defenderRanking = ArenaRanking::firstOrCreate(
-                ['character_id' => $defenderChar->id],
-                ['rank' => ArenaRanking::max('rank') + 1, 'wins' => 0, 'losses' => 0]
-            );
+            $attackerRanking = app(ArenaNpcRankingService::class)->ensurePlayerRanking($attackerChar);
+            $defenderRanking = app(ArenaNpcRankingService::class)->ensurePlayerRanking($defenderChar);
 
             $attackerOldRank = $attackerRanking->rank;
             $defenderOldRank = $defenderRanking->rank;
@@ -180,24 +174,12 @@ class PvPBattleService
                     $attackerRanking->rank = $temporaryRank;
                     $attackerRanking->save();
 
-                    $shiftedRankings = ArenaRanking::with('character')
-                        ->where('rank', '>=', $targetRank)
-                        ->where('rank', '<', $attackerOldRank)
-                        ->lockForUpdate()
-                        ->orderByDesc('rank')
-                        ->get();
-
-                    foreach ($shiftedRankings as $shiftedRanking) {
-                        $oldRank = (int) $shiftedRanking->rank;
-                        $newRank = $oldRank + 1;
-
-                        $shiftedRanking->rank = $newRank;
-                        $shiftedRanking->save();
-
-                        if ((int) $defenderRanking->id === (int) $shiftedRanking->id) {
-                            $defenderRanking->rank = $newRank;
-                        }
-                    }
+                    app(ArenaNpcRankingService::class)->shiftCombinedRanksDown(
+                        $targetRank,
+                        $attackerOldRank - 1,
+                        (int) $attackerChar->id
+                    );
+                    $defenderRanking->refresh();
 
                     if ((int) $defenderRanking->rank !== (int) $defenderOldRank
                         && $defenderRanking->character

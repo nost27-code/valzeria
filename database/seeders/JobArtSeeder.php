@@ -67,6 +67,7 @@ class JobArtSeeder extends Seeder
                     'power_multiplier' => max(0, $power / 100),
                     'hit_count' => $template === 'MULTI_HIT' ? 2 : ($this->isPureSupport($template) ? 0 : 1),
                     'heal_percent' => 0,
+                    'mp_recover_percent' => (int) ($row['mp_recover_percent'] ?? 0),
                     'gold_bonus_percent' => $template === 'REWARD_GOLD' || $template === 'REWARD_MIXED' ? min(10, max(1, (int) floor($power / 20))) : 0,
                     'drop_bonus_percent' => in_array($template, ['REWARD_DROP', 'REWARD_MIXED'], true) ? min(8, max(1, (int) floor($power / 25))) : 0,
                 ]
@@ -108,7 +109,7 @@ class JobArtSeeder extends Seeder
     private function damageTypeForTemplate(string $template): string
     {
         return match ($template) {
-            'MAGICAL_DAMAGE' => 'magical',
+            'MAGICAL_DAMAGE', 'MAGICAL_DAMAGE_BUFF' => 'magical',
             'HYBRID_DAMAGE' => 'hybrid',
             'HEAL', 'HEAL_CLEANSE' => 'heal',
             'SELF_BUFF', 'ENEMY_DEBUFF', 'GUARD_BARRIER', 'GUTS', 'TIME_CONTROL_CURRENT_ONLY' => 'support',
@@ -147,7 +148,7 @@ class JobArtSeeder extends Seeder
             $limitGroup === 'HEAL' || in_array($template, ['HEAL', 'HEAL_CLEANSE'], true) => [1 => 10, 5 => 26, 9 => 60],
             $template === 'DRAIN' => [1 => 10, 5 => 28, 9 => 62],
             $template === 'MULTI_HIT' => [1 => 8, 5 => 20, 9 => 48],
-            $template === 'MAGICAL_DAMAGE' => [1 => 8, 5 => 22, 9 => 52],
+            in_array($template, ['MAGICAL_DAMAGE', 'MAGICAL_DAMAGE_BUFF'], true) => [1 => 8, 5 => 22, 9 => 52],
             $template === 'HYBRID_DAMAGE' => [1 => 8, 5 => 22, 9 => 52],
             $template === 'GUARD_BARRIER' || $category === 'guard' => [1 => 8, 5 => 22, 9 => 50],
             $category === 'buff' => [1 => 8, 5 => 20, 9 => 46],

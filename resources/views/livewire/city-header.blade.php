@@ -368,8 +368,8 @@
     </style>
     @if(!empty($topPlayer))
         <div class="relative left-1/2 z-40 mb-3 -mt-4 w-[100dvw] -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
-            {{-- grid: [icon] [名前/Lv] [HP/SPバー] [gold/輝石] [ベル] --}}
-            <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.5rem,1.35fr)_minmax(4rem,7rem)_auto_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_auto_auto] sm:gap-x-2 sm:px-4 lg:px-6"
+            {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [gold/輝石] [ベル] --}}
+            <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.75rem,1.35fr)_minmax(4rem,7rem)_auto_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_auto_auto] sm:gap-x-2 sm:px-4 lg:px-6"
                  style="row-gap:2px;">
 
                 {{-- アイコン (2行にまたがる) --}}
@@ -377,15 +377,20 @@
                     <img src="{{ $topPlayer['icon'] }}" alt="{{ $topPlayer['name'] }}" class="h-full w-full object-contain">
                 </div>
 
-                {{-- 名前 (1行目) --}}
-                <div class="col-start-2 row-start-1 min-w-0 self-end pb-0.5">
+                {{-- 名前/レベル/職/戦力 --}}
+                <div class="col-start-2 row-span-2 row-start-1 min-w-0 self-center">
                     <div x-init="
                             const el = $el;
-                            el.style.fontSize = '14px';
+                            el.style.fontSize = '13px';
                             if (el.scrollWidth > el.offsetWidth) el.style.fontSize = '11px';
                          "
-                         class="overflow-hidden whitespace-nowrap font-black leading-tight text-slate-950 sm:!text-base">
+                         class="overflow-hidden whitespace-nowrap font-black leading-tight text-slate-950 sm:!text-[15px]">
                         {{ $topPlayer['name'] }}
+                    </div>
+                    <div class="mt-0.5 space-y-0.5 text-[10px] font-bold leading-none text-slate-400 sm:text-[11px]">
+                        <div class="whitespace-nowrap">Lv {{ number_format($topPlayer['level']) }}</div>
+                        <div class="truncate">{{ $topPlayer['job'] }}★{{ $topPlayer['job_rank'] }}</div>
+                        <div class="whitespace-nowrap text-slate-500">戦力 {{ number_format($topPlayer['power'] ?? 0) }}</div>
                     </div>
                 </div>
 
@@ -475,13 +480,6 @@
                     </div>
                 </div>
 
-                {{-- Lv/職業 (2行目) --}}
-                <div class="col-start-2 row-start-2 min-w-0 self-start pt-0.5">
-                    <div class="text-[11px] font-bold text-slate-400 sm:text-xs">
-                        Lv {{ number_format($topPlayer['level']) }}<span class="hidden sm:inline"> / {{ $topPlayer['job'] }}</span>
-                    </div>
-                </div>
-
                 {{-- SP バー (2行目) --}}
                 <div class="col-start-3 row-start-2 min-w-0 self-start pt-0.5">
                     <div class="mb-0.5 flex items-center justify-between gap-1">
@@ -550,9 +548,9 @@
                 </button>
             </div>
 
-            <div class="relative mt-0.5 flex w-full min-w-0 items-start gap-1 text-[10px] font-bold leading-4 sm:text-[11px]">
-                <span class="shrink-0 text-gray-700">現在の冒険者：（{{ count($onlinePlayers) }}人）</span>
-                <div class="min-w-0 flex-1 pr-12 sm:pr-14">
+            <div class="relative mt-0.5 w-full min-w-0 text-[10px] font-bold leading-4 sm:text-[11px]">
+                <div class="text-gray-700">現在の冒険者：（{{ count($onlinePlayers) }}人）</div>
+                <div class="min-w-0 pr-10 sm:pr-12">
                     <div class="flex flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
                         @forelse($onlinePlayers as $player)

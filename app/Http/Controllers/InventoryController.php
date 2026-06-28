@@ -133,7 +133,7 @@ class InventoryController extends Controller
         return [
             'total' => collect($categories)->sum('count') + $keyItemCount,
             'material_storage_total' => (int) ($categories['material']['count'] ?? 0),
-            'material_storage_limit' => (int) ($character->material_storage_limit ?? 300),
+            'material_storage_limit' => (int) ($character->material_storage_limit ?? 500),
             'material_storage_types' => $materials->count(),
             'equipment_storage_total' => $weaponCount + $armorCount + $accessoryCount,
             'equipment_storage_limit' => (int) ($character->equipment_storage_limit ?? 200),

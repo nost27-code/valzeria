@@ -10,6 +10,8 @@ use App\Models\JobRequirement;
 
 class JobService
 {
+    private const MASTER_JOB_LEVEL = 10;
+
     /**
      * 指定の職業に転職可能か判定する
      */
@@ -21,6 +23,10 @@ class JobService
         
         // 全職共通の最低レベル条件
         if ($character->level < 30) {
+            return false;
+        }
+
+        if ((int) ($character->bonus_points ?? 0) > 0) {
             return false;
         }
 
@@ -70,7 +76,7 @@ class JobService
         }
 
         $jobClass = $characterJob->jobClass;
-        $maxLevel = $jobClass->max_job_level;
+        $maxLevel = self::MASTER_JOB_LEVEL;
         $oldLevel = $characterJob->job_level; // 追加: 以前のレベルを保持
         
         $characterJob->job_exp += $exp;
@@ -88,14 +94,7 @@ class JobService
                 break; // 経験値テーブルがない場合はループ終了
             }
 
-            // 職業ランク（必要経験値補正）を計算（仕様書による目安）
-            // rank = normal: 1.0, middle: 2.0, advanced: 4.0, legend: 10.0
-            $multiplier = 1.0;
-            switch ($jobClass->rank) {
-                case 'middle': $multiplier = 2.0; break;
-                case 'advanced': $multiplier = 4.0; break;
-                case 'legend': $multiplier = 10.0; break;
-            }
+            $multiplier = $this->jobExpMultiplier($jobClass->rank);
 
             $requiredExp = (int)($expTable->required_exp * $multiplier);
 
@@ -131,7 +130,7 @@ class JobService
      */
     public function getNextLevelExp(CharacterJob $characterJob): array
     {
-        if ($characterJob->is_mastered || $characterJob->job_level >= $characterJob->jobClass->max_job_level) {
+        if ($characterJob->is_mastered || $characterJob->job_level >= self::MASTER_JOB_LEVEL) {
             return [
                 'current' => $characterJob->job_exp,
                 'next_required' => $characterJob->job_exp, // マスター時は同じ値
@@ -149,12 +148,7 @@ class JobService
             ];
         }
 
-        $multiplier = 1.0;
-        switch ($characterJob->jobClass->rank) {
-            case 'middle': $multiplier = 2.0; break;
-            case 'advanced': $multiplier = 4.0; break;
-            case 'legend': $multiplier = 10.0; break;
-        }
+        $multiplier = $this->jobExpMultiplier($characterJob->jobClass->rank);
 
         $requiredExp = (int)($expTable->required_exp * $multiplier);
 
@@ -163,6 +157,16 @@ class JobService
             'next_required' => $requiredExp,
             'is_mastered' => false
         ];
+    }
+
+    private function jobExpMultiplier(string $rank): float
+    {
+        return match ($rank) {
+            'middle' => 2.0,
+            'advanced' => 5.0,
+            'legend' => 10.0,
+            default => 1.0,
+        };
     }
 
     /**

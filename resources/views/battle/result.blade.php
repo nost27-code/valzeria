@@ -1,4 +1,4 @@
-﻿<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" bgImage="images/bg-battle.webp">
+<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" bgImage="images/bg-battle.webp">
     <div class="py-1 flex flex-col items-center" data-battle-result-page>
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white/88 shadow-md sm:rounded-lg overflow-hidden border border-slate-200 backdrop-blur-[2px]">
@@ -134,9 +134,9 @@
                                                 この先は「<span class="text-amber-200">{{ $depthAreaName }}・{{ $depthLabel }}</span>」です。
                                             </p>
                                             <p class="mt-2 text-sm font-black leading-7 text-amber-100">
-                                                推奨Lv:
-                                                {{ number_format((int) ($depthGate['recommended_level_min'] ?? 0)) }}〜{{ number_format((int) ($depthGate['recommended_level_max'] ?? 0)) }}
-                                                / 現在Lv: {{ number_format((int) ($depthGate['current_level'] ?? 1)) }}
+                                                開拓目安:
+                                                {{ number_format((int) ($depthGate['recommended_power_min'] ?? 0)) }}〜{{ number_format((int) ($depthGate['recommended_power_max'] ?? 0)) }}
+                                                / 現在戦力: {{ number_format((int) ($depthGate['current_power'] ?? 0)) }}
                                             </p>
                                             <p class="mt-4 rounded-lg border border-red-300/40 bg-red-950/45 px-3 py-2 text-sm font-black leading-7 text-red-100">
                                                 {{ $depthGate['risk_text'] ?? 'この先へ進むのは危険です。' }}
@@ -787,10 +787,16 @@
                                                 <span style="font-size:13px;font-weight:800;color:#1e293b;font-variant-numeric:tabular-nums;">{{ number_format($explorationSummary['chain_count'] ?? 0) }}</span>
                                             </div>
                                             @if($depth && ($depth['recommended_level_min'] ?? 0))
+                                                @php
+                                                    $depthPowerRange = app(\App\Services\CharacterPowerService::class)->openingRecommendedRangeForLevels(
+                                                        (int) ($depth['recommended_level_min'] ?? 1),
+                                                        (int) ($depth['recommended_level_max'] ?? $depth['recommended_level_min'] ?? 1)
+                                                    );
+                                                @endphp
                                                 <span style="color:#e2e8f0;font-size:10px;">|</span>
                                                 <div style="display:flex;align-items:baseline;gap:3px;">
-                                                    <span style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;">推奨Lv</span>
-                                                    <span style="font-size:11px;font-weight:700;color:#64748b;">{{ number_format($depth['recommended_level_min'] ?? 0) }}〜{{ number_format($depth['recommended_level_max'] ?? 0) }}</span>
+                                                    <span style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;">開拓目安</span>
+                                                    <span style="font-size:11px;font-weight:700;color:#64748b;">{{ app(\App\Services\CharacterPowerService::class)->formatRange($depthPowerRange) }}</span>
                                                 </div>
                                             @endif
                                         </div>

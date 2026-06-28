@@ -203,7 +203,7 @@ class JobManager extends Component
             'form.rank' => 'required|in:normal,middle,advanced,legend',
             'form.category' => 'nullable|string|max:100',
             'form.description' => 'nullable|string|max:1000',
-            'form.max_job_level' => 'required|integer|min:1|max:99',
+            'form.max_job_level' => 'required|integer|min:10|max:10',
             'form.hp_rate' => 'required|integer|min:0|max:9999',
             'form.mp_rate' => 'required|integer|min:0|max:9999',
             'form.atk_rate' => 'required|integer|min:0|max:9999',

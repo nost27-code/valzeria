@@ -132,7 +132,7 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
                     <div class="text-sm font-extrabold text-amber-900">未使用BPが {{ number_format((int) $character->bonus_points) }} あります</div>
-                    <div class="mt-1 text-xs font-bold text-amber-700">転職前に能力へ割り振ると、強化した基礎能力も転職時の引き継ぎ対象になります。</div>
+                    <div class="mt-1 text-xs font-bold text-amber-700">未使用BPが残っている間は転職できません。先にすべて能力へ割り振ってください。</div>
                 </div>
                 <a href="{{ route('bonus-points.index') }}" class="inline-flex shrink-0 items-center justify-center rounded-md bg-[#1e293b] px-4 py-2 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#0f172a]">
                     能力割振りへ
@@ -418,10 +418,22 @@
 
                 <div class="space-y-5 p-5">
                     <section>
-                        <h4 class="text-sm font-extrabold text-slate-900">特徴</h4>
-                        <p class="mt-2 text-sm font-medium leading-relaxed text-slate-600">
-                            {{ $detailJob->description ?? '説明なし' }}
-                        </p>
+                        @php
+                            $rankAccent = match ($detailJob->rank ?? 'normal') {
+                                'legend'   => ['border' => '#c2410c', 'bg' => 'rgba(255,237,213,0.55)', 'quote' => '#f97316'],
+                                'advanced' => ['border' => '#7c3aed', 'bg' => 'rgba(237,233,254,0.55)', 'quote' => '#a78bfa'],
+                                'middle'   => ['border' => '#1d4ed8', 'bg' => 'rgba(219,234,254,0.50)', 'quote' => '#60a5fa'],
+                                default    => ['border' => '#d4af37', 'bg' => 'rgba(254,249,195,0.55)', 'quote' => '#d4af37'],
+                            };
+                        @endphp
+                        <div class="relative rounded-r-lg py-3 pl-5 pr-4"
+                             style="border-left: 4px solid {{ $rankAccent['border'] }}; background: {{ $rankAccent['bg'] }};">
+                            <span class="pointer-events-none absolute -top-3 left-3 select-none font-serif text-5xl leading-none"
+                                  style="color: {{ $rankAccent['quote'] }}; opacity: 0.45;">"</span>
+                            <p class="relative z-10 text-[15px] font-bold leading-relaxed tracking-wide text-slate-800">
+                                {{ $detailJob->description ?? '説明なし' }}
+                            </p>
+                        </div>
                     </section>
 
                     <section>

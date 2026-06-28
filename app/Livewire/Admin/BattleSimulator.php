@@ -147,8 +147,7 @@ class BattleSimulator extends Component
         $query = Enemy::query()
             ->with('area.city')
             ->orderBy('level')
-            ->orderBy('id')
-            ->limit(30);
+            ->orderBy('id');
 
         if ($this->enemySearch !== '') {
             $search = trim($this->enemySearch);

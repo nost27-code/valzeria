@@ -122,6 +122,7 @@ class Skill extends Model
             'PHYSICAL_DAMAGE', 'MAGICAL_DAMAGE', 'HYBRID_DAMAGE' => '攻撃',
             'MULTI_HIT' => '連撃',
             'DAMAGE_BUFF' => '攻撃+バフ',
+            'MAGICAL_DAMAGE_BUFF' => '魔法+バフ',
             'DAMAGE_DEBUFF' => '攻撃+デバフ',
             'SELF_BUFF' => 'バフ',
             'ENEMY_DEBUFF' => 'デバフ',

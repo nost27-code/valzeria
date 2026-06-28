@@ -37,7 +37,10 @@
 
         <section class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 class="text-lg font-black text-slate-950">敵選択</h2>
+                <div>
+                    <h2 class="text-lg font-black text-slate-950">敵選択</h2>
+                    <p class="mt-1 text-xs font-bold text-slate-500">表示中: {{ number_format($enemyCandidates->count()) }}体</p>
+                </div>
                 <input type="text" wire:model.live.debounce.300ms="enemySearch" placeholder="敵名・ID・ダンジョン" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
             </div>
             <div class="mt-4 max-h-96 space-y-2 overflow-auto">

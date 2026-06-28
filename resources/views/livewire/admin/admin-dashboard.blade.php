@@ -58,7 +58,7 @@
         <div class="border-b border-slate-100 px-5 py-4">
             <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <h2 class="text-lg font-black text-slate-950">最近の更新情報</h2>
-                <p class="text-xs font-bold text-slate-400">AI実装タスクの運営向けサマリ</p>
+                <p class="text-xs font-bold text-slate-400">AI実装タスクの運営向けサマリ（最大50件）</p>
             </div>
         </div>
         @if(!empty($adminUpdateSummaries))

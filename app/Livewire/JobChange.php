@@ -139,7 +139,7 @@ class JobChange extends Component
             }
             session()->flash('message', $message);
         } else {
-            session()->flash('message', '転職処理に失敗しました。条件を満たしているか確認してください。');
+            session()->flash('message', $jobChangeService->getLastFailureMessage() ?: '転職処理に失敗しました。条件を満たしているか確認してください。');
         }
 
         $this->selectedJobId = null;
@@ -198,25 +198,19 @@ class JobChange extends Component
     private function buildGrowthStats(JobClass $job): array
     {
         $stats = [
-            'hp' => ['label' => 'HP', 'min' => (int) ($job->hp_growth_min ?? 0), 'max' => (int) ($job->hp_growth_max ?? 0)],
-            'attack' => ['label' => '攻撃', 'min' => (int) ($job->attack_growth_min ?? 0), 'max' => (int) ($job->attack_growth_max ?? 0)],
-            'defense' => ['label' => '防御', 'min' => (int) ($job->defense_growth_min ?? 0), 'max' => (int) ($job->defense_growth_max ?? 0)],
-            'magic' => ['label' => '魔力', 'min' => (int) ($job->magic_growth_min ?? 0), 'max' => (int) ($job->magic_growth_max ?? 0)],
-            'speed' => ['label' => '敏捷', 'min' => (int) ($job->speed_growth_min ?? 0), 'max' => (int) ($job->speed_growth_max ?? 0)],
-            'luck' => ['label' => '運', 'min' => (int) ($job->luck_growth_min ?? 0), 'max' => (int) ($job->luck_growth_max ?? 0)],
+            'hp' => ['label' => 'HP', 'rate' => (int) ($job->hp_rate ?? 100)],
+            'mp' => ['label' => 'SP', 'rate' => (int) ($job->mp_rate ?? 100)],
+            'attack' => ['label' => '攻撃', 'rate' => (int) ($job->atk_rate ?? 100)],
+            'defense' => ['label' => '防御', 'rate' => (int) ($job->def_rate ?? 100)],
+            'magic' => ['label' => '魔力', 'rate' => (int) ($job->mag_rate ?? 100)],
+            'spirit' => ['label' => '精神', 'rate' => (int) ($job->spr_rate ?? 100)],
+            'speed' => ['label' => '敏捷', 'rate' => (int) ($job->spd_rate ?? 100)],
+            'luck' => ['label' => '運', 'rate' => (int) ($job->luck_rate ?? 100)],
         ];
 
-        if (isset($job->spirit_growth_min) || isset($job->spirit_growth_max)) {
-            $stats['spirit'] = ['label' => '精神', 'min' => (int) ($job->spirit_growth_min ?? 0), 'max' => (int) ($job->spirit_growth_max ?? 0)];
-        }
-
-        foreach ($stats as $key => $stat) {
-            $stats[$key]['avg'] = ($stat['min'] + $stat['max']) / 2;
-        }
-
         return collect($stats)
-            ->filter(fn (array $stat) => $stat['avg'] > 0)
-            ->sortByDesc('avg')
+            ->filter(fn (array $stat) => $stat['rate'] > 100)
+            ->sortByDesc('rate')
             ->take(3)
             ->values()
             ->toArray();

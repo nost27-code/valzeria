@@ -34,6 +34,11 @@ class NpcProcurementRequest extends Model
         return $this->belongsTo(City::class);
     }
 
+    public function npc()
+    {
+        return $this->belongsTo(NpcMaster::class, 'npc_id', 'npc_id');
+    }
+
     public function template()
     {
         return $this->belongsTo(NpcProcurementRequestTemplate::class, 'npc_procurement_request_template_id');

@@ -33,6 +33,9 @@
     @include('partials.ogp', ['ogTitle' => 'Valzeria - 管理者ダッシュボード'])
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
 <body class="bg-slate-100 font-sans antialiased text-slate-900">
     @php
@@ -44,6 +47,7 @@
                 'items' => [
                     ['route' => 'admin.dashboard', 'label' => '分析ダッシュボード', 'abbr' => 'A'],
                     ['route' => 'admin.world-metrics', 'label' => '世界指標', 'abbr' => 'W'],
+                    ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
                     ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
                     ['route' => 'admin.top-analytics', 'label' => 'TOPアクセス解析', 'abbr' => 'V'],
                 ],
@@ -56,9 +60,11 @@
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],
                     ['route' => 'admin.player-controls', 'label' => 'プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
+                    ['route' => 'admin.public-logs', 'label' => '公開ログ管理', 'abbr' => 'O'],
                     ['route' => 'admin.chat', 'label' => '管理人チャット', 'abbr' => 'Q'],
                     ['route' => 'admin.private-chat-logs', 'label' => '個人チャットログ', 'abbr' => 'D'],
                     ['route' => 'admin.kiseki-purchases', 'label' => '課金監査', 'abbr' => 'K'],
+                    ['route' => 'admin.npc-market-analytics', 'label' => 'NPC市場分析', 'abbr' => 'M'],
                     ['route' => 'admin.reward-settings', 'label' => '運営・報酬設定', 'abbr' => 'R'],
                     ['route' => 'admin.top-updates', 'label' => 'TOP更新情報', 'abbr' => 'N'],
                     ['route' => 'admin.game-texts', 'label' => '画面文言管理', 'abbr' => 'T'],
@@ -94,7 +100,7 @@
         $mailNavActive = request()->routeIs($mailNavItem['route']);
     @endphp
 
-    <div class="min-h-screen lg:flex">
+    <div class="min-h-screen lg:flex" x-data="{ mobileNavOpen: false, mobileOpenGroup: @js($activeGroupKey) }" @keydown.window.escape="mobileNavOpen = false">
         <aside class="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 lg:flex-col bg-slate-950 text-white shadow-2xl">
             <div class="flex h-full flex-col">
                 <div class="px-7 pt-7 pb-4">
@@ -157,6 +163,17 @@
         <div class="min-w-0 flex-1 lg:pl-72">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur lg:hidden">
                 <div class="flex h-16 items-center justify-between px-4">
+                    <button type="button"
+                            @click="mobileNavOpen = true"
+                            class="flex h-10 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-800 shadow-sm active:scale-95"
+                            aria-label="管理メニューを開く"
+                            :aria-expanded="mobileNavOpen.toString()">
+                        <span class="flex w-5 flex-col gap-1.5">
+                            <span class="h-0.5 rounded-full bg-current"></span>
+                            <span class="h-0.5 rounded-full bg-current"></span>
+                            <span class="h-0.5 rounded-full bg-current"></span>
+                        </span>
+                    </button>
                     <a href="{{ route('admin.dashboard') }}" class="font-black tracking-[0.18em] text-slate-950">
                         <span class="text-amber-500">VALZERIA</span> ADMIN
                     </a>
@@ -167,20 +184,87 @@
                         </button>
                     </form>
                 </div>
-                <nav class="flex gap-2 overflow-x-auto px-4 pb-3">
-                    <a href="{{ route($mailNavItem['route']) }}" class="shrink-0 rounded-md px-3 py-2 text-xs font-bold {{ $mailNavActive ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700' }}">
-                        {{ $mailNavItem['label'] }}
-                    </a>
-                    @foreach($navGroups as $group)
-                        @foreach($group['items'] as $item)
-                            @php $active = request()->routeIs($item['route']); @endphp
-                            <a href="{{ route($item['route']) }}" class="shrink-0 rounded-md px-3 py-2 text-xs font-bold {{ $active ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700' }}">
-                                {{ $item['label'] }}
-                            </a>
-                        @endforeach
-                    @endforeach
-                </nav>
             </header>
+
+            <div x-show="mobileNavOpen"
+                 x-cloak
+                 class="fixed inset-0 z-50 lg:hidden"
+                 aria-modal="true"
+                 role="dialog">
+                <div x-show="mobileNavOpen"
+                     x-transition.opacity
+                     @click="mobileNavOpen = false"
+                     class="absolute inset-0 bg-slate-950/55"></div>
+                <aside x-show="mobileNavOpen"
+                       x-transition:enter="transition ease-out duration-200"
+                       x-transition:enter-start="-translate-x-full"
+                       x-transition:enter-end="translate-x-0"
+                       x-transition:leave="transition ease-in duration-150"
+                       x-transition:leave-start="translate-x-0"
+                       x-transition:leave-end="-translate-x-full"
+                       class="absolute inset-y-0 left-0 flex w-[min(86vw,320px)] flex-col bg-slate-950 text-white shadow-2xl">
+                    <div class="flex h-16 items-center justify-between border-b border-white/10 px-5">
+                        <a href="{{ route('admin.dashboard') }}" @click="mobileNavOpen = false" class="font-black tracking-[0.16em]">
+                            <span class="text-amber-300">VALZERIA</span> ADMIN
+                        </a>
+                        <button type="button"
+                                @click="mobileNavOpen = false"
+                                class="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-2xl font-light text-slate-200 active:scale-95"
+                                aria-label="管理メニューを閉じる">
+                            ×
+                        </button>
+                    </div>
+
+                    <nav class="flex-1 overflow-y-auto px-4 py-4">
+                        <div class="space-y-3">
+                            <a href="{{ route($mailNavItem['route']) }}"
+                               @click="mobileNavOpen = false"
+                               class="group flex items-center gap-3 rounded-md border px-3 py-3 text-sm font-bold transition {{ $mailNavActive ? 'border-amber-300 bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'border-white/10 bg-white/[0.03] text-slate-200' }}">
+                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $mailNavActive ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200' }}">{{ $mailNavItem['abbr'] }}</span>
+                                <span class="truncate">{{ $mailNavItem['label'] }}</span>
+                            </a>
+                            @foreach($navGroups as $group)
+                                @php
+                                    $groupActive = collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route']));
+                                @endphp
+                                <section class="rounded-md border {{ $groupActive ? 'border-amber-300/40 bg-amber-300/10' : 'border-white/10 bg-white/[0.03]' }}">
+                                    <button type="button"
+                                            @click="mobileOpenGroup = mobileOpenGroup === @js($group['key']) ? '' : @js($group['key'])"
+                                            class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left">
+                                        <span class="text-xs font-black tracking-[0.16em] {{ $groupActive ? 'text-amber-200' : 'text-slate-400' }}">{{ $group['label'] }}</span>
+                                        <span class="text-xs font-black text-slate-500" x-text="mobileOpenGroup === @js($group['key']) ? '−' : '+'"></span>
+                                    </button>
+                                    <div x-show="mobileOpenGroup === @js($group['key'])" class="space-y-1 px-2 pb-2">
+                                        @foreach($group['items'] as $item)
+                                            @php $active = request()->routeIs($item['route']); @endphp
+                                            <a href="{{ route($item['route']) }}"
+                                               @click="mobileNavOpen = false"
+                                               class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300' }}">
+                                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $active ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200' }}">{{ $item['abbr'] }}</span>
+                                                <span class="truncate">{{ $item['label'] }}</span>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </section>
+                            @endforeach
+                        </div>
+                    </nav>
+
+                    <div class="border-t border-white/10 px-4 py-4">
+                        <a href="{{ route('top') }}"
+                           @click="mobileNavOpen = false"
+                           class="mb-3 flex items-center justify-center rounded-md border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300">
+                            サイトトップへ
+                        </a>
+                        <form action="{{ route('admin.logout') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="w-full rounded-md bg-white px-4 py-2.5 text-sm font-black text-slate-950 shadow">
+                                ログアウト
+                            </button>
+                        </form>
+                    </div>
+                </aside>
+            </div>
 
             <main class="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(212,175,55,0.12),_transparent_34%),linear-gradient(180deg,_#f8fafc_0%,_#eef2f7_100%)]">
                 {{ $slot }}

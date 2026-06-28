@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\CharacterMaterial;
+use App\Models\NpcMaterialStock;
 use App\Models\NpcProcurementDelivery;
 use App\Models\NpcProcurementRequest;
 use App\Models\NpcProcurementRequestMaterial;
@@ -22,7 +23,7 @@ class NpcProcurementRequestService
     {
         $requests = NpcProcurementRequest::query()
             ->activeNow()
-            ->with(['materials.material', 'city'])
+            ->with(['materials.material', 'city', 'npc'])
             ->orderBy('display_order')
             ->orderBy('expires_at')
             ->get();
@@ -44,7 +45,7 @@ class NpcProcurementRequestService
             })
             ->with(['materials' => function ($query) use ($material) {
                 $query->where('material_id', $material->id)->with('material');
-            }, 'city'])
+            }, 'city', 'npc'])
             ->orderBy('display_order')
             ->orderBy('expires_at')
             ->limit($limit)
@@ -149,6 +150,10 @@ class NpcProcurementRequestService
             $requestMaterial->delivered_quantity = (int) $requestMaterial->delivered_quantity + $quantity;
             $requestMaterial->save();
 
+            if ($request->npc_id) {
+                $this->addNpcMaterialStock((int) $request->npc_id, (int) $requestMaterial->material_id, $quantity);
+            }
+
             $baseRewardGold = $quantity * (int) $requestMaterial->reward_gold_per_unit;
             $completeRewardGold = 0;
             $completeAssociationPoint = 0;
@@ -220,4 +225,30 @@ class NpcProcurementRequestService
         return min((int) $ownedQuantity, $requestMaterial->remainingQuantity());
     }
 
+    private function addNpcMaterialStock(int $npcId, int $materialId, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        $stock = NpcMaterialStock::query()
+            ->where('npc_id', $npcId)
+            ->where('material_id', $materialId)
+            ->lockForUpdate()
+            ->first();
+
+        if ($stock) {
+            $stock->quantity = (int) $stock->quantity + $quantity;
+            $stock->last_received_at = now();
+            $stock->save();
+            return;
+        }
+
+        NpcMaterialStock::create([
+            'npc_id' => $npcId,
+            'material_id' => $materialId,
+            'quantity' => $quantity,
+            'last_received_at' => now(),
+        ]);
+    }
 }

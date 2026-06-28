@@ -394,7 +394,7 @@
     "learn_rank": 1,
     "name": "魔力の火種",
     "skill_type": "job_art",
-    "effect_template": "SELF_BUFF",
+    "effect_template": "MAGICAL_DAMAGE_BUFF",
     "art_category": "attack",
     "limit_group": "NONE",
     "element": "火",
@@ -1427,7 +1427,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "小魔法ダメージ＋MP小吸収"
+    "mp_recover_percent": 5,
+    "memo": "小魔法ダメージ＋SP小吸収"
   },
   {
     "job_id": 19,
@@ -1453,7 +1454,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "HP/MP吸収＋敵SPR低下"
+    "mp_recover_percent": 10,
+    "memo": "HP/SP吸収＋敵SPR低下"
   },
   {
     "job_id": 19,
@@ -1921,7 +1923,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "HP/MPを中回復。弱体があれば解除を優先"
+    "mp_recover_percent": 10,
+    "memo": "HP/SPを中回復。弱体があれば解除を優先"
   },
   {
     "job_id": 25,
@@ -2207,7 +2210,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "MP小回復＋次の魔法消費MP軽減"
+    "mp_recover_percent": 5,
+    "memo": "HP小回復＋SP小回復"
   },
   {
     "job_id": 29,
@@ -2935,7 +2939,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "HP/MP中回復＋LUK上昇"
+    "mp_recover_percent": 10,
+    "memo": "HP/SP中回復＋LUK上昇"
   },
   {
     "job_id": 38,
@@ -3143,7 +3148,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身の弱体を1つ小バリア/MP回復に変換"
+    "mp_recover_percent": 5,
+    "memo": "HP小回復＋SP小回復"
   },
   {
     "job_id": 41,
@@ -3169,7 +3175,8 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "MAG/SPR参照の大バリア＋MP小回復"
+    "mp_recover_percent": 5,
+    "memo": "HP大回復＋SP小回復"
   },
   {
     "job_id": 41,

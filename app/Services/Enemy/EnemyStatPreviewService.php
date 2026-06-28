@@ -34,6 +34,7 @@ class EnemyStatPreviewService
         $mapped = $this->mapGeneratedStats($generated['stats']);
         $mapped = $this->applyHybridOffenseFloor($enemy, $mapped);
         $mapped = $this->applyBossProgressionFloor($enemy, $mapped);
+        $mapped = $this->applyCityStatMultiplier($enemy, $mapped);
 
         return [
             'enemy' => $enemy,
@@ -213,6 +214,36 @@ class EnemyStatPreviewService
         $secondaryRatio = isset($floor['secondary_vs_primary']) ? (float) $floor['secondary_vs_primary'] : 0.0;
         if ($secondaryRatio > 0) {
             $stats[$secondary] = max($stats[$secondary], (int) round($stats[$primary] * $secondaryRatio));
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  array{max_hp:int,str:int,def:int,agi:int,mag:int,spr:int,luk:int}  $stats
+     * @return array{max_hp:int,str:int,def:int,agi:int,mag:int,spr:int,luk:int}
+     */
+    private function applyCityStatMultiplier(Enemy $enemy, array $stats): array
+    {
+        $cityId = (int) ($enemy->area?->city_id ?? 0);
+        $multipliers = config('enemy_stat_generation.city_stat_multipliers.' . $cityId);
+        if ($cityId <= 0 || $multipliers === null) {
+            return $stats;
+        }
+
+        if (is_numeric($multipliers)) {
+            $multipliers = array_fill_keys(array_keys($stats), (float) $multipliers);
+        }
+
+        if (! is_array($multipliers)) {
+            return $stats;
+        }
+
+        foreach ($stats as $key => $value) {
+            $multiplier = (float) ($multipliers[$key] ?? 1.0);
+            if ($multiplier !== 1.0) {
+                $stats[$key] = max(1, (int) round($value * $multiplier));
+            }
         }
 
         return $stats;

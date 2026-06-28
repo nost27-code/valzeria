@@ -28,12 +28,12 @@
             $storageExpandItems = config('adventure_support.items');
             $materialExpandItem = $storageExpandItems['material_storage_expand'] ?? [
                 'name' => '素材倉庫拡張',
-                'price' => 100,
+                'price' => 50,
                 'effect_value' => 50,
             ];
             $equipmentExpandItem = $storageExpandItems['equipment_storage_expand'] ?? [
                 'name' => '装備倉庫拡張',
-                'price' => 100,
+                'price' => 50,
                 'effect_value' => 50,
             ];
         @endphp
@@ -89,14 +89,14 @@
                             <div>
                                 <div class="text-xs font-extrabold text-emerald-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-4 h-4 object-contain"> 素材倉庫</div>
                                 <div class="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
-                                    <div class="text-2xl font-black text-slate-900"><span x-text="materialStorageTotal.toLocaleString()"></span> / {{ number_format($storageSummary['material_storage_limit'] ?? 300) }}</div>
+                                    <div class="text-2xl font-black text-slate-900"><span x-text="materialStorageTotal.toLocaleString()"></span> / {{ number_format($storageSummary['material_storage_limit'] ?? 500) }}</div>
                                     <button
                                         type="button"
                                         @click.stop="expandConfirm = {
                                             key: 'material_storage_expand',
                                             title: '素材倉庫',
                                             name: @js($materialExpandItem['name'] ?? '素材倉庫拡張'),
-                                            price: {{ (int) ($materialExpandItem['price'] ?? 100) }},
+                                            price: {{ (int) ($materialExpandItem['price'] ?? 50) }},
                                             effect: {{ (int) ($materialExpandItem['effect_value'] ?? 50) }}
                                         }"
                                         class="mb-1 rounded-full border border-emerald-200 bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-emerald-700 shadow-sm hover:bg-emerald-100">
@@ -136,7 +136,7 @@
                                             key: 'equipment_storage_expand',
                                             title: '装備倉庫',
                                             name: @js($equipmentExpandItem['name'] ?? '装備倉庫拡張'),
-                                            price: {{ (int) ($equipmentExpandItem['price'] ?? 100) }},
+                                            price: {{ (int) ($equipmentExpandItem['price'] ?? 50) }},
                                             effect: {{ (int) ($equipmentExpandItem['effect_value'] ?? 50) }}
                                         }"
                                         class="mb-1 rounded-full border border-amber-200 bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-amber-700 shadow-sm hover:bg-amber-100">

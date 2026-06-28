@@ -36,7 +36,7 @@
                         </div>
                     @endif
                     @if(count($targetRankings) > 0)
-                        <p class="text-sm text-slate-500 mb-4">上位のプレイヤーにランダムで挑戦します。勝利すると、自分の順位が1つ上がります。</p>
+                        <p class="text-sm text-slate-500 mb-4">上位ランカーにランダムで挑戦します。負けても順位は下がりません。</p>
                         @if(!empty($storageIsFull))
                             <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
                                 {!! $storageFullMessage !!}
@@ -61,7 +61,7 @@
                         @if($myRanking->rank === 1)
                             <div class="mb-2 flex justify-center"><img src="{{ asset('images/icon/icon_009.webp') }}" alt="" class="w-12 h-12 object-contain"></div>
                             <div class="font-bold text-amber-500">あなたは現在1位です！</div>
-                            <div class="text-sm mt-1 text-slate-500">これ以上挑める上位プレイヤーはいません。防衛を頑張りましょう！</div>
+                            <div class="text-sm mt-1 text-slate-500">これ以上挑める上位ランカーはいません。防衛を頑張りましょう！</div>
                         @else
                             <p class="text-slate-500">挑める相手が見つかりません。</p>
                         @endif
@@ -83,13 +83,25 @@
                 </div>
                 <div class="p-0">
                     @foreach($topRankings as $top)
-                        <div class="flex items-center p-3 border-b border-slate-100 last:border-0">
-                            <div class="w-10 text-center text-xl font-black {{ $top->rank === 1 ? 'text-amber-500' : ($top->rank === 2 ? 'text-slate-400' : 'text-amber-700') }}">
-                                {{ $top->rank }}
+                        <div class="flex items-center gap-3 p-3 border-b border-slate-100 last:border-0">
+                            <div class="w-8 shrink-0 text-center text-xl font-black {{ $top['rank'] === 1 ? 'text-amber-500' : ($top['rank'] === 2 ? 'text-slate-400' : 'text-amber-700') }}">
+                                {{ $top['rank'] }}
                             </div>
-                            <div class="ml-3">
-                                <div class="font-bold text-slate-800">{{ $top->character->name }}</div>
-                                <div class="text-xs text-slate-500">Lv.{{ $top->character->level }}</div>
+                            <div class="flex min-w-0 flex-1 items-center gap-3">
+                                @if(!empty($top['image_path']))
+                                    <div class="h-10 w-10 shrink-0 overflow-hidden rounded border border-amber-100 bg-slate-50">
+                                        <img src="{{ asset($top['image_path']) }}" alt="" class="h-full w-full object-contain">
+                                    </div>
+                                @endif
+                                <div class="min-w-0">
+                                    <div class="truncate font-bold text-slate-800">{{ $top['name'] }}</div>
+                                    <div class="text-xs text-slate-500">
+                                        Lv.{{ $top['level'] }} / {{ $top['job'] }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="w-20 shrink-0 whitespace-nowrap text-right text-xs font-black text-amber-700 sm:w-24 sm:text-base">
+                                戦力 {{ isset($top['power']) ? number_format((int) $top['power']) : '？？？' }}
                             </div>
                         </div>
                     @endforeach
@@ -108,45 +120,29 @@
                 </div>
                 <div class="p-0 divide-y divide-slate-100">
                     @forelse($recentLogs as $log)
-                        @php
-                            $isAttacker = $log->attacker_id === $character->id;
-                            // 自分が挑んだ場合
-                            if ($isAttacker) {
-                                $isWin = $log->is_attacker_win;
-                                $opponent = $log->defender;
-                                $oldRank = $log->attacker_old_rank;
-                                $newRank = $log->attacker_new_rank;
-                            } else {
-                            // 自分が挑まれた（防衛）場合
-                                $isWin = !$log->is_attacker_win;
-                                $opponent = $log->attacker;
-                                $oldRank = $log->defender_old_rank;
-                                $newRank = $log->defender_new_rank;
-                            }
-                        @endphp
-                        <div class="p-3 {{ $isWin ? 'bg-green-50/30' : 'bg-red-50/30' }}">
+                        <div class="p-3 {{ $log['is_win'] ? 'bg-green-50/30' : 'bg-red-50/30' }}">
                             <div class="flex items-center justify-between mb-1">
-                                <div class="text-xs text-slate-400">{{ $log->created_at->format('m/d H:i') }}</div>
-                                <div class="text-xs font-bold px-2 py-0.5 rounded {{ $isAttacker ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700' }}">
-                                    {{ $isAttacker ? '攻撃' : '防衛' }}
+                                <div class="text-xs text-slate-400">{{ $log['created_at']->format('m/d H:i') }}</div>
+                                <div class="text-xs font-bold px-2 py-0.5 rounded {{ $log['is_attacker'] ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700' }}">
+                                    {{ $log['is_attacker'] ? '攻撃' : '防衛' }}
                                 </div>
                             </div>
                             <div class="text-sm text-slate-700">
-                                <span class="font-bold">{{ $opponent->name ?? '不明' }}</span> 
-                                {{ $isAttacker ? 'に挑んで' : 'に挑まれて' }}
-                                @if($isWin)
+                                <span class="font-bold">{{ $log['opponent_name'] }}</span>
+                                {{ $log['is_attacker'] ? 'に挑んで' : 'に挑まれて' }}
+                                @if($log['is_win'])
                                     <span class="text-green-600 font-bold">勝利！</span>
                                 @else
                                     <span class="text-red-500 font-bold">敗北…</span>
                                 @endif
                             </div>
                             <div class="text-xs text-slate-500 mt-1 flex items-center">
-                                順位: {{ $oldRank }}位 
-                                @if($oldRank !== $newRank)
+                                順位: {{ $log['old_rank'] }}位
+                                @if($log['old_rank'] !== $log['new_rank'])
                                     <span class="mx-1">→</span> 
-                                    <span class="{{ $newRank < $oldRank ? 'text-green-600 font-bold' : 'text-red-500 font-bold' }}">{{ $newRank }}位</span>
+                                    <span class="{{ $log['new_rank'] < $log['old_rank'] ? 'text-green-600 font-bold' : 'text-red-500 font-bold' }}">{{ $log['new_rank'] }}位</span>
                                 @else
-                                    <span class="mx-1">→</span> {{ $newRank }}位 (変動なし)
+                                    <span class="mx-1">→</span> {{ $log['new_rank'] }}位 (変動なし)
                                 @endif
                             </div>
                         </div>

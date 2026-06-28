@@ -58,6 +58,13 @@
                 </span>
             </div>
         @endforeach
+        @if($logLimit < 200)
+            <div class="pt-1">
+                <button wire:click="loadMore" class="w-full text-center text-[10px] font-bold text-[#1e40af] hover:underline py-0.5">
+                    もっとよむ（現在 {{ $logLimit }} 件 / 最大200件）
+                </button>
+            </div>
+        @endif
     </div>
     <!-- チャット入力欄 -->
     <form wire:submit="sendMessage" class="bg-gray-50 border-t border-gray-200 p-2 flex items-center gap-1.5 shrink-0 min-w-0">

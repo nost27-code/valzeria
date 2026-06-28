@@ -10,7 +10,8 @@ class CharacterItem extends Model
         'character_id', 'item_id', 'affix_prefix_id', 'affix_suffix_id', 'affix_quality',
         'affix_hp_bonus', 'affix_str_bonus', 'affix_def_bonus', 'affix_mag_bonus',
         'affix_spr_bonus', 'affix_agi_bonus', 'affix_luk_bonus',
-        'killer_species_key', 'killer_damage_rate', 'affix_generated_at',
+        'killer_species_key', 'killer_damage_rate',
+        'resist_species_key', 'species_damage_reduction_rate', 'affix_generated_at',
         'is_equipped', 'is_stored', 'is_locked', 'enhance_level', 'equipped_slot', 'acquired_from'
     ];
 
@@ -27,6 +28,7 @@ class CharacterItem extends Model
         'affix_agi_bonus' => 'integer',
         'affix_luk_bonus' => 'integer',
         'killer_damage_rate' => 'float',
+        'species_damage_reduction_rate' => 'float',
         'affix_generated_at' => 'datetime',
     ];
 
@@ -86,6 +88,7 @@ class CharacterItem extends Model
         return $this->affix_prefix_id !== null
             || $this->affix_suffix_id !== null
             || (float) ($this->killer_damage_rate ?? 0) > 0
+            || (float) ($this->species_damage_reduction_rate ?? 0) > 0
             || array_sum($this->affixStatBonuses()) !== 0;
     }
 
@@ -122,11 +125,36 @@ class CharacterItem extends Model
         }
 
         if ($this->killer_species_key && (float) ($this->killer_damage_rate ?? 0) > 0) {
-            $suffixName = $this->affixSuffix?->name;
-            $familyLabel = $suffixName ? "{$suffixName}対象" : $this->killer_species_key;
-            $lines[] = $familyLabel . 'への与ダメージ +' . (int) round(((float) $this->killer_damage_rate) * 100) . '%';
+            $speciesLabel = $this->speciesLabel((string) $this->killer_species_key);
+            $lines[] = '種族が' . $speciesLabel . 'の敵への与ダメージ +' . (int) round(((float) $this->killer_damage_rate) * 100) . '%';
+        }
+
+        if ($this->resist_species_key && (float) ($this->species_damage_reduction_rate ?? 0) > 0) {
+            $speciesLabel = $this->speciesLabel((string) $this->resist_species_key);
+            $lines[] = '種族が' . $speciesLabel . 'の敵からの被ダメージ -' . (int) round(((float) $this->species_damage_reduction_rate) * 100) . '%';
         }
 
         return $lines;
+    }
+
+    private function speciesLabel(string $speciesKey): string
+    {
+        return [
+            'aquatic' => '水棲',
+            'beast' => '獣',
+            'demon' => '悪魔',
+            'dragon' => '竜',
+            'flying' => '飛行',
+            'giant' => '巨人',
+            'goblin' => '小鬼',
+            'insect' => '虫',
+            'machine' => '機械',
+            'mage' => '魔法型',
+            'slime' => 'スライム',
+            'soldier' => '人型',
+            'spirit' => '精霊',
+            'standard' => '通常',
+            'undead' => '不死',
+        ][$speciesKey] ?? $speciesKey;
     }
 }

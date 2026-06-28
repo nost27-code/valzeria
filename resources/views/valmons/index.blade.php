@@ -36,7 +36,9 @@
     feedConfirmExp: 0,
     feedConfirmFormId: '',
     feedConfirmSubmitting: false,
+    feedSubmitting: false,
     openFeedConfirm(name, exp, formId) {
+        if (this.feedSubmitting) return;
         this.feedConfirmName = name;
         this.feedConfirmExp = exp;
         this.feedConfirmFormId = formId;
@@ -76,9 +78,11 @@
         this.feedConfirmOpen = false;
     },
     submitFeedConfirm() {
+        if (this.feedConfirmSubmitting || this.feedSubmitting) return;
         const form = document.getElementById(this.feedConfirmFormId);
         if (!form) return;
         this.feedConfirmSubmitting = true;
+        this.feedSubmitting = true;
         form.submit();
     }
 }">
@@ -355,7 +359,8 @@
                                     </div>
                                     <form method="POST" action="{{ route('valmons.feed.material', [$partner, $row]) }}"
                                           class="flex flex-col items-end gap-2 sm:flex-row sm:items-center"
-                                          x-data="{ qty: 1, max: {{ (int) $row->quantity }} }">
+                                          x-data="{ qty: 1, max: {{ (int) $row->quantity }} }"
+                                          @submit="if (feedSubmitting) { $event.preventDefault(); return; } feedSubmitting = true">
                                         @csrf
                                         <div class="flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
                                             <button type="button" class="flex h-11 w-11 items-center justify-center border-r border-slate-200 text-lg font-black text-slate-700 hover:bg-slate-50 disabled:text-slate-300"
@@ -366,7 +371,12 @@
                                             <button type="button" class="flex h-11 w-11 items-center justify-center border-l border-slate-200 text-lg font-black text-slate-700 hover:bg-slate-50 disabled:text-slate-300"
                                                 @click="qty = Math.min(max, qty + 1)" :disabled="qty >= max">+</button>
                                         </div>
-                                        <button type="submit" class="h-11 rounded bg-emerald-700 px-4 text-xs font-black text-white hover:bg-emerald-800">与える</button>
+                                        <button type="submit"
+                                                :disabled="feedSubmitting"
+                                                class="h-11 rounded bg-emerald-700 px-4 text-xs font-black text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300">
+                                            <span x-show="!feedSubmitting">与える</span>
+                                            <span x-show="feedSubmitting">処理中...</span>
+                                        </button>
                                     </form>
                                 </div>
                             </div>
@@ -409,7 +419,7 @@
                                     </div>
                                     <button type="button"
                                             @click="openBulkFeedConfirm()"
-                                            :disabled="selectedEquipmentIds.length === 0"
+                                            :disabled="selectedEquipmentIds.length === 0 || feedSubmitting"
                                             class="min-h-10 rounded-lg bg-red-700 px-4 text-xs font-black text-white shadow-sm hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300">
                                         まとめて餌にする
                                     </button>
@@ -442,7 +452,8 @@
                                             @csrf
                                             <button type="button"
                                                     @click="openFeedConfirm(@js($row->displayName()), {{ (int) $row->feed_exp }}, 'valmonEquipmentFeedForm_{{ $row->id }}')"
-                                                    class="rounded bg-red-700 px-3 py-2 text-xs font-black text-white hover:bg-red-800">与える</button>
+                                                    :disabled="feedSubmitting"
+                                                    class="rounded bg-red-700 px-3 py-2 text-xs font-black text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300">与える</button>
                                         </form>
                                     </div>
                                 </div>
@@ -536,7 +547,7 @@
                 </button>
                 <button type="button"
                         @click="submitFeedConfirm()"
-                        :disabled="feedConfirmSubmitting"
+                        :disabled="feedConfirmSubmitting || feedSubmitting"
                         class="min-h-11 flex-1 rounded-lg bg-red-700 px-4 text-sm font-black text-white shadow-sm hover:bg-red-800 disabled:opacity-60">
                     <span x-show="!feedConfirmSubmitting">餌にする</span>
                     <span x-show="feedConfirmSubmitting">処理中...</span>

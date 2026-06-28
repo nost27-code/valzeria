@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Services\AreaService;
 use App\Services\PublicLogService;
 use App\Services\CharacterGoalService;
+use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
 use App\Services\BeginnerMissionService;
@@ -237,6 +238,7 @@ class MainScreen extends Component
                     ->get()
                     ->groupBy('area_id');
                 $depthService = app(ExplorationDepthService::class);
+                $powerService = app(CharacterPowerService::class);
                 $dungeonOrder = 1;
                 foreach ($areas as $area) {
                     $cityIdStr = sprintf('%02d', $area->city_id);
@@ -272,10 +274,8 @@ class MainScreen extends Component
                     }
 
                     $explorationSummary = $explorationStateService->summaryForArea($this->character, $area);
-                    $recommendedLevelText = (int) $area->recommended_level_min === (int) $area->recommended_level_max
-                        ? '推奨Lv: ' . $area->recommended_level_min
-                        : '推奨Lv: ' . $area->recommended_level_min . '〜' . $area->recommended_level_max;
-                    $details = [$recommendedLevelText];
+                    $recommendedPower = $powerService->recommendedRangeForArea($area);
+                    $details = ['目安戦力: ' . $powerService->formatRange($recommendedPower)];
                     if ((int) ($area->development_point ?? 0) > 0 || $area->is_route_area) {
                         $details[] = '開拓度: ' . min(100, (int) ($area->development_point ?? 0)) . '/100';
                     }
@@ -309,18 +309,22 @@ class MainScreen extends Component
                         }
                     }
                     $depthEntries = collect($recordedDepthGatesByArea->get($area->id, collect()))
-                        ->map(function ($record) use ($area, $depthService) {
+                        ->map(function ($record) use ($area, $depthService, $powerService) {
                             $tier = $depthService->tierByKey((string) $record->depth_key);
                             if (!$tier) {
                                 return null;
                             }
 
                             $recommended = $depthService->recommendedLevelRangeForTier($area, $tier);
+                            $recommendedPower = $powerService->recommendedRangeForLevels(
+                                (int) ($recommended['min'] ?? 1),
+                                (int) ($recommended['max'] ?? $recommended['min'] ?? 1)
+                            );
 
                             return [
                                 'key' => (string) $record->depth_key,
                                 'label' => (string) ($record->depth_label ?: $tier['label']),
-                                'recommended' => '推奨Lv ' . number_format((int) $recommended['min']) . '〜' . number_format((int) $recommended['max']),
+                                'recommended' => '目安戦力 ' . $powerService->formatRange($recommendedPower),
                             ];
                         })
                         ->filter()

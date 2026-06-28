@@ -74,7 +74,10 @@
                                 {{ $city->name }}
                             </h3>
                             <p class="text-xs text-gray-500 h-8 mb-2 leading-relaxed">{{ $city->description }}</p>
-                            <div class="text-xs text-gray-400 mb-4 font-medium">推奨Lv: {{ $city->recommended_level_min }} 〜 {{ $city->recommended_level_max }}</div>
+                            @php
+                                $cityPowerRange = app(\App\Services\CharacterPowerService::class)->openingRecommendedRangeForCity($city);
+                            @endphp
+                            <div class="text-xs text-gray-400 mb-4 font-medium">開拓目安: {{ app(\App\Services\CharacterPowerService::class)->formatRange($cityPowerRange) }}</div>
                             <div class="flex justify-end">
                                 @if($isCurrent)
                                     <button disabled class="bg-gray-300 text-white font-bold py-1.5 px-4 rounded text-sm cursor-not-allowed">

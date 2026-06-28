@@ -204,7 +204,7 @@
                             <input type="number" step="0.0001" wire:model="skillForm.sp_cost_rate" class="{{ $compactFieldClass }}">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">旧MP消費</label>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">旧SP消費</label>
                             <input type="number" wire:model="skillForm.mp_cost" class="{{ $compactFieldClass }}">
                         </div>
                         <div>

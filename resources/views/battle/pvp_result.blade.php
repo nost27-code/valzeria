@@ -25,6 +25,22 @@
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
                 <div class="p-6 text-slate-800">
+                    @php
+                        $isNpcBattle = !empty($isNpcBattle);
+                        $defenderName = $isNpcBattle
+                            ? (string) ($defender['name'] ?? '放浪冒険者')
+                            : (string) ($defender->name ?? '不明');
+                        $defenderJob = $isNpcBattle
+                            ? (string) ($defender['job'] ?? '放浪冒険者')
+                            : (string) ($defender->jobClass->name ?? '冒険者');
+                        $defenderLevel = $isNpcBattle
+                            ? (string) ($defender['level'] ?? '???')
+                            : (string) ($defender->level ?? '???');
+                        $defenderHp = $isNpcBattle
+                            ? '???'
+                            : (string) ($defenderStats['max_hp'] ?? '???');
+                        $defenderImage = $isNpcBattle ? ($defender['image_path'] ?? null) : null;
+                    @endphp
 
                     {{-- 闘技場ヘッダー --}}
                     <div class="text-center mb-6 border-b-2 border-amber-100 pb-4">
@@ -66,20 +82,25 @@
                         {{-- 相手（防衛側）情報 --}}
                         <div class="w-full md:w-5/12 border-2 border-red-200 rounded-lg overflow-hidden flex flex-col">
                             <div class="bg-red-100 text-red-900 font-bold text-center py-1 border-b border-red-200">
-                                相手: {{ $defender->name }}
+                                相手: {{ $defenderName }}
                             </div>
+                            @if($defenderImage)
+                                <div class="flex justify-center bg-red-50/50 py-3">
+                                    <img src="{{ asset($defenderImage) }}" alt="" class="h-20 w-20 object-contain">
+                                </div>
+                            @endif
                             <table class="w-full text-sm text-center flex-grow">
                                 <tbody>
                                     <tr class="border-b border-red-100">
                                         <th class="bg-red-50 w-1/4 py-1 text-slate-600">職業</th>
-                                        <td class="w-1/4">{{ $defender->jobClass->name ?? '冒険者' }}</td>
+                                        <td class="w-1/4">{{ $defenderJob }}</td>
                                         <th class="bg-red-50 w-1/4 text-slate-600">Lv</th>
-                                        <td class="w-1/4 font-bold">{{ $defender->level }}</td>
+                                        <td class="w-1/4 font-bold">{{ $defenderLevel }}</td>
                                     </tr>
                                     <tr>
                                         <th class="bg-red-50 py-1 text-slate-600">HP</th>
                                         <td colspan="3" class="font-bold text-slate-800">
-                                            {{ $defenderStats['max_hp'] }}
+                                            {{ $defenderHp }}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -103,7 +124,7 @@
                                 <img src="{{ asset('images/icon/icon_044.webp') }}" alt="" class="w-6 h-6 object-contain"> 勝利！
                             </h3>
                             <div class="text-lg text-slate-700 font-bold">
-                                上位プレイヤーに勝利したため、順位が上がりました！
+                                上位ランカーに勝利したため、順位が上がりました！
                             </div>
                             <div class="mt-4 flex items-center justify-center text-3xl font-black">
                                 <span class="text-slate-500">{{ $arenaLog->attacker_old_rank }}位</span>

@@ -41,6 +41,8 @@ class BattleActor
     public ?string $speciesKey = null;
     public ?string $weaponKillerSpeciesKey = null;
     public float $weaponKillerDamageRate = 0.0;
+    public ?string $armorResistSpeciesKey = null;
+    public float $armorSpeciesDamageReductionRate = 0.0;
 
     public bool $isDefending = false;
     public int $damageReductionRate = 0;
@@ -89,6 +91,8 @@ class BattleActor
         $this->speciesKey = isset($stats['species_key']) ? (string) $stats['species_key'] : null;
         $this->weaponKillerSpeciesKey = isset($stats['weapon_killer_species_key']) ? (string) $stats['weapon_killer_species_key'] : null;
         $this->weaponKillerDamageRate = max(0.0, (float) ($stats['weapon_killer_damage_rate'] ?? 0.0));
+        $this->armorResistSpeciesKey = isset($stats['armor_resist_species_key']) ? (string) $stats['armor_resist_species_key'] : null;
+        $this->armorSpeciesDamageReductionRate = max(0.0, (float) ($stats['armor_species_damage_reduction_rate'] ?? 0.0));
 
         $this->originalModel = $originalModel;
     }

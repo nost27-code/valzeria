@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterNotification;
+use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
 use App\Services\CharacterProfileService;
@@ -184,6 +185,10 @@ class CityHeader extends Component
         $currentHp = max(0, min((int) ($character->current_hp ?? 0), $maxHp));
         $currentSp = max(0, min((int) ($character->current_mp ?? 0), $maxSp));
 
+        $character->loadMissing('jobHistories');
+        $currentJobHistory = $character->jobHistories->where('job_class_id', $character->current_job_id)->first();
+        $jobRank = $currentJobHistory ? (int) $currentJobHistory->job_level : 1;
+
         $profileService = app(CharacterProfileService::class);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
 
@@ -191,6 +196,8 @@ class CityHeader extends Component
             'name' => $character->name,
             'level' => (int) $character->level,
             'job' => $character->jobClass?->name ?? '冒険者',
+            'job_rank' => $jobRank,
+            'power' => app(CharacterPowerService::class)->fromFinalStats($stats),
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),
             'hp' => $currentHp,
             'max_hp' => $maxHp,
@@ -349,7 +356,12 @@ class CityHeader extends Component
             ];
         }
 
-        $rank = $characterItem->item?->{$rankColumn};
+        $rank = $characterItem->item?->{$rankColumn}
+            ?? $characterItem->item?->rarity;
+        $rank = strtoupper((string) $rank);
+        if ($rank === '' || $rank === 'NORMAL') {
+            $rank = null;
+        }
 
         return [
             'name' => $characterItem->displayName(),

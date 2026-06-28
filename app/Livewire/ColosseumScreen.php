@@ -6,10 +6,14 @@ use Livewire\Component;
 use App\Models\Character;
 use App\Models\ArenaRanking;
 use App\Models\ArenaLog;
+use App\Models\ArenaNpcAutoLog;
+use App\Models\ArenaNpcLog;
+use App\Services\ArenaNpcRankingService;
 use App\Services\PvPBattleService;
 use App\Services\StorageCapacityService;
 use App\Services\CooldownSettingService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class ColosseumScreen extends Component
 {
@@ -27,10 +31,7 @@ class ColosseumScreen extends Component
         }
 
         // 闘技場画面を開いた時点で初期ランクを付与
-        $this->myRanking = ArenaRanking::firstOrCreate(
-            ['character_id' => $this->character->id],
-            ['rank' => ArenaRanking::max('rank') + 1, 'wins' => 0, 'losses' => 0]
-        );
+        $this->myRanking = app(ArenaNpcRankingService::class)->ensurePlayerRanking($this->character);
 
         $this->loadRankings();
     }
@@ -39,33 +40,76 @@ class ColosseumScreen extends Component
     {
         $this->myRanking->refresh();
         $this->rankBattleCooldownRemaining = $this->rankBattleCooldownRemaining();
-        
-        // トップランカーは闘技場トップ画面では3位まで表示
-        $this->topRankings = ArenaRanking::with('character')->orderBy('rank')->limit(3)->get();
 
-        // 自分が挑める相手（自分より1〜3つ上の順位のプレイヤー）を取得
-        if ($this->myRanking->rank > 1) {
-            $minRank = max(1, $this->myRanking->rank - 3);
-            $maxRank = $this->myRanking->rank - 1;
-            
-            $this->targetRankings = ArenaRanking::with('character')
-                ->whereBetween('rank', [$minRank, $maxRank])
-                ->orderBy('rank', 'desc') // 自分に近い順
-                ->get();
-        } else {
-            $this->targetRankings = [];
-        }
+        $rankingService = app(ArenaNpcRankingService::class);
+        $this->topRankings = $rankingService->topEntries(5)->all();
+        $this->targetRankings = $rankingService->targetEntries($this->myRanking, 3)->all();
     }
 
     public function render(StorageCapacityService $storageCapacityService)
     {
-        // 自分の関連ログを取得（最新10件）
-        $logs = ArenaLog::with(['attacker', 'defender'])
+        $playerLogs = ArenaLog::with(['attacker', 'defender'])
             ->where('attacker_id', $this->character->id)
             ->orWhere('defender_id', $this->character->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(fn (ArenaLog $log): array => [
+                'kind' => 'player',
+                'created_at' => $log->created_at,
+                'is_attacker' => (int) $log->attacker_id === (int) $this->character->id,
+                'is_win' => (int) $log->attacker_id === (int) $this->character->id ? (bool) $log->is_attacker_win : ! (bool) $log->is_attacker_win,
+                'opponent_name' => (int) $log->attacker_id === (int) $this->character->id
+                    ? ($log->defender?->name ?? '不明')
+                    : ($log->attacker?->name ?? '不明'),
+                'old_rank' => (int) $log->attacker_id === (int) $this->character->id ? (int) $log->attacker_old_rank : (int) $log->defender_old_rank,
+                'new_rank' => (int) $log->attacker_id === (int) $this->character->id ? (int) $log->attacker_new_rank : (int) $log->defender_new_rank,
+            ]);
+
+        $npcLogs = Schema::hasTable('arena_npc_logs')
+            ? ArenaNpcLog::with(['npc'])
+                ->where('attacker_id', $this->character->id)
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+                ->map(fn (ArenaNpcLog $log): array => [
+                    'kind' => 'npc',
+                    'created_at' => $log->created_at,
+                    'is_attacker' => true,
+                    'is_win' => (bool) $log->is_attacker_win,
+                    'opponent_name' => $log->npc?->npc_name ?? '放浪冒険者',
+                    'old_rank' => (int) $log->attacker_old_rank,
+                    'new_rank' => (int) $log->attacker_new_rank,
+                ])
+            : collect();
+
+        $npcAutoLogs = Schema::hasTable('arena_npc_auto_logs')
+            ? ArenaNpcAutoLog::with(['attackerNpc'])
+                ->where('defender_character_id', $this->character->id)
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+                ->map(function (ArenaNpcAutoLog $log): array {
+                    $attackerName = app(ArenaNpcRankingService::class)->npcDisplayName($log->attackerNpc);
+
+                    return [
+                        'kind' => 'npc_auto',
+                        'created_at' => $log->created_at,
+                        'is_attacker' => false,
+                        'is_win' => ! (bool) $log->is_attacker_win,
+                        'opponent_name' => $attackerName,
+                        'old_rank' => (int) $log->defender_old_rank,
+                        'new_rank' => (int) $log->defender_new_rank,
+                    ];
+                })
+            : collect();
+
+        $logs = $playerLogs
+            ->concat($npcLogs)
+            ->concat($npcAutoLogs)
+            ->sortByDesc('created_at')
+            ->take(10)
+            ->values();
 
         $storageIsFull = $this->character ? $storageCapacityService->isFull($this->character) : false;
 
@@ -81,6 +125,15 @@ class ColosseumScreen extends Component
         $latestAttack = ArenaLog::where('attacker_id', $this->character->id)
             ->latest('created_at')
             ->first();
+        $latestNpcAttack = Schema::hasTable('arena_npc_logs')
+            ? ArenaNpcLog::where('attacker_id', $this->character->id)
+                ->latest('created_at')
+                ->first()
+            : null;
+
+        if ($latestNpcAttack && (!$latestAttack || $latestNpcAttack->created_at->gt($latestAttack->created_at))) {
+            $latestAttack = $latestNpcAttack;
+        }
 
         if (!$latestAttack?->created_at) {
             return 0;

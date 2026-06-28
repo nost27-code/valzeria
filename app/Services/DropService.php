@@ -180,17 +180,17 @@ class DropService
         $cityTier = $this->enemyCityTier($enemy);
 
         if ($this->isBackDungeon($enemy)) {
-            return $this->applyOperationalDropRateSettings(['material' => 65, 'weapon' => 3, 'armor' => 2, 'accessory' => 1]);
+            return $this->applyOperationalDropRateSettings(['material' => 65, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5]);
         }
 
         if ($this->isGrassland($enemy)) {
-            return $this->applyOperationalDropRateSettings(['material' => 40, 'weapon' => 2, 'armor' => 1.5, 'accessory' => 0.5]);
+            return $this->applyOperationalDropRateSettings(['material' => 40, 'weapon' => 1, 'armor' => 0.75, 'accessory' => 0.25]);
         }
 
         $rates = match ($cityTier) {
-            1, 2, 3, 4 => ['material' => 50, 'weapon' => 3, 'armor' => 2, 'accessory' => 1],
-            5, 6, 7 => ['material' => 55, 'weapon' => 3, 'armor' => 2, 'accessory' => 1],
-            default => ['material' => 60, 'weapon' => 3, 'armor' => 2, 'accessory' => 1],
+            1, 2, 3, 4 => ['material' => 50, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5],
+            5, 6, 7 => ['material' => 55, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5],
+            default => ['material' => 60, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5],
         };
 
         return $this->applyOperationalDropRateSettings($rates);
@@ -218,13 +218,13 @@ class DropService
 
         if ($dangerRate >= 100) {
             $rates['material'] = min(95, ($rates['material'] ?? 0) + 10);
-            $rates['weapon'] = min(30, ($rates['weapon'] ?? 0) + 2);
-            $rates['armor'] = min(30, ($rates['armor'] ?? 0) + 2);
-            $rates['accessory'] = min(20, ($rates['accessory'] ?? 0) + 1);
+            $rates['weapon'] = min(30, ($rates['weapon'] ?? 0) + 1);
+            $rates['armor'] = min(30, ($rates['armor'] ?? 0) + 1);
+            $rates['accessory'] = min(20, ($rates['accessory'] ?? 0) + 0.5);
         } elseif ($dangerRate >= 75) {
             $rates['material'] = min(90, ($rates['material'] ?? 0) + 5);
-            $rates['weapon'] = min(25, ($rates['weapon'] ?? 0) + 1);
-            $rates['armor'] = min(25, ($rates['armor'] ?? 0) + 1);
+            $rates['weapon'] = min(25, ($rates['weapon'] ?? 0) + 0.5);
+            $rates['armor'] = min(25, ($rates['armor'] ?? 0) + 0.5);
         }
 
         return $rates;
@@ -240,10 +240,10 @@ class DropService
         }
 
         if ($rareBonusPercent > 0) {
-            $equipmentBonus = max(1, (int) ceil($rareBonusPercent / 2));
+            $equipmentBonus = max(0.5, round($rareBonusPercent / 4, 2));
             $rates['weapon'] = min(30, ($rates['weapon'] ?? 0) + $equipmentBonus);
             $rates['armor'] = min(30, ($rates['armor'] ?? 0) + $equipmentBonus);
-            $rates['accessory'] = min(20, ($rates['accessory'] ?? 0) + max(1, (int) floor($equipmentBonus / 2)));
+            $rates['accessory'] = min(20, ($rates['accessory'] ?? 0) + max(0.25, round($equipmentBonus / 2, 2)));
         }
 
         return $rates;
@@ -628,6 +628,8 @@ class DropService
             'affix_effect_lines' => $affixLines,
             'killer_species_key' => $characterItem->killer_species_key,
             'killer_damage_rate' => (float) ($characterItem->killer_damage_rate ?? 0),
+            'resist_species_key' => $characterItem->resist_species_key,
+            'species_damage_reduction_rate' => (float) ($characterItem->species_damage_reduction_rate ?? 0),
             'character_item_id' => $characterItem->id,
         ];
     }

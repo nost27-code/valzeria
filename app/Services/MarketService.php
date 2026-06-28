@@ -7,6 +7,7 @@ use App\Models\CharacterMaterial;
 use App\Models\MarketListing;
 use App\Models\MarketTransaction;
 use App\Models\Material;
+use App\Models\NpcMaterialStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -52,6 +53,8 @@ class MarketService
 
             return MarketListing::create([
                 'seller_character_id' => $seller->id,
+                'seller_type' => 'character',
+                'seller_npc_id' => null,
                 'listing_type' => 'material',
                 'material_id' => $material->id,
                 'quantity' => $quantity,
@@ -75,6 +78,7 @@ class MarketService
 
             $listings = MarketListing::query()
                 ->active()
+                ->marketSellerEligible()
                 ->where('listing_type', 'material')
                 ->where('material_id', $material->id)
                 ->where('seller_character_id', '!=', $buyer->id)
@@ -128,16 +132,22 @@ class MarketService
 
             $lines = [];
             foreach ($fills as [$listing, $fillQuantity, $lineTotal]) {
-                $saleFee = (int) floor($lineTotal * self::SALE_FEE_RATE);
+                $isNpcListing = $listing->isNpcListing();
+                $saleFee = $isNpcListing ? 0 : (int) floor($lineTotal * self::SALE_FEE_RATE);
                 $sellerReceived = max(0, $lineTotal - $saleFee);
+                $seller = null;
 
-                $seller = Character::whereKey($listing->seller_character_id)->lockForUpdate()->firstOrFail();
-                $seller->money = (int) $seller->money + $sellerReceived;
-                $seller->save();
+                if (! $isNpcListing) {
+                    $seller = Character::whereKey($listing->seller_character_id)->lockForUpdate()->firstOrFail();
+                    $seller->money = (int) $seller->money + $sellerReceived;
+                    $seller->save();
+                }
 
                 $transaction = MarketTransaction::create([
                     'listing_id' => $listing->id,
-                    'seller_character_id' => $seller->id,
+                    'seller_character_id' => $isNpcListing ? 0 : $seller->id,
+                    'seller_type' => $isNpcListing ? 'npc' : 'character',
+                    'seller_npc_id' => $isNpcListing ? $listing->seller_npc_id : null,
                     'buyer_character_id' => $buyer->id,
                     'listing_type' => 'material',
                     'material_id' => $material->id,
@@ -149,32 +159,34 @@ class MarketService
                     'created_at' => now(),
                 ]);
 
-                $this->goldService->record($seller, 'market_sale', $sellerReceived, "{$materialName} x{$fillQuantity} が市場で売却", MarketTransaction::class, $transaction->id, [
-                    'material_id' => $material->id,
-                    'quantity' => $fillQuantity,
-                    'total_price' => $lineTotal,
-                    'sale_fee' => $saleFee,
-                ]);
-
-                $this->notificationService->create(
-                    character: $seller,
-                    category: 'market',
-                    type: 'market_material_sold',
-                    title: '市場で素材が売れました',
-                    body: "{$materialName} ×{$fillQuantity} が " . number_format($lineTotal) . "G で売れました。受取 " . number_format($sellerReceived) . 'G。',
-                    actionLabel: '履歴を見る',
-                    actionUrl: route('market.index', ['tab' => 'history']),
-                    payload: [
-                        'market_transaction_id' => $transaction->id,
+                if ($seller) {
+                    $this->goldService->record($seller, 'market_sale', $sellerReceived, "{$materialName} x{$fillQuantity} が市場で売却", MarketTransaction::class, $transaction->id, [
                         'material_id' => $material->id,
                         'quantity' => $fillQuantity,
                         'total_price' => $lineTotal,
                         'sale_fee' => $saleFee,
-                        'seller_received' => $sellerReceived,
-                    ],
-                    priority: 60,
-                    expiresAt: now()->addDays(7),
-                );
+                    ]);
+
+                    $this->notificationService->create(
+                        character: $seller,
+                        category: 'market',
+                        type: 'market_material_sold',
+                        title: '市場で素材が売れました',
+                        body: "{$materialName} ×{$fillQuantity} が " . number_format($lineTotal) . "G で売れました。受取 " . number_format($sellerReceived) . 'G。',
+                        actionLabel: '履歴を見る',
+                        actionUrl: route('market.index', ['tab' => 'history']),
+                        payload: [
+                            'market_transaction_id' => $transaction->id,
+                            'material_id' => $material->id,
+                            'quantity' => $fillQuantity,
+                            'total_price' => $lineTotal,
+                            'sale_fee' => $saleFee,
+                            'seller_received' => $sellerReceived,
+                        ],
+                        priority: 60,
+                        expiresAt: now()->addDays(7),
+                    );
+                }
 
                 $listing->remaining_quantity = max(0, (int) $listing->remaining_quantity - $fillQuantity);
                 if ((int) $listing->remaining_quantity <= 0) {
@@ -248,10 +260,16 @@ class MarketService
                             return;
                         }
 
-                        $seller = Character::whereKey($locked->seller_character_id)->lockForUpdate()->first();
                         $material = Material::whereKey($locked->material_id)->lockForUpdate()->first();
-                        if ($seller && $material) {
-                            $this->addMaterialQuantity($seller, $material, (int) $locked->remaining_quantity);
+                        if ($material) {
+                            if ($locked->isNpcListing()) {
+                                $this->addNpcMaterialQuantity((int) $locked->seller_npc_id, $material, (int) $locked->remaining_quantity);
+                            } else {
+                                $seller = Character::whereKey($locked->seller_character_id)->lockForUpdate()->first();
+                                if ($seller) {
+                                    $this->addMaterialQuantity($seller, $material, (int) $locked->remaining_quantity);
+                                }
+                            }
                         }
 
                         $locked->status = 'expired';
@@ -287,6 +305,32 @@ class MarketService
             'character_id' => $character->id,
             'material_id' => $material->id,
             'quantity' => $quantity,
+        ]);
+    }
+
+    private function addNpcMaterialQuantity(int $npcId, Material $material, int $quantity): void
+    {
+        if ($npcId <= 0 || $quantity <= 0) {
+            return;
+        }
+
+        $row = NpcMaterialStock::query()
+            ->where('npc_id', $npcId)
+            ->where('material_id', $material->id)
+            ->lockForUpdate()
+            ->first();
+
+        if ($row) {
+            $row->quantity = (int) $row->quantity + $quantity;
+            $row->save();
+            return;
+        }
+
+        NpcMaterialStock::create([
+            'npc_id' => $npcId,
+            'material_id' => $material->id,
+            'quantity' => $quantity,
+            'last_received_at' => now(),
         ]);
     }
 

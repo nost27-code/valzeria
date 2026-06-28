@@ -7,6 +7,11 @@
     'pageBackgroundStyle' => null,
     'bgImage' => null,
     'showExit' => true,
+    'exitTextClass' => 'text-slate-500 hover:text-[#d4af37]',
+    'headerOverlayClass' => 'bg-white/75',
+    'headerTitleClass' => null,
+    'pageBgImage' => null,
+    'pageBgOverlay' => 'bg-black/50',
 ])
 
 <!DOCTYPE html>
@@ -53,13 +58,26 @@
         @endif
         @livewireStyles
     </head>
-    <body class="relative font-sans antialiased {{ $pageBackgroundClass }} text-slate-800 min-h-screen flex flex-col overflow-x-hidden" @if($pageBackgroundStyle) style="{{ $pageBackgroundStyle }}" @endif>
+    @php
+        $bodyStyle = $pageBackgroundStyle ?? '';
+        if ($pageBgImage) {
+            $bodyStyle = "background-image: url('" . asset($pageBgImage) . "'); background-size: cover; background-position: center; background-attachment: fixed;";
+        }
+    @endphp
+    <body class="relative font-sans antialiased {{ $pageBgImage ? '' : $pageBackgroundClass }} text-slate-800 min-h-screen flex flex-col overflow-x-hidden" @if($bodyStyle) style="{{ $bodyStyle }}" @endif>
+        @if($pageBgImage)
+            <div class="fixed inset-0 z-0 {{ $pageBgOverlay }}" aria-hidden="true"></div>
+        @endif
         @php
             $facilityBaseName = $title ?? 'ここ';
             if (($pos = strpos($facilityBaseName, ' (')) !== false) {
                 $facilityBaseName = substr($facilityBaseName, 0, $pos);
             }
             $isBattleResult = in_array($facilityBaseName, ['戦闘結果', '戦闘開始！'], true);
+            $showBattleChatLog = str_contains($facilityBaseName, '戦闘')
+                || str_contains($facilityBaseName, 'チャンプ戦')
+                || str_contains($facilityBaseName, 'ランク戦')
+                || str_contains($facilityBaseName, '決闘');
             $exitLabel = $isBattleResult ? '戦利品を持って帰る' : $facilityBaseName . 'から出る';
         @endphp
         <x-pwa-install-banner />
@@ -102,7 +120,7 @@
                 @if($resolvedBgImage)
                     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{ asset($resolvedBgImage) }}');"></div>
                     <!-- テキスト視認性向上のためのオーバーレイ -->
-                    <div class="absolute inset-0 bg-white/75 backdrop-blur-[1px]"></div>
+                    <div class="absolute inset-0 {{ $headerOverlayClass }} backdrop-blur-[1px]"></div>
                 @endif
                 <div class="relative z-10 px-4 sm:px-6 lg:px-8 {{ $isBattleResult ? 'py-4' : 'py-5' }} flex flex-col md:flex-row justify-between items-center gap-4">
                     
@@ -118,7 +136,7 @@
                             </div>
                         @endif
                         <div>
-                            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-widest {{ $isBattleResult ? 'text-red-700' : 'text-[#003366]' }} drop-shadow-sm">
+                            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-widest {{ $headerTitleClass ?? ($isBattleResult ? 'text-red-700' : 'text-[#003366]') }} drop-shadow-sm">
                                 {{ $title ?? '施設' }}
                             </h1>
                         </div>
@@ -149,13 +167,13 @@
                     @if($isBattleResult)
                         <form action="{{ route('battle.return') }}" method="POST" class="inline">
                             @csrf
-                            <button type="submit" class="inline-flex items-center text-slate-500 hover:text-[#d4af37] font-bold transition-colors group">
+                            <button type="submit" class="inline-flex items-center {{ $exitTextClass }} font-bold transition-colors group">
                                 <svg class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                                 {{ $exitLabel }}
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('home') }}" wire:navigate class="inline-flex items-center text-slate-500 hover:text-[#d4af37] font-bold transition-colors group">
+                        <a href="{{ route('home') }}" wire:navigate class="inline-flex items-center {{ $exitTextClass }} font-bold transition-colors group">
                             <svg class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                             {{ $exitLabel }}
                         </a>
@@ -187,6 +205,12 @@
                     @else
                         <x-back-button href="{{ route('home') }}" label="{{ $exitLabel }}" />
                     @endif
+                </div>
+            @endif
+
+            @if($showBattleChatLog)
+                <div class="mt-6 w-full">
+                    <livewire:chat-log />
                 </div>
             @endif
         </div>

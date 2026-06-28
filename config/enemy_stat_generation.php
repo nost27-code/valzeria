@@ -7,6 +7,18 @@ return [
     'city_surface_level_width' => 14,
     'dungeons_per_city' => 7,
 
+    'city_stat_multipliers' => [
+        10 => [
+            'max_hp' => 1.10,
+            'str' => 1.10,
+            'def' => 1.10,
+            'agi' => 1.10,
+            'mag' => 1.10,
+            'spr' => 1.10,
+            'luk' => 1.10,
+        ], // 魔王城ヴァルゼリア
+    ],
+
     'layer_offsets' => [
         'surface' => 0,
         'deep' => 14,

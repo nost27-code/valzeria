@@ -55,7 +55,12 @@
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <h3 class="text-base font-black text-slate-950">{{ $request->title }}</h3>
-                                <div class="mt-1 text-xs font-bold text-slate-500">依頼者：{{ $request->requester_name }}</div>
+                                <div class="mt-1 flex items-center gap-2 text-xs font-bold text-slate-500">
+                                    @if($request->npc)
+                                        <img src="{{ asset($request->npc->image_path) }}" alt="" class="h-8 w-8 shrink-0 object-contain">
+                                    @endif
+                                    <span class="min-w-0 truncate">依頼者：{{ $request->requester_name }}</span>
+                                </div>
                                 @if($request->purpose_label)
                                     <div class="mt-0.5 text-xs font-bold text-amber-700">用途：{{ $request->purpose_label }}</div>
                                 @endif

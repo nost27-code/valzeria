@@ -35,7 +35,7 @@ class PlayerControlManager extends Component
         }
 
         $this->selectedCharacterId = (int) $character->id;
-        $this->materialStorageLimit = max(1, (int) ($character->material_storage_limit ?? 300));
+        $this->materialStorageLimit = max(1, (int) ($character->material_storage_limit ?? 500));
         $this->equipmentStorageLimit = max(1, (int) ($character->equipment_storage_limit ?? 200));
     }
 

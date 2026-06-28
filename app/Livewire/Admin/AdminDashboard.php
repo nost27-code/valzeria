@@ -108,7 +108,7 @@ class AdminDashboard extends Component
                 ['date', 'desc'],
                 ['index', 'asc'],
             ])
-            ->take(10)
+            ->take(50)
             ->values()
             ->all();
 

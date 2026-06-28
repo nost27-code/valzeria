@@ -44,12 +44,6 @@ Route::get('/', function () {
     $onlineCharacters = \App\Models\Character::where('last_seen_at', '>=', now()->subMinutes(5))
         ->orderBy('last_seen_at', 'desc')
         ->get(['name', 'last_seen_at']);
-    $topUpdates = \App\Models\TopUpdate::where('is_active', true)
-        ->orderByDesc('published_on')
-        ->orderBy('sort_order')
-        ->orderByDesc('id')
-        ->limit(6)
-        ->get();
     $registrationOpen = app(\App\Services\GameSettingService::class)->getBool('auth.registration_open', true);
 
     $champValmon = null;
@@ -63,7 +57,7 @@ Route::get('/', function () {
 
     $topPageVisit = app(\App\Services\TopPageAnalyticsService::class)->recordVisit(request());
 
-    return view('welcome', compact('totalCharacters', 'champSummary', 'onlineCharacters', 'topUpdates', 'champValmon', 'registrationOpen', 'topPageVisit'));
+    return view('welcome', compact('totalCharacters', 'champSummary', 'onlineCharacters', 'champValmon', 'registrationOpen', 'topPageVisit'));
 })->name('top');
 
 Route::post('/top-analytics/event', [TopPageAnalyticsController::class, 'event'])
@@ -432,6 +426,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     })->name('admin.contact-messages.badge-count');
     Route::get('/admin/world-metrics', \App\Livewire\Admin\WorldMetricsManager::class)->name('admin.world-metrics');
+    Route::get('/admin/operator-analytics', \App\Livewire\Admin\OperatorAnalyticsManager::class)->name('admin.operator-analytics');
     Route::get('/admin/growth-analytics', \App\Livewire\Admin\GrowthAnalyticsManager::class)->name('admin.growth-analytics');
     Route::get('/admin/testers', \App\Livewire\Admin\TesterManager::class)->name('admin.testers');
     Route::get('/admin/items', \App\Livewire\Admin\ItemManager::class)->name('admin.items');
@@ -445,9 +440,11 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/battle-simulator', \App\Livewire\Admin\BattleSimulator::class)->name('admin.battle-simulator');
     Route::get('/admin/balance-battle-lab', \App\Livewire\Admin\BalanceBattleLab::class)->name('admin.balance-battle-lab');
     Route::get('/admin/action-logs', \App\Livewire\Admin\ActionLogManager::class)->name('admin.action-logs');
+    Route::get('/admin/public-logs', \App\Livewire\Admin\PublicLogManager::class)->name('admin.public-logs');
     Route::get('/admin/chat', \App\Livewire\Admin\AdminChatManager::class)->name('admin.chat');
     Route::get('/admin/private-chat-logs', \App\Livewire\Admin\PrivateChatLogManager::class)->name('admin.private-chat-logs');
     Route::get('/admin/contact-messages', \App\Livewire\Admin\ContactMessageManager::class)->name('admin.contact-messages');
+    Route::get('/admin/npc-market-analytics', \App\Livewire\Admin\NpcMarketAnalyticsManager::class)->name('admin.npc-market-analytics');
     Route::get('/admin/reward-settings', \App\Livewire\Admin\RewardSettingManager::class)->name('admin.reward-settings');
     Route::get('/admin/kiseki-purchases', \App\Livewire\Admin\KisekiPurchaseManager::class)->name('admin.kiseki-purchases');
     Route::get('/admin/top-updates', \App\Livewire\Admin\TopUpdateManager::class)->name('admin.top-updates');

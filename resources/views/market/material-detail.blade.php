@@ -97,7 +97,12 @@
                         <div class="rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
-                                    <div class="truncate text-sm font-black text-slate-900">{{ $request->requester_name }}</div>
+                                    <div class="flex items-center gap-2">
+                                        @if($request->npc)
+                                            <img src="{{ asset($request->npc->image_path) }}" alt="" class="h-7 w-7 shrink-0 object-contain">
+                                        @endif
+                                        <div class="truncate text-sm font-black text-slate-900">{{ $request->requester_name }}</div>
+                                    </div>
                                     <div class="mt-0.5 text-xs font-bold text-slate-500">{{ $request->title }}</div>
                                     @if($requestMaterial)
                                         <div class="mt-1 text-xs font-bold text-slate-500">

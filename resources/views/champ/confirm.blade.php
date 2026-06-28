@@ -1,7 +1,19 @@
 <x-layouts.facility title="チャンプ戦" headerIconImage="images/icon/icon_009.webp" bgImage="images/bg-castle.webp">
     @php
         $champ = $summary['champ'];
+        $champFatigue = $summary['champ_fatigue'] ?? ['percent' => 0, 'defense_count' => (int) ($champ->defense_count ?? 0)];
+        $champStats = $summary['champ_effective_stats'] ?? [
+            'atk' => $champ->atk,
+            'def' => $champ->def,
+            'spd' => $champ->spd,
+            'mag' => $champ->mag,
+            'spr' => $champ->spr,
+            'luk' => $champ->luk,
+        ];
         $hpPercent = $summary['hp_percent'];
+        $cooldownUntilText = !empty($summary['cooldown_until'])
+            ? $summary['cooldown_until']->copy()->timezone('Asia/Tokyo')->format('H:i')
+            : null;
     @endphp
 
     <div class="max-w-2xl mx-auto space-y-4">
@@ -35,13 +47,19 @@
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">ATK<br><span class="text-base text-slate-900">{{ $champ->atk }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">DEF<br><span class="text-base text-slate-900">{{ $champ->def }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">SPD<br><span class="text-base text-slate-900">{{ $champ->spd }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">MAG<br><span class="text-base text-slate-900">{{ $champ->mag }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">SPR<br><span class="text-base text-slate-900">{{ $champ->spr }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">LUK<br><span class="text-base text-slate-900">{{ $champ->luk }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">ATK<br><span class="text-base text-slate-900">{{ $champStats['atk'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">DEF<br><span class="text-base text-slate-900">{{ $champStats['def'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">SPD<br><span class="text-base text-slate-900">{{ $champStats['spd'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">MAG<br><span class="text-base text-slate-900">{{ $champStats['mag'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">SPR<br><span class="text-base text-slate-900">{{ $champStats['spr'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">LUK<br><span class="text-base text-slate-900">{{ $champStats['luk'] }}</span></div>
                 </div>
+
+                @if(($champFatigue['percent'] ?? 0) > 0)
+                    <div class="rounded border border-orange-200 bg-orange-50 p-3 text-xs font-bold leading-relaxed text-orange-800">
+                        連勝疲労：{{ number_format($champFatigue['defense_count'] ?? 0) }}連勝中のため、チャンプの戦闘能力が{{ $champFatigue['percent'] }}%低下しています。
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-bold text-slate-700">
                     <div class="rounded border border-amber-100 bg-amber-50 p-2">
@@ -63,11 +81,11 @@
                     <div class="grid grid-cols-1 gap-1.5 text-xs font-bold text-slate-700">
                         <div class="flex items-start gap-2 rounded bg-white border border-emerald-100 px-2.5 py-2">
                             <img src="{{ asset('images/icon/icon_042.webp') }}" alt="" class="w-4 h-4 object-contain shrink-0 mt-0.5">
-                            <div><span class="text-emerald-700">経験値がおいしい</span> — 通常の最大2.5倍のEXP＆職業EXPを獲得。格上チャンプほどさらにボーナス大！</div>
+                            <div><span class="text-emerald-700">経験値がおいしい</span> — 通常より多めのEXPと少量の職業EXPを獲得。格上チャンプほどEXPボーナス大！</div>
                         </div>
                         <div class="flex items-start gap-2 rounded bg-white border border-emerald-100 px-2.5 py-2">
                             <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-4 h-4 object-contain shrink-0 mt-0.5">
-                            <div><span class="text-emerald-700">素材ボーナス</span> — 挑戦するたびに装備強化に使える素材を3〜5個獲得できる。</div>
+                            <div><span class="text-emerald-700">素材ボーナス</span> — 挑戦するたびに装備強化に使える素材を1〜2個獲得できる。</div>
                         </div>
                         <div class="flex items-start gap-2 rounded bg-white border border-emerald-100 px-2.5 py-2">
                             <img src="{{ asset('images/icon/icon_039.webp') }}" alt="" class="w-4 h-4 object-contain shrink-0 mt-0.5">
@@ -89,8 +107,8 @@
             @elseif(!$summary['can_challenge'])
                 <div class="text-center font-extrabold text-slate-700">
                     {{ $summary['reason'] ?? '今は挑戦できません' }}
-                    @if($summary['cooldown_until'])
-                        <div class="mt-1 text-xs text-slate-500">次回挑戦: {{ $summary['cooldown_until']->format('H:i') }}</div>
+                    @if($cooldownUntilText)
+                        <div class="mt-1 text-xs text-slate-500">次回挑戦: {{ $cooldownUntilText }}</div>
                     @endif
                 </div>
             @else

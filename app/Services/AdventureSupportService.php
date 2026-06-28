@@ -236,7 +236,9 @@ class AdventureSupportService
         $total = (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0);
         $disabledReason = null;
 
-        if ($total < (int) $item['price']) {
+        if ((bool) ($item['sale_suspended'] ?? false)) {
+            $disabledReason = "{$item['name']}は現在販売休止中です。";
+        } elseif ($total < (int) $item['price']) {
             $disabledReason = '輝石が不足しています。輝石を購入してから再度お試しください。';
         } elseif (($item['purchase_limit'] ?? null) && $this->purchasedCount($character, $key, null, $locked) >= (int) $item['purchase_limit']) {
             $disabledReason = "{$item['name']}はこれ以上購入できません。";

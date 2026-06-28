@@ -16,9 +16,19 @@ class MarketListing extends Model
         'expires_at' => 'datetime',
     ];
 
+    public function isNpcListing(): bool
+    {
+        return (string) ($this->seller_type ?? 'character') === 'npc';
+    }
+
     public function seller()
     {
         return $this->belongsTo(Character::class, 'seller_character_id');
+    }
+
+    public function sellerNpc()
+    {
+        return $this->belongsTo(NpcMaster::class, 'seller_npc_id', 'npc_id');
     }
 
     public function material()
@@ -40,5 +50,16 @@ class MarketListing extends Model
                 $query->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
             });
+    }
+
+    public function scopeMarketSellerEligible($query)
+    {
+        return $query->where(function ($query) {
+            $query->where('seller_type', 'character')
+                ->orWhere(function ($query) {
+                    $query->where('seller_type', 'npc')
+                        ->whereHas('sellerNpc', fn ($npcQuery) => $npcQuery->marketSellerEligible());
+                });
+        });
     }
 }

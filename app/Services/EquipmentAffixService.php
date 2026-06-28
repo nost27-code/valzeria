@@ -19,7 +19,7 @@ class EquipmentAffixService
     public function shouldApplyAffix(?Item $item): bool
     {
         return $item !== null
-            && (string) $item->type === 'weapon'
+            && in_array((string) $item->type, ['weapon', 'armor'], true)
             && (bool) ($item->affix_enabled ?? false);
     }
 
@@ -52,11 +52,17 @@ class EquipmentAffixService
         $suffix = null;
         $killerSpeciesKey = null;
         $killerDamageRate = 0.0;
+        $resistSpeciesKey = null;
+        $speciesDamageReductionRate = 0.0;
         if (in_array($tier, self::PREFIX_SUFFIX_TIERS, true)) {
-            $suffix = $this->rollSuffix();
-            if ($suffix) {
+            $suffix = $this->rollSuffixForItemType((string) $item->type);
+            if ($suffix && (string) $item->type === 'weapon') {
                 $killerSpeciesKey = (string) $suffix->species_key;
                 $killerDamageRate = $this->resolveKillerRate($suffix, $quality);
+            }
+            if ($suffix && (string) $item->type === 'armor') {
+                $resistSpeciesKey = (string) $suffix->species_key;
+                $speciesDamageReductionRate = $this->resolveArmorReductionRate($suffix, $quality);
             }
         }
 
@@ -73,6 +79,8 @@ class EquipmentAffixService
             'affix_luk_bonus' => $bonuses['luk'] ?? 0,
             'killer_species_key' => $killerSpeciesKey,
             'killer_damage_rate' => $killerDamageRate,
+            'resist_species_key' => $resistSpeciesKey,
+            'species_damage_reduction_rate' => $speciesDamageReductionRate,
             'affix_generated_at' => now(),
         ])->save();
 
@@ -112,10 +120,22 @@ class EquipmentAffixService
         );
     }
 
-    private function rollSuffix(): ?EquipmentAffixSuffix
+    private function rollSuffixForItemType(string $itemType): ?EquipmentAffixSuffix
     {
+        $effectType = match ($itemType) {
+            'weapon' => 'killer_damage',
+            'armor' => 'species_resist',
+            default => null,
+        };
+
+        if ($effectType === null) {
+            return null;
+        }
+
         return $this->weightedRow(
             EquipmentAffixSuffix::query()
+                ->where('item_type', $itemType)
+                ->where('effect_type', $effectType)
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get()
@@ -164,7 +184,16 @@ class EquipmentAffixService
         return match ($quality) {
             'good' => 0.0600,
             'excellent' => 0.0700,
-            default => max(0.0, (float) $suffix->base_killer_rate),
+            default => max(0.0, (float) ($suffix->base_effect_rate ?: $suffix->base_killer_rate)),
+        };
+    }
+
+    private function resolveArmorReductionRate(EquipmentAffixSuffix $suffix, string $quality): float
+    {
+        return match ($quality) {
+            'good' => 0.0500,
+            'excellent' => 0.0600,
+            default => max(0.0, (float) ($suffix->base_effect_rate ?: 0.0400)),
         };
     }
 

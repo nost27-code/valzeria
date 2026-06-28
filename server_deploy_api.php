@@ -64,6 +64,13 @@ if ($zip->open($zipPath) === true) {
         die("エラー: ZIPファイルの展開に失敗しました。ディレクトリの書き込み権限を確認してください。");
     }
     $zip->close();
+
+    // ローカル開発サーバー用の Vite hot ファイルが本番に残ると CSS/JS が localhost 参照になるため削除
+    $viteHotFile = $projectDir . '/public/hot';
+    if (is_file($viteHotFile) || is_link($viteHotFile)) {
+        unlink($viteHotFile);
+        echo "・Vite hot ファイルを削除しました。\n";
+    }
     
     // 【2】公開領域(public_html)にLaravelへ繋ぐ中継用 index.php を自動生成
     $indexCode = <<<PHP

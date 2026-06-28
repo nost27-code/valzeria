@@ -286,6 +286,9 @@
                     @forelse($history as $transaction)
                         @php
                             $isBuyer = (int) $transaction->buyer_character_id === (int) $character->id;
+                            $sellerName = ($transaction->seller_type ?? 'character') === 'npc'
+                                ? ($transaction->sellerNpc?->npc_name ?? '旅の冒険者')
+                                : ($transaction->seller?->name ?? '冒険者');
                         @endphp
                         <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                             <div class="flex items-start justify-between gap-3">
@@ -295,6 +298,9 @@
                                     </div>
                                     <div class="mt-1 text-xs font-bold text-slate-500">
                                         単価 {{ number_format((int) $transaction->unit_price) }}G / 合計 {{ number_format((int) $transaction->total_price) }}G
+                                        @if($isBuyer)
+                                            / 出品者 {{ $sellerName }}
+                                        @endif
                                         @if(! $isBuyer)
                                             / 手数料 {{ number_format((int) $transaction->sale_fee) }}G / 受取 {{ number_format((int) $transaction->seller_received) }}G
                                         @endif

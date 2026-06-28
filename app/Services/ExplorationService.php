@@ -192,6 +192,7 @@ class ExplorationService
                     if ($jobExpGained > 0) {
                         $jobExpGained = max(1, (int) ceil($jobExpGained * $depthReward['multiplier']));
                     }
+                    $jobExpGained = $this->levelService->capJobExpGain($jobExpGained);
                     $battleResult->exp = $expGained;
                     $battleResult->jobExp = $jobExpGained;
                 }
@@ -335,13 +336,13 @@ class ExplorationService
                     continue;
                 }
 
-                if (!in_array($rankText, ['A', 'SSS', 'EPIC'], true)
+                if (!in_array($rankText, ['SSS', 'EPIC'], true)
                     && !in_array($rarity, ['rare', 'epic', 'legend'], true)) {
                     continue;
                 }
 
                 $message = "【獲得】{$character->name}さんが{$rankText}ランク装備「{$equipmentDrop['item_name']}」を手に入れました！";
-                $importance = in_array($rankText, ['A', 'SSS', 'EPIC'], true) ? 3 : 2;
+                $importance = in_array($rankText, ['SSS', 'EPIC'], true) ? 3 : 2;
 
                 $this->publicLogService->addLog('drop', $message, $character, $importance);
             }
@@ -730,7 +731,14 @@ class ExplorationService
                 $result->logs[] = "<span class=\"text-indigo-800 font-extrabold\">{$discovery['message']}</span>";
                 $result->logs[] = "<span class=\"text-slate-700 font-bold\">入口名: {$routeName}</span>";
                 if ($subArea?->recommended_level_min) {
-                    $result->logs[] = "<span class=\"text-amber-700 font-bold\">推奨Lv {$subArea->recommended_level_min}〜{$subArea->recommended_level_max}。いまは地図に記録しました。</span>";
+                    $powerService = app(CharacterPowerService::class);
+                    $powerRange = $powerService->recommendedRangeForLevels(
+                        (int) ($subArea->recommended_level_min ?? 1),
+                        (int) ($subArea->recommended_level_max ?? $subArea->recommended_level_min ?? 1)
+                    );
+                    $result->logs[] = '<span class="text-amber-700 font-bold">目安戦力 '
+                        . $powerService->formatRange($powerRange)
+                        . '。いまは地図に記録しました。</span>';
                 }
 
                 return $result;

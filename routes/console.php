@@ -9,6 +9,10 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('market:expire-listings')->hourly();
+Schedule::command('market:generate-npc-listings --limit=6')->everySixHours()->withoutOverlapping();
 Schedule::command('npc-requests:expire')->hourly();
 Schedule::command('npc-requests:generate')->dailyAt('05:00');
+Schedule::command('arena:npc-auto-battles --battles=2')->dailyAt('07:20')->withoutOverlapping();
+Schedule::command('arena:npc-auto-battles --battles=1')->dailyAt('15:20')->withoutOverlapping();
+Schedule::command('arena:npc-auto-battles --battles=2')->dailyAt('22:20')->withoutOverlapping();
 Schedule::command('portal:send-online-count')->everyFiveMinutes()->withoutOverlapping();

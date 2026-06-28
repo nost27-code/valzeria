@@ -12,6 +12,7 @@ class CharacterJobChangeService
 {
     protected PublicLogService $publicLogService;
     protected array $lastUnequipMessages = [];
+    protected string $lastFailureMessage = '';
 
     public function __construct(PublicLogService $publicLogService)
     {
@@ -27,6 +28,13 @@ class CharacterJobChangeService
             return [
                 'success' => false,
                 'message' => 'Lv30に到達しないと転職できません。'
+            ];
+        }
+
+        if ((int) ($character->bonus_points ?? 0) > 0) {
+            return [
+                'success' => false,
+                'message' => '未使用BPをすべて能力へ割り振ってから転職してください。'
             ];
         }
 
@@ -154,8 +162,10 @@ class CharacterJobChangeService
     public function changeJob(Character $character, JobClass $targetJob): bool
     {
         $this->lastUnequipMessages = [];
+        $this->lastFailureMessage = '';
         $canChange = $this->canChangeJob($character, $targetJob);
         if (!$canChange['success']) {
+            $this->lastFailureMessage = (string) ($canChange['message'] ?? '転職条件を満たしていません。');
             return false;
         }
 
@@ -230,6 +240,7 @@ class CharacterJobChangeService
             return true;
         } catch (\Exception $e) {
             Log::error('転職処理に失敗しました: ' . $e->getMessage());
+            $this->lastFailureMessage = '転職処理に失敗しました。条件を満たしているか確認してください。';
             return false;
         }
     }
@@ -237,5 +248,10 @@ class CharacterJobChangeService
     public function getLastUnequipMessages(): array
     {
         return $this->lastUnequipMessages;
+    }
+
+    public function getLastFailureMessage(): string
+    {
+        return $this->lastFailureMessage;
     }
 }

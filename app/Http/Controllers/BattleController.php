@@ -4,20 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Area;
 use App\Models\ArenaLog;
+use App\Models\ArenaNpcLog;
+use App\Models\ArenaNpcRanking;
 use App\Models\ArenaRanking;
 use App\Models\CharacterAreaProgress;
 use App\Models\CharacterSubAreaRouteDiscovery;
 use App\Models\Enemy;
 use App\Services\ExplorationService;
+use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\ExplorationItemService;
 use App\Services\CityThemeService;
 use App\Services\StorageCapacityService;
 use App\Services\ExplorationDepthService;
 use App\Services\ExplorationStateService;
+use App\Services\ArenaNpcBattleService;
+use App\Services\ArenaNpcRankingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BattleController extends Controller
 {
@@ -669,6 +675,12 @@ class BattleController extends Controller
             default => 'この先は危険です。',
         };
         $recommended = $depthService->recommendedLevelRangeForTier($area, $current);
+        $powerService = app(CharacterPowerService::class);
+        $recommendedPower = $powerService->openingRecommendedRangeForLevels(
+            (int) ($recommended['min'] ?? 1),
+            (int) ($recommended['max'] ?? $recommended['min'] ?? 1)
+        );
+        $currentPower = $powerService->fromFinalStats($this->statusService->getFinalStats($character));
 
         return [
             'key' => $key,
@@ -679,13 +691,16 @@ class BattleController extends Controller
             'recommended_level_min' => (int) ($recommended['min'] ?? 0),
             'recommended_level_max' => (int) ($recommended['max'] ?? 0),
             'current_level' => (int) ($character->level ?? 1),
+            'recommended_power_min' => (int) ($recommendedPower['min'] ?? 0),
+            'recommended_power_max' => (int) ($recommendedPower['max'] ?? 0),
+            'current_power' => $currentPower,
         ];
     }
 
     /**
      * ランダムな相手に闘技場（PvP）戦を挑む
      */
-    public function randomPvp(Request $request, \App\Services\PvPBattleService $pvpService)
+    public function randomPvp(Request $request, \App\Services\PvPBattleService $pvpService, ArenaNpcBattleService $npcBattleService)
     {
         $attacker = Auth::user()->currentCharacter();
         if (!$attacker) {
@@ -712,20 +727,51 @@ class BattleController extends Controller
                 ->with('error', "ランク戦は連続で挑戦できません。あと{$cooldownRemaining}秒お待ちください。");
         }
 
-        // 挑める相手（自分より1〜3つ上の順位のプレイヤー）を取得
-        $minRank = max(1, $myRanking->rank - 3);
-        $maxRank = $myRanking->rank - 1;
-        
-        $targetRankings = ArenaRanking::with('character')
-            ->whereBetween('rank', [$minRank, $maxRank])
-            ->get();
+        $targetRankings = app(ArenaNpcRankingService::class)->targetEntries($myRanking, 3);
 
         if ($targetRankings->isEmpty()) {
             return $this->redirectToColosseum()->with('error', '挑める相手が見つかりません。');
         }
 
-        // ランダムに1人選ぶ
-        $targetRanking = $targetRankings->random();
+        $targetEntry = $targetRankings->random();
+
+        if (($targetEntry['type'] ?? null) === 'npc') {
+            $npcRanking = ArenaNpcRanking::with('npc')->findOrFail((int) $targetEntry['id']);
+            $attacker->load('arenaRanking');
+            $result = $npcBattleService->executeBattle($attacker, $npcRanking);
+
+            session(['current_location' => 'colosseum']);
+
+            $npcLog = ArenaNpcLog::where('attacker_id', $attacker->id)
+                ->where('arena_npc_ranking_id', $npcRanking->id)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $battleData = [
+                'result' => [
+                    'result' => $result->result,
+                    'logs' => $result->logs,
+                ],
+                'attacker' => $attacker,
+                'defender' => [
+                    'name' => $npcRanking->npc?->npc_name ?? '放浪冒険者',
+                    'job' => $npcRanking->npc?->npc_title ?? '放浪冒険者',
+                    'level' => '???',
+                    'image_path' => $npcRanking->npc?->image_path,
+                    'is_npc' => true,
+                ],
+                'arenaLog' => $npcLog,
+                'attackerStats' => $this->statusService->getFinalStats($attacker),
+                'defenderStats' => [
+                    'max_hp' => '???',
+                ],
+                'isNpcBattle' => true,
+            ];
+
+            return redirect()->route('battle.pvp_result')->with('battleData', $battleData);
+        }
+
+        $targetRanking = ArenaRanking::with('character')->findOrFail((int) $targetEntry['id']);
         $defender = $targetRanking->character;
 
         // PvPバトルの実行
@@ -759,6 +805,15 @@ class BattleController extends Controller
         $latestAttack = ArenaLog::where('attacker_id', $characterId)
             ->latest('created_at')
             ->first();
+        $latestNpcAttack = Schema::hasTable('arena_npc_logs')
+            ? ArenaNpcLog::where('attacker_id', $characterId)
+                ->latest('created_at')
+                ->first()
+            : null;
+
+        if ($latestNpcAttack && (!$latestAttack || $latestNpcAttack->created_at->gt($latestAttack->created_at))) {
+            $latestAttack = $latestNpcAttack;
+        }
 
         if (!$latestAttack?->created_at) {
             return 0;
@@ -985,7 +1040,7 @@ class BattleController extends Controller
         if (is_array($battleData['attacker'])) {
             $battleData['attacker'] = \App\Models\Character::find($battleData['attacker']['id']);
         }
-        if (is_array($battleData['defender'])) {
+        if (is_array($battleData['defender']) && !($battleData['defender']['is_npc'] ?? false)) {
             $battleData['defender'] = \App\Models\Character::find($battleData['defender']['id']);
         }
         if (isset($battleData['arenaLog']) && is_array($battleData['arenaLog'])) {

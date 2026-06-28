@@ -51,10 +51,13 @@
 
     {{-- β版バナー --}}
     <div style="background:linear-gradient(90deg,#1e3a5f 0%,#0a1628 50%,#1e3a5f 100%);border-bottom:1px solid rgba(212,175,55,0.4);padding:10px 20px;text-align:center;">
-        <span style="display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:900;color:#d4af37;letter-spacing:.08em;">
-            <span style="background:rgba(212,175,55,0.2);border:1px solid rgba(212,175,55,0.5);border-radius:4px;padding:2px 8px;font-size:11px;letter-spacing:.12em;">β版</span>
-            現在ベータ版として公開中です。不具合・ご意見は開発者までお知らせください。
-        </span>
+        <div style="display:inline-flex;align-items:flex-start;justify-content:center;gap:10px;font-size:13px;font-weight:900;color:#d4af37;letter-spacing:.08em;line-height:1.7;max-width:960px;">
+            <span style="background:rgba(212,175,55,0.2);border:1px solid rgba(212,175,55,0.5);border-radius:4px;padding:2px 8px;font-size:11px;letter-spacing:.12em;white-space:nowrap;">β版</span>
+            <span style="text-align:left;">
+                現在ベータ版として公開中です。不具合・ご意見は開発者までお知らせください。<br>
+                β期間中は、ゲームバランス調整や不具合修正のため、能力値・装備・スキル・報酬・進行状況などを変更する場合があります。下方修正を含む調整が行われる可能性がありますので、あらかじめご了承ください。
+            </span>
+        </div>
     </div>
 
     {{-- ① HERO --}}
@@ -430,24 +433,28 @@
         });
     </script>
 
-    {{-- ⑧ 更新情報 --}}
+    {{-- ⑧ 公式X --}}
     <div style="background:#fafaf7;padding:44px 16px;">
         <div style="max-width:680px;margin:0 auto;">
-            <div class="sec-ttl">更新情報</div>
-            <div style="background:#fff;border:1px solid #e7d98e;border-radius:12px;overflow:hidden;">
-                @forelse($topUpdates as $i => $update)
-                <div style="display:flex;gap:16px;align-items:baseline;padding:15px 18px;{{ $i > 0 ? 'border-top:1px solid #f0e8c8;' : '' }}">
-                    <span style="font-size:13px;color:#a8a29e;font-weight:700;flex-shrink:0;white-space:nowrap;">{{ $update->published_on?->format('Y/m/d') }}</span>
-                    <span style="font-size:16px;color:#1c1917;font-weight:700;">{{ $update->body }}</span>
-                </div>
-                @empty
-                <div style="padding:18px;text-align:center;font-size:15px;color:#a8a29e;font-weight:700;">
-                    現在、更新情報はありません。
-                </div>
-                @endforelse
+            <div class="sec-ttl">公式X</div>
+            <div style="background:#fff;border:1px solid #e7d98e;border-radius:12px;overflow:hidden;box-shadow:0 10px 28px rgba(15,23,42,.06);">
+                <a class="twitter-timeline"
+                   data-height="520"
+                   data-dnt="true"
+                   data-chrome="noheader nofooter transparent"
+                   href="https://x.com/valzeria_dev">
+                    公式X（@valzeria_dev）を見る
+                </a>
+            </div>
+            <div style="margin-top:10px;text-align:right;">
+                <a href="https://x.com/valzeria_dev" target="_blank" rel="noopener noreferrer"
+                   style="font-size:13px;color:#b45309;font-weight:900;text-decoration:underline;text-underline-offset:3px;">
+                    Xで開く
+                </a>
             </div>
         </div>
     </div>
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
     {{-- ⑨ フッター（深いネイビー） --}}
     <div style="background:#0a1628;padding:30px 20px;">

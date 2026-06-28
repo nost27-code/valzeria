@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -37,6 +38,9 @@ return new class extends Migration
                 '時空王',
             ])
             ->update(['normal_attack_type' => 'magical']);
+
+        // 全カラムが揃ったのでジョブデータを投入
+        Artisan::call('db:seed', ['--class' => 'JobSystemSeeder', '--force' => true]);
     }
 
     public function down(): void

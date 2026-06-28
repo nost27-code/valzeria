@@ -9,6 +9,7 @@ use App\Models\ChampHistory;
 use App\Models\ChampState;
 use App\Models\Enemy;
 use App\Models\Material;
+use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\DamageCalculator;
@@ -22,6 +23,18 @@ class ChampBattleService
     private const PVP_HIT_AGI_FACTOR = 0.15;
     private const PVP_MIN_HIT_RATE = 75;
     private const PVP_MAX_HIT_RATE = 98;
+    private const CHAMP_SKILL_COST_MAX_SP_RATE = 0.25;
+    private const LOW_LEVEL_SKILL_BONUS_PER_LEVELS = 2;
+    private const LOW_LEVEL_SKILL_BONUS_MAX = 25;
+    private const UPSET_DAMAGE_MIN_LEVEL_GAP = 10;
+    private const UPSET_DAMAGE_BASE_CHANCE = 12;
+    private const UPSET_DAMAGE_CHANCE_PER_10_LEVELS = 3;
+    private const UPSET_DAMAGE_MAX_CHANCE = 35;
+    private const UPSET_DAMAGE_MIN_HP_PERCENT = 8;
+    private const UPSET_DAMAGE_HP_PERCENT_PER_20_LEVELS = 3;
+    private const UPSET_DAMAGE_MAX_HP_PERCENT = 22;
+    private const STREAK_DEBUFF_PERCENT_PER_WIN = 2;
+    private const STREAK_DEBUFF_MAX_PERCENT = 40;
 
     public function __construct(
         private CharacterStatusService $statusService,
@@ -43,10 +56,16 @@ class ChampBattleService
 
         $maxHp = max(1, (int) $champ->max_hp);
         $currentHp = max(0, (int) $champ->current_hp);
+        $maxMp = max(1, (int) ($champ->max_mp ?? 0));
+        $currentMp = max(0, (int) ($champ->current_mp ?? 0));
 
         return [
             'champ' => $champ,
+            'champ_fatigue' => $this->champStreakFatigue($champ),
+            'champ_effective_stats' => $this->fatiguedChampStats($champ),
+            'champ_power' => $this->champPower($champ),
             'hp_percent' => min(100, (int) floor(($currentHp / $maxHp) * 100)),
+            'mp_percent' => min(100, (int) floor(($currentMp / $maxMp) * 100)),
             'is_self' => $viewer && $champ->character_id === $viewer->id,
             'can_challenge' => $availability['can_challenge'],
             'reason' => $availability['reason'],
@@ -54,6 +73,22 @@ class ChampBattleService
             'cooldown_remaining_seconds' => $availability['cooldown_remaining_seconds'],
             'recent_logs' => $this->recentLogs(5),
         ];
+    }
+
+    private function champPower(ChampState $champ): int
+    {
+        $stats = $this->fatiguedChampStats($champ);
+
+        return app(CharacterPowerService::class)->fromFinalStats([
+            'max_hp' => (int) $champ->max_hp,
+            'max_mp' => (int) ($champ->max_mp ?? 0),
+            'str' => (int) $stats['atk'],
+            'def' => (int) $stats['def'],
+            'agi' => (int) $stats['spd'],
+            'mag' => (int) $stats['mag'],
+            'spr' => (int) $stats['spr'],
+            'luk' => (int) $stats['luk'],
+        ]);
     }
 
     public function challengeAvailability(Character $character, ?ChampState $champ = null): array
@@ -135,7 +170,7 @@ class ChampBattleService
             $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
             $gapMultiplier = $this->champLevelGapExpMultiplier($levelGap);
             $expGained = $this->champExpReward($baseExp, $champDefeated, $gapMultiplier);
-            $jobExpGained = $this->champJobExpReward($champDefeated, $levelGap);
+            $jobExpGained = $this->levelService->capJobExpGain($this->champJobExpReward($champDefeated, $levelGap));
             $gapRewardNote = $levelGap > 0
                 ? "格上チャンプ挑戦ボーナス Lv差{$levelGap} / EXP倍率x" . number_format($gapMultiplier, 1)
                 : null;
@@ -171,6 +206,7 @@ class ChampBattleService
                 $battle['log'][] = "<span class=\"text-amber-700 font-bold\">【チャンプ交代】{$challenger->name}が新しいチャンプになった！</span>";
             } else {
                 $champ->current_hp = $champHpAfter;
+                $champ->current_mp = max(0, (int) ($battle['champ_mp_after'] ?? $champ->current_mp ?? 0));
                 $champ->defense_count = (int) $champ->defense_count + 1;
                 $champ->save();
             }
@@ -202,10 +238,17 @@ class ChampBattleService
                 'battle_log' => $battle['log'],
                 'champ_before_name' => $oldChamp['player_name'],
                 'champ_after_name' => $champDefeated ? $challenger->name : $champ->player_name,
-                'challenger_actor' => $challengerActor,
-                'champ_actor' => $oldChamp,
+                'challenger_actor' => array_merge($challengerActor, [
+                    'current_mp' => $battle['challenger_mp_after'] ?? (int) ($challengerActor['current_mp'] ?? 0),
+                ]),
+                'champ_actor' => array_merge($oldChamp, [
+                    'current_mp' => $battle['champ_mp_after'] ?? (int) ($oldChamp['current_mp'] ?? 0),
+                ]),
+                'champ_fatigue' => $battle['champ_fatigue'],
                 'champ_hp_before' => $champHpBefore,
                 'champ_hp_after' => $champHpAfter,
+                'champ_mp_after' => $battle['champ_mp_after'] ?? (int) ($oldChamp['current_mp'] ?? 0),
+                'challenger_mp_after' => $battle['challenger_mp_after'] ?? (int) ($challengerActor['current_mp'] ?? 0),
                 'champ_max_hp' => $champDefeated ? $this->snapshotStats($challenger)['max_hp'] : (int) $champ->max_hp,
                 'exp_gained' => $expGained,
                 'job_exp_gained' => $jobExpGained,
@@ -291,6 +334,8 @@ class ChampBattleService
             'speed'    => (float) ($champ->affinity_speed    ?? 0.0),
             'magical'  => (float) ($champ->affinity_magical  ?? 0.0),
         ];
+        $champFatigue = $this->champStreakFatigue($champ);
+        $champStats = $this->fatiguedChampStats($champ, $champFatigue);
 
         $attacker = new BattleActor($challenger->name, true, [
             'hp' => $challengerStats['max_hp'],
@@ -307,30 +352,45 @@ class ChampBattleService
             'battle_type_weights' => $challengerAffinity,
             'normal_attack_type' => $challenger->jobClass?->normal_attack_type ?? null,
         ], $challenger);
+        $challengerJob = $challenger->relationLoaded('currentJob')
+            ? $challenger->currentJob
+            : $challenger->currentJob()->with('skill')->first();
+        if ($challengerJob?->skill) {
+            $attacker->skill = $challengerJob->skill;
+        }
 
         $defender = new BattleActor($champ->player_name, false, [
             'hp' => max(0, (int) $champ->current_hp),
             'max_hp' => max(1, (int) $champ->max_hp),
-            'mp' => 0,
-            'max_mp' => 0,
-            'str' => (int) $champ->atk,
-            'def' => (int) $champ->def,
-            'agi' => (int) $champ->spd,
-            'mag' => (int) $champ->mag,
-            'spr' => (int) $champ->spr,
-            'luk' => (int) $champ->luk,
+            'mp' => max(0, (int) ($champ->current_mp ?? 0)),
+            'max_mp' => max(0, (int) ($champ->max_mp ?? 0)),
+            'str' => $champStats['atk'],
+            'def' => $champStats['def'],
+            'agi' => $champStats['spd'],
+            'mag' => $champStats['mag'],
+            'spr' => $champStats['spr'],
+            'luk' => $champStats['luk'],
             'battle_type_weights' => $champAffinity,
             'normal_attack_type' => $champ->normal_attack_type ?? 'physical',
         ], $champ);
+        $champSkill = $this->champSkill($champ);
+        if ($champSkill) {
+            $defender->skill = $champSkill;
+        }
 
         $affinityMultiplier = BattleTypeAffinity::multiplier($challengerAffinity, $champAffinity);
         $affinityNet = round($affinityMultiplier - 1.0, 4);
         $champAttackMultiplier = BattleTypeAffinity::multiplier($champAffinity, $challengerAffinity);
+        $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
+        $upsetDamageUsed = false;
         $totalDamage = 0;
         $log = [];
 
         $log[] = $this->affinityLog($attacker->name, $defender->name, $affinityMultiplier);
         $log[] = $this->affinityLog($defender->name, $attacker->name, $champAttackMultiplier);
+        if ($champFatigue['percent'] > 0) {
+            $log[] = "<span class=\"text-orange-700 font-bold\">【連勝疲労】{$champ->defense_count}連勝中の疲労で、チャンプの戦闘能力が {$champFatigue['percent']}% 低下している！</span>";
+        }
 
         $challengerFirst = (bool) random_int(0, 1);
         if ($challengerFirst) {
@@ -350,9 +410,20 @@ class ChampBattleService
                     continue;
                 }
 
-                $multiplier = BattleTypeAffinity::multiplier($actor->battleTypeWeights, $target->battleTypeWeights);
-                $action = $this->attack($actor, $target, $multiplier);
+                $actorLevel = $actor->isPlayer ? (int) $challenger->level : (int) $champ->level;
+                $targetLevel = $actor->isPlayer ? (int) $champ->level : (int) $challenger->level;
+                $action = $this->champAction($actor, $target, $actorLevel, $targetLevel);
                 $damage = $action['damage'];
+                $upsetDamage = 0;
+
+                if ($actor->isPlayer && !$upsetDamageUsed && ($action['hit'] ?? false)) {
+                    $upsetDamage = $this->rollUpsetDamage($target, $levelGap);
+                    if ($upsetDamage > 0) {
+                        $damage += $upsetDamage;
+                        $upsetDamageUsed = true;
+                    }
+                }
+
                 $target->takeDamage($damage);
 
                 if ($actor->isPlayer) {
@@ -360,6 +431,9 @@ class ChampBattleService
                 }
 
                 $log[] = $action['log'];
+                if ($upsetDamage > 0) {
+                    $log[] = "<span class=\"text-fuchsia-700 font-extrabold\">【格上への一撃】レベル差を覆す渾身の一撃！ 追加で {$upsetDamage} ダメージ！</span>";
+                }
 
                 if ($target->isDead()) {
                     break 2;
@@ -381,7 +455,268 @@ class ChampBattleService
             'log' => $log,
             'affinity_multiplier' => $affinityMultiplier,
             'affinity_net' => $affinityNet,
+            'champ_fatigue' => $champFatigue,
+            'challenger_mp_after' => $attacker->mp,
+            'champ_mp_after' => $defender->mp,
         ];
+    }
+
+    private function champSkill(ChampState $champ): ?Skill
+    {
+        if (!$champ->character_id) {
+            return null;
+        }
+
+        $character = Character::query()->find($champ->character_id);
+        $job = $character?->currentJob()->with('skill')->first();
+
+        return $job?->skill;
+    }
+
+    private function champAction(BattleActor $attacker, BattleActor $defender, int $attackerLevel, int $defenderLevel): array
+    {
+        if ($attacker->skill && random_int(1, 100) <= $this->champSkillActivationRate($attacker->skill, $attackerLevel, $defenderLevel)) {
+            $spCost = $this->champSkillSpCost($attacker, $attacker->skill);
+
+            if ($attacker->mp >= $spCost) {
+                $attacker->mp -= $spCost;
+                return $this->skillAttack($attacker, $defender, $attacker->skill);
+            }
+
+            $normal = $this->attack($attacker, $defender, BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights));
+            $normal['log'] = "<span class=\"text-slate-500 font-bold\">{$attacker->name} は {$attacker->skill->name} を狙ったが、SPが足りない！</span><br>" . $normal['log'];
+
+            return $normal;
+        }
+
+        return $this->attack($attacker, $defender, BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights));
+    }
+
+    private function champSkillActivationRate(Skill $skill, int $attackerLevel, int $defenderLevel): int
+    {
+        $baseRate = max(0, min(100, $skill->effectiveActivationRate()));
+        $levelGap = max(0, $defenderLevel - $attackerLevel);
+        if ($levelGap <= 0) {
+            return $baseRate;
+        }
+
+        $bonus = min(
+            self::LOW_LEVEL_SKILL_BONUS_MAX,
+            (int) floor($levelGap / self::LOW_LEVEL_SKILL_BONUS_PER_LEVELS)
+        );
+
+        return min(100, $baseRate + $bonus);
+    }
+
+    private function skillAttack(BattleActor $attacker, BattleActor $defender, Skill $skill): array
+    {
+        $hitCount = max(1, (int) $skill->hit_count);
+        if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
+            $hitCount = 1;
+        }
+
+        $totalDamage = 0;
+        $logs = ["<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
+        $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
+
+        for ($i = 0; $i < $hitCount; $i++) {
+            $damage = 0;
+            $skillPowerInt = max(0, (int) round((float) $skill->power_multiplier * 100));
+            $overrideDef = null;
+            $overrideSpr = null;
+
+            if ((int) $skill->def_ignore_percent > 0) {
+                $overrideDef = (int) floor($defender->def * (1 - ((int) $skill->def_ignore_percent / 100)));
+                $overrideSpr = (int) floor($defender->spr * (1 - ((int) $skill->def_ignore_percent / 100)));
+            }
+
+            if (str_contains((string) $skill->description, 'LUKに応じて')) {
+                $skillPowerInt += (int) floor($attacker->luk * 0.5);
+            }
+
+            if ((float) $skill->power_multiplier > 0) {
+                if (in_array($skill->damage_type, ['physical', 'gold', 'drop'], true)) {
+                    $damage = $this->damageCalculator->calculateRankBattleDamage(
+                        $attacker,
+                        $defender,
+                        'physical',
+                        $skillPowerInt,
+                        false,
+                        $affinityMultiplier,
+                        null,
+                        $overrideDef,
+                        $overrideSpr,
+                        true,
+                        $hitCount
+                    );
+                } elseif ($skill->damage_type === 'magical') {
+                    $damage = $this->damageCalculator->calculateRankBattleDamage(
+                        $attacker,
+                        $defender,
+                        'magical',
+                        $skillPowerInt,
+                        false,
+                        $affinityMultiplier,
+                        null,
+                        $overrideDef,
+                        $overrideSpr,
+                        true,
+                        $hitCount
+                    );
+                } elseif ($skill->damage_type === 'hybrid') {
+                    $hybridAtk = str_contains((string) $skill->description, '高い方依存')
+                        ? max($attacker->str, $attacker->mag)
+                        : (int) floor(($attacker->str + $attacker->mag) / 2);
+                    $damage = $this->damageCalculator->calculateRankBattleDamage(
+                        $attacker,
+                        $defender,
+                        'physical',
+                        $skillPowerInt,
+                        false,
+                        $affinityMultiplier,
+                        $hybridAtk,
+                        $overrideDef,
+                        $overrideSpr,
+                        true,
+                        $hitCount
+                    );
+                }
+            }
+
+            if ($damage > 0) {
+                $totalDamage += $damage;
+                $logs[] = "{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！";
+            }
+        }
+
+        if ((int) $skill->heal_percent > 0) {
+            $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
+            $attacker->healHp($healAmount);
+            $logs[] = "<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$healAmount} 回復した！</span>";
+        }
+
+        if ((int) $skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
+            $mpHealAmount = (int) floor($attacker->maxMp * ((int) $skill->mp_recover_percent / 100));
+            $attacker->mp = min($attacker->maxMp, $attacker->mp + $mpHealAmount);
+            $logs[] = "<span class=\"text-blue-500 font-bold\">{$attacker->name} はSPを {$mpHealAmount} 回復した！</span>";
+        }
+
+        if ((int) $skill->self_damage_percent > 0) {
+            $selfDamage = (int) floor($attacker->maxHp * ((int) $skill->self_damage_percent / 100));
+            $attacker->takeDamage($selfDamage);
+            $logs[] = "<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>";
+        }
+
+        if ((int) $skill->enemy_def_down_percent > 0) {
+            $effect = (int) $skill->enemy_def_down_percent;
+            $defender->def = max(1, $defender->def - (int) floor($defender->baseDef * ($effect / 100)));
+            $logs[] = "{$defender->name} の防御力が {$effect}% 低下した！";
+        }
+
+        if ((int) $skill->enemy_spd_down_percent > 0) {
+            $effect = (int) $skill->enemy_spd_down_percent;
+            $defender->agi = max(1, $defender->agi - (int) floor($defender->baseAgi * ($effect / 100)));
+            $logs[] = "{$defender->name} の素早さが {$effect}% 低下した！";
+        }
+
+        if ((int) $skill->enemy_spr_down_percent > 0) {
+            $effect = (int) $skill->enemy_spr_down_percent;
+            $defender->spr = max(1, $defender->spr - (int) floor($defender->baseSpr * ($effect / 100)));
+            $logs[] = "{$defender->name} の精神力が {$effect}% 低下した！";
+        }
+
+        if ((int) $skill->damage_reduction_percent > 0) {
+            $attacker->damageReductionRate = (int) $skill->damage_reduction_percent;
+            $logs[] = "{$attacker->name} は次の被ダメージを軽減する構えをとった！";
+        }
+
+        if ($skill->damage_type === 'support' && str_contains((string) $skill->description, '上昇')) {
+            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * 0.05));
+            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * 0.05));
+            $logs[] = "{$attacker->name} の攻撃力と魔法力が上昇した！";
+        }
+
+        return [
+            'hit' => $totalDamage > 0,
+            'damage' => $totalDamage,
+            'log' => implode('<br>', $logs),
+        ];
+    }
+
+    private function champSkillSpCost(BattleActor $attacker, Skill $skill): int
+    {
+        $baseCost = $skill->spCostForMaxSp($attacker->maxMp);
+        if ($baseCost <= 0 || $attacker->maxMp <= 0) {
+            return $baseCost;
+        }
+
+        $cap = max(1, (int) ceil($attacker->maxMp * self::CHAMP_SKILL_COST_MAX_SP_RATE));
+
+        return min($baseCost, $cap);
+    }
+
+    private function champStreakFatigue(ChampState $champ): array
+    {
+        $defenseCount = max(0, (int) $champ->defense_count);
+        $percent = min(
+            self::STREAK_DEBUFF_MAX_PERCENT,
+            $defenseCount * self::STREAK_DEBUFF_PERCENT_PER_WIN
+        );
+
+        return [
+            'defense_count' => $defenseCount,
+            'percent' => $percent,
+            'multiplier' => max(0.1, (100 - $percent) / 100),
+        ];
+    }
+
+    private function fatiguedChampStats(ChampState $champ, ?array $fatigue = null): array
+    {
+        $fatigue ??= $this->champStreakFatigue($champ);
+        $multiplier = (float) ($fatigue['multiplier'] ?? 1.0);
+
+        return [
+            'atk' => $this->fatiguedCombatStat((int) $champ->atk, $multiplier),
+            'def' => $this->fatiguedCombatStat((int) $champ->def, $multiplier),
+            'mag' => $this->fatiguedCombatStat((int) $champ->mag, $multiplier),
+            'spr' => $this->fatiguedCombatStat((int) $champ->spr, $multiplier),
+            'spd' => $this->fatiguedCombatStat((int) $champ->spd, $multiplier),
+            'luk' => $this->fatiguedCombatStat((int) $champ->luk, $multiplier),
+        ];
+    }
+
+    private function fatiguedCombatStat(int $value, float $multiplier): int
+    {
+        if ($value <= 0) {
+            return 0;
+        }
+
+        return max(1, (int) floor($value * $multiplier));
+    }
+
+    private function rollUpsetDamage(BattleActor $defender, int $levelGap): int
+    {
+        if ($levelGap < self::UPSET_DAMAGE_MIN_LEVEL_GAP) {
+            return 0;
+        }
+
+        $chance = min(
+            self::UPSET_DAMAGE_MAX_CHANCE,
+            self::UPSET_DAMAGE_BASE_CHANCE + (int) floor($levelGap / 10) * self::UPSET_DAMAGE_CHANCE_PER_10_LEVELS
+        );
+
+        if (random_int(1, 100) > $chance) {
+            return 0;
+        }
+
+        $percent = min(
+            self::UPSET_DAMAGE_MAX_HP_PERCENT,
+            self::UPSET_DAMAGE_MIN_HP_PERCENT + (int) floor($levelGap / 20) * self::UPSET_DAMAGE_HP_PERCENT_PER_20_LEVELS
+        );
+        $percent = random_int(self::UPSET_DAMAGE_MIN_HP_PERCENT, $percent);
+        $maxHp = max(1, (int) $defender->maxHp);
+
+        return max(1, (int) floor($maxHp * $percent / 100));
     }
 
     private function attack(BattleActor $attacker, BattleActor $defender, float $affinityMultiplier = 1.0): array
@@ -395,6 +730,7 @@ class ChampBattleService
             self::PVP_MAX_HIT_RATE
         )) {
             return [
+                'hit' => false,
                 'damage' => 0,
                 'log' => "{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！",
             ];
@@ -414,6 +750,7 @@ class ChampBattleService
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
 
         return [
+            'hit' => true,
             'damage' => $damage,
             'log' => "{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！",
         ];
@@ -597,7 +934,7 @@ class ChampBattleService
 
         return [
             'material' => $material,
-            'quantity' => random_int(3, 5),
+            'quantity' => random_int(1, 2),
         ];
     }
 

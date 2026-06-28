@@ -11,30 +11,24 @@ return new class extends Migration
         // 旧システムでは grassland フィルタで弾いていたが、敵ごと drops 定義方式への移行に伴い
         // データ側で明示的に無効化する。
         DB::statement('
-            UPDATE material_drops md
-            JOIN materials m ON md.material_id = m.id
-            JOIN enemies e ON md.enemy_id = e.id
-            SET md.is_active = 0
-            WHERE e.area_id = 1
-              AND e.is_boss = 0
-              AND m.city_id IS NOT NULL
-              AND md.drop_first_clear_only = 0
-              AND md.is_active = 1
+            UPDATE material_drops
+            SET is_active = 0
+            WHERE is_active = 1
+              AND drop_first_clear_only = 0
+              AND material_id IN (SELECT id FROM materials WHERE city_id IS NOT NULL)
+              AND enemy_id IN (SELECT id FROM enemies WHERE area_id = 1 AND is_boss = 0)
         ');
     }
 
     public function down(): void
     {
         DB::statement('
-            UPDATE material_drops md
-            JOIN materials m ON md.material_id = m.id
-            JOIN enemies e ON md.enemy_id = e.id
-            SET md.is_active = 1
-            WHERE e.area_id = 1
-              AND e.is_boss = 0
-              AND m.city_id IS NOT NULL
-              AND md.drop_first_clear_only = 0
-              AND md.is_active = 0
+            UPDATE material_drops
+            SET is_active = 1
+            WHERE is_active = 0
+              AND drop_first_clear_only = 0
+              AND material_id IN (SELECT id FROM materials WHERE city_id IS NOT NULL)
+              AND enemy_id IN (SELECT id FROM enemies WHERE area_id = 1 AND is_boss = 0)
         ');
     }
 };
