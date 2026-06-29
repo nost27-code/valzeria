@@ -9,9 +9,9 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 | Battle | ? | <file/route> | 未確認 |
 | Market | ? | <file/route> | 未確認 |
 | NPC procurement market loop | D | `NpcProcurementRequestService`, `NpcProcurementRequestGenerationService`, `NpcMarketListingService`, `npc_material_stocks`, `market:generate-npc-listings` | 調達依頼を酒場NPC本人の `npc_id` に紐づけ、納品素材をNPC在庫へ加算し、NPC在庫から市場へ定期出品する。NPC出品は買う一覧の在庫・最安値に通常出品として混ざる。市場出品NPCは `npc_rank=hero/legend` を除外する。 |
-| Equipment enhancement | D | `EquipmentEnhancementService`, `SmithController`, `/blacksmith` | 武器・防具・装飾品を最大+5まで強化。武器は強化石、防具は守護石、装飾品は装飾強化石を使用。 |
+| Equipment enhancement | D | `EquipmentEnhancementService`, `SmithController`, `/blacksmith` | 武器・防具・装飾品を最大+5まで強化。+1/+2は欠片中心、+3は石+欠片、+4/+5は高純度石・都市素材・高位素材を使い、+5では精錬核も要求する。 |
 | Drop equipment affixes | D | `EquipmentAffixService`, `DropService`, `BattleService`, `CharacterItem` | 敵ドロップ武器・防具に能力銘、武器用種族特効、防具用種族耐性を確率付与。銘補正は個体保存し、装備中のみ反映。 |
-| Material exchange | D | `MaterialExchangeService`, `/material-exchange` | 強化石/守護石/装飾強化石の欠片3個を、それぞれの石1個へ精製できる。 |
+| Material exchange | D | `MaterialExchangeService`, `/material-exchange`, `DropService` | 敵固有素材を共通素材へ変換し、共通素材+100Gから強化石/守護石/装飾強化石の欠片を合成できる。各欠片20個+500Gを対応する石1個へ精製でき、高純度石と精錬核も素材交換所で作れる。高純度強化石・高純度守護石・高純度装飾強化石は敵ドロップしない。 |
 | Daily supply depot | D | `DailySupplyService`, `/shop/items` | 回復アイテム各10個/日の補給枠と補給所ストックを実装。 |
 | Tavern NPC portraits | D | `NpcMaster`, `resources/views/tavern/*.blade.php`, `public/images/npc/npc_*.webp` | 酒場・会話・名簿・名簿詳細で `npc_id` 対応のキャラ画像を表示。未遭遇NPCは名簿で伏せる。 |
 | Job change / temple | D | `JobChange`, `job-change.blade.php`, `/jobs` | 職業カードから詳細モーダルを開き、特徴・職業管理の成長倍率に基づく伸びやすい能力・奥義・マスター恩恵・必要条件を確認できる。職業ランクは全職10でマスターし、必要職業EXPは基本職1倍/中級職2倍/上級職5倍/伝説職10倍。1回の報酬処理で付与される職業EXPは最大3。転職可能職業は詳細モーダルから転職確認へ進める。 |
@@ -26,4 +26,5 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 | Admin help text management | D | `HelpTextManager`, `HelpContentService`, `/admin/help-texts`, `/help`, `/guide` | ヘルプページと案内所の共通説明文を管理画面から編集し、`game_texts` の上書きとして保存できる。 |
 | Local sandbox startup | D | `.env.local.example`, `scripts/local-setup.ps1`, `scripts/local-dev.ps1`, `docs/LOCAL_DEVELOPMENT.md` | 本番外部サービスを避けるローカル起動手順とスクリプトを整備。 |
 | Public logs | ? | <file/route> | 未確認 |
-| Valmon | P | `ValmonService`, `BattleService`, `ExplorationService`, `/valmons` | Starter/partner/feed/egg/ranch and Lv効果の素材発見・得意素材補正・追撃・未発見ヒント・応急回復・Lv100称号は実装済み。全体機能の網羅性は未確認。 |
+| Valmon | P | `ValmonService`, `BattleService`, `ExplorationService`, `/valmons`, `CityHeader` | Starter/partner/feed/egg/ranch and Lv効果の素材発見・得意素材補正・追撃・未発見ヒント・応急回復・Lv100称号は実装済み。冒険者カードでは3行7列のヴァルモンケース表示を行い、仲間済みは画像、未仲間は `?` で表示する。全体機能の網羅性は未確認。 |
+| Adventurer card customization | D | `CharacterProfileService`, `ProfileController`, `profile.edit`, `CityHeader`, `character_adventurer_card_assets` | 冒険者カードの背景・四角枠・キャラ枠・ヴァルモンケースを、入手済みアセットからプロフィール編集で選択できる。初期状態ではカード装飾の各01番とヴァルモンケース色違いを所持する。 |

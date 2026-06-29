@@ -21,6 +21,8 @@ class EnemyDropsSeeder extends Seeder
     private const STRONG_EQUIPMENT_FRAGMENT_NAME = '強装備の欠片';
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const LEGACY_COMMON_FRAGMENT_NAMES = ['武器の欠片', '防具の欠片', '装飾の欠片'];
+    private const HIGH_PURITY_ENHANCE_MATERIAL_CODES = ['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'];
+    private const HIGH_PURITY_ENHANCE_MATERIAL_NAMES = ['高純度強化石', '高純度守護石', '高純度装飾強化石'];
     private const REMOVED_UNUSED_MATERIAL_CODES = ['CITY_08_MATERIAL', 'WEV0030'];
     private const REMOVED_UNUSED_MATERIAL_NAMES = ['瘴気の骨片'];
     private const STALE_BRANCH_PATH_CODES = [
@@ -116,27 +118,6 @@ class EnemyDropsSeeder extends Seeder
         'MAT_COMMON_OLD_BADGE' => [
             ['area_id' => 1, 'enemy_name' => '草原コウモリ', 'drop_rate' => 18],
             ['area_id' => 1, 'enemy_name' => '見習い盗賊', 'drop_rate' => 20],
-        ],
-        'MAT_ENHANCE_HIGH_STONE' => [
-            ['area_id' => 35, 'enemy_name' => '氷竜ヴェルガ', 'drop_rate' => 2],
-            ['area_id' => 43, 'enemy_name' => '図書館の番人', 'drop_rate' => 2],
-            ['area_id' => 49, 'enemy_name' => '次元回廊主', 'drop_rate' => 3],
-            ['area_id' => 50, 'enemy_name' => '死者の王', 'drop_rate' => 3],
-            ['area_id' => 51, 'enemy_name' => '呪城の主', 'drop_rate' => 4],
-        ],
-        '5009' => [
-            ['area_id' => 32, 'enemy_name' => '白銀の守護獣', 'drop_rate' => 2],
-            ['area_id' => 33, 'enemy_name' => '氷封神殿主', 'drop_rate' => 2],
-            ['area_id' => 35, 'enemy_name' => '氷竜ヴェルガ', 'drop_rate' => 3],
-            ['area_id' => 50, 'enemy_name' => '死者の王', 'drop_rate' => 3],
-            ['area_id' => 51, 'enemy_name' => '呪城の主', 'drop_rate' => 4],
-        ],
-        'ACC0009' => [
-            ['area_id' => 43, 'enemy_name' => '知識の悪魔', 'drop_rate' => 2],
-            ['area_id' => 47, 'enemy_name' => '星見天文ゴーレム', 'drop_rate' => 2],
-            ['area_id' => 48, 'enemy_name' => '異界守護機', 'drop_rate' => 3],
-            ['area_id' => 49, 'enemy_name' => '次元回廊主', 'drop_rate' => 3],
-            ['area_id' => 51, 'enemy_name' => '呪城の主', 'drop_rate' => 4],
         ],
     ];
 
@@ -404,6 +385,9 @@ class EnemyDropsSeeder extends Seeder
             || in_array($materialName, self::REMOVED_UNUSED_MATERIAL_NAMES, true)) {
             return;
         }
+        if ($this->isHighPurityEnhanceMaterial($materialCode, $materialName)) {
+            return;
+        }
 
         $equipmentFragment = $this->normalizeEquipmentFragment($materialCode, $materialName);
         if ($equipmentFragment) {
@@ -634,11 +618,11 @@ class EnemyDropsSeeder extends Seeder
             3 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
             4 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
             5 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
-            6 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
-            7 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
-            8 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
-            9 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
-            10 => [['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'], 3],
+            6 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
+            7 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
+            8 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
+            9 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
+            10 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
         ];
 
         $allCodes = array_unique(array_merge(...array_map(fn ($c) => $c[0], $tierConfig)));
@@ -741,6 +725,12 @@ class EnemyDropsSeeder extends Seeder
     {
         return in_array($materialCode, self::LEGACY_COMMON_FRAGMENT_CODES, true)
             || in_array($materialName, self::LEGACY_COMMON_FRAGMENT_NAMES, true);
+    }
+
+    private function isHighPurityEnhanceMaterial(string $materialCode, string $materialName): bool
+    {
+        return in_array($materialCode, self::HIGH_PURITY_ENHANCE_MATERIAL_CODES, true)
+            || in_array($materialName, self::HIGH_PURITY_ENHANCE_MATERIAL_NAMES, true);
     }
 
     private function normalizeEquipmentFragment(string $materialCode, string $materialName): ?array

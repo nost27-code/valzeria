@@ -40,11 +40,36 @@ class EquipmentEnhancementService
     ];
 
     private const ACCESSORY_ENHANCEMENT_MATERIALS = [
-        1 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 1]],
-        2 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 3]],
-        3 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 5]],
-        4 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 7]],
-        5 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 9]],
+        1 => [['material_id' => 'ACC0007', 'material_name' => '装飾強化石の欠片', 'quantity' => 3]],
+        2 => [['material_id' => 'ACC0007', 'material_name' => '装飾強化石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_FAIRY_DUST', 'material_name' => '妖精粉', 'quantity' => 3]],
+        3 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 1], ['material_id' => 'ACC0007', 'material_name' => '装飾強化石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6]],
+        4 => [['material_id' => 'ACC0009', 'material_name' => '高純度装飾強化石', 'quantity' => 1], ['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 6], ['material_id' => '5025', 'material_name' => '王都の織布', 'quantity' => 1], ['material_id' => '5027', 'material_name' => '潮風の布片', 'quantity' => 1], ['material_id' => '5029', 'material_name' => '精霊樹の繊維', 'quantity' => 1], ['material_id' => '5031', 'material_name' => '黒鉄の装甲片', 'quantity' => 1], ['material_id' => '5033', 'material_name' => '氷晶の織糸', 'quantity' => 1], ['material_id' => '5035', 'material_name' => '砂金繊維', 'quantity' => 1], ['material_id' => '5037', 'material_name' => '魔導繊維', 'quantity' => 1]],
+        5 => [['material_id' => 'ACC0009', 'material_name' => '高純度装飾強化石', 'quantity' => 2], ['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 10], ['material_id' => '5026', 'material_name' => '王都の守護布', 'quantity' => 1], ['material_id' => '5028', 'material_name' => '海守りの織布', 'quantity' => 1], ['material_id' => '5030', 'material_name' => '精霊王の絹糸', 'quantity' => 1], ['material_id' => '5032', 'material_name' => '炉心の耐熱布', 'quantity' => 1], ['material_id' => '5034', 'material_name' => '氷帝の守護布', 'quantity' => 1], ['material_id' => '5036', 'material_name' => '砂王の宝布', 'quantity' => 1], ['material_id' => '5038', 'material_name' => '大魔導の星布', 'quantity' => 1], ['material_id' => '5040', 'material_name' => '深魔の黒布', 'quantity' => 1], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+    ];
+
+    private const ENHANCEMENT_GOLD_COSTS = [
+        1 => 100,
+        2 => 500,
+        3 => 1500,
+        4 => 5000,
+        5 => 15000,
+    ];
+
+    private const ENHANCEMENT_MATERIALS = [
+        'weapon' => [
+            1 => [['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 3]],
+            2 => [['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_GOBLIN_FANG', 'material_name' => '小鬼の牙', 'quantity' => 3]],
+            3 => [['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 6]],
+            4 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => 'WEV0023', 'material_name' => '王都の鉄片', 'quantity' => 1], ['material_id' => 'WEV0024', 'material_name' => '潮風の貝殻', 'quantity' => 1], ['material_id' => 'WEV0025', 'material_name' => '精霊樹の葉', 'quantity' => 1], ['material_id' => 'WEV0026', 'material_name' => '黒鉄鉱', 'quantity' => 1], ['material_id' => 'WEV0027', 'material_name' => '氷晶石', 'quantity' => 1], ['material_id' => 'WEV0028', 'material_name' => '砂金石', 'quantity' => 1], ['material_id' => 'WEV0029', 'material_name' => '魔導結晶', 'quantity' => 1]],
+            5 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 2], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => 'WEV0033', 'material_name' => '王紋鋼', 'quantity' => 1], ['material_id' => 'WEV0035', 'material_name' => '海鳴りの蒼鉱', 'quantity' => 1], ['material_id' => 'WEV0037', 'material_name' => '精霊樹の琥珀', 'quantity' => 1], ['material_id' => 'WEV0039', 'material_name' => '炉心鋼', 'quantity' => 1], ['material_id' => 'WEV0041', 'material_name' => '氷帝晶', 'quantity' => 1], ['material_id' => 'WEV0043', 'material_name' => '砂王金晶', 'quantity' => 1], ['material_id' => 'WEV0045', 'material_name' => 'ルミナス魔晶', 'quantity' => 1], ['material_id' => 'WEV0047', 'material_name' => '深魔骨核', 'quantity' => 1], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+        ],
+        'armor' => [
+            1 => [['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 3]],
+            2 => [['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_MONSTER_SHELL', 'material_name' => '魔物の外殻', 'quantity' => 3]],
+            3 => [['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 1], ['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_BEAST_FUR', 'material_name' => '獣の毛皮', 'quantity' => 6]],
+            4 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 1], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => '5025', 'material_name' => '王都の織布', 'quantity' => 1], ['material_id' => '5027', 'material_name' => '潮風の布片', 'quantity' => 1], ['material_id' => '5029', 'material_name' => '精霊樹の繊維', 'quantity' => 1], ['material_id' => '5031', 'material_name' => '黒鉄の装甲片', 'quantity' => 1], ['material_id' => '5033', 'material_name' => '氷晶の織糸', 'quantity' => 1], ['material_id' => '5035', 'material_name' => '砂金繊維', 'quantity' => 1], ['material_id' => '5037', 'material_name' => '魔導繊維', 'quantity' => 1]],
+            5 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 2], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => '5026', 'material_name' => '王都の守護布', 'quantity' => 1], ['material_id' => '5028', 'material_name' => '海守りの織布', 'quantity' => 1], ['material_id' => '5030', 'material_name' => '精霊王の絹糸', 'quantity' => 1], ['material_id' => '5032', 'material_name' => '炉心の耐熱布', 'quantity' => 1], ['material_id' => '5034', 'material_name' => '氷帝の守護布', 'quantity' => 1], ['material_id' => '5036', 'material_name' => '砂王の宝布', 'quantity' => 1], ['material_id' => '5038', 'material_name' => '大魔導の星布', 'quantity' => 1], ['material_id' => '5040', 'material_name' => '深魔の黒布', 'quantity' => 1], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+        ],
     ];
 
     public function candidates(Character $character): array
@@ -59,7 +84,7 @@ class EquipmentEnhancementService
             ->orderBy('enhance_level')
             ->orderByDesc('id')
             ->get()
-            ->map(fn (CharacterItem $characterItem) => $this->candidateRow($characterItem, $materials))
+            ->map(fn (CharacterItem $characterItem) => $this->candidateRow($characterItem, $materials, $character))
             ->values()
             ->all();
     }
@@ -77,7 +102,11 @@ class EquipmentEnhancementService
             $nextLevel = ((int) ($locked->enhance_level ?? 0)) + 1;
             $displayName = $locked->displayName();
             $type = (string) ($locked->item?->type ?? '');
-            $recipe = $this->recipeForLevel($nextLevel, $type);
+            $recipe = $this->recipeForLevel($nextLevel, $type, $character, $locked->item);
+            $goldCost = (int) ($recipe['gold_cost'] ?? 0);
+            if ($goldCost > 0 && (int) ($character->money ?? 0) < $goldCost) {
+                throw new RuntimeException(number_format($goldCost) . 'G必要です。');
+            }
 
             foreach ($recipe['materials'] as $materialRequirement) {
                 $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
@@ -94,6 +123,15 @@ class EquipmentEnhancementService
 
                 $owned->quantity = $quantity - $required;
                 $owned->save();
+            }
+
+            if ($goldCost > 0) {
+                app(GoldService::class)->spend(
+                    $character,
+                    $goldCost,
+                    'equipment_enhancement',
+                    "{$displayName} +{$nextLevel} 強化"
+                );
             }
 
             $locked->enhance_level = $nextLevel;
@@ -144,7 +182,7 @@ class EquipmentEnhancementService
         return $stats;
     }
 
-    private function candidateRow(CharacterItem $characterItem, array $materials): array
+    private function candidateRow(CharacterItem $characterItem, array $materials, Character $character): array
     {
         $item = $characterItem->item;
         $currentLevel = (int) ($characterItem->enhance_level ?? 0);
@@ -162,7 +200,7 @@ class EquipmentEnhancementService
             $canEnhance = false;
             $reason = '最大強化済みです。';
         } else {
-            $recipe = $this->recipeForLevel($nextLevel, (string) $item->type);
+            $recipe = $this->recipeForLevel($nextLevel, (string) $item->type, $character, $item);
             foreach ($recipe['materials'] as $materialRequirement) {
                 $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
                 $owned = $materials[(string) $material->material_code] ?? 0;
@@ -180,8 +218,15 @@ class EquipmentEnhancementService
                 }
             }
 
+            if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
+                $canEnhance = false;
+            }
+
             if (!$canEnhance) {
                 $reason = '素材が不足しています。';
+                if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
+                    $reason = '素材またはGoldが不足しています。';
+                }
             }
         }
 
@@ -200,6 +245,9 @@ class EquipmentEnhancementService
             'next_level' => $nextLevel,
             'max_level' => $maxLevel,
             'requirements' => $requirements,
+            'gold_cost' => (int) ($recipe['gold_cost'] ?? 0),
+            'owned_gold' => (int) ($character->money ?? 0),
+            'missing_gold' => max(0, (int) ($recipe['gold_cost'] ?? 0) - (int) ($character->money ?? 0)),
             'effect' => $recipe['effect'] ?? '+3%',
             'stats' => self::enhancedStatsFor($characterItem),
             'can_enhance' => $canEnhance,
@@ -223,56 +271,102 @@ class EquipmentEnhancementService
         }
     }
 
-    private function recipeForLevel(int $level, string $type = 'weapon'): array
+    private function recipeForLevel(int $level, string $type = 'weapon', ?Character $character = null, ?object $item = null): array
     {
         if ($type === 'accessory') {
-            $materials = self::ACCESSORY_ENHANCEMENT_MATERIALS[$level] ?? null;
+            $materials = $this->resolveDynamicMaterials(self::ACCESSORY_ENHANCEMENT_MATERIALS[$level] ?? null, $type, $character, $item);
             if (!$materials) {
                 throw new RuntimeException("+{$level} の装飾品強化レシピが見つかりません。");
             }
 
             return [
                 'materials' => $materials,
+                'gold_cost' => self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0,
                 'success_rate' => 100,
                 'effect' => '基礎性能+' . ($level * 3) . '%',
             ];
         }
 
-        if ($type === 'armor' && DB::getSchemaBuilder()->hasTable('armor_enhancement_recipes')) {
-            $rows = DB::table('armor_enhancement_recipes')
-                ->where('target_equipment_type', 'armor')
-                ->where('enhancement_level', $level)
-                ->orderBy('id')
-                ->get();
-
-            if ($rows->isEmpty()) {
-                throw new RuntimeException("+{$level} の防具強化レシピが見つかりません。");
-            }
-
-            return [
-                'materials' => $rows->map(fn ($row): array => [
-                    'material_id' => $row->required_material_id,
-                    'material_name' => $row->required_material_name,
-                    'quantity' => (int) $row->required_quantity,
-                ])->all(),
-                'success_rate' => (int) ($rows->min('success_rate') ?? 100),
-                'effect' => '基礎性能+' . ($level * 3) . '%',
-            ];
-        }
-
-        $recipe = DB::table('weapon_enhancement_recipes')
-            ->where('enhance_level', $level)
-            ->first();
-
-        if (!$recipe) {
+        $materials = $this->resolveDynamicMaterials(self::ENHANCEMENT_MATERIALS[$type][$level] ?? null, $type, $character, $item);
+        if (!$materials) {
             throw new RuntimeException("+{$level} の装備強化レシピが見つかりません。");
         }
 
         return [
-            'materials' => json_decode((string) $recipe->materials, true) ?: [],
-            'success_rate' => (int) ($recipe->success_rate ?? 100),
-            'effect' => $recipe->effect,
+            'materials' => $materials,
+            'gold_cost' => self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0,
+            'success_rate' => 100,
+            'effect' => '基礎性能+' . ($level * 3) . '%',
         ];
+    }
+
+    private function resolveDynamicMaterials(?array $requirements, string $type, ?Character $character, ?object $item): ?array
+    {
+        if (!$requirements) {
+            return null;
+        }
+
+        return array_map(function (array $requirement) use ($type, $character, $item): array {
+            [$code, $name] = $this->resolveDynamicMaterialCode(
+                (string) $requirement['material_id'],
+                (string) $requirement['material_name'],
+                $type,
+                $character,
+                $item
+            );
+
+            return [
+                'material_id' => $code,
+                'material_name' => $name,
+                'quantity' => (int) $requirement['quantity'],
+            ];
+        }, $requirements);
+    }
+
+    private function resolveDynamicMaterialCode(string $code, string $name, string $type, ?Character $character, ?object $item): array
+    {
+        $cityId = $this->enhancementCityId($character, $item);
+
+        return match ($code) {
+            'WEAPON_CITY_MATERIAL' => $this->resolveCityMaterial('weapon_city', $cityId, $code, $name),
+            'WEAPON_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('weapon_city_high', $cityId, $code, $name),
+            'ARMOR_CITY_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, false),
+            'ARMOR_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, true),
+            'ACCESSORY_CITY_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, false),
+            'ACCESSORY_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, true),
+            default => [$code, $name],
+        };
+    }
+
+    private function resolveCityMaterial(string $materialType, int $cityId, string $fallbackCode, string $fallbackName, ?bool $high = null): array
+    {
+        $query = Material::where('material_type', $materialType)->where('city_id', $cityId);
+        if ($high !== null) {
+            $query->where('rarity', $high ? 'city_high' : 'city_low');
+        }
+
+        $material = $query->first();
+        if (!$material) {
+            $fallbackQuery = Material::where('material_type', $materialType)->orderBy('city_id');
+            if ($high !== null) {
+                $fallbackQuery->where('rarity', $high ? 'city_high' : 'city_low');
+            }
+            $material = $fallbackQuery->first();
+        }
+
+        return $material
+            ? [(string) $material->material_code, $material->name]
+            : [$fallbackCode, $fallbackName];
+    }
+
+    private function enhancementCityId(?Character $character, ?object $item): int
+    {
+        $cityId = (int) ($item?->unlock_city_id ?? 0);
+        if ($cityId <= 0) {
+            $cityId = (int) ($character?->current_city_id ?? $character?->highest_city_id ?? 1);
+        }
+
+        return max(1, min(10, $cityId));
     }
 
     private function typeLabel(string $type): string

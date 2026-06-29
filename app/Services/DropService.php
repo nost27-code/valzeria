@@ -26,6 +26,8 @@ class DropService
     ];
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const LEGACY_COMMON_FRAGMENT_NAMES = ['武器の欠片', '防具の欠片', '装飾の欠片'];
+    private const HIGH_PURITY_ENHANCE_MATERIAL_CODES = ['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'];
+    private const HIGH_PURITY_ENHANCE_MATERIAL_NAMES = ['高純度強化石', '高純度守護石', '高純度装飾強化石'];
 
     // drops未登録の敵へのフォールバック用汎用素材コード
     private const GENERIC_FALLBACK_CODES = ['MAT_COMMON_MONSTER_FRAGMENT', 'MAT_COMMON_OLD_BADGE'];
@@ -53,7 +55,14 @@ class DropService
     /**
      * 仕様書ベースの独立枠ドロップ抽選を行う。
      */
-    public function rollBattleDrops(Character $character, Enemy $enemy, int $dropBonusPercent = 0, int $rareBonusPercent = 0, bool $trackExplorationLoot = true): array
+    public function rollBattleDrops(
+        Character $character,
+        Enemy $enemy,
+        int $dropBonusPercent = 0,
+        int $rareBonusPercent = 0,
+        bool $trackExplorationLoot = true,
+        bool $rollMonsterMark = true
+    ): array
     {
         $result = [
             'materials' => [],
@@ -121,10 +130,12 @@ class DropService
             }
         }
 
-        $monsterMark = app(MonsterMarkService::class)->rollAndGrant($character, $enemy);
-        if ($monsterMark) {
-            $result['monster_mark'] = $monsterMark;
-            $result['by_slot']['monster_mark'] = $monsterMark;
+        if ($rollMonsterMark) {
+            $monsterMark = app(MonsterMarkService::class)->rollAndGrant($character, $enemy);
+            if ($monsterMark) {
+                $result['monster_mark'] = $monsterMark;
+                $result['by_slot']['monster_mark'] = $monsterMark;
+            }
         }
 
         $result['by_slot']['material'] = $result['materials'];
@@ -408,6 +419,9 @@ class DropService
                 if ($this->isDisabledEquipmentFragmentCode((string) $material->material_code)) {
                     return false;
                 }
+                if ($this->isHighPurityEnhanceMaterial($material)) {
+                    return false;
+                }
                 return true;
             })
             ->values();
@@ -567,6 +581,9 @@ class DropService
             if (!$material) {
                 continue;
             }
+            if ($this->isHighPurityEnhanceMaterial($material)) {
+                continue;
+            }
 
             $alreadyHas = CharacterMaterial::where('character_id', $character->id)
                 ->where('material_id', $material->id)
@@ -584,6 +601,12 @@ class DropService
     private function isDisabledEquipmentFragmentCode(string $code): bool
     {
         return in_array($code, self::DISABLED_EQUIPMENT_FRAGMENT_CODES, true);
+    }
+
+    private function isHighPurityEnhanceMaterial(Material $material): bool
+    {
+        return in_array((string) $material->material_code, self::HIGH_PURITY_ENHANCE_MATERIAL_CODES, true)
+            || in_array((string) $material->name, self::HIGH_PURITY_ENHANCE_MATERIAL_NAMES, true);
     }
 
     private function grantItemDrop(Character $character, Item $item, string $slot, ?Enemy $enemy = null, bool $trackExplorationLoot = true): array

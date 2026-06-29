@@ -21,12 +21,40 @@ class MaterialExchangeService
     private const BREW_MAGIC_POWDER_CODE = 'MAT_BREW_MAGIC_POWDER';
     private const BREW_LOW_MONSTER_CODE = 'MAT_BREW_LOW_MONSTER';
     private const RANDOM_RECOVERY_ITEM_CODE = 'RANDOM_RECOVERY_ITEM';
-    private const ENHANCE_STONE_CONVERSION_RATE = 3;
+    private const ENHANCE_STONE_CONVERSION_RATE = 20;
+    private const ENHANCE_STONE_GOLD_COST = 500;
+    private const HIGH_PURITY_STONE_GOLD_COST = 2000;
+    private const REFINING_CORE_GOLD_COST = 10000;
+    private const FRAGMENT_SYNTHESIS_GOLD_COST = 100;
     private const UPGRADE_RATE = 10;
     private const STRONG_FRAGMENT_UPGRADE_RATE = 15;
     private const SAME_RANK_RATE = 3;
     private const CROSS_CATEGORY_RATE = 5;
     private const CITY_MATERIAL_PATH_STONE_RATE = 10;
+    private const ENEMY_TO_FRAGMENT_RATE = 5;
+
+    private const FRAGMENT_SYNTHESIS_RECIPES = [
+        [
+            'target' => 'MAT_ENHANCE_FRAGMENT',
+            'label' => '武器強化',
+            'sources' => [['MAT_COMMON_GOBLIN_FANG', 4], ['MAT_COMMON_MAGIC_ORE', 2]],
+        ],
+        [
+            'target' => 'MAT_ENHANCE_FRAGMENT',
+            'label' => '序盤救済',
+            'sources' => [['MAT_COMMON_SLIME_MUCUS', 8], ['MAT_COMMON_OLD_BADGE', 3]],
+        ],
+        [
+            'target' => '5007',
+            'label' => '防具強化',
+            'sources' => [['MAT_COMMON_MONSTER_SHELL', 5], ['MAT_COMMON_BEAST_FUR', 3]],
+        ],
+        [
+            'target' => 'ACC0007',
+            'label' => '装飾強化',
+            'sources' => [['MAT_COMMON_FAIRY_DUST', 5], ['MAT_COMMON_MONSTER_CORE', 2], ['MAT_COMMON_OLD_BADGE', 2]],
+        ],
+    ];
 
     private const COMMON_GROUPS = [];
 
@@ -39,16 +67,39 @@ class MaterialExchangeService
     private const ENHANCEMENT_STONE_RECIPES = [
         'MAT_ENHANCE_STONE' => [
             'label' => '武器強化',
-            'source' => 'MAT_ENHANCE_FRAGMENT',
+            'sources' => [['MAT_ENHANCE_FRAGMENT', self::ENHANCE_STONE_CONVERSION_RATE]],
+            'gold_cost' => self::ENHANCE_STONE_GOLD_COST,
         ],
         '5008' => [
             'label' => '防具強化',
-            'source' => '5007',
+            'sources' => [['5007', self::ENHANCE_STONE_CONVERSION_RATE]],
+            'gold_cost' => self::ENHANCE_STONE_GOLD_COST,
         ],
         'ACC0008' => [
             'label' => '装飾強化',
-            'source' => 'ACC0007',
+            'sources' => [['ACC0007', self::ENHANCE_STONE_CONVERSION_RATE]],
+            'gold_cost' => self::ENHANCE_STONE_GOLD_COST,
         ],
+        'MAT_ENHANCE_HIGH_STONE' => [
+            'label' => '武器高純度',
+            'sources' => [['MAT_ENHANCE_STONE', 5], ['MAT_COMMON_MAGIC_ORE', 10]],
+            'gold_cost' => self::HIGH_PURITY_STONE_GOLD_COST,
+        ],
+        '5009' => [
+            'label' => '防具高純度',
+            'sources' => [['5008', 5], ['MAT_COMMON_MAGIC_ORE', 10]],
+            'gold_cost' => self::HIGH_PURITY_STONE_GOLD_COST,
+        ],
+        'ACC0009' => [
+            'label' => '装飾高純度',
+            'sources' => [['ACC0008', 5], ['MAT_COMMON_MAGIC_ORE', 10]],
+            'gold_cost' => self::HIGH_PURITY_STONE_GOLD_COST,
+        ],
+    ];
+
+    private const REFINING_CORE_CITY_HIGH_CODES = [
+        'WEV0033', 'WEV0035', 'WEV0037', 'WEV0039', 'WEV0041',
+        'WEV0043', 'WEV0045', 'WEV0047', 'WEV0049', 'WEV0051',
     ];
 
     private const RECOVERY_ITEM_NAMES = ['薬草', '回復薬', '魔力水'];
@@ -120,10 +171,13 @@ class MaterialExchangeService
         }
 
         $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned));
+        $recipes = array_merge($recipes, $this->fragmentSynthesisRecipes($materials, $owned, (int) ($character->money ?? 0)));
+        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned, (int) ($character->money ?? 0)));
+        $recipes = array_merge($recipes, $this->refiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0)));
         $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $owned));
+        $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->enemyPartRecipes($materials, $owned));
         $recipes = array_merge($recipes, $this->recoveryItemRecipes($materials, $owned, $ownedItems));
 
@@ -242,6 +296,11 @@ class MaterialExchangeService
             }
         }
 
+        $goldCost = (int) ($recipe['gold_cost'] ?? 0) * $quantity;
+        if ($goldCost > 0 && (int) ($character->money ?? 0) < $goldCost) {
+            throw new RuntimeException('Goldが不足しています。');
+        }
+
         foreach ($requirements as $requirement) {
             $source = $sourceMaterials[(string) $requirement['material_code']];
             $sourceRow = $sourceRows->get($source->id);
@@ -251,6 +310,15 @@ class MaterialExchangeService
             } else {
                 $sourceRow->save();
             }
+        }
+
+        if ($goldCost > 0) {
+            app(GoldService::class)->spend(
+                $character,
+                $goldCost,
+                'material_exchange',
+                "{$recipe['target_name']}の素材交換"
+            );
         }
 
         if ($target) {
@@ -292,7 +360,8 @@ class MaterialExchangeService
         $targetQuantity = (int) $recipe['target_quantity'] * $quantity;
 
         return [
-            'message' => "{$sourceText}交換し、{$targetName}を{$targetQuantity}個受け取りました。",
+            'message' => "{$sourceText}交換し、{$targetName}を{$targetQuantity}個受け取りました。"
+                . ($goldCost > 0 ? ' 交換費用として' . number_format($goldCost) . 'Gを支払いました。' : ''),
         ];
     }
 
@@ -416,10 +485,13 @@ class MaterialExchangeService
             $recipes = array_merge($recipes, $this->upgradeRecipes($group, $materials, $emptyOwned, false));
         }
         $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $emptyOwned, false));
-        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $emptyOwned, false));
+        $recipes = array_merge($recipes, $this->fragmentSynthesisRecipes($materials, $emptyOwned, PHP_INT_MAX, false));
+        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $emptyOwned, PHP_INT_MAX, false));
+        $recipes = array_merge($recipes, $this->refiningCoreRecipes($materials, $emptyOwned, PHP_INT_MAX, false));
         $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $emptyOwned, false));
+        $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->enemyPartRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->recoveryItemRecipes($materials, $emptyOwned, [], false));
 
@@ -452,32 +524,105 @@ class MaterialExchangeService
         return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
     }
 
-    private function enhancementStoneRecipes(array $materials, array $owned, bool $ownedOnly = true): array
+    private function enhancementStoneRecipes(array $materials, array $owned, int $ownedGold, bool $ownedOnly = true): array
     {
         $recipes = [];
         $index = 0;
 
         foreach (self::ENHANCEMENT_STONE_RECIPES as $targetCode => $recipe) {
-            $sourceCode = $recipe['source'];
-            if (!$this->canBuildRecipe($sourceCode, $targetCode, $materials)) {
+            if (!isset($materials[$targetCode])) {
                 continue;
             }
 
-            $recipes[] = $this->recipePayload(
+            $recipes[] = $this->multiSourceRecipePayload(
                 'enhancement_stone',
                 '強化石精製',
                 $recipe['label'],
-                -1,
-                $sourceCode,
+                $recipe['sources'],
+                'material',
                 $targetCode,
-                self::ENHANCE_STONE_CONVERSION_RATE,
+                $materials[$targetCode]->name,
                 1,
                 $materials,
                 $owned,
-                70 + $index
+                [],
+                70 + $index,
+                '',
+                (int) ($recipe['gold_cost'] ?? 0),
+                $ownedGold
             );
             $index++;
         }
+
+        $recipes = array_values(array_filter($recipes));
+
+        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
+    }
+
+    private function refiningCoreRecipes(array $materials, array $owned, int $ownedGold, bool $ownedOnly = true): array
+    {
+        if (!isset($materials['MAT_REFINING_CORE'])) {
+            return [];
+        }
+
+        $recipes = [];
+        foreach (self::REFINING_CORE_CITY_HIGH_CODES as $index => $cityHighCode) {
+            $recipes[] = $this->multiSourceRecipePayload(
+                'refining_core',
+                '精錬核錬成',
+                '都市高位素材',
+                [['MAT_COMMON_MONSTER_CORE', 20], [$cityHighCode, 5]],
+                'material',
+                'MAT_REFINING_CORE',
+                $materials['MAT_REFINING_CORE']->name,
+                1,
+                $materials,
+                $owned,
+                [],
+                90 + $index,
+                '',
+                self::REFINING_CORE_GOLD_COST,
+                $ownedGold
+            );
+        }
+
+        $recipes = array_values(array_filter($recipes));
+
+        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
+    }
+
+    private function fragmentSynthesisRecipes(array $materials, array $owned, int $ownedGold, bool $ownedOnly = true): array
+    {
+        $recipes = [];
+        $index = 0;
+
+        foreach (self::FRAGMENT_SYNTHESIS_RECIPES as $definition) {
+            $targetCode = $definition['target'];
+            if (!isset($materials[$targetCode])) {
+                continue;
+            }
+
+            $recipes[] = $this->multiSourceRecipePayload(
+                'fragment_synthesis',
+                '欠片合成',
+                $definition['label'],
+                $definition['sources'],
+                'material',
+                $targetCode,
+                $materials[$targetCode]->name,
+                1,
+                $materials,
+                $owned,
+                [],
+                65 + $index,
+                '',
+                self::FRAGMENT_SYNTHESIS_GOLD_COST,
+                $ownedGold
+            );
+            $index++;
+        }
+
+        $recipes = array_values(array_filter($recipes));
 
         return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
     }
@@ -573,6 +718,40 @@ class MaterialExchangeService
                 $materials,
                 $owned,
                 80 + $index
+            );
+            $index++;
+        }
+
+        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
+    }
+
+    private function enemyPartToCommonMaterialRecipes(array $materials, array $owned, bool $ownedOnly = true): array
+    {
+        $recipes = [];
+        $index = 0;
+
+        foreach ($materials as $sourceCode => $material) {
+            if (!$this->isEnemyPartMaterial($material)) {
+                continue;
+            }
+
+            $targetCode = $this->commonMaterialCodeFor($material);
+            if (!$targetCode || !$this->canBuildRecipe((string) $sourceCode, $targetCode, $materials)) {
+                continue;
+            }
+
+            $recipes[] = $this->recipePayload(
+                'enemy_to_common',
+                '共通化',
+                '敵素材',
+                -1,
+                (string) $sourceCode,
+                $targetCode,
+                $this->commonMaterialExchangeRate($material, $targetCode),
+                1,
+                $materials,
+                $owned,
+                250 + $index
             );
             $index++;
         }
@@ -736,7 +915,9 @@ class MaterialExchangeService
         array $owned,
         array $ownedItems,
         int $sortOrder,
-        string $tierLabel = ''
+        string $tierLabel = '',
+        int $goldCost = 0,
+        int $ownedGold = PHP_INT_MAX
     ): ?array {
         $sourceMaterials = [];
         foreach ($sourceRequirements as [$code, $required]) {
@@ -763,11 +944,15 @@ class MaterialExchangeService
             ? ($owned[$targetCode] ?? 0)
             : ($ownedItems[$targetCode] ?? 0);
         $missingQuantity = array_sum(array_column($sourceMaterials, 'missing'));
-        $canExchange = $missingQuantity === 0;
+        $missingGold = max(0, $goldCost - $ownedGold);
+        $canExchange = $missingQuantity === 0 && $missingGold === 0;
         $maxExchangeCount = min(array_map(
             fn (array $source): int => (int) floor(($source['owned'] ?? 0) / max(1, (int) $source['required'])),
             $sourceMaterials
         ));
+        if ($goldCost > 0) {
+            $maxExchangeCount = min($maxExchangeCount, (int) floor($ownedGold / $goldCost));
+        }
         $sourceName = collect($sourceMaterials)
             ->map(fn (array $source): string => $source['name'])
             ->implode(' + ');
@@ -789,6 +974,9 @@ class MaterialExchangeService
             'target_owned_quantity' => $targetOwnedQuantity,
             'owned_quantity' => $ownedQuantity,
             'missing_quantity' => $missingQuantity,
+            'gold_cost' => $goldCost,
+            'owned_gold' => $ownedGold,
+            'missing_gold' => $missingGold,
             'can_exchange' => $canExchange,
             'max_exchange_count' => $maxExchangeCount,
             'has_any_source' => $ownedQuantity > 0,
@@ -841,6 +1029,18 @@ class MaterialExchangeService
             $this->knownCodes(),
             [
                 self::EQUIPMENT_FRAGMENT_CODE,
+                self::FINE_EQUIPMENT_FRAGMENT_CODE,
+                self::STRONG_EQUIPMENT_FRAGMENT_CODE,
+                'MAT_ENHANCE_FRAGMENT',
+                'MAT_ENHANCE_STONE',
+                '5007',
+                '5008',
+                'ACC0007',
+                'ACC0008',
+                'ACC0009',
+                '5009',
+                'MAT_ENHANCE_HIGH_STONE',
+                'MAT_REFINING_CORE',
                 self::BREW_BEAST_FANG_CODE,
                 self::BREW_TOXIN_CODE,
                 self::BREW_HERB_CODE,
@@ -848,6 +1048,9 @@ class MaterialExchangeService
                 self::BREW_LOW_MONSTER_CODE,
             ],
             $this->enhancementStoneMaterialCodes(),
+            self::REFINING_CORE_CITY_HIGH_CODES,
+            $this->fragmentSynthesisMaterialCodes(),
+            $this->commonMaterialTargetCodes(),
             $this->pathStoneSourceCodes(),
             array_keys(self::PATH_STONE_RECIPES),
             $this->accessoryEvolutionMaterialCodes(),
@@ -880,10 +1083,40 @@ class MaterialExchangeService
     {
         $codes = array_keys(self::ENHANCEMENT_STONE_RECIPES);
         foreach (self::ENHANCEMENT_STONE_RECIPES as $recipe) {
-            $codes[] = $recipe['source'];
+            $codes = array_merge($codes, array_column($recipe['sources'], 0));
         }
 
         return array_values(array_unique($codes));
+    }
+
+    private function fragmentSynthesisMaterialCodes(): array
+    {
+        $codes = [];
+        foreach (self::FRAGMENT_SYNTHESIS_RECIPES as $definition) {
+            $codes[] = $definition['target'];
+            $codes = array_merge($codes, array_column($definition['sources'], 0));
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    private function commonMaterialTargetCodes(): array
+    {
+        return [
+            'MAT_COMMON_GOBLIN_FANG',
+            'MAT_COMMON_BEAST_FUR',
+            'MAT_COMMON_WING_MEMBRANE',
+            'MAT_COMMON_MONSTER_SHELL',
+            'MAT_COMMON_OLD_BONE',
+            'MAT_COMMON_OLD_BADGE',
+            'MAT_COMMON_MONSTER_CORE',
+            'MAT_COMMON_MAGIC_ORE',
+            'MAT_COMMON_FAIRY_DUST',
+            'MAT_COMMON_HOLY_FRAGMENT',
+            'MAT_COMMON_DARK_CRYSTAL',
+            'MAT_COMMON_MONSTER_FRAGMENT',
+            'MAT_COMMON_SLIME_MUCUS',
+        ];
     }
 
     private function ownedItemMap(Character $character): array
@@ -1012,6 +1245,80 @@ class MaterialExchangeService
         }
 
         return self::BREW_LOW_MONSTER_CODE;
+    }
+
+    private function commonMaterialCodeFor(Material $material): ?string
+    {
+        $name = (string) $material->name;
+
+        if ($this->containsAny($name, ['スライム', '粘液', 'ゼリー', 'ゲル'])) {
+            return 'MAT_COMMON_SLIME_MUCUS';
+        }
+
+        if ($this->containsAny($name, ['ゴブリン', '小鬼'])) {
+            return 'MAT_COMMON_GOBLIN_FANG';
+        }
+
+        if ($this->containsAny($name, ['毛皮', '獣毛', 'ウルフ', '狼', 'うさぎ', '兎', '猪', '熊'])) {
+            return 'MAT_COMMON_BEAST_FUR';
+        }
+
+        if ($this->containsAny($name, ['翼膜', '羽膜', '蝙蝠', 'コウモリ'])) {
+            return 'MAT_COMMON_WING_MEMBRANE';
+        }
+
+        if ($this->containsAny($name, ['外殻', '甲殻', '装甲', '鱗', '甲羅', '殻'])) {
+            return 'MAT_COMMON_MONSTER_SHELL';
+        }
+
+        if ($this->containsAny($name, ['古骨', '骨片', '骨'])) {
+            return 'MAT_COMMON_OLD_BONE';
+        }
+
+        if ($this->containsAny($name, ['徽章', '勲章', '盗賊', '兵士', '騎士', '海賊'])) {
+            return 'MAT_COMMON_OLD_BADGE';
+        }
+
+        if ($this->containsAny($name, ['魔核', '魔導炉', '炉心', '核'])) {
+            return 'MAT_COMMON_MONSTER_CORE';
+        }
+
+        if ($this->containsAny($name, ['鉱片', '魔鉱', '水晶', '結晶', '雷石', '火種', '鉱石'])) {
+            return 'MAT_COMMON_MAGIC_ORE';
+        }
+
+        if ($this->containsAny($name, ['妖精粉', '花', '葉', '自然片', '樹液', '若草', '苔', '茸'])) {
+            return 'MAT_COMMON_FAIRY_DUST';
+        }
+
+        if ($this->containsAny($name, ['聖片', '神殿', '天使', '司祭', '聖'])) {
+            return 'MAT_COMMON_HOLY_FRAGMENT';
+        }
+
+        if ($this->containsAny($name, ['黒結晶', '呪い', '闇', '瘴気', '腐'])) {
+            return 'MAT_COMMON_DARK_CRYSTAL';
+        }
+
+        return 'MAT_COMMON_MONSTER_FRAGMENT';
+    }
+
+    private function commonMaterialExchangeRate(Material $material, string $targetCode): int
+    {
+        $rarity = strtoupper((string) ($material->rarity ?? 'N'));
+
+        if ($targetCode === 'MAT_COMMON_MONSTER_FRAGMENT') {
+            return match ($rarity) {
+                'R', 'SR', 'SS', 'SSS', 'EPIC' => 2,
+                'N+' => 3,
+                default => self::ENEMY_TO_FRAGMENT_RATE,
+            };
+        }
+
+        return match ($rarity) {
+            'R', 'SR', 'SS', 'SSS', 'EPIC' => 1,
+            'N+' => 2,
+            default => 3,
+        };
     }
 
     private function containsAny(string $text, array $needles): bool
