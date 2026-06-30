@@ -19,8 +19,12 @@
                     $recipe['tier_label'] ?? '',
                     $recipe['source_name'] ?? '',
                     $recipe['target_name'] ?? '',
+                    $recipe['target_usage'] ?? '',
                 ]);
                 $isMulti = count($recipe['source_materials'] ?? []) > 1;
+                $goldCost = (int) ($recipe['gold_cost'] ?? 0);
+                $missingGold = (int) ($recipe['missing_gold'] ?? 0);
+                $targetUsage = $recipe['target_usage'] ?? null;
             @endphp
             <div
                 data-recipe-card
@@ -43,6 +47,11 @@
                                 {{ $recipe['tier_label'] }}
                             </span>
                         @endif
+                        @if($goldCost > 0)
+                            <span class="inline-flex items-center rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700 leading-none">
+                                {{ number_format($goldCost) }}G
+                            </span>
+                        @endif
                     </div>
                     @if($canExchange)
                         <label class="inline-flex shrink-0 items-center gap-1 rounded border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-extrabold text-amber-700 cursor-pointer">
@@ -58,16 +67,52 @@
                     @endif
                 </div>
 
-                {{-- 交換行: 渡す → 受け取る --}}
-                <div class="flex items-center gap-2">
-                    {{-- 渡す --}}
-                    <div class="flex-1 min-w-0">
-                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">渡す</div>
+                {{-- 交換行: 作る素材 + 必要素材 --}}
+                <div class="grid grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] items-start gap-3">
+                    {{-- 作る --}}
+                    <div class="min-w-0">
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">作る</div>
+                        <button
+                            type="button"
+                            class="inline-flex max-w-full items-center gap-1 text-left text-sm font-extrabold text-amber-700 leading-tight underline decoration-amber-300 underline-offset-2 hover:text-amber-900 active:scale-[0.99]"
+                            @click="openMaterialDetail({
+                                name: @js($recipe['target_name']),
+                                code: @js($recipe['target_code'] ?? ''),
+                                iconImage: @js($recipe['target_icon_image'] ?? null),
+                                kind: @js($recipe['target_kind'] ?? ''),
+                                typeLabel: @js($recipe['type_label'] ?? ''),
+                                groupLabel: @js($recipe['group_label'] ?? ''),
+                                usage: @js($targetUsage),
+                                targetQuantity: {{ (int) ($recipe['target_quantity'] ?? 0) }},
+                                ownedQuantity: {{ (int) ($recipe['target_owned_quantity'] ?? 0) }},
+                                goldCost: {{ $goldCost }},
+                                sources: @js($recipe['source_materials'] ?? [])
+                            })"
+                        >
+                            @if(!empty($recipe['target_icon_image']))
+                                <img src="{{ asset($recipe['target_icon_image']) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                            @endif
+                            <span class="truncate">{{ $recipe['target_name'] }}</span>
+                        </button>
+                        <div class="mt-0.5 text-[11px] font-mono font-bold text-emerald-600">+{{ $recipe['target_quantity'] }}</div>
+                        <div class="text-[10px] font-bold text-slate-400">
+                            所持 {{ number_format($recipe['target_owned_quantity'] ?? 0) }}
+                        </div>
+                    </div>
+
+                    {{-- 必要 --}}
+                    <div class="min-w-0">
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">必要</div>
                         @if($isMulti)
                             <div class="space-y-0.5">
                                 @foreach($recipe['source_materials'] as $source)
                                     <div class="flex items-center justify-between gap-1">
-                                        <span class="text-xs font-bold text-slate-700 truncate">{{ $source['name'] }}</span>
+                                        <span class="min-w-0 inline-flex items-center gap-1 text-xs font-bold text-slate-700 truncate">
+                                            @if(!empty($source['icon_image']))
+                                                <img src="{{ asset($source['icon_image']) }}" alt="" class="h-4 w-4 shrink-0 object-contain">
+                                            @endif
+                                            <span class="truncate">{{ $source['name'] }}</span>
+                                        </span>
                                         <span class="text-[11px] font-mono font-bold shrink-0 {{ $source['owned'] >= $source['required'] ? 'text-amber-600' : 'text-red-500' }}">
                                             {{ $source['owned'] }}&thinsp;/&thinsp;{{ $source['required'] }}
                                         </span>
@@ -75,26 +120,16 @@
                                 @endforeach
                             </div>
                         @else
-                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                @if(!empty($recipe['source_materials'][0]['icon_image'] ?? null))
+                                    <img src="{{ asset($recipe['source_materials'][0]['icon_image']) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                @endif
                                 <span class="text-sm font-extrabold text-slate-900 truncate">{{ $recipe['source_name'] }}</span>
                                 <span class="text-[11px] font-mono font-bold shrink-0 {{ $canExchange ? 'text-amber-600' : 'text-red-500' }}">
                                     {{ $recipe['owned_quantity'] }}&thinsp;/&thinsp;{{ $recipe['source_quantity'] }}
                                 </span>
                             </div>
                         @endif
-                    </div>
-
-                    {{-- 矢印 --}}
-                    <div class="text-slate-300 font-black text-base shrink-0">→</div>
-
-                    {{-- 受け取る --}}
-                    <div class="shrink-0 text-right min-w-[80px]">
-                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-none mb-1">受け取る</div>
-                        <div class="text-sm font-extrabold text-slate-900 leading-tight">{{ $recipe['target_name'] }}</div>
-                        <div class="text-[11px] font-mono font-bold text-emerald-600">+{{ $recipe['target_quantity'] }}</div>
-                        <div class="text-[10px] font-bold text-slate-400">
-                            所持 {{ number_format($recipe['target_owned_quantity'] ?? 0) }}
-                        </div>
                     </div>
                 </div>
 
@@ -134,6 +169,7 @@
                                 sourceQuantity: {{ $recipe['source_quantity'] }},
                                 targetName: @js($recipe['target_name']),
                                 targetQuantity: {{ $recipe['target_quantity'] }},
+                                goldCost: {{ $goldCost }},
                                 quantity: quantityFor(@js($recipeId))
                             }; modalOpen = true"
                         >交換する</button>
@@ -141,7 +177,15 @@
                 @else
                     <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100">
                         <span class="text-[10px] font-black text-red-400">✕</span>
-                        <span class="text-xs font-bold text-slate-400">あと{{ $recipe['missing_quantity'] }}個足りません</span>
+                        <span class="text-xs font-bold text-slate-400">
+                            @if($missingGold > 0 && (int) ($recipe['missing_quantity'] ?? 0) <= 0)
+                                あと{{ number_format($missingGold) }}G足りません
+                            @elseif($missingGold > 0)
+                                素材あと{{ $recipe['missing_quantity'] }}個 / {{ number_format($missingGold) }}G足りません
+                            @else
+                                あと{{ $recipe['missing_quantity'] }}個足りません
+                            @endif
+                        </span>
                     </div>
                 @endif
             </div>

@@ -252,7 +252,10 @@ class ChampBattleService
                 'champ_max_hp' => $champDefeated ? $this->snapshotStats($challenger)['max_hp'] : (int) $champ->max_hp,
                 'exp_gained' => $expGained,
                 'job_exp_gained' => $jobExpGained,
+                'progression' => $levelResult['progression'] ?? null,
                 'gap_reward_note' => $gapRewardNote,
+                'material_code' => $material->material_code,
+                'material_icon_image' => $material->iconImagePath(),
                 'material_name' => $materialName,
                 'material_quantity' => $materialQuantity,
                 'level_result' => $levelResult,
@@ -645,7 +648,7 @@ class ChampBattleService
 
     private function champSkillSpCost(BattleActor $attacker, Skill $skill): int
     {
-        $baseCost = $skill->spCostForMaxSp($attacker->maxMp);
+        $baseCost = $skill->specialSkillSpCostForMaxSp($attacker->maxMp);
         if ($baseCost <= 0 || $attacker->maxMp <= 0) {
             return $baseCost;
         }

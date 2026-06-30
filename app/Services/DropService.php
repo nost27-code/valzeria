@@ -26,8 +26,38 @@ class DropService
     ];
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const LEGACY_COMMON_FRAGMENT_NAMES = ['武器の欠片', '防具の欠片', '装飾の欠片'];
-    private const HIGH_PURITY_ENHANCE_MATERIAL_CODES = ['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'];
-    private const HIGH_PURITY_ENHANCE_MATERIAL_NAMES = ['高純度強化石', '高純度守護石', '高純度装飾強化石'];
+    private const DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_CODES = [
+        'MAT_ENHANCE_STONE',
+        '5008',
+        'ACC0008',
+        'MAT_ENHANCE_HIGH_STONE',
+        '5009',
+        'ACC0009',
+        'MAT_REFINING_CORE_LOW_A',
+        'MAT_REFINING_CORE_LOW_B',
+        'MAT_REFINING_CORE_LOW',
+        'MAT_REFINING_CORE_PART_A',
+        'MAT_REFINING_CORE_PART_B',
+        'MAT_REFINING_CORE_PART_C',
+        'MAT_REFINING_CORE',
+    ];
+    private const DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_NAMES = [
+        '強化石',
+        '守護石',
+        '装飾強化石',
+        '調律石',
+        '高純度強化石',
+        '高純度守護石',
+        '高純度装飾強化石',
+        '高純度調律石',
+        '織成核殻',
+        '晶糸核芯',
+        '粗精錬核',
+        '覇王黒晶',
+        '蒼炉魔晶',
+        '星樹氷晶',
+        '精錬核',
+    ];
 
     // drops未登録の敵へのフォールバック用汎用素材コード
     private const GENERIC_FALLBACK_CODES = ['MAT_COMMON_MONSTER_FRAGMENT', 'MAT_COMMON_OLD_BADGE'];
@@ -419,7 +449,7 @@ class DropService
                 if ($this->isDisabledEquipmentFragmentCode((string) $material->material_code)) {
                     return false;
                 }
-                if ($this->isHighPurityEnhanceMaterial($material)) {
+                if ($this->isDirectDropDisabledEnhanceMaterial($material)) {
                     return false;
                 }
                 return true;
@@ -581,7 +611,7 @@ class DropService
             if (!$material) {
                 continue;
             }
-            if ($this->isHighPurityEnhanceMaterial($material)) {
+            if ($this->isDirectDropDisabledEnhanceMaterial($material)) {
                 continue;
             }
 
@@ -603,10 +633,10 @@ class DropService
         return in_array($code, self::DISABLED_EQUIPMENT_FRAGMENT_CODES, true);
     }
 
-    private function isHighPurityEnhanceMaterial(Material $material): bool
+    private function isDirectDropDisabledEnhanceMaterial(Material $material): bool
     {
-        return in_array((string) $material->material_code, self::HIGH_PURITY_ENHANCE_MATERIAL_CODES, true)
-            || in_array((string) $material->name, self::HIGH_PURITY_ENHANCE_MATERIAL_NAMES, true);
+        return in_array((string) $material->material_code, self::DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_CODES, true)
+            || in_array((string) $material->name, self::DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_NAMES, true);
     }
 
     private function grantItemDrop(Character $character, Item $item, string $slot, ?Enemy $enemy = null, bool $trackExplorationLoot = true): array
@@ -675,6 +705,7 @@ class DropService
             'material_id' => $material->id,
             'material_code' => $material->material_code,
             'name' => $material->displayName(),
+            'icon_image' => $material->iconImagePath(),
             'rarity' => $material->rarity,
             'kind' => $kind,
         ];

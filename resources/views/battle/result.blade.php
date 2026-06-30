@@ -1,4 +1,4 @@
-<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" bgImage="images/bg-battle.webp">
+<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitLabel="(isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null">
     <div class="py-1 flex flex-col items-center" data-battle-result-page>
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white/88 shadow-md sm:rounded-lg overflow-hidden border border-slate-200 backdrop-blur-[2px]">
@@ -318,9 +318,135 @@
                         @endif
 
                         {{-- 戦闘ログ --}}
-                        @if(!$isDepthGate && !$isDepthRetreat && !empty($result['log']))
+                        @php
+                            $shouldShowBattleLog = (!$isDepthGate && !$isDepthRetreat)
+                                || ($isDepthGate && !empty($result['batch_explore']));
+                        @endphp
+                        @if($shouldShowBattleLog && !empty($result['log']))
                             <div class="px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
                                 {!! nl2br($result['log']) !!}
+                            </div>
+                        @endif
+
+                        @if(!empty($result['batch_explore']))
+                            @php
+                                $batchExplore = $result['batch_explore'];
+                                $batchCompleted = (int) ($batchExplore['completed'] ?? 0);
+                            @endphp
+                            <div class="mb-6 -mx-3 rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm">
+                                <h3 class="mb-3 flex items-center gap-2 text-base font-extrabold text-sky-900">
+                                    <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-5 w-5 object-contain">
+                                    10回探索の結果
+                                </h3>
+                                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                    <div class="rounded border border-sky-100 bg-white px-3 py-2">
+                                        <div class="text-[10px] font-black text-sky-600">探索回数</div>
+                                        <div class="text-lg font-black text-slate-900">{{ number_format($batchCompleted) }} / {{ number_format((int) ($batchExplore['requested'] ?? 10)) }}</div>
+                                    </div>
+                                    <div class="rounded border border-sky-100 bg-white px-3 py-2">
+                                        <div class="text-[10px] font-black text-sky-600">合計EXP</div>
+                                        <div class="text-lg font-black text-amber-700">+{{ number_format((int) ($batchExplore['total_exp'] ?? 0)) }}</div>
+                                    </div>
+                                    <div class="rounded border border-sky-100 bg-white px-3 py-2">
+                                        <div class="text-[10px] font-black text-sky-600">合計Job EXP</div>
+                                        <div class="text-lg font-black text-green-700">+{{ number_format((int) ($batchExplore['total_job_exp'] ?? 0)) }}</div>
+                                    </div>
+                                    <div class="rounded border border-sky-100 bg-white px-3 py-2">
+                                        <div class="text-[10px] font-black text-sky-600">合計Gold</div>
+                                        <div class="text-lg font-black text-amber-700">+{{ number_format((int) ($batchExplore['total_gold'] ?? 0)) }}G</div>
+                                    </div>
+                                </div>
+                                @if(($batchExplore['total_kiseki'] ?? 0) > 0)
+                                    <div class="mt-2 inline-flex items-center gap-1 rounded border border-sky-200 bg-white px-3 py-1 text-sm font-extrabold text-sky-700">
+                                        <img src="{{ asset('images/icon/kiseki.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                        輝石 +{{ number_format((int) ($batchExplore['total_kiseki'] ?? 0)) }}
+                                    </div>
+                                @endif
+                                @if(!empty($batchExplore['monster_mark_drops'] ?? []))
+                                    <div class="mt-3 rounded-lg border border-violet-200 bg-violet-50/80 p-3">
+                                        <div class="mb-2 flex items-center gap-1 text-sm font-black text-violet-800">
+                                            <img src="{{ asset('images/icon/icon_078.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                            印獲得
+                                        </div>
+                                        <div class="grid gap-2">
+                                            @foreach($batchExplore['monster_mark_drops'] as $markDrop)
+                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-violet-100 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+                                                    <span class="text-violet-600">{{ number_format((int) ($markDrop['index'] ?? 0)) }}回目</span>
+                                                    <span class="font-black text-violet-900">{{ $markDrop['name'] ?? '印' }}</span>
+                                                    <span class="text-slate-500">所持 {{ number_format((int) ($markDrop['total_quantity'] ?? 0)) }}個</span>
+                                                    @if(!empty($markDrop['level_up']))
+                                                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                                                            Lv{{ number_format((int) ($markDrop['unlocked_level'] ?? 0)) }}解放
+                                                            @if(!empty($markDrop['bonus_stat_label']))
+                                                                / {{ $markDrop['bonus_stat_label'] }} +{{ number_format((int) ($markDrop['total_bonus'] ?? 0)) }}
+                                                            @endif
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                                @if(!empty($batchExplore['stop_text']))
+                                    <div class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-6 text-amber-800">
+                                        {{ $batchExplore['stop_text'] }}
+                                    </div>
+                                @endif
+                                @if(!empty($batchExplore['defeat_loss']))
+                                    @php
+                                        $defeatLoss = $batchExplore['defeat_loss'];
+                                        $lostMaterials = $defeatLoss['materials'] ?? [];
+                                        $lostItems = $defeatLoss['items'] ?? [];
+                                        $goldLossAmount = (int) ($defeatLoss['gold_amount'] ?? 0);
+                                        $lostTotal = (int) ($defeatLoss['total_lost'] ?? 0);
+                                        $valmonEggLostCount = (int) ($defeatLoss['valmon_egg_lost_count'] ?? 0);
+                                    @endphp
+                                    <div class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-6 text-rose-900">
+                                        <div class="mb-1 text-sm font-black text-rose-800">敗北時の喪失</div>
+                                        @if(!empty($defeatLoss['support_label']))
+                                            <div class="mb-2 rounded border border-sky-200 bg-white px-3 py-1 text-sky-800">
+                                                {{ $defeatLoss['support_label'] }}
+                                            </div>
+                                        @endif
+                                        @if($goldLossAmount > 0)
+                                            <div>
+                                                Gold: <span class="font-black text-amber-700">-{{ number_format($goldLossAmount) }}G</span>
+                                                @if(!empty($defeatLoss['gold_rate_label']))
+                                                    <span class="text-rose-700">（所持Goldの{{ $defeatLoss['gold_rate_label'] }}）</span>
+                                                @endif
+                                            </div>
+                                        @endif
+                                        @if($lostTotal > 0)
+                                            <div class="mt-1">
+                                                戦利品:
+                                                <span class="font-black text-rose-700">{{ number_format($lostTotal) }}件喪失</span>
+                                                @if(($defeatLoss['loss_percent'] ?? 0) > 0)
+                                                    <span class="text-rose-700">（ロスト{{ number_format((int) $defeatLoss['loss_percent']) }}%）</span>
+                                                @endif
+                                            </div>
+                                            @if(!empty($lostMaterials) || !empty($lostItems))
+                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                    @foreach($lostMaterials as $lostMaterial)
+                                                        <span class="rounded border border-rose-100 bg-white px-2 py-0.5 text-rose-700">
+                                                            {{ $lostMaterial['name'] ?? '素材' }} x{{ number_format((int) ($lostMaterial['quantity'] ?? 0)) }}
+                                                        </span>
+                                                    @endforeach
+                                                    @foreach($lostItems as $lostItem)
+                                                        <span class="rounded border border-rose-100 bg-white px-2 py-0.5 text-rose-700">
+                                                            {{ $lostItem['name'] ?? '装備' }}{{ !empty($lostItem['rank'] ?? '') ? ' ' . $lostItem['rank'] : '' }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        @endif
+                                        @if($valmonEggLostCount > 0)
+                                            <div class="mt-1">ヴァルモンの卵: <span class="font-black text-rose-700">{{ number_format($valmonEggLostCount) }}個喪失</span></div>
+                                        @endif
+                                        @if($goldLossAmount <= 0 && $lostTotal <= 0 && $valmonEggLostCount <= 0)
+                                            <div class="text-slate-600">失ったGold・戦利品はありません。</div>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                         @endif
 
@@ -331,11 +457,43 @@
                                     <img src="{{ asset($isTreasure ? 'images/icon/icon_012.webp' : 'images/icon/icon_010.webp') }}" alt="" class="w-5 h-5 object-contain"> {{ $isTreasure ? '宝箱の中身' : '獲得報酬' }}
                                 </h3>
                                 @unless($isTreasure)
-                                    <p class="mb-1 text-sm font-bold text-slate-700">EXP: <span class="text-amber-600">+{{ $result['exp_gained'] }}</span></p>
+                                    @php
+                                        $levelProgress = $result['progression']['level'] ?? null;
+                                        $jobProgress = $result['progression']['job'] ?? null;
+                                    @endphp
+                                    <p class="mb-1 text-sm font-bold text-slate-700">
+                                        EXP: <span class="text-amber-600">+{{ number_format((int) ($result['exp_gained'] ?? 0)) }}</span>
+                                        @if($levelProgress && empty($levelProgress['is_max']))
+                                            <span class="text-slate-500">（{{ number_format((int) ($levelProgress['current'] ?? 0)) }} / {{ number_format((int) ($levelProgress['required'] ?? 0)) }}）</span>
+                                        @endif
+                                    </p>
+                                    @if($levelProgress)
+                                        @if(!empty($levelProgress['is_max']))
+                                            <div class="mb-2 rounded border border-amber-100 bg-white/75 px-3 py-2 text-xs font-bold text-slate-600">
+                                                Lv{{ number_format((int) ($levelProgress['level'] ?? 255)) }} 到達済み
+                                            </div>
+                                        @endif
+                                    @endif
                                     @if(($result['gold_gained'] ?? 0) > 0)
                                         <p class="mb-1 text-sm font-bold text-slate-700">Gold: <span class="text-amber-600">+{{ number_format($result['gold_gained']) }}G</span></p>
                                     @endif
-                                    <p class="mb-4 text-sm font-bold text-slate-700">Job EXP: <span class="text-green-600">+{{ $result['job_exp_gained'] ?? 0 }}</span></p>
+                                    <p class="mb-1 text-sm font-bold text-slate-700">
+                                        Job EXP: <span class="text-green-600">+{{ number_format((int) ($result['job_exp_gained'] ?? 0)) }}</span>
+                                        @if($jobProgress && empty($jobProgress['is_mastered']))
+                                            <span class="text-slate-500">（{{ number_format((int) ($jobProgress['current'] ?? 0)) }} / {{ number_format((int) ($jobProgress['required'] ?? 0)) }}）</span>
+                                        @endif
+                                    </p>
+                                    @if($jobProgress)
+                                        @if(!empty($jobProgress['is_mastered']))
+                                            <div class="mb-4 rounded border border-green-100 bg-white/75 px-3 py-2 text-xs font-bold text-slate-600">
+                                                {{ $jobProgress['job_name'] ?? '現在の職業' }}はマスター済み
+                                            </div>
+                                        @else
+                                            <div class="mb-4"></div>
+                                        @endif
+                                    @else
+                                        <div class="mb-4"></div>
+                                    @endif
                                 @endunless
 
                                 @if(!empty($result['kiseki_drop']))
@@ -361,11 +519,16 @@
                                             @foreach($result['material_drop'] as $materialDrop)
                                                 @php
                                                     $specialMaterial = $isSpecialMaterial($materialDrop);
+                                                    $materialIcon = $materialDrop['icon_image']
+                                                        ?? \App\Models\Material::iconImagePathFor($materialDrop['material_code'] ?? null, $materialDrop['name'] ?? null);
                                                     $materialClass = $specialMaterial
                                                         ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
                                                         : 'border-green-200 bg-white text-slate-800 shadow-sm';
                                                 @endphp
                                                 <span class="inline-flex items-center rounded border {{ $materialClass }} px-3 py-2 text-sm font-bold">
+                                                    @if($materialIcon)
+                                                        <img src="{{ asset($materialIcon) }}" alt="" class="mr-1.5 h-5 w-5 shrink-0 object-contain">
+                                                    @endif
                                                     @if($specialMaterial)
                                                         <span class="mr-1 rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-emerald-700 border border-emerald-200">分岐</span>
                                                     @endif
@@ -397,6 +560,10 @@
                                                     {{ $valmonFind['valmon_name'] ?? 'ヴァルモン' }}が素材を見つけた！
                                                 </div>
                                                 <div class="mt-1 inline-flex max-w-full items-center rounded border border-teal-100 bg-white px-3 py-1 text-sm font-extrabold text-teal-800 shadow-sm">
+                                                    @php $valmonMaterialIcon = $valmonFind['material_icon_image'] ?? \App\Models\Material::iconImagePathFor($valmonFind['material_code'] ?? null, $valmonFind['material_name'] ?? null); @endphp
+                                                    @if($valmonMaterialIcon)
+                                                        <img src="{{ asset($valmonMaterialIcon) }}" alt="" class="mr-1.5 h-5 w-5 shrink-0 object-contain">
+                                                    @endif
                                                     <span class="truncate">{{ $valmonFind['material_name'] ?? '素材' }}</span>
                                                     <span class="ml-2 shrink-0 rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-700">
                                                         +{{ number_format((int) ($valmonFind['quantity'] ?? 1)) }}
@@ -512,6 +679,15 @@
                                                 </p>
                                             </div>
                                         @endforeach
+                                    </div>
+                                @endif
+
+                                @if(($result['stamina_max_up'] ?? 0) > 0)
+                                    <div class="mt-4 pt-4 border-t border-cyan-200">
+                                        <div class="bg-cyan-50 border border-cyan-300 rounded-lg px-4 py-2 text-cyan-800 font-bold text-sm flex items-center gap-2">
+                                            <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="w-5 h-5 object-contain">
+                                            探索力の上限が{{ $result['stamina_max_up'] }}増えた！
+                                        </div>
                                     </div>
                                 @endif
 
@@ -663,8 +839,9 @@
                                     $explorationSummary = $result['exploration_summary'] ?? null;
                                     $dangerRate = (int) ($explorationSummary['danger_rate'] ?? 0);
                                     $depth = $explorationSummary['depth'] ?? null;
-                                    $currentDepth = $depth['current'] ?? [];
-                                    $nextDepth = $depth['next'] ?? null;
+                                    // sub_area_explore は depth が直接 {label, key, ...} 構造になっている
+                                    $currentDepth = $isSubAreaExplore ? ($depth ?? []) : ($depth['current'] ?? []);
+                                    $nextDepth = $isSubAreaExplore ? null : ($depth['next'] ?? null);
                                     $dangerBadgeStyle = $dangerRate >= 100
                                         ? 'background:rgba(239,68,68,0.18);color:#fca5a5;border-color:rgba(239,68,68,0.35)'
                                         : ($dangerRate >= 75
@@ -881,6 +1058,10 @@
                                                             $isSellTreasure = (bool) ($material['is_sell_treasure'] ?? false);
                                                         @endphp
                                                         <span class="inline-flex items-center rounded border px-2 py-1 text-[11px] font-bold {{ $isSellTreasure ? 'border-yellow-300 bg-yellow-50 text-yellow-900' : 'border-emerald-100 bg-emerald-50 ' . ($isSrMaterial ? 'text-violet-700' : 'text-slate-700') }}">
+                                                            @php $chainMaterialIcon = $material['icon_image'] ?? \App\Models\Material::iconImagePathFor($material['material_code'] ?? null, $material['name'] ?? null); @endphp
+                                                            @if($chainMaterialIcon)
+                                                                <img src="{{ asset($chainMaterialIcon) }}" alt="" class="mr-1 h-4 w-4 shrink-0 object-contain">
+                                                            @endif
                                                             {{ $material['name'] }}
                                                             <span class="ml-1 {{ $isSellTreasure ? 'text-yellow-700' : 'text-emerald-700' }}">x{{ number_format($material['quantity']) }}</span>
                                                         </span>
@@ -1039,7 +1220,7 @@
                     @endif
 
                     {{-- アクションボタン --}}
-                    <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6 pb-6">
+                    <div class="flex flex-col justify-center items-center gap-3 mt-6 pb-6">
 
                         @php
                             $battleWaitDepthKey = data_get($result, 'exploration_summary.depth.current.key', 'surface');
@@ -1047,7 +1228,75 @@
                                 $battleWaitDepthKey = data_get($result, 'exploration_summary.depth.key', $battleWaitDepthKey);
                             }
                             $battleWaitSeconds = app(\App\Services\CooldownSettingService::class)->explorationBattleSecondsForDepthKey($battleWaitDepthKey);
+                            $stamina = $result['exploration_stamina'] ?? null;
+                            $usesStamina = (bool) ($stamina['enabled'] ?? false);
+                            $staminaCost = (int) ($stamina['cost'] ?? 1);
+                            $hasStamina = !$usesStamina || ((int) ($stamina['current'] ?? 0) >= $staminaCost);
+                            $batchExploreCount = 10;
+                            $batchStaminaCost = $staminaCost * $batchExploreCount;
+                            $staminaCostHtml = $usesStamina
+                                ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
+                                : '';
+                            $initialExploreLockSeconds = $usesStamina ? 2 : 0;
+                            $supportItemCounts = $supportItemCounts ?? [];
+                            $staminaRecoveryChoices = collect(['explore_stamina_small_bottle', 'explore_stamina_potion'])
+                                ->map(function (string $itemKey) use ($supportItemCounts) {
+                                    $item = config("adventure_support.items.{$itemKey}");
+                                    if (!$item) {
+                                        return null;
+                                    }
+
+                                    return [
+                                        'key' => $itemKey,
+                                        'name' => (string) ($item['name'] ?? $itemKey),
+                                        'icon_image' => $item['icon_image'] ?? null,
+                                        'effect_value' => (int) ($item['effect_value'] ?? 0),
+                                        'quantity' => (int) ($supportItemCounts[$itemKey] ?? 0),
+                                        'use_url' => route('inventory.support-items.use', ['itemKey' => $itemKey]),
+                                    ];
+                                })
+                                ->filter()
+                                ->values();
+                            if ($usesStamina) {
+                                $battleWaitSeconds = 0;
+                            }
                         @endphp
+                        @if($usesStamina)
+                            <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;padding:2px 8px;border-radius:99px;"
+                                  x-data="{
+                                      current: {{ (int) ($stamina['current'] ?? 0) }},
+                                      max: {{ (int) ($stamina['max'] ?? 0) }},
+                                      recoverySeconds: {{ (int) ($stamina['recovery_seconds'] ?? 60) }},
+                                      nextRecoverySeconds: {{ (int) ($stamina['next_recovery_seconds'] ?? 0) }},
+                                      timer: null,
+                                      nextAt: null,
+                                      init() {
+                                          if (this.current >= this.max) return;
+                                          if (this.nextRecoverySeconds <= 0) {
+                                              this.nextRecoverySeconds = this.recoverySeconds;
+                                          }
+                                          this.nextAt = Date.now() + (this.nextRecoverySeconds * 1000);
+                                          this.timer = setInterval(() => {
+                                              if (this.current >= this.max) {
+                                                  clearInterval(this.timer);
+                                                  return;
+                                              }
+                                              const now = Date.now();
+                                              if (now >= this.nextAt) {
+                                                  const gained = 1 + Math.floor((now - this.nextAt) / (this.recoverySeconds * 1000));
+                                                  this.current = Math.min(this.max, this.current + gained);
+                                                  this.nextAt += gained * this.recoverySeconds * 1000;
+                                                  window.dispatchEvent(new CustomEvent('battle-stamina-updated', {
+                                                      detail: { current: this.current, max: this.max }
+                                                  }));
+                                              }
+                                          }, 1000);
+                                      }
+                                  }">
+                                <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" style="width:12px;height:12px;object-fit:contain;">
+                                探索力 <span id="battle-stamina-current-text" x-text="current.toLocaleString()">{{ number_format((int) ($stamina['current'] ?? 0)) }}</span>/<span id="battle-stamina-max-text">{{ number_format((int) ($stamina['max'] ?? 0)) }}</span>
+                            </span>
+                        @endif
                         @if(!isset($result['error']) && !$isBoss && $isDepthGate)
                             @php
                                 $depthGate = $result['depth_gate'] ?? [];
@@ -1089,28 +1338,49 @@
                                     <img src="{{ asset('images/icon/icon_043.webp') }}" alt="" class="w-4 h-4 object-contain"> ダンジョン主に挑む
                                 </button>
                             </form>
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は退いて探索を続ける" data-wait-seconds="{{ $battleWaitSeconds }}">
+                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は退いて探索を続ける" data-ready-html="{!! e('今は退いて探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}">
                                 @csrf
                                 <input type="hidden" name="continue_chain" value="1">
-                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
-                                    <span>↩</span> <span id="explore-btn-text">{{ $battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : '今は退いて探索を続ける' }}</span>
+                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                    <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                    <span>↩</span> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : '今は退いて探索を続ける ' . $staminaCostHtml) !!}</span>
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
                             <form action="{{ route('battle.sub_area.explore', ['discovery' => $result['sub_area_discovery_id']]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-wait-seconds="{{ $battleWaitSeconds }}">
                                 @csrf
                                 <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0) class="bg-indigo-700 hover:bg-indigo-800 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                    <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
                                     <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{{ $battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する' }}</span>
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['result'] === 'victory' || $result['result'] === 'win'))
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-wait-seconds="{{ $battleWaitSeconds }}">
-                                @csrf
-                                <input type="hidden" name="continue_chain" value="1">
-                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0) class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
-                                    <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{{ $battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する' }}</span>
-                                </button>
-                            </form>
+                            <div class="w-full max-w-md sm:w-auto">
+                                <div class="flex items-stretch justify-center gap-2">
+                                    <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" class="min-w-0 flex-1 sm:flex-none">
+                                        @csrf
+                                        <input type="hidden" name="continue_chain" value="1">
+                                        <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="h-full w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-7 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2">
+                                            <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                            <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する ' . $staminaCostHtml) !!}</span>
+                                        </button>
+                                    </form>
+                                    @if($usesStamina)
+                                        <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStaminaCost }}" data-stamina-warning="×10探索には探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
+                                            @csrf
+                                            <input type="hidden" name="continue_chain" value="1">
+                                            <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
+                                            <button type="submit" id="explore-btn" title="探索力を{{ number_format($batchStaminaCost) }}消費して最大10回探索" class="h-full bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold px-3.5 rounded-lg shadow-md transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                                                <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                                <span id="explore-btn-text">×10 探索</span>
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                                @if($usesStamina)
+                                    <p id="batch-explore-inline-warning" class="mt-2 hidden text-center text-xs font-black leading-5 text-red-600"></p>
+                                @endif
+                            </div>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '連続で戦闘'))
                             @php
                                 $retryWaitSeconds = max(1, $battleWaitSeconds);
@@ -1118,13 +1388,18 @@
                                     $retryWaitSeconds = max(1, min(max(1, $battleWaitSeconds), (int) $retryMatches[1]));
                                 }
                             @endphp
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-wait-seconds="{{ $retryWaitSeconds }}">
+                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $retryWaitSeconds }}">
                                 @csrf
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">あと {{ $retryWaitSeconds }} 秒...</span>
                                 </button>
                             </form>
+                        @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索力'))
+                            <a href="{{ route('home') }}" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="w-4 h-4 object-contain opacity-90">
+                                <span>街へ戻る</span>
+                            </a>
                         @elseif(!isset($result['error']) && !in_array($result['result'], ['victory', 'win'], true))
                             <a href="{{ route('home') }}"
                                x-data="{ loading: false }"
@@ -1141,6 +1416,55 @@
                         @endif
 
                     </div>
+                    @if($usesStamina)
+                        <div id="batch-stamina-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/45 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="batch-stamina-modal-title">
+                            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-2xl">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 id="batch-stamina-modal-title" class="text-base font-black text-slate-900">探索力を回復して探索を続けますか？</h3>
+                                        <p class="mt-1 text-xs font-bold leading-5 text-slate-500">
+                                            ×10探索には探索力が足りません。使うアイテムを選んでください。
+                                        </p>
+                                    </div>
+                                    <button type="button" data-batch-stamina-modal-close class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="閉じる">
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="mt-3 rounded border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-extrabold text-sky-800">
+                                    探索力 <span data-batch-stamina-current>{{ number_format((int) ($stamina['current'] ?? 0)) }}</span> / 必要 <span data-batch-stamina-required>{{ number_format($batchStaminaCost) }}</span>
+                                </div>
+                                <div class="mt-3 flex flex-col gap-2">
+                                    @foreach($staminaRecoveryChoices as $choice)
+                                        <button type="button"
+                                                data-batch-stamina-item
+                                                data-item-key="{{ $choice['key'] }}"
+                                                data-use-url="{{ $choice['use_url'] }}"
+                                                data-quantity="{{ $choice['quantity'] }}"
+                                                @disabled($choice['quantity'] <= 0)
+                                                class="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60">
+                                            <span class="flex min-w-0 items-center gap-2">
+                                                @if($choice['icon_image'])
+                                                    <img src="{{ asset($choice['icon_image']) }}" alt="" class="h-5 w-5 object-contain">
+                                                @endif
+                                                <span class="min-w-0">
+                                                    <span class="block text-sm font-black text-slate-800">{{ $choice['name'] }}</span>
+                                                    <span class="block text-[11px] font-bold text-slate-500">探索力 +{{ number_format($choice['effect_value']) }}</span>
+                                                </span>
+                                            </span>
+                                            <span class="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
+                                                残<span data-batch-stamina-item-count>{{ number_format($choice['quantity']) }}</span>
+                                            </span>
+                                        </button>
+                                    @endforeach
+                                    <button type="button" data-batch-stamina-modal-close class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                                        閉じる
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -1159,6 +1483,17 @@
                 return document.querySelector('[data-battle-result-page]');
             }
 
+            function setExploreButtonReadyText(form, buttonText) {
+                if (!buttonText) return;
+
+                if (form.dataset.readyHtml) {
+                    buttonText.innerHTML = form.dataset.readyHtml;
+                    return;
+                }
+
+                buttonText.textContent = form.dataset.readyText || 'もう一度探索する';
+            }
+
             function hpBarColor(percent) {
                 if (percent <= 20) return { bar: '#ef4444', text: '#dc2626' };
                 if (percent <= 50) return { bar: '#f59e0b', text: '#d97706' };
@@ -1171,6 +1506,242 @@
                 message.textContent = text;
                 message.classList.remove('hidden');
                 message.style.color = isSuccess ? '#6ee7b7' : '#fca5a5';
+            }
+
+            function showBattleToast(text, type = 'warning') {
+                let toast = document.getElementById('battle-result-toast');
+                if (!toast) {
+                    toast = document.createElement('div');
+                    toast.id = 'battle-result-toast';
+                    toast.style.position = 'fixed';
+                    toast.style.left = '50%';
+                    toast.style.bottom = '22px';
+                    toast.style.transform = 'translateX(-50%) translateY(12px)';
+                    toast.style.zIndex = '9999';
+                    toast.style.maxWidth = 'calc(100vw - 32px)';
+                    toast.style.borderRadius = '10px';
+                    toast.style.padding = '10px 14px';
+                    toast.style.fontSize = '13px';
+                    toast.style.fontWeight = '800';
+                    toast.style.boxShadow = '0 12px 28px rgba(15,23,42,0.22)';
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 160ms ease, transform 160ms ease';
+                    document.body.appendChild(toast);
+                }
+
+                toast.textContent = text;
+                toast.style.background = type === 'warning' ? '#fff7ed' : '#eff6ff';
+                toast.style.border = type === 'warning' ? '1px solid #fed7aa' : '1px solid #bfdbfe';
+                toast.style.color = type === 'warning' ? '#9a3412' : '#1d4ed8';
+
+                window.clearTimeout(toast.dataset.timerId);
+                requestAnimationFrame(() => {
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translateX(-50%) translateY(0)';
+                });
+                toast.dataset.timerId = window.setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(-50%) translateY(12px)';
+                }, 2600);
+            }
+
+            function batchStaminaModal() {
+                return document.getElementById('batch-stamina-modal');
+            }
+
+            function openBatchStaminaModal(form, current, required) {
+                const modal = batchStaminaModal();
+                if (!modal) {
+                    showBattleToast(form.dataset.staminaWarning || '×10探索には探索力が足りません。探索力の小瓶や薬で回復してから探索してください。', 'warning');
+                    return;
+                }
+
+                if (modal.parentElement !== document.body) {
+                    document.body.appendChild(modal);
+                }
+
+                modal.dataset.formId = form.id || '';
+                const currentText = modal.querySelector('[data-batch-stamina-current]');
+                const requiredText = modal.querySelector('[data-batch-stamina-required]');
+                if (currentText) currentText.textContent = formatNumber.format(Math.max(0, Number(current || 0)));
+                if (requiredText) requiredText.textContent = formatNumber.format(Math.max(1, Number(required || 10)));
+
+                modal.style.position = 'fixed';
+                modal.style.inset = '0';
+                modal.style.display = 'flex';
+                modal.style.alignItems = 'center';
+                modal.style.justifyContent = 'center';
+                modal.style.minHeight = '100dvh';
+                document.documentElement.style.overflow = 'hidden';
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            function closeBatchStaminaModal() {
+                const modal = batchStaminaModal();
+                if (!modal) return;
+                modal.style.display = '';
+                document.documentElement.style.overflow = '';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+
+            function csrfToken() {
+                return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    || document.querySelector('input[name="_token"]')?.value
+                    || '';
+            }
+
+            function updateBatchStaminaItemChoices(items, selectedKey = null) {
+                const modal = batchStaminaModal();
+                if (!modal) return;
+
+                const quantities = new Map();
+                if (Array.isArray(items)) {
+                    items.forEach((item) => {
+                        if (item?.key) {
+                            quantities.set(String(item.key), Number(item.quantity || 0));
+                        }
+                    });
+                }
+
+                modal.querySelectorAll('[data-batch-stamina-item]').forEach((button) => {
+                    const key = button.dataset.itemKey || '';
+                    const nextQuantity = quantities.has(key)
+                        ? Math.max(0, Number(quantities.get(key) || 0))
+                        : (key === selectedKey ? Math.max(0, Number(button.dataset.quantity || 0) - 1) : Number(button.dataset.quantity || 0));
+                    button.dataset.quantity = String(nextQuantity);
+                    button.disabled = nextQuantity <= 0;
+
+                    const count = button.querySelector('[data-batch-stamina-item-count]');
+                    if (count) {
+                        count.textContent = formatNumber.format(nextQuantity);
+                    }
+                });
+            }
+
+            function setBatchExploreInlineWarning(form, text = '') {
+                if (!form?.hasAttribute('data-batch-explore-form')) return;
+
+                const targetId = form.dataset.inlineWarningTarget || '';
+                const warning = targetId ? document.getElementById(targetId) : null;
+                if (!warning) return;
+
+                warning.textContent = text || '';
+                warning.classList.toggle('hidden', !text);
+            }
+
+            async function useBatchStaminaItem(button) {
+                const modal = batchStaminaModal();
+                if (!modal || !button?.dataset.useUrl) return;
+
+                const buttons = modal.querySelectorAll('button');
+                buttons.forEach((modalButton) => {
+                    modalButton.disabled = true;
+                });
+                button.dataset.originalText = button.dataset.originalText || button.textContent.trim();
+
+                try {
+                    const formData = new FormData();
+                    const token = csrfToken();
+                    if (token) {
+                        formData.append('_token', token);
+                    }
+
+                    const response = await fetch(button.dataset.useUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                        credentials: 'same-origin',
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || data.success !== true) {
+                        showBattleToast(data.message || '探索力を回復できませんでした。', 'warning');
+                        return;
+                    }
+
+                    if (data.stamina) {
+                        updateBatchExploreStamina(data.stamina.current, data.stamina.max);
+                    }
+                    updateBatchStaminaItemChoices(data.support_items, button.dataset.itemKey || null);
+                    showBattleToast(data.message || '探索力を回復しました。', 'info');
+                    closeBatchStaminaModal();
+
+                    const form = modal.dataset.formId ? document.getElementById(modal.dataset.formId) : null;
+                    if (form) {
+                        await submitExploreAgain(form);
+                    }
+                } catch (error) {
+                    showBattleToast('探索力回復アイテムの使用に失敗しました。通信状態を確認してください。', 'warning');
+                } finally {
+                    buttons.forEach((modalButton) => {
+                        const quantity = modalButton.hasAttribute('data-batch-stamina-item')
+                            ? Number(modalButton.dataset.quantity || 0)
+                            : 1;
+                        modalButton.disabled = quantity <= 0;
+                    });
+                }
+            }
+
+            function batchExploreHpBlocked(form) {
+                if (!form?.hasAttribute('data-batch-explore-form')) return false;
+
+                const currentHp = Number.parseInt(form.dataset.currentHp || '0', 10);
+                const maxHp = Math.max(1, Number.parseInt(form.dataset.maxHp || '1', 10));
+                const minPercent = Math.max(1, Number.parseInt(form.dataset.minHpPercent || '30', 10));
+                const currentPercent = Math.floor((Math.max(0, currentHp) / maxHp) * 100);
+
+                if (currentPercent > minPercent) {
+                    setBatchExploreInlineWarning(form);
+                    return false;
+                }
+
+                setBatchExploreInlineWarning(form, form.dataset.hpWarning || '×10探索を続けるにはHPを回復してください。');
+                return true;
+            }
+
+            function batchExploreStaminaBlocked(form) {
+                if (!form?.hasAttribute('data-batch-explore-form')) return false;
+
+                const current = Number.parseInt(form.dataset.currentStamina || '0', 10);
+                const required = Math.max(1, Number.parseInt(form.dataset.requiredStamina || '10', 10));
+
+                if (current >= required) {
+                    setBatchExploreInlineWarning(form);
+                    return false;
+                }
+
+                setBatchExploreInlineWarning(form);
+                openBatchStaminaModal(form, current, required);
+                return true;
+            }
+
+            function updateBatchExploreStamina(current, max = null) {
+                const normalizedCurrent = Math.max(0, Number(current || 0));
+                const normalizedMax = max === null ? null : Math.max(0, Number(max || 0));
+
+                document.querySelectorAll('[data-batch-explore-form]').forEach((form) => {
+                    form.dataset.currentStamina = String(normalizedCurrent);
+                    if (normalizedMax !== null) {
+                        form.dataset.maxStamina = String(normalizedMax);
+                    }
+                });
+
+                const currentText = document.getElementById('battle-stamina-current-text');
+                if (currentText) {
+                    currentText.textContent = formatNumber.format(normalizedCurrent);
+                }
+
+                if (normalizedMax !== null) {
+                    const maxText = document.getElementById('battle-stamina-max-text');
+                    if (maxText) {
+                        maxText.textContent = formatNumber.format(normalizedMax);
+                    }
+                }
             }
 
             function updateHp(hp) {
@@ -1189,6 +1760,11 @@
                 hpBar.style.width = `${percent}%`;
                 hpBar.style.background = colors.bar;
                 hpPercentText.textContent = `残り ${percent}%`;
+
+                document.querySelectorAll('[data-batch-explore-form]').forEach((form) => {
+                    form.dataset.currentHp = String(current);
+                    form.dataset.maxHp = String(max);
+                });
             }
 
             function updateMp(mp) {
@@ -1263,14 +1839,35 @@
             }
 
             async function submitExploreAgain(form) {
+                if (batchExploreHpBlocked(form) || batchExploreStaminaBlocked(form)) {
+                    return;
+                }
+
                 const button = form.querySelector('#explore-btn');
                 const buttonText = form.querySelector('#explore-btn-text');
+                const spinner = form.querySelector('[data-explore-spinner]');
+                const restoreAfterBusy = (seconds = 1) => {
+                    window.setTimeout(() => {
+                        form.dataset.submitted = '0';
+                        if (button) {
+                            button.disabled = false;
+                            button.classList.remove('scale-95', 'opacity-80');
+                        }
+                        if (spinner) {
+                            spinner.classList.add('hidden');
+                        }
+                        setExploreButtonReadyText(form, buttonText);
+                    }, Math.max(1, seconds) * 1000);
+                };
 
                 if (form.dataset.submitted === '1') return;
                 form.dataset.submitted = '1';
                 if (button) {
                     button.disabled = true;
                     button.classList.add('scale-95', 'opacity-80');
+                }
+                if (spinner) {
+                    spinner.classList.remove('hidden');
                 }
                 if (buttonText) {
                     buttonText.textContent = '探索中...';
@@ -1286,6 +1883,13 @@
                         body: new FormData(form),
                         credentials: 'same-origin',
                     });
+
+                    if (response.status === 409 && response.headers.get('X-Explore-Busy') === '1') {
+                        const retryAfter = Number.parseInt(response.headers.get('Retry-After') || '1', 10);
+                        restoreAfterBusy(Number.isFinite(retryAfter) ? retryAfter : 1);
+                        return;
+                    }
+
                     const html = await response.text();
                     const doc = new DOMParser().parseFromString(html, 'text/html');
                     const nextPage = doc.querySelector('[data-battle-result-page]');
@@ -1319,15 +1923,39 @@
 
                     const button = form.querySelector('#explore-btn');
                     const buttonText = form.querySelector('#explore-btn-text');
+                    const spinner = form.querySelector('[data-explore-spinner]');
                     if (!button || !buttonText) return;
+                    const setReadyText = () => setExploreButtonReadyText(form, buttonText);
+                    const initialLockSeconds = Number.parseInt(form.dataset.initialLockSeconds || '0', 10);
 
                     let timeLeft = Number.parseInt(form.dataset.waitSeconds || '{{ $battleWaitSeconds }}', 10);
                     if (!Number.isFinite(timeLeft) || timeLeft < 0) {
                         timeLeft = {{ $battleWaitSeconds }};
                     }
                     if (timeLeft <= 0) {
+                        if (Number.isFinite(initialLockSeconds) && initialLockSeconds > 0 && form.dataset.initialLockDone !== '1') {
+                            form.dataset.initialLockDone = '1';
+                            button.disabled = true;
+                            if (spinner) {
+                                spinner.classList.remove('hidden');
+                            }
+                            buttonText.textContent = 'リザルト確定中...';
+                            window.setTimeout(() => {
+                                if (!document.body.contains(form)) return;
+                                button.disabled = false;
+                                if (spinner) {
+                                    spinner.classList.add('hidden');
+                                }
+                                setReadyText();
+                            }, initialLockSeconds * 1000);
+                            return;
+                        }
+
                         button.disabled = false;
-                        buttonText.textContent = form.dataset.readyText || 'もう一度探索する';
+                        if (spinner) {
+                            spinner.classList.add('hidden');
+                        }
+                        setReadyText();
                         return;
                     }
                     buttonText.textContent = 'あと ' + timeLeft + ' 秒...';
@@ -1341,13 +1969,37 @@
                         if (timeLeft <= 0) {
                             clearInterval(timer);
                             button.disabled = false;
-                            buttonText.textContent = form.dataset.readyText || 'もう一度探索する';
+                            if (spinner) {
+                                spinner.classList.add('hidden');
+                            }
+                            setReadyText();
                         } else {
                             buttonText.textContent = 'あと ' + timeLeft + ' 秒...';
                         }
                     }, 1000);
                 });
             };
+
+            window.addEventListener('battle-stamina-updated', function(event) {
+                updateBatchExploreStamina(event.detail?.current, event.detail?.max ?? null);
+            });
+
+            document.addEventListener('click', function(event) {
+                const closeButton = event.target.closest('[data-batch-stamina-modal-close]');
+                if (closeButton) {
+                    event.preventDefault();
+                    closeBatchStaminaModal();
+                    return;
+                }
+
+                const staminaItemButton = event.target.closest('[data-batch-stamina-item]');
+                if (staminaItemButton) {
+                    event.preventDefault();
+                    if (!staminaItemButton.disabled) {
+                        useBatchStaminaItem(staminaItemButton);
+                    }
+                }
+            });
 
             document.addEventListener('submit', function(event) {
                 const itemForm = event.target.closest('.exploration-item-form');

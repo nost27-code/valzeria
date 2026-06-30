@@ -40,11 +40,11 @@ class EquipmentEnhancementService
     ];
 
     private const ACCESSORY_ENHANCEMENT_MATERIALS = [
-        1 => [['material_id' => 'ACC0007', 'material_name' => '装飾強化石の欠片', 'quantity' => 3]],
-        2 => [['material_id' => 'ACC0007', 'material_name' => '装飾強化石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_FAIRY_DUST', 'material_name' => '妖精粉', 'quantity' => 3]],
-        3 => [['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 1], ['material_id' => 'ACC0007', 'material_name' => '装飾強化石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6]],
-        4 => [['material_id' => 'ACC0009', 'material_name' => '高純度装飾強化石', 'quantity' => 1], ['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 6], ['material_id' => '5025', 'material_name' => '王都の織布', 'quantity' => 1], ['material_id' => '5027', 'material_name' => '潮風の布片', 'quantity' => 1], ['material_id' => '5029', 'material_name' => '精霊樹の繊維', 'quantity' => 1], ['material_id' => '5031', 'material_name' => '黒鉄の装甲片', 'quantity' => 1], ['material_id' => '5033', 'material_name' => '氷晶の織糸', 'quantity' => 1], ['material_id' => '5035', 'material_name' => '砂金繊維', 'quantity' => 1], ['material_id' => '5037', 'material_name' => '魔導繊維', 'quantity' => 1]],
-        5 => [['material_id' => 'ACC0009', 'material_name' => '高純度装飾強化石', 'quantity' => 2], ['material_id' => 'ACC0008', 'material_name' => '装飾強化石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 10], ['material_id' => '5026', 'material_name' => '王都の守護布', 'quantity' => 1], ['material_id' => '5028', 'material_name' => '海守りの織布', 'quantity' => 1], ['material_id' => '5030', 'material_name' => '精霊王の絹糸', 'quantity' => 1], ['material_id' => '5032', 'material_name' => '炉心の耐熱布', 'quantity' => 1], ['material_id' => '5034', 'material_name' => '氷帝の守護布', 'quantity' => 1], ['material_id' => '5036', 'material_name' => '砂王の宝布', 'quantity' => 1], ['material_id' => '5038', 'material_name' => '大魔導の星布', 'quantity' => 1], ['material_id' => '5040', 'material_name' => '深魔の黒布', 'quantity' => 1], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+        1 => [['material_id' => 'ACC0007', 'material_name' => '調律石の欠片', 'quantity' => 3]],
+        2 => [['material_id' => 'ACC0007', 'material_name' => '調律石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_FAIRY_DUST', 'material_name' => '妖精粉', 'quantity' => 3]],
+        3 => [['material_id' => 'ACC0008', 'material_name' => '調律石', 'quantity' => 1], ['material_id' => 'ACC0007', 'material_name' => '調律石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6]],
+        4 => [['material_id' => 'ACC0009', 'material_name' => '高純度調律石', 'quantity' => 1], ['material_id' => 'ACC0008', 'material_name' => '調律石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 6], ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1]],
+        5 => [['material_id' => 'ACC0009', 'material_name' => '高純度調律石', 'quantity' => 2], ['material_id' => 'ACC0008', 'material_name' => '調律石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 10], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
     ];
 
     private const ENHANCEMENT_GOLD_COSTS = [
@@ -55,20 +55,34 @@ class EquipmentEnhancementService
         5 => 15000,
     ];
 
+    private const RANK_GOLD_MULTIPLIERS = [
+        'G' => 1.0,
+        'F' => 1.2,
+        'E' => 1.5,
+        'D' => 2.0,
+        'C' => 3.0,
+        'B' => 5.0,
+        'A' => 8.0,
+        'S' => 15.0,
+        'SS' => 30.0,
+        'SSS' => 60.0,
+        'EPIC' => 120.0,
+    ];
+
     private const ENHANCEMENT_MATERIALS = [
         'weapon' => [
             1 => [['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 3]],
             2 => [['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_GOBLIN_FANG', 'material_name' => '小鬼の牙', 'quantity' => 3]],
             3 => [['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 6]],
-            4 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => 'WEV0023', 'material_name' => '王都の鉄片', 'quantity' => 1], ['material_id' => 'WEV0024', 'material_name' => '潮風の貝殻', 'quantity' => 1], ['material_id' => 'WEV0025', 'material_name' => '精霊樹の葉', 'quantity' => 1], ['material_id' => 'WEV0026', 'material_name' => '黒鉄鉱', 'quantity' => 1], ['material_id' => 'WEV0027', 'material_name' => '氷晶石', 'quantity' => 1], ['material_id' => 'WEV0028', 'material_name' => '砂金石', 'quantity' => 1], ['material_id' => 'WEV0029', 'material_name' => '魔導結晶', 'quantity' => 1]],
-            5 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 2], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => 'WEV0033', 'material_name' => '王紋鋼', 'quantity' => 1], ['material_id' => 'WEV0035', 'material_name' => '海鳴りの蒼鉱', 'quantity' => 1], ['material_id' => 'WEV0037', 'material_name' => '精霊樹の琥珀', 'quantity' => 1], ['material_id' => 'WEV0039', 'material_name' => '炉心鋼', 'quantity' => 1], ['material_id' => 'WEV0041', 'material_name' => '氷帝晶', 'quantity' => 1], ['material_id' => 'WEV0043', 'material_name' => '砂王金晶', 'quantity' => 1], ['material_id' => 'WEV0045', 'material_name' => 'ルミナス魔晶', 'quantity' => 1], ['material_id' => 'WEV0047', 'material_name' => '深魔骨核', 'quantity' => 1], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+            4 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1]],
+            5 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 2], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
         ],
         'armor' => [
             1 => [['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 3]],
             2 => [['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_MONSTER_SHELL', 'material_name' => '魔物の外殻', 'quantity' => 3]],
             3 => [['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 1], ['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_BEAST_FUR', 'material_name' => '獣の毛皮', 'quantity' => 6]],
-            4 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 1], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => '5025', 'material_name' => '王都の織布', 'quantity' => 1], ['material_id' => '5027', 'material_name' => '潮風の布片', 'quantity' => 1], ['material_id' => '5029', 'material_name' => '精霊樹の繊維', 'quantity' => 1], ['material_id' => '5031', 'material_name' => '黒鉄の装甲片', 'quantity' => 1], ['material_id' => '5033', 'material_name' => '氷晶の織糸', 'quantity' => 1], ['material_id' => '5035', 'material_name' => '砂金繊維', 'quantity' => 1], ['material_id' => '5037', 'material_name' => '魔導繊維', 'quantity' => 1]],
-            5 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 2], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => '5026', 'material_name' => '王都の守護布', 'quantity' => 1], ['material_id' => '5028', 'material_name' => '海守りの織布', 'quantity' => 1], ['material_id' => '5030', 'material_name' => '精霊王の絹糸', 'quantity' => 1], ['material_id' => '5032', 'material_name' => '炉心の耐熱布', 'quantity' => 1], ['material_id' => '5034', 'material_name' => '氷帝の守護布', 'quantity' => 1], ['material_id' => '5036', 'material_name' => '砂王の宝布', 'quantity' => 1], ['material_id' => '5038', 'material_name' => '大魔導の星布', 'quantity' => 1], ['material_id' => '5040', 'material_name' => '深魔の黒布', 'quantity' => 1], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+            4 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 1], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1]],
+            5 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 2], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
         ],
     ];
 
@@ -209,6 +223,7 @@ class EquipmentEnhancementService
                 $requirements[] = [
                     'material_code' => (string) $material->material_code,
                     'name' => $material->name,
+                    'icon_image' => $material->iconImagePath(),
                     'owned' => $owned,
                     'required' => $required,
                     'missing' => $missing,
@@ -281,7 +296,7 @@ class EquipmentEnhancementService
 
             return [
                 'materials' => $materials,
-                'gold_cost' => self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0,
+                'gold_cost' => $this->goldCostForLevel($level, $item),
                 'success_rate' => 100,
                 'effect' => '基礎性能+' . ($level * 3) . '%',
             ];
@@ -294,10 +309,23 @@ class EquipmentEnhancementService
 
         return [
             'materials' => $materials,
-            'gold_cost' => self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0,
+            'gold_cost' => $this->goldCostForLevel($level, $item),
             'success_rate' => 100,
             'effect' => '基礎性能+' . ($level * 3) . '%',
         ];
+    }
+
+    private function goldCostForLevel(int $level, ?object $item): int
+    {
+        $baseCost = self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0;
+        if ($baseCost <= 0) {
+            return 0;
+        }
+
+        $rank = strtoupper(trim((string) $this->rankLabel($item)));
+        $multiplier = self::RANK_GOLD_MULTIPLIERS[$rank] ?? 1.0;
+
+        return (int) ceil($baseCost * $multiplier);
     }
 
     private function resolveDynamicMaterials(?array $requirements, string $type, ?Character $character, ?object $item): ?array

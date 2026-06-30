@@ -29,12 +29,12 @@
             $materialExpandItem = $storageExpandItems['material_storage_expand'] ?? [
                 'name' => '素材倉庫拡張',
                 'price' => 50,
-                'effect_value' => 50,
+                'effect_value' => 500,
             ];
             $equipmentExpandItem = $storageExpandItems['equipment_storage_expand'] ?? [
                 'name' => '装備倉庫拡張',
                 'price' => 50,
-                'effect_value' => 50,
+                'effect_value' => 100,
             ];
         @endphp
 
@@ -48,7 +48,9 @@
                     materialStorageTotal: {{ (int) ($storageSummary['material_storage_total'] ?? 0) }},
                     materialStorageTypes: {{ (int) ($storageSummary['material_storage_types'] ?? 0) }},
                     expandConfirm: null,
-                    submittingExpand: false
+                    submittingExpand: false,
+                    supportConfirm: null,
+                    submittingSupport: false
                 }"
                 @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1);"
             >
@@ -161,19 +163,19 @@
                         type="button"
                         @click="storageTab = 'key'"
                         class="rounded-lg border p-4 text-left transition active:scale-[0.99]"
-                        :class="storageTab === 'key' ? 'border-amber-500 bg-amber-50 shadow-md' : 'border-slate-200 bg-slate-50 hover:bg-white'"
+                        :class="storageTab === 'key' ? 'border-sky-500 bg-sky-50 shadow-md' : 'border-slate-200 bg-slate-50 hover:bg-white'"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <div class="text-xs font-extrabold text-amber-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_010.webp') }}" alt="" class="w-4 h-4 object-contain"> 討伐記録</div>
+                                <div class="text-xs font-extrabold text-sky-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_087.webp') }}" alt="" class="w-4 h-4 object-contain"> 所持品</div>
                                 <div class="mt-1 text-2xl font-black text-slate-900">{{ number_format($storageSummary['key_item_total']) }} 個</div>
                             </div>
                             <div class="rounded bg-white/80 px-2 py-1 text-xs font-bold text-slate-600">
                                 {{ number_format($storageSummary['key_item_types']) }} 種
                             </div>
                         </div>
-                        <div class="mt-3 rounded border border-amber-100 bg-white px-2 py-1 text-xs font-bold text-slate-600">
-                            倉庫枠を圧迫しないボスキー図鑑
+                        <div class="mt-3 rounded border border-sky-100 bg-white px-2 py-1 text-xs font-bold text-slate-600">
+                            探索力回復や救助支援アイテム
                         </div>
                     </button>
                 </div>
@@ -270,13 +272,22 @@
                                         }"
                                     >
                                         {{-- ヘッダー行: アイコン + 名前 + 所持数 --}}
+                                        @php
+                                            $materialIconImage = $cm->material?->iconImagePath();
+                                            $fixedMaterialIconImage = null;
+                                            if ($cm->material?->category === '印') {
+                                                $fixedMaterialIconImage = 'images/icon/icon_065.webp';
+                                            } elseif (str_contains($cm->material?->name ?? '', '討伐証')) {
+                                                $fixedMaterialIconImage = 'images/icon/icon_009.webp';
+                                            }
+                                            $displayMaterialIconImage = $fixedMaterialIconImage ?: $materialIconImage;
+                                        @endphp
                                         <div class="flex items-center gap-2">
-                                            <div class="w-8 h-8 shrink-0 bg-slate-100 rounded border border-slate-200 flex items-center justify-center text-base leading-none">
-                                                @if($cm->material?->category === '印') <img src="{{ asset('images/icon/icon_065.webp') }}" alt="" class="w-5 h-5 object-contain">
-                                                @elseif(str_contains($cm->material?->name ?? '', '討伐証')) <img src="{{ asset('images/icon/icon_009.webp') }}" alt="" class="w-5 h-5 object-contain">
-                                                @else <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-5 h-5 object-contain">
-                                                @endif
-                                            </div>
+                                            @if($displayMaterialIconImage)
+                                                <div class="w-8 h-8 shrink-0 bg-slate-100 rounded border border-slate-200 flex items-center justify-center text-base leading-none">
+                                                    <img src="{{ asset($displayMaterialIconImage) }}" alt="" class="w-5 h-5 object-contain">
+                                                </div>
+                                            @endif
                                             <div class="min-w-0 flex-1 text-sm font-bold text-slate-800 truncate" title="{{ $cm->material?->displayName() }}">{{ $cm->material?->displayName() }}</div>
                                             <div class="shrink-0 text-right leading-none">
                                                 <div class="text-[10px] text-slate-400">所持</div>
@@ -407,22 +418,57 @@
                 </div>
 
                 <div x-show="storageTab === 'key'" x-transition style="display: none;">
-                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
-                        <div class="text-xs font-bold text-amber-700">討伐記録・ボスキー図鑑</div>
-                        <h3 class="text-lg font-extrabold text-slate-800">討伐記録 {{ number_format($storageSummary['key_item_total']) }} 個</h3>
-                        <p class="mt-1 text-xs font-bold text-slate-500">ボス撃破の証や解放キーを保管します。素材倉庫と装備倉庫の容量には含めません。</p>
-                    </div>
-
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <a href="{{ route('monster-marks.index') }}" class="bg-white border border-fuchsia-100 rounded p-4 shadow-sm flex items-center transition hover:border-fuchsia-300 hover:bg-fuchsia-50">
-                            <div class="w-12 h-12 shrink-0 bg-fuchsia-50 rounded border border-fuchsia-200 flex items-center justify-center mr-4 overflow-hidden"><img src="{{ asset('images/icon/icon_013.webp') }}" alt="" class="w-7 h-7 object-contain"></div>
-                            <div class="min-w-0 flex-1">
-                                <div class="font-bold text-slate-800 truncate">印図鑑</div>
-                                <div class="text-xs text-slate-500">敵の印を集めるコレクション</div>
-                                <div class="text-xs text-slate-500">登録 {{ number_format($storageSummary['mark_collection_types']) }}種 / 合計 {{ number_format($storageSummary['mark_collection_total']) }}</div>
+                        @foreach($supportItems as $entry)
+                            @php
+                                $isStaminaRecovery = ($entry['effect_type'] ?? null) === 'explore_stamina_recovery';
+                                $effectValue = (int) ($entry['effect_value'] ?? 0);
+                                $supportUsePayload = [
+                                    ...$entry,
+                                    'use_url' => route('inventory.support-items.use', $entry['key']),
+                                    'current_stamina' => (int) ($staminaSummary['current'] ?? 0),
+                                    'max_stamina' => (int) ($staminaSummary['max'] ?? 0),
+                                    'stamina_enabled' => (bool) ($staminaSummary['enabled'] ?? false),
+                                ];
+                            @endphp
+                            <div class="bg-white border border-sky-100 rounded p-4 shadow-sm flex items-center">
+                                <div class="w-12 h-12 shrink-0 bg-sky-50 rounded border border-sky-200 flex items-center justify-center mr-4">
+                                    @if(!empty($entry['icon_image']))
+                                        <img src="{{ asset($entry['icon_image']) }}" alt="" class="w-9 h-9 object-contain">
+                                    @else
+                                        <span class="text-2xl">🎒</span>
+                                    @endif
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <div class="font-bold text-slate-800 truncate" title="{{ $entry['name'] }}">{{ $entry['name'] }}</div>
+                                        @if($isStaminaRecovery && $effectValue > 0)
+                                            <span class="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-black text-sky-700">探索力 +{{ number_format($effectValue) }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-xs text-slate-500">{{ $entry['category'] }}</div>
+                                    @if($isStaminaRecovery && $effectValue > 0)
+                                        <div class="text-xs font-bold text-sky-700">使うと探索力が {{ number_format($effectValue) }} 回復</div>
+                                    @elseif(!empty($entry['use_note']))
+                                        <div class="text-xs text-slate-500 truncate" title="{{ $entry['use_note'] }}">{{ $entry['use_note'] }}</div>
+                                    @else
+                                        <div class="text-xs text-slate-500 truncate" title="{{ $entry['description'] }}">{{ $entry['description'] }}</div>
+                                    @endif
+                                </div>
+                                <div class="ml-2 shrink-0 text-right">
+                                    <div class="text-sm text-slate-500">所持数</div>
+                                    <div class="text-lg font-black text-slate-800">{{ number_format($entry['quantity']) }}</div>
+                                    @if($entry['can_use'] && !empty($entry['use_label']))
+                                        <button
+                                            type="button"
+                                            @click="supportConfirm = @js($supportUsePayload)"
+                                            class="mt-2 rounded bg-sky-700 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-sky-800 active:scale-95">
+                                            {{ $entry['use_label'] }}
+                                        </button>
+                                    @endif
+                                </div>
                             </div>
-                            <div class="ml-2 text-right text-xs font-extrabold text-fuchsia-700">開く</div>
-                        </a>
+                        @endforeach
 
                         @forelse($keyItems as $entry)
                             <div class="bg-white border border-amber-100 rounded p-4 shadow-sm flex items-center">
@@ -444,9 +490,14 @@
                                 </div>
                             </div>
                         @empty
-                            <div class="text-center py-10 bg-white rounded-lg border border-slate-200 border-dashed">
-                                <p class="text-slate-500">討伐記録・ボスキーはまだありません。</p>
-                            </div>
+                            @if($supportItems->isEmpty())
+                                <div class="text-center py-10 bg-white rounded-lg border border-slate-200 border-dashed">
+                                    <p class="text-slate-500">所持している支援アイテムはありません。</p>
+                                    <a href="{{ route('kiseki.support') }}" class="mt-3 inline-flex items-center justify-center rounded-md bg-sky-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-sky-800">
+                                        補給商会へ
+                                    </a>
+                                </div>
+                            @endif
                         @endforelse
                     </div>
                 </div>
@@ -502,6 +553,68 @@
                                 </div>
                             </div>
                         @endforeach
+                    </div>
+                </div>
+
+                <div
+                    x-show="supportConfirm"
+                    x-cloak
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4"
+                    @keydown.escape.window="supportConfirm = null; submittingSupport = false"
+                >
+                    <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" @click.outside="supportConfirm = null; submittingSupport = false">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-sky-100 bg-sky-50 p-1.5">
+                                    <img :src="supportConfirm?.icon_image ? '{{ url('/') }}/' + supportConfirm.icon_image : ''" alt="" class="h-full w-full object-contain">
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-black tracking-wide text-sky-700">USE ITEM</div>
+                                    <h3 class="mt-1 truncate text-xl font-black text-slate-950" x-text="supportConfirm?.name ?? 'アイテム'"></h3>
+                                </div>
+                            </div>
+                            <button type="button" @click="supportConfirm = null; submittingSupport = false" class="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-black text-slate-500 hover:bg-slate-200">×</button>
+                        </div>
+
+                        <p class="mt-4 text-sm font-bold leading-relaxed text-slate-600">
+                            このアイテムを使用しますか？
+                        </p>
+
+                        <div class="mt-4 rounded-lg border border-sky-100 bg-sky-50 px-3 py-3">
+                            <div class="flex items-center justify-between gap-3 text-sm font-black text-slate-800">
+                                <span>現在の探索力</span>
+                                <span class="tabular-nums">
+                                    <span x-text="Number(supportConfirm?.current_stamina ?? 0).toLocaleString()"></span>
+                                    /
+                                    <span x-text="Number(supportConfirm?.max_stamina ?? 0).toLocaleString()"></span>
+                                </span>
+                            </div>
+                            <template x-if="supportConfirm?.effect_type === 'explore_stamina_recovery'">
+                                <div class="mt-2 flex items-center justify-between gap-3 text-sm font-black text-sky-800">
+                                    <span>使用後の探索力</span>
+                                    <span class="tabular-nums">
+                                        <span x-text="(Number(supportConfirm?.current_stamina ?? 0) + Number(supportConfirm?.effect_value ?? 0)).toLocaleString()"></span>
+                                        /
+                                        <span x-text="Number(supportConfirm?.max_stamina ?? 0).toLocaleString()"></span>
+                                        <span class="ml-1 text-xs text-sky-600" x-text="`(+${Number(supportConfirm?.effect_value ?? 0).toLocaleString()})`"></span>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="mt-5 grid grid-cols-2 gap-3">
+                            <button type="button" @click="supportConfirm = null; submittingSupport = false" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-50">
+                                キャンセル
+                            </button>
+                            <form method="POST" :action="supportConfirm?.use_url ?? '#'" @submit="if (submittingSupport) { $event.preventDefault(); return; } submittingSupport = true">
+                                @csrf
+                                <button type="submit" :disabled="submittingSupport" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-sky-800 disabled:cursor-wait disabled:opacity-60">
+                                    <x-loading-spinner x-show="submittingSupport" style="display: none;" />
+                                    <span x-show="!submittingSupport">使用する</span>
+                                    <span x-show="submittingSupport" style="display: none;">処理中...</span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 

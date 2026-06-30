@@ -174,10 +174,45 @@
 
         <section class="rounded-lg border border-emerald-200 bg-white p-4 shadow-sm">
             <div class="text-sm font-extrabold text-emerald-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_010.webp') }}" alt="" class="w-4 h-4 object-contain"> 獲得報酬</div>
+            @php
+                $levelProgress = $result['progression']['level'] ?? null;
+                $jobProgress = $result['progression']['job'] ?? null;
+            @endphp
             <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm font-bold">
-                <div class="rounded border border-emerald-100 bg-emerald-50 p-3">EXP<br><span class="text-lg text-slate-900">{{ number_format($result['exp_gained']) }}</span></div>
-                <div class="rounded border border-emerald-100 bg-emerald-50 p-3">職業EXP<br><span class="text-lg text-slate-900">+{{ $result['job_exp_gained'] }}</span></div>
-                <div class="rounded border border-emerald-100 bg-emerald-50 p-3">{{ $result['material_name'] }}<br><span class="text-lg text-slate-900">+{{ $result['material_quantity'] }}</span></div>
+                <div class="rounded border border-emerald-100 bg-emerald-50 p-3">
+                    EXP<br><span class="text-lg text-slate-900">+{{ number_format((int) ($result['exp_gained'] ?? 0)) }}</span>
+                    @if($levelProgress)
+                        <div class="mt-1 text-xs text-slate-600">
+                            @if(!empty($levelProgress['is_max']))
+                                Lv{{ number_format((int) ($levelProgress['level'] ?? 255)) }} 到達済み
+                            @else
+                                次のLv{{ number_format((int) ($levelProgress['next_level'] ?? 0)) }}まであと {{ number_format((int) ($levelProgress['remaining'] ?? 0)) }}
+                            @endif
+                        </div>
+                    @endif
+                </div>
+                <div class="rounded border border-emerald-100 bg-emerald-50 p-3">
+                    職業EXP<br><span class="text-lg text-slate-900">+{{ number_format((int) ($result['job_exp_gained'] ?? 0)) }}</span>
+                    @if($jobProgress)
+                        <div class="mt-1 text-xs text-slate-600">
+                            @if(!empty($jobProgress['is_mastered']))
+                                {{ $jobProgress['job_name'] ?? '現在の職業' }}はマスター済み
+                            @else
+                                次のランク{{ number_format((int) ($jobProgress['next_rank'] ?? 0)) }}まであと {{ number_format((int) ($jobProgress['remaining'] ?? 0)) }}
+                            @endif
+                        </div>
+                    @endif
+                </div>
+                <div class="rounded border border-emerald-100 bg-emerald-50 p-3">
+                    <div class="inline-flex max-w-full items-center gap-1.5">
+                        @php $materialIcon = $result['material_icon_image'] ?? \App\Models\Material::iconImagePathFor($result['material_code'] ?? null, $result['material_name'] ?? null); @endphp
+                        @if($materialIcon)
+                            <img src="{{ asset($materialIcon) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                        @endif
+                        <span class="truncate">{{ $result['material_name'] }}</span>
+                    </div>
+                    <br><span class="text-lg text-slate-900">+{{ $result['material_quantity'] }}</span>
+                </div>
             </div>
             @if(!empty($result['gap_reward_note']))
                 <div class="mt-3 rounded border border-amber-100 bg-amber-50 p-3 text-sm font-bold text-amber-800">

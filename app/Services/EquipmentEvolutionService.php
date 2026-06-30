@@ -586,10 +586,12 @@ class EquipmentEvolutionService
     private function materialRequirement(string $code, string $fallbackName, int $required, bool $isConsumed, array $ownedMaterials): array
     {
         $owned = $ownedMaterials[$code]['quantity'] ?? 0;
+        $name = $ownedMaterials[$code]['name'] ?? $fallbackName;
 
         return [
             'material_code' => $code,
-            'name' => $ownedMaterials[$code]['name'] ?? $fallbackName,
+            'name' => $name,
+            'icon_image' => Material::iconImagePathFor($code, $name),
             'required' => $required,
             'owned' => $owned,
             'missing' => max(0, $required - $owned),
@@ -708,7 +710,7 @@ class EquipmentEvolutionService
         if (str_contains($name, '秘境晶片')) {
             $sources[] = '秘境採取で入手';
         } elseif (str_contains($name, '秘境晶')) {
-            $sources[] = '秘境採取・秘境主から入手';
+            $sources[] = '秘境採取で低確率入手';
         } elseif (str_contains($name, '極印')) {
             $sources[] = 'Phase 3予定: 極印試練で入手';
         }

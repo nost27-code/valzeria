@@ -39,7 +39,7 @@
                         <span class="text-2xl">🔨</span> 装備強化
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        武器は強化石、防具は守護石、装飾品は装飾強化石を使って +1〜+5 に強化します。輝石は使用しません。
+                        欠片・強化石系素材・共通素材・Goldを使って +1〜+5 に強化します。輝石は使用しません。
                     </p>
                 </div>
                 <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">
@@ -169,12 +169,26 @@
                                         <div class="space-y-2">
                                             @foreach($candidate['requirements'] as $material)
                                                 <div class="flex items-center justify-between gap-3 text-sm">
-                                                    <span class="font-bold text-slate-700">{{ $material['name'] }}</span>
+                                                    <span class="flex min-w-0 items-center gap-1.5 font-bold text-slate-700">
+                                                        @php $materialIcon = $material['icon_image'] ?? \App\Models\Material::iconImagePathFor($material['material_code'] ?? null, $material['name'] ?? null); @endphp
+                                                        @if($materialIcon)
+                                                            <img src="{{ asset($materialIcon) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                                        @endif
+                                                        <span class="truncate">{{ $material['name'] }}</span>
+                                                    </span>
                                                     <span class="font-mono font-bold {{ $material['missing'] === 0 ? 'text-amber-700' : 'text-red-600' }}">
                                                         {{ $material['owned'] }} / {{ $material['required'] }}
                                                     </span>
                                                 </div>
                                             @endforeach
+                                            @if(($candidate['gold_cost'] ?? 0) > 0)
+                                                <div class="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-sm">
+                                                    <span class="font-bold text-slate-700">Gold</span>
+                                                    <span class="font-mono font-bold {{ ($candidate['missing_gold'] ?? 0) === 0 ? 'text-amber-700' : 'text-red-600' }}">
+                                                        {{ number_format($candidate['owned_gold'] ?? 0) }} / {{ number_format($candidate['gold_cost'] ?? 0) }}G
+                                                    </span>
+                                                </div>
+                                            @endif
                                         </div>
                                     @endif
                                 </div>

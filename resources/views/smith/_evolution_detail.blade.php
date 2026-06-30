@@ -31,6 +31,10 @@
         @php $materialOk = $material['owned'] >= $material['required']; @endphp
         <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5 min-w-0">
+                @php $materialIcon = $material['icon_image'] ?? \App\Models\Material::iconImagePathFor($material['material_code'] ?? null, $material['name'] ?? null); @endphp
+                @if($materialIcon)
+                    <img src="{{ asset($materialIcon) }}" alt="" class="h-4 w-4 shrink-0 object-contain">
+                @endif
                 <span class="text-xs font-bold text-slate-600 truncate">{{ $material['name'] }}@if(!$material['is_consumed'])<span class="text-[9px] text-slate-400 ml-0.5">消費なし</span>@endif</span>
                 @if(!empty($material['sources']))
                     <button type="button"

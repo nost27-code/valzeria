@@ -164,6 +164,8 @@ class ValmonService
             'valmon_image_path' => $partner->master?->imageUrl(),
             'valmon_rarity' => $partner->master?->rarity ?? 'normal',
             'material_name' => $drop['name'] ?? $material->displayName(),
+            'material_code' => $drop['material_code'] ?? $material->material_code,
+            'material_icon_image' => $drop['icon_image'] ?? $material->iconImagePath(),
             'quantity' => 1,
         ];
     }
