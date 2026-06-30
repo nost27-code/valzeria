@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-06-30-note-rss-notifications',
+        'date' => '2026-06-30',
+        'category' => 'added',
+        'title' => 'note更新通知を追加',
+        'detail' => '公式noteの最新記事が更新された時、ゲーム内の通知ベルから新着を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-06-30-branch-evolution-icons',
         'date' => '2026-06-30',
         'category' => 'changed',

@@ -55,4 +55,9 @@ return [
         'online_window_minutes' => env('POCHI_GAME_PORTAL_ONLINE_WINDOW_MINUTES', 5),
     ],
 
+    'note_rss_notifications' => [
+        'enabled' => env('NOTE_RSS_NOTIFICATIONS_ENABLED', true),
+        'url' => env('NOTE_RSS_URL', 'https://note.com/valzeria/rss'),
+    ],
+
 ];
