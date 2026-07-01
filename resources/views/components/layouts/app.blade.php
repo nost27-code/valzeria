@@ -79,8 +79,17 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            <!-- フラッシュメッセージが被らないようにスペーサーを入れる -->
-            <div class="h-12"></div>
+        @endif
+        @if (session('error'))
+            <div x-data="{ show: true }" x-show="show" class="bg-red-600 text-white px-4 py-3 shadow-md w-full fixed top-0 z-50 flex justify-between items-center" x-init="setTimeout(() => show = false, 5000)">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.5a.75.75 0 00-1.5 0v4a.75.75 0 001.5 0v-4zM10 14a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>
+                    <span class="font-bold text-sm">{{ session('error') }}</span>
+                </div>
+                <button @click="show = false" class="text-red-200 hover:text-white">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
         @endif
         <div class="mx-auto flex min-h-screen w-full max-w-screen-2xl flex-col gap-4 px-2 py-4 pb-24 sm:px-4 sm:py-6 sm:pb-24 lg:px-6"
              x-data="{ currentLocation: @js($currentLocation) }"

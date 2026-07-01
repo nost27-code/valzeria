@@ -6,6 +6,18 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "public", "--listen", "5173", "--no-clipboard"],
       "port": 5173
+    },
+    {
+      "name": "laravel",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["artisan", "serve", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "static-preview",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "127.0.0.1:8020", "-t", "public"],
+      "port": 8020
     }
   ]
 }

@@ -429,7 +429,10 @@
 
                         <div class="grid gap-3 md:grid-cols-2">
                             @forelse($equipment as $row)
-                                @php $rowRank = $equipmentRankOf($row); @endphp
+                                @php
+                                    $rowRank = $equipmentRankOf($row);
+                                    $equipmentIcon = $row->item?->iconImagePath();
+                                @endphp
                                 <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-feed-rank="{{ $rowRank }}">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="flex min-w-0 items-start gap-3">
@@ -442,6 +445,9 @@
                                                    class="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 text-red-700 focus:ring-red-600">
                                             <div class="min-w-0">
                                                 <h3 class="flex min-w-0 items-center gap-2 text-base font-black text-slate-950">
+                                                    @if($equipmentIcon)
+                                                        <img src="{{ asset($equipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
+                                                    @endif
                                                     @include('equipment.partials.rank-label', ['item' => $row->item])
                                                     <span class="min-w-0 break-words">{{ $row->displayName() }}</span>
                                                 </h3>

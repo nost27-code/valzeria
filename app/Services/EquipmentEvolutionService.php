@@ -9,6 +9,7 @@ use App\Models\EquipmentEvolutionLog;
 use App\Models\Item;
 use App\Models\Material;
 use App\Models\CharacterAreaProgress;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -30,6 +31,23 @@ class EquipmentEvolutionService
     private const STRONG_EQUIPMENT_FRAGMENT_CODE = 'MAT_STRONG_EQUIPMENT_FRAGMENT';
     private const HIDDEN_AREA_MIN_ID = 71;
     private const HIDDEN_AREA_MAX_ID = 74;
+    private const AFFIX_INHERIT_COLUMNS = [
+        'affix_prefix_id',
+        'affix_suffix_id',
+        'affix_quality',
+        'affix_hp_bonus',
+        'affix_str_bonus',
+        'affix_def_bonus',
+        'affix_mag_bonus',
+        'affix_spr_bonus',
+        'affix_agi_bonus',
+        'affix_luk_bonus',
+        'killer_species_key',
+        'killer_damage_rate',
+        'resist_species_key',
+        'species_damage_reduction_rate',
+        'affix_generated_at',
+    ];
     private const MATERIAL_KIND_WEIGHTS = [
         'early' => ['generic' => 50, 'category' => 20, 'regional' => 25, 'enhance' => 5, 'rare' => 0],
         'middle' => ['generic' => 45, 'category' => 25, 'regional' => 20, 'enhance' => 8, 'rare' => 2],
@@ -191,6 +209,8 @@ class EquipmentEvolutionService
             $equippedSlot = $equippedConsumed?->equipped_slot;
             $sourceWasLocked = $consumedItems->contains(fn (CharacterItem $item): bool => (bool) $item->is_locked);
             $maxConsumedEnhanceLevel = (int) $consumedItems->max('enhance_level');
+            $affixSource = $this->selectAffixInheritanceSource($consumedItems);
+            $inheritedAffixes = $affixSource ? $this->affixInheritancePayload($affixSource) : [];
             CharacterItem::whereIn('id', $consumedItems->pluck('id'))->delete();
 
             $consumedMaterials = [];
@@ -218,7 +238,7 @@ class EquipmentEvolutionService
                 ];
             }
 
-            $created = CharacterItem::create([
+            $created = CharacterItem::create(array_merge([
                 'character_id' => $character->id,
                 'item_id' => $candidate['to_item']->id,
                 'is_equipped' => $equippedSlot !== null,
@@ -227,7 +247,7 @@ class EquipmentEvolutionService
                 'enhance_level' => 0,
                 'equipped_slot' => $equippedSlot,
                 'acquired_from' => 'evolution',
-            ]);
+            ], $inheritedAffixes));
 
             EquipmentEvolutionLog::create([
                 'character_id' => $character->id,
@@ -245,10 +265,47 @@ class EquipmentEvolutionService
                     . ($goldCost > 0 ? ' 合成費用として' . number_format($goldCost) . 'Gを支払いました。' : '')
                     . ($equippedSlot ? ' 装備中だったため、そのまま装備しました。' : '')
                     . ($sourceWasLocked ? ' 保護状態も引き継ぎました。' : '')
+                    . ($affixSource ? ' 銘も引き継ぎました。' : '')
                     . ($maxConsumedEnhanceLevel > 0 ? " 進化元の+{$maxConsumedEnhanceLevel}強化値は進化後にリセットされました。" : ''),
                 'created_equipment_id' => $created->id,
             ];
         }, 3);
+    }
+
+    private function selectAffixInheritanceSource(Collection $consumedItems): ?CharacterItem
+    {
+        return $consumedItems
+            ->filter(fn (CharacterItem $item): bool => $this->hasInheritableAffix($item))
+            ->sort(function (CharacterItem $a, CharacterItem $b): int {
+                return [$this->affixQualityRank($b), (int) $b->is_equipped, -((int) ($b->enhance_level ?? 0)), -((int) ($b->id ?? 0))]
+                    <=> [$this->affixQualityRank($a), (int) $a->is_equipped, -((int) ($a->enhance_level ?? 0)), -((int) ($a->id ?? 0))];
+            })
+            ->first();
+    }
+
+    private function hasInheritableAffix(CharacterItem $item): bool
+    {
+        return $item->hasAffix()
+            || in_array($item->affix_quality, ['good', 'excellent'], true);
+    }
+
+    private function affixQualityRank(CharacterItem $item): int
+    {
+        return match ($item->affix_quality) {
+            'excellent' => 3,
+            'good' => 2,
+            default => $item->hasAffix() ? 1 : 0,
+        };
+    }
+
+    private function affixInheritancePayload(CharacterItem $item): array
+    {
+        $payload = [];
+        foreach (self::AFFIX_INHERIT_COLUMNS as $column) {
+            $payload[$column] = $item->{$column};
+        }
+
+        return $payload;
     }
 
     private function buildWeaponCandidate(Character $character, object $recipe, array $ownedMaterials, array $discoveredItemIds): array

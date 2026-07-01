@@ -92,6 +92,7 @@
                             $pathCount = count($paths);
                             $multiPath = $pathCount > 1;
                             $groupKey = 'evo_' . $groupType . '_' . ($first['from_equipment_id'] ?? md5($first['from_name'])) . '_' . ($first['from_rank'] ?? '');
+                            $fromEquipmentIcon = ($first['from_item'] ?? null)?->iconImagePath();
                         @endphp
                         <div
                             x-show="(typeFilter === 'all' || typeFilter === '{{ $groupType }}') && (statusFilter === 'all' || {{ $groupHasEvolvable ? 'true' : 'false' }})"
@@ -124,8 +125,11 @@
                                         <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 leading-none">{{ $pathCount }}ルートで分岐</span>
                                     @endif
                                 </div>
-                                <div class="text-base font-extrabold text-slate-900 leading-tight">
-                                    [{{ $first['from_rank'] ?? '-' }}] {{ $first['from_name'] }}
+                                <div class="flex items-center gap-1.5 text-base font-extrabold text-slate-900 leading-tight">
+                                    @if($fromEquipmentIcon)
+                                        <img src="{{ asset($fromEquipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
+                                    @endif
+                                    <span>[{{ $first['from_rank'] ?? '-' }}] {{ $first['from_name'] }}</span>
                                 </div>
                             </div>
 
@@ -149,6 +153,7 @@
                                         if (mb_strlen($shortName) > 15) { $shortName = mb_substr($shortName, 0, 14) . '…'; }
                                         $stone = $candidate['evolution_stone_requirement'] ?? null;
                                         $canUseStone = $candidate['can_use_evolution_stone'] ?? false;
+                                        $toEquipmentIcon = ($candidate['to_item'] ?? null)?->iconImagePath();
                                     @endphp
 
                                     {{-- アコーディオン行ヘッダー --}}
@@ -166,6 +171,9 @@
                                                     class="shrink-0 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center leading-none"
                                                     :class="activeTab === {{ $pi }} ? '{{ $canEvolve ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white' }}' : 'bg-slate-200 text-slate-600'"
                                                 >{{ $pi + 1 }}</span>
+                                                @if($toEquipmentIcon)
+                                                    <img src="{{ asset($toEquipmentIcon) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                                @endif
                                                 <span class="text-xs font-bold truncate {{ $canEvolve ? 'text-emerald-800' : 'text-slate-700' }}">{{ $shortName }}</span>
                                                 @if($canEvolve)
                                                     <span class="shrink-0 text-[10px] font-bold text-emerald-600">進化可</span>
@@ -181,7 +189,12 @@
 
                                         {{-- アコーディオン展開コンテンツ --}}
                                         <div x-show="activeTab === {{ $pi }}" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="border-t border-slate-100 px-3 pb-3 pt-2 flex flex-col gap-2">
-                                            <div class="text-sm font-bold text-amber-700 leading-tight">→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $toDisplayName }}</div>
+                                            <div class="flex items-center gap-1.5 text-sm font-bold text-amber-700 leading-tight">
+                                                @if($toEquipmentIcon)
+                                                    <img src="{{ asset($toEquipmentIcon) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                                @endif
+                                                <span>→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $toDisplayName }}</span>
+                                            </div>
                                             @include('smith._evolution_detail', ['candidate' => $candidate, 'stone' => $stone, 'canUseStone' => $canUseStone, 'canEvolve' => $canEvolve])
                                         </div>
                                     </div>
@@ -196,9 +209,15 @@
                                     $stone = $candidate['evolution_stone_requirement'] ?? null;
                                     $canUseStone = $candidate['can_use_evolution_stone'] ?? false;
                                     $toDisplayName = $candidate['to_display_name'] ?? $candidate['to_name'];
+                                    $toEquipmentIcon = ($candidate['to_item'] ?? null)?->iconImagePath();
                                 @endphp
                                 <div class="border-t border-slate-100 px-3 pb-3 pt-2 flex flex-col gap-2">
-                                    <div class="text-sm font-bold text-amber-700 leading-tight">→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $toDisplayName }}</div>
+                                    <div class="flex items-center gap-1.5 text-sm font-bold text-amber-700 leading-tight">
+                                        @if($toEquipmentIcon)
+                                            <img src="{{ asset($toEquipmentIcon) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                        @endif
+                                        <span>→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $toDisplayName }}</span>
+                                    </div>
                                     @include('smith._evolution_detail', ['candidate' => $candidate, 'stone' => $stone, 'canUseStone' => $canUseStone, 'canEvolve' => $canEvolve])
                                 </div>
                             @endif

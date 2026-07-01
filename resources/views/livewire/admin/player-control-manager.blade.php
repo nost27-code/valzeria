@@ -16,6 +16,43 @@
         </div>
     @endif
 
+    <section class="mb-6 rounded-md border border-sky-200 bg-white shadow-sm">
+        <div class="border-b border-sky-100 bg-sky-50 px-5 py-4">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-black text-slate-950">7月登録キャンペーン</h2>
+                    <p class="mt-1 text-xs font-semibold text-sky-800">
+                        登録日が {{ $newcomerGiftSummary['window_label'] }} の冒険者へ、{{ $newcomerGiftSummary['item_name'] }} x{{ number_format($newcomerGiftSummary['quantity']) }} と通知を自動送付します。
+                    </p>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="rounded bg-white px-3 py-2 shadow-sm ring-1 ring-sky-100">
+                        <div class="text-[10px] font-black text-slate-500">対象</div>
+                        <div class="mt-0.5 text-lg font-black text-slate-950">{{ number_format($newcomerGiftSummary['target_count']) }}</div>
+                    </div>
+                    <div class="rounded bg-white px-3 py-2 shadow-sm ring-1 ring-sky-100">
+                        <div class="text-[10px] font-black text-slate-500">配布済</div>
+                        <div class="mt-0.5 text-lg font-black text-slate-950">{{ number_format($newcomerGiftSummary['already_granted_count']) }}</div>
+                    </div>
+                    <div class="rounded bg-white px-3 py-2 shadow-sm ring-1 ring-sky-100">
+                        <div class="text-[10px] font-black text-slate-500">未配布</div>
+                        <div class="mt-0.5 text-lg font-black text-sky-700">{{ number_format($newcomerGiftSummary['pending_count']) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-xs font-semibold leading-relaxed text-slate-500">
+                新規キャラクター作成時に送付し、この画面を開いた時点でも未配布者を同期します。同じ冒険者へは一度だけ送付されます。
+            </div>
+            @if(($newcomerGiftSummary['synced_count'] ?? 0) > 0)
+                <div class="shrink-0 rounded bg-sky-100 px-3 py-2 text-xs font-black text-sky-800">
+                    今回 {{ number_format($newcomerGiftSummary['synced_count']) }} 名を同期
+                </div>
+            @endif
+        </div>
+    </section>
+
     <div class="grid gap-6 xl:grid-cols-[420px_1fr]">
         <section class="rounded-md border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
@@ -160,7 +197,7 @@
             <section class="rounded-md border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-200 px-5 py-4">
                     <h2 class="text-lg font-black text-slate-950">探索クールタイム</h2>
-                    <p class="mt-1 text-xs font-semibold text-slate-500">通常探索の連戦待機と、宿屋後の探索待機を解除します。</p>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">通常探索などで発生した探索待機を解除します。</p>
                 </div>
 
                 @if($selectedCharacter && $cooldownSummary)
@@ -174,7 +211,7 @@
                                 </div>
                             </div>
                             <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
-                                <div class="text-xs font-black text-slate-500">宿屋後待機</div>
+                                <div class="text-xs font-black text-slate-500">探索待機</div>
                                 <div class="mt-1 text-sm font-bold text-slate-900">{{ $cooldownSummary['exploration_cooldown_until'] }}</div>
                                 <div class="mt-2 text-xs font-black {{ $cooldownSummary['inn_remaining'] > 0 ? 'text-amber-700' : 'text-emerald-700' }}">
                                     {{ $cooldownSummary['inn_remaining'] > 0 ? 'あと ' . $cooldownSummary['inn_remaining'] . ' 秒' : '待機なし' }}

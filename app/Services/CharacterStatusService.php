@@ -55,18 +55,17 @@ class CharacterStatusService
                     continue;
                 }
 
-                $enhanceLevel = ($charItem->item->type ?? null) === 'weapon'
-                    ? (int) ($charItem->enhance_level ?? 0)
-                    : 0;
+                $enhanceLevel = (int) ($charItem->enhance_level ?? 0);
+                $enhancedStats = EquipmentEnhancementService::enhancedStatTotalsForItem($charItem->item, $enhanceLevel);
 
-                $hp_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->hp_bonus ?? 0), $enhanceLevel);
-                $mp_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->mp_bonus ?? 0), $enhanceLevel);
-                $atk_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->str_bonus ?? ($charItem->item->attack_bonus ?? 0)), $enhanceLevel);
-                $def_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->def_bonus ?? 0), $enhanceLevel);
-                $spd_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->agi_bonus ?? ($charItem->item->speed_bonus ?? 0)), $enhanceLevel);
-                $mag_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->mag_bonus ?? 0), $enhanceLevel);
-                $spr_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->spr_bonus ?? 0), $enhanceLevel);
-                $luk_equip += EquipmentEnhancementService::bonusWithEnhancement((int) ($charItem->item->luk_bonus ?? 0), $enhanceLevel);
+                $hp_equip += $enhancedStats['hp'] ?? 0;
+                $mp_equip += $enhancedStats['mp'] ?? 0;
+                $atk_equip += $enhancedStats['str'] ?? 0;
+                $def_equip += $enhancedStats['def'] ?? 0;
+                $spd_equip += $enhancedStats['agi'] ?? 0;
+                $mag_equip += $enhancedStats['mag'] ?? 0;
+                $spr_equip += $enhancedStats['spr'] ?? 0;
+                $luk_equip += $enhancedStats['luk'] ?? 0;
 
                 $hp_equip += (int) ($charItem->affix_hp_bonus ?? 0);
                 $atk_equip += (int) ($charItem->affix_str_bonus ?? 0);

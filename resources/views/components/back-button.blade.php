@@ -5,10 +5,11 @@
     'iconImage' => 'images/icon/icon_001.webp',
 ])
 
-<a href="{{ $href }}" wire:navigate
+<a href="{{ $href }}"
    x-data="{ loading: false }"
-   @click="if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) loading = true"
+   @click="if (loading) { $event.preventDefault(); return; } if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) { $event.preventDefault(); loading = true; setTimeout(() => { window.location.href = $el.href }, 80); }"
    :class="loading ? 'pointer-events-none opacity-80' : ''"
+   :aria-busy="loading ? 'true' : 'false'"
    class="bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg shadow-lg transition duration-200 text-sm flex items-center justify-center gap-3"
    style="padding: 14px 40px; min-width: 240px; letter-spacing: 0.05em;">
     @if($iconImage)

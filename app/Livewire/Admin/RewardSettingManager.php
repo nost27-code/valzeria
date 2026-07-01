@@ -25,6 +25,9 @@ class RewardSettingManager extends Component
         foreach ($settings as $key => $setting) {
             $raw = $this->values[$setting->id] ?? $setting->value;
             $value = $this->normalizeValue((string) $setting->value_type, $raw);
+            if ($key === 'exploration.mode') {
+                $value = in_array($value, ['cooldown', 'stamina'], true) ? $value : 'cooldown';
+            }
 
             $setting->update(['value' => (string) $value]);
         }
@@ -44,6 +47,10 @@ class RewardSettingManager extends Component
     {
         if ($type === 'boolean') {
             return filter_var($raw, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+        }
+
+        if ($type === 'string') {
+            return trim((string) $raw);
         }
 
         $number = is_numeric($raw) ? (float) $raw : 0.0;

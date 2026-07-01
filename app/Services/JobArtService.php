@@ -7,6 +7,7 @@ use App\Models\CharacterJobArtSlot;
 use App\Models\Skill;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class JobArtService
@@ -14,6 +15,24 @@ class JobArtService
     public const MAX_SLOTS = 3;
     public const MAX_COST = 5;
     public const ACTIVATION_POLICIES = ['aggressive', 'normal', 'conserve', 'boss_only'];
+    public const SLOT_ACTIVATION_POLICIES = ['aggressive', 'normal', 'conserve'];
+    public const SLOT_CONTEXTS = ['normal', 'boss'];
+
+    public function slotContextLabels(): array
+    {
+        return [
+            'normal' => '通常戦セット',
+            'boss' => 'ボス戦セット',
+        ];
+    }
+
+    public function slotContextDescriptions(): array
+    {
+        return [
+            'normal' => '通常探索で使う奥義です。低Costや継戦向きの奥義が扱いやすいです。',
+            'boss' => 'ボス戦で使う奥義です。高Cost、回復、防御、弱体の奥義も候補にしやすいです。',
+        ];
+    }
 
     public function activationPolicyLabels(): array
     {
@@ -21,7 +40,6 @@ class JobArtService
             'aggressive' => '積極',
             'normal' => '通常',
             'conserve' => '温存',
-            'boss_only' => 'ボス用',
         ];
     }
 
@@ -31,7 +49,6 @@ class JobArtService
             'aggressive' => 'SPが足りていれば発動します',
             'normal' => 'SPが30%以上ある時だけ発動します',
             'conserve' => 'SPが60%以上ある時だけ発動します',
-            'boss_only' => '通常探索では発動せず、ボス戦やチャンプ戦で発動します',
         ];
     }
 
@@ -61,12 +78,14 @@ class JobArtService
             ->values();
     }
 
-    public function selectedSlots(Character $character, string $context = 'pve'): Collection
+    public function selectedSlots(Character $character, string $context = 'pve', string $slotContext = 'normal'): Collection
     {
+        $slotContext = $this->normalizeSlotContext($slotContext);
         $availableIds = $this->availableArts($character, $context)->pluck('id')->all();
 
         return $character->jobArtSlots()
             ->with('skill.jobClass')
+            ->where('battle_context', $slotContext)
             ->orderBy('slot_no')
             ->get()
             ->filter(fn (CharacterJobArtSlot $slot): bool => $slot->skill && in_array($slot->skill_id, $availableIds, true))
@@ -76,9 +95,11 @@ class JobArtService
     public function battleArtsFor(Character $character, string $context = 'pve'): Collection
     {
         $available = $this->availableArts($character, $context)->keyBy('id');
+        $slotContext = $this->battleSlotContext($context);
 
         return $character->jobArtSlots()
             ->with('skill.jobClass')
+            ->where('battle_context', $slotContext)
             ->orderBy('slot_no')
             ->get()
             ->map(function (CharacterJobArtSlot $slot) use ($available) {
@@ -88,47 +109,99 @@ class JobArtService
                 }
 
                 $skill->setAttribute('slot_no', (int) $slot->slot_no);
+                $skill->setAttribute('job_art_activation_policy', $this->normalizeActivationPolicy((string) $slot->activation_policy));
                 return $skill;
             })
             ->filter()
             ->values();
     }
 
-    public function saveSlots(Character $character, array $slotSkillIds): void
+    public function saveSlots(Character $character, array $slotSkillIds, string $slotContext = 'normal', string $availabilityContext = 'pve', array $slotPolicies = []): void
     {
+        $slotContext = $this->normalizeSlotContext($slotContext);
         $normalized = $this->normalizeSlotInput($slotSkillIds);
-        $this->validateSlots($character, $normalized);
+        $this->validateSlots($character, $normalized, $availabilityContext);
+        $policies = $this->normalizeSlotPolicies($slotPolicies, $normalized);
 
-        DB::transaction(function () use ($character, $normalized) {
-            $character->jobArtSlots()->delete();
+        DB::transaction(function () use ($character, $normalized, $slotContext, $policies) {
+            $character->jobArtSlots()
+                ->where('battle_context', $slotContext)
+                ->delete();
             foreach ($normalized as $slotNo => $skillId) {
-                CharacterJobArtSlot::create([
+                $payload = [
                     'character_id' => $character->id,
+                    'battle_context' => $slotContext,
                     'slot_no' => $slotNo,
                     'skill_id' => $skillId,
-                ]);
+                ];
+
+                if ($this->hasActivationPolicyColumn()) {
+                    $payload['activation_policy'] = $policies[$slotNo] ?? 'normal';
+                }
+
+                CharacterJobArtSlot::create($payload);
             }
         });
     }
 
-    public function assignToSlot(Character $character, int $skillId, ?int $slotNo): void
+    public function assignToSlot(Character $character, int $skillId, ?int $slotNo, string $slotContext = 'normal'): void
     {
-        $slots = $this->selectedSlots($character, 'pve')
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        $availabilityContext = $slotContext === 'boss' ? 'boss' : 'pve';
+        $selectedSlots = $this->selectedSlots($character, $availabilityContext, $slotContext);
+        $slots = $selectedSlots
             ->mapWithKeys(fn (CharacterJobArtSlot $slot): array => [(int) $slot->slot_no => (int) $slot->skill_id])
             ->all();
+        $policies = $selectedSlots
+            ->mapWithKeys(fn (CharacterJobArtSlot $slot): array => [(int) $slot->slot_no => $this->normalizeActivationPolicy((string) $slot->activation_policy)])
+            ->all();
+        $movedPolicy = 'normal';
 
         foreach ($slots as $existingSlotNo => $existingSkillId) {
             if ($existingSkillId === $skillId || ($slotNo !== null && $existingSlotNo === $slotNo)) {
+                if ($existingSkillId === $skillId) {
+                    $movedPolicy = $policies[$existingSlotNo] ?? 'normal';
+                }
                 unset($slots[$existingSlotNo]);
+                unset($policies[$existingSlotNo]);
             }
         }
 
         if ($slotNo !== null) {
             $slots[$slotNo] = $skillId;
+            $policies[$slotNo] = $movedPolicy;
         }
 
         ksort($slots);
-        $this->saveSlots($character, $slots);
+        $this->saveSlots($character, $slots, $slotContext, $availabilityContext, $policies);
+    }
+
+    public function setSlot(Character $character, string $slotContext, int $slotNo, ?int $skillId, ?string $policy = null): void
+    {
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        $availabilityContext = $slotContext === 'boss' ? 'boss' : 'pve';
+        $selectedSlots = $this->selectedSlots($character, $availabilityContext, $slotContext);
+        $slots = $selectedSlots
+            ->mapWithKeys(fn (CharacterJobArtSlot $slot): array => [(int) $slot->slot_no => (int) $slot->skill_id])
+            ->all();
+        $policies = $selectedSlots
+            ->mapWithKeys(fn (CharacterJobArtSlot $slot): array => [(int) $slot->slot_no => $this->normalizeActivationPolicy((string) $slot->activation_policy)])
+            ->all();
+
+        foreach ($slots as $existingSlotNo => $existingSkillId) {
+            if ($existingSlotNo === $slotNo || ($skillId !== null && $existingSkillId === $skillId)) {
+                unset($slots[$existingSlotNo]);
+                unset($policies[$existingSlotNo]);
+            }
+        }
+
+        if ($skillId !== null) {
+            $slots[$slotNo] = $skillId;
+            $policies[$slotNo] = $this->normalizeActivationPolicy((string) ($policy ?? 'normal'));
+        }
+
+        ksort($slots);
+        $this->saveSlots($character, $slots, $slotContext, $availabilityContext, $policies);
     }
 
     public function saveActivationPolicy(Character $character, string $policy): void
@@ -153,17 +226,20 @@ class JobArtService
     public function setupSignature(Character $character, ?Collection $availableArts = null, ?Collection $selectedSlots = null): string
     {
         $availableArts ??= $this->availableArts($character, 'pve');
-        $selectedSlots ??= $this->selectedSlots($character, 'pve');
+        $selectedSlots ??= $this->selectedSlots($character, 'pve', 'normal')
+            ->merge($this->selectedSlots($character, 'boss', 'boss'));
         $selectedSkills = $selectedSlots->pluck('skill')->filter()->values();
 
         return sha1(json_encode([
             'available' => $availableArts->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all(),
             'selected' => $selectedSlots
                 ->map(fn (CharacterJobArtSlot $slot): array => [
+                    'context' => (string) ($slot->battle_context ?: 'normal'),
                     'slot' => (int) $slot->slot_no,
                     'skill' => (int) $slot->skill_id,
+                    'policy' => $this->normalizeActivationPolicy((string) $slot->activation_policy),
                 ])
-                ->sortBy('slot')
+                ->sortBy(fn (array $slot): string => $slot['context'] . ':' . $slot['slot'])
                 ->values()
                 ->all(),
             'selected_count' => $selectedSkills->count(),
@@ -180,13 +256,13 @@ class JobArtService
         };
     }
 
-    private function validateSlots(Character $character, array $slotSkillIds): void
+    private function validateSlots(Character $character, array $slotSkillIds, string $availabilityContext = 'pve'): void
     {
         if (count($slotSkillIds) > self::MAX_SLOTS) {
             throw ValidationException::withMessages(['slots' => '奥義は最大3つまで設定できます。']);
         }
 
-        $available = $this->availableArts($character, 'pve')->keyBy('id');
+        $available = $this->availableArts($character, $availabilityContext)->keyBy('id');
         $selected = collect();
         $seen = [];
 
@@ -235,6 +311,36 @@ class JobArtService
 
         ksort($normalized);
         return $normalized;
+    }
+
+    private function normalizeSlotPolicies(array $slotPolicies, array $normalizedSlots): array
+    {
+        $policies = [];
+        foreach ($normalizedSlots as $slotNo => $skillId) {
+            $policies[(int) $slotNo] = $this->normalizeActivationPolicy((string) ($slotPolicies[$slotNo] ?? 'normal'));
+        }
+
+        return $policies;
+    }
+
+    public function battleSlotContext(string $battleContext): string
+    {
+        return in_array($battleContext, ['boss', 'champ'], true) ? 'boss' : 'normal';
+    }
+
+    private function normalizeSlotContext(string $slotContext): string
+    {
+        return in_array($slotContext, self::SLOT_CONTEXTS, true) ? $slotContext : 'normal';
+    }
+
+    public function normalizeActivationPolicy(string $policy): string
+    {
+        return in_array($policy, self::SLOT_ACTIVATION_POLICIES, true) ? $policy : 'normal';
+    }
+
+    private function hasActivationPolicyColumn(): bool
+    {
+        return Schema::hasColumn('character_job_art_slots', 'activation_policy');
     }
 
     private function availabilityFor(Skill $skill, Character $character, Collection $histories, int $currentJobId, int $currentRank, string $context): array

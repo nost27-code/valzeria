@@ -15,7 +15,7 @@
 
     <div class="mb-5 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-relaxed text-blue-700">
         本文はHTMLを使えます。戦闘待機秒数は <code class="rounded bg-white px-1 py-0.5 font-mono">&#123;&#123;battle_cooldown_seconds&#125;&#125;</code>、
-        宿屋待機秒数は <code class="rounded bg-white px-1 py-0.5 font-mono">&#123;&#123;inn_cooldown_seconds&#125;&#125;</code> と書くと現在設定の秒数に置き換わります。
+        ヘルプ本文はHTMLで編集できます。既存文言の置換キーが残っている場合も、現在の宿屋待機秒数は0秒として扱われます。
     </div>
 
     <form wire:submit="save" class="space-y-5">

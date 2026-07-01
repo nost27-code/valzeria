@@ -13,9 +13,9 @@ class LevelService
     private const GROWTH_MULTIPLIER = 1.12;
     private const BONUS_POINTS_PER_LEVEL = 1;
 
-    public function capJobExpGain(int $jobExpGained): int
+    public function capJobExpGain(int $jobExpGained, ?int $max = null): int
     {
-        return max(0, min(self::MAX_JOB_EXP_GAIN, $jobExpGained));
+        return max(0, min($max ?? self::MAX_JOB_EXP_GAIN, $jobExpGained));
     }
 
     /**
@@ -23,9 +23,9 @@ class LevelService
      * 
      * @return array 獲得した結果やレベルアップ内容を含む連想配列
      */
-    public function addRewardAndCheckLevelUp(Character $character, int $expGained, int $goldGained, int $jobExpGained = 0): array
+    public function addRewardAndCheckLevelUp(Character $character, int $expGained, int $goldGained, int $jobExpGained = 0, ?int $jobExpCap = null): array
     {
-        $jobExpGained = $this->capJobExpGain($jobExpGained);
+        $jobExpGained = $this->capJobExpGain($jobExpGained, $jobExpCap);
 
         if ($goldGained > 0) {
             app(GoldService::class)->add($character, $goldGained, 'battle_reward', '戦闘でGoldを獲得');
@@ -143,8 +143,8 @@ class LevelService
                 'bonus_points' => self::BONUS_POINTS_PER_LEVEL,
             ];
             
-            // 節目レベルで公開ログ（Lv10は序盤で頻出するため流さない）
-            if (in_array($character->level, [50, 100])) {
+            // 節目レベルで公開ログ（Lv100未満は序盤で頻出するため流さない）
+            if ($this->shouldPublishGrowthMilestone((int) $character->level)) {
                 app(PublicLogService::class)->addLog(
                     'growth',
                     "【成長】{$character->name}さんがLv{$character->level}に到達しました！",
@@ -166,6 +166,58 @@ class LevelService
             'level_up_count' => $levelUpCount,
             'details' => $levelUpDetails,
             'job_result' => $jobResult,
+            'progression' => $this->progressionSummary($character),
+        ];
+    }
+
+    private function shouldPublishGrowthMilestone(int $level): bool
+    {
+        return $level >= 100 && ($level % 50 === 0 || $level >= 255);
+    }
+
+    public function progressionSummary(Character $character): array
+    {
+        $level = max(1, (int) ($character->level ?? 1));
+        $currentExp = max(0, (int) ($character->exp ?? 0));
+        $isMaxLevel = $level >= 255;
+        $requiredExp = $isMaxLevel ? $currentExp : $this->getRequiredExp($level);
+
+        $currentJob = null;
+        if ($character->current_job_id) {
+            $currentJob = $character->jobHistories()
+                ->with('jobClass')
+                ->where('job_class_id', $character->current_job_id)
+                ->first();
+        }
+
+        $jobProgress = null;
+        if ($currentJob) {
+            $jobInfo = app(JobService::class)->getNextLevelExp($currentJob);
+            $jobRequired = max(0, (int) ($jobInfo['next_required'] ?? 0));
+            $jobCurrent = max(0, (int) ($jobInfo['current'] ?? 0));
+            $jobProgress = [
+                'job_name' => $currentJob->jobClass?->name ?? '現在の職業',
+                'rank' => (int) ($currentJob->job_level ?? 1),
+                'next_rank' => min(10, (int) ($currentJob->job_level ?? 1) + 1),
+                'current' => $jobCurrent,
+                'required' => $jobRequired,
+                'remaining' => max(0, $jobRequired - $jobCurrent),
+                'percent' => $jobRequired > 0 ? min(100, (int) floor(($jobCurrent / $jobRequired) * 100)) : 100,
+                'is_mastered' => (bool) ($jobInfo['is_mastered'] ?? false),
+            ];
+        }
+
+        return [
+            'level' => [
+                'level' => $level,
+                'next_level' => $isMaxLevel ? null : $level + 1,
+                'current' => $currentExp,
+                'required' => $requiredExp,
+                'remaining' => $isMaxLevel ? null : max(0, $requiredExp - $currentExp),
+                'percent' => $requiredExp > 0 ? min(100, (int) floor(($currentExp / $requiredExp) * 100)) : 100,
+                'is_max' => $isMaxLevel,
+            ],
+            'job' => $jobProgress,
         ];
     }
 

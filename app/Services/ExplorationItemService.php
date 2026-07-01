@@ -42,10 +42,6 @@ class ExplorationItemService
                     'carried_count' => $initialCarryCount,
                     'used_count' => 0,
                 ])->save();
-            } elseif ((int) $carry->carried_count > self::CARRY_LIMIT) {
-                $carry->forceFill([
-                    'carried_count' => self::CARRY_LIMIT,
-                ])->save();
             }
 
             return $this->entryFromConfig(
@@ -116,6 +112,40 @@ class ExplorationItemService
             'success' => true,
             'message' => "{$item->name}を使用し、{$label}が{$after}/{$max}まで回復しました。",
         ];
+    }
+
+    public function addBonusCarry(Character $character, Item $item, int $quantity = 1): void
+    {
+        if ($quantity <= 0 || !$this->configFor($item)) {
+            return;
+        }
+
+        $state = app(ExplorationStateService::class)->currentFor($character);
+        if (!$state || !$state->area_id) {
+            return;
+        }
+
+        $ownedCount = $this->ownedCount($character, $item);
+        $baseCarryCount = $this->initialCarryCount(max(0, $ownedCount - $quantity));
+
+        $carry = ExplorationItemCarry::where('character_id', $character->id)
+            ->where('item_id', $item->id)
+            ->first();
+
+        if (!$carry || (int) $carry->area_id !== (int) $state->area_id) {
+            ExplorationItemCarry::updateOrCreate(
+                ['character_id' => $character->id, 'item_id' => $item->id],
+                [
+                    'area_id' => $state->area_id,
+                    'carried_count' => $baseCarryCount + $quantity,
+                    'used_count' => 0,
+                ]
+            );
+
+            return;
+        }
+
+        $carry->increment('carried_count', $quantity);
     }
 
     public function reset(Character $character): void

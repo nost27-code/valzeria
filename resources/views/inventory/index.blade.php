@@ -522,10 +522,14 @@
                             <div x-show="activeEquipmentTab === @js($type)" x-transition @if($type !== 'weapon') style="display: none;" @endif>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     @forelse($equipmentGroups[$type] as $characterItem)
-                                        @php($item = $characterItem->item)
+                                        @php
+                                            $item = $characterItem->item;
+                                            $equipmentIcon = $item?->iconImagePath()
+                                                ?? ($type === 'weapon' ? 'images/icon/icon_006.webp' : ($type === 'armor' ? 'images/icon/icon_007.webp' : 'images/icon/icon_008.webp'));
+                                        @endphp
                                         <div class="bg-white border border-slate-200 rounded p-4 shadow-sm flex items-center">
                                             <div class="w-12 h-12 shrink-0 bg-slate-100 rounded border border-slate-300 flex items-center justify-center mr-4 text-2xl">
-                                                <img src="{{ asset($type === 'weapon' ? 'images/icon/icon_006.webp' : ($type === 'armor' ? 'images/icon/icon_007.webp' : 'images/icon/icon_008.webp')) }}" alt="" class="w-7 h-7 object-contain">
+                                                <img src="{{ asset($equipmentIcon) }}" alt="" class="w-8 h-8 object-contain">
                                             </div>
                                             <div class="min-w-0 flex-1">
                                                 <div class="font-bold text-slate-800 truncate" title="{{ $characterItem->displayName() }}">{{ $characterItem->displayName() }}</div>

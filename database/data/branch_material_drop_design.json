@@ -55,7 +55,7 @@
       "material_code": "MAT_BR_WPN_HOLY_SECRET",
       "material_name": "聖剣の秘境晶",
       "required_quantity": 5,
-      "primary_location": "天空神殿セレスティア終盤 / 竜王の聖域：秘境入口・秘境採取・秘境主",
+      "primary_location": "天空神殿セレスティア終盤 / 竜王の聖域：秘境入口・秘境採取",
       "primary_city_name": "天空神殿セレスティア",
       "primary_city_id": 9,
       "support_locations": [
@@ -143,7 +143,7 @@
       "material_code": "MAT_BR_WPN_DARK_SECRET",
       "material_name": "魔剣の秘境晶",
       "required_quantity": 5,
-      "primary_location": "深淵の裂け目 / 魔王城ヴァルゼリア：秘境入口・秘境採取・秘境主",
+      "primary_location": "深淵の裂け目 / 魔王城ヴァルゼリア：秘境入口・秘境採取",
       "primary_city_name": "魔王城ヴァルゼリア",
       "primary_city_id": 10,
       "support_locations": [
@@ -231,7 +231,7 @@
       "material_code": "MAT_BR_WPN_GALE_SECRET",
       "material_name": "迅刃の秘境晶",
       "required_quantity": 5,
-      "primary_location": "天空神殿セレスティア終盤 / 次元回廊：秘境入口・秘境採取・秘境主",
+      "primary_location": "天空神殿セレスティア終盤 / 次元回廊：秘境入口・秘境採取",
       "primary_city_name": "天空神殿セレスティア",
       "primary_city_id": 9,
       "support_locations": [
@@ -319,7 +319,7 @@
       "material_code": "MAT_BR_ARM_HEAVY_SECRET",
       "material_name": "重装の秘境晶",
       "required_quantity": 5,
-      "primary_location": "古代錬成炉深部 / 竜王の聖域：秘境入口・秘境採取・秘境主",
+      "primary_location": "古代錬成炉深部 / 竜王の聖域：秘境入口・秘境採取",
       "primary_city_name": "",
       "primary_city_id": 4,
       "support_locations": [
@@ -407,7 +407,7 @@
       "material_code": "MAT_BR_ARM_ARCANE_SECRET",
       "material_name": "魔装の秘境晶",
       "required_quantity": 5,
-      "primary_location": "次元回廊深部 / セレスティア終盤：秘境入口・秘境採取・秘境主",
+      "primary_location": "次元回廊深部 / セレスティア終盤：秘境入口・秘境採取",
       "primary_city_name": "",
       "primary_city_id": 7,
       "support_locations": [
@@ -495,7 +495,7 @@
       "material_code": "MAT_BR_ARM_LIGHT_SECRET",
       "material_name": "軽装の秘境晶",
       "required_quantity": 5,
-      "primary_location": "天空神殿セレスティア終盤 / 次元回廊：秘境入口・秘境採取・秘境主",
+      "primary_location": "天空神殿セレスティア終盤 / 次元回廊：秘境入口・秘境採取",
       "primary_city_name": "天空神殿セレスティア",
       "primary_city_id": 9,
       "support_locations": [
@@ -583,7 +583,7 @@
       "material_code": "MAT_BR_ARM_TRAVELER_SECRET",
       "material_name": "旅装の秘境晶",
       "required_quantity": 5,
-      "primary_location": "次元回廊 / 竜王の聖域：秘境入口・秘境採取・秘境主",
+      "primary_location": "次元回廊 / 竜王の聖域：秘境入口・秘境採取",
       "primary_city_name": "",
       "primary_city_id": 9,
       "support_locations": [
@@ -671,7 +671,7 @@
       "material_code": "MAT_BR_ACC_POWER_SECRET",
       "material_name": "腕力の秘境晶",
       "required_quantity": 5,
-      "primary_location": "古代錬成炉深部 / 竜王の聖域：秘境入口・秘境採取・秘境主",
+      "primary_location": "古代錬成炉深部 / 竜王の聖域：秘境入口・秘境採取",
       "primary_city_name": "",
       "primary_city_id": 4,
       "support_locations": [
@@ -759,7 +759,7 @@
       "material_code": "MAT_BR_ACC_GUARD_SECRET",
       "material_name": "守護の秘境晶",
       "required_quantity": 5,
-      "primary_location": "天空神殿セレスティア終盤 / 竜王の聖域：秘境入口・秘境採取・秘境主",
+      "primary_location": "天空神殿セレスティア終盤 / 竜王の聖域：秘境入口・秘境採取",
       "primary_city_name": "天空神殿セレスティア",
       "primary_city_id": 9,
       "support_locations": [
@@ -847,7 +847,7 @@
       "material_code": "MAT_BR_ACC_MAGIC_SECRET",
       "material_name": "魔力の秘境晶",
       "required_quantity": 5,
-      "primary_location": "次元回廊深部 / セレスティア終盤：秘境入口・秘境採取・秘境主",
+      "primary_location": "次元回廊深部 / セレスティア終盤：秘境入口・秘境採取",
       "primary_city_name": "",
       "primary_city_id": 7,
       "support_locations": [
@@ -935,7 +935,7 @@
       "material_code": "MAT_BR_ACC_PRAYER_SECRET",
       "material_name": "祈祷の秘境晶",
       "required_quantity": 5,
-      "primary_location": "天空神殿セレスティア終盤 / 竜王の聖域：秘境入口・秘境採取・秘境主",
+      "primary_location": "天空神殿セレスティア終盤 / 竜王の聖域：秘境入口・秘境採取",
       "primary_city_name": "天空神殿セレスティア",
       "primary_city_id": 9,
       "support_locations": [
@@ -1023,7 +1023,7 @@
       "material_code": "MAT_BR_ACC_WIND_SECRET",
       "material_name": "疾風の秘境晶",
       "required_quantity": 5,
-      "primary_location": "天空神殿セレスティア終盤 / 次元回廊：秘境入口・秘境採取・秘境主",
+      "primary_location": "天空神殿セレスティア終盤 / 次元回廊：秘境入口・秘境採取",
       "primary_city_name": "天空神殿セレスティア",
       "primary_city_id": 9,
       "support_locations": [
@@ -1111,7 +1111,7 @@
       "material_code": "MAT_BR_ACC_LUCK_SECRET",
       "material_name": "幸運の秘境晶",
       "required_quantity": 5,
-      "primary_location": "砂漠の宿場サンドラ終盤 / 次元回廊：秘境入口・秘境採取・秘境主",
+      "primary_location": "砂漠の宿場サンドラ終盤 / 次元回廊：秘境入口・秘境採取",
       "primary_city_name": "砂漠の宿場サンドラ",
       "primary_city_id": 6,
       "support_locations": [
@@ -1199,7 +1199,7 @@
       "material_code": "MAT_BR_ACC_BALANCE_SECRET",
       "material_name": "均衡の秘境晶",
       "required_quantity": 5,
-      "primary_location": "次元回廊深部 / セレスティア終盤：秘境入口・秘境採取・秘境主",
+      "primary_location": "次元回廊深部 / セレスティア終盤：秘境入口・秘境採取",
       "primary_city_name": "",
       "primary_city_id": 7,
       "support_locations": [

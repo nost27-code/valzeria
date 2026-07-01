@@ -10,13 +10,13 @@ class Material extends Model
 
     private const ICON_BY_CODE = [
         'MAT_ENHANCE_FRAGMENT' => 'images/icon/icon_094.webp',
-        '5007' => 'images/icon/icon_095.webp',
-        'ACC0007' => 'images/icon/icon_096.webp',
-        'MAT_ENHANCE_STONE' => 'images/icon/icon_097.webp',
+        '5007' => 'images/icon/icon_097.webp',
+        'ACC0007' => 'images/icon/icon_100.webp',
+        'MAT_ENHANCE_STONE' => 'images/icon/icon_095.webp',
         '5008' => 'images/icon/icon_098.webp',
-        'ACC0008' => 'images/icon/icon_099.webp',
-        'MAT_ENHANCE_HIGH_STONE' => 'images/icon/icon_100.webp',
-        '5009' => 'images/icon/icon_101.webp',
+        'ACC0008' => 'images/icon/icon_101.webp',
+        'MAT_ENHANCE_HIGH_STONE' => 'images/icon/icon_095.webp',
+        '5009' => 'images/icon/icon_098.webp',
         'ACC0009' => 'images/icon/icon_102.webp',
         'MAT_REFINING_CORE_LOW' => 'images/icon/icon_103.webp',
         'MAT_REFINING_CORE' => 'images/icon/icon_104.webp',
@@ -85,17 +85,84 @@ class Material extends Model
         'MAT_BR_ARM_TRAVELER_SECRET_SHARD' => 'images/icon/icon_167.webp',
         'MAT_BR_ARM_TRAVELER_SECRET' => 'images/icon/icon_168.webp',
         'MAT_BR_ARM_TRAVELER_CREST' => 'images/icon/icon_169.webp',
+        'ACC0003' => 'images/icon/icon_170.webp',
+        'ACC0011' => 'images/icon/icon_171.webp',
+        'ACC0014' => 'images/icon/icon_172.webp',
+        'ACC0017' => 'images/icon/icon_173.webp',
+        'ACC0020' => 'images/icon/icon_174.webp',
+        'ACC0023' => 'images/icon/icon_175.webp',
+        'ACC0026' => 'images/icon/icon_176.webp',
+        'ACC0029' => 'images/icon/icon_177.webp',
+        'ACC0032' => 'images/icon/icon_178.webp',
+        'ACC0035' => 'images/icon/icon_179.webp',
+        'ACC0038' => 'images/icon/icon_180.webp',
+        'MAT_BR_WPN_HOLY_PATH' => 'images/icon/icon_181.webp',
+        'MAT_BR_WPN_DARK_PATH' => 'images/icon/icon_182.webp',
+        'MAT_BR_WPN_GALE_PATH' => 'images/icon/icon_183.webp',
+        'MAT_BR_ARM_HEAVY_ARCANE_PATH' => 'images/icon/icon_184.webp',
+        'MAT_BR_ARM_LIGHT_TRAVELER_PATH' => 'images/icon/icon_185.webp',
+        'MAT_REGION_ARKREA_RAW' => 'images/icon/icon_186.webp',
+        'MAT0001' => 'images/icon/icon_187.webp',
+        'MAT_COMMON_SLIME_MUCUS' => 'images/icon/icon_187.webp',
+        'MAT_COMMON_GOBLIN_FANG' => 'images/icon/icon_188.webp',
+        'MAT_COMMON_BEAST_FANG' => 'images/icon/icon_189.webp',
+        'MAT_COMMON_OLD_BADGE' => 'images/icon/icon_190.webp',
+        'MAT_COMMON_MONSTER_FRAGMENT' => 'images/icon/icon_191.webp',
+        'MAT_COMMON_MONSTER_SHELL' => 'images/icon/icon_192.webp',
+        'MAT_COMMON_ROTTEN_CLOTH' => 'images/icon/icon_193.webp',
+        'MAT_COMMON_BEAST_FUR' => 'images/icon/icon_194.webp',
+        'MAT_COMMON_WING_MEMBRANE' => 'images/icon/icon_195.webp',
+        'MAT_COMMON_HOLY_FRAGMENT' => 'images/icon/icon_196.webp',
+        'MAT_REGION_TIDAL_PIECE' => 'images/icon/icon_197.webp',
+        'MAT_REGION_WORLD_TREE_LEAF' => 'images/icon/icon_198.webp',
+        'MAT_REGION_ICE_CRYSTAL' => 'images/icon/icon_199.webp',
+        'MAT_COMMON_DARK_CRYSTAL' => 'images/icon/icon_200.webp',
+        'MAT_REGION_BLACK_IRON_PART' => 'images/icon/icon_201.webp',
+        'MAT0032' => 'images/icon/icon_202.webp',
+        'MAT_COMMON_FAIRY_DUST' => 'images/icon/icon_202.webp',
+        'MAT_REGION_HEAVEN_FEATHER' => 'images/icon/icon_203.webp',
+        'CITY_07_MATERIAL' => 'images/icon/icon_204.webp',
+        'WEV0029' => 'images/icon/icon_204.webp',
+        'MAT_REGION_MAGIC_CRYSTAL' => 'images/icon/icon_204.webp',
+        'MAT_REGION_ANCIENT_SAND' => 'images/icon/icon_205.webp',
+        'MAT_COMMON_OLD_BONE' => 'images/icon/icon_206.webp',
+        'CITY_09_MATERIAL' => 'images/icon/icon_207.webp',
+        'WEV0031' => 'images/icon/icon_207.webp',
+        'MAT_STARDUST_FORGE' => 'images/icon/icon_208.webp',
+        'WEV0005' => 'images/icon/icon_208.webp',
+        'CITY_05_MATERIAL' => 'images/icon/icon_209.webp',
+        'WEV0027' => 'images/icon/icon_209.webp',
+        'MAT_REGION_ABYSS_FRAGMENT' => 'images/icon/icon_210.webp',
+        'CITY_02_MATERIAL' => 'images/icon/icon_211.webp',
+        'WEV0024' => 'images/icon/icon_211.webp',
+        'MAT_COMMON_FIRE_SEED' => 'images/icon/icon_212.webp',
+        'CITY_01_MATERIAL' => 'images/icon/icon_213.webp',
+        'WEV0023' => 'images/icon/icon_213.webp',
+        'CITY_06_MATERIAL' => 'images/icon/icon_214.webp',
+        'WEV0028' => 'images/icon/icon_214.webp',
+        'MAT_COMMON_DRAGON_SCALE' => 'images/icon/icon_215.webp',
+        'CITY_03_MATERIAL' => 'images/icon/icon_216.webp',
+        'WEV0025' => 'images/icon/icon_216.webp',
+        'MAT_COMMON_FEATHER' => 'images/icon/icon_217.webp',
+        'MAT_COMMON_NATURAL_FRAGMENT' => 'images/icon/icon_218.webp',
+        'MAT_COMMON_THUNDER_STONE' => 'images/icon/icon_219.webp',
+        'MAT_COMMON_MAGIC_CRYSTAL' => 'images/icon/icon_220.webp',
+        'CITY_10_MATERIAL' => 'images/icon/icon_221.webp',
+        'WEV0032' => 'images/icon/icon_221.webp',
+        'CITY_04_MATERIAL' => 'images/icon/icon_222.webp',
+        'WEV0026' => 'images/icon/icon_222.webp',
+        'MAT_BR_ACC_PRIMORDIAL_ORNAMENT_CRYSTAL' => 'images/icon/icon_239.webp',
     ];
 
     private const ICON_BY_NAME = [
         '強化石の欠片' => 'images/icon/icon_094.webp',
-        '守護石の欠片' => 'images/icon/icon_095.webp',
-        '調律石の欠片' => 'images/icon/icon_096.webp',
-        '強化石' => 'images/icon/icon_097.webp',
+        '守護石の欠片' => 'images/icon/icon_097.webp',
+        '調律石の欠片' => 'images/icon/icon_100.webp',
+        '強化石' => 'images/icon/icon_095.webp',
         '守護石' => 'images/icon/icon_098.webp',
-        '調律石' => 'images/icon/icon_099.webp',
-        '高純度強化石' => 'images/icon/icon_100.webp',
-        '高純度守護石' => 'images/icon/icon_101.webp',
+        '調律石' => 'images/icon/icon_101.webp',
+        '高純度強化石' => 'images/icon/icon_095.webp',
+        '高純度守護石' => 'images/icon/icon_098.webp',
         '高純度調律石' => 'images/icon/icon_102.webp',
         '粗精錬核' => 'images/icon/icon_103.webp',
         '精錬核' => 'images/icon/icon_104.webp',
@@ -171,6 +238,62 @@ class Material extends Model
         '旅装の秘境晶片' => 'images/icon/icon_167.webp',
         '旅装の秘境晶' => 'images/icon/icon_168.webp',
         '旅装の極印' => 'images/icon/icon_169.webp',
+        '装飾の核' => 'images/icon/icon_170.webp',
+        '腕力の結晶' => 'images/icon/icon_171.webp',
+        '守護の結晶' => 'images/icon/icon_172.webp',
+        '魔力の結晶' => 'images/icon/icon_173.webp',
+        '祈祷の結晶' => 'images/icon/icon_174.webp',
+        '疾風の結晶' => 'images/icon/icon_175.webp',
+        '幸運の結晶' => 'images/icon/icon_176.webp',
+        '生命の結晶' => 'images/icon/icon_177.webp',
+        '精神の結晶' => 'images/icon/icon_178.webp',
+        '均衡の結晶' => 'images/icon/icon_179.webp',
+        '冒険の結晶' => 'images/icon/icon_180.webp',
+        '聖剣の導石' => 'images/icon/icon_181.webp',
+        '魔剣の導石' => 'images/icon/icon_182.webp',
+        '迅刃の導石' => 'images/icon/icon_183.webp',
+        '疾風の導石' => 'images/icon/icon_183.webp',
+        '重魔装の導石' => 'images/icon/icon_184.webp',
+        '軽旅装の導石' => 'images/icon/icon_185.webp',
+        'アークレアの粗素材' => 'images/icon/icon_186.webp',
+        'スライムの粘液' => 'images/icon/icon_187.webp',
+        '小鬼の牙' => 'images/icon/icon_188.webp',
+        '獣牙' => 'images/icon/icon_189.webp',
+        '古びた徽章' => 'images/icon/icon_190.webp',
+        '魔物の欠片' => 'images/icon/icon_191.webp',
+        '魔物の外殻' => 'images/icon/icon_192.webp',
+        '腐布' => 'images/icon/icon_193.webp',
+        '獣の毛皮' => 'images/icon/icon_194.webp',
+        '薄い翼膜' => 'images/icon/icon_195.webp',
+        '聖片' => 'images/icon/icon_196.webp',
+        '潮騒の素材片' => 'images/icon/icon_197.webp',
+        '世界樹の葉片' => 'images/icon/icon_198.webp',
+        '氷晶片' => 'images/icon/icon_199.webp',
+        '黒結晶' => 'images/icon/icon_200.webp',
+        '黒鉄の部材' => 'images/icon/icon_201.webp',
+        '妖精粉' => 'images/icon/icon_202.webp',
+        '天界の羽根' => 'images/icon/icon_203.webp',
+        '魔導結晶' => 'images/icon/icon_204.webp',
+        '古代砂晶' => 'images/icon/icon_205.webp',
+        '古びた骨片' => 'images/icon/icon_206.webp',
+        '天空石' => 'images/icon/icon_207.webp',
+        '星屑の鍛材' => 'images/icon/icon_208.webp',
+        '氷晶石' => 'images/icon/icon_209.webp',
+        '深淵の欠片' => 'images/icon/icon_210.webp',
+        '潮風の貝殻' => 'images/icon/icon_211.webp',
+        '火種' => 'images/icon/icon_212.webp',
+        '王都の鉄片' => 'images/icon/icon_213.webp',
+        '砂金石' => 'images/icon/icon_214.webp',
+        '竜鱗' => 'images/icon/icon_215.webp',
+        '精霊樹の葉' => 'images/icon/icon_216.webp',
+        '羽根' => 'images/icon/icon_217.webp',
+        '自然片' => 'images/icon/icon_218.webp',
+        '雷石' => 'images/icon/icon_219.webp',
+        '魔力水晶' => 'images/icon/icon_220.webp',
+        '魔王城の黒晶' => 'images/icon/icon_221.webp',
+        '黒鉄鉱' => 'images/icon/icon_222.webp',
+        '原初秘境晶' => 'images/icon/icon_239.webp',
+        '原初装飾晶' => 'images/icon/icon_239.webp',
     ];
 
     protected $casts = [
@@ -258,11 +381,7 @@ class Material extends Model
     {
         $name = (string) ($this->name ?? '素材');
 
-        if (strtoupper((string) ($this->rarity ?? '')) !== 'SR') {
-            return $name;
-        }
-
-        return str_ends_with($name, '[SR]') ? $name : "{$name} [SR]";
+        return trim(str_replace('[SR]', '', $name));
     }
 
     public function iconImagePath(): ?string
@@ -275,9 +394,24 @@ class Material extends Model
         $materialCode = (string) $materialCode;
         $name = (string) $name;
 
-        return self::ICON_BY_CODE[$materialCode]
+        $path = self::ICON_BY_CODE[$materialCode]
             ?? self::ICON_BY_NAME[$name]
             ?? null;
+
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return self::publicIconExists($path) ? $path : null;
+    }
+
+    private static function publicIconExists(string $path): bool
+    {
+        static $exists = [];
+
+        $path = ltrim($path, '/');
+
+        return $exists[$path] ??= is_file(public_path(str_replace('/', DIRECTORY_SEPARATOR, $path)));
     }
 
     public function marketUnavailableReason(): string

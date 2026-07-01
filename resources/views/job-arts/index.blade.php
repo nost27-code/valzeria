@@ -16,162 +16,181 @@
             </div>
         @endif
 
-        <section class="rounded-lg border border-[#d4af37]/70 bg-white p-4 shadow-sm">
-            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-3">
                 <div>
                     <div class="text-xs font-black uppercase tracking-[0.16em] text-amber-600">JOB ARTS</div>
                     <h1 class="text-xl font-black text-slate-900">奥義をセットする</h1>
-                    <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">現在職Rankで習得した奥義と、マスター済み職業から継承した奥義を最大3つまで使えます。</p>
+                    <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">選ぶとその場で自動保存されます。最大3つまで。</p>
                 </div>
-                <div class="shrink-0 rounded-md bg-slate-900 px-3 py-2 text-center text-white">
-                    <div class="text-[10px] font-bold text-slate-300">コスト</div>
-                    <div class="text-lg font-black"><span data-job-art-total-cost>{{ $totalCost }}</span> / 5</div>
+                <div class="shrink-0 space-y-0.5 text-right text-xs font-black text-slate-500">
+                    <div>通常 <span data-job-art-total-cost="normal">{{ $totalCostByContext['normal'] ?? 0 }}</span>/5</div>
+                    <div>ボス <span data-job-art-total-cost="boss">{{ $totalCostByContext['boss'] ?? 0 }}</span>/5</div>
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('job-arts.set') }}" class="mt-4 space-y-2">
-                @csrf
-                @for($slotNo = 1; $slotNo <= 3; $slotNo++)
-                    @php
-                        $slot = $selectedSlots->firstWhere('slot_no', $slotNo);
-                        $selectedId = (int) old('slot_' . $slotNo, $slot?->skill_id ?? 0);
-                        $slotArt = $allAvailableArts->firstWhere('id', $selectedId);
-                        $hasArt = $slotArt !== null;
-                        $artCost = $hasArt ? (int) $slotArt->art_cost : 0;
-                        $artOrigin = $hasArt ? ($slotArt->getAttribute('job_art_origin') ?: 'current') : '';
-                        $artSpCost = $hasArt ? $slotArt->jobArtSpCostForMaxSp($maxSp, $artOrigin) : 0;
-                        $costBadgeClass = match ($artCost) {
-                            1 => 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                            2 => 'bg-sky-100 text-sky-700 border-sky-200',
-                            3 => 'bg-amber-100 text-amber-800 border-amber-300',
-                            default => 'bg-slate-100 text-slate-600 border-slate-200',
-                        };
-                        $slotBorderClass = $hasArt ? match ($artCost) {
-                            1 => 'border-emerald-200',
-                            2 => 'border-sky-200',
-                            3 => 'border-amber-200',
-                            default => 'border-slate-200',
-                        } : 'border-slate-200';
-                        $slotHeaderBg = $hasArt ? match ($artCost) {
-                            1 => 'bg-emerald-50/60',
-                            2 => 'bg-sky-50/60',
-                            3 => 'bg-amber-50/60',
-                            default => 'bg-slate-50',
-                        } : 'bg-slate-50';
-                    @endphp
-
-                    @if($hasArt)
-                    {{-- スロットに奥義がセット済み: カード表示 ↔ ドロップダウン切替 --}}
-                    <div x-data="{ editing: false }" class="rounded-lg border {{ $slotBorderClass }} overflow-hidden">
-                        {{-- ヘッダー --}}
-                        <div class="flex items-center justify-between gap-2 px-3 py-1.5 {{ $slotHeaderBg }} border-b {{ $slotBorderClass }}">
-                            <span class="text-[10px] font-black tracking-widest text-slate-400">SLOT {{ $slotNo }}</span>
-                            <span class="inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-black {{ $costBadgeClass }}">Cost {{ $artCost }}</span>
-                        </div>
-                        {{-- カード表示 --}}
-                        <div x-show="!editing" class="flex items-start justify-between gap-2 px-3 py-2.5">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-baseline gap-1.5 flex-wrap">
-                                    <span class="text-[15px] font-black text-slate-900">{{ $slotArt->name }}</span>
-                                    <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black {{ $artOrigin === 'current' ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700' }}">{{ $artOrigin === 'current' ? '本職' : '継承' }}</span>
-                                </div>
-                                <div class="mt-0.5 text-[11px] font-bold text-slate-400">{{ $slotArt->jobClass?->name ?? '職業' }} · Rank{{ $slotArt->learn_rank }}</div>
-                                <div class="mt-1.5 flex flex-wrap gap-1">
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">SP {{ $artSpCost }}</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">発動 {{ $slotArt->activation_rate }}%</span>
-                                    @if($slotArt->cooldown_turns)
-                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">CT{{ $slotArt->cooldown_turns }}</span>
-                                    @endif
-                                    @if($slotArt->max_uses_per_battle)
-                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">1戦{{ $slotArt->max_uses_per_battle }}回</span>
-                                    @endif
-                                </div>
-                                @php $artDesc = $slotArt->memo ?: $slotArt->description; @endphp
-                                @if($artDesc)
-                                    <p class="mt-1 text-[11px] font-bold text-slate-500 leading-relaxed line-clamp-1">{{ $artDesc }}</p>
-                                @endif
-                            </div>
-                            <button type="button" @click="editing = true"
-                                class="shrink-0 mt-0.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors">
-                                変更
-                            </button>
-                        </div>
-                        {{-- ドロップダウン（編集時のみ表示、フォーム送信には常に含まれる） --}}
-                        <div x-show="editing" class="px-3 py-2.5 space-y-2">
-                            <select
-                                name="slot_{{ $slotNo }}"
-                                data-job-art-main-slot-select
-                                data-slot-no="{{ $slotNo }}"
-                                class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800"
-                            >
-                                <option value="">未設定</option>
-                                @foreach($allAvailableArts as $art)
-                                    @php
-                                        $optionOrigin = $art->getAttribute('job_art_origin') === 'current' ? 'current' : 'inherited';
-                                        $optionSpCost = $art->jobArtSpCostForMaxSp($maxSp, $optionOrigin);
-                                    @endphp
-                                    <option value="{{ $art->id }}" @selected((int) $selectedId === (int) $art->id)>
-                                        {{ $art->jobClass?->name ?? '職業' }} Rank{{ $art->learn_rank }} / {{ $art->name }} / cost{{ $art->art_cost }} / SP{{ $optionSpCost }} / {{ $art->getAttribute('job_art_origin') === 'current' ? '本職' : '継承' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <button type="button" @click="editing = false" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors">← キャンセル</button>
-                        </div>
-                    </div>
-                    @else
-                    {{-- スロット未設定 --}}
-                    <div class="rounded-lg border border-slate-200 overflow-hidden">
-                        <div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-                            <span class="text-[10px] font-black tracking-widest text-slate-400">SLOT {{ $slotNo }}</span>
-                            <span class="text-[11px] font-bold text-slate-400">未設定</span>
-                        </div>
-                        <div class="px-3 py-2.5">
-                            <select
-                                name="slot_{{ $slotNo }}"
-                                data-job-art-main-slot-select
-                                data-slot-no="{{ $slotNo }}"
-                                class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800"
-                            >
-                                <option value="">未設定</option>
-                                @foreach($allAvailableArts as $art)
-                                    @php
-                                        $optionOrigin = $art->getAttribute('job_art_origin') === 'current' ? 'current' : 'inherited';
-                                        $optionSpCost = $art->jobArtSpCostForMaxSp($maxSp, $optionOrigin);
-                                    @endphp
-                                    <option value="{{ $art->id }}" @selected((int) $selectedId === (int) $art->id)>
-                                        {{ $art->jobClass?->name ?? '職業' }} Rank{{ $art->learn_rank }} / {{ $art->name }} / cost{{ $art->art_cost }} / SP{{ $optionSpCost }} / {{ $art->getAttribute('job_art_origin') === 'current' ? '本職' : '継承' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    @endif
-                @endfor
-                <button type="submit" class="w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white shadow active:scale-[0.99]">奥義セットを保存する</button>
-            </form>
-        </section>
-
-        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="mb-3 flex items-start justify-between gap-3">
-                <div>
-                    <h2 class="text-sm font-black text-slate-900">奥義発動方針</h2>
-                    <p class="mt-1 text-xs font-bold text-slate-500">{{ $activationPolicyDescriptions[$activationPolicy] ?? $activationPolicyDescriptions['normal'] }}</p>
-                </div>
-                <div class="shrink-0 rounded-md bg-indigo-50 px-2 py-1 text-xs font-black text-indigo-700">SP {{ number_format((int) ($character->current_mp ?? 0)) }} / {{ number_format($maxSp) }}</div>
-            </div>
-            <form method="POST" action="{{ route('job-arts.policy') }}" class="space-y-3">
-                @csrf
-                <input type="hidden" name="filter" value="{{ $filter }}">
-                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    @foreach($activationPolicyLabels as $policyKey => $policyLabel)
-                        <label class="block">
-                            <input type="radio" name="activation_policy" value="{{ $policyKey }}" class="peer sr-only" @checked($activationPolicy === $policyKey)>
-                            <span class="flex min-h-[44px] items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-black text-slate-600 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700">{{ $policyLabel }}</span>
-                        </label>
+            <div class="mt-4 space-y-3" x-data="{ activeContext: 'normal' }">
+                <div class="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                    @foreach($slotContextLabels as $slotContext => $slotContextLabel)
+                        <button
+                            type="button"
+                            @click="activeContext = @js($slotContext)"
+                            class="rounded-md px-3 py-1.5 text-sm font-black transition-colors"
+                            :class="activeContext === @js($slotContext) ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                        >
+                            {{ $slotContextLabel }}
+                        </button>
                     @endforeach
                 </div>
-                <button type="submit" class="w-full rounded-md border border-indigo-200 bg-indigo-600 px-4 py-2.5 text-sm font-black text-white shadow-sm active:scale-[0.99]">方針を保存する</button>
-            </form>
+
+                @foreach($slotContextLabels as $slotContext => $slotContextLabel)
+                    @php
+                        $contextSlots = $selectedSlotsByContext[$slotContext] ?? collect();
+                        $contextArts = $availableArtsByContext[$slotContext] ?? collect();
+                    @endphp
+                    <div x-show="activeContext === @js($slotContext)" class="space-y-2">
+                        <p class="text-[11px] font-bold leading-relaxed text-slate-400">{{ $slotContextDescriptions[$slotContext] ?? '' }}</p>
+
+                        @for($slotNo = 1; $slotNo <= 3; $slotNo++)
+                            @php
+                                $slot = $contextSlots->firstWhere('slot_no', $slotNo);
+                                $selectedId = (int) ($slot?->skill_id ?? 0);
+                                $slotPolicy = (string) ($slot?->activation_policy ?? 'normal');
+                                $slotPolicy = array_key_exists($slotPolicy, $activationPolicyLabels) ? $slotPolicy : 'normal';
+                                $slotArt = $contextArts->firstWhere('id', $selectedId) ?: $allAvailableArts->firstWhere('id', $selectedId);
+                                $hasArt = $slotArt !== null;
+                                $artCost = $hasArt ? (int) $slotArt->art_cost : 0;
+                                $artOrigin = $hasArt ? ($slotArt->getAttribute('job_art_origin') ?: 'current') : '';
+                                $artSpCost = $hasArt ? $slotArt->jobArtSpCostForMaxSp($maxSp, $artOrigin) : 0;
+                                $costBadgeClass = match ($artCost) {
+                                    1 => 'bg-emerald-50 text-emerald-700',
+                                    2 => 'bg-sky-50 text-sky-700',
+                                    3 => 'bg-amber-50 text-amber-800',
+                                    default => 'bg-slate-100 text-slate-600',
+                                };
+                            @endphp
+
+                            <div
+                                x-data="{
+                                    editing: {{ $hasArt ? 'false' : 'true' }},
+                                    policy: @js($slotPolicy),
+                                    policyDescriptions: @js($activationPolicyDescriptions),
+                                    query: '',
+                                    saving: false,
+                                    async save(skillId, policy) {
+                                        this.saving = true;
+                                        try {
+                                            const formData = new FormData();
+                                            if (skillId) formData.append('skill_id', skillId);
+                                            formData.append('slot_no', '{{ $slotNo }}');
+                                            formData.append('slot_context', @js($slotContext));
+                                            formData.append('activation_policy', policy || 'normal');
+                                            const response = await fetch(@js(route('job-arts.slot-set')), {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Accept': 'application/json',
+                                                    'X-CSRF-TOKEN': @js(csrf_token()),
+                                                    'X-Requested-With': 'XMLHttpRequest',
+                                                },
+                                                body: formData,
+                                            });
+                                            const payload = await response.json().catch(() => ({}));
+                                            if (!response.ok) {
+                                                throw new Error(payload.message || '保存できませんでした。');
+                                            }
+                                            window.location.reload();
+                                        } catch (error) {
+                                            alert(error.message || '保存できませんでした。');
+                                            this.saving = false;
+                                        }
+                                    },
+                                }"
+                                class="rounded-lg border border-slate-100 bg-white px-3 py-2.5"
+                                :class="{ 'opacity-50 pointer-events-none': saving }"
+                            >
+                                <div class="mb-1.5 flex items-center justify-between gap-2">
+                                    <span class="text-[10px] font-black tracking-widest text-slate-300">SLOT {{ $slotNo }}</span>
+                                    @if($hasArt)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-black {{ $costBadgeClass }}">Cost {{ $artCost }}</span>
+                                    @else
+                                        <span class="text-[11px] font-bold text-slate-300">未設定</span>
+                                    @endif
+                                </div>
+                                @if($hasArt)
+                                    <div x-show="!editing" class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                                <span class="text-[15px] font-black text-slate-900">{{ $slotArt->name }}</span>
+                                                <span class="shrink-0 text-[10px] font-black {{ $artOrigin === 'current' ? 'text-amber-600' : 'text-indigo-600' }}">{{ $artOrigin === 'current' ? '本職' : '継承' }}</span>
+                                            </div>
+                                            <div class="mt-0.5 text-[11px] font-bold text-slate-400">{{ $slotArt->jobClass?->name ?? '職業' }} · Rank{{ $slotArt->learn_rank }} · SP{{ $artSpCost }} · {{ $activationPolicyLabels[$slotPolicy] ?? '通常' }}</div>
+                                        </div>
+                                        <button type="button" @click="editing = true"
+                                            class="shrink-0 mt-0.5 text-[11px] font-black text-slate-400 hover:text-slate-700 transition-colors">
+                                            変更
+                                        </button>
+                                    </div>
+                                @endif
+                                <div x-show="editing" class="space-y-2">
+                                    <input
+                                        type="text"
+                                        x-model="query"
+                                        placeholder="奥義名・職業名で検索"
+                                        class="w-full rounded-md bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 placeholder:text-slate-300"
+                                    >
+                                    <div class="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-md bg-slate-50/60">
+                                        <label class="block" x-show="!query">
+                                            <input type="radio" name="{{ $slotContext }}_slot_{{ $slotNo }}_picker" value="" class="peer sr-only" @checked($selectedId === 0) @change="save(null, policy)">
+                                            <span class="block px-2 py-2 text-xs font-bold text-slate-400 cursor-pointer hover:bg-slate-100 peer-checked:bg-slate-100 peer-checked:text-slate-600">未設定にする</span>
+                                        </label>
+                                        @foreach($contextArts as $art)
+                                            @php
+                                                $optionOrigin = $art->getAttribute('job_art_origin') === 'current' ? 'current' : 'inherited';
+                                                $optionSpCost = $art->jobArtSpCostForMaxSp($maxSp, $optionOrigin);
+                                                $optionCost = (int) $art->art_cost;
+                                                $optionAccent = match ($optionCost) {
+                                                    1 => 'text-emerald-600',
+                                                    2 => 'text-sky-600',
+                                                    3 => 'text-amber-700',
+                                                    default => 'text-slate-500',
+                                                };
+                                                $optionSearch = \Illuminate\Support\Str::lower(($art->jobClass?->name ?? '') . ' ' . $art->name);
+                                            @endphp
+                                            <label
+                                                class="block"
+                                                data-job-art-picker-option
+                                                data-search="{{ $optionSearch }}"
+                                                x-show="!query || $el.dataset.search.includes(query.toLowerCase())"
+                                            >
+                                                <input type="radio" name="{{ $slotContext }}_slot_{{ $slotNo }}_picker" value="{{ $art->id }}" class="peer sr-only" @checked($selectedId === (int) $art->id) @change="save({{ $art->id }}, policy)">
+                                                <span class="flex items-center justify-between gap-2 px-2 py-2 cursor-pointer hover:bg-slate-100 peer-checked:bg-indigo-50">
+                                                    <span class="min-w-0">
+                                                        <span class="block text-[10px] font-black text-slate-400">{{ $art->jobClass?->name ?? '職業' }} Rank{{ $art->learn_rank }} · {{ $optionOrigin === 'current' ? '本職' : '継承' }}</span>
+                                                        <span class="block truncate text-sm font-black text-slate-900">{{ $art->name }}</span>
+                                                    </span>
+                                                    <span class="shrink-0 text-[11px] font-black {{ $optionAccent }}">Cost{{ $optionCost }} · SP{{ $optionSpCost }}</span>
+                                                </span>
+                                            </label>
+                                        @endforeach
+                                        <p class="px-2 py-3 text-center text-[11px] font-bold text-slate-400" x-show="query && ![...$el.parentElement.querySelectorAll('[data-job-art-picker-option]')].some(el => el.dataset.search.includes(query.toLowerCase()))">該当する奥義がありません。</p>
+                                    </div>
+                                    @if($hasArt)
+                                        <div class="flex items-center gap-1.5">
+                                            @foreach($activationPolicyLabels as $policyKey => $policyLabel)
+                                                <label class="block flex-1">
+                                                    <input type="radio" name="{{ $slotContext }}_policy_{{ $slotNo }}_picker" value="{{ $policyKey }}" x-model="policy" class="peer sr-only" @checked($slotPolicy === $policyKey) @change="save({{ $selectedId }}, $event.target.value)">
+                                                    <span class="flex h-7 items-center justify-center rounded-md text-[11px] font-black text-slate-400 cursor-pointer peer-checked:bg-indigo-50 peer-checked:text-indigo-700">{{ $policyLabel }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                        <button type="button" @click="editing = false" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors">← キャンセル</button>
+                                    @endif
+                                </div>
+                            </div>
+                        @endfor
+                    </div>
+                @endforeach
+            </div>
         </section>
 
         <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -231,23 +250,14 @@
                             </div>
                             <div class="shrink-0 space-y-1 text-right">
                                 <div class="inline-flex rounded border px-2 py-1 text-xs font-black {{ $costBadgeClass }}">Cost {{ $art->art_cost }}</div>
-                                <form method="POST" action="{{ route('job-arts.assign') }}" data-job-art-assign-form>
-                                    @csrf
-                                    <input type="hidden" name="skill_id" value="{{ $art->id }}">
-                                    <input type="hidden" name="filter" value="{{ $filter }}">
-                                    <select
-                                        name="slot_no"
-                                        data-job-art-slot-select
-                                        data-skill-id="{{ $art->id }}"
-                                        data-previous-slot="{{ (int) ($selectedSlotBySkill[$art->id] ?? 0) ?: '' }}"
-                                        class="w-[84px] rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-700"
-                                    >
-                                        <option value="">未設定</option>
-                                        @for($slotNo = 1; $slotNo <= 3; $slotNo++)
-                                            <option value="{{ $slotNo }}" @selected((int) ($selectedSlotBySkill[$art->id] ?? 0) === $slotNo)>Slot {{ $slotNo }}</option>
-                                        @endfor
-                                    </select>
-                                </form>
+                                @foreach(['normal' => '通常', 'boss' => 'ボス'] as $slotContext => $shortLabel)
+                                    @php
+                                        $selectedSlotForContext = (int) (($selectedSlotBySkillByContext[$slotContext][$art->id] ?? 0) ?: 0);
+                                    @endphp
+                                    @if($selectedSlotForContext)
+                                        <div class="text-[10px] font-black {{ $slotContext === 'boss' ? 'text-indigo-600' : 'text-emerald-600' }}">{{ $shortLabel }} Slot{{ $selectedSlotForContext }} セット中</div>
+                                    @endif
+                                @endforeach
                             </div>
                         </div>
                         <div class="mt-2 flex flex-wrap gap-1 text-[10px] font-black">
@@ -285,13 +295,10 @@
             const root = document.querySelector('[data-job-art-root]');
             if (!root) return;
 
-            const csrfToken = @js(csrf_token());
-            const assignUrl = @js(route('job-arts.assign'));
             const activeClasses = ['border-amber-400', 'bg-amber-50', 'text-amber-700'];
             const inactiveClasses = ['border-slate-200', 'bg-white', 'text-slate-500'];
             const countEl = root.querySelector('[data-job-art-visible-count]');
             const emptyEl = root.querySelector('[data-job-art-empty]');
-            const totalCostEl = root.querySelector('[data-job-art-total-cost]');
             let currentFilter = @js($filter);
 
             const setChipState = (filter) => {
@@ -316,69 +323,8 @@
                 setChipState(currentFilter);
             };
 
-            const updateSlotSelections = (selectedSlotBySkill) => {
-                const selectedSkillBySlot = {};
-                Object.entries(selectedSlotBySkill || {}).forEach(([skillId, slotNo]) => {
-                    if (slotNo) {
-                        selectedSkillBySlot[String(slotNo)] = String(skillId);
-                    }
-                });
-
-                root.querySelectorAll('[data-job-art-main-slot-select]').forEach((select) => {
-                    const skillId = selectedSkillBySlot[String(select.dataset.slotNo)] || '';
-                    select.value = skillId;
-                });
-
-                root.querySelectorAll('[data-job-art-slot-select]').forEach((select) => {
-                    const slot = selectedSlotBySkill[select.dataset.skillId] || '';
-                    select.value = slot === '' ? '' : String(slot);
-                    select.dataset.previousSlot = slot === '' ? '' : String(slot);
-                });
-            };
-
             root.querySelectorAll('[data-job-art-filter]').forEach((button) => {
                 button.addEventListener('click', () => applyFilter(button.dataset.jobArtFilter));
-            });
-
-            root.querySelectorAll('[data-job-art-slot-select]').forEach((select) => {
-                select.addEventListener('change', async () => {
-                    const previous = select.dataset.previousSlot || '';
-                    select.disabled = true;
-
-                    try {
-                        const formData = new FormData();
-                        formData.append('skill_id', select.dataset.skillId);
-                        if (select.value) {
-                            formData.append('slot_no', select.value);
-                        }
-                        formData.append('filter', currentFilter);
-
-                        const response = await fetch(assignUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken,
-                                'X-Requested-With': 'XMLHttpRequest',
-                            },
-                            body: formData,
-                        });
-                        const payload = await response.json().catch(() => ({}));
-
-                        if (!response.ok) {
-                            throw new Error(payload.message || '奥義スロットを更新できませんでした。');
-                        }
-
-                        if (totalCostEl && typeof payload.total_cost !== 'undefined') {
-                            totalCostEl.textContent = payload.total_cost;
-                        }
-                        updateSlotSelections(payload.selected_slot_by_skill || {});
-                    } catch (error) {
-                        select.value = previous;
-                        alert(error.message || '奥義スロットを更新できませんでした。');
-                    } finally {
-                        select.disabled = false;
-                    }
-                });
             });
 
             applyFilter(currentFilter);

@@ -314,37 +314,27 @@
             align-items: center;
             justify-content: center;
             border-radius: var(--profile-avatar-radius, 24px);
-            background:
-                radial-gradient(circle at 50% 50%, rgba(255,255,255,.95) 0 42%, transparent 43%),
-                conic-gradient(from 45deg, var(--profile-main, #d4af37), #fff, var(--profile-main-soft, #fef3c7), var(--profile-main, #d4af37));
-            border: 3px solid var(--profile-main, #d4af37);
-            box-shadow: 0 12px 26px rgba(15, 23, 42, .16), inset 0 0 0 4px rgba(255, 255, 255, .78);
+            background: rgba(255, 255, 255, .72);
+            border: 2px solid var(--profile-inner-border, rgba(226, 232, 240, .82));
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.74), 0 12px 26px rgba(15, 23, 42, .14);
         }
         .profile-avatar-frame::before,
         .profile-avatar-frame::after {
             content: "";
             position: absolute;
-            width: 16px;
-            height: 16px;
-            border-color: var(--profile-main, #d4af37);
-            opacity: .88;
-        }
-        .profile-avatar-frame::before {
-            left: -5px;
-            top: -5px;
-            border-left: 2px solid;
-            border-top: 2px solid;
-            border-top-left-radius: 8px;
-        }
-        .profile-avatar-frame::after {
-            right: -5px;
-            bottom: -5px;
-            border-right: 2px solid;
-            border-bottom: 2px solid;
-            border-bottom-right-radius: 8px;
+            inset: 9px;
+            border-radius: inherit;
+            border: 1px solid color-mix(in srgb, var(--profile-main, #d4af37) 52%, transparent);
+            opacity: .72;
         }
         .profile-avatar-frame img {
             filter: drop-shadow(0 5px 8px rgba(15, 23, 42, .18));
+        }
+        .profile-avatar-icon {
+            position: relative;
+            z-index: 1;
+            max-width: 74%;
+            max-height: 74%;
         }
         .profile-name {
             color: var(--profile-main-dark, #1e293b);
@@ -365,16 +355,329 @@
             background: rgba(255, 255, 255, .76) !important;
             border-radius: var(--profile-panel-radius, 12px) !important;
         }
+        .adventurer-card-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            z-index: 9999;
+            width: min(92vw, 430px);
+            max-height: 92dvh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            transform: translate(-50%, -50%);
+            border-radius: 22px;
+            background: linear-gradient(180deg, #fffdf7 0%, #fffaf0 100%);
+            border: 1px solid rgba(199, 157, 64, .52);
+            box-shadow: 0 24px 54px rgba(15, 23, 42, .34), inset 0 0 0 1px rgba(255, 255, 255, .78);
+            color: #2f2415;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(180, 133, 38, .62) rgba(255, 248, 232, .72);
+        }
+        .adventurer-card-inner {
+            position: relative;
+            padding: 22px 12px 18px;
+        }
+        .adventurer-card-hero {
+            position: relative;
+            overflow: visible;
+            min-height: 365px;
+            border-radius: 16px;
+            border: 0;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.10)),
+                var(--adventurer-card-bg, url('{{ asset('images/profile/adventurer_card_bg01.webp') }}')) center / cover no-repeat,
+                linear-gradient(135deg, #eef7ff 0%, #f8faf0 56%, #fef3c7 100%);
+            box-shadow: 0 8px 18px rgba(92, 64, 17, .12);
+        }
+        .adventurer-card-hero::before {
+            content: "";
+            position: absolute;
+            inset: 9px;
+            z-index: 1;
+            border-radius: 12px;
+            background: linear-gradient(90deg, rgba(255,255,255,.74) 0%, rgba(255,255,255,.52) 42%, rgba(255,255,255,.20) 100%);
+            pointer-events: none;
+        }
+        .adventurer-card-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            background: var(--adventurer-card-frame, url('{{ asset('images/profile/adventurer_card_frame01.webp') }}')) center / 124% 124% no-repeat;
+            pointer-events: none;
+        }
+        .adventurer-card-avatar {
+            position: absolute;
+            left: 42px;
+            top: 106px;
+            z-index: 2;
+            display: grid;
+            width: 100px;
+            height: 100px;
+            place-items: center;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(255,255,255,.92), rgba(255,246,218,.68));
+            box-shadow: 0 12px 22px rgba(88, 58, 10, .16);
+        }
+        .adventurer-card-avatar::after {
+            content: "";
+            position: absolute;
+            inset: -22px;
+            z-index: 2;
+            background: var(--adventurer-avatar-frame, url('{{ asset('images/profile/adventurer_avatar_frame01.webp') }}')) center / contain no-repeat;
+            pointer-events: none;
+        }
+        .adventurer-card-avatar img {
+            position: relative;
+            z-index: 1;
+            max-width: 68%;
+            max-height: 68%;
+            object-fit: contain;
+            filter: drop-shadow(0 6px 8px rgba(15, 23, 42, .24));
+        }
+        .adventurer-card-title {
+            position: relative;
+            z-index: 2;
+            padding: 36px 48px 0;
+            min-height: 156px;
+            text-align: center;
+        }
+        .adventurer-card-title h3 {
+            color: #6b3f08;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.08;
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
+            word-break: keep-all;
+            text-shadow: 0 2px 0 rgba(255,255,255,.72);
+        }
+        .adventurer-card-title p {
+            margin-top: 8px;
+            color: #475569;
+            font-size: 16px;
+            font-weight: 900;
+        }
+        .adventurer-card-power-pill {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+            margin-top: 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(180, 128, 29, .38);
+            background: rgba(255,255,255,.78);
+            padding: 4px 10px;
+            color: #6b3f08;
+            font-size: 12px;
+            font-weight: 900;
+            box-shadow: 0 4px 10px rgba(92, 64, 17, .08);
+        }
+        .adventurer-card-vitals {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            gap: 7px;
+            margin: 0 36px 0 164px;
+        }
+        .adventurer-card-vital-row {
+            display: grid;
+            grid-template-columns: 2.1rem 1fr auto;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 900;
+        }
+        .adventurer-card-vital-bar {
+            height: 7px;
+            overflow: hidden;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, .28);
+            background: rgba(226, 232, 240, .78);
+            box-shadow: inset 0 1px 2px rgba(15,23,42,.12);
+        }
+        .adventurer-card-vital-fill {
+            height: 100%;
+            border-radius: inherit;
+        }
+        .adventurer-card-badges {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+            padding: 22px 54px 28px;
+        }
+        .adventurer-card-badge {
+            min-height: 64px;
+            border-radius: 10px;
+            border: 1px solid rgba(201, 153, 50, .28);
+            background: rgba(255,255,255,.76);
+            box-shadow: 0 5px 12px rgba(92, 64, 17, .08);
+        }
+        .adventurer-card-badge-icon {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 3px rgba(15,23,42,.18));
+        }
+        .adventurer-card-medals {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            padding: 18px 72px 20px;
+            text-align: center;
+        }
+        .adventurer-card-medal-icon {
+            display: grid;
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 6px;
+            place-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(201, 153, 50, .44);
+            background: rgba(255,255,255,.78);
+            box-shadow: 0 5px 12px rgba(92, 64, 17, .10);
+        }
+        .adventurer-card-section {
+            margin-top: 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(201, 153, 50, .32);
+            background: rgba(255, 255, 255, .74);
+            box-shadow: 0 6px 16px rgba(92, 64, 17, .08);
+        }
+        .valmon-badge-case {
+            margin-top: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(191, 146, 55, .36);
+            background: linear-gradient(180deg, rgba(255, 253, 247, .92), rgba(255, 247, 225, .84));
+            box-shadow: 0 8px 18px rgba(92, 64, 17, .10);
+            padding: 7px;
+        }
+        .valmon-badge-case-tray {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(43, 37, 31, .62);
+            background:
+                var(--valmon-case-bg, url('{{ asset('images/profile/valmon_case01.webp') }}')) center / cover no-repeat,
+                linear-gradient(135deg, #1d211d 0%, #101412 100%);
+            box-shadow: inset 0 3px 12px rgba(0,0,0,.46), inset 0 0 0 1px rgba(255,255,255,.10);
+            padding: 10px;
+        }
+        .valmon-badge-slot {
+            position: relative;
+            display: grid;
+            aspect-ratio: 1;
+            place-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(220, 184, 102, .64);
+            background: radial-gradient(circle at 50% 36%, #fff3c8 0 27%, #c89535 62%, #6f4b13 100%);
+            box-shadow: 0 2px 5px rgba(0,0,0,.24), inset 0 1px 1px rgba(255,255,255,.58), inset 0 -3px 6px rgba(82, 47, 8, .36);
+            transform: scale(.93);
+        }
+        .valmon-badge-slot.is-empty {
+            border-color: rgba(148, 163, 184, .46);
+            background: radial-gradient(circle at 50% 38%, #404846 0 30%, #252c2a 72%, #111513 100%);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,.10), inset 0 -4px 7px rgba(0,0,0,.42), 0 2px 5px rgba(0,0,0,.20);
+        }
+        .valmon-badge-image {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,.26));
+        }
+        .valmon-badge-question {
+            color: rgba(255,255,255,.56);
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .valmon-badge-partner {
+            position: absolute;
+            right: -3px;
+            top: -4px;
+            display: grid;
+            width: 15px;
+            height: 15px;
+            place-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.86);
+            background: #16a34a;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 900;
+            line-height: 1;
+            box-shadow: 0 2px 5px rgba(0,0,0,.22);
+        }
+        @media (max-width: 420px) {
+            .adventurer-card-modal {
+                width: 94vw;
+                border-radius: 20px;
+            }
+            .adventurer-card-inner {
+                padding: 20px 10px 14px;
+            }
+            .adventurer-card-hero {
+                min-height: 360px;
+            }
+            .adventurer-card-hero::after {
+                background-size: 126% 126%;
+            }
+            .adventurer-card-avatar {
+                left: 32px;
+                top: 106px;
+                width: 88px;
+                height: 88px;
+            }
+            .adventurer-card-avatar::after {
+                inset: -19px;
+            }
+            .adventurer-card-title {
+                padding: 34px 40px 0;
+                min-height: 150px;
+            }
+            .adventurer-card-title h3 {
+                font-size: 23px;
+            }
+            .adventurer-card-title p {
+                font-size: 14px;
+            }
+            .adventurer-card-vitals {
+                margin-left: 134px;
+                margin-right: 28px;
+            }
+            .adventurer-card-badges {
+                gap: 5px;
+                padding: 22px 44px 24px;
+            }
+            .adventurer-card-badge {
+                min-height: 62px;
+            }
+            .adventurer-card-medals {
+                padding-inline: 64px;
+            }
+            .valmon-badge-case-tray {
+                gap: 5px;
+                padding: 8px;
+            }
+            .valmon-badge-question {
+                font-size: 12px;
+            }
+        }
     </style>
     @if(!empty($topPlayer))
-        <div class="relative left-1/2 z-40 mb-3 -mt-4 w-[100dvw] -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
-            {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [gold/輝石] [ベル] --}}
-            <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.75rem,1.35fr)_minmax(4rem,7rem)_auto_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_auto_auto] sm:gap-x-2 sm:px-4 lg:px-6"
+        <div class="relative left-1/2 z-40 mb-3 -mt-4 w-full -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
+            {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [探索力/ゴールド/輝石] [ベル] --}}
+            <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.75rem,1.35fr)_minmax(4rem,7rem)_minmax(4.8rem,auto)_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_minmax(5.8rem,auto)_auto] sm:gap-x-2 sm:px-4 lg:px-6"
                  style="row-gap:2px;">
 
                 {{-- アイコン (2行にまたがる) --}}
-                <div class="row-span-2 flex h-12 w-10 shrink-0 items-center justify-center sm:h-14 sm:w-11">
-                    <img src="{{ $topPlayer['icon'] }}" alt="{{ $topPlayer['name'] }}" class="h-full w-full object-contain">
+                <div class="row-span-2 flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
+                    <img src="{{ $topPlayer['icon'] }}" alt="{{ $topPlayer['name'] }}" class="h-full w-full object-contain drop-shadow-sm">
                 </div>
 
                 {{-- 名前/レベル/職/戦力 --}}
@@ -416,10 +719,72 @@
                     </div>
                 </div>
 
-                {{-- Gold (1行目) --}}
-                <div class="col-start-4 row-start-1 flex shrink-0 items-center justify-end gap-1 self-end pb-0.5">
-                    <img src="{{ asset('images/icon/gold01.webp') }}" alt="Gold" class="h-4 w-4 object-contain sm:h-4 sm:w-4">
-                    <span class="text-[11px] font-black tabular-nums text-slate-900 sm:text-xs">{{ number_format($topPlayer['gold']) }}<span class="ml-0.5 text-[9px] font-bold text-amber-600">G</span></span>
+                {{-- 探索力 / ゴールド / 輝石 --}}
+                <div class="col-start-4 row-span-2 row-start-1 flex min-w-0 flex-col items-end justify-center gap-0.5 text-[9px] font-black leading-none tabular-nums sm:text-[10px]">
+                    @if(!empty($topPlayer['exploration_stamina']))
+                        <div class="flex min-w-0 items-center justify-end gap-0.5 text-blue-900"
+                             title="探索力"
+                             x-data="{
+                                 current: {{ (int) $topPlayer['exploration_stamina']['current'] }},
+                                 max: {{ (int) $topPlayer['exploration_stamina']['max'] }},
+                                 recoverySeconds: {{ (int) ($topPlayer['exploration_stamina']['recovery_seconds'] ?? 60) }},
+                                 nextRecoverySeconds: {{ (int) ($topPlayer['exploration_stamina']['next_recovery_seconds'] ?? 0) }},
+                                 timer: null,
+                                 nextAt: null,
+                                 stopTimer() {
+                                     if (this.timer) {
+                                         clearInterval(this.timer);
+                                         this.timer = null;
+                                     }
+                                 },
+                                 startTimer() {
+                                     this.stopTimer();
+                                     if (this.current >= this.max) return;
+                                     if (this.nextRecoverySeconds <= 0) {
+                                         this.nextRecoverySeconds = this.recoverySeconds;
+                                     }
+                                     this.nextAt = Date.now() + (this.nextRecoverySeconds * 1000);
+                                     this.timer = setInterval(() => {
+                                         if (this.current >= this.max) {
+                                             this.stopTimer();
+                                             return;
+                                         }
+                                         const now = Date.now();
+                                         if (now >= this.nextAt) {
+                                             const gained = 1 + Math.floor((now - this.nextAt) / (this.recoverySeconds * 1000));
+                                             this.current = Math.min(this.max, this.current + gained);
+                                             this.nextAt += gained * this.recoverySeconds * 1000;
+                                         }
+                                     }, 1000);
+                                 },
+                                 init() {
+                                     this.startTimer();
+                                     this.$cleanup(() => this.stopTimer());
+                                 }
+                             }"
+                             @valzeria-stamina-sync.window="
+                                 current = Math.max(0, Number($event.detail.current || 0));
+                                 if ($event.detail.max !== null && $event.detail.max !== undefined) {
+                                     max = Math.max(0, Number($event.detail.max || 0));
+                                 }
+                                 if ($event.detail.recoverySeconds !== null && $event.detail.recoverySeconds !== undefined) {
+                                     recoverySeconds = Math.max(1, Number($event.detail.recoverySeconds || recoverySeconds));
+                                 }
+                                 nextRecoverySeconds = Math.max(0, Number($event.detail.nextRecoverySeconds || recoverySeconds));
+                                 startTimer();
+                             ">
+                            <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                            <span class="whitespace-nowrap"><span x-text="current.toLocaleString()">{{ number_format((int) $topPlayer['exploration_stamina']['current']) }}</span><span class="text-slate-400">/{{ number_format((int) $topPlayer['exploration_stamina']['max']) }}</span></span>
+                        </div>
+                    @endif
+                    <div class="flex min-w-0 items-center justify-end gap-0.5 text-slate-900" title="ゴールド">
+                        <img src="{{ asset('images/icon/icon_083.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                        <span class="whitespace-nowrap">{{ number_format($topPlayer['gold']) }}<span class="ml-0.5 text-[8px] font-bold text-amber-600 sm:text-[9px]">G</span></span>
+                    </div>
+                    <div class="flex min-w-0 items-center justify-end gap-0.5 text-slate-900" title="輝石">
+                        <img src="{{ asset('images/icon/icon_084.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                        <span class="whitespace-nowrap">{{ number_format($topPlayer['kiseki']) }}</span>
+                    </div>
                 </div>
 
                 {{-- ベル (2行にまたがる) --}}
@@ -454,25 +819,53 @@
                         </div>
                         <div class="max-h-80 overflow-y-auto">
                             @forelse($notifications as $notification)
-                                <button type="button"
-                                        wire:click="openNotification({{ $notification->id }})"
-                                        class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
-                                    <div class="flex items-start gap-2">
-                                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-200' : 'bg-rose-500' }}"></span>
-                                        <div class="min-w-0">
-                                            <div class="truncate text-xs font-black text-slate-900">{{ $notification->title }}</div>
-                                            @if($notification->body)
-                                                <div class="mt-0.5 line-clamp-2 text-[11px] font-bold leading-snug text-slate-600">{{ $notification->body }}</div>
-                                            @endif
-                                            <div class="mt-1 flex items-center justify-between gap-2">
-                                                <span class="text-[10px] font-bold text-slate-400">{{ $notification->created_at?->diffForHumans() }}</span>
-                                                @if(!empty($notification->action_label))
-                                                    <span class="shrink-0 text-[10px] font-black text-amber-700">{{ $notification->action_label }}</span>
+                                @php
+                                    $notificationUrl = (string) ($notification->url ?? '');
+                                    $isExternalNotificationUrl = $notificationUrl !== ''
+                                        && \Illuminate\Support\Str::startsWith($notificationUrl, ['http://', 'https://', '//']);
+                                @endphp
+                                @if($isExternalNotificationUrl)
+                                    <a href="{{ $notificationUrl }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       wire:click="markNotificationRead({{ $notification->id }})"
+                                       @click="notificationOpen = false"
+                                       class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
+                                        <div class="flex items-start gap-2">
+                                            <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-200' : 'bg-rose-500' }}"></span>
+                                            <div class="min-w-0">
+                                                <div class="truncate text-xs font-black text-slate-900">{{ $notification->title }}</div>
+                                                @if($notification->body)
+                                                    <div class="mt-0.5 line-clamp-2 text-[11px] font-bold leading-snug text-slate-600">{{ $notification->body }}</div>
                                                 @endif
+                                                <div class="mt-1 flex items-center justify-between gap-2">
+                                                    <span class="text-[10px] font-bold text-slate-400">{{ $notification->created_at?->diffForHumans() }}</span>
+                                                    <span class="shrink-0 text-[10px] font-black text-amber-700">{{ $notification->action_label ?: '新しいタブで開く' }}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </button>
+                                    </a>
+                                @else
+                                    <button type="button"
+                                            wire:click="openNotification({{ $notification->id }})"
+                                            class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
+                                        <div class="flex items-start gap-2">
+                                            <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-200' : 'bg-rose-500' }}"></span>
+                                            <div class="min-w-0">
+                                                <div class="truncate text-xs font-black text-slate-900">{{ $notification->title }}</div>
+                                                @if($notification->body)
+                                                    <div class="mt-0.5 line-clamp-2 text-[11px] font-bold leading-snug text-slate-600">{{ $notification->body }}</div>
+                                                @endif
+                                                <div class="mt-1 flex items-center justify-between gap-2">
+                                                    <span class="text-[10px] font-bold text-slate-400">{{ $notification->created_at?->diffForHumans() }}</span>
+                                                    @if(!empty($notification->action_label))
+                                                        <span class="shrink-0 text-[10px] font-black text-amber-700">{{ $notification->action_label }}</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                @endif
                             @empty
                                 <div class="px-3 py-5 text-center text-xs font-bold text-slate-500">通知はありません</div>
                             @endforelse
@@ -494,12 +887,6 @@
                     <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
                         <div class="h-full rounded-full bg-sky-500" style="width: {{ $topPlayer['sp_percent'] }}%"></div>
                     </div>
-                </div>
-
-                {{-- 輝石 (2行目) --}}
-                <div class="col-start-4 row-start-2 flex shrink-0 items-center justify-end gap-1 self-start pt-0.5">
-                    <img src="{{ asset('images/icon/kiseki01.webp') }}" alt="輝石" class="h-4 w-4 object-contain">
-                    <span class="text-[11px] font-black tabular-nums text-slate-900 sm:text-xs">{{ number_format($topPlayer['kiseki']) }}<span class="ml-0.5 text-[9px] font-bold text-amber-600">個</span></span>
                 </div>
 
             </div>
@@ -582,126 +969,110 @@
     <!-- キャラ詳細モーダル -->
     <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
-        <div class="profile-frame-modal p-5 text-gray-800"
-             :class="`profile-frame-${playerInfo && playerInfo.profile_frame_theme ? playerInfo.profile_frame_theme : 'standard'}`">
-            <!-- 閉じるボタン -->
-            <button wire:click="closePlayerModal" class="profile-close-button hover:opacity-80">
-                <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-
+        <div class="adventurer-card-modal">
             <template x-if="playerInfo">
-                <div>
-                    <!-- 基本情報 -->
-                    <div class="profile-hero flex items-center gap-4">
-                        <div class="profile-avatar-frame">
+                <div class="adventurer-card-inner">
+                    <div class="adventurer-card-hero"
+                         :style="{
+                             '--adventurer-card-bg': `url('${playerInfo.adventurer_card_background}')`,
+                             '--adventurer-card-frame': `url('${playerInfo.adventurer_card_frame}')`,
+                             '--adventurer-avatar-frame': `url('${playerInfo.adventurer_avatar_frame}')`
+                         }">
+                        <div class="adventurer-card-avatar">
                             <template x-if="playerInfo.icon">
-                                <img :src="playerInfo.icon" alt="アバター" class="h-[84%] w-[84%] object-contain">
+                                <img :src="playerInfo.icon" alt="アバター">
                             </template>
                             <template x-if="!playerInfo.icon">
-                                <div class="flex h-[84%] w-[84%] items-center justify-center rounded-xl bg-white/70 text-2xl font-bold text-gray-400">?</div>
+                                <div class="flex aspect-square items-center justify-center rounded-xl bg-white/70 text-2xl font-bold text-gray-400">?</div>
                             </template>
                         </div>
-                        <div class="min-w-0">
-                            <div class="profile-accent-text mb-1 text-[10px] font-black tracking-[.18em]">ADVENTURER PROFILE</div>
-                            <h3 class="profile-name truncate text-xl font-black leading-tight" x-text="playerInfo.name"></h3>
-                            <p class="mt-1 text-sm font-bold text-gray-600">Lv.<span x-text="playerInfo.level"></span> / <span x-text="playerInfo.job"></span></p>
+                        <div class="adventurer-card-title">
+                            <h3 x-text="playerInfo.name"></h3>
+                            <p>Lv.<span x-text="playerInfo.level"></span> / <span x-text="playerInfo.job"></span></p>
+                            <div class="adventurer-card-power-pill">
+                                <span>戦力</span>
+                                <span class="text-base leading-none" x-text="Number(playerInfo.power || 0).toLocaleString()"></span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="mb-3 grid grid-cols-[1fr_1.35fr] gap-2 text-xs font-bold">
-                        <div class="profile-mini-card rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                            <div class="text-gray-500">所属</div>
-                            <div class="mt-0.5 text-[#1e293b]" x-text="playerInfo.guild"></div>
+                        <div class="adventurer-card-vitals">
+                            <div class="adventurer-card-vital-row">
+                                <span class="text-emerald-600">HP</span>
+                                <div class="adventurer-card-vital-bar">
+                                    <div class="adventurer-card-vital-fill bg-emerald-500" :style="`width: ${Math.max(0, Math.min(100, playerInfo.hp_percent || 0))}%`"></div>
+                                </div>
+                                <span class="text-slate-700"><span x-text="playerInfo.hp"></span>/<span x-text="playerInfo.max_hp"></span></span>
+                            </div>
+                            <div class="adventurer-card-vital-row">
+                                <span class="text-blue-600">SP</span>
+                                <div class="adventurer-card-vital-bar">
+                                    <div class="adventurer-card-vital-fill bg-blue-500" :style="`width: ${Math.max(0, Math.min(100, playerInfo.sp_percent || 0))}%`"></div>
+                                </div>
+                                <span class="text-slate-700"><span x-text="playerInfo.sp"></span>/<span x-text="playerInfo.max_sp"></span></span>
+                            </div>
                         </div>
-                        <div class="profile-rank-card rounded-md border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-3 py-2 shadow-sm">
-                            <div class="profile-accent-text text-[11px] font-black text-amber-700">闘技場順位</div>
-                            <div class="mt-1 flex items-center gap-2">
+
+                        <div class="adventurer-card-badges">
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                                <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="adventurer-card-badge-icon">
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-black text-[#8a5a0d]">所属</div>
+                                    <div class="mt-0.5 truncate text-sm font-black leading-tight text-slate-800" x-text="playerInfo.guild"></div>
+                                </div>
+                            </div>
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
                                 <template x-if="playerInfo.arena_rank_trophy">
-                                    <img :src="playerInfo.arena_rank_trophy" alt="" class="h-8 w-8 shrink-0 object-contain drop-shadow-sm">
+                                    <img :src="playerInfo.arena_rank_trophy" alt="" class="adventurer-card-badge-icon">
                                 </template>
-                                <div class="text-2xl font-black leading-none text-[#1e293b]" x-text="playerInfo.arena_rank"></div>
+                                <template x-if="!playerInfo.arena_rank_trophy">
+                                    <img src="{{ asset('images/icon/icon_002.webp') }}" alt="" class="adventurer-card-badge-icon">
+                                </template>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-black text-[#8a5a0d]">闘技場順位</div>
+                                    <div class="mt-0.5 truncate text-base font-black leading-tight text-slate-800" x-text="playerInfo.arena_rank"></div>
+                                </div>
+                            </div>
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                                <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="adventurer-card-badge-icon">
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-black text-[#8a5a0d]">冒険回数</div>
+                                    <div class="mt-0.5 truncate text-base font-black leading-tight text-slate-800">
+                                        <span x-text="playerInfo.card_records.battles.value"></span><span class="text-[11px] text-orange-700" x-text="playerInfo.card_records.battles.unit"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                                <img src="{{ asset('images/icon/icon_052.webp') }}" alt="" class="adventurer-card-badge-icon">
+                                <div class="min-w-0">
+                                    <div class="text-[10px] font-black text-[#8a5a0d]">冒険日数</div>
+                                    <div class="mt-0.5 truncate text-base font-black leading-tight text-slate-800">
+                                        <span x-text="playerInfo.card_records.days.value"></span><span class="text-[11px] text-orange-700" x-text="playerInfo.card_records.days.unit"></span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- HP/SPバー -->
-                    <div class="profile-section-panel mb-3 space-y-2 rounded-md border border-slate-100 px-3 py-2 shadow-sm">
-                        <div>
-                            <div class="flex justify-between text-sm font-bold mb-1">
-                                <span class="text-emerald-600 flex items-center gap-1"><img src="{{ asset('images/icon/icon_039.webp') }}" alt="" class="w-4 h-4 object-contain"> HP</span>
-                                <span class="text-[#1e293b]"><span x-text="playerInfo.hp"></span> / <span x-text="playerInfo.max_hp"></span></span>
-                            </div>
-                            <div class="w-full overflow-hidden bg-gray-200 h-2.5 rounded-full border border-gray-300 shadow-inner">
-                                <div class="bg-emerald-500 h-full rounded-full" :style="`width: ${Math.max(0, Math.min(100, playerInfo.hp_percent || 0))}%`"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-sm font-bold mb-1">
-                                <span class="text-blue-600 flex items-center gap-1"><img src="{{ asset('images/icon/icon_040.webp') }}" alt="" class="w-4 h-4 object-contain"> SP</span>
-                                <span class="text-[#1e293b]"><span x-text="playerInfo.sp"></span> / <span x-text="playerInfo.max_sp"></span></span>
-                            </div>
-                            <div class="w-full overflow-hidden bg-gray-200 h-2.5 rounded-full border border-gray-300 shadow-inner">
-                                <div class="bg-blue-500 h-full rounded-full" :style="`width: ${Math.max(0, Math.min(100, playerInfo.sp_percent || 0))}%`"></div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- 冒険の記録 -->
-                    <div class="profile-accent-border mb-3 rounded-md border border-amber-100 bg-white/70 px-3 py-2 shadow-sm">
-                        <div class="mb-1.5 flex items-center justify-between">
-                            <div class="profile-accent-text text-xs font-black tracking-widest text-amber-700">冒険の記録</div>
-                            <div class="text-[11px] font-bold text-slate-400">積み上げ</div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5">
+                    <div class="adventurer-card-section px-4 py-3">
+                        <div class="mb-2 text-lg font-black text-[#6b3f08]">冒険の記録</div>
+                        <div class="grid grid-cols-2 gap-2">
                             <template x-for="record in playerInfo.adventure_records" :key="record.label">
-                                <div class="flex min-h-7 items-center justify-between gap-1.5 rounded border border-white/80 bg-white px-2 py-1 shadow-sm">
-                                    <div class="min-w-0 truncate text-[10px] font-bold text-slate-500 sm:text-[11px]" x-text="record.label"></div>
+                                <div class="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
+                                    <div class="min-w-0 truncate text-xs font-bold text-slate-500" x-text="record.label"></div>
                                     <div class="flex shrink-0 items-baseline gap-0.5">
-                                        <span class="text-[13px] font-black leading-none text-[#1e293b] sm:text-sm" x-text="record.value"></span>
-                                        <span class="text-[10px] font-black text-amber-700 sm:text-[11px]" x-text="record.unit"></span>
+                                        <span class="text-base font-black leading-none text-slate-800" x-text="record.value"></span>
+                                        <span class="text-xs font-black text-orange-700" x-text="record.unit"></span>
                                     </div>
                                 </div>
                             </template>
-                        </div>
-                    </div>
-
-                    <!-- ヴァルモン牧場 -->
-                    <div class="profile-section-panel mb-3 overflow-hidden rounded-md border border-sky-100 bg-sky-50/50 shadow-sm">
-                        <div class="relative w-full overflow-hidden" style="aspect-ratio: 16/9;">
-                            <div class="absolute inset-0 bg-cover bg-center" :style="`background-image: url('${playerInfo.ranch_background}')`"></div>
-                            <div class="absolute left-2 top-2 z-[60] rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-black text-white shadow">
-                                ヴァルモン牧場
-                            </div>
-                            <template x-if="playerInfo.valmons && playerInfo.valmons.length > 0">
-                                <template x-for="valmon in playerInfo.valmons" :key="valmon.name + valmon.level">
-                                    <div class="absolute" :style="valmon.style">
-                                        <div class="relative" :class="valmon.is_partner ? 'animate-bounce' : ''" style="animation-duration:2.2s;">
-                                            <template x-if="valmon.image">
-                                                <img :src="valmon.image" :alt="valmon.name" class="h-auto w-full object-contain drop-shadow-lg">
-                                            </template>
-                                            <template x-if="!valmon.image">
-                                                <div class="flex aspect-square items-center justify-center rounded-full bg-white/80 shadow"><img src="{{ asset('images/icon/icon_037.webp') }}" alt="" class="w-6 h-6 object-contain"></div>
-                                            </template>
-                                            <template x-if="valmon.is_partner">
-                                                <div class="absolute whitespace-nowrap rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow"
-                                                     style="top:-16px;left:50%;transform:translateX(-50%);">★ 相棒</div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </template>
-                            </template>
-                            <template x-if="!playerInfo.valmons || playerInfo.valmons.length === 0">
-                                <div class="absolute inset-0 z-20 flex items-center justify-center text-sm font-bold text-white drop-shadow">
-                                    ヴァルモンはまだいません
-                                </div>
-                            </template>
-                            <div class="absolute inset-x-0 bottom-0 h-[18%] pointer-events-none"
-                                 style="background:linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%);"></div>
                         </div>
                     </div>
 
                     <!-- ステータス -->
-                    <div class="profile-section-panel mb-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-slate-100 px-3 py-2 text-sm shadow-sm">
+                    <div class="adventurer-card-section grid grid-cols-2 gap-x-5 gap-y-2 px-4 py-3 text-base">
+                        <div class="col-span-2 text-lg font-black text-[#6b3f08]">主なステータス</div>
                         <div class="flex justify-between items-center gap-2">
                             <span class="flex items-center gap-1 text-gray-500">
                                 <img src="{{ asset('images/icon/icon_str.webp') }}" class="h-3.5 w-3.5 object-contain" alt="攻撃">
@@ -764,45 +1135,91 @@
                         </div>
                     </div>
 
-                    <!-- 装備 -->
-                    <div class="profile-section-panel space-y-1.5 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
-                        <div class="text-xs text-gray-500 mb-1">✦ 現在の装備</div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 border border-gray-300 bg-white flex items-center justify-center text-gray-600 font-bold shadow-sm text-xs">武</div>
-                            <template x-if="playerInfo.equipment.weapon.rank">
-                                <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
-                                      :style="`background-color: ${playerInfo.equipment.weapon.rank_color}`"
-                                      x-text="playerInfo.equipment.weapon.rank"></span>
-                            </template>
-                            <span class="min-w-0 truncate text-[#1e293b] font-medium" x-text="playerInfo.equipment.weapon.name"></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 border border-gray-300 bg-white flex items-center justify-center text-gray-600 font-bold shadow-sm text-xs">盾</div>
-                            <template x-if="playerInfo.equipment.armor.rank">
-                                <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
-                                      :style="`background-color: ${playerInfo.equipment.armor.rank_color}`"
-                                      x-text="playerInfo.equipment.armor.rank"></span>
-                            </template>
-                            <span class="min-w-0 truncate text-[#1e293b] font-medium" x-text="playerInfo.equipment.armor.name"></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 border border-gray-300 bg-white flex items-center justify-center text-gray-600 font-bold shadow-sm text-xs">飾</div>
-                            <template x-if="playerInfo.equipment.accessory.rank">
-                                <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
-                                      :style="`background-color: ${playerInfo.equipment.accessory.rank_color}`"
-                                      x-text="playerInfo.equipment.accessory.rank"></span>
-                            </template>
-                            <span class="min-w-0 truncate text-[#1e293b] font-medium" x-text="playerInfo.equipment.accessory.name"></span>
+                    <!-- 現在の装備 -->
+                    <div class="adventurer-card-section px-4 py-3">
+                        <div class="mb-2 text-lg font-black text-[#6b3f08]">現在の装備</div>
+                        <div class="space-y-1.5 text-sm">
+                            <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
+                                <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-amber-200 bg-amber-50 text-xs font-black text-[#8a5a0d]">武</div>
+                                <template x-if="playerInfo.equipment.weapon.rank">
+                                    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                          :style="`background-color: ${playerInfo.equipment.weapon.rank_color}`"
+                                          x-text="playerInfo.equipment.weapon.rank"></span>
+                                </template>
+                                <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.weapon.name"></span>
+                            </div>
+                            <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
+                                <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-sky-200 bg-sky-50 text-xs font-black text-sky-700">防</div>
+                                <template x-if="playerInfo.equipment.armor.rank">
+                                    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                          :style="`background-color: ${playerInfo.equipment.armor.rank_color}`"
+                                          x-text="playerInfo.equipment.armor.rank"></span>
+                                </template>
+                                <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.armor.name"></span>
+                            </div>
+                            <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
+                                <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-violet-200 bg-violet-50 text-xs font-black text-violet-700">飾</div>
+                                <template x-if="playerInfo.equipment.accessory.rank">
+                                    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                          :style="`background-color: ${playerInfo.equipment.accessory.rank_color}`"
+                                          x-text="playerInfo.equipment.accessory.rank"></span>
+                                </template>
+                                <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.accessory.name"></span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="profile-accent-border mt-4 rounded-xl border-2 border-[#d4af37] bg-white/90 px-3 py-3 text-sm leading-relaxed text-slate-800 min-h-24 whitespace-pre-line" x-text="playerInfo.profile_comment"></div>
+                    <div class="mt-3 text-center text-xs font-bold text-slate-400">
+                        ※ ステータスは装備・強化・成長により変動します
+                    </div>
+
+                    <!-- ヴァルモン -->
+                    <div class="valmon-badge-case"
+                         :style="{ '--valmon-case-bg': `url('${playerInfo.valmon_case}')` }">
+                        <div class="mb-2 flex items-center justify-between px-1">
+                            <div class="text-sm font-black text-[#6b3f08]">ヴァルモン</div>
+                            <div class="text-[11px] font-black text-slate-500">
+                                <span x-text="(playerInfo.valmon_badges || []).filter((badge) => badge.owned).length"></span>
+                                <span>/</span>
+                                <span x-text="(playerInfo.valmon_badges || []).length"></span>
+                            </div>
+                        </div>
+                        <div class="valmon-badge-case-tray">
+                            <template x-for="(badge, index) in playerInfo.valmon_badges" :key="badge.species + index">
+                                <div class="valmon-badge-slot"
+                                     :class="badge.owned ? '' : 'is-empty'"
+                                     :title="badge.owned ? `${badge.name} Lv${badge.level}` : '未発見'">
+                                    <template x-if="badge.owned && badge.image">
+                                        <img :src="badge.image" :alt="badge.name" class="valmon-badge-image">
+                                    </template>
+                                    <template x-if="!badge.owned || !badge.image">
+                                        <span class="valmon-badge-question">?</span>
+                                    </template>
+                                    <template x-if="badge.is_partner">
+                                        <span class="valmon-badge-partner">★</span>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="adventurer-card-section px-4 py-3">
+                        <div class="mb-2 flex items-center justify-between gap-2">
+                            <div class="text-sm font-black text-[#6b3f08]">一言コメント</div>
+                            <a x-show="playerInfo && playerInfo.is_self"
+                               href="{{ route('profile.edit') }}#profile_comment"
+                               class="shrink-0 rounded-md border border-[#d4af37]/60 bg-white/85 px-2 py-1 text-[11px] font-black text-[#8a5a0d] shadow-sm hover:bg-amber-50">
+                                編集
+                            </a>
+                        </div>
+                        <div class="text-sm leading-relaxed text-slate-800 whitespace-pre-line" x-text="playerInfo.profile_comment"></div>
+                    </div>
                 </div>
             </template>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+            <div class="px-5 pb-5 pt-1" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                 <a x-show="playerInfo && playerInfo.is_self"
-                   href="{{ route('profile.edit') }}"
+                   href="{{ route('profile.edit') }}#profile_comment"
                    class="bg-[#1e40af] hover:bg-[#1e3a8a] text-white rounded font-bold shadow flex items-center gap-1"
                    style="padding: 8px 16px; font-size: 12px;">
                     <img src="{{ asset('images/icon/icon_021.webp') }}" alt="" class="h-4 w-4 object-contain"> プロフ変更

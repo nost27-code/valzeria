@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterSubAreaRouteDiscovery;
 use App\Models\Enemy;
+use Illuminate\Support\Facades\Log;
 
 class SubAreaExplorationService
 {
@@ -25,6 +26,16 @@ class SubAreaExplorationService
         $sourceArea = $route?->sourceArea;
 
         if (!$route || !$subArea || !$sourceArea || !$subArea->is_enabled || !$route->is_enabled) {
+            Log::warning('[SubArea] 入口利用不可', [
+                'character_id' => $character->id,
+                'discovery_id' => $discovery->id,
+                'has_route'    => (bool) $route,
+                'has_sub_area' => (bool) $subArea,
+                'has_source'   => (bool) $sourceArea,
+                'route_enabled' => $route?->is_enabled,
+                'sub_area_enabled' => $subArea?->is_enabled,
+                'source_area_id' => $route?->source_area_id,
+            ]);
             return ['error' => 'この入口は現在利用できません。'];
         }
 
@@ -58,6 +69,13 @@ class SubAreaExplorationService
         $state = $this->stateService->getOrStart($character, $discovery);
         $enemy = $this->pickEnemy((int) $sourceArea->id);
         if (!$enemy) {
+            Log::warning('[SubArea] pickEnemy が null を返した（敵が存在しない）', [
+                'character_id'   => $character->id,
+                'discovery_id'   => $discovery->id,
+                'source_area_id' => $sourceArea->id,
+                'source_area'    => $sourceArea->name,
+                'sub_area'       => $subArea->name,
+            ]);
             return ['error' => 'この入口の先には、まだ敵が設定されていません。'];
         }
 
@@ -71,6 +89,7 @@ class SubAreaExplorationService
         $jobExpGained = 0;
         $levelUpCount = 0;
         $levelUpDetails = [];
+        $progression = null;
         $dropResults = [
             'materials' => [],
             'equipment' => [],
@@ -94,6 +113,7 @@ class SubAreaExplorationService
             $rewardResult = $this->levelService->addRewardAndCheckLevelUp($character, $expGained, $goldGained, $jobExpGained);
             $levelUpCount = $rewardResult['level_up_count'];
             $levelUpDetails = $rewardResult['details'];
+            $progression = $rewardResult['progression'] ?? null;
 
             $jobResult = $rewardResult['job_result'] ?? null;
             if ($jobResult) {
@@ -127,7 +147,6 @@ class SubAreaExplorationService
             $logText .= "<br><span class=\"text-red-700 font-bold\">【撤退】共有サブエリアの入口まで退きました。サブエリア探索は終了します。</span>";
         }
 
-        $character->battles += 1;
         $character->save();
 
         $battleLog = $this->battleLogService->addLog(
@@ -152,6 +171,7 @@ class SubAreaExplorationService
             'exp_gained' => $expGained,
             'gold_gained' => $goldGained,
             'job_exp_gained' => $jobExpGained,
+            'progression' => $progression,
             'enemy_stat_display' => $battleResult->enemyStatDisplay ?? [],
             'level_up_count' => $levelUpCount,
             'level_up_details' => $levelUpDetails,

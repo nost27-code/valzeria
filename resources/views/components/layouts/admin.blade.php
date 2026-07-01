@@ -47,6 +47,7 @@
                 'items' => [
                     ['route' => 'admin.dashboard', 'label' => '分析ダッシュボード', 'abbr' => 'A'],
                     ['route' => 'admin.world-metrics', 'label' => '世界指標', 'abbr' => 'W'],
+                    ['route' => 'admin.inn-analytics', 'label' => '宿屋売上分析', 'abbr' => 'IN'],
                     ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
                     ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
                     ['route' => 'admin.top-analytics', 'label' => 'TOPアクセス解析', 'abbr' => 'V'],

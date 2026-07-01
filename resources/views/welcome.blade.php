@@ -433,23 +433,23 @@
         });
     </script>
 
-    {{-- ⑧ 公式X --}}
+    {{-- ⑧ 更新情報 --}}
     <div style="background:#fafaf7;padding:44px 16px;">
         <div style="max-width:680px;margin:0 auto;">
-            <div class="sec-ttl">公式X</div>
+            <div class="sec-ttl">更新情報</div>
             <div style="background:#fff;border:1px solid #e7d98e;border-radius:12px;overflow:hidden;box-shadow:0 10px 28px rgba(15,23,42,.06);">
                 <a class="twitter-timeline"
                    data-height="520"
                    data-dnt="true"
                    data-chrome="noheader nofooter transparent"
                    href="https://x.com/valzeria_dev">
-                    公式X（@valzeria_dev）を見る
+                    更新情報（@valzeria_dev）を見る
                 </a>
             </div>
             <div style="margin-top:10px;text-align:right;">
                 <a href="https://x.com/valzeria_dev" target="_blank" rel="noopener noreferrer"
                    style="font-size:13px;color:#b45309;font-weight:900;text-decoration:underline;text-underline-offset:3px;">
-                    Xで開く
+                    Xで更新情報を見る
                 </a>
             </div>
         </div>

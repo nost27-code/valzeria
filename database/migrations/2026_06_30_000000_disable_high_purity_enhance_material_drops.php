@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     private const HIGH_PURITY_CODES = ['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'];
-    private const HIGH_PURITY_NAMES = ['高純度強化石', '高純度守護石', '高純度装飾強化石'];
+    private const HIGH_PURITY_NAMES = ['高純度強化石', '高純度守護石', '高純度装飾強化石', '高純度調律石'];
 
     public function up(): void
     {

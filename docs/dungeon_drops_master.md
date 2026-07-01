@@ -1378,7 +1378,7 @@
 | 知識の悪魔 | - | 大魔導の星布 | city_high | city_material | 12% | 0G |
 | 知識の悪魔 | - | 魔物の魔核 | N | common_drop | 8% | 40G |
 | 知識の悪魔 | - | ルミナス魔晶 | SR | weapon_city_high | 8% | 0G |
-| 知識の悪魔 | - | 高純度装飾強化石 | SR | accessory_evolution | 2% | 0G |
+| 知識の悪魔 | - | 高純度調律石 | SR | accessory_evolution | 2% | 0G |
 | 知識の悪魔 | - | 精霊の羽根 | SR | 換金専用 | 0.35% | 500G |
 | 図書館の番人 | - | 魔導結晶 | R | regional_drop | 12% | 50G |
 | 図書館の番人 | - | ルミナス魔晶 | SR | weapon_city_high | 8% | 0G |
@@ -1497,7 +1497,7 @@
 | 星見天文ゴーレム | - | 大魔導の星布 | city_high | city_material | 12% | 0G |
 | 星見天文ゴーレム | - | 魔鉱片 | N | common_drop | 8% | 30G |
 | 星見天文ゴーレム | - | ルミナス魔晶 | SR | weapon_city_high | 8% | 0G |
-| 星見天文ゴーレム | - | 高純度装飾強化石 | SR | accessory_evolution | 2% | 0G |
+| 星見天文ゴーレム | - | 高純度調律石 | SR | accessory_evolution | 2% | 0G |
 | 星見天文ゴーレム | - | 魔装の古代片 | SSR | branch_evolution | 1% | 0G |
 | 星見天文ゴーレム | - | 魔力の古代片 | SSR | branch_evolution | 1% | 0G |
 | 星見天文ゴーレム | - | 均衡の導石 | SR | branch_evolution | 1% | 0G |
@@ -1559,7 +1559,7 @@
 | 異界守護機 | - | 魔装の古代片 | SSR | branch_evolution | 3% | 0G |
 | 異界守護機 | - | 魔力の古代片 | SSR | branch_evolution | 3% | 0G |
 | 異界守護機 | - | 均衡の古代片 | SSR | branch_evolution | 3% | 0G |
-| 異界守護機 | - | 高純度装飾強化石 | SR | accessory_evolution | 3% | 0G |
+| 異界守護機 | - | 高純度調律石 | SR | accessory_evolution | 3% | 0G |
 | 異界守護機 | - | 均衡の導石 | SR | branch_evolution | 1% | 0G |
 | 異界守護機 | - | 重魔装の導石 | SR | branch_evolution | 1% | 0G |
 | 異界守護機 | - | 魔祈の導石 | SR | branch_evolution | 1% | 0G |
@@ -1606,7 +1606,7 @@
 | 次元回廊主 | - | 魔導結晶 | R | regional_drop | 12% | 50G |
 | 次元回廊主 | - | 大魔導の星布 | city_high | city_material | 8% | 0G |
 | 次元回廊主 | - | 高純度強化石 | T3 | enhance | 3% | 0G |
-| 次元回廊主 | - | 高純度装飾強化石 | SR | accessory_evolution | 3% | 0G |
+| 次元回廊主 | - | 高純度調律石 | SR | accessory_evolution | 3% | 0G |
 | 次元回廊主 | - | 均衡の導石 | SR | branch_evolution | 1% | 0G |
 | 次元回廊主 | - | 重魔装の導石 | SR | branch_evolution | 1% | 0G |
 | 次元回廊主 | - | 魔祈の導石 | SR | branch_evolution | 1% | 0G |
@@ -1662,7 +1662,7 @@
 | 呪城の主 | - | 深魔の黒布 | city_high | city_material | 8% | 0G |
 | 呪城の主 | - | 高純度強化石 | T3 | enhance | 4% | 0G |
 | 呪城の主 | - | 高純度守護石 | HIGH | enhance | 4% | 0G |
-| 呪城の主 | - | 高純度装飾強化石 | SR | accessory_evolution | 4% | 0G |
+| 呪城の主 | - | 高純度調律石 | SR | accessory_evolution | 4% | 0G |
 | 呪城の主 | - | 精霊の羽根 | SR | 換金専用 | 0.35% | 500G |
 ## 冥界門
 

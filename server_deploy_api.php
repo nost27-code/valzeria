@@ -71,6 +71,20 @@ if ($zip->open($zipPath) === true) {
         unlink($viteHotFile);
         echo "・Vite hot ファイルを削除しました。\n";
     }
+
+    // 内部ドキュメント（仕様書・更新ログ等）を本番から除去
+    $docsDir = $projectDir . '/docs';
+    if (is_dir($docsDir)) {
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($docsDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($it as $file) {
+            $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
+        }
+        rmdir($docsDir);
+        echo "・docs/ ディレクトリを削除しました。\n";
+    }
     
     // 【2】公開領域(public_html)にLaravelへ繋ぐ中継用 index.php を自動生成
     $indexCode = <<<PHP

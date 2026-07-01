@@ -73,15 +73,16 @@ class ExplorationStateService
             || (int) ($state->danger_rate ?? 0) > 0;
     }
 
-    public function recordVictory(Character $character, Enemy $enemy): array
+    public function recordVictory(Character $character, Enemy $enemy, int $valueMultiplier = 1): array
     {
         $state = $this->getOrStart($character, (int) $enemy->area_id);
         $beforePoint = (int) $state->exploration_point;
         $beforeChain = (int) $state->chain_count;
         $beforeDanger = (int) ($state->danger_rate ?? 0);
-        $addedPoint = $this->pointForEnemy($enemy);
+        $valueMultiplier = max(1, $valueMultiplier);
+        $addedPoint = $this->pointForEnemy($enemy) * $valueMultiplier;
         $afterPoint = $beforePoint + $addedPoint;
-        $dangerResult = $this->rollDangerIncrease($character, $enemy, $beforeDanger);
+        $dangerResult = $this->rollDangerIncreaseRepeated($character, $enemy, $beforeDanger, $valueMultiplier);
 
         $state->exploration_point = $afterPoint;
         $state->chain_count = $beforeChain + 1;
@@ -534,9 +535,9 @@ class ExplorationStateService
         }
 
         $foundCount = max(0, (int) ($state->secret_realm_found_count ?? 0));
-        $divisor = 2 ** min($foundCount, 10);
+        $divisor = 10 ** min($foundCount, 10);
 
-        return max(0.01, $baseRate / $divisor);
+        return $baseRate / $divisor;
     }
 
     public function markSecretRealmFound(Character $character, int $areaId): void
@@ -568,6 +569,35 @@ class ExplorationStateService
             'after' => $afterDanger,
             'increased' => $increased,
             'increase' => $increased ? $afterDanger - $beforeDanger : 0,
+            'chance' => $chance,
+            'amount' => $amount,
+            'label' => $this->dangerLabel($afterDanger),
+        ];
+    }
+
+    private function rollDangerIncreaseRepeated(Character $character, Enemy $enemy, int $beforeDanger, int $times): array
+    {
+        $times = max(1, $times);
+        $afterDanger = $beforeDanger;
+        $totalIncrease = 0;
+        $increased = false;
+        $chance = 10;
+        $amount = 5;
+
+        for ($i = 0; $i < $times; $i++) {
+            $roll = $this->rollDangerIncrease($character, $enemy, $afterDanger);
+            $afterDanger = (int) $roll['after'];
+            $totalIncrease += (int) $roll['increase'];
+            $increased = $increased || (bool) $roll['increased'];
+            $chance = (int) $roll['chance'];
+            $amount = (int) $roll['amount'];
+        }
+
+        return [
+            'before' => $beforeDanger,
+            'after' => $afterDanger,
+            'increased' => $increased,
+            'increase' => $totalIncrease,
             'chance' => $chance,
             'amount' => $amount,
             'label' => $this->dangerLabel($afterDanger),

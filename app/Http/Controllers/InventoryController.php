@@ -6,6 +6,8 @@ use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\CharacterMonsterMark;
 use App\Models\Character;
+use App\Services\AdventureSupportService;
+use App\Services\ExplorationStaminaService;
 use App\Services\GoldService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
-    public function index()
+    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -80,6 +82,11 @@ class InventoryController extends Controller
             'accessory' => $equipmentItems->filter(fn ($row) => $row->item?->type === 'accessory')->values(),
         ];
 
+        $supportItems = $this->recoveryConsumablesFor($character)
+            ->concat(collect($supportService->ownedConsumablesFor($character)))
+            ->values();
+        $staminaSummary = $staminaService->summary($character);
+
         $keyItems = $keyMaterials
             ->map(fn ($row) => [
                 'kind' => 'material',
@@ -104,24 +111,28 @@ class InventoryController extends Controller
             ->sortBy(fn ($entry) => $entry['name'])
             ->values();
 
-        $storageSummary = $this->buildStorageSummary($character, $materials, $marks, $equipmentGroups, $keyItems);
+        $storageSummary = $this->buildStorageSummary($character, $materials, $marks, $equipmentGroups, $keyItems, $supportItems);
 
         return view('inventory.index', compact(
             'character',
             'materials',
             'marks',
             'equipmentGroups',
+            'supportItems',
+            'staminaSummary',
             'keyItems',
             'storageSummary'
         ));
     }
 
-    private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems): array
+    private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems, Collection $supportItems): array
     {
         $weaponCount = $equipmentGroups['weapon']->count();
         $armorCount = $equipmentGroups['armor']->count();
         $accessoryCount = $equipmentGroups['accessory']->count();
         $keyItemCount = $keyItems->sum('quantity');
+        $supportItemCount = $supportItems->sum('quantity');
+        $ownedItemCount = $keyItemCount + $supportItemCount;
 
         $categories = [
             'material' => ['label' => '素材', 'count' => $materials->sum('quantity'), 'icon' => '💎', 'icon_image' => 'icon/icon_011.webp'],
@@ -131,18 +142,56 @@ class InventoryController extends Controller
         ];
 
         return [
-            'total' => collect($categories)->sum('count') + $keyItemCount,
+            'total' => collect($categories)->sum('count') + $ownedItemCount,
             'material_storage_total' => (int) ($categories['material']['count'] ?? 0),
             'material_storage_limit' => (int) ($character->material_storage_limit ?? 500),
             'material_storage_types' => $materials->count(),
             'equipment_storage_total' => $weaponCount + $armorCount + $accessoryCount,
             'equipment_storage_limit' => (int) ($character->equipment_storage_limit ?? 200),
-            'key_item_total' => $keyItemCount,
-            'key_item_types' => $keyItems->count(),
+            'key_item_total' => $ownedItemCount,
+            'key_item_types' => $supportItems->count() + $keyItems->count(),
+            'support_item_total' => $supportItemCount,
+            'support_item_types' => $supportItems->count(),
+            'boss_key_item_total' => $keyItemCount,
+            'boss_key_item_types' => $keyItems->count(),
             'mark_collection_total' => $marks->sum('quantity'),
             'mark_collection_types' => $marks->count(),
             'categories' => $categories,
         ];
+    }
+
+    private function recoveryConsumablesFor(Character $character): Collection
+    {
+        return CharacterItem::query()
+            ->selectRaw('item_id, COUNT(*) as quantity')
+            ->where('character_id', $character->id)
+            ->where('is_equipped', false)
+            ->whereHas('item', fn ($query) => $query
+                ->where('type', 'consumable')
+                ->whereIn('name', ['薬草', '回復薬', '魔力水']))
+            ->with('item')
+            ->groupBy('item_id')
+            ->get()
+            ->sortBy(fn (CharacterItem $row) => match ((string) ($row->item?->name ?? '')) {
+                '薬草' => 10,
+                '回復薬' => 20,
+                '魔力水' => 30,
+                default => 99,
+            })
+            ->map(fn (CharacterItem $row) => [
+                'key' => 'recovery_item_' . (int) $row->item_id,
+                'name' => (string) ($row->item?->name ?? '回復アイテム'),
+                'category' => '回復アイテム',
+                'description' => (string) ($row->item?->description ?? ''),
+                'icon_image' => null,
+                'effect_type' => 'exploration_recovery_item',
+                'effect_value' => 0,
+                'quantity' => (int) $row->quantity,
+                'can_use' => false,
+                'use_label' => '',
+                'use_note' => '探索中に使用できます。持ち込みは各10個までです。',
+            ])
+            ->values();
     }
 
     private function isKeyMaterial(?object $material): bool
@@ -292,5 +341,33 @@ class InventoryController extends Controller
         return redirect()
             ->route('inventory.index')
             ->with('status', "{$materialName}を{$discardQuantity}個捨てました。");
+    }
+
+    public function useSupportItem(Request $request, string $itemKey, AdventureSupportService $supportService, ExplorationStaminaService $staminaService)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'キャラクターが見つかりません。'], 404);
+            }
+
+            return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
+        }
+
+        $result = $supportService->useConsumable($character, $itemKey);
+        $character->refresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'stamina' => $staminaService->summary($character),
+                'support_items' => $supportService->ownedConsumablesFor($character),
+            ], $result['success'] ? 200 : 422);
+        }
+
+        return redirect()
+            ->route('inventory.index')
+            ->with($result['success'] ? 'status' : 'error', $result['message']);
     }
 }

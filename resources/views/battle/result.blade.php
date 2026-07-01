@@ -1,7 +1,7 @@
-<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitLabel="(isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null">
+<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitLabel="(isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null">
     <div class="py-1 flex flex-col items-center" data-battle-result-page>
         <div class="w-full mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white/88 shadow-md sm:rounded-lg overflow-hidden border border-slate-200 backdrop-blur-[2px]">
+            <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
                 <div class="p-6 text-slate-800">
                     @if(session('status'))
                         <div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg mb-4 shadow-sm font-bold">
@@ -29,8 +29,21 @@
                             $isHiddenGate = ($result['special_event'] ?? null) === 'hidden_area_gate';
                             $isSubAreaGate = ($result['special_event'] ?? null) === 'sub_area_gate';
                             $isSubAreaExplore = ($result['special_event'] ?? null) === 'sub_area_explore';
-                            $isDepthGate = ($result['special_event'] ?? null) === 'depth_gate';
+                            $batchDepthTransition = (($result['batch_explore']['stop_reason'] ?? null) === 'depth_transition')
+                                ? collect($result['exploration_progress']['depth_transitions'] ?? [])
+                                    ->first(fn ($tier) => is_array($tier) && in_array((string) ($tier['key'] ?? ''), ['inner', 'deep', 'deepest', 'otherworld'], true))
+                                : null;
+                            $batchDepthGate = is_array($batchDepthTransition)
+                                ? [
+                                    'key' => (string) ($batchDepthTransition['key'] ?? 'inner'),
+                                    'label' => (string) ($batchDepthTransition['label'] ?? '深部'),
+                                    'area_name' => $areaName ?? 'この場所',
+                                ]
+                                : null;
+                            $isDepthGate = ($result['special_event'] ?? null) === 'depth_gate' || $batchDepthGate !== null;
                             $isDepthRetreat = ($result['special_event'] ?? null) === 'depth_retreat';
+                            $isVictoryResult = in_array($result['result'] ?? null, ['victory', 'win'], true);
+                            $isDefeatResult = !isset($result['error']) && !in_array($result['result'] ?? null, ['victory', 'win', 'event'], true);
                             $enemyFrameClass = $isSecretRealmLord
                                 ? 'border-slate-800 shadow-xl shadow-amber-950/25'
                                 : ($isDungeonLord
@@ -102,7 +115,7 @@
                         {{-- ステータス・イベント表示 --}}
                         @if($isDepthGate)
                             @php
-                                $depthGate = $result['depth_gate'] ?? [];
+                                $depthGate = $result['depth_gate'] ?? $batchDepthGate ?? [];
                                 $depthKey = $depthGate['key'] ?? 'inner';
                                 $depthLabel = $depthGate['label'] ?? '深部';
                                 $depthAreaName = $depthGate['area_name'] ?? 'この場所';
@@ -141,6 +154,11 @@
                                             <p class="mt-4 rounded-lg border border-red-300/40 bg-red-950/45 px-3 py-2 text-sm font-black leading-7 text-red-100">
                                                 {{ $depthGate['risk_text'] ?? 'この先へ進むのは危険です。' }}
                                             </p>
+                                            @if(!empty($result['batch_explore']))
+                                                <p class="mt-3 rounded-lg border border-amber-200/50 bg-amber-400/15 px-3 py-2 text-sm font-black leading-7 text-amber-100">
+                                                    10回探索は入口で一時停止しています。まだ深度は切り替わっていません。下の「{{ $depthLabel }}へ進む」を選ぶと次の深度へ入り、引き返す・戦利品を持って帰る場合は現在の深度のままです。
+                                                </p>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -229,10 +247,13 @@
                                             <span class="h-1.5 w-1.5 rounded-full bg-violet-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;"></span>
                                         </div>
                                         <div class="srl-name mt-2 text-2xl font-black tracking-[0.2em] text-white drop-shadow-[0_2px_8px_rgba(139,92,246,0.6)]">
-                                            秘境主が現れた！
+                                            {{ $isVictoryResult ? '秘境主を撃破！' : ($isDefeatResult ? '秘境主に敗北...' : '秘境主が現れた！') }}
                                         </div>
                                         <div class="mt-2 text-xs font-bold text-slate-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;">
-                                            この秘境の番人に遭遇した
+                                            {{ $isVictoryResult ? 'この秘境の番人を打ち倒した' : ($isDefeatResult ? 'この秘境の番人に退けられた' : 'この秘境の番人に遭遇した') }}
+                                        </div>
+                                        <div class="mx-auto mt-4 inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-black shadow-lg {{ $isVictoryResult ? 'border-emerald-300/70 bg-emerald-400/20 text-emerald-100' : ($isDefeatResult ? 'border-rose-300/70 bg-rose-500/20 text-rose-100' : 'border-violet-300/60 bg-white/10 text-violet-100') }}">
+                                            {{ $isVictoryResult ? '戦闘結果: 勝利' : ($isDefeatResult ? '戦闘結果: 敗北' : '戦闘結果: 進行中') }}
                                         </div>
                                     </div>
                                 </div>
@@ -328,6 +349,26 @@
                             </div>
                         @endif
 
+                        @php
+                            $playerEncounters = collect();
+                            if (!empty($result['batch_explore']['runs'] ?? [])) {
+                                $playerEncounters = collect($result['batch_explore']['runs'])
+                                    ->map(function ($run) {
+                                        $encounter = $run['player_encounter'] ?? null;
+                                        if (!is_array($encounter) || empty($encounter['message'])) {
+                                            return null;
+                                        }
+
+                                        $encounter['run_index'] = (int) ($run['index'] ?? 0);
+
+                                        return $encounter;
+                                    })
+                                    ->filter()
+                                    ->values();
+                            } elseif (!empty($result['player_encounter']['message'] ?? null)) {
+                                $playerEncounters = collect([$result['player_encounter']]);
+                            }
+                        @endphp
                         @if(!empty($result['batch_explore']))
                             @php
                                 $batchExplore = $result['batch_explore'];
@@ -360,6 +401,45 @@
                                     <div class="mt-2 inline-flex items-center gap-1 rounded border border-sky-200 bg-white px-3 py-1 text-sm font-extrabold text-sky-700">
                                         <img src="{{ asset('images/icon/kiseki.webp') }}" alt="" class="h-4 w-4 object-contain">
                                         輝石 +{{ number_format((int) ($batchExplore['total_kiseki'] ?? 0)) }}
+                                    </div>
+                                @endif
+                                @if($playerEncounters->isNotEmpty())
+                                    <div class="mt-3 rounded-lg border border-sky-100 bg-white p-3">
+                                        <div class="mb-2 flex items-center gap-2 text-sm font-black text-sky-900">
+                                            <img src="{{ asset('images/icon/icon_083.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                            旅の出会い
+                                        </div>
+                                        <div class="grid gap-2">
+                                            @foreach($playerEncounters as $encounter)
+                                                @php
+                                                    $encounterIconUrl = $encounter['icon_url'] ?? asset('images/chara/chara_001.webp');
+                                                @endphp
+                                                <div class="flex items-center gap-3 rounded border border-sky-100 bg-sky-50/40 px-3 py-2">
+                                                    <div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded bg-white">
+                                                        @if(!empty($encounterIconUrl))
+                                                            <img src="{{ $encounterIconUrl }}" alt="{{ $encounter['name'] ?? '冒険者' }}" class="h-full w-full object-contain p-1">
+                                                        @else
+                                                            <div class="flex h-full w-full items-center justify-center text-xl font-black text-slate-300">?</div>
+                                                        @endif
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                            <span class="truncate text-sm font-black text-slate-900">{{ $encounter['name'] ?? '冒険者' }}</span>
+                                                            <span class="text-[11px] font-bold text-slate-500">Lv.{{ number_format((int) ($encounter['level'] ?? 1)) }} / {{ $encounter['job_name'] ?? '冒険者' }}</span>
+                                                        </div>
+                                                        <div class="mt-1 text-xs font-bold leading-5 text-cyan-800">
+                                                            {{ $encounter['message'] ?? '' }}
+                                                        </div>
+                                                        @if(!empty($encounter['gift']['name']))
+                                                            <div class="mt-2 inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700">
+                                                                <span>{{ $encounter['gift']['name'] }}</span>
+                                                                <span>x{{ number_format((int) ($encounter['gift']['quantity'] ?? 1)) }}</span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endif
                                 @if(!empty($batchExplore['monster_mark_drops'] ?? []))
@@ -533,7 +613,7 @@
                                                         <span class="mr-1 rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-emerald-700 border border-emerald-200">分岐</span>
                                                     @endif
                                                     {{ $materialDrop['name'] }}
-                                                    <span class="ml-2 rounded bg-green-50 px-1.5 py-0.5 text-xs text-green-700">+1</span>
+                                                    <span class="ml-2 rounded bg-green-50 px-1.5 py-0.5 text-xs text-green-700">+{{ number_format((int) ($materialDrop['quantity'] ?? 1)) }}</span>
                                                 </span>
                                             @endforeach
                                         </div>
@@ -691,97 +771,24 @@
                                     </div>
                                 @endif
 
-                                @if(isset($result['drop']) && $result['drop'])
+                                @if(!empty($result['equipment_drops']))
                                     <div class="mt-4 pt-4 border-t border-amber-200">
-                                        <h4 class="text-lg font-bold text-amber-700 mb-2 flex items-center gap-1"><img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-5 h-5 object-contain"> アイテム獲得！</h4>
-                                        @php
-                                            $dropRank = strtoupper((string) ($result['drop']['rank'] ?? ''));
-                                            $isRareDrop = in_array($result['drop']['rarity'], ['rare', 'epic', 'legend'], true)
-                                                || (($rankOrder[$dropRank] ?? -1) >= $rankOrder['A']);
-                                        @endphp
-                                        <div class="mb-2 pl-4 border-l-4 {{ $isRareDrop ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-100' : 'border-amber-400 bg-white' }} p-3 rounded shadow-sm">
-                                            @php
-                                                $rarityColor = match($result['drop']['rarity']) {
-                                                    'rare' => 'text-blue-600',
-                                                    'epic' => 'text-purple-600',
-                                                    'legend' => 'text-yellow-600',
-                                                    default => 'text-slate-600'
-                                                };
-                                                $rarityName = ucfirst($result['drop']['rarity']);
-                                            @endphp
-                                            @if($isRareDrop)
-                                                <div class="mb-2 inline-flex rounded bg-amber-600 px-2 py-0.5 text-[11px] font-extrabold text-white">
-                                                    レアドロップ
-                                                </div>
-                                            @endif
-                                            @if(!empty($result['drop']['has_affix']))
-                                                <div class="mb-2 ml-1 inline-flex rounded bg-indigo-600 px-2 py-0.5 text-[11px] font-extrabold text-white">
-                                                    {{ ($result['drop']['affix_quality'] ?? null) === 'excellent' ? '逸品装備' : (($result['drop']['affix_quality'] ?? null) === 'good' ? '良品装備' : '銘付き装備') }}
-                                                </div>
-                                            @endif
-                                            <p class="font-bold text-slate-800 text-base">
-                                                @if($result['drop']['rarity'] !== 'normal')
-                                                    <span class="{{ $rarityColor }} font-extrabold">[{{ $rarityName }}]</span>
-                                                @endif
-                                                {{ $result['drop']['item_name'] }} を手に入れた！
-                                            </p>
-                                            <p class="text-xs text-slate-600 font-bold mt-1">
-                                                @if($result['drop']['hp_bonus']) HP+{{ $result['drop']['hp_bonus'] }} @endif
-                                                @if($result['drop']['mp_bonus']) SP+{{ $result['drop']['mp_bonus'] }} @endif
-                                                @if($result['drop']['str_bonus']) 攻撃+{{ $result['drop']['str_bonus'] }} @endif
-                                                @if($result['drop']['def_bonus']) 防御+{{ $result['drop']['def_bonus'] }} @endif
-                                                @if($result['drop']['agi_bonus']) 敏捷+{{ $result['drop']['agi_bonus'] }} @endif
-                                                @if($result['drop']['mag_bonus']) 魔力+{{ $result['drop']['mag_bonus'] }} @endif
-                                                @if($result['drop']['spr_bonus']) 精神+{{ $result['drop']['spr_bonus'] }} @endif
-                                                @if($result['drop']['luk_bonus']) 運+{{ $result['drop']['luk_bonus'] }} @endif
-                                            </p>
-                                            @if(!empty($result['drop']['affix_effect_lines']))
-                                                <div class="mt-2 flex flex-wrap gap-1">
-                                                    @foreach($result['drop']['affix_effect_lines'] as $line)
-                                                        <span class="rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">{{ $line }}</span>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-
-                                            @php
-                                                $dropCharacterItem = !empty($result['drop']['character_item_id'])
-                                                    ? \App\Models\CharacterItem::with('item')->find($result['drop']['character_item_id'])
-                                                    : null;
-                                                $dropItem = $dropCharacterItem?->item;
-                                                $permissionService = app(\App\Services\EquipmentPermissionService::class);
-                                                $dropCategoryLabel = $dropItem ? $permissionService->categoryLabel($dropItem) : null;
-                                                $dropCanEquipByJob = !$dropItem || $permissionService->canEquip($character, $dropItem);
-                                                $dropRestrictionJobs = $dropCanEquipByJob ? [] : $permissionService->representativeJobNames($dropItem);
-                                            @endphp
-
-                                            @if($dropCategoryLabel || !$dropCanEquipByJob)
-                                                <div class="mt-2 text-xs font-bold">
-                                                    @if($dropCategoryLabel)
-                                                        <span class="inline-flex rounded bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5">カテゴリ：{{ $dropCategoryLabel }}</span>
-                                                    @endif
-                                                    @if(!$dropCanEquipByJob)
-                                                        <span class="inline-flex rounded bg-rose-50 text-rose-600 border border-rose-100 px-2 py-0.5 mt-1">
-                                                            現在の職業では装備できません
-                                                            @if(!empty($dropRestrictionJobs))
-                                                                （例：{{ implode('、', $dropRestrictionJobs) }}）
-                                                            @endif
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endif
-
-                                @if(!empty($result['equipment_drops']) && count($result['equipment_drops']) > 1)
-                                    <div class="mt-4 pt-4 border-t border-amber-200">
-                                        <h4 class="text-lg font-bold text-amber-700 mb-2 flex items-center gap-1"><img src="{{ asset('images/icon/icon_025.webp') }}" alt="" class="w-5 h-5 object-contain"> 追加装備獲得！</h4>
+                                        <h4 class="text-lg font-bold text-amber-700 mb-2 flex items-center gap-1"><img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-5 h-5 object-contain"> 装備品獲得！</h4>
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            @foreach(array_slice($result['equipment_drops'], 1) as $equipmentDrop)
+                                            @foreach($result['equipment_drops'] as $equipmentDrop)
                                                 @php
                                                     $extraRank = strtoupper((string) ($equipmentDrop['rank'] ?? ''));
                                                     $extraRare = in_array((string) ($equipmentDrop['rarity'] ?? 'normal'), ['rare', 'epic', 'legend'], true)
                                                         || (($rankOrder[$extraRank] ?? -1) >= $rankOrder['A']);
+                                                    $dropCharacterItem = !empty($equipmentDrop['character_item_id'])
+                                                        ? \App\Models\CharacterItem::with('item')->find($equipmentDrop['character_item_id'])
+                                                        : null;
+                                                    $dropItem = $dropCharacterItem?->item;
+                                                    $permissionService = app(\App\Services\EquipmentPermissionService::class);
+                                                    $dropCategoryLabel = $dropItem ? $permissionService->categoryLabel($dropItem) : null;
+                                                    $dropEquipmentIcon = $dropItem?->iconImagePath();
+                                                    $dropCanEquipByJob = !$dropItem || $permissionService->canEquip($character, $dropItem);
+                                                    $dropRestrictionJobs = $dropCanEquipByJob ? [] : $permissionService->representativeJobNames($dropItem);
                                                 @endphp
                                                 <div class="rounded border {{ $extraRare ? 'border-amber-300 bg-amber-50 ring-1 ring-amber-100' : 'border-amber-100 bg-white' }} p-3 shadow-sm">
                                                     <div class="text-xs font-bold text-amber-600 mb-1">{{ $equipmentDrop['slot_label'] ?? '装備' }} / {{ $equipmentDrop['rank'] ?? $equipmentDrop['rarity'] }}</div>
@@ -795,7 +802,12 @@
                                                             {{ ($equipmentDrop['affix_quality'] ?? null) === 'excellent' ? '逸品装備' : (($equipmentDrop['affix_quality'] ?? null) === 'good' ? '良品装備' : '銘付き装備') }}
                                                         </div>
                                                     @endif
-                                                    <div class="font-bold text-slate-800">{{ $equipmentDrop['item_name'] }}</div>
+                                                    <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                                                        @if($dropEquipmentIcon)
+                                                            <img src="{{ asset($dropEquipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
+                                                        @endif
+                                                        <span>{{ $equipmentDrop['item_name'] }}</span>
+                                                    </div>
                                                     <div class="mt-1 flex flex-wrap gap-1 text-[11px] font-bold text-slate-500">
                                                         @if($equipmentDrop['hp_bonus']) <span>HP+{{ $equipmentDrop['hp_bonus'] }}</span> @endif
                                                         @if($equipmentDrop['mp_bonus']) <span>SP+{{ $equipmentDrop['mp_bonus'] }}</span> @endif
@@ -811,6 +823,21 @@
                                                             @foreach($equipmentDrop['affix_effect_lines'] as $line)
                                                                 <span class="rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">{{ $line }}</span>
                                                             @endforeach
+                                                        </div>
+                                                    @endif
+                                                    @if($dropCategoryLabel || !$dropCanEquipByJob)
+                                                        <div class="mt-2 flex flex-wrap gap-1 text-xs font-bold">
+                                                            @if($dropCategoryLabel)
+                                                                <span class="inline-flex rounded bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5">{{ $dropCategoryLabel }}</span>
+                                                            @endif
+                                                            @if(!$dropCanEquipByJob)
+                                                                <span class="inline-flex rounded bg-rose-50 text-rose-600 border border-rose-100 px-2 py-0.5">
+                                                                    現在の職業では装備できません
+                                                                    @if(!empty($dropRestrictionJobs))
+                                                                        （例：{{ implode('、', $dropRestrictionJobs) }}）
+                                                                    @endif
+                                                                </span>
+                                                            @endif
                                                         </div>
                                                     @endif
                                                 </div>
@@ -842,6 +869,10 @@
                                     // sub_area_explore は depth が直接 {label, key, ...} 構造になっている
                                     $currentDepth = $isSubAreaExplore ? ($depth ?? []) : ($depth['current'] ?? []);
                                     $nextDepth = $isSubAreaExplore ? null : ($depth['next'] ?? null);
+                                    $currentDepthKey = (string) ($currentDepth['key'] ?? 'surface');
+                                    $depthBadgeStyleLight = $currentDepthKey === 'otherworld'
+                                        ? 'background:#050505;color:#ef4444;border-color:#7f1d1d'
+                                        : 'background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe';
                                     $dangerBadgeStyle = $dangerRate >= 100
                                         ? 'background:rgba(239,68,68,0.18);color:#fca5a5;border-color:rgba(239,68,68,0.35)'
                                         : ($dangerRate >= 75
@@ -868,7 +899,7 @@
                                         </div>
                                         <div style="display:flex;align-items:center;gap:6px;">
                                             @if($depth)
-                                                <span style="font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 8px;border-radius:99px;">
+                                                <span style="font-size:10px;font-weight:700;border:1px solid;padding:2px 8px;border-radius:99px;{{ $depthBadgeStyleLight }}">
                                                     {{ $currentDepth['label'] ?? '表層' }}
                                                 </span>
                                             @endif
@@ -1234,6 +1265,7 @@
                             $hasStamina = !$usesStamina || ((int) ($stamina['current'] ?? 0) >= $staminaCost);
                             $batchExploreCount = 10;
                             $batchStaminaCost = $staminaCost * $batchExploreCount;
+                            $batchStartStaminaCost = $staminaCost;
                             $staminaCostHtml = $usesStamina
                                 ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
                                 : '';
@@ -1251,18 +1283,26 @@
                                         'name' => (string) ($item['name'] ?? $itemKey),
                                         'icon_image' => $item['icon_image'] ?? null,
                                         'effect_value' => (int) ($item['effect_value'] ?? 0),
+                                        'price' => (int) ($item['price'] ?? 0),
                                         'quantity' => (int) ($supportItemCounts[$itemKey] ?? 0),
                                         'use_url' => route('inventory.support-items.use', ['itemKey' => $itemKey]),
+                                        'purchase_url' => route('kiseki.support.purchase'),
                                     ];
                                 })
                                 ->filter()
                                 ->values();
+                            $currentKiseki = (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0);
                             if ($usesStamina) {
                                 $battleWaitSeconds = 0;
                             }
                         @endphp
                         @if($usesStamina)
                             <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;padding:2px 8px;border-radius:99px;"
+                                  data-battle-stamina-badge
+                                  data-current="{{ (int) ($stamina['current'] ?? 0) }}"
+                                  data-max="{{ (int) ($stamina['max'] ?? 0) }}"
+                                  data-recovery-seconds="{{ (int) ($stamina['recovery_seconds'] ?? 60) }}"
+                                  data-next-recovery-seconds="{{ (int) ($stamina['next_recovery_seconds'] ?? 0) }}"
                                   x-data="{
                                       current: {{ (int) ($stamina['current'] ?? 0) }},
                                       max: {{ (int) ($stamina['max'] ?? 0) }},
@@ -1270,7 +1310,14 @@
                                       nextRecoverySeconds: {{ (int) ($stamina['next_recovery_seconds'] ?? 0) }},
                                       timer: null,
                                       nextAt: null,
-                                      init() {
+                                      stopTimer() {
+                                          if (this.timer) {
+                                              clearInterval(this.timer);
+                                              this.timer = null;
+                                          }
+                                      },
+                                      startTimer() {
+                                          this.stopTimer();
                                           if (this.current >= this.max) return;
                                           if (this.nextRecoverySeconds <= 0) {
                                               this.nextRecoverySeconds = this.recoverySeconds;
@@ -1278,7 +1325,7 @@
                                           this.nextAt = Date.now() + (this.nextRecoverySeconds * 1000);
                                           this.timer = setInterval(() => {
                                               if (this.current >= this.max) {
-                                                  clearInterval(this.timer);
+                                                  this.stopTimer();
                                                   return;
                                               }
                                               const now = Date.now();
@@ -1287,19 +1334,39 @@
                                                   this.current = Math.min(this.max, this.current + gained);
                                                   this.nextAt += gained * this.recoverySeconds * 1000;
                                                   window.dispatchEvent(new CustomEvent('battle-stamina-updated', {
-                                                      detail: { current: this.current, max: this.max }
+                                                      detail: {
+                                                          current: this.current,
+                                                          max: this.max,
+                                                          recoverySeconds: this.recoverySeconds,
+                                                          nextRecoverySeconds: this.recoverySeconds
+                                                      }
                                                   }));
                                               }
                                           }, 1000);
+                                      },
+                                      init() {
+                                          this.startTimer();
+                                          this.$cleanup(() => this.stopTimer());
                                       }
-                                  }">
+                                  }"
+                                  @valzeria-stamina-sync.window="
+                                      current = Math.max(0, Number($event.detail.current || 0));
+                                      if ($event.detail.max !== null && $event.detail.max !== undefined) {
+                                          max = Math.max(0, Number($event.detail.max || 0));
+                                      }
+                                      if ($event.detail.recoverySeconds !== null && $event.detail.recoverySeconds !== undefined) {
+                                          recoverySeconds = Math.max(1, Number($event.detail.recoverySeconds || recoverySeconds));
+                                      }
+                                      nextRecoverySeconds = Math.max(0, Number($event.detail.nextRecoverySeconds || recoverySeconds));
+                                      startTimer();
+                                  ">
                                 <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" style="width:12px;height:12px;object-fit:contain;">
                                 探索力 <span id="battle-stamina-current-text" x-text="current.toLocaleString()">{{ number_format((int) ($stamina['current'] ?? 0)) }}</span>/<span id="battle-stamina-max-text">{{ number_format((int) ($stamina['max'] ?? 0)) }}</span>
                             </span>
                         @endif
                         @if(!isset($result['error']) && !$isBoss && $isDepthGate)
                             @php
-                                $depthGate = $result['depth_gate'] ?? [];
+                                $depthGate = $result['depth_gate'] ?? $batchDepthGate ?? [];
                                 $depthKey = $depthGate['key'] ?? 'inner';
                                 $canRecordDepthGate = in_array($depthKey, ['deepest', 'otherworld'], true);
                             @endphp
@@ -1325,7 +1392,7 @@
                                 <input type="hidden" name="continue_chain" value="1">
                                 <input type="hidden" name="depth_confirmed" value="{{ $depthKey }}">
                                 <button type="submit" class="flex w-full flex-col rounded-lg border-2 border-red-900 bg-red-700 px-5 py-3 text-left text-white shadow-md transition hover:bg-red-800 active:scale-95">
-                                    <span class="text-sm font-black">それでも進む</span>
+                                    <span class="text-sm font-black">{{ !empty($result['batch_explore']) ? (($depthGate['label'] ?? '深層') . 'へ進む') : 'それでも進む' }}</span>
                                     <span class="mt-1 text-[11px] font-bold leading-5 text-red-100">{{ $depthGate['label'] ?? '深層' }}へ進みます。危険度が上昇し、敵が大きく強化されます。</span>
                                 </button>
                             </form>
@@ -1338,7 +1405,7 @@
                                     <img src="{{ asset('images/icon/icon_043.webp') }}" alt="" class="w-4 h-4 object-contain"> ダンジョン主に挑む
                                 </button>
                             </form>
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は退いて探索を続ける" data-ready-html="{!! e('今は退いて探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}">
+                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は退いて探索を続ける" data-ready-html="{!! e('今は退いて探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
                                 @csrf
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
@@ -1357,7 +1424,7 @@
                         @elseif(!isset($result['error']) && !$isBoss && ($result['result'] === 'victory' || $result['result'] === 'win'))
                             <div class="w-full max-w-md sm:w-auto">
                                 <div class="flex items-stretch justify-center gap-2">
-                                    <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" class="min-w-0 flex-1 sm:flex-none">
+                                    <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" class="min-w-0 flex-1 sm:flex-none">
                                         @csrf
                                         <input type="hidden" name="continue_chain" value="1">
                                         <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="h-full w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-7 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2">
@@ -1366,7 +1433,7 @@
                                         </button>
                                     </form>
                                     @if($usesStamina)
-                                        <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStaminaCost }}" data-stamina-warning="×10探索には探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
+                                        <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
                                             @csrf
                                             <input type="hidden" name="continue_chain" value="1">
                                             <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
@@ -1388,7 +1455,7 @@
                                     $retryWaitSeconds = max(1, min(max(1, $battleWaitSeconds), (int) $retryMatches[1]));
                                 }
                             @endphp
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $retryWaitSeconds }}">
+                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $retryWaitSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
                                 @csrf
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
@@ -1423,7 +1490,7 @@
                                     <div>
                                         <h3 id="batch-stamina-modal-title" class="text-base font-black text-slate-900">探索力を回復して探索を続けますか？</h3>
                                         <p class="mt-1 text-xs font-bold leading-5 text-slate-500">
-                                            ×10探索には探索力が足りません。使うアイテムを選んでください。
+                                            探索力が足りません。使うアイテムを選んでください。
                                         </p>
                                     </div>
                                     <button type="button" data-batch-stamina-modal-close class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="閉じる">
@@ -1435,28 +1502,43 @@
                                 <div class="mt-3 rounded border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-extrabold text-sky-800">
                                     探索力 <span data-batch-stamina-current>{{ number_format((int) ($stamina['current'] ?? 0)) }}</span> / 必要 <span data-batch-stamina-required>{{ number_format($batchStaminaCost) }}</span>
                                 </div>
+                                <div class="mt-2 rounded border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-extrabold text-amber-800">
+                                    所持輝石 <span data-batch-stamina-kiseki>{{ number_format($currentKiseki) }}</span>
+                                </div>
                                 <div class="mt-3 flex flex-col gap-2">
                                     @foreach($staminaRecoveryChoices as $choice)
-                                        <button type="button"
-                                                data-batch-stamina-item
-                                                data-item-key="{{ $choice['key'] }}"
-                                                data-use-url="{{ $choice['use_url'] }}"
-                                                data-quantity="{{ $choice['quantity'] }}"
-                                                @disabled($choice['quantity'] <= 0)
-                                                class="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60">
-                                            <span class="flex min-w-0 items-center gap-2">
-                                                @if($choice['icon_image'])
-                                                    <img src="{{ asset($choice['icon_image']) }}" alt="" class="h-5 w-5 object-contain">
-                                                @endif
-                                                <span class="min-w-0">
-                                                    <span class="block text-sm font-black text-slate-800">{{ $choice['name'] }}</span>
-                                                    <span class="block text-[11px] font-bold text-slate-500">探索力 +{{ number_format($choice['effect_value']) }}</span>
+                                        <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                            <button type="button"
+                                                    data-batch-stamina-item
+                                                    data-item-key="{{ $choice['key'] }}"
+                                                    data-use-url="{{ $choice['use_url'] }}"
+                                                    data-quantity="{{ $choice['quantity'] }}"
+                                                    @disabled($choice['quantity'] <= 0)
+                                                    class="flex w-full items-center justify-between rounded-md px-1 py-1 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                                                <span class="flex min-w-0 items-center gap-2">
+                                                    @if($choice['icon_image'])
+                                                        <img src="{{ asset($choice['icon_image']) }}" alt="" class="h-5 w-5 object-contain">
+                                                    @endif
+                                                    <span class="min-w-0">
+                                                        <span class="block text-sm font-black text-slate-800">{{ $choice['name'] }}</span>
+                                                        <span class="block text-[11px] font-bold text-slate-500">探索力 +{{ number_format($choice['effect_value']) }}</span>
+                                                    </span>
                                                 </span>
-                                            </span>
-                                            <span class="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
-                                                残<span data-batch-stamina-item-count>{{ number_format($choice['quantity']) }}</span>
-                                            </span>
-                                        </button>
+                                                <span class="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
+                                                    残<span data-batch-stamina-item-count>{{ number_format($choice['quantity']) }}</span>
+                                                </span>
+                                            </button>
+                                            <button type="button"
+                                                    data-batch-stamina-buy
+                                                    data-item-key="{{ $choice['key'] }}"
+                                                    data-purchase-url="{{ $choice['purchase_url'] }}"
+                                                    data-price="{{ $choice['price'] }}"
+                                                    class="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 transition hover:bg-amber-100 active:scale-95">
+                                                <span>購入して使う</span>
+                                                <img src="{{ asset('images/icon/kiseki.webp') }}" alt="" class="h-3.5 w-3.5 object-contain">
+                                                <span>{{ number_format($choice['price']) }}</span>
+                                            </button>
+                                        </div>
                                     @endforeach
                                     <button type="button" data-batch-stamina-modal-close class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50">
                                         閉じる
@@ -1476,6 +1558,11 @@
                 return;
             }
             window.__valzeriaBattleResultHandlersInstalled = true;
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) {
+                    window.location.reload();
+                }
+            });
 
             const formatNumber = new Intl.NumberFormat('ja-JP');
 
@@ -1620,6 +1707,13 @@
                 });
             }
 
+            function updateBatchStaminaKiseki(value) {
+                const kisekiText = batchStaminaModal()?.querySelector('[data-batch-stamina-kiseki]');
+                if (kisekiText && value !== null && value !== undefined) {
+                    kisekiText.textContent = formatNumber.format(Math.max(0, Number(value || 0)));
+                }
+            }
+
             function setBatchExploreInlineWarning(form, text = '') {
                 if (!form?.hasAttribute('data-batch-explore-form')) return;
 
@@ -1665,7 +1759,12 @@
                     }
 
                     if (data.stamina) {
-                        updateBatchExploreStamina(data.stamina.current, data.stamina.max);
+                        updateBatchExploreStamina(
+                            data.stamina.current,
+                            data.stamina.max,
+                            data.stamina.recovery_seconds,
+                            data.stamina.next_recovery_seconds
+                        );
                     }
                     updateBatchStaminaItemChoices(data.support_items, button.dataset.itemKey || null);
                     showBattleToast(data.message || '探索力を回復しました。', 'info');
@@ -1677,6 +1776,59 @@
                     }
                 } catch (error) {
                     showBattleToast('探索力回復アイテムの使用に失敗しました。通信状態を確認してください。', 'warning');
+                } finally {
+                    buttons.forEach((modalButton) => {
+                        const quantity = modalButton.hasAttribute('data-batch-stamina-item')
+                            ? Number(modalButton.dataset.quantity || 0)
+                            : 1;
+                        modalButton.disabled = quantity <= 0;
+                    });
+                }
+            }
+
+            async function purchaseAndUseBatchStaminaItem(button) {
+                const modal = batchStaminaModal();
+                if (!modal || !button?.dataset.purchaseUrl || !button?.dataset.itemKey) return;
+
+                const buttons = modal.querySelectorAll('button');
+                buttons.forEach((modalButton) => {
+                    modalButton.disabled = true;
+                });
+
+                try {
+                    const formData = new FormData();
+                    const token = csrfToken();
+                    if (token) {
+                        formData.append('_token', token);
+                    }
+                    formData.append('item_key', button.dataset.itemKey);
+
+                    const response = await fetch(button.dataset.purchaseUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                        credentials: 'same-origin',
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || data.success !== true) {
+                        showBattleToast(data.message || '探索力回復アイテムを購入できませんでした。', 'warning');
+                        return;
+                    }
+
+                    updateBatchStaminaKiseki(data.kiseki);
+                    updateBatchStaminaItemChoices(data.support_items);
+                    showBattleToast(data.message || '探索力回復アイテムを購入しました。', 'info');
+
+                    const itemButton = modal.querySelector(`[data-batch-stamina-item][data-item-key="${CSS.escape(button.dataset.itemKey)}"]`);
+                    if (itemButton) {
+                        await useBatchStaminaItem(itemButton);
+                    }
+                } catch (error) {
+                    showBattleToast('探索力回復アイテムの購入に失敗しました。通信状態を確認してください。', 'warning');
                 } finally {
                     buttons.forEach((modalButton) => {
                         const quantity = modalButton.hasAttribute('data-batch-stamina-item')
@@ -1720,15 +1872,62 @@
                 return true;
             }
 
-            function updateBatchExploreStamina(current, max = null) {
+            function exploreStaminaBlocked(form) {
+                if (!form || form.hasAttribute('data-batch-explore-form') || !form.hasAttribute('data-required-stamina')) {
+                    return false;
+                }
+
+                const current = Number.parseInt(form.dataset.currentStamina || '0', 10);
+                const required = Math.max(1, Number.parseInt(form.dataset.requiredStamina || '1', 10));
+                if (current >= required) {
+                    return false;
+                }
+
+                openBatchStaminaModal(form, current, required);
+                return true;
+            }
+
+            function setExploreFormStaminaState(form) {
+                if (!form) return;
+
+                const button = form.querySelector('#explore-btn');
+                const buttonText = form.querySelector('#explore-btn-text');
+                if (!button || !buttonText) return;
+
+                if (!form.hasAttribute('data-required-stamina')) {
+                    button.disabled = false;
+                    setExploreButtonReadyText(form, buttonText);
+                    return;
+                }
+
+                const current = Number.parseInt(form.dataset.currentStamina || '0', 10);
+                const required = Math.max(1, Number.parseInt(form.dataset.requiredStamina || '1', 10));
+                button.disabled = false;
+                if (current < required && !form.hasAttribute('data-batch-explore-form')) {
+                    buttonText.textContent = '探索力不足';
+                    return;
+                }
+
+                setExploreButtonReadyText(form, buttonText);
+            }
+
+            function updateBatchExploreStamina(current, max = null, recoverySeconds = null, nextRecoverySeconds = null) {
                 const normalizedCurrent = Math.max(0, Number(current || 0));
                 const normalizedMax = max === null ? null : Math.max(0, Number(max || 0));
+                const normalizedRecoverySeconds = recoverySeconds === null ? null : Math.max(1, Number(recoverySeconds || 60));
+                const normalizedNextRecoverySeconds = nextRecoverySeconds === null
+                    ? normalizedRecoverySeconds
+                    : Math.max(0, Number(nextRecoverySeconds || 0));
 
                 document.querySelectorAll('[data-batch-explore-form]').forEach((form) => {
                     form.dataset.currentStamina = String(normalizedCurrent);
                     if (normalizedMax !== null) {
                         form.dataset.maxStamina = String(normalizedMax);
                     }
+                });
+                document.querySelectorAll('[data-async-explore-form][data-required-stamina]').forEach((form) => {
+                    form.dataset.currentStamina = String(normalizedCurrent);
+                    setExploreFormStaminaState(form);
                 });
 
                 const currentText = document.getElementById('battle-stamina-current-text');
@@ -1742,6 +1941,27 @@
                         maxText.textContent = formatNumber.format(normalizedMax);
                     }
                 }
+
+                window.dispatchEvent(new CustomEvent('valzeria-stamina-sync', {
+                    detail: {
+                        current: normalizedCurrent,
+                        max: normalizedMax,
+                        recoverySeconds: normalizedRecoverySeconds,
+                        nextRecoverySeconds: normalizedNextRecoverySeconds,
+                    }
+                }));
+            }
+
+            function syncBattleStaminaFromDom(root = document) {
+                const badge = (root || document).querySelector('[data-battle-stamina-badge]');
+                if (!badge) return;
+
+                updateBatchExploreStamina(
+                    badge.dataset.current,
+                    badge.dataset.max,
+                    badge.dataset.recoverySeconds,
+                    badge.dataset.nextRecoverySeconds
+                );
             }
 
             function updateHp(hp) {
@@ -1839,7 +2059,7 @@
             }
 
             async function submitExploreAgain(form) {
-                if (batchExploreHpBlocked(form) || batchExploreStaminaBlocked(form)) {
+                if (batchExploreHpBlocked(form) || batchExploreStaminaBlocked(form) || exploreStaminaBlocked(form)) {
                     return;
                 }
 
@@ -1906,6 +2126,7 @@
                     }
 
                     window.__valzeriaInitBattleResultTimers(document);
+                    syncBattleStaminaFromDom(document);
                     const replacedPage = currentResultPage();
                     if (replacedPage) {
                         replacedPage.scrollIntoView({ block: 'start' });
@@ -1946,7 +2167,7 @@
                                 if (spinner) {
                                     spinner.classList.add('hidden');
                                 }
-                                setReadyText();
+                                setExploreFormStaminaState(form);
                             }, initialLockSeconds * 1000);
                             return;
                         }
@@ -1955,7 +2176,7 @@
                         if (spinner) {
                             spinner.classList.add('hidden');
                         }
-                        setReadyText();
+                        setExploreFormStaminaState(form);
                         return;
                     }
                     buttonText.textContent = 'あと ' + timeLeft + ' 秒...';
@@ -1972,7 +2193,7 @@
                             if (spinner) {
                                 spinner.classList.add('hidden');
                             }
-                            setReadyText();
+                            setExploreFormStaminaState(form);
                         } else {
                             buttonText.textContent = 'あと ' + timeLeft + ' 秒...';
                         }
@@ -1981,7 +2202,12 @@
             };
 
             window.addEventListener('battle-stamina-updated', function(event) {
-                updateBatchExploreStamina(event.detail?.current, event.detail?.max ?? null);
+                updateBatchExploreStamina(
+                    event.detail?.current,
+                    event.detail?.max ?? null,
+                    event.detail?.recoverySeconds ?? null,
+                    event.detail?.nextRecoverySeconds ?? null
+                );
             });
 
             document.addEventListener('click', function(event) {
@@ -1997,6 +2223,15 @@
                     event.preventDefault();
                     if (!staminaItemButton.disabled) {
                         useBatchStaminaItem(staminaItemButton);
+                    }
+                    return;
+                }
+
+                const staminaBuyButton = event.target.closest('[data-batch-stamina-buy]');
+                if (staminaBuyButton) {
+                    event.preventDefault();
+                    if (!staminaBuyButton.disabled) {
+                        purchaseAndUseBatchStaminaItem(staminaBuyButton);
                     }
                 }
             });
@@ -2018,6 +2253,7 @@
 
             document.addEventListener('DOMContentLoaded', function() {
                 window.__valzeriaInitBattleResultTimers(document);
+                syncBattleStaminaFromDom(document);
             });
         })();
     </script>

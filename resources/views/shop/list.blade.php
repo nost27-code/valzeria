@@ -246,17 +246,22 @@
                             $restrictionJobs = $canEquipByJob ? [] : $permissionService->representativeJobNames($item);
                             $displayPrice = $character ? $shopService->priceFor($character, $item) : (int) $item->price;
                             $ownedCount = $ownedItemCounts[$item->id] ?? 0;
+                            $equipmentIcon = $type !== 'consumable' ? $item->iconImagePath() : null;
+                            $showCategoryLabel = $categoryLabel && $categoryLabel !== (string) $item->sub_type;
                         @endphp
                         <div class="item-card border border-[#d4af37]/50 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:border-[#d4af37] transition-colors" data-subtype="{{ $item->sub_type }}">
                             <div class="mb-4 sm:mb-0">
                                 <h3 class="flex flex-wrap items-center gap-1.5 font-bold text-lg text-slate-800">
+                                    @if($equipmentIcon)
+                                        <img src="{{ asset($equipmentIcon) }}" alt="" class="h-7 w-7 shrink-0 object-contain">
+                                    @endif
                                     @if($type !== 'consumable')
                                         @include('equipment.partials.rank-label', ['item' => $item])
                                     @endif
                                     <span>{{ $item->name }}</span>
                                     @if($item->sub_type) <span class="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded ml-2">{{ $item->sub_type }}</span> @endif
                                     @if($item->element) <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded ml-1">{{ $item->element }}属性</span> @endif
-                                    @if($categoryLabel) <span class="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded ml-1">カテゴリ：{{ $categoryLabel }}</span> @endif
+                                    @if($showCategoryLabel) <span class="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded ml-1">{{ $categoryLabel }}</span> @endif
                                 </h3>
                                 <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">{{ $item->description }}</p>
                                 <div class="text-sm text-slate-500 mt-2">

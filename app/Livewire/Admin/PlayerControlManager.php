@@ -9,6 +9,7 @@ use App\Models\CharacterMaterial;
 use App\Models\Item;
 use App\Models\Material;
 use App\Services\CooldownSettingService;
+use App\Services\NewcomerRegistrationCampaignService;
 use App\Services\StorageCapacityService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -139,7 +140,10 @@ class PlayerControlManager extends Component
         $this->grantQuantity = 1;
     }
 
-    public function render(StorageCapacityService $storageCapacityService)
+    public function render(
+        StorageCapacityService $storageCapacityService,
+        NewcomerRegistrationCampaignService $newcomerRegistrationCampaignService
+    )
     {
         $characters = $this->characters();
         $selectedCharacter = $this->selectedCharacterId
@@ -154,6 +158,7 @@ class PlayerControlManager extends Component
             'grantCandidates' => $this->grantCandidates(),
             'grantTypeLabels' => $this->grantTypeLabels(),
             'controlIdeas' => $this->controlIdeas(),
+            'newcomerGiftSummary' => $newcomerRegistrationCampaignService->summary(syncPending: true),
         ])->layout('components.layouts.admin');
     }
 
@@ -263,7 +268,8 @@ class PlayerControlManager extends Component
                     'meta' => "#{$item->id} / 探索用",
                 ]),
             'support_item' => collect(config('adventure_support.items', []))
-                ->only(['rescue_insurance', 'emergency_rescue_request'])
+                ->filter(fn (array $item, string $key) => in_array($key, ['rescue_insurance', 'emergency_rescue_request'], true)
+                    || ($item['effect_type'] ?? null) === 'explore_stamina_recovery')
                 ->filter(fn (array $item, string $key) => $keyword === ''
                     || str_contains(mb_strtolower($item['name'] ?? ''), mb_strtolower($keyword))
                     || str_contains(mb_strtolower($key), mb_strtolower($keyword)))
@@ -348,11 +354,15 @@ class PlayerControlManager extends Component
     private function grantSupportItem(Character $character): string
     {
         $items = config('adventure_support.items', []);
-        if (!in_array($this->grantTargetId, ['rescue_insurance', 'emergency_rescue_request'], true) || !isset($items[$this->grantTargetId])) {
+        $item = $items[$this->grantTargetId] ?? null;
+        $isConsumableSupport = $item
+            && (in_array($this->grantTargetId, ['rescue_insurance', 'emergency_rescue_request'], true)
+                || ($item['effect_type'] ?? null) === 'explore_stamina_recovery');
+
+        if (!$isConsumableSupport) {
             throw new \InvalidArgumentException('送付対象のサポートアイテムが見つかりません。');
         }
 
-        $item = $items[$this->grantTargetId];
         $row = CharacterConsumableItem::firstOrCreate(
             ['character_id' => $character->id, 'item_key' => $this->grantTargetId],
             ['quantity' => 0]
@@ -361,4 +371,5 @@ class PlayerControlManager extends Component
 
         return "{$character->name} に {$item['name']} x{$this->grantQuantity} を送付しました。";
     }
+
 }

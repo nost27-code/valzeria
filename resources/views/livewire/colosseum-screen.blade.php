@@ -83,19 +83,23 @@
                 </div>
                 <div class="p-0">
                     @foreach($topRankings as $top)
-                        <div class="flex items-center gap-3 p-3 border-b border-slate-100 last:border-0">
-                            <div class="w-8 shrink-0 text-center text-xl font-black {{ $top['rank'] === 1 ? 'text-amber-500' : ($top['rank'] === 2 ? 'text-slate-400' : 'text-amber-700') }}">
-                                {{ $top['rank'] }}
+                        <div class="flex items-center gap-4 px-4 py-3.5 border-b border-slate-100 last:border-0 sm:py-4">
+                            <div class="w-10 shrink-0 text-center text-2xl font-black {{ $top['rank'] === 1 ? 'text-amber-500' : ($top['rank'] === 2 ? 'text-slate-400' : 'text-amber-700') }}">
+                                @if(in_array((int) $top['rank'], [1, 2, 3], true))
+                                    <img src="{{ asset('images/icon/icon_100' . (int) $top['rank'] . '.webp') }}" alt="{{ $top['rank'] }}位" class="mx-auto h-9 w-9 object-contain">
+                                @else
+                                    {{ $top['rank'] }}
+                                @endif
                             </div>
-                            <div class="flex min-w-0 flex-1 items-center gap-3">
+                            <div class="flex min-w-0 flex-1 items-center gap-3.5">
                                 @if(!empty($top['image_path']))
-                                    <div class="h-10 w-10 shrink-0 overflow-hidden rounded border border-amber-100 bg-slate-50">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-amber-100 bg-slate-50">
                                         <img src="{{ asset($top['image_path']) }}" alt="" class="h-full w-full object-contain">
                                     </div>
                                 @endif
                                 <div class="min-w-0">
-                                    <div class="truncate font-bold text-slate-800">{{ $top['name'] }}</div>
-                                    <div class="text-xs text-slate-500">
+                                    <div class="truncate text-base font-black text-slate-800">{{ $top['name'] }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-slate-500">
                                         Lv.{{ $top['level'] }} / {{ $top['job'] }}
                                     </div>
                                 </div>
@@ -105,6 +109,36 @@
                             </div>
                         </div>
                     @endforeach
+                </div>
+                <div class="border-t border-amber-200 bg-gradient-to-r from-amber-50 via-white to-amber-50 p-3">
+                    <div class="overflow-hidden rounded-lg border border-amber-300 bg-white shadow-sm">
+                        <div class="flex items-stretch">
+                            <div class="flex w-28 shrink-0 flex-col items-center justify-center border-r border-amber-200 bg-amber-50 px-2 py-3">
+                                <div class="mb-1 rounded bg-amber-700 px-2 py-0.5 text-[11px] font-black text-white shadow-sm">
+                                    あなたの順位
+                                </div>
+                                <div class="flex items-end gap-0.5 text-4xl font-black leading-none text-amber-700">
+                                    {{ number_format((int) ($myRanking->rank ?? 0)) }}
+                                    <span class="pb-1 text-sm font-black text-amber-800">位</span>
+                                </div>
+                            </div>
+                            <div class="flex min-w-0 flex-1 items-center gap-3 px-3 py-3">
+                                <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded border border-amber-200 bg-slate-50">
+                                    @if(!empty($character?->icon_path))
+                                        <img src="{{ asset($character->icon_path) }}" alt="" class="h-full w-full object-contain">
+                                    @else
+                                        <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="h-full w-full object-contain">
+                                    @endif
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="truncate text-xl font-black text-slate-900">{{ $character?->name ?? '冒険者' }}</div>
+                                    <div class="mt-1 text-sm font-bold text-slate-500">
+                                        Lv{{ number_format((int) ($character?->level ?? 1)) }} / {{ $character?->jobClass?->name ?? '冒険者' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

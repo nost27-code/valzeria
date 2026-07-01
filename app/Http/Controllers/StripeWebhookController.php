@@ -164,13 +164,15 @@ class StripeWebhookController extends Controller
 
         $buyerEmail = $session->customer_details->email ?? null;
         try {
+            $mailer = Mail::mailer(config('mail.purchase_notification_mailer'));
+
             if ($buyerEmail) {
-                Mail::to($buyerEmail)->send(new \App\Mail\PurchaseCompletedNotification($order, $pack));
+                $mailer->to($buyerEmail)->send(new \App\Mail\PurchaseCompletedNotification($order, $pack));
             }
 
-            $adminEmail = env('ADMIN_EMAIL');
+            $adminEmail = config('mail.admin_purchase_notification_address');
             if ($adminEmail) {
-                Mail::to($adminEmail)->send(new \App\Mail\AdminPurchaseNotification($order, $pack, $character));
+                $mailer->to($adminEmail)->send(new \App\Mail\AdminPurchaseNotification($order, $pack, $character));
             }
         } catch (\Throwable $e) {
             report($e);

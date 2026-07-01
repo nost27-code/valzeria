@@ -5,11 +5,13 @@ namespace App\Livewire;
 use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterNotification;
+use App\Models\ValmonMaster;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
 use App\Services\CharacterProfileService;
 use App\Services\CharacterNotificationService;
+use App\Services\ExplorationStaminaService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
 use Illuminate\Support\Facades\Schema;
@@ -27,7 +29,6 @@ class CityHeader extends Component
         $character = Character::with([
             'arenaRanking',
             'jobClass',
-            'partnerValmon.master',
             'valmons.master',
         ])->find($characterId);
 
@@ -73,6 +74,24 @@ class CityHeader extends Component
         }
 
         return null;
+    }
+
+    public function markNotificationRead(int $notificationId): void
+    {
+        if (!Schema::hasTable('character_notifications')) {
+            return;
+        }
+
+        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        if (!$character) {
+            return;
+        }
+
+        CharacterNotification::query()
+            ->where('character_id', $character->id)
+            ->whereKey($notificationId)
+            ->first()
+            ?->markAsRead();
     }
 
     public function markAllNotificationsRead(): void
@@ -191,6 +210,10 @@ class CityHeader extends Component
 
         $profileService = app(CharacterProfileService::class);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
+        $explorationStaminaService = app(ExplorationStaminaService::class);
+        $explorationStamina = $explorationStaminaService->enabled()
+            ? $explorationStaminaService->summary($character)
+            : null;
 
         return [
             'name' => $character->name,
@@ -199,6 +222,7 @@ class CityHeader extends Component
             'job_rank' => $jobRank,
             'power' => app(CharacterPowerService::class)->fromFinalStats($stats),
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),
+            'profile_frame_image' => asset($profileService->frameImageForTheme($profileFrameTheme)),
             'hp' => $currentHp,
             'max_hp' => $maxHp,
             'hp_percent' => (int) floor(($currentHp / $maxHp) * 100),
@@ -207,6 +231,7 @@ class CityHeader extends Component
             'sp_percent' => (int) floor(($currentSp / $maxSp) * 100),
             'gold' => (int) ($character->money ?? 0),
             'kiseki' => (int) ($character->kiseki ?? 0),
+            'exploration_stamina' => $explorationStamina,
         ];
     }
 
@@ -227,38 +252,9 @@ class CityHeader extends Component
         $spPercent = $maxMp > 0 ? (int) floor(($currentMp / $maxMp) * 100) : 0;
         $ranking = $character->arenaRanking;
         $arenaRank = $ranking?->rank ? (int) $ranking->rank : null;
-        $partner = $character->partnerValmon;
         $profileService = app(CharacterProfileService::class);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
-        $fieldSlots = [
-            [50, 5, 14, 40],
-            [24, 4, 12, 32],
-            [76, 4, 12, 36],
-            [38, 13, 10, 28],
-            [63, 12, 10, 30],
-            [9, 3, 10, 22],
-            [90, 3, 10, 24],
-            [28, 20, 9, 18],
-            [55, 19, 9, 20],
-            [76, 21, 8, 14],
-        ];
-        $valmons = $character->valmons
-            ->sortByDesc('is_partner')
-            ->values()
-            ->take(10)
-            ->map(function ($valmon, int $index) use ($fieldSlots) {
-                [$left, $bottom, $size, $zIndex] = $fieldSlots[$index] ?? [50, 5, 12, 20];
-
-                return [
-                    'name' => $valmon->displayName(),
-                    'level' => (int) $valmon->level,
-                    'is_partner' => (bool) $valmon->is_partner,
-                    'image' => $valmon->master?->imageUrl(),
-                    'style' => "left:{$left}%;bottom:{$bottom}%;transform:translateX(-50%);z-index:{$zIndex};width:{$size}%;",
-                ];
-            })
-            ->values()
-            ->all();
+        $adventureRecords = $this->adventureRecords($character);
 
         return [
             'id' => (int) $character->id,
@@ -266,10 +262,11 @@ class CityHeader extends Component
             'name' => $character->name,
             'level' => (int) $character->level,
             'job' => $character->jobClass?->name ?? '冒険者',
+            'power' => app(CharacterPowerService::class)->fromFinalStats($stats),
             'arena_rank' => $arenaRank ? number_format($arenaRank) . '位' : '未参加',
             'arena_rank_number' => $arenaRank,
             'arena_rank_trophy' => $arenaRank && $arenaRank <= 3 ? asset('images/icon/icon_100' . $arenaRank . '.webp') : null,
-            'guild' => '未所属',
+            'guild' => '未実装',
             'state' => '滞在中',
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),
             'hp' => $currentHp,
@@ -282,7 +279,14 @@ class CityHeader extends Component
             'ranch_background' => asset($profileService->selectedRanchBackground($character, $character->profile_ranch_background)),
             'profile_frame_theme' => $profileFrameTheme,
             'profile_frame_label' => $profileService->frameThemeLabel($profileFrameTheme),
-            'adventure_records' => $this->adventureRecords($character),
+            'profile_frame_image' => asset($profileService->frameImageForTheme($profileFrameTheme)),
+            'adventurer_card_background' => asset($profileService->selectedAdventurerCardBackground($character, $character->profile_card_background)),
+            'adventurer_card_frame' => asset($profileService->selectedAdventurerCardFrame($character, $character->profile_card_frame)),
+            'adventurer_avatar_frame' => asset($profileService->selectedAdventurerAvatarFrame($character, $character->profile_avatar_frame)),
+            'valmon_case' => asset($profileService->selectedValmonCase($character, $character->profile_valmon_case)),
+            'adventure_records' => $adventureRecords,
+            'card_records' => $this->cardRecords($adventureRecords),
+            'valmon_badges' => $this->valmonBadges($character),
             'stats' => [
                 'str' => $this->statBreakdown($stats, 'str'),
                 'def' => $this->statBreakdown($stats, 'def'),
@@ -296,12 +300,6 @@ class CityHeader extends Component
                 'armor' => $this->equipmentLine($armor, 'armor_rank'),
                 'accessory' => $this->equipmentLine($accessory, 'accessory_rank'),
             ],
-            'valmon' => $partner ? [
-                'name' => $partner->displayName(),
-                'level' => (int) $partner->level,
-                'image' => $partner->master?->imageUrl(),
-            ] : null,
-            'valmons' => $valmons,
         ];
     }
 
@@ -310,27 +308,89 @@ class CityHeader extends Component
         $battleQuery = BattleLog::query()->where('character_id', $character->id);
         $battleCount = (clone $battleQuery)->count();
         $winCount = (clone $battleQuery)->where('result', 'win')->count();
+        $lossCount = (clone $battleQuery)->where('result', 'lose')->count();
+        $winRate = $battleCount > 0 ? (int) floor(($winCount / $battleCount) * 100) : 0;
         $bossWinCount = (clone $battleQuery)
             ->where('battle_type', 'boss')
             ->where('result', 'win')
             ->count();
-        $valmonCount = $character->relationLoaded('valmons')
-            ? $character->valmons->count()
-            : $character->valmons()->count();
         $masteredJobCount = $character->jobHistories()
             ->where('is_mastered', true)
             ->count();
         $adventureDays = $character->created_at
             ? max(1, (int) $character->created_at->copy()->startOfDay()->diffInDays(now()->startOfDay()) + 1)
             : 1;
+        $titleCount = $character->titles()->count();
+        $equipmentCount = $character->characterItems()->count();
+        $materialKindCount = $character->characterMaterials()->where('quantity', '>', 0)->count();
+        $materialTotal = (int) $character->characterMaterials()->sum('quantity');
+        $valmonCount = $character->valmons()->count();
+        $highestValmonLevel = (int) ($character->valmons()->max('level') ?? 0);
 
         return [
             ['label' => '戦闘回数', 'value' => number_format($battleCount), 'unit' => '回'],
             ['label' => '勝利数', 'value' => number_format($winCount), 'unit' => '勝'],
+            ['label' => '敗北数', 'value' => number_format($lossCount), 'unit' => '敗'],
+            ['label' => '勝率', 'value' => number_format($winRate), 'unit' => '%'],
             ['label' => 'ボス討伐数', 'value' => number_format($bossWinCount), 'unit' => '体'],
-            ['label' => '仲間ヴァルモン数', 'value' => number_format($valmonCount), 'unit' => '体'],
             ['label' => '冒険日数', 'value' => number_format($adventureDays), 'unit' => '日'],
             ['label' => '職業マスター数', 'value' => number_format($masteredJobCount), 'unit' => '職'],
+            ['label' => '称号数', 'value' => number_format($titleCount), 'unit' => '個'],
+            ['label' => '所持装備数', 'value' => number_format($equipmentCount), 'unit' => '個'],
+            ['label' => '素材種類数', 'value' => number_format($materialKindCount), 'unit' => '種'],
+            ['label' => '素材総数', 'value' => number_format($materialTotal), 'unit' => '個'],
+            ['label' => '仲間ヴァルモン数', 'value' => number_format($valmonCount), 'unit' => '体'],
+            ['label' => '最高ヴァルモンLv', 'value' => number_format($highestValmonLevel), 'unit' => ''],
+        ];
+    }
+
+    private function valmonBadges(Character $character): array
+    {
+        $ownedByMasterId = $character->valmons
+            ->filter(fn ($valmon) => $valmon->master)
+            ->keyBy('valmon_master_id');
+
+        $badges = ValmonMaster::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->take(21)
+            ->get()
+            ->map(function (ValmonMaster $master) use ($ownedByMasterId) {
+                $owned = $ownedByMasterId->get($master->id);
+
+                return [
+                    'owned' => (bool) $owned,
+                    'name' => $owned ? $owned->displayName() : '未発見',
+                    'species' => $master->name,
+                    'level' => $owned ? (int) $owned->level : null,
+                    'is_partner' => $owned ? (bool) $owned->is_partner : false,
+                    'image' => $owned ? $master->imageUrl() : null,
+                ];
+            })
+            ->values()
+            ->all();
+
+        while (count($badges) < 21) {
+            $badges[] = [
+                'owned' => false,
+                'name' => '未発見',
+                'species' => '未発見',
+                'level' => null,
+                'is_partner' => false,
+                'image' => null,
+            ];
+        }
+
+        return $badges;
+    }
+
+    private function cardRecords(array $adventureRecords): array
+    {
+        $byLabel = collect($adventureRecords)->keyBy('label');
+
+        return [
+            'battles' => $byLabel->get('戦闘回数', ['value' => '0', 'unit' => '回']),
+            'days' => $byLabel->get('冒険日数', ['value' => '0', 'unit' => '日']),
         ];
     }
 

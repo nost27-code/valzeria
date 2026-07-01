@@ -100,6 +100,7 @@ class BattleService
         foreach ($jobArts as $art) {
             $playerActor->jobArtRates[(int) $art->id] = (float) $art->getAttribute('job_art_rate');
             $playerActor->jobArtOrigins[(int) $art->id] = (string) $art->getAttribute('job_art_origin');
+            $playerActor->jobArtPolicies[(int) $art->id] = (string) ($art->getAttribute('job_art_activation_policy') ?: $playerActor->jobArtActivationPolicy);
         }
 
         $result->enemyStatDisplay = [
@@ -416,7 +417,7 @@ class BattleService
                 $this->executeJobArtAction($attacker, $defender, $state, $jobArt);
                 $usedSkill = true;
             } elseif ($attacker->skill && rand(1, 100) <= $attacker->skill->effectiveActivationRate()) {
-                $spCost = $attacker->skill->spCostForMaxSp($attacker->maxMp);
+                $spCost = $attacker->skill->specialSkillSpCostForMaxSp($attacker->maxMp);
                 if ($attacker->mp >= $spCost) {
                     $attacker->mp -= $spCost;
                     $this->executeSkillAction($attacker, $defender, $state, $attacker->skill);
@@ -497,7 +498,8 @@ class BattleService
                 continue;
             }
             $spCost = $this->jobArtSpCost($attacker, $art);
-            if (!$this->canActivateByPolicy($attacker, $state->battleType, $spCost)) {
+            $policy = (string) ($attacker->jobArtPolicies[$skillId] ?? $attacker->jobArtActivationPolicy);
+            if (!$this->canActivateByPolicy($attacker, $spCost, $policy)) {
                 continue;
             }
             if (!$this->canActivateHealArt($attacker, $art)) {
@@ -518,7 +520,7 @@ class BattleService
         return $skill->jobArtSpCostForMaxSp($attacker->maxMp, $origin);
     }
 
-    private function canActivateByPolicy(BattleActor $actor, string $battleType, int $spCost): bool
+    private function canActivateByPolicy(BattleActor $actor, int $spCost, string $policy): bool
     {
         if ($actor->mp < $spCost) {
             return false;
@@ -528,11 +530,10 @@ class BattleService
             ? $actor->mp / $actor->maxMp
             : 0.0;
 
-        return match ($actor->jobArtActivationPolicy) {
+        return match ($policy) {
             'aggressive' => true,
             'normal' => $spRate >= 0.30,
             'conserve' => $spRate >= 0.60,
-            'boss_only' => in_array($battleType, ['boss', 'champ'], true),
             default => $spRate >= 0.30,
         };
     }
@@ -752,13 +753,13 @@ class BattleService
             }
 
             // LUK依存（侍、剣聖など）の特別対応: 説明文から判定して加算
-            if (str_contains($skill->description, 'LUKに応じて')) {
+            if (str_contains((string) $skill->description, 'LUKに応じて')) {
                 $lukBonus = (int)($attacker->luk * 0.5);
                 $skillPowerInt += $lukBonus;
             }
             
             // 時空王等の追加攻撃確率
-            if (str_contains($skill->description, '確率で追加')) {
+            if (str_contains((string) $skill->description, '確率で追加')) {
                 if (rand(1, 100) <= 30) {
                     $hitCount++; // ループを増やす
                 }
@@ -771,7 +772,7 @@ class BattleService
                     $damage = $this->damageCalculator->calculateMagicalDamage($attacker, $defender, $skillPowerInt, $isCrit, null, $overrideSpr);
                 } elseif ($skill->damage_type === 'hybrid') {
                     $hybridAtk = (int)(($attacker->str + $attacker->mag) / 2);
-                    if (str_contains($skill->description, '高い方依存')) {
+                    if (str_contains((string) $skill->description, '高い方依存')) {
                         $hybridAtk = max($attacker->str, $attacker->mag);
                     }
                     $damage = $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $skillPowerInt, $isCrit, $hybridAtk, $overrideDef);
@@ -845,7 +846,7 @@ class BattleService
             $attacker->damageReductionRate = $skill->damage_reduction_percent;
         }
         
-        if ($skill->damage_type === 'support' && str_contains($skill->description, '上昇')) {
+        if ($skill->damage_type === 'support' && str_contains((string) $skill->description, '上昇')) {
             $state->addLog("{$attacker->name} の攻撃力と魔法力が上昇した！");
             $attacker->str += (int)($attacker->baseStr * 0.05);
             $attacker->mag += (int)($attacker->baseMag * 0.05);
@@ -881,7 +882,7 @@ class BattleService
             'ENEMY_DEBUFF' => $this->applyEnemyDebuff($defender, $state, $skill),
             'GUARD_BARRIER' => $this->applyGuardBarrier($attacker, $state, $skill),
             'HEAL', 'HEAL_CLEANSE' => $this->applyJobArtHeal($attacker, $state, $skill, $rate),
-            'DRAIN' => $this->executeDrainJobArt($attacker, $defender, $state, $power, $rate),
+            'DRAIN' => $this->executeDrainJobArt($attacker, $defender, $state, $power, $rate, $skill),
             'GUTS' => $this->applyGuts($attacker, $state),
             'REWARD_GOLD', 'REWARD_DROP', 'REWARD_MIXED' => $this->applyRewardJobArt($state, $skill, $rate),
             'TIME_CONTROL_CURRENT_ONLY' => $this->applyTimeControl($defender, $state, $skill),
@@ -983,7 +984,7 @@ class BattleService
         $this->recoverJobArtSp($attacker, $state, $skill, $rate);
     }
 
-    private function executeDrainJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, float $rate): void
+    private function executeDrainJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, float $rate, Skill $skill): void
     {
         $beforeHp = $defender->hp;
         $this->executeMagicalAttack($attacker, $defender, $state, $power);

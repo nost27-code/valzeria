@@ -8,6 +8,7 @@ use App\Models\CharacterItem;
 use App\Models\Item;
 use App\Models\JobClass;
 use App\Services\CharacterStatusService;
+use App\Services\NewcomerRegistrationCampaignService;
 use Illuminate\Support\Facades\DB;
 
 class CharacterService
@@ -71,6 +72,14 @@ class CharacterService
             $character->current_hp = $finalStats['max_hp'] ?? $hp_base;
             $character->current_mp = $finalStats['max_mp'] ?? 0;
             $character->save();
+
+            app(NewcomerRegistrationCampaignService::class)->grantIfEligible($character);
+            app(PublicLogService::class)->addLog(
+                'info',
+                "新しい冒険者「{$character->name}」がヴァルゼリアの地に降り立ちました。",
+                $character,
+                1
+            );
 
             return $character;
         });

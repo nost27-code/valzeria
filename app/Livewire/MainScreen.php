@@ -16,7 +16,7 @@ use App\Services\ExplorationStateService;
 use App\Services\ExplorationDepthService;
 use App\Services\SubAreaDiscoveryService;
 use App\Services\DiscoveryService;
-use App\Services\CooldownSettingService;
+use App\Services\TownRankingService;
 use App\Support\CharacterIconCatalog;
 use App\Support\FacilityConfig;
 use Illuminate\Support\Facades\Auth;
@@ -219,6 +219,8 @@ class MainScreen extends Component
             $totalAreasInCity = 0;
             $nextCityTravel = null;
             $explorationCooldownRemaining = 0;
+            $explorationStaminaService = app(\App\Services\ExplorationStaminaService::class);
+            $explorationStaminaSummary = null;
             $discoveryRumors = collect();
             if ($currentCity) {
                 $totalAreasInCity = \App\Models\Area::where('city_id', $currentCity->id)->where('id', '<=', 70)->count();
@@ -227,6 +229,9 @@ class MainScreen extends Component
             if ($this->character) {
                 if ($this->character->exploration_cooldown_until && now()->lt($this->character->exploration_cooldown_until)) {
                     $explorationCooldownRemaining = (int) ceil(now()->diffInSeconds($this->character->exploration_cooldown_until, false));
+                }
+                if ($explorationStaminaService->enabled()) {
+                    $explorationStaminaSummary = $explorationStaminaService->summary($this->character);
                 }
 
                 $areas = $areaService->getAreasWithProgress($this->character);
@@ -344,10 +349,11 @@ class MainScreen extends Component
                         'action' => $actionText,
                         'boss_defeated' => $area->boss_defeated,
                         'cooldown_remaining_seconds' => 0,
+                        'stamina' => $explorationStaminaSummary,
                         'depth_entries' => $depthEntries,
                     ];
 
-                    if ($explorationCooldownRemaining > 0 && $status === 'active') {
+                    if (!$explorationStaminaSummary && $explorationCooldownRemaining > 0 && $status === 'active') {
                         $facility['cooldown_remaining_seconds'] = $explorationCooldownRemaining;
                     }
                     
@@ -432,6 +438,9 @@ class MainScreen extends Component
             $cities = \App\Models\City::orderBy('sort_order', 'asc')->get();
             $highestCityOrder = $this->character && $this->character->highestCity ? $this->character->highestCity->sort_order : 0;
         }
+        $rankingSpotlightLeader = $this->currentLocation === 'town'
+            ? $this->rankingSpotlightLeader()
+            : null;
 
         return view('livewire.main-screen', [
             'character' => $this->character,
@@ -457,6 +466,7 @@ class MainScreen extends Component
             'subAreaDiscoveries' => $subAreaDiscoveries,
             'targetAreaId' => $targetAreaId,
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
+            'rankingSpotlightLeader' => $rankingSpotlightLeader,
         ]);
     }
 
@@ -465,6 +475,30 @@ class MainScreen extends Component
         Cache::forget("home_stats_{$characterId}");
         Cache::forget("home_equip_{$characterId}");
         Cache::forget("home_actions_{$characterId}");
+    }
+
+    private function rankingSpotlightLeader(): ?array
+    {
+        $candidates = collect(app(TownRankingService::class)->boards())
+            ->map(function (array $board, string $key): ?array {
+                $leader = $board['rows'][0] ?? null;
+                if (!$leader) {
+                    return null;
+                }
+
+                return [
+                    'board_key' => $key,
+                    'board_title' => (string) ($board['title'] ?? ''),
+                    'unit' => (string) ($board['unit'] ?? ''),
+                    'name' => (string) ($leader['name'] ?? ''),
+                    'icon_path' => (string) ($leader['icon_path'] ?? CharacterIconCatalog::DEFAULT_ICON),
+                    'score' => (int) ($leader['score'] ?? 0),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return $candidates->isNotEmpty() ? $candidates->random() : null;
     }
 
     private function dungeonImageOrder($area, int $fallbackOrder): int
@@ -493,8 +527,10 @@ class MainScreen extends Component
             ['group' => '倉庫', 'name' => '倉庫', 'icon_image' => 'icon/icon_025.webp', 'icon' => '📦', 'desc' => '素材や探索用アイテムを確認する', 'action' => '見る', 'route' => 'inventory.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '装備', 'name' => '装備変更', 'icon_image' => 'icon/icon_006.webp', 'icon' => '🗡️', 'desc' => '装備・保護・倉庫・売却を行う', 'action' => '開く', 'route' => 'equipment.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '育成', 'name' => '神殿', 'icon_image' => 'facilities/facility_temple.webp', 'icon' => '⛪', 'desc' => '職業変更と職業ランクを確認する', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false, 'status' => 'active'],
-            ['group' => '育成', 'name' => '印図鑑', 'icon_image' => 'icon/icon_013.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'action' => '見る', 'route' => 'monster-marks.index', 'is_post' => false, 'status' => 'active'],
+            ['group' => '記録', 'name' => 'アイテム図鑑', 'icon_image' => 'icon/icon_241.webp', 'icon' => '📖', 'desc' => '素材の入手方法・作り方・用途を確認する', 'action' => '見る', 'route' => 'item-book.index', 'is_post' => false, 'status' => 'active'],
+            ['group' => '記録', 'name' => '印図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'action' => '見る', 'route' => 'monster-marks.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '育成', 'name' => 'ヴァルモン牧場', 'icon_image' => 'icon/icon_038.webp', 'icon' => '🥚', 'desc' => '相棒ヴァルモンを確認・育成する', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false, 'status' => 'active'],
+            ['group' => '記録', 'name' => '番付掲示板', 'icon_image' => 'icon/icon_223.webp', 'icon' => '📊', 'desc' => '冒険者たちの各種番付を確認する', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '工房', ...($findTown('鍛冶屋') ?? [])],
             ['group' => '工房', ...($findTown('合成屋') ?? [])],
             ['group' => '工房', ...($findTown('素材交換所') ?? [])],
@@ -514,7 +550,9 @@ class MainScreen extends Component
         return [
             ['group' => '育成', 'name' => '能力割振り', 'icon_image' => 'menu/menu_bonus_points.webp', 'icon' => '✦', 'desc' => '未使用BPを使って能力を伸ばす', 'route' => 'bonus-points.index', 'status' => 'active'],
             ['group' => '育成', 'name' => '奥義', 'icon_image' => 'icon/icon_041.webp', 'icon' => '✦', 'desc' => '習得した奥義を最大3つまでセットする', 'route' => 'job-arts.index', 'status' => 'active'],
-            ['group' => '記録', 'name' => '称号', 'icon_image' => 'menu/menu_titles.webp', 'icon' => '🏷️', 'desc' => '獲得した称号を確認する', 'route' => 'titles.index', 'status' => 'active'],
+            ['group' => '記録', 'name' => 'アイテム図鑑', 'icon_image' => 'icon/icon_241.webp', 'icon' => '📖', 'desc' => '素材の入手方法・作り方・用途を確認する', 'route' => 'item-book.index', 'status' => 'active'],
+            ['group' => '記録', 'name' => '印図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'route' => 'monster-marks.index', 'status' => 'active'],
+            ['group' => '記録', 'name' => '称号', 'icon_image' => 'icon/icon_242.webp', 'icon' => '🏷️', 'desc' => '獲得した称号を確認する', 'route' => 'titles.index', 'status' => 'active'],
             ['group' => '育成', 'name' => 'ヴァルモン', 'icon_image' => 'menu/menu_valmon.webp', 'icon' => '🥚', 'desc' => '相棒ヴァルモンの確認・育成を行う', 'route' => 'valmons.index', 'status' => 'active'],
             ['group' => '持ち物', 'name' => '倉庫', 'icon_image' => 'menu/menu_storage.webp', 'icon' => '📦', 'desc' => '素材や探索用アイテムを確認する', 'route' => 'inventory.index', 'status' => 'active'],
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'menu/menu_messages.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージをやり取りする', 'tab' => 'message', 'status' => 'active'],
@@ -555,6 +593,15 @@ class MainScreen extends Component
         $cityDesc = $currentCity ? $currentCity->description : '冒険者たちが集まるヴァルゼリアの玄関口です。';
         $cityId = (int) ($currentCity->id ?? 0);
         $hasEquipmentShop = $cityId >= 1 && $cityId <= 6;
+        $innRestBlocked = false;
+        $innRestBlockMessage = 'HP/SPが満タンです。宿屋で休む必要はありません。';
+        if ($character) {
+            $finalStats = app(CharacterStatusService::class)->getFinalStats($character);
+            $maxHp = (int) ($finalStats['max_hp'] ?? $character->hp_base);
+            $maxMp = (int) ($finalStats['max_mp'] ?? 0);
+            $innRestBlocked = (int) $character->current_hp >= $maxHp
+                && ($maxMp === 0 || (int) $character->current_mp >= $maxMp);
+        }
 
         return [
             'home' => [
@@ -579,7 +626,7 @@ class MainScreen extends Component
                     '本日の決闘は198戦です'
                 ],
                 'facilities' => [
-                    ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['無料', '探索待機: ' . app(CooldownSettingService::class)->innSeconds() . '秒'], 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true],
+                    ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['料金: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
                     ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
                     ...($hasEquipmentShop ? [
                         ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
@@ -588,13 +635,15 @@ class MainScreen extends Component
                     ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
                     ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材精製・錬成・調合で必要素材を作る', 'details' => ['強化石・導石・秘境晶', '装飾素材・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
                     ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
+                    ['category' => '記録', 'name' => 'アイテム図鑑', 'symbol_image' => 'icon/icon_241.webp', 'desc' => '素材の入手方法・作り方・用途を確認する', 'details' => ['未所持も表示', '作り方確認'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '見る', 'route' => 'item-book.index', 'is_post' => false],
                     ['category' => '育成', 'name' => '神殿', 'symbol_image' => 'facilities/facility_temple.webp', 'desc' => '職業変更と職業ランクを確認する', 'details' => ['転職', '職業ランク'], 'bg_image' => 'facilities/01_転職所.webp', 'status' => 'active', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false],
                     ['category' => 'その他', 'name' => '案内所', 'symbol_image' => 'facilities/facility_guide_300.webp', 'desc' => 'ヴァルゼリアの遊び方やヘルプを確認する', 'details' => ['初心者おすすめ'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'town.guide', 'is_post' => false],
                     ['category' => 'その他', 'name' => '銀行', 'symbol_image' => 'facilities/facility_bank.webp', 'desc' => 'Goldを預けて探索中の喪失から守る', 'details' => ['預ける', '引き出す'], 'bg_image' => 'facilities/bank.webp', 'status' => 'active', 'action' => '入る', 'route' => 'bank.index', 'is_post' => false],
                     ['category' => 'その他', 'name' => '酒場', 'symbol_image' => 'facilities/facility_tavern_300.webp', 'desc' => '冒険者たちの噂話や名簿を確認する', 'details' => ['NPC出現中'], 'bg_image' => 'facilities/tavern.webp', 'status' => 'active', 'action' => '入る', 'route' => 'tavern.index', 'is_post' => false],
+                    ['category' => 'その他', 'name' => '番付掲示板', 'symbol_image' => 'icon/icon_223.webp', 'desc' => '戦績・収集・商いなど冒険者たちの各種番付を見る', 'details' => ['勝利数', '収集', '市場売上'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false],
                     ['category' => 'その他', 'name' => '冒険者協会', 'symbol_image' => 'facilities/association_symbol.webp', 'desc' => '救助支援システムを調整中', 'details' => ['準備中'], 'bg_image' => 'facilities/association.webp', 'status' => 'coming_soon', 'action' => '準備中'],
                     ['category' => 'ショップ', 'name' => '輝石ショップ', 'symbol_image' => 'facilities/kiseki_shop.webp', 'desc' => '有償輝石を購入してアイテムや強化に役立てる', 'details' => ['5種類のパック', 'クレジットカード決済'], 'bg_image' => 'facilities/kiseki.webp', 'status' => 'active', 'action' => '購入する', 'route' => 'kiseki.shop', 'is_post' => false],
-                    ['category' => 'ショップ', 'name' => '補給商会', 'symbol_image' => 'facilities/hokyu_symbol.webp', 'desc' => '輝石で冒険支援アイテムを購入できる', 'details' => ['救助保険', '緊急支援', '補給箱'], 'bg_image' => 'facilities/hokyu.webp', 'status' => 'active', 'action' => '入る', 'route' => 'kiseki.support', 'is_post' => false],
+                    ['category' => 'ショップ', 'name' => '補給商会', 'symbol_image' => 'facilities/hokyu_symbol.webp', 'desc' => '輝石やGoldで冒険支援アイテムを購入できる', 'details' => ['救助保険', '緊急支援', '補給箱'], 'bg_image' => 'facilities/hokyu.webp', 'status' => 'active', 'action' => '入る', 'route' => 'kiseki.support', 'is_post' => false],
                 ]
             ],
             'dungeon' => [
@@ -669,7 +718,7 @@ class MainScreen extends Component
                 'facilities' => [
                     ['name' => 'アイコン変更', 'icon_image' => 'icon/icon_059.webp', 'icon' => '🖼️', 'desc' => 'キャラクターの見た目を変更します', 'details' => ['現在: ' . basename($character->icon_path ?? '')], 'bg_image' => 'facilities/03_アイコン変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openIconModal'],
                     ['name' => '名前変更', 'icon_image' => 'icon/icon_014.webp', 'icon' => '🏷️', 'desc' => 'キャラクターの名前を変更します', 'details' => ['現在の名前: ' . ($character->name ?? '')], 'bg_image' => 'facilities/04_名前変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openNameModal'],
-                    ['name' => 'プロフィール編集', 'icon_image' => 'icon/icon_021.webp', 'icon' => '📝', 'desc' => '自己紹介文やプロフィール枠を編集します', 'details' => ['コメント', '枠変更'], 'status' => 'active', 'action' => '編集する', 'route' => 'profile.edit', 'is_post' => false],
+                    ['name' => 'プロフィール編集', 'icon_image' => 'icon/icon_021.webp', 'icon' => '📝', 'desc' => '自己紹介文や牧場背景を編集します', 'details' => ['コメント', '背景'], 'status' => 'active', 'action' => '編集する', 'route' => 'profile.edit', 'is_post' => false],
                     ['name' => 'ログアウト', 'icon_image' => 'icon/icon_046.webp', 'icon' => '↩', 'desc' => '現在のアカウントからログアウトします', 'details' => ['ログイン画面へ戻る'], 'status' => 'active', 'action' => 'ログアウト', 'route' => 'auth.logout', 'is_post' => true],
                     ['name' => 'アカウント削除', 'icon_image' => 'icon/icon_046.webp', 'icon' => '⚠️', 'desc' => 'Google連携と作成データを完全に削除します', 'details' => ['取り消し不可'], 'status' => 'active', 'action' => '確認する', 'route' => 'account.delete', 'is_post' => false],
                 ]

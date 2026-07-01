@@ -66,11 +66,20 @@
         <div class="relative z-10 w-full md:max-w-7xl md:mx-auto md:px-4 md:sm:px-6 md:lg:px-8 md:py-8">
             {{-- デスクトップ: 戻るリンク --}}
             <div class="hidden md:block mb-4">
-                <a href="{{ route('home') }}" class="inline-flex items-center text-slate-500 hover:text-[#d4af37] font-bold transition-colors group">
-                    <svg class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ route('home') }}"
+                   x-data="{ loading: false }"
+                   @click="if (loading) { $event.preventDefault(); return; } if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) { $event.preventDefault(); loading = true; setTimeout(() => { window.location.href = $el.href }, 80); }"
+                   :class="loading ? 'pointer-events-none opacity-80' : ''"
+                   :aria-busy="loading ? 'true' : 'false'"
+                   class="inline-flex items-center text-slate-500 hover:text-[#d4af37] font-bold transition-colors group">
+                    <svg x-show="!loading" class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
-                    ヴァルモン牧場から出る
+                    <svg x-show="loading" style="display: none;" class="mr-1 h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                        <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                    </svg>
+                    <span x-text="loading ? '移動中...' : 'ヴァルモン牧場から出る'">ヴァルモン牧場から出る</span>
                 </a>
             </div>
 

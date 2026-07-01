@@ -112,11 +112,16 @@ class ColosseumScreen extends Component
             ->values();
 
         $storageIsFull = $this->character ? $storageCapacityService->isFull($this->character) : false;
+        $profileService = app(\App\Services\CharacterProfileService::class);
+        $profileFrameTheme = $this->character
+            ? $profileService->selectedFrameThemeFor($this->character, $this->character->profile_frame_theme)
+            : 'standard';
 
         return view('livewire.colosseum-screen', [
             'recentLogs' => $logs,
             'storageIsFull' => $storageIsFull,
             'storageFullMessage' => $storageIsFull ? $storageCapacityService->fullMessageHtml($this->character) : null,
+            'myProfileFrameImage' => asset($profileService->frameImageForTheme($profileFrameTheme)),
         ]);
     }
 

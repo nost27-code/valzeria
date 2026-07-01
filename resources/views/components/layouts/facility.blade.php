@@ -7,9 +7,14 @@
     'pageBackgroundStyle' => null,
     'bgImage' => null,
     'showExit' => true,
+    'exitLabel' => null,
+    'battleResultLayout' => false,
+    'showBattleChatLog' => null,
     'exitTextClass' => 'text-slate-500 hover:text-[#d4af37]',
     'headerOverlayClass' => 'bg-white/75',
     'headerTitleClass' => null,
+    'headerShellStyle' => null,
+    'headerBorderClass' => null,
     'pageBgImage' => null,
     'pageBgOverlay' => 'bg-black/50',
 ])
@@ -73,12 +78,12 @@
             if (($pos = strpos($facilityBaseName, ' (')) !== false) {
                 $facilityBaseName = substr($facilityBaseName, 0, $pos);
             }
-            $isBattleResult = in_array($facilityBaseName, ['戦闘結果', '戦闘開始！'], true);
-            $showBattleChatLog = str_contains($facilityBaseName, '戦闘')
+            $isBattleResult = (bool) $battleResultLayout || in_array($facilityBaseName, ['戦闘結果', '戦闘開始！'], true);
+            $showBattleChatLog = $showBattleChatLog ?? (str_contains($facilityBaseName, '戦闘')
                 || str_contains($facilityBaseName, 'チャンプ戦')
                 || str_contains($facilityBaseName, 'ランク戦')
-                || str_contains($facilityBaseName, '決闘');
-            $exitLabel = $isBattleResult ? '戦利品を持って帰る' : $facilityBaseName . 'から出る';
+                || str_contains($facilityBaseName, '決闘'));
+            $exitLabel = $exitLabel ?: ($isBattleResult ? '戦利品を持って帰る' : $facilityBaseName . 'から出る');
         @endphp
         <x-pwa-install-banner />
         @if($backgroundSymbolImage)
@@ -104,7 +109,7 @@
         @endif
         <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $isBattleResult ? 'pt-4' : 'pt-6' }} w-full">
             <!-- 施設ヘッダーブロック -->
-            <div class="relative bg-white rounded-lg shadow-md border-t-4 {{ $isBattleResult ? 'border-red-600' : 'border-[#003366]' }} overflow-hidden {{ $isBattleResult ? 'mb-1' : 'mb-2' }}">
+            <div class="relative bg-white rounded-lg shadow-md border-t-4 {{ $headerBorderClass ?? ($isBattleResult ? 'border-red-600' : 'border-[#003366]') }} overflow-hidden {{ $isBattleResult ? 'mb-1' : 'mb-2' }}" @if($headerShellStyle) style="{{ $headerShellStyle }}" @endif>
                 @php
                     $resolvedBgImage = $bgImage ?? null;
                     if (!$resolvedBgImage && auth()->check()) {
@@ -173,9 +178,18 @@
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('home') }}" wire:navigate class="inline-flex items-center {{ $exitTextClass }} font-bold transition-colors group">
-                            <svg class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                            {{ $exitLabel }}
+                        <a href="{{ route('home') }}"
+                           x-data="{ loading: false }"
+                           @click="if (loading) { $event.preventDefault(); return; } if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) { $event.preventDefault(); loading = true; setTimeout(() => { window.location.href = $el.href }, 80); }"
+                           :class="loading ? 'pointer-events-none opacity-80' : ''"
+                           :aria-busy="loading ? 'true' : 'false'"
+                           class="inline-flex items-center {{ $exitTextClass }} font-bold transition-colors group">
+                            <svg x-show="!loading" class="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                            <svg x-show="loading" style="display: none;" class="mr-1 h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                            </svg>
+                            <span x-text="loading ? '移動中...' : @js($exitLabel)">{{ $exitLabel }}</span>
                         </a>
                     @endif
                 </div>

@@ -4,15 +4,34 @@ namespace App\Services;
 
 use App\Models\Character;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CharacterProfileService
 {
     private const DEFAULT_RANCH_BACKGROUND = 'images/valmon/ranch_bg.webp';
     private const DEFAULT_FRAME_THEME = 'standard';
+    private const DEFAULT_FRAME_IMAGE = 'images/base/waku_000.webp';
+    private const DEFAULT_CARD_BACKGROUND = 'images/profile/adventurer_card_bg01.webp';
+    private const DEFAULT_CARD_FRAME = 'images/profile/adventurer_card_frame01.webp';
+    private const DEFAULT_AVATAR_FRAME = 'images/profile/adventurer_avatar_frame01.webp';
+    private const DEFAULT_VALMON_CASE = 'images/profile/valmon_case01.webp';
+    private const FRAME_IMAGES_BY_THEME = [
+        'standard' => 'images/base/waku_000.webp',
+        'arclea' => 'images/base/waku_001.webp',
+        'marine' => 'images/base/waku_001.webp',
+        'elphia' => 'images/base/waku_002.webp',
+        'granberg' => 'images/base/waku_002.webp',
+        'frostria' => 'images/base/waku_003.webp',
+        'sandra' => 'images/base/waku_003.webp',
+        'luminous' => 'images/base/waku_004.webp',
+        'necrom' => 'images/base/waku_004.webp',
+        'celestia' => 'images/base/waku_005.webp',
+        'valzeria' => 'images/base/waku_005.webp',
+    ];
 
     public function frameThemes(): array
     {
-        return [
+        $themes = [
             [
                 'code' => 'standard',
                 'label' => '標準',
@@ -91,32 +110,30 @@ class CharacterProfileService
                 'preview_class' => 'from-rose-50 via-slate-100 to-white border-rose-700',
             ],
         ];
+
+        return collect($themes)
+            ->map(fn (array $theme): array => array_merge($theme, [
+                'frame_image' => $this->frameImageForTheme((string) $theme['code']),
+            ]))
+            ->all();
     }
 
     public function availableFrameThemes(Character $character): array
     {
-        $unlockedCodes = app(ProfileFrameUnlockService::class)->unlockedCodes($character);
-
         return collect($this->frameThemes())
-            ->filter(fn (array $theme) => in_array((string) $theme['code'], $unlockedCodes, true))
+            ->filter(fn (array $theme) => (string) $theme['code'] === self::DEFAULT_FRAME_THEME)
             ->values()
             ->all();
     }
 
     public function selectedFrameTheme(?string $theme): string
     {
-        $theme = $theme ?: self::DEFAULT_FRAME_THEME;
-        $codes = collect($this->frameThemes())->pluck('code')->all();
-
-        return in_array($theme, $codes, true) ? $theme : self::DEFAULT_FRAME_THEME;
+        return self::DEFAULT_FRAME_THEME;
     }
 
     public function selectedFrameThemeFor(Character $character, ?string $theme): string
     {
-        $theme = $this->selectedFrameTheme($theme);
-        $codes = collect($this->availableFrameThemes($character))->pluck('code')->all();
-
-        return in_array($theme, $codes, true) ? $theme : self::DEFAULT_FRAME_THEME;
+        return self::DEFAULT_FRAME_THEME;
     }
 
     public function frameThemeLabel(?string $theme): string
@@ -125,6 +142,13 @@ class CharacterProfileService
 
         return collect($this->frameThemes())
             ->firstWhere('code', $selected)['label'] ?? '標準';
+    }
+
+    public function frameImageForTheme(?string $theme): string
+    {
+        $selected = $this->selectedFrameTheme($theme);
+
+        return self::FRAME_IMAGES_BY_THEME[$selected] ?? self::DEFAULT_FRAME_IMAGE;
     }
 
     public function ranchBackgrounds(): array
@@ -205,5 +229,156 @@ class CharacterProfileService
         return $this->isOwnedRanchBackground($character, $path)
             ? $path
             : self::DEFAULT_RANCH_BACKGROUND;
+    }
+
+    public function adventurerCardBackgrounds(): array
+    {
+        return $this->profileAssetCatalog('adventurer_card_bg*.webp', '背景', self::DEFAULT_CARD_BACKGROUND);
+    }
+
+    public function adventurerCardFrames(): array
+    {
+        return $this->profileAssetCatalog('adventurer_card_frame*.webp', '枠', self::DEFAULT_CARD_FRAME);
+    }
+
+    public function adventurerAvatarFrames(): array
+    {
+        return $this->profileAssetCatalog('adventurer_avatar_frame*.webp', '丸枠', self::DEFAULT_AVATAR_FRAME);
+    }
+
+    public function valmonCases(): array
+    {
+        return $this->profileAssetCatalog('valmon_case*.webp', 'ケース', self::DEFAULT_VALMON_CASE);
+    }
+
+    public function ownedAdventurerCardBackgrounds(Character $character): array
+    {
+        return $this->ownedAdventurerCardAssets($character, 'background', $this->adventurerCardBackgrounds(), self::DEFAULT_CARD_BACKGROUND);
+    }
+
+    public function ownedAdventurerCardFrames(Character $character): array
+    {
+        return $this->ownedAdventurerCardAssets($character, 'card_frame', $this->adventurerCardFrames(), self::DEFAULT_CARD_FRAME);
+    }
+
+    public function ownedAdventurerAvatarFrames(Character $character): array
+    {
+        return $this->ownedAdventurerCardAssets($character, 'avatar_frame', $this->adventurerAvatarFrames(), self::DEFAULT_AVATAR_FRAME);
+    }
+
+    public function ownedValmonCases(Character $character): array
+    {
+        return $this->ownedAdventurerCardAssets($character, 'valmon_case', $this->valmonCases(), self::DEFAULT_VALMON_CASE);
+    }
+
+    public function selectedAdventurerCardBackground(Character $character, ?string $path): string
+    {
+        return $this->selectedOwnedAdventurerCardAsset($character, 'background', $path, self::DEFAULT_CARD_BACKGROUND);
+    }
+
+    public function selectedAdventurerCardFrame(Character $character, ?string $path): string
+    {
+        return $this->selectedOwnedAdventurerCardAsset($character, 'card_frame', $path, self::DEFAULT_CARD_FRAME);
+    }
+
+    public function selectedAdventurerAvatarFrame(Character $character, ?string $path): string
+    {
+        return $this->selectedOwnedAdventurerCardAsset($character, 'avatar_frame', $path, self::DEFAULT_AVATAR_FRAME);
+    }
+
+    public function selectedValmonCase(Character $character, ?string $path): string
+    {
+        return $this->selectedOwnedAdventurerCardAsset($character, 'valmon_case', $path, self::DEFAULT_VALMON_CASE);
+    }
+
+    private function profileAssetCatalog(string $pattern, string $labelPrefix, string $defaultPath): array
+    {
+        $dir = public_path('images/profile');
+        $files = glob($dir . DIRECTORY_SEPARATOR . $pattern) ?: [];
+
+        $assets = collect($files)
+            ->map(fn (string $path) => 'images/profile/' . basename($path))
+            ->sort()
+            ->values()
+            ->map(function (string $path, int $index) use ($labelPrefix) {
+                return [
+                    'path' => $path,
+                    'label' => $labelPrefix . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                ];
+            })
+            ->all();
+
+        return $assets ?: [[
+            'path' => $defaultPath,
+            'label' => $labelPrefix . '01',
+        ]];
+    }
+
+    private function ownedAdventurerCardAssets(Character $character, string $type, array $catalog, string $defaultPath): array
+    {
+        if (!Schema::hasTable('character_adventurer_card_assets')) {
+            return collect($catalog)
+                ->filter(fn (array $asset) => $asset['path'] === $defaultPath)
+                ->values()
+                ->all();
+        }
+
+        $this->ensureDefaultAdventurerCardAsset($character, $type, $defaultPath);
+
+        $ownedPaths = DB::table('character_adventurer_card_assets')
+            ->where('character_id', $character->id)
+            ->where('asset_type', $type)
+            ->pluck('asset_path')
+            ->all();
+
+        $owned = collect($catalog)
+            ->filter(fn (array $asset) => in_array($asset['path'], $ownedPaths, true))
+            ->values()
+            ->all();
+
+        return $owned ?: collect($catalog)
+            ->filter(fn (array $asset) => $asset['path'] === $defaultPath)
+            ->values()
+            ->all();
+    }
+
+    private function selectedOwnedAdventurerCardAsset(Character $character, string $type, ?string $path, string $defaultPath): string
+    {
+        $path = $path ?: $defaultPath;
+
+        if (!Schema::hasTable('character_adventurer_card_assets')) {
+            return $defaultPath;
+        }
+
+        $this->ensureDefaultAdventurerCardAsset($character, $type, $defaultPath);
+
+        return DB::table('character_adventurer_card_assets')
+            ->where('character_id', $character->id)
+            ->where('asset_type', $type)
+            ->where('asset_path', $path)
+            ->exists()
+                ? $path
+                : $defaultPath;
+    }
+
+    private function ensureDefaultAdventurerCardAsset(Character $character, string $type, string $path): void
+    {
+        if (!Schema::hasTable('character_adventurer_card_assets')) {
+            return;
+        }
+
+        DB::table('character_adventurer_card_assets')->updateOrInsert(
+            [
+                'character_id' => $character->id,
+                'asset_type' => $type,
+                'asset_path' => $path,
+            ],
+            [
+                'source' => 'default',
+                'obtained_at' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
     }
 }

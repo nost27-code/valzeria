@@ -170,6 +170,41 @@ class EquipmentEnhancementService
         return $base + max($level, $rateBonus);
     }
 
+    /**
+     * @return array<string, int>
+     */
+    public static function enhancedStatTotalsForItem(?object $item, int $enhanceLevel): array
+    {
+        if (!$item) {
+            return [];
+        }
+
+        $baseStats = [];
+        foreach (self::STAT_FIELDS as $key => $field) {
+            $base = (int) ($item->{$field} ?? 0);
+            if ($base === 0 && $key === 'str') {
+                $base = (int) ($item->attack_bonus ?? 0);
+            }
+            if ($base === 0 && $key === 'agi') {
+                $base = (int) ($item->speed_bonus ?? 0);
+            }
+            if ($base !== 0) {
+                $baseStats[$key] = $base;
+            }
+        }
+
+        if ((string) ($item->type ?? '') === 'accessory') {
+            return self::accessoryStatsWithEnhancement($baseStats, $enhanceLevel);
+        }
+
+        $stats = [];
+        foreach ($baseStats as $key => $base) {
+            $stats[$key] = self::bonusWithEnhancement($base, $enhanceLevel);
+        }
+
+        return $stats;
+    }
+
     public static function enhancedStatsFor(CharacterItem $characterItem): array
     {
         $item = $characterItem->item;
@@ -178,19 +213,94 @@ class EquipmentEnhancementService
         }
 
         $level = (int) ($characterItem->enhance_level ?? 0);
+        $currentStats = self::enhancedStatTotalsForItem($item, $level);
+        $nextStats = self::enhancedStatTotalsForItem($item, $level + 1);
         $stats = [];
 
         foreach (self::STAT_FIELDS as $key => $field) {
             $base = (int) ($item->{$field} ?? 0);
+            if ($base === 0 && $key === 'str') {
+                $base = (int) ($item->attack_bonus ?? 0);
+            }
+            if ($base === 0 && $key === 'agi') {
+                $base = (int) ($item->speed_bonus ?? 0);
+            }
             if ($base === 0) {
                 continue;
             }
 
             $stats[$key] = [
                 'base' => $base,
-                'current' => self::bonusWithEnhancement($base, $level),
-                'next' => self::bonusWithEnhancement($base, $level + 1),
+                'current' => $currentStats[$key] ?? $base,
+                'next' => $nextStats[$key] ?? $base,
             ];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  array<string, int>  $baseStats
+     * @return array<string, int>
+     */
+    private static function accessoryStatsWithEnhancement(array $baseStats, int $enhanceLevel): array
+    {
+        if ($baseStats === [] || $enhanceLevel <= 0) {
+            return $baseStats;
+        }
+
+        $level = min(self::MAX_EQUIPMENT_ENHANCE, $enhanceLevel);
+        $extraTotal = $level * 2;
+        $positiveStats = array_filter($baseStats, fn (int $base): bool => $base > 0);
+        $totalBase = array_sum($positiveStats);
+
+        if ($totalBase <= 0) {
+            return $baseStats;
+        }
+
+        $extras = array_fill_keys(array_keys($baseStats), 0);
+        $remainders = [];
+        $allocated = 0;
+
+        foreach ($positiveStats as $key => $base) {
+            $rawExtra = ($extraTotal * $base) / $totalBase;
+            $extra = (int) floor($rawExtra);
+            $extras[$key] = $extra;
+            $remainders[$key] = $rawExtra - $extra;
+            $allocated += $extra;
+        }
+
+        $remaining = $extraTotal - $allocated;
+        if ($remaining > 0) {
+            $keys = array_keys($positiveStats);
+            $fieldOrder = array_flip(array_keys(self::STAT_FIELDS));
+            usort($keys, function (string $a, string $b) use ($remainders, $positiveStats, $fieldOrder): int {
+                $remainderCompare = ($remainders[$b] ?? 0.0) <=> ($remainders[$a] ?? 0.0);
+                if ($remainderCompare !== 0) {
+                    return $remainderCompare;
+                }
+
+                $baseCompare = ($positiveStats[$b] ?? 0) <=> ($positiveStats[$a] ?? 0);
+                if ($baseCompare !== 0) {
+                    return $baseCompare;
+                }
+
+                return ($fieldOrder[$a] ?? PHP_INT_MAX) <=> ($fieldOrder[$b] ?? PHP_INT_MAX);
+            });
+
+            foreach ($keys as $key) {
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                $extras[$key]++;
+                $remaining--;
+            }
+        }
+
+        $stats = $baseStats;
+        foreach ($extras as $key => $extra) {
+            $stats[$key] = ($stats[$key] ?? 0) + $extra;
         }
 
         return $stats;

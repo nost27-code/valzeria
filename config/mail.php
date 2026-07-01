@@ -49,6 +49,17 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'contact_smtp' => [
+            'transport' => 'smtp',
+            'scheme' => env('CONTACT_MAIL_SMTP_ENCRYPTION', 'ssl'),
+            'host' => env('CONTACT_MAIL_SMTP_HOST', env('CONTACT_MAIL_HOST', '127.0.0.1')),
+            'port' => env('CONTACT_MAIL_SMTP_PORT', 465),
+            'username' => env('CONTACT_MAIL_USERNAME'),
+            'password' => env('CONTACT_MAIL_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -114,5 +125,9 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
+
+    'admin_purchase_notification_address' => env('ADMIN_EMAIL', env('CONTACT_MAIL_ADDRESS')),
+
+    'purchase_notification_mailer' => env('PURCHASE_NOTIFICATION_MAILER', env('MAIL_MAILER', 'log')),
 
 ];

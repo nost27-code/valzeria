@@ -28,6 +28,7 @@ $excludes = [
     '.gemini',
     'backups',
     '.env',
+    'docs',
     'deploy_temp.zip',
     'ffa_backup',
     'local_deploy.php',
@@ -121,7 +122,7 @@ echo "圧縮完了。対象ファイル数: {$count}\n";
 // ファイルサイズチェック
 $filesizeMb = round(filesize($zipFilePath) / 1024 / 1024, 2);
 echo "ZIPファイルサイズ: {$filesizeMb} MB\n";
-if ($filesizeMb > 30) {
+if ($filesizeMb > 50) {
     echo "警告: ZIPサイズが大きすぎます。XserverのPHPアップロード制限 (upload_max_filesize) を超過する可能性があります。\n";
 }
 

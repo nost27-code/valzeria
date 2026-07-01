@@ -34,6 +34,7 @@ class BattleActor
     public array $jobArts = [];
     public array $jobArtRates = [];
     public array $jobArtOrigins = [];
+    public array $jobArtPolicies = [];
     public string $jobArtActivationPolicy = 'normal';
     public ?string $jobKey = null;
     public array $battleTypeWeights = ['physical' => 1.0, 'speed' => 0.0, 'magical' => 0.0];

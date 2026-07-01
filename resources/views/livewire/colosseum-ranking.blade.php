@@ -10,7 +10,7 @@
     </div>
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div class="grid gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500" style="grid-template-columns: 58px minmax(0, 1fr) 72px;">
+        <div class="grid gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500" style="grid-template-columns: 64px minmax(0, 1fr) 82px;">
             <div>順位</div>
             <div>冒険者</div>
             <div class="text-right">戦力</div>
@@ -23,15 +23,15 @@
                     $isNpc = ($ranking['type'] ?? null) === 'npc';
                     $isMe = $player && (int) $player->id === (int) $myCharacterId;
                 @endphp
-                <div class="grid items-center gap-2 px-3 py-3 text-sm {{ $isMe ? 'relative bg-amber-100 ring-2 ring-inset ring-amber-500 shadow-[inset_4px_0_0_#d97706]' : 'bg-white' }}" style="grid-template-columns: 58px minmax(0, 1fr) 72px;">
+                <div class="grid items-center gap-2 px-3 py-3.5 text-sm {{ $isMe ? 'relative bg-amber-100 ring-2 ring-inset ring-amber-500 shadow-[inset_4px_0_0_#d97706]' : 'bg-white' }}" style="grid-template-columns: 64px minmax(0, 1fr) 82px;">
                     <div class="font-black {{ $ranking['rank'] === 1 ? 'text-amber-500' : ($ranking['rank'] === 2 ? 'text-slate-400' : ($ranking['rank'] === 3 ? 'text-amber-700' : 'text-slate-600')) }}">
                         {{ $ranking['rank'] }}位
                     </div>
                     <div class="min-w-0">
                         @if($player)
-                            <div class="flex min-w-0 items-center gap-2">
+                            <div class="flex min-w-0 items-center gap-3">
                                 @if(!empty($ranking['image_path']))
-                                    <span class="h-9 w-9 shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-50">
+                                    <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
                                         <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
                                     </span>
                                 @endif

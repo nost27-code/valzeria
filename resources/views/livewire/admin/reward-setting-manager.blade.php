@@ -29,15 +29,30 @@
                     <div class="w-full sm:w-44 shrink-0">
                         <label class="block text-xs font-black text-slate-500 mb-1">設定値</label>
                         @if($setting->value_type === 'boolean')
+                            @php
+                                $boolValue = filter_var($values[$setting->id] ?? $setting->value, FILTER_VALIDATE_BOOLEAN);
+                                $boolOnLabel = $setting->setting_key === 'auth.registration_open' ? '受付中' : 'ON';
+                                $boolOffLabel = $setting->setting_key === 'auth.registration_open' ? '停止中' : 'OFF';
+                            @endphp
                             <label class="flex min-h-12 cursor-pointer items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 shadow-sm">
-                                <span class="text-sm font-black {{ ($values[$setting->id] ?? $setting->value) ? 'text-emerald-700' : 'text-slate-500' }}">
-                                    {{ ($values[$setting->id] ?? $setting->value) ? '受付中' : '停止中' }}
+                                <span class="text-sm font-black {{ $boolValue ? 'text-emerald-700' : 'text-slate-500' }}">
+                                    {{ $boolValue ? $boolOnLabel : $boolOffLabel }}
                                 </span>
                                 <input type="checkbox"
                                        wire:model.live="values.{{ $setting->id }}"
                                        value="1"
                                        class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                             </label>
+                        @elseif($setting->setting_key === 'exploration.mode')
+                            <select wire:model.defer="values.{{ $setting->id }}"
+                                    class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base font-black text-slate-950 shadow-sm focus:border-[#d4af37] focus:ring focus:ring-[#d4af37]/30">
+                                <option value="cooldown">クールダウン</option>
+                                <option value="stamina">探索力</option>
+                            </select>
+                        @elseif($setting->value_type === 'string')
+                            <input type="text"
+                                   wire:model.defer="values.{{ $setting->id }}"
+                                   class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-right text-base font-black text-slate-950 shadow-sm focus:border-[#d4af37] focus:ring focus:ring-[#d4af37]/30">
                         @else
                             <input type="number"
                                    step="{{ $setting->value_type === 'integer' ? '1' : '0.01' }}"

@@ -6,6 +6,39 @@ use Illuminate\Database\Eloquent\Model;
 
 class Item extends Model
 {
+    private const WEAPON_ICON_BY_CATEGORY = [
+        'sword' => 'images/icon/icon_224.webp',
+        'bow' => 'images/icon/icon_225.webp',
+        'dagger' => 'images/icon/icon_226.webp',
+        'spear' => 'images/icon/icon_227.webp',
+        'axe' => 'images/icon/icon_228.webp',
+        'staff' => 'images/icon/icon_229.webp',
+        'magic_device' => 'images/icon/icon_230.webp',
+        'fist' => 'images/icon/icon_231.webp',
+        'gun' => 'images/icon/icon_232.webp',
+    ];
+
+    private const ARMOR_ICON_BY_CATEGORY = [
+        'heavy_armor' => 'images/icon/icon_233.webp',
+        'heavy_material' => 'images/icon/icon_233.webp',
+        '重装材' => 'images/icon/icon_233.webp',
+        'light_armor' => 'images/icon/icon_234.webp',
+        'light_material' => 'images/icon/icon_234.webp',
+        'clothes' => 'images/icon/icon_234.webp',
+        'cloak' => 'images/icon/icon_234.webp',
+        '軽装材' => 'images/icon/icon_234.webp',
+        'robe' => 'images/icon/icon_235.webp',
+        'arcane_armor' => 'images/icon/icon_235.webp',
+        'magic_cloth' => 'images/icon/icon_235.webp',
+        '魔布材' => 'images/icon/icon_235.webp',
+        'martial_garb' => 'images/icon/icon_236.webp',
+        'martial_material' => 'images/icon/icon_236.webp',
+        '闘具材' => 'images/icon/icon_236.webp',
+        'holy_vestment' => 'images/icon/icon_237.webp',
+        'holy_cloth' => 'images/icon/icon_237.webp',
+        '聖布材' => 'images/icon/icon_237.webp',
+    ];
+
     protected $fillable = [
         'name', 'type', 'description', 'rarity', 'price', 'sell_price',
         'hp_bonus', 'mp_bonus', 'str_bonus', 'def_bonus', 'agi_bonus', 'mag_bonus', 'spr_bonus', 'luk_bonus',
@@ -42,5 +75,33 @@ class Item extends Model
     public function enemyDrops()
     {
         return $this->hasMany(EnemyDrop::class);
+    }
+
+    public function iconImagePath(): ?string
+    {
+        return match ((string) $this->type) {
+            'weapon' => self::WEAPON_ICON_BY_CATEGORY[(string) $this->weapon_category] ?? null,
+            'armor' => self::armorIconImagePathFor($this),
+            'accessory' => 'images/icon/icon_238.webp',
+            default => null,
+        };
+    }
+
+    private static function armorIconImagePathFor(self $item): ?string
+    {
+        foreach ([
+            $item->armor_category_id,
+            $item->armor_category_name,
+            $item->armor_family_id,
+            $item->armor_family_name,
+            $item->armor_category,
+        ] as $key) {
+            $key = (string) $key;
+            if ($key !== '' && isset(self::ARMOR_ICON_BY_CATEGORY[$key])) {
+                return self::ARMOR_ICON_BY_CATEGORY[$key];
+            }
+        }
+
+        return null;
     }
 }

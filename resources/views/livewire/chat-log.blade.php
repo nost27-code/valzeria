@@ -43,7 +43,7 @@
                     @elseif($log['type'] == 'guild') text-blue-600 font-bold
                     @elseif($log['type'] == 'valmon') text-teal-600 font-bold
                     @elseif($log['type'] == 'sub_area') text-cyan-600 font-bold
-                    @elseif($log['type'] == 'growth') text-emerald-600 font-bold
+                    @elseif($log['type'] == 'growth') text-gray-700 font-medium
                     @else text-gray-700 font-medium
                     @endif
                 ">
@@ -58,10 +58,10 @@
                 </span>
             </div>
         @endforeach
-        @if($logLimit < 200)
+        @if($logLimit < \App\Livewire\ChatLog::LOG_MAX)
             <div class="pt-1">
                 <button wire:click="loadMore" class="w-full text-center text-[10px] font-bold text-[#1e40af] hover:underline py-0.5">
-                    もっとよむ（現在 {{ $logLimit }} 件 / 最大200件）
+                    もっとよむ（現在 {{ $logLimit }} 件 / 最大{{ \App\Livewire\ChatLog::LOG_MAX }}件）
                 </button>
             </div>
         @endif

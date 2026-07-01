@@ -5,18 +5,21 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
 | Login | ? | <file/route> | 未確認 |
-| Exploration | ? | <file/route> | 未確認 |
+| Exploration | ? | `ExplorationService`, `battle.result` | 通常探索勝利時に、同じ街で直近活動中の別冒険者と低確率ですれ違う演出を探索結果ログへ表示し、薬草を1個付与する。結果画面に相手のキャラ画像つきカードと受け取った薬草を出す。探索全体の網羅性は未確認。 |
 | Battle | ? | <file/route> | 未確認 |
 | Market | ? | <file/route> | 未確認 |
 | NPC procurement market loop | D | `NpcProcurementRequestService`, `NpcProcurementRequestGenerationService`, `NpcMarketListingService`, `npc_material_stocks`, `market:generate-npc-listings` | 調達依頼を酒場NPC本人の `npc_id` に紐づけ、納品素材をNPC在庫へ加算し、NPC在庫から市場へ定期出品する。NPC出品は買う一覧の在庫・最安値に通常出品として混ざる。市場出品NPCは `npc_rank=hero/legend` を除外する。 |
 | Equipment enhancement | D | `EquipmentEnhancementService`, `SmithController`, `/blacksmith` | 武器・防具・装飾品を最大+5まで強化。+1/+2は欠片中心、+3は石+欠片、+4/+5は高純度石・都市素材・高位素材を使い、+5では精錬核も要求する。 |
+| Equipment evolution | D | `EquipmentEvolutionService`, `EquipmentEvolutionLog`, `SmithController`, `/blacksmith` | 武器・防具・装飾品を進化合成できる。進化元の+強化値はリセットされるが、消費対象に銘付き装備が含まれる場合は接頭辞/接尾辞、能力補正、種族特効/耐性、良品/逸品を進化後へ引き継ぐ。 |
 | Drop equipment affixes | D | `EquipmentAffixService`, `DropService`, `BattleService`, `CharacterItem` | 敵ドロップ武器・防具に能力銘、武器用種族特効、防具用種族耐性を確率付与。銘補正は個体保存し、装備中のみ反映。 |
-| Material exchange | D | `MaterialExchangeService`, `/material-exchange`, `DropService` | 敵固有素材を共通素材へ変換し、共通素材+100Gから強化石/守護石/装飾強化石の欠片を合成できる。各欠片20個+500Gを対応する石1個へ精製でき、高純度石と精錬核も素材交換所で作れる。高純度強化石・高純度守護石・高純度装飾強化石は敵ドロップしない。 |
+| Material exchange | D | `MaterialExchangeService`, `/material-exchange`, `DropService` | 敵固有素材を共通素材へ変換し、牙/爪/小鬼/ゴブリン系は汎用牙素材として獣牙へ寄せる。共通素材+100Gから強化石/守護石/調律石の欠片を合成できる。刻印、王印、神印、進化証、英雄の証、討伐証、導石、古代片、秘境晶、極印、ボス特異素材、進行キーを含む素材名は共通化対象外。各欠片20個+500Gを対応する石1個へ精製でき、高純度石、粗精錬核、粗精錬核と覇王黒晶/蒼炉魔晶/星樹氷晶経由の精錬核、S→SS分岐進化用の複合素材も素材交換所で作れる。敵ドロップの強化系補助枠は各通常ダンジョンの約半数の通常敵から1%の欠片だけを許可し、石・高純度石・精錬核系素材は敵ドロップしない。回復アイテム調合は一時停止中。 |
+| Item book | D | `ItemBookController`, `ItemBookService`, `/item-book`, `item-book.index`, `MainScreen` | アイテム図鑑で装備品合成・鍛冶/素材交換・敵ドロップなど現在のプレイで必要な素材を所持/未所持問わず確認できる。廃止済み素材は表示しない。素材カードはアコーディオン表示で、閉じた状態ではアイコン、素材名、カテゴリ、所持状況、作成可否、ドロップ有無のバッジを表示する。 |
 | Daily supply depot | D | `DailySupplyService`, `/shop/items` | 回復アイテム各10個/日の補給枠と補給所ストックを実装。 |
 | Tavern NPC portraits | D | `NpcMaster`, `resources/views/tavern/*.blade.php`, `public/images/npc/npc_*.webp` | 酒場・会話・名簿・名簿詳細で `npc_id` 対応のキャラ画像を表示。未遭遇NPCは名簿で伏せる。 |
-| Job change / temple | D | `JobChange`, `job-change.blade.php`, `/jobs` | 職業カードから詳細モーダルを開き、特徴・職業管理の成長倍率に基づく伸びやすい能力・奥義・マスター恩恵・必要条件を確認できる。職業ランクは全職10でマスターし、必要職業EXPは基本職1倍/中級職2倍/上級職5倍/伝説職10倍。1回の報酬処理で付与される職業EXPは最大3。転職可能職業は詳細モーダルから転職確認へ進める。 |
+| Job change / temple | D | `JobChange`, `job-change.blade.php`, `/jobs`, `JobArtController`, `JobArtService`, `job-arts.index` | 職業カードから詳細モーダルを開き、特徴・職業管理の成長倍率に基づく伸びやすい能力・奥義・マスター恩恵・必要条件を確認できる。職業ランクは全職10でマスターし、必要職業EXPは基本職1倍/中級職2倍/上級職5倍/伝説職10倍。1回の報酬処理で付与される職業EXPは最大3。転職可能職業は詳細モーダルから転職確認へ進める。奥義は通常戦用3枠とボス戦用3枠を別々に保存し、戦闘種別に応じて使い分ける。各スロットに積極/通常/温存の発動方針を設定できる。 |
 | Home action prompts | D | `HomeActionService`, `HomeActionPanel`, `home-action-panel` | 次やることカードに未完了の最前線エリアへの探索誘導、補給所の回復アイテム受け取り誘導、装備中装備の進化合成誘導、現在職マスター時の転職案内、奥義セット不足の誘導を表示。 |
 | Rank battle notifications | D | `PvPBattleService`, `CharacterNotificationService`, `PublicLogService` | ランク戦で格上に勝つと相手順位まで上がり、対戦相手へ順位低下通知を作成。番付上昇/TOP10入りは全体チャットへ公開ログを流す。 |
+| Town ranking board | D | `RankingController`, `TownRankingService`, `ranking.index`, `MainScreen` | 街の番付掲示板から、勝利数、所持ヴァルモン数、モンスター印収集数、逸品装備所持数、素材総所持数、成金、市場売上、調達納品数、仕事人、逸品鑑定士の各番付を確認できる。 |
 | Official note RSS notifications | D | `SyncNoteRssUpdates`, `external_feed_items`, `character_notifications`, `routes/console.php` | 公式note RSSの最新1件だけを定期確認し、未通知の記事ならプレイヤーの通知ベルへ新着通知を作成する。通知済み記事は `external_feed_items` で重複防止する。 |
 | Arena NPC rankers | D | `ArenaNpcRankingService`, `ArenaNpcBattleService`, `ArenaNpcAutoBattleService`, `RunArenaNpcAutoBattles`, `ColosseumRanking`, `arena_npc_rankings` | 闘技場ランク戦に酒場NPC由来のNPCランカーを混ぜ、通常のランク戦ボタンからNPCにも挑戦できる。当面は中級/一般NPCだけをプレイヤー順位帯より下の下位帯（最低51位以降）へ配置し、上級職NPCはランク外で待機する。ランキングでは通称名、表示Lv、非公開ステータス、見た目用の現在装備をNPC詳細モーダルに表示し、1日数回の自動ランク戦も行う。NPCは勝利ごとに表示Lvが1上がる（上限50）。legend枠と戦闘に向かないNPCは不出場。NPCステータスは非公開表示。 |
 | Admin mail favicon badge | D | `components.layouts.admin`, `/admin/contact-messages/badge-count` | 管理画面を開いている間、5分間隔でメール取り込みと新規受信数確認を行い、faviconとタイトルに新規数を表示。 |

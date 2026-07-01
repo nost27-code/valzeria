@@ -55,9 +55,8 @@ class NormalDropMaterialConsolidator
 
         return match (true) {
             str_contains($name, 'スライム') || str_contains($name, '粘液') => 'MAT_COMMON_SLIME_MUCUS',
-            str_contains($name, 'ゴブリン') || str_contains($name, '小鬼') => 'MAT_COMMON_GOBLIN_FANG',
             str_contains($name, '竜鱗') || str_contains($name, '鱗') => 'MAT_COMMON_DRAGON_SCALE',
-            str_contains($name, '牙') || str_contains($name, '爪') => 'MAT_COMMON_BEAST_FANG',
+            str_contains($name, '牙') || str_contains($name, '爪') || str_contains($name, 'ゴブリン') || str_contains($name, '小鬼') => 'MAT_COMMON_BEAST_FANG',
             str_contains($name, '毛皮') => 'MAT_COMMON_BEAST_FUR',
             str_contains($name, '翼膜') => 'MAT_COMMON_WING_MEMBRANE',
             str_contains($name, '外殻') || str_contains($name, '甲殻') => 'MAT_COMMON_MONSTER_SHELL',

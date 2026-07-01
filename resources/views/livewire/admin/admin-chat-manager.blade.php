@@ -35,7 +35,7 @@
                             @elseif($log['type'] === 'guild') text-blue-600 font-bold
                             @elseif($log['type'] === 'valmon') text-teal-600 font-bold
                             @elseif($log['type'] === 'sub_area') text-cyan-600 font-bold
-                            @elseif($log['type'] === 'growth') text-emerald-600 font-bold
+                            @elseif($log['type'] === 'growth') text-slate-700 font-semibold
                             @else text-slate-700 font-semibold
                             @endif
                         ">

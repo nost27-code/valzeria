@@ -48,8 +48,8 @@ return new class extends Migration
             [
                 'setting_key' => 'cooldown.inn_seconds',
                 'label' => '宿屋後 探索待機秒数',
-                'description' => '宿屋でHP/SPを全回復した後、次の探索まで待機する秒数です。0で待機なし。',
-                'value' => '40',
+                'description' => '宿屋でHP/SPを全回復した後の探索待機は廃止済みです。',
+                'value' => '0',
                 'value_type' => 'integer',
             ],
             [

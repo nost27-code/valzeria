@@ -22,7 +22,12 @@ class ArenaNpcRankingService
 
     public function ensureRankings(): void
     {
-        if (! Schema::hasTable('arena_npc_rankings') || ArenaNpcRanking::query()->exists()) {
+        if (! Schema::hasTable('arena_npc_rankings')) {
+            return;
+        }
+
+        if (ArenaNpcRanking::query()->exists()) {
+            $this->compactVisibleRanksIfNeeded();
             return;
         }
 
@@ -47,6 +52,8 @@ class ArenaNpcRankingService
                 ]);
             }
         });
+
+        $this->compactVisibleRanksIfNeeded();
     }
 
     public function nextRank(): int
@@ -66,6 +73,8 @@ class ArenaNpcRankingService
     public function ensurePlayerRanking(Character $character): ArenaRanking
     {
         return DB::transaction(function () use ($character): ArenaRanking {
+            $this->compactVisibleRanksIfNeeded();
+
             $existing = ArenaRanking::where('character_id', $character->id)
                 ->lockForUpdate()
                 ->first();
@@ -113,6 +122,85 @@ class ArenaNpcRankingService
             ->sortBy('rank')
             ->take($limit)
             ->values();
+    }
+
+    private function compactVisibleRanksIfNeeded(): void
+    {
+        if (! Schema::hasTable('arena_npc_rankings')) {
+            return;
+        }
+
+        $players = ArenaRanking::query()
+            ->orderBy('rank')
+            ->orderBy('id')
+            ->get(['id', 'rank']);
+
+        $activeNpcs = ArenaNpcRanking::query()
+            ->where('is_active', true)
+            ->orderBy('rank')
+            ->orderBy('id')
+            ->get(['id', 'rank']);
+
+        $inactiveNpcs = ArenaNpcRanking::query()
+            ->where('is_active', false)
+            ->orderBy('id')
+            ->get(['id', 'rank']);
+
+        $npcStartRank = max($players->count(), self::PLAYER_TOP_PROTECTED_RANK, self::NPC_LOWER_ENTRY_FLOOR_RANK) + 1;
+        $visibleMaxRank = $activeNpcs->isEmpty()
+            ? $players->count()
+            : $npcStartRank + $activeNpcs->count() - 1;
+
+        $needsCompact = $players
+            ->values()
+            ->contains(fn (ArenaRanking $ranking, int $index): bool => (int) $ranking->rank !== $index + 1);
+
+        if (! $needsCompact) {
+            $needsCompact = $activeNpcs
+                ->values()
+                ->contains(fn (ArenaNpcRanking $ranking, int $index): bool => (int) $ranking->rank !== $npcStartRank + $index);
+        }
+
+        if (! $needsCompact && $visibleMaxRank > 0) {
+            $needsCompact = $inactiveNpcs
+                ->contains(fn (ArenaNpcRanking $ranking): bool => (int) $ranking->rank > 0 && (int) $ranking->rank <= $visibleMaxRank);
+        }
+
+        if (! $needsCompact) {
+            return;
+        }
+
+        DB::transaction(function () use ($players, $activeNpcs, $inactiveNpcs, $npcStartRank): void {
+            foreach ($players as $player) {
+                ArenaRanking::query()
+                    ->whereKey($player->id)
+                    ->update(['rank' => -2000000 - (int) $player->id]);
+            }
+
+            foreach ($activeNpcs as $npc) {
+                ArenaNpcRanking::query()
+                    ->whereKey($npc->id)
+                    ->update(['rank' => -1000000 - (int) $npc->id]);
+            }
+
+            foreach ($inactiveNpcs as $npc) {
+                ArenaNpcRanking::query()
+                    ->whereKey($npc->id)
+                    ->update(['rank' => 900000 + (int) $npc->id]);
+            }
+
+            foreach ($players->values() as $index => $player) {
+                ArenaRanking::query()
+                    ->whereKey($player->id)
+                    ->update(['rank' => $index + 1]);
+            }
+
+            foreach ($activeNpcs->values() as $index => $npc) {
+                ArenaNpcRanking::query()
+                    ->whereKey($npc->id)
+                    ->update(['rank' => $npcStartRank + $index]);
+            }
+        });
     }
 
     public function shiftCombinedRanksDown(
@@ -192,6 +280,10 @@ class ArenaNpcRankingService
             ->get()
             ->map(function (ArenaRanking $ranking): array {
                 $character = $ranking->character;
+                $profileService = app(CharacterProfileService::class);
+                $profileFrameTheme = $character
+                    ? $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme)
+                    : 'standard';
 
                 return [
                     'type' => 'player',
@@ -204,6 +296,7 @@ class ArenaNpcRankingService
                     'character' => $character,
                     'ranking' => $ranking,
                     'image_path' => CharacterIconCatalog::normalize($character?->icon_path),
+                    'frame_image_path' => $profileService->frameImageForTheme($profileFrameTheme),
                 ];
             });
 

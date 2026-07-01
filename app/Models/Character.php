@@ -11,6 +11,20 @@ class Character extends Model
 
     protected $guarded = [];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Character $character): void {
+            if ($character->explore_stamina !== null) {
+                return;
+            }
+
+            $max = app(\App\Services\ExplorationStaminaService::class)->maxForCharacter($character);
+            $character->explore_stamina = $max;
+            $character->explore_stamina_max = $max;
+            $character->explore_stamina_updated_at = $character->explore_stamina_updated_at ?: now();
+        });
+    }
+
     // 日付ミューテータの設定
     protected $casts = [
         'is_frozen' => 'boolean',
@@ -19,6 +33,10 @@ class Character extends Model
         'last_battle_at' => 'datetime',
         'last_champ_battle_at' => 'datetime',
         'exploration_cooldown_until' => 'datetime',
+        'explore_stamina' => 'integer',
+        'explore_stamina_max' => 'integer',
+        'explore_stamina_updated_at' => 'datetime',
+        'inn_rescue_streak' => 'integer',
         'kiseki' => 'integer',
         'paid_kiseki' => 'integer',
         'free_kiseki' => 'integer',
@@ -42,6 +60,10 @@ class Character extends Model
         'profile_comment' => 'string',
         'profile_ranch_background' => 'string',
         'profile_frame_theme' => 'string',
+        'profile_card_background' => 'string',
+        'profile_card_frame' => 'string',
+        'profile_avatar_frame' => 'string',
+        'profile_valmon_case' => 'string',
         'private_chat_theme' => 'string',
     ];
 

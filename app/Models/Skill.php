@@ -170,6 +170,16 @@ class Skill extends Model
         return max(0, (int) ($this->mp_cost ?? 0));
     }
 
+    public function specialSkillSpCostForMaxSp(int $maxSp): int
+    {
+        $baseCost = $this->spCostForMaxSp($maxSp);
+        if ($baseCost <= 0) {
+            return 0;
+        }
+
+        return max(1, (int) ceil($baseCost / 2));
+    }
+
     public function jobArtBaseSpCostForMaxSp(int $maxSp): int
     {
         if ($this->sp_cost_fixed !== null) {

@@ -7,6 +7,7 @@ use App\Models\ArenaLog;
 use App\Models\ArenaNpcLog;
 use App\Models\ArenaNpcRanking;
 use App\Models\ArenaRanking;
+use App\Models\Character;
 use App\Models\CharacterAreaProgress;
 use App\Models\CharacterSubAreaRouteDiscovery;
 use App\Models\Enemy;
@@ -22,11 +23,14 @@ use App\Services\ArenaNpcBattleService;
 use App\Services\ArenaNpcRankingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class BattleController extends Controller
 {
+    private const EXPLORE_REQUEST_DELAY_SECONDS = 2;
+
     protected ExplorationService $explorationService;
     protected CharacterStatusService $statusService;
     protected \App\Services\AreaService $areaService;
@@ -93,6 +97,10 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'このエリアにはまだ入れません。');
         }
 
+        if (!$this->acquireExploreRequestDelay($character)) {
+            return $this->redirectExploreRequestBusy($request, $character, $areaId);
+        }
+
         $targetDepth = (string) $request->input('depth_target', '');
         if (!$request->boolean('continue_chain')) {
             if ($targetDepth !== '') {
@@ -113,7 +121,22 @@ class BattleController extends Controller
         }
 
         $forcedEvent = $request->boolean('challenge_dungeon_lord') ? 'dungeon_lord' : null;
-        $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
+        $batchCount = (int) $request->input('batch_count', 1);
+        $canBatchExplore = $batchCount > 1
+            && $targetDepth === ''
+            && $forcedEvent === null
+            && app(\App\Services\ExplorationStaminaService::class)->enabled();
+
+        if ($canBatchExplore) {
+            $result = $this->explorationService->exploreRepeated(
+                $character,
+                $areaId,
+                min(10, $batchCount)
+            );
+        } else {
+            $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
+        }
+
         $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
@@ -206,7 +229,8 @@ class BattleController extends Controller
             return $result;
         }
 
-        if (($result['special_event'] ?? null) !== null) {
+        $specialEvent = $result['special_event'] ?? null;
+        if ($specialEvent !== null && $specialEvent !== 'golden_goblin') {
             return $result;
         }
 
@@ -271,6 +295,7 @@ class BattleController extends Controller
 
         if (!in_array((string) ($gate['key'] ?? ''), ['deepest', 'otherworld'], true)) {
             return $this->continueAfterDepthGate(
+                $request,
                 $character,
                 $area,
                 "{$gate['label']}の入口は地図に記録せず、現在の探索を続けます。"
@@ -280,6 +305,7 @@ class BattleController extends Controller
         $this->recordDepthGateDiscovery($character, $area, $gate);
 
         return $this->continueAfterDepthGate(
+            $request,
             $character,
             $area,
             "{$area->name}・{$gate['label']}の入口を地図に記録しました。後で挑戦できるようにして、現在の探索を続けます。"
@@ -300,6 +326,7 @@ class BattleController extends Controller
         $area = Area::findOrFail($areaId);
 
         return $this->continueAfterDepthGate(
+            $request,
             $character,
             $area,
             '危険な入口から引き返し、現在のエリア探索を続けます。'
@@ -339,6 +366,10 @@ class BattleController extends Controller
         }
 
         $discovery->loadMissing('route.subArea', 'route.sourceArea');
+        if (!$this->acquireExploreRequestDelay($character)) {
+            return $this->redirectExploreRequestBusy($request, $character, (int) ($discovery->route?->source_area_id ?? 0));
+        }
+
         $result = app(\App\Services\SubAreaExplorationService::class)->explore($character, $discovery);
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
@@ -376,6 +407,10 @@ class BattleController extends Controller
         $progress = $character->areaProgresses()->where('area_id', $areaId)->first();
         if ($progress && $progress->boss_defeated) {
             return redirect()->route('home')->with('error', 'このエリアのボスはすでに討伐済みです。');
+        }
+
+        if (!$this->acquireExploreRequestDelay($character)) {
+            return $this->redirectExploreRequestBusy($request, $character, $areaId, true);
         }
 
         $result = $this->explorationService->explore($character, $areaId, true);
@@ -527,8 +562,8 @@ class BattleController extends Controller
         }
 
         $area = Area::find($areaId);
-        $gate = $area ? $this->currentDepthGate($character, $area) : null;
-        if (!$gate || (string) ($gate['key'] ?? '') !== $confirmed) {
+        $gate = $area ? $this->confirmedDepthGate($character, $area, $confirmed) : null;
+        if (!$gate) {
             return false;
         }
 
@@ -542,7 +577,54 @@ class BattleController extends Controller
         return true;
     }
 
-    private function continueAfterDepthGate($character, Area $area, string $statusMessage)
+    private function confirmedDepthGate($character, Area $area, string $confirmed): ?array
+    {
+        if (!in_array($confirmed, ['inner', 'deep', 'deepest', 'otherworld'], true)) {
+            return null;
+        }
+
+        $gate = $this->currentDepthGate($character, $area);
+        if ($gate && (string) ($gate['key'] ?? '') === $confirmed) {
+            return $gate;
+        }
+
+        $battleData = session('lastBattleData') ?? session('battleData');
+        if ((int) data_get($battleData, 'areaId', 0) !== (int) $area->id) {
+            return null;
+        }
+
+        $result = data_get($battleData, 'result', []);
+        $previousGate = data_get($result, 'depth_gate');
+        $previousGateKey = is_array($previousGate) ? (string) ($previousGate['key'] ?? '') : '';
+        $hasTransition = collect(data_get($result, 'exploration_progress.depth_transitions', []))
+            ->contains(fn ($tier): bool => is_array($tier) && (string) ($tier['key'] ?? '') === $confirmed);
+
+        if ($previousGateKey !== $confirmed && !$hasTransition) {
+            return null;
+        }
+
+        $state = app(ExplorationStateService::class)->currentFor($character);
+        $tier = app(ExplorationDepthService::class)->tierByKey($confirmed);
+        if (!$state || !$tier || (int) $state->area_id !== (int) $area->id) {
+            return null;
+        }
+
+        if ((int) ($state->exploration_point ?? 0) < (int) ($tier['min_point'] ?? 0)) {
+            return null;
+        }
+
+        if (is_array($previousGate) && $previousGateKey === $confirmed) {
+            return $previousGate;
+        }
+
+        return [
+            'key' => $confirmed,
+            'label' => (string) ($tier['label'] ?? '深部'),
+            'area_name' => $area->name,
+        ];
+    }
+
+    private function continueAfterDepthGate(Request $request, $character, Area $area, string $statusMessage)
     {
         $areaId = (int) $area->id;
         $gate = $this->currentDepthGate($character, $area);
@@ -552,36 +634,9 @@ class BattleController extends Controller
             $this->armDepthGateCooldownBypass($character, $areaId);
         }
 
-        $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
-        $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
-        $enemy = (object) [
-            'name' => $area->name,
-            'role' => '探索中',
-            'type_name' => '探索中',
-            'str' => 0,
-            'def' => 0,
-            'agi' => 0,
-            'mag' => 0,
-            'spr' => 0,
-        ];
+        $request->merge(['continue_chain' => true]);
 
-        return redirect()->route('battle.result')
-            ->with('status', $statusMessage)
-            ->with('battleData', [
-                'result' => [
-                    'result' => 'victory',
-                    'enemy' => $enemy,
-                    'log' => '',
-                    'logs' => [],
-                    'exp_gained' => 0,
-                    'gold_gained' => 0,
-                    'job_exp_gained' => 0,
-                    'special_event' => 'depth_retreat',
-                ],
-                'areaId' => $areaId,
-                'isBoss' => false,
-                'jobLevel' => $jobLevel,
-            ]);
+        return $this->explore($request, $areaId)->with('status', $statusMessage);
     }
 
     private function recordDepthGateDiscovery($character, Area $area, array $gate): void
@@ -638,6 +693,40 @@ class BattleController extends Controller
         $startedAt = $state?->started_at ? $state->started_at->timestamp : 0;
 
         return "depth_gate_cooldown_bypass:{$character->id}:{$areaId}:{$startedAt}";
+    }
+
+    private function acquireExploreRequestDelay(Character $character): bool
+    {
+        return Cache::add(
+            "explore_request_delay:{$character->id}",
+            true,
+            now()->addSeconds(self::EXPLORE_REQUEST_DELAY_SECONDS)
+        );
+    }
+
+    private function redirectExploreRequestBusy(Request $request, Character $character, int $areaId, bool $isBoss = false)
+    {
+        if ($request->ajax()) {
+            return response('探索処理中です。少し待ってからもう一度お試しください。', 409)
+                ->header('X-Explore-Busy', '1')
+                ->header('Retry-After', (string) self::EXPLORE_REQUEST_DELAY_SECONDS);
+        }
+
+        return redirect()->route('battle.result')->with('battleData', [
+            'result' => [
+                'error' => '探索処理中です。少し待ってからもう一度お試しください。',
+            ],
+            'areaId' => $areaId,
+            'isBoss' => $isBoss,
+            'jobLevel' => $this->currentJobLevel($character),
+        ]);
+    }
+
+    private function currentJobLevel(Character $character): int
+    {
+        $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
+
+        return $jobHistory ? (int) $jobHistory->job_level : 1;
     }
 
     private function currentDepthGate($character, Area $area): ?array
@@ -906,6 +995,12 @@ class BattleController extends Controller
         $battleData['finalStats'] = $this->statusService->getFinalStats($battleData['character']);
         if (!($battleData['isBoss'] ?? false)) {
             $battleData['recoveryItems'] = app(ExplorationItemService::class)->carriedItems($battleData['character']);
+            $battleData['supportItemCounts'] = app(\App\Services\AdventureSupportService::class)->countsFor($battleData['character']);
+        }
+        if (!($battleData['isBoss'] ?? false) && isset($battleData['result']['exploration_stamina'])) {
+            $battleData['result']['exploration_stamina'] = app(\App\Services\ExplorationStaminaService::class)
+                ->summary($battleData['character']);
+            session(['lastBattleData' => $battleData]);
         }
 
         // 敵情報が配列ならオブジェクトにキャスト
@@ -923,13 +1018,100 @@ class BattleController extends Controller
         }
 
         $areaId = (int) ($battleData['areaId'] ?? 0);
+        $battleDepthKey = $this->battleDepthKey($battleData['character'], $areaId);
         $battleData['battleHeaderIconImage'] = $this->battleHeaderIconImage($areaId);
-        $battleData['battleCityBackgroundStyle'] = (($battleData['result']['special_event'] ?? null) === 'secret_realm_lord')
-            ? 'background-color: #d9b72f;'
-            : $this->battleCityBackgroundStyle($areaId);
+        $battleData['battleCityBackgroundStyle'] = in_array($battleDepthKey, ['deep', 'deepest', 'otherworld'], true)
+            ? $this->depthBattleBackgroundStyle($battleDepthKey)
+            : ((($battleData['result']['special_event'] ?? null) === 'secret_realm_lord')
+                ? 'background-color: #d9b72f;'
+                : $this->battleCityBackgroundStyle($areaId));
+        $battleData = array_merge($battleData, $this->depthBattleHeaderTheme($battleDepthKey));
         $battleData['discoveryAreaCardBackgrounds'] = $this->discoveryAreaCardBackgrounds($battleData['result']['new_discoveries'] ?? []);
 
         return view('battle.result', $battleData);
+    }
+
+    private function battleDepthKey(Character $character, int $areaId): string
+    {
+        $area = Area::find($areaId);
+        if (!$area) {
+            return 'surface';
+        }
+
+        $state = app(ExplorationStateService::class)->currentFor($character);
+        if (!$state || (int) $state->area_id !== $areaId) {
+            return 'surface';
+        }
+
+        $tier = app(ExplorationDepthService::class)->activeTierFor(
+            $character,
+            $area,
+            (int) ($state->exploration_point ?? 0),
+            (int) ($state->danger_rate ?? 0)
+        );
+
+        return (string) ($tier['key'] ?? 'surface');
+    }
+
+    private function depthBattleBackgroundStyle(string $depthKey): string
+    {
+        $layers = match ($depthKey) {
+            'deep' => [
+                'background-color: #080d24;',
+                'radial-gradient(circle at 16% 18%, rgba(59, 130, 246, 0.24), transparent 32%),',
+                'radial-gradient(circle at 84% 74%, rgba(99, 102, 241, 0.20), transparent 34%),',
+                'linear-gradient(135deg, #050816 0%, #0d1b3d 46%, #241452 76%, #070913 100%);',
+            ],
+            'deepest' => [
+                'background-color: #070103;',
+                'radial-gradient(circle at 18% 18%, rgba(127, 29, 29, 0.30), transparent 32%),',
+                'radial-gradient(circle at 82% 72%, rgba(88, 28, 135, 0.26), transparent 35%),',
+                'linear-gradient(135deg, #030102 0%, #17030a 42%, #28104a 72%, #050005 100%);',
+            ],
+            default => [
+                'background-color: #05010f;',
+                'radial-gradient(circle at 18% 18%, rgba(124, 58, 237, 0.36), transparent 30%),',
+                'radial-gradient(circle at 82% 72%, rgba(190, 24, 93, 0.24), transparent 34%),',
+                'linear-gradient(135deg, #020106 0%, #10051f 42%, #241044 72%, #06010d 100%);',
+            ],
+        };
+
+        return implode(' ', [
+            $layers[0],
+            'background-image:',
+            $layers[1],
+            $layers[2],
+            $layers[3],
+            'background-attachment: fixed;',
+        ]);
+    }
+
+    private function depthBattleHeaderTheme(string $depthKey): array
+    {
+        if (!in_array($depthKey, ['deep', 'deepest', 'otherworld'], true)) {
+            return [];
+        }
+
+        $style = $this->depthBattleBackgroundStyle($depthKey);
+
+        return [
+            'battleHeaderShellStyle' => $style,
+            'battleHeaderOverlayClass' => match ($depthKey) {
+                'deep' => 'bg-[#07152e]/82',
+                'deepest' => 'bg-[#120106]/86',
+                default => 'bg-[#070211]/86',
+            },
+            'battleHeaderTitleClass' => match ($depthKey) {
+                'deep' => 'text-cyan-100',
+                'deepest' => 'text-rose-100',
+                default => 'text-fuchsia-100',
+            },
+            'battleHeaderBorderClass' => match ($depthKey) {
+                'deep' => 'border-blue-400',
+                'deepest' => 'border-rose-600',
+                default => 'border-fuchsia-500',
+            },
+        ];
     }
 
     private function battleCityBackgroundStyle(int $areaId): string

@@ -25,7 +25,7 @@ class CooldownSettingService
 
     public function innSeconds(): int
     {
-        return $this->seconds('cooldown.inn_seconds', 40, 0, 3600);
+        return 0;
     }
 
     public function arenaRankBattleSeconds(): int

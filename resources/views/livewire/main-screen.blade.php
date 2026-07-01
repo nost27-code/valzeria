@@ -311,11 +311,13 @@
                                             ];
                                             $icon = $simpleIcons[$facility['name'] ?? ''] ?? '🏛️';
                                             $iconImage = $facility['icon_image'] ?? null;
+                                            $restBlocked = (bool) ($facility['rest_blocked'] ?? false);
+                                            $restBlockMessage = (string) ($facility['rest_block_message'] ?? 'HP/SPが満タンです。宿屋で休む必要はありません。');
                                         @endphp
                                         <div class="overflow-hidden rounded-md border shadow-sm {{ $isInactive ? 'border-slate-200 bg-slate-100 opacity-60 grayscale' : 'border-[#d4af37]/50 bg-white transition active:scale-[0.98] hover:border-[#d4af37]' }}">
                                             @if(!$isInactive && !empty($facility['route']))
                                                 @if(!empty($facility['is_post']))
-                                                    <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="h-full" x-data="{ submitting: false }" @submit="submitting = true">
+                                                    <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="h-full" x-data="{ submitting: false }" @submit="if (@js($restBlocked)) { $event.preventDefault(); openModal('宿屋', @js($restBlockMessage)); return; } submitting = true">
                                                         @csrf
                                                         <button type="submit" x-bind:disabled="submitting" x-bind:class="submitting ? 'opacity-60 cursor-wait' : ''" class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
                                                             <x-loading-spinner x-show="submitting" style="display: none;" size="h-4 w-4" />
@@ -486,7 +488,55 @@
                 @else
                     <!-- 施設カードグリッド -->
                     @if(in_array($currentLocation, ['town', 'guild'], true))
-                        @php $groupedLocFacilities = collect($locationData['facilities'])->groupBy('category'); @endphp
+                        @php
+                            $groupedLocFacilities = collect($locationData['facilities'])->groupBy('category');
+                            $rankingSpotlightUntil = \Illuminate\Support\Carbon::parse('2026-07-14 23:59:59', config('app.timezone'));
+                            $showRankingSpotlight = $currentLocation === 'town' && now()->lte($rankingSpotlightUntil);
+                        @endphp
+                        @if($showRankingSpotlight)
+                            <a href="{{ route('ranking.index', !empty($rankingSpotlightLeader['board_key'] ?? null) ? ['board' => $rankingSpotlightLeader['board_key']] : []) }}" wire:navigate class="mb-4 block overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-md transition hover:border-amber-400 hover:shadow-lg active:scale-[0.99]">
+                                <div class="relative min-h-[104px] px-4 py-3 sm:px-5">
+                                    <div class="absolute inset-0 bg-cover bg-right-center opacity-20" style="background-image: url('{{ asset('images/bg-castle.webp') }}');"></div>
+                                    <div class="absolute inset-0 bg-gradient-to-r from-white via-white/95 to-white/60"></div>
+                                    <div class="relative z-10 flex items-center gap-3">
+                                        <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-amber-50 shadow-sm ring-1 ring-amber-200">
+                                            <img src="{{ asset('images/icon/icon_223.webp') }}" alt="" class="h-12 w-12 object-contain">
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="mb-1 flex flex-wrap items-center gap-1.5">
+                                                <span class="rounded bg-[#003366] px-2 py-0.5 text-[10px] font-black text-white">期間限定表示</span>
+                                                <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">7/14まで</span>
+                                            </div>
+                                            <div class="text-lg font-black leading-tight text-slate-950 sm:text-xl">番付掲示板を公開中</div>
+                                            <div class="mt-1 text-xs font-bold leading-relaxed text-slate-600">
+                                                勝利数・ヴァルモン・素材・市場売上など、冒険者たちの記録を確認できます。
+                                            </div>
+                                            @if(!empty($rankingSpotlightLeader))
+                                                <div class="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/90 px-2.5 py-2">
+                                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center">
+                                                        <img
+                                                            src="{{ \App\Support\CharacterIconCatalog::versionedAsset($rankingSpotlightLeader['icon_path'] ?? '/images/chara/chara_001.webp') }}"
+                                                            alt=""
+                                                            class="h-full w-full object-contain drop-shadow-sm"
+                                                        >
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="truncate text-[11px] font-black text-amber-700">{{ $rankingSpotlightLeader['board_title'] }}1位</div>
+                                                        <div class="truncate text-sm font-black text-slate-950">
+                                                            {{ $rankingSpotlightLeader['name'] }}
+                                                            <span class="text-xs tabular-nums text-[#003366]">{{ number_format($rankingSpotlightLeader['score']) }}{{ $rankingSpotlightLeader['unit'] }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="hidden shrink-0 rounded-md border border-[#d4af37] bg-white px-3 py-2 text-xs font-black text-[#9a6b00] shadow-sm sm:block">
+                                            見に行く
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        @endif
                         <!-- スマホ版（md未満）: カテゴリグループリスト -->
                         <div class="{{ $currentLocation === 'guild' ? 'pb-4 space-y-2.5' : 'md:hidden pb-4 space-y-2.5' }}">
                         @foreach($groupedLocFacilities as $facCategory => $facGroup)
@@ -499,6 +549,8 @@
                                         $facHasFree = in_array('無料', $facDetails);
                                         $facSubText = collect($facDetails)->reject(fn($d) => $d === '無料')->implode(' · ');
                                         $facBorder = $loop->last ? '' : 'border-b border-slate-100';
+                                        $facRestBlocked = (bool) ($facility['rest_blocked'] ?? false);
+                                        $facRestBlockMessage = (string) ($facility['rest_block_message'] ?? 'HP/SPが満タンです。宿屋で休む必要はありません。');
                                         $facIconHtml = isset($facility['symbol_image'])
                                             ? '<img src="' . asset('images/' . $facility['symbol_image']) . '" alt="" class="w-full h-full object-contain">'
                                             : (isset($facility['icon_image'])
@@ -506,12 +558,12 @@
                                                 : '<span class="text-xl leading-none">' . ($facility['icon'] ?? '🏛') . '</span>');
                                     @endphp
                                     @if(!$facIsInactive && isset($facility['route']) && !empty($facility['is_post']))
-                                    <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="{{ $facBorder }}" x-data="{ sub: false }" @submit="sub = true">
+                                    <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="{{ $facBorder }}" x-data="{ sub: false }" @submit="if (@js($facRestBlocked)) { $event.preventDefault(); openModal('宿屋', @js($facRestBlockMessage)); return; } sub = true">
                                         @csrf
                                         <button type="submit" x-bind:disabled="sub" class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:opacity-60">
                                             <div class="w-9 h-9 shrink-0 rounded-lg bg-amber-50 flex items-center justify-center overflow-hidden">{!! $facIconHtml !!}</div>
                                             <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
-                                            <div class="shrink-0 flex items-center gap-1.5">@if($facHasFree)<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">無料</span>@endif<svg class="w-4 h-4 text-slate-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg></div>
+                                            <div class="shrink-0 flex items-center gap-1.5">@if(!empty($facility['badge']))<span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">{{ $facility['badge'] }}</span>@elseif($facHasFree)<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">無料</span>@endif<svg class="w-4 h-4 text-slate-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg></div>
                                         </button>
                                     </form>
                                     @elseif(!$facIsInactive && isset($facility['route']))
@@ -610,7 +662,14 @@
                                             <div class="mt-2 flex flex-wrap gap-1.5">
                                                 @foreach($facility['details'] as $detail)
                                                     <span class="inline-flex max-w-full rounded bg-white/80 border border-[#d4af37]/30 px-2 py-0.5 text-[11px] font-bold leading-snug text-[#9a6b00] shadow-sm">
-                                                        {{ $detail }}
+                                                        @if(is_array($detail))
+                                                            @if(!empty($detail['icon_image']))
+                                                                <img src="{{ asset($detail['icon_image']) }}" alt="" class="mr-1 h-3.5 w-3.5 object-contain">
+                                                            @endif
+                                                            {{ $detail['text'] ?? '' }}
+                                                        @else
+                                                            {{ $detail }}
+                                                        @endif
                                                     </span>
                                                 @endforeach
                                             </div>
@@ -624,18 +683,37 @@
                                         @if($currentLocation === 'dungeon' && isset($facility['id']))
                                             @php
                                                 $cooldownRemaining = (int) ($facility['cooldown_remaining_seconds'] ?? 0);
+                                                $stamina = $facility['stamina'] ?? null;
+                                                $staminaCurrent = (int) ($stamina['current'] ?? 0);
+                                                $staminaCost = (int) ($stamina['cost'] ?? 1);
+                                                $usesStamina = (bool) ($stamina['enabled'] ?? false);
+                                                $staminaCostHtml = $usesStamina
+                                                    ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
+                                                    : '';
+                                                $batchExploreCount = 10;
+                                                $batchStaminaCost = $staminaCost * $batchExploreCount;
+                                                $batchStaminaCostHtml = $usesStamina
+                                                    ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($batchStaminaCost) . '）</span></span>'
+                                                    : '';
                                             @endphp
                                             @if(!empty($facility['depth_entries']))
                                                 <div class="rounded border border-amber-200 bg-white/85 p-1.5 shadow-sm">
                                                     <div class="mb-1 text-[10px] font-black text-amber-700">記録済み入口</div>
                                                     <div class="flex flex-col gap-1">
                                                         @foreach($facility['depth_entries'] as $depthEntry)
+                                                            @php
+                                                                $isOtherworldDepthEntry = ($depthEntry['key'] ?? '') === 'otherworld';
+                                                            @endphp
                                                             <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="w-full"
                                                                   x-data="{
                                                                       submitting: false,
                                                                       remaining: {{ $cooldownRemaining }},
+                                                                      staminaCurrent: {{ $staminaCurrent }},
+                                                                      staminaCost: {{ $staminaCost }},
+                                                                      usesStamina: @js($usesStamina),
                                                                       timer: null,
-                                                                      get ready() { return this.remaining <= 0; },
+                                                                      get enoughStamina() { return !this.usesStamina || this.staminaCurrent >= this.staminaCost; },
+                                                                      get ready() { return this.remaining <= 0 && this.enoughStamina; },
                                                                       start() {
                                                                           if (this.remaining <= 0) return;
                                                                           this.timer = setInterval(() => {
@@ -656,10 +734,10 @@
                                                                 <input type="hidden" name="depth_target" value="{{ $depthEntry['key'] }}">
                                                                 <button type="submit"
                                                                         x-bind:disabled="submitting || !ready"
-                                                                        class="inline-flex w-full items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left text-[11px] font-black text-amber-900 shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60">
-                                                                    <span x-show="!submitting">{{ $depthEntry['label'] }}へ</span>
+                                                                        class="inline-flex w-full items-center justify-between gap-2 rounded border px-2 py-1 text-left text-[11px] font-black shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 {{ $isOtherworldDepthEntry ? 'border-red-900 bg-black text-red-500' : 'border-amber-300 bg-amber-50 text-amber-900' }}">
+                                                                    <span x-show="!submitting" class="inline-flex items-center gap-1">{{ $depthEntry['label'] }}へ {!! $staminaCostHtml !!}</span>
                                                                     <span x-show="submitting" style="display: none;">探索中...</span>
-                                                                    <span class="text-[10px] font-bold text-amber-700">{{ $depthEntry['recommended'] }}</span>
+                                                                    <span class="text-[10px] font-bold {{ $isOtherworldDepthEntry ? 'text-red-300' : 'text-amber-700' }}">{{ $depthEntry['recommended'] }}</span>
                                                                 </button>
                                                             </form>
                                                         @endforeach
@@ -670,46 +748,82 @@
                                                 @php
                                                     $readyActionText = $facility['action'] ?? '探索する';
                                                 @endphp
-                                                <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="w-full"
-                                                      x-data="{
-                                                          submitting: false,
-                                                          remaining: {{ $cooldownRemaining }},
-                                                          timer: null,
-                                                          get ready() { return this.remaining <= 0; },
-                                                          start() {
-                                                              if (this.remaining <= 0) return;
-                                                              this.timer = setInterval(() => {
-                                                                  this.remaining = Math.max(0, this.remaining - 1);
-                                                                  if (this.remaining <= 0 && this.timer) {
-                                                                      clearInterval(this.timer);
-                                                                      this.timer = null;
-                                                                  }
-                                                              }, 1000);
-                                                          }
-                                                      }"
-                                                      x-init="start()"
-                                                      @submit="
-                                                          if (!ready) { $event.preventDefault(); return; }
-                                                          submitting = true
-                                                      ">
-                                                    @csrf
-                                                    <button type="submit"
-                                                            x-bind:disabled="submitting || !ready"
-                                                            x-bind:class="ready ? 'bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-[#1e3a8a] active:scale-95 cursor-pointer disabled:cursor-wait' : 'bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed'"
-                                                            class="inline-flex w-full items-center justify-center gap-2 border-2 px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 text-center disabled:opacity-80">
-                                                        <x-loading-spinner x-show="submitting" style="display: none;" />
-                                                        <span x-show="!submitting" x-text="ready ? @js($readyActionText) : `待機中 あと${remaining}秒`">{{ $cooldownRemaining > 0 ? '待機中 あと' . $cooldownRemaining . '秒' : $readyActionText }}</span>
-                                                        <span x-show="submitting" style="display: none;">探索中...</span>
-                                                    </button>
-                                                </form>
+                                                <div class="flex w-full items-stretch gap-2">
+                                                    <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="min-w-0 flex-1"
+                                                          x-data="{
+                                                              submitting: false,
+                                                              remaining: {{ $cooldownRemaining }},
+                                                              staminaCurrent: {{ $staminaCurrent }},
+                                                              staminaCost: {{ $staminaCost }},
+                                                              usesStamina: @js($usesStamina),
+                                                              timer: null,
+                                                              get enoughStamina() { return !this.usesStamina || this.staminaCurrent >= this.staminaCost; },
+                                                              get ready() { return this.remaining <= 0 && this.enoughStamina; },
+                                                              start() {
+                                                                  if (this.remaining <= 0) return;
+                                                                  this.timer = setInterval(() => {
+                                                                      this.remaining = Math.max(0, this.remaining - 1);
+                                                                      if (this.remaining <= 0 && this.timer) {
+                                                                          clearInterval(this.timer);
+                                                                          this.timer = null;
+                                                                      }
+                                                                  }, 1000);
+                                                              }
+                                                          }"
+                                                          x-init="start()"
+                                                          @submit="
+                                                              if (!ready) { $event.preventDefault(); return; }
+                                                              submitting = true
+                                                          ">
+                                                        @csrf
+                                                        <button type="submit"
+                                                                x-bind:disabled="submitting || !ready"
+                                                                x-bind:class="ready ? 'bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-[#1e3a8a] active:scale-95 cursor-pointer disabled:cursor-wait' : 'bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed'"
+                                                                class="inline-flex h-full w-full items-center justify-center gap-2 border-2 px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 text-center disabled:opacity-80">
+                                                            <x-loading-spinner x-show="submitting" style="display: none;" />
+                                                            <span x-show="!submitting && ready" class="inline-flex items-center gap-1">{{ $readyActionText }} {!! $staminaCostHtml !!}</span>
+                                                            <span x-show="!submitting && !ready" x-text="enoughStamina ? `待機中 あと${remaining}秒` : '探索力不足'">{{ $usesStamina && $staminaCurrent < $staminaCost ? '探索力不足' : ($cooldownRemaining > 0 ? '待機中 あと' . $cooldownRemaining . '秒' : $readyActionText) }}</span>
+                                                            <span x-show="submitting" style="display: none;">探索中...</span>
+                                                        </button>
+                                                    </form>
+                                                    @if($usesStamina)
+                                                        <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="shrink-0"
+                                                              x-data="{
+                                                                  submitting: false,
+                                                                  staminaCurrent: {{ $staminaCurrent }},
+                                                                  staminaCost: {{ $staminaCost }},
+                                                                  get ready() { return this.staminaCurrent >= this.staminaCost; }
+                                                              }"
+                                                              @submit="
+                                                                  if (!ready) { $event.preventDefault(); return; }
+                                                                  submitting = true
+                                                              ">
+                                                            @csrf
+                                                            <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
+                                                            <button type="submit"
+                                                                    title="探索力を1回ごとに消費して最大10回探索"
+                                                                    x-bind:disabled="submitting || !ready"
+                                                                    x-bind:class="ready ? 'bg-sky-700 text-white hover:bg-sky-800 border-sky-800 active:scale-95 cursor-pointer disabled:cursor-wait' : 'bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed'"
+                                                                    class="inline-flex h-full items-center justify-center gap-1.5 border-2 px-3 rounded text-xs font-bold shadow transition-all duration-150 text-center disabled:opacity-80">
+                                                                <x-loading-spinner x-show="submitting" style="display: none;" />
+                                                                <span x-show="!submitting">×10 探索</span>
+                                                                <span x-show="submitting" style="display: none;">探索中...</span>
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                </div>
                                             @endif
                                             @if(isset($facility['boss_action']))
                                                 <form action="{{ route('battle.boss', ['area' => $facility['id']]) }}" method="POST" class="w-full"
                                                       x-data="{
                                                           submitting: false,
                                                           remaining: {{ $cooldownRemaining }},
+                                                          staminaCurrent: {{ $staminaCurrent }},
+                                                          staminaCost: {{ $staminaCost }},
+                                                          usesStamina: @js($usesStamina),
                                                           timer: null,
-                                                          get ready() { return this.remaining <= 0; },
+                                                          get enoughStamina() { return !this.usesStamina || this.staminaCurrent >= this.staminaCost; },
+                                                          get ready() { return this.remaining <= 0 && this.enoughStamina; },
                                                           start() {
                                                               if (this.remaining <= 0) return;
                                                               this.timer = setInterval(() => {
@@ -722,19 +836,22 @@
                                                           }
                                                       }"
                                                       x-init="start()"
-                                                      x-show="ready"
                                                       @submit="if (!ready) { $event.preventDefault(); return; } submitting = true">
                                                     @csrf
-                                                    <button type="submit" x-bind:disabled="submitting" class="inline-flex w-full cursor-pointer items-center justify-center gap-2 px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 active:scale-95 text-center disabled:cursor-wait disabled:opacity-70" style="background-color: #dc2626; border: 2px solid #991b1b; color: white;">
+                                                    <button type="submit"
+                                                            x-bind:disabled="submitting || !ready"
+                                                            x-bind:class="ready ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed opacity-70'"
+                                                            class="inline-flex w-full items-center justify-center gap-2 px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 text-center disabled:cursor-not-allowed disabled:opacity-70" style="background-color: #dc2626; border: 2px solid #991b1b; color: white;">
                                                         <x-loading-spinner x-show="submitting" style="display: none;" />
-                                                        <span x-show="!submitting">{{ $facility['boss_action'] }}</span>
+                                                        <span x-show="!submitting && ready" class="inline-flex items-center gap-1">{{ $facility['boss_action'] }} {!! $staminaCostHtml !!}</span>
+                                                        <span x-show="!submitting && !ready" x-text="enoughStamina ? `待機中 あと${remaining}秒` : '探索力不足'">{{ $usesStamina && $staminaCurrent < $staminaCost ? '探索力不足' : '待機中' }}</span>
                                                         <span x-show="submitting" style="display: none;">準備中...</span>
                                                     </button>
                                                 </form>
                                             @endif
                                         @elseif(isset($facility['route']))
                                             @if(isset($facility['is_post']) && $facility['is_post'])
-                                                <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="w-full" x-data="{ submitting: false }" @submit="submitting = true">
+                                                <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="w-full" x-data="{ submitting: false }" @submit="if (@js((bool) ($facility['rest_blocked'] ?? false))) { $event.preventDefault(); openModal('宿屋', @js((string) ($facility['rest_block_message'] ?? 'HP/SPが満タンです。宿屋で休む必要はありません。'))); return; } submitting = true">
                                                     @csrf
                                                     <button type="submit" x-bind:disabled="submitting" class="inline-flex w-full cursor-pointer items-center justify-center gap-2 bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 active:scale-95 text-center disabled:cursor-wait disabled:opacity-70" style="background-color: #1e40af; border-color: #1e3a8a; color: #ffffff;">
                                                         <x-loading-spinner x-show="submitting" style="display: none;" />

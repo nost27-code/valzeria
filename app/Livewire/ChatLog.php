@@ -13,7 +13,7 @@ class ChatLog extends Component
     public int $logLimit = 15;
 
     const LOG_STEP = 50;
-    const LOG_MAX  = 200;
+    const LOG_MAX  = 500;
 
     // チャット入力用プロパティ
     public string $message = '';
@@ -93,7 +93,7 @@ class ChatLog extends Component
         // フィルタリングのために少し多めに取得（自分のIDを渡す）
         $characterId = auth()->check() && auth()->user()->currentCharacter() ? auth()->user()->currentCharacter()->id : null;
         $displayLimit = $this->logLimit;
-        $fetchLimit = $displayLimit <= 15 ? 50 : min(800, $displayLimit * 4);
+        $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
         $publicLogs = $logService->getRecentLogs($fetchLimit, $characterId);
         $systemLogs = [];
         $count = 0;

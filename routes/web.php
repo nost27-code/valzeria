@@ -251,6 +251,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/champ/challenge', [ChampBattleController::class, 'challenge'])->name('champ.challenge');
         Route::get('/champ/result', [ChampBattleController::class, 'result'])->name('champ.result');
         Route::post('/inn/rest', [\App\Http\Controllers\InnController::class, 'rest'])->name('inn.rest');
+        Route::get('/inn/rescue', [\App\Http\Controllers\InnController::class, 'rescue'])->name('inn.rescue');
+        Route::get('/inn/rescue-refused', [\App\Http\Controllers\InnController::class, 'rescueRefused'])->name('inn.rescue-refused');
         Route::get('/tavern', [TavernController::class, 'index'])->name('tavern.index');
         Route::get('/tavern/npcs/{npc}/talk', [TavernController::class, 'talk'])->name('tavern.talk');
         Route::get('/tavern/roster', [TavernController::class, 'roster'])->name('tavern.roster');
@@ -295,6 +297,7 @@ Route::middleware('auth')->group(function () {
         // 持ち物
         Route::get('/inventory', [App\Http\Controllers\InventoryController::class, 'index'])->name('inventory.index');
         Route::post('/inventory/sell', [App\Http\Controllers\InventoryController::class, 'sell'])->name('inventory.sell');
+        Route::post('/inventory/support-items/{itemKey}/use', [App\Http\Controllers\InventoryController::class, 'useSupportItem'])->name('inventory.support-items.use');
         Route::delete('/inventory/materials/{characterMaterial}', [App\Http\Controllers\InventoryController::class, 'discardMaterial'])->name('inventory.materials.discard');
 
         // 銀行
@@ -304,6 +307,7 @@ Route::middleware('auth')->group(function () {
 
         // 印図鑑
         Route::get('/monster-marks', [\App\Http\Controllers\MonsterMarkController::class, 'index'])->name('monster-marks.index');
+        Route::get('/item-book', [\App\Http\Controllers\ItemBookController::class, 'index'])->name('item-book.index');
 
         // 能力割振り
         Route::get('/bonus-points', [\App\Http\Controllers\BonusPointController::class, 'index'])->name('bonus-points.index');
@@ -314,6 +318,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/job-arts', [JobArtController::class, 'index'])->name('job-arts.index');
         Route::post('/job-arts/set', [JobArtController::class, 'set'])->name('job-arts.set');
         Route::post('/job-arts/assign', [JobArtController::class, 'assign'])->name('job-arts.assign');
+        Route::post('/job-arts/slot', [JobArtController::class, 'slotSet'])->name('job-arts.slot-set');
         Route::post('/job-arts/policy', [JobArtController::class, 'policy'])->name('job-arts.policy');
 
         // 鍛冶屋・合成屋
@@ -426,6 +431,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     })->name('admin.contact-messages.badge-count');
     Route::get('/admin/world-metrics', \App\Livewire\Admin\WorldMetricsManager::class)->name('admin.world-metrics');
+    Route::get('/admin/inn-analytics', \App\Livewire\Admin\InnAnalyticsManager::class)->name('admin.inn-analytics');
     Route::get('/admin/operator-analytics', \App\Livewire\Admin\OperatorAnalyticsManager::class)->name('admin.operator-analytics');
     Route::get('/admin/growth-analytics', \App\Livewire\Admin\GrowthAnalyticsManager::class)->name('admin.growth-analytics');
     Route::get('/admin/testers', \App\Livewire\Admin\TesterManager::class)->name('admin.testers');

@@ -8,12 +8,15 @@ class CharacterJobArtSlot extends Model
 {
     protected $fillable = [
         'character_id',
+        'battle_context',
         'slot_no',
         'skill_id',
+        'activation_policy',
     ];
 
     protected $casts = [
         'slot_no' => 'integer',
+        'activation_policy' => 'string',
     ];
 
     public function character()

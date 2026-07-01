@@ -21,8 +21,38 @@ class EnemyDropsSeeder extends Seeder
     private const STRONG_EQUIPMENT_FRAGMENT_NAME = '強装備の欠片';
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const LEGACY_COMMON_FRAGMENT_NAMES = ['武器の欠片', '防具の欠片', '装飾の欠片'];
-    private const HIGH_PURITY_ENHANCE_MATERIAL_CODES = ['MAT_ENHANCE_HIGH_STONE', '5009', 'ACC0009'];
-    private const HIGH_PURITY_ENHANCE_MATERIAL_NAMES = ['高純度強化石', '高純度守護石', '高純度装飾強化石'];
+    private const DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_CODES = [
+        'MAT_ENHANCE_STONE',
+        '5008',
+        'ACC0008',
+        'MAT_ENHANCE_HIGH_STONE',
+        '5009',
+        'ACC0009',
+        'MAT_REFINING_CORE_LOW_A',
+        'MAT_REFINING_CORE_LOW_B',
+        'MAT_REFINING_CORE_LOW',
+        'MAT_REFINING_CORE_PART_A',
+        'MAT_REFINING_CORE_PART_B',
+        'MAT_REFINING_CORE_PART_C',
+        'MAT_REFINING_CORE',
+    ];
+    private const DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_NAMES = [
+        '強化石',
+        '守護石',
+        '装飾強化石',
+        '調律石',
+        '高純度強化石',
+        '高純度守護石',
+        '高純度装飾強化石',
+        '高純度調律石',
+        '織成核殻',
+        '晶糸核芯',
+        '粗精錬核',
+        '覇王黒晶',
+        '蒼炉魔晶',
+        '星樹氷晶',
+        '精錬核',
+    ];
     private const REMOVED_UNUSED_MATERIAL_CODES = ['CITY_08_MATERIAL', 'WEV0030'];
     private const REMOVED_UNUSED_MATERIAL_NAMES = ['瘴気の骨片'];
     private const STALE_BRANCH_PATH_CODES = [
@@ -125,13 +155,25 @@ class EnemyDropsSeeder extends Seeder
     {
         $path = base_path('docs/drop.csv');
         if (!file_exists($path)) {
-            $this->command?->warn('docs/drop.csv が見つからないため、敵ドロップの更新をスキップしました。');
+            $this->command?->warn('docs/drop.csv が見つからないため、マスタCSV由来の敵ドロップ更新をスキップしました。補助素材ドロップのみ更新します。');
+            $supplementalDrops = $this->applySupplementalCommonMaterialDrops();
+            $this->applyEnhanceMaterialDrops();
+            $this->applyGenericFallbackDrops();
+            $this->refreshBranchPathObtainMethods();
+            $this->deactivateGrasslandCityMaterialDrops();
+            $this->command?->info("補助素材ドロップを {$supplementalDrops} 件更新しました。");
             return;
         }
 
         $rows = $this->readTsv($path);
         if (count($rows) < 2) {
-            $this->command?->warn('docs/drop.csv に有効なデータがありません。');
+            $this->command?->warn('docs/drop.csv に有効なデータがありません。補助素材ドロップのみ更新します。');
+            $supplementalDrops = $this->applySupplementalCommonMaterialDrops();
+            $this->applyEnhanceMaterialDrops();
+            $this->applyGenericFallbackDrops();
+            $this->refreshBranchPathObtainMethods();
+            $this->deactivateGrasslandCityMaterialDrops();
+            $this->command?->info("補助素材ドロップを {$supplementalDrops} 件更新しました。");
             return;
         }
 
@@ -385,7 +427,7 @@ class EnemyDropsSeeder extends Seeder
             || in_array($materialName, self::REMOVED_UNUSED_MATERIAL_NAMES, true)) {
             return;
         }
-        if ($this->isHighPurityEnhanceMaterial($materialCode, $materialName)) {
+        if ($this->isDirectDropDisabledEnhanceMaterial($materialCode, $materialName)) {
             return;
         }
 
@@ -611,22 +653,33 @@ class EnemyDropsSeeder extends Seeder
     private function applyEnhanceMaterialDrops(): void
     {
         // 都市ティア → [素材コード[], ウェイト]
-        // ウェイトは他の drops と合算される相対値（低確率になるよう小さめに設定）
+        // 強化系の欠片は各通常ダンジョンの約半数の敵から低確率で落とす。
         $tierConfig = [
-            1 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 5],
-            2 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 5],
-            3 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
-            4 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
-            5 => [['MAT_ENHANCE_STONE',    '5008', 'ACC0008'], 4],
-            6 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
-            7 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
-            8 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
-            9 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
-            10 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 3],
+            1 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            2 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            3 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            4 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            5 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            6 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            7 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            8 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            9 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
+            10 => [['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], 1],
         ];
 
         $allCodes = array_unique(array_merge(...array_map(fn ($c) => $c[0], $tierConfig)));
         $materials = Material::whereIn('material_code', $allCodes)->get()->keyBy('material_code');
+        $materialIds = $materials->pluck('id')->all();
+        if (empty($materialIds)) {
+            return;
+        }
+
+        MaterialDrop::whereIn('material_id', $materialIds)
+            ->where('drop_first_clear_only', false)
+            ->update([
+                'is_active' => false,
+                'updated_at' => now(),
+            ]);
 
         // ルートエリアを除く全エリアの非ボス敵をエリアごとにグループ化
         $grouped = Enemy::where('is_boss', false)
@@ -727,10 +780,10 @@ class EnemyDropsSeeder extends Seeder
             || in_array($materialName, self::LEGACY_COMMON_FRAGMENT_NAMES, true);
     }
 
-    private function isHighPurityEnhanceMaterial(string $materialCode, string $materialName): bool
+    private function isDirectDropDisabledEnhanceMaterial(string $materialCode, string $materialName): bool
     {
-        return in_array($materialCode, self::HIGH_PURITY_ENHANCE_MATERIAL_CODES, true)
-            || in_array($materialName, self::HIGH_PURITY_ENHANCE_MATERIAL_NAMES, true);
+        return in_array($materialCode, self::DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_CODES, true)
+            || in_array($materialName, self::DIRECT_DROP_DISABLED_ENHANCE_MATERIAL_NAMES, true);
     }
 
     private function normalizeEquipmentFragment(string $materialCode, string $materialName): ?array

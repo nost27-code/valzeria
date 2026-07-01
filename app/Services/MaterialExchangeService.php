@@ -15,12 +15,6 @@ class MaterialExchangeService
     private const EQUIPMENT_FRAGMENT_CODE = 'MAT_EQUIPMENT_FRAGMENT';
     private const FINE_EQUIPMENT_FRAGMENT_CODE = 'MAT_FINE_EQUIPMENT_FRAGMENT';
     private const STRONG_EQUIPMENT_FRAGMENT_CODE = 'MAT_STRONG_EQUIPMENT_FRAGMENT';
-    private const BREW_BEAST_FANG_CODE = 'MAT_BREW_BEAST_FANG';
-    private const BREW_TOXIN_CODE = 'MAT_BREW_TOXIN';
-    private const BREW_HERB_CODE = 'MAT_BREW_HERB';
-    private const BREW_MAGIC_POWDER_CODE = 'MAT_BREW_MAGIC_POWDER';
-    private const BREW_LOW_MONSTER_CODE = 'MAT_BREW_LOW_MONSTER';
-    private const RANDOM_RECOVERY_ITEM_CODE = 'RANDOM_RECOVERY_ITEM';
     private const ENHANCE_STONE_CONVERSION_RATE = 20;
     private const ENHANCE_STONE_GOLD_COST = 500;
     private const HIGH_PURITY_STONE_GOLD_COST = 2000;
@@ -221,32 +215,51 @@ class MaterialExchangeService
             'label' => '冒険装飾',
             'sources' => [['MAT_COMMON_OLD_BADGE', 8], ['MAT_REGION_ARKREA_RAW', 2]],
         ],
+        'MAT_BR_ACC_PRIMORDIAL_ORNAMENT_CRYSTAL' => [
+            'label' => '原初装飾',
+            'sources' => [
+                ['MAT_BR_WPN_HOLY_SECRET', 2],
+                ['MAT_BR_WPN_DARK_SECRET', 2],
+                ['MAT_BR_WPN_GALE_SECRET', 2],
+                ['MAT_BR_ARM_HEAVY_SECRET', 2],
+                ['MAT_BR_ARM_ARCANE_SECRET', 2],
+                ['MAT_BR_ARM_LIGHT_SECRET', 2],
+                ['MAT_BR_ARM_TRAVELER_SECRET', 2],
+            ],
+        ],
     ];
 
     public function recipes(Character $character): array
     {
+        return $this->buildRecipes($character, true);
+    }
+
+    public function catalogRecipes(Character $character): array
+    {
+        return $this->buildRecipes($character, false);
+    }
+
+    private function buildRecipes(Character $character, bool $ownedOnly): array
+    {
         $owned = $this->ownedMaterialMap($character);
-        $ownedItems = $this->ownedItemMap($character);
         $materials = $this->materialsByCode();
         $recipes = [];
 
         foreach ($this->allGroups() as $group) {
-            $recipes = array_merge($recipes, $this->upgradeRecipes($group, $materials, $owned));
+            $recipes = array_merge($recipes, $this->upgradeRecipes($group, $materials, $owned, $ownedOnly));
         }
 
-        $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->fragmentSynthesisRecipes($materials, $owned, (int) ($character->money ?? 0)));
-        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned, (int) ($character->money ?? 0)));
-        $recipes = array_merge($recipes, $this->lowRefiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0)));
-        $recipes = array_merge($recipes, $this->refiningCorePartRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->refiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0)));
-        $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->ancientCompositeRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->enemyPartRecipes($materials, $owned));
-        $recipes = array_merge($recipes, $this->recoveryItemRecipes($materials, $owned, $ownedItems));
+        $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->fragmentSynthesisRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
+        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
+        $recipes = array_merge($recipes, $this->lowRefiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
+        $recipes = array_merge($recipes, $this->refiningCorePartRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->refiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
+        $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->ancientCompositeRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $owned, $ownedOnly));
 
         usort($recipes, fn (array $a, array $b): int => [
             $a['can_exchange'] ? 0 : 1,
@@ -562,8 +575,6 @@ class MaterialExchangeService
         $recipes = array_merge($recipes, $this->ancientCompositeRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $emptyOwned, false));
-        $recipes = array_merge($recipes, $this->enemyPartRecipes($materials, $emptyOwned, false));
-        $recipes = array_merge($recipes, $this->recoveryItemRecipes($materials, $emptyOwned, [], false));
 
         return $recipes;
     }
@@ -933,119 +944,6 @@ class MaterialExchangeService
         return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
     }
 
-    private function enemyPartRecipes(array $materials, array $owned, bool $ownedOnly = true): array
-    {
-        $recipes = [];
-        $index = 0;
-
-        foreach ($materials as $sourceCode => $material) {
-            if (!$this->isEnemyPartMaterial($material)) {
-                continue;
-            }
-
-            $targetCode = $this->brewingMaterialCodeFor($material);
-            if (!$targetCode || !$this->canBuildRecipe((string) $sourceCode, $targetCode, $materials)) {
-                continue;
-            }
-
-            $recipes[] = $this->recipePayload(
-                'enemy_part',
-                '部位変換',
-                '敵部位',
-                -1,
-                (string) $sourceCode,
-                $targetCode,
-                1,
-                1,
-                $materials,
-                $owned,
-                300 + $index
-            );
-            $index++;
-        }
-
-        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
-    }
-
-    private function recoveryItemRecipes(array $materials, array $owned, array $ownedItems, bool $ownedOnly = true): array
-    {
-        $items = $this->recoveryItemsByName();
-        if (count($items) < count(self::RECOVERY_ITEM_NAMES)) {
-            return [];
-        }
-
-        $recipes = [];
-        $recipes[] = $this->multiSourceRecipePayload(
-            'recovery_brewing',
-            '回復調合',
-            '薬草',
-            [
-                [self::BREW_BEAST_FANG_CODE, 3],
-            ],
-            'item',
-            '薬草',
-            '薬草',
-            1,
-            $materials,
-            $owned,
-            $ownedItems,
-            500
-        );
-        $recipes[] = $this->multiSourceRecipePayload(
-            'recovery_brewing',
-            '回復調合',
-            '回復薬',
-            [
-                [self::BREW_TOXIN_CODE, 2],
-                [self::BREW_HERB_CODE, 1],
-            ],
-            'item',
-            '回復薬',
-            '回復薬',
-            1,
-            $materials,
-            $owned,
-            $ownedItems,
-            501
-        );
-        $recipes[] = $this->multiSourceRecipePayload(
-            'recovery_brewing',
-            '回復調合',
-            '魔力水',
-            [
-                [self::BREW_MAGIC_POWDER_CODE, 3],
-            ],
-            'item',
-            '魔力水',
-            '魔力水',
-            1,
-            $materials,
-            $owned,
-            $ownedItems,
-            502
-        );
-        $recipes[] = $this->multiSourceRecipePayload(
-            'recovery_brewing',
-            '回復調合',
-            'ランダム',
-            [
-                [self::BREW_LOW_MONSTER_CODE, 5],
-            ],
-            'random_item',
-            self::RANDOM_RECOVERY_ITEM_CODE,
-            '薬草・回復薬・魔力水（ランダム）',
-            1,
-            $materials,
-            $owned,
-            $ownedItems,
-            503
-        );
-
-        $recipes = array_values(array_filter($recipes));
-
-        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
-    }
-
     private function recipePayload(
         string $type,
         string $typeLabel,
@@ -1300,11 +1198,6 @@ class MaterialExchangeService
                 self::REFINING_CORE_PART_A_CODE,
                 self::REFINING_CORE_PART_B_CODE,
                 self::REFINING_CORE_PART_C_CODE,
-                self::BREW_BEAST_FANG_CODE,
-                self::BREW_TOXIN_CODE,
-                self::BREW_HERB_CODE,
-                self::BREW_MAGIC_POWDER_CODE,
-                self::BREW_LOW_MONSTER_CODE,
             ],
             $this->enhancementStoneMaterialCodes(),
             $this->lowRefiningCoreMaterialCodes(),
@@ -1488,11 +1381,6 @@ class MaterialExchangeService
             self::EQUIPMENT_FRAGMENT_CODE,
             self::FINE_EQUIPMENT_FRAGMENT_CODE,
             self::STRONG_EQUIPMENT_FRAGMENT_CODE,
-            self::BREW_BEAST_FANG_CODE,
-            self::BREW_TOXIN_CODE,
-            self::BREW_HERB_CODE,
-            self::BREW_MAGIC_POWDER_CODE,
-            self::BREW_LOW_MONSTER_CODE,
         ], true)) {
             return false;
         }
@@ -1514,29 +1402,6 @@ class MaterialExchangeService
         }
 
         return (bool) ($material->source_enemy_id || preg_match('/^MAT\d+$/', $code));
-    }
-
-    private function brewingMaterialCodeFor(Material $material): ?string
-    {
-        $name = (string) $material->name;
-
-        if ($this->containsAny($name, ['毒', '腐', '呪い', '瘴気'])) {
-            return self::BREW_TOXIN_CODE;
-        }
-
-        if ($this->containsAny($name, ['粘液', '葉', '花', '根', '実', '苔', '茸', '樹液', '若草'])) {
-            return self::BREW_HERB_CODE;
-        }
-
-        if ($this->containsAny($name, ['粉', '魔核', '結晶', '水晶', '黒結晶', '核'])) {
-            return self::BREW_MAGIC_POWDER_CODE;
-        }
-
-        if ($this->containsAny($name, ['牙', '爪', '毛皮', '翼膜', '羽', '外殻', '鱗', '皮', '古骨', '骨'])) {
-            return self::BREW_BEAST_FANG_CODE;
-        }
-
-        return self::BREW_LOW_MONSTER_CODE;
     }
 
     private function commonMaterialCodeFor(Material $material): ?string

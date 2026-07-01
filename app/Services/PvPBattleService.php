@@ -565,7 +565,7 @@ class PvPBattleService
 
     private function rankBattleSkillSpCost(BattleActor $attacker, Skill $skill): int
     {
-        $baseCost = $skill->spCostForMaxSp($attacker->maxMp);
+        $baseCost = $skill->specialSkillSpCostForMaxSp($attacker->maxMp);
         if ($baseCost <= 0 || $attacker->maxMp <= 0) {
             return $baseCost;
         }

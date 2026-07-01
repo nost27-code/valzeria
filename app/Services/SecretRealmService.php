@@ -45,9 +45,9 @@ class SecretRealmService
     public function gateRate(int $explorationPoint): float
     {
         return match (true) {
-            $explorationPoint >= 1000 => 8.0,
-            $explorationPoint >= 700 => 3.0,
-            $explorationPoint >= 500 => 1.0,
+            $explorationPoint >= 1000 => 1.0,
+            $explorationPoint >= 700 => 0.5,
+            $explorationPoint >= 500 => 0.2,
             default => 0.0,
         };
     }
@@ -111,13 +111,10 @@ class SecretRealmService
 
         for ($i = 1; $i <= $attempts; $i++) {
             $roll = rand(1, 100);
-            if ($roll <= 30) {
+            if ($roll <= 3) {
                 $material = $this->randomSecretCrystal($realm);
                 $label = '秘境晶';
-            } elseif ($roll <= 70) {
-                $material = $this->randomSecretShard($realm);
-                $label = '秘境晶片';
-            } elseif ($roll <= 90) {
+            } elseif ($roll <= 50) {
                 $material = $this->randomSecretShard($realm);
                 $label = '秘境晶片';
             } else {
@@ -147,13 +144,6 @@ class SecretRealmService
         $drops = [];
         $logs = [];
 
-        $crystal = $this->randomSecretCrystal($realm);
-        if ($crystal) {
-            $drop = $dropService->grantMaterialReward($character, $crystal, 'secret_realm_lord', $sourceEnemy);
-            $drops[] = $drop;
-            $logs[] = "【秘境主報酬】{$drop['name']} を手に入れた！";
-        }
-
         $shardCount = rand(1, 3);
         for ($i = 0; $i < $shardCount; $i++) {
             $shard = $this->randomSecretShard($realm);
@@ -166,7 +156,7 @@ class SecretRealmService
         }
 
         if ($shardCount > 0) {
-            $logs[] = "【秘境主報酬】秘境晶片を追加で {$shardCount} 個手に入れた。";
+            $logs[] = "【秘境主報酬】秘境晶片を {$shardCount} 個手に入れた。";
         }
 
         return [

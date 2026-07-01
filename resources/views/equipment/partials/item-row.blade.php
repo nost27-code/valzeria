@@ -5,6 +5,7 @@
     $canEquipByJob = !$currentCharacter || $permissionService->canEquip($currentCharacter, $ci->item);
     $restrictionJobs = $canEquipByJob ? [] : $permissionService->representativeJobNames($ci->item);
     $displayName = $ci->displayName();
+    $equipmentIcon = $ci->item?->iconImagePath();
     $sellPrice = (int) ($ci->sell_price ?? 0);
     $affixLines = $ci->affixEffectLines();
     $totalStats = [
@@ -56,6 +57,9 @@
         {{-- ヘッダー行: ランク + 名前 + バッジ --}}
         <div>
             <div class="flex flex-wrap items-center gap-1.5">
+                @if($equipmentIcon)
+                    <img src="{{ asset($equipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
+                @endif
                 @include('equipment.partials.rank-label', ['item' => $ci->item])
                 <h4 class="text-sm font-bold text-slate-900 leading-snug">{{ $displayName }}</h4>
                 @if($ci->is_equipped)

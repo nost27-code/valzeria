@@ -3,7 +3,7 @@
         <!-- ヘッダー -->
         <div class="flex justify-between items-center mb-6 border-b border-[#d4af37]/50 pb-4">
             <h2 class="text-2xl font-bold text-[#d4af37] tracking-widest flex items-center gap-2">
-                <img src="{{ asset('images/icon/icon_014.webp') }}" alt="" class="w-7 h-7 object-contain"> 称号一覧
+                <img src="{{ asset('images/icon/icon_242.webp') }}" alt="" class="w-7 h-7 object-contain"> 称号一覧
             </h2>
             <a href="{{ route('home') }}" class="text-sm bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded transition-colors border border-slate-500 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>

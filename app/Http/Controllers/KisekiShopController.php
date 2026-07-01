@@ -98,6 +98,10 @@ class KisekiShopController extends Controller
 
         $character = Auth::user()->characters()->first();
         if (!$character) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'キャラクターが見つかりません。'], 404);
+            }
+
             return redirect()->route('character.create');
         }
 
@@ -114,6 +118,18 @@ class KisekiShopController extends Controller
             $result = ['success' => false, 'message' => '購入処理に失敗しました。時間をおいて再度お試しください。'];
         } finally {
             Cache::forget($lockKey);
+        }
+
+        $character->refresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'kiseki' => (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0),
+                'money' => (int) ($character->money ?? 0),
+                'support_items' => $supportService->ownedConsumablesFor($character),
+            ], $result['success'] ? 200 : 422);
         }
 
         return back()->with($result['success'] ? 'status' : 'error', $result['message']);

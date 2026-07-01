@@ -2,9 +2,17 @@
 {{-- 変数: $candidate, $stone, $canUseStone, $canEvolve --}}
 <div class="space-y-1.5">
     {{-- 進化元 --}}
-    @php $baseOk = $candidate['owned_equipment_count'] >= ($candidate['required_base_equipment_count'] ?? 1); @endphp
+    @php
+        $baseOk = $candidate['owned_equipment_count'] >= ($candidate['required_base_equipment_count'] ?? 1);
+        $fromEquipmentIcon = ($candidate['from_item'] ?? null)?->iconImagePath();
+    @endphp
     <div class="flex items-center justify-between gap-2">
-        <span class="text-xs font-bold text-slate-600 truncate">進化元：[{{ $candidate['from_rank'] ?? '-' }}] {{ $candidate['from_name'] }}</span>
+        <span class="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-600">
+            @if($fromEquipmentIcon)
+                <img src="{{ asset($fromEquipmentIcon) }}" alt="" class="h-4 w-4 shrink-0 object-contain">
+            @endif
+            <span class="truncate">進化元：[{{ $candidate['from_rank'] ?? '-' }}] {{ $candidate['from_name'] }}</span>
+        </span>
         <span class="font-mono text-xs font-bold shrink-0 {{ $baseOk ? 'text-emerald-600' : 'text-red-600' }}">{{ $candidate['owned_equipment_count'] }}&thinsp;/&thinsp;{{ $candidate['required_base_equipment_count'] ?? 1 }}</span>
     </div>
 

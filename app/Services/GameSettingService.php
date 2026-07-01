@@ -30,6 +30,18 @@ class GameSettingService
         return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function getString(string $key, string $default): string
+    {
+        $setting = $this->all()[$key] ?? null;
+        if (!$setting) {
+            return $default;
+        }
+
+        $value = is_array($setting) ? ($setting['value'] ?? null) : ($setting->value ?? null);
+
+        return is_string($value) && $value !== '' ? $value : $default;
+    }
+
     public function set(string $key, string $value): void
     {
         GameSetting::where('setting_key', $key)->update(['value' => $value]);

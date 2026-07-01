@@ -4,11 +4,14 @@ namespace App\Services;
 
 use App\Models\Area;
 use App\Models\Character;
+use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\Enemy;
+use App\Models\Item;
 use App\Models\Material;
 use App\Models\MaterialDrop;
 use App\Services\Battle\BattleResult;
+use App\Support\CharacterIconCatalog;
 
 class ExplorationService
 {
@@ -16,6 +19,8 @@ class ExplorationService
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const GOLDEN_GOBLIN_REWARD_MIN_MULTIPLIER = 2.0;
     private const GOLDEN_GOBLIN_REWARD_MAX_MULTIPLIER = 3.0;
+    private const PLAYER_ENCOUNTER_CHANCE_PERCENT = 7;
+    private const PLAYER_ENCOUNTER_GIFT_ITEM_NAME = '薬草';
 
     protected BattleService $battleService;
     protected LevelService $levelService;
@@ -51,6 +56,15 @@ class ExplorationService
      */
     public function explore(Character $character, int $areaId, bool $isBossBattle = false, ?string $forcedEvent = null, bool $skipBattleCooldown = false): array
     {
+        $staminaService = app(ExplorationStaminaService::class);
+        $consumesStamina = $staminaService->enabled();
+        $usesStaminaRewards = !$isBossBattle && $consumesStamina;
+        $staminaSummary = $consumesStamina ? $staminaService->summary($character) : null;
+        $jobExpCap = $usesStaminaRewards ? LevelService::MAX_JOB_EXP_GAIN : null;
+        $consumedStamina = 0;
+        $staminaUpdatedAtBeforeConsume = null;
+        $staminaMaxUp = 0;
+
         // 1. クールタイム・HPチェック
         if ($character->current_hp <= 0) {
             return ['error' => 'HPがありません。宿屋で休んでください。'];
@@ -74,7 +88,7 @@ class ExplorationService
             ? app(ExplorationDepthService::class)->activeTierFor($character, $area, $currentPoint, $currentDanger)
             : ['key' => 'surface'];
         $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSecondsForDepthTier($currentDepthTier);
-        if (!$skipBattleCooldown && !$isBossBattle && $forcedEvent !== 'dungeon_lord' && $battleCooldownSeconds > 0 && $character->last_battle_at) {
+        if (!$consumesStamina && !$skipBattleCooldown && !$isBossBattle && $forcedEvent !== 'dungeon_lord' && $battleCooldownSeconds > 0 && $character->last_battle_at) {
             $elapsed = $character->last_battle_at->lte(now())
                 ? (int) $character->last_battle_at->diffInSeconds(now(), true)
                 : 0;
@@ -86,10 +100,6 @@ class ExplorationService
                 return ['error' => "連続で戦闘はできません。あと {$remaining} 秒待ってください。"];
             }
         }
-
-        $character->last_battle_at = now();
-        $character->save();
-        $state = !$isBossBattle ? $explorationStateService->getOrStart($character, $areaId) : null;
 
         // 2. 敵の抽選
         $enemyQuery = Enemy::where('area_id', $areaId);
@@ -128,6 +138,25 @@ class ExplorationService
             $targetEnemy = $enemies->first();
         }
 
+        if ($consumesStamina) {
+            $consumeResult = $staminaService->consumeForExplore($character);
+            $staminaSummary = $consumeResult['stamina'] ?? $staminaService->summary($character);
+            if (!($consumeResult['ok'] ?? false)) {
+                return [
+                    'error' => $consumeResult['error'] ?? '探索力が足りません。回復を待ってください。',
+                    'exploration_stamina' => $staminaSummary,
+                ];
+            }
+
+            $consumedStamina = (int) ($consumeResult['consumed'] ?? 0);
+            $staminaUpdatedAtBeforeConsume = $consumeResult['stamina_updated_at_before_consume'] ?? null;
+        }
+
+        $lastBattleAtBefore = $character->last_battle_at?->copy();
+        $character->last_battle_at = now();
+        $character->save();
+        $state = !$isBossBattle ? $explorationStateService->getOrStart($character, $areaId) : null;
+
         $specialEvent = null;
         if (!$isBossBattle && $state) {
             $specialEvent = $forcedEvent === 'dungeon_lord'
@@ -146,11 +175,19 @@ class ExplorationService
         $isEventOnly = $battleResult->result === 'event';
         $logText = implode("<br>", $battleResult->logs);
 
+        if ($consumesStamina && ($specialEvent['type'] ?? null) === 'dungeon_lord_encounter') {
+            $refundResult = $staminaService->refundForExplore($character, $consumedStamina, $staminaUpdatedAtBeforeConsume);
+            $staminaSummary = $refundResult['stamina'] ?? $staminaService->summary($character);
+            $character->last_battle_at = $lastBattleAtBefore;
+            $character->save();
+        }
+
         $expGained = 0;
         $goldGained = 0;
         $jobExpGained = 0;
         $levelUpCount = 0;
         $levelUpDetails = [];
+        $progression = null;
         $unlockedAreas = [];
         $dropResult = null;
         $dropResults = ['materials' => [], 'equipment' => [], 'by_slot' => []];
@@ -173,6 +210,7 @@ class ExplorationService
         $valmonRecovery = null;
         $valmonEggLost = [];
         $materialHuntCompletion = null;
+        $playerEncounter = null;
 
         // 4. 勝敗に応じた処理
         if ($isEventOnly) {
@@ -180,7 +218,9 @@ class ExplorationService
                 $chainLootSummary = $explorationStateService->currentLootSummary($character, $areaId);
             }
         } elseif ($isWin) {
+            $staminaMaxBefore = $staminaService->maxForCharacter($character);
             $character->wins += 1;
+            $staminaMaxUp = $staminaService->maxForCharacter($character) - $staminaMaxBefore;
             $expGained = $battleResult->exp;
             $goldGained = $battleResult->gold;
             $jobExpGained = $battleResult->jobExp;
@@ -206,9 +246,10 @@ class ExplorationService
             }
 
             // レベルアップ処理
-            $rewardResult = $this->levelService->addRewardAndCheckLevelUp($character, $expGained, $goldGained, $jobExpGained);
+            $rewardResult = $this->levelService->addRewardAndCheckLevelUp($character, $expGained, $goldGained, $jobExpGained, $jobExpCap);
             $levelUpCount = $rewardResult['level_up_count'];
             $levelUpDetails = $rewardResult['details'];
+            $progression = $rewardResult['progression'] ?? null;
 
             $jobResult = $rewardResult['job_result'] ?? null;
             if ($jobResult) {
@@ -261,11 +302,15 @@ class ExplorationService
             }
 
             if (!in_array(($specialEvent['type'] ?? null), ['treasure', 'hidden_area_gate', 'sub_area_gate'], true)) {
-                $dropResults = $this->dropService->rollBattleDrops(
-                    $character,
-                    $targetEnemy,
-                    $battleResult->dropBonusPercent,
-                    $battleResult->rareBonusPercent
+                $dropResults = $this->mergeDropResults(
+                    $dropResults,
+                    $this->dropService->rollBattleDrops(
+                        $character,
+                        $targetEnemy,
+                        $battleResult->dropBonusPercent,
+                        $battleResult->rareBonusPercent,
+                        rollMonsterMark: true
+                    )
                 );
             }
             $materialDropResult = in_array(($specialEvent['type'] ?? null), ['treasure', 'hidden_area_gate', 'sub_area_gate'], true)
@@ -287,8 +332,23 @@ class ExplorationService
 
             // 素材ドロップのログ追加
             if (!empty($materialDropResult)) {
-                $materialNames = array_column($materialDropResult, 'name');
-                $logText .= "<br><span class=\"text-green-600 font-bold\">【素材獲得】" . implode('、', $materialNames) . " を手に入れた！</span>";
+                if (($specialEvent['type'] ?? null) === 'treasure') {
+                    $treasureMaterials = collect($materialDropResult)
+                        ->reject(fn (array $drop): bool => ($drop['kind'] ?? null) === 'treasure_valuable')
+                        ->pluck('name')
+                        ->filter()
+                        ->countBy()
+                        ->map(fn (int $count, string $name): string => $name . ($count > 1 ? ' x' . $count : ''))
+                        ->values()
+                        ->implode('、');
+
+                    if ($treasureMaterials !== '') {
+                        $logText .= "<br><span class=\"text-emerald-700 font-bold\">【宝箱の中身】{$treasureMaterials} を手に入れた！</span>";
+                    }
+                } else {
+                    $materialNames = array_column($materialDropResult, 'name');
+                    $logText .= "<br><span class=\"text-green-600 font-bold\">【素材獲得】" . implode('、', $materialNames) . " を手に入れた！</span>";
+                }
             }
 
             if (!empty($equipmentDropResults)) {
@@ -376,6 +436,15 @@ class ExplorationService
                     if ($developmentResult && ($developmentResult['gained'] ?? 0) > 0) {
                         $logText .= "<br><span class=\"text-emerald-700 font-bold\">【開拓】{$area->name}の開拓度 +{$developmentResult['gained']}（{$developmentResult['after']} / {$developmentResult['max']}）</span>";
                     }
+
+                    $playerEncounter = $this->rollPlayerEncounter($character, $area);
+                    if ($playerEncounter) {
+                        $logText .= "<br><span class=\"text-cyan-700 font-extrabold\">【出会い】" . e($playerEncounter['message']) . '</span>';
+                        if (!empty($playerEncounter['gift']['name'])) {
+                            $logText .= "<br><span class=\"text-emerald-700 font-bold\">【出会いのお礼】{$playerEncounter['gift']['name']} x{$playerEncounter['gift']['quantity']} を受け取った。</span>";
+                        }
+                    }
+
                     foreach ($newDiscoveries as $discovery) {
                         $label = ($discovery['type'] ?? '') === 'city' ? '新しい街' : '新たな場所';
                         $logText .= "<br><span class=\"text-sky-700 font-extrabold\">【発見】{$label}「{$discovery['name']}」を発見した！</span>";
@@ -533,13 +602,14 @@ class ExplorationService
             'exp_gained' => $expGained,
             'gold_gained' => $goldGained,
             'job_exp_gained' => $jobExpGained,
+            'progression' => $progression,
             'enemy_stat_display' => $battleResult->enemyStatDisplay ?? [],
             'level_up_count' => $levelUpCount,
             'level_up_details' => $levelUpDetails,
             'unlocked_areas' => $unlockedAreas,
             'drop' => $dropResult,
             'equipment_drops' => $equipmentDropResults,
-            'material_drop' => $materialDropResult ?? [],
+            'material_drop' => $this->summarizeMaterialDrops($materialDropResult ?? []),
             'monster_mark_drop' => $monsterMarkDrop,
             'kiseki_drop' => $kisekiDrop,
             'drop_results' => $dropResults,
@@ -558,9 +628,500 @@ class ExplorationService
             'valmon_egg_found' => $valmonEggFound,
             'valmon_material_find' => $valmonMaterialFind,
             'valmon_discovery_hint' => $valmonDiscoveryHint,
+            'exploration_stamina' => $consumesStamina ? $staminaService->summary($character) : $staminaSummary,
+            'stamina_max_up' => $staminaMaxUp,
             'valmon_recovery' => $valmonRecovery,
             'valmon_egg_lost' => $valmonEggLost,
             'material_hunt_completion' => $materialHuntCompletion,
+            'player_encounter' => $playerEncounter,
+        ];
+    }
+
+    public function exploreRepeated(Character $character, int $areaId, int $requestedCount = 10): array
+    {
+        $requestedCount = max(2, min(10, $requestedCount));
+        $staminaService = app(ExplorationStaminaService::class);
+        if (!$staminaService->enabled()) {
+            return [
+                'error' => '10回探索は探索力制が有効な時だけ使えます。',
+                'exploration_stamina' => $staminaService->summary($character),
+            ];
+        }
+
+        $totalExp = 0;
+        $totalGold = 0;
+        $totalJobExp = 0;
+        $totalKiseki = 0;
+        $totalStaminaMaxUp = 0;
+        $completedCount = 0;
+        $levelUpDetails = [];
+        $materialDrops = [];
+        $equipmentDrops = [];
+        $monsterMarkDrops = [];
+        $newDiscoveries = [];
+        $runs = [];
+        $lastResult = null;
+        $stopReason = null;
+
+        for ($i = 1; $i <= $requestedCount; $i++) {
+            $character->refresh();
+            $staminaSummary = $staminaService->summary($character);
+            if ((int) ($staminaSummary['current'] ?? 0) < (int) ($staminaSummary['cost'] ?? 1)) {
+                $stopReason = 'stamina_empty';
+                break;
+            }
+
+            $finalStats = app(CharacterStatusService::class)->getFinalStats($character);
+            $maxHp = max(1, (int) ($finalStats['max_hp'] ?? $character->hp_base ?? 1));
+            $pinchHp = max(1, (int) floor($maxHp * 0.3));
+            if ((int) $character->current_hp <= $pinchHp) {
+                $stopReason = 'hp_pinch';
+                break;
+            }
+
+            $result = $this->explore($character, $areaId, false, null, true);
+            $lastResult = $result;
+
+            if (isset($result['error'])) {
+                $stopReason = 'error';
+                break;
+            }
+
+            $completedCount++;
+            $exp = (int) ($result['exp_gained'] ?? 0);
+            $gold = (int) ($result['gold_gained'] ?? 0);
+            $jobExp = (int) ($result['job_exp_gained'] ?? 0);
+            $totalExp += $exp;
+            $totalGold += $gold;
+            $totalJobExp += $jobExp;
+            $totalStaminaMaxUp += (int) ($result['stamina_max_up'] ?? 0);
+            $levelUpDetails = array_merge($levelUpDetails, $result['level_up_details'] ?? []);
+            $materialDrops = array_merge($materialDrops, $result['material_drop'] ?? []);
+            $equipmentDrops = array_merge($equipmentDrops, $result['equipment_drops'] ?? []);
+            $newDiscoveries = array_merge($newDiscoveries, $result['new_discoveries'] ?? []);
+
+            if (!empty($result['monster_mark_drop']) && is_array($result['monster_mark_drop'])) {
+                $monsterMarkDrop = $result['monster_mark_drop'];
+                $monsterMarkDrops[] = [
+                    'index' => $i,
+                    'name' => (string) ($monsterMarkDrop['name'] ?? '印'),
+                    'total_quantity' => (int) ($monsterMarkDrop['total_quantity'] ?? 0),
+                    'level_up' => (bool) ($monsterMarkDrop['level_up'] ?? false),
+                    'unlocked_level' => $monsterMarkDrop['unlocked_level'] ?? null,
+                    'bonus_stat_label' => (string) ($monsterMarkDrop['bonus_stat_label'] ?? ''),
+                    'total_bonus' => (int) ($monsterMarkDrop['total_bonus'] ?? 0),
+                ];
+            }
+
+            if (!empty($result['kiseki_drop'])) {
+                $totalKiseki += (int) ($result['kiseki_drop']['amount'] ?? 1);
+            }
+
+            $playerEncounter = is_array($result['player_encounter'] ?? null)
+                ? $result['player_encounter']
+                : null;
+            $enemyName = is_object($result['enemy'] ?? null)
+                ? (string) (($result['enemy']->name ?? '敵'))
+                : (string) (($result['enemy']['name'] ?? '敵'));
+            $runs[] = [
+                'index' => $i,
+                'enemy_name' => $enemyName,
+                'result' => $result['result'] ?? 'unknown',
+                'exp' => $exp,
+                'gold' => $gold,
+                'job_exp' => $jobExp,
+                'monster_mark' => $result['monster_mark_drop']['name'] ?? null,
+                'special_event' => $result['special_event'] ?? null,
+                'player_encounter' => $playerEncounter,
+            ];
+
+            $specialEventType = $result['special_event'] ?? null;
+            if ($specialEventType === 'secret_realm_lord') {
+                $stopReason = in_array($result['result'] ?? null, ['victory', 'win'], true)
+                    ? 'secret_realm_lord_victory'
+                    : (($result['result'] ?? null) === 'timeout' ? 'timeout' : 'defeat');
+                break;
+            }
+
+            if ($specialEventType !== null && !in_array($specialEventType, ['treasure', 'golden_goblin'], true)) {
+                $stopReason = match ($specialEventType) {
+                    'dungeon_lord_encounter' => 'dungeon_lord_encounter',
+                    'hidden_area_gate' => 'hidden_area_gate',
+                    'sub_area_gate' => 'sub_area_gate',
+                    default => 'special_event',
+                };
+                break;
+            }
+
+            if (!empty($result['exploration_progress']['depth_transitions'] ?? [])) {
+                $stopReason = 'depth_transition';
+                break;
+            }
+
+            if (!in_array($result['result'] ?? null, ['victory', 'win'], true)) {
+                $stopReason = ($result['result'] ?? null) === 'timeout' ? 'timeout' : 'defeat';
+                break;
+            }
+        }
+
+        if (!$lastResult) {
+            return [
+                'error' => match ($stopReason) {
+                    'hp_pinch' => 'HPが少なくなっています。宿屋や回復アイテムで整えてから探索してください。',
+                    'stamina_empty' => '探索力が足りません。回復を待つか、探索力回復アイテムを使ってください。',
+                    default => '10回探索を開始できませんでした。',
+                },
+                'exploration_stamina' => $staminaService->summary($character),
+                'batch_explore' => [
+                    'requested' => $requestedCount,
+                    'completed' => 0,
+                    'stop_reason' => $stopReason,
+                ],
+            ];
+        }
+
+        $summaryLines = [
+            '<span class="text-sky-800 font-extrabold">【10回探索】最大' . $requestedCount . '回の連続探索を行いました。</span>',
+        ];
+        foreach ($runs as $run) {
+            $isTreasureRun = ($run['special_event'] ?? null) === 'treasure';
+            $isGoldenGoblinRun = ($run['special_event'] ?? null) === 'golden_goblin';
+            $isDungeonLordEncounterRun = ($run['special_event'] ?? null) === 'dungeon_lord_encounter';
+            $isSecretRealmLordRun = ($run['special_event'] ?? null) === 'secret_realm_lord';
+            $isSecretRealmLordVictoryRun = $isSecretRealmLordRun && in_array($run['result'] ?? null, ['victory', 'win'], true);
+            $isHiddenGateRun = ($run['special_event'] ?? null) === 'hidden_area_gate';
+            $isSubAreaGateRun = ($run['special_event'] ?? null) === 'sub_area_gate';
+            $summaryLines[] = sprintf(
+                $isDungeonLordEncounterRun
+                    ? '<span class="font-bold" style="color:#991b1b;background:#fee2e2;padding:1px 4px;border-radius:4px;">%d回目: %s遭遇</span>'
+                    : ($isSecretRealmLordRun
+                    ? '<span class="font-bold" style="color:#6d28d9;background:#f3e8ff;padding:1px 4px;border-radius:4px;">%d回目: %s' . ($isSecretRealmLordVictoryRun ? '撃破' : '戦') . ' / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                    : ($isHiddenGateRun
+                    ? '<span class="font-bold" style="color:#047857;background:#ecfdf5;padding:1px 4px;border-radius:4px;">%d回目: %s発見 / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                    : ($isSubAreaGateRun
+                    ? '<span class="font-bold" style="color:#4338ca;background:#eef2ff;padding:1px 4px;border-radius:4px;">%d回目: %s発見 / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                    : ($isGoldenGoblinRun
+                    ? '<span class="font-bold" style="color:#b45309;background:#fef3c7;padding:1px 4px;border-radius:4px;">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                    : ($isTreasureRun
+                    ? '<span class="font-bold" style="color:#b45309;background:#fef9c3;padding:1px 4px;border-radius:4px;">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                    : '<span class="text-slate-700 font-bold">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'))))),
+                (int) $run['index'],
+                e($run['enemy_name']),
+                number_format((int) $run['exp']),
+                number_format((int) $run['job_exp']),
+                number_format((int) $run['gold'])
+            );
+
+            if (!empty($run['player_encounter']['message'])) {
+                $giftText = !empty($run['player_encounter']['gift']['name'])
+                    ? ' / ' . e((string) $run['player_encounter']['gift']['name']) . ' x' . number_format((int) ($run['player_encounter']['gift']['quantity'] ?? 1))
+                    : '';
+                $summaryLines[] = '<span class="font-bold" style="color:#0e7490;background:#ecfeff;padding:1px 4px;border-radius:4px;">'
+                    . (int) $run['index'] . '回目: 出会い / '
+                    . e((string) $run['player_encounter']['message'])
+                    . $giftText
+                    . '</span>';
+            }
+        }
+
+        $stoppedRun = collect($runs)->last();
+        $stoppedRunIndex = (int) ($stoppedRun['index'] ?? $completedCount);
+        $stoppedEnemyName = (string) ($stoppedRun['enemy_name'] ?? '敵');
+        $depthTransition = $this->firstDepthTransition($lastResult);
+        $depthTransitionLabel = (string) ($depthTransition['label'] ?? '次の深度');
+
+        $stopText = match ($stopReason) {
+            'hp_pinch' => 'HPが少なくなったため、途中で探索を止めました。',
+            'defeat' => "{$stoppedRunIndex}回目の{$stoppedEnemyName}戦で敗北したため、途中で探索を止めました。HPは敗北後に最大HPの30%まで回復した状態です。",
+            'timeout' => "{$stoppedRunIndex}回目の{$stoppedEnemyName}戦が長引いたため、途中で探索を止めました。",
+            'dungeon_lord_encounter' => 'ダンジョン主と遭遇したため、連続探索を止めました。',
+            'secret_realm_lord_victory' => "{$stoppedRunIndex}回目に{$stoppedEnemyName}を撃破したため、連続探索を止めました。秘境主の報酬を獲得しています。",
+            'hidden_area_gate' => "{$stoppedRunIndex}回目に秘境への入口を発見したため、連続探索を止めました。秘境の採取結果を確認してください。",
+            'sub_area_gate' => "{$stoppedRunIndex}回目に未知の入口を発見したため、連続探索を止めました。発見した場所は記録されています。",
+            'special_event' => '特殊な出来事が起きたため、途中で探索を止めました。',
+            'depth_transition' => "新しい探索深度への入口に到達したため、途中で探索を止めました。深度はまだ切り替わっていません。下の「{$depthTransitionLabel}へ進む」で次の深度へ進みます。",
+            'stamina_empty' => '探索力が尽きたため、途中で探索を止めました。回復後にまた探索できます。',
+            'error' => '探索を続けられない状態になったため、途中で止めました。',
+            default => '',
+        };
+        $defeatLossSummary = $stopReason === 'defeat'
+            ? $this->batchDefeatLossSummary($lastResult)
+            : null;
+        if ($stopText !== '') {
+            $summaryLines[] = '<span class="text-amber-700 font-extrabold">【停止理由】' . $stopText . '</span>';
+        }
+
+        $lastResult['log'] = implode('<br>', $summaryLines);
+        $lastResult['exp_gained'] = $totalExp;
+        $lastResult['gold_gained'] = $totalGold;
+        $lastResult['job_exp_gained'] = $totalJobExp;
+        $lastResult['level_up_count'] = count($levelUpDetails);
+        $lastResult['level_up_details'] = $levelUpDetails;
+        $lastResult['material_drop'] = $this->summarizeMaterialDrops($materialDrops);
+        $lastResult['equipment_drops'] = $equipmentDrops;
+        $lastResult['drop'] = $equipmentDrops[0] ?? null;
+        $lastResult['new_discoveries'] = $newDiscoveries;
+        $lastResult['stamina_max_up'] = $totalStaminaMaxUp;
+        if ($totalKiseki > 0) {
+            $lastResult['kiseki_drop'] = ['amount' => $totalKiseki];
+        }
+        $lastResult['exploration_stamina'] = $staminaService->summary($character);
+        $lastResult['batch_explore'] = [
+            'requested' => $requestedCount,
+            'completed' => $completedCount,
+            'stop_reason' => $stopReason,
+            'stop_text' => $stopText,
+            'total_exp' => $totalExp,
+            'total_gold' => $totalGold,
+            'total_job_exp' => $totalJobExp,
+            'total_kiseki' => $totalKiseki,
+            'defeat_loss' => $defeatLossSummary,
+            'monster_mark_drops' => $monsterMarkDrops,
+            'runs' => $runs,
+        ];
+
+        if ($stopReason === 'depth_transition') {
+            $depthGate = $this->currentDepthGateForBatch($character, $areaId, $depthTransition);
+            if ($depthGate) {
+                $lastResult = array_merge($lastResult, [
+                    'result' => 'event',
+                    'enemy' => (object) [
+                        'name' => $depthGate['label'] . '入口',
+                        'role' => '探索深度',
+                        'type_name' => '入口',
+                        'str' => 0,
+                        'def' => 0,
+                        'agi' => 0,
+                        'mag' => 0,
+                        'spr' => 0,
+                    ],
+                    'special_event' => 'depth_gate',
+                    'depth_gate' => $depthGate,
+                ]);
+            }
+        }
+
+        return $lastResult;
+    }
+
+    private function firstDepthTransition(array $result): ?array
+    {
+        foreach ($result['exploration_progress']['depth_transitions'] ?? [] as $transition) {
+            if (!is_array($transition)) {
+                continue;
+            }
+
+            if (in_array((string) ($transition['key'] ?? ''), ['inner', 'deep', 'deepest', 'otherworld'], true)) {
+                return $transition;
+            }
+        }
+
+        return null;
+    }
+
+    private function currentDepthGateForBatch(Character $character, int $areaId, ?array $fallbackTier = null): ?array
+    {
+        $area = Area::find($areaId);
+        if (!$area) {
+            return null;
+        }
+
+        $state = app(ExplorationStateService::class)->currentFor($character);
+        $depthService = app(ExplorationDepthService::class);
+        $gate = null;
+        if ($state && (int) $state->area_id === (int) $area->id) {
+            $gate = $depthService->currentGateFor(
+                $character,
+                $area,
+                (int) ($state->exploration_point ?? 0),
+                (int) ($state->danger_rate ?? 0)
+            );
+        }
+        $gate ??= $fallbackTier;
+        $key = (string) ($gate['key'] ?? 'surface');
+        if (!in_array($key, ['inner', 'deep', 'deepest', 'otherworld'], true)) {
+            return null;
+        }
+
+        $label = (string) ($gate['label'] ?? '深部');
+        $entranceText = match ($key) {
+            'inner' => "{$area->name}の奥で、薄暗い下り道を見つけた。",
+            'deep' => "{$area->name}の奥で、さらに深く続く裂け目を見つけた。",
+            'deepest' => "{$area->name}の奥で、地下へ続く古い石階段を見つけた。",
+            'otherworld' => "{$area->name}の奥で、空間が歪む裂け目を見つけた。",
+            default => "{$area->name}の奥で、見慣れない入口を見つけた。",
+        };
+        $riskText = match ($key) {
+            'inner' => 'この先は敵が強くなります。準備が不十分なら引き返してください。',
+            'deep' => 'この先は通常よりかなり強い敵が出現します。',
+            'deepest' => 'これ以上進むのは極めて危険です。',
+            'otherworld' => 'この先は現実の理から外れています。生還できる保証はありません。',
+            default => 'この先は危険です。',
+        };
+        $recommended = $depthService->recommendedLevelRangeForTier($area, $gate);
+        $powerService = app(CharacterPowerService::class);
+        $recommendedPower = $powerService->openingRecommendedRangeForLevels(
+            (int) ($recommended['min'] ?? 1),
+            (int) ($recommended['max'] ?? $recommended['min'] ?? 1)
+        );
+        $currentPower = $powerService->fromFinalStats(app(CharacterStatusService::class)->getFinalStats($character));
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'area_name' => (string) $area->name,
+            'entrance_text' => $entranceText,
+            'risk_text' => $riskText,
+            'recommended_level_min' => (int) ($recommended['min'] ?? 0),
+            'recommended_level_max' => (int) ($recommended['max'] ?? 0),
+            'current_level' => (int) ($character->level ?? 1),
+            'recommended_power_min' => (int) ($recommendedPower['min'] ?? 0),
+            'recommended_power_max' => (int) ($recommendedPower['max'] ?? 0),
+            'current_power' => $currentPower,
+        ];
+    }
+
+    private function summarizeMaterialDrops(array $drops): array
+    {
+        $summaries = [];
+
+        foreach ($drops as $drop) {
+            if (!is_array($drop)) {
+                continue;
+            }
+
+            $name = (string) ($drop['name'] ?? '素材');
+            $key = (string) ($drop['material_code'] ?? $drop['material_id'] ?? $name);
+            $quantity = max(1, (int) ($drop['quantity'] ?? 1));
+
+            if (!isset($summaries[$key])) {
+                $drop['name'] = $name;
+                $drop['quantity'] = 0;
+                $summaries[$key] = $drop;
+            }
+
+            $summaries[$key]['quantity'] = (int) ($summaries[$key]['quantity'] ?? 0) + $quantity;
+        }
+
+        return array_values($summaries);
+    }
+
+    private function rollPlayerEncounter(Character $character, Area $area): ?array
+    {
+        if (random_int(1, 100) > self::PLAYER_ENCOUNTER_CHANCE_PERCENT) {
+            return null;
+        }
+
+        $candidate = Character::query()
+            ->with('currentJob')
+            ->whereKeyNot($character->id)
+            ->where('is_frozen', false)
+            ->whereNotNull('last_seen_at')
+            ->where('last_seen_at', '>=', now()->subMinutes(30))
+            ->when($character->current_city_id, fn ($query) => $query->where('current_city_id', $character->current_city_id))
+            ->inRandomOrder()
+            ->first();
+
+        if (!$candidate) {
+            return null;
+        }
+
+        $jobName = (string) ($candidate->currentJob?->name ?? '冒険者');
+        $profileService = app(CharacterProfileService::class);
+        $patterns = [
+            "{$area->name}の道中で、{$candidate->name}とすれ違った。軽く会釈を交わし、探索を続けた。",
+            "同じく探索中の{$candidate->name}が、少し先の道を指さしてくれた。",
+            "{$candidate->name}が焚き火の跡を片づけていた。{$jobName}らしい落ち着いた身のこなしだ。",
+            "遠くに{$candidate->name}の姿が見えた。ヴァルゼリアを歩く冒険者は、あなた一人ではない。",
+        ];
+        $gift = $this->grantPlayerEncounterGift($character);
+
+        return [
+            'character_id' => (int) $candidate->id,
+            'name' => (string) $candidate->name,
+            'job_name' => $jobName,
+            'area_name' => (string) $area->name,
+            'level' => (int) ($candidate->level ?? 1),
+            'icon_url' => CharacterIconCatalog::versionedAsset($candidate->icon_path),
+            'avatar_frame_url' => asset($profileService->selectedAdventurerAvatarFrame($candidate, $candidate->profile_avatar_frame)),
+            'message' => $patterns[array_rand($patterns)],
+            'gift' => $gift,
+        ];
+    }
+
+    private function grantPlayerEncounterGift(Character $character): ?array
+    {
+        $item = Item::where('type', 'consumable')
+            ->where('name', self::PLAYER_ENCOUNTER_GIFT_ITEM_NAME)
+            ->first();
+
+        if (!$item) {
+            return null;
+        }
+
+        CharacterItem::create([
+            'character_id' => $character->id,
+            'item_id' => $item->id,
+            'is_equipped' => false,
+            'is_stored' => false,
+            'acquired_from' => 'player_encounter',
+        ]);
+        app(ExplorationItemService::class)->addBonusCarry($character, $item);
+
+        return [
+            'item_id' => (int) $item->id,
+            'name' => (string) $item->name,
+            'quantity' => 1,
+        ];
+    }
+
+    private function batchDefeatLossSummary(array $result): array
+    {
+        $materialPenalty = is_array($result['material_penalty'] ?? null)
+            ? $result['material_penalty']
+            : [];
+        $goldLoss = is_array($result['gold_loss'] ?? null)
+            ? $result['gold_loss']
+            : [];
+        $rescueSupport = is_array($result['rescue_support'] ?? null)
+            ? $result['rescue_support']
+            : null;
+        $valmonEggLost = is_array($result['valmon_egg_lost'] ?? null)
+            ? $result['valmon_egg_lost']
+            : [];
+
+        $lostMaterials = collect($materialPenalty['materials'] ?? [])
+            ->map(fn (array $material): array => [
+                'name' => (string) ($material['name'] ?? '素材'),
+                'quantity' => (int) ($material['quantity'] ?? 0),
+            ])
+            ->filter(fn (array $material): bool => $material['quantity'] > 0)
+            ->values()
+            ->all();
+        $lostItems = collect($materialPenalty['items'] ?? [])
+            ->map(fn (array $item): array => [
+                'name' => (string) ($item['name'] ?? '装備'),
+                'rank' => (string) ($item['rank'] ?? ''),
+            ])
+            ->filter(fn (array $item): bool => $item['name'] !== '')
+            ->values()
+            ->all();
+
+        $supportLabel = match ($rescueSupport['type'] ?? null) {
+            'emergency_rescue_request' => '緊急救助により、今回の入手品は保護されました。',
+            'rescue_insurance' => '救助保険証により、入手品ロストが25%に抑えられました。',
+            default => null,
+        };
+
+        return [
+            'gold_amount' => (int) ($goldLoss['amount'] ?? 0),
+            'gold_rate_label' => (string) ($goldLoss['rate_label'] ?? ''),
+            'loss_percent' => (int) ($materialPenalty['loss_percent'] ?? 0),
+            'total_lost' => (int) ($materialPenalty['total_lost'] ?? 0),
+            'materials' => $lostMaterials,
+            'items' => $lostItems,
+            'valmon_egg_lost_count' => count($valmonEggLost),
+            'support_label' => $supportLabel,
         ];
     }
 
@@ -784,12 +1345,6 @@ class ExplorationService
         }
 
         if (!empty($drops)) {
-            $summary = collect($drops)
-                ->countBy()
-                ->map(fn (int $count, string $name): string => $name . ' x' . $count)
-                ->values()
-                ->implode('、');
-            $result->logs[] = "<span class=\"text-emerald-700 font-bold\">宝箱から {$summary} を見つけた。</span>";
             return $result;
         }
 
@@ -958,8 +1513,25 @@ class ExplorationService
         return Material::where('material_code', self::COMMON_MONSTER_FRAGMENT_CODE)->first();
     }
 
+    private function mergeDropResults(array $base, array $next): array
+    {
+        $base['materials'] = array_merge($base['materials'] ?? [], $next['materials'] ?? []);
+        $base['equipment'] = array_merge($base['equipment'] ?? [], $next['equipment'] ?? []);
+
+        $base['monster_mark'] ??= $next['monster_mark'] ?? null;
+        $base['by_slot'] ??= [];
+        $nextBySlot = $next['by_slot'] ?? [];
+        $base['by_slot']['material'] = array_merge($base['by_slot']['material'] ?? [], $nextBySlot['material'] ?? []);
+
+        foreach (['weapon', 'armor', 'accessory', 'monster_mark'] as $slot) {
+            $base['by_slot'][$slot] ??= $nextBySlot[$slot] ?? null;
+        }
+
+        return $base;
+    }
+
     private function rollPercent(float $rate): bool
     {
-        return $rate > 0 && rand(1, 10000) <= $rate * 100;
+        return $rate > 0 && random_int(1, 1_000_000) <= $rate * 10_000;
     }
 }
