@@ -2120,7 +2120,15 @@
                         return;
                     }
 
-                    currentPage.replaceWith(document.importNode(nextPage, true));
+                    if (window.Alpine?.destroyTree) {
+                        window.Alpine.destroyTree(currentPage);
+                    }
+
+                    const importedPage = document.importNode(nextPage, true);
+                    currentPage.replaceWith(importedPage);
+                    if (window.Alpine?.initTree) {
+                        window.Alpine.initTree(importedPage);
+                    }
                     if (response.url) {
                         window.history.replaceState({}, '', response.url);
                     }
