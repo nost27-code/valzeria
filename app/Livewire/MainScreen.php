@@ -492,6 +492,7 @@ class MainScreen extends Component
                     'unit' => (string) ($board['unit'] ?? ''),
                     'name' => (string) ($leader['name'] ?? ''),
                     'icon_path' => (string) ($leader['icon_path'] ?? CharacterIconCatalog::DEFAULT_ICON),
+                    'image_type' => (string) ($leader['image_type'] ?? 'character'),
                     'score' => (int) ($leader['score'] ?? 0),
                 ];
             })
@@ -626,7 +627,7 @@ class MainScreen extends Component
                     '本日の決闘は198戦です'
                 ],
                 'facilities' => [
-                    ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['料金: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
+                    ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
                     ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
                     ...($hasEquipmentShop ? [
                         ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],

@@ -413,6 +413,7 @@
                                             @foreach($playerEncounters as $encounter)
                                                 @php
                                                     $encounterIconUrl = $encounter['icon_url'] ?? asset('images/chara/chara_001.webp');
+                                                    $isNpcEncounter = ($encounter['type'] ?? null) === 'npc';
                                                 @endphp
                                                 <div class="flex items-center gap-3 rounded border border-sky-100 bg-sky-50/40 px-3 py-2">
                                                     <div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded bg-white">
@@ -425,11 +426,23 @@
                                                     <div class="min-w-0">
                                                         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                                                             <span class="truncate text-sm font-black text-slate-900">{{ $encounter['name'] ?? '冒険者' }}</span>
-                                                            <span class="text-[11px] font-bold text-slate-500">Lv.{{ number_format((int) ($encounter['level'] ?? 1)) }} / {{ $encounter['job_name'] ?? '冒険者' }}</span>
+                                                            @if($isNpcEncounter)
+                                                                <span class="text-[11px] font-bold text-slate-500">{{ $encounter['job_name'] ?? '冒険者' }}</span>
+                                                                @if(!empty($encounter['is_first_encounter']))
+                                                                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">初遭遇</span>
+                                                                @endif
+                                                            @else
+                                                                <span class="text-[11px] font-bold text-slate-500">Lv.{{ number_format((int) ($encounter['level'] ?? 1)) }} / {{ $encounter['job_name'] ?? '冒険者' }}</span>
+                                                            @endif
                                                         </div>
                                                         <div class="mt-1 text-xs font-bold leading-5 text-cyan-800">
                                                             {{ $encounter['message'] ?? '' }}
                                                         </div>
+                                                        @if($isNpcEncounter && !empty($encounter['line']))
+                                                            <div class="mt-2 rounded border border-amber-100 bg-white px-2 py-1.5 text-xs font-bold leading-5 text-amber-900 shadow-sm">
+                                                                {{ $encounter['line'] }}
+                                                            </div>
+                                                        @endif
                                                         @if(!empty($encounter['gift']['name']))
                                                             <div class="mt-2 inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700">
                                                                 <span>{{ $encounter['gift']['name'] }}</span>
@@ -1324,6 +1337,10 @@
                                           }
                                           this.nextAt = Date.now() + (this.nextRecoverySeconds * 1000);
                                           this.timer = setInterval(() => {
+                                              if (!this.$root?.isConnected) {
+                                                  this.stopTimer();
+                                                  return;
+                                              }
                                               if (this.current >= this.max) {
                                                   this.stopTimer();
                                                   return;
@@ -1411,6 +1428,22 @@
                                 <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
                                     <span>↩</span> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : '今は退いて探索を続ける ' . $staminaCostHtml) !!}</span>
+                                </button>
+                            </form>
+                        @elseif(!isset($result['error']) && !$isBoss && $isSubAreaGate && !empty($result['sub_area_discovery_id']))
+                            <a href="{{ route('battle.sub_area.confirm', ['discovery' => $result['sub_area_discovery_id']]) }}"
+                               class="flex w-full max-w-md flex-col rounded-lg border-2 border-indigo-300 bg-indigo-50 px-5 py-3 text-left shadow-sm transition hover:bg-indigo-100 active:scale-95 sm:w-auto">
+                                <span class="text-sm font-black text-indigo-900">地図に記録した入口へ向かう</span>
+                                <span class="mt-1 text-[11px] font-bold leading-5 text-indigo-700">
+                                    {{ $result['sub_area_name'] ?? '未知の場所' }}への入口を確認します。
+                                </span>
+                            </a>
+                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="今は探索を続ける" data-ready-html="{!! e('今は探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
+                                @csrf
+                                <input type="hidden" name="continue_chain" value="1">
+                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                    <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                    <span>↩</span> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : '今は探索を続ける ' . $staminaCostHtml) !!}</span>
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
@@ -2120,14 +2153,22 @@
                         return;
                     }
 
-                    if (window.Alpine?.destroyTree) {
-                        window.Alpine.destroyTree(currentPage);
-                    }
+                    const swapPage = () => {
+                        if (window.Alpine?.destroyTree) {
+                            window.Alpine.destroyTree(currentPage);
+                        }
 
-                    const importedPage = document.importNode(nextPage, true);
-                    currentPage.replaceWith(importedPage);
-                    if (window.Alpine?.initTree) {
-                        window.Alpine.initTree(importedPage);
+                        const importedPage = document.importNode(nextPage, true);
+                        currentPage.replaceWith(importedPage);
+                        if (window.Alpine?.initTree) {
+                            window.Alpine.initTree(importedPage);
+                        }
+                    };
+
+                    if (window.Alpine?.mutateDom) {
+                        window.Alpine.mutateDom(swapPage);
+                    } else {
+                        swapPage();
                     }
                     if (response.url) {
                         window.history.replaceState({}, '', response.url);

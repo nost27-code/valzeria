@@ -8,7 +8,17 @@ use Livewire\Component;
 
 class AdminChatManager extends Component
 {
+    private const INITIAL_LOG_LIMIT = 80;
+    private const LOG_LIMIT_STEP = 80;
+    private const MAX_LOG_LIMIT = 500;
+
     public string $message = '';
+    public int $logLimit = self::INITIAL_LOG_LIMIT;
+
+    public function loadMoreLogs(): void
+    {
+        $this->logLimit = min(self::MAX_LOG_LIMIT, $this->logLimit + self::LOG_LIMIT_STEP);
+    }
 
     public function sendMessage(PublicLogService $logService): void
     {
@@ -31,9 +41,10 @@ class AdminChatManager extends Component
             ->limit(80)
             ->get(['id', 'name', 'last_seen_at']);
 
-        $logs = $logService->getRecentLogs(40)
+        $fetchLimit = min(self::MAX_LOG_LIMIT * 2, max($this->logLimit * 2, self::INITIAL_LOG_LIMIT));
+        $logs = $logService->getRecentLogs($fetchLimit)
             ->filter(fn ($log) => $log->type !== 'private')
-            ->take(25)
+            ->take($this->logLimit)
             ->map(fn ($log) => [
                 'type' => $log->type,
                 'message' => $log->message,
@@ -46,6 +57,8 @@ class AdminChatManager extends Component
             'onlineCharacters' => $onlineCharacters,
             'onlineWindowMinutes' => $onlineWindowMinutes,
             'logs' => $logs,
+            'logLimit' => $this->logLimit,
+            'canLoadMoreLogs' => $logs->count() >= $this->logLimit && $this->logLimit < self::MAX_LOG_LIMIT,
         ])->layout('components.layouts.admin');
     }
 }

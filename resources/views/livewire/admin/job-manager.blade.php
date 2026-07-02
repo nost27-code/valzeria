@@ -3,12 +3,7 @@
         $fieldClass = 'w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-2 focus:ring-[#d4af37]/30';
         $compactFieldClass = 'w-full rounded-md border border-slate-300 bg-slate-50 px-2 py-1.5 text-sm text-slate-900 shadow-inner placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-2 focus:ring-[#d4af37]/30';
         $checkboxClass = 'rounded border-slate-400 bg-white text-[#1e40af] focus:ring-[#d4af37]';
-        $rankLabels = [
-            'normal' => '基本',
-            'middle' => '中級',
-            'advanced' => '上級',
-            'legend' => '伝説',
-        ];
+        $rankLabels = $rankLabels ?? \App\Support\JobRankCatalog::rankOptions();
         $requirementLabels = [
             'master_job' => '職業マスター',
             'character_level' => 'キャラLv',
@@ -34,9 +29,9 @@
             <p class="text-sm text-gray-500 mt-1">職業マスタ、転職条件、職業ごとの必殺技を編集します。保存内容は転職所と戦闘に反映されます。</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <button wire:click="createNew('normal')" class="px-3 py-2 rounded bg-blue-600 text-white text-sm font-bold shadow hover:bg-blue-700">基本職を追加</button>
-            <button wire:click="createNew('advanced')" class="px-3 py-2 rounded bg-slate-700 text-white text-sm font-bold shadow hover:bg-slate-800">上級職を追加</button>
-            <button wire:click="createNew('legend')" class="px-3 py-2 rounded bg-amber-600 text-white text-sm font-bold shadow hover:bg-amber-700">伝説職を追加</button>
+            @foreach($rankLabels as $rankKey => $rankLabel)
+                <button wire:click="createNew('{{ $rankKey }}')" class="px-3 py-2 rounded bg-slate-700 text-white text-sm font-bold shadow hover:bg-slate-800">{{ $rankLabel }}を追加</button>
+            @endforeach
         </div>
     </div>
 

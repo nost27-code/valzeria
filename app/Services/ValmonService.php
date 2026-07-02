@@ -17,6 +17,7 @@ use App\Models\ValmonFeedLog;
 use App\Models\ValmonMaterialFindLog;
 use App\Models\ValmonMaster;
 use App\Models\ValmonSpawnRegion;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class ValmonService
@@ -28,6 +29,36 @@ class ValmonService
     private const ROLE_GATHER = 'gather';
     private const ROLE_SCOUT = 'scout';
     private const ROLE_HEAL = 'heal';
+    private const BLOCKED_FIND_MATERIAL_CODES = [
+        'WEV0002',
+        'WEV0008',
+        'WEV0011',
+        'WEV0014',
+        'WEV0017',
+        'WEV0020',
+        'WEV0030',
+        'ACC0002',
+        'ACC0010',
+        'ACC0013',
+        'ACC0016',
+        'ACC0019',
+        'ACC0022',
+        'ACC0025',
+        'ACC0028',
+        'ACC0031',
+        'ACC0034',
+        'ACC0037',
+        'MAT_WEAPON_EVOLUTION_STONE',
+        'MAT_ARMOR_EVOLUTION_STONE',
+        'MAT_ACCESSORY_EVOLUTION_STONE',
+        'MAT_EQUIPMENT_FRAGMENT',
+        'MAT_FINE_EQUIPMENT_FRAGMENT',
+        'MAT_BREW_BEAST_FANG',
+        'MAT_BREW_TOXIN',
+        'MAT_BREW_HERB',
+        'MAT_BREW_MAGIC_POWDER',
+        'MAT_BREW_LOW_MONSTER',
+    ];
 
     public function starters()
     {
@@ -603,8 +634,45 @@ class ValmonService
 
     private function selectFindMaterial(PlayerValmon $partner, Area $area): ?Material
     {
-        $query = Material::query()
+        $query = $this->findableMaterialsQuery();
+
+        $categoryHint = (string) ($partner->master?->base_find_material_category ?? '');
+        if ((int) $partner->level >= 30 && $categoryHint !== '') {
+            $query->orderByRaw('CASE WHEN category LIKE ? OR name LIKE ? OR main_use LIKE ? THEN 0 ELSE 1 END', [
+                '%' . $categoryHint . '%',
+                '%' . $categoryHint . '%',
+                '%' . $categoryHint . '%',
+            ]);
+        }
+
+        return $query
+            ->where(function ($query) use ($area) {
+                $query->whereNull('city_id')->orWhere('city_id', $area->city_id);
+            })
+            ->inRandomOrder()
+            ->limit(30)
+            ->get()
+            ->first(fn (Material $material) => $this->hasUsablePurpose($material) && !$this->isBlockedMaterial($material));
+    }
+
+    public function findableMaterialCodes(): array
+    {
+        return $this->findableMaterialsQuery()
+            ->get()
+            ->filter(fn (Material $material) => $this->hasUsablePurpose($material) && !$this->isBlockedMaterial($material))
+            ->pluck('material_code')
+            ->map(fn ($code): string => (string) $code)
+            ->filter(fn (string $code): bool => $code !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function findableMaterialsQuery(): Builder
+    {
+        return Material::query()
             ->whereIn('rarity', ['N', 'N+', 'R'])
+            ->whereNotIn('material_code', self::BLOCKED_FIND_MATERIAL_CODES)
             ->where(function ($query) {
                 $query->whereNotNull('usage_tags')
                     ->where('usage_tags', '<>', '[]');
@@ -649,24 +717,6 @@ class ValmonService
                             ->where('obtain_method', 'not like', '%未使用%');
                     });
             });
-
-        $categoryHint = (string) ($partner->master?->base_find_material_category ?? '');
-        if ((int) $partner->level >= 30 && $categoryHint !== '') {
-            $query->orderByRaw('CASE WHEN category LIKE ? OR name LIKE ? OR main_use LIKE ? THEN 0 ELSE 1 END', [
-                '%' . $categoryHint . '%',
-                '%' . $categoryHint . '%',
-                '%' . $categoryHint . '%',
-            ]);
-        }
-
-        return $query
-            ->where(function ($query) use ($area) {
-                $query->whereNull('city_id')->orWhere('city_id', $area->city_id);
-            })
-            ->inRandomOrder()
-            ->limit(30)
-            ->get()
-            ->first(fn (Material $material) => $this->hasUsablePurpose($material) && !$this->isBlockedMaterial($material));
     }
 
     private function unlockBestPartnerTitle(PlayerValmon $valmon): void

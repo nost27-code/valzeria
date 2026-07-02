@@ -218,6 +218,7 @@ class AdventureSupportService
     {
         return match ($itemKey) {
             'material_storage_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
+            'material_storage_gold_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'equipment_storage_expand' => $this->expandStorage($character, 'equipment_storage_limit', $itemKey, $item),
             'adventurer_supply_box' => $this->grantSupplyBox($character),
             self::RESCUE_INSURANCE,

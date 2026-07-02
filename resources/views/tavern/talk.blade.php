@@ -24,6 +24,25 @@
                     <div class="bg-white/90 border border-amber-100 rounded-lg p-5 text-slate-700 font-medium leading-loose whitespace-pre-line shadow-inner">
                         {{ $npc->talk_text }}
                     </div>
+                    @if($isReunion && $npc->relation_text)
+                        <div class="mt-4 rounded-lg border border-rose-200/80 bg-rose-50/90 p-4 shadow-inner">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <div>
+                                    <div class="text-sm font-extrabold text-rose-700">再会して、少し踏み込んだ話</div>
+                                    <div class="mt-0.5 text-xs font-bold text-rose-500">探索ですれ違った相手だから聞ける話</div>
+                                </div>
+                                @if($relatedNpc)
+                                    <div class="flex items-center gap-2 min-w-0 rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-xs font-bold text-rose-700">
+                                        <img src="{{ asset($relatedNpc->image_path) }}"
+                                             alt="{{ $relatedNpc->npc_name }}"
+                                             class="h-6 w-6 shrink-0 rounded-full object-cover border border-rose-100">
+                                        <span class="truncate">{{ $relatedNpc->npc_name }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                            <p class="text-sm text-slate-700 leading-loose whitespace-pre-line">{{ $npc->relation_text }}</p>
+                        </div>
+                    @endif
                     @if($isFirst)
                         <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 flex items-center gap-2">
                             <span>✦</span> {{ $npc->npc_name }}が冒険者名簿に登録されました。
@@ -31,9 +50,9 @@
                     @endif
                 </div>
 
-                @if($npc->hint_text)
+                @if(!$isReunion && $npc->hint_text)
                     <div class="mb-4 rounded-xl border border-amber-200/60 bg-amber-50/70 backdrop-blur-sm p-4">
-                        <div class="text-sm font-extrabold text-amber-700 mb-1.5">📜 ヒント</div>
+                        <div class="text-sm font-extrabold text-amber-700 mb-1.5">冒険のヒント</div>
                         <p class="text-sm text-amber-800/80 leading-relaxed">{{ $npc->hint_text }}</p>
                     </div>
                 @endif

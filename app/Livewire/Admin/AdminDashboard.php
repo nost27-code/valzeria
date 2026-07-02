@@ -13,11 +13,18 @@ use Livewire\Component;
 
 class AdminDashboard extends Component
 {
+    public bool $showDailyNewUsers = false;
+
     public function render()
     {
         $data = $this->dashboardData();
 
         return view('livewire.admin.admin-dashboard', $data)->layout('components.layouts.admin');
+    }
+
+    public function toggleDailyNewUsers(): void
+    {
+        $this->showDailyNewUsers = ! $this->showDailyNewUsers;
     }
 
     public function downloadAiText()
@@ -51,6 +58,7 @@ class AdminDashboard extends Component
         $now = now();
         $todayStart = $now->copy()->startOfDay();
         $sevenDaysAgo = $now->copy()->subDays(7);
+        $dailyNewUsers = $this->dailyNewUsers($now->copy()->subDays(29), $now);
 
         $totalUsers = User::count();
         $todayNewUsers = User::where('created_at', '>=', $todayStart)->count();
@@ -70,7 +78,7 @@ class AdminDashboard extends Component
             'generatedAt' => $now,
             'summaryCards' => [
                 ['label' => '登録ユーザー数', 'value' => number_format($totalUsers), 'note' => 'users 全体'],
-                ['label' => '今日の新規ユーザー数', 'value' => number_format($todayNewUsers), 'note' => $todayStart->format('Y/m/d')],
+                ['label' => '今日の新規ユーザー数', 'value' => number_format($todayNewUsers), 'note' => $todayStart->format('Y/m/d'), 'action' => 'toggleDailyNewUsers'],
                 ['label' => '継続率', 'value' => $retention['rate_label'], 'note' => $retention['note']],
                 ['label' => '同時接続数', 'value' => number_format($onlineCharacters), 'note' => "直近{$onlineWindowMinutes}分の活動キャラ"],
                 ['label' => '新規受信メール', 'value' => number_format($newContactMessages), 'note' => '未読の問い合わせ', 'url' => route('admin.contact-messages')],
@@ -85,8 +93,40 @@ class AdminDashboard extends Component
             'popularJobs' => $this->popularJobs($totalCharacters),
             'popularWeapons' => $this->popularWeapons(),
             'dropOffPoints' => $this->dropOffPoints(),
+            'dailyNewUsers' => $dailyNewUsers,
             'adminUpdateSummaries' => $this->adminUpdateSummaries(),
         ];
+    }
+
+    private function dailyNewUsers(Carbon $from, Carbon $to): array
+    {
+        $from = $from->copy()->startOfDay();
+        $to = $to->copy()->endOfDay();
+        $rows = [];
+
+        for ($day = $from->copy(); $day->lte($to); $day->addDay()) {
+            $rows[$day->toDateString()] = [
+                'date' => $day->toDateString(),
+                'count' => 0,
+            ];
+        }
+
+        $counts = User::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw($this->dateExpression('created_at') . ' as metric_date')
+            ->selectRaw('COUNT(*) as metric_count')
+            ->groupBy('metric_date')
+            ->pluck('metric_count', 'metric_date')
+            ->map(fn ($count): int => (int) $count)
+            ->all();
+
+        foreach ($counts as $date => $count) {
+            if (isset($rows[$date])) {
+                $rows[$date]['count'] = $count;
+            }
+        }
+
+        return array_reverse(array_values($rows));
     }
 
     private function adminUpdateSummaries(): array
@@ -432,5 +472,12 @@ class AdminDashboard extends Component
         }
 
         return round($value / $total * 100, 1);
+    }
+
+    private function dateExpression(string $column): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "date({$column})"
+            : "DATE({$column})";
     }
 }

@@ -10,6 +10,10 @@ use Livewire\Component;
 
 class InnAnalyticsManager extends Component
 {
+    private const DAILY_FIXED_EXPENSE = 12000;
+
+    private const REVENUE_EXPENSE_RATE = 0.18;
+
     public string $dateFrom = '';
 
     public string $dateTo = '';
@@ -45,6 +49,8 @@ class InnAnalyticsManager extends Component
         $transactions = $this->transactions($from, $to);
         $dailyRows = $this->dailyRows($transactions, $from, $to);
         $periodRevenue = (int) $transactions->sum(fn (GoldTransaction $row): int => abs((int) $row->amount));
+        $periodExpense = (int) collect($dailyRows)->sum('expense');
+        $periodProfit = $periodRevenue - $periodExpense;
         $periodStays = $transactions->count();
         $periodGuests = $transactions->pluck('character_id')->filter()->unique()->count();
         $rescuedRows = $transactions->filter(fn (GoldTransaction $row): bool => (bool) data_get($row->metadata, 'rescued', false));
@@ -54,8 +60,14 @@ class InnAnalyticsManager extends Component
             'dateFrom' => $from,
             'dateTo' => $to,
             'missingTables' => false,
+            'expensePolicy' => [
+                'dailyFixed' => self::DAILY_FIXED_EXPENSE,
+                'revenueRatePercent' => (int) round(self::REVENUE_EXPENSE_RATE * 100),
+            ],
             'summaryCards' => [
                 ['label' => '期間売上', 'value' => number_format($periodRevenue), 'unit' => 'G', 'note' => '宿泊で支払われたGold'],
+                ['label' => '想定支出', 'value' => number_format($periodExpense), 'unit' => 'G', 'note' => '日次固定費＋売上連動分'],
+                ['label' => '想定利益', 'value' => number_format($periodProfit), 'unit' => 'G', 'note' => '期間売上 − 想定支出', 'tone' => $periodProfit < 0 ? 'negative' : 'positive'],
                 ['label' => '宿泊回数', 'value' => number_format($periodStays), 'unit' => '回', 'note' => '支払い発生分'],
                 ['label' => '利用者数', 'value' => number_format($periodGuests), 'unit' => '人', 'note' => 'ユニーク冒険者'],
                 ['label' => '平均宿代', 'value' => number_format($periodStays > 0 ? (int) floor($periodRevenue / $periodStays) : 0), 'unit' => 'G', 'note' => '期間売上 ÷ 宿泊回数'],
@@ -85,6 +97,8 @@ class InnAnalyticsManager extends Component
             $rows[$day->toDateString()] = [
                 'date' => $day->toDateString(),
                 'revenue' => 0,
+                'expense' => 0,
+                'profit' => 0,
                 'stays' => 0,
                 'guests' => [],
                 'rescued' => 0,
@@ -108,6 +122,8 @@ class InnAnalyticsManager extends Component
         return collect($rows)
             ->map(fn (array $row): array => [
                 ...$row,
+                'expense' => $this->estimatedDailyExpense((int) $row['revenue']),
+                'profit' => (int) $row['revenue'] - $this->estimatedDailyExpense((int) $row['revenue']),
                 'guests' => count($row['guests']),
                 'average' => $row['stays'] > 0 ? (int) floor($row['revenue'] / $row['stays']) : 0,
             ])
@@ -134,6 +150,11 @@ class InnAnalyticsManager extends Component
             ->where('amount', '<', 0)
             ->get()
             ->sum(fn (GoldTransaction $row): int => abs((int) $row->amount));
+    }
+
+    private function estimatedDailyExpense(int $revenue): int
+    {
+        return self::DAILY_FIXED_EXPENSE + (int) floor($revenue * self::REVENUE_EXPENSE_RATE);
     }
 
     private function dateRange(): array

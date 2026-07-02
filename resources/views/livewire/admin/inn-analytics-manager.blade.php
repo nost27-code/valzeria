@@ -3,7 +3,7 @@
         <div>
             <p class="text-xs font-black tracking-[0.24em] text-amber-600">INN ANALYTICS</p>
             <h1 class="mt-2 text-3xl font-black text-slate-950">宿屋売上分析</h1>
-            <p class="mt-2 text-sm font-bold text-slate-500">宿泊で支払われたGold、宿泊回数、利用者数、救済宿泊の状況を確認します。</p>
+            <p class="mt-2 text-sm font-bold text-slate-500">宿泊で支払われたGold、想定支出、宿泊回数、利用者数、救済宿泊の状況を確認します。</p>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
             <label class="text-xs font-black text-slate-600">
@@ -26,16 +26,16 @@
         </div>
     @else
         <div class="mb-6 rounded-md border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">
-            過去分は `gold_transactions.type = inn` の支払額から集計します。救済宿泊の内訳は、この集計メタ情報を記録し始めた後の宿泊分から反映されます。
+            過去分は `gold_transactions.type = inn` の支払額から集計します。想定支出は1日{{ number_format($expensePolicy['dailyFixed']) }}Gの固定費に売上の{{ $expensePolicy['revenueRatePercent'] }}%を加えた雰囲気計算です。救済宿泊の内訳は、この集計メタ情報を記録し始めた後の宿泊分から反映されます。
         </div>
 
-        <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             @foreach($summaryCards as $card)
                 <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
                     <div class="text-xs font-black text-slate-500">{{ $card['label'] }}</div>
                     <div class="mt-2 flex items-baseline gap-1">
-                        <span class="text-2xl font-black text-slate-950">{{ $card['value'] }}</span>
-                        <span class="text-xs font-black text-amber-700">{{ $card['unit'] }}</span>
+                        <span class="text-2xl font-black {{ ($card['tone'] ?? null) === 'negative' ? 'text-rose-700' : ((($card['tone'] ?? null) === 'positive') ? 'text-emerald-700' : 'text-slate-950') }}">{{ $card['value'] }}</span>
+                        <span class="text-xs font-black {{ ($card['tone'] ?? null) === 'negative' ? 'text-rose-700' : ((($card['tone'] ?? null) === 'positive') ? 'text-emerald-700' : 'text-amber-700') }}">{{ $card['unit'] }}</span>
                     </div>
                     <div class="mt-1 text-xs font-bold text-slate-400">{{ $card['note'] }}</div>
                 </div>
@@ -45,8 +45,8 @@
         <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)]">
             <section class="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-100 px-5 py-4">
-                    <h2 class="text-lg font-black text-slate-950">日別売上</h2>
-                    <p class="mt-1 text-xs font-bold text-slate-400">宿泊によって回収されたGoldの推移です。</p>
+                    <h2 class="text-lg font-black text-slate-950">日別損益</h2>
+                    <p class="mt-1 text-xs font-bold text-slate-400">宿泊によって回収されたGoldから、宿屋の日々の想定支出を差し引いた推移です。</p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -54,6 +54,8 @@
                             <tr>
                                 <th class="px-4 py-3 text-left font-bold">日付</th>
                                 <th class="px-4 py-3 text-right font-bold">売上</th>
+                                <th class="px-4 py-3 text-right font-bold">想定支出</th>
+                                <th class="px-4 py-3 text-right font-bold">想定利益</th>
                                 <th class="px-4 py-3 text-right font-bold">宿泊</th>
                                 <th class="px-4 py-3 text-right font-bold">利用者</th>
                                 <th class="px-4 py-3 text-right font-bold">平均</th>
@@ -65,6 +67,8 @@
                                 <tr class="hover:bg-slate-50">
                                     <td class="whitespace-nowrap px-4 py-3 font-black text-slate-900">{{ \Illuminate\Support\Carbon::parse($row['date'])->format('Y/m/d') }}</td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right font-black text-amber-700">{{ number_format($row['revenue']) }}G</td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-right font-bold text-slate-500">{{ number_format($row['expense']) }}G</td>
+                                    <td class="whitespace-nowrap px-4 py-3 text-right font-black {{ $row['profit'] < 0 ? 'text-rose-700' : 'text-emerald-700' }}">{{ number_format($row['profit']) }}G</td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right font-bold text-slate-700">{{ number_format($row['stays']) }}回</td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right font-bold text-slate-700">{{ number_format($row['guests']) }}人</td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right font-bold text-slate-700">{{ number_format($row['average']) }}G</td>

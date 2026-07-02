@@ -485,7 +485,7 @@
                 <span style="color:#1e3a5f;">|</span>
                 <a href="{{ route('legal.contact') }}" style="font-size:15px;color:#64748b;text-decoration:none;font-weight:700;" onmouseover="this.style.color='#d4af37'" onmouseout="this.style.color='#64748b'">お問い合わせ</a>
                 <span style="color:#1e3a5f;">|</span>
-                <a href="{{ route('legal.operator') }}" style="font-size:15px;color:#64748b;text-decoration:none;font-weight:700;" onmouseover="this.style.color='#d4af37'" onmouseout="this.style.color='#64748b'">運営者情報</a>
+                <a href="{{ route('legal.operator') }}" style="font-size:15px;color:#64748b;text-decoration:none;font-weight:700;" onmouseover="this.style.color='#d4af37'" onmouseout="this.style.color='#64748b'">特定商取引法に基づく表記</a>
             </div>
             <p style="font-size:13px;color:#334155;margin:0;">&copy; 2026 ヴァルゼリアの冒険者 Project. All rights reserved.</p>
         </div>

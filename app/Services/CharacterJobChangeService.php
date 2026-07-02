@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\JobClass;
 use App\Models\JobChangeLog;
+use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -38,23 +39,20 @@ class CharacterJobChangeService
             ];
         }
 
-        if ($character->level < 100) {
-            // 現在の職業がマスター済みかチェック
-            $currentJobId = $character->current_job_id;
-            $isMastered = false;
-            if ($currentJobId) {
-                $isMastered = $character->jobHistories()
-                    ->where('job_class_id', $currentJobId)
-                    ->where('is_mastered', true)
-                    ->exists();
-            }
+        $currentJobId = $character->current_job_id;
+        $isMastered = false;
+        if ($currentJobId) {
+            $isMastered = $character->jobHistories()
+                ->where('job_class_id', $currentJobId)
+                ->where('is_mastered', true)
+                ->exists();
+        }
 
-            if (!$isMastered) {
-                return [
-                    'success' => false,
-                    'message' => 'Lv100に到達するか、現在の職業をマスターしないと転職できません。'
-                ];
-            }
+        if (!$isMastered) {
+            return [
+                'success' => false,
+                'message' => '現在の職業をマスターしないと転職できません。'
+            ];
         }
 
         if ($character->current_job_id === $targetJob->id) {
@@ -82,9 +80,9 @@ class CharacterJobChangeService
     /**
      * 引き継ぎ後の基礎ステータスを計算する
      * 
-     * 現在の基礎ステータスの50%を引き継ぐ
+     * 転職先ランクに応じて、現在の基礎ステータスを圧縮して引き継ぐ。
      */
-    public function calculateInheritedStats(Character $character): array
+    public function calculateInheritedStats(Character $character, ?JobClass $targetJob = null): array
     {
         // 最低保証値
         $minStats = [
@@ -98,15 +96,16 @@ class CharacterJobChangeService
             'luk' => 10,
         ];
 
-        // 50%引き継ぎ計算
-        $afterHp = floor($character->hp_base * 0.5);
-        $afterMp = floor($character->mp_base * 0.5);
-        $afterStr = floor($character->attack_base * 0.5);
-        $afterDef = floor($character->defense_base * 0.5);
-        $afterAgi = floor($character->speed_base * 0.5);
-        $afterMag = floor($character->magic_base * 0.5);
-        $afterSpr = floor($character->spirit_base * 0.5);
-        $afterLuk = floor($character->luck_base * 0.5);
+        $divisor = JobRankCatalog::inheritanceDivisor($targetJob?->rank);
+
+        $afterHp = floor($character->hp_base / $divisor);
+        $afterMp = floor($character->mp_base / $divisor);
+        $afterStr = floor($character->attack_base / $divisor);
+        $afterDef = floor($character->defense_base / $divisor);
+        $afterAgi = floor($character->speed_base / $divisor);
+        $afterMag = floor($character->magic_base / $divisor);
+        $afterSpr = floor($character->spirit_base / $divisor);
+        $afterLuk = floor($character->luck_base / $divisor);
 
         // 最低保証を下回らないようにする
         return [
@@ -126,7 +125,7 @@ class CharacterJobChangeService
      */
     public function previewJobChange(Character $character, JobClass $targetJob): array
     {
-        $calculated = $this->calculateInheritedStats($character);
+        $calculated = $this->calculateInheritedStats($character, $targetJob);
 
         return [
             'before' => [
@@ -171,7 +170,7 @@ class CharacterJobChangeService
 
         try {
             DB::transaction(function () use ($character, $targetJob) {
-                $calculated = $this->calculateInheritedStats($character);
+                $calculated = $this->calculateInheritedStats($character, $targetJob);
                 $fromJobId = $character->current_job_id;
                 
                 // 転職履歴の保存
@@ -220,6 +219,7 @@ class CharacterJobChangeService
                 $character->defense_fraction = 0.0;
                 $character->speed_fraction = 0.0;
                 $character->magic_fraction = 0.0;
+                $character->spirit_fraction = 0.0;
                 $character->luck_fraction = 0.0;
                 
                 // HP, SP全回復

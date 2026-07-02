@@ -19,7 +19,7 @@ class ExplorationService
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const GOLDEN_GOBLIN_REWARD_MIN_MULTIPLIER = 2.0;
     private const GOLDEN_GOBLIN_REWARD_MAX_MULTIPLIER = 3.0;
-    private const PLAYER_ENCOUNTER_CHANCE_PERCENT = 7;
+    private const PLAYER_ENCOUNTER_CHANCE_PERCENT = 0.1;
     private const PLAYER_ENCOUNTER_GIFT_ITEM_NAME = '薬草';
 
     protected BattleService $battleService;
@@ -634,6 +634,9 @@ class ExplorationService
             'valmon_egg_lost' => $valmonEggLost,
             'material_hunt_completion' => $materialHuntCompletion,
             'player_encounter' => $playerEncounter,
+            'sub_area_name' => $battleResult->eventData['sub_area_name'] ?? null,
+            'sub_area_route_name' => $battleResult->eventData['sub_area_route_name'] ?? null,
+            'sub_area_discovery_id' => $battleResult->eventData['sub_area_discovery_id'] ?? null,
         ];
     }
 
@@ -1008,7 +1011,7 @@ class ExplorationService
 
     private function rollPlayerEncounter(Character $character, Area $area): ?array
     {
-        if (random_int(1, 100) > self::PLAYER_ENCOUNTER_CHANCE_PERCENT) {
+        if (! $this->rollPercent(self::PLAYER_ENCOUNTER_CHANCE_PERCENT)) {
             return null;
         }
 
@@ -1018,12 +1021,12 @@ class ExplorationService
             ->where('is_frozen', false)
             ->whereNotNull('last_seen_at')
             ->where('last_seen_at', '>=', now()->subMinutes(30))
-            ->when($character->current_city_id, fn ($query) => $query->where('current_city_id', $character->current_city_id))
+            ->whereHas('explorationState', fn ($query) => $query->where('area_id', $area->id))
             ->inRandomOrder()
             ->first();
 
         if (!$candidate) {
-            return null;
+            return app(NpcFieldEncounterService::class)->roll($character, $area);
         }
 
         $jobName = (string) ($candidate->currentJob?->name ?? '冒険者');
@@ -1291,6 +1294,11 @@ class ExplorationService
                 $result->logs[] = "【探索】{$entrance}";
                 $result->logs[] = "<span class=\"text-indigo-800 font-extrabold\">{$discovery['message']}</span>";
                 $result->logs[] = "<span class=\"text-slate-700 font-bold\">入口名: {$routeName}</span>";
+                $result->eventData = [
+                    'sub_area_name' => $subArea?->name,
+                    'sub_area_route_name' => $routeName,
+                    'sub_area_discovery_id' => $discovery['discovery_id'] ?? null,
+                ];
                 if ($subArea?->recommended_level_min) {
                     $powerService = app(CharacterPowerService::class);
                     $powerRange = $powerService->recommendedRangeForLevels(

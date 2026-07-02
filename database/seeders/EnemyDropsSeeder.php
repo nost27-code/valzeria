@@ -53,7 +53,7 @@ class EnemyDropsSeeder extends Seeder
         '星樹氷晶',
         '精錬核',
     ];
-    private const REMOVED_UNUSED_MATERIAL_CODES = ['CITY_08_MATERIAL', 'WEV0030'];
+    private const REMOVED_UNUSED_MATERIAL_CODES = ['CITY_08_MATERIAL', 'WEV0029', 'WEV0030'];
     private const REMOVED_UNUSED_MATERIAL_NAMES = ['瘴気の骨片'];
     private const STALE_BRANCH_PATH_CODES = [
         'MAT_BR_WPN_HOLY_PATH',

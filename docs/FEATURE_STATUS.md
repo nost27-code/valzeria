@@ -5,7 +5,7 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
 | Login | ? | <file/route> | 未確認 |
-| Exploration | ? | `ExplorationService`, `battle.result` | 通常探索勝利時に、同じ街で直近活動中の別冒険者と低確率ですれ違う演出を探索結果ログへ表示し、薬草を1個付与する。結果画面に相手のキャラ画像つきカードと受け取った薬草を出す。探索全体の網羅性は未確認。 |
+| Exploration | ? | `ExplorationService`, `NpcFieldEncounterService`, `battle.result` | 通常探索勝利時に、同じダンジョン探索中で直近活動中の別冒険者と1探索0.1%ですれ違う演出を探索結果ログへ表示し、薬草を1個付与する。候補冒険者がいない場合は一般・熟練・英雄NPCとすれ違うことがあり、NPCは出現街/一部ダンジョン条件に沿って抽選され、名簿記録も更新される。NPCカードには短い一言も表示し、その日の酒場4人目の再会枠にも表示する。探索全体の網羅性は未確認。 |
 | Battle | ? | <file/route> | 未確認 |
 | Market | ? | <file/route> | 未確認 |
 | NPC procurement market loop | D | `NpcProcurementRequestService`, `NpcProcurementRequestGenerationService`, `NpcMarketListingService`, `npc_material_stocks`, `market:generate-npc-listings` | 調達依頼を酒場NPC本人の `npc_id` に紐づけ、納品素材をNPC在庫へ加算し、NPC在庫から市場へ定期出品する。NPC出品は買う一覧の在庫・最安値に通常出品として混ざる。市場出品NPCは `npc_rank=hero/legend` を除外する。 |
@@ -14,21 +14,23 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 | Drop equipment affixes | D | `EquipmentAffixService`, `DropService`, `BattleService`, `CharacterItem` | 敵ドロップ武器・防具に能力銘、武器用種族特効、防具用種族耐性を確率付与。銘補正は個体保存し、装備中のみ反映。 |
 | Material exchange | D | `MaterialExchangeService`, `/material-exchange`, `DropService` | 敵固有素材を共通素材へ変換し、牙/爪/小鬼/ゴブリン系は汎用牙素材として獣牙へ寄せる。共通素材+100Gから強化石/守護石/調律石の欠片を合成できる。刻印、王印、神印、進化証、英雄の証、討伐証、導石、古代片、秘境晶、極印、ボス特異素材、進行キーを含む素材名は共通化対象外。各欠片20個+500Gを対応する石1個へ精製でき、高純度石、粗精錬核、粗精錬核と覇王黒晶/蒼炉魔晶/星樹氷晶経由の精錬核、S→SS分岐進化用の複合素材も素材交換所で作れる。敵ドロップの強化系補助枠は各通常ダンジョンの約半数の通常敵から1%の欠片だけを許可し、石・高純度石・精錬核系素材は敵ドロップしない。回復アイテム調合は一時停止中。 |
 | Item book | D | `ItemBookController`, `ItemBookService`, `/item-book`, `item-book.index`, `MainScreen` | アイテム図鑑で装備品合成・鍛冶/素材交換・敵ドロップなど現在のプレイで必要な素材を所持/未所持問わず確認できる。廃止済み素材は表示しない。素材カードはアコーディオン表示で、閉じた状態ではアイコン、素材名、カテゴリ、所持状況、作成可否、ドロップ有無のバッジを表示する。 |
+| Monster mark book | D | `MonsterMarkController`, `MonsterMarkService`, `/monster-marks`, `monster-marks.index` | 印図鑑で印の所持数、解放段階、永続効果を確認できる。街とダンジョンごとのアコーディオンで表示し、エリア内の印は進行順に並べる。到達済みダンジョンは到達済みバッジを出し、カウントは `印発見` として表示する。未到達ダンジョン名と敵名は `？？？` で伏せる。 |
 | Daily supply depot | D | `DailySupplyService`, `/shop/items` | 回復アイテム各10個/日の補給枠と補給所ストックを実装。 |
-| Tavern NPC portraits | D | `NpcMaster`, `resources/views/tavern/*.blade.php`, `public/images/npc/npc_*.webp` | 酒場・会話・名簿・名簿詳細で `npc_id` 対応のキャラ画像を表示。未遭遇NPCは名簿で伏せる。 |
-| Job change / temple | D | `JobChange`, `job-change.blade.php`, `/jobs`, `JobArtController`, `JobArtService`, `job-arts.index` | 職業カードから詳細モーダルを開き、特徴・職業管理の成長倍率に基づく伸びやすい能力・奥義・マスター恩恵・必要条件を確認できる。職業ランクは全職10でマスターし、必要職業EXPは基本職1倍/中級職2倍/上級職5倍/伝説職10倍。1回の報酬処理で付与される職業EXPは最大3。転職可能職業は詳細モーダルから転職確認へ進める。奥義は通常戦用3枠とボス戦用3枠を別々に保存し、戦闘種別に応じて使い分ける。各スロットに積極/通常/温存の発動方針を設定できる。 |
+| Tavern NPC portraits | D | `NpcMaster`, `resources/views/tavern/*.blade.php`, `public/images/npc/npc_*.webp` | 酒場・会話・名簿・名簿詳細で `npc_id` 対応のキャラ画像を表示。未遭遇NPCは名簿で伏せる。通常の酒場会話では冒険のヒントを表示し、探索中にすれ違った後の4人目再会枠では全NPC分の人物関係など一歩踏み込んだ自然なセリフを表示する。関係するNPCが設定されている場合は名前と画像も表示する。 |
+| Job change / temple | D | `JobChange`, `job-change.blade.php`, `/jobs`, `JobArtController`, `JobArtService`, `JobRankCatalog`, `job-arts.index` | 職業カードから詳細モーダルを開き、特徴・職業管理の成長倍率に基づく伸びやすい能力・奥義・マスター恩恵・必要条件を確認できる。職業ランクは全職10でマスターし、必要職業EXPは基本職1倍/中級職2倍/上級職5倍/超級職8倍/冠位職10倍/英雄職15倍/伝説職22倍/神話職30倍。転職時の基礎能力値引き継ぎは上級職以下が1/2、超級職以上が1/3。1回の報酬処理で付与される職業EXPは最大3。転職可能職業は詳細モーダルから転職確認へ進める。奥義は通常戦用3枠とボス戦用3枠を別々に保存し、戦闘種別に応じて使い分ける。各スロットに積極/通常/温存の発動方針を設定できる。 |
 | Home action prompts | D | `HomeActionService`, `HomeActionPanel`, `home-action-panel` | 次やることカードに未完了の最前線エリアへの探索誘導、補給所の回復アイテム受け取り誘導、装備中装備の進化合成誘導、現在職マスター時の転職案内、奥義セット不足の誘導を表示。 |
 | Rank battle notifications | D | `PvPBattleService`, `CharacterNotificationService`, `PublicLogService` | ランク戦で格上に勝つと相手順位まで上がり、対戦相手へ順位低下通知を作成。番付上昇/TOP10入りは全体チャットへ公開ログを流す。 |
-| Town ranking board | D | `RankingController`, `TownRankingService`, `ranking.index`, `MainScreen` | 街の番付掲示板から、勝利数、所持ヴァルモン数、モンスター印収集数、逸品装備所持数、素材総所持数、成金、市場売上、調達納品数、仕事人、逸品鑑定士の各番付を確認できる。 |
+| Town ranking board | D | `RankingController`, `TownRankingService`, `ranking.index`, `MainScreen` | 街の番付掲示板から、勝利数、所持ヴァルモン数、モンスター印収集数、逸品装備所持数、素材総所持数、総資産、市場売上、調達納品数、仕事人、逸品鑑定士の各番付を確認できる。総資産には宿屋の累計売上も宿屋のおばあちゃん＆おじいちゃんとして混ざる。 |
 | Official note RSS notifications | D | `SyncNoteRssUpdates`, `external_feed_items`, `character_notifications`, `routes/console.php` | 公式note RSSの最新1件だけを定期確認し、未通知の記事ならプレイヤーの通知ベルへ新着通知を作成する。通知済み記事は `external_feed_items` で重複防止する。 |
 | Arena NPC rankers | D | `ArenaNpcRankingService`, `ArenaNpcBattleService`, `ArenaNpcAutoBattleService`, `RunArenaNpcAutoBattles`, `ColosseumRanking`, `arena_npc_rankings` | 闘技場ランク戦に酒場NPC由来のNPCランカーを混ぜ、通常のランク戦ボタンからNPCにも挑戦できる。当面は中級/一般NPCだけをプレイヤー順位帯より下の下位帯（最低51位以降）へ配置し、上級職NPCはランク外で待機する。ランキングでは通称名、表示Lv、非公開ステータス、見た目用の現在装備をNPC詳細モーダルに表示し、1日数回の自動ランク戦も行う。NPCは勝利ごとに表示Lvが1上がる（上限50）。legend枠と戦闘に向かないNPCは不出場。NPCステータスは非公開表示。 |
 | Admin mail favicon badge | D | `components.layouts.admin`, `/admin/contact-messages/badge-count` | 管理画面を開いている間、5分間隔でメール取り込みと新規受信数確認を行い、faviconとタイトルに新規数を表示。 |
 | Admin operator analytics | D | `OperatorAnalyticsManager`, `/admin/operator-analytics` | 新規登録、既存ログから推定した活動者、戦闘、チャット、fulfilled売上の日別推移、7/14/30日伸び率、CSV出力を表示。厳密な日別ログイン履歴は未作成。 |
 | Admin update summaries | D | `AdminDashboard`, `config/admin_update_summaries.php` | 管理ダッシュボードに最近の更新情報を最新50件表示。各項目の表示/非表示と見出しあり/なしのコピー用テキストを提供。AI実装タスク後の運営向けサマリ追記先を定義。 |
-| Admin chat message | D | `AdminChatManager`, `ChatLog`, `/admin/chat` | 管理画面から全体チャットへ管理人メッセージを投稿でき、プレイヤー側ではヴァルゼリアブルーで表示する。 |
+| Admin chat message | D | `AdminChatManager`, `ChatLog`, `/admin/chat` | 管理画面から全体チャットへ管理人メッセージを投稿でき、プレイヤー側ではヴァルゼリアブルーで表示する。管理画面では全体チャット履歴を初期80件から最大500件まで遡れる。 |
 | Admin NPC market analytics | D | `NpcMarketAnalyticsManager`, `/admin/npc-market-analytics`, `npc_material_stocks`, `market_listings`, `market_transactions` | 管理画面でNPCごとの調達納品量、現在在庫、出品中数量、販売済み数量、販売額、素材別明細、直近販売履歴を確認できる。 |
 | Admin help text management | D | `HelpTextManager`, `HelpContentService`, `/admin/help-texts`, `/help`, `/guide` | ヘルプページと案内所の共通説明文を管理画面から編集し、`game_texts` の上書きとして保存できる。 |
 | Local sandbox startup | D | `.env.local.example`, `scripts/local-setup.ps1`, `scripts/local-dev.ps1`, `docs/LOCAL_DEVELOPMENT.md` | 本番外部サービスを避けるローカル起動手順とスクリプトを整備。 |
 | Public logs | ? | <file/route> | 未確認 |
 | Valmon | P | `ValmonService`, `BattleService`, `ExplorationService`, `/valmons`, `CityHeader` | Starter/partner/feed/egg/ranch and Lv効果の素材発見・得意素材補正・追撃・未発見ヒント・応急回復・Lv100称号は実装済み。冒険者カードでは3行7列のヴァルモンケース表示を行い、仲間済みは画像、未仲間は `?` で表示する。全体機能の網羅性は未確認。 |
 | Adventurer card customization | D | `CharacterProfileService`, `ProfileController`, `profile.edit`, `CityHeader`, `character_adventurer_card_assets` | 冒険者カードの背景・四角枠・キャラ枠・ヴァルモンケースを、入手済みアセットからプロフィール編集で選択できる。初期状態ではカード装飾の各01番とヴァルモンケース色違いを所持する。 |
+| Guild association (所属/寄付/救助費軽減) | P | `GuildService`, `GuildAssociationController`, `ExplorationService` | 敗北時Goldロスト（所持Goldの10%固定）と戦利品ロスト（通常50%/救助保険25%/緊急救助0%）は稼働中。寄付機能とランク別救助費軽減（8段階表）はコード実装済みだが停止中・未公開。削除も自動再開もしない。再開・本格化は要再設計（人間裁定待ち）。 |

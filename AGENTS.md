@@ -14,6 +14,29 @@ Before changing gameplay, routes, data model, economy, auth, or UI flow, read:
 - docs/DATA_MODEL.md when DB/types are involved
 - docs/DOMAIN_RULES.md when game rules/balance are involved
 
+## Source of truth
+
+Two different questions have two different authorities:
+
+- "How does it behave NOW?" (current behavior, DB schema, implemented state)
+  → trust the actual code. Docs may be stale.
+- "How SHOULD it behave?" (spec decisions, design policy, target rules)
+  → trust docs/DOMAIN_RULES.md and explicit human rulings.
+  Code may contain bugs or unadopted designs; code alone is evidence of current implementation, NOT proof of intended spec.
+
+Conflict handling:
+- Code vs spec docs conflict → do not silently align either side; report as 要裁定 and ask.
+- docs/valzeria_spec.md vs docs/DOMAIN_RULES.md conflict → do not merge; report as 要裁定 and ask.
+- Other docs/ files may be outdated; do not treat them as spec without confirmation.
+
+Fixed rulings (2026-07-02):
+- Player level cap is Lv255.
+- Canonical stat labels for player-facing UI and new documents: HP / SP / ATK / DEF / MAG / SPR / SPD / LUK.
+  MP / STR / AGI are legacy labels: fix them where players can see them, and do not use them in new docs.
+  Do NOT rename DB columns (mp_base, str, agi, luck, job_level etc. stay as-is for now; renaming is a separate high-risk task).
+- Job change requirement: Lv30+ and the required job mastered (current implementation is canonical).
+  valzeria_spec.md's "Lv100" is an unadopted design — never apply it to code. Moving to Lv100 would be a separate rebalance task (転職条件再設計タスク).
+
 ## Work rules
 
 - Prefer minimal diffs.
@@ -21,7 +44,11 @@ Before changing gameplay, routes, data model, economy, auth, or UI flow, read:
 - Do not change game rules, economy, naming, schema, or auth behavior unless requested.
 - Do not mark a feature implemented unless code exists.
 - Write `未確認` when the codebase does not prove a claim.
-- Exclude generated/vendor dirs from manual inspection: node_modules, .next, dist, build, coverage.
+- Never invent balance numbers (drop rates, prices, EXP, probabilities). If the task sheet does not specify a number, ask; do not guess.
+- Exclude generated/vendor dirs from manual inspection: vendor, node_modules, storage, public/build, coverage.
+- Implementation tasks follow docs/dev-os/CODEX_TASK_TEMPLATE.md when a task sheet is provided.
+- Before finishing, run the applicable sections of docs/dev-os/QA_CHECKLIST.md and include the results in the final report.
+- For spec changes, consult docs/dev-os/IMPACT_MAP.md and list affected features in the plan.
 
 ## Implementation flow
 
@@ -49,15 +76,25 @@ Docs update: not needed — <reason>.
 
 ## Verification
 
-Use project-defined commands when available:
-- install: <fill>
-- dev: <fill>
-- lint: <fill>
-- typecheck: <fill>
-- test: <fill>
-- build: <fill>
+- syntax: `php -l <changed files>`
+- test: `php artisan test` (run the narrowest relevant tests)
+- frontend build: `npm run build` (only when JS/CSS/Blade assets changed)
+- migration check: run migration against local DB, then inspect representative rows
+- manual: follow the 手動確認手順 in the task instruction sheet
 
 If a command cannot run, report the reason and what was checked instead.
+
+## Human approval required
+
+Never execute these without explicit user approval in the current task:
+- Destructive migrations (drop/rename/type-change on existing columns or tables)
+- Seeder truncate / mass update against non-empty tables
+- Changing master IDs (city/area/enemy/item/material/job)
+- Anything touching Stripe, paid/free kiseki balance, or kiseki_transactions
+- Deploy scripts (local_deploy.php / local_deploy_admin.php), server file deletion
+- Deleting player-owned data (items, materials, valmons, progress)
+
+For these, present the impact, risk, and rollback plan first, then wait.
 
 ## Admin update summary rule
 

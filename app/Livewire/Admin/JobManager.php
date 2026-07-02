@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Models\JobClass;
 use App\Models\JobRequirement;
 use App\Models\Skill;
+use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -85,7 +86,7 @@ class JobManager extends Component
     public function createNew(string $rank = 'normal'): void
     {
         $this->resetForm();
-        $this->form['rank'] = in_array($rank, ['normal', 'middle', 'advanced', 'legend'], true) ? $rank : 'normal';
+        $this->form['rank'] = in_array($rank, JobRankCatalog::keys(), true) ? $rank : 'normal';
     }
 
     public function updatedSearch(): void
@@ -200,7 +201,7 @@ class JobManager extends Component
                 Rule::unique('job_classes', 'key')->ignore($this->editingJobId),
             ],
             'form.name' => 'required|string|max:100',
-            'form.rank' => 'required|in:normal,middle,advanced,legend',
+            'form.rank' => ['required', Rule::in(JobRankCatalog::keys())],
             'form.category' => 'nullable|string|max:100',
             'form.description' => 'nullable|string|max:1000',
             'form.max_job_level' => 'required|integer|min:10|max:10',
@@ -360,19 +361,25 @@ class JobManager extends Component
 
     public function render()
     {
-        $jobs = JobClass::with(['skill', 'requirements.requiredJob'])
+        $jobsQuery = JobClass::with(['skill', 'requirements.requiredJob'])
             ->when($this->rankFilter !== 'all', fn ($q) => $q->where('rank', $this->rankFilter))
             ->when($this->search !== '', fn ($q) => $q->where(function ($query) {
                 $query->where('name', 'like', '%' . $this->search . '%')
                     ->orWhere('key', 'like', '%' . $this->search . '%');
-            }))
+            }));
+
+        $jobs = JobRankCatalog::orderByRank($jobsQuery)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->paginate($this->perPage);
 
         return view('livewire.admin.job-manager', [
             'jobs' => $jobs,
-            'allJobs' => JobClass::orderBy('sort_order')->orderBy('id')->get(['id', 'key', 'name', 'rank']),
+            'allJobs' => JobRankCatalog::orderByRank(JobClass::query())
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get(['id', 'key', 'name', 'rank']),
+            'rankLabels' => JobRankCatalog::rankOptions(),
         ])->layout('components.layouts.admin');
     }
 }

@@ -30,12 +30,16 @@ class TavernController extends Controller
         }
 
         $result = $service->talk($character, $npc);
+        $isReunion = $service->isTodayReunionNpc($character, $npc);
+        $npc->loadMissing('relatedNpc');
 
         return view('tavern.talk', [
             'character' => $character,
             'npc' => $npc,
+            'relatedNpc' => $npc->relatedNpc,
             'encounter' => $result['encounter'],
             'isFirst' => $result['is_first'],
+            'isReunion' => $isReunion,
         ]);
     }
 

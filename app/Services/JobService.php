@@ -7,6 +7,7 @@ use App\Models\JobClass;
 use App\Models\CharacterJob;
 use App\Models\JobExpTable;
 use App\Models\JobRequirement;
+use App\Support\JobRankCatalog;
 
 class JobService
 {
@@ -31,7 +32,7 @@ class JobService
         }
 
         if ($requirements->isEmpty()) {
-            return $job->rank === 'normal'; // 条件がなければnormal職のみ転職可能
+            return JobRankCatalog::isBasic($job->rank); // 条件がなければ基本職のみ転職可能
         }
 
         foreach ($requirements as $req) {
@@ -159,14 +160,9 @@ class JobService
         ];
     }
 
-    private function jobExpMultiplier(string $rank): float
+    public function jobExpMultiplier(?string $rank): float
     {
-        return match ($rank) {
-            'middle' => 2.0,
-            'advanced' => 5.0,
-            'legend' => 10.0,
-            default => 1.0,
-        };
+        return JobRankCatalog::jobExpMultiplier($rank);
     }
 
     /**

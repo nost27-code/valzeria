@@ -54,6 +54,14 @@
     };
 
     $rankStyles = [
+        'default' => [
+            'card' => 'bg-white border-slate-200 hover:border-slate-400',
+            'lockedCard' => 'bg-white border-slate-200',
+            'hoverOverlay' => 'from-slate-400/10',
+            'title' => 'group-hover:text-slate-700',
+            'badge' => 'bg-slate-100 text-slate-600 border-slate-200',
+            'stars' => 'text-slate-500',
+        ],
         'normal' => [
             'card' => 'bg-white border-slate-200 hover:border-slate-400',
             'lockedCard' => 'bg-white border-slate-200',
@@ -86,14 +94,42 @@
             'badge' => 'bg-amber-100 text-amber-700 border-amber-300',
             'stars' => 'text-amber-600',
         ],
+        'super' => [
+            'card' => 'bg-emerald-50/70 border-emerald-200 hover:border-emerald-500',
+            'lockedCard' => 'bg-emerald-50/40 border-emerald-100',
+            'hoverOverlay' => 'from-emerald-400/15',
+            'title' => 'group-hover:text-emerald-700',
+            'badge' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
+            'stars' => 'text-emerald-600',
+        ],
+        'crown' => [
+            'card' => 'bg-rose-50/70 border-rose-200 hover:border-rose-500',
+            'lockedCard' => 'bg-rose-50/40 border-rose-100',
+            'hoverOverlay' => 'from-rose-400/15',
+            'title' => 'group-hover:text-rose-700',
+            'badge' => 'bg-rose-100 text-rose-700 border-rose-200',
+            'stars' => 'text-rose-600',
+        ],
+        'hero' => [
+            'card' => 'bg-cyan-50/70 border-cyan-200 hover:border-cyan-500',
+            'lockedCard' => 'bg-cyan-50/40 border-cyan-100',
+            'hoverOverlay' => 'from-cyan-400/15',
+            'title' => 'group-hover:text-cyan-700',
+            'badge' => 'bg-cyan-100 text-cyan-700 border-cyan-200',
+            'stars' => 'text-cyan-600',
+        ],
+        'myth' => [
+            'card' => 'bg-fuchsia-50/70 border-fuchsia-200 hover:border-fuchsia-500',
+            'lockedCard' => 'bg-fuchsia-50/40 border-fuchsia-100',
+            'hoverOverlay' => 'from-fuchsia-400/15',
+            'title' => 'group-hover:text-fuchsia-700',
+            'badge' => 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+            'stars' => 'text-fuchsia-600',
+        ],
     ];
 
-    $rankLabel = fn ($rank) => [
-        'normal' => 'NORMAL',
-        'middle' => 'MIDDLE',
-        'advanced' => 'ADVANCE',
-        'legend' => 'LEGEND',
-    ][$rank] ?? strtoupper((string) $rank);
+    $rankLabel = fn ($rank) => \App\Support\JobRankCatalog::badge($rank);
+    $isHighRankJob = fn ($rank) => \App\Support\JobRankCatalog::isHighRank($rank);
 
     $isRequirementMet = function ($req) use ($character, $jobProgress) {
         if ($req->requirement_type === 'master_job') {
@@ -615,7 +651,11 @@
                     </div>
                     <div class="mt-4 text-xs text-gray-500 text-center flex flex-col items-center gap-1.5 leading-relaxed bg-white p-2 rounded border border-gray-100">
                         <img src="{{ asset('images/icon/icon_046.webp') }}" alt="" class="w-5 h-5 object-contain">
-                        <span>転職すると現在の職業のステータス補正が失われますが、<br>獲得した経験値やマスターボーナスは維持されます。</span>
+                        @if($isHighRankJob($selectedJob->rank ?? null))
+                            <span>超級職以上への転職は高位転職となります。<br>高位転職では、基礎能力値の1/3を引き継ぎます。</span>
+                        @else
+                            <span>転職後、基礎能力値の1/2を引き継ぎます。<br>獲得した経験値やマスターボーナスは維持されます。</span>
+                        @endif
                     </div>
                 </div>
 

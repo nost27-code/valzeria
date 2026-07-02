@@ -15,8 +15,9 @@ class MonsterMarkController extends Controller
         }
 
         $collection = $monsterMarkService->collectionFor($character);
+        $groups = $monsterMarkService->groupedCollectionFor($character, $collection);
         $summary = $monsterMarkService->summary($character);
 
-        return view('monster-marks.index', compact('character', 'collection', 'summary'));
+        return view('monster-marks.index', compact('character', 'collection', 'groups', 'summary'));
     }
 }

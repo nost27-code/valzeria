@@ -38,26 +38,59 @@ class TavernNpcService
             ->orderBy('slot_no')
             ->get();
 
-        if ($saved->isNotEmpty()) {
+        $normalSaved = $saved->filter(fn (PlayerTavernDailyNpc $dailyNpc): bool => (int) $dailyNpc->slot_no <= 3);
+        if ($normalSaved->count() >= 3) {
             return $saved->pluck('npc')->filter()->values();
         }
 
-        $selected = $this->drawNpcs($character, 3);
+        $missingSlots = collect([1, 2, 3])
+            ->reject(fn (int $slotNo): bool => $normalSaved->contains(fn (PlayerTavernDailyNpc $dailyNpc): bool => (int) $dailyNpc->slot_no === $slotNo))
+            ->values();
+        $excludeNpcIds = $saved->pluck('npc_id')->map(fn ($npcId): int => (int) $npcId)->all();
+        $selected = $this->drawNpcs($character, $missingSlots->count(), $excludeNpcIds);
 
-        DB::transaction(function () use ($character, $date, $selected) {
+        DB::transaction(function () use ($character, $date, $selected, $missingSlots) {
             foreach ($selected as $index => $npc) {
                 PlayerTavernDailyNpc::updateOrCreate(
                     [
                         'character_id' => $character->id,
                         'tavern_date' => $date,
-                        'slot_no' => $index + 1,
+                        'slot_no' => (int) $missingSlots[$index],
                     ],
                     ['npc_id' => $npc->npc_id]
                 );
             }
         });
 
-        return $selected;
+        return PlayerTavernDailyNpc::with('npc')
+            ->where('character_id', $character->id)
+            ->whereDate('tavern_date', $date)
+            ->orderBy('slot_no')
+            ->get()
+            ->pluck('npc')
+            ->filter()
+            ->values();
+    }
+
+    public function addTodayReunionNpc(Character $character, NpcMaster $npc): void
+    {
+        PlayerTavernDailyNpc::updateOrCreate(
+            [
+                'character_id' => $character->id,
+                'tavern_date' => now()->toDateString(),
+                'slot_no' => 4,
+            ],
+            ['npc_id' => $npc->npc_id]
+        );
+    }
+
+    public function isTodayReunionNpc(Character $character, NpcMaster $npc): bool
+    {
+        return PlayerTavernDailyNpc::where('character_id', $character->id)
+            ->whereDate('tavern_date', now()->toDateString())
+            ->where('slot_no', 4)
+            ->where('npc_id', $npc->npc_id)
+            ->exists();
     }
 
     public function talk(Character $character, NpcMaster $npc): array
@@ -109,12 +142,17 @@ class TavernNpcService
         ];
     }
 
-    private function drawNpcs(Character $character, int $limit): Collection
+    private function drawNpcs(Character $character, int $limit, array $excludeNpcIds = []): Collection
     {
+        if ($limit <= 0) {
+            return collect();
+        }
+
         $encounteredIds = PlayerNpcEncounter::where('character_id', $character->id)->pluck('npc_id')->all();
         $candidates = NpcMaster::where('is_active', true)
             ->orderBy('sort_order')
             ->get()
+            ->reject(fn (NpcMaster $npc): bool => in_array((int) $npc->npc_id, $excludeNpcIds, true))
             ->filter(fn (NpcMaster $npc) => $this->meetsCondition($character, $npc))
             ->values();
 
@@ -154,7 +192,7 @@ class TavernNpcService
         return $selected;
     }
 
-    private function meetsCondition(Character $character, NpcMaster $npc): bool
+    public function meetsCondition(Character $character, NpcMaster $npc): bool
     {
         $type = (string) $npc->appear_condition_type;
         $value = (string) $npc->appear_condition_value;

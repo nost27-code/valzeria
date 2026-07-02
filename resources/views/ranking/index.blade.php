@@ -18,6 +18,18 @@
             '番付に載ったら胸を張れよ。街の連中、けっこう見てるもんだ。',
         ];
         $townVoiceLine = $townVoiceLines[array_rand($townVoiceLines)];
+        $rankingImageUrl = function (array $row): string {
+            $path = (string) ($row['icon_path'] ?? '/images/chara/chara_001.webp');
+            if (($row['image_type'] ?? 'character') === 'asset') {
+                $normalized = '/' . ltrim($path, '/');
+                $absolutePath = public_path(ltrim($normalized, '/'));
+                $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
+
+                return asset($normalized) . '?v=' . $version;
+            }
+
+            return \App\Support\CharacterIconCatalog::versionedAsset($path);
+        };
     @endphp
 
     <div
@@ -153,7 +165,7 @@
                                 </div>
                                 <div class="flex shrink-0 items-center justify-center {{ $rankLayout['icon'] }}">
                                     <img
-                                        src="{{ \App\Support\CharacterIconCatalog::versionedAsset($row['icon_path'] ?? '/images/chara/chara_001.webp') }}"
+                                        src="{{ $rankingImageUrl($row) }}"
                                         alt=""
                                         class="h-full w-full object-contain drop-shadow-sm"
                                     >
@@ -161,7 +173,9 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex min-w-0 items-baseline gap-2">
                                         <div class="truncate font-black text-slate-900 {{ $rankLayout['name'] }}">{{ $row['name'] }}</div>
-                                        <div class="shrink-0 font-bold text-slate-400 {{ $rankLayout['level'] }}">Lv{{ number_format($row['level']) }}</div>
+                                        @if(!is_null($row['level'] ?? null))
+                                            <div class="shrink-0 font-bold text-slate-400 {{ $rankLayout['level'] }}">Lv{{ number_format($row['level']) }}</div>
+                                        @endif
                                         @if($rankLayout['medal'])
                                             <div class="hidden shrink-0 rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-black text-slate-500 sm:block">{{ $rankLayout['medal'] }}</div>
                                         @endif
@@ -212,7 +226,7 @@
                             <div class="mt-2 flex items-center gap-2">
                                 <div class="flex h-12 w-12 shrink-0 items-center justify-center">
                                     <img
-                                        src="{{ \App\Support\CharacterIconCatalog::versionedAsset($leader['icon_path'] ?? '/images/chara/chara_001.webp') }}"
+                                        src="{{ $rankingImageUrl($leader) }}"
                                         alt=""
                                         class="h-full w-full object-contain drop-shadow-sm"
                                     >

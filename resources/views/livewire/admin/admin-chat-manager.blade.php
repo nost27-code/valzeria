@@ -16,7 +16,10 @@
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <section class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
             <div class="border-b border-slate-200 px-4 py-3">
-                <h2 class="text-lg font-black text-slate-950">全体チャット</h2>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-lg font-black text-slate-950">全体チャット</h2>
+                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-500">最新{{ number_format($logLimit) }}件</span>
+                </div>
                 <p class="mt-1 text-xs font-bold text-slate-500">個人チャットは表示しません。</p>
             </div>
 
@@ -51,6 +54,17 @@
                 @empty
                     <div class="py-10 text-center text-sm font-bold text-slate-400">表示できるログがありません。</div>
                 @endforelse
+            </div>
+            <div class="flex items-center justify-center border-t border-slate-100 bg-white px-4 py-2">
+                @if($canLoadMoreLogs)
+                    <button type="button"
+                            wire:click="loadMoreLogs"
+                            class="rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-100">
+                        さらに遡る
+                    </button>
+                @else
+                    <span class="text-[11px] font-bold text-slate-400">これ以上表示できるログはありません</span>
+                @endif
             </div>
 
             <form wire:submit="sendMessage" class="border-t border-slate-200 bg-slate-50 p-3">

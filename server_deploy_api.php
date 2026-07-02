@@ -177,6 +177,16 @@ PHP;
         }
     }
 
+    $adminDeploySource = $projectDir . '/server_admin_deploy_api.php';
+    $adminDeployDest = $publicHtmlDir . '/server_admin_deploy_api.php';
+    if (file_exists($adminDeploySource)) {
+        if (copy($adminDeploySource, $adminDeployDest)) {
+            echo "・server_admin_deploy_api.php を最新版に配置しました。\n";
+        } else {
+            echo "・警告: server_admin_deploy_api.php の配置に失敗しました。\n";
+        }
+    }
+
     // 【5】マイグレーションの自動実行 (CLIのPHPバージョン問題を回避するためWebプロセス内で実行)
     try {
         require $projectDir . '/vendor/autoload.php';

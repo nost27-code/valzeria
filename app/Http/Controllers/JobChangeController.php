@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\JobClass;
 use App\Services\CharacterJobChangeService;
+use App\Support\JobRankCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,7 +20,9 @@ class JobChangeController extends Controller
     public function index()
     {
         $character = Auth::user()->currentCharacter();
-        $jobs = JobClass::where('is_active', true)->orderBy('sort_order')->get();
+        $jobs = JobRankCatalog::orderByRank(JobClass::where('is_active', true))
+            ->orderBy('sort_order')
+            ->get();
 
         return view('jobs.index', compact('character', 'jobs'));
     }

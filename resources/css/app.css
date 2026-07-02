@@ -30,6 +30,9 @@
     input[type='submit'],
     input[type='reset'] {
         cursor: pointer;
+        transition-property: transform;
+        transition-duration: 120ms;
+        transition-timing-function: ease;
     }
 
     button:disabled,
@@ -38,6 +41,14 @@
     input[type='submit']:disabled,
     input[type='reset']:disabled {
         cursor: not-allowed;
+    }
+
+    button:not(:disabled):active,
+    [role='button']:not([aria-disabled='true']):active,
+    input[type='button']:not(:disabled):active,
+    input[type='submit']:not(:disabled):active,
+    input[type='reset']:not(:disabled):active {
+        transform: translateY(1px) scale(0.98);
     }
 }
 

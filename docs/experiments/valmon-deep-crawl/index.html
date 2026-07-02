@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ヴァルモン深層踏破 試験実装</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="config.js" defer></script>
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <main class="app-shell">
+        <section class="content-header">
+            <div>
+                <p class="eyebrow">週末カードシーズン</p>
+                <h1>ヴァルモン深層踏破</h1>
+            </div>
+            <div class="stamina-meter" aria-label="探索力">
+                <img src="../../../public/images/icon/icon_245.webp" alt="" aria-hidden="true">
+                <strong id="staminaCurrentText">265</strong><span id="staminaMaxText">/265</span>
+            </div>
+        </section>
+        <div class="rules-row">
+            <div class="coin-claim" id="coinClaimStatus">
+                <span id="coinClaimText">次の金貨取得まであと --:--:--</span>
+                <button type="button" class="coin-claim-button" id="coinClaimButton" hidden>金貨を取得する</button>
+            </div>
+            <button type="button" class="link-button" id="rulesButton">遊び方・ルール</button>
+        </div>
+
+        <section class="notice" id="statusMessage" hidden></section>
+
+        <section class="screen active" id="screen-prepare">
+            <div class="layout">
+                <section class="panel season-summary-panel">
+                    <div class="panel-heading">
+                        <h2>今週の深層踏破</h2>
+                        <span class="chip" id="seasonPeriodText">金曜09:00〜月曜09:00</span>
+                    </div>
+                    <div class="season-summary-grid">
+                        <div class="summary-item"><span>現在階層</span><strong id="towerCurrentFloorText">1階</strong></div>
+                        <div class="summary-item"><span>最高踏破</span><strong id="towerBestFloorText">0階</strong></div>
+                        <div class="summary-item"><span>金貨</span><strong id="towerCoinText">0</strong></div>
+                        <div class="summary-item"><span>深層BP</span><strong id="towerBpText">0</strong></div>
+                        <div class="summary-item"><span>出現カード</span><strong id="towerActiveCardText">80/100</strong></div>
+                        <div class="summary-item"><span>休眠カード</span><strong id="towerDormantCardText">20/100</strong></div>
+                    </div>
+                    <details class="dormant-card-list">
+                        <summary>今週の休眠カードを見る</summary>
+                        <div id="dormantCardList"></div>
+                    </details>
+                </section>
+                <section class="panel hero-panel">
+                    <div class="valmon-scene">
+                        <button type="button" class="carousel-button" data-valmon-cycle="-1" aria-label="前のヴァルモン">‹</button>
+                        <div class="valmon-portrait">
+                            <img id="selectedValmonImage" src="../../../public/images/valmon/valmon01.webp" alt="選択中のヴァルモン">
+                        </div>
+                        <div>
+                            <p class="eyebrow">挑戦ヴァルモン</p>
+                            <h2 id="selectedValmonName">リーフィン</h2>
+                            <p id="selectedValmonMeta" class="muted">Lv30 / 調律ポイント 8</p>
+                        </div>
+                        <button type="button" class="carousel-button" data-valmon-cycle="1" aria-label="次のヴァルモン">›</button>
+                    </div>
+
+                    <div class="stat-grid">
+                        <div class="metric">
+                            <span>調律残り</span>
+                            <strong id="tuningRemainingText">0</strong>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="layout">
+                <section class="panel">
+                    <div class="panel-heading">
+                        <h2>調律ポイント</h2>
+                        <span id="tuningLimitLabel" class="chip">上限 6 / 合計 8</span>
+                    </div>
+                    <div class="tuning-list" id="tuningList"></div>
+                    <p class="field-error" id="tuningError"></p>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <h2>デッキカード</h2>
+                        <span class="chip" id="selectedOrbText">未選択</span>
+                    </div>
+                    <div class="card-toolbar">
+                        <button type="button" class="link-button" id="coinCardButton">金貨でカード取得</button>
+                        <button type="button" class="link-button" id="bpCardButton">BPでカード取得</button>
+                    </div>
+                    <div class="orb-list" id="orbList"></div>
+                    <p class="field-error" id="orbError"></p>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <h2>深層BP強化</h2>
+                        <span class="chip" id="bpUpgradeLabel">未使用BP 0</span>
+                    </div>
+                    <div class="bp-action-grid" id="bpActionGrid"></div>
+                </section>
+            </div>
+
+            <section class="panel compact-ranking">
+                <div class="panel-heading">
+                    <h2>深層踏破 TOP3</h2>
+                    <button type="button" class="link-button" id="detailsRankingButton">詳細はこちら</button>
+                </div>
+                <div class="ranking-mini" id="rankingTop3"></div>
+            </section>
+
+            <section class="action-bar">
+                <button type="button" class="button primary" id="startRunButton">挑戦開始</button>
+            </section>
+        </section>
+
+        <section class="screen" id="screen-departure">
+            <section class="panel departure-panel">
+                <div class="departure-bg" aria-hidden="true"></div>
+                <div class="departure-valmon">
+                    <img id="departureValmonImage" src="../../../public/images/valmon/valmon01.webp" alt="">
+                </div>
+                <div class="departure-setup">
+                    <div>
+                        <p class="setup-title">現在の一時調律</p>
+                        <div class="run-chip-row" id="departureStatChips"></div>
+                    </div>
+                    <div>
+                        <p class="setup-title">装備カード</p>
+                        <div class="run-chip-row" id="departureOrbChips"></div>
+                    </div>
+                </div>
+                <p class="departure-message" id="departureMessage">ヴァルモンは勇敢な姿で待機しています。</p>
+            </section>
+            <section class="action-bar departure-actions">
+                <button type="button" class="button primary" id="departureStartButton">探索へ</button>
+                <a href="#" class="retire-link" id="departureRetireLink">撤退する</a>
+            </section>
+        </section>
+
+        <section class="screen" id="screen-run">
+            <section class="panel battle-scene-panel" id="eventStage">
+                <div class="battle-run-meta">
+                    <span class="event-type" id="eventTypeLabel">待機中</span>
+                    <strong id="runScoreText">0</strong>
+                </div>
+                <div class="depth-progress" id="depthProgress">
+                    <div class="depth-progress-head">
+                        <span id="depthProgressRange">地下1〜10階</span>
+                        <strong id="depthProgressFloor">地下入口</strong>
+                    </div>
+                    <div class="depth-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" id="depthProgressBar">
+                        <div id="depthProgressFill"></div>
+                    </div>
+                </div>
+
+                <div class="encounter-title" id="encounterTitle">小穴の奥へ進みます。</div>
+
+                <div class="battle-arena">
+                    <div class="combatant-card combatant-player">
+                        <div class="combatant-hp">
+                            <span>HP</span>
+                            <strong id="runHpText">-</strong>
+                            <div class="bar"><div id="runHpBar" class="bar-fill hp"></div></div>
+                        </div>
+                        <img id="runValmonImage" src="../../../public/images/valmon/valmon01.webp" alt="挑戦中のヴァルモン">
+                        <strong id="battleValmonName">リーフィン</strong>
+                        <small id="battleValmonSub">Lv30</small>
+                    </div>
+                    <div class="battle-vs">VS</div>
+                    <div class="combatant-card combatant-enemy">
+                        <div class="combatant-hp">
+                            <span>HP</span>
+                            <strong id="runEnemyHpText">-</strong>
+                            <div class="bar"><div id="runEnemyHpBar" class="bar-fill hp"></div></div>
+                        </div>
+                        <div class="enemy-visual" id="runEnemyVisual" aria-hidden="true"></div>
+                        <strong id="runEnemyName">地下の気配</strong>
+                        <small id="runEnemySub">次の階層へ進む</small>
+                    </div>
+                </div>
+
+                <div class="battle-event-info sr-only">
+                    <strong id="eventTitle">地下入口</strong>
+                    <p id="eventLead" class="muted">「進む」を押すと、ヴァルモンが次の階へ向かいます。</p>
+                    <div class="event-impact" id="eventImpact"></div>
+                </div>
+
+                <div class="battle-hidden-values" aria-hidden="true">
+                    <div id="runStatChips"></div>
+                    <div id="runOrbChips"></div>
+                    <div id="runSummary"></div>
+                    <span id="runEnemyAtkText">-</span>
+                    <span id="runEnemyDefText">-</span>
+                    <div id="lastEvent">まだ進行していません。</div>
+                </div>
+
+                <div class="battle-log-head">
+                    <span>進行ログ</span>
+                    <span id="runLogCount">0件</span>
+                </div>
+                <div class="log-list battle-log" id="runLog" role="log" aria-live="polite"></div>
+            </section>
+
+            <section class="panel choice-panel" id="choicePanel" hidden>
+                <div class="panel-heading">
+                    <h2 id="choiceTitle">選択</h2>
+                </div>
+                <p id="choiceLead" class="muted"></p>
+                <div class="choice-grid" id="choiceOptions"></div>
+            </section>
+
+            <section class="action-bar">
+                <button type="button" class="button primary" id="advanceButton">進む</button>
+                <button type="button" class="button secondary" id="deckEditButton">デッキ編集</button>
+                <a href="#" class="retire-link" id="retireLink">撤退する</a>
+            </section>
+        </section>
+
+        <section class="screen" id="screen-ranking">
+            <section class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Weekly</p>
+                        <h2>今週の深層踏破ランキング</h2>
+                    </div>
+                    <span class="chip" id="rankingSeasonLabel">金曜09:00〜月曜09:00</span>
+                </div>
+                <div class="ranking-table" id="rankingTable"></div>
+                <section class="action-bar inline-actions">
+                    <button type="button" class="button" id="rankingBackButton">戻る</button>
+                </section>
+            </section>
+        </section>
+
+        <section class="screen" id="screen-status">
+            <section class="panel status-panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Status</p>
+                        <h2>探索状態</h2>
+                    </div>
+                    <span class="chip" id="statusStateLabel">準備中</span>
+                </div>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <span>ヴァルモン</span>
+                        <strong id="statusValmonName">リーフィン</strong>
+                        <small id="statusValmonMeta">Lv30</small>
+                    </div>
+                    <div class="status-card">
+                        <span>HP</span>
+                        <strong id="statusHpText">-</strong>
+                        <div class="bar"><div id="statusHpBar" class="bar-fill hp"></div></div>
+                    </div>
+                    <div class="status-card">
+                        <span>到達</span>
+                        <strong id="statusFloorText">0階</strong>
+                        <small id="statusRouteText">安全な小道</small>
+                    </div>
+                    <div class="status-card">
+                        <span>スコア</span>
+                        <strong id="statusScoreText">0</strong>
+                        <small id="statusNextText">挑戦開始待ち</small>
+                    </div>
+                </div>
+                <div class="status-section">
+                    <h3>調律</h3>
+                    <div class="run-chip-row" id="statusTuningChips"></div>
+                </div>
+                <div class="status-section">
+                    <h3>デッキカード</h3>
+                    <div class="run-chip-row" id="statusOrbChips"></div>
+                </div>
+            </section>
+        </section>
+
+        <nav class="bottom-nav" aria-label="地下探索ナビゲーション">
+            <button type="button" id="navExplore" data-app-tab="explore">探索</button>
+            <button type="button" id="navRanking" data-app-tab="ranking">ランキング</button>
+            <button type="button" id="navStatus" data-app-tab="status">状態</button>
+        </nav>
+
+        <section class="modal-backdrop" id="rulesModal" hidden>
+            <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+                <div class="panel-heading">
+                    <h2 id="rulesTitle">遊び方・ルール</h2>
+                    <button type="button" class="modal-close" data-modal-close aria-label="閉じる">×</button>
+                </div>
+                <div class="rule-list">
+                    <p>所持しているヴァルモンから1体を選び、人間が入れない小穴の地下へ単独で潜らせます。</p>
+                    <p>左右のボタンで挑戦するヴァルモンを切り替えます。表示中のヴァルモンがそのまま挑戦対象になります。</p>
+                    <p>金曜09:00から月曜09:00までの短期シーズンです。カード、深層BP、進行階層はシーズンごとにリセットされます。</p>
+                    <p>金貨1枚でカード3択から1枚を取得できます。生成された3択は選ぶまで固定され、引き直しはできません。</p>
+                    <p>所持カードからデッキに入れるカードを選びます。初期装備枠は20枚、BPで最大36枚まで拡張できます。</p>
+                    <p>探索力を1消費して現在階層へ挑戦します。敗北しても1階には戻らず、同じ階層から再挑戦できます。</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="retireModal" hidden>
+            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="retireTitle">
+                <div class="panel-heading">
+                    <h2 id="retireTitle">探索から撤退しますか？</h2>
+                    <button type="button" class="modal-close" data-retire-cancel aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text">ここで撤退すると、現在の到達階とスコアで記録されます。</p>
+                <div class="confirm-actions">
+                    <button type="button" class="button primary" data-retire-cancel>探索を続ける</button>
+                    <button type="button" class="button danger" id="retireConfirmButton">撤退する</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="coinModal" hidden>
+            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="coinTitle">
+                <div class="panel-heading">
+                    <h2 id="coinTitle">金貨を入手しました</h2>
+                    <button type="button" class="modal-close" data-coin-close aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text">金貨を1枚入手した。</p>
+                <div class="confirm-actions">
+                    <button type="button" class="button primary" data-coin-close>閉じる</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

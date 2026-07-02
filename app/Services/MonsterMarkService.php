@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Models\CharacterAreaProgress;
 use App\Models\CharacterMonsterMark;
 use App\Models\Enemy;
 use App\Models\MonsterMark;
@@ -12,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 class MonsterMarkService
 {
     private const UNLOCK_THRESHOLDS = [1, 3, 7, 15];
+    private const BASE_DROP_RATE_DIVISOR = 2.0;
+    private const DROP_RATE_REDUCTION_QUANTITY = 15;
+    private const COMPLETED_DROP_RATE_DIVISOR = 3.0;
 
     public function rollAndGrant(Character $character, Enemy $enemy): ?array
     {
@@ -20,7 +24,12 @@ class MonsterMarkService
         }
 
         $mark = $this->markForEnemy($enemy);
-        if (!$mark || !$mark->is_active || !$this->rollPercent((float) $mark->drop_rate)) {
+        if (!$mark || !$mark->is_active) {
+            return null;
+        }
+
+        $currentQuantity = $this->ownedQuantity($character, $mark);
+        if (!$this->rollPercent($this->effectiveDropRate($mark, $currentQuantity))) {
             return null;
         }
 
@@ -67,19 +76,34 @@ class MonsterMarkService
         $owned = CharacterMonsterMark::where('character_id', $character->id)
             ->get()
             ->keyBy('monster_mark_id');
+        $discoveredAreaIds = $this->discoveredAreaIds($character);
 
-        return MonsterMark::with('enemy.area')
-            ->where('is_active', true)
-            ->orderBy('enemy_id')
+        return MonsterMark::query()
+            ->select('monster_marks.*')
+            ->with('enemy.area.city')
+            ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')
+            ->leftJoin('areas', 'areas.id', '=', 'enemies.area_id')
+            ->leftJoin('cities', 'cities.id', '=', 'areas.city_id')
+            ->where('monster_marks.is_active', true)
+            ->orderByRaw('COALESCE(cities.sort_order, 999999)')
+            ->orderByRaw('COALESCE(areas.sort_order, 999999)')
+            ->orderByRaw('COALESCE(enemies.sort_order, 999999)')
+            ->orderBy('monster_marks.enemy_id')
             ->get()
-            ->map(function (MonsterMark $mark) use ($owned) {
+            ->map(function (MonsterMark $mark) use ($owned, $discoveredAreaIds) {
                 $row = $owned->get($mark->id);
                 $quantity = (int) ($row?->quantity ?? 0);
                 $level = $this->unlockedLevel($quantity, $mark);
+                $enemy = $mark->enemy;
+                $area = $enemy?->area;
+                $city = $area?->city;
+                $isAreaDiscovered = $area && $discoveredAreaIds->contains((int) $area->id);
 
                 return [
                     'mark' => $mark,
-                    'enemy' => $mark->enemy,
+                    'enemy' => $enemy,
+                    'area' => $area,
+                    'city' => $city,
                     'quantity' => $quantity,
                     'unlocked_level' => $level,
                     'next_required' => $this->nextRequired($quantity, $mark),
@@ -88,9 +112,49 @@ class MonsterMarkService
                     'total_bonus' => $this->totalBonus($level, $mark),
                     'progress_percent' => $this->progressPercent($quantity, $mark),
                     'is_discovered' => $quantity > 0,
+                    'is_area_discovered' => (bool) $isAreaDiscovered,
                     'is_complete' => $level >= $this->maxUnlockLevel($mark),
                 ];
             });
+    }
+
+    public function groupedCollectionFor(Character $character, ?Collection $collection = null): Collection
+    {
+        $collection ??= $this->collectionFor($character);
+
+        return $collection
+            ->groupBy(fn (array $entry) => (int) ($entry['city']?->id ?? 0))
+            ->map(function (Collection $cityEntries) {
+                $city = $cityEntries->first()['city'] ?? null;
+                $areas = $cityEntries
+                    ->groupBy(fn (array $entry) => (int) ($entry['area']?->id ?? 0))
+                    ->map(function (Collection $areaEntries) {
+                        $first = $areaEntries->first();
+                        $area = $first['area'] ?? null;
+                        $isAreaDiscovered = (bool) ($first['is_area_discovered'] ?? false);
+
+                        return [
+                            'area' => $area,
+                            'display_name' => $isAreaDiscovered ? ($area?->name ?? '不明な地域') : '？？？',
+                            'is_area_discovered' => $isAreaDiscovered,
+                            'entries' => $areaEntries->values(),
+                            'discovered_count' => $areaEntries->where('is_discovered', true)->count(),
+                            'total_count' => $areaEntries->count(),
+                            'total_quantity' => $areaEntries->sum('quantity'),
+                        ];
+                    })
+                    ->values();
+
+                return [
+                    'city' => $city,
+                    'city_name' => $city?->name ?? '不明な街',
+                    'areas' => $areas,
+                    'discovered_count' => $cityEntries->where('is_discovered', true)->count(),
+                    'total_count' => $cityEntries->count(),
+                    'total_quantity' => $cityEntries->sum('quantity'),
+                ];
+            })
+            ->values();
     }
 
     public function permanentBonuses(Character $character): array
@@ -135,6 +199,42 @@ class MonsterMarkService
             'unlocked_levels' => $collection->sum('unlocked_level'),
             'bonuses' => $bonuses,
         ];
+    }
+
+    private function discoveredAreaIds(Character $character): Collection
+    {
+        return CharacterAreaProgress::query()
+            ->where('character_id', $character->id)
+            ->where(function ($query) {
+                $query->where('is_unlocked', true)
+                    ->orWhereIn('discovery_state', ['discovered', 'cleared'])
+                    ->orWhere('boss_defeated', true)
+                    ->orWhere('development_point', '>', 0)
+                    ->orWhereNotNull('unlocked_at')
+                    ->orWhereNotNull('discovered_at')
+                    ->orWhereNotNull('cleared_at');
+            })
+            ->pluck('area_id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+    }
+
+    private function ownedQuantity(Character $character, MonsterMark $mark): int
+    {
+        return (int) CharacterMonsterMark::where('character_id', $character->id)
+            ->where('monster_mark_id', $mark->id)
+            ->value('quantity');
+    }
+
+    private function effectiveDropRate(MonsterMark $mark, int $currentQuantity): float
+    {
+        $dropRate = (float) $mark->drop_rate / self::BASE_DROP_RATE_DIVISOR;
+
+        if ($currentQuantity >= self::DROP_RATE_REDUCTION_QUANTITY) {
+            return $dropRate / self::COMPLETED_DROP_RATE_DIVISOR;
+        }
+
+        return $dropRate;
     }
 
     private function markForEnemy(Enemy $enemy): ?MonsterMark

@@ -492,6 +492,18 @@
                             $groupedLocFacilities = collect($locationData['facilities'])->groupBy('category');
                             $rankingSpotlightUntil = \Illuminate\Support\Carbon::parse('2026-07-14 23:59:59', config('app.timezone'));
                             $showRankingSpotlight = $currentLocation === 'town' && now()->lte($rankingSpotlightUntil);
+                            $rankingSpotlightImageUrl = null;
+                            if (!empty($rankingSpotlightLeader)) {
+                                $rankingSpotlightPath = (string) ($rankingSpotlightLeader['icon_path'] ?? '/images/chara/chara_001.webp');
+                                if (($rankingSpotlightLeader['image_type'] ?? 'character') === 'asset') {
+                                    $rankingSpotlightNormalized = '/' . ltrim($rankingSpotlightPath, '/');
+                                    $rankingSpotlightAbsolutePath = public_path(ltrim($rankingSpotlightNormalized, '/'));
+                                    $rankingSpotlightVersion = is_file($rankingSpotlightAbsolutePath) ? (string) filemtime($rankingSpotlightAbsolutePath) : '1';
+                                    $rankingSpotlightImageUrl = asset($rankingSpotlightNormalized) . '?v=' . $rankingSpotlightVersion;
+                                } else {
+                                    $rankingSpotlightImageUrl = \App\Support\CharacterIconCatalog::versionedAsset($rankingSpotlightPath);
+                                }
+                            }
                         @endphp
                         @if($showRankingSpotlight)
                             <a href="{{ route('ranking.index', !empty($rankingSpotlightLeader['board_key'] ?? null) ? ['board' => $rankingSpotlightLeader['board_key']] : []) }}" wire:navigate class="mb-4 block overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-md transition hover:border-amber-400 hover:shadow-lg active:scale-[0.99]">
@@ -515,7 +527,7 @@
                                                 <div class="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/90 px-2.5 py-2">
                                                     <div class="flex h-12 w-12 shrink-0 items-center justify-center">
                                                         <img
-                                                            src="{{ \App\Support\CharacterIconCatalog::versionedAsset($rankingSpotlightLeader['icon_path'] ?? '/images/chara/chara_001.webp') }}"
+                                                            src="{{ $rankingSpotlightImageUrl }}"
                                                             alt=""
                                                             class="h-full w-full object-contain drop-shadow-sm"
                                                         >

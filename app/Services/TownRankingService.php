@@ -14,7 +14,7 @@ class TownRankingService
 
     public function boards(): array
     {
-        return Cache::remember('town_ranking_boards_v3', now()->addMinutes(5), function (): array {
+        return Cache::remember('town_ranking_boards_v4', now()->addMinutes(5), function (): array {
             $definitions = $this->definitions();
 
             return collect($definitions)
@@ -74,10 +74,10 @@ class TownRankingService
                 'badge' => '素材',
             ],
             'riches' => [
-                'title' => '成金番付',
-                'short_title' => '成金',
+                'title' => '総資産番付',
+                'short_title' => '総資産',
                 'unit' => 'G',
-                'description' => '手持ちGoldと銀行預金を合わせた総資産です。',
+                'description' => '冒険者の手持ちGoldと銀行預金、宿屋の累計売上を合わせて比べる総資産です。',
                 'badge' => 'Gold',
             ],
             'market_sales' => [
@@ -194,8 +194,16 @@ class TownRankingService
     private function richesRows(): Collection
     {
         $bank = Schema::hasColumn('characters', 'bank_gold') ? 'COALESCE(characters.bank_gold, 0)' : '0';
+        $rows = $this->characterValueRows("COALESCE(characters.money, 0) + {$bank}", '総資産');
 
-        return $this->characterValueRows("COALESCE(characters.money, 0) + {$bank}", '総資産');
+        if ($innRow = $this->innRevenueRow()) {
+            $rows->push($innRow);
+        }
+
+        return $rows
+            ->sortByDesc('score')
+            ->values()
+            ->take(self::LIMIT);
     }
 
     private function marketSalesRows(): Collection
@@ -238,6 +246,34 @@ class TownRankingService
         return $this->joinedAggregateRows($sub, 'character_id', '鑑定点');
     }
 
+    private function innRevenueRow(): ?array
+    {
+        if (!Schema::hasTable('gold_transactions')) {
+            return null;
+        }
+
+        $score = (int) DB::table('gold_transactions')
+            ->where('type', 'inn')
+            ->where('amount', '<', 0)
+            ->selectRaw('COALESCE(SUM(ABS(amount)), 0) as total')
+            ->value('total');
+
+        if ($score <= 0) {
+            return null;
+        }
+
+        return [
+            'character_id' => null,
+            'name' => '宿屋のおばあちゃん＆おじいちゃん',
+            'icon_path' => '/images/icon/icon_243.webp',
+            'image_type' => 'asset',
+            'level' => null,
+            'profile_comment' => 'じいさんや、そろそろ宿を改装するかねぇ。',
+            'score' => $score,
+            'detail' => '宿屋売上 ' . number_format($score),
+        ];
+    }
+
     private function joinedAggregateRows($sub, string $characterColumn, string $detailLabel): Collection
     {
         return DB::table('characters')
@@ -266,6 +302,7 @@ class TownRankingService
             'character_id' => (int) $row->id,
             'name' => (string) $row->name,
             'icon_path' => CharacterIconCatalog::normalize($row->icon_path ?? null),
+            'image_type' => 'character',
             'level' => (int) ($row->level ?? 1),
             'profile_comment' => trim((string) ($row->profile_comment ?? '')) ?: 'よろしくお願いします',
             'score' => (int) $row->score,

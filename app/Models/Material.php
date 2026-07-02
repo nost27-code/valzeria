@@ -122,7 +122,6 @@ class Material extends Model
         'MAT_COMMON_FAIRY_DUST' => 'images/icon/icon_202.webp',
         'MAT_REGION_HEAVEN_FEATHER' => 'images/icon/icon_203.webp',
         'CITY_07_MATERIAL' => 'images/icon/icon_204.webp',
-        'WEV0029' => 'images/icon/icon_204.webp',
         'MAT_REGION_MAGIC_CRYSTAL' => 'images/icon/icon_204.webp',
         'MAT_REGION_ANCIENT_SAND' => 'images/icon/icon_205.webp',
         'MAT_COMMON_OLD_BONE' => 'images/icon/icon_206.webp',
@@ -152,6 +151,13 @@ class Material extends Model
         'CITY_04_MATERIAL' => 'images/icon/icon_222.webp',
         'WEV0026' => 'images/icon/icon_222.webp',
         'MAT_BR_ACC_PRIMORDIAL_ORNAMENT_CRYSTAL' => 'images/icon/icon_239.webp',
+        'MAT_TREASURE_CHIPPED_MAGIC_STONE' => 'images/icon/icon_252.webp',
+        'MAT_TREASURE_MONSTER_FANG' => 'images/icon/icon_253.webp',
+        'MAT_TREASURE_OLD_SILVER_COIN' => 'images/icon/icon_254.webp',
+        'MAT_TREASURE_SPIRIT_FEATHER' => 'images/icon/icon_255.webp',
+        'MAT_TREASURE_DRAGON_SCALE' => 'images/icon/icon_256.webp',
+        'MAT_TREASURE_BEAST_HORN' => 'images/icon/icon_257.webp',
+        'MAT_TREASURE_ANCIENT_GOLD_COIN' => 'images/icon/icon_258.webp',
     ];
 
     private const ICON_BY_NAME = [
@@ -294,6 +300,13 @@ class Material extends Model
         '黒鉄鉱' => 'images/icon/icon_222.webp',
         '原初秘境晶' => 'images/icon/icon_239.webp',
         '原初装飾晶' => 'images/icon/icon_239.webp',
+        '欠けた魔石' => 'images/icon/icon_252.webp',
+        '魔物の牙' => 'images/icon/icon_253.webp',
+        '古びた銀貨' => 'images/icon/icon_254.webp',
+        '精霊の羽根' => 'images/icon/icon_255.webp',
+        '竜の鱗片' => 'images/icon/icon_256.webp',
+        '魔獣の角' => 'images/icon/icon_257.webp',
+        '古代の金貨' => 'images/icon/icon_258.webp',
     ];
 
     protected $casts = [

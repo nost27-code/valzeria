@@ -16,6 +16,8 @@ class BattleResult
 
     public array $enemyStatDisplay = [];
 
+    public array $eventData = [];
+
     public array $jobResult = []; // 職業ランクアップやマスター等の情報
 
     public int $dropBonusPercent = 0;

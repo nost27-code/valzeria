@@ -34,6 +34,16 @@ class NpcMaster extends Model
             ->where('seller_type', 'npc');
     }
 
+    public function relatedNpc()
+    {
+        return $this->belongsTo(self::class, 'related_npc_id', 'npc_id');
+    }
+
+    public function relatedByNpcs()
+    {
+        return $this->hasMany(self::class, 'related_npc_id', 'npc_id');
+    }
+
     public function scopeMarketSellerEligible($query)
     {
         return $query->whereNotIn('npc_rank', self::MARKET_SELLER_EXCLUDED_RANKS);

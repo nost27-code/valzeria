@@ -10,6 +10,7 @@ use App\Models\EnemyDrop;
 use App\Models\Item;
 use App\Models\Material;
 use App\Models\MaterialDrop;
+use App\Support\NormalDropMaterialConsolidator;
 use Illuminate\Support\Collection;
 
 class DropService
@@ -61,6 +62,7 @@ class DropService
 
     // drops未登録の敵へのフォールバック用汎用素材コード
     private const GENERIC_FALLBACK_CODES = ['MAT_COMMON_MONSTER_FRAGMENT', 'MAT_COMMON_OLD_BADGE'];
+    private const REGIONAL_FALLBACK_DROP_WEIGHT = 8.0;
 
     private const DEPTH_BRANCH_MATERIAL_DROPS = [
         1 => [
@@ -457,6 +459,10 @@ class DropService
             ->values();
 
         if ($drops->isNotEmpty()) {
+            $drops = $this->withRegionalMaterialCandidate($drops, $enemy);
+        }
+
+        if ($drops->isNotEmpty()) {
             $material = $this->weightedMaterialDrop($drops)?->material;
             if ($material) {
                 return $this->grantMaterial($character, $material, 'drop', $enemy, $trackExplorationLoot);
@@ -472,6 +478,35 @@ class DropService
         }
 
         return null;
+    }
+
+    private function withRegionalMaterialCandidate(Collection $drops, Enemy $enemy): Collection
+    {
+        $cityId = (int) ($enemy->area?->city_id ?? 0);
+        $regionalCode = NormalDropMaterialConsolidator::regionCodeForCity($cityId);
+
+        if (!str_starts_with($regionalCode, 'MAT_REGION_')) {
+            return $drops;
+        }
+
+        $alreadyIncluded = $drops->contains(function (MaterialDrop $drop) use ($regionalCode) {
+            return (string) ($drop->material?->material_code ?? '') === $regionalCode;
+        });
+
+        if ($alreadyIncluded) {
+            return $drops;
+        }
+
+        $material = Material::where('material_code', $regionalCode)->first();
+        if (!$material || $this->isDirectDropDisabledEnhanceMaterial($material)) {
+            return $drops;
+        }
+
+        $drop = new MaterialDrop();
+        $drop->drop_rate = self::REGIONAL_FALLBACK_DROP_WEIGHT;
+        $drop->setRelation('material', $material);
+
+        return $drops->push($drop);
     }
 
     private function rollConfiguredBranchEvolutionMaterial(Character $character, Enemy $enemy, bool $trackExplorationLoot = true): ?array

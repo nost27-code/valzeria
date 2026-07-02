@@ -12,6 +12,20 @@ use Illuminate\Support\Facades\Schema;
 
 class ItemBookService
 {
+    private const PLANNED_CITY_RECONSTRUCTION_MATERIAL_CODES = [
+        'WEV0005',
+        'WEV0023',
+        'WEV0024',
+        'WEV0025',
+        'WEV0026',
+        'WEV0027',
+        'WEV0028',
+        'WEV0031',
+        'WEV0032',
+    ];
+
+    private const PLANNED_CITY_RECONSTRUCTION_USE = '街の復興に使う予定です（復興機能は未実装）。';
+
     private const HIDDEN_MATERIAL_TYPES = [
         'abstract_city_material',
         'common_armor',
@@ -53,6 +67,9 @@ class ItemBookService
             ->all();
         $usedInExchangeBySource = $this->usedInExchangeMap($exchangeRecipes);
         $usedInEvolutionByCode = $this->usedInEvolutionMap();
+        $valmonFindableCodes = collect(app(ValmonService::class)->findableMaterialCodes())
+            ->flip()
+            ->all();
         $cityOrderById = City::query()->orderBy('id')->pluck('id')->flip()->all();
 
         $materials = Material::query()
@@ -60,7 +77,7 @@ class ItemBookService
             ->orderBy('display_order')
             ->orderBy('id')
             ->get()
-            ->map(function (Material $material) use ($owned, $craftRecipesByTarget, $exchangeTargetCodes, $usedInExchangeBySource, $usedInEvolutionByCode, $cityOrderById): ?array {
+            ->map(function (Material $material) use ($owned, $craftRecipesByTarget, $exchangeTargetCodes, $usedInExchangeBySource, $usedInEvolutionByCode, $valmonFindableCodes, $cityOrderById): ?array {
                 if ($this->isHiddenMaterial($material)) {
                     return null;
                 }
@@ -70,11 +87,11 @@ class ItemBookService
                 $craftRecipes = $craftRecipesByTarget->get($code, collect())->values();
                 $dropSources = $this->dropSourcesFor($material);
 
-                if (! $this->shouldShowMaterial($code, $dropSources, $exchangeTargetCodes, $usedInExchangeBySource, $usedInEvolutionByCode)) {
+                if (! $this->shouldShowMaterial($material, $code, $dropSources, $exchangeTargetCodes, $usedInExchangeBySource, $usedInEvolutionByCode, $valmonFindableCodes)) {
                     return null;
                 }
 
-                $obtainNotes = $this->obtainNotesFor($material, $craftRecipes, $dropSources);
+                $obtainNotes = $this->obtainNotesFor($material, $craftRecipes, $dropSources, isset($valmonFindableCodes[$code]));
                 $usageNotes = $this->usageNotesFor($material, $usedInExchangeBySource[$code] ?? [], $usedInEvolutionByCode[$code] ?? []);
 
                 return [
@@ -92,7 +109,7 @@ class ItemBookService
                     'owned_quantity' => $ownedQuantity,
                     'is_owned' => $ownedQuantity > 0,
                     'icon_image' => $material->iconImagePath(),
-                    'main_use' => (string) ($material->main_use ?? ''),
+                    'main_use' => $this->mainUseFor($material),
                     'obtain_notes' => $obtainNotes,
                     'usage_notes' => $usageNotes,
                     'craft_recipes' => $craftRecipes->map(fn (array $recipe): array => $this->recipePayload($recipe))->all(),
@@ -136,11 +153,14 @@ class ItemBookService
         ];
     }
 
-    private function shouldShowMaterial(string $code, array $dropSources, array $exchangeTargetCodes, array $usedInExchangeBySource, array $usedInEvolutionByCode): bool
+    private function shouldShowMaterial(Material $material, string $code, array $dropSources, array $exchangeTargetCodes, array $usedInExchangeBySource, array $usedInEvolutionByCode, array $valmonFindableCodes): bool
     {
-        return isset($exchangeTargetCodes[$code])
+        return $this->isPlannedCityReconstructionMaterialCode($code)
+            || $material->isSellTreasure()
+            || isset($exchangeTargetCodes[$code])
             || isset($usedInExchangeBySource[$code])
             || isset($usedInEvolutionByCode[$code])
+            || isset($valmonFindableCodes[$code])
             || $dropSources !== [];
     }
 
@@ -255,7 +275,7 @@ class ItemBookService
             ->all();
     }
 
-    private function obtainNotesFor(Material $material, Collection $craftRecipes, array $dropSources): array
+    private function obtainNotesFor(Material $material, Collection $craftRecipes, array $dropSources, bool $isValmonFindable): array
     {
         $notes = [];
         if (! $this->isLegacyNormalMaterial($material) && (string) ($material->obtain_method ?? '') !== '') {
@@ -270,6 +290,10 @@ class ItemBookService
             $notes[] = '通常探索の敵ドロップで入手できます。';
         }
 
+        if ($isValmonFindable) {
+            $notes[] = '相棒ヴァルモンが探索中に見つけることがあります。';
+        }
+
         if ($notes === []) {
             $notes[] = '詳しい入手方法は各施設や探索で確認できます。';
         }
@@ -279,6 +303,10 @@ class ItemBookService
 
     private function usageNotesFor(Material $material, array $exchangeUses, array $evolutionUses): array
     {
+        if ($this->isPlannedCityReconstructionMaterial($material)) {
+            return [self::PLANNED_CITY_RECONSTRUCTION_USE];
+        }
+
         $notes = [];
         if (! $this->isLegacyNormalMaterial($material) && (string) ($material->main_use ?? '') !== '') {
             $notes[] = (string) $material->main_use;
@@ -404,20 +432,19 @@ class ItemBookService
      */
     private function categoryLabel(Material $material): string
     {
+        if ($this->isPlannedCityReconstructionMaterial($material)) {
+            return '復興素材';
+        }
+
         $type = (string) ($material->material_type ?? '');
 
         return match ($type) {
-            'branch_evolution' => '分岐進化素材',
-            'accessory_evolution' => '装飾進化素材',
+            'branch_evolution', 'accessory_evolution' => '進化素材',
             'equipment_common', 'enhance', 'evolution_stone' => '強化素材',
             'city_material', 'city' => '都市素材',
-            'city_high' => '都市高位素材',
-            'weapon_city' => '武器都市素材',
-            'weapon_city_high' => '武器都市高位素材',
-            'weapon_common', 'weapon_category' => '武器合成素材',
+            'city_high', 'accessory_city', 'accessory_city_high' => '都市素材',
+            'weapon_city', 'weapon_city_high', 'weapon_common', 'weapon_category' => '武器素材',
             'weapon_unlock_key' => '開放証',
-            'accessory_city' => '装飾都市素材',
-            'accessory_city_high' => '装飾都市高位素材',
             'light_material', 'heavy_material', 'magic_cloth', 'holy_cloth', 'martial_material' => '防具合成素材',
             'back_dungeon' => '裏ダンジョン素材',
             'back_high' => '裏高位素材',
@@ -531,6 +558,23 @@ class ItemBookService
 
         return str_contains($name, '極印')
             || str_contains($name, '星屑の宝材');
+    }
+
+    private function mainUseFor(Material $material): string
+    {
+        return $this->isPlannedCityReconstructionMaterial($material)
+            ? self::PLANNED_CITY_RECONSTRUCTION_USE
+            : (string) ($material->main_use ?? '');
+    }
+
+    private function isPlannedCityReconstructionMaterial(Material $material): bool
+    {
+        return $this->isPlannedCityReconstructionMaterialCode((string) $material->material_code);
+    }
+
+    private function isPlannedCityReconstructionMaterialCode(string $code): bool
+    {
+        return in_array($code, self::PLANNED_CITY_RECONSTRUCTION_MATERIAL_CODES, true);
     }
 
     private function isHiddenMaterial(Material $material): bool

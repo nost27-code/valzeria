@@ -1,6 +1,8 @@
 <?php
 
 return [
+    // Equipment sale runtime source of truth is items.sell_price.
+    // This rank table is only a baseline for initial data/migration setup.
     'equipment_sell_prices' => [
         'G' => 100,
         'F' => 150,

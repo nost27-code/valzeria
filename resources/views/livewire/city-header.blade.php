@@ -745,6 +745,10 @@
                                      }
                                      this.nextAt = Date.now() + (this.nextRecoverySeconds * 1000);
                                      this.timer = setInterval(() => {
+                                         if (!this.$root?.isConnected) {
+                                             this.stopTimer();
+                                             return;
+                                         }
                                          if (this.current >= this.max) {
                                              this.stopTimer();
                                              return;
@@ -821,10 +825,10 @@
                             @forelse($notifications as $notification)
                                 @php
                                     $notificationUrl = (string) ($notification->url ?? '');
-                                    $isExternalNotificationUrl = $notificationUrl !== ''
-                                        && \Illuminate\Support\Str::startsWith($notificationUrl, ['http://', 'https://', '//']);
+                                    $opensInNewWindow = $notificationUrl !== ''
+                                        && $notification->type === 'note_rss_update';
                                 @endphp
-                                @if($isExternalNotificationUrl)
+                                @if($opensInNewWindow)
                                     <a href="{{ $notificationUrl }}"
                                        target="_blank"
                                        rel="noopener noreferrer"

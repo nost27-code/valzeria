@@ -1,5 +1,7 @@
 # FFA風ブラウザRPG 初期実装仕様書
 
+この文書は初期設計の歴史的資料。レベル上限50などの数値・仕様は現行と異なる。現行正仕様は docs/DOMAIN_RULES.md と AGENTS.md の Source of truth に従うこと。
+
 ## 1. 概要
 
 ### 1.1 目的

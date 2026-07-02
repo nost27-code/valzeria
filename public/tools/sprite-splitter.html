@@ -114,6 +114,22 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 .slot-thumb:hover .slot-del { display: block; }
 #slot-empty { color: #4a4a7a; font-size: 0.75rem; }
 
+/* Zoom bar */
+#zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+#zoom-bar span { font-size: 0.72rem; color: #7c7c9e; min-width: 40px; text-align: center; }
+.zoom-btn {
+  width: 24px; height: 24px;
+  border: 1px solid #3d3d6e; border-radius: 4px;
+  background: #1a1a3e; color: #c0c0e0;
+  cursor: pointer; font-size: 0.85rem; line-height: 1;
+}
+.zoom-btn:hover { background: #2d2d5e; }
+
 /* Canvas area */
 #canvas-wrapper {
   flex: 1;
@@ -124,6 +140,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
   position: relative;
   cursor: crosshair;
 }
+#canvas-inner { position: relative; transform-origin: 0 0; width: max-content; height: max-content; }
 #canvas-wrapper canvas { display: block; }
 #overlay-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
 #drop-zone {
@@ -279,6 +296,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
       <button class="btn btn-success"  id="btn-preview" onclick="runPreviewAll()" disabled>✂️ 分割プレビュー</button>
       <button class="btn btn-warning"  id="btn-zip"     onclick="downloadZip()" disabled>📦 ZIP</button>
       <button class="btn btn-info"     id="btn-indiv"   onclick="downloadIndividual()" disabled>💾 個別保存</button>
+      <button class="btn btn-success"  id="btn-savedir" onclick="saveToDirectory()" disabled>📁 フォルダへ連番保存</button>
       <button class="btn btn-warning"  id="btn-sheet"   onclick="downloadSheet()" disabled>🖼 シート</button>
       <button class="btn btn-ghost"    onclick="resetAll()">↺ リセット</button>
       <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="loadFiles(this)">
@@ -291,10 +309,20 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
       </div>
     </div>
 
+    <!-- Zoom -->
+    <div id="zoom-bar">
+      <button class="zoom-btn" onclick="zoomBy(-0.1)">－</button>
+      <span id="zoom-val">100%</span>
+      <button class="zoom-btn" onclick="zoomBy(0.1)">＋</button>
+      <button class="zoom-btn" style="width:auto;padding:0 6px" onclick="zoomReset()">リセット</button>
+    </div>
+
     <!-- Canvas -->
-    <div id="canvas-wrapper" ondrop="onDrop(event)" ondragover="event.preventDefault()">
-      <canvas id="main-canvas"></canvas>
-      <canvas id="overlay-canvas"></canvas>
+    <div id="canvas-wrapper" ondrop="onDrop(event)" ondragover="event.preventDefault()" onwheel="onCanvasWheel(event)">
+      <div id="canvas-inner">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+      </div>
       <div id="drop-zone">
         <div class="icon">🖼</div>
         <p>画像をドラッグ＆ドロップ、または「画像を追加」</p>
@@ -410,6 +438,17 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
       <hr class="divider">
 
       <div class="field">
+        <label>保存先フォルダ（重複時は番号を自動でずらして連番保存）</label>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="font-size:0.72rem" onclick="pickSaveDirectory()">📂 フォルダを選択</button>
+          <span id="savedir-status" style="font-size:0.72rem;color:#6060a0">未選択（開始番号から欠番なく連番保存）</span>
+        </div>
+        <span style="font-size:0.65rem;color:#4a4a7a">※ Chrome/Edge対応。フォルダ内の既存ファイル名を確認し、重複しない次の番号で保存します</span>
+      </div>
+
+      <hr class="divider">
+
+      <div class="field">
         <label>スプライトシート 列数</label>
         <select id="s-cols">
           <option value="auto" selected>自動（横一列）</option>
@@ -475,6 +514,12 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 let imageSlots  = [];
 let activeIdx   = -1;
 let bgMode      = 'checker';
+let zoomLevel   = 1;
+let saveDirHandle = null;
+
+const LS_KEY = 'valzeria-sprite-splitter-settings';
+const IDB_NAME = 'valzeria-sprite-splitter';
+const IDB_STORE = 'handles';
 
 /* =============================================================
    Helpers
@@ -505,6 +550,48 @@ function settings() {
     startNum: +document.getElementById('s-startnum').value,
     filename: document.getElementById('s-filename').value.trim() || 'sprite',
   };
+}
+
+/* =============================================================
+   Settings persistence (localStorage)
+============================================================= */
+function persistSettings() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ ...settings(), bgMode }));
+  } catch (e) { /* ignore quota errors */ }
+}
+
+function loadPersistedSettings() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { saved = null; }
+  if (!saved) return;
+
+  const setRange = (id, badgeId, val) => {
+    if (val === undefined || val === null) return;
+    document.getElementById(id).value = val;
+    document.getElementById(badgeId).textContent = val;
+  };
+  setRange('s-white', 'v-white', saved.white);
+  setRange('s-area', 'v-area', saved.area);
+  setRange('s-merge', 'v-merge', saved.merge);
+  setRange('s-pad', 'v-pad', saved.pad);
+  setRange('s-baseline', 'v-baseline', saved.baseline);
+
+  if (saved.size) document.getElementById('s-size').value = saved.size;
+  if (saved.alphaMode) {
+    const r = document.querySelector(`input[name="alpha-mode"][value="${saved.alphaMode}"]`);
+    if (r) r.checked = true;
+  }
+  if (saved.scaleUp !== undefined) {
+    const r = document.querySelector(`input[name="scale-up"][value="${saved.scaleUp ? 'yes' : 'no'}"]`);
+    if (r) r.checked = true;
+  }
+  if (saved.cols) document.getElementById('s-cols').value = saved.cols;
+  if (saved.filename) document.getElementById('s-filename').value = saved.filename;
+  if (saved.startNum !== undefined) document.getElementById('s-startnum').value = saved.startNum;
+  if (saved.bgMode) { bgMode = saved.bgMode; }
+
+  updateStartPreview();
 }
 
 function setInfo(msg, cls = '') {
@@ -572,6 +659,30 @@ function loadFilesArray(files) {
     img.onerror = () => { URL.revokeObjectURL(url); toast(`読み込み失敗: ${file.name}`); };
     img.src = url;
   });
+}
+
+/* =============================================================
+   Zoom (imported image display)
+============================================================= */
+function applyZoom() {
+  document.getElementById('canvas-inner').style.transform = `scale(${zoomLevel})`;
+  document.getElementById('zoom-val').textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+function zoomBy(delta) {
+  zoomLevel = Math.min(8, Math.max(0.1, +(zoomLevel + delta).toFixed(2)));
+  applyZoom();
+}
+
+function zoomReset() {
+  zoomLevel = 1;
+  applyZoom();
+}
+
+function onCanvasWheel(e) {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
 }
 
 /* =============================================================
@@ -954,6 +1065,7 @@ function setBg(mode) {
   document.querySelectorAll('.bg-swatch').forEach(el=>el.classList.remove('active'));
   document.getElementById('bg-'+mode)?.classList.add('active');
   renderAllSpritePreviews();
+  persistSettings();
 }
 
 function getBgStyle() {
@@ -1072,10 +1184,123 @@ function updateExportButtons() {
   document.getElementById('btn-zip').disabled   = !hasAny;
   document.getElementById('btn-indiv').disabled = !hasAny;
   document.getElementById('btn-sheet').disabled = !hasAny;
+  document.getElementById('btn-savedir').disabled = !hasAny || !saveDirHandle;
 }
 
 function updateSize() {
   if (allNormalized().length) renderAllSpritePreviews();
+}
+
+/* =============================================================
+   Save directory (File System Access API) + IndexedDB handle store
+============================================================= */
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSetHandle(handle) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, 'saveDir');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGetHandle() {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get('saveDir');
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function setSaveDirStatus(msg) {
+  document.getElementById('savedir-status').textContent = msg;
+}
+
+async function pickSaveDirectory() {
+  if (!window.showDirectoryPicker) {
+    toast('このブラウザはフォルダ保存に対応していません（Chrome/Edge推奨）');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    saveDirHandle = handle;
+    await idbSetHandle(handle);
+    setSaveDirStatus(`選択中: ${handle.name}`);
+    updateExportButtons();
+    toast('保存先フォルダを設定しました');
+  } catch (e) {
+    if (e.name !== 'AbortError') toast('フォルダ選択に失敗しました');
+  }
+}
+
+async function tryRestoreSaveDirectory() {
+  if (!window.showDirectoryPicker) return;
+  try {
+    const handle = await idbGetHandle();
+    if (!handle) return;
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      saveDirHandle = handle;
+      setSaveDirStatus(`選択中: ${handle.name}`);
+      updateExportButtons();
+    } else {
+      setSaveDirStatus(`前回: ${handle.name}（要再許可 → フォルダを選択）`);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function findNextFreeName(dirHandle, prefix, fromNum) {
+  let n = fromNum;
+  while (true) {
+    const name = `${prefix}_${String(n).padStart(3, '0')}.webp`;
+    try {
+      await dirHandle.getFileHandle(name);
+      n++; // exists, increment and retry
+    } catch (e) {
+      if (e.name === 'NotFoundError') return { name, num: n };
+      throw e;
+    }
+  }
+}
+
+async function saveToDirectory() {
+  const all = allNormalized();
+  if (!all.length) return;
+  if (!saveDirHandle) { toast('先に保存先フォルダを選択してください'); return; }
+
+  const perm = await saveDirHandle.queryPermission({ mode: 'readwrite' });
+  if (perm !== 'granted') {
+    const req = await saveDirHandle.requestPermission({ mode: 'readwrite' });
+    if (req !== 'granted') { toast('フォルダへの書き込み許可がありません'); return; }
+  }
+
+  const { startNum, filename } = settings();
+  toast(`フォルダへ保存中... (0/${all.length})`, 60000);
+  let cursor = startNum;
+  let saved = 0;
+  for (let i = 0; i < all.length; i++) {
+    const { name, num } = await findNextFreeName(saveDirHandle, filename, cursor);
+    cursor = num + 1;
+    const blob = await canvasToBlob(all[i], 'image/webp');
+    const fileHandle = await saveDirHandle.getFileHandle(name, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    saved++;
+    toast(`フォルダへ保存中... (${saved}/${all.length})`, 60000);
+  }
+  toast(`${saved} 枚をフォルダへ連番保存しました（重複なし・欠番なし）`);
 }
 
 /* =============================================================
@@ -1176,6 +1401,7 @@ function resetAll() {
   document.getElementById('s-filename').value='chara';
   document.getElementById('s-startnum').value=1;
   updateStartPreview();
+  zoomReset();
   toast('リセットしました');
 }
 
@@ -1183,6 +1409,10 @@ function resetAll() {
    Init
 ============================================================= */
 document.getElementById('canvas-wrapper').addEventListener('dragenter', e=>e.preventDefault());
+
+// 設定変更を自動記憶（次回アクセス時に直前の設定を復元）
+document.getElementById('right-panel').addEventListener('input', persistSettings);
+document.getElementById('right-panel').addEventListener('change', persistSettings);
 
 document.addEventListener('paste', (e) => {
   const items = [...(e.clipboardData?.items || [])];
@@ -1201,6 +1431,11 @@ document.addEventListener('paste', (e) => {
   toast(`クリップボードから ${imageFiles.length} 枚を貼り付けました`);
 });
 
+loadPersistedSettings();
+document.querySelectorAll('.bg-swatch').forEach(el=>el.classList.remove('active'));
+document.getElementById('bg-'+bgMode)?.classList.add('active');
+applyZoom();
+tryRestoreSaveDirectory();
 renderSlotStrip();
 </script>
 </body>

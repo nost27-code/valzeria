@@ -66,6 +66,8 @@ class SubAreaDiscoveryService
 
             if ($existing) {
                 return [
+                    'discovery' => $existing,
+                    'discovery_id' => $existing->id,
                     'sub_area' => $subArea,
                     'route' => $route,
                     'is_new_for_character' => false,
@@ -78,7 +80,7 @@ class SubAreaDiscoveryService
             $isWorldFirst = ! $subArea->world_first_character_id;
             $isRouteFirst = ! CharacterSubAreaRouteDiscovery::where('sub_area_route_id', $route->id)->exists();
 
-            CharacterSubAreaRouteDiscovery::create([
+            $routeDiscovery = CharacterSubAreaRouteDiscovery::create([
                 'character_id' => $character->id,
                 'sub_area_route_id' => $route->id,
                 'discovered_at' => now(),
@@ -103,6 +105,8 @@ class SubAreaDiscoveryService
                     : "「{$subArea->name}」への入口を地図に記録した。");
 
             return [
+                'discovery' => $routeDiscovery,
+                'discovery_id' => $routeDiscovery->id,
                 'sub_area' => $subArea->fresh(),
                 'route' => $route,
                 'is_new_for_character' => true,

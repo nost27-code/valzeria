@@ -81,6 +81,14 @@ class SecretRealmService
     public function makeSecretRealmLord(Area $area, Enemy $baseEnemy, array $realm): Enemy
     {
         $boss = Enemy::where('area_id', $area->id)->where('is_boss', true)->first() ?: $baseEnemy;
+        $tier = $this->areaRewardTier($area);
+        $baseLevel = max(1, (int) ($boss->level ?? $area->recommended_level_max ?? $area->recommended_level_min ?? 1));
+        $targetLevel = max($baseLevel, $tier['min_lord_level']);
+        $levelScale = max(1.0, $targetLevel / $baseLevel);
+        $hpScale = max(1.15, $levelScale ** 1.95);
+        $statScale = max(1.12, $levelScale ** 1.22);
+        $speedScale = max(1.08, $levelScale ** 1.1);
+
         $enemy = $boss->replicate();
         $enemy->id = $boss->id;
         $enemy->exists = true;
@@ -88,12 +96,13 @@ class SecretRealmService
         $enemy->name = $realm['name'] . 'の秘境主';
         $enemy->role = '秘境主';
         $enemy->type_name = $boss->type_name ?? '高難度';
-        $enemy->max_hp = max(1, (int) floor((int) $boss->max_hp * 1.15));
-        $enemy->str = max(1, (int) floor((int) $boss->str * 1.12));
-        $enemy->def = max(1, (int) floor((int) $boss->def * 1.12));
-        $enemy->mag = max(1, (int) floor((int) ($boss->mag ?? $boss->str) * 1.12));
-        $enemy->spr = max(1, (int) floor((int) ($boss->spr ?? $boss->def) * 1.12));
-        $enemy->agi = max(1, (int) floor((int) $boss->agi * 1.08));
+        $enemy->level = $targetLevel;
+        $enemy->max_hp = max(1, (int) floor((int) $boss->max_hp * $hpScale));
+        $enemy->str = max(1, (int) floor((int) $boss->str * $statScale));
+        $enemy->def = max(1, (int) floor((int) $boss->def * $statScale));
+        $enemy->mag = max(1, (int) floor((int) ($boss->mag ?? $boss->str) * $statScale));
+        $enemy->spr = max(1, (int) floor((int) ($boss->spr ?? $boss->def) * $statScale));
+        $enemy->agi = max(1, (int) floor((int) $boss->agi * $speedScale));
         $enemy->exp_reward = max((int) $baseEnemy->exp_reward * 4, (int) floor((int) $boss->exp_reward * 0.6));
         $enemy->gold_reward = 0;
         $enemy->job_exp_reward = max(5, (int) ($boss->job_exp_reward ?? 0));
@@ -144,7 +153,8 @@ class SecretRealmService
         $drops = [];
         $logs = [];
 
-        $shardCount = rand(1, 3);
+        $tier = $this->areaRewardTier($area);
+        $shardCount = rand($tier['lord_shards_min'], $tier['lord_shards_max']);
         for ($i = 0; $i < $shardCount; $i++) {
             $shard = $this->randomSecretShard($realm);
             if (!$shard) {
@@ -188,5 +198,37 @@ class SecretRealmService
     public function shardCode(string $secretCode): string
     {
         return str_replace('_SECRET', '_SECRET_SHARD', $secretCode);
+    }
+
+    private function areaRewardTier(Area $area): array
+    {
+        $cityId = (int) ($area->city_id ?? 0);
+        $areaLevelMax = max(
+            (int) ($area->recommended_level_min ?? 1),
+            (int) ($area->recommended_level_max ?? $area->recommended_level_min ?? 1)
+        );
+
+        return match (true) {
+            $cityId >= 10 || $areaLevelMax >= 130 => [
+                'min_lord_level' => 150,
+                'lord_shards_min' => 2,
+                'lord_shards_max' => 3,
+            ],
+            $cityId >= 8 || $areaLevelMax >= 100 => [
+                'min_lord_level' => 120,
+                'lord_shards_min' => 1,
+                'lord_shards_max' => 3,
+            ],
+            $cityId >= 5 || $areaLevelMax >= 60 => [
+                'min_lord_level' => 90,
+                'lord_shards_min' => 1,
+                'lord_shards_max' => 2,
+            ],
+            default => [
+                'min_lord_level' => 60,
+                'lord_shards_min' => 1,
+                'lord_shards_max' => 1,
+            ],
+        };
     }
 }

@@ -63,6 +63,7 @@
                             $originalPrice = isset($supportItem['original_price']) ? (int) $supportItem['original_price'] : null;
                             $currentPrice = (int) ($supportItem['price'] ?? 0);
                             $isDiscounted = $originalPrice !== null && $originalPrice > $currentPrice;
+                            $saleEndsAt = $supportItem['sale_ends_at'] ?? null;
                             $currencyLabel = (string) ($supportItem['currency_label'] ?? '輝石');
                             $currencySuffix = (string) ($supportItem['currency_suffix'] ?? '');
                             $currencyIcon = array_key_exists('currency_icon_image', $supportItem) ? $supportItem['currency_icon_image'] : 'images/icon/kiseki.webp';
@@ -98,7 +99,13 @@
                                                     @if($currencySuffix !== '')
                                                         <span>{{ $currencySuffix }}</span>
                                                     @endif
-                                                    <span class="rounded bg-red-50 px-1 py-px text-[9px] text-red-600">割引</span>
+                                                    <span class="rounded bg-red-50 px-1 py-px text-[9px] text-red-600">
+                                                        @if($saleEndsAt)
+                                                            7月5日23:59までセール
+                                                        @else
+                                                            割引
+                                                        @endif
+                                                    </span>
                                                 </div>
                                             @endif
                                             <div class="flex items-center gap-0.5">
@@ -192,7 +199,7 @@
                 <template x-if="confirming?.original_price && Number(confirming.original_price) > Number(confirming?.price ?? 0)">
                     <span class="inline-flex items-center gap-1">
                         <span class="text-xs text-slate-400 line-through decoration-red-500 decoration-2" x-text="Number(confirming.original_price).toLocaleString() + (confirming?.currency_suffix ?? '')"></span>
-                        <span class="rounded bg-red-50 px-1 py-px text-[10px] text-red-600">割引</span>
+                        <span class="rounded bg-red-50 px-1 py-px text-[10px] text-red-600" x-text="confirming?.sale_ends_at ? '7月5日23:59までセール' : '割引'"></span>
                     </span>
                 </template>
                 <span class="text-red-600" x-text="Number(confirming?.price ?? 0).toLocaleString() + (confirming?.currency_suffix ?? '')"></span>

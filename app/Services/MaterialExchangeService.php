@@ -158,7 +158,7 @@ class MaterialExchangeService
         ],
         'MAT_BR_ARM_ARCANE_COMPOSITE' => [
             'label' => '魔装SS素材',
-            'sources' => [['5037', 1], ['5038', 1], ['CITY_07_MATERIAL', 1], ['5032', 1]],
+            'sources' => [['5037', 1], ['5038', 1], ['MAT_REGION_MAGIC_CRYSTAL', 1], ['5032', 1]],
         ],
         'MAT_BR_ARM_LIGHT_COMPOSITE' => [
             'label' => '軽装SS素材',

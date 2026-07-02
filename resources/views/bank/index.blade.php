@@ -1,4 +1,9 @@
 <x-layouts.facility title="銀行" headerIconImage="images/icon/icon_030.webp" bgImage="images/facilities/bank.webp">
+    @php
+        $depositMax = (int) min(2000000000, $summary['hand_gold']);
+        $withdrawMax = (int) min(2000000000, $summary['bank_gold']);
+    @endphp
+
     <div class="w-full mx-auto pb-10">
         <div class="space-y-4">
             <div class="rounded-lg border border-[#d4af37]/60 bg-white p-4 shadow-sm">
@@ -52,27 +57,30 @@
                         </div>
                         <div class="text-xs font-black text-amber-700">最大 {{ number_format($summary['hand_gold']) }}G</div>
                     </div>
-                    <form method="POST" action="{{ route('bank.deposit') }}" class="mt-3 space-y-3">
+                    <form method="POST" action="{{ route('bank.deposit') }}" class="bank-amount-form mt-3 space-y-3">
                         @csrf
                         <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
                             <input
                                 type="number"
                                 name="amount"
                                 min="1"
-                                max="{{ max(1, min(2000000000, $summary['hand_gold'])) }}"
+                                max="{{ max(1, $depositMax) }}"
                                 inputmode="numeric"
                                 class="min-w-0 flex-1 border-0 px-3 py-3 text-right text-lg font-black text-slate-950 focus:ring-0"
                                 placeholder="0"
                             >
                             <span class="flex items-center bg-slate-50 px-3 text-sm font-black text-slate-500">G</span>
+                            <button type="button" onclick="this.closest('form').querySelector('[name=amount]').value = ''" class="border-l border-slate-200 bg-white px-3 text-xs font-black text-slate-500 hover:bg-slate-50">
+                                クリア
+                            </button>
                         </div>
                         <div class="grid grid-cols-4 gap-2">
                             @foreach([100, 1000, 10000] as $quick)
-                                <button type="button" onclick="this.closest('form').querySelector('[name=amount]').value = {{ $quick }}" class="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-black text-slate-700">
-                                    {{ number_format($quick) }}
+                                <button type="button" data-bank-amount-add="{{ $quick }}" data-bank-max="{{ $depositMax }}" class="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-black text-slate-700">
+                                    +{{ number_format($quick) }}
                                 </button>
                             @endforeach
-                            <button type="button" onclick="this.closest('form').querySelector('[name=amount]').value = {{ (int) min(2000000000, $summary['hand_gold']) }}" class="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-xs font-black text-amber-700">
+                            <button type="button" data-bank-amount-set="{{ $depositMax }}" class="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-xs font-black text-amber-700">
                                 全額
                             </button>
                         </div>
@@ -90,27 +98,30 @@
                         </div>
                         <div class="text-xs font-black text-sky-700">最大 {{ number_format($summary['bank_gold']) }}G</div>
                     </div>
-                    <form method="POST" action="{{ route('bank.withdraw') }}" class="mt-3 space-y-3">
+                    <form method="POST" action="{{ route('bank.withdraw') }}" class="bank-amount-form mt-3 space-y-3">
                         @csrf
                         <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
                             <input
                                 type="number"
                                 name="amount"
                                 min="1"
-                                max="{{ max(1, min(2000000000, $summary['bank_gold'])) }}"
+                                max="{{ max(1, $withdrawMax) }}"
                                 inputmode="numeric"
                                 class="min-w-0 flex-1 border-0 px-3 py-3 text-right text-lg font-black text-slate-950 focus:ring-0"
                                 placeholder="0"
                             >
                             <span class="flex items-center bg-slate-50 px-3 text-sm font-black text-slate-500">G</span>
+                            <button type="button" onclick="this.closest('form').querySelector('[name=amount]').value = ''" class="border-l border-slate-200 bg-white px-3 text-xs font-black text-slate-500 hover:bg-slate-50">
+                                クリア
+                            </button>
                         </div>
                         <div class="grid grid-cols-4 gap-2">
                             @foreach([100, 1000, 10000] as $quick)
-                                <button type="button" onclick="this.closest('form').querySelector('[name=amount]').value = {{ $quick }}" class="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-black text-slate-700">
-                                    {{ number_format($quick) }}
+                                <button type="button" data-bank-amount-add="{{ $quick }}" data-bank-max="{{ $withdrawMax }}" class="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-black text-slate-700">
+                                    +{{ number_format($quick) }}
                                 </button>
                             @endforeach
-                            <button type="button" onclick="this.closest('form').querySelector('[name=amount]').value = {{ (int) min(2000000000, $summary['bank_gold']) }}" class="rounded-md border border-sky-200 bg-sky-50 px-2 py-2 text-xs font-black text-sky-700">
+                            <button type="button" data-bank-amount-set="{{ $withdrawMax }}" class="rounded-md border border-sky-200 bg-sky-50 px-2 py-2 text-xs font-black text-sky-700">
                                 全額
                             </button>
                         </div>
@@ -145,4 +156,32 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-bank-amount-add], [data-bank-amount-set]');
+
+            if (!button) {
+                return;
+            }
+
+            const form = button.closest('.bank-amount-form');
+            const input = form?.querySelector('[name="amount"]');
+
+            if (!form || !input) {
+                return;
+            }
+
+            const addAmount = parseInt(button.dataset.bankAmountAdd || '0', 10);
+            const setAmount = parseInt(button.dataset.bankAmountSet || '0', 10);
+            const maxAmount = parseInt(button.dataset.bankMax || button.dataset.bankAmountSet || '0', 10);
+            const currentAmount = parseInt(input.value || '0', 10) || 0;
+            const nextAmount = addAmount > 0
+                ? Math.min(maxAmount, currentAmount + addAmount)
+                : setAmount;
+
+            input.value = nextAmount;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    </script>
 </x-layouts.facility>

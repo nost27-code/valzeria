@@ -9,6 +9,7 @@ use App\Models\CharacterJob;
 use App\Services\JobService;
 use App\Services\CharacterJobChangeService;
 use App\Services\PublicLogService;
+use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 
@@ -54,8 +55,9 @@ class JobChange extends Component
     public function loadJobs()
     {
         $jobService = new JobService();
-        $allJobs = JobClass::with(['masterBonuses', 'requirements.requiredJob', 'jobArts'])
-            ->where('is_active', true)
+        $jobQuery = JobClass::with(['masterBonuses', 'requirements.requiredJob', 'jobArts'])
+            ->where('is_active', true);
+        $allJobs = JobRankCatalog::orderByRank($jobQuery)
             ->orderBy('sort_order')
             ->get();
         $this->jobProgress = $this->character->jobHistories()
@@ -71,6 +73,8 @@ class JobChange extends Component
         $this->unavailableJobs = [];
 
         foreach ($allJobs as $job) {
+            $this->normalizeRequirementsForDisplay($job);
+
             // 現在の職業は除外
             if ($this->character->current_job_id === $job->id) {
                 continue;
@@ -164,6 +168,8 @@ class JobChange extends Component
         if ($job->is_hidden && ! $canChange) {
             return;
         }
+
+        $this->normalizeRequirementsForDisplay($job);
 
         $this->detailJobId = (int) $job->id;
         $this->detailJob = $job;
@@ -270,8 +276,29 @@ class JobChange extends Component
         return $chips;
     }
 
+    private function normalizeRequirementsForDisplay(JobClass $job): void
+    {
+        if (! $job->relationLoaded('requirements')) {
+            return;
+        }
+
+        $job->setRelation(
+            'requirements',
+            $job->requirements
+                ->unique(fn ($requirement) => implode(':', [
+                    (string) $requirement->requirement_type,
+                    (string) ($requirement->required_job_id ?? ''),
+                    (string) ($requirement->required_value ?? ''),
+                    (string) ($requirement->required_key ?? ''),
+                ]))
+                ->values()
+        );
+    }
+
     public function render()
     {
-        return view('livewire.job-change');
+        return view('livewire.job-change', [
+            'rankLabels' => JobRankCatalog::rankOptions(),
+        ]);
     }
 }

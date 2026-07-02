@@ -11,7 +11,13 @@ class InnService
 
     public function fee(Character $character): int
     {
-        return max(10, $character->level * 10);
+        $level = max(1, (int) $character->level);
+
+        if ($level <= 20) {
+            return 10;
+        }
+
+        return $level * 10;
     }
 
     /**

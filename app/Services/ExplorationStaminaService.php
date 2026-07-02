@@ -180,14 +180,23 @@ class ExplorationStaminaService
             ];
         }
 
-        $this->recover($character, persist: false);
-
         $max = $this->maxForCharacter($character);
         $current = max(0, (int) ($character->explore_stamina ?? $max));
+        $updatedAt = $character->explore_stamina_updated_at ?: now();
         $nextRecovery = null;
 
         if ($current < $max) {
-            $updatedAt = $character->explore_stamina_updated_at ?: now();
+            $elapsed = max(0, (int) $updatedAt->diffInSeconds(now(), false));
+            $recovered = intdiv($elapsed, $this->recoverySeconds());
+            if ($recovered > 0) {
+                $current = min($max, $current + $recovered);
+                $updatedAt = $current >= $max
+                    ? now()
+                    : $updatedAt->copy()->addSeconds($recovered * $this->recoverySeconds());
+            }
+        }
+
+        if ($current < $max) {
             $elapsed = max(0, (int) $updatedAt->diffInSeconds(now(), false));
             $nextRecovery = max(1, $this->recoverySeconds() - ($elapsed % $this->recoverySeconds()));
         }
