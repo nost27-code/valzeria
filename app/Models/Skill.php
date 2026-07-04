@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\JobArtEffectCatalog;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -50,6 +51,8 @@ class Skill extends Model
         'enemy_spr_down_percent',
         'enemy_spd_down_percent',
         'mp_recover_percent',
+        'activation_phrase',
+        'activation_description',
         'description',
         'memo',
     ];
@@ -118,28 +121,13 @@ class Skill extends Model
 
     public function jobArtEffectLabel(): string
     {
-        return match ((string) $this->effect_template) {
-            'PHYSICAL_DAMAGE', 'MAGICAL_DAMAGE', 'HYBRID_DAMAGE' => '攻撃',
-            'MULTI_HIT' => '連撃',
-            'DAMAGE_BUFF' => '攻撃+バフ',
-            'MAGICAL_DAMAGE_BUFF' => '魔法+バフ',
-            'DAMAGE_DEBUFF' => '攻撃+デバフ',
-            'SELF_BUFF' => 'バフ',
-            'ENEMY_DEBUFF' => 'デバフ',
-            'GUARD_BARRIER' => '防御',
-            'HEAL', 'HEAL_CLEANSE' => '回復',
-            'DRAIN' => '吸収',
-            'GUTS' => '踏みとどまり',
-            'REWARD_GOLD', 'REWARD_DROP', 'REWARD_MIXED' => '報酬',
-            'TIME_CONTROL_CURRENT_ONLY' => '時空',
-            default => match ((string) $this->art_category) {
-                'attack' => '攻撃',
-                'buff' => 'バフ',
-                'debuff' => 'デバフ',
-                'guard' => '防御',
-                'heal' => '回復',
-                default => '奥義',
-            },
+        return JobArtEffectCatalog::label((string) $this->effect_template) ?? match ((string) $this->art_category) {
+            'attack' => '攻撃',
+            'buff' => 'バフ',
+            'debuff' => 'デバフ',
+            'guard' => '防御',
+            'heal' => '回復',
+            default => '奥義',
         };
     }
 

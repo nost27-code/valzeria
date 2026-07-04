@@ -44,6 +44,16 @@ $vendorIncludes = [
 
 echo "== デプロイ処理を開始します ==\n";
 
+// マスタデータの説明文と実装の食い違いを事前チェック
+echo "[0] マスタデータの整合性チェック中...\n";
+$validateOutput = [];
+$validateReturnVar = 0;
+exec('php artisan valzeria:validate-master-data 2>&1', $validateOutput, $validateReturnVar);
+echo implode("\n", $validateOutput) . "\n";
+if ($validateReturnVar !== 0) {
+    die("エラー: マスタデータに不整合があります。デプロイを中止します。\n");
+}
+
 // Viteのビルドを実行 (必要な場合)
 echo "[1] npm run build を実行中...\n";
 exec("npm run build", $output, $returnVar);

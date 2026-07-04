@@ -280,6 +280,16 @@
                             @endif
                         </div>
                         <p class="mt-2 text-xs font-bold leading-relaxed text-slate-600">{{ $art->memo ?: $art->description }}</p>
+                        @if($art->activation_phrase || $art->activation_description)
+                            <div class="mt-2 rounded bg-white/70 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-indigo-700">
+                                @if($art->activation_phrase)
+                                    <div>{{ $art->activation_phrase }}</div>
+                                @endif
+                                @if($art->activation_description)
+                                    <div class="text-slate-500">{{ str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $art->name], $art->activation_description) }}</div>
+                                @endif
+                            </div>
+                        @endif
                     </article>
                 @empty
                     <div class="rounded-md bg-slate-50 px-3 py-6 text-center text-sm font-bold text-slate-400">条件を満たした奥義はまだありません。</div>

@@ -11,6 +11,7 @@ use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\BattleResult;
 use App\Services\Enemy\EnemyStatGenerationService;
 use App\Services\Enemy\EnemyStatPreviewService;
+use App\Support\JobArtEffectCatalog;
 
 class BattleService
 {
@@ -869,7 +870,7 @@ class BattleService
             $state->jobArtCooldowns[$skillId] = (int) $skill->cooldown_turns;
         }
 
-        $state->addLog("<span class=\"text-indigo-700 font-extrabold\">【{$prefix}】{$skill->name} が発動！</span>");
+        $state->addLog($this->jobArtActivationLog($attacker, $defender, $skill, $prefix));
 
         match ($template) {
             'MAGICAL_DAMAGE' => $this->executeMagicalAttack($attacker, $defender, $state, $power),
@@ -878,6 +879,7 @@ class BattleService
             'DAMAGE_BUFF' => $this->executeDamageBuffJobArt($attacker, $defender, $state, $power, $skill),
             'MAGICAL_DAMAGE_BUFF' => $this->executeMagicalDamageBuffJobArt($attacker, $defender, $state, $power, $skill),
             'DAMAGE_DEBUFF' => $this->executeDamageDebuffJobArt($attacker, $defender, $state, $power, $skill),
+            'DAMAGE_GUARD_BARRIER' => $this->executeDamageGuardBarrierJobArt($attacker, $defender, $state, $power, $skill),
             'SELF_BUFF' => $this->applySelfBuff($attacker, $state, $skill),
             'ENEMY_DEBUFF' => $this->applyEnemyDebuff($defender, $state, $skill),
             'GUARD_BARRIER' => $this->applyGuardBarrier($attacker, $state, $skill),
@@ -885,6 +887,8 @@ class BattleService
             'DRAIN' => $this->executeDrainJobArt($attacker, $defender, $state, $power, $rate, $skill),
             'GUTS' => $this->applyGuts($attacker, $state),
             'REWARD_GOLD', 'REWARD_DROP', 'REWARD_MIXED' => $this->applyRewardJobArt($state, $skill, $rate),
+            'PHYSICAL_DAMAGE_REWARD' => $this->executePhysicalDamageRewardJobArt($attacker, $defender, $state, $power, $skill, $rate),
+            'MAGICAL_DAMAGE_REWARD' => $this->executeMagicalDamageRewardJobArt($attacker, $defender, $state, $power, $skill, $rate),
             'TIME_CONTROL_CURRENT_ONLY' => $this->applyTimeControl($defender, $state, $skill),
             default => $this->executePhysicalAttack($attacker, $defender, $state, $power),
         };
@@ -901,6 +905,54 @@ class BattleService
                 break;
             }
         }
+    }
+
+    private function jobArtActivationLog(BattleActor $attacker, BattleActor $defender, Skill $skill, string $prefix): string
+    {
+        $lines = [
+            "<span class=\"text-indigo-700 font-extrabold\">【{$prefix}】" . e($skill->name) . " が発動！</span>",
+        ];
+
+        $phrase = trim((string) ($skill->activation_phrase ?? ''));
+        if ($phrase !== '') {
+            $lines[] = '<span class="text-slate-700 font-bold">' . e($this->formatJobArtFlavorText($phrase, $attacker, $defender, $skill)) . '</span>';
+        }
+
+        $description = trim((string) ($skill->activation_description ?? ''));
+        if ($description !== '') {
+            $lines[] = '<span class="text-indigo-800 font-bold">' . e($this->formatJobArtFlavorText($description, $attacker, $defender, $skill)) . '</span>';
+        }
+
+        return implode('<br>', $lines);
+    }
+
+    private function formatJobArtFlavorText(string $text, BattleActor $attacker, BattleActor $defender, Skill $skill): string
+    {
+        return strtr($text, [
+            '{user}' => $attacker->name,
+            '{target}' => $defender->name,
+            '{skill}' => (string) $skill->name,
+        ]);
+    }
+
+    private function executeMagicalDamageRewardJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, Skill $skill, float $rate): void
+    {
+        $this->executeMagicalAttack($attacker, $defender, $state, $power);
+        $this->applyRewardJobArt($state, $skill, $rate);
+    }
+
+    private function executePhysicalDamageRewardJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, Skill $skill, float $rate): void
+    {
+        $this->executePhysicalAttack($attacker, $defender, $state, $power);
+        $this->applyRewardJobArt($state, $skill, $rate);
+    }
+
+    private function executeDamageGuardBarrierJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, Skill $skill): void
+    {
+        $attacker->usesMagForNormalAttack()
+            ? $this->executeMagicalAttack($attacker, $defender, $state, $power)
+            : $this->executePhysicalAttack($attacker, $defender, $state, $power);
+        $this->applyGuardBarrier($attacker, $state, $skill);
     }
 
     private function executeHybridJobArtAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power): void
@@ -1026,17 +1078,28 @@ class BattleService
     {
         $scope = (string) $skill->reward_scope;
         $base = max(1, (int) floor(((int) $skill->power ?: 100) / 20));
-        $bonus = max(1, (int) floor($base * $rate));
+        $fallbackBonus = max(1, (int) floor($base * $rate));
 
-        if (in_array($scope, ['gold', 'mixed'], true) || $skill->effect_template === 'REWARD_GOLD') {
-            $state->goldBonusPercent = min(10, max($state->goldBonusPercent, $bonus));
+        if (in_array($scope, ['gold', 'mixed'], true) || JobArtEffectCatalog::appliesGoldBonus((string) $skill->effect_template)) {
+            $goldBonus = $this->rewardBonusForBattle((int) $skill->gold_bonus_percent, $fallbackBonus, $rate);
+            $state->goldBonusPercent = min(10, max($state->goldBonusPercent, $goldBonus));
         }
-        if (in_array($scope, ['drop', 'material', 'mixed'], true) || in_array($skill->effect_template, ['REWARD_DROP', 'REWARD_MIXED'], true)) {
-            $state->dropBonusPercent = min(8, max($state->dropBonusPercent, $bonus));
-            $state->rareBonusPercent = min(8, max($state->rareBonusPercent, (int) floor($bonus / 2)));
+        if (in_array($scope, ['drop', 'material', 'mixed'], true) || JobArtEffectCatalog::appliesDropBonus((string) $skill->effect_template)) {
+            $dropBonus = $this->rewardBonusForBattle((int) $skill->drop_bonus_percent, $fallbackBonus, $rate);
+            $state->dropBonusPercent = min(8, max($state->dropBonusPercent, $dropBonus));
+            $state->rareBonusPercent = min(8, max($state->rareBonusPercent, (int) floor($dropBonus / 2)));
         }
 
         $state->addLog("<span class=\"text-amber-700 font-bold\">探索勝利時の報酬判定が少し良くなった！</span>");
+    }
+
+    private function rewardBonusForBattle(int $configuredBonus, int $fallbackBonus, float $rate): int
+    {
+        if ($configuredBonus <= 0) {
+            return $fallbackBonus;
+        }
+
+        return max(1, (int) floor($configuredBonus * $rate));
     }
 
     private function applyTimeControl(BattleActor $defender, BattleState $state, Skill $skill): void

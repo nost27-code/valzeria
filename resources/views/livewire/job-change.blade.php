@@ -130,6 +130,7 @@
 
     $rankLabel = fn ($rank) => \App\Support\JobRankCatalog::badge($rank);
     $isHighRankJob = fn ($rank) => \App\Support\JobRankCatalog::isHighRank($rank);
+    $isReleasedAdvancedJob = fn ($job) => in_array((int) $job->id, [44, 45, 46, 47, 48, 49], true);
 
     $isRequirementMet = function ($req) use ($character, $jobProgress) {
         if ($req->requirement_type === 'master_job') {
@@ -144,6 +145,28 @@
 
         return false;
     };
+
+    // レベル・マスター等の「本来の解放条件」だけを見て判定する（未使用BPの有無は無関係）。
+    // canChangeJob()は未使用BPが残っていると常にfalseを返すため、そちらだけで判定すると
+    // 本来はもう解放済みの上級職まで「？？？」表示・詳細ボタン非表示になってしまう。
+    $meetsRealRequirements = function ($job) use ($character, $isRequirementMet) {
+        if ((int) $character->level < 30) {
+            return false;
+        }
+
+        if ($job->requirements->isEmpty()) {
+            return true;
+        }
+
+        foreach ($job->requirements as $req) {
+            if (!$isRequirementMet($req)) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+    $unspentBp = (int) ($character->bonus_points ?? 0);
 @endphp
 
 <div class="max-w-7xl mx-auto p-4 flex flex-col gap-4 text-sm font-sans text-[#1e293b]"
@@ -337,11 +360,13 @@
                                 $stars = max(0, min(9, (int) ($progress['level'] ?? 0)));
                                 $bonusChips = ($progress['is_mastered'] ?? false) ? $formatMasterBonuses($job) : [];
                                 $rankStyle = $rankStyles[$job->rank] ?? $rankStyles['normal'];
+                                $isRevealed = $isReleasedAdvancedJob($job) || $meetsRealRequirements($job);
+                                $blockedOnlyByBp = $meetsRealRequirements($job) && $unspentBp > 0;
                             @endphp
                             <div class="border {{ $rankStyle['lockedCard'] }} rounded-lg p-3">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="font-bold text-gray-400">
-                                        {{ $job->rank === 'advanced' ? '？？？' : $job->name }}
+                                        {{ $job->rank === 'advanced' && ! $isRevealed ? '？？？' : $job->name }}
                                     </div>
                                     <span class="text-[10px] px-2 py-0.5 rounded border {{ $rankStyle['badge'] }} font-bold opacity-70">
                                         {{ $rankLabel($job->rank) }}
@@ -392,8 +417,14 @@
                                             </div>
                                         @endforeach
                                     @endif
+                                    @if($blockedOnlyByBp)
+                                        <div class="text-xs text-amber-600 flex items-center gap-1.5 font-bold">
+                                            <span class="text-[10px] font-black">⚠</span>
+                                            未使用BPを振ってから転職できます
+                                        </div>
+                                    @endif
                                 </div>
-                                @if(!$job->is_hidden && $job->rank !== 'advanced')
+                                @if(!$job->is_hidden && ($job->rank !== 'advanced' || $isRevealed))
                                     <div class="mt-3">
                                         <button type="button"
                                                 wire:click="showJobDetail({{ $job->id }})"
@@ -507,6 +538,16 @@
                                     <div class="mt-2 text-xs font-medium leading-relaxed text-slate-600">
                                         {{ $art->memo ?? $art->description ?? '効果説明なし' }}
                                     </div>
+                                    @if($art->activation_phrase || $art->activation_description)
+                                        <div class="mt-2 rounded-md bg-white/70 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-indigo-700">
+                                            @if($art->activation_phrase)
+                                                <div>{{ $art->activation_phrase }}</div>
+                                            @endif
+                                            @if($art->activation_description)
+                                                <div class="text-slate-500">{{ str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $art->name], $art->activation_description) }}</div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             @empty
                                 <div class="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-bold text-slate-400">

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Skill;
+use App\Support\JobArtEffectCatalog;
 use Illuminate\Database\Seeder;
 
 class JobArtSeeder extends Seeder
@@ -63,13 +64,15 @@ class JobArtSeeder extends Seeder
                     'sort_order' => (int) ($row['sort_order'] ?? 0),
                     'memo' => $row['memo'] ?? null,
                     'description' => $row['memo'] ?? null,
-                    'damage_type' => $this->damageTypeForTemplate($template),
+                    'damage_type' => JobArtEffectCatalog::damageType($template),
                     'power_multiplier' => max(0, $power / 100),
-                    'hit_count' => $template === 'MULTI_HIT' ? 2 : ($this->isPureSupport($template) ? 0 : 1),
+                    'hit_count' => JobArtEffectCatalog::hitCount($template),
                     'heal_percent' => 0,
                     'mp_recover_percent' => (int) ($row['mp_recover_percent'] ?? 0),
-                    'gold_bonus_percent' => $template === 'REWARD_GOLD' || $template === 'REWARD_MIXED' ? min(10, max(1, (int) floor($power / 20))) : 0,
-                    'drop_bonus_percent' => in_array($template, ['REWARD_DROP', 'REWARD_MIXED'], true) ? min(8, max(1, (int) floor($power / 25))) : 0,
+                    'gold_bonus_percent' => $this->rewardBonusPercentFor($row, 'gold_bonus_percent', $template, $power),
+                    'drop_bonus_percent' => $this->rewardBonusPercentFor($row, 'drop_bonus_percent', $template, $power),
+                    'activation_phrase' => $this->nullableString($row['activation_phrase'] ?? null),
+                    'activation_description' => $this->nullableString($row['activation_description'] ?? null),
                 ]
             );
         }
@@ -106,22 +109,11 @@ class JobArtSeeder extends Seeder
         return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
     }
 
-    private function damageTypeForTemplate(string $template): string
+    private function nullableString(mixed $value): ?string
     {
-        return match ($template) {
-            'MAGICAL_DAMAGE', 'MAGICAL_DAMAGE_BUFF' => 'magical',
-            'HYBRID_DAMAGE' => 'hybrid',
-            'HEAL', 'HEAL_CLEANSE' => 'heal',
-            'SELF_BUFF', 'ENEMY_DEBUFF', 'GUARD_BARRIER', 'GUTS', 'TIME_CONTROL_CURRENT_ONLY' => 'support',
-            'REWARD_GOLD' => 'gold',
-            'REWARD_DROP', 'REWARD_MIXED' => 'drop',
-            default => 'physical',
-        };
-    }
+        $text = trim((string) ($value ?? ''));
 
-    private function isPureSupport(string $template): bool
-    {
-        return in_array($template, ['HEAL', 'HEAL_CLEANSE', 'SELF_BUFF', 'ENEMY_DEBUFF', 'GUARD_BARRIER', 'GUTS', 'REWARD_GOLD', 'REWARD_DROP', 'REWARD_MIXED', 'TIME_CONTROL_CURRENT_ONLY'], true);
+        return $text === '' ? null : $text;
     }
 
     private function fixedSpCostFor(array $row): int
@@ -143,19 +135,36 @@ class JobArtSeeder extends Seeder
 
         $costs = match (true) {
             $limitGroup === 'TIME' || $template === 'TIME_CONTROL_CURRENT_ONLY' => [1 => 12, 5 => 32, 9 => 65],
-            $limitGroup === 'REWARD' || str_starts_with($template, 'REWARD_') => [1 => 12, 5 => 30, 9 => 65],
+            $limitGroup === 'REWARD' || str_starts_with($template, 'REWARD_') || in_array($template, ['PHYSICAL_DAMAGE_REWARD', 'MAGICAL_DAMAGE_REWARD'], true) => [1 => 12, 5 => 30, 9 => 65],
             $limitGroup === 'GUTS' || $template === 'GUTS' => [1 => 12, 5 => 30, 9 => 65],
             $limitGroup === 'HEAL' || in_array($template, ['HEAL', 'HEAL_CLEANSE'], true) => [1 => 10, 5 => 26, 9 => 60],
             $template === 'DRAIN' => [1 => 10, 5 => 28, 9 => 62],
             $template === 'MULTI_HIT' => [1 => 8, 5 => 20, 9 => 48],
-            in_array($template, ['MAGICAL_DAMAGE', 'MAGICAL_DAMAGE_BUFF'], true) => [1 => 8, 5 => 22, 9 => 52],
+            in_array($template, ['MAGICAL_DAMAGE', 'MAGICAL_DAMAGE_BUFF', 'MAGICAL_DAMAGE_REWARD'], true) => [1 => 8, 5 => 22, 9 => 52],
             $template === 'HYBRID_DAMAGE' => [1 => 8, 5 => 22, 9 => 52],
-            $template === 'GUARD_BARRIER' || $category === 'guard' => [1 => 8, 5 => 22, 9 => 50],
+            in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true) || $category === 'guard' => [1 => 8, 5 => 22, 9 => 50],
             $category === 'buff' => [1 => 8, 5 => 20, 9 => 46],
             $category === 'debuff' || in_array($template, ['DAMAGE_DEBUFF', 'ENEMY_DEBUFF'], true) => [1 => 8, 5 => 20, 9 => 46],
             default => [1 => 6, 5 => 16, 9 => 42],
         };
 
         return $costs[$column];
+    }
+
+    private function rewardBonusPercentFor(array $row, string $key, string $template, int $power): int
+    {
+        if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
+            return max(0, (int) $row[$key]);
+        }
+
+        if ($key === 'gold_bonus_percent' && JobArtEffectCatalog::appliesGoldBonus($template)) {
+            return min(10, max(1, (int) floor($power / 20)));
+        }
+
+        if ($key === 'drop_bonus_percent' && JobArtEffectCatalog::appliesDropBonus($template)) {
+            return min(8, max(1, (int) floor($power / 25)));
+        }
+
+        return 0;
     }
 }
