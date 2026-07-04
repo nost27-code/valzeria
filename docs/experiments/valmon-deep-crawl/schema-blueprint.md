@@ -15,7 +15,7 @@
 | `valmon_tower_deck_cards` | `state.tower.deckCardCodes` | 装備上限検証後に保存 |
 | `valmon_tower_card_choices` | `run.pendingChoices` の `card_reward` | 候補生成時に保存し、選択まで固定 |
 | `valmon_tower_floor_results` | `run.events` | 階層挑戦ログ保存 |
-| `valmon_tower_bp_transactions` | `bp` / `spentBp` / `upgrades` | BP獲得・消費履歴として保存 |
+| `valmon_tower_tp_transactions` | `tp` / `spentTp` / `tpActionCount` / `deckSlotExpandCount` / `tpRewardFloors` | TP獲得・消費履歴として保存 |
 | `valmon_tower_rankings` | `state.rankings[seasonCode]` | `ValmonTowerRankingService::updateRanking()` |
 | `valmon_tower_coin_advances` | 未実装 | 課金先取りを入れる段階で追加 |
 
@@ -27,7 +27,7 @@
 | `ValmonTowerCoinService` | `naturalUnlockedCoinCount`, `availableCoinCount` |
 | `ValmonTowerCardChoiceService` | `cardChoiceOptions`, `beginCoinCardChoice`, `beginBpCardChoice`, `applyCardChoice` |
 | `ValmonTowerDeckService` | `toggleOrb`, `renderOrbList` |
-| `ValmonTowerBpService` | `applyFloorClearRewards`, `spendBp` |
+| `ValmonTowerTpService` | `awardDescentBp`, `spendBp` |
 | `ValmonTowerProgressService` | `advanceRun`, `resolveCombat`, `resolveTrap`, `resolveTreasure`, `resolveRest`, `resolveOmen` |
 | `ValmonTowerRankingService` | `updateRanking`, `sortRanking`, `isBetterRanking` |
 
@@ -37,12 +37,15 @@
 - 現在シーズンが開催中か
 - pending choice がある場合、新しいカード3択を生成できないか
 - 金貨が足りるか
-- 深層BPが足りるか
+- TPが足りるか
+- 通常TP消費コストが `tp_action_count + 1` と一致するか
+- 装備枠拡張コストが `deck_slot_expand_count * 2 + 1` と一致するか
+- 金貨で買えるTPが上限内か
 - デッキカードがすべて所持カードか
 - デッキ装備数が上限内か
-- 休眠カードが取得候補に入っていないか
+- シーズンの取得対象外カードが候補に入っていないか
 - 同じ階層の初回カード報酬を二重取得していないか
-- 同じ階層のBP報酬を二重取得していないか
+- 同じ階層へ降りた時のTP報酬を二重取得していないか
 - 探索力が1以上あるか
 
 ## 注意

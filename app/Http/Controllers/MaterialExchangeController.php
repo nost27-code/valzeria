@@ -25,7 +25,7 @@ class MaterialExchangeController extends Controller
     public function exchange(Request $request)
     {
         $validated = $request->validate([
-            'recipe_id' => 'required|string|max:160',
+            'recipe_id' => 'required|string|max:512',
             'quantity' => 'nullable|integer|min:1|max:500',
         ]);
 
@@ -66,7 +66,7 @@ class MaterialExchangeController extends Controller
     {
         $validated = $request->validate([
             'recipe_ids' => 'required|array|min:1|max:50',
-            'recipe_ids.*' => 'required|string|max:160',
+            'recipe_ids.*' => 'required|string|max:512',
             'quantities' => 'nullable|array',
             'quantities.*' => 'nullable|integer|min:1|max:500',
         ]);

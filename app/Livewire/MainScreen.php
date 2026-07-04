@@ -129,11 +129,12 @@ class MainScreen extends Component
             $unlockedTitles = $titleUnlockService->checkAllUnlocks($this->character);
 
             if (count($unlockedTitles) > 0) {
-                $message = '過去の実績により新たな称号を獲得しました！<br>';
-                foreach ($unlockedTitles as $title) {
-                    $message .= '<img src="/images/icon/icon_010.webp" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;"> ' . $title->name . '<br>';
-                }
-                session()->flash('message', $message);
+                $titleNames = collect($unlockedTitles)
+                    ->pluck('name')
+                    ->filter()
+                    ->implode('、');
+
+                session()->flash('message', "過去の実績により新たな称号を獲得しました！ {$titleNames}");
             }
         }
     }
@@ -434,9 +435,14 @@ class MainScreen extends Component
 
         $cities = null;
         $highestCityOrder = 0;
+        $cityPopulationCounts = collect();
+        $cityIconSamples = collect();
         if ($this->currentLocation === 'move') {
             $cities = \App\Models\City::orderBy('sort_order', 'asc')->get();
             $highestCityOrder = $this->character && $this->character->highestCity ? $this->character->highestCity->sort_order : 0;
+            $cityPopulationService = app(\App\Services\CityPopulationService::class);
+            $cityPopulationCounts = $cityPopulationService->countsByCity();
+            $cityIconSamples = $cityPopulationService->iconSamplesByCity(12);
         }
         $rankingSpotlightLeader = $this->currentLocation === 'town'
             ? $this->rankingSpotlightLeader()
@@ -447,6 +453,8 @@ class MainScreen extends Component
             'currentCity' => $currentCity,
             'cities' => $cities,
             'highestCityOrder' => $highestCityOrder,
+            'cityPopulationCounts' => $cityPopulationCounts,
+            'cityIconSamples' => $cityIconSamples,
             'jobName' => $jobName,
             'rankingData' => $rankingData ?? [],
             'locationData' => $locationData[$this->currentLocation] ?? $locationData['town'],

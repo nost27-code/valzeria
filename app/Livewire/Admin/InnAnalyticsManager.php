@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\GoldTransaction;
+use App\Services\InnProfitEstimateService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -10,10 +11,6 @@ use Livewire\Component;
 
 class InnAnalyticsManager extends Component
 {
-    private const DAILY_FIXED_EXPENSE = 12000;
-
-    private const REVENUE_EXPENSE_RATE = 0.18;
-
     public string $dateFrom = '';
 
     public string $dateTo = '';
@@ -33,6 +30,7 @@ class InnAnalyticsManager extends Component
     private function analyticsData(): array
     {
         [$from, $to] = $this->dateRange();
+        $profitEstimator = app(InnProfitEstimateService::class);
 
         if (! Schema::hasTable('gold_transactions')) {
             return [
@@ -47,7 +45,7 @@ class InnAnalyticsManager extends Component
         }
 
         $transactions = $this->transactions($from, $to);
-        $dailyRows = $this->dailyRows($transactions, $from, $to);
+        $dailyRows = $this->dailyRows($transactions, $from, $to, $profitEstimator);
         $periodRevenue = (int) $transactions->sum(fn (GoldTransaction $row): int => abs((int) $row->amount));
         $periodExpense = (int) collect($dailyRows)->sum('expense');
         $periodProfit = $periodRevenue - $periodExpense;
@@ -61,8 +59,8 @@ class InnAnalyticsManager extends Component
             'dateTo' => $to,
             'missingTables' => false,
             'expensePolicy' => [
-                'dailyFixed' => self::DAILY_FIXED_EXPENSE,
-                'revenueRatePercent' => (int) round(self::REVENUE_EXPENSE_RATE * 100),
+                'dailyFixed' => $profitEstimator->dailyFixedExpense(),
+                'revenueRatePercent' => $profitEstimator->revenueExpenseRatePercent(),
             ],
             'summaryCards' => [
                 ['label' => '期間売上', 'value' => number_format($periodRevenue), 'unit' => 'G', 'note' => '宿泊で支払われたGold'],
@@ -90,7 +88,7 @@ class InnAnalyticsManager extends Component
             ->get();
     }
 
-    private function dailyRows(Collection $transactions, Carbon $from, Carbon $to): array
+    private function dailyRows(Collection $transactions, Carbon $from, Carbon $to, InnProfitEstimateService $profitEstimator): array
     {
         $rows = [];
         for ($day = $from->copy()->startOfDay(); $day->lte($to); $day->addDay()) {
@@ -120,13 +118,17 @@ class InnAnalyticsManager extends Component
         }
 
         return collect($rows)
-            ->map(fn (array $row): array => [
-                ...$row,
-                'expense' => $this->estimatedDailyExpense((int) $row['revenue']),
-                'profit' => (int) $row['revenue'] - $this->estimatedDailyExpense((int) $row['revenue']),
-                'guests' => count($row['guests']),
-                'average' => $row['stays'] > 0 ? (int) floor($row['revenue'] / $row['stays']) : 0,
-            ])
+            ->map(function (array $row) use ($profitEstimator): array {
+                $expense = $profitEstimator->estimatedDailyExpense((int) $row['revenue']);
+
+                return [
+                    ...$row,
+                    'expense' => $expense,
+                    'profit' => (int) $row['revenue'] - $expense,
+                    'guests' => count($row['guests']),
+                    'average' => $row['stays'] > 0 ? (int) floor($row['revenue'] / $row['stays']) : 0,
+                ];
+            })
             ->reverse()
             ->values()
             ->all();
@@ -150,11 +152,6 @@ class InnAnalyticsManager extends Component
             ->where('amount', '<', 0)
             ->get()
             ->sum(fn (GoldTransaction $row): int => abs((int) $row->amount));
-    }
-
-    private function estimatedDailyExpense(int $revenue): int
-    {
-        return self::DAILY_FIXED_EXPENSE + (int) floor($revenue * self::REVENUE_EXPENSE_RATE);
     }
 
     private function dateRange(): array

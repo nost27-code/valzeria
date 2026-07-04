@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\GoldTransaction;
 use App\Support\CharacterIconCatalog;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,7 @@ class TownRankingService
 
     public function boards(): array
     {
-        return Cache::remember('town_ranking_boards_v4', now()->addMinutes(5), function (): array {
+        return Cache::remember('town_ranking_boards_v5', now()->addMinutes(5), function (): array {
             $definitions = $this->definitions();
 
             return collect($definitions)
@@ -77,7 +79,7 @@ class TownRankingService
                 'title' => '総資産番付',
                 'short_title' => '総資産',
                 'unit' => 'G',
-                'description' => '冒険者の手持ちGoldと銀行預金、宿屋の累計売上を合わせて比べる総資産です。',
+                'description' => '冒険者の手持ちGoldと銀行預金、宿屋の直近7日間の想定利益を合わせて比べる総資産です。',
                 'badge' => 'Gold',
             ],
             'market_sales' => [
@@ -196,7 +198,7 @@ class TownRankingService
         $bank = Schema::hasColumn('characters', 'bank_gold') ? 'COALESCE(characters.bank_gold, 0)' : '0';
         $rows = $this->characterValueRows("COALESCE(characters.money, 0) + {$bank}", '総資産');
 
-        if ($innRow = $this->innRevenueRow()) {
+        if ($innRow = $this->innProfitRow()) {
             $rows->push($innRow);
         }
 
@@ -246,21 +248,27 @@ class TownRankingService
         return $this->joinedAggregateRows($sub, 'character_id', '鑑定点');
     }
 
-    private function innRevenueRow(): ?array
+    private function innProfitRow(): ?array
     {
         if (!Schema::hasTable('gold_transactions')) {
             return null;
         }
 
-        $score = (int) DB::table('gold_transactions')
+        $from = Carbon::now()->subDays(6)->startOfDay();
+        $to = Carbon::now()->endOfDay();
+
+        $dailyRevenue = GoldTransaction::query()
             ->where('type', 'inn')
             ->where('amount', '<', 0)
-            ->selectRaw('COALESCE(SUM(ABS(amount)), 0) as total')
-            ->value('total');
+            ->whereBetween('created_at', [$from, $to])
+            ->get(['amount', 'created_at'])
+            ->groupBy(fn (GoldTransaction $row): string => $row->created_at?->toDateString() ?? '')
+            ->filter(fn (Collection $rows, string $date): bool => $date !== '')
+            ->map(fn (Collection $rows): int => (int) $rows->sum(fn (GoldTransaction $row): int => abs((int) $row->amount)))
+            ->all();
 
-        if ($score <= 0) {
-            return null;
-        }
+        $estimate = app(InnProfitEstimateService::class)->periodEstimate($dailyRevenue, $from, $to);
+        $score = (int) $estimate['profit'];
 
         return [
             'character_id' => null,
@@ -268,9 +276,9 @@ class TownRankingService
             'icon_path' => '/images/icon/icon_243.webp',
             'image_type' => 'asset',
             'level' => null,
-            'profile_comment' => 'じいさんや、そろそろ宿を改装するかねぇ。',
+            'profile_comment' => 'じいさんや、今週の帳簿を締める時間だねぇ。',
             'score' => $score,
-            'detail' => '宿屋売上 ' . number_format($score),
+            'detail' => '直近7日想定利益 ' . number_format($score),
         ];
     }
 

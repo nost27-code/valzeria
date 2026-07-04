@@ -6,8 +6,8 @@
 
     <div class="mb-6">
         <div class="text-xs font-bold tracking-[0.35em] text-orange-600">PLAYER CONTROLS</div>
-        <h1 class="mt-2 text-3xl font-black text-slate-950">プレイヤー運用調整</h1>
-        <p class="mt-2 text-sm font-semibold text-slate-600">問い合わせ対応や検証用に、プレイヤー単位の運用値を調整します。</p>
+        <h1 class="mt-2 text-3xl font-black text-slate-950">輝石付与・プレイヤー運用調整</h1>
+        <p class="mt-2 text-sm font-semibold text-slate-600">問い合わせ対応や検証用に、有償輝石付与やプレイヤー単位の運用値を調整します。</p>
     </div>
 
     @if (session()->has('message'))
@@ -223,6 +223,127 @@
                                 探索待機を解除
                             </button>
                         </div>
+                    </div>
+                @else
+                    <div class="p-5">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 p-5 text-sm font-bold text-slate-600">
+                            左の一覧からキャラクターを選択してください。
+                        </div>
+                    </div>
+                @endif
+            </section>
+
+            <section class="rounded-md border border-amber-200 bg-white shadow-sm">
+                <div class="border-b border-amber-200 bg-amber-50 px-5 py-4">
+                    <h2 class="text-lg font-black text-amber-900">輝石付与</h2>
+                    <p class="mt-1 text-xs font-semibold text-amber-700">補填・検証用に、有償輝石として付与し、課金監査ログへ記録します。</p>
+                </div>
+
+                @if($selectedCharacter)
+                    <form wire:submit.prevent="grantKiseki" class="p-5">
+                        <div class="mb-5 grid gap-3 md:grid-cols-4">
+                            <div class="rounded-md border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+                                <div class="text-xs font-black text-slate-500">付与先</div>
+                                <div class="mt-1 text-sm font-black text-slate-950">{{ $selectedCharacter->name }}</div>
+                                <div class="mt-1 text-xs font-bold text-slate-500">CID {{ $selectedCharacter->id }} / {{ $selectedCharacter->user?->email ?? '-' }}</div>
+                            </div>
+                            <div class="rounded-md border border-amber-200 bg-amber-50 p-4">
+                                <div class="text-xs font-black text-amber-700">有償輝石</div>
+                                <div class="mt-1 text-xl font-black text-slate-950">{{ number_format((int) ($selectedCharacter->paid_kiseki ?? 0)) }}</div>
+                            </div>
+                            <div class="rounded-md border border-slate-200 bg-white p-4">
+                                <div class="text-xs font-black text-slate-500">無償 / 合計</div>
+                                <div class="mt-1 text-sm font-black text-slate-950">
+                                    {{ number_format((int) ($selectedCharacter->free_kiseki ?? 0)) }} / {{ number_format((int) ($selectedCharacter->kiseki ?? 0)) }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-[180px_1fr]">
+                            <div>
+                                <label class="{{ $labelClass }}">付与数</label>
+                                <input type="number" min="1" max="999999" wire:model="kisekiGrantAmount" wire:loading.attr="disabled" wire:target="grantKiseki" class="mt-1 {{ $fieldClass }} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
+                                @error('kisekiGrantAmount') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                            </div>
+                            <div>
+                                <label class="{{ $labelClass }}">付与理由（必須）</label>
+                                <input type="text" maxlength="255" wire:model="kisekiGrantReason" wire:loading.attr="disabled" wire:target="grantKiseki" class="mt-1 {{ $fieldClass }} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" placeholder="例: 問い合わせ補填 / 検証用付与">
+                                @error('kisekiGrantReason') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold leading-relaxed text-amber-800">
+                            付与分は有償輝石として扱います。合計輝石は有償+無償に同期され、課金監査の手動付与ログに残ります。
+                        </div>
+
+                        <div class="mt-5 flex justify-end">
+                            <button
+                                type="submit"
+                                wire:confirm="{{ $selectedCharacter->name }} に有償輝石を付与しますか？付与後は監査ログに残ります。"
+                                wire:loading.attr="disabled"
+                                wire:loading.class="cursor-not-allowed bg-amber-300 text-slate-600"
+                                wire:target="grantKiseki"
+                                class="inline-flex min-w-40 items-center justify-center gap-2 rounded-md bg-amber-500 px-5 py-2.5 text-sm font-black text-slate-950 shadow-sm transition hover:bg-amber-400 active:scale-[0.98] disabled:pointer-events-none disabled:shadow-none"
+                            >
+                                <span wire:loading.remove wire:target="grantKiseki">有償輝石を付与</span>
+                                <span wire:loading.flex wire:target="grantKiseki" class="items-center gap-2">
+                                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent"></span>
+                                    付与中...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="border-t border-amber-100 bg-amber-50/40 px-5 py-4">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h3 class="text-sm font-black text-amber-900">直近の輝石付与履歴</h3>
+                                <p class="mt-1 text-xs font-semibold text-amber-700">課金監査ログに残った管理者付与を最新10件まで表示します。</p>
+                            </div>
+                            <div wire:loading.flex wire:target="grantKiseki" class="items-center gap-2 text-xs font-black text-amber-700">
+                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"></span>
+                                履歴更新中
+                            </div>
+                        </div>
+
+                        @if($kisekiGrantHistory->isNotEmpty())
+                            <div class="mt-4 overflow-hidden rounded-md border border-amber-100 bg-white">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-slate-100 text-sm">
+                                        <thead class="bg-slate-50 text-xs font-black text-slate-500">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left">日時</th>
+                                                <th class="px-4 py-3 text-right">有償輝石</th>
+                                                <th class="px-4 py-3 text-left">理由</th>
+                                                <th class="px-4 py-3 text-left">管理者</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            @foreach($kisekiGrantHistory as $transaction)
+                                                <tr>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-600">
+                                                        {{ $transaction->created_at?->format('Y/m/d H:i') ?? '-' }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-right font-black text-amber-700">
+                                                        +{{ number_format((int) $transaction->amount) }}
+                                                    </td>
+                                                    <td class="min-w-64 px-4 py-3 text-xs font-semibold text-slate-700">
+                                                        {{ preg_replace('/^管理者付与:\s*/u', '', $transaction->description ?? '') ?: '-' }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-500">
+                                                        {{ $transaction->source_id ? 'UID ' . $transaction->source_id : '-' }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @else
+                            <div class="mt-4 rounded-md border border-dashed border-amber-200 bg-white px-4 py-5 text-center text-sm font-bold text-slate-500">
+                                この冒険者への管理者輝石付与履歴はまだありません。
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="p-5">

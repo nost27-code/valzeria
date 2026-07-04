@@ -3,10 +3,32 @@
 
     const config = window.ValmonDeepConfig;
     const storageKey = "valmonDeepCrawlExperiment:v1";
-    const screens = ["prepare", "departure", "run", "ranking", "status"];
+    const screens = ["prepare", "departure", "run", "result", "card-choice", "ranking", "status"];
     const statKeys = ["attack", "defense", "detect", "evasion"];
     const staminaMax = 265;
     const deckSlotDefault = config.deck?.initialSlotLimit || 20;
+    const hpRecoveryIntervalMs = (config.hpRecovery?.intervalMinutes || 5) * 60 * 1000;
+    const hpRecoveryRate = config.hpRecovery?.rate || 0.1;
+    const goldRestHealRate = config.gold?.restHealRate || 0.3;
+    const goldRestCostPerFloor = config.gold?.restCostPerFloor || 150;
+    const cardArtNumberByCategory = {
+        attack: 1,
+        defense: 2,
+        explore: 3,
+        evasion: 4,
+        一時攻撃: 1,
+        一時防御: 2,
+        一時探索: 3,
+        一時安全: 4,
+        一時挑戦: 4,
+    };
+    const cardArtRarityOffset = {
+        N: 0,
+        R: 4,
+        SR: 8,
+        SSR: 8,
+        UR: 12,
+    };
 
     const $ = (id) => document.getElementById(id);
     const fmt = (value) => Number(value || 0).toLocaleString("ja-JP");
@@ -16,6 +38,12 @@
     let state = loadState();
     let currentScreen = "prepare";
     let isAdvancing = false;
+    let stageEnterTimer = null;
+    let cardDealTimer = null;
+    let pendingBpAction = null;
+    let pendingTuningUpgradeStat = null;
+    let deckFilter = "all";
+    let deckSort = "equipped";
 
     function defaultState() {
         const season = currentSeason();
@@ -70,6 +98,24 @@
             merged.draftValmonId = merged.selectedValmonId;
         }
         merged.selectedValmonId = merged.draftValmonId;
+        // 旧モデル（連続ラン方式）のランは1階層=1出撃モデルと互換がないため破棄する。
+        // 未確定のカード3択だけはタワー側に引き継ぐ。
+        if (merged.activeRun && !merged.activeRun.sortie) {
+            const oldChoice = (merged.activeRun.pendingChoices || []).find((choice) => choice.type === "card_reward");
+            if (oldChoice && !merged.tower.pendingCardChoice) {
+                merged.tower.pendingCardChoice = normalizePendingCardChoice({
+                    choiceType: oldChoice.choiceType || "coin",
+                    sourceFloor: oldChoice.sourceFloor || null,
+                    options: oldChoice.options || [],
+                    selected: oldChoice.selected || null,
+                    origin: "prepare",
+                });
+            }
+            merged.activeRun = null;
+        }
+        if (merged.lastResult && !merged.lastResult.sortie) {
+            merged.lastResult = null;
+        }
         if (merged.activeRun) {
             normalizeRunEvents(merged.activeRun);
         }
@@ -89,8 +135,14 @@
             claimedCoinCount: 0,
             usedCoinCount: 0,
             paidAdvancedCoinCount: 0,
+            defeatCount: 0,
             bp: 0,
             spentBp: 0,
+            bpActionCount: 0,
+            deckSlotExpandCount: 0,
+            seasonTuningBonusPoints: 0,
+            coinTuningPointCount: 0,
+            bpTuningPointCount: 0,
             upgrades: { attack: 0, defense: 0, detect: 0, evasion: 0, hp: 0 },
             deckSlotLimit: deckSlotDefault,
             currentFloorToChallenge: 1,
@@ -98,8 +150,11 @@
             score: 0,
             currentHp: config.baseStats.hp,
             maxHp: config.baseStats.hp,
+            lastHpRecoveredAt: nowIso(),
+            gold: config.gold?.initial || 0,
             attemptCount: 0,
             clearedRewardFloors: [],
+            bpRewardFloors: [],
             pendingCardChoice: null,
             activeCardCodes: activeCodes,
         };
@@ -119,6 +174,11 @@
         tower.activeCardCodes = activeSeasonCardCodes(season);
         tower.bp = Math.max(0, Number(tower.bp || 0));
         tower.spentBp = Math.max(0, Number(tower.spentBp || 0));
+        tower.bpActionCount = Math.max(0, Number(tower.bpActionCount || 0));
+        tower.deckSlotExpandCount = Math.max(0, Number(tower.deckSlotExpandCount || Math.max(0, tower.deckSlotLimit - deckSlotDefault)));
+        tower.seasonTuningBonusPoints = Math.max(0, Number(tower.seasonTuningBonusPoints || 0));
+        tower.coinTuningPointCount = Math.max(0, Number(tower.coinTuningPointCount || 0));
+        tower.bpTuningPointCount = Math.max(0, Number(tower.bpTuningPointCount || 0));
         tower.usedCoinCount = clamp(Number(tower.usedCoinCount || 0), 0, config.season.naturalCoinMax);
         tower.claimedCoinCount = clamp(
             Number(source.claimedCoinCount ?? source.usedCoinCount ?? 0),
@@ -128,9 +188,28 @@
         tower.currentFloorToChallenge = clamp(Number(tower.currentFloorToChallenge || 1), 1, config.season.maxFloorTarget);
         tower.highestClearedFloor = clamp(Number(tower.highestClearedFloor || 0), 0, config.season.maxFloorTarget);
         tower.score = Math.max(0, Number(tower.score || 0));
-        tower.currentHp = clamp(Number(tower.currentHp || tower.maxHp), 1, Number(tower.maxHp || config.baseStats.hp));
+        tower.defeatCount = Math.max(0, Number(tower.defeatCount || 0));
+        tower.maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        tower.currentHp = clamp(Number(tower.currentHp ?? tower.maxHp), 0, tower.maxHp);
+        tower.lastHpRecoveredAt = source.lastHpRecoveredAt || nowIso();
+        tower.gold = Math.max(0, Number(tower.gold ?? config.gold?.initial ?? 0));
         tower.clearedRewardFloors = uniqueCodes(source.clearedRewardFloors || []).map(Number);
+        tower.bpRewardFloors = uniqueCodes(source.bpRewardFloors || []).map(Number);
+        tower.pendingCardChoice = normalizePendingCardChoice(source.pendingCardChoice);
         return tower;
+    }
+
+    function normalizePendingCardChoice(source) {
+        if (!source || !Array.isArray(source.options)) return null;
+        const options = uniqueCodes(source.options).filter(cardByCode);
+        if (!options.length) return null;
+        return {
+            choiceType: source.choiceType || "coin",
+            sourceFloor: source.sourceFloor || null,
+            options,
+            selected: options.includes(source.selected) ? source.selected : null,
+            origin: source.origin === "result" ? "result" : "prepare",
+        };
     }
 
     function uniqueCodes(codes) {
@@ -187,7 +266,7 @@
     function allCards() {
         const defined = config.cards || config.orbs || [];
         if (defined.length >= 100) return defined.slice(0, 100);
-        const categories = ["attack", "defense", "heal", "explore", "evasion", "special"];
+        const categories = ["attack", "defense", "heal", "explore", "evasion", "explore"];
         const icons = ["icon_244.webp", "icon_245.webp", "icon_246.webp", "icon_247.webp", "icon_248.webp", "icon_249.webp", "icon_250.webp", "icon_251.webp"];
         const generated = [];
         for (let index = defined.length + 1; index <= 100; index += 1) {
@@ -214,10 +293,9 @@
         return {
             attack: "与ダメージが少し伸びる",
             defense: "受けるダメージを少し抑える",
-            heal: "HP回復の機会が少し強くなる",
-            explore: "宝箱やスコアの伸びがよくなる",
+            heal: "自然回復や休息の戻りが少し強くなる",
+            explore: "探知が冴え、宝箱やスコアの伸びがよくなる",
             evasion: "罠や黒風を少しかわしやすくなる",
-            special: "節目の報酬や深層BPに少し効く",
         }[category] || "今シーズンだけ有効なカード";
     }
 
@@ -228,7 +306,6 @@
             heal: { milestoneHealBonus: ((index % 3) + 3) / 100 },
             explore: { eventScoreRate: 1 + ((index % 4) + 4) / 100 },
             evasion: { trapAvoidBonus: ((index % 4) + 3) / 100 },
-            special: { bossBpBonus: index % 20 === 0 ? 1 : 0 },
         }[category] || {};
     }
 
@@ -274,20 +351,16 @@
         };
     }
 
-    function defaultTuningFor(valmon) {
-        const limit = tuningPointLimit(valmon.level);
-        const base = { attack: 0, defense: 0, detect: 0, evasion: 0 };
-        const order = ["attack", "defense", "detect", "evasion"];
-        for (let i = 0; i < limit; i += 1) {
-            base[order[i % order.length]] += 1;
-        }
-        return base;
+    function defaultTuningFor() {
+        // 調律は振り直し不可のため、初期状態は未割り振り。プレイヤーが自分で1点ずつ振る。
+        return { attack: 0, defense: 0, detect: 0, evasion: 0 };
     }
 
-    function tuningPointLimit(level) {
-        return config.tuning.pointsByLevel.reduce((points, rule) => (
+    function tuningPointLimit(level, bonusPoints = 0) {
+        const base = config.tuning.pointsByLevel.reduce((points, rule) => (
             level >= rule.level ? rule.points : points
         ), config.tuning.pointsByLevel[0].points);
+        return base + Number(bonusPoints || 0);
     }
 
     function selectedValmon() {
@@ -327,19 +400,30 @@
             $(`screen-${name}`).classList.toggle("active", name === screen);
         });
         render();
+        playScreenEffects(screen);
         scrollPageTop();
     }
 
-    function showAppTab(tab) {
-        if (tab === "ranking") {
-            showScreen("ranking");
-            return;
+    function playScreenEffects(screen) {
+        if (screen === "card-choice") {
+            const row = $("cardChoiceOptions");
+            row.classList.remove("dealing");
+            void row.offsetWidth;
+            row.classList.add("dealing");
+            window.clearTimeout(cardDealTimer);
+            cardDealTimer = window.setTimeout(() => row.classList.remove("dealing"), 1000);
+        } else if (screen === "run") {
+            const stage = $("eventStage");
+            stage.classList.remove("stage-enter");
+            void stage.offsetWidth;
+            stage.classList.add("stage-enter");
+            window.clearTimeout(stageEnterTimer);
+            stageEnterTimer = window.setTimeout(() => stage.classList.remove("stage-enter"), 1900);
         }
-        if (tab === "status") {
-            showScreen("status");
-            return;
-        }
-        showScreen(state.activeRun ? explorationScreenForRun(state.activeRun) : "prepare");
+    }
+
+    function pendingCardChoice() {
+        return state.tower.pendingCardChoice || null;
     }
 
     function scrollPageTop() {
@@ -358,6 +442,7 @@
     }
 
     function explorationScreenForRun(run) {
+        if (pendingCardChoice()) return "card-choice";
         return latestPageEvent(run) ? "run" : "departure";
     }
 
@@ -379,19 +464,6 @@
         $("rulesModal").hidden = true;
     }
 
-    function openRetireModal(event) {
-        if (event) event.preventDefault();
-        if (!state.activeRun) {
-            flash("撤退できる挑戦がありません。", "error");
-            return;
-        }
-        $("retireModal").hidden = false;
-    }
-
-    function closeRetireModal() {
-        $("retireModal").hidden = true;
-    }
-
     function openCoinModal() {
         $("coinModal").hidden = false;
     }
@@ -400,16 +472,243 @@
         $("coinModal").hidden = true;
     }
 
+    function openGoldRestModal() {
+        applyHpRecovery();
+        renderGoldRestModal();
+        $("goldRestModal").hidden = false;
+    }
+
+    function closeGoldRestModal() {
+        $("goldRestModal").hidden = true;
+    }
+
+    function renderGoldRestModal() {
+        const tower = state.tower;
+        const cost = goldRestCost();
+        const heal = goldRestHealAmount();
+        const hp = clamp(Number(tower.currentHp || 0), 0, Number(tower.maxHp || config.baseStats.hp));
+        const maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        $("goldRestText").textContent = `地下${fmt(tower.currentFloorToChallenge || 1)}階の休息費用は${fmt(cost)}Gです。HPを最大${fmt(heal)}回復します。現在HP ${fmt(hp)} / ${fmt(maxHp)}、所持Gold ${fmt(tower.gold || 0)}G。`;
+        $("goldRestConfirmButton").disabled = hp >= maxHp || Number(tower.gold || 0) < cost;
+    }
+
+    function confirmGoldRest() {
+        applyHpRecovery();
+        const tower = state.tower;
+        const cost = goldRestCost();
+        const maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        if (Number(tower.currentHp || 0) >= maxHp) {
+            flash("HPはすでに満タンです。");
+            closeGoldRestModal();
+            render();
+            return;
+        }
+        if (Number(tower.gold || 0) < cost) {
+            flash(`Goldが足りません。必要Gold: ${fmt(cost)}G`, "error");
+            renderGoldRestModal();
+            return;
+        }
+        const before = Number(tower.currentHp || 0);
+        tower.gold = Math.max(0, Number(tower.gold || 0) - cost);
+        tower.currentHp = clamp(before + goldRestHealAmount(), 0, maxHp);
+        tower.lastHpRecoveredAt = nowIso();
+        saveState();
+        closeGoldRestModal();
+        flash(`${fmt(cost)}Gで休息し、HPが${fmt(tower.currentHp - before)}回復しました。`);
+        render();
+    }
+
+    function openBpConfirmModal(action) {
+        const meta = bpActionMeta(action);
+        if (!meta) return;
+        if (meta.disabled) {
+            flash(meta.disabledMessage || "TPが足りません。", "error");
+            return;
+        }
+        pendingBpAction = action;
+        $("bpConfirmTitle").textContent = meta.title;
+        $("bpConfirmText").textContent = meta.text;
+        $("bpConfirmButton").textContent = meta.confirmLabel || "TPを使う";
+        $("bpConfirmModal").hidden = false;
+    }
+
+    function closeBpConfirmModal() {
+        $("bpConfirmModal").hidden = true;
+        pendingBpAction = null;
+    }
+
+    function openTuningUpgradeModal(statKey) {
+        if (!statKeys.includes(statKey)) return;
+        const setting = draftSetting();
+        if (Number(setting.tuning[statKey] || 0) >= config.tuning.statCap) {
+            flash(`${config.tuning.labels[statKey]}は項目上限です。`, "error");
+            return;
+        }
+        pendingTuningUpgradeStat = statKey;
+        renderTuningUpgradeModal();
+        $("tuningUpgradeModal").hidden = false;
+    }
+
+    function closeTuningUpgradeModal() {
+        $("tuningUpgradeModal").hidden = true;
+        pendingTuningUpgradeStat = null;
+    }
+
+    function openValmonSelectModal() {
+        renderValmonSelectModal();
+        $("valmonSelectModal").hidden = false;
+    }
+
+    function closeValmonSelectModal() {
+        $("valmonSelectModal").hidden = true;
+    }
+
+    function renderValmonSelectModal() {
+        const currentId = Number(state.draftValmonId);
+        $("valmonSelectList").innerHTML = config.valmons.map((valmon) => {
+            const limit = tuningPointLimit(valmon.level, state.tower?.seasonTuningBonusPoints || 0);
+            const isSelected = Number(valmon.id) === currentId;
+            return `<button type="button" class="valmon-select-card${isSelected ? " selected" : ""}" data-valmon-pick="${valmon.id}" aria-pressed="${isSelected ? "true" : "false"}">
+                <img src="../../../public/images/valmon/${valmon.image}" alt="">
+                <span>
+                    <strong>${escapeHtml(valmon.name)}</strong>
+                    <small>Lv${fmt(valmon.level)} / 基礎能力値 ${fmt(limit)}</small>
+                </span>
+                <b>${isSelected ? "選択中" : "選ぶ"}</b>
+            </button>`;
+        }).join("");
+    }
+
+    function pickDraftValmon(valmonId) {
+        const valmon = config.valmons.find((row) => row.id === Number(valmonId));
+        if (!valmon) return;
+        state.draftValmonId = valmon.id;
+        state.selectedValmonId = valmon.id;
+        saveState();
+        closeValmonSelectModal();
+        flash(`${valmon.name}に入れ替えました。`);
+        render();
+    }
+
+    function openCardDrawModal() {
+        if (pendingCardChoice()) {
+            flash("先に表示中のカード3択を決めてください。", "error");
+            showScreen("card-choice");
+            return;
+        }
+        renderCardDrawModal();
+        $("cardDrawModal").hidden = false;
+    }
+
+    function closeCardDrawModal() {
+        $("cardDrawModal").hidden = true;
+    }
+
+    function renderCardDrawModal() {
+        const pendingChoice = Boolean(pendingCardChoice());
+        const coinCost = config.coin.cardChoiceCost || 1;
+        const normalCost = nextBpActionCost();
+        const coinAvailable = availableCoinCount();
+        $("cardDrawCoinButton").innerHTML = `
+            <span class="draw-cost-label">金貨${coinCost}枚を消費して引く</span>
+            <span class="draw-balance-label">残 ${fmt(coinAvailable)} 枚</span>
+        `;
+        $("cardDrawCoinButton").disabled = pendingChoice || coinAvailable < coinCost;
+        $("cardDrawTpButton").innerHTML = `
+            <span class="draw-cost-label">TPを${fmt(normalCost)}消費して引く</span>
+            <span class="draw-balance-label">残 ${fmt(state.tower.bp)} TP</span>
+        `;
+        $("cardDrawTpButton").disabled = pendingChoice || state.tower.bp < normalCost;
+    }
+
+    function beginCardChoiceFromModal(source) {
+        closeCardDrawModal();
+        if (source === "coin") {
+            beginCoinCardChoice();
+        } else if (source === "tp") {
+            beginBpCardChoice();
+        }
+    }
+
+    function renderTuningUpgradeModal() {
+        const statKey = pendingTuningUpgradeStat;
+        if (!statKey) return;
+        const normalCost = nextBpActionCost();
+        const coinCost = config.coin.tuningPointCost || 1;
+        const coinAvailable = availableCoinCount();
+        const coinLimitReached = state.tower.coinTuningPointCount >= (config.coin.tuningPointPurchaseLimit || 10);
+        $("tuningUpgradeTitle").textContent = `${config.tuning.labels[statKey]}を1上げますか`;
+        $("tuningUpgradeText").textContent = `追加TPを1つ得て、${config.tuning.labels[statKey]}に振り分けます。`;
+        $("tuningUpgradeCoinButton").textContent = `金貨${coinCost}枚を消費`;
+        $("tuningUpgradeCoinButton").disabled = coinAvailable < coinCost || coinLimitReached;
+        $("tuningUpgradeTpButton").textContent = `TPを${normalCost}消費`;
+        $("tuningUpgradeTpButton").disabled = state.tower.bp < normalCost;
+    }
+
+    function applyPurchasedTuningPoint(source) {
+        const statKey = pendingTuningUpgradeStat;
+        if (!statKey) return;
+        const setting = draftSetting();
+        if (Number(setting.tuning[statKey] || 0) >= config.tuning.statCap) {
+            flash(`${config.tuning.labels[statKey]}は項目上限です。`, "error");
+            closeTuningUpgradeModal();
+            return;
+        }
+        if (source === "coin") {
+            if (state.tower.coinTuningPointCount >= (config.coin.tuningPointPurchaseLimit || 10)) {
+                flash("金貨で買えるTPは上限です。", "error");
+                renderTuningUpgradeModal();
+                return;
+            }
+            if (!consumeCoin(config.coin.tuningPointCost || 1)) {
+                flash("使用できる金貨がありません。", "error");
+                renderTuningUpgradeModal();
+                return;
+            }
+            state.tower.coinTuningPointCount += 1;
+        } else if (source === "tp") {
+            const cost = nextBpActionCost();
+            if (!consumeBpNormalAction(cost)) {
+                flash("TPが足りません。", "error");
+                renderTuningUpgradeModal();
+                return;
+            }
+            state.tower.bpTuningPointCount += 1;
+        } else {
+            return;
+        }
+        state.tower.seasonTuningBonusPoints += 1;
+        setting.tuning[statKey] = Number(setting.tuning[statKey] || 0) + 1;
+        syncActiveRunLoadout();
+        saveState();
+        flash(`${config.tuning.labels[statKey]}が1上がりました。`);
+        closeTuningUpgradeModal();
+        render();
+    }
+
+    function confirmBpAction() {
+        const action = pendingBpAction;
+        if (!action) return;
+        closeBpConfirmModal();
+        if (action === "card") {
+            beginBpCardChoice();
+        } else if (action === "tuning") {
+            buyBpTuningPoint();
+        } else {
+            spendBp(action);
+        }
+    }
+
     function validateSetting(valmon = selectedValmon()) {
         const setting = settingForValmon(valmon);
-        const limit = tuningPointLimit(valmon.level);
+        const limit = tuningPointLimit(valmon.level, state.tower?.seasonTuningBonusPoints || 0);
         const total = statKeys.reduce((sum, key) => sum + Number(setting.tuning[key] || 0), 0);
         const capOver = statKeys.find((key) => Number(setting.tuning[key] || 0) > config.tuning.statCap);
         if (total < limit) {
-            return { ok: false, target: "tuning", message: "調律ポイントが余っています。" };
+            return { ok: false, target: "tuning", message: "TPが余っています。" };
         }
         if (total > limit) {
-            return { ok: false, target: "tuning", message: "調律ポイントが上限を超えています。" };
+            return { ok: false, target: "tuning", message: "TPが上限を超えています。" };
         }
         if (capOver) {
             return { ok: false, target: "tuning", message: `${config.tuning.labels[capOver]}が項目上限を超えています。` };
@@ -421,6 +720,13 @@
         if (state.activeRun && state.activeRun.status === "active") {
             return { ok: true, action: "resume" };
         }
+        applyHpRecovery();
+        if (Number(state.tower.currentHp || 0) <= 0) {
+            return { ok: false, target: "hp", message: "HPが足りません。自然回復を待つか、Goldで休息してください。" };
+        }
+        if (pendingCardChoice()) {
+            return { ok: false, target: "card-choice", message: "先に表示中のカード3択を決めてください。" };
+        }
         const settingValidation = validateSetting(draftValmon());
         if (!settingValidation.ok) {
             return { ok: false, message: settingValidation.message };
@@ -428,10 +734,14 @@
         return { ok: true, action: "start" };
     }
 
-    function startRun() {
+    function startRun(fromResult = false) {
         const check = canStartRun();
         if (!check.ok) {
             flash(check.message, "error");
+            if (check.target === "card-choice") {
+                showScreen("card-choice");
+                return;
+            }
             render();
             return;
         }
@@ -447,8 +757,17 @@
         const baseTuning = { ...setting.tuning };
         const deckCodes = tower.deckCardCodes || [];
         const stats = calculateStats(valmon, baseTuning, emptyTuning(), deckCodes, null);
+        syncTowerHpMax(stats.maxHp);
+        applyHpRecovery();
+        if (Number(tower.currentHp || 0) <= 0) {
+            flash("HPが足りません。自然回復を待つか、Goldで休息してください。", "error");
+            render();
+            return;
+        }
+        const targetFloor = clamp(Number(tower.currentFloorToChallenge || 1), 1, config.season.maxFloorTarget);
         const run = {
             id: `run_${Date.now()}`,
+            sortie: true,
             characterName: "試験冒険者",
             valmonId: valmon.id,
             valmonName: valmon.name,
@@ -457,22 +776,25 @@
             mode: "ranking",
             isRanked: true,
             status: "active",
-            currentFloor: Math.max(0, Number(tower.currentFloorToChallenge || 1) - 1),
+            sortieResult: null,
+            targetFloor,
+            currentFloor: targetFloor - 1,
             bestClearedFloor: Number(tower.highestClearedFloor || 0),
             maxHp: stats.maxHp,
-            currentHp: clamp(Number(tower.currentHp || stats.maxHp), 1, stats.maxHp),
+            currentHp: clamp(Number(tower.currentHp || 0), 0, stats.maxHp),
             baseTuning,
             tempTuning: emptyTuning(),
             equippedOrbCodes: [...deckCodes],
             tempOrbCode: null,
             activeRouteType: "safe",
-            routeUntilFloor: 3,
             activeFloorNumber: null,
             currentFloorEventIndex: 0,
             currentFloorEventTotal: 0,
             floorEventPlans: {},
             pendingChoices: [],
             score: 0,
+            rewardBp: 0,
+            firstClear: false,
             killCount: 0,
             bossKillCount: 0,
             treasureCount: 0,
@@ -486,10 +808,16 @@
 
         state.activeRun = run;
         tower.attemptCount = Number(tower.attemptCount || 0) + 1;
-        addRunLog(run, "酒場裏の小穴へ、ヴァルモンがひとりで潜っていった。");
+        addRunLog(run, `${valmon.name}は地下${targetFloor}階へ出撃した。HP ${fmt(run.currentHp)} / ${fmt(run.maxHp)}。`);
         saveState();
-        flash("挑戦を開始しました。");
-        showScreen("departure");
+        if (fromResult) {
+            // 結果画面からの再出撃はワンタップで最初のイベントまで進める
+            showScreen("run");
+            requestAdvanceRun();
+        } else {
+            flash(`地下${targetFloor}階へ出撃しました。`);
+            showScreen("departure");
+        }
     }
 
     function cycleDraftValmon(delta) {
@@ -509,11 +837,12 @@
         if (codes.includes(orbCode)) {
             tower.deckCardCodes = codes.filter((code) => code !== orbCode);
         } else if (codes.length >= tower.deckSlotLimit) {
-            flash(`装備できるカードは${tower.deckSlotLimit}枚までです。`, "error");
+            flash(`装備上限です。カードは${tower.deckSlotLimit}枚まで装備できます。`, "error");
             return;
         } else {
             tower.deckCardCodes = [...codes, orbCode];
         }
+        syncActiveRunLoadout();
         saveState();
         render();
     }
@@ -540,6 +869,13 @@
     function orbBonus(run, key) {
         return allRunOrbs(run).reduce((value, orb) => {
             const effectValue = orb.effect?.[key];
+            return typeof effectValue === "number" ? value + effectValue : value;
+        }, 0);
+    }
+
+    function towerDeckBonus(key) {
+        return (state.tower?.deckCardCodes || []).map(cardByCode).filter(Boolean).reduce((value, card) => {
+            const effectValue = card.effect?.[key];
             return typeof effectValue === "number" ? value + effectValue : value;
         }, 0);
     }
@@ -578,7 +914,7 @@
         const hasOrb = (code) => (run.equippedOrbCodes || []).includes(code) || run.tempOrbCode === code;
 
         if (maxValue >= 2 && maxValue - minValue <= 1) {
-            return `${name}は全身の調律をなじませ、落ち着いた足取りで入口を見つめています。`;
+            return `${name}は全身の力配分をなじませ、落ち着いた足取りで入口を見つめています。`;
         }
         if (tuning.attack >= 4 && tuning.detect >= 4) {
             return `${name}は奥の気配を追いながら、飛び出す相手を迎え撃つ構えです。`;
@@ -631,7 +967,7 @@
         if (topKeys.includes("defense") && topKeys.includes("detect")) {
             return `${name}は慎重に周囲を確かめながら、堅い姿勢で待機しています。`;
         }
-        return `${name}は調律とデッキカードの感触を確かめ、静かに探索の合図を待っています。`;
+        return `${name}はTP配分とデッキカードの感触を確かめ、静かに探索の合図を待っています。`;
     }
 
     function floorEventRange(floorNumber) {
@@ -721,25 +1057,18 @@
     function advanceRun() {
         const run = state.activeRun;
         if (!run || run.status !== "active") {
-            flash("進行中の挑戦がありません。", "error");
+            flash("進行中の出撃がありません。", "error");
             return;
         }
-        if (run.pendingChoices.length > 0) {
-            if (!confirmPendingChoice(run)) {
-                return;
-            }
-            if (run.pendingChoices.length > 0) {
-                render();
-                return;
-            }
+        if (pendingCardChoice()) {
+            showScreen("card-choice");
+            return;
         }
         if (!consumeStamina()) {
             flash("探索力が足りません。", "error");
             render();
             return;
         }
-        run.routeChoiceResult = null;
-        run.tuningChoiceResult = null;
 
         const step = nextRunStep(run);
         const floor = seededFloor(run, step.floorNumber, step.eventIndex, step.eventTotal);
@@ -769,13 +1098,6 @@
                 run.activeFloorNumber = null;
                 run.currentFloorEventIndex = 0;
                 run.currentFloorEventTotal = 0;
-                if (run.activeRouteType === "black_wind") {
-                    run.blackRouteClearCount += 1;
-                }
-                applyFloorClearRewards(run, step.floorNumber);
-                applyFloorClearHealing(run, step.floorNumber);
-                state.tower.currentHp = clamp(run.currentHp, 1, run.maxHp);
-                enqueueMilestoneChoices(run, step.floorNumber);
             } else {
                 run.activeFloorNumber = step.floorNumber;
                 run.currentFloorEventIndex = step.eventIndex;
@@ -801,9 +1123,18 @@
         };
         appendRunEvent(run, event);
 
-        if (run.currentHp <= 0 || result.finishReason) {
-            finishRun(run, result.finishReason || "defeated");
+        if (floorCleared) {
+            applyFloorClearRewards(run, step.floorNumber);
+            finishSortie(run, "victory");
             saveState();
+            showScreen("run");
+            return;
+        }
+
+        if (run.currentHp <= 0 || result.finishReason) {
+            finishSortie(run, "defeated");
+            saveState();
+            showScreen("run");
             return;
         }
 
@@ -815,9 +1146,16 @@
         if (isAdvancing) return;
 
         const run = state.activeRun;
-        const currentChoice = run?.pendingChoices?.[0] || null;
-        if (!run || run.status !== "active" || (currentChoice && !currentChoice.selected)) {
+        if (!run && state.lastResult?.status === "ended") {
+            goToResult();
+            return;
+        }
+        if (!run || run.status !== "active") {
             advanceRun();
+            return;
+        }
+        if (pendingCardChoice()) {
+            showScreen("card-choice");
             return;
         }
         if (Number(state.stamina?.current || 0) <= 0) {
@@ -835,6 +1173,14 @@
                 updateActionStates();
             }
         }, 180);
+    }
+
+    function goToResult() {
+        if (pendingCardChoice()) {
+            showScreen("card-choice");
+            return;
+        }
+        showScreen("result");
     }
 
     function consumeStamina() {
@@ -1001,8 +1347,7 @@
         }
 
         const baseDamage = (14 + (floor.floorNumber * 2)) * route.trapDamageRate * orbMultiplier(run, "trapDamageTakenRate");
-        const reduction = Math.min(0.5, stats.tuning.defense * 0.04);
-        const damage = Math.max(1, Math.round(baseDamage * (1 - reduction)));
+        const damage = Math.max(1, Math.round(baseDamage));
         run.currentHp = Math.max(0, run.currentHp - damage);
         return {
             result: "hit",
@@ -1021,9 +1366,6 @@
             run.treasureCount += 1;
             const scoreDelta = scoreWithRoute(run, Math.round(30 * orbMultiplier(run, "eventScoreRate")));
             run.score += scoreDelta;
-            if (Math.random() < 0.25) {
-                healRun(run, 0.06);
-            }
             return {
                 result: "opened",
                 cleared: true,
@@ -1042,9 +1384,6 @@
     }
 
     function resolveRest(run) {
-        const stats = runStats(run);
-        const healRate = 0.08 + (stats.tuning.detect * 0.01) + orbBonus(run, "restHealBonus");
-        const healed = healRun(run, healRate);
         run.restFoundCount += 1;
         const scoreDelta = scoreWithRoute(run, Math.round(10 * orbMultiplier(run, "eventScoreRate")));
         run.score += scoreDelta;
@@ -1052,8 +1391,8 @@
             result: "rested",
             cleared: true,
             scoreDelta,
-            logText: `白風の休憩所を見つけた。\n${run.valmonName}は羽を休めた。\nHPが${healed}回復した。`,
-            payload: { healRate, healed },
+            logText: `白風が抜ける小さな広場に出た。\n${run.valmonName}は耳を澄ませ、奥へ続く気配を確かめた。`,
+            payload: {},
         };
     }
 
@@ -1111,57 +1450,37 @@
         return run.currentHp - before;
     }
 
-    function applyFloorClearHealing(run, floorNumber) {
-        const normal = healRun(run, config.healing.floorClearRate);
-        let milestone = 0;
-        if (floorNumber % 10 === 0) {
-            milestone = healRun(run, config.healing.tenFloorRate + orbBonus(run, "milestoneHealBonus"));
-        } else if (floorNumber % 5 === 0) {
-            milestone = healRun(run, config.healing.fiveFloorRate + orbBonus(run, "milestoneHealBonus"));
-        }
-        if (normal > 0 || milestone > 0) {
-            addRunLog(run, `階層を抜け、HPが${normal + milestone}回復した。`);
-        }
-    }
-
     function applyFloorClearRewards(run, floorNumber) {
         const tower = state.tower;
         tower.currentFloorToChallenge = Math.min(config.season.maxFloorTarget, floorNumber + 1);
         tower.highestClearedFloor = Math.max(Number(tower.highestClearedFloor || 0), floorNumber);
-        tower.score = Math.max(Number(tower.score || 0), run.score);
-        tower.currentHp = clamp(run.currentHp, 1, run.maxHp);
         tower.maxHp = run.maxHp;
+        tower.currentHp = clamp(Number(run.currentHp || 0), 0, run.maxHp);
+        tower.lastHpRecoveredAt = nowIso();
 
-        if (!tower.clearedRewardFloors.includes(floorNumber)) {
-            tower.clearedRewardFloors.push(floorNumber);
-            let bp = floorNumber % 10 === 0
-                ? (floorNumber >= 50 ? config.bp.bossFloorClearAfter50 : config.bp.bossFloorClear)
-                : config.bp.normalFloorClear;
-            if (run.activeRouteType === "black_wind") bp += 1;
-            bp += floorNumber % 10 === 0 ? orbBonus(run, "bossBpBonus") : 0;
-            tower.bp += bp;
-            addRunLog(run, `地下${floorNumber}階を初めて突破した。深層BP +${bp}`);
+        const firstClear = !tower.clearedRewardFloors.includes(floorNumber);
+        run.firstClear = firstClear;
+        run.rewardBp = 0;
+        if (!firstClear) return;
 
-            if (floorNumber <= config.season.floorRewardCardUntilFloor) {
-                run.pendingChoices.push({
-                    type: "card_reward",
-                    choiceType: "floor_reward",
-                    sourceFloor: floorNumber,
-                    options: cardChoiceOptions(`floor:${floorNumber}`),
-                });
-            }
-        }
-    }
+        tower.clearedRewardFloors.push(floorNumber);
+        const bp = floorNumber % 10 === 0
+            ? (floorNumber >= 50 ? config.bp.bossFloorClearAfter50 : config.bp.bossFloorClear)
+            : config.bp.normalFloorClear;
+        tower.bp += bp;
+        run.rewardBp = bp;
+        // スコアは初回突破分だけシーズン累計に加算する（同じ階層の周回では稼げない）
+        tower.score = Number(tower.score || 0) + Number(run.score || 0);
 
-    function enqueueMilestoneChoices(run, floorNumber) {
-        const choices = [];
-        if (floorNumber % 3 === 0) {
-            choices.push({ type: "route", options: ["safe", "black_wind", "glow"] });
+        if (floorNumber <= config.season.floorRewardCardUntilFloor) {
+            tower.pendingCardChoice = {
+                choiceType: "floor_reward",
+                sourceFloor: floorNumber,
+                options: cardChoiceOptions(`floor:${floorNumber}`),
+                selected: null,
+                origin: "result",
+            };
         }
-        if (floorNumber % 5 === 0) {
-            choices.push({ type: "temporary_tuning", points: 1 });
-        }
-        run.pendingChoices.push(...choices);
     }
 
     function cardChoiceOptions(seedSuffix) {
@@ -1173,7 +1492,7 @@
         const options = [];
         const categoryGroups = [
             ["attack", "defense", "heal"],
-            ["explore", "evasion", "special"],
+            ["explore", "evasion"],
             null,
         ];
         categoryGroups.forEach((categories) => {
@@ -1188,18 +1507,6 @@
             if (options.length >= pool.length) break;
         }
         return options;
-    }
-
-    function tempOrbOptions(floorNumber) {
-        const rng = seededRandom(`${state.season.seed}:temp-card:${floorNumber}`);
-        const pool = [...config.tempOrbs];
-        const unique = [];
-        while (unique.length < 3 && pool.length > 0) {
-            const index = Math.floor(rng() * pool.length);
-            const [picked] = pool.splice(index, 1);
-            if (picked && !unique.some((orb) => orb.code === picked.code)) unique.push(picked);
-        }
-        return unique.map((orb) => orb.code);
     }
 
     function addRunLog(run, text, payload = {}) {
@@ -1223,38 +1530,23 @@
         run.events = run.events.slice(-80);
     }
 
-    function finishRun(run, reason) {
-        run.status = reason === "retired" ? "retired" : "ended";
+    function finishSortie(run, reason) {
+        run.status = "ended";
+        run.sortieResult = reason;
         run.endedAt = nowIso();
-        const hpBonus = run.currentHp > 0 ? Math.floor((run.currentHp / run.maxHp) * 50) : 0;
-        const latest = latestPageEvent(run);
-        const displayFloor = latest?.floorNumber || run.activeFloorNumber || run.currentFloor;
-        run.score += hpBonus;
-        state.tower.score = Math.max(Number(state.tower.score || 0), run.score);
-        state.tower.highestClearedFloor = Math.max(Number(state.tower.highestClearedFloor || 0), run.bestClearedFloor);
-        state.tower.currentFloorToChallenge = reason === "defeated"
-            ? Math.max(1, displayFloor)
-            : Math.max(1, run.bestClearedFloor + 1);
-        state.tower.maxHp = run.maxHp;
-        state.tower.currentHp = reason === "defeated" ? run.maxHp : clamp(run.currentHp, 1, run.maxHp);
-        addRunLog(run, reason === "retired"
-            ? `${run.valmonName}は地下${displayFloor}階で撤退した。記録は${run.bestClearedFloor}階。`
-            : `${run.valmonName}は地下${displayFloor}階で力尽きた。HPは回復し、同じ階層から再挑戦できます。`);
+        const tower = state.tower;
+        if (reason === "victory") {
+            addRunLog(run, `地下${run.currentFloor}階を突破した！${run.valmonName}は意気揚々と主人のもとへ帰っていく。`);
+        } else {
+            tower.defeatCount = Number(tower.defeatCount || 0) + 1;
+            addRunLog(run, `${run.valmonName}は地下${run.targetFloor}階で力尽き、主人の待つ入口へ戻った。カードやTPを見直して、同じ階層に再挑戦できます。`);
+        }
+        tower.maxHp = run.maxHp;
+        tower.currentHp = clamp(Number(run.currentHp || 0), 0, run.maxHp);
+        tower.lastHpRecoveredAt = nowIso();
         updateRanking(run);
         state.lastResult = { ...run };
         state.activeRun = null;
-        flash(`記録: ${run.bestClearedFloor}階 / スコア ${fmt(run.score)}`);
-        showScreen(reason === "retired" ? "prepare" : "run");
-    }
-
-    function retireRun() {
-        const run = state.activeRun;
-        if (!run || run.status !== "active") {
-            flash("撤退できる挑戦がありません。", "error");
-            return;
-        }
-        finishRun(run, "retired");
-        saveState();
     }
 
     function updateRanking(run) {
@@ -1262,37 +1554,30 @@
         const rows = state.rankings[seasonKey] || seedRankingRows();
         const ownName = "試験冒険者";
         const existingIndex = rows.findIndex((row) => row.characterName === ownName);
+        // 自分の行はシーズン累計の現在値で常に更新する（本番はサーバー集計を想定）
         const candidate = {
             characterName: ownName,
             valmonName: run.valmonName,
             bestRunId: run.id,
-            bestFloor: run.bestClearedFloor,
-            bestScore: run.score,
+            bestFloor: Number(state.tower.highestClearedFloor || 0),
+            bestScore: Number(state.tower.score || 0),
+            defeatCount: Number(state.tower.defeatCount || 0),
             attemptCount: state.tower.attemptCount || 1,
             achievedAt: run.endedAt || nowIso(),
         };
         if (existingIndex >= 0) {
-            const current = rows[existingIndex];
-            if (isBetterRanking(candidate, current)) {
-                rows[existingIndex] = candidate;
-            }
+            rows[existingIndex] = candidate;
         } else {
             rows.push(candidate);
         }
         state.rankings[seasonKey] = sortRanking(rows).slice(0, 100);
     }
 
-    function isBetterRanking(next, current) {
-        if (next.bestFloor !== current.bestFloor) return next.bestFloor > current.bestFloor;
-        if (next.bestScore !== current.bestScore) return next.bestScore > current.bestScore;
-        if ((next.attemptCount || 0) !== (current.attemptCount || 0)) return (next.attemptCount || 0) < (current.attemptCount || 0);
-        return new Date(next.achievedAt).getTime() < new Date(current.achievedAt).getTime();
-    }
-
     function sortRanking(rows) {
         return [...rows].sort((a, b) => {
             if (b.bestFloor !== a.bestFloor) return b.bestFloor - a.bestFloor;
             if (b.bestScore !== a.bestScore) return b.bestScore - a.bestScore;
+            if ((a.defeatCount || 0) !== (b.defeatCount || 0)) return (a.defeatCount || 0) - (b.defeatCount || 0);
             if ((a.attemptCount || 0) !== (b.attemptCount || 0)) return (a.attemptCount || 0) - (b.attemptCount || 0);
             return new Date(a.achievedAt).getTime() - new Date(b.achievedAt).getTime();
         });
@@ -1309,228 +1594,226 @@
                 bestRunId: `seed_${index}`,
                 bestFloor: floor,
                 bestScore: (floor * 100) + Math.floor(rng() * 900),
+                defeatCount: Math.floor(rng() * 12),
                 attemptCount: 10 + Math.floor(rng() * 60),
                 achievedAt: new Date(Date.now() - (index * 4300000)).toISOString(),
             };
         }));
     }
 
-    function selectPendingChoice(type, value) {
-        const run = state.activeRun;
-        if (!run) return;
-        const index = run.pendingChoices.findIndex((choice) => choice.type === type);
-        if (index < 0) return;
-        run.pendingChoices[index].selected = value;
+    function chooseCard(cardCode) {
+        const choice = pendingCardChoice();
+        if (!choice || !choice.options.includes(cardCode)) return;
+        choice.selected = cardCode;
         saveState();
         render();
     }
 
-    function confirmPendingChoice(run) {
-        const choice = run.pendingChoices[0];
-        if (!choice) return true;
+    function confirmCardChoice() {
+        const choice = pendingCardChoice();
+        if (!choice) {
+            flash("選択中のカードがありません。", "error");
+            showScreen("prepare");
+            return;
+        }
         if (!choice.selected) {
-            flash("先に選択肢を選んでください。", "error");
-            render();
-            return false;
+            flash("カードを1枚選んでください。", "error");
+            renderCardChoice();
+            return;
         }
-
-        if (choice.type === "route") {
-            applyRouteChoice(run, choice, choice.selected);
-        } else if (choice.type === "temporary_tuning") {
-            applyTemporaryTuningChoice(run, choice.selected);
-        } else if (choice.type === "card_reward") {
-            applyCardChoice(run, choice, choice.selected);
-        } else if (choice.type === "temporary_orb") {
-            applyTemporaryOrbChoice(run, choice.selected);
-        }
-
-        run.pendingChoices.shift();
+        applyCardChoice(choice.selected);
+        const origin = choice.origin;
+        state.tower.pendingCardChoice = null;
         saveState();
-        return true;
+        render();
+        if (state.activeRun?.status === "active") {
+            showScreen(explorationScreenForRun(state.activeRun));
+        } else if (origin === "result" && state.lastResult?.status === "ended") {
+            showScreen("result");
+        } else {
+            showScreen("prepare");
+        }
     }
 
-    function chooseRoute(routeType) {
-        selectPendingChoice("route", routeType);
-    }
-
-    function applyRouteChoice(run, choice, routeType) {
-        const route = config.routes[routeType];
-        run.activeRouteType = routeType;
-        run.routeUntilFloor = run.currentFloor + 3;
-        run.routeChoiceResult = null;
-        addRunLog(run, routeChoiceText(run, routeType), {
-            choiceType: "route",
-            routeType,
-            routeName: route.name,
-            routeDesc: route.desc,
-        });
-    }
-
-    function routeChoiceText(run, routeType) {
-        return {
-            safe: `${run.valmonName}は穏やかな風の抜ける細道へ、静かに歩き出した。`,
-            black_wind: `${run.valmonName}は黒い風の渦へ鼻先を向け、奥へ踏み込んだ。`,
-            glow: `${run.valmonName}は壁の隙間にまたたく淡い光を追い始めた。`,
-        }[routeType] || `${run.valmonName}は気配の強い道を選んだ。`;
-    }
-
-    function chooseTemporaryTuning(stat) {
-        selectPendingChoice("temporary_tuning", stat);
-    }
-
-    function applyTemporaryTuningChoice(run, stat) {
-        run.tempTuning[stat] = Number(run.tempTuning[stat] || 0) + 1;
-        run.tuningChoiceResult = null;
-        addRunLog(run, tuningChoiceText(run, stat), {
-            choiceType: "temporary_tuning",
-            stat,
-            statName: config.tuning.labels[stat],
-        });
-    }
-
-    function tuningChoiceText(run, stat) {
-        return {
-            attack: `${run.valmonName}は爪先に力を集め、攻めの調律を強めた。`,
-            defense: `${run.valmonName}は体を低く構え、守りの調律を強めた。`,
-            detect: `${run.valmonName}は耳を澄ませ、探知の調律を強めた。`,
-            evasion: `${run.valmonName}は足取りを軽くし、回避の調律を強めた。`,
-        }[stat] || `${run.valmonName}は白風の加護を受け、調律を整えた。`;
-    }
-
-    function chooseTemporaryOrb(orbCode) {
-        selectPendingChoice("temporary_orb", orbCode);
-    }
-
-    function chooseCard(cardCode) {
-        selectPendingChoice("card_reward", cardCode);
+    function cardChoiceOrigin() {
+        return currentScreen === "result" ? "result" : "prepare";
     }
 
     function beginCoinCardChoice() {
-        const run = state.activeRun;
-        if (run?.pendingChoices?.length) {
-            flash("先に表示中の選択を決めてください。", "error");
+        if (pendingCardChoice()) {
+            flash("先に表示中のカード3択を決めてください。", "error");
             return;
         }
-        if (availableCoinCount() <= 0) {
+        const coinChoiceNo = Number(state.tower.usedCoinCount || 0) + 1;
+        if (!consumeCoin(config.coin.cardChoiceCost || 1)) {
             flash("使用できる金貨がありません。", "error");
             return;
         }
-        const choice = {
-            type: "card_reward",
+        state.tower.pendingCardChoice = {
             choiceType: "coin",
-            options: cardChoiceOptions(`coin:${state.tower.usedCoinCount + 1}`),
+            sourceFloor: null,
+            options: cardChoiceOptions(`coin:${coinChoiceNo}`),
             selected: null,
+            origin: cardChoiceOrigin(),
         };
-        state.tower.usedCoinCount += 1;
-        ensureChoiceCarrier().pendingChoices.push(choice);
         saveState();
-        showScreen("run");
+        showScreen("card-choice");
     }
 
     function beginBpCardChoice() {
-        const run = state.activeRun;
-        if (run?.pendingChoices?.length) {
-            flash("先に表示中の選択を決めてください。", "error");
+        if (pendingCardChoice()) {
+            flash("先に表示中のカード3択を決めてください。", "error");
             return;
         }
-        if (state.tower.bp < config.bp.cardChoiceCost) {
-            flash("深層BPが足りません。", "error");
+        const cost = nextBpActionCost();
+        if (!consumeBpNormalAction(cost)) {
+            flash("TPが足りません。", "error");
             return;
         }
-        state.tower.bp -= config.bp.cardChoiceCost;
-        state.tower.spentBp += config.bp.cardChoiceCost;
-        ensureChoiceCarrier().pendingChoices.push({
-            type: "card_reward",
+        state.tower.pendingCardChoice = {
             choiceType: "bp",
+            sourceFloor: null,
             options: cardChoiceOptions(`bp:${state.tower.spentBp}`),
             selected: null,
-        });
+            origin: cardChoiceOrigin(),
+        };
         saveState();
-        showScreen("run");
+        showScreen("card-choice");
     }
 
-    function ensureChoiceCarrier() {
-        if (state.activeRun) return state.activeRun;
-        const valmon = selectedValmon();
-        const stats = calculateStats(valmon, draftSetting().tuning, emptyTuning(), state.tower.deckCardCodes, null);
-        state.activeRun = {
-            id: `choice_${Date.now()}`,
-            characterName: "試験冒険者",
-            valmonId: valmon.id,
-            valmonName: valmon.name,
-            valmonLevel: valmon.level,
-            seasonCode: state.season.code,
-            mode: "ranking",
-            isRanked: false,
-            status: "active",
-            currentFloor: Math.max(0, Number(state.tower.currentFloorToChallenge || 1) - 1),
-            bestClearedFloor: Number(state.tower.highestClearedFloor || 0),
-            maxHp: stats.maxHp,
-            currentHp: clamp(Number(state.tower.currentHp || stats.maxHp), 1, stats.maxHp),
-            baseTuning: { ...draftSetting().tuning },
-            tempTuning: emptyTuning(),
-            equippedOrbCodes: [...state.tower.deckCardCodes],
-            tempOrbCode: null,
-            activeRouteType: "safe",
-            routeUntilFloor: state.tower.currentFloorToChallenge + 2,
-            activeFloorNumber: null,
-            currentFloorEventIndex: 0,
-            currentFloorEventTotal: 0,
-            floorEventPlans: {},
-            pendingChoices: [],
-            score: Number(state.tower.score || 0),
-            killCount: 0,
-            bossKillCount: 0,
-            treasureCount: 0,
-            trapAvoidCount: 0,
-            blackRouteClearCount: 0,
-            restFoundCount: 0,
-            startedAt: nowIso(),
-            endedAt: null,
-            events: [],
+    function consumeCoin(amount = 1) {
+        const cost = Number(amount || 1);
+        if (availableCoinCount() < cost) return false;
+        state.tower.usedCoinCount += cost;
+        return true;
+    }
+
+    function nextBpActionCost() {
+        return Number(state.tower.bpActionCount || 0) + 1;
+    }
+
+    function nextDeckSlotExpandCost() {
+        return (Number(state.tower.deckSlotExpandCount || 0) * 2) + 1;
+    }
+
+    function deckSlotExpandCostForSlot(slotNumber) {
+        const expandNumber = Number(slotNumber || deckSlotDefault) - deckSlotDefault;
+        return Math.max(1, (expandNumber * 2) - 1);
+    }
+
+    function consumeBpNormalAction(cost = nextBpActionCost()) {
+        const amount = Number(cost || 1);
+        if (state.tower.bp < amount) return false;
+        state.tower.bp -= amount;
+        state.tower.spentBp += amount;
+        state.tower.bpActionCount += 1;
+        return true;
+    }
+
+    function bpActionMeta(action) {
+        const normalCost = nextBpActionCost();
+        const nextSlot = state.tower.deckSlotLimit + 1;
+        const slotCost = nextDeckSlotExpandCost();
+        const table = {
+            card: {
+                title: "TPでカードを引きますか？",
+                text: `TPを${normalCost}消費して、カード3択を引きます。候補は保存され、引き直しはできません。`,
+                cost: normalCost,
+                confirmLabel: "カードを引く",
+            },
+            tuning: {
+                title: "TPを増やしますか？",
+                text: `TPを${normalCost}消費して、シーズンTPを+1します。消費回数は戻りません。`,
+                cost: normalCost,
+                confirmLabel: "追加TP+1",
+            },
+            slot: {
+                title: "TPで装備枠を拡張しますか？",
+                text: nextSlot <= config.deck.maxSlotLimit
+                    ? `TPを${slotCost}消費して、装備枠を${nextSlot}枚にします。装備枠拡張コストは通常TP消費とは別カウントです。`
+                    : "装備枠はすでに上限です。",
+                cost: nextSlot <= config.deck.maxSlotLimit ? slotCost : null,
+                confirmLabel: "装備枠を増やす",
+                disabledMessage: "装備枠はすでに上限です。",
+            },
         };
-        addRunLog(state.activeRun, "カード選択のため、白風が手元に集まった。");
-        return state.activeRun;
+        const meta = table[action];
+        if (!meta) return null;
+        return {
+            ...meta,
+            disabled: !meta.cost || state.tower.bp < meta.cost,
+            disabledMessage: meta.disabledMessage || `TPが足りません。必要TP: ${meta.cost}`,
+        };
+    }
+
+    function syncActiveRunLoadout() {
+        const run = state.activeRun;
+        if (!run || run.status !== "active") return;
+        const valmon = config.valmons.find((row) => row.id === Number(run.valmonId));
+        if (!valmon) return;
+        const setting = settingForValmon(valmon);
+        run.baseTuning = { ...setting.tuning };
+        run.equippedOrbCodes = [...state.tower.deckCardCodes];
+        const stats = runStats(run);
+        const previousMaxHp = Number(run.maxHp || stats.maxHp);
+        run.maxHp = stats.maxHp;
+        if (stats.maxHp > previousMaxHp) {
+            run.currentHp += stats.maxHp - previousMaxHp;
+        }
+        run.currentHp = clamp(run.currentHp, 0, run.maxHp);
+        state.tower.currentHp = run.currentHp;
+        state.tower.maxHp = run.maxHp;
+    }
+
+    function buyCoinTuningPoint() {
+        if (state.tower.coinTuningPointCount >= (config.coin.tuningPointPurchaseLimit || 10)) {
+            flash("金貨で買えるTPは上限です。", "error");
+            return;
+        }
+        if (!consumeCoin(config.coin.tuningPointCost || 1)) {
+            flash("使用できる金貨がありません。", "error");
+            return;
+        }
+        state.tower.coinTuningPointCount += 1;
+        state.tower.seasonTuningBonusPoints += 1;
+        syncActiveRunLoadout();
+        saveState();
+        flash("シーズンTPが+1されました。");
+        render();
+    }
+
+    function buyBpTuningPoint() {
+        const cost = nextBpActionCost();
+        if (!consumeBpNormalAction(cost)) {
+            flash("TPが足りません。", "error");
+            return;
+        }
+        state.tower.bpTuningPointCount += 1;
+        state.tower.seasonTuningBonusPoints += 1;
+        syncActiveRunLoadout();
+        saveState();
+        flash(`シーズンTPが+1されました。TP ${cost}消費。`);
+        render();
     }
 
     function spendBp(action) {
         const tower = state.tower;
-        const costs = {
-            attack: config.bp.atkUpgradeCost,
-            defense: config.bp.defUpgradeCost,
-            detect: config.bp.detectUpgradeCost,
-            evasion: config.bp.evasionUpgradeCost,
-            hp: config.bp.hpUpgradeCost,
-            heal: config.bp.healCost,
-        };
         if (action === "slot") {
             const nextSlot = tower.deckSlotLimit + 1;
-            const cost = config.deck.expandCosts[nextSlot];
+            const cost = nextDeckSlotExpandCost();
             if (!cost || tower.bp < cost) return;
             tower.bp -= cost;
             tower.spentBp += cost;
+            tower.deckSlotExpandCount += 1;
             tower.deckSlotLimit = nextSlot;
-            flash(`装備枠が${nextSlot}枚になりました。`);
-        } else if (action === "heal") {
-            const cost = costs.heal;
-            if (tower.bp < cost) return;
-            tower.bp -= cost;
-            tower.spentBp += cost;
-            tower.currentHp = tower.maxHp || config.baseStats.hp;
-            if (state.activeRun) state.activeRun.currentHp = state.activeRun.maxHp;
-            flash("HPを全回復しました。");
-        } else if (costs[action]) {
-            if (tower.bp < costs[action]) return;
-            tower.bp -= costs[action];
-            tower.spentBp += costs[action];
-            tower.upgrades[action] = Number(tower.upgrades[action] || 0) + 1;
-            flash(`${config.tuning.labels[action] || "最大HP"}を強化しました。`);
+            flash(`装備枠が${nextSlot}枚になりました。TP ${cost}消費。`);
         }
+        syncActiveRunLoadout();
         saveState();
         render();
     }
 
-    function applyCardChoice(run, choice, cardCode) {
+    function applyCardChoice(cardCode) {
         const tower = state.tower;
         const card = cardByCode(cardCode);
         if (!card || tower.ownedCardCodes.includes(cardCode)) return;
@@ -1538,42 +1821,23 @@
         if (tower.deckCardCodes.length < tower.deckSlotLimit) {
             tower.deckCardCodes.push(cardCode);
         }
-        addRunLog(run, `${run.valmonName}は「${card.name}」を見つけた。デッキ候補に加わった。`, {
-            choiceType: choice.choiceType || "card_reward",
-            cardCode,
-            cardName: card.name,
-            sourceFloor: choice.sourceFloor || null,
-        });
-    }
-
-    function applyTemporaryOrbChoice(run, orbCode) {
-        if (orbCode !== "keep") {
-            run.tempOrbCode = orbCode;
-            const orb = config.tempOrbs.find((row) => row.code === orbCode);
-            addRunLog(run, `深層の「${orb.name}」を一時カードにした。`, {
-                choiceType: "temporary_orb",
-                orbCode,
-                orbName: orb.name,
-            });
-        } else {
-            addRunLog(run, "現在の一時カードを維持した。", {
-                choiceType: "temporary_orb",
-                orbCode,
-                orbName: "維持する",
-            });
-        }
+        flash(`「${card.name}」を手に入れた！`);
     }
 
     function render() {
         ensureSeason();
+        const recovered = applyHpRecovery();
+        if (recovered) saveState();
         renderStamina();
         renderTowerSummary();
         renderPrepare();
         renderDeparture();
         renderRun();
+        renderResult();
+        renderCardChoice();
         renderRanking();
-        renderChoices();
         renderStatus();
+        renderHpRecoveryStatus();
         updateActionStates();
     }
 
@@ -1585,10 +1849,96 @@
         $("staminaMaxText").textContent = `/${fmt(state.stamina.max)}`;
     }
 
+    function syncTowerHpMax(maxHp) {
+        const tower = state.tower;
+        const safeMax = Math.max(1, Math.round(Number(maxHp || config.baseStats.hp)));
+        const previousMax = Math.max(1, Number(tower.maxHp || safeMax));
+        const previousHp = Number(tower.currentHp ?? previousMax);
+        tower.maxHp = safeMax;
+        tower.currentHp = clamp(previousHp, 0, safeMax);
+        if (!tower.lastHpRecoveredAt) tower.lastHpRecoveredAt = nowIso();
+    }
+
+    function applyHpRecovery() {
+        const tower = state.tower;
+        const maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        tower.currentHp = clamp(Number(tower.currentHp ?? maxHp), 0, maxHp);
+        if (!tower.lastHpRecoveredAt) tower.lastHpRecoveredAt = nowIso();
+        if (tower.currentHp >= maxHp) {
+            tower.lastHpRecoveredAt = nowIso();
+            return false;
+        }
+        const lastAt = new Date(tower.lastHpRecoveredAt).getTime();
+        if (!Number.isFinite(lastAt)) {
+            tower.lastHpRecoveredAt = nowIso();
+            return false;
+        }
+        const ticks = Math.floor(Math.max(0, Date.now() - lastAt) / hpRecoveryIntervalMs);
+        if (ticks <= 0) return false;
+        const recoveryBonus = towerDeckBonus("milestoneHealBonus");
+        const healPerTick = Math.max(1, Math.ceil(maxHp * (hpRecoveryRate + recoveryBonus)));
+        const before = tower.currentHp;
+        tower.currentHp = clamp(tower.currentHp + (ticks * healPerTick), 0, maxHp);
+        tower.lastHpRecoveredAt = new Date(lastAt + (ticks * hpRecoveryIntervalMs)).toISOString();
+        if (tower.currentHp >= maxHp) tower.lastHpRecoveredAt = nowIso();
+        return tower.currentHp !== before;
+    }
+
+    function nextHpRecoveryRemainingMs() {
+        const tower = state.tower;
+        const maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        if (Number(tower.currentHp || 0) >= maxHp) return 0;
+        const lastAt = new Date(tower.lastHpRecoveredAt || nowIso()).getTime();
+        const elapsed = Math.max(0, Date.now() - lastAt);
+        return Math.max(0, hpRecoveryIntervalMs - (elapsed % hpRecoveryIntervalMs));
+    }
+
+    function naturalHpRecoveryAmount() {
+        const maxHp = Math.max(1, Number(state.tower.maxHp || config.baseStats.hp));
+        const recoveryBonus = towerDeckBonus("milestoneHealBonus");
+        return Math.max(1, Math.ceil(maxHp * (hpRecoveryRate + recoveryBonus)));
+    }
+
+    function goldRestCost() {
+        const floor = clamp(Number(state.tower.currentFloorToChallenge || 1), 1, config.season.maxFloorTarget);
+        return floor * goldRestCostPerFloor;
+    }
+
+    function goldRestHealAmount() {
+        const bonus = towerDeckBonus("restHealBonus") + towerDeckBonus("milestoneHealBonus");
+        return Math.max(1, Math.ceil(Number(state.tower.maxHp || config.baseStats.hp) * (goldRestHealRate + bonus)));
+    }
+
+    function renderHpRecoveryStatus() {
+        const tower = state.tower;
+        const hp = clamp(Number(tower.currentHp || 0), 0, Number(tower.maxHp || config.baseStats.hp));
+        const maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        if ($("topHpText")) $("topHpText").textContent = `${fmt(hp)}/${fmt(maxHp)}`;
+        if ($("topGoldText")) $("topGoldText").textContent = fmt(tower.gold || 0);
+        if (!$("hpRecoveryText")) return;
+        $("hpRecoveryText").textContent = `HP ${fmt(hp)} / ${fmt(maxHp)}`;
+        const restCost = goldRestCost();
+        const healAmount = goldRestHealAmount();
+        if (hp >= maxHp) {
+            $("hpRecoveryTimerText").textContent = "HPは満タンです";
+        } else {
+            $("hpRecoveryTimerText").textContent = `自然回復 +${fmt(naturalHpRecoveryAmount())} / あと ${formatDuration(nextHpRecoveryRemainingMs())} / 休息 +${fmt(healAmount)}`;
+        }
+        const button = $("goldRestButton");
+        if (button) {
+            button.textContent = `Gold休息 ${fmt(restCost)}G`;
+            button.disabled = hp >= maxHp || Number(tower.gold || 0) < restCost;
+        }
+        if ($("resultHpRecoveryPanel") && !$("resultHpRecoveryPanel").hidden) {
+            renderResultHpRecovery();
+        }
+    }
+
     function naturalUnlockedCoinCount() {
         const elapsed = Math.max(0, Date.now() - new Date(state.season.startsAt).getTime());
         const intervals = Math.floor(elapsed / (config.season.naturalCoinIntervalHours * 60 * 60 * 1000));
-        return clamp(intervals * config.season.naturalCoinAmountPerInterval, 0, config.season.naturalCoinMax);
+        const unlockedBatches = intervals + 1;
+        return clamp(unlockedBatches * config.season.naturalCoinAmountPerInterval, 0, config.season.naturalCoinMax);
     }
 
     function claimableCoinCount() {
@@ -1605,7 +1955,7 @@
         if (claimed >= config.season.naturalCoinMax) return 0;
         const intervalMs = config.season.naturalCoinIntervalHours * 60 * 60 * 1000;
         const amount = config.season.naturalCoinAmountPerInterval;
-        const nextBatchIndex = Math.floor(claimed / amount) + 1;
+        const nextBatchIndex = Math.floor(claimed / amount);
         const nextAt = new Date(state.season.startsAt).getTime() + (nextBatchIndex * intervalMs);
         return Math.max(0, nextAt - Date.now());
     }
@@ -1632,8 +1982,8 @@
             $("coinClaimText").textContent = `次の金貨取得まであと ${formatDuration(nextCoinRemainingMs())}`;
             button.hidden = true;
         }
-        if ($("towerCoinText")) {
-            $("towerCoinText").textContent = fmt(availableCoinCount());
+        if ($("topCoinText")) {
+            $("topCoinText").textContent = fmt(availableCoinCount());
         }
     }
 
@@ -1653,15 +2003,12 @@
         const tower = state.tower;
         $("seasonPeriodText").textContent = `${formatDate(state.season.startsAt)}〜${formatDate(state.season.endsAt)}`;
         $("towerCurrentFloorText").textContent = `${fmt(tower.currentFloorToChallenge)}階`;
+        $("startCurrentFloorText").textContent = `現在地下${fmt(tower.currentFloorToChallenge)}階`;
         $("towerBestFloorText").textContent = `${fmt(tower.highestClearedFloor)}階`;
-        $("towerCoinText").textContent = fmt(availableCoinCount());
-        $("towerBpText").textContent = fmt(tower.bp);
-        $("towerActiveCardText").textContent = `${tower.activeCardCodes.length}/100`;
-        $("towerDormantCardText").textContent = `${tower.dormantCardCodes.length}/100`;
+        $("topCoinText").textContent = fmt(availableCoinCount());
+        $("topBpText").textContent = fmt(tower.bp);
+        renderHpRecoveryStatus();
         renderCoinClaimStatus();
-        $("dormantCardList").innerHTML = tower.dormantCardCodes.map(cardByCode).filter(Boolean).map((card) => (
-            `<span class="run-chip">${orbIcon(card)}${escapeHtml(card.name)}</span>`
-        )).join("");
     }
 
     function ensureSeason() {
@@ -1677,28 +2024,35 @@
     function renderPrepare() {
         const valmon = draftValmon();
         const setting = draftSetting();
-        const limit = tuningPointLimit(valmon.level);
+        const limit = tuningPointLimit(valmon.level, state.tower?.seasonTuningBonusPoints || 0);
         const total = statKeys.reduce((sum, key) => sum + Number(setting.tuning[key] || 0), 0);
+        const stats = calculateStats(valmon, setting.tuning, emptyTuning(), state.tower.deckCardCodes || [], null);
+        syncTowerHpMax(stats.maxHp);
+        const hp = clamp(Number(state.tower.currentHp || 0), 0, stats.maxHp);
         $("selectedValmonImage").src = `../../../public/images/valmon/${valmon.image}`;
         $("selectedValmonName").textContent = valmon.name;
-        $("selectedValmonMeta").textContent = `Lv${valmon.level} / 調律ポイント ${limit}`;
-        $("tuningRemainingText").textContent = String(limit - total);
-        $("tuningLimitLabel").textContent = `上限 ${config.tuning.statCap} / 合計 ${limit}`;
+        $("selectedValmonMeta").textContent = `Lv${valmon.level} / 基礎能力値 ${limit}`;
+        $("selectedValmonHpText").textContent = `${fmt(hp)} / ${fmt(stats.maxHp)}`;
+        setHpBar("selectedValmonHpBar", hp, stats.maxHp);
+        $("tuningLimitLabel").textContent = `合計 ${limit} / 追加 ${state.tower.seasonTuningBonusPoints}`;
         renderTuningList();
         renderOrbList();
         const validation = validateSetting(valmon);
         $("tuningError").textContent = !validation.ok && validation.target === "tuning" ? validation.message : "";
         $("orbError").textContent = !validation.ok && validation.target === "orb" ? validation.message : "";
+        renderCostActionStates();
     }
 
     function renderTuningList() {
         const setting = draftSetting();
+        const limit = tuningPointLimit(draftValmon().level, state.tower?.seasonTuningBonusPoints || 0);
+        const total = statKeys.reduce((sum, key) => sum + Number(setting.tuning[key] || 0), 0);
+        const hasRemaining = total < limit;
         $("tuningList").innerHTML = statKeys.map((key) => `
             <div class="tuning-row">
                 <label>${statIcon(key)}<span>${config.tuning.labels[key]}</span></label>
-                <button type="button" class="step-button" data-tuning="${key}" data-delta="-1">-</button>
                 <div class="tuning-value">${setting.tuning[key] || 0}</div>
-                <button type="button" class="step-button" data-tuning="${key}" data-delta="1">+</button>
+                <button type="button" class="step-button" data-tuning="${key}" data-delta="1" title="${hasRemaining ? "残りTPを振り分ける（振り直し不可）" : "追加TPを取得して上げる"}">+</button>
             </div>
         `).join("");
     }
@@ -1712,47 +2066,161 @@
     function renderOrbList() {
         const tower = state.tower;
         $("selectedOrbText").textContent = `${tower.deckCardCodes.length} / ${tower.deckSlotLimit}`;
-        const ownedCards = tower.ownedCardCodes.map(cardByCode).filter(Boolean);
-        $("orbList").innerHTML = ownedCards.length ? ownedCards.map((orb) => {
-            const active = tower.deckCardCodes.includes(orb.code) ? " active" : "";
+        const deckCodes = tower.deckCardCodes || [];
+        let ownedCards = tower.ownedCardCodes.map(cardByCode).filter(Boolean);
+        const shouldShowDeckSlots = deckFilter === "all" || deckFilter === "equipped";
+        ownedCards = ownedCards.filter((orb) => {
+            if (deckFilter === "equipped") return deckCodes.includes(orb.code);
+            if (deckFilter === "unequipped") return !deckCodes.includes(orb.code);
+            if (deckFilter === "all") return true;
+            return orb.category === deckFilter;
+        });
+        ownedCards.sort((a, b) => compareDeckCards(a, b, deckCodes));
+        const cardHtml = ownedCards.map((orb) => {
+            const active = deckCodes.includes(orb.code) ? " active" : "";
             return `<button type="button" class="orb-card${active}" data-orb-code="${orb.code}">
-                ${orbIcon(orb)}
+                ${cardArt(orb)}
                 <span class="orb-card-body">
                     <strong>${orb.name}</strong>
                     <span>${categoryLabel(orb.category)} / ${orb.rarity || "N"}</span>
                     <p class="muted">${orb.description}</p>
                 </span>
             </button>`;
-        }).join("") : `<p class="empty-note">まだカードを所持していません。金貨か1〜10階の初回突破報酬でカードを得ます。</p>`;
+        }).join("");
+        const deckSlotHtml = shouldShowDeckSlots ? renderDeckSlotCards(deckCodes) : "";
+        const extraCardHtml = shouldShowDeckSlots && deckFilter === "all"
+            ? ownedCards.filter((orb) => !deckCodes.includes(orb.code)).map((orb) => `
+                <button type="button" class="orb-card deck-extra-card" data-orb-code="${orb.code}">
+                    ${cardArt(orb)}
+                    <span class="orb-card-body">
+                        <strong>${orb.name}</strong>
+                        <span>${categoryLabel(orb.category)} / ${orb.rarity || "N"}</span>
+                        <p class="muted">${orb.description}</p>
+                    </span>
+                </button>
+            `).join("")
+            : "";
+        $("orbList").innerHTML = shouldShowDeckSlots
+            ? `${deckSlotHtml}${extraCardHtml}`
+            : cardHtml || `<p class="empty-note">まだカードを所持していません。金貨か1〜10階の初回突破報酬でカードを得ます。</p>`;
         renderBpActions();
+    }
+
+    function renderDeckSlotCards(deckCodes) {
+        const slotLimit = state.tower.deckSlotLimit || deckSlotDefault;
+        const maxSlotLimit = config.deck.maxSlotLimit || slotLimit;
+        const unlockedSlots = Array.from({ length: slotLimit }, (_, index) => {
+            const card = cardByCode(deckCodes[index]);
+            if (!card) {
+                return `<div class="orb-card deck-slot-empty" aria-label="空きスロット ${index + 1}">
+                    ${cardBackArt("card-art card-back-art deck-slot-back")}
+                    <span class="orb-card-body">
+                        <strong>空きスロット</strong>
+                        <span>${index + 1} / ${slotLimit}</span>
+                        <p class="muted">カードを装備できます</p>
+                    </span>
+                </div>`;
+            }
+            return `<button type="button" class="orb-card active deck-slot-card" data-orb-code="${card.code}">
+                ${cardArt(card)}
+                <span class="orb-card-body">
+                    <strong>${card.name}</strong>
+                    <span>${categoryLabel(card.category)} / ${card.rarity || "N"}</span>
+                <p class="muted">${card.description}</p>
+                </span>
+            </button>`;
+        });
+        const lockedSlots = Array.from({ length: Math.max(0, maxSlotLimit - slotLimit) }, (_, index) => {
+            const slotNumber = slotLimit + index + 1;
+            const cost = deckSlotExpandCostForSlot(slotNumber);
+            const isNextSlot = index === 0;
+            const tagName = isNextSlot ? "button" : "div";
+            const actionAttr = isNextSlot ? ' type="button" data-bp-action="slot"' : "";
+            const ariaLabel = isNextSlot ? `装備枠 ${slotNumber} をTP ${cost}で解放` : `未解放スロット ${slotNumber}`;
+            return `<${tagName}${actionAttr} class="orb-card deck-slot-locked${isNextSlot ? " is-next" : ""}" aria-label="${ariaLabel}">
+                ${cardBackArt("card-art card-back-art deck-slot-back")}
+                <span class="deck-slot-unlock-badge">TP ${fmt(cost)}で解放</span>
+                <span class="orb-card-body">
+                    <strong>未解放スロット</strong>
+                    <span>${slotNumber} / ${maxSlotLimit}</span>
+                </span>
+            </${tagName}>`;
+        });
+        return [...unlockedSlots, ...lockedSlots].join("");
+    }
+
+    function compareDeckCards(a, b, deckCodes) {
+        const equippedDiff = Number(deckCodes.includes(b.code)) - Number(deckCodes.includes(a.code));
+        if (deckSort === "equipped" && equippedDiff !== 0) return equippedDiff;
+        if (deckSort === "category") {
+            const categoryDiff = categorySortRank(a.category) - categorySortRank(b.category);
+            if (categoryDiff !== 0) return categoryDiff;
+        }
+        if (deckSort === "rarity") {
+            const rarityDiff = raritySortRank(b.rarity) - raritySortRank(a.rarity);
+            if (rarityDiff !== 0) return rarityDiff;
+        }
+        return String(a.name).localeCompare(String(b.name), "ja");
+    }
+
+    function categorySortRank(category) {
+        const index = ["attack", "defense", "heal", "explore", "evasion"].indexOf(category);
+        return index >= 0 ? index : 99;
+    }
+
+    function raritySortRank(rarity) {
+        return { N: 1, R: 2, SR: 3, SSR: 4 }[rarity] || 0;
     }
 
     function renderBpActions() {
         const tower = state.tower;
-        $("bpUpgradeLabel").textContent = `未使用BP ${fmt(tower.bp)}`;
+        $("bpUpgradeLabel").textContent = `未使用TP ${fmt(tower.bp)} / 次 ${fmt(nextBpActionCost())}TP`;
         const nextSlot = tower.deckSlotLimit + 1;
-        const slotCost = config.deck.expandCosts[nextSlot] || null;
+        const slotCost = nextSlot <= config.deck.maxSlotLimit ? nextDeckSlotExpandCost() : null;
         const actions = [
-            { key: "attack", label: "攻撃 +1", cost: config.bp.atkUpgradeCost },
-            { key: "defense", label: "防御 +1", cost: config.bp.defUpgradeCost },
-            { key: "detect", label: "探索 +1", cost: config.bp.detectUpgradeCost },
-            { key: "evasion", label: "回避 +1", cost: config.bp.evasionUpgradeCost },
-            { key: "hp", label: "最大HP +10", cost: config.bp.hpUpgradeCost },
-            { key: "heal", label: "HP全回復", cost: config.bp.healCost },
-            { key: "slot", label: nextSlot <= config.deck.maxSlotLimit ? `装備枠 +1` : "装備枠 最大", cost: slotCost },
+            { key: "slot", label: nextSlot <= config.deck.maxSlotLimit ? `装備枠 +1` : "装備枠 最大", cost: slotCost, kind: "拡張TP" },
         ];
         $("bpActionGrid").innerHTML = actions.map((action) => {
             const disabled = !action.cost || tower.bp < action.cost;
             return `<button type="button" class="bp-action" data-bp-action="${action.key}" ${disabled ? "disabled" : ""}>
                 <strong>${action.label}</strong>
-                <span>${action.cost ? `${action.cost}BP` : "上限"}</span>
+                <span>${action.cost ? `${action.kind} ${action.cost}TP` : "上限"}</span>
             </button>`;
         }).join("");
+    }
+
+    function renderCostActionStates() {
+        const pendingChoice = Boolean(pendingCardChoice());
+        $("openCardDrawButton").disabled = false;
+        $("openCardDrawButton").textContent = pendingChoice ? "カード報酬を選ぶ" : "カードを取得する";
+        if ($("resultCardButton")) {
+            $("resultCardButton").disabled = false;
+            $("resultCardButton").textContent = pendingChoice ? "カード報酬を選ぶ" : "カードを取得する";
+        }
+        if (!$("tuningUpgradeModal").hidden) renderTuningUpgradeModal();
+        if (!$("cardDrawModal").hidden) renderCardDrawModal();
     }
 
     function orbIcon(orb) {
         if (!orb?.icon) return "";
         return `<img class="orb-icon" src="../../../public/images/icon/${orb.icon}" alt="" aria-hidden="true">`;
+    }
+
+    function cardArt(orb, className = "card-art") {
+        const file = orb?.cardImage || cardArtFileFor(orb);
+        if (!file) return orbIcon(orb);
+        return `<img class="${className}" src="../../../public/images/valmon/card/${file}" alt="" aria-hidden="true">`;
+    }
+
+    function cardArtFileFor(orb) {
+        const baseNumber = cardArtNumberByCategory[orb?.category];
+        if (!baseNumber) return null;
+        const offset = cardArtRarityOffset[orb?.rarity || "N"] ?? 0;
+        return `val_card${String(baseNumber + offset).padStart(2, "0")}.webp`;
+    }
+
+    function cardBackArt(className = "card-art card-back-art") {
+        return `<img class="${className}" src="../../../public/images/valmon/card/val_card00.webp" alt="" aria-hidden="true">`;
     }
 
     function renderDeparture() {
@@ -1824,12 +2292,141 @@
             ? `地下${pageEvent.floorNumber}階`
             : "入口";
         renderDepthProgress(run, pageEvent);
+        const eventVisualHeader = pageEvent && !isCombatEvent(pageEvent) ? renderEventVisualHeader(pageEvent) : "";
         $("runLog").innerHTML = pageEvent
-            ? renderLeadingChoiceLogEvents(run, pageEvent) + renderBattleTimeline(run, [pageEvent]) + renderTrailingLogEvents(run, pageEvent)
+            ? eventVisualHeader
+                + renderLeadingChoiceLogEvents(run, pageEvent)
+                + renderBattleTimeline(run, [pageEvent])
+                + renderTrailingLogEvents(run, pageEvent)
             : `<p class="empty-note">${escapeHtml(run.valmonName)}が地下入口で待機しています。</p>`;
         const last = pageEvent;
         $("lastEvent").innerHTML = last ? escapeHtml(last.logText).replace(/\n/g, "<br>") : "まだ進行していません。";
         renderEventStage(run);
+    }
+
+    function floorHint(floorNumber) {
+        if (floorNumber % 10 === 0) {
+            return "階層主の気配がする。長期戦になりそうだ。";
+        }
+        const rng = seededRandom(`${state.season.seed}:hint:${floorNumber}`);
+        const hints = [
+            "硬い殻を持つ敵の気配。攻めの厚みがほしい。",
+            "黒い風がざわついている。罠と回避に備えたい。",
+            "小さな宝の匂いがする。探知が役立ちそうだ。",
+            "足音の多い階層のようだ。連戦に備えたい。",
+            "静かな階層のようだ。落ち着いて進めそうだ。",
+        ];
+        return hints[Math.floor(rng() * hints.length)];
+    }
+
+    function renderResult() {
+        const result = state.lastResult;
+        const tower = state.tower;
+        const nextFloor = clamp(Number(tower.currentFloorToChallenge || 1), 1, config.season.maxFloorTarget);
+        const hasStamina = Number(state.stamina?.current || 0) > 0;
+        const hasHp = Number(tower.currentHp || 0) > 0;
+        const panel = $("resultPanel");
+        if (!result || result.status !== "ended") {
+            panel.classList.remove("victory", "defeat");
+            $("resultEyebrow").textContent = "帰還";
+            $("resultTitle").textContent = "まだ出撃していません。";
+            $("resultRewardText").textContent = "";
+            $("resultInfoText").textContent = `現在階層：地下${fmt(nextFloor)}階`;
+            $("resultHpRecoveryPanel").hidden = true;
+            $("resultFloorHint").textContent = "";
+            $("resultSortieButton").disabled = true;
+            $("resultSortieButton").textContent = "出撃する";
+            return;
+        }
+
+        const victory = result.sortieResult === "victory";
+        panel.classList.toggle("victory", victory);
+        panel.classList.toggle("defeat", !victory);
+        $("resultValmonImage").src = `../../../public/images/valmon/${(config.valmons.find((row) => row.id === Number(result.valmonId)) || selectedValmon()).image}`;
+        $("resultEyebrow").textContent = victory ? "突破" : "帰還";
+        $("resultTitle").textContent = victory
+            ? `地下${fmt(result.currentFloor)}階を突破！`
+            : `地下${fmt(result.targetFloor)}階で敗北……`;
+        $("resultRewardText").textContent = victory
+            ? (result.rewardBp > 0
+                ? `獲得：TP +${fmt(result.rewardBp)} / スコア +${fmt(result.score)}`
+                : "この階層の報酬は獲得済みです")
+            : "カードやTPを見直して再挑戦できます";
+        $("resultInfoText").textContent = `次の挑戦：地下${fmt(nextFloor)}階 / HP ${fmt(tower.currentHp)} / ${fmt(tower.maxHp)}`;
+        renderResultHpRecovery();
+        $("resultFloorHint").textContent = `地下${fmt(nextFloor)}階の気配：${floorHint(nextFloor)}`;
+        $("resultSortieButton").disabled = !hasStamina || !hasHp || Boolean(pendingCardChoice());
+        $("resultSortieButton").textContent = !hasStamina
+            ? "探索力不足"
+            : !hasHp
+                ? "HP回復待ち"
+            : victory
+                ? `この編成のまま地下${fmt(nextFloor)}階へ`
+                : "この編成でもう一度挑戦";
+    }
+
+    function renderResultHpRecovery() {
+        const tower = state.tower;
+        const hp = clamp(Number(tower.currentHp || 0), 0, Number(tower.maxHp || config.baseStats.hp));
+        const maxHp = Math.max(1, Number(tower.maxHp || config.baseStats.hp));
+        $("resultHpRecoveryPanel").hidden = false;
+        $("resultHpText").textContent = `${fmt(hp)} / ${fmt(maxHp)}`;
+        setHpBar("resultHpBar", hp, maxHp);
+        if (hp >= maxHp) {
+            $("resultNextRecoveryText").textContent = "HPは満タンです";
+            $("resultRecoveryTimerText").textContent = "";
+        } else {
+            $("resultNextRecoveryText").textContent = `次回自然回復 +${fmt(naturalHpRecoveryAmount())}`;
+            $("resultRecoveryTimerText").textContent = `あと ${formatDuration(nextHpRecoveryRemainingMs())}`;
+        }
+        $("resultGoldRestText").textContent = `Gold休息 +${fmt(goldRestHealAmount())} / ${fmt(goldRestCost())}G`;
+    }
+
+    function renderCardChoice() {
+        const choice = pendingCardChoice();
+        if (!choice) {
+            $("cardChoiceTitle").textContent = "カードを選ぶ";
+            $("cardChoiceSource").textContent = "待機中";
+            $("cardChoiceLead").textContent = "選択中のカード候補はありません。";
+            $("cardChoiceOptions").innerHTML = "";
+            $("cardChoiceDetail").innerHTML = `<p class="empty-note">金貨、TP、または1〜10階の初回突破報酬でカード3択が発生します。</p>`;
+            $("cardChoiceConfirmButton").disabled = true;
+            return;
+        }
+
+        if (choice.selected) {
+            $("cardChoiceOptions").classList.remove("dealing");
+        }
+        const sourceLabel = {
+            coin: "金貨",
+            bp: "TP",
+            floor_reward: `${choice.sourceFloor || ""}階報酬`,
+        }[choice.choiceType] || "カード報酬";
+        $("cardChoiceTitle").textContent = `${selectedValmon().name}がカードの気配を見つけた。`;
+        $("cardChoiceSource").textContent = sourceLabel;
+        $("cardChoiceLead").textContent = "3枚のうち1枚を選んでください。候補は保存済みで、引き直しはできません。";
+        $("cardChoiceOptions").innerHTML = choice.options.map((code) => {
+            const card = cardByCode(code);
+            const isSelected = choice.selected === code;
+            return `<button type="button" class="draw-card${isSelected ? " selected" : ""}" data-choice-card="${code}" aria-pressed="${isSelected ? "true" : "false"}">
+                ${cardArt(card, "card-art draw-card-art")}
+                <strong>${escapeHtml(card.name)}</strong>
+                <span>${categoryLabel(card.category)} / ${card.rarity || "N"}</span>
+            </button>`;
+        }).join("");
+
+        const selected = cardByCode(choice.selected);
+        $("cardChoiceDetail").innerHTML = selected
+            ? `<div class="card-detail-head">
+                    ${cardArt(selected, "card-art card-detail-art")}
+                    <div>
+                        <strong>${escapeHtml(selected.name)}</strong>
+                        <span>${categoryLabel(selected.category)} / ${selected.rarity || "N"}</span>
+                    </div>
+                </div>
+                <p>${escapeHtml(selected.description)}</p>`
+            : `<p class="empty-note">カードを選ぶと、ここに効果の説明が表示されます。</p>`;
+        $("cardChoiceConfirmButton").disabled = !choice.selected;
     }
 
     function renderDepthProgress(run, pageEvent = null) {
@@ -1893,7 +2490,7 @@
         return {
             trap: "足元に黒風の罠が走った！",
             treasure: "奥で小さな光がまたたいた。",
-            rest: "白風の休憩所を見つけた。",
+            rest: "白風の広場に出た。",
             walk: "細い地下道が奥へ続いている。",
             omen: "黒い風の気配が流れてきた。",
         }[event?.eventType] || "地下の気配が近づいている。";
@@ -1926,7 +2523,7 @@
         const fallback = {
             trap: ["黒風の罠", "罠"],
             treasure: ["光る小箱", "探索"],
-            rest: ["白風の休憩所", "小休止"],
+            rest: ["白風の広場", "小休止"],
             walk: ["細い地下道", "移動探索"],
             omen: ["黒い風", "気配"],
         }[latest?.eventType] || ["地下の気配", `次: 地下${run.currentFloor + 1}階`];
@@ -1996,13 +2593,17 @@
         }
         return events
             .slice(previousPageIndex + 1, pageIndex)
-            .filter((event) => event.eventType === "log" && event.payload?.choiceType)
+            .filter((event) => event.eventType === "log")
             .map((event) => renderRunLogNote(event))
             .join("");
     }
 
+    function isHighlightLog(event) {
+        return String(event.logText || "").includes("突破した！");
+    }
+
     function renderRunLogNote(event) {
-        return `<p class="is-note">${formatBattleLogText(event)}</p>`;
+        return `<p class="is-note${isHighlightLog(event) ? " is-stairs" : ""}">${formatBattleLogText(event)}</p>`;
     }
 
     function isCombatEvent(event) {
@@ -2016,20 +2617,26 @@
         return {
             trap: { title: "黒風の罠", label: "罠", type: "trap" },
             treasure: { title: "光る小箱", label: "宝箱", type: "treasure" },
-            rest: { title: "白風の休憩所", label: "小休止", type: "rest" },
+            rest: { title: "白風の広場", label: "小休止", type: "rest" },
             walk: { title: "細い地下道", label: "移動探索", type: "walk" },
             omen: { title: "黒い風の気配", label: "気配", type: "omen" },
         }[event.eventType] || { title: "地下の気配", label: "出来事", type: "idle" };
+    }
+
+    function renderEventVisualHeader(event) {
+        const meta = eventVisualMeta(event);
+        return `
+            <div class="event-visual event-visual-${meta.type} event-visual-standalone">
+                <span>${escapeHtml(meta.label)}</span>
+                <strong>${escapeHtml(meta.title)}</strong>
+            </div>
+        `;
     }
 
     function renderEventFrame(run, valmon, event) {
         const meta = eventVisualMeta(event);
         return `
             <article class="event-turn event-${meta.type}">
-                <div class="event-visual event-visual-${meta.type}">
-                    <span>${escapeHtml(meta.label)}</span>
-                    <strong>${escapeHtml(meta.title)}</strong>
-                </div>
                 <div class="event-valmon-status">
                     <img src="../../../public/images/valmon/${valmon.image}" alt="">
                     <div>
@@ -2157,7 +2764,7 @@
             { label: "記録", value: `${fmt(run.bestClearedFloor)}階` },
             { label: "撃破", value: fmt(run.killCount + run.bossKillCount) },
             { label: "宝箱", value: fmt(run.treasureCount) },
-            { label: "待機選択", value: run.pendingChoices.length ? `${run.pendingChoices.length}件` : "なし" },
+            { label: "敗北", value: `${fmt(state.tower.defeatCount || 0)}回` },
         ];
     }
 
@@ -2176,8 +2783,9 @@
         $("statusStateLabel").textContent = isActive ? "探索中" : run ? "探索終了" : "準備中";
         $("statusValmonName").textContent = run ? run.valmonName : valmon.name;
         $("statusValmonMeta").textContent = `Lv${run ? run.valmonLevel : valmon.level}`;
-        $("statusHpText").textContent = run ? `${fmt(run.currentHp)} / ${fmt(run.maxHp)}` : `${fmt(stats.maxHp)} / ${fmt(stats.maxHp)}`;
-        setHpBar("statusHpBar", run ? run.currentHp : stats.maxHp, run ? run.maxHp : stats.maxHp);
+        const statusHp = run ? run.currentHp : clamp(Number(state.tower.currentHp || 0), 0, stats.maxHp);
+        $("statusHpText").textContent = `${fmt(statusHp)} / ${fmt(run ? run.maxHp : stats.maxHp)}`;
+        setHpBar("statusHpBar", statusHp, run ? run.maxHp : stats.maxHp);
         $("statusFloorText").textContent = `${fmt(state.tower.highestClearedFloor)}階`;
         $("statusRouteText").textContent = run ? activeRoute(run).name : "挑戦前";
         $("statusScoreText").textContent = fmt(Math.max(Number(state.tower.score || 0), Number(run?.score || 0)));
@@ -2189,79 +2797,6 @@
         $("statusOrbChips").innerHTML = orbs.map((orb) => `
             <span class="run-chip">${orbIcon(orb)}${escapeHtml(orb.name)}</span>
         `).join("") || `<span class="muted">カード未装備</span>`;
-    }
-
-    function renderChoices() {
-        const run = state.activeRun;
-        const panel = $("choicePanel");
-        if (!run || !run.pendingChoices.length) {
-            panel.hidden = true;
-            return;
-        }
-        const choice = run.pendingChoices[0];
-        panel.hidden = false;
-        if (choice.type === "route") {
-            $("choiceTitle").textContent = `${run.valmonName}が分かれ道で足を止めた。`;
-            $("choiceLead").textContent = `地下${run.currentFloor + 1}階の奥から、いくつもの気配が流れてくる。`;
-            $("choiceOptions").innerHTML = choice.options.map((code) => {
-                const route = config.routes[code];
-                const isSelected = choice.selected === code;
-                return `<button type="button" class="choice-card${isSelected ? " selected" : ""}" data-choice-route="${code}" aria-pressed="${isSelected ? "true" : "false"}">
-                    <strong>${route.name}</strong>
-                    <span>${escapeHtml(route.desc)}</span>
-                </button>`;
-            }).join("");
-        } else if (choice.type === "temporary_tuning") {
-            $("choiceTitle").textContent = "白風の加護を得た。";
-            $("choiceLead").textContent = "今回の挑戦中だけ、調律を1つ強化できます。";
-            $("choiceOptions").innerHTML = statKeys.map((key) => `
-                <button type="button" class="choice-card${choice.selected === key ? " selected" : ""}" data-choice-tuning="${key}" aria-pressed="${choice.selected === key ? "true" : "false"}">
-                    ${statIcon(key)}
-                    <span class="choice-card-body">
-                        <strong>${config.tuning.labels[key]} +1</strong>
-                        <span>このrun中だけ有効</span>
-                    </span>
-                </button>
-            `).join("");
-        } else if (choice.type === "card_reward") {
-            $("choiceTitle").textContent = choice.choiceType === "coin"
-                ? "金貨がカードを呼んだ。"
-                : choice.choiceType === "bp"
-                    ? "深層BPでカードを引き寄せた。"
-                    : `${run.valmonName}が階層の奥でカードを見つけた。`;
-            $("choiceLead").textContent = "次の3枚から1枚を選べます。選ぶまで候補は固定されます。";
-            $("choiceOptions").innerHTML = choice.options.map((code) => {
-                const card = cardByCode(code);
-                const isSelected = choice.selected === code;
-                return `<button type="button" class="choice-card${isSelected ? " selected" : ""}" data-choice-card="${code}" aria-pressed="${isSelected ? "true" : "false"}">
-                    ${orbIcon(card)}
-                    <span class="choice-card-body">
-                        <strong>${escapeHtml(card.name)}</strong>
-                        <span>${categoryLabel(card.category)} / ${card.rarity || "N"}</span>
-                        <p class="muted">${escapeHtml(card.description)}</p>
-                    </span>
-                </button>`;
-            }).join("");
-        } else {
-            $("choiceTitle").textContent = "地下の一時カードが反応している。";
-            $("choiceLead").textContent = run.tempOrbCode
-                ? `現在の一時カード: ${config.tempOrbs.find((orb) => orb.code === run.tempOrbCode)?.name || "なし"}`
-                : "今回の挑戦中だけ、1つ選べます。";
-            const keep = run.tempOrbCode
-                ? `<button type="button" class="choice-card${choice.selected === "keep" ? " selected" : ""}" data-choice-orb="keep" aria-pressed="${choice.selected === "keep" ? "true" : "false"}"><strong>維持する</strong><span>今の一時カードを使い続ける</span></button>`
-                : "";
-            $("choiceOptions").innerHTML = keep + choice.options.map((code) => {
-                const orb = config.tempOrbs.find((row) => row.code === code);
-                const isSelected = choice.selected === code;
-                return `<button type="button" class="choice-card${isSelected ? " selected" : ""}" data-choice-orb="${code}" aria-pressed="${isSelected ? "true" : "false"}">
-                    ${orbIcon(orb)}
-                    <span class="choice-card-body">
-                        <strong>${orb.name}</strong>
-                        <span>${orb.description}</span>
-                    </span>
-                </button>`;
-            }).join("");
-        }
     }
 
     function renderRanking() {
@@ -2300,35 +2835,30 @@
     function updateActionStates() {
         const startCheck = canStartRun();
         const hasStamina = Number(state.stamina?.current || 0) > 0;
+        const hasHp = Number(state.tower.currentHp || 0) > 0;
         const run = state.activeRun;
-        const currentChoice = run?.pendingChoices?.[0] || null;
-        const waitsForChoiceSelection = Boolean(currentChoice && !currentChoice.selected);
-        $("startRunButton").disabled = !startCheck.ok;
-        $("startRunButton").textContent = startCheck.action === "resume" ? "挑戦へ戻る" : "挑戦開始";
+        const hasSortieResult = !run && state.lastResult?.status === "ended";
+        const needsCardChoice = startCheck.target === "card-choice";
+        $("startRunButton").disabled = !startCheck.ok && !needsCardChoice;
+        $("startRunButton").textContent = needsCardChoice
+            ? "カード報酬を選ぶ"
+            : startCheck.action === "resume" ? "出撃へ戻る" : hasHp ? "出撃する" : "HP回復待ち";
         $("departureStartButton").disabled = isAdvancing || !run || !hasStamina;
         $("departureStartButton").classList.toggle("loading", isAdvancing);
         $("departureStartButton").textContent = isAdvancing ? "探索中..." : hasStamina ? "探索へ" : "探索力不足";
-        $("advanceButton").disabled = isAdvancing || !run || waitsForChoiceSelection || !hasStamina;
+        $("advanceButton").disabled = isAdvancing || (!run && !hasSortieResult) || (run && !hasStamina);
         $("advanceButton").classList.toggle("loading", isAdvancing);
-        $("deckEditButton").disabled = isAdvancing || !run;
-        ["retireLink", "departureRetireLink"].forEach((id) => {
-            $(id).classList.toggle("disabled", isAdvancing || !run);
-            $(id).setAttribute("aria-disabled", !isAdvancing && run ? "false" : "true");
-        });
+        $("advanceButton").classList.toggle("descend", hasSortieResult && !isAdvancing);
         $("advanceButton").textContent = isAdvancing
             ? "探索中..."
+            : hasSortieResult
+            ? "帰還する"
             : !run
             ? "探索終了"
-            : waitsForChoiceSelection
-                ? "選択待ち"
             : !hasStamina
                 ? "探索力不足"
                 : "さらに奥に進む";
-        $("coinCardButton").disabled = Boolean(state.activeRun?.pendingChoices?.length) || availableCoinCount() <= 0;
-        $("bpCardButton").disabled = Boolean(state.activeRun?.pendingChoices?.length) || state.tower.bp < config.bp.cardChoiceCost;
-        $("navExplore").classList.toggle("active", currentScreen === "prepare" || currentScreen === "departure" || currentScreen === "run");
-        $("navRanking").classList.toggle("active", currentScreen === "ranking");
-        $("navStatus").classList.toggle("active", currentScreen === "status");
+        renderCostActionStates();
     }
 
     function formatDate(iso) {
@@ -2347,58 +2877,116 @@
     document.addEventListener("click", (event) => {
         const target = event.target.closest("button");
         if (!target) return;
-        if (target.dataset.appTab) showAppTab(target.dataset.appTab);
         if (target.dataset.screen) showScreen(target.dataset.screen);
         if (target.dataset.modalClose !== undefined) closeRulesModal();
-        if (target.dataset.retireCancel !== undefined) closeRetireModal();
         if (target.dataset.coinClose !== undefined) closeCoinModal();
+        if (target.dataset.goldRestCancel !== undefined) closeGoldRestModal();
+        if (target.dataset.bpCancel !== undefined) closeBpConfirmModal();
+        if (target.dataset.valmonSelectCancel !== undefined) closeValmonSelectModal();
         if (target.dataset.valmonCycle) cycleDraftValmon(target.dataset.valmonCycle);
+        if (target.dataset.valmonPick) pickDraftValmon(target.dataset.valmonPick);
         if (target.dataset.orbCode) toggleOrb(target.dataset.orbCode);
         if (target.dataset.tuning) {
             const setting = draftSetting();
             const key = target.dataset.tuning;
             const delta = Number(target.dataset.delta);
-            setting.tuning[key] = clamp(Number(setting.tuning[key] || 0) + delta, 0, config.tuning.statCap);
+            const current = Number(setting.tuning[key] || 0);
+            if (delta > 0) {
+                const limit = tuningPointLimit(draftValmon().level, state.tower?.seasonTuningBonusPoints || 0);
+                const total = statKeys.reduce((sum, statKey) => sum + Number(setting.tuning[statKey] || 0), 0);
+                if (current >= config.tuning.statCap) {
+                    flash(`${config.tuning.labels[key]}は項目上限です。`, "error");
+                    return;
+                }
+                if (total >= limit) {
+                    openTuningUpgradeModal(key);
+                    return;
+                }
+            }
+            setting.tuning[key] = clamp(current + delta, 0, config.tuning.statCap);
+            syncActiveRunLoadout();
             saveState();
             render();
         }
-        if (target.dataset.choiceRoute) chooseRoute(target.dataset.choiceRoute);
-        if (target.dataset.choiceTuning) chooseTemporaryTuning(target.dataset.choiceTuning);
         if (target.dataset.choiceCard) chooseCard(target.dataset.choiceCard);
-        if (target.dataset.choiceOrb) chooseTemporaryOrb(target.dataset.choiceOrb);
-        if (target.dataset.bpAction) spendBp(target.dataset.bpAction);
+        if (target.dataset.bpAction) openBpConfirmModal(target.dataset.bpAction);
     });
 
     $("rulesButton").addEventListener("click", openRulesModal);
     $("rulesModal").addEventListener("click", (event) => {
         if (event.target.id === "rulesModal") closeRulesModal();
     });
-    $("retireModal").addEventListener("click", (event) => {
-        if (event.target.id === "retireModal") closeRetireModal();
-    });
     $("coinModal").addEventListener("click", (event) => {
         if (event.target.id === "coinModal") closeCoinModal();
     });
+    $("goldRestModal").addEventListener("click", (event) => {
+        if (event.target.id === "goldRestModal" || event.target.dataset.goldRestCancel !== undefined) {
+            closeGoldRestModal();
+        }
+    });
+    $("bpConfirmModal").addEventListener("click", (event) => {
+        if (event.target.id === "bpConfirmModal") closeBpConfirmModal();
+    });
+    $("tuningUpgradeModal").addEventListener("click", (event) => {
+        if (event.target.id === "tuningUpgradeModal" || event.target.dataset.tuningUpgradeCancel !== undefined) {
+            closeTuningUpgradeModal();
+        }
+    });
+    $("valmonSelectModal").addEventListener("click", (event) => {
+        if (event.target.id === "valmonSelectModal" || event.target.dataset.valmonSelectCancel !== undefined) {
+            closeValmonSelectModal();
+        }
+    });
+    $("cardDrawModal").addEventListener("click", (event) => {
+        if (event.target.id === "cardDrawModal" || event.target.dataset.cardDrawCancel !== undefined) {
+            closeCardDrawModal();
+        }
+    });
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && !$("rulesModal").hidden) closeRulesModal();
-        if (event.key === "Escape" && !$("retireModal").hidden) closeRetireModal();
         if (event.key === "Escape" && !$("coinModal").hidden) closeCoinModal();
+        if (event.key === "Escape" && !$("goldRestModal").hidden) closeGoldRestModal();
+        if (event.key === "Escape" && !$("bpConfirmModal").hidden) closeBpConfirmModal();
+        if (event.key === "Escape" && !$("tuningUpgradeModal").hidden) closeTuningUpgradeModal();
+        if (event.key === "Escape" && !$("valmonSelectModal").hidden) closeValmonSelectModal();
+        if (event.key === "Escape" && !$("cardDrawModal").hidden) closeCardDrawModal();
     });
-    $("startRunButton").addEventListener("click", startRun);
-    $("coinCardButton").addEventListener("click", beginCoinCardChoice);
+    $("startRunButton").addEventListener("click", () => startRun(false));
+    $("resultSortieButton").addEventListener("click", () => startRun(true));
+    $("resultPrepareButton").addEventListener("click", () => showScreen("prepare"));
+    $("resultCardButton").addEventListener("click", openCardDrawModal);
+    $("openCardDrawButton").addEventListener("click", openCardDrawModal);
     $("coinClaimButton").addEventListener("click", claimCoin);
-    $("bpCardButton").addEventListener("click", beginBpCardChoice);
+    $("goldRestButton").addEventListener("click", openGoldRestModal);
+    $("goldRestConfirmButton").addEventListener("click", confirmGoldRest);
+    $("bpConfirmButton").addEventListener("click", confirmBpAction);
+    $("cardDrawCoinButton").addEventListener("click", () => beginCardChoiceFromModal("coin"));
+    $("cardDrawTpButton").addEventListener("click", () => beginCardChoiceFromModal("tp"));
+    $("openValmonSelectButton").addEventListener("click", openValmonSelectModal);
+    $("tuningUpgradeCoinButton").addEventListener("click", () => applyPurchasedTuningPoint("coin"));
+    $("tuningUpgradeTpButton").addEventListener("click", () => applyPurchasedTuningPoint("tp"));
     $("departureStartButton").addEventListener("click", requestAdvanceRun);
     $("advanceButton").addEventListener("click", requestAdvanceRun);
-    $("deckEditButton").addEventListener("click", () => showScreen("prepare"));
-    $("retireLink").addEventListener("click", openRetireModal);
-    $("departureRetireLink").addEventListener("click", openRetireModal);
-    $("retireConfirmButton").addEventListener("click", () => {
-        closeRetireModal();
-        retireRun();
+    $("cardChoiceConfirmButton").addEventListener("click", confirmCardChoice);
+    $("deckFilterSelect").addEventListener("change", (event) => {
+        deckFilter = event.target.value;
+        renderOrbList();
+    });
+    $("deckSortSelect").addEventListener("change", (event) => {
+        deckSort = event.target.value;
+        renderOrbList();
     });
     $("detailsRankingButton").addEventListener("click", () => showScreen("ranking"));
     $("rankingBackButton").addEventListener("click", () => showScreen(state.activeRun ? explorationScreenForRun(state.activeRun) : "prepare"));
     render();
     window.setInterval(renderCoinClaimStatus, 1000);
+    window.setInterval(() => {
+        if (applyHpRecovery()) {
+            saveState();
+            render();
+        } else {
+            renderHpRecoveryStatus();
+            updateActionStates();
+        }
+    }, 1000);
 })();

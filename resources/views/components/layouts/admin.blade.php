@@ -47,6 +47,7 @@
                 'items' => [
                     ['route' => 'admin.dashboard', 'label' => '分析ダッシュボード', 'abbr' => 'A'],
                     ['route' => 'admin.world-metrics', 'label' => '世界指標', 'abbr' => 'W'],
+                    ['route' => 'admin.world-activity-map', 'label' => '冒険者分布マップ', 'abbr' => 'MAP'],
                     ['route' => 'admin.inn-analytics', 'label' => '宿屋売上分析', 'abbr' => 'IN'],
                     ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
                     ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
@@ -59,7 +60,7 @@
                 'items' => [
                     ['route' => 'admin.players', 'label' => 'プレイヤー一覧', 'abbr' => 'P'],
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],
-                    ['route' => 'admin.player-controls', 'label' => 'プレイヤー調整', 'abbr' => 'C'],
+                    ['route' => 'admin.player-controls', 'label' => '輝石付与・プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
                     ['route' => 'admin.public-logs', 'label' => '公開ログ管理', 'abbr' => 'O'],
                     ['route' => 'admin.chat', 'label' => '管理人チャット', 'abbr' => 'Q'],

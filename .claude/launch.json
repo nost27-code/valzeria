@@ -9,6 +9,13 @@
       "autoPort": true
     },
     {
+      "name": "deep-crawl-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", ".", "--no-clipboard", "-l", "3777"],
+      "port": 3777,
+      "autoPort": true
+    },
+    {
       "name": "laravel",
       "runtimeExecutable": "php",
       "runtimeArgs": ["artisan", "serve", "--port", "8000"],

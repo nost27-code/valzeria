@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ヴァルモン深層踏破 試験実装</title>
+    <title>ヴァルモン地下探検 試験実装</title>
     <link rel="stylesheet" href="styles.css">
     <script src="config.js" defer></script>
     <script src="app.js" defer></script>
@@ -13,7 +13,7 @@
         <section class="content-header">
             <div>
                 <p class="eyebrow">週末カードシーズン</p>
-                <h1>ヴァルモン深層踏破</h1>
+                <h1>ヴァルモン地下探検</h1>
             </div>
             <div class="stamina-meter" aria-label="探索力">
                 <img src="../../../public/images/icon/icon_245.webp" alt="" aria-hidden="true">
@@ -21,9 +21,27 @@
             </div>
         </section>
         <div class="rules-row">
-            <div class="coin-claim" id="coinClaimStatus">
-                <span id="coinClaimText">次の金貨取得まであと --:--:--</span>
-                <button type="button" class="coin-claim-button" id="coinClaimButton" hidden>金貨を取得する</button>
+            <div class="resource-row">
+                <div class="resource-pill">
+                    <span>金貨</span>
+                    <strong id="topCoinText">0</strong>
+                </div>
+                <div class="resource-pill">
+                    <span>TP</span>
+                    <strong id="topBpText">0</strong>
+                </div>
+                <div class="resource-pill hp-resource">
+                    <span>HP</span>
+                    <strong id="topHpText">100/100</strong>
+                </div>
+                <div class="resource-pill">
+                    <span>Gold</span>
+                    <strong id="topGoldText">0</strong>
+                </div>
+                <div class="coin-claim" id="coinClaimStatus">
+                    <span id="coinClaimText">次の金貨取得まであと --:--:--</span>
+                    <button type="button" class="coin-claim-button" id="coinClaimButton" hidden>金貨を取得する</button>
+                </div>
             </div>
             <button type="button" class="link-button" id="rulesButton">遊び方・ルール</button>
         </div>
@@ -34,72 +52,89 @@
             <div class="layout">
                 <section class="panel season-summary-panel">
                     <div class="panel-heading">
-                        <h2>今週の深層踏破</h2>
+                        <h2>今週の地下探検</h2>
                         <span class="chip" id="seasonPeriodText">金曜09:00〜月曜09:00</span>
                     </div>
                     <div class="season-summary-grid">
                         <div class="summary-item"><span>現在階層</span><strong id="towerCurrentFloorText">1階</strong></div>
                         <div class="summary-item"><span>最高踏破</span><strong id="towerBestFloorText">0階</strong></div>
-                        <div class="summary-item"><span>金貨</span><strong id="towerCoinText">0</strong></div>
-                        <div class="summary-item"><span>深層BP</span><strong id="towerBpText">0</strong></div>
-                        <div class="summary-item"><span>出現カード</span><strong id="towerActiveCardText">80/100</strong></div>
-                        <div class="summary-item"><span>休眠カード</span><strong id="towerDormantCardText">20/100</strong></div>
                     </div>
-                    <details class="dormant-card-list">
-                        <summary>今週の休眠カードを見る</summary>
-                        <div id="dormantCardList"></div>
-                    </details>
                 </section>
                 <section class="panel hero-panel">
                     <div class="valmon-scene">
-                        <button type="button" class="carousel-button" data-valmon-cycle="-1" aria-label="前のヴァルモン">‹</button>
                         <div class="valmon-portrait">
                             <img id="selectedValmonImage" src="../../../public/images/valmon/valmon01.webp" alt="選択中のヴァルモン">
                         </div>
-                        <div>
+                        <div class="valmon-info">
                             <p class="eyebrow">挑戦ヴァルモン</p>
                             <h2 id="selectedValmonName">リーフィン</h2>
-                            <p id="selectedValmonMeta" class="muted">Lv30 / 調律ポイント 8</p>
+                            <p id="selectedValmonMeta" class="muted">Lv30 / TP 8</p>
+                            <div class="valmon-hp-inline" aria-label="ヴァルモンHP">
+                                <div class="valmon-hp-label">
+                                    <span>HP</span>
+                                    <strong id="selectedValmonHpText">100 / 100</strong>
+                                </div>
+                                <div class="bar valmon-hp-bar"><div class="bar-fill hp safe" id="selectedValmonHpBar"></div></div>
+                            </div>
+                            <button type="button" class="link-button valmon-change-button" id="openValmonSelectButton">ヴァルモンを入れ替える</button>
                         </div>
-                        <button type="button" class="carousel-button" data-valmon-cycle="1" aria-label="次のヴァルモン">›</button>
                     </div>
 
-                    <div class="stat-grid">
-                        <div class="metric">
-                            <span>調律残り</span>
-                            <strong id="tuningRemainingText">0</strong>
-                        </div>
+                    <div class="hero-loadout">
+                        <details class="accordion-panel loadout-section" open>
+                            <summary class="panel-heading accordion-heading">
+                                <h2>基礎能力値</h2>
+                                <span id="tuningLimitLabel" class="chip">上限 6 / 合計 8</span>
+                            </summary>
+                            <div class="tuning-list" id="tuningList"></div>
+                            <p class="field-error" id="tuningError"></p>
+                        </details>
+
+                        <details class="accordion-panel loadout-section">
+                            <summary class="panel-heading accordion-heading">
+                                <h2>デッキカード</h2>
+                                <span class="chip" id="selectedOrbText">未選択</span>
+                            </summary>
+                            <div class="deck-control-row">
+                                <label>
+                                    <span>絞り込み</span>
+                                    <select id="deckFilterSelect">
+                                        <option value="all">すべて</option>
+                                        <option value="equipped">装備中</option>
+                                        <option value="unequipped">未装備</option>
+                                        <option value="attack">攻撃</option>
+                                        <option value="defense">防御</option>
+                                        <option value="heal">回復</option>
+                                        <option value="explore">探知</option>
+                                        <option value="evasion">回避</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>並び替え</span>
+                                    <select id="deckSortSelect">
+                                        <option value="equipped">装備中を上</option>
+                                        <option value="category">種類順</option>
+                                        <option value="rarity">レア順</option>
+                                        <option value="name">名前順</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="orb-list" id="orbList"></div>
+                            <p class="field-error" id="orbError"></p>
+                        </details>
                     </div>
                 </section>
             </div>
 
             <div class="layout">
-                <section class="panel">
-                    <div class="panel-heading">
-                        <h2>調律ポイント</h2>
-                        <span id="tuningLimitLabel" class="chip">上限 6 / 合計 8</span>
-                    </div>
-                    <div class="tuning-list" id="tuningList"></div>
-                    <p class="field-error" id="tuningError"></p>
+                <section class="card-draw-action">
+                    <button type="button" class="button draw-main-button" id="openCardDrawButton">カードを取得する</button>
                 </section>
 
                 <section class="panel">
                     <div class="panel-heading">
-                        <h2>デッキカード</h2>
-                        <span class="chip" id="selectedOrbText">未選択</span>
-                    </div>
-                    <div class="card-toolbar">
-                        <button type="button" class="link-button" id="coinCardButton">金貨でカード取得</button>
-                        <button type="button" class="link-button" id="bpCardButton">BPでカード取得</button>
-                    </div>
-                    <div class="orb-list" id="orbList"></div>
-                    <p class="field-error" id="orbError"></p>
-                </section>
-
-                <section class="panel">
-                    <div class="panel-heading">
-                        <h2>深層BP強化</h2>
-                        <span class="chip" id="bpUpgradeLabel">未使用BP 0</span>
+                        <h2>TP強化</h2>
+                        <span class="chip" id="bpUpgradeLabel">未使用TP 0</span>
                     </div>
                     <div class="bp-action-grid" id="bpActionGrid"></div>
                 </section>
@@ -107,13 +142,21 @@
 
             <section class="panel compact-ranking">
                 <div class="panel-heading">
-                    <h2>深層踏破 TOP3</h2>
+                    <h2>地下探検 TOP3</h2>
                     <button type="button" class="link-button" id="detailsRankingButton">詳細はこちら</button>
                 </div>
                 <div class="ranking-mini" id="rankingTop3"></div>
             </section>
 
             <section class="action-bar">
+                <p class="current-floor-label" id="startCurrentFloorText">現在地下1階</p>
+                <div class="hp-recovery-panel">
+                    <div>
+                        <strong id="hpRecoveryText">HP 100 / 100</strong>
+                        <span id="hpRecoveryTimerText">HPは満タンです</span>
+                    </div>
+                    <button type="button" class="button recovery-button" id="goldRestButton">Goldで休息</button>
+                </div>
                 <button type="button" class="button primary" id="startRunButton">挑戦開始</button>
             </section>
         </section>
@@ -126,7 +169,7 @@
                 </div>
                 <div class="departure-setup">
                     <div>
-                        <p class="setup-title">現在の一時調律</p>
+                        <p class="setup-title">現在の一時TP</p>
                         <div class="run-chip-row" id="departureStatChips"></div>
                     </div>
                     <div>
@@ -138,7 +181,6 @@
             </section>
             <section class="action-bar departure-actions">
                 <button type="button" class="button primary" id="departureStartButton">探索へ</button>
-                <a href="#" class="retire-link" id="departureRetireLink">撤退する</a>
             </section>
         </section>
 
@@ -146,7 +188,6 @@
             <section class="panel battle-scene-panel" id="eventStage">
                 <div class="battle-run-meta">
                     <span class="event-type" id="eventTypeLabel">待機中</span>
-                    <strong id="runScoreText">0</strong>
                 </div>
                 <div class="depth-progress" id="depthProgress">
                     <div class="depth-progress-head">
@@ -204,11 +245,16 @@
                     <span id="runLogCount">0件</span>
                 </div>
                 <div class="log-list battle-log" id="runLog" role="log" aria-live="polite"></div>
+                <div class="battle-score-result">
+                    <span>スコア</span>
+                    <strong id="runScoreText">0</strong>
+                </div>
             </section>
 
             <section class="panel choice-panel" id="choicePanel" hidden>
                 <div class="panel-heading">
                     <h2 id="choiceTitle">選択</h2>
+                    <span class="chip" id="choiceFloorLabel">地下1階</span>
                 </div>
                 <p id="choiceLead" class="muted"></p>
                 <div class="choice-grid" id="choiceOptions"></div>
@@ -217,7 +263,58 @@
             <section class="action-bar">
                 <button type="button" class="button primary" id="advanceButton">進む</button>
                 <button type="button" class="button secondary" id="deckEditButton">デッキ編集</button>
-                <a href="#" class="retire-link" id="retireLink">撤退する</a>
+            </section>
+        </section>
+
+        <section class="screen" id="screen-result">
+            <section class="panel result-panel" id="resultPanel">
+                <p class="eyebrow" id="resultEyebrow">帰還</p>
+                <div class="result-visual">
+                    <img id="resultValmonImage" src="../../../public/images/valmon/valmon01.webp" alt="">
+                </div>
+                <h2 id="resultTitle">まだ出撃していません。</h2>
+                <p class="result-reward" id="resultRewardText"></p>
+                <p class="result-info" id="resultInfoText">現在階層：地下1階</p>
+                <div class="result-hp-recovery" id="resultHpRecoveryPanel" hidden>
+                    <div class="result-hp-head">
+                        <span>HP回復状況</span>
+                        <strong id="resultHpText">0 / 100</strong>
+                    </div>
+                    <div class="bar result-hp-bar"><div class="bar-fill hp danger" id="resultHpBar"></div></div>
+                    <div class="result-hp-foot">
+                        <span id="resultNextRecoveryText">次回自然回復 +10</span>
+                        <span id="resultRecoveryTimerText">あと 05:00</span>
+                    </div>
+                    <div class="result-hp-foot muted">
+                        <span id="resultGoldRestText">Gold休息 +30</span>
+                    </div>
+                </div>
+                <p class="result-hint" id="resultFloorHint"></p>
+            </section>
+            <section class="action-bar result-actions">
+                <button type="button" class="button primary" id="resultSortieButton">出撃する</button>
+                <button type="button" class="button draw-main-button" id="resultCardButton">カードを取得する</button>
+                <button type="button" class="button secondary" id="resultPrepareButton">準備へ戻る</button>
+            </section>
+        </section>
+
+        <section class="screen" id="screen-card-choice">
+            <section class="panel card-choice-panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Card Select</p>
+                        <h2 id="cardChoiceTitle">カードを選ぶ</h2>
+                    </div>
+                    <span class="chip" id="cardChoiceSource">3択</span>
+                </div>
+                <p id="cardChoiceLead" class="muted">次の3枚から1枚を選んでください。</p>
+                <div class="card-choice-row" id="cardChoiceOptions"></div>
+                <div class="card-choice-detail" id="cardChoiceDetail">
+                    <p class="empty-note">カードを選ぶと、ここに効果の説明が表示されます。</p>
+                </div>
+            </section>
+            <section class="action-bar">
+                <button type="button" class="button primary" id="cardChoiceConfirmButton">このカードにする</button>
             </section>
         </section>
 
@@ -226,7 +323,7 @@
                 <div class="panel-heading">
                     <div>
                         <p class="eyebrow">Weekly</p>
-                        <h2>今週の深層踏破ランキング</h2>
+                        <h2>今週の地下探検ランキング</h2>
                     </div>
                     <span class="chip" id="rankingSeasonLabel">金曜09:00〜月曜09:00</span>
                 </div>
@@ -269,7 +366,7 @@
                     </div>
                 </div>
                 <div class="status-section">
-                    <h3>調律</h3>
+                    <h3>TP</h3>
                     <div class="run-chip-row" id="statusTuningChips"></div>
                 </div>
                 <div class="status-section">
@@ -279,39 +376,153 @@
             </section>
         </section>
 
-        <nav class="bottom-nav" aria-label="地下探索ナビゲーション">
-            <button type="button" id="navExplore" data-app-tab="explore">探索</button>
-            <button type="button" id="navRanking" data-app-tab="ranking">ランキング</button>
-            <button type="button" id="navStatus" data-app-tab="status">状態</button>
-        </nav>
-
         <section class="modal-backdrop" id="rulesModal" hidden>
             <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
                 <div class="panel-heading">
-                    <h2 id="rulesTitle">遊び方・ルール</h2>
+                    <h2 id="rulesTitle">ヴァルモン地下探検 遊び方・ルール</h2>
                     <button type="button" class="modal-close" data-modal-close aria-label="閉じる">×</button>
                 </div>
                 <div class="rule-list">
-                    <p>所持しているヴァルモンから1体を選び、人間が入れない小穴の地下へ単独で潜らせます。</p>
-                    <p>左右のボタンで挑戦するヴァルモンを切り替えます。表示中のヴァルモンがそのまま挑戦対象になります。</p>
-                    <p>金曜09:00から月曜09:00までの短期シーズンです。カード、深層BP、進行階層はシーズンごとにリセットされます。</p>
-                    <p>金貨1枚でカード3択から1枚を取得できます。生成された3択は選ぶまで固定され、引き直しはできません。</p>
-                    <p>所持カードからデッキに入れるカードを選びます。初期装備枠は20枚、BPで最大36枚まで拡張できます。</p>
-                    <p>探索力を1消費して現在階層へ挑戦します。敗北しても1階には戻らず、同じ階層から再挑戦できます。</p>
-                </div>
-            </div>
-        </section>
+                    <p>※β版のためバランス調整などで仕様変更する可能性があります。</p>
 
-        <section class="modal-backdrop" id="retireModal" hidden>
-            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="retireTitle">
-                <div class="panel-heading">
-                    <h2 id="retireTitle">探索から撤退しますか？</h2>
-                    <button type="button" class="modal-close" data-retire-cancel aria-label="閉じる">×</button>
-                </div>
-                <p class="confirm-text">ここで撤退すると、現在の到達階とスコアで記録されます。</p>
-                <div class="confirm-actions">
-                    <button type="button" class="button primary" data-retire-cancel>探索を続ける</button>
-                    <button type="button" class="button danger" id="retireConfirmButton">撤退する</button>
+                    <h3>ヴァルモン地下探検とは</h3>
+                    <p>ヴァルモン地下探検は、ヴァルモンだけが入れる小さな地下道を進み、どこまで深く潜れるかを競う週末限定コンテンツです。</p>
+                    <p>冒険者は中に入れません。地下へ進むのは、あなたの相棒ヴァルモンだけです。</p>
+                    <p>シーズン中にカードを集め、デッキを組み、TP（探検ポイント）で強化しながら、より深い階層の突破を目指しましょう。</p>
+
+                    <h3>開催期間</h3>
+                    <p>ヴァルモン地下探検は、週末シーズンとして開催されます。</p>
+                    <ul>
+                        <li>開始：金曜 9:00</li>
+                        <li>終了：月曜 9:00</li>
+                    </ul>
+                    <p>シーズンが終了すると、ランキングが確定します。</p>
+                    <p>シーズン中に集めたカード、白風金貨、TP、能力強化、装備枠拡張、進行階層は次回シーズンに持ち越されません。</p>
+
+                    <h3>基本の流れ</h3>
+                    <ol>
+                        <li>金貨や階層報酬でカードを集める</li>
+                        <li>所持カードからデッキを組む</li>
+                        <li>ヴァルモンを地下へ進ませる</li>
+                        <li>階層を突破してTP（探検ポイント）を得る</li>
+                        <li>TPでカード取得・能力UP・装備枠拡張を行う</li>
+                        <li>さらに深い階層を目指す</li>
+                    </ol>
+                    <p>最初はカードを1枚も持っていません。時間経過や階層突破によって、少しずつカードを増やしていきます。</p>
+
+                    <h3>金貨について</h3>
+                    <p>金貨は、カード取得やTP強化に使えるシーズン中の準備リソースです。</p>
+                    <p>金貨は時間経過で解放されます。開始時に2枚受け取れ、その後は4時間ごとに2枚ずつ解放されます。</p>
+                    <ul>
+                        <li>開始時：2枚</li>
+                        <li>以後4時間ごと：2枚</li>
+                        <li>月曜5:00の解放で最大36枚</li>
+                    </ul>
+                    <p>金貨は、次のどちらかに使えます。</p>
+                    <ul>
+                        <li>金貨1枚：カード3択を1回引く</li>
+                        <li>金貨1枚：シーズンTP +1</li>
+                    </ul>
+                    <p>金貨は固定コストです。何回使っても、必要枚数は1枚です。</p>
+                    <p>未使用の金貨はシーズン中残ります。使用済みの金貨は戻りません。</p>
+
+                    <h3>カードについて</h3>
+                    <p>カードは、ヴァルモンを強化するためのシーズン限定効果です。</p>
+                    <p>カードには、攻撃、防御、回復、探知、回避などの種類があります。</p>
+                    <p>カードを集める方法は主に3つあります。</p>
+                    <ul>
+                        <li>金貨を消費してランダムから選ばれた3択から1枚を引く</li>
+                        <li>1〜10階の初回クリア報酬でカードを得る</li>
+                        <li>TPを消費してランダムから選ばれた3択から1枚を引く</li>
+                    </ul>
+                    <p>カード3択では、表示された3枚の中から1枚を選びます。一度表示された3択候補は保存されます。画面を閉じたり、敗北したりしても、候補は引き直せません。</p>
+                    <p>選んだカードは、そのシーズン中ずっと使用できます。</p>
+
+                    <h3>今週のカードプール</h3>
+                    <p>カードは全部で100枚あります。ただし、毎シーズンすべてのカードが出るわけではありません。</p>
+                    <ul>
+                        <li>今週出現するカード：80枚</li>
+                        <li>今週休眠するカード：20枚</li>
+                    </ul>
+                    <p>休眠中のカードは、そのシーズンでは入手候補に出ません。</p>
+                    <p>今週どのカードが出現し、どのカードが休眠しているかは、カード一覧から確認できます。</p>
+
+                    <h3>デッキについて</h3>
+                    <p>集めたカードは、デッキにセットすることで効果を発揮します。</p>
+                    <p>初期装備枠は20枚です。所持カードが増えても、すべてを装備できるとは限りません。どのカードを入れるかが重要です。</p>
+                    <p>装備枠は、TPを使って広げることができます。最大装備枠は32〜36枚を想定しています。</p>
+                    <p>装備枠を広げるほど、多くのカード効果を使えるようになります。ただし、そのぶんTPを消費するため、能力UPやカード取得に使えるTPは少なくなります。</p>
+
+                    <h3>TPについて</h3>
+                    <p>TPは、探検ポイントの略です。そのシーズン中だけヴァルモンを強化するリソースです。</p>
+                    <p>TPは、次の能力に振り分けられます。</p>
+                    <ul>
+                        <li>攻撃</li>
+                        <li>防御</li>
+                        <li>探知</li>
+                        <li>回避</li>
+                    </ul>
+                    <p>TPは、地下へ降りた時に階層ごとに1回だけ得られます。1階層につき得られるTPは固定で、同じ階層から二重に受け取ることはできません。</p>
+                    <p>TPは、カード3択、TP増加、装備枠拡張、能力値強化に使えます。</p>
+                    <p>TPによる強化は敗北しても残ります。ただし、使用済みTPは戻らず、シーズン終了時にすべてリセットされます。</p>
+                    <p>カード3択、TP増加などの通常TP消費は、使うたびに必要TPが増えていきます。</p>
+                    <ul>
+                        <li>1回目：1TP</li>
+                        <li>2回目：2TP</li>
+                        <li>3回目：3TP</li>
+                        <li>N回目：N TP</li>
+                    </ul>
+                    <p>たとえば、1回目にカード3択を引くと1TP、2回目にTPを増やすと2TP、3回目に能力を1上げると3TPが必要になります。通常TP消費回数は、敗北しても戻りません。</p>
+
+                    <h3>装備枠拡張のTP消費</h3>
+                    <p>装備枠拡張は、通常TP消費とは別のコストで管理されます。</p>
+                    <ul>
+                        <li>1回目：1TP</li>
+                        <li>2回目：3TP</li>
+                        <li>3回目：5TP</li>
+                        <li>4回目：7TP</li>
+                        <li>N回目：2N - 1 TP</li>
+                    </ul>
+                    <p>装備枠を多く広げるほど、強力なカードをたくさん積めるようになります。ただし、後半ほどコストが重くなるため、どこまで枠を広げるかが重要です。</p>
+
+                    <h3>階層突破について</h3>
+                    <p>「進む」を押すと、現在の階層に挑戦します。勝利すると次の階層へ進み、敗北するとその階層に留まります。</p>
+                    <p>23階を突破すると次は24階へ進みます。24階で敗北した場合は、もう一度24階から挑戦できます。</p>
+                    <p>敗北しても、1階からやり直しにはなりません。デッキを見直したり、金貨でカードを増やしたり、TPで強化したりして、同じ階層に再挑戦できます。</p>
+
+                    <h3>1〜10階の初回報酬</h3>
+                    <p>1階から10階までは、各階の初回クリア時にカード3択が発生します。この報酬は、各階につきシーズン中1回だけです。</p>
+                    <p>一度クリアした階層では、再びカード報酬を受け取ることはできません。</p>
+
+                    <h3>敗北時に残るもの</h3>
+                    <p>敗北しても、現在階層、最高クリア階層、所持カード、未使用の金貨、TP、TPで得た能力強化、TPで広げた装備枠、デッキは残ります。</p>
+                    <p>敗北しても失われないため、カードや強化を見直して再挑戦できます。</p>
+
+                    <h3>敗北時に戻らないもの</h3>
+                    <p>使用済みの金貨、使用済みのTP、カード3択の引き直し、クリア済み階層の初回報酬は戻りません。</p>
+                    <p>一度使ったリソースや、一度表示されたカード候補はやり直せません。</p>
+
+                    <h3>ランキングについて</h3>
+                    <p>ランキングは、シーズン中の最高クリア階層で競います。より深い階層を突破したプレイヤーほど上位になり、同じ階層の場合はスコアで順位決定します。</p>
+                    <p>スコアは、階層突破、残HP、選んだルートや探知カードの効果などで加算されます。シーズン終了時にランキングが確定します。</p>
+
+                    <h3>課金による金貨の先取り</h3>
+                    <p>課金によって、金貨を先取りできる場合があります。ただし、課金で金貨の最大数が増えるわけではありません。</p>
+                    <ul>
+                        <li>無課金でも最大36枚</li>
+                        <li>課金しても最大36枚</li>
+                        <li>課金は未来分を先に受け取るだけ</li>
+                    </ul>
+                    <p>課金による先取りで得た金貨も、通常の金貨と同じようにカード3択やTP増加に使います。</p>
+                    <p>TPの購入、装備枠の直接購入、ランキング挑戦回数の購入、敗北時復活などはありません。</p>
+
+                    <h3>攻略の考え方</h3>
+                    <p>カードを多く集めれば、デッキの選択肢が増えます。能力を上げれば、カード運に頼らず安定しやすくなります。装備枠を広げれば、より多くのカード効果を同時に使えます。</p>
+                    <p>ただし、すべてを同時に伸ばすことはできません。カードを引くか、能力を上げるか、装備枠を広げるか。金貨とTPをどう使うかが、地下探検の鍵です。</p>
+
+                    <h3>重要な注意</h3>
+                    <p>このコンテンツのカード、金貨、TP、能力強化、装備枠拡張は、すべてシーズン限定です。</p>
+                    <p>シーズン終了後、次回シーズンでは再びカード0枚から始まります。毎シーズン、出現カードや休眠カードが変わるため、同じ攻略法がいつも通用するとは限りません。</p>
                 </div>
             </div>
         </section>
@@ -325,6 +536,76 @@
                 <p class="confirm-text">金貨を1枚入手した。</p>
                 <div class="confirm-actions">
                     <button type="button" class="button primary" data-coin-close>閉じる</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="bpConfirmModal" hidden>
+            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="bpConfirmTitle">
+                <div class="panel-heading">
+                    <h2 id="bpConfirmTitle">TPを使いますか？</h2>
+                    <button type="button" class="modal-close" data-bp-cancel aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text" id="bpConfirmText">TPを消費します。</p>
+                <div class="confirm-actions">
+                    <button type="button" class="button secondary" data-bp-cancel>やめる</button>
+                    <button type="button" class="button primary" id="bpConfirmButton">TPを使う</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="tuningUpgradeModal" hidden>
+            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="tuningUpgradeTitle">
+                <div class="panel-heading">
+                    <h2 id="tuningUpgradeTitle">能力を1上げますか？</h2>
+                    <button type="button" class="modal-close" data-tuning-upgrade-cancel aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text" id="tuningUpgradeText">能力を1上げます。</p>
+                <div class="tuning-upgrade-actions">
+                    <button type="button" class="button coin-option" id="tuningUpgradeCoinButton">金貨1枚を消費</button>
+                    <button type="button" class="button tp-option" id="tuningUpgradeTpButton">TPを1消費</button>
+                </div>
+                <button type="button" class="link-button modal-cancel-link" data-tuning-upgrade-cancel>やめる</button>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="valmonSelectModal" hidden>
+            <div class="modal-panel valmon-select-panel" role="dialog" aria-modal="true" aria-labelledby="valmonSelectTitle">
+                <div class="panel-heading">
+                    <h2 id="valmonSelectTitle">ヴァルモンを入れ替える</h2>
+                    <button type="button" class="modal-close" data-valmon-select-cancel aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text">所持しているヴァルモンから、地下へ向かう相棒を選びます。</p>
+                <div class="valmon-select-list" id="valmonSelectList"></div>
+                <button type="button" class="link-button modal-cancel-link" data-valmon-select-cancel>やめる</button>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="cardDrawModal" hidden>
+            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="cardDrawTitle">
+                <div class="panel-heading">
+                    <h2 id="cardDrawTitle">カードを取得しますか？</h2>
+                    <button type="button" class="modal-close" data-card-draw-cancel aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text" id="cardDrawText">3枚の候補から1枚を選びます。候補は保存され、引き直しはできません。</p>
+                <div class="card-draw-modal-actions">
+                    <button type="button" class="button coin-option" id="cardDrawCoinButton">金貨1枚を消費して引く</button>
+                    <button type="button" class="button tp-option" id="cardDrawTpButton">TPを1消費して引く</button>
+                </div>
+                <button type="button" class="link-button modal-cancel-link" data-card-draw-cancel>やめる</button>
+            </div>
+        </section>
+
+        <section class="modal-backdrop" id="goldRestModal" hidden>
+            <div class="modal-panel confirm-panel" role="dialog" aria-modal="true" aria-labelledby="goldRestTitle">
+                <div class="panel-heading">
+                    <h2 id="goldRestTitle">Goldで休息しますか？</h2>
+                    <button type="button" class="modal-close" data-gold-rest-cancel aria-label="閉じる">×</button>
+                </div>
+                <p class="confirm-text" id="goldRestText">HPを回復します。</p>
+                <div class="confirm-actions">
+                    <button type="button" class="button coin-option" id="goldRestConfirmButton">休息する</button>
+                    <button type="button" class="button secondary" data-gold-rest-cancel>やめる</button>
                 </div>
             </div>
         </section>

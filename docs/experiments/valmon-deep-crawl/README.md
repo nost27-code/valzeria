@@ -1,4 +1,4 @@
-# ヴァルモン深層踏破 試験実装
+# ヴァルモン地下探検 試験実装
 
 このフォルダは `docs/` 配下のため、現行の `local_deploy.php` のフルデプロイZIPには含まれません。
 
@@ -13,13 +13,16 @@ C:\Users\yuta\tool\tool\ffa\docs\experiments\valmon-deep-crawl\index.html
 ## 実装している範囲
 
 - 金曜09:00から月曜09:00までの週末カードシーズン
-- シーズンごとのカード、深層BP、進行階層、デッキ状態リセット
+- シーズンごとのカード、TP、進行階層、デッキ状態リセット
 - 100枚カードプール、今週出現80枚、休眠20枚
-- 休眠カードの明示表示
-- 金貨の時間解放、受取、カード3択取得
+- 金貨の時間解放、受取、カード3択取得。開始時2枚、以後4時間ごと2枚、月曜05:00解放分で最大36枚
 - 1〜10階の初回突破カード報酬
-- 深層BPの初回突破獲得
-- 深層BPによる基礎能力強化、HP回復、装備枠拡張、カード取得
+- 地下へ降りた時のTP獲得。階層ごとに1シーズン1回だけ付与
+- 金貨によるカード3択、シーズンTP+1
+- カード3択専用画面での横並び選択とカード説明表示
+- TPによるシーズンTP+1、HP回復、装備枠拡張、カード取得
+- 通常TP消費は1回目1TP、2回目2TP、N回目N TP
+- 装備枠拡張TPは1回目1TP、2回目3TP、N回目2N-1 TP
 - 所持カードからのデッキ編集
 - 初期デッキ枠20枚、最大36枚
 - 探索力1消費で現在階層へ進行
@@ -42,7 +45,7 @@ C:\Users\yuta\tool\tool\ffa\docs\experiments\valmon-deep-crawl\index.html
 - `app.js` の金貨計算 -> `ValmonTowerCoinService`
 - `app.js` のカード3択 -> `ValmonTowerCardChoiceService`
 - `app.js` のデッキ編集 -> `ValmonTowerDeckService`
-- `app.js` のBP処理 -> `ValmonTowerBpService`
+- `app.js` のTP処理 -> `ValmonTowerTpService`
 - `app.js` の階層進行 -> `ValmonTowerProgressService`
 - `app.js` のランキング更新 -> `ValmonTowerRankingService`
 - `index.html` -> Blade/Livewire または Controller + Blade

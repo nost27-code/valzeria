@@ -10,6 +10,37 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OperatorAnalyticsManager extends Component
 {
+    private const MAX_RANGE_DAYS = 90;
+
+    private const MATERIAL_STORAGE_GOLD_EXPAND_KEY = 'material_storage_gold_expand';
+
+    private const GOLD_ISSUE_TYPES = [
+        'battle_reward',
+        'material_sale',
+        'equipment_sale',
+        'npc_procurement_delivery',
+    ];
+
+    private const GOLD_SINK_TYPES = [
+        'inn',
+        'shop_equipment_purchase',
+        'equipment_enhancement',
+        'equipment_evolution',
+        'material_exchange',
+        'adventure_support_purchase',
+        'exploration_defeat_gold_loss',
+    ];
+
+    private const GOLD_TRANSFER_TYPES = [
+        'bank_deposit',
+        'bank_withdraw',
+    ];
+
+    private const GOLD_MARKET_TYPES = [
+        'market_purchase',
+        'market_sale',
+    ];
+
     public string $dateFrom = '';
 
     public string $dateTo = '';
@@ -69,12 +100,14 @@ class OperatorAnalyticsManager extends Component
             'dateTo' => $to,
             'dailyRows' => $dailyRows,
             'periodTotals' => $periodTotals,
+            'goldEconomy' => $this->goldEconomy($from, $to),
             'growthCards' => $this->growthCards(),
             'maxima' => $this->maxima($dailyRows),
             'tablesReady' => [
                 'users' => Schema::hasTable('users'),
                 'characters' => Schema::hasTable('characters'),
                 'battle_logs' => Schema::hasTable('battle_logs'),
+                'gold_transactions' => Schema::hasTable('gold_transactions'),
                 'public_logs' => Schema::hasTable('public_logs'),
                 'stripe_orders' => Schema::hasTable('stripe_orders'),
             ],
@@ -425,6 +458,369 @@ class OperatorAnalyticsManager extends Component
         ];
     }
 
+    private function goldEconomy(Carbon $from, Carbon $to): array
+    {
+        if (!Schema::hasTable('gold_transactions')) {
+            return [
+                'missingTable' => true,
+                'summary' => $this->emptyGoldSummary(),
+                'dailyRows' => [],
+                'typeRows' => [],
+                'npcProcurementTopCharacters' => [],
+                'typeLabels' => $this->goldTypeLabels(),
+            ];
+        }
+
+        $dailyRows = $this->goldDailyRows($from, $to);
+        $typeRows = $this->goldTypeRows($from, $to);
+
+        return [
+            'missingTable' => false,
+            'summary' => $this->goldSummary($dailyRows, $typeRows),
+            'dailyRows' => array_reverse($dailyRows),
+            'typeRows' => $typeRows,
+            'warehouseGoldExpansion' => $this->warehouseGoldExpansion($from, $to),
+            'npcProcurementTopCharacters' => $this->npcProcurementTopCharacters($from, $to),
+            'typeLabels' => $this->goldTypeLabels(),
+        ];
+    }
+
+    private function goldDailyRows(Carbon $from, Carbon $to): array
+    {
+        $rows = [];
+        foreach ($this->dateKeys($from, $to) as $key) {
+            $rows[$key] = [
+                'date' => $key,
+                'issue' => 0,
+                'sink' => 0,
+                'net' => 0,
+                'transfer' => 0,
+                'market' => 0,
+                'unclassified' => 0,
+                'npc_procurement' => 0,
+            ];
+        }
+
+        $queryRows = DB::table('gold_transactions')
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw($this->dateExpression('created_at') . ' as metric_date')
+            ->selectRaw('type')
+            ->selectRaw('COUNT(*) as tx_count')
+            ->selectRaw('SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as positive_amount')
+            ->selectRaw('SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) as negative_amount')
+            ->selectRaw('SUM(amount) as net_amount')
+            ->groupBy('metric_date', 'type')
+            ->get();
+
+        foreach ($queryRows as $row) {
+            $date = (string) $row->metric_date;
+            if (!isset($rows[$date])) {
+                continue;
+            }
+
+            $type = (string) $row->type;
+            $positive = (int) $row->positive_amount;
+            $negative = (int) $row->negative_amount;
+            $gross = $positive + $negative;
+
+            match ($this->goldTypeBucket($type)) {
+                'issue' => $rows[$date]['issue'] += $positive,
+                'sink' => $rows[$date]['sink'] += $negative,
+                'transfer' => $rows[$date]['transfer'] += $gross,
+                'market' => $rows[$date]['market'] += $gross,
+                default => $rows[$date]['unclassified'] += $gross,
+            };
+
+            if ($type === 'npc_procurement_delivery') {
+                $rows[$date]['npc_procurement'] += $positive;
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $row['net'] = $row['issue'] - $row['sink'];
+        }
+        unset($row);
+
+        return array_values($rows);
+    }
+
+    private function goldTypeRows(Carbon $from, Carbon $to): array
+    {
+        return DB::table('gold_transactions')
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw('type')
+            ->selectRaw('COUNT(*) as tx_count')
+            ->selectRaw('SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as positive_amount')
+            ->selectRaw('SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) as negative_amount')
+            ->selectRaw('SUM(amount) as net_amount')
+            ->groupBy('type')
+            ->orderBy('type')
+            ->get()
+            ->map(fn ($row): array => [
+                'type' => (string) $row->type,
+                'label' => $this->goldTypeLabels()[(string) $row->type] ?? (string) $row->type,
+                'bucket' => $this->goldTypeBucket((string) $row->type),
+                'bucket_label' => $this->goldBucketLabels()[$this->goldTypeBucket((string) $row->type)],
+                'tx_count' => (int) $row->tx_count,
+                'positive_amount' => (int) $row->positive_amount,
+                'negative_amount' => (int) $row->negative_amount,
+                'net_amount' => (int) $row->net_amount,
+            ])
+            ->sortBy(fn (array $row): string => $row['bucket'] . ':' . $row['type'])
+            ->values()
+            ->all();
+    }
+
+    private function goldSummary(array $dailyRows, array $typeRows): array
+    {
+        $npcRows = array_filter($typeRows, fn (array $row): bool => $row['type'] === 'npc_procurement_delivery');
+        $npcCount = array_sum(array_column($npcRows, 'tx_count'));
+        $npcGold = array_sum(array_column($npcRows, 'positive_amount'));
+
+        return [
+            ...$this->emptyGoldSummary(),
+            'issue' => array_sum(array_column($dailyRows, 'issue')),
+            'sink' => array_sum(array_column($dailyRows, 'sink')),
+            'net' => array_sum(array_column($dailyRows, 'net')),
+            'transfer' => array_sum(array_column($dailyRows, 'transfer')),
+            'market' => array_sum(array_column($dailyRows, 'market')),
+            'unclassified' => array_sum(array_column($dailyRows, 'unclassified')),
+            'npc_procurement_count' => $npcCount,
+            'npc_procurement_gold' => $npcGold,
+            'npc_procurement_average' => $npcCount > 0 ? (int) floor($npcGold / $npcCount) : 0,
+        ];
+    }
+
+    private function emptyGoldSummary(): array
+    {
+        return [
+            'issue' => 0,
+            'sink' => 0,
+            'net' => 0,
+            'transfer' => 0,
+            'market' => 0,
+            'unclassified' => 0,
+            'npc_procurement_count' => 0,
+            'npc_procurement_gold' => 0,
+            'npc_procurement_average' => 0,
+        ];
+    }
+
+    private function npcProcurementTopCharacters(Carbon $from, Carbon $to): array
+    {
+        if (!Schema::hasTable('characters')) {
+            return [];
+        }
+
+        return DB::table('gold_transactions')
+            ->leftJoin('characters', 'gold_transactions.character_id', '=', 'characters.id')
+            ->where('gold_transactions.type', 'npc_procurement_delivery')
+            ->whereBetween('gold_transactions.created_at', [$from, $to])
+            ->selectRaw('gold_transactions.character_id')
+            ->selectRaw('COALESCE(characters.name, ?) as character_name', ['不明な冒険者'])
+            ->selectRaw('COUNT(*) as delivery_count')
+            ->selectRaw('SUM(CASE WHEN gold_transactions.amount > 0 THEN gold_transactions.amount ELSE 0 END) as total_gold')
+            ->selectRaw('AVG(CASE WHEN gold_transactions.amount > 0 THEN gold_transactions.amount ELSE NULL END) as average_gold')
+            ->groupBy('gold_transactions.character_id', 'characters.name')
+            ->orderByDesc('total_gold')
+            ->limit(10)
+            ->get()
+            ->map(fn ($row): array => [
+                'character_id' => (int) $row->character_id,
+                'character_name' => (string) $row->character_name,
+                'delivery_count' => (int) $row->delivery_count,
+                'total_gold' => (int) $row->total_gold,
+                'average_gold' => (int) floor((float) $row->average_gold),
+            ])
+            ->all();
+    }
+
+    private function warehouseGoldExpansion(Carbon $from, Carbon $to): array
+    {
+        $purchaseRows = $this->warehouseGoldExpansionDailyPurchases($from, $to);
+        $goldRows = $this->warehouseGoldExpansionDailyGold($from, $to);
+
+        $dailyRows = [];
+        foreach ($this->dateKeys($from, $to) as $key) {
+            $dailyRows[$key] = [
+                'date' => $key,
+                'purchase_count' => (int) ($purchaseRows[$key]['purchase_count'] ?? 0),
+                'buyer_count' => (int) ($purchaseRows[$key]['buyer_count'] ?? 0),
+                'gold_spent' => (int) ($goldRows[$key] ?? 0),
+            ];
+        }
+
+        $dailyRows = array_values(array_filter(
+            $dailyRows,
+            fn (array $row): bool => $row['purchase_count'] > 0 || $row['gold_spent'] > 0
+        ));
+
+        $purchaseCount = array_sum(array_column($dailyRows, 'purchase_count'));
+        $buyerCount = Schema::hasTable('shop_purchase_logs')
+            ? (int) DB::table('shop_purchase_logs')
+                ->where('shop_item_key', self::MATERIAL_STORAGE_GOLD_EXPAND_KEY)
+                ->whereBetween('created_at', [$from, $to])
+                ->distinct('character_id')
+                ->count('character_id')
+            : 0;
+        $goldSpent = array_sum(array_column($dailyRows, 'gold_spent'));
+        $currentPrice = (int) (config('adventure_support.items.' . self::MATERIAL_STORAGE_GOLD_EXPAND_KEY . '.price') ?? 0);
+
+        return [
+            'current_price' => $currentPrice,
+            'purchase_count' => $purchaseCount,
+            'buyer_count' => $buyerCount,
+            'gold_spent' => $goldSpent,
+            'estimated_gold_at_current_price' => $purchaseCount * $currentPrice,
+            'all_time_purchase_count' => $this->warehouseGoldExpansionAllTimePurchaseCount(),
+            'all_time_buyer_count' => $this->warehouseGoldExpansionAllTimeBuyerCount(),
+            'dailyRows' => array_reverse($dailyRows),
+            'recentBuyers' => $this->warehouseGoldExpansionRecentBuyers($from, $to),
+        ];
+    }
+
+    private function warehouseGoldExpansionDailyPurchases(Carbon $from, Carbon $to): array
+    {
+        if (!Schema::hasTable('shop_purchase_logs')) {
+            return [];
+        }
+
+        return DB::table('shop_purchase_logs')
+            ->where('shop_item_key', self::MATERIAL_STORAGE_GOLD_EXPAND_KEY)
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw($this->dateExpression('created_at') . ' as metric_date')
+            ->selectRaw('SUM(quantity) as purchase_count')
+            ->selectRaw('COUNT(DISTINCT character_id) as buyer_count')
+            ->groupBy('metric_date')
+            ->get()
+            ->mapWithKeys(fn ($row): array => [
+                (string) $row->metric_date => [
+                    'purchase_count' => (int) $row->purchase_count,
+                    'buyer_count' => (int) $row->buyer_count,
+                ],
+            ])
+            ->all();
+    }
+
+    private function warehouseGoldExpansionDailyGold(Carbon $from, Carbon $to): array
+    {
+        if (!Schema::hasTable('gold_transactions')) {
+            return [];
+        }
+
+        return $this->warehouseGoldExpansionGoldQuery()
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw($this->dateExpression('created_at') . ' as metric_date')
+            ->selectRaw('SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) as gold_spent')
+            ->groupBy('metric_date')
+            ->pluck('gold_spent', 'metric_date')
+            ->map(fn ($gold): int => (int) $gold)
+            ->all();
+    }
+
+    private function warehouseGoldExpansionRecentBuyers(Carbon $from, Carbon $to): array
+    {
+        if (!Schema::hasTable('shop_purchase_logs') || !Schema::hasTable('characters')) {
+            return [];
+        }
+
+        return DB::table('shop_purchase_logs')
+            ->leftJoin('characters', 'shop_purchase_logs.character_id', '=', 'characters.id')
+            ->where('shop_purchase_logs.shop_item_key', self::MATERIAL_STORAGE_GOLD_EXPAND_KEY)
+            ->whereBetween('shop_purchase_logs.created_at', [$from, $to])
+            ->selectRaw('shop_purchase_logs.character_id')
+            ->selectRaw('COALESCE(characters.name, ?) as character_name', ['不明な冒険者'])
+            ->selectRaw('SUM(shop_purchase_logs.quantity) as purchase_count')
+            ->selectRaw('MAX(shop_purchase_logs.created_at) as last_purchased_at')
+            ->groupBy('shop_purchase_logs.character_id', 'characters.name')
+            ->orderByDesc('last_purchased_at')
+            ->limit(10)
+            ->get()
+            ->map(fn ($row): array => [
+                'character_id' => (int) $row->character_id,
+                'character_name' => (string) $row->character_name,
+                'purchase_count' => (int) $row->purchase_count,
+                'last_purchased_at' => (string) $row->last_purchased_at,
+            ])
+            ->all();
+    }
+
+    private function warehouseGoldExpansionAllTimePurchaseCount(): int
+    {
+        if (!Schema::hasTable('shop_purchase_logs')) {
+            return 0;
+        }
+
+        return (int) DB::table('shop_purchase_logs')
+            ->where('shop_item_key', self::MATERIAL_STORAGE_GOLD_EXPAND_KEY)
+            ->sum('quantity');
+    }
+
+    private function warehouseGoldExpansionAllTimeBuyerCount(): int
+    {
+        if (!Schema::hasTable('shop_purchase_logs')) {
+            return 0;
+        }
+
+        return (int) DB::table('shop_purchase_logs')
+            ->where('shop_item_key', self::MATERIAL_STORAGE_GOLD_EXPAND_KEY)
+            ->distinct('character_id')
+            ->count('character_id');
+    }
+
+    private function warehouseGoldExpansionGoldQuery()
+    {
+        return DB::table('gold_transactions')
+            ->where('type', 'adventure_support_purchase')
+            ->where(function ($query): void {
+                $query->where('note', 'like', '%' . self::MATERIAL_STORAGE_GOLD_EXPAND_KEY . '%')
+                    ->orWhere('metadata->item_key', self::MATERIAL_STORAGE_GOLD_EXPAND_KEY);
+            });
+    }
+
+    private function goldTypeBucket(string $type): string
+    {
+        return match (true) {
+            in_array($type, self::GOLD_ISSUE_TYPES, true) => 'issue',
+            in_array($type, self::GOLD_SINK_TYPES, true) => 'sink',
+            in_array($type, self::GOLD_TRANSFER_TYPES, true) => 'transfer',
+            in_array($type, self::GOLD_MARKET_TYPES, true) => 'market',
+            default => 'unclassified',
+        };
+    }
+
+    private function goldTypeLabels(): array
+    {
+        return [
+            'adventure_support_purchase' => '補給商会購入',
+            'bank_deposit' => '銀行預入',
+            'bank_withdraw' => '銀行引出',
+            'battle_reward' => '戦闘Gold',
+            'equipment_enhancement' => '鍛冶強化',
+            'equipment_evolution' => '装備進化',
+            'equipment_sale' => '装備売却',
+            'exploration_defeat_gold_loss' => '敗北Goldロスト',
+            'inn' => '宿屋',
+            'market_purchase' => '市場購入',
+            'market_sale' => '市場売却',
+            'material_exchange' => '素材交換',
+            'material_sale' => '素材売却',
+            'npc_procurement_delivery' => 'NPC調達納品',
+            'shop_equipment_purchase' => '装備ショップ購入',
+        ];
+    }
+
+    private function goldBucketLabels(): array
+    {
+        return [
+            'issue' => '発行',
+            'sink' => '回収',
+            'transfer' => '移転',
+            'market' => '市場取引',
+            'unclassified' => '要分類',
+        ];
+    }
+
     private function dateRange(): array
     {
         $from = $this->parseDate($this->dateFrom, now()->subDays(29))->startOfDay();
@@ -436,8 +832,8 @@ class OperatorAnalyticsManager extends Component
             $this->dateTo = $to->toDateString();
         }
 
-        if ($from->diffInDays($to) > 120) {
-            $from = $to->copy()->subDays(119)->startOfDay();
+        if ($from->diffInDays($to) >= self::MAX_RANGE_DAYS) {
+            $from = $to->copy()->subDays(self::MAX_RANGE_DAYS - 1)->startOfDay();
             $this->dateFrom = $from->toDateString();
         }
 

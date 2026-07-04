@@ -7,7 +7,9 @@ use App\Models\CharacterConsumableItem;
 use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\Item;
+use App\Models\KisekiTransaction;
 use App\Models\Material;
+use App\Services\CharacterNotificationService;
 use App\Services\CooldownSettingService;
 use App\Services\NewcomerRegistrationCampaignService;
 use App\Services\StorageCapacityService;
@@ -26,6 +28,8 @@ class PlayerControlManager extends Component
     public string $grantTargetId = '';
     public int $grantQuantity = 1;
     public int $grantEnhanceLevel = 0;
+    public int $kisekiGrantAmount = 1;
+    public string $kisekiGrantReason = '';
     public string $freezeReason = '';
 
     public function selectCharacter(int $characterId): void
@@ -140,6 +144,66 @@ class PlayerControlManager extends Component
         $this->grantQuantity = 1;
     }
 
+    public function grantKiseki(): void
+    {
+        $this->validate([
+            'selectedCharacterId' => ['required', 'integer', 'exists:characters,id'],
+            'kisekiGrantAmount' => ['required', 'integer', 'min:1', 'max:999999'],
+            'kisekiGrantReason' => ['required', 'string', 'max:255'],
+        ], [
+            'kisekiGrantReason.required' => '付与理由を入力してください。',
+        ]);
+
+        $message = DB::transaction(function () {
+            $character = Character::query()
+                ->whereKey($this->selectedCharacterId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $amount = (int) $this->kisekiGrantAmount;
+            $paidTotal = (int) ($character->paid_kiseki ?? 0) + $amount;
+            $freeTotal = (int) ($character->free_kiseki ?? 0);
+
+            $character->forceFill([
+                'paid_kiseki' => $paidTotal,
+                'kiseki' => $paidTotal + $freeTotal,
+            ])->save();
+
+            $transaction = KisekiTransaction::create([
+                'character_id' => $character->id,
+                'kiseki_type' => 'paid',
+                'amount' => $amount,
+                'transaction_type' => 'admin_grant',
+                'source_type' => 'admin_grant',
+                'source_id' => auth()->id(),
+                'description' => '管理者付与: ' . $this->kisekiGrantReason,
+            ]);
+
+            app(CharacterNotificationService::class)->create(
+                $character,
+                'system',
+                'admin_paid_kiseki_grant',
+                '輝石が付与されました',
+                "有償輝石 {$amount} 個が付与されました。補給商会でご利用いただけます。",
+                '補給商会を確認',
+                route('kiseki.support'),
+                [
+                    'kiseki_type' => 'paid',
+                    'amount' => $amount,
+                    'transaction_id' => $transaction->id,
+                    'granted_by' => 'admin_grant',
+                ],
+                10
+            );
+
+            return "{$character->name} に有償輝石 {$amount} 個を付与しました。";
+        });
+
+        session()->flash('message', $message);
+        $this->kisekiGrantAmount = 1;
+        $this->kisekiGrantReason = '';
+    }
+
     public function render(
         StorageCapacityService $storageCapacityService,
         NewcomerRegistrationCampaignService $newcomerRegistrationCampaignService
@@ -158,6 +222,7 @@ class PlayerControlManager extends Component
             'grantCandidates' => $this->grantCandidates(),
             'grantTypeLabels' => $this->grantTypeLabels(),
             'controlIdeas' => $this->controlIdeas(),
+            'kisekiGrantHistory' => $this->kisekiGrantHistory($selectedCharacter),
             'newcomerGiftSummary' => $newcomerRegistrationCampaignService->summary(syncPending: true),
         ])->layout('components.layouts.admin');
     }
@@ -194,7 +259,7 @@ class PlayerControlManager extends Component
             ['label' => '探索クールタイム', 'state' => '実装済み', 'body' => '不具合救済やテスト用に探索待機を解除できます。'],
             ['label' => 'アイテム送付', 'state' => '実装済み', 'body' => '素材・装備・探索用アイテム・サポートアイテムを送付できます。'],
             ['label' => 'HP/SP回復', 'state' => '候補', 'body' => '問い合わせ対応や検証用に現在HP/SPを回復できます。'],
-            ['label' => '輝石付与', 'state' => '既存監査と連携候補', 'body' => '課金監査ログとつなげて、手動補填を記録付きで行えます。'],
+            ['label' => '輝石付与', 'state' => '実装済み', 'body' => '有償輝石として付与し、課金監査ログと通知ベルに記録します。'],
             ['label' => '進行復旧', 'state' => '候補', 'body' => '街・エリア解放・ボス討伐状態を個別に確認して復旧できます。'],
             ['label' => 'ヴァルモン救済', 'state' => '候補', 'body' => '卵・相棒・なつきなどを調査画面と連動して調整できます。'],
         ];
@@ -230,6 +295,21 @@ class PlayerControlManager extends Component
             'exploration_item' => '探索アイテム',
             'support_item' => 'サポートアイテム',
         ];
+    }
+
+    private function kisekiGrantHistory(?Character $character): Collection
+    {
+        if (!$character) {
+            return collect();
+        }
+
+        return KisekiTransaction::query()
+            ->where('character_id', $character->id)
+            ->where('transaction_type', 'admin_grant')
+            ->where('source_type', 'admin_grant')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
     }
 
     private function grantCandidates(): Collection

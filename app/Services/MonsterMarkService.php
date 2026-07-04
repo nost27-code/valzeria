@@ -78,13 +78,14 @@ class MonsterMarkService
             ->keyBy('monster_mark_id');
         $discoveredAreaIds = $this->discoveredAreaIds($character);
 
-        return MonsterMark::query()
+        $entries = MonsterMark::query()
             ->select('monster_marks.*')
             ->with('enemy.area.city')
             ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')
             ->leftJoin('areas', 'areas.id', '=', 'enemies.area_id')
             ->leftJoin('cities', 'cities.id', '=', 'areas.city_id')
             ->where('monster_marks.is_active', true)
+            ->where('enemies.is_boss', false)
             ->orderByRaw('COALESCE(cities.sort_order, 999999)')
             ->orderByRaw('COALESCE(areas.sort_order, 999999)')
             ->orderByRaw('COALESCE(enemies.sort_order, 999999)')
@@ -116,6 +117,8 @@ class MonsterMarkService
                     'is_complete' => $level >= $this->maxUnlockLevel($mark),
                 ];
             });
+
+        return $this->deduplicateCollectionEntries($entries);
     }
 
     public function groupedCollectionFor(Character $character, ?Collection $collection = null): Collection
@@ -131,13 +134,21 @@ class MonsterMarkService
                     ->map(function (Collection $areaEntries) {
                         $first = $areaEntries->first();
                         $area = $first['area'] ?? null;
-                        $isAreaDiscovered = (bool) ($first['is_area_discovered'] ?? false);
+                        $isAreaDiscovered = $areaEntries->contains(fn (array $entry): bool => (bool) ($entry['is_area_discovered'] ?? false))
+                            || $areaEntries->contains(fn (array $entry): bool => (bool) ($entry['is_discovered'] ?? false));
+                        $entries = $areaEntries
+                            ->map(function (array $entry) use ($isAreaDiscovered): array {
+                                $entry['is_area_discovered'] = $isAreaDiscovered;
+
+                                return $entry;
+                            })
+                            ->values();
 
                         return [
                             'area' => $area,
                             'display_name' => $isAreaDiscovered ? ($area?->name ?? '不明な地域') : '？？？',
                             'is_area_discovered' => $isAreaDiscovered,
-                            'entries' => $areaEntries->values(),
+                            'entries' => $entries,
                             'discovered_count' => $areaEntries->where('is_discovered', true)->count(),
                             'total_count' => $areaEntries->count(),
                             'total_quantity' => $areaEntries->sum('quantity'),
@@ -170,17 +181,27 @@ class MonsterMarkService
             'luk' => 0,
         ];
 
-        $rows = CharacterMonsterMark::with('monsterMark')
+        $rows = CharacterMonsterMark::with('monsterMark.enemy.area')
             ->where('character_id', $character->id)
             ->get();
 
-        foreach ($rows as $row) {
-            $mark = $row->monsterMark;
+        $rowsByMark = $rows
+            ->filter(fn (CharacterMonsterMark $row): bool => (bool) ($row->monsterMark?->is_active ?? false))
+            ->groupBy(fn (CharacterMonsterMark $row): string => $this->markSignature($row->monsterMark));
+
+        foreach ($rowsByMark as $duplicateRows) {
+            $mark = $duplicateRows
+                ->sort(function (CharacterMonsterMark $a, CharacterMonsterMark $b): int {
+                    return ((int) $a->monster_mark_id) <=> ((int) $b->monster_mark_id);
+                })
+                ->first()
+                ?->monsterMark;
             if (!$mark || !$mark->is_active || !array_key_exists((string) $mark->bonus_stat, $bonuses)) {
                 continue;
             }
 
-            $level = $this->unlockedLevel((int) $row->quantity, $mark);
+            $quantity = $duplicateRows->sum(fn (CharacterMonsterMark $row): int => (int) $row->quantity);
+            $level = $this->unlockedLevel($quantity, $mark);
             $bonuses[(string) $mark->bonus_stat] += $this->totalBonus($level, $mark);
         }
 
@@ -226,6 +247,59 @@ class MonsterMarkService
             ->value('quantity');
     }
 
+    private function deduplicateCollectionEntries(Collection $entries): Collection
+    {
+        return $entries
+            ->groupBy(fn (array $entry): string => $this->entrySignature($entry))
+            ->map(function (Collection $duplicates): array {
+                if ($duplicates->count() === 1) {
+                    return $duplicates->first();
+                }
+
+                $entry = $duplicates
+                    ->sort(function (array $a, array $b): int {
+                        $aHasQuantity = ((int) ($a['quantity'] ?? 0)) > 0 ? 0 : 1;
+                        $bHasQuantity = ((int) ($b['quantity'] ?? 0)) > 0 ? 0 : 1;
+
+                        return [$aHasQuantity, (int) ($a['mark']?->id ?? PHP_INT_MAX)]
+                            <=> [$bHasQuantity, (int) ($b['mark']?->id ?? PHP_INT_MAX)];
+                    })
+                    ->first();
+
+                $mark = $entry['mark'];
+                $quantity = $duplicates->sum(fn (array $duplicate): int => (int) ($duplicate['quantity'] ?? 0));
+                $level = $this->unlockedLevel($quantity, $mark);
+
+                $entry['quantity'] = $quantity;
+                $entry['unlocked_level'] = $level;
+                $entry['next_required'] = $this->nextRequired($quantity, $mark);
+                $entry['total_bonus'] = $this->totalBonus($level, $mark);
+                $entry['progress_percent'] = $this->progressPercent($quantity, $mark);
+                $entry['is_discovered'] = $quantity > 0;
+                $entry['is_complete'] = $level >= $this->maxUnlockLevel($mark);
+
+                return $entry;
+            })
+            ->values();
+    }
+
+    private function entrySignature(array $entry): string
+    {
+        $areaId = (int) ($entry['area']?->id ?? 0);
+        $enemyName = trim((string) ($entry['enemy']?->name ?? $entry['mark']?->mark_name ?? ''));
+
+        return $areaId . ':' . preg_replace('/の印$/u', '', $enemyName);
+    }
+
+    private function markSignature(MonsterMark $mark): string
+    {
+        $enemy = $mark->enemy;
+        $areaId = (int) ($enemy?->area_id ?? $enemy?->area?->id ?? 0);
+        $enemyName = trim((string) ($enemy?->name ?? $mark->mark_name));
+
+        return $areaId . ':' . preg_replace('/の印$/u', '', $enemyName);
+    }
+
     private function effectiveDropRate(MonsterMark $mark, int $currentQuantity): float
     {
         $dropRate = (float) $mark->drop_rate / self::BASE_DROP_RATE_DIVISOR;
@@ -239,6 +313,20 @@ class MonsterMarkService
 
     private function markForEnemy(Enemy $enemy): ?MonsterMark
     {
+        $existing = MonsterMark::query()
+            ->where('is_active', true)
+            ->whereHas('enemy', function ($query) use ($enemy) {
+                $query->where('area_id', $enemy->area_id)
+                    ->where('name', $enemy->name)
+                    ->where('is_boss', false);
+            })
+            ->orderBy('id')
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
         return MonsterMark::firstOrCreate(
             ['enemy_id' => $enemy->id],
             [

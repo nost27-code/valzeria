@@ -668,6 +668,10 @@ class EquipmentEvolutionService
             return $this->materialSourceCache[$code] = ['素材マスタ未登録'];
         }
 
+        if (str_contains((string) $material->name, '古代片') || str_contains((string) $material->name, '古代装飾片')) {
+            return $this->materialSourceCache[$code] = [$this->sourcePayload('未実装')];
+        }
+
         $sources = [];
         $dropRows = DB::table('material_drops')
             ->join('enemies', 'material_drops.enemy_id', '=', 'enemies.id')
@@ -1460,7 +1464,7 @@ class EquipmentEvolutionService
         }
 
         if ($this->truthy($recipe->requires_hidden_dungeon_unlocked ?? false) && !$this->hasUnlockedHiddenArea($character)) {
-            return '秘境の解放が必要です。';
+            return '現時点で未実装です';
         }
 
         if ($this->truthy($recipe->requires_hidden_boss_cleared ?? false) && !$this->hasClearedAnyAreaInRange($character, self::HIDDEN_AREA_MIN_ID, self::HIDDEN_AREA_MAX_ID)) {

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BankController;
 use App\Livewire\CharacterCreate;
@@ -40,29 +41,23 @@ Route::get('/debug-area', function () {
 
 Route::get('/', function () {
     $totalCharacters = \App\Models\Character::count();
-    $champSummary = app(\App\Services\ChampBattleService::class)->summary();
     $onlineCharacters = \App\Models\Character::where('last_seen_at', '>=', now()->subMinutes(5))
         ->orderBy('last_seen_at', 'desc')
         ->get(['name', 'last_seen_at']);
+    $onlineCount = $onlineCharacters->count();
     $registrationOpen = app(\App\Services\GameSettingService::class)->getBool('auth.registration_open', true);
-
-    $champValmon = null;
-    $champCharacterId = $champSummary['champ']->character_id ?? null;
-    if ($champCharacterId) {
-        $champValmon = \App\Models\PlayerValmon::where('character_id', $champCharacterId)
-            ->where('is_partner', true)
-            ->with('master')
-            ->first();
-    }
-
     $topPageVisit = app(\App\Services\TopPageAnalyticsService::class)->recordVisit(request());
 
-    return view('welcome', compact('totalCharacters', 'champSummary', 'onlineCharacters', 'champValmon', 'registrationOpen', 'topPageVisit'));
+    return view('welcome2', compact('totalCharacters', 'onlineCharacters', 'onlineCount', 'registrationOpen', 'topPageVisit'));
 })->name('top');
 
 Route::post('/top-analytics/event', [TopPageAnalyticsController::class, 'event'])
     ->name('top.analytics.event')
     ->middleware('throttle:120,1');
+
+// 旧実験版URL: 正式採用に伴いTOPへ301リダイレクト（重複URLのSEO評価分散を防ぐ）
+Route::redirect('/index2', '/', 301);
+Route::redirect('/index2.html', '/', 301);
 
 Route::get('/help', function (\App\Services\HelpContentService $helpContentService) {
     return view('help.index', [
@@ -431,6 +426,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     })->name('admin.contact-messages.badge-count');
     Route::get('/admin/world-metrics', \App\Livewire\Admin\WorldMetricsManager::class)->name('admin.world-metrics');
+    Route::get('/admin/world-activity-map', \App\Livewire\Admin\WorldActivityMapManager::class)->name('admin.world-activity-map');
     Route::get('/admin/inn-analytics', \App\Livewire\Admin\InnAnalyticsManager::class)->name('admin.inn-analytics');
     Route::get('/admin/operator-analytics', \App\Livewire\Admin\OperatorAnalyticsManager::class)->name('admin.operator-analytics');
     Route::get('/admin/growth-analytics', \App\Livewire\Admin\GrowthAnalyticsManager::class)->name('admin.growth-analytics');

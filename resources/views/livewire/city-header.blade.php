@@ -763,7 +763,6 @@
                                  },
                                  init() {
                                      this.startTimer();
-                                     this.$cleanup(() => this.stopTimer());
                                  }
                              }"
                              @valzeria-stamina-sync.window="

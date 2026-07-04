@@ -1,7 +1,7 @@
 window.ValmonDeepConfig = {
     season: {
-        title: "ヴァルモン深層踏破",
-        name: "今週の深層踏破",
+        title: "ヴァルモン地下探検",
+        name: "今週の地下探検",
         activeCardCount: 80,
         dormantCardCount: 20,
         naturalCoinIntervalHours: 4,
@@ -13,36 +13,26 @@ window.ValmonDeepConfig = {
     deck: {
         initialSlotLimit: 20,
         maxSlotLimit: 36,
-        expandCosts: {
-            21: 8,
-            22: 10,
-            23: 12,
-            24: 14,
-            25: 16,
-            26: 18,
-            27: 20,
-            28: 23,
-            29: 26,
-            30: 29,
-            31: 32,
-            32: 35,
-            33: 38,
-            34: 41,
-            35: 44,
-            36: 47,
-        },
     },
     bp: {
         normalFloorClear: 1,
         bossFloorClear: 5,
         bossFloorClearAfter50: 8,
-        cardChoiceCost: 6,
-        atkUpgradeCost: 3,
-        defUpgradeCost: 3,
-        detectUpgradeCost: 2,
-        evasionUpgradeCost: 2,
-        hpUpgradeCost: 3,
-        healCost: 8,
+        normalActionInitialCost: 1,
+    },
+    coin: {
+        cardChoiceCost: 1,
+        tuningPointCost: 1,
+        tuningPointPurchaseLimit: 10,
+    },
+    gold: {
+        initial: 100000,
+        restCostPerFloor: 150,
+        restHealRate: 0.3,
+    },
+    hpRecovery: {
+        intervalMinutes: 5,
+        rate: 0.1,
     },
     baseStats: {
         hp: 100,
@@ -76,9 +66,9 @@ window.ValmonDeepConfig = {
         },
     },
     healing: {
-        floorClearRate: 0.02,
-        fiveFloorRate: 0.15,
-        tenFloorRate: 0.25,
+        floorClearRate: 0,
+        fiveFloorRate: 0,
+        tenFloorRate: 0,
     },
     routes: {
         safe: {
@@ -222,12 +212,12 @@ window.ValmonDeepConfig = {
         { id: 3, name: "ソラキツネ", level: 55, image: "valmon07.webp" },
     ],
     eventWeights: {
-        combat: 44,
-        trap: 16,
-        treasure: 14,
-        rest: 10,
-        walk: 10,
-        omen: 6,
+        combat: 50,
+        trap: 20,
+        treasure: 18,
+        rest: 0,
+        walk: 8,
+        omen: 4,
     },
 };
 
@@ -235,19 +225,18 @@ window.ValmonDeepConfig.cardCategoryLabels = {
     attack: "攻撃",
     defense: "防御",
     heal: "回復",
-    explore: "探索",
+    explore: "探知",
     evasion: "回避",
-    special: "特殊",
 };
 
 window.ValmonDeepConfig.cards = [
     ...window.ValmonDeepConfig.orbs,
-    { code: "healing_breeze", name: "白風の息つぎ", category: "heal", description: "5階ごとのHP回復量+8%", icon: "icon_246.webp", effect: { milestoneHealBonus: 0.08 } },
+    { code: "healing_breeze", name: "白風の息つぎ", category: "heal", description: "自然回復量+8%", icon: "icon_246.webp", effect: { milestoneHealBonus: 0.08 } },
     { code: "boss_fang", name: "階層主の牙読み", category: "attack", description: "階層主への与ダメージ+15%", icon: "icon_248.webp", effect: { bossDamageDealtRate: 1.15 } },
     { code: "black_wind_guard", name: "黒風よけ", category: "evasion", description: "黒風と罠のダメージ-10%", icon: "icon_251.webp", effect: { trapDamageTakenRate: 0.9, blackRouteScoreRate: 1.05 } },
-    { code: "small_rest", name: "小休止探し", category: "heal", description: "休憩所のHP回復量+10%", icon: "icon_246.webp", effect: { restHealBonus: 0.1 } },
+    { code: "small_rest", name: "小休止探し", category: "heal", description: "Gold休息のHP回復量+10%", icon: "icon_246.webp", effect: { restHealBonus: 0.1 } },
     { code: "treasure_nose", name: "宝箱嗅ぎ", category: "explore", description: "宝箱成功率+12%、宝箱スコア+10%", icon: "icon_250.webp", effect: { treasureRateBonus: 0.12, eventScoreRate: 1.1 } },
     { code: "last_stand", name: "小さな踏ん張り", category: "defense", description: "HP50%以下で被ダメージ-12%", icon: "icon_249.webp", effect: { lowHpDamageTakenRate: 0.88 } },
-    { code: "bp_compass", name: "深層コンパス", category: "special", description: "10階ごとの初回突破BP+1", icon: "icon_250.webp", effect: { bossBpBonus: 1 } },
+    { code: "bp_compass", name: "深層コンパス", category: "explore", description: "探知イベントのスコア+8%", icon: "icon_250.webp", effect: { eventScoreRate: 1.08 } },
     { code: "light_score", name: "光追いの地図", category: "explore", description: "光る気配ルートのスコア+15%", icon: "icon_246.webp", effect: { glowRouteScoreRate: 1.15 } },
 ].map((card, index) => ({ sort: index + 1, rarity: index >= 8 ? "R" : "N", ...card }));

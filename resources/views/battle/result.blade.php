@@ -868,6 +868,7 @@
                                     $remainingMp = max(0, (int) $character->current_mp);
                                     $maxMp = max(1, (int) ($finalStats['max_mp'] ?? 1));
                                     $mpPercent = min(100, (int) floor(($remainingMp / $maxMp) * 100));
+                                    $currentPower = app(\App\Services\CharacterPowerService::class)->fromFinalStats($finalStats ?? []);
                                     $hpBarClass = $hpPercent <= 20
                                         ? 'bg-red-500'
                                         : ($hpPercent <= 50 ? 'bg-amber-500' : 'bg-emerald-500');
@@ -1006,6 +1007,11 @@
                                             <div style="display:flex;align-items:baseline;gap:3px;">
                                                 <span style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;">連戦</span>
                                                 <span style="font-size:13px;font-weight:800;color:#1e293b;font-variant-numeric:tabular-nums;">{{ number_format($explorationSummary['chain_count'] ?? 0) }}</span>
+                                            </div>
+                                            <span style="color:#e2e8f0;font-size:10px;">|</span>
+                                            <div style="display:flex;align-items:baseline;gap:3px;">
+                                                <span style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;">現在戦力</span>
+                                                <span style="font-size:11px;font-weight:800;color:#1e293b;font-variant-numeric:tabular-nums;">{{ number_format($currentPower) }}</span>
                                             </div>
                                             @if($depth && ($depth['recommended_level_min'] ?? 0))
                                                 @php
@@ -1363,7 +1369,6 @@
                                       },
                                       init() {
                                           this.startTimer();
-                                          this.$cleanup(() => this.stopTimer());
                                       }
                                   }"
                                   @valzeria-stamina-sync.window="
@@ -1447,11 +1452,11 @@
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
-                            <form action="{{ route('battle.sub_area.explore', ['discovery' => $result['sub_area_discovery_id']]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-wait-seconds="{{ $battleWaitSeconds }}">
+                            <form action="{{ route('battle.sub_area.explore', ['discovery' => $result['sub_area_discovery_id']]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
                                 @csrf
-                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0) class="bg-indigo-700 hover:bg-indigo-800 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-indigo-700 hover:bg-indigo-800 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
-                                    <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{{ $battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する' }}</span>
+                                    <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する ' . $staminaCostHtml) !!}</span>
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['result'] === 'victory' || $result['result'] === 'win'))

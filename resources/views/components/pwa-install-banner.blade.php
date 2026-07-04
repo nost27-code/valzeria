@@ -1,21 +1,23 @@
-<div id="pwa-install-banner" class="hidden relative z-[100] w-full flex items-center gap-2.5 bg-slate-900 px-3 py-2 shadow-[0_2px_12px_rgba(0,0,0,0.4)]">
-    {{-- アプリアイコン風 --}}
-    <div class="shrink-0 rounded-xl overflow-hidden">
-        <img src="{{ asset('images/install.webp') }}" alt="" class="h-10 w-10 object-contain">
+<div id="pwa-install-banner" class="hidden relative z-[100] w-full items-center gap-3 border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-900 to-[#101c33] px-3.5 py-2.5 shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:px-5 sm:py-3">
+    <div class="mx-auto flex w-full max-w-3xl items-center gap-3">
+        {{-- アプリアイコン風 --}}
+        <div class="shrink-0 overflow-hidden rounded-xl ring-1 ring-white/15">
+            <img src="{{ asset('images/install.webp') }}" alt="" class="h-11 w-11 object-contain sm:h-12 sm:w-12">
+        </div>
+        {{-- テキスト --}}
+        <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-bold leading-tight text-white">アプリとしてインストール</p>
+            <p class="truncate text-xs leading-tight text-slate-400" id="pwa-install-desc">ホーム画面に追加してフルスクリーンで遊ぼう！</p>
+        </div>
+        {{-- 追加ボタン --}}
+        <button id="pwa-install-btn" class="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-b from-[#e7c96a] to-[#c9a227] px-4 py-2 text-xs font-black tracking-wide text-slate-900 shadow-[0_2px_8px_rgba(212,175,55,0.35)] transition hover:brightness-105 active:scale-95 sm:px-5 sm:text-sm">追加</button>
+        {{-- 閉じるボタン --}}
+        <button id="pwa-dismiss-btn" class="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="閉じる">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+        </button>
     </div>
-    {{-- テキスト --}}
-    <div class="min-w-0 flex-1">
-        <p class="truncate text-xs font-bold text-white">アプリとしてインストール</p>
-        <p class="truncate text-[10px] text-slate-400" id="pwa-install-desc">ホーム画面に追加してフルスクリーンで遊ぼう！</p>
-    </div>
-    {{-- 追加ボタン --}}
-    <button id="pwa-install-btn" class="shrink-0 whitespace-nowrap rounded-lg bg-[#d4af37] px-3 py-1.5 text-xs font-black text-slate-900 shadow-sm transition hover:bg-[#c9a227] active:scale-95">追加</button>
-    {{-- 閉じるボタン --}}
-    <button id="pwa-dismiss-btn" class="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-white/10 hover:text-white">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-        </svg>
-    </button>
 </div>
 
 <script>

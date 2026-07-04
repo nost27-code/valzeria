@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\City;
+use App\Services\CityPopulationService;
 
 class CityController extends Controller
 {
-    public function index()
+    public function index(CityPopulationService $cityPopulationService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -22,8 +23,10 @@ class CityController extends Controller
         $highestCity = $character->highestCity;
         // 最高到達街がない（初期データ不良等）場合は一番最初の街を最高とする
         $highestCityOrder = $highestCity ? $highestCity->sort_order : 0;
+        $cityPopulationCounts = $cityPopulationService->countsByCity();
+        $cityIconSamples = $cityPopulationService->iconSamplesByCity(12);
 
-        return view('city.index', compact('character', 'cities', 'highestCityOrder'));
+        return view('city.index', compact('character', 'cities', 'highestCityOrder', 'cityPopulationCounts', 'cityIconSamples'));
     }
 
     public function travel(Request $request, City $city)

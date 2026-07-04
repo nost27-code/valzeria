@@ -154,7 +154,7 @@
                                     'medal' => null,
                                 ],
                             };
-                            $barWidth = $topScore > 0
+                            $barWidth = $topScore > 0 && (int) $row['score'] > 0
                                 ? max(6, (int) round(((int) $row['score'] / $topScore) * 100))
                                 : 0;
                         @endphp

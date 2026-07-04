@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterSubAreaRouteDiscovery;
 use App\Models\Enemy;
+use App\Services\Enemy\EnemyStatGenerationService;
 use Illuminate\Support\Facades\Log;
 
 class SubAreaExplorationService
@@ -20,6 +21,10 @@ class SubAreaExplorationService
 
     public function explore(Character $character, CharacterSubAreaRouteDiscovery $discovery): array
     {
+        $staminaService = app(ExplorationStaminaService::class);
+        $consumesStamina = $staminaService->enabled();
+        $staminaSummary = $consumesStamina ? $staminaService->summary($character) : null;
+
         $discovery->loadMissing('route.subArea', 'route.sourceArea');
         $route = $discovery->route;
         $subArea = $route?->subArea;
@@ -50,7 +55,7 @@ class SubAreaExplorationService
 
         $depthKey = $subArea?->layer_type === 'otherworld' ? 'otherworld' : 'deep';
         $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSecondsForDepthKey($depthKey);
-        if ($battleCooldownSeconds > 0 && $character->last_battle_at) {
+        if (!$consumesStamina && $battleCooldownSeconds > 0 && $character->last_battle_at) {
             $elapsed = $character->last_battle_at->lte(now())
                 ? (int) $character->last_battle_at->diffInSeconds(now(), true)
                 : 0;
@@ -77,6 +82,17 @@ class SubAreaExplorationService
                 'sub_area'       => $subArea->name,
             ]);
             return ['error' => 'この入口の先には、まだ敵が設定されていません。'];
+        }
+
+        if ($consumesStamina) {
+            $consumeResult = $staminaService->consumeForExplore($character);
+            $staminaSummary = $consumeResult['stamina'] ?? $staminaService->summary($character);
+            if (!($consumeResult['ok'] ?? false)) {
+                return [
+                    'error' => $consumeResult['error'] ?? '探索力が足りません。回復を待ってください。',
+                    'exploration_stamina' => $staminaSummary,
+                ];
+            }
         }
 
         $targetEnemy = $this->scaleEnemyForSubArea($enemy, $subArea, (int) $state->danger_rate);
@@ -186,6 +202,7 @@ class SubAreaExplorationService
             'chain_loot_summary' => null,
             'exploration_progress' => $progress,
             'exploration_summary' => $this->stateService->summary($character, $discovery),
+            'exploration_stamina' => $consumesStamina ? $staminaService->summary($character) : $staminaSummary,
             'special_event' => 'sub_area_explore',
             'sub_area_name' => $subArea->name,
             'sub_area_route_name' => $route->route_name,
@@ -255,6 +272,67 @@ class SubAreaExplorationService
             'skip_danger_bonus' => true,
         ]);
 
+        $this->applySubAreaCombatFloors($enemy, $targetMax);
+
+        return $this->normalizeEnemyPowerForSubArea($enemy, $targetMin, $targetMax);
+    }
+
+    private function applySubAreaCombatFloors(Enemy $enemy, int $targetLevel): void
+    {
+        $generated = app(EnemyStatGenerationService::class)->generate(
+            $targetLevel,
+            $enemy->family_key,
+            $enemy->variant_key,
+            'strong'
+        )['stats'];
+
+        $openingScale = 1.8;
+        $enemy->str = max((int) $enemy->str, (int) round((int) $generated['attack'] * $openingScale));
+        $enemy->mag = max((int) $enemy->mag, (int) round((int) $generated['magic'] * $openingScale));
+        $enemy->def = max((int) $enemy->def, (int) round((int) $generated['defense'] * 1.5));
+        $enemy->spr = max((int) ($enemy->spr ?? 0), (int) round((int) $generated['spirit'] * 1.5));
+    }
+
+    private function normalizeEnemyPowerForSubArea(Enemy $enemy, int $targetMinLevel, int $targetMaxLevel): Enemy
+    {
+        $powerService = app(CharacterPowerService::class);
+        $range = $powerService->openingRecommendedRangeForLevels($targetMinLevel, $targetMaxLevel);
+        $minPower = max(1, (int) ($range['min'] ?? 1));
+        $maxPower = max($minPower, (int) ($range['max'] ?? $minPower));
+        $preferredMinPower = max($minPower, (int) round($maxPower * 0.85));
+
+        for ($i = 0; $i < 3; $i++) {
+            $currentPower = $this->enemyPower($enemy, $powerService);
+            if ($currentPower >= $preferredMinPower && $currentPower <= $maxPower) {
+                return $enemy;
+            }
+
+            $targetPower = random_int($preferredMinPower, $maxPower);
+            $multiplier = max(0.45, min(2.5, $targetPower / max(1, $currentPower)));
+            $this->scaleEnemyCombatStats($enemy, $multiplier);
+        }
+
         return $enemy;
+    }
+
+    private function enemyPower(Enemy $enemy, CharacterPowerService $powerService): int
+    {
+        return $powerService->fromEnemyStats([
+            'max_hp' => (int) $enemy->max_hp,
+            'str' => (int) $enemy->str,
+            'def' => (int) $enemy->def,
+            'agi' => (int) $enemy->agi,
+            'mag' => (int) $enemy->mag,
+            'spr' => (int) ($enemy->spr ?? $enemy->def),
+            'luk' => (int) ($enemy->luk ?? 0),
+        ]);
+    }
+
+    private function scaleEnemyCombatStats(Enemy $enemy, float $multiplier): void
+    {
+        foreach (['max_hp', 'str', 'def', 'agi', 'mag', 'spr', 'luk'] as $stat) {
+            $baseValue = (int) ($enemy->{$stat} ?? ($stat === 'spr' ? $enemy->def : 0));
+            $enemy->{$stat} = max(1, (int) round($baseValue * $multiplier));
+        }
     }
 }

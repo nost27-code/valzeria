@@ -89,21 +89,19 @@ class ExplorationStateService
         $state->danger_rate = $dangerResult['after'];
         $state->save();
 
+        // 深度到達の告知は「これから提示できるゲート（引き返し等で確定ブロックされていない階層）」にのみ絞る。
+        // 生の探索度/危険度の閾値だけで判定すると、一度引き返した階層より先の層に対しても
+        // 「〜に到達しました」という案内が出てしまい、実際には入っていない層の到達を騙ることになる。
         $depthService = app(ExplorationDepthService::class);
         $area = $enemy->relationLoaded('area') ? $enemy->area : $enemy->area()->first();
-        $activeBefore = $area
-            ? $depthService->activeTierFor($character, $area, $beforePoint, $beforeDanger)
-            : $depthService->tierFor($beforePoint, $beforeDanger);
-        $activeBeforeIndex = $depthService->tierIndexForKey((string) ($activeBefore['key'] ?? 'surface'));
-        $depthTransitions = collect($depthService->crossedTiers(
-            $beforePoint,
-            $beforeDanger,
-            (int) $state->exploration_point,
-            (int) $state->danger_rate
-        ))
-            ->filter(fn (array $tier): bool => $depthService->tierIndexForKey((string) ($tier['key'] ?? 'surface')) > $activeBeforeIndex)
-            ->values()
-            ->all();
+        $depthTransitions = [];
+        if ($area) {
+            $gateBefore = $depthService->currentGateFor($character, $area, $beforePoint, $beforeDanger);
+            $gateAfter = $depthService->currentGateFor($character, $area, (int) $state->exploration_point, (int) $state->danger_rate);
+            if ($gateAfter && (string) ($gateBefore['key'] ?? '') !== (string) ($gateAfter['key'] ?? '')) {
+                $depthTransitions = [$gateAfter];
+            }
+        }
 
         return [
             'state' => $state->fresh(),
