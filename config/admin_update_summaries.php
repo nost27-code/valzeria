@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-04-tavern-reunion-duplicate-fix',
+        'date' => '2026-07-04',
+        'category' => 'fixed',
+        'title' => '酒場の重複表示を修正',
+        'detail' => '探索中にすれ違ったNPCが当日の酒場にもいる場合、同じ人物が重複表示されないよう修正しました。',
+    ],
+    [
         'id' => '2026-07-03-inn-analytics-profit-estimate',
         'date' => '2026-07-03',
         'category' => 'internal',

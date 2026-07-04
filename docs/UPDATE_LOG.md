@@ -6,6 +6,11 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### 2026-07-04
+
+#### Fixed
+- 探索中にすれ違ったNPCが当日の酒場にもいる場合、酒場で同じ人物が重複表示される問題を修正しました。
+
 ### 2026-07-02
 
 #### Balance

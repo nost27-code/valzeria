@@ -32,6 +32,8 @@ class TavernNpcService
     public function dailyNpcs(Character $character): Collection
     {
         $date = now()->toDateString();
+        $this->removeDuplicateReunionNpc($character, $date);
+
         $saved = PlayerTavernDailyNpc::with('npc')
             ->where('character_id', $character->id)
             ->whereDate('tavern_date', $date)
@@ -74,13 +76,30 @@ class TavernNpcService
 
     public function addTodayReunionNpc(Character $character, NpcMaster $npc): void
     {
+        $date = now()->toDateString();
+        $npcId = (int) $npc->npc_id;
+
+        $alreadyInTavern = PlayerTavernDailyNpc::where('character_id', $character->id)
+            ->whereDate('tavern_date', $date)
+            ->where('npc_id', $npcId)
+            ->exists();
+
+        if ($alreadyInTavern) {
+            PlayerTavernDailyNpc::where('character_id', $character->id)
+                ->whereDate('tavern_date', $date)
+                ->where('slot_no', 4)
+                ->where('npc_id', $npcId)
+                ->delete();
+            return;
+        }
+
         PlayerTavernDailyNpc::updateOrCreate(
             [
                 'character_id' => $character->id,
-                'tavern_date' => now()->toDateString(),
+                'tavern_date' => $date,
                 'slot_no' => 4,
             ],
-            ['npc_id' => $npc->npc_id]
+            ['npc_id' => $npcId]
         );
     }
 
@@ -190,6 +209,26 @@ class TavernNpcService
         }
 
         return $selected;
+    }
+
+    private function removeDuplicateReunionNpc(Character $character, string $date): void
+    {
+        $normalNpcIds = PlayerTavernDailyNpc::where('character_id', $character->id)
+            ->whereDate('tavern_date', $date)
+            ->where('slot_no', '<=', 3)
+            ->pluck('npc_id')
+            ->map(fn ($npcId): int => (int) $npcId)
+            ->all();
+
+        if ($normalNpcIds === []) {
+            return;
+        }
+
+        PlayerTavernDailyNpc::where('character_id', $character->id)
+            ->whereDate('tavern_date', $date)
+            ->where('slot_no', 4)
+            ->whereIn('npc_id', $normalNpcIds)
+            ->delete();
     }
 
     public function meetsCondition(Character $character, NpcMaster $npc): bool
