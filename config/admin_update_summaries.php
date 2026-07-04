@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-04-high-rank-job-growth-balance',
+        'date' => '2026-07-04',
+        'category' => 'balance',
+        'title' => '高位職の成長バランスを調整',
+        'detail' => '超級職・冠位職・英雄職の転職時引き継ぎを40%にし、高位職の成長倍率を段階的に調整しました。',
+    ],
+    [
         'id' => '2026-07-04-tavern-reunion-duplicate-fix',
         'date' => '2026-07-04',
         'category' => 'fixed',

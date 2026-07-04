@@ -11,6 +11,9 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 #### Fixed
 - 探索中にすれ違ったNPCが当日の酒場にもいる場合、酒場で同じ人物が重複表示される問題を修正しました。
 
+#### Balance
+- 高位職の転職バランスを見直し、超級職・冠位職・英雄職は基礎能力値の40%を引き継ぐようにし、超級職以降の成長倍率を段階的に調整しました。
+
 ### 2026-07-02
 
 #### Balance

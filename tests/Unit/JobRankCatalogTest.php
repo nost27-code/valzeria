@@ -20,16 +20,29 @@ class JobRankCatalogTest extends TestCase
         $this->assertSame(30.0, JobRankCatalog::jobExpMultiplier('myth'));
     }
 
-    public function test_inheritance_divisor_switches_from_advanced_to_super(): void
+    public function test_inheritance_divisor_keeps_legacy_whole_number_tiers(): void
     {
         $this->assertSame(2, JobRankCatalog::inheritanceDivisor('normal'));
         $this->assertSame(2, JobRankCatalog::inheritanceDivisor('default'));
         $this->assertSame(2, JobRankCatalog::inheritanceDivisor('middle'));
         $this->assertSame(2, JobRankCatalog::inheritanceDivisor('advanced'));
-        $this->assertSame(3, JobRankCatalog::inheritanceDivisor('super'));
-        $this->assertSame(3, JobRankCatalog::inheritanceDivisor('crown'));
-        $this->assertSame(3, JobRankCatalog::inheritanceDivisor('hero'));
+        $this->assertSame(2, JobRankCatalog::inheritanceDivisor('super'));
+        $this->assertSame(2, JobRankCatalog::inheritanceDivisor('crown'));
+        $this->assertSame(2, JobRankCatalog::inheritanceDivisor('hero'));
         $this->assertSame(3, JobRankCatalog::inheritanceDivisor('legend'));
         $this->assertSame(3, JobRankCatalog::inheritanceDivisor('myth'));
+    }
+
+    public function test_inheritance_rate_uses_three_balance_tiers(): void
+    {
+        $this->assertSame(0.5, JobRankCatalog::inheritanceRate('normal'));
+        $this->assertSame(0.5, JobRankCatalog::inheritanceRate('default'));
+        $this->assertSame(0.5, JobRankCatalog::inheritanceRate('middle'));
+        $this->assertSame(0.5, JobRankCatalog::inheritanceRate('advanced'));
+        $this->assertSame(0.4, JobRankCatalog::inheritanceRate('super'));
+        $this->assertSame(0.4, JobRankCatalog::inheritanceRate('crown'));
+        $this->assertSame(0.4, JobRankCatalog::inheritanceRate('hero'));
+        $this->assertEqualsWithDelta(1 / 3, JobRankCatalog::inheritanceRate('legend'), 0.000001);
+        $this->assertEqualsWithDelta(1 / 3, JobRankCatalog::inheritanceRate('myth'), 0.000001);
     }
 }

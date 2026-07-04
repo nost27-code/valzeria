@@ -130,6 +130,8 @@
 
     $rankLabel = fn ($rank) => \App\Support\JobRankCatalog::badge($rank);
     $isHighRankJob = fn ($rank) => \App\Support\JobRankCatalog::isHighRank($rank);
+    $inheritanceFractionLabel = fn ($rank) => \App\Support\JobRankCatalog::inheritanceFractionLabel($rank);
+    $inheritancePercentLabel = fn ($rank) => \App\Support\JobRankCatalog::inheritancePercentLabel($rank);
     $isReleasedAdvancedJob = fn ($job) => in_array((int) $job->id, [44, 45, 46, 47, 48, 49], true);
 
     $isRequirementMet = function ($req) use ($character, $jobProgress) {
@@ -693,9 +695,9 @@
                     <div class="mt-4 text-xs text-gray-500 text-center flex flex-col items-center gap-1.5 leading-relaxed bg-white p-2 rounded border border-gray-100">
                         <img src="{{ asset('images/icon/icon_046.webp') }}" alt="" class="w-5 h-5 object-contain">
                         @if($isHighRankJob($selectedJob->rank ?? null))
-                            <span>超級職以上への転職は高位転職となります。<br>高位転職では、基礎能力値の1/3を引き継ぎます。</span>
+                            <span>超級職以上への転職は高位転職となります。<br>{{ \App\Support\JobRankCatalog::label($selectedJob->rank ?? null) }}では、基礎能力値の{{ $inheritanceFractionLabel($selectedJob->rank ?? null) }}（約{{ $inheritancePercentLabel($selectedJob->rank ?? null) }}）を引き継ぎます。</span>
                         @else
-                            <span>転職後、基礎能力値の1/2を引き継ぎます。<br>獲得した経験値やマスターボーナスは維持されます。</span>
+                            <span>転職後、基礎能力値の1/2（50%）を引き継ぎます。<br>マスターボーナスは維持されます。</span>
                         @endif
                     </div>
                 </div>

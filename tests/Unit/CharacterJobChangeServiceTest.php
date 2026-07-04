@@ -26,11 +26,29 @@ class CharacterJobChangeServiceTest extends TestCase
         $this->assertSame(15, $stats['luck_base']);
     }
 
-    public function test_super_or_higher_job_change_inherits_third_base_stats(): void
+    public function test_super_to_hero_job_change_inherits_two_fifths_base_stats(): void
     {
         $service = new CharacterJobChangeService(new PublicLogService());
 
-        foreach (['super', 'crown', 'hero', 'legend', 'myth'] as $rank) {
+        foreach (['super', 'crown', 'hero'] as $rank) {
+            $stats = $service->calculateInheritedStats($this->character(), new JobClass(['rank' => $rank]));
+
+            $this->assertSame(120, $stats['hp_base'], $rank);
+            $this->assertSame(36, $stats['mp_base'], $rank);
+            $this->assertSame(24, $stats['attack_base'], $rank);
+            $this->assertSame(21, $stats['defense_base'], $rank);
+            $this->assertSame(19, $stats['speed_base'], $rank);
+            $this->assertSame(16, $stats['magic_base'], $rank);
+            $this->assertSame(14, $stats['spirit_base'], $rank);
+            $this->assertSame(12, $stats['luck_base'], $rank);
+        }
+    }
+
+    public function test_legend_or_myth_job_change_inherits_third_base_stats(): void
+    {
+        $service = new CharacterJobChangeService(new PublicLogService());
+
+        foreach (['legend', 'myth'] as $rank) {
             $stats = $service->calculateInheritedStats($this->character(), new JobClass(['rank' => $rank]));
 
             $this->assertSame(100, $stats['hp_base'], $rank);

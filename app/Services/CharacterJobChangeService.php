@@ -96,16 +96,16 @@ class CharacterJobChangeService
             'luk' => 10,
         ];
 
-        $divisor = JobRankCatalog::inheritanceDivisor($targetJob?->rank);
+        $inheritanceRate = JobRankCatalog::inheritanceRate($targetJob?->rank);
 
-        $afterHp = floor($character->hp_base / $divisor);
-        $afterMp = floor($character->mp_base / $divisor);
-        $afterStr = floor($character->attack_base / $divisor);
-        $afterDef = floor($character->defense_base / $divisor);
-        $afterAgi = floor($character->speed_base / $divisor);
-        $afterMag = floor($character->magic_base / $divisor);
-        $afterSpr = floor($character->spirit_base / $divisor);
-        $afterLuk = floor($character->luck_base / $divisor);
+        $afterHp = floor($character->hp_base * $inheritanceRate);
+        $afterMp = floor($character->mp_base * $inheritanceRate);
+        $afterStr = floor($character->attack_base * $inheritanceRate);
+        $afterDef = floor($character->defense_base * $inheritanceRate);
+        $afterAgi = floor($character->speed_base * $inheritanceRate);
+        $afterMag = floor($character->magic_base * $inheritanceRate);
+        $afterSpr = floor($character->spirit_base * $inheritanceRate);
+        $afterLuk = floor($character->luck_base * $inheritanceRate);
 
         // 最低保証を下回らないようにする
         return [

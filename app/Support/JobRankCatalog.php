@@ -35,6 +35,17 @@ class JobRankCatalog
         self::MYTH,
     ];
 
+    private const MID_HIGH_RANKS = [
+        self::SUPER,
+        self::CROWN,
+        self::HERO,
+    ];
+
+    private const TOP_HIGH_RANKS = [
+        self::LEGEND,
+        self::MYTH,
+    ];
+
     public static function keys(): array
     {
         return array_keys(self::RANKS);
@@ -79,7 +90,52 @@ class JobRankCatalog
 
     public static function inheritanceDivisor(?string $rank): int
     {
-        return self::isHighRank($rank) ? 3 : 2;
+        return in_array(self::normalize($rank), self::TOP_HIGH_RANKS, true) ? 3 : 2;
+    }
+
+    public static function inheritanceRate(?string $rank): float
+    {
+        $rank = self::normalize($rank);
+
+        if (in_array($rank, self::MID_HIGH_RANKS, true)) {
+            return 0.4;
+        }
+
+        if (in_array($rank, self::TOP_HIGH_RANKS, true)) {
+            return 1 / 3;
+        }
+
+        return 0.5;
+    }
+
+    public static function inheritanceFractionLabel(?string $rank): string
+    {
+        $rank = self::normalize($rank);
+
+        if (in_array($rank, self::MID_HIGH_RANKS, true)) {
+            return '2/5';
+        }
+
+        if (in_array($rank, self::TOP_HIGH_RANKS, true)) {
+            return '1/3';
+        }
+
+        return '1/2';
+    }
+
+    public static function inheritancePercentLabel(?string $rank): string
+    {
+        $rank = self::normalize($rank);
+
+        if (in_array($rank, self::MID_HIGH_RANKS, true)) {
+            return '40%';
+        }
+
+        if (in_array($rank, self::TOP_HIGH_RANKS, true)) {
+            return '33%';
+        }
+
+        return '50%';
     }
 
     public static function normalize(?string $rank): string
