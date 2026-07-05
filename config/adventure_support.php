@@ -26,6 +26,20 @@ return [
             'effect_value' => 150,
             'daily_purchase_limit' => 10,
         ],
+        'support_pass_30d' => [
+            'name' => '冒険者支援パス 30日',
+            'category' => '冒険者支援パス',
+            'icon_image' => 'images/icon/icon_084.webp',
+            'price' => 50,
+            'description' => '30日間、冒険を少し快適にする支援パスです。探索力上限が+250され、冒険者カードの特別な見た目を選べるようになります。強さに直接影響する効果はありません。',
+            'effect_type' => 'support_pass_30d',
+            'effects' => [
+                '探索力上限 +250',
+                '冒険者カード見た目「支援パスカード」解放',
+                '有効期間：30日',
+                '自動更新なし',
+            ],
+        ],
         'adventurer_supply_box' => [
             'name' => '冒険者補給箱',
             'category' => '探索支援',

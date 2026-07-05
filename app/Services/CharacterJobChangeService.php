@@ -69,7 +69,13 @@ class CharacterJobChangeService
             ];
         }
 
-        // TODO: 上位職の解放条件チェックが必要になればここに追加
+        $jobService = app(JobService::class);
+        if (! $jobService->meetsJobRequirements($character, $targetJob)) {
+            return [
+                'success' => false,
+                'message' => 'この職業の転職条件を満たしていません。'
+            ];
+        }
 
         return [
             'success' => true,

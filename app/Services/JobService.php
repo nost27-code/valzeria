@@ -18,18 +18,22 @@ class JobService
      */
     public function canChangeJob(Character $character, JobClass $job): bool
     {
-        // すでに転職条件をクリアしているかチェック
-        // JobRequirementのレコードをループして判定する
-        $requirements = $job->requirements;
-        
-        // 全職共通の最低レベル条件
-        if ($character->level < 30) {
+        return $this->meetsJobRequirements($character, $job)
+            && $this->passesBonusPointGate($character);
+    }
+
+    public function canRevealJob(Character $character, JobClass $job): bool
+    {
+        return $this->meetsJobRequirements($character, $job);
+    }
+
+    public function meetsJobRequirements(Character $character, JobClass $job): bool
+    {
+        if ((int) $character->level < 30) {
             return false;
         }
 
-        if ((int) ($character->bonus_points ?? 0) > 0) {
-            return false;
-        }
+        $requirements = $job->requirements;
 
         if ($requirements->isEmpty()) {
             return JobRankCatalog::isBasic($job->rank); // 条件がなければ基本職のみ転職可能
@@ -50,11 +54,64 @@ class JobService
                 if ($character->level < $req->required_value) {
                     return false;
                 }
+            } elseif ($req->requirement_type === 'title') {
+                if (! $this->hasRequiredTitle($character, $req)) {
+                    return false;
+                }
+            } elseif ($req->requirement_type === 'item') {
+                if (! $this->hasRequiredItem($character, $req)) {
+                    return false;
+                }
+            } else {
+                return false;
             }
-            // その他の条件(称号、アイテム等)は将来拡張用
         }
 
         return true;
+    }
+
+    public function passesBonusPointGate(Character $character): bool
+    {
+        return (int) ($character->bonus_points ?? 0) <= 0;
+    }
+
+    private function hasRequiredTitle(Character $character, JobRequirement $requirement): bool
+    {
+        if ($requirement->required_value !== null) {
+            return $character->titles()
+                ->where('title_id', (int) $requirement->required_value)
+                ->exists();
+        }
+
+        $requiredKey = trim((string) ($requirement->required_key ?? ''));
+        if ($requiredKey === '') {
+            return false;
+        }
+
+        return $character->titles()
+            ->whereHas('title', fn ($query) => $query
+                ->where('name', $requiredKey)
+                ->orWhere('source_master', $requiredKey))
+            ->exists();
+    }
+
+    private function hasRequiredItem(Character $character, JobRequirement $requirement): bool
+    {
+        if ($requirement->required_value !== null) {
+            return $character->characterItems()
+                ->where('item_id', (int) $requirement->required_value)
+                ->exists();
+        }
+
+        $requiredKey = trim((string) ($requirement->required_key ?? ''));
+        if ($requiredKey === '') {
+            return false;
+        }
+
+        return $character->consumableItems()
+            ->where('item_key', $requiredKey)
+            ->where('quantity', '>', 0)
+            ->exists();
     }
 
     /**

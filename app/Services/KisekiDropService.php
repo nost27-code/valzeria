@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class KisekiDropService
 {
-    private const FREE_KISEKI_DROP_RATE_PER_MILLION = 300;
+    private const FREE_KISEKI_DROP_RATE_PER_MILLION = 1000;
     private const FREE_KISEKI_DROP_AMOUNT = 1;
     private const DAILY_FREE_KISEKI_DROP_LIMIT = 3;
     private const KISEKI_DROP_MIN_ENEMY_LEVEL_DIFF = 20;

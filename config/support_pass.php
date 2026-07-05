@@ -1,0 +1,9 @@
+<?php
+
+return [
+    'enabled' => false,
+    'price_kiseki' => 50,
+    'duration_days' => 30,
+    'stamina_bonus' => 250,
+    'max_extend_days' => 90,
+];

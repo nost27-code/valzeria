@@ -132,8 +132,6 @@
     $isHighRankJob = fn ($rank) => \App\Support\JobRankCatalog::isHighRank($rank);
     $inheritanceFractionLabel = fn ($rank) => \App\Support\JobRankCatalog::inheritanceFractionLabel($rank);
     $inheritancePercentLabel = fn ($rank) => \App\Support\JobRankCatalog::inheritancePercentLabel($rank);
-    $isReleasedAdvancedJob = fn ($job) => in_array((int) $job->id, [44, 45, 46, 47, 48, 49], true);
-
     $isRequirementMet = function ($req) use ($character, $jobProgress) {
         if ($req->requirement_type === 'master_job') {
             $requiredJobId = (int) ($req->required_job_id ?? 0);
@@ -143,6 +141,10 @@
 
         if ($req->requirement_type === 'character_level') {
             return (int) $character->level >= (int) $req->required_value;
+        }
+
+        if (in_array($req->requirement_type, ['title', 'item'], true)) {
+            return true;
         }
 
         return false;
@@ -362,7 +364,7 @@
                                 $stars = max(0, min(9, (int) ($progress['level'] ?? 0)));
                                 $bonusChips = ($progress['is_mastered'] ?? false) ? $formatMasterBonuses($job) : [];
                                 $rankStyle = $rankStyles[$job->rank] ?? $rankStyles['normal'];
-                                $isRevealed = $isReleasedAdvancedJob($job) || $meetsRealRequirements($job);
+                                $isRevealed = $meetsRealRequirements($job);
                                 $blockedOnlyByBp = $meetsRealRequirements($job) && $unspentBp > 0;
                             @endphp
                             <div class="border {{ $rankStyle['lockedCard'] }} rounded-lg p-3">
@@ -413,6 +415,10 @@
                                                     {{ $req->requiredJob->name ?? '不明' }} のマスター
                                                 @elseif($req->requirement_type === 'character_level')
                                                     Lv {{ $req->required_value }} 以上
+                                                @elseif($req->requirement_type === 'title')
+                                                    称号の獲得
+                                                @elseif($req->requirement_type === 'item')
+                                                    特別な品の所持
                                                 @else
                                                     特定の条件
                                                 @endif
@@ -426,7 +432,7 @@
                                         </div>
                                     @endif
                                 </div>
-                                @if(!$job->is_hidden && ($job->rank !== 'advanced' || $isRevealed))
+                                @if((!$job->is_hidden || $isRevealed) && ($job->rank !== 'advanced' || $isRevealed))
                                     <div class="mt-3">
                                         <button type="button"
                                                 wire:click="showJobDetail({{ $job->id }})"
@@ -588,6 +594,10 @@
                                             {{ $req->requiredJob->name ?? '不明な職業' }} のマスター
                                         @elseif($req->requirement_type === 'character_level')
                                             Lv {{ $req->required_value }} 以上
+                                        @elseif($req->requirement_type === 'title')
+                                            称号の獲得
+                                        @elseif($req->requirement_type === 'item')
+                                            特別な品の所持
                                         @else
                                             特定の条件
                                         @endif
@@ -695,7 +705,10 @@
                     <div class="mt-4 text-xs text-gray-500 text-center flex flex-col items-center gap-1.5 leading-relaxed bg-white p-2 rounded border border-gray-100">
                         <img src="{{ asset('images/icon/icon_046.webp') }}" alt="" class="w-5 h-5 object-contain">
                         @if($isHighRankJob($selectedJob->rank ?? null))
-                            <span>超級職以上への転職は高位転職となります。<br>{{ \App\Support\JobRankCatalog::label($selectedJob->rank ?? null) }}では、基礎能力値の{{ $inheritanceFractionLabel($selectedJob->rank ?? null) }}（約{{ $inheritancePercentLabel($selectedJob->rank ?? null) }}）を引き継ぎます。</span>
+                            <span class="font-extrabold text-amber-700">
+                                忠告：{{ \App\Support\JobRankCatalog::label($selectedJob->rank ?? null) }}は高位転職となるため、転職時に現在の基礎能力値の約{{ $inheritancePercentLabel($selectedJob->rank ?? null) }}になります。<br>
+                                マスターボーナスは維持されますが、HP/SPや攻撃力などの基礎能力値は{{ $inheritanceFractionLabel($selectedJob->rank ?? null) }}に圧縮されます。
+                            </span>
                         @else
                             <span>転職後、基礎能力値の1/2（50%）を引き継ぎます。<br>マスターボーナスは維持されます。</span>
                         @endif

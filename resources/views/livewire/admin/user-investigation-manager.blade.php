@@ -61,6 +61,32 @@
                         <div class="text-xs font-bold text-slate-500">所持金</div>
                         <div class="font-black text-slate-950">{{ number_format($character->money ?? 0) }}</div>
                     </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-500">探索力</div>
+                        @if($explorationStamina)
+                            <div class="font-black text-slate-950">
+                                {{ number_format((int) ($explorationStamina['current'] ?? 0)) }}
+                                /
+                                {{ number_format((int) ($explorationStamina['max'] ?? 0)) }}
+                            </div>
+                        @else
+                            <div class="font-black text-slate-950">-</div>
+                        @endif
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-500">探索力状態</div>
+                        @if($explorationStamina && ($explorationStamina['enabled'] ?? false))
+                            <div class="font-black text-slate-950">
+                                @if(($explorationStamina['next_recovery_seconds'] ?? null) !== null)
+                                    次回 +1 まで {{ number_format((int) $explorationStamina['next_recovery_seconds']) }}秒
+                                @else
+                                    上限
+                                @endif
+                            </div>
+                        @else
+                            <div class="font-black text-slate-950">探索力制OFF</div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>

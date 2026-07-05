@@ -4,6 +4,7 @@
         $currentCardFrame = old('profile_card_frame', $selectedCardFrame);
         $currentAvatarFrame = old('profile_avatar_frame', $selectedAvatarFrame);
         $currentValmonCase = old('profile_valmon_case', $selectedValmonCase);
+        $currentCardSkin = old('selected_card_skin', $selectedCardSkin);
     @endphp
 
     <div class="mx-auto max-w-3xl space-y-4">
@@ -37,7 +38,8 @@
                   selectedCardBackground: @js($currentCardBackground),
                   selectedCardFrame: @js($currentCardFrame),
                   selectedAvatarFrame: @js($currentAvatarFrame),
-                  selectedValmonCase: @js($currentValmonCase)
+                  selectedValmonCase: @js($currentValmonCase),
+                  selectedCardSkin: @js($currentCardSkin)
               }">
             @csrf
 
@@ -75,6 +77,56 @@
                 </div>
 
                 <div class="mt-4 space-y-4">
+                    <div>
+                        <div class="mb-2 flex flex-wrap items-center gap-2">
+                            <span class="text-xs font-black text-slate-700">カードデザイン</span>
+                            @if($supportPassStatus['active'] ?? false)
+                                <span class="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                    冒険者支援パス 有効 / あと{{ number_format((int) ($supportPassStatus['remaining_days'] ?? 0)) }}日
+                                </span>
+                            @else
+                                <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">支援パス未加入</span>
+                            @endif
+                        </div>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            @foreach($cardSkinOptions as $option)
+                                @php
+                                    $isSupportSkin = $option['value'] === \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS;
+                                @endphp
+                                <label class="rounded-lg border bg-white p-3 shadow-sm transition"
+                                       :class="selectedCardSkin === @js($option['value']) ? 'border-[#d4af37] ring-2 ring-[#d4af37]/30' : 'border-slate-200'"
+                                       @if(!($option['selectable'] ?? false)) title="支援パスカードは冒険者支援パス有効中のみ選択できます" @endif>
+                                    <input type="radio"
+                                           name="selected_card_skin"
+                                           value="{{ $option['value'] }}"
+                                           class="sr-only"
+                                           x-model="selectedCardSkin"
+                                           @disabled(!($option['selectable'] ?? false))>
+                                    <div class="flex items-start gap-3">
+                                        <div class="grid h-14 w-14 shrink-0 place-items-center rounded-md border {{ $isSupportSkin ? 'border-amber-300 bg-slate-900 text-amber-200' : 'border-slate-200 bg-slate-50 text-slate-500' }}">
+                                            <span class="text-lg font-black">{{ $isSupportSkin ? 'SP' : 'N' }}</span>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="text-sm font-black text-slate-900">{{ $option['label'] }}</div>
+                                            <p class="mt-1 text-[11px] font-bold leading-relaxed text-slate-500">{{ $option['description'] }}</p>
+                                            @if(!($option['selectable'] ?? false))
+                                                <div class="mt-2 inline-flex rounded bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">{{ $option['button_label'] }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('selected_card_skin')
+                            <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div>
+                        @enderror
+                        @if(($selectedCardSkin ?? 'default') === \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS && $displayedCardSkin !== \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS)
+                            <p class="mt-2 rounded bg-slate-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-slate-500">
+                                支援パスカードの選択は保存されています。冒険者支援パスが有効になると、再び支援パスカードで表示されます。
+                            </p>
+                        @endif
+                    </div>
+
                     <div>
                         <div class="mb-2 text-xs font-black text-slate-700">背景</div>
                         <div class="grid grid-cols-5 gap-1.5">

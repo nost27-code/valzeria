@@ -9,6 +9,7 @@ use App\Models\KisekiTransaction;
 use App\Models\StripeOrder;
 use App\Models\User;
 use App\Services\CharacterStatusService;
+use App\Services\ExplorationStaminaService;
 use App\Services\JobService;
 use App\Services\LevelService;
 use App\Services\ValmonService;
@@ -55,6 +56,7 @@ class UserInvestigationManager extends Component
         $levelService = app(LevelService::class);
         $jobService = app(JobService::class);
         $valmonService = app(ValmonService::class);
+        $staminaService = app(ExplorationStaminaService::class);
 
         $user = $this->selectedUserId
             ? User::with(['characters.currentJob', 'characters.currentCity', 'characters.highestCity'])->find($this->selectedUserId)
@@ -110,6 +112,7 @@ class UserInvestigationManager extends Component
         $errorLogs = $this->errorLogs($user, $character);
         $enemyCandidates = $this->enemyCandidates();
         $simulationSnapshot = $character ? $this->simulationSnapshot($character, $finalStats) : [];
+        $explorationStamina = $character ? $staminaService->summary($character) : null;
 
         return view('livewire.admin.user-investigation-manager', [
             'user' => $user,
@@ -122,6 +125,7 @@ class UserInvestigationManager extends Component
             'valmonNextLevelRemaining' => $valmonNextLevelRemaining,
             'valmonIsMaxLevel' => $valmonIsMaxLevel,
             'valmonExpPercent' => $valmonExpPercent,
+            'explorationStamina' => $explorationStamina,
             'equippedItems' => $character ? $character->characterItems->where('is_equipped', true)->values() : collect(),
             'ownedItems' => $character ? $character->characterItems->where('is_equipped', false)->sortByDesc('id')->take(80)->values() : collect(),
             'materials' => $character ? $character->characterMaterials->sortByDesc('quantity')->values() : collect(),

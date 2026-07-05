@@ -37,6 +37,15 @@
         補給商会は保管・補給・全滅時ロスト救済のための商品を取り扱っています。ステータス、装備現物、進化素材、経験値、ドロップ率は販売しません。
     </div>
 
+    @if($supportPassStatus['active'] ?? false)
+        <div class="mb-5 rounded-lg border {{ (int) ($supportPassStatus['remaining_days'] ?? 0) <= 3 ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800' }} px-3 py-2.5 text-[11px] font-bold leading-relaxed">
+            冒険者支援パス：有効 / あと{{ number_format((int) ($supportPassStatus['remaining_days'] ?? 0)) }}日
+            @if(!empty($supportPassStatus['expires_at']))
+                <span class="ml-1 text-[10px] opacity-80">有効期限 {{ $supportPassStatus['expires_at']->format('Y/m/d H:i') }}</span>
+            @endif
+        </div>
+    @endif
+
     {{-- 商品一覧 --}}
     <div class="space-y-6">
         @foreach($supportCatalog as $category => $items)
@@ -67,6 +76,7 @@
                             $currencyLabel = (string) ($supportItem['currency_label'] ?? '輝石');
                             $currencySuffix = (string) ($supportItem['currency_suffix'] ?? '');
                             $currencyIcon = array_key_exists('currency_icon_image', $supportItem) ? $supportItem['currency_icon_image'] : 'images/icon/kiseki.webp';
+                            $purchaseLabel = (string) ($supportItem['purchase_label'] ?? '購入する');
                         @endphp
                         <div class="rounded-xl border {{ $canPurchase ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/50' }} shadow-sm transition">
                             <div class="flex gap-3 p-3">
@@ -133,6 +143,25 @@
                                         <p class="mt-1 text-[11px] font-black text-sky-700">所持数: {{ number_format($supportCounts['emergency_rescue_request'] ?? 0) }}</p>
                                     @elseif(($supportItem['effect_type'] ?? null) === 'explore_stamina_recovery')
                                         <p class="mt-1 text-[11px] font-black text-sky-700">所持数: {{ number_format($supportCounts[$supportItem['key']] ?? 0) }}</p>
+                                    @elseif(($supportItem['effect_type'] ?? null) === 'support_pass_30d')
+                                        @php $passStatus = $supportItem['support_pass'] ?? []; @endphp
+                                        <div class="mt-2 space-y-1">
+                                            @if(!empty($supportItem['effects']))
+                                                <ul class="grid gap-1 text-[11px] font-bold leading-relaxed text-slate-600 sm:grid-cols-2">
+                                                    @foreach($supportItem['effects'] as $effectLine)
+                                                        <li class="flex gap-1.5"><span class="text-amber-600">・</span><span>{{ $effectLine }}</span></li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                            @if($passStatus['active'] ?? false)
+                                                <p class="text-[11px] font-black {{ (int) ($passStatus['remaining_days'] ?? 0) <= 3 ? 'text-amber-700' : 'text-emerald-700' }}">
+                                                    冒険者支援パス：あと{{ number_format((int) ($passStatus['remaining_days'] ?? 0)) }}日
+                                                    @if(!empty($passStatus['expires_at']))
+                                                        <span class="font-bold text-slate-500">（{{ $passStatus['expires_at']->format('Y/m/d H:i') }}まで）</span>
+                                                    @endif
+                                                </p>
+                                            @endif
+                                        </div>
                                     @endif
                                     {{-- ボタン行 --}}
                                     <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -141,7 +170,7 @@
                                             @click="confirming = @js($supportItem)"
                                             @disabled(!$canPurchase)
                                             class="rounded-lg px-4 py-1.5 text-xs font-black shadow-sm transition {{ $canPurchase ? 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95' : 'cursor-not-allowed bg-slate-200 text-slate-400' }}">
-                                            {{ $canPurchase ? '購入する' : '購入不可' }}
+                                            {{ $canPurchase ? $purchaseLabel : (($supportItem['effect_type'] ?? null) === 'support_pass_30d' ? $purchaseLabel : '購入不可') }}
                                         </button>
                                         @if(!$canPurchase && !empty($supportItem['disabled_reason']))
                                             <span class="text-[10px] font-bold leading-tight text-red-600">
@@ -188,9 +217,16 @@
                 <div x-show="confirming?.icon_image" class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50 p-1.5">
                     <img :src="confirming?.icon_image ? '{{ url('/') }}/' + confirming.icon_image : ''" alt="" class="h-full w-full object-contain">
                 </div>
-                <div class="text-base font-black text-slate-950" x-text="`${confirming?.name ?? ''}を購入しますか？`"></div>
+                <div class="text-base font-black text-slate-950" x-text="`${confirming?.name ?? ''}を${confirming?.purchase_label === '30日延長する' ? '延長' : '購入'}しますか？`"></div>
             </div>
             <p class="mt-3 text-xs font-bold leading-relaxed text-slate-600" x-text="confirming?.description ?? ''"></p>
+            <template x-if="confirming?.effects?.length">
+                <ul class="mt-3 space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-amber-900">
+                    <template x-for="effectLine in confirming.effects" :key="effectLine">
+                        <li class="flex gap-1.5"><span>・</span><span x-text="effectLine"></span></li>
+                    </template>
+                </ul>
+            </template>
             <div class="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-800">
                 <template x-if="confirming?.currency_icon_image">
                     <img :src="'{{ url('/') }}/' + confirming.currency_icon_image" alt="" class="h-4 w-4 object-contain">
@@ -213,7 +249,7 @@
                     <input type="hidden" name="item_key" :value="confirming?.key">
                     <button type="submit" :disabled="submitting" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-wait disabled:opacity-60">
                         <x-loading-spinner x-show="submitting" style="display: none;" />
-                        <span x-show="!submitting">購入する</span>
+                        <span x-show="!submitting" x-text="confirming?.purchase_label ?? '購入する'">購入する</span>
                         <span x-show="submitting" style="display: none;">処理中...</span>
                     </button>
                 </form>

@@ -12,10 +12,10 @@ return new class extends Migration
         if (Schema::hasTable('characters')) {
             Schema::table('characters', function (Blueprint $table) {
                 if (!Schema::hasColumn('characters', 'explore_stamina')) {
-                    $table->unsignedInteger('explore_stamina')->default(50)->after('exploration_cooldown_until');
+                    $table->unsignedInteger('explore_stamina')->default(250)->after('exploration_cooldown_until');
                 }
                 if (!Schema::hasColumn('characters', 'explore_stamina_max')) {
-                    $table->unsignedInteger('explore_stamina_max')->default(50)->after('explore_stamina');
+                    $table->unsignedInteger('explore_stamina_max')->default(250)->after('explore_stamina');
                 }
                 if (!Schema::hasColumn('characters', 'explore_stamina_updated_at')) {
                     $table->timestamp('explore_stamina_updated_at')->nullable()->after('explore_stamina_max');
@@ -118,12 +118,9 @@ return new class extends Migration
 
     private function maxForWins(int $wins): int
     {
-        $max = 50;
+        $max = 250;
         $max += intdiv(min($wins, 2000), 10);
-        $max += intdiv(min(max($wins - 2000, 0), 2000), 20);
-        $max += intdiv(min(max($wins - 4000, 0), 1500), 30);
-        $max += intdiv(min(max($wins - 5500, 0), 2000), 40);
-        $max += intdiv(max($wins - 7500, 0), 50);
+        $max += intdiv(min(max($wins - 2000, 0), 1000), 20);
 
         return min(500, $max);
     }

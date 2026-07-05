@@ -28,14 +28,21 @@ class PvPBattleService
     private const PVP_FOCUS_EARLY_RATE = 20;
     private const PVP_NORMAL_POWER_MULTIPLIER = 125;
     private const PVP_SKILL_COST_MAX_SP_RATE = 0.25;
+    private const PUBLIC_RANK_UP_LOG_MAX_RANK = 50;
 
     protected CharacterStatusService $statusService;
     protected DamageCalculator $damageCalculator;
+    protected JobArtBattleSupportService $jobArtBattleSupport;
 
-    public function __construct(CharacterStatusService $statusService, DamageCalculator $damageCalculator)
+    public function __construct(
+        CharacterStatusService $statusService,
+        DamageCalculator $damageCalculator,
+        JobArtBattleSupportService $jobArtBattleSupport
+    )
     {
         $this->statusService = $statusService;
         $this->damageCalculator = $damageCalculator;
+        $this->jobArtBattleSupport = $jobArtBattleSupport;
     }
 
     /**
@@ -71,6 +78,7 @@ class PvPBattleService
         $attackerActor->jobKey = $attackerJob?->key;
         $attackerActor->battleTypeWeights = BattleTypeAffinity::normalize($this->battleTypeWeights($attackerJob));
         $attackerActor->normalAttackType = $this->normalAttackType($attackerJob);
+        $this->jobArtBattleSupport->attachBossSet($attackerActor, $attackerChar, 'champ');
 
         // ディフェンダーアクターの生成
         $defenderStats = $this->statusService->getFinalStats($defenderChar);
@@ -96,6 +104,7 @@ class PvPBattleService
         $defenderActor->jobKey = $defenderJob?->key;
         $defenderActor->battleTypeWeights = BattleTypeAffinity::normalize($this->battleTypeWeights($defenderJob));
         $defenderActor->normalAttackType = $this->normalAttackType($defenderJob);
+        $this->jobArtBattleSupport->attachBossSet($defenderActor, $defenderChar, 'champ');
 
         $state = new BattleState($attackerActor, $defenderActor);
         
@@ -248,12 +257,14 @@ class PvPBattleService
         }
 
         $logService = app(PublicLogService::class);
-        $logService->addLog(
-            'arena',
-            "【闘技場】{$attackerChar->name}さんが強敵を破り、{$attackerOldRank}位から{$attackerNewRank}位へ駆け上がりました！",
-            $attackerChar,
-            2
-        );
+        if ($attackerNewRank <= self::PUBLIC_RANK_UP_LOG_MAX_RANK) {
+            $logService->addLog(
+                'arena',
+                "【闘技場】{$attackerChar->name}さんが強敵を破り、{$attackerOldRank}位から{$attackerNewRank}位へ駆け上がりました！",
+                $attackerChar,
+                2
+            );
+        }
 
         if ($attackerOldRank > 10 && $attackerNewRank <= 10) {
             $logService->addLog(
@@ -275,7 +286,22 @@ class PvPBattleService
         $this->addFocus($attacker, self::PVP_FOCUS_ATTACK_GAIN);
 
         $usedSkill = false;
-        if ($this->shouldUseRankSkill($attacker)) {
+        $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
+        $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
+        if ($jobArt) {
+            $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $state, $jobArt);
+            $state->addLog($this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt));
+            $this->executeSkillAction(
+                $attacker,
+                $defender,
+                $state,
+                $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt),
+                false
+            );
+            $usedSkill = true;
+        }
+
+        if (!$usedSkill && $this->shouldUseRankSkill($attacker)) {
             $spCost = $this->rankBattleSkillSpCost($attacker, $attacker->skill);
             if ($attacker->mp >= $spCost) {
                 $attacker->mp -= $spCost;
@@ -363,15 +389,24 @@ class PvPBattleService
     /**
      * スキル（必殺技）の実行
      */
-    protected function executeSkillAction(BattleActor $attacker, BattleActor $defender, BattleState $state, Skill $skill): void
+    protected function executeSkillAction(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        Skill $skill,
+        bool $addOpeningLog = true
+    ): void
     {
-        $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
+        if ($addOpeningLog) {
+            $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
+        }
         
         $hitCount = max(1, $skill->hit_count);
         if ($skill->hit_count == 0 && in_array($skill->damage_type, ['heal', 'support'])) {
             $hitCount = 1; 
         }
 
+        $totalDamage = 0;
         for ($i = 0; $i < $hitCount; $i++) {
             $damage = 0;
             $isCrit = false;
@@ -447,12 +482,17 @@ class PvPBattleService
             }
 
             if ($damage > 0) {
+                $totalDamage += $damage;
                 $defender->takeDamage($damage);
                 $this->rewardRankBattleFocusAfterDamage($attacker, $defender, $damage, $isCrit, $affinityMultiplier ?? 1.0);
                 $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
             }
             
             if ($defender->isDead()) break;
+        }
+
+        if ($skill->isJobArt()) {
+            $this->applyJobArtTemplateEffects($attacker, $defender, $state, $skill, $totalDamage);
         }
 
         if ($skill->heal_percent > 0) {
@@ -497,12 +537,63 @@ class PvPBattleService
             $attacker->damageReductionRate = $skill->damage_reduction_percent;
         }
         
-        if ($skill->damage_type === 'support' && str_contains($skill->description, '上昇')) {
+        if (!$skill->isJobArt() && $skill->damage_type === 'support' && str_contains($skill->description, '上昇')) {
             $state->addLog("{$attacker->name} の攻撃力と魔法力が上昇した！");
             $attacker->str += (int)($attacker->baseStr * 0.05);
             $attacker->mag += (int)($attacker->baseMag * 0.05);
             $attacker->str = min($attacker->str, (int)($attacker->baseStr * 1.5));
             $attacker->mag = min($attacker->mag, (int)($attacker->baseMag * 1.5));
+        }
+    }
+
+    private function applyJobArtTemplateEffects(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        Skill $skill,
+        int $totalDamage
+    ): void {
+        $template = (string) $skill->effect_template;
+        $power = max(80, (int) ($skill->power ?: 100));
+
+        if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
+            $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
+            $attacker->healHp($heal);
+            $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>");
+        }
+
+        if ($template === 'DRAIN' && $totalDamage > 0 && str_contains((string) $skill->description, 'HP')) {
+            $heal = max(1, (int) floor($totalDamage * 0.35));
+            $attacker->healHp($heal);
+            $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>");
+        }
+
+        if ($template === 'GUTS') {
+            $attacker->gutsReady = true;
+            $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>");
+        }
+
+        if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
+            $reduction = min(25, max(10, (int) floor($power / 10)));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
+            $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
+        }
+
+        if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
+            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+            $state->addLog("<span class=\"text-indigo-600 font-bold\">{$attacker->name} の戦闘力が高まった！</span>");
+        }
+
+        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true)) {
+            $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
+            $defender->spr = max(1, $defender->spr - max(1, (int) floor($defender->baseSpr * 0.05)));
+            $state->addLog("<span class=\"text-violet-700 font-bold\">{$defender->name} の守りが乱れた！</span>");
+        }
+
+        if ($template === 'TIME_CONTROL_CURRENT_ONLY') {
+            $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * 0.10)));
+            $state->addLog("<span class=\"text-sky-700 font-bold\">{$defender->name} の動きが鈍った！</span>");
         }
     }
 

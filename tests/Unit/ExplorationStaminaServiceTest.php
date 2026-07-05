@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Character;
 use App\Services\ExplorationStaminaService;
 use App\Services\GameSettingService;
+use App\Services\SupportPassService;
 use Carbon\CarbonImmutable;
 use ReflectionProperty;
 use Tests\TestCase;
@@ -41,7 +42,7 @@ class ExplorationStaminaServiceTest extends TestCase
             $character = new Character([
                 'wins' => 0,
                 'explore_stamina' => 10,
-                'explore_stamina_max' => 50,
+                'explore_stamina_max' => 250,
                 'explore_stamina_updated_at' => $updatedAt,
             ]);
 
@@ -53,5 +54,85 @@ class ExplorationStaminaServiceTest extends TestCase
         } finally {
             CarbonImmutable::setTestNow();
         }
+    }
+
+    public function test_max_for_character_adds_support_pass_bonus(): void
+    {
+        $this->app->instance(SupportPassService::class, new class extends SupportPassService
+        {
+            public function staminaBonusFor(Character $character): int
+            {
+                return 250;
+            }
+        });
+
+        $service = new ExplorationStaminaService();
+        $schemaReady = new ReflectionProperty($service, 'schemaReadyCache');
+        $schemaReady->setValue($service, true);
+
+        $character = new Character(['wins' => 0]);
+
+        $this->assertSame(500, $service->maxForCharacter($character));
+    }
+
+    public function test_new_character_stamina_starts_at_250(): void
+    {
+        $service = new ExplorationStaminaService();
+        $schemaReady = new ReflectionProperty($service, 'schemaReadyCache');
+        $schemaReady->setValue($service, true);
+
+        $character = new Character(['wins' => 0]);
+
+        $this->assertSame(250, $service->maxForCharacter($character));
+    }
+
+    public function test_summary_normalizes_legacy_50_based_stamina_to_current_base_max(): void
+    {
+        $this->app->instance(GameSettingService::class, new class
+        {
+            public function getString(string $key, string $default = ''): string
+            {
+                return $key === 'exploration.mode' ? ExplorationStaminaService::MODE_STAMINA : $default;
+            }
+
+            public function getInt(string $key, int $default = 0): int
+            {
+                return match ($key) {
+                    'exploration.stamina_recovery_seconds' => 60,
+                    'exploration.stamina_cost' => 1,
+                    default => $default,
+                };
+            }
+        });
+
+        $service = new ExplorationStaminaService();
+        $schemaReady = new ReflectionProperty($service, 'schemaReadyCache');
+        $schemaReady->setValue($service, true);
+
+        $character = new Character([
+            'wins' => 0,
+            'explore_stamina' => 50,
+            'explore_stamina_max' => 50,
+            'explore_stamina_updated_at' => CarbonImmutable::parse('2026-07-01 12:00:00'),
+        ]);
+
+        $summary = $service->summary($character);
+
+        $this->assertSame(250, $summary['current']);
+        $this->assertSame(250, $summary['max']);
+    }
+
+    public function test_stamina_reaches_500_at_3000_wins(): void
+    {
+        $service = new ExplorationStaminaService();
+        $schemaReady = new ReflectionProperty($service, 'schemaReadyCache');
+        $schemaReady->setValue($service, true);
+
+        $this->assertSame(250, $service->maxForCharacter(new Character(['wins' => 0])));
+        $this->assertSame(350, $service->maxForCharacter(new Character(['wins' => 1000])));
+        $this->assertSame(450, $service->maxForCharacter(new Character(['wins' => 2000])));
+        $this->assertSame(499, $service->maxForCharacter(new Character(['wins' => 2999])));
+        $this->assertSame(500, $service->maxForCharacter(new Character(['wins' => 3000])));
+        $this->assertSame(500, $service->maxForCharacter(new Character(['wins' => 10000])));
     }
 }

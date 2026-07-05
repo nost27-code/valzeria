@@ -12,6 +12,7 @@ use App\Services\EquipmentService;
 use App\Services\CharacterProfileService;
 use App\Services\CharacterNotificationService;
 use App\Services\ExplorationStaminaService;
+use App\Services\SupportPassService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
 use Illuminate\Support\Facades\Schema;
@@ -214,6 +215,7 @@ class CityHeader extends Component
         $explorationStamina = $explorationStaminaService->enabled()
             ? $explorationStaminaService->summary($character)
             : null;
+        $supportPassStatus = app(SupportPassService::class)->statusForCharacter($character);
 
         return [
             'name' => $character->name,
@@ -232,6 +234,7 @@ class CityHeader extends Component
             'gold' => (int) ($character->money ?? 0),
             'kiseki' => (int) ($character->kiseki ?? 0),
             'exploration_stamina' => $explorationStamina,
+            'support_pass' => $supportPassStatus,
         ];
     }
 
@@ -253,6 +256,8 @@ class CityHeader extends Component
         $ranking = $character->arenaRanking;
         $arenaRank = $ranking?->rank ? (int) $ranking->rank : null;
         $profileService = app(CharacterProfileService::class);
+        $supportPassService = app(SupportPassService::class);
+        $supportPassStatus = $supportPassService->statusForCharacter($character);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
         $adventureRecords = $this->adventureRecords($character);
 
@@ -280,6 +285,11 @@ class CityHeader extends Component
             'profile_frame_theme' => $profileFrameTheme,
             'profile_frame_label' => $profileService->frameThemeLabel($profileFrameTheme),
             'profile_frame_image' => asset($profileService->frameImageForTheme($profileFrameTheme)),
+            'adventurer_card_skin' => $supportPassService->displayedCardSkin($character->user),
+            'support_pass' => [
+                'active' => (bool) ($supportPassStatus['active'] ?? false),
+                'remaining_days' => (int) ($supportPassStatus['remaining_days'] ?? 0),
+            ],
             'adventurer_card_background' => asset($profileService->selectedAdventurerCardBackground($character, $character->profile_card_background)),
             'adventurer_card_frame' => asset($profileService->selectedAdventurerCardFrame($character, $character->profile_card_frame)),
             'adventurer_avatar_frame' => asset($profileService->selectedAdventurerAvatarFrame($character, $character->profile_avatar_frame)),

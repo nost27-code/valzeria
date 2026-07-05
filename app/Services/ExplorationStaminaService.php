@@ -36,14 +36,19 @@ class ExplorationStaminaService
 
     public function maxForCharacter(Character $character): int
     {
-        $wins = (int) ($character->wins ?? 0);
+        return $this->baseMaxForCharacter($character) + app(SupportPassService::class)->staminaBonusFor($character);
+    }
 
-        $max = 50;
-        $max += intdiv(min($wins, 2000), 10);                          // 〜2,000勝: 10勝で+1
-        $max += intdiv(min(max($wins - 2000, 0), 2000), 20);          // 〜4,000勝: 20勝で+1
-        $max += intdiv(min(max($wins - 4000, 0), 1500), 30);          // 〜5,500勝: 30勝で+1
-        $max += intdiv(min(max($wins - 5500, 0), 2000), 40);          // 〜7,500勝: 40勝で+1
-        $max += intdiv(max($wins - 7500, 0), 50);                     // 7,501勝〜: 50勝で+1
+    public function baseMaxForCharacter(Character $character): int
+    {
+        return self::baseMaxForWins((int) ($character->wins ?? 0));
+    }
+
+    public static function baseMaxForWins(int $wins): int
+    {
+        $max = 250;
+        $max += intdiv(min($wins, 2000), 10);                         // 〜2,000勝: 10勝で+1
+        $max += intdiv(min(max(0, $wins - 2000), 1000), 20);           // 2,001〜3,000勝: 20勝で+1
 
         return min(500, $max);
     }
@@ -181,8 +186,7 @@ class ExplorationStaminaService
         }
 
         $max = $this->maxForCharacter($character);
-        $current = max(0, (int) ($character->explore_stamina ?? $max));
-        $updatedAt = $character->explore_stamina_updated_at ?: now();
+        [$current, $updatedAt] = $this->normalizedStoredStamina($character, $max);
         $nextRecovery = null;
 
         if ($current < $max) {
@@ -218,13 +222,17 @@ class ExplorationStaminaService
         }
 
         $max = $this->maxForCharacter($character);
-        $current = max(0, (int) ($character->explore_stamina ?? $max));
-        $updatedAt = $character->explore_stamina_updated_at ?: now();
+        [$current, $updatedAt] = $this->normalizedStoredStamina($character, $max);
 
         if ($current >= $max) {
-            if ($persist && ($character->explore_stamina_max !== $max || !$character->explore_stamina_updated_at)) {
+            if ($persist && (
+                $character->explore_stamina !== $current
+                || $character->explore_stamina_max !== $max
+                || !$character->explore_stamina_updated_at
+            )) {
+                $character->explore_stamina = $current;
                 $character->explore_stamina_max = $max;
-                $character->explore_stamina_updated_at = now();
+                $character->explore_stamina_updated_at = $updatedAt;
                 $character->save();
             }
 
@@ -234,6 +242,17 @@ class ExplorationStaminaService
         $elapsed = max(0, (int) $updatedAt->diffInSeconds(now(), false));
         $recovered = intdiv($elapsed, $this->recoverySeconds());
         if ($recovered <= 0) {
+            if ($persist && (
+                $character->explore_stamina !== $current
+                || $character->explore_stamina_max !== $max
+                || !$character->explore_stamina_updated_at
+            )) {
+                $character->explore_stamina = $current;
+                $character->explore_stamina_max = $max;
+                $character->explore_stamina_updated_at = $updatedAt;
+                $character->save();
+            }
+
             return $character;
         }
 
@@ -249,6 +268,22 @@ class ExplorationStaminaService
         }
 
         return $character;
+    }
+
+    private function normalizedStoredStamina(Character $character, int $max): array
+    {
+        $baseMax = $this->baseMaxForCharacter($character);
+        $storedMax = $character->explore_stamina_max;
+        $storedMax = $storedMax === null ? $max : (int) $storedMax;
+        $current = max(0, (int) ($character->explore_stamina ?? $max));
+        $updatedAt = $character->explore_stamina_updated_at ?: now();
+
+        if ($storedMax < $baseMax && $current <= $storedMax) {
+            $current = $baseMax;
+            $updatedAt = now();
+        }
+
+        return [$current, $updatedAt];
     }
 
     private function schemaReady(): bool

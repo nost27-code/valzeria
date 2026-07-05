@@ -40,6 +40,7 @@ class ChampBattleService
         private CharacterStatusService $statusService,
         private DamageCalculator $damageCalculator,
         private LevelService $levelService,
+        private JobArtBattleSupportService $jobArtBattleSupport,
     ) {
     }
 
@@ -361,6 +362,7 @@ class ChampBattleService
         if ($challengerJob?->skill) {
             $attacker->skill = $challengerJob->skill;
         }
+        $this->jobArtBattleSupport->attachBossSet($attacker, $challenger, 'champ');
 
         $defender = new BattleActor($champ->player_name, false, [
             'hp' => max(0, (int) $champ->current_hp),
@@ -380,6 +382,12 @@ class ChampBattleService
         if ($champSkill) {
             $defender->skill = $champSkill;
         }
+        $champCharacter = $champ->character_id
+            ? Character::query()->find($champ->character_id)
+            : null;
+        if ($champCharacter) {
+            $this->jobArtBattleSupport->attachBossSet($defender, $champCharacter, 'champ');
+        }
 
         $affinityMultiplier = BattleTypeAffinity::multiplier($challengerAffinity, $champAffinity);
         $affinityNet = round($affinityMultiplier - 1.0, 4);
@@ -388,6 +396,7 @@ class ChampBattleService
         $upsetDamageUsed = false;
         $totalDamage = 0;
         $log = [];
+        $jobArtState = new \App\Services\Battle\BattleState($attacker, $defender, 'champ');
 
         $log[] = $this->affinityLog($attacker->name, $defender->name, $affinityMultiplier);
         $log[] = $this->affinityLog($defender->name, $attacker->name, $champAttackMultiplier);
@@ -415,7 +424,7 @@ class ChampBattleService
 
                 $actorLevel = $actor->isPlayer ? (int) $challenger->level : (int) $champ->level;
                 $targetLevel = $actor->isPlayer ? (int) $champ->level : (int) $challenger->level;
-                $action = $this->champAction($actor, $target, $actorLevel, $targetLevel);
+                $action = $this->champAction($actor, $target, $actorLevel, $targetLevel, $jobArtState);
                 $damage = $action['damage'];
                 $upsetDamage = 0;
 
@@ -476,8 +485,27 @@ class ChampBattleService
         return $job?->skill;
     }
 
-    private function champAction(BattleActor $attacker, BattleActor $defender, int $attackerLevel, int $defenderLevel): array
+    private function champAction(
+        BattleActor $attacker,
+        BattleActor $defender,
+        int $attackerLevel,
+        int $defenderLevel,
+        \App\Services\Battle\BattleState $jobArtState
+    ): array
     {
+        $this->jobArtBattleSupport->tickCooldowns($jobArtState, $attacker);
+        $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $jobArtState);
+        if ($jobArt) {
+            $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $jobArtState, $jobArt);
+
+            return $this->skillAttack(
+                $attacker,
+                $defender,
+                $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt),
+                $this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt)
+            );
+        }
+
         if ($attacker->skill && random_int(1, 100) <= $this->champSkillActivationRate($attacker->skill, $attackerLevel, $defenderLevel)) {
             $spCost = $this->champSkillSpCost($attacker, $attacker->skill);
 
@@ -511,7 +539,7 @@ class ChampBattleService
         return min(100, $baseRate + $bonus);
     }
 
-    private function skillAttack(BattleActor $attacker, BattleActor $defender, Skill $skill): array
+    private function skillAttack(BattleActor $attacker, BattleActor $defender, Skill $skill, ?string $openingLog = null): array
     {
         $hitCount = max(1, (int) $skill->hit_count);
         if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
@@ -519,7 +547,7 @@ class ChampBattleService
         }
 
         $totalDamage = 0;
-        $logs = ["<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
+        $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
 
         for ($i = 0; $i < $hitCount; $i++) {
@@ -610,6 +638,10 @@ class ChampBattleService
             $logs[] = "<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>";
         }
 
+        if ($skill->isJobArt()) {
+            $this->applyJobArtTemplateEffects($attacker, $defender, $skill, $totalDamage, $logs);
+        }
+
         if ((int) $skill->enemy_def_down_percent > 0) {
             $effect = (int) $skill->enemy_def_down_percent;
             $defender->def = max(1, $defender->def - (int) floor($defender->baseDef * ($effect / 100)));
@@ -633,7 +665,7 @@ class ChampBattleService
             $logs[] = "{$attacker->name} は次の被ダメージを軽減する構えをとった！";
         }
 
-        if ($skill->damage_type === 'support' && str_contains((string) $skill->description, '上昇')) {
+        if (!$skill->isJobArt() && $skill->damage_type === 'support' && str_contains((string) $skill->description, '上昇')) {
             $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * 0.05));
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * 0.05));
             $logs[] = "{$attacker->name} の攻撃力と魔法力が上昇した！";
@@ -644,6 +676,57 @@ class ChampBattleService
             'damage' => $totalDamage,
             'log' => implode('<br>', $logs),
         ];
+    }
+
+    private function applyJobArtTemplateEffects(
+        BattleActor $attacker,
+        BattleActor $defender,
+        Skill $skill,
+        int $totalDamage,
+        array &$logs
+    ): void {
+        $template = (string) $skill->effect_template;
+        $power = max(80, (int) ($skill->power ?: 100));
+
+        if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
+            $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
+            $attacker->healHp($heal);
+            $logs[] = "<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>";
+        }
+
+        if ($template === 'DRAIN' && $totalDamage > 0 && str_contains((string) $skill->description, 'HP')) {
+            $heal = max(1, (int) floor($totalDamage * 0.35));
+            $attacker->healHp($heal);
+            $logs[] = "<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>";
+        }
+
+        if ($template === 'GUTS') {
+            $attacker->gutsReady = true;
+            $logs[] = "<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>";
+        }
+
+        if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
+            $reduction = min(25, max(10, (int) floor($power / 10)));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
+            $logs[] = "<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>";
+        }
+
+        if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
+            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+            $logs[] = "<span class=\"text-indigo-600 font-bold\">{$attacker->name} の戦闘力が高まった！</span>";
+        }
+
+        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true)) {
+            $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
+            $defender->spr = max(1, $defender->spr - max(1, (int) floor($defender->baseSpr * 0.05)));
+            $logs[] = "<span class=\"text-violet-700 font-bold\">{$defender->name} の守りが乱れた！</span>";
+        }
+
+        if ($template === 'TIME_CONTROL_CURRENT_ONLY') {
+            $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * 0.10)));
+            $logs[] = "<span class=\"text-sky-700 font-bold\">{$defender->name} の動きが鈍った！</span>";
+        }
     }
 
     private function champSkillSpCost(BattleActor $attacker, Skill $skill): int

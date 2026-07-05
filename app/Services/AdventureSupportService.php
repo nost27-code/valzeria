@@ -19,7 +19,10 @@ class AdventureSupportService
 
     public function catalogFor(Character $character): array
     {
-        $items = config('adventure_support.items', []);
+        $items = collect(config('adventure_support.items', []))
+            ->reject(fn (array $item) => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
+                && !app(SupportPassService::class)->enabled())
+            ->all();
         $character->refresh();
 
         return collect($items)
@@ -31,6 +34,7 @@ class AdventureSupportService
                     ...$item,
                     ...$this->currencyMeta($item),
                     ...$state,
+                    'purchase_label' => $this->purchaseLabel($character, $key, $item, $state),
                 ];
             })
             ->groupBy('category')
@@ -220,6 +224,7 @@ class AdventureSupportService
             'material_storage_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'material_storage_gold_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'equipment_storage_expand' => $this->expandStorage($character, 'equipment_storage_limit', $itemKey, $item),
+            SupportPassService::PASS_TYPE => $this->activateSupportPass($character),
             'adventurer_supply_box' => $this->grantSupplyBox($character),
             self::RESCUE_INSURANCE,
             self::EMERGENCY_RESCUE_REQUEST => $this->grantConsumable($character, $itemKey, $item['name']),
@@ -227,6 +232,16 @@ class AdventureSupportService
                 ? $this->grantConsumable($character, $itemKey, $item['name'], today('Asia/Tokyo')->toDateString())
                 : "{$item['name']}を購入しました。",
         };
+    }
+
+    private function activateSupportPass(Character $character): string
+    {
+        $result = app(SupportPassService::class)->purchaseFor($character);
+        if (!($result['success'] ?? false)) {
+            throw new \RuntimeException($result['message'] ?? '冒険者支援パスを購入できませんでした。');
+        }
+
+        return $result['message'];
     }
 
     private function expandStorage(Character $character, string $column, string $itemKey, array $item): string
@@ -359,6 +374,12 @@ class AdventureSupportService
         } elseif (($item['effect_type'] ?? null) === 'explore_stamina_recovery'
             && app(ExplorationStaminaService::class)->recoverableAmount($character, (int) ($item['effect_value'] ?? 0)) <= 0) {
             $disabledReason = '探索力制が有効な時だけ購入できます。';
+        } elseif (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
+            && !app(SupportPassService::class)->enabled()) {
+            $disabledReason = '冒険者支援パスは現在販売していません。';
+        } elseif (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
+            && !app(SupportPassService::class)->canExtend($character->user)) {
+            $disabledReason = '冒険者支援パスは最大90日先まで延長できます。現在はこれ以上延長できません。';
         } elseif ($key === 'adventurer_supply_box' && $this->isExploring($character)) {
             $disabledReason = '探索中は冒険者補給箱を購入できません。街に戻ってから購入してください。';
         }
@@ -369,7 +390,25 @@ class AdventureSupportService
             'purchased_count' => $this->purchasedCount($character, $key, null, $locked),
             'daily_purchased_count' => $this->purchasedCount($character, $key, today('Asia/Tokyo')->toDateString(), $locked),
             'used_today' => $this->usedToday($character, $key, $locked),
+            'support_pass' => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
+                ? app(SupportPassService::class)->statusForCharacter($character)
+                : null,
         ];
+    }
+
+    private function purchaseLabel(Character $character, string $key, array $item, array $state): string
+    {
+        if (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE) {
+            if (!($state['can_purchase'] ?? false)) {
+                return 'これ以上延長できません';
+            }
+
+            return app(SupportPassService::class)->isActiveForCharacter($character)
+                ? '30日延長する'
+                : '購入する';
+        }
+
+        return '購入する';
     }
 
     private function currency(array $item): string

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use App\Services\AdventureSupportService;
+use App\Services\SupportPassService;
 use Stripe\Stripe;
 use Stripe\Checkout\Session as StripeSession;
 
@@ -33,8 +34,9 @@ class KisekiShopController extends Controller
         $supportCatalog = $supportService->catalogFor($character);
         $supportCounts = $supportService->countsFor($character);
         $insuranceEnabled = $supportService->insuranceEnabled($character);
+        $supportPassStatus = app(SupportPassService::class)->statusForCharacter($character);
 
-        return view('kiseki.support', compact('character', 'supportCatalog', 'supportCounts', 'insuranceEnabled'));
+        return view('kiseki.support', compact('character', 'supportCatalog', 'supportCounts', 'insuranceEnabled', 'supportPassStatus'));
     }
 
     public function createCheckout(Request $request)

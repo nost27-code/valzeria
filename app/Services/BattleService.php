@@ -503,7 +503,7 @@ class BattleService
             if (!$this->canActivateByPolicy($attacker, $spCost, $policy)) {
                 continue;
             }
-            if (!$this->canActivateHealArt($attacker, $art)) {
+            if (!$this->canActivateRecoveryArt($attacker, $art)) {
                 continue;
             }
             if (rand(1, 100) <= $art->effectiveActivationRate()) {
@@ -539,17 +539,29 @@ class BattleService
         };
     }
 
-    private function canActivateHealArt(BattleActor $actor, Skill $skill): bool
+    private function canActivateRecoveryArt(BattleActor $actor, Skill $skill): bool
     {
-        if (!$skill->isHealArt()) {
-            return true;
+        $needsHp = $skill->isHealArt()
+            || in_array((string) $skill->effect_template, ['HEAL', 'HEAL_CLEANSE'], true)
+            || ((string) $skill->effect_template === 'DRAIN' && str_contains((string) $skill->description, 'HP'))
+            || (int) $skill->heal_percent > 0;
+        $needsSp = (int) $skill->mp_recover_percent > 0;
+        if ($needsHp || $needsSp) {
+            return ($needsHp && $this->hasMissingHp($actor))
+                || ($needsSp && $this->hasMissingSp($actor));
         }
 
-        if ($actor->maxHp <= 0) {
-            return false;
-        }
+        return true;
+    }
 
-        return ($actor->hp / $actor->maxHp) <= 0.70;
+    private function hasMissingHp(BattleActor $actor): bool
+    {
+        return $actor->maxHp > 0 && $actor->hp < $actor->maxHp;
+    }
+
+    private function hasMissingSp(BattleActor $actor): bool
+    {
+        return $actor->maxMp > 0 && $actor->mp < $actor->maxMp;
     }
 
     /**

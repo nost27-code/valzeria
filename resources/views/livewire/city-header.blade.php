@@ -406,6 +406,21 @@
             background: var(--adventurer-card-frame, url('{{ asset('images/profile/adventurer_card_frame01.webp') }}')) center / 124% 124% no-repeat;
             pointer-events: none;
         }
+        .adventurer-card-hero.is-support-pass {
+            background:
+                radial-gradient(circle at 78% 10%, rgba(251,191,36,.32), transparent 28%),
+                linear-gradient(180deg, rgba(15,23,42,.18), rgba(15,23,42,.04)),
+                var(--adventurer-card-bg, url('{{ asset('images/profile/adventurer_card_bg01.webp') }}')) center / cover no-repeat,
+                linear-gradient(135deg, #111827 0%, #1e293b 58%, #92400e 100%);
+            box-shadow: 0 10px 24px rgba(146, 64, 14, .18), 0 0 0 1px rgba(245, 158, 11, .28);
+        }
+        .adventurer-card-hero.is-support-pass::before {
+            background: linear-gradient(90deg, rgba(255,255,255,.70) 0%, rgba(254,243,199,.46) 43%, rgba(120,53,15,.08) 100%);
+        }
+        .adventurer-card-pass-record {
+            border-color: rgba(245, 158, 11, .34) !important;
+            background: linear-gradient(135deg, rgba(255,251,235,.96), rgba(254,243,199,.72)) !important;
+        }
         .adventurer-card-avatar {
             position: absolute;
             left: 42px;
@@ -691,7 +706,12 @@
                         {{ $topPlayer['name'] }}
                     </div>
                     <div class="mt-0.5 space-y-0.5 text-[10px] font-bold leading-none text-slate-400 sm:text-[11px]">
-                        <div class="whitespace-nowrap">Lv {{ number_format($topPlayer['level']) }}</div>
+                        <div class="flex items-center gap-1 whitespace-nowrap">
+                            <span>Lv {{ number_format($topPlayer['level']) }}</span>
+                            @if(!empty($topPlayer['support_pass']['active']))
+                                <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-1.5 py-px text-[9px] font-black leading-none text-amber-700">支援パス</span>
+                            @endif
+                        </div>
                         <div class="truncate">{{ $topPlayer['job'] }}★{{ $topPlayer['job_rank'] }}</div>
                         <div class="whitespace-nowrap text-slate-500">戦力 {{ number_format($topPlayer['power'] ?? 0) }}</div>
                     </div>
@@ -976,6 +996,7 @@
             <template x-if="playerInfo">
                 <div class="adventurer-card-inner">
                     <div class="adventurer-card-hero"
+                         :class="{ 'is-support-pass': playerInfo.adventurer_card_skin === 'support_pass' }"
                          :style="{
                              '--adventurer-card-bg': `url('${playerInfo.adventurer_card_background}')`,
                              '--adventurer-card-frame': `url('${playerInfo.adventurer_card_frame}')`,
@@ -1070,6 +1091,14 @@
                                     </div>
                                 </div>
                             </template>
+                            <div x-show="playerInfo.support_pass && playerInfo.support_pass.active"
+                                 class="adventurer-card-pass-record flex min-h-10 items-center justify-between gap-2 rounded-lg border px-3 py-2 shadow-sm">
+                                <div class="min-w-0 truncate text-xs font-bold text-amber-700">支援パス</div>
+                                <div class="flex shrink-0 items-baseline gap-0.5">
+                                    <span class="text-base font-black leading-none text-amber-900">あと<span x-text="playerInfo.support_pass.remaining_days"></span></span>
+                                    <span class="text-xs font-black text-orange-700">日</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

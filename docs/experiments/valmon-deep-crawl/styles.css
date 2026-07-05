@@ -454,8 +454,9 @@ h3 {
 
 .hero-panel {
     background:
-        linear-gradient(90deg, rgba(255,255,255,0.74), rgba(255,255,255,0.96) 48%, rgba(255,255,255,0.96)),
-        url("../../../public/images/valmon/ranch_bg (18).webp") left center / cover;
+        linear-gradient(90deg, rgba(234, 210, 174, 0.5), rgba(255, 246, 228, 0.92) 48%, rgba(255, 248, 235, 0.94)),
+        linear-gradient(180deg, rgba(128, 82, 42, 0.18), rgba(101, 71, 42, 0.08)),
+        url("../../../public/images/valmon/val_ad_bg01.webp") left center / cover;
 }
 
 .hero-loadout {

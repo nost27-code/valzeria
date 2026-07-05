@@ -83,8 +83,7 @@ class JobChange extends Component
             if ($jobService->canChangeJob($this->character, $job)) {
                 $this->availableJobs[] = $job;
             } else {
-                // 隠し職業でなければ未達成リストに追加
-                if (!$job->is_hidden) {
+                if (!$job->is_hidden || $jobService->canRevealJob($this->character, $job)) {
                     $this->unavailableJobs[] = clone $job;
                 }
             }
@@ -164,8 +163,9 @@ class JobChange extends Component
 
         $jobService = new JobService();
         $canChange = $jobService->canChangeJob($this->character, $job);
+        $canReveal = $jobService->canRevealJob($this->character, $job);
 
-        if ($job->is_hidden && ! $canChange) {
+        if ($job->is_hidden && ! $canReveal) {
             return;
         }
 

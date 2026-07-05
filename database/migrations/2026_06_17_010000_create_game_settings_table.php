@@ -65,8 +65,8 @@ return new class extends Migration
             [
                 'setting_key' => 'kiseki.free_drop_rate_per_million',
                 'label' => '無償輝石ドロップ率',
-                'description' => '通常戦闘勝利時の抽選率。100万分率で指定。300なら0.03%。',
-                'value' => '300',
+                'description' => '通常戦闘勝利時の抽選率。100万分率で指定。1000なら0.1%。',
+                'value' => '1000',
                 'value_type' => 'integer',
             ],
             [
