@@ -7,6 +7,7 @@ class JobArtMasterValidator
     private const DAMAGE_KEYWORDS = ['ダメージ'];
     private const GOLD_KEYWORDS = ['Gold', 'GOLD', 'gold'];
     private const DROP_KEYWORDS = ['Drop', 'DROP', 'drop', '素材率', 'ドロップ', '報酬判定'];
+    private const FORBIDDEN_MEMO_WORDS = ['ターン', '反撃', '継続ダメージ', '解除', '状態異常', '回避率', '会心率'];
     private const DAMAGE_REWARD_TEMPLATES = ['PHYSICAL_DAMAGE_REWARD', 'MAGICAL_DAMAGE_REWARD'];
     private const DAMAGE_REWARD_BONUS_BY_RANK = [1 => 1, 5 => 2, 9 => 3];
 
@@ -63,6 +64,64 @@ class JobArtMasterValidator
                 );
             }
 
+            foreach (self::FORBIDDEN_MEMO_WORDS as $word) {
+                if (str_contains($memo, $word) && ! str_contains($memo, '命中率に影響')) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoに未実装または非推奨の表現「%s」が含まれています。戦闘中表記または実効果に合わせた表現へ修正してください',
+                        $jobId,
+                        $name,
+                        $word
+                    );
+                }
+            }
+
+            foreach (self::requiredDebuffsForMemo($memo) as $field => $label) {
+                if ((int) ($row[$field] ?? 0) <= 0) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoは%s低下を示しますが %s が設定されていません',
+                        $jobId,
+                        $name,
+                        $label,
+                        $field
+                    );
+                }
+            }
+
+            if (preg_match('/([2-9])回/u', $memo, $matches)) {
+                $expectedHits = (int) $matches[1];
+                $actualHits = (int) ($row['hit_count'] ?? JobArtEffectCatalog::hitCount($template));
+                if ($actualHits !== $expectedHits) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoは%d回攻撃ですが hit_count=%d です',
+                        $jobId,
+                        $name,
+                        $expectedHits,
+                        $actualHits
+                    );
+                }
+            }
+
+            if (self::memoMentionsHpRecovery($memo)
+                && ! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)
+                && (int) ($row['heal_percent'] ?? 0) <= 0
+                && (float) ($row['drain_hp_rate'] ?? 0) <= 0
+            ) {
+                $problems[] = sprintf('job_id=%d %s: memoはHP回復を示しますが回復効果が設定されていません', $jobId, $name);
+            }
+
+            if (preg_match('/被ダメ.{0,8}軽減/u', $memo)
+                && ! in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)
+                && (int) ($row['damage_reduction_percent'] ?? 0) <= 0
+            ) {
+                $problems[] = sprintf('job_id=%d %s: memoは被ダメ軽減を示しますが軽減効果が設定されていません', $jobId, $name);
+            }
+
+            if (str_contains($memo, '吸収')
+                && ($template !== 'DRAIN' || ((float) ($row['drain_hp_rate'] ?? 0) <= 0 && (int) ($row['mp_recover_percent'] ?? 0) <= 0))
+            ) {
+                $problems[] = sprintf('job_id=%d %s: memoは吸収を示しますがDRAINまたは吸収効果が設定されていません', $jobId, $name);
+            }
+
             if (in_array($template, self::DAMAGE_REWARD_TEMPLATES, true)) {
                 $learnRank = (int) ($row['learn_rank'] ?? 0);
                 $expectedBonus = self::DAMAGE_REWARD_BONUS_BY_RANK[$learnRank] ?? null;
@@ -88,6 +147,7 @@ class JobArtMasterValidator
     private static function memoMentionsDamage(string $memo): bool
     {
         return self::containsAny($memo, self::DAMAGE_KEYWORDS)
+            && ! str_contains($memo, '被ダメージ')
             && ! str_contains($memo, 'ダメージを1回だけ耐え')
             && ! str_contains($memo, 'ダメージを耐え');
     }
@@ -119,5 +179,30 @@ class JobArtMasterValidator
         }
 
         return false;
+    }
+
+    private static function requiredDebuffsForMemo(string $memo): array
+    {
+        $required = [];
+        if (preg_match('/ATK.{0,6}低下/u', $memo)) {
+            $required['enemy_atk_down_percent'] = 'ATK';
+        }
+        if (preg_match('/MAG.{0,6}低下/u', $memo)) {
+            $required['enemy_mag_down_percent'] = 'MAG';
+        }
+        if (preg_match('/SPD.{0,6}低下/u', $memo)) {
+            $required['enemy_spd_down_percent'] = 'SPD';
+        }
+        if (preg_match('/DEF.{0,6}低下|守り.{0,4}低下/u', $memo)) {
+            $required['enemy_def_down_percent'] = 'DEF';
+        }
+
+        return $required;
+    }
+
+    private static function memoMentionsHpRecovery(string $memo): bool
+    {
+        return (bool) preg_match('/HP.{0,6}回復|最大HPの?\d+%?回復/u', $memo)
+            && ! str_contains($memo, 'SPを');
     }
 }

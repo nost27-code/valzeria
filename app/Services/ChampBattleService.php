@@ -545,6 +545,9 @@ class ChampBattleService
         if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
             $hitCount = 1;
         }
+        if ((int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
+            $hitCount++;
+        }
 
         $totalDamage = 0;
         $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
@@ -561,12 +564,12 @@ class ChampBattleService
                 $overrideSpr = (int) floor($defender->spr * (1 - ((int) $skill->def_ignore_percent / 100)));
             }
 
-            if (str_contains((string) $skill->description, 'LUKに応じて')) {
-                $skillPowerInt += (int) floor($attacker->luk * 0.5);
+            if ((float) $skill->luk_power_rate > 0) {
+                $skillPowerInt += (int) floor($attacker->luk * (float) $skill->luk_power_rate);
             }
 
             if ((float) $skill->power_multiplier > 0) {
-                if (in_array($skill->damage_type, ['physical', 'gold', 'drop'], true)) {
+                if (in_array($skill->damage_type, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -595,7 +598,7 @@ class ChampBattleService
                         $hitCount
                     );
                 } elseif ($skill->damage_type === 'hybrid') {
-                    $hybridAtk = str_contains((string) $skill->description, '高い方依存')
+                    $hybridAtk = (string) $skill->hybrid_scaling === 'max'
                         ? max($attacker->str, $attacker->mag)
                         : (int) floor(($attacker->str + $attacker->mag) / 2);
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
@@ -642,32 +645,17 @@ class ChampBattleService
             $this->applyJobArtTemplateEffects($attacker, $defender, $skill, $totalDamage, $logs);
         }
 
-        if ((int) $skill->enemy_def_down_percent > 0) {
-            $effect = (int) $skill->enemy_def_down_percent;
-            $defender->def = max(1, $defender->def - (int) floor($defender->baseDef * ($effect / 100)));
-            $logs[] = "{$defender->name} の防御力が {$effect}% 低下した！";
-        }
-
-        if ((int) $skill->enemy_spd_down_percent > 0) {
-            $effect = (int) $skill->enemy_spd_down_percent;
-            $defender->agi = max(1, $defender->agi - (int) floor($defender->baseAgi * ($effect / 100)));
-            $logs[] = "{$defender->name} の素早さが {$effect}% 低下した！";
-        }
-
-        if ((int) $skill->enemy_spr_down_percent > 0) {
-            $effect = (int) $skill->enemy_spr_down_percent;
-            $defender->spr = max(1, $defender->spr - (int) floor($defender->baseSpr * ($effect / 100)));
-            $logs[] = "{$defender->name} の精神力が {$effect}% 低下した！";
-        }
+        $this->applyStructuredDebuffs($defender, $skill, $logs);
 
         if ((int) $skill->damage_reduction_percent > 0) {
-            $attacker->damageReductionRate = (int) $skill->damage_reduction_percent;
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
             $logs[] = "{$attacker->name} は次の被ダメージを軽減する構えをとった！";
         }
 
-        if (!$skill->isJobArt() && $skill->damage_type === 'support' && str_contains((string) $skill->description, '上昇')) {
-            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * 0.05));
-            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * 0.05));
+        if (!$skill->isJobArt() && (int) $skill->self_buff_percent > 0) {
+            $rate = (int) $skill->self_buff_percent / 100;
+            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * $rate));
+            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * $rate));
             $logs[] = "{$attacker->name} の攻撃力と魔法力が上昇した！";
         }
 
@@ -694,8 +682,8 @@ class ChampBattleService
             $logs[] = "<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>";
         }
 
-        if ($template === 'DRAIN' && $totalDamage > 0 && str_contains((string) $skill->description, 'HP')) {
-            $heal = max(1, (int) floor($totalDamage * 0.35));
+        if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
+            $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
             $attacker->healHp($heal);
             $logs[] = "<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>";
         }
@@ -707,7 +695,7 @@ class ChampBattleService
 
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $reduction = min(25, max(10, (int) floor($power / 10)));
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, $reduction));
             $logs[] = "<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>";
         }
 
@@ -717,15 +705,48 @@ class ChampBattleService
             $logs[] = "<span class=\"text-indigo-600 font-bold\">{$attacker->name} の戦闘力が高まった！</span>";
         }
 
-        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true)) {
+        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
             $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
             $defender->spr = max(1, $defender->spr - max(1, (int) floor($defender->baseSpr * 0.05)));
             $logs[] = "<span class=\"text-violet-700 font-bold\">{$defender->name} の守りが乱れた！</span>";
         }
 
-        if ($template === 'TIME_CONTROL_CURRENT_ONLY') {
-            $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * 0.10)));
+        if ($template === 'TIME_CONTROL_CURRENT_ONLY' && !$this->hasStructuredDebuff($skill)) {
+            $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
+            $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
             $logs[] = "<span class=\"text-sky-700 font-bold\">{$defender->name} の動きが鈍った！</span>";
+        }
+    }
+
+    private function hasStructuredDebuff(Skill $skill): bool
+    {
+        return (int) $skill->enemy_atk_down_percent > 0
+            || (int) $skill->enemy_mag_down_percent > 0
+            || (int) $skill->enemy_def_down_percent > 0
+            || (int) $skill->enemy_spr_down_percent > 0
+            || (int) $skill->enemy_spd_down_percent > 0;
+    }
+
+    private function applyStructuredDebuffs(BattleActor $defender, Skill $skill, array &$logs): void
+    {
+        $debuffs = [
+            'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
+            'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔法力'],
+            'enemy_def_down_percent' => ['prop' => 'def', 'base' => 'baseDef', 'label' => '防御力'],
+            'enemy_spr_down_percent' => ['prop' => 'spr', 'base' => 'baseSpr', 'label' => '精神力'],
+            'enemy_spd_down_percent' => ['prop' => 'agi', 'base' => 'baseAgi', 'label' => '素早さ'],
+        ];
+
+        foreach ($debuffs as $field => $config) {
+            $effect = (int) ($skill->{$field} ?? 0);
+            if ($effect <= 0) {
+                continue;
+            }
+
+            $prop = $config['prop'];
+            $base = $config['base'];
+            $defender->{$prop} = max(1, $defender->{$prop} - (int) floor($defender->{$base} * ($effect / 100)));
+            $logs[] = "{$defender->name} の{$config['label']}が {$effect}% 低下した！";
         }
     }
 
@@ -1176,7 +1197,6 @@ class ChampBattleService
 
         return $material ? ['material_code' => (string) $material->material_code, 'name' => $material->displayName()] : null;
     }
-
     private function champRewardCityId(Character $character, object $recipe, object $item): int
     {
         foreach ([
@@ -1248,3 +1268,4 @@ class ChampBattleService
         $row->increment('quantity', $quantity);
     }
 }
+

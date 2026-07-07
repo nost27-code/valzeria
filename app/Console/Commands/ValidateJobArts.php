@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Support\JobArtMasterValidator;
+use App\Support\JobSpecialSkillValidator;
 use Illuminate\Console\Command;
 
 class ValidateJobArts extends Command
@@ -26,13 +27,19 @@ class ValidateJobArts extends Command
         }
 
         $problems = JobArtMasterValidator::validateRows($rows);
+        $specialRows = require base_path('database/data/job_special_skills.php');
+        if (is_array($specialRows)) {
+            $problems = array_merge($problems, JobSpecialSkillValidator::validateRows($specialRows));
+        } else {
+            $problems[] = 'job_special_skills.php の読み込みに失敗しました。';
+        }
 
         if ($problems === []) {
-            $this->info('job_arts.json: memo と effect_template の不整合は見つかりませんでした。');
+            $this->info('job_arts.json / job_special_skills.php: 技説明と実効果の不整合は見つかりませんでした。');
             return self::SUCCESS;
         }
 
-        $this->error(sprintf('job_arts.json: %d件の不整合を検出しました。', count($problems)));
+        $this->error(sprintf('技説明と実効果: %d件の不整合を検出しました。', count($problems)));
         foreach ($problems as $problem) {
             $this->line(' - ' . $problem);
         }

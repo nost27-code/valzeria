@@ -149,7 +149,7 @@ class JobArtBattleSupportService
     {
         $needsHp = $skill->isHealArt()
             || in_array((string) $skill->effect_template, ['HEAL', 'HEAL_CLEANSE'], true)
-            || ((string) $skill->effect_template === 'DRAIN' && str_contains((string) $skill->description, 'HP'))
+            || ((string) $skill->effect_template === 'DRAIN' && (float) $skill->drain_hp_rate > 0)
             || (int) $skill->heal_percent > 0;
         $needsSp = (int) $skill->mp_recover_percent > 0;
         if ($needsHp || $needsSp) {

@@ -62,6 +62,36 @@ class JobArtEffectCatalogTest extends TestCase
         $this->assertStringContainsString('ダメージを与えない実装です', $problems[0]);
     }
 
+    public function test_validator_rejects_unimplemented_memo_terms(): void
+    {
+        $problems = JobArtMasterValidator::validateRows([
+            [
+                'job_id' => 999,
+                'name' => '検査用奥義',
+                'effect_template' => 'SELF_BUFF',
+                'memo' => '自身ATK上昇（3ターン）',
+            ],
+        ]);
+
+        $this->assertNotSame([], $problems);
+        $this->assertStringContainsString('ターン', implode("\n", $problems));
+    }
+
+    public function test_validator_rejects_debuff_text_without_structured_field(): void
+    {
+        $problems = JobArtMasterValidator::validateRows([
+            [
+                'job_id' => 999,
+                'name' => '検査用奥義',
+                'effect_template' => 'DAMAGE_DEBUFF',
+                'memo' => '単体攻撃＋敵ATK低下（戦闘中）',
+            ],
+        ]);
+
+        $this->assertNotSame([], $problems);
+        $this->assertStringContainsString('enemy_atk_down_percent', implode("\n", $problems));
+    }
+
     public function test_current_job_art_json_has_no_memo_template_mismatch(): void
     {
         $rows = json_decode((string) file_get_contents(__DIR__ . '/../../database/data/job_arts.json'), true);

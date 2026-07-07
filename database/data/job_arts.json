@@ -23,9 +23,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "単体小ダメージ＋敵ATKを小低下（3ターン）",
+    "memo": "単体小ダメージ＋敵ATK小低下（戦闘中）",
     "activation_phrase": "「そこを退け！」",
-    "activation_description": "{user}は半歩踏み込み、《{skill}》で{target}の攻撃ごと刃で払いのけた！"
+    "activation_description": "{user}は半歩踏み込み、《{skill}》で{target}の攻撃ごと刃で払いのけた！",
+    "enemy_atk_down_percent": 6
   },
   {
     "job_id": 1,
@@ -79,7 +80,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "単体大ダメージ＋自身ATK\/SPD上昇（3ターン）",
+    "memo": "単体大ダメージ＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「この一太刀に、すべてを込める！」",
     "activation_description": "{user}の剣から蒼い剣気が噴き上がる。《{skill}》が一直線に{target}を断ち裂いた！"
   },
@@ -107,7 +108,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "単体小ダメージ＋自身DEF上昇（3ターン）",
+    "memo": "単体小ダメージ＋自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「受け止めてみろ！」",
     "activation_description": "{user}は全身の力を込め、《{skill}》を{target}へ叩き込んだ！"
   },
@@ -135,7 +136,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "単体中大ダメージ。自身SPDが低いほど少し威力上昇",
+    "memo": "単体中大ダメージ＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「力で押し切る！」",
     "activation_description": "{user}の重い一撃が唸る。《{skill}》で{target}の体勢を大きく崩した！"
   },
@@ -191,7 +192,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身SPD\/LUK上昇＋次の被弾回避率を小上昇",
+    "memo": "自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「見切れるかな？」",
     "activation_description": "{user}は気配を薄め、《{skill}》で{target}の視界から外れた！"
   },
@@ -219,7 +220,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "単体攻撃。自身SPDが敵より高いと会心率上昇",
+    "memo": "単体攻撃＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「死角はもらった。」",
     "activation_description": "{user}が死角へ滑り込む。《{skill}》が{target}の虚を突いた！"
   },
@@ -247,9 +248,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "LUK依存の3回攻撃＋敵SPD低下。DROP補正なし",
+    "memo": "3回攻撃＋敵SPD低下（戦闘中）。DROP補正なし",
     "activation_phrase": "「影に沈め。」",
-    "activation_description": "{user}の姿が影に溶ける。《{skill}》が無数の幻影となって{target}を襲った！"
+    "activation_description": "{user}の姿が影に溶ける。《{skill}》が無数の幻影となって{target}を襲った！",
+    "enemy_spd_down_percent": 20,
+    "hit_count": 3
   },
   {
     "job_id": 4,
@@ -275,9 +278,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "単体小ダメージ＋敵SPD低下（3ターン）",
+    "memo": "単体小ダメージ＋敵SPD低下（戦闘中）",
     "activation_phrase": "「狙いは外さない。」",
-    "activation_description": "{user}は弓弦を絞り、《{skill}》で{target}の足元を射抜いた！"
+    "activation_description": "{user}は弓弦を絞り、《{skill}》で{target}の足元を射抜いた！",
+    "enemy_spd_down_percent": 10
   },
   {
     "job_id": 4,
@@ -303,7 +307,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "命中率高めの単体中ダメージ＋会心率小上昇",
+    "memo": "単体中ダメージ＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「射線は通った。」",
     "activation_description": "{user}の矢が一直線に走る。《{skill}》が{target}の急所を狙い澄ました！"
   },
@@ -331,9 +335,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "4〜6回の小ダメージ。敵がSPD低下中ならHit数+1",
+    "memo": "小ダメージの5回攻撃",
     "activation_phrase": "「この一矢で穿つ！」",
-    "activation_description": "{user}の矢雨が星のように降る。《{skill}》が{target}の逃げ場を塞いだ！"
+    "activation_description": "{user}の矢雨が星のように降る。《{skill}》が{target}の逃げ場を塞いだ！",
+    "hit_count": 5
   },
   {
     "job_id": 5,
@@ -359,7 +364,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "単体小ダメージ＋自身SPD小上昇",
+    "memo": "単体小ダメージ＋自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「気を練る。」",
     "activation_description": "{user}は呼吸を整え、《{skill}》に闘気を乗せて{target}へ踏み込んだ！"
   },
@@ -387,16 +392,17 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "3回物理攻撃。Hitごとに小倍率",
+    "memo": "3回物理攻撃",
     "activation_phrase": "「間合いは掴んだ！」",
-    "activation_description": "{user}の連撃が間合いを制す。《{skill}》が{target}を押し返した！"
+    "activation_description": "{user}の連撃が間合いを制す。《{skill}》が{target}を押し返した！",
+    "hit_count": 3
   },
   {
     "job_id": 5,
     "learn_rank": 9,
     "name": "爆裂闘気",
     "skill_type": "job_art",
-    "effect_template": "DAMAGE_DEBUFF",
+    "effect_template": "DAMAGE_BUFF",
     "art_category": "debuff",
     "limit_group": "NONE",
     "element": "無",
@@ -415,9 +421,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "自身ATK\/SPD上昇後、4回攻撃。使用後DEF小低下",
+    "memo": "4回攻撃＋自身の戦闘力上昇（戦闘中）。1戦1回",
     "activation_phrase": "「我が闘気、解き放つ！」",
-    "activation_description": "{user}の全身から闘気が噴き上がる。《{skill}》が{target}を一気に打ち抜いた！"
+    "activation_description": "{user}の全身から闘気が噴き上がる。《{skill}》が{target}を一気に打ち抜いた！",
+    "hit_count": 4
   },
   {
     "job_id": 6,
@@ -499,7 +506,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "単体大魔法＋継続小ダメージ（2ターン）",
+    "memo": "単体大魔法",
     "activation_phrase": "「紅き嵐よ、すべてを焼き尽くせ！」",
     "activation_description": "{user}の《{skill}》！灼熱の炎が渦を巻き、戦場を紅蓮に染め上げた！"
   },
@@ -555,7 +562,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "中回復＋2ターン小回復",
+    "memo": "HPを中回復",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -583,9 +590,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "大回復＋被ダメ軽減（2ターン）。1戦1回",
+    "memo": "HPを大回復＋次の被ダメ20%軽減。1戦1回",
     "activation_phrase": "「神域よ、裁きを下せ！」",
-    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
+    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！",
+    "damage_reduction_percent": 20
   },
   {
     "job_id": 8,
@@ -639,7 +647,7 @@
     "champ_enabled": false,
     "reward_scope": "normal_exploration_win_only",
     "sort_order": 2,
-    "memo": "自身LUK上昇＋勝利時Gold補正。戦闘中は被会心率小低下",
+    "memo": "探索勝利時のGold補正が上昇（戦闘中）",
     "activation_phrase": "「商機は逃さない！」",
     "activation_description": "{user}の判断が一手先を行く。《{skill}》が{target}の計算を狂わせた！"
   },
@@ -667,7 +675,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "ATK\/SPR\/LUK上昇＋小バリア。勝利時Gold補正なし。1戦1回",
+    "memo": "ATK/SPR/LUK上昇＋小バリア。勝利時Gold補正なし。1戦1回",
     "activation_phrase": "「これが王の取引だ！」",
     "activation_description": "{user}が惜しみなく財を動かす。《{skill}》が戦場の主導権を塗り替えた！"
   },
@@ -723,7 +731,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "ATK+MAG参照の単体攻撃。敵DEF\/SPRの低い方に寄せて計算",
+    "memo": "ATK+MAG参照の単体攻撃。敵DEF/SPRの低い方に寄せて計算",
     "activation_phrase": "「術式展開。」",
     "activation_description": "{user}が術式を描く。《{skill}》の魔力が{target}を包み込んだ！"
   },
@@ -788,7 +796,7 @@
     "learn_rank": 5,
     "name": "ホーリーブレイド",
     "skill_type": "job_art",
-    "effect_template": "HEAL",
+    "effect_template": "PHYSICAL_DAMAGE",
     "art_category": "heal",
     "limit_group": "HEAL",
     "element": "聖",
@@ -807,9 +815,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "聖属性攻撃＋与ダメの一部を回復",
+    "memo": "単体中ダメージ＋最大HPの6%回復",
     "activation_phrase": "「聖なる加護をここに。」",
-    "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
+    "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！",
+    "heal_percent": 6
   },
   {
     "job_id": 10,
@@ -835,9 +844,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "致死ダメージを1回だけ耐え、HP回復＋バリア。1戦1回",
+    "memo": "致死ダメージを1回だけ耐える＋最大HP15%回復。1戦1回",
     "activation_phrase": "「神域よ、裁きを下せ！」",
-    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
+    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！",
+    "heal_percent": 15
   },
   {
     "job_id": 11,
@@ -863,7 +873,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "次の攻撃の命中率・会心率上昇",
+    "memo": "単体小ダメージ＋自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「一太刀で道を開く！」",
     "activation_description": "{user}は鋭く踏み込み、《{skill}》で{target}の間合いを断ち切った！"
   },
@@ -891,7 +901,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "単体中ダメージ。先攻時に会心率大上昇",
+    "memo": "単体中ダメージ＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「刃筋は見えている！」",
     "activation_description": "{user}の刃が連続して閃く。《{skill}》が{target}の守りをこじ開ける！"
   },
@@ -919,9 +929,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "3連撃。会心発生時に次Hit倍率上昇",
+    "memo": "3回攻撃＋自身の戦闘力上昇（戦闘中）。1戦1回",
     "activation_phrase": "「これで決める！」",
-    "activation_description": "{user}の力が頂点に達する。《{skill}》が決着の一撃となって放たれた！"
+    "activation_description": "{user}の力が頂点に達する。《{skill}》が決着の一撃となって放たれた！",
+    "hit_count": 3
   },
   {
     "job_id": 12,
@@ -947,9 +958,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵DEF\/SPRを小低下＋次の命中率上昇",
+    "memo": "敵DEF/SPRを小低下（戦闘中）",
     "activation_phrase": "「盤面は読めた。」",
-    "activation_description": "{user}は敵陣を見抜き、《{skill}》で勝負所を探り当てた！"
+    "activation_description": "{user}は敵陣を見抜き、《{skill}》で勝負所を探り当てた！",
+    "enemy_spr_down_percent": 5,
+    "enemy_def_down_percent": 10
   },
   {
     "job_id": 12,
@@ -975,7 +988,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "自身ATK\/MAG\/DEF\/SPRのうち低い2つを上昇",
+    "memo": "自身ATK/MAG/DEF/SPRのうち低い2つを上昇",
     "activation_phrase": "「勝機はここだ。」",
     "activation_description": "{user}の指揮が戦線を動かす。《{skill}》で{target}の退路を狭めた！"
   },
@@ -1003,9 +1016,12 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵ATK\/MAG\/SPD低下＋被弾時に小反撃（3ターン）",
+    "memo": "敵ATK/MAG/SPDを低下（戦闘中）",
     "activation_phrase": "「全軍、決着の陣へ！」",
-    "activation_description": "{user}の策が一斉に噛み合う。《{skill}》が{target}を完全に包囲した！"
+    "activation_description": "{user}の策が一斉に噛み合う。《{skill}》が{target}を完全に包囲した！",
+    "enemy_mag_down_percent": 10,
+    "enemy_spd_down_percent": 10,
+    "enemy_atk_down_percent": 10
   },
   {
     "job_id": 13,
@@ -1031,7 +1047,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "HPが半分以下ならATK\/DEF上昇、半分以上ならATK小上昇",
+    "memo": "HPが半分以下ならATK/DEF上昇、半分以上ならATK小上昇",
     "activation_phrase": "「一太刀で道を開く！」",
     "activation_description": "{user}は鋭く踏み込み、《{skill}》で{target}の間合いを断ち切った！"
   },
@@ -1059,9 +1075,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "2〜4回攻撃。自身HPが低いほどHit数上昇",
+    "memo": "3回攻撃",
     "activation_phrase": "「刃筋は見えている！」",
-    "activation_description": "{user}の刃が連続して閃く。《{skill}》が{target}の守りをこじ開ける！"
+    "activation_description": "{user}の刃が連続して閃く。《{skill}》が{target}の守りをこじ開ける！",
+    "hit_count": 3
   },
   {
     "job_id": 13,
@@ -1087,7 +1104,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "単体大ダメージ＋自身会心率上昇。敵もATK小上昇",
+    "memo": "単体大ダメージ＋自身の戦闘力を上昇（戦闘中）。1戦1回",
     "activation_phrase": "「この剣で、勝負を決める！」",
     "activation_description": "{user}の剣気が戦場を裂く。《{skill}》が{target}を真正面から圧倒した！"
   },
@@ -1115,9 +1132,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "現在HPを少し消費してATK\/SPD上昇",
+    "memo": "最大HPの3%を犠牲に自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「受け止めてみろ！」",
-    "activation_description": "{user}は全身の力を込め、《{skill}》を{target}へ叩き込んだ！"
+    "activation_description": "{user}は全身の力を込め、《{skill}》を{target}へ叩き込んだ！",
+    "self_damage_percent": 3
   },
   {
     "job_id": 14,
@@ -1171,9 +1189,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "5回攻撃。使用後、次ターン被ダメ上昇。1戦1回",
+    "memo": "5回攻撃。1戦1回",
     "activation_phrase": "「ここで叩き潰す！」",
-    "activation_description": "{user}の闘志が爆ぜる。《{skill}》が大地ごと{target}を震わせた！"
+    "activation_description": "{user}の闘志が爆ぜる。《{skill}》が大地ごと{target}を震わせた！",
+    "hit_count": 5
   },
   {
     "job_id": 15,
@@ -1199,9 +1218,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "DEF依存小ダメージ＋敵ATK小低下",
+    "memo": "単体小ダメージ＋敵ATK小低下（戦闘中）",
     "activation_phrase": "「ここは通さない。」",
-    "activation_description": "{user}は盾を構え、《{skill}》で{target}の勢いを受け止めた！"
+    "activation_description": "{user}は盾を構え、《{skill}》で{target}の勢いを受け止めた！",
+    "enemy_atk_down_percent": 6
   },
   {
     "job_id": 15,
@@ -1255,7 +1275,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "3ターン被ダメ軽減＋被弾時反撃。1戦1回",
+    "memo": "次の被ダメージを25%軽減。1戦1回",
     "activation_phrase": "「この守護、崩せるものか！」",
     "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！"
   },
@@ -1283,7 +1303,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "単体小ダメージ＋自身命中率小上昇",
+    "memo": "単体小ダメージ＋自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「受け止めてみろ！」",
     "activation_description": "{user}は全身の力を込め、《{skill}》を{target}へ叩き込んだ！"
   },
@@ -1313,7 +1333,7 @@
     "champ_enabled": false,
     "reward_scope": "normal_exploration_win_only",
     "sort_order": 2,
-    "memo": "単体中ダメージ。撃破時Gold\/素材率小補正",
+    "memo": "単体中ダメージ。撃破時Gold/素材率小補正",
     "activation_phrase": "「力で押し切る！」",
     "activation_description": "{user}の重い一撃が唸る。《{skill}》で{target}の体勢を大きく崩した！"
   },
@@ -1369,9 +1389,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身回避率上昇＋敵命中率小低下（2ターン）",
+    "memo": "敵SPDを小低下（戦闘中・命中率に影響）",
     "activation_phrase": "「見切れるかな？」",
-    "activation_description": "{user}は気配を薄め、《{skill}》で{target}の視界から外れた！"
+    "activation_description": "{user}は気配を薄め、《{skill}》で{target}の視界から外れた！",
+    "enemy_spd_down_percent": 10
   },
   {
     "job_id": 17,
@@ -1397,9 +1418,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "SPD依存攻撃＋敵SPD低下",
+    "memo": "単体攻撃＋敵SPD低下（戦闘中）",
     "activation_phrase": "「闇よ、喰らえ。」",
-    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
+    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！",
+    "enemy_spd_down_percent": 15
   },
   {
     "job_id": 17,
@@ -1425,9 +1447,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "SPD依存4回攻撃＋使用ターン回避率上昇",
+    "memo": "4回攻撃＋自身の戦闘力上昇（戦闘中）。1戦1回",
     "activation_phrase": "「深き夜よ、すべてを呑め！」",
-    "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！"
+    "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！",
+    "hit_count": 4
   },
   {
     "job_id": 18,
@@ -1481,7 +1504,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "命中率高めの単体大ダメージ。会心率上昇",
+    "memo": "単体大ダメージ＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「射線は通った。」",
     "activation_description": "{user}の矢が一直線に走る。《{skill}》が{target}の急所を狙い澄ました！"
   },
@@ -1509,7 +1532,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "必中寄りの単体特大ダメージ。敵バリア\/回避補正を一部無視",
+    "memo": "必中寄りの単体特大ダメージ。敵バリア/回避補正を一部無視",
     "activation_phrase": "「天命の星図よ、開け！」",
     "activation_description": "{user}の頭上に星図が開く。《{skill}》が天命の光で戦場を塗り替えた！"
   },
@@ -1567,9 +1590,11 @@
     "reward_scope": "none",
     "sort_order": 2,
     "mp_recover_percent": 10,
-    "memo": "HP\/SP吸収＋敵SPR低下",
+    "memo": "HP/SP吸収＋敵SPR低下（戦闘中）",
     "activation_phrase": "「死角はもらった。」",
-    "activation_description": "{user}が死角へ滑り込む。《{skill}》が{target}の虚を突いた！"
+    "activation_description": "{user}が死角へ滑り込む。《{skill}》が{target}の虚を突いた！",
+    "enemy_spr_down_percent": 7,
+    "drain_hp_rate": 0.35
   },
   {
     "job_id": 19,
@@ -1595,7 +1620,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵の強化を1つ解除し、自身MAG\/SPR上昇＋魔法ダメージ",
+    "memo": "単体大魔法＋自身の戦闘力を上昇（戦闘中）。1戦1回",
     "activation_phrase": "「影に沈め。」",
     "activation_description": "{user}の姿が影に溶ける。《{skill}》が無数の幻影となって{target}を襲った！"
   },
@@ -1623,7 +1648,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身LUK\/DEF小上昇（3ターン）。回復・Gold補正なし",
+    "memo": "自身の戦闘力を小上昇（戦闘中）。Gold補正なし",
     "activation_phrase": "「勘定はついている。」",
     "activation_description": "{user}は素早く懐を探り、《{skill}》で戦いの流れを買い取った！"
   },
@@ -1651,7 +1676,7 @@
     "champ_enabled": false,
     "reward_scope": "normal_exploration_win_only",
     "sort_order": 2,
-    "memo": "通常探索勝利時DROP\/GOLD小補正。戦闘中のランダムバフはなし",
+    "memo": "通常探索勝利時DROP/GOLD小補正。戦闘中のランダムバフはなし",
     "activation_phrase": "「商機は逃さない！」",
     "activation_description": "{user}の判断が一手先を行く。《{skill}》が{target}の計算を狂わせた！"
   },
@@ -1707,7 +1732,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "小回復＋ATK\/SPR小上昇",
+    "memo": "HPを小回復",
     "activation_phrase": "「気を練る。」",
     "activation_description": "{user}は呼吸を整え、《{skill}》に闘気を乗せて{target}へ踏み込んだ！"
   },
@@ -1735,7 +1760,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "ATK+SPR参照の単体攻撃。魔法型\/不死系にボーナス",
+    "memo": "ATK+SPR参照の単体攻撃。魔法型/不死系にボーナス",
     "activation_phrase": "「間合いは掴んだ！」",
     "activation_description": "{user}の連撃が間合いを制す。《{skill}》が{target}を押し返した！"
   },
@@ -1763,9 +1788,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "2ターン被ダメ軽減＋被弾時小反撃。1戦1回",
+    "memo": "次の被ダメージを25%軽減。1戦1回",
     "activation_phrase": "「この守護、崩せるものか！」",
-    "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！"
+    "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！",
+    "damage_reduction_percent": 25
   },
   {
     "job_id": 22,
@@ -1791,7 +1817,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "次の弓\/物理攻撃にMAG依存の属性追加ダメージ",
+    "memo": "次の弓/物理攻撃にMAG依存の属性追加ダメージ",
     "activation_phrase": "「狙いは外さない。」",
     "activation_description": "{user}は弓弦を絞り、《{skill}》で{target}の足元を射抜いた！"
   },
@@ -1875,7 +1901,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "ATK\/MAG小上昇（2ターン）",
+    "memo": "自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「一節、奏でよう。」",
     "activation_description": "{user}は短い旋律を奏で、《{skill}》で戦意を静かに高めた！"
   },
@@ -1903,7 +1929,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "ATK\/MAG\/SPR上昇。回復継続なし",
+    "memo": "ATK/MAG/SPR上昇。回復継続なし",
     "activation_phrase": "「この旋律に乗せて！」",
     "activation_description": "{user}の歌声が響く。《{skill}》の旋律が戦場全体を震わせた！"
   },
@@ -1959,7 +1985,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "小回復＋弱体\/状態異常を1つ解除",
+    "memo": "HPを小回復",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -1968,7 +1994,7 @@
     "learn_rank": 5,
     "name": "セイクリッドライト",
     "skill_type": "job_art",
-    "effect_template": "HEAL",
+    "effect_template": "MAGICAL_DAMAGE",
     "art_category": "heal",
     "limit_group": "HEAL",
     "element": "聖",
@@ -1987,9 +2013,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "聖属性中魔法＋自身小回復",
+    "memo": "単体中魔法＋最大HPの5%回復",
     "activation_phrase": "「聖なる加護をここに。」",
-    "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
+    "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！",
+    "heal_percent": 5
   },
   {
     "job_id": 24,
@@ -2015,9 +2042,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "大回復＋弱体解除＋バリア。1戦1回",
+    "memo": "HPを大回復＋次の被ダメ20%軽減。1戦1回",
     "activation_phrase": "「神域よ、裁きを下せ！」",
-    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
+    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！",
+    "damage_reduction_percent": 20
   },
   {
     "job_id": 25,
@@ -2043,9 +2071,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "HP小回復。MP消費が非常に軽い",
+    "memo": "HPを小回復。SP消費が軽い",
     "activation_phrase": "「素材は揃っている。」",
-    "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！"
+    "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！",
+    "sp_cost_fixed": 6
   },
   {
     "job_id": 25,
@@ -2072,7 +2101,7 @@
     "reward_scope": "none",
     "sort_order": 2,
     "mp_recover_percent": 10,
-    "memo": "HP\/SPを中回復。弱体があれば解除を優先",
+    "memo": "HP/SPを中回復",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -2100,7 +2129,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "大回復＋弱体全解除。1戦1回",
+    "memo": "HPを大回復。1戦1回",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -2128,7 +2157,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "小魔法ダメージ＋敵DEF\/SPRのどちらかを小低下",
+    "memo": "小魔法ダメージ＋敵DEF/SPRのどちらかを小低下",
     "activation_phrase": "「素材は揃っている。」",
     "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！"
   },
@@ -2184,7 +2213,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "3ターンMAG上昇。自身の魔法発動時に追加小ダメージ",
+    "memo": "単体大魔法＋自身の戦闘力を上昇（戦闘中）",
     "activation_phrase": "「限界駆動、解除！」",
     "activation_description": "{user}の機神中枢が解放される。《{skill}》が重力ごと戦場を歪めた！"
   },
@@ -2221,7 +2250,7 @@
     "learn_rank": 5,
     "name": "ブレイブヒール",
     "skill_type": "job_art",
-    "effect_template": "HEAL",
+    "effect_template": "HYBRID_DAMAGE",
     "art_category": "heal",
     "limit_group": "HEAL",
     "element": "聖",
@@ -2240,9 +2269,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "ATK\/MAGの高い方で攻撃＋自身中回復",
+    "memo": "複合攻撃＋最大HPの8%回復",
     "activation_phrase": "「ここで流れを変える！」",
-    "activation_description": "{user}が流れを掴む。《{skill}》が{target}の均衡を崩した！"
+    "activation_description": "{user}が流れを掴む。《{skill}》が{target}の均衡を崩した！",
+    "heal_percent": 8
   },
   {
     "job_id": 27,
@@ -2296,7 +2326,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "命中率・会心率上昇（2ターン）",
+    "memo": "自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -2352,7 +2382,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "単体特大ダメージ。自身SPD\/LUKが高いほど会心倍率上昇。1戦1回",
+    "memo": "単体特大ダメージ＋自身の戦闘力を上昇（戦闘中）。1戦1回",
     "activation_phrase": "「神域よ、裁きを下せ！」",
     "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
   },
@@ -2409,7 +2439,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "MAG\/SPR参照バリア＋SPR上昇",
+    "memo": "MAG/SPR参照バリア＋SPR上昇",
     "activation_phrase": "「守りを攻めに変える！」",
     "activation_description": "{user}の守護の気配が厚みを増す。《{skill}》が戦線を押し返した！"
   },
@@ -2465,7 +2495,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "HPを少し消費しATK\/MAG上昇",
+    "memo": "HPを少し消費しATK/MAG上昇",
     "activation_phrase": "「影が呼んでいる。」",
     "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
   },
@@ -2493,9 +2523,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "闇属性大ダメージ＋与ダメ一部吸収。ただし反動あり",
+    "memo": "単体大ダメージ＋与ダメの一部を吸収。反動で最大HP5%ダメージ",
     "activation_phrase": "「闇よ、喰らえ。」",
-    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
+    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！",
+    "drain_hp_rate": 0.35,
+    "self_damage_percent": 5
   },
   {
     "job_id": 30,
@@ -2549,7 +2581,7 @@
     "champ_enabled": false,
     "reward_scope": "normal_exploration_win_only",
     "sort_order": 1,
-    "memo": "敵に鑑定を付与。通常探索勝利時Gold\/DROP小補正",
+    "memo": "敵に鑑定を付与。通常探索勝利時Gold/DROP小補正",
     "activation_phrase": "「勘定はついている。」",
     "activation_description": "{user}は素早く懐を探り、《{skill}》で戦いの流れを買い取った！"
   },
@@ -2605,7 +2637,7 @@
     "champ_enabled": false,
     "reward_scope": "normal_exploration_win_only",
     "sort_order": 3,
-    "memo": "3ターンLUK上昇＋通常探索勝利時Gold\/DROP補正。1戦1回",
+    "memo": "探索勝利時のGold/DROP報酬判定が上昇（戦闘中）。1戦1回",
     "activation_phrase": "「これが王の取引だ！」",
     "activation_description": "{user}が惜しみなく財を動かす。《{skill}》が戦場の主導権を塗り替えた！"
   },
@@ -2633,7 +2665,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "ATK\/SPD上昇＋次の竜技威力上昇",
+    "memo": "自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「竜気を巡らせる。」",
     "activation_description": "{user}は竜の気配をまとい、《{skill}》で空気を震わせた！"
   },
@@ -2717,7 +2749,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "ATK\/SPD小上昇。最大2段階",
+    "memo": "自身の戦闘力を小上昇（戦闘中・上限あり）",
     "activation_phrase": "「気を練る。」",
     "activation_description": "{user}は呼吸を整え、《{skill}》に闘気を乗せて{target}へ踏み込んだ！"
   },
@@ -2747,7 +2779,8 @@
     "sort_order": 2,
     "memo": "SPD依存の3〜5回攻撃",
     "activation_phrase": "「間合いは掴んだ！」",
-    "activation_description": "{user}の連撃が間合いを制す。《{skill}》が{target}を押し返した！"
+    "activation_description": "{user}の連撃が間合いを制す。《{skill}》が{target}を押し返した！",
+    "hit_count": 5
   },
   {
     "job_id": 33,
@@ -2773,9 +2806,12 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "3ターン通常攻撃\/物理技が追加Hit。終了後DEF低下。1戦1回",
+    "memo": "強力な2回攻撃＋敵の守りを低下（戦闘中）。1戦1回",
     "activation_phrase": "「我が闘気、解き放つ！」",
-    "activation_description": "{user}の全身から闘気が噴き上がる。《{skill}》が{target}を一気に打ち抜いた！"
+    "activation_description": "{user}の全身から闘気が噴き上がる。《{skill}》が{target}を一気に打ち抜いた！",
+    "hit_count": 2,
+    "enemy_def_down_percent": 20,
+    "enemy_spr_down_percent": 10
   },
   {
     "job_id": 34,
@@ -2801,9 +2837,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身回避率上昇＋次の被ダメを小軽減",
+    "memo": "自身の戦闘力を小上昇＋次の被ダメ10%軽減",
     "activation_phrase": "「影が呼んでいる。」",
-    "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
+    "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！",
+    "damage_reduction_percent": 10
   },
   {
     "job_id": 34,
@@ -2829,9 +2866,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "SPD\/LUK参照攻撃。敵が弱体中なら会心率上昇",
+    "memo": "単体攻撃＋敵の守りを低下（戦闘中）",
     "activation_phrase": "「闇よ、喰らえ。」",
-    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
+    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！",
+    "enemy_spr_down_percent": 7,
+    "enemy_def_down_percent": 15
   },
   {
     "job_id": 34,
@@ -2885,7 +2924,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "DEF\/MAG上昇＋次の魔導砲系威力上昇",
+    "memo": "DEF/MAG上昇＋次の魔導砲系威力上昇",
     "activation_phrase": "「機構、起動。」",
     "activation_description": "{user}の機構が低く唸る。《{skill}》が魔導の火花を散らした！"
   },
@@ -2922,7 +2961,7 @@
     "learn_rank": 9,
     "name": "王機グラビトン",
     "skill_type": "job_art",
-    "effect_template": "ENEMY_DEBUFF",
+    "effect_template": "MAGICAL_DAMAGE",
     "art_category": "debuff",
     "limit_group": "NONE",
     "element": "機",
@@ -2941,9 +2980,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "特大魔法＋敵SPD\/DEF低下。1戦1回",
+    "memo": "特大魔法＋敵SPD/DEF低下（戦闘中）。1戦1回",
     "activation_phrase": "「限界駆動、解除！」",
-    "activation_description": "{user}の機神中枢が解放される。《{skill}》が重力ごと戦場を歪めた！"
+    "activation_description": "{user}の機神中枢が解放される。《{skill}》が重力ごと戦場を歪めた！",
+    "enemy_spd_down_percent": 14,
+    "enemy_def_down_percent": 14
   },
   {
     "job_id": 36,
@@ -2969,7 +3010,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "小回復＋ATK\/SPR上昇",
+    "memo": "HPを小回復",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -2997,16 +3038,17 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "ATK\/SPR参照の大ダメージ＋敵MAG小低下",
+    "memo": "単体大ダメージ＋敵MAG低下（戦闘中）",
     "activation_phrase": "「聖なる加護をここに。」",
-    "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
+    "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！",
+    "enemy_mag_down_percent": 10
   },
   {
     "job_id": 36,
     "learn_rank": 9,
     "name": "神域審判",
     "skill_type": "job_art",
-    "effect_template": "HEAL",
+    "effect_template": "MAGICAL_DAMAGE",
     "art_category": "heal",
     "limit_group": "HEAL",
     "element": "聖",
@@ -3025,9 +3067,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "特大聖属性攻撃＋自身中回復＋バリア。1戦1回",
+    "memo": "特大魔法＋最大HP10%回復＋次の被ダメ20%軽減。1戦1回",
     "activation_phrase": "「神域よ、裁きを下せ！」",
-    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
+    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！",
+    "heal_percent": 10,
+    "damage_reduction_percent": 20
   },
   {
     "job_id": 37,
@@ -3053,9 +3097,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵に影印を付与。命中率\/会心率上昇",
+    "memo": "敵の守りを小低下（戦闘中）",
     "activation_phrase": "「影が呼んでいる。」",
-    "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
+    "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！",
+    "enemy_spr_down_percent": 5,
+    "enemy_def_down_percent": 10
   },
   {
     "job_id": 37,
@@ -3081,7 +3127,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "SPD\/LUK参照攻撃。敵回避補正を一部無視",
+    "memo": "SPD/LUK参照攻撃。敵回避補正を一部無視",
     "activation_phrase": "「闇よ、喰らえ。」",
     "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
   },
@@ -3109,7 +3155,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵HPが低い\/弱体中なら威力上昇する特大攻撃。1戦1回",
+    "memo": "敵HPが低い/弱体中なら威力上昇する特大攻撃。1戦1回",
     "activation_phrase": "「深き夜よ、すべてを呑め！」",
     "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！"
   },
@@ -3166,7 +3212,7 @@
     "reward_scope": "none",
     "sort_order": 2,
     "mp_recover_percent": 10,
-    "memo": "HP\/SP中回復＋LUK上昇",
+    "memo": "HP/SPを中回復",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -3194,7 +3240,7 @@
     "champ_enabled": false,
     "reward_scope": "normal_exploration_win_only",
     "sort_order": 3,
-    "memo": "3ターンLUK上昇＋通常探索勝利時Gold\/DROP補正。1戦1回",
+    "memo": "探索勝利時のGold/DROP報酬判定が上昇（戦闘中）。1戦1回",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -3222,7 +3268,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "現在最も低い主要能力1つを小上昇（2ターン）",
+    "memo": "自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「いくぞ。」",
     "activation_description": "{user}は素早く体勢を整え、《{skill}》で{target}へ仕掛けた！"
   },
@@ -3306,9 +3352,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵ATK\/MAG低下＋自身に小バリア",
+    "memo": "敵ATK/MAG低下＋自身に小バリア",
     "activation_phrase": "「影が呼んでいる。」",
-    "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
+    "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！",
+    "enemy_atk_down_percent": 6,
+    "enemy_mag_down_percent": 6
   },
   {
     "job_id": 40,
@@ -3334,9 +3382,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "闇属性ダメージ＋継続ダメージ＋小吸収",
+    "memo": "単体ダメージ＋与ダメの一部を吸収",
     "activation_phrase": "「闇よ、喰らえ。」",
-    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
+    "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！",
+    "drain_hp_rate": 0.25
   },
   {
     "job_id": 40,
@@ -3362,7 +3411,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "ATK\/MAG\/SPD参照の特大闇ダメージ。自身HPも少し消費。1戦1回",
+    "memo": "ATK/MAG/SPD参照の特大闇ダメージ。自身HPも少し消費。1戦1回",
     "activation_phrase": "「深淵よ、すべてを沈めろ。」",
     "activation_description": "{user}の《{skill}》！足元の闇が崩れ落ち、戦場そのものが深淵へ傾いた！"
   },
@@ -3448,7 +3497,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵の強化\/弱体数に応じて威力上昇する特大魔法。DROP補正なし。1戦1回",
+    "memo": "敵の強化/弱体数に応じて威力上昇する特大魔法。DROP補正なし。1戦1回",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -3476,7 +3525,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身ATK\/DEF小上昇（3ターン）。HP回復継続なし",
+    "memo": "自身の戦闘力を小上昇（戦闘中）",
     "activation_phrase": "「竜気を巡らせる。」",
     "activation_description": "{user}は竜の気配をまとい、《{skill}》で空気を震わせた！"
   },
@@ -3504,9 +3553,11 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "DEF一部無視の2〜3回攻撃",
+    "memo": "敵DEFを10%無視した2回攻撃",
     "activation_phrase": "「天を裂け、竜の力！」",
-    "activation_description": "{user}が天高く跳ぶ。《{skill}》が竜の爪牙となって{target}へ落ちた！"
+    "activation_description": "{user}が天高く跳ぶ。《{skill}》が竜の爪牙となって{target}へ落ちた！",
+    "hit_count": 2,
+    "def_ignore_percent": 10
   },
   {
     "job_id": 42,
@@ -3532,7 +3583,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "HP\/ATK参照の特大攻撃。HPが高いほど威力上昇。1戦1回",
+    "memo": "HP/ATK参照の特大攻撃。HPが高いほど威力上昇。1戦1回",
     "activation_phrase": "「神竜の牙、ここに顕れよ！」",
     "activation_description": "{user}の背後に竜影が顕れる。《{skill}》が天を裂き、{target}を呑み込んだ！"
   },
@@ -3560,9 +3611,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "自身SPD小上昇（2ターン）。CT短縮・奥義発動率補助なし",
+    "memo": "敵SPDを小低下（戦闘中）",
     "activation_phrase": "「時の流れを読む。」",
-    "activation_description": "{user}は時の流れを指先でなぞり、《{skill}》で一瞬の隙を作った！"
+    "activation_description": "{user}は時の流れを指先でなぞり、《{skill}》で一瞬の隙を作った！",
+    "enemy_spd_down_percent": 10
   },
   {
     "job_id": 43,
@@ -3588,16 +3640,17 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵SPD中低下＋敵の次回攻撃威力を小低下。追加行動・CT短縮なし",
+    "memo": "敵SPDを中低下（戦闘中）",
     "activation_phrase": "「刻をずらす。」",
-    "activation_description": "{user}の周囲で刻が歪む。《{skill}》が{target}の動きを置き去りにした！"
+    "activation_description": "{user}の周囲で刻が歪む。《{skill}》が{target}の動きを置き去りにした！",
+    "enemy_spd_down_percent": 15
   },
   {
     "job_id": 43,
     "learn_rank": 9,
     "name": "クロノブレイク",
     "skill_type": "job_art",
-    "effect_template": "TIME_CONTROL_CURRENT_ONLY",
+    "effect_template": "MAGICAL_DAMAGE",
     "art_category": "time",
     "limit_group": "TIME",
     "element": "時",
@@ -3616,9 +3669,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "MAG\/SPD参照の特大魔法＋敵強化を1つ解除＋行動遅延。1戦1回",
+    "memo": "特大魔法＋敵SPD低下（戦闘中）。1戦1回",
     "activation_phrase": "「刻よ、砕けろ！」",
-    "activation_description": "{user}の《{skill}》！時空の亀裂が走り、{target}の因果を断ち切った！"
+    "activation_description": "{user}の《{skill}》！時空の亀裂が走り、{target}の因果を断ち切った！",
+    "enemy_spd_down_percent": 14
   },
   {
     "job_id": 44,
@@ -3645,7 +3699,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -3674,7 +3728,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -3703,7 +3757,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「神域よ、裁きを下せ！」",
     "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
   },
@@ -3819,7 +3873,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「一節、奏でよう。」",
     "activation_description": "{user}は短い旋律を奏で、《{skill}》で戦意を静かに高めた！"
   },
@@ -3848,7 +3902,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「この旋律に乗せて！」",
     "activation_description": "{user}の歌声が響く。《{skill}》の旋律が戦場全体を震わせた！"
   },
@@ -3877,7 +3931,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「英雄譚はここで鳴り響く！」",
     "activation_description": "{user}の物語が頂点へ至る。《{skill}》が英雄譚の一幕を現実に変えた！"
   },
@@ -3906,7 +3960,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "勝利時のGold\/Drop判定に小効果。",
+    "memo": "勝利時のGold/Drop判定に小効果。",
     "activation_phrase": "「素材は揃っている。」",
     "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！"
   },
@@ -3935,7 +3989,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "勝利時のGold\/Drop判定に小効果。",
+    "memo": "勝利時のGold/Drop判定に小効果。",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -3964,7 +4018,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "勝利時のGold\/Drop判定に小効果。1戦1回",
+    "memo": "勝利時のGold/Drop判定に小効果。1戦1回",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -4082,7 +4136,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "敵単体に小特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に小特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「素材は揃っている。」",
     "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！"
   },
@@ -4113,7 +4167,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "敵単体に中特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -4144,7 +4198,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "敵単体に大特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に大特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -4173,7 +4227,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -4202,7 +4256,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -4231,7 +4285,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「神域よ、裁きを下せ！」",
     "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
   },
@@ -4521,7 +4575,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に小技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「影が呼んでいる。」",
     "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
   },
@@ -4550,7 +4604,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「闇よ、喰らえ。」",
     "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
   },
@@ -4579,7 +4633,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に大技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「深き夜よ、すべてを呑め！」",
     "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！"
   },
@@ -4695,7 +4749,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -4724,7 +4778,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -4753,7 +4807,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「神域よ、裁きを下せ！」",
     "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
   },
@@ -4784,7 +4838,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "敵単体に小特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に小特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「素材は揃っている。」",
     "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！"
   },
@@ -4815,7 +4869,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "敵単体に中特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -4846,7 +4900,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "敵単体に大特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に大特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -5397,7 +5451,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に小技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「影が呼んでいる。」",
     "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
   },
@@ -5426,7 +5480,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「闇よ、喰らえ。」",
     "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
   },
@@ -5455,7 +5509,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に大技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「深き夜よ、すべてを呑め！」",
     "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！"
   },
@@ -5571,7 +5625,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -5600,7 +5654,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -5629,7 +5683,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「神域よ、裁きを下せ！」",
     "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
   },
@@ -5660,7 +5714,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "敵単体に小特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に小特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「素材は揃っている。」",
     "activation_description": "{user}は小瓶を振り、《{skill}》で淡い霊光を生み出した！"
   },
@@ -5691,7 +5745,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "敵単体に中特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「今ここで調合する。」",
     "activation_description": "{user}が素材を瞬時に混ぜ合わせる。《{skill}》の反応が戦場で弾けた！"
   },
@@ -5722,7 +5776,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "敵単体に大特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に大特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「禁奥まで錬り上げる！」",
     "activation_description": "{user}の錬成陣が大きく回転する。《{skill}》が奇跡の反応を引き起こした！"
   },
@@ -5751,7 +5805,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「雷気を巡らせる。」",
     "activation_description": "{user}は雷気を拳に集め、《{skill}》で{target}へ踏み込んだ！"
   },
@@ -5780,7 +5834,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「稲妻よ、走れ！」",
     "activation_description": "{user}の一撃が稲妻となる。《{skill}》が{target}の防御を貫いた！"
   },
@@ -5809,7 +5863,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「雷霆よ、天を鳴らせ！」",
     "activation_description": "{user}の雷霆が天を裂く。《{skill}》が轟音とともに{target}を打ち据えた！"
   },
@@ -5925,7 +5979,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小複合ダメージ。ATK\/MAGの高い方を参照。",
+    "memo": "敵単体に小複合ダメージ。ATK/MAGの高い方を参照。",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -5954,7 +6008,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中複合ダメージ。ATK\/MAGの高い方を参照。",
+    "memo": "敵単体に中複合ダメージ。ATK/MAGの高い方を参照。",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -5983,7 +6037,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大複合ダメージ。ATK\/MAGの高い方を参照。",
+    "memo": "敵単体に大複合ダメージ。ATK/MAGの高い方を参照。",
     "activation_phrase": "「これで決める！」",
     "activation_description": "{user}の力が頂点に達する。《{skill}》が決着の一撃となって放たれた！"
   },
@@ -6275,7 +6329,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "敵単体に小特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に小特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「機構、起動。」",
     "activation_description": "{user}の機構が低く唸る。《{skill}》が魔導の火花を散らした！"
   },
@@ -6306,7 +6360,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "敵単体に中特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「魔導機関、出力上昇。」",
     "activation_description": "{user}の魔導機関が加速する。《{skill}》が{target}へ重い砲撃を放った！"
   },
@@ -6337,7 +6391,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "敵単体に大特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に大特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「限界駆動、解除！」",
     "activation_description": "{user}の機神中枢が解放される。《{skill}》が重力ごと戦場を歪めた！"
   },
@@ -6366,7 +6420,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「光よ、応えて。」",
     "activation_description": "{user}の祈りが光となり、《{skill}》が{target}をやさしく包み込んだ！"
   },
@@ -6395,7 +6449,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「聖なる加護をここに。」",
     "activation_description": "{user}が聖なる印を結ぶ。《{skill}》の光が戦場に広がった！"
   },
@@ -6424,7 +6478,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「神域よ、裁きを下せ！」",
     "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が神域の力を呼び下ろした！"
   },
@@ -6714,7 +6768,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「ここは通さない。」",
     "activation_description": "{user}は盾を構え、《{skill}》で{target}の勢いを受け止めた！"
   },
@@ -6743,7 +6797,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「守りを攻めに変える！」",
     "activation_description": "{user}の守護の気配が厚みを増す。《{skill}》が戦線を押し返した！"
   },
@@ -6772,7 +6826,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「この守護、崩せるものか！」",
     "activation_description": "{user}の前に巨大な守りが立ち上がる。《{skill}》が戦場に不落の壁を築いた！"
   },
@@ -6975,7 +7029,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「生命の芽よ、息づけ。」",
     "activation_description": "{user}の足元に若葉が芽吹き、《{skill}》の光が{target}を包んだ！"
   },
@@ -7004,7 +7058,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「世界樹の光を借りる。」",
     "activation_description": "{user}が世界樹の加護を呼ぶ。《{skill}》が生命の力を巡らせた！"
   },
@@ -7033,7 +7087,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「万象を抱け、神樹よ！」",
     "activation_description": "{user}の背後に神樹の幻影が広がる。《{skill}》が万象の祝福を戦場へ注いだ！"
   },
@@ -7062,7 +7116,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に小技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「影が呼んでいる。」",
     "activation_description": "{user}の足元から影が伸び、《{skill}》が{target}の気配を絡め取った！"
   },
@@ -7091,7 +7145,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「闇よ、喰らえ。」",
     "activation_description": "{user}の闇が濃くなる。《{skill}》が{target}の守りを黒く侵食した！"
   },
@@ -7120,7 +7174,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大技巧ダメージ。SPD\/LUKが高いほど会心寄り。",
+    "memo": "敵単体に大技巧ダメージ。SPD/LUKが高いほど会心寄り。",
     "activation_phrase": "「深き夜よ、すべてを呑め！」",
     "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！"
   },
@@ -7151,7 +7205,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "敵単体に小特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に小特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「星よ、道を示せ。」",
     "activation_description": "{user}は星の光を集め、《{skill}》で戦場に小さな軌跡を描いた！"
   },
@@ -7182,7 +7236,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "敵単体に中特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「星辰の光を束ねる。」",
     "activation_description": "{user}の術式に星辰が応える。《{skill}》が{target}へ降り注いだ！"
   },
@@ -7213,7 +7267,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "敵単体に大特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に大特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「天命の星図よ、開け！」",
     "activation_description": "{user}の頭上に星図が開く。《{skill}》が天命の光で戦場を塗り替えた！"
   },
@@ -7242,7 +7296,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「星よ、道を示せ。」",
     "activation_description": "{user}は星の光を集め、《{skill}》で戦場に小さな軌跡を描いた！"
   },
@@ -7271,7 +7325,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「星辰の光を束ねる。」",
     "activation_description": "{user}の術式に星辰が応える。《{skill}》が{target}へ降り注いだ！"
   },
@@ -7300,7 +7354,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「天命の星図よ、開け！」",
     "activation_description": "{user}の頭上に星図が開く。《{skill}》が天命の光で戦場を塗り替えた！"
   },
@@ -7851,7 +7905,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「生命の芽よ、息づけ。」",
     "activation_description": "{user}の足元に若葉が芽吹き、《{skill}》の光が{target}を包んだ！"
   },
@@ -7880,7 +7934,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「世界樹の光を借りる。」",
     "activation_description": "{user}が世界樹の加護を呼ぶ。《{skill}》が生命の力を巡らせた！"
   },
@@ -7909,7 +7963,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「万象を抱け、神樹よ！」",
     "activation_description": "{user}の背後に神樹の幻影が広がる。《{skill}》が万象の祝福を戦場へ注いだ！"
   },
@@ -7938,7 +7992,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 1,
-    "memo": "敵単体に小聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に小聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「終わりを見届ける。」",
     "activation_description": "{user}は静かに終局を見据え、《{skill}》の聖光を呼び起こした！"
   },
@@ -7967,7 +8021,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "敵単体に中聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「聖なる終局をここに。」",
     "activation_description": "{user}の祈りが終焉の鐘となる。《{skill}》が戦場に最後の裁きを刻んだ！"
   },
@@ -7996,7 +8050,7 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "敵単体に大聖属性ダメージ。自身に防御\/精神の短時間上昇。",
+    "memo": "敵単体に大聖属性ダメージ。自身に防御/精神の短時間上昇。",
     "activation_phrase": "「終焉を越え、最後の光を！」",
     "activation_description": "{user}の光が終わりの闇を越える。《{skill}》が戦場に最後の聖域を築いた！"
   },
@@ -8027,7 +8081,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 1,
-    "memo": "敵単体に小特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に小特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「星よ、道を示せ。」",
     "activation_description": "{user}は星の光を集め、《{skill}》で戦場に小さな軌跡を描いた！"
   },
@@ -8058,7 +8112,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 2,
-    "memo": "敵単体に中特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「星辰の光を束ねる。」",
     "activation_description": "{user}の術式に星辰が応える。《{skill}》が{target}へ降り注いだ！"
   },
@@ -8089,7 +8143,7 @@
     "champ_enabled": false,
     "reward_scope": "mixed",
     "sort_order": 3,
-    "memo": "敵単体に大特殊ダメージ。勝利時のGold\/Drop\/回復補助に小効果。",
+    "memo": "敵単体に大特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
     "activation_phrase": "「天命の星図よ、開け！」",
     "activation_description": "{user}の頭上に星図が開く。《{skill}》が天命の光で戦場を塗り替えた！"
   }

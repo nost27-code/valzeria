@@ -401,38 +401,34 @@ class PvPBattleService
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
         }
         
-        $hitCount = max(1, $skill->hit_count);
-        if ($skill->hit_count == 0 && in_array($skill->damage_type, ['heal', 'support'])) {
+        $hitCount = max(1, (int) $skill->hit_count);
+        if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
             $hitCount = 1; 
+        }
+        if ((int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
+            $hitCount++;
         }
 
         $totalDamage = 0;
         for ($i = 0; $i < $hitCount; $i++) {
             $damage = 0;
             $isCrit = false;
-            $skillPowerInt = (int)($skill->power_multiplier * 100);
+            $skillPowerInt = max(0, (int) round((float) $skill->power_multiplier * 100));
 
             $overrideDef = null;
             $overrideSpr = null;
-            if ($skill->def_ignore_percent > 0) {
-                $overrideDef = (int)($defender->def * (1 - ($skill->def_ignore_percent / 100)));
-                $overrideSpr = (int)($defender->spr * (1 - ($skill->def_ignore_percent / 100)));
+            if ((int) $skill->def_ignore_percent > 0) {
+                $overrideDef = (int) floor($defender->def * (1 - ((int) $skill->def_ignore_percent / 100)));
+                $overrideSpr = (int) floor($defender->spr * (1 - ((int) $skill->def_ignore_percent / 100)));
             }
 
-            if (str_contains($skill->description, 'LUKに応じて')) {
-                $lukBonus = (int)($attacker->luk * 0.5);
-                $skillPowerInt += $lukBonus;
-            }
-            
-            if (str_contains($skill->description, '確率で追加')) {
-                if (rand(1, 100) <= 30) {
-                    $hitCount++;
-                }
+            if ((float) $skill->luk_power_rate > 0) {
+                $skillPowerInt += (int) floor($attacker->luk * (float) $skill->luk_power_rate);
             }
 
-            if ($skill->power_multiplier > 0) {
+            if ((float) $skill->power_multiplier > 0) {
                 $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
-                if (in_array($skill->damage_type, ['physical', 'gold', 'drop'], true)) {
+                if (in_array($skill->damage_type, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -461,10 +457,9 @@ class PvPBattleService
                         $hitCount
                     );
                 } elseif ($skill->damage_type === 'hybrid') {
-                    $hybridAtk = (int)(($attacker->str + $attacker->mag) / 2);
-                    if (str_contains($skill->description, '高い方依存')) {
-                        $hybridAtk = max($attacker->str, $attacker->mag);
-                    }
+                    $hybridAtk = (string) $skill->hybrid_scaling === 'max'
+                        ? max($attacker->str, $attacker->mag)
+                        : (int) floor(($attacker->str + $attacker->mag) / 2);
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -513,36 +508,18 @@ class PvPBattleService
             $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
         }
 
-        if ($skill->enemy_def_down_percent > 0) {
-            $effect = (int)($skill->enemy_def_down_percent);
-            $state->addLog("{$defender->name} の防御力が {$effect}% 低下した！");
-            $defender->def -= (int)($defender->baseDef * ($effect / 100));
-            $defender->def = max(1, $defender->def);
-        }
-        if ($skill->enemy_spd_down_percent > 0) {
-            $effect = (int)($skill->enemy_spd_down_percent);
-            $state->addLog("{$defender->name} の素早さが {$effect}% 低下した！");
-            $defender->agi -= (int)($defender->baseAgi * ($effect / 100));
-            $defender->agi = max(1, $defender->agi);
-        }
-        if ($skill->enemy_spr_down_percent > 0) {
-            $effect = (int)($skill->enemy_spr_down_percent);
-            $state->addLog("{$defender->name} の精神力が {$effect}% 低下した！");
-            $defender->spr -= (int)($defender->baseSpr * ($effect / 100));
-            $defender->spr = max(1, $defender->spr);
-        }
+        $this->applyStructuredDebuffs($defender, $state, $skill);
 
-        if ($skill->damage_reduction_percent > 0) {
+        if ((int) $skill->damage_reduction_percent > 0) {
             $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
-            $attacker->damageReductionRate = $skill->damage_reduction_percent;
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
         }
         
-        if (!$skill->isJobArt() && $skill->damage_type === 'support' && str_contains($skill->description, '上昇')) {
+        if (!$skill->isJobArt() && (int) $skill->self_buff_percent > 0) {
             $state->addLog("{$attacker->name} の攻撃力と魔法力が上昇した！");
-            $attacker->str += (int)($attacker->baseStr * 0.05);
-            $attacker->mag += (int)($attacker->baseMag * 0.05);
-            $attacker->str = min($attacker->str, (int)($attacker->baseStr * 1.5));
-            $attacker->mag = min($attacker->mag, (int)($attacker->baseMag * 1.5));
+            $rate = (int) $skill->self_buff_percent / 100;
+            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * $rate));
+            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * $rate));
         }
     }
 
@@ -562,8 +539,8 @@ class PvPBattleService
             $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>");
         }
 
-        if ($template === 'DRAIN' && $totalDamage > 0 && str_contains((string) $skill->description, 'HP')) {
-            $heal = max(1, (int) floor($totalDamage * 0.35));
+        if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
+            $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
             $attacker->healHp($heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>");
         }
@@ -575,7 +552,7 @@ class PvPBattleService
 
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $reduction = min(25, max(10, (int) floor($power / 10)));
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, $reduction));
             $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
 
@@ -585,15 +562,48 @@ class PvPBattleService
             $state->addLog("<span class=\"text-indigo-600 font-bold\">{$attacker->name} の戦闘力が高まった！</span>");
         }
 
-        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true)) {
+        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
             $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
             $defender->spr = max(1, $defender->spr - max(1, (int) floor($defender->baseSpr * 0.05)));
             $state->addLog("<span class=\"text-violet-700 font-bold\">{$defender->name} の守りが乱れた！</span>");
         }
 
-        if ($template === 'TIME_CONTROL_CURRENT_ONLY') {
-            $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * 0.10)));
+        if ($template === 'TIME_CONTROL_CURRENT_ONLY' && !$this->hasStructuredDebuff($skill)) {
+            $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
+            $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
             $state->addLog("<span class=\"text-sky-700 font-bold\">{$defender->name} の動きが鈍った！</span>");
+        }
+    }
+
+    private function hasStructuredDebuff(Skill $skill): bool
+    {
+        return (int) $skill->enemy_atk_down_percent > 0
+            || (int) $skill->enemy_mag_down_percent > 0
+            || (int) $skill->enemy_def_down_percent > 0
+            || (int) $skill->enemy_spr_down_percent > 0
+            || (int) $skill->enemy_spd_down_percent > 0;
+    }
+
+    private function applyStructuredDebuffs(BattleActor $defender, BattleState $state, Skill $skill): void
+    {
+        $debuffs = [
+            'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
+            'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔法力'],
+            'enemy_def_down_percent' => ['prop' => 'def', 'base' => 'baseDef', 'label' => '防御力'],
+            'enemy_spr_down_percent' => ['prop' => 'spr', 'base' => 'baseSpr', 'label' => '精神力'],
+            'enemy_spd_down_percent' => ['prop' => 'agi', 'base' => 'baseAgi', 'label' => '素早さ'],
+        ];
+
+        foreach ($debuffs as $field => $config) {
+            $effect = (int) ($skill->{$field} ?? 0);
+            if ($effect <= 0) {
+                continue;
+            }
+
+            $prop = $config['prop'];
+            $base = $config['base'];
+            $defender->{$prop} = max(1, $defender->{$prop} - (int) floor($defender->{$base} * ($effect / 100)));
+            $state->addLog("{$defender->name} の{$config['label']}が {$effect}% 低下した！");
         }
     }
 

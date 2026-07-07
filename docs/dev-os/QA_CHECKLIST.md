@@ -25,6 +25,7 @@ AIに消化させてよいが、段階2・3の最終確認は人間が行う。
 - [ ] 施設画面は <x-layouts.facility>、「街へ戻る」は共通部品側にある
 - [ ] 文言がプレイヤー向けとして自然（内部用語・英語カラム名が露出していない）
 - [ ] MP表記でなくSP、職業レベルでなく職業ランク、ATK/DEF/MAG/SPR/SPD/LUK表記
+- [ ] 奥義memo/必殺技descriptionを変更した場合、`php artisan valzeria:validate-job-arts` と validator 関連テストを実行した
 
 ### エラー・多重実行
 - [ ] POST処理後にredirect（PRG）。ブラウザ更新で二重実行されない

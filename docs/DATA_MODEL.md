@@ -44,3 +44,4 @@ Purpose: compressed DB/data contract map.
 - Schema changes require migration.
 - Type changes require generated/manual type update.
 - RLS/security behavior must be verified when auth-sensitive.
+
