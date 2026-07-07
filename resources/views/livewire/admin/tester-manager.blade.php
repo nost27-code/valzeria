@@ -14,6 +14,19 @@
         <!-- テストプレイヤー作成フォーム -->
         <div class="bg-white/95 p-6 rounded-md shadow-sm ring-1 ring-slate-200 border-t-4 border-[#d4af37] lg:col-span-1 h-fit">
             <h2 class="text-xl font-black mb-4 border-b border-slate-200 pb-2 text-slate-900">テストキャラ生成</h2>
+
+            <div class="mb-5 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <label class="block text-xs font-black text-amber-800 mb-2">プレイヤー一覧から貼り付け</label>
+                <textarea wire:model="copiedCharacterPayload" rows="3" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-xs shadow-inner focus:border-[#d4af37] focus:ring focus:ring-[#d4af37] focus:ring-opacity-50" placeholder="プレイヤー一覧の「テスト用コピー」でコピーした内容"></textarea>
+                <button type="button" wire:click="applyCopiedCharacter" class="mt-2 w-full rounded-md border border-amber-400 bg-white px-3 py-2 text-xs font-black text-amber-800 shadow-sm transition hover:bg-amber-100">
+                    作成フォームへ反映
+                </button>
+                @if($copiedProgressSummary !== '')
+                    <div class="mt-2 rounded bg-white/80 px-2 py-1.5 text-[11px] font-bold text-amber-800">
+                        反映予定: {{ $copiedProgressSummary }}
+                    </div>
+                @endif
+            </div>
             
             <form wire:submit.prevent="createTester" class="space-y-4">
                 <div>
@@ -126,6 +139,9 @@
                                     <div class="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded whitespace-nowrap">
                                         Lv {{ $character->level }}
                                     </div>
+                                </div>
+                                <div class="mb-3 inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-black text-amber-800">
+                                    戦力 {{ number_format((int) ($character->admin_power ?? 0)) }}
                                 </div>
                                 <div class="bg-gray-50 p-2 rounded text-sm text-gray-600 mb-4 grid grid-cols-2 md:grid-cols-4 gap-1">
                                     <div><span class="text-gray-400 text-xs">HP:</span> <span class="font-semibold">{{ $character->hp_base }}</span></div>

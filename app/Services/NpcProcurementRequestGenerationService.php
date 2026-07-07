@@ -79,6 +79,7 @@ class NpcProcurementRequestGenerationService
         return NpcProcurementRequest::query()
             ->where('status', 'active')
             ->where('expires_at', '<=', now())
+            ->whereNotIn('title', NpcProcurementRequest::PERSISTENT_UNTIL_COMPLETED_TITLES)
             ->update(['status' => 'expired', 'updated_at' => now()]);
     }
 
@@ -100,7 +101,18 @@ class NpcProcurementRequestGenerationService
         $activeTemplateIds = NpcProcurementRequest::query()
             ->whereNotNull('npc_procurement_request_template_id')
             ->where('status', 'active')
-            ->where('expires_at', '>', now())
+            ->where(function ($query) {
+                $query->where('expires_at', '>', now())
+                    ->orWhereIn('title', NpcProcurementRequest::PERSISTENT_UNTIL_COMPLETED_TITLES);
+            })
+            ->pluck('npc_procurement_request_template_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $completedPersistentTemplateIds = NpcProcurementRequest::query()
+            ->whereNotNull('npc_procurement_request_template_id')
+            ->where('status', 'completed')
+            ->whereIn('title', NpcProcurementRequest::PERSISTENT_UNTIL_COMPLETED_TITLES)
             ->pluck('npc_procurement_request_template_id')
             ->map(fn ($id): int => (int) $id)
             ->all();
@@ -118,7 +130,7 @@ class NpcProcurementRequestGenerationService
             ->where('frequency_weight', '>', 0)
             ->where('city_id', $city?->id)
             ->whereHas('materials')
-            ->whereNotIn('id', $activeTemplateIds)
+            ->whereNotIn('id', array_values(array_unique(array_merge($activeTemplateIds, $completedPersistentTemplateIds))))
             ->with(['materials.material', 'npc'])
             ->get();
 

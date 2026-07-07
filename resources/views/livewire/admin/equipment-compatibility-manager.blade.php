@@ -20,7 +20,7 @@
             <p class="mt-2 text-sm font-semibold text-slate-600">職業ごとの装備可能武器・防具をON/OFFで管理します。変更は装備変更画面の可否判定に反映されます。</p>
         </div>
 
-        <div class="grid gap-2 sm:grid-cols-[180px_minmax(220px,320px)]">
+        <div class="grid gap-2 sm:grid-cols-[180px_minmax(220px,320px)] xl:grid-cols-[180px_minmax(220px,320px)_auto]">
             <select wire:model.live="rankFilter" class="{{ $fieldClass }}">
                 <option value="all">全ランク</option>
                 @foreach($rankLabels as $key => $label)
@@ -28,6 +28,15 @@
                 @endforeach
             </select>
             <input type="search" wire:model.live.debounce.250ms="search" class="{{ $fieldClass }}" placeholder="職業名・キーで検索">
+            <button
+                type="button"
+                wire:click="applyHighRankRecommendedPermissions"
+                wire:loading.attr="disabled"
+                wire:target="applyHighRankRecommendedPermissions"
+                class="rounded-md bg-amber-500 px-4 py-2 text-sm font-black text-slate-950 shadow-sm transition hover:bg-amber-400 disabled:cursor-wait disabled:opacity-70"
+            >
+                推奨案を反映
+            </button>
         </div>
     </div>
 
@@ -91,7 +100,7 @@
                                         <span>#{{ $job->id }}</span>
                                         <span>{{ $rankLabels[$job->rank] ?? $job->rank }}</span>
                                         @if(!$job->is_active)
-                                            <span class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600">非表示</span>
+                                            <span class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600">非公開</span>
                                         @endif
                                     </div>
                                 </th>
@@ -146,7 +155,7 @@
                                         <span>#{{ $job->id }}</span>
                                         <span>{{ $rankLabels[$job->rank] ?? $job->rank }}</span>
                                         @if(!$job->is_active)
-                                            <span class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600">非表示</span>
+                                            <span class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600">非公開</span>
                                         @endif
                                     </div>
                                 </th>

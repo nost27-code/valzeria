@@ -19,6 +19,8 @@ use App\Http\Controllers\JobArtController;
 use App\Http\Controllers\MarketController;
 use App\Http\Controllers\NpcProcurementRequestController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StarTreeTowerController;
+use App\Http\Controllers\TitleController;
 use App\Http\Controllers\TopPageAnalyticsController;
 
 if (app()->environment('local')) {
@@ -40,7 +42,7 @@ Route::get('/debug-area', function () {
 }
 
 Route::get('/', function () {
-    $totalCharacters = \App\Models\Character::count();
+    $totalCharacters = \App\Models\User::count();
     $onlineCharacters = \App\Models\Character::where('last_seen_at', '>=', now()->subMinutes(5))
         ->orderBy('last_seen_at', 'desc')
         ->get(['name', 'last_seen_at']);
@@ -330,6 +332,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/material-exchange', [\App\Http\Controllers\MaterialExchangeController::class, 'exchange'])->name('material-exchange.exchange');
         Route::post('/material-exchange/bulk', [\App\Http\Controllers\MaterialExchangeController::class, 'bulkExchange'])->name('material-exchange.bulk');
 
+        // 星樹の塔
+        Route::get('/tower/star-tree', [StarTreeTowerController::class, 'index'])->name('tower.star-tree.index');
+        Route::post('/tower/star-tree/start', [StarTreeTowerController::class, 'start'])->name('tower.star-tree.start');
+        Route::post('/tower/star-tree/restart', [StarTreeTowerController::class, 'restart'])->name('tower.star-tree.restart');
+        Route::post('/tower/star-tree/challenge', [StarTreeTowerController::class, 'challenge'])->name('tower.star-tree.challenge');
+        Route::post('/tower/star-tree/return', [StarTreeTowerController::class, 'return'])->name('tower.star-tree.return');
+        Route::post('/tower/star-tree/merchant/resume', [StarTreeTowerController::class, 'resumeMerchant'])->name('tower.star-tree.merchant.resume');
+        Route::post('/tower/star-tree/merchant/buy', [StarTreeTowerController::class, 'buyMerchantItem'])->name('tower.star-tree.merchant.buy');
+        Route::post('/tower/star-tree/merchant/items/{purchase}/use', [StarTreeTowerController::class, 'useMerchantItem'])->name('tower.star-tree.merchant.use');
+        Route::post('/tower/star-tree/merchant/skip', [StarTreeTowerController::class, 'skipMerchant'])->name('tower.star-tree.merchant.skip');
+        Route::get('/tower/star-tree/result/{event}', [StarTreeTowerController::class, 'result'])->name('tower.star-tree.result');
+        Route::get('/tower/star-tree/ranking', [StarTreeTowerController::class, 'ranking'])->name('tower.star-tree.ranking');
+
         // 冒険者市場
         Route::get('/market', [MarketController::class, 'index'])->name('market.index');
         Route::get('/market/materials/{material}', [MarketController::class, 'showMaterial'])->name('market.materials.show');
@@ -344,8 +359,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/colosseum/ranking', \App\Livewire\ColosseumRanking::class)->name('colosseum.ranking');
         Route::get('/ranking', [\App\Http\Controllers\RankingController::class, 'index'])->name('ranking.index');
 
-        // 称号一覧 (Livewire)
-        Route::get('/titles', \App\Livewire\TitleList::class)->name('titles.index');
+        // 称号一覧
+        Route::get('/titles', [TitleController::class, 'index'])->name('titles.index');
 
         // 案内所
         Route::get('/guide', [\App\Http\Controllers\TownGuideController::class, 'index'])->name('town.guide');
@@ -441,6 +456,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/player-controls', \App\Livewire\Admin\PlayerControlManager::class)->name('admin.player-controls');
     Route::get('/admin/battle-simulator', \App\Livewire\Admin\BattleSimulator::class)->name('admin.battle-simulator');
     Route::get('/admin/balance-battle-lab', \App\Livewire\Admin\BalanceBattleLab::class)->name('admin.balance-battle-lab');
+    Route::get('/admin/skill-effect-lab', \App\Livewire\Admin\SkillEffectLab::class)->name('admin.skill-effect-lab');
     Route::get('/admin/action-logs', \App\Livewire\Admin\ActionLogManager::class)->name('admin.action-logs');
     Route::get('/admin/public-logs', \App\Livewire\Admin\PublicLogManager::class)->name('admin.public-logs');
     Route::get('/admin/chat', \App\Livewire\Admin\AdminChatManager::class)->name('admin.chat');
@@ -448,6 +464,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/contact-messages', \App\Livewire\Admin\ContactMessageManager::class)->name('admin.contact-messages');
     Route::get('/admin/npc-market-analytics', \App\Livewire\Admin\NpcMarketAnalyticsManager::class)->name('admin.npc-market-analytics');
     Route::get('/admin/reward-settings', \App\Livewire\Admin\RewardSettingManager::class)->name('admin.reward-settings');
+    Route::get('/admin/adventure-support-items', \App\Livewire\Admin\AdventureSupportItemManager::class)->name('admin.adventure-support-items');
+    Route::get('/admin/extra-contents', \App\Livewire\Admin\ExtraContentManager::class)->name('admin.extra-contents');
     Route::get('/admin/kiseki-purchases', \App\Livewire\Admin\KisekiPurchaseManager::class)->name('admin.kiseki-purchases');
     Route::get('/admin/top-updates', \App\Livewire\Admin\TopUpdateManager::class)->name('admin.top-updates');
     Route::get('/admin/top-analytics', \App\Livewire\Admin\TopPageAnalyticsManager::class)->name('admin.top-analytics');

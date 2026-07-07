@@ -18,18 +18,44 @@ class JobService
      */
     public function canChangeJob(Character $character, JobClass $job): bool
     {
-        return $this->meetsJobRequirements($character, $job)
+        return $this->isReleasedForJobChange($job)
+            && $this->meetsJobRequirements($character, $job)
             && $this->passesBonusPointGate($character);
     }
 
     public function canRevealJob(Character $character, JobClass $job): bool
     {
-        return $this->meetsJobRequirements($character, $job);
+        return $this->isReleasedForJobChange($job)
+            && $this->meetsJobRequirements($character, $job);
+    }
+
+    public function isReleasedForJobChange(JobClass $job): bool
+    {
+        if (! (bool) $job->is_hidden) {
+            return true;
+        }
+
+        return JobRankCatalog::normalize($job->rank) === JobRankCatalog::SUPER;
+    }
+
+    public function prerequisiteMasterRanksFor(JobClass $job): array
+    {
+        return match (JobRankCatalog::normalize($job->rank)) {
+            JobRankCatalog::CROWN => [JobRankCatalog::SUPER],
+            JobRankCatalog::HERO => [JobRankCatalog::SUPER, JobRankCatalog::CROWN],
+            JobRankCatalog::LEGEND => [JobRankCatalog::SUPER, JobRankCatalog::CROWN, JobRankCatalog::HERO],
+            JobRankCatalog::MYTH => [JobRankCatalog::LEGEND],
+            default => [],
+        };
     }
 
     public function meetsJobRequirements(Character $character, JobClass $job): bool
     {
         if ((int) $character->level < 30) {
+            return false;
+        }
+
+        if (! $this->meetsRankProgressionRequirements($character, $job)) {
             return false;
         }
 
@@ -68,6 +94,19 @@ class JobService
         }
 
         return true;
+    }
+
+    private function meetsRankProgressionRequirements(Character $character, JobClass $job): bool
+    {
+        $requiredRanks = $this->prerequisiteMasterRanksFor($job);
+        if ($requiredRanks === []) {
+            return true;
+        }
+
+        return $character->jobHistories()
+            ->where('is_mastered', true)
+            ->whereHas('jobClass', fn ($query) => $query->whereIn('rank', $requiredRanks))
+            ->exists();
     }
 
     public function passesBonusPointGate(Character $character): bool

@@ -69,11 +69,21 @@ class ExplorationStaminaService
             return ['ok' => true, 'consumed' => 0, 'stamina' => null];
         }
 
-        return DB::transaction(function () use ($character) {
+        return $this->consume($character, $this->cost());
+    }
+
+    public function consume(Character $character, int $cost, string $errorMessage = '探索力が足りません。回復を待ってください。'): array
+    {
+        if (!$this->enabled()) {
+            return ['ok' => true, 'consumed' => 0, 'stamina' => null];
+        }
+
+        $cost = max(1, $cost);
+
+        return DB::transaction(function () use ($character, $cost, $errorMessage) {
             $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
             $this->recover($locked);
 
-            $cost = $this->cost();
             $current = (int) ($locked->explore_stamina ?? 0);
             $updatedAtBeforeConsume = $locked->explore_stamina_updated_at;
             if ($current < $cost) {
@@ -83,7 +93,7 @@ class ExplorationStaminaService
                     'ok' => false,
                     'consumed' => 0,
                     'stamina' => $this->summary($locked),
-                    'error' => '探索力が足りません。回復を待ってください。',
+                    'error' => $errorMessage,
                 ];
             }
 

@@ -1256,6 +1256,24 @@
                             <p class="text-sm text-yellow-700 font-bold mb-3">
                                 {{ $result['enemy']->name }} を倒しました。
                             </p>
+
+                            @if(!empty($result['area_clear_storage_reward']))
+                                @php
+                                    $storageReward = $result['area_clear_storage_reward'];
+                                @endphp
+                                <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800">
+                                    <div class="flex items-center gap-1.5">
+                                        <img src="{{ asset('images/icon/icon_025.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                        街踏破報酬
+                                    </div>
+                                    <div class="mt-1 text-xs leading-5">
+                                        素材倉庫 +{{ number_format((int) ($storageReward['material_bonus'] ?? 0)) }}
+                                        （{{ number_format((int) ($storageReward['material_before'] ?? 0)) }} → {{ number_format((int) ($storageReward['material_after'] ?? 0)) }}）<br>
+                                        装備倉庫 +{{ number_format((int) ($storageReward['equipment_bonus'] ?? 0)) }}
+                                        （{{ number_format((int) ($storageReward['equipment_before'] ?? 0)) }} → {{ number_format((int) ($storageReward['equipment_after'] ?? 0)) }}）
+                                    </div>
+                                </div>
+                            @endif
                             
                             @if(isset($result['unlocked_areas']) && count($result['unlocked_areas']) > 0)
                                 <div class="space-y-2">
@@ -1501,10 +1519,13 @@
                                 </button>
                             </form>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索力'))
-                            <a href="{{ route('home') }}" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
-                                <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="w-4 h-4 object-contain opacity-90">
-                                <span>街へ戻る</span>
-                            </a>
+                            <form action="{{ route('battle.resume.return') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                    <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="w-4 h-4 object-contain opacity-90">
+                                    <span>街へ戻る</span>
+                                </button>
+                            </form>
                         @elseif(!isset($result['error']) && !in_array($result['result'], ['victory', 'win'], true))
                             <a href="{{ route('home') }}"
                                x-data="{ loading: false }"
@@ -1545,14 +1566,15 @@
                                 </div>
                                 <div class="mt-3 flex flex-col gap-2">
                                     @foreach($staminaRecoveryChoices as $choice)
-                                        <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                        @php($hasOwnedStaminaItem = (int) $choice['quantity'] > 0)
+                                        <div class="rounded-lg border {{ $hasOwnedStaminaItem ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white' }} p-2">
                                             <button type="button"
                                                     data-batch-stamina-item
                                                     data-item-key="{{ $choice['key'] }}"
                                                     data-use-url="{{ $choice['use_url'] }}"
                                                     data-quantity="{{ $choice['quantity'] }}"
                                                     @disabled($choice['quantity'] <= 0)
-                                                    class="flex w-full items-center justify-between rounded-md px-1 py-1 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                                                    class="flex w-full items-center justify-between rounded-md px-2 py-2 text-left transition {{ $hasOwnedStaminaItem ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-50' : 'bg-slate-50 text-slate-500 disabled:cursor-not-allowed disabled:opacity-75' }}">
                                                 <span class="flex min-w-0 items-center gap-2">
                                                     @if($choice['icon_image'])
                                                         <img src="{{ asset($choice['icon_image']) }}" alt="" class="h-5 w-5 object-contain">
@@ -1562,20 +1584,30 @@
                                                         <span class="block text-[11px] font-bold text-slate-500">探索力 +{{ number_format($choice['effect_value']) }}</span>
                                                     </span>
                                                 </span>
-                                                <span class="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
-                                                    残<span data-batch-stamina-item-count>{{ number_format($choice['quantity']) }}</span>
+                                                <span class="flex shrink-0 flex-col items-end gap-1">
+                                                    <span class="rounded bg-white px-2 py-0.5 text-[11px] font-black {{ $hasOwnedStaminaItem ? 'text-emerald-700 ring-1 ring-emerald-100' : 'text-slate-500 ring-1 ring-slate-100' }}">
+                                                        所持 <span data-batch-stamina-item-count>{{ number_format($choice['quantity']) }}</span>
+                                                    </span>
+                                                    <span class="rounded px-2 py-0.5 text-[11px] font-black {{ $hasOwnedStaminaItem ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500' }}">
+                                                        {{ $hasOwnedStaminaItem ? '所持分を使う' : '所持なし' }}
+                                                    </span>
                                                 </span>
                                             </button>
-                                            <button type="button"
-                                                    data-batch-stamina-buy
-                                                    data-item-key="{{ $choice['key'] }}"
-                                                    data-purchase-url="{{ $choice['purchase_url'] }}"
-                                                    data-price="{{ $choice['price'] }}"
-                                                    class="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 transition hover:bg-amber-100 active:scale-95">
-                                                <span>購入して使う</span>
-                                                <img src="{{ asset('images/icon/kiseki.webp') }}" alt="" class="h-3.5 w-3.5 object-contain">
-                                                <span>{{ number_format($choice['price']) }}</span>
-                                            </button>
+                                            @unless($hasOwnedStaminaItem)
+                                                <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                                                    <div class="text-[11px] font-bold text-amber-800">所持していないため、輝石を消費して購入後に使用します。</div>
+                                                    <button type="button"
+                                                            data-batch-stamina-buy
+                                                            data-item-key="{{ $choice['key'] }}"
+                                                            data-purchase-url="{{ $choice['purchase_url'] }}"
+                                                            data-price="{{ $choice['price'] }}"
+                                                            class="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-black text-amber-900 transition hover:bg-amber-100 active:scale-95">
+                                                        <span>輝石で購入して使う</span>
+                                                        <img src="{{ asset('images/icon/kiseki.webp') }}" alt="" class="h-3.5 w-3.5 object-contain">
+                                                        <span>{{ number_format($choice['price']) }}</span>
+                                                    </button>
+                                                </div>
+                                            @endunless
                                         </div>
                                     @endforeach
                                     <button type="button" data-batch-stamina-modal-close class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50">

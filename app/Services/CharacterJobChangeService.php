@@ -39,21 +39,7 @@ class CharacterJobChangeService
             ];
         }
 
-        $currentJobId = $character->current_job_id;
-        $isMastered = false;
-        if ($currentJobId) {
-            $isMastered = $character->jobHistories()
-                ->where('job_class_id', $currentJobId)
-                ->where('is_mastered', true)
-                ->exists();
-        }
-
-        if (!$isMastered) {
-            return [
-                'success' => false,
-                'message' => '現在の職業をマスターしないと転職できません。'
-            ];
-        }
+        $jobService = app(JobService::class);
 
         if ($character->current_job_id === $targetJob->id) {
             return [
@@ -69,7 +55,13 @@ class CharacterJobChangeService
             ];
         }
 
-        $jobService = app(JobService::class);
+        if (! $jobService->isReleasedForJobChange($targetJob)) {
+            return [
+                'success' => false,
+                'message' => 'この職業には現在転職できません。'
+            ];
+        }
+
         if (! $jobService->meetsJobRequirements($character, $targetJob)) {
             return [
                 'success' => false,

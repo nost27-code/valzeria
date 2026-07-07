@@ -32,6 +32,13 @@
                               commentField.focus();
                           }
                       });
+                  } else if (window.location.hash === '#card_skin') {
+                      $nextTick(() => {
+                          const cardSkinField = document.getElementById('card_skin');
+                          if (cardSkinField) {
+                              cardSkinField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }
+                      });
                   }
               "
               x-data="{
@@ -77,7 +84,7 @@
                 </div>
 
                 <div class="mt-4 space-y-4">
-                    <div>
+                    <div id="card_skin" class="scroll-mt-20">
                         <div class="mb-2 flex flex-wrap items-center gap-2">
                             <span class="text-xs font-black text-slate-700">カードデザイン</span>
                             @if($supportPassStatus['active'] ?? false)
@@ -92,6 +99,8 @@
                             @foreach($cardSkinOptions as $option)
                                 @php
                                     $isSupportSkin = $option['value'] === \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS;
+                                    $isSupportBlueGoldSkin = $option['value'] === \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS_BLUE_GOLD;
+                                    $isPassSkin = $isSupportSkin || $isSupportBlueGoldSkin;
                                 @endphp
                                 <label class="rounded-lg border bg-white p-3 shadow-sm transition"
                                        :class="selectedCardSkin === @js($option['value']) ? 'border-[#d4af37] ring-2 ring-[#d4af37]/30' : 'border-slate-200'"
@@ -103,8 +112,12 @@
                                            x-model="selectedCardSkin"
                                            @disabled(!($option['selectable'] ?? false))>
                                     <div class="flex items-start gap-3">
-                                        <div class="grid h-14 w-14 shrink-0 place-items-center rounded-md border {{ $isSupportSkin ? 'border-amber-300 bg-slate-900 text-amber-200' : 'border-slate-200 bg-slate-50 text-slate-500' }}">
-                                            <span class="text-lg font-black">{{ $isSupportSkin ? 'SP' : 'N' }}</span>
+                                        <div class="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-md border {{ $isSupportBlueGoldSkin ? 'border-sky-300 bg-gradient-to-br from-slate-950 via-blue-700 to-sky-300 text-sky-50 shadow-inner' : ($isSupportSkin ? 'border-amber-300 bg-gradient-to-br from-amber-50 via-white to-sky-100 text-amber-800 shadow-inner' : 'border-slate-200 bg-slate-50 text-slate-500') }}">
+                                            @if($isPassSkin)
+                                                <span class="absolute inset-x-2 top-2 h-px {{ $isSupportBlueGoldSkin ? 'bg-sky-100/80' : 'bg-amber-300/70' }}"></span>
+                                                <span class="absolute inset-x-2 bottom-2 h-px {{ $isSupportBlueGoldSkin ? 'bg-sky-100/80' : 'bg-amber-300/70' }}"></span>
+                                            @endif
+                                            <span class="relative text-lg font-black">{{ $isPassSkin ? 'PASS' : 'N' }}</span>
                                         </div>
                                         <div class="min-w-0 flex-1">
                                             <div class="text-sm font-black text-slate-900">{{ $option['label'] }}</div>
@@ -120,7 +133,7 @@
                         @error('selected_card_skin')
                             <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div>
                         @enderror
-                        @if(($selectedCardSkin ?? 'default') === \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS && $displayedCardSkin !== \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS)
+                        @if(in_array(($selectedCardSkin ?? 'default'), [\App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS, \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS_BLUE_GOLD], true) && !in_array($displayedCardSkin, [\App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS, \App\Services\SupportPassService::CARD_SKIN_SUPPORT_PASS_BLUE_GOLD], true))
                             <p class="mt-2 rounded bg-slate-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-slate-500">
                                 支援パスカードの選択は保存されています。冒険者支援パスが有効になると、再び支援パスカードで表示されます。
                             </p>

@@ -89,11 +89,12 @@ return new class extends Migration
             'priest_warrior' => ['name' => '神官戦士', 'physical' => 0.30, 'speed' => 0.00, 'magical' => 0.70, 'normal' => 'magical'],
             'shadow_hunter' => ['name' => '影狩人', 'physical' => 0.30, 'speed' => 0.70, 'magical' => 0.00, 'normal' => 'physical'],
             'merchant_sage_king' => ['name' => '賢商王', 'physical' => 0.20, 'speed' => 0.00, 'magical' => 0.80, 'normal' => 'magical'],
-            'valzeria_hero' => ['name' => 'ヴァルゼリアの英雄', 'physical' => 0.40, 'speed' => 0.20, 'magical' => 0.40, 'normal' => 'physical'],
+            'valzeria_hero' => ['name' => 'ヴァルゼリアの救世主', 'physical' => 0.40, 'speed' => 0.20, 'magical' => 0.40, 'normal' => 'physical'],
             'abyss_walker' => ['name' => '深淵歩き', 'physical' => 0.30, 'speed' => 0.40, 'magical' => 0.30, 'normal' => 'magical'],
             'ancient_alchemist_king' => ['name' => '古代錬成王', 'physical' => 0.00, 'speed' => 0.00, 'magical' => 1.00, 'normal' => 'magical'],
-            'dragon_god' => ['name' => '竜神', 'physical' => 0.70, 'speed' => 0.30, 'magical' => 0.00, 'normal' => 'physical'],
+            'dragon_god' => ['name' => '蒼竜王', 'physical' => 0.70, 'speed' => 0.30, 'magical' => 0.00, 'normal' => 'physical'],
             'time_space_king' => ['name' => '時空王', 'physical' => 0.00, 'speed' => 0.50, 'magical' => 0.50, 'normal' => 'magical'],
         ];
     }
 };
+

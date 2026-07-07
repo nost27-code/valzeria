@@ -18,7 +18,11 @@ class EquipmentCompatibilityManager extends Component
         'normal' => '一般',
         'middle' => '中級',
         'advanced' => '上級',
+        'super' => '超級',
+        'crown' => '冠位',
+        'hero' => '英雄',
         'legend' => '伝説',
+        'myth' => '神話',
     ];
 
     private const DEFAULT_WEAPON_CATEGORIES = [
@@ -60,6 +64,59 @@ class EquipmentCompatibilityManager extends Component
 
         $this->togglePermission('job_armor_permissions', 'armor_category', $jobId, $category);
         session()->flash('message', '防具相性を更新しました。');
+    }
+
+    public function applyHighRankRecommendedPermissions(): void
+    {
+        if (! $this->hasPermissionTables()) {
+            session()->flash('message', '装備相性テーブルが見つかりません。');
+
+            return;
+        }
+
+        $permissions = $this->highRankRecommendedPermissions();
+        if ($permissions === []) {
+            session()->flash('message', '高位職の推奨装備設定が見つかりません。');
+
+            return;
+        }
+
+        $now = now();
+        $updated = 0;
+
+        DB::transaction(function () use ($permissions, $now, &$updated) {
+            foreach ($permissions as $jobId => $permission) {
+                $jobName = $permission['name'] ?? null;
+                if (! $jobName || ! $this->jobExists((int) $jobId, $jobName)) {
+                    continue;
+                }
+
+                DB::table('job_weapon_permissions')->where('job_id', $jobId)->delete();
+                DB::table('job_armor_permissions')->where('job_id', $jobId)->delete();
+
+                foreach ($permission['weapons'] ?? [] as $category) {
+                    DB::table('job_weapon_permissions')->insert([
+                        'job_id' => $jobId,
+                        'weapon_category' => $category,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                }
+
+                foreach ($permission['armors'] ?? [] as $category) {
+                    DB::table('job_armor_permissions')->insert([
+                        'job_id' => $jobId,
+                        'armor_category' => $category,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                }
+
+                $updated++;
+            }
+        });
+
+        session()->flash('message', "高位職 {$updated} 件の推奨装備相性を反映しました。");
     }
 
     public function render()
@@ -273,5 +330,37 @@ class EquipmentCompatibilityManager extends Component
     private function isValidCategory(string $category, array $categories): bool
     {
         return collect($categories)->contains(fn (array $item) => $item['key'] === $category);
+    }
+
+    private function highRankRecommendedPermissions(): array
+    {
+        $permissions = config('job_equipment_permissions.high_rank');
+        if (is_array($permissions)) {
+            return $permissions;
+        }
+
+        $path = config_path('job_equipment_permissions.php');
+        if (! is_file($path)) {
+            return [];
+        }
+
+        $config = require $path;
+
+        return is_array($config['high_rank'] ?? null) ? $config['high_rank'] : [];
+    }
+
+    private function hasPermissionTables(): bool
+    {
+        return Schema::hasTable('job_classes')
+            && Schema::hasTable('job_weapon_permissions')
+            && Schema::hasTable('job_armor_permissions');
+    }
+
+    private function jobExists(int $jobId, string $jobName): bool
+    {
+        return DB::table('job_classes')
+            ->where('id', $jobId)
+            ->where('name', $jobName)
+            ->exists();
     }
 }

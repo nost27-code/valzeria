@@ -19,9 +19,12 @@ class AdventureSupportService
 
     public function catalogFor(Character $character): array
     {
+        $controlService = app(AdventureSupportItemControlService::class);
         $items = collect(config('adventure_support.items', []))
+            ->reject(fn (array $item, string $key) => !$controlService->isVisible($key, $item))
             ->reject(fn (array $item) => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
                 && !app(SupportPassService::class)->enabled())
+            ->map(fn (array $item, string $key) => $controlService->effectiveItem($key, $item))
             ->all();
         $character->refresh();
 
@@ -92,7 +95,7 @@ class AdventureSupportService
             return ['success' => false, 'message' => '無効な商品です。'];
         }
 
-        $item = $items[$itemKey];
+        $item = app(AdventureSupportItemControlService::class)->effectiveItem($itemKey, $items[$itemKey]);
 
         return DB::transaction(function () use ($character, $itemKey, $item) {
             $lockedCharacter = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
@@ -224,7 +227,7 @@ class AdventureSupportService
             'material_storage_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'material_storage_gold_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'equipment_storage_expand' => $this->expandStorage($character, 'equipment_storage_limit', $itemKey, $item),
-            SupportPassService::PASS_TYPE => $this->activateSupportPass($character),
+            SupportPassService::PASS_TYPE => $this->activateSupportPass($character, (int) $item['price']),
             'adventurer_supply_box' => $this->grantSupplyBox($character),
             self::RESCUE_INSURANCE,
             self::EMERGENCY_RESCUE_REQUEST => $this->grantConsumable($character, $itemKey, $item['name']),
@@ -234,9 +237,9 @@ class AdventureSupportService
         };
     }
 
-    private function activateSupportPass(Character $character): string
+    private function activateSupportPass(Character $character, int $priceAmount): string
     {
-        $result = app(SupportPassService::class)->purchaseFor($character);
+        $result = app(SupportPassService::class)->purchaseFor($character, $priceAmount);
         if (!($result['success'] ?? false)) {
             throw new \RuntimeException($result['message'] ?? '冒険者支援パスを購入できませんでした。');
         }
@@ -246,7 +249,9 @@ class AdventureSupportService
 
     private function expandStorage(Character $character, string $column, string $itemKey, array $item): string
     {
-        $character->{$column} = (int) ($character->{$column} ?? 200) + (int) $item['effect_value'];
+        $defaultLimit = $column === 'material_storage_limit' ? 500 : 300;
+        $currentLimit = max($defaultLimit, (int) ($character->{$column} ?? $defaultLimit));
+        $character->{$column} = $currentLimit + (int) $item['effect_value'];
         $character->kiseki = (int) ($character->paid_kiseki ?? 0) + (int) ($character->free_kiseki ?? 0);
         $character->save();
         $this->incrementLimit($character, $itemKey, 'purchased_count');
@@ -361,7 +366,9 @@ class AdventureSupportService
             : (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0);
         $disabledReason = null;
 
-        if ((bool) ($item['sale_suspended'] ?? false)) {
+        if (!app(AdventureSupportItemControlService::class)->isVisible($key, $item)) {
+            $disabledReason = "{$item['name']}は現在販売していません。";
+        } elseif (!app(AdventureSupportItemControlService::class)->isEnabled($key, $item)) {
             $disabledReason = "{$item['name']}は現在販売休止中です。";
         } elseif ($total < (int) $item['price']) {
             $disabledReason = $currency === 'gold'
@@ -400,7 +407,12 @@ class AdventureSupportService
     {
         if (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE) {
             if (!($state['can_purchase'] ?? false)) {
-                return 'これ以上延長できません';
+                $disabledReason = (string) ($state['disabled_reason'] ?? '');
+                if (str_contains($disabledReason, '最大90日先') || str_contains($disabledReason, 'これ以上延長')) {
+                    return 'これ以上延長できません';
+                }
+
+                return '購入不可';
             }
 
             return app(SupportPassService::class)->isActiveForCharacter($character)

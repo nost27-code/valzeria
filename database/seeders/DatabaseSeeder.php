@@ -29,6 +29,8 @@ class DatabaseSeeder extends Seeder
             DropEquipmentAdditionsSeeder::class,
             ValmonSeeder::class,
             NpcProcurementRequestSeeder::class,
+            StarTreeTowerFloorSeeder::class,
+            StarTreeTowerTitleSeeder::class,
         ]);
     }
 }

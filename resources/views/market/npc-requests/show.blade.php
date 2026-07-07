@@ -11,10 +11,14 @@
             $requiredTotal = (int) $request->materials->sum('required_quantity');
             $deliveredTotal = (int) $request->materials->sum('delivered_quantity');
             $progress = $request->progressPercent();
-            $remainingSeconds = $request->remainingSeconds();
-            $remainingLabel = $remainingSeconds >= 3600
-                ? 'あと' . max(1, (int) ceil($remainingSeconds / 3600)) . '時間'
-                : 'あと' . max(1, (int) ceil($remainingSeconds / 60)) . '分';
+            if ($request->isPersistentUntilCompleted()) {
+                $remainingLabel = '完納まで';
+            } else {
+                $remainingSeconds = $request->remainingSeconds();
+                $remainingLabel = $remainingSeconds >= 3600
+                    ? 'あと' . max(1, (int) ceil($remainingSeconds / 3600)) . '時間'
+                    : 'あと' . max(1, (int) ceil($remainingSeconds / 60)) . '分';
+            }
             $typeLabel = match((string) $request->requester_type) {
                 'blacksmith_guild' => '鍛冶',
                 'apothecary' => '薬品',

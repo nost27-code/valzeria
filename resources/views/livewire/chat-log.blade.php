@@ -1,5 +1,5 @@
 <!-- 3. 下部：全幅チャットログエリア -->
-<div wire:poll.30s class="w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans">
+<div wire:poll.60s class="w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans">
     <!-- タブ -->
     <div class="flex items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500 shrink-0">
         <div class="flex min-w-0 flex-1 overflow-x-auto">
@@ -23,7 +23,7 @@
     <!-- ログ表示部 -->
     <div class="p-3 flex-grow overflow-y-auto space-y-1 text-[11px] bg-white font-sans leading-relaxed">
         @foreach($systemLogs as $log)
-            <div class="flex">
+            <div class="flex" wire:key="chat-log-{{ $log['id'] }}">
                 <span class="text-gray-400 w-10 shrink-0">{{ $log['time'] }}</span>
                 <span class="
                     @if($log['type'] == 'system') text-orange-600 font-bold
@@ -47,14 +47,38 @@
                     @else text-gray-700 font-medium
                     @endif
                 ">
-                    @if(isset($log['reply_prefix']) && $log['reply_prefix'])
-                        @if(isset($log['reply_id']) && $log['reply_id'])
-                            <span wire:click="setReplyTarget({{ $log['reply_id'] }})" onclick="setTimeout(() => { document.getElementById('chat-message-input').focus(); }, 100);" class="cursor-pointer hover:underline" title="タップして返信">{{ $log['reply_prefix'] }}</span>
-                        @else
-                            <span>{{ $log['reply_prefix'] }}</span>
+                    @if($editingLogId === $log['id'])
+                        <form wire:submit="updateMessage" class="inline-flex max-w-full flex-wrap items-center gap-1">
+                            @if(isset($log['reply_prefix']) && $log['reply_prefix'])
+                                <span>{{ $log['reply_prefix'] }}</span>
+                            @endif
+                            <input
+                                type="text"
+                                wire:model="editingMessage"
+                                maxlength="100"
+                                class="h-7 min-w-[12rem] max-w-full rounded border-gray-300 px-2 py-1 text-[11px] text-slate-800 focus:border-[#1e40af] focus:ring-[#1e40af]"
+                            >
+                            <button type="submit" class="rounded bg-[#1e40af] px-2 py-1 text-[10px] font-black text-white hover:bg-[#1e3a8a]">保存</button>
+                            <button type="button" wire:click="cancelEdit" class="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] font-black text-gray-500 hover:bg-gray-50">やめる</button>
+                        </form>
+                    @else
+                        @if(isset($log['reply_prefix']) && $log['reply_prefix'])
+                            @if(isset($log['reply_id']) && $log['reply_id'])
+                                <span wire:click="setReplyTarget({{ $log['reply_id'] }})" onclick="setTimeout(() => { document.getElementById('chat-message-input').focus(); }, 100);" class="cursor-pointer hover:underline" title="タップして返信">{{ $log['reply_prefix'] }}</span>
+                            @else
+                                <span>{{ $log['reply_prefix'] }}</span>
+                            @endif
+                        @endif
+                        {{ $log['message'] }}
+                        @if($log['is_edited'])
+                            <span class="ml-1 text-[10px] font-bold text-gray-400">修正済み</span>
+                        @endif
+                        @if($log['can_edit'])
+                            <button type="button" wire:click="startEdit({{ $log['id'] }})" class="ml-1 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-black text-gray-500 hover:bg-gray-50">
+                                修正
+                            </button>
                         @endif
                     @endif
-                    {{ $log['message'] }}
                 </span>
             </div>
         @endforeach

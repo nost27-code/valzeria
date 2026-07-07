@@ -54,6 +54,134 @@ if (!file_exists($projectDir)) {
     }
 }
 
+// --- メンテナンスモード ここから ---
+// ZIP展開中はファイルが新旧混在し、マイグレーション未実行のままDBアクセスするとエラー画面になりうる。
+// Laravelの `php artisan down --render` 相当を、フレームワークを起動せず素のPHPファイル操作で再現する。
+// （storage/framework/down が存在する間、public_html/index.php が事前描画済みHTMLを即返す）
+function valzeria_deploy_maintenance_html(): string
+{
+    return <<<'HTML'
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>メンテナンス中 - ヴァルゼリアの冒険者</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:#e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; }
+  .card { max-width: 420px; margin: 16px; padding: 32px 28px; background:#1e293b; border:1px solid #334155; border-radius:16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  .icon { font-size:40px; margin-bottom:12px; }
+  h1 { font-size:18px; margin:0 0 12px; color:#fff; }
+  p { font-size:14px; line-height:1.7; color:#cbd5e1; margin:0 0 20px; }
+  button { appearance:none; border:none; cursor:pointer; background:#f59e0b; color:#1e293b; font-weight:700; font-size:14px; padding:12px 28px; border-radius:9999px; transition: transform .15s, background .15s; }
+  button:hover { background:#fbbf24; transform:translateY(-1px); }
+  button:active { transform:translateY(0); }
+  .hint { margin-top:14px; font-size:12px; color:#64748b; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">&#9875;&#65039;</div>
+    <h1>ただいまメンテナンス中です</h1>
+    <p>裏側でゲームデータの更新作業を行っています。<br>少し待ってから、下のボタンで画面を更新してください。</p>
+    <button onclick="location.reload()">画面を更新する</button>
+    <div class="hint" id="auto-hint"></div>
+  </div>
+  <script>
+    (function () {
+      var seconds = 10;
+      var hint = document.getElementById('auto-hint');
+      var timer = setInterval(function () {
+        seconds -= 1;
+        if (hint) { hint.textContent = seconds + '秒後に自動で更新します…'; }
+        if (seconds <= 0) {
+          clearInterval(timer);
+          location.reload();
+        }
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>
+HTML;
+}
+
+function valzeria_deploy_maintenance_stub(): string
+{
+    // Laravel標準の storage/framework/maintenance.php スタブと同等の内容。
+    // public_html/index.php から Composer/フレームワークを読み込む前に呼ばれ、
+    // storage/framework/down が存在する間は事前描画済みHTMLだけを返して即終了する。
+    return <<<'PHP'
+<?php
+
+if (! file_exists($down = __DIR__.'/down')) {
+    return;
+}
+
+$data = json_decode(file_get_contents($down), true);
+
+if (! isset($data['template'])) {
+    return;
+}
+
+http_response_code($data['status'] ?? 503);
+
+if (isset($data['retry'])) {
+    header('Retry-After: '.$data['retry']);
+}
+
+echo $data['template'];
+
+exit;
+PHP;
+}
+
+function valzeria_deploy_maintenance_paths(string $projectDir): array
+{
+    $frameworkDir = $projectDir . '/storage/framework';
+    return [$frameworkDir, $frameworkDir . '/maintenance.php', $frameworkDir . '/down'];
+}
+
+function valzeria_deploy_enter_maintenance(string $projectDir): void
+{
+    [$frameworkDir, $stubPath, $downPath] = valzeria_deploy_maintenance_paths($projectDir);
+
+    if (!is_dir($frameworkDir)) {
+        mkdir($frameworkDir, 0755, true);
+    }
+
+    file_put_contents($stubPath, valzeria_deploy_maintenance_stub());
+
+    file_put_contents($downPath, json_encode([
+        'except' => [],
+        'redirect' => null,
+        'retry' => 15,
+        'refresh' => null,
+        'secret' => null,
+        'status' => 503,
+        'template' => valzeria_deploy_maintenance_html(),
+    ], JSON_PRETTY_PRINT));
+}
+
+function valzeria_deploy_exit_maintenance(string $projectDir): void
+{
+    [, , $downPath] = valzeria_deploy_maintenance_paths($projectDir);
+
+    if (file_exists($downPath)) {
+        unlink($downPath);
+    }
+}
+
+valzeria_deploy_enter_maintenance($projectDir);
+echo "・メンテナンスモードを開始しました（展開完了まで一時的にメンテナンス画面を表示します）。\n";
+
+// die()/exit() や致命的エラーで途中終了した場合でもメンテナンスモードの解除漏れが起きないよう、
+// finally ではなくシャットダウン関数で確実に解除する。
+register_shutdown_function(function () use ($projectDir) {
+    valzeria_deploy_exit_maintenance($projectDir);
+});
+// --- メンテナンスモード ここまで（実際の解除は上記シャットダウン関数が保証する） ---
+
 // ZIP展開処理
 $zip = new ZipArchive();
 if ($zip->open($zipPath) === true) {
@@ -90,6 +218,12 @@ if ($zip->open($zipPath) === true) {
     $indexCode = <<<PHP
 <?php
 define('LARAVEL_START', microtime(true));
+
+// メンテナンスモード確認（デプロイ中の一時的なファイル不整合でエラー画面が出ないようにする）
+if (file_exists(\$maintenance = __DIR__.'/../valzeria_project/storage/framework/maintenance.php')) {
+    require \$maintenance;
+}
+
 require __DIR__.'/../valzeria_project/vendor/autoload.php';
 \$app = require_once __DIR__.'/../valzeria_project/bootstrap/app.php';
 \$app->handleRequest(Illuminate\Http\Request::capture());

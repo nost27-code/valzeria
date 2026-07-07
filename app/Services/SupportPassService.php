@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Models\GameSetting;
 use App\Models\PassPurchaseLog;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -11,8 +12,10 @@ use Illuminate\Support\Facades\Schema;
 class SupportPassService
 {
     public const PASS_TYPE = 'support_pass_30d';
+    public const ENABLED_SETTING_KEY = 'support_pass.enabled';
     public const CARD_SKIN_DEFAULT = 'default';
     public const CARD_SKIN_SUPPORT_PASS = 'support_pass';
+    public const CARD_SKIN_SUPPORT_PASS_BLUE_GOLD = 'support_pass_blue_gold';
 
     private ?bool $schemaReadyCache = null;
 
@@ -23,7 +26,25 @@ class SupportPassService
 
     public function enabled(): bool
     {
-        return (bool) config('support_pass.enabled', false);
+        return app(GameSettingService::class)->getBool(
+            self::ENABLED_SETTING_KEY,
+            (bool) config('support_pass.enabled', false)
+        );
+    }
+
+    public function setEnabled(bool $enabled): void
+    {
+        GameSetting::updateOrCreate(
+            ['setting_key' => self::ENABLED_SETTING_KEY],
+            [
+                'label' => '冒険者支援パス 公開状態',
+                'value' => $enabled ? '1' : '0',
+                'value_type' => 'boolean',
+                'description' => '冒険者支援パス全体のON/OFF。OFFにすると補給商会でパス商品を表示・購入できません。',
+            ]
+        );
+
+        app(GameSettingService::class)->flush();
     }
 
     public function isActiveForCharacter(?Character $character): bool
@@ -61,7 +82,7 @@ class SupportPassService
             'active' => $active,
             'expires_at' => $expiresAt,
             'remaining_days' => $active && $expiresAt
-                ? max(1, (int) ceil(now()->diffInSeconds($expiresAt, false) / 86400))
+                ? max(0, intdiv(max(0, (int) now()->diffInSeconds($expiresAt, false)), 86400))
                 : 0,
             'selected_card_skin' => $this->selectedCardSkin($user),
             'displayed_card_skin' => $this->displayedCardSkin($user),
@@ -72,8 +93,9 @@ class SupportPassService
 
     public function displayedCardSkin(?User $user): string
     {
-        if ($this->isActive($user) && $this->selectedCardSkin($user) === self::CARD_SKIN_SUPPORT_PASS) {
-            return self::CARD_SKIN_SUPPORT_PASS;
+        $selectedSkin = $this->selectedCardSkin($user);
+        if ($this->isActive($user) && in_array($selectedSkin, $this->supportPassCardSkins(), true)) {
+            return $selectedSkin;
         }
 
         return self::CARD_SKIN_DEFAULT;
@@ -85,7 +107,7 @@ class SupportPassService
             return self::CARD_SKIN_DEFAULT;
         }
 
-        return in_array($user->selected_card_skin, [self::CARD_SKIN_DEFAULT, self::CARD_SKIN_SUPPORT_PASS], true)
+        return in_array($user->selected_card_skin, $this->selectableCardSkinValues(), true)
             ? $user->selected_card_skin
             : self::CARD_SKIN_DEFAULT;
     }
@@ -121,6 +143,13 @@ class SupportPassService
                 'selectable' => $active,
                 'button_label' => $active ? '選択する' : '冒険者支援パスで解放',
             ],
+            [
+                'value' => self::CARD_SKIN_SUPPORT_PASS_BLUE_GOLD,
+                'label' => '支援パスカード 青',
+                'description' => '青を基調にした、冒険者支援パス専用カードの色違いです。ステータスや戦闘力には影響しません。',
+                'selectable' => $active,
+                'button_label' => $active ? '選択する' : '冒険者支援パスで解放',
+            ],
         ];
     }
 
@@ -130,11 +159,11 @@ class SupportPassService
             return self::CARD_SKIN_DEFAULT;
         }
 
-        $skin = in_array($skin, [self::CARD_SKIN_DEFAULT, self::CARD_SKIN_SUPPORT_PASS], true)
+        $skin = in_array($skin, $this->selectableCardSkinValues(), true)
             ? $skin
             : self::CARD_SKIN_DEFAULT;
 
-        if ($skin === self::CARD_SKIN_SUPPORT_PASS && !$this->isActiveForCharacter($character)) {
+        if (in_array($skin, $this->supportPassCardSkins(), true) && !$this->isActiveForCharacter($character)) {
             throw new \InvalidArgumentException('支援パスカードは冒険者支援パス有効中のみ選択できます。');
         }
 
@@ -154,7 +183,7 @@ class SupportPassService
         return $this->nextExpiresAt($user)->lte($this->maxExtendUntil());
     }
 
-    public function purchaseFor(Character $character): array
+    public function purchaseFor(Character $character, ?int $priceAmount = null): array
     {
         if (!$this->enabled()) {
             return [
@@ -188,7 +217,7 @@ class SupportPassService
             'character_id' => $character->id,
             'pass_type' => self::PASS_TYPE,
             'price_currency' => 'kiseki',
-            'price_amount' => $this->priceKiseki(),
+            'price_amount' => $priceAmount ?? $this->priceKiseki(),
             'purchased_at' => now(),
             'previous_expires_at' => $previousExpiresAt,
             'new_expires_at' => $newExpiresAt,
@@ -240,6 +269,28 @@ class SupportPassService
     private function maxExtendUntil(): CarbonInterface
     {
         return now()->addDays($this->maxExtendDays());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function selectableCardSkinValues(): array
+    {
+        return [
+            self::CARD_SKIN_DEFAULT,
+            ...$this->supportPassCardSkins(),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function supportPassCardSkins(): array
+    {
+        return [
+            self::CARD_SKIN_SUPPORT_PASS,
+            self::CARD_SKIN_SUPPORT_PASS_BLUE_GOLD,
+        ];
     }
 
     private function schemaReady(): bool

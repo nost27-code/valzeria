@@ -29,6 +29,11 @@ class ExplorationStaminaServiceTest extends TestCase
                     default => $default,
                 };
             }
+
+            public function getBool(string $key, bool $default = false): bool
+            {
+                return $default;
+            }
         });
 
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-01 12:02:05'));
@@ -102,6 +107,11 @@ class ExplorationStaminaServiceTest extends TestCase
                     'exploration.stamina_cost' => 1,
                     default => $default,
                 };
+            }
+
+            public function getBool(string $key, bool $default = false): bool
+            {
+                return $default;
             }
         });
 

@@ -15,6 +15,7 @@ use App\Services\ExplorationStaminaService;
 use App\Services\SupportPassService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -24,6 +25,7 @@ class CityHeader extends Component
     public $isPlayerModalOpen = false;
     public $playerInfo = null;
     public $locationName = '';
+    public bool $showCityPanel = true;
 
     public function openPlayerModal(int $characterId)
     {
@@ -109,8 +111,9 @@ class CityHeader extends Component
         app(CharacterNotificationService::class)->markAllAsRead($character);
     }
 
-    public function mount()
+    public function mount(bool $showCityPanel = true)
     {
+        $this->showCityPanel = $showCityPanel;
         $this->determineLocationName();
     }
 
@@ -159,19 +162,7 @@ class CityHeader extends Component
         $notifications = collect();
         $unreadNotificationCount = 0;
 
-        // 5分以内にアクセスがあったプレイ中のキャラクターを表示
-        $characters = Character::with(['jobClass'])
-            ->where('last_seen_at', '>=', now()->subMinutes(5))
-            ->orderBy('last_seen_at', 'desc')
-            ->take(20)
-            ->get();
-
-        $onlinePlayers = $characters->map(function ($char) {
-            return [
-                'id' => (int) $char->id,
-                'name' => $char->name,
-            ];
-        })->toArray();
+        $onlinePlayers = $this->onlinePlayers();
 
         if ($character && Schema::hasTable('character_notifications')) {
             $notificationService = app(CharacterNotificationService::class);
@@ -194,6 +185,22 @@ class CityHeader extends Component
             'notifications' => $notifications,
             'unreadNotificationCount' => $unreadNotificationCount,
         ]);
+    }
+
+    private function onlinePlayers(): array
+    {
+        return Cache::remember('city_header_online_players_v1', now()->addSeconds(20), function (): array {
+            return Character::query()
+                ->where('last_seen_at', '>=', now()->subMinutes(5))
+                ->orderBy('last_seen_at', 'desc')
+                ->take(20)
+                ->get(['id', 'name'])
+                ->map(fn (Character $char): array => [
+                    'id' => (int) $char->id,
+                    'name' => $char->name,
+                ])
+                ->toArray();
+        });
     }
 
     private function topPlayerBar(Character $character): array
@@ -260,6 +267,11 @@ class CityHeader extends Component
         $supportPassStatus = $supportPassService->statusForCharacter($character);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
         $adventureRecords = $this->adventureRecords($character);
+        $equippedTitle = $character->titles()
+            ->where('is_equipped', true)
+            ->with('title')
+            ->first()
+            ?->title;
 
         return [
             'id' => (int) $character->id,
@@ -267,6 +279,7 @@ class CityHeader extends Component
             'name' => $character->name,
             'level' => (int) $character->level,
             'job' => $character->jobClass?->name ?? '冒険者',
+            'equipped_title' => $equippedTitle?->name ?? '未装備',
             'power' => app(CharacterPowerService::class)->fromFinalStats($stats),
             'arena_rank' => $arenaRank ? number_format($arenaRank) . '位' : '未参加',
             'arena_rank_number' => $arenaRank,

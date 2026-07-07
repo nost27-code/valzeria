@@ -44,6 +44,7 @@ class FacilityConfig
         ['slug' => 'seal_book',     'label' => '印図鑑',      'default_name' => '印図鑑',      'default_desc' => '集めた印の永続効果を確認する',               'default_icon' => 'icon/icon_240.webp'],
         ['slug' => 'titles',        'label' => '称号',        'default_name' => '称号',        'default_desc' => '獲得した称号を確認する',                     'default_icon' => 'icon/icon_242.webp'],
         ['slug' => 'valmon',        'label' => 'ヴァルモン',  'default_name' => 'ヴァルモン',  'default_desc' => '相棒ヴァルモンの確認・育成を行う',           'default_icon' => 'menu/menu_valmon.webp'],
+        ['slug' => 'equipment_change', 'label' => '装備',     'default_name' => '装備',        'default_desc' => '装備変更・保護・売却を行う',                 'default_icon' => 'icon/icon_006.webp'],
         ['slug' => 'storage',       'label' => '倉庫',        'default_name' => '倉庫',        'default_desc' => '素材や探索用アイテムを確認する',             'default_icon' => 'menu/menu_storage.webp'],
         ['slug' => 'private_chat',  'label' => '個人チャット', 'default_name' => '個人チャット', 'default_desc' => '冒険者同士でメッセージをやり取りする',     'default_icon' => 'menu/menu_messages.webp'],
         ['slug' => 'help',          'label' => 'ヘルプ',      'default_name' => 'ヘルプ',      'default_desc' => '遊び方や施設の説明を確認する',               'default_icon' => 'menu/menu_help.webp'],

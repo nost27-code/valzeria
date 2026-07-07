@@ -19,8 +19,10 @@
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">プレイヤー名</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">現在地 (街)</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">Lv (EXP)</th>
+                        <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">戦力</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">HP / SP</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">ステータス</th>
+                        <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">コピー</th>
                         <th scope="col" class="px-4 py-3 text-left font-bold tracking-wider">最終更新</th>
                     </tr>
                 </thead>
@@ -59,6 +61,10 @@
                                 <div class="mt-1 text-xs font-bold text-amber-700">職業: {{ $character->currentJob?->name ?? '未設定' }}</div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="text-base font-black text-amber-700">{{ number_format((int) ($character->admin_power ?? 0)) }}</div>
+                                <div class="text-[11px] font-bold text-slate-400">装備・職業補正込み</div>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <div class="text-green-600 font-semibold">HP: {{ $character->current_hp }} / {{ $character->hp_base }}</div>
                                 <div class="text-blue-600 font-semibold">SP: {{ $character->current_mp }} / {{ $character->mp_base }}</div>
                             </td>
@@ -67,13 +73,29 @@
                                 <div>魔力:{{ $character->magic_base }} 精神:{{ $character->spirit_base ?? 0 }}</div>
                                 <div>敏捷:{{ $character->speed_base }} 運:{{ $character->luck_base }}</div>
                             </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <button
+                                    type="button"
+                                    x-data="{ copied: false }"
+                                    x-on:click="
+                                        navigator.clipboard.writeText(@js($character->admin_tester_copy_payload ?? '{}')).then(() => {
+                                            copied = true;
+                                            setTimeout(() => copied = false, 1400);
+                                        });
+                                    "
+                                    class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    <span x-show="!copied">テスト用コピー</span>
+                                    <span x-cloak x-show="copied">コピー済み</span>
+                                </button>
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-gray-500 text-xs">
                                 {{ $character->updated_at ? $character->updated_at->format('Y/m/d H:i') : '-' }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="10" class="px-6 py-8 text-center text-gray-500">
                                 プレイヤーが見つかりませんでした。
                             </td>
                         </tr>

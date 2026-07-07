@@ -36,11 +36,11 @@ class JobArtSeeder extends Seeder
                 [
                     'job_id' => $jobId,
                     'learn_rank' => $learnRank,
-                    'name' => $name,
                     'skill_type' => 'job_art',
                 ],
                 [
                     'skill_type' => 'job_art',
+                    'name' => $name,
                     'effect_template' => $template,
                     'art_category' => $row['art_category'] ?? null,
                     'limit_group' => strtoupper((string) ($row['limit_group'] ?? 'NONE')),
@@ -67,6 +67,7 @@ class JobArtSeeder extends Seeder
                     'damage_type' => JobArtEffectCatalog::damageType($template),
                     'power_multiplier' => max(0, $power / 100),
                     'hit_count' => (int) ($row['hit_count'] ?? JobArtEffectCatalog::hitCount($template)),
+                    'hybrid_scaling' => $row['hybrid_scaling'] ?? 'average',
                     'heal_percent' => (int) ($row['heal_percent'] ?? 0),
                     'self_damage_percent' => (int) ($row['self_damage_percent'] ?? 0),
                     'enemy_atk_down_percent' => (int) ($row['enemy_atk_down_percent'] ?? 0),

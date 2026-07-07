@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
-    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService)
+    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -66,6 +66,12 @@ class InventoryController extends Controller
                 -1 * $this->itemRankSort($b),
                 (string) ($b->item?->name ?? ''),
             ])
+            ->map(function (CharacterItem $row) use ($goldService) {
+                $row->sell_price = $goldService->equipmentSalePrice($row->item);
+                $row->can_sell = $goldService->canSellEquipment($row);
+
+                return $row;
+            })
             ->values();
 
         $keyEquipmentItems = $allEquipmentItems
@@ -147,7 +153,7 @@ class InventoryController extends Controller
             'material_storage_limit' => (int) ($character->material_storage_limit ?? 500),
             'material_storage_types' => $materials->count(),
             'equipment_storage_total' => $weaponCount + $armorCount + $accessoryCount,
-            'equipment_storage_limit' => (int) ($character->equipment_storage_limit ?? 200),
+            'equipment_storage_limit' => max(300, (int) ($character->equipment_storage_limit ?? 300)),
             'key_item_total' => $ownedItemCount,
             'key_item_types' => $supportItems->count() + $keyItems->count(),
             'support_item_total' => $supportItemCount,

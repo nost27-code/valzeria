@@ -185,22 +185,34 @@
                             @endif
                             <form method="POST" action="{{ route('market.materials.list') }}"
                                   class="mt-2 flex items-center gap-1.5"
-                                  x-data="{ qty: 1, price: {{ $suggestedPrice }}, submitting: false }"
-                                  @submit="submitting = true">
+                                  x-data="{
+                                      qty: 1,
+                                      maxQty: {{ $maxQty }},
+                                      price: {{ $suggestedPrice }},
+                                      submitting: false,
+                                      normalizeQty() {
+                                          this.qty = Math.min(this.maxQty, Math.max(1, parseInt(this.qty || 1, 10)));
+                                      }
+                                  }"
+                                  @submit="normalizeQty(); submitting = true">
                                 @csrf
                                 <input type="hidden" name="material_id" value="{{ $material->id }}">
-                                <input type="hidden" name="quantity" x-model="qty">
-                                {{-- 数量ステッパー --}}
                                 <div class="flex h-8 shrink-0 overflow-hidden rounded border border-slate-300">
                                     <button type="button"
                                             class="flex w-7 items-center justify-center bg-slate-50 text-sm font-black text-slate-600 transition hover:bg-slate-100 active:scale-95 disabled:opacity-40"
-                                            @click="qty = Math.max(1, qty - 1)"
+                                            @click="normalizeQty(); qty = Math.max(1, qty - 1)"
                                             :disabled="qty <= 1">−</button>
-                                    <span class="flex w-8 items-center justify-center border-x border-slate-300 text-sm font-bold text-slate-900" x-text="qty"></span>
+                                    <input type="number" name="quantity"
+                                           x-model.number="qty"
+                                           min="1"
+                                           max="{{ $maxQty }}"
+                                           required
+                                           @blur="normalizeQty()"
+                                           class="w-12 border-x border-slate-300 text-center text-sm font-bold text-slate-900 focus:border-amber-400 focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                                     <button type="button"
                                             class="flex w-7 items-center justify-center bg-slate-50 text-sm font-black text-slate-600 transition hover:bg-slate-100 active:scale-95 disabled:opacity-40"
-                                            @click="qty = Math.min({{ $maxQty }}, qty + 1)"
-                                            :disabled="qty >= {{ $maxQty }}">＋</button>
+                                            @click="normalizeQty(); qty = Math.min(maxQty, qty + 1)"
+                                            :disabled="qty >= maxQty">＋</button>
                                 </div>
                                 {{-- 単価ステッパー（直接入力も可） --}}
                                 <div class="flex h-8 flex-1 overflow-hidden rounded border border-slate-300">

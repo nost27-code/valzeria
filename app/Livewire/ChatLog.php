@@ -2,9 +2,11 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\Attributes\On;
+use App\Models\Character;
+use App\Models\PublicLog;
 use App\Services\PublicLogService;
+use Livewire\Attributes\On;
+use Livewire\Component;
 
 class ChatLog extends Component
 {
@@ -19,6 +21,8 @@ class ChatLog extends Component
     public string $message = '';
     public string $chatTarget = 'all'; // 'all', 'private'
     public ?int $receiverId = null;
+    public ?int $editingLogId = null;
+    public string $editingMessage = '';
 
     public function mount()
     {
@@ -70,6 +74,62 @@ class ChatLog extends Component
         }
 
         $this->message = ''; // 入力欄をクリア
+    }
+
+    public function startEdit(int $logId): void
+    {
+        $character = auth()->user()->currentCharacter();
+        if (!$character) {
+            return;
+        }
+
+        $log = PublicLog::query()
+            ->whereKey($logId)
+            ->where('character_id', $character->id)
+            ->whereIn('type', ['chat', 'private'])
+            ->first();
+
+        if (!$log) {
+            return;
+        }
+
+        $this->editingLogId = (int) $log->id;
+        $this->editingMessage = (string) $log->message;
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->editingLogId = null;
+        $this->editingMessage = '';
+    }
+
+    public function updateMessage(): void
+    {
+        $this->validate([
+            'editingMessage' => 'required|string|max:100',
+        ]);
+
+        $character = auth()->user()->currentCharacter();
+        if (!$character || !$this->editingLogId) {
+            return;
+        }
+
+        $log = PublicLog::query()
+            ->whereKey($this->editingLogId)
+            ->where('character_id', $character->id)
+            ->whereIn('type', ['chat', 'private'])
+            ->first();
+
+        if (!$log) {
+            $this->cancelEdit();
+            return;
+        }
+
+        $log->forceFill([
+            'message' => $this->editingMessage,
+        ])->save();
+
+        $this->cancelEdit();
     }
 
     #[On('set-chat-reply')]
@@ -153,11 +213,16 @@ class ChatLog extends Component
             }
 
             $systemLogs[] = [
+                'id' => $log->id,
                 'type' => $log->type,
                 'message' => $displayMessage,
                 'reply_prefix' => $replyPrefix,
                 'reply_id' => $replyId,
                 'is_sender' => $isSender,
+                'can_edit' => $characterId
+                    && (int) $log->character_id === (int) $characterId
+                    && in_array($log->type, ['chat', 'private'], true),
+                'is_edited' => $log->updated_at && $log->created_at && $log->updated_at->gt($log->created_at->copy()->addSecond()),
                 'time' => $log->created_at ? $log->created_at->format('H:i') : date('H:i'),
             ];
 
@@ -167,14 +232,24 @@ class ChatLog extends Component
             }
         }
 
-        // 宛先リストの取得（個人チャット用：自分以外の全キャラクターを簡易的に取得）
-        // プレイヤー数が増えると重くなるため、将来的にはログイン中のみにする等の工夫が必要
         $availableReceivers = [];
-        if ($characterId) {
-            $availableReceivers = \App\Models\Character::where('id', '!=', $characterId)
+        if ($characterId && $this->shouldLoadReceivers()) {
+            $availableReceivers = Character::where('id', '!=', $characterId)
                 ->orderBy('updated_at', 'desc')
                 ->limit(100) // 直近アクティブな100人など
                 ->get(['id', 'name']);
+
+            if ($this->receiverId
+                && ! $availableReceivers->contains('id', (int) $this->receiverId)) {
+                $selectedReceiver = Character::query()
+                    ->whereKey($this->receiverId)
+                    ->where('id', '!=', $characterId)
+                    ->first(['id', 'name']);
+
+                if ($selectedReceiver) {
+                    $availableReceivers->prepend($selectedReceiver);
+                }
+            }
             
             // デフォルトの受信者をセット
             if (!$this->receiverId && $availableReceivers->isNotEmpty()) {
@@ -186,5 +261,11 @@ class ChatLog extends Component
             'systemLogs' => $systemLogs,
             'availableReceivers' => $availableReceivers,
         ]);
+    }
+
+    private function shouldLoadReceivers(): bool
+    {
+        return $this->chatTarget === 'private'
+            || $this->activeTab === 'private';
     }
 }

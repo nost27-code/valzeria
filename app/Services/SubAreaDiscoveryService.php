@@ -117,16 +117,23 @@ class SubAreaDiscoveryService
         });
     }
 
-    public function discoveredRoutes(Character $character)
+    public function discoveredRoutes(Character $character, ?int $cityId = null)
     {
         if (! $this->tablesReady()) {
             return collect();
         }
 
-        return CharacterSubAreaRouteDiscovery::with(['route.subArea', 'route.sourceArea'])
+        $query = CharacterSubAreaRouteDiscovery::with(['route.subArea', 'route.sourceArea'])
             ->where('character_id', $character->id)
-            ->orderByDesc('discovered_at')
-            ->get();
+            ->orderByDesc('discovered_at');
+
+        if ($cityId) {
+            $query->whereHas('route.sourceArea', function ($areaQuery) use ($cityId): void {
+                $areaQuery->where('city_id', $cityId);
+            });
+        }
+
+        return $query->get();
     }
 
     private function bossRequirementMet(Character $character, SubAreaRoute $route): bool

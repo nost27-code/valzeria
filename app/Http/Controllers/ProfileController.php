@@ -60,7 +60,11 @@ class ProfileController extends Controller
         ];
 
         if ($supportPassService->storageReady()) {
-            $rules['selected_card_skin'] = ['required', 'string', Rule::in([SupportPassService::CARD_SKIN_DEFAULT, SupportPassService::CARD_SKIN_SUPPORT_PASS])];
+            $rules['selected_card_skin'] = ['required', 'string', Rule::in([
+                SupportPassService::CARD_SKIN_DEFAULT,
+                SupportPassService::CARD_SKIN_SUPPORT_PASS,
+                SupportPassService::CARD_SKIN_SUPPORT_PASS_BLUE_GOLD,
+            ])];
         }
 
         $validated = $request->validate($rules);

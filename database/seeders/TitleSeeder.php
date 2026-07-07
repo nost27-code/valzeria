@@ -115,6 +115,16 @@ class TitleSeeder extends Seeder
             [98, 'job_rank', 'legendary', '伝説職の継承者', '初めて伝説職に転職する', '限られた冒険者だけが進める伝説職へ到達しよう。', 'first_rank_job', 'rank', 'Legend', '職業マスタ/伝説職条件', 98, true],
             [99, 'job_master', 'legendary', '職を極めし冒険者', '累計10職業をマスターする', 'さまざまな職業を経験し、10の職業を極めよう。', 'job_master_count', 'count', '10', '職業マスタ', 99, true],
             [100, 'job_master', 'mythic', '万職不敗の求道者', '全職業をマスターする', 'ヴァルゼリアに存在するすべての職業を極めよう。', 'all_jobs_master', 'all_jobs', '0', '職業マスタ', 100, true],
+            [101, '星樹の塔', 'normal', '星梯の一歩', '星樹の塔10階を踏破した証。', '星樹の塔10階を踏破する', 'tower_floor_clear', 'tower_floor', '10', 'star_tree_tower', 1110, false],
+            [102, '星樹の塔', 'normal', '若葉を越えし者', '星樹の塔20階を踏破した証。', '星樹の塔20階を踏破する', 'tower_floor_clear', 'tower_floor', '20', 'star_tree_tower', 1120, false],
+            [103, '星樹の塔', 'rare', '風枝の踏破者', '星樹の塔30階を踏破した証。', '星樹の塔30階を踏破する', 'tower_floor_clear', 'tower_floor', '30', 'star_tree_tower', 1130, false],
+            [104, '星樹の塔', 'rare', '星灯を掲げる者', '星樹の塔40階を踏破した証。', '星樹の塔40階を踏破する', 'tower_floor_clear', 'tower_floor', '40', 'star_tree_tower', 1140, false],
+            [105, '星樹の塔', 'epic', '天冠へ届く者', '星樹の塔50階を踏破した証。', '星樹の塔50階を踏破する', 'tower_floor_clear', 'tower_floor', '50', 'star_tree_tower', 1150, false],
+            [106, '星樹の塔', 'epic', '星天の登攀者', '星樹の塔60階を踏破した証。', '星樹の塔60階を踏破する', 'tower_floor_clear', 'tower_floor', '60', 'star_tree_tower', 1160, false],
+            [107, '星樹の塔', 'epic', '高枝を渡る者', '星樹の塔70階を踏破した証。', '星樹の塔70階を踏破する', 'tower_floor_clear', 'tower_floor', '70', 'star_tree_tower', 1170, false],
+            [108, '星樹の塔', 'legendary', '天葉の導き手', '星樹の塔80階を踏破した証。', '星樹の塔80階を踏破する', 'tower_floor_clear', 'tower_floor', '80', 'star_tree_tower', 1180, false],
+            [109, '星樹の塔', 'legendary', '星梯の極致', '星樹の塔90階を踏破した証。', '星樹の塔90階を踏破する', 'tower_floor_clear', 'tower_floor', '90', 'star_tree_tower', 1190, false],
+            [110, '星樹の塔', 'legendary', '星樹の頂に立つ者', '星樹の塔100階を踏破した証。', '星樹の塔100階を踏破する', 'tower_floor_clear', 'tower_floor', '100', 'star_tree_tower', 1200, false],
         ];
 
         $insertData = [];

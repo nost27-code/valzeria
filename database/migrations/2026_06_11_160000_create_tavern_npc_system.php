@@ -138,7 +138,7 @@ return new class extends Migration
             [61, '始まりの英雄アレス', 'legend', 'total_job_master_count', '3', '伝説職ヒント', '三英雄の師'],
             [62, '深淵歩きのセツナ', 'legend', 'hidden_area_count', '2', '深淵歩き導線', '放浪のヤマトの旧友'],
             [63, '古代錬成王ドワルド', 'legend', 'hidden_area_count', '3', '古代錬成王導線', '機工王バルカンの師匠格'],
-            [64, '竜神の巫女リュシア', 'legend', 'cleared_city_id', '9', '竜神導線', '竜騎士ヴァイスが守護している'],
+            [64, '竜神の巫女リュシア', 'legend', 'cleared_city_id', '9', '蒼竜王導線', '竜騎士ヴァイスが守護している'],
             [65, '時空王クロノス', 'legend', 'hidden_area_count', '4', '時空王導線', '幻影王シグレが追っている存在'],
             [66, '名もなき勇者', 'legend', 'defeated_final_boss', '1', 'エンド後導線', '始まりの英雄アレスの最後の弟子'],
             [67, '魔王軍離反者ヴェルン', 'legend', 'defeated_final_boss', '1', '魔王軍情報', '終焉帰りのレギウスと因縁がある'],
@@ -180,3 +180,4 @@ return new class extends Migration
         );
     }
 };
+

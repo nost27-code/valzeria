@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Schema;
 
 class Character extends Model
 {
@@ -14,6 +15,10 @@ class Character extends Model
     protected static function booted(): void
     {
         static::creating(function (Character $character): void {
+            if (Schema::hasColumn('characters', 'equipment_storage_limit') && $character->equipment_storage_limit === null) {
+                $character->equipment_storage_limit = 300;
+            }
+
             if ($character->explore_stamina !== null) {
                 return;
             }
@@ -233,5 +238,20 @@ class Character extends Model
     public function arenaDefenseLogs()
     {
         return $this->hasMany(ArenaLog::class, 'defender_id');
+    }
+
+    public function towerRuns()
+    {
+        return $this->hasMany(TowerRun::class);
+    }
+
+    public function towerWeeklyRecords()
+    {
+        return $this->hasMany(TowerWeeklyRecord::class);
+    }
+
+    public function towerCharacterRecords()
+    {
+        return $this->hasMany(TowerCharacterRecord::class);
     }
 }

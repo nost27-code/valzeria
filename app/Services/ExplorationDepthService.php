@@ -86,20 +86,23 @@ class ExplorationDepthService
 
     public function activeTierFor(Character $character, Area $area, int $explorationPoint, int $dangerRate): array
     {
-        $active = self::TIERS[0];
-
-        foreach (self::TIERS as $tier) {
-            $key = (string) ($tier['key'] ?? 'surface');
-            if ($key === 'surface' || $explorationPoint < (int) ($tier['min_point'] ?? 0)) {
-                continue;
-            }
-
-            if (session()->get($this->enteredSessionKey($character, (int) $area->id, $key))) {
-                $active = $tier;
-            }
+        $state = app(ExplorationStateService::class)->currentFor($character);
+        if (!$state || (int) $state->area_id !== (int) $area->id) {
+            return self::TIERS[0];
         }
 
-        return $active;
+        // 到達済みの深度は中断・再開やセッション切れをまたいでも失われないよう、
+        // セッションではなく character_exploration_states.depth_tier に永続化して参照する。
+        $storedKey = (string) ($state->depth_tier ?? 'surface');
+        $stored = $this->tierByKey($storedKey) ?? self::TIERS[0];
+
+        // 探索度がその階層の到達条件を満たしていない場合（データ不整合時の保険）は、
+        // 実際の探索度から見て妥当な階層まで引き下げる。
+        if ($explorationPoint < (int) ($stored['min_point'] ?? 0)) {
+            return $this->tierFor($explorationPoint, $dangerRate);
+        }
+
+        return $stored;
     }
 
     public function nextReachableTierFor(Character $character, Area $area, int $explorationPoint, int $dangerRate): ?array
@@ -136,15 +139,26 @@ class ExplorationDepthService
 
     public function markEntered(Character $character, int $areaId, string $depthKey): void
     {
-        if ($depthKey !== '' && $depthKey !== 'surface') {
-            $key = $this->enteredSessionKey($character, $areaId, $depthKey);
-            $wasEntered = (bool) session()->get($key, false);
+        if ($depthKey === '' || $depthKey === 'surface') {
+            return;
+        }
 
-            session([$key => true]);
+        $stateService = app(ExplorationStateService::class);
+        $state = $stateService->currentFor($character);
+        if (!$state || (int) $state->area_id !== $areaId) {
+            return;
+        }
 
-            if (!$wasEntered) {
-                app(ExplorationStateService::class)->resetDangerForDepthEntrance($character, $areaId);
-            }
+        $currentKey = (string) ($state->depth_tier ?? 'surface');
+        if ($currentKey === $depthKey) {
+            return;
+        }
+
+        // 到達済み階層は character_exploration_states.depth_tier に永続化し、
+        // 中断・再開やセッション切れがあっても引き返し時に表層まで戻らないようにする。
+        if ($this->tierIndex($depthKey) > $this->tierIndex($currentKey)) {
+            $state->forceFill(['depth_tier' => $depthKey])->save();
+            $stateService->resetDangerForDepthEntrance($character, $areaId);
         }
     }
 
@@ -162,14 +176,6 @@ class ExplorationDepthService
         }
 
         return (bool) session()->get($this->handledSessionKey($character, (int) $area->id, $depthKey), false);
-    }
-
-    private function enteredSessionKey(Character $character, int $areaId, string $depthKey): string
-    {
-        $state = app(ExplorationStateService::class)->currentFor($character);
-        $startedAt = $state?->started_at ? $state->started_at->timestamp : 0;
-
-        return "depth_gate_entered:{$character->id}:{$areaId}:{$depthKey}:{$startedAt}";
     }
 
     private function handledSessionKey(Character $character, int $areaId, string $depthKey): string

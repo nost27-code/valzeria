@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
 class DiscoveryService
 {
     private const DEVELOPMENT_GAIN_PER_VICTORY = 10;
-    private const MAX_DEVELOPMENT_POINT = 100;
+    private const DEFAULT_MAX_DEVELOPMENT_POINT = 100;
 
     public function ensureInitialDiscoveries(Character $character): void
     {
@@ -163,7 +163,8 @@ class DiscoveryService
 
         $progress = $this->progressFor($character, $area);
         $before = (int) $progress->development_point;
-        $after = min(self::MAX_DEVELOPMENT_POINT, $before + self::DEVELOPMENT_GAIN_PER_VICTORY);
+        $maxDevelopmentPoint = $this->maxDevelopmentPointFor($area);
+        $after = min($maxDevelopmentPoint, $before + self::DEVELOPMENT_GAIN_PER_VICTORY);
 
         if ($after !== $before) {
             $progress->development_point = $after;
@@ -181,7 +182,7 @@ class DiscoveryService
                 'before' => $before,
                 'after' => $after,
                 'gained' => max(0, $after - $before),
-                'max' => self::MAX_DEVELOPMENT_POINT,
+                'max' => $maxDevelopmentPoint,
             ],
             'discoveries' => $discoveries,
         ];
@@ -359,6 +360,21 @@ class DiscoveryService
                 || (int) $sourceProgress->development_point >= (int) $link->required_development_point,
             default => false,
         };
+    }
+
+    private function maxDevelopmentPointFor(Area $area): int
+    {
+        $fromType = $area->is_route_area ? 'route_area' : 'area';
+        $linkRequiredPoint = (int) AreaDiscoveryLink::where('from_type', $fromType)
+            ->where('from_id', (int) $area->id)
+            ->whereIn('condition_type', ['development_point', 'boss_or_development'])
+            ->max('required_development_point');
+
+        return max(
+            self::DEFAULT_MAX_DEVELOPMENT_POINT,
+            (int) ($area->development_required_point ?? 0),
+            $linkRequiredPoint
+        );
     }
 
     private function isTargetDiscovered(Character $character, AreaDiscoveryLink $link): bool

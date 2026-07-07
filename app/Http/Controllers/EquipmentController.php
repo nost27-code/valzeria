@@ -272,6 +272,7 @@ class EquipmentController extends Controller
         $tab = $characterItem->item ? $equipmentService->getAccessoryTab($characterItem->item) : 'weapon';
         $character = Auth::user()->currentCharacter();
         $mode = 'inventory';
+        $redirectRoute = $request->boolean('return_to_inventory') ? 'inventory.index' : 'equipment.index';
 
         if (!$character || (int) $characterItem->character_id !== (int) $character->id) {
             $message = 'この装備は所持していません。';
@@ -287,7 +288,7 @@ class EquipmentController extends Controller
                 ], 404);
             }
 
-            return redirect()->route('equipment.index')
+            return redirect()->route($redirectRoute)
                 ->with('error', $message)
                 ->with('activeMode', $mode)
                 ->with('activeTab', $tab);
@@ -310,7 +311,7 @@ class EquipmentController extends Controller
                 ], 422);
             }
 
-            return redirect()->route('equipment.index')
+            return redirect()->route($redirectRoute)
                 ->with('error', $message)
                 ->with('activeMode', $mode)
                 ->with('activeTab', $tab);
@@ -327,7 +328,7 @@ class EquipmentController extends Controller
             ]);
         }
 
-        return redirect()->route('equipment.index')
+        return redirect()->route($redirectRoute)
             ->with('status', $message)
             ->with('activeMode', $mode)
             ->with('activeTab', $tab);
@@ -371,7 +372,7 @@ class EquipmentController extends Controller
     private function attachSortValues(CharacterItem $characterItem, EquipmentService $equipmentService): CharacterItem
     {
         $item = $characterItem->item;
-        $rank = $this->rankValue($item->rarity ?? null);
+        $rank = $this->itemRankSort($item);
 
         $str = (int) ($item->str_bonus ?? 0) + (int) ($characterItem->affix_str_bonus ?? 0);
         $def = (int) ($item->def_bonus ?? 0) + (int) ($characterItem->affix_def_bonus ?? 0);
@@ -416,23 +417,41 @@ class EquipmentController extends Controller
         return $special + $agi + $luk + ($hp * 0.02) + $balancedBonus;
     }
 
-    private function rankValue(?string $rarity): int
+    private function itemRankSort($item): int
     {
-        $rarity = strtolower((string) $rarity);
+        if (!$item) {
+            return 0;
+        }
+
+        $storedRank = match ($item->type) {
+            'weapon' => $item->weapon_rank_sort,
+            'armor' => $item->armor_rank_sort,
+            'accessory' => $item->accessory_rank_sort,
+            default => null,
+        };
+
+        if ($storedRank !== null) {
+            return (int) $storedRank;
+        }
+
+        $rarity = strtolower((string) ($item->rarity ?? ''));
         $map = [
             'normal' => 0,
-            'f' => 1,
-            'e' => 2,
-            'd' => 3,
-            'c' => 4,
-            'b' => 5,
-            'a' => 6,
-            's' => 7,
-            'rare' => 8,
-            'epic' => 9,
-            'legend' => 10,
-            'legendary' => 10,
-            'mythic' => 11,
+            'g' => 1,
+            'f' => 2,
+            'e' => 3,
+            'd' => 4,
+            'c' => 5,
+            'b' => 6,
+            'a' => 7,
+            's' => 8,
+            'ss' => 9,
+            'sss' => 10,
+            'rare' => 10,
+            'epic' => 11,
+            'legend' => 11,
+            'legendary' => 11,
+            'mythic' => 12,
         ];
 
         return $map[$rarity] ?? 0;

@@ -17,6 +17,8 @@
     'headerBorderClass' => null,
     'pageBgImage' => null,
     'pageBgOverlay' => 'bg-black/50',
+    'showGameHeader' => false,
+    'gameHeaderShowCityPanel' => true,
 ])
 
 <!DOCTYPE html>
@@ -52,6 +54,9 @@
         <title>{{ $title ?? '施設' }} - ヴァルゼリアの冒険者</title>
         <link rel="icon" href="{{ asset('images/favicon.webp') }}?v=2" type="image/webp">
         @include('partials.ogp', ['ogTitle' => ($title ?? '施設') . ' - ヴァルゼリアの冒険者'])
+        @if($pageBgImage)
+            <link rel="preload" as="image" href="{{ asset($pageBgImage) }}" fetchpriority="high">
+        @endif
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -65,12 +70,19 @@
     </head>
     @php
         $bodyStyle = $pageBackgroundStyle ?? '';
-        if ($pageBgImage) {
-            $bodyStyle = "background-image: url('" . asset($pageBgImage) . "'); background-size: cover; background-position: center; background-attachment: fixed;";
-        }
     @endphp
     <body class="relative font-sans antialiased {{ $pageBgImage ? '' : $pageBackgroundClass }} text-slate-800 min-h-screen flex flex-col overflow-x-hidden" @if($bodyStyle) style="{{ $bodyStyle }}" @endif>
         @if($pageBgImage)
+            <img
+                src="{{ asset($pageBgImage) }}"
+                alt=""
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
+                onload="window.__facilityBgReady = true; window.dispatchEvent(new CustomEvent('facility-bg-loaded')); this.classList.add('opacity-100')"
+                class="fixed inset-0 z-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 ease-out"
+                aria-hidden="true"
+            >
             <div class="fixed inset-0 z-0 {{ $pageBgOverlay }}" aria-hidden="true"></div>
         @endif
         @php
@@ -86,6 +98,11 @@
             $exitLabel = $exitLabel ?: ($isBattleResult ? '戦利品を持って帰る' : $facilityBaseName . 'から出る');
         @endphp
         <x-pwa-install-banner />
+        @if($showGameHeader)
+            <div class="relative z-10 mx-auto w-full max-w-screen-2xl px-2 pt-4 sm:px-4 sm:pt-6 lg:px-6">
+                <livewire:city-header :show-city-panel="$gameHeaderShowCityPanel" />
+            </div>
+        @endif
         @if($backgroundSymbolImage)
             <div class="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden lg:hidden" aria-hidden="true">
                 <img

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\AdminItemGrantLog;
 use App\Models\Character;
 use App\Models\CharacterConsumableItem;
 use App\Models\CharacterItem;
@@ -22,7 +23,7 @@ class PlayerControlManager extends Component
     public string $search = '';
     public ?int $selectedCharacterId = null;
     public int $materialStorageLimit = 300;
-    public int $equipmentStorageLimit = 200;
+    public int $equipmentStorageLimit = 300;
     public string $grantType = 'material';
     public string $grantSearch = '';
     public string $grantTargetId = '';
@@ -41,7 +42,7 @@ class PlayerControlManager extends Component
 
         $this->selectedCharacterId = (int) $character->id;
         $this->materialStorageLimit = max(1, (int) ($character->material_storage_limit ?? 500));
-        $this->equipmentStorageLimit = max(1, (int) ($character->equipment_storage_limit ?? 200));
+        $this->equipmentStorageLimit = max(300, (int) ($character->equipment_storage_limit ?? 300));
     }
 
     public function updatedGrantType(): void
@@ -124,7 +125,7 @@ class PlayerControlManager extends Component
     {
         $this->validate([
             'selectedCharacterId' => ['required', 'integer', 'exists:characters,id'],
-            'grantType' => ['required', 'in:material,equipment,exploration_item,support_item'],
+            'grantType' => ['required', 'in:material,equipment,weapon,armor,accessory,exploration_item,support_item'],
             'grantTargetId' => ['required', 'string'],
             'grantQuantity' => ['required', 'integer', 'min:1', 'max:9999'],
             'grantEnhanceLevel' => ['required', 'integer', 'min:0', 'max:999'],
@@ -134,7 +135,7 @@ class PlayerControlManager extends Component
         $message = DB::transaction(function () use ($character) {
             return match ($this->grantType) {
                 'material' => $this->grantMaterial($character),
-                'equipment' => $this->grantEquipment($character),
+                'equipment', 'weapon', 'armor', 'accessory' => $this->grantEquipment($character),
                 'exploration_item' => $this->grantExplorationItem($character),
                 'support_item' => $this->grantSupportItem($character),
             };
@@ -223,6 +224,7 @@ class PlayerControlManager extends Component
             'grantTypeLabels' => $this->grantTypeLabels(),
             'controlIdeas' => $this->controlIdeas(),
             'kisekiGrantHistory' => $this->kisekiGrantHistory($selectedCharacter),
+            'itemGrantHistory' => $this->itemGrantHistory($selectedCharacter),
             'newcomerGiftSummary' => $newcomerRegistrationCampaignService->summary(syncPending: true),
         ])->layout('components.layouts.admin');
     }
@@ -257,7 +259,7 @@ class PlayerControlManager extends Component
         return [
             ['label' => '倉庫上限', 'state' => '実装済み', 'body' => '素材倉庫・装備倉庫の上限を個別に調整できます。'],
             ['label' => '探索クールタイム', 'state' => '実装済み', 'body' => '不具合救済やテスト用に探索待機を解除できます。'],
-            ['label' => 'アイテム送付', 'state' => '実装済み', 'body' => '素材・装備・探索用アイテム・サポートアイテムを送付できます。'],
+            ['label' => 'アイテム送付', 'state' => '実装済み', 'body' => '素材・武器・防具・装飾・探索用アイテム・サポートアイテムを送付できます。'],
             ['label' => 'HP/SP回復', 'state' => '候補', 'body' => '問い合わせ対応や検証用に現在HP/SPを回復できます。'],
             ['label' => '輝石付与', 'state' => '実装済み', 'body' => '有償輝石として付与し、課金監査ログと通知ベルに記録します。'],
             ['label' => '進行復旧', 'state' => '候補', 'body' => '街・エリア解放・ボス討伐状態を個別に確認して復旧できます。'],
@@ -291,10 +293,23 @@ class PlayerControlManager extends Component
     {
         return [
             'material' => '素材',
-            'equipment' => '装備',
+            'weapon' => '武器',
+            'armor' => '防具',
+            'accessory' => '装飾',
             'exploration_item' => '探索アイテム',
             'support_item' => 'サポートアイテム',
         ];
+    }
+
+    private function equipmentTypesForGrant(): ?array
+    {
+        return match ($this->grantType) {
+            'weapon' => ['weapon'],
+            'armor' => ['armor'],
+            'accessory' => ['accessory'],
+            'equipment' => ['weapon', 'armor', 'accessory'],
+            default => null,
+        };
     }
 
     private function kisekiGrantHistory(?Character $character): Collection
@@ -312,13 +327,27 @@ class PlayerControlManager extends Component
             ->get();
     }
 
+    private function itemGrantHistory(?Character $character): Collection
+    {
+        if (!$character) {
+            return collect();
+        }
+
+        return AdminItemGrantLog::query()
+            ->with('adminUser')
+            ->where('character_id', $character->id)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get();
+    }
+
     private function grantCandidates(): Collection
     {
         $keyword = trim($this->grantSearch);
 
         return match ($this->grantType) {
-            'equipment' => Item::query()
-                ->whereIn('type', ['weapon', 'armor', 'accessory'])
+            'equipment', 'weapon', 'armor', 'accessory' => Item::query()
+                ->whereIn('type', $this->equipmentTypesForGrant() ?? ['weapon', 'armor', 'accessory'])
                 ->when($keyword !== '', fn ($query) => $query->where(function ($inner) use ($keyword) {
                     $inner->where('name', 'like', "%{$keyword}%")
                         ->orWhere('external_item_id', 'like', "%{$keyword}%");
@@ -387,13 +416,25 @@ class PlayerControlManager extends Component
             ['quantity' => 0]
         );
         $row->increment('quantity', $this->grantQuantity);
+        $this->recordItemGrant($character, [
+            'grant_type' => 'material',
+            'target_type' => 'material',
+            'target_id' => (string) $material->id,
+            'target_name' => $material->name,
+            'quantity' => $this->grantQuantity,
+            'metadata' => [
+                'material_code' => $material->material_code,
+                'category' => $material->category,
+            ],
+        ]);
 
         return "{$character->name} に {$material->name} x{$this->grantQuantity} を送付しました。";
     }
 
     private function grantEquipment(Character $character): string
     {
-        $item = Item::whereIn('type', ['weapon', 'armor', 'accessory'])->findOrFail((int) $this->grantTargetId);
+        $item = Item::whereIn('type', $this->equipmentTypesForGrant() ?? ['weapon', 'armor', 'accessory'])
+            ->findOrFail((int) $this->grantTargetId);
         for ($i = 0; $i < $this->grantQuantity; $i++) {
             CharacterItem::create([
                 'character_id' => $character->id,
@@ -407,6 +448,19 @@ class PlayerControlManager extends Component
         }
 
         $enhanceText = $this->grantEnhanceLevel > 0 ? " +{$this->grantEnhanceLevel}" : '';
+        $this->recordItemGrant($character, [
+            'grant_type' => $this->grantType,
+            'target_type' => 'item',
+            'target_id' => (string) $item->id,
+            'target_name' => $item->name,
+            'quantity' => $this->grantQuantity,
+            'enhance_level' => $this->grantEnhanceLevel,
+            'metadata' => [
+                'item_type' => $item->type,
+                'external_item_id' => $item->external_item_id,
+                'rarity' => $item->rarity,
+            ],
+        ]);
 
         return "{$character->name} に {$item->name}{$enhanceText} x{$this->grantQuantity} を送付しました。";
     }
@@ -427,6 +481,17 @@ class PlayerControlManager extends Component
                 'acquired_from' => 'admin_grant',
             ]);
         }
+        $this->recordItemGrant($character, [
+            'grant_type' => 'exploration_item',
+            'target_type' => 'item',
+            'target_id' => (string) $item->id,
+            'target_name' => $item->name,
+            'quantity' => $this->grantQuantity,
+            'metadata' => [
+                'item_type' => $item->type,
+                'external_item_id' => $item->external_item_id,
+            ],
+        ]);
 
         return "{$character->name} に {$item->name} x{$this->grantQuantity} を送付しました。";
     }
@@ -448,8 +513,34 @@ class PlayerControlManager extends Component
             ['quantity' => 0]
         );
         $row->increment('quantity', $this->grantQuantity);
+        $this->recordItemGrant($character, [
+            'grant_type' => 'support_item',
+            'target_type' => 'support_item',
+            'target_id' => $this->grantTargetId,
+            'target_name' => $item['name'] ?? $this->grantTargetId,
+            'quantity' => $this->grantQuantity,
+            'metadata' => [
+                'category' => $item['category'] ?? null,
+                'effect_type' => $item['effect_type'] ?? null,
+            ],
+        ]);
 
         return "{$character->name} に {$item['name']} x{$this->grantQuantity} を送付しました。";
+    }
+
+    private function recordItemGrant(Character $character, array $attributes): void
+    {
+        AdminItemGrantLog::create([
+            'character_id' => $character->id,
+            'admin_user_id' => auth()->id(),
+            'grant_type' => $attributes['grant_type'],
+            'target_type' => $attributes['target_type'],
+            'target_id' => $attributes['target_id'],
+            'target_name' => $attributes['target_name'],
+            'quantity' => $attributes['quantity'],
+            'enhance_level' => $attributes['enhance_level'] ?? null,
+            'metadata' => $attributes['metadata'] ?? null,
+        ]);
     }
 
 }

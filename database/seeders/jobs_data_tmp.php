@@ -1302,7 +1302,7 @@ $jobs = [
     [
         'data' => [
             'key' => 'valzeria_hero',
-            'name' => 'ヴァルゼリアの英雄',
+            'name' => 'ヴァルゼリアの救世主',
             'rank' => 'legend',
             'description' => '時代を超え、語り継がれる名。その存在自体が、世界への希望だ。',
             'max_job_level' => 10,
@@ -1413,7 +1413,7 @@ $jobs = [
     [
         'data' => [
             'key' => 'dragon_god',
-            'name' => '竜神',
+            'name' => '蒼竜王',
             'rank' => 'legend',
             'description' => '竜の神格に目覚めた者。その力の前に、世界は色を失う。',
             'max_job_level' => 10,
@@ -1485,3 +1485,4 @@ $jobs = [
         'req_item' => '時空結晶',
     ],
 ];
+

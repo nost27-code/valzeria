@@ -29,12 +29,35 @@
                 </div>
             </div>
 
-            <div class="mt-4 space-y-3" x-data="{ activeContext: 'normal' }">
+            <div
+                class="mt-4 space-y-3"
+                x-data="{
+                    activeContext: 'normal',
+                    activeContextStorageKey: 'valzeria.jobArtActiveContext.v1',
+                    init() {
+                        try {
+                            const savedContext = localStorage.getItem(this.activeContextStorageKey);
+                            if (['normal', 'boss'].includes(savedContext)) {
+                                this.activeContext = savedContext;
+                            }
+                        } catch (error) {}
+                    },
+                    setActiveContext(context) {
+                        this.activeContext = context;
+                        try {
+                            localStorage.setItem(this.activeContextStorageKey, context);
+                        } catch (error) {}
+                        if (window.jobArtClearTarget) {
+                            window.jobArtClearTarget();
+                        }
+                    },
+                }"
+            >
                 <div class="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
                     @foreach($slotContextLabels as $slotContext => $slotContextLabel)
                         <button
                             type="button"
-                            @click="activeContext = @js($slotContext)"
+                            @click="setActiveContext(@js($slotContext))"
                             class="rounded-md px-3 py-1.5 text-sm font-black transition-colors"
                             :class="activeContext === @js($slotContext) ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
                         >
@@ -51,143 +74,21 @@
                     <div x-show="activeContext === @js($slotContext)" class="space-y-2">
                         <p class="text-[11px] font-bold leading-relaxed text-slate-400">{{ $slotContextDescriptions[$slotContext] ?? '' }}</p>
 
-                        @for($slotNo = 1; $slotNo <= 3; $slotNo++)
-                            @php
-                                $slot = $contextSlots->firstWhere('slot_no', $slotNo);
-                                $selectedId = (int) ($slot?->skill_id ?? 0);
-                                $slotPolicy = (string) ($slot?->activation_policy ?? 'normal');
-                                $slotPolicy = array_key_exists($slotPolicy, $activationPolicyLabels) ? $slotPolicy : 'normal';
-                                $slotArt = $contextArts->firstWhere('id', $selectedId) ?: $allAvailableArts->firstWhere('id', $selectedId);
-                                $hasArt = $slotArt !== null;
-                                $artCost = $hasArt ? (int) $slotArt->art_cost : 0;
-                                $artOrigin = $hasArt ? ($slotArt->getAttribute('job_art_origin') ?: 'current') : '';
-                                $artSpCost = $hasArt ? $slotArt->jobArtSpCostForMaxSp($maxSp, $artOrigin) : 0;
-                                $costBadgeClass = match ($artCost) {
-                                    1 => 'bg-emerald-50 text-emerald-700',
-                                    2 => 'bg-sky-50 text-sky-700',
-                                    3 => 'bg-amber-50 text-amber-800',
-                                    default => 'bg-slate-100 text-slate-600',
-                                };
-                            @endphp
-
-                            <div
-                                x-data="{
-                                    editing: {{ $hasArt ? 'false' : 'true' }},
-                                    policy: @js($slotPolicy),
-                                    policyDescriptions: @js($activationPolicyDescriptions),
-                                    query: '',
-                                    saving: false,
-                                    async save(skillId, policy) {
-                                        this.saving = true;
-                                        try {
-                                            const formData = new FormData();
-                                            if (skillId) formData.append('skill_id', skillId);
-                                            formData.append('slot_no', '{{ $slotNo }}');
-                                            formData.append('slot_context', @js($slotContext));
-                                            formData.append('activation_policy', policy || 'normal');
-                                            const response = await fetch(@js(route('job-arts.slot-set')), {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Accept': 'application/json',
-                                                    'X-CSRF-TOKEN': @js(csrf_token()),
-                                                    'X-Requested-With': 'XMLHttpRequest',
-                                                },
-                                                body: formData,
-                                            });
-                                            const payload = await response.json().catch(() => ({}));
-                                            if (!response.ok) {
-                                                throw new Error(payload.message || '保存できませんでした。');
-                                            }
-                                            window.location.reload();
-                                        } catch (error) {
-                                            alert(error.message || '保存できませんでした。');
-                                            this.saving = false;
-                                        }
-                                    },
-                                }"
-                                class="rounded-lg border border-slate-100 bg-white px-3 py-2.5"
-                                :class="{ 'opacity-50 pointer-events-none': saving }"
-                            >
-                                <div class="mb-1.5 flex items-center justify-between gap-2">
-                                    <span class="text-[10px] font-black tracking-widest text-slate-300">SLOT {{ $slotNo }}</span>
-                                    @if($hasArt)
-                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-black {{ $costBadgeClass }}">Cost {{ $artCost }}</span>
-                                    @else
-                                        <span class="text-[11px] font-bold text-slate-300">未設定</span>
-                                    @endif
-                                </div>
-                                @if($hasArt)
-                                    <div x-show="!editing" class="flex items-start justify-between gap-2">
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-baseline gap-1.5 flex-wrap">
-                                                <span class="text-[15px] font-black text-slate-900">{{ $slotArt->name }}</span>
-                                                <span class="shrink-0 text-[10px] font-black {{ $artOrigin === 'current' ? 'text-amber-600' : 'text-indigo-600' }}">{{ $artOrigin === 'current' ? '本職' : '継承' }}</span>
-                                            </div>
-                                            <div class="mt-0.5 text-[11px] font-bold text-slate-400">{{ $slotArt->jobClass?->name ?? '職業' }} · Rank{{ $slotArt->learn_rank }} · SP{{ $artSpCost }} · {{ $activationPolicyLabels[$slotPolicy] ?? '通常' }}</div>
-                                        </div>
-                                        <button type="button" @click="editing = true"
-                                            class="shrink-0 mt-0.5 text-[11px] font-black text-slate-400 hover:text-slate-700 transition-colors">
-                                            変更
-                                        </button>
-                                    </div>
-                                @endif
-                                <div x-show="editing" class="space-y-2">
-                                    <input
-                                        type="text"
-                                        x-model="query"
-                                        placeholder="奥義名・職業名で検索"
-                                        class="w-full rounded-md bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 placeholder:text-slate-300"
-                                    >
-                                    <div class="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-md bg-slate-50/60">
-                                        <label class="block" x-show="!query">
-                                            <input type="radio" name="{{ $slotContext }}_slot_{{ $slotNo }}_picker" value="" class="peer sr-only" @checked($selectedId === 0) @change="save(null, policy)">
-                                            <span class="block px-2 py-2 text-xs font-bold text-slate-400 cursor-pointer hover:bg-slate-100 peer-checked:bg-slate-100 peer-checked:text-slate-600">未設定にする</span>
-                                        </label>
-                                        @foreach($contextArts as $art)
-                                            @php
-                                                $optionOrigin = $art->getAttribute('job_art_origin') === 'current' ? 'current' : 'inherited';
-                                                $optionSpCost = $art->jobArtSpCostForMaxSp($maxSp, $optionOrigin);
-                                                $optionCost = (int) $art->art_cost;
-                                                $optionAccent = match ($optionCost) {
-                                                    1 => 'text-emerald-600',
-                                                    2 => 'text-sky-600',
-                                                    3 => 'text-amber-700',
-                                                    default => 'text-slate-500',
-                                                };
-                                                $optionSearch = \Illuminate\Support\Str::lower(($art->jobClass?->name ?? '') . ' ' . $art->name);
-                                            @endphp
-                                            <label
-                                                class="block"
-                                                data-job-art-picker-option
-                                                data-search="{{ $optionSearch }}"
-                                                x-show="!query || $el.dataset.search.includes(query.toLowerCase())"
-                                            >
-                                                <input type="radio" name="{{ $slotContext }}_slot_{{ $slotNo }}_picker" value="{{ $art->id }}" class="peer sr-only" @checked($selectedId === (int) $art->id) @change="save({{ $art->id }}, policy)">
-                                                <span class="flex items-center justify-between gap-2 px-2 py-2 cursor-pointer hover:bg-slate-100 peer-checked:bg-indigo-50">
-                                                    <span class="min-w-0">
-                                                        <span class="block text-[10px] font-black text-slate-400">{{ $art->jobClass?->name ?? '職業' }} Rank{{ $art->learn_rank }} · {{ $optionOrigin === 'current' ? '本職' : '継承' }}</span>
-                                                        <span class="block truncate text-sm font-black text-slate-900">{{ $art->name }}</span>
-                                                    </span>
-                                                    <span class="shrink-0 text-[11px] font-black {{ $optionAccent }}">Cost{{ $optionCost }} · SP{{ $optionSpCost }}</span>
-                                                </span>
-                                            </label>
-                                        @endforeach
-                                        <p class="px-2 py-3 text-center text-[11px] font-bold text-slate-400" x-show="query && ![...$el.parentElement.querySelectorAll('[data-job-art-picker-option]')].some(el => el.dataset.search.includes(query.toLowerCase()))">該当する奥義がありません。</p>
-                                    </div>
-                                    @if($hasArt)
-                                        <div class="flex items-center gap-1.5">
-                                            @foreach($activationPolicyLabels as $policyKey => $policyLabel)
-                                                <label class="block flex-1">
-                                                    <input type="radio" name="{{ $slotContext }}_policy_{{ $slotNo }}_picker" value="{{ $policyKey }}" x-model="policy" class="peer sr-only" @checked($slotPolicy === $policyKey) @change="save({{ $selectedId }}, $event.target.value)">
-                                                    <span class="flex h-7 items-center justify-center rounded-md text-[11px] font-black text-slate-400 cursor-pointer peer-checked:bg-indigo-50 peer-checked:text-indigo-700">{{ $policyLabel }}</span>
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                        <button type="button" @click="editing = false" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors">← キャンセル</button>
-                                    @endif
-                                </div>
-                            </div>
-                        @endfor
+                        <div data-job-art-slots="{{ $slotContext }}" class="space-y-2">
+                            @for($slotNo = 1; $slotNo <= 3; $slotNo++)
+                                @include('job-arts.partials.slot-card', [
+                                    'slotContext' => $slotContext,
+                                    'slotNo' => $slotNo,
+                                    'slot' => $contextSlots->firstWhere('slot_no', $slotNo),
+                                    'contextArts' => $contextArts,
+                                    'allAvailableArts' => $allAvailableArts,
+                                    'maxSp' => $maxSp,
+                                    'activationPolicyLabels' => $activationPolicyLabels,
+                                    'activationPolicyDescriptions' => $activationPolicyDescriptions,
+                                    'contextTotalCost' => $totalCostByContext[$slotContext] ?? 0,
+                                ])
+                            @endfor
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -195,16 +96,54 @@
 
         <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-center justify-between gap-3">
-                <h2 class="text-sm font-black text-slate-900">使用可能な奥義</h2>
+                <div class="flex items-center gap-2">
+                    <h2 class="text-sm font-black text-slate-900">使用可能な奥義</h2>
+                    <button type="button" data-job-art-tips-toggle aria-expanded="false" class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-xs font-black text-sky-700 shadow-sm transition-colors hover:bg-sky-100" title="バッジの見方">
+                        ?
+                    </button>
+                </div>
                 <div class="text-xs font-bold text-slate-400"><span data-job-art-visible-count>{{ $availableArts->count() }}</span>件</div>
             </div>
-            <div class="mb-3 flex gap-1 overflow-x-auto pb-1 text-xs font-black">
-                @foreach(['available' => '使用可能', 'current' => '現在職', 'inherited' => '継承', 'attack' => '攻撃', 'heal' => '回復', 'support' => '補助', 'reward' => '報酬', 'time' => '時空'] as $key => $label)
-                    <button type="button" data-job-art-filter="{{ $key }}" class="shrink-0 rounded-full border px-3 py-1.5 {{ $filter === $key ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-500' }}">{{ $label }}</button>
-                @endforeach
+            <div data-job-art-target-banner class="mb-3 hidden items-center justify-between gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-800">
+                <span>SLOT<span data-job-art-target-slot-no></span>（<span data-job-art-target-context-label></span>）にセットする奥義を選んでください</span>
+                <div class="flex shrink-0 gap-1.5">
+                    <button type="button" data-job-art-target-unset class="rounded border border-indigo-300 bg-white px-2 py-1 text-indigo-700">未設定にする</button>
+                    <button type="button" data-job-art-target-cancel class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-600">キャンセル</button>
+                </div>
+            </div>
+            <div data-job-art-tips-panel class="mb-3 hidden rounded-md border border-sky-100 bg-sky-50/80 px-3 py-2 text-[11px] font-bold leading-relaxed text-slate-600">
+                <div class="font-black text-sky-800">バッジの見方</div>
+                <div class="mt-1 grid gap-1 sm:grid-cols-2">
+                    <div><span class="font-black text-slate-800">効果種別</span>：攻撃、回復、強化など奥義の主な効果。</div>
+                    <div><span class="font-black text-slate-800">発動率</span>：奥義候補になった時に発動する確率。</div>
+                    <div><span class="font-black text-slate-800">消費SP</span>：発動時に使うSPの基本値。</div>
+                    <div><span class="font-black text-slate-800">本職</span>：現在職で使う時の実消費SP。</div>
+                    <div><span class="font-black text-slate-800">継承</span>：継承奥義として使う時の実消費SP。</div>
+                    <div><span class="font-black text-slate-800">CT</span>：使用後、再発動までに必要なターン数。</div>
+                    <div><span class="font-black text-slate-800">1戦回数</span>：1戦中に発動できる最大回数。</div>
+                    <div><span class="font-black text-slate-800">発動条件</span>：HP割合など、発動候補に入る条件。</div>
+                </div>
+            </div>
+            <div class="mb-3 space-y-2">
+                <details class="rounded-md border border-slate-200 bg-slate-50/70 px-3 py-2" open>
+                    <summary class="cursor-pointer text-xs font-black text-slate-700">絞り込み</summary>
+                    <div class="mt-2 flex flex-wrap gap-1.5 text-xs font-black">
+                        @foreach(['available' => '使用可能', 'favorite' => 'お気に入り', 'current' => '現在職', 'inherited' => '継承', 'cost1' => 'Cost1', 'cost2' => 'Cost2', 'cost3' => 'Cost3', 'attack' => '攻撃', 'buff' => 'バフ', 'debuff' => 'デバフ', 'hp_recover' => 'HP回復', 'sp_recover' => 'SP回復', 'reward' => '報酬', 'time' => '時空'] as $key => $label)
+                            <button type="button" data-job-art-filter="{{ $key }}" class="rounded-full border px-3 py-1.5 {{ $filter === $key ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-500' }}">{{ $label }}</button>
+                        @endforeach
+                    </div>
+                </details>
+                <details class="rounded-md border border-slate-200 bg-slate-50/70 px-3 py-2">
+                    <summary class="cursor-pointer text-xs font-black text-slate-700">並び替え</summary>
+                    <div class="mt-2 flex flex-wrap gap-1.5 text-xs font-black">
+                        @foreach(['default' => '初期順', 'cost_asc' => 'Cost低い', 'cost_desc' => 'Cost高い', 'rate_desc' => '発動率高い', 'name_asc' => '名前順'] as $key => $label)
+                            <button type="button" data-job-art-sort="{{ $key }}" class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-500">{{ $label }}</button>
+                        @endforeach
+                    </div>
+                </details>
             </div>
 
-            <div class="space-y-2">
+            <div class="space-y-2" data-job-art-list>
                 @forelse($availableArts as $art)
                     @php
                         $cost = (int) $art->art_cost;
@@ -221,15 +160,22 @@
                             default => 'bg-white text-slate-600 border-slate-200',
                         };
                         $filterTokens = ['available'];
+                        $filterTokens[] = 'cost' . $cost;
                         $filterTokens[] = $art->getAttribute('job_art_origin') === 'current' ? 'current' : 'inherited';
                         if ($art->art_category === 'attack') {
                             $filterTokens[] = 'attack';
                         }
-                        if ($art->limit_group === 'HEAL') {
-                            $filterTokens[] = 'heal';
+                        if (in_array($art->effect_template, ['DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF', 'SELF_BUFF'], true) || $art->art_category === 'buff') {
+                            $filterTokens[] = 'buff';
                         }
-                        if (in_array($art->art_category, ['buff', 'debuff', 'guard'], true)) {
-                            $filterTokens[] = 'support';
+                        if (in_array($art->effect_template, ['DAMAGE_DEBUFF', 'ENEMY_DEBUFF'], true) || $art->art_category === 'debuff') {
+                            $filterTokens[] = 'debuff';
+                        }
+                        if ($art->isHealArt() || (int) $art->heal_percent > 0) {
+                            $filterTokens[] = 'hp_recover';
+                        }
+                        if ((int) $art->mp_recover_percent > 0) {
+                            $filterTokens[] = 'sp_recover';
                         }
                         if ($art->limit_group === 'REWARD') {
                             $filterTokens[] = 'reward';
@@ -241,22 +187,54 @@
                         $baseSpCost = $art->jobArtBaseSpCostForMaxSp($maxSp);
                         $currentSpCost = $art->jobArtSpCostForMaxSp($maxSp, 'current');
                         $inheritedSpCost = $art->jobArtSpCostForMaxSp($maxSp, 'inherited');
+                        $statLabelReplacements = [
+                            'ATK' => '攻撃',
+                            'DEF' => '防御',
+                            'SPD' => '敏捷',
+                            'MAG' => '魔力',
+                            'SPR' => '精神',
+                            'LUK' => '運',
+                        ];
+                        $displayMemo = strtr((string) ($art->memo ?: $art->description), $statLabelReplacements);
+                        $validContexts = [];
+                        if (($availableArtsByContext['normal'] ?? collect())->contains('id', $art->id)) {
+                            $validContexts[] = 'normal';
+                        }
+                        if (($availableArtsByContext['boss'] ?? collect())->contains('id', $art->id)) {
+                            $validContexts[] = 'boss';
+                        }
                     @endphp
-                    <article data-job-art-card data-filters="{{ implode(' ', array_unique($filterTokens)) }}" class="rounded-md border px-3 py-2 {{ $costCardClass }}">
+                    <article
+                        data-job-art-card
+                        data-job-art-id="{{ $art->id }}"
+                        data-filters="{{ implode(' ', array_unique($filterTokens)) }}"
+                        data-sort-index="{{ $loop->index }}"
+                        data-cost="{{ $cost }}"
+                        data-activation-rate="{{ (int) $art->activation_rate }}"
+                        data-name="{{ $art->name }}"
+                        data-job-art-contexts="{{ implode(' ', $validContexts) }}"
+                        class="rounded-md border px-3 py-2 {{ $costCardClass }}"
+                    >
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
                                 <div class="text-[11px] font-black text-slate-500">{{ $art->jobClass?->name ?? '職業' }} / Rank{{ $art->learn_rank }} / {{ $art->getAttribute('job_art_origin') === 'current' ? '本職' : '継承 ' . (int) round(((float) $art->getAttribute('job_art_rate')) * 100) . '%' }}</div>
                                 <div class="truncate text-sm font-black text-slate-900">{{ $art->name }}</div>
                             </div>
                             <div class="shrink-0 space-y-1 text-right">
-                                <div class="inline-flex rounded border px-2 py-1 text-xs font-black {{ $costBadgeClass }}">Cost {{ $art->art_cost }}</div>
+                                <div class="flex items-center justify-end gap-1">
+                                    <button type="button" data-job-art-favorite-toggle="{{ $art->id }}" aria-pressed="false" class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-black text-slate-300 shadow-sm transition-colors hover:border-amber-300 hover:text-amber-500" title="お気に入り">
+                                        ☆
+                                    </button>
+                                    <div class="inline-flex rounded border px-2 py-1 text-xs font-black {{ $costBadgeClass }}">Cost {{ $art->art_cost }}</div>
+                                </div>
                                 @foreach(['normal' => '通常', 'boss' => 'ボス'] as $slotContext => $shortLabel)
                                     @php
                                         $selectedSlotForContext = (int) (($selectedSlotBySkillByContext[$slotContext][$art->id] ?? 0) ?: 0);
                                     @endphp
-                                    @if($selectedSlotForContext)
-                                        <div class="text-[10px] font-black {{ $slotContext === 'boss' ? 'text-indigo-600' : 'text-emerald-600' }}">{{ $shortLabel }} Slot{{ $selectedSlotForContext }} セット中</div>
-                                    @endif
+                                    <div
+                                        data-job-art-status="{{ $slotContext }}"
+                                        class="text-[10px] font-black {{ $slotContext === 'boss' ? 'text-indigo-600' : 'text-emerald-600' }} {{ $selectedSlotForContext ? '' : 'hidden' }}"
+                                    >{{ $shortLabel }} Slot<span data-job-art-status-slot>{{ $selectedSlotForContext ?: '' }}</span> セット中</div>
                                 @endforeach
                             </div>
                         </div>
@@ -279,17 +257,16 @@
                                 <span class="rounded bg-white px-2 py-0.5 text-slate-500">1戦{{ $art->max_uses_per_battle }}回</span>
                             @endif
                         </div>
-                        <p class="mt-2 text-xs font-bold leading-relaxed text-slate-600">{{ $art->memo ?: $art->description }}</p>
-                        @if($art->activation_phrase || $art->activation_description)
-                            <div class="mt-2 rounded bg-white/70 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-indigo-700">
-                                @if($art->activation_phrase)
-                                    <div>{{ $art->activation_phrase }}</div>
-                                @endif
-                                @if($art->activation_description)
-                                    <div class="text-slate-500">{{ str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $art->name], $art->activation_description) }}</div>
-                                @endif
-                            </div>
-                        @endif
+                        <p class="mt-2 text-xs font-bold leading-relaxed text-slate-600">{{ $displayMemo }}</p>
+                        <button type="button"
+                            data-job-art-assign-btn
+                            data-art-id="{{ $art->id }}"
+                            class="mt-2 hidden w-full rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-colors hover:bg-indigo-700">
+                            この奥義をセットする
+                        </button>
+                        <div data-job-art-assign-unavailable class="mt-2 hidden rounded-md bg-slate-100 px-3 py-1.5 text-center text-[11px] font-bold text-slate-400">
+                            このセットでは使用できません
+                        </div>
                     </article>
                 @empty
                     <div class="rounded-md bg-slate-50 px-3 py-6 text-center text-sm font-bold text-slate-400">条件を満たした奥義はまだありません。</div>
@@ -305,11 +282,237 @@
             const root = document.querySelector('[data-job-art-root]');
             if (!root) return;
 
+            const SLOT_SET_URL = @json(route('job-arts.slot-set'));
+            const CSRF_TOKEN = @json(csrf_token());
+            const CONTEXT_LABELS = { normal: '通常', boss: 'ボス' };
+
+            const targetBanner = root.querySelector('[data-job-art-target-banner]');
+            const targetSlotNoEl = root.querySelector('[data-job-art-target-slot-no]');
+            const targetContextLabelEl = root.querySelector('[data-job-art-target-context-label]');
+            const targetUnsetBtn = root.querySelector('[data-job-art-target-unset]');
+            const targetCancelBtn = root.querySelector('[data-job-art-target-cancel]');
+
+            let target = null; // { context: 'normal'|'boss', slotNo: 1|2|3 }
+
+            const updateAssignButtons = () => {
+                root.querySelectorAll('[data-job-art-card]').forEach((card) => {
+                    const assignBtn = card.querySelector('[data-job-art-assign-btn]');
+                    const unavailableEl = card.querySelector('[data-job-art-assign-unavailable]');
+                    if (!assignBtn || !unavailableEl) return;
+
+                    if (!target) {
+                        assignBtn.classList.add('hidden');
+                        unavailableEl.classList.add('hidden');
+                        return;
+                    }
+
+                    const contexts = (card.dataset.jobArtContexts || '').split(/\s+/).filter(Boolean);
+                    const eligible = contexts.includes(target.context);
+                    assignBtn.classList.toggle('hidden', !eligible);
+                    unavailableEl.classList.toggle('hidden', eligible);
+                });
+            };
+
+            const setTarget = (context, slotNo) => {
+                target = { context, slotNo: Number(slotNo) };
+
+                root.querySelectorAll('[data-job-art-slot-card]').forEach((card) => {
+                    const isTarget = card.dataset.slotContext === context && Number(card.dataset.slotNo) === target.slotNo;
+                    card.classList.toggle('ring-2', isTarget);
+                    card.classList.toggle('ring-indigo-400', isTarget);
+                    card.classList.toggle('border-indigo-300', isTarget);
+                });
+
+                if (targetBanner) {
+                    targetBanner.classList.remove('hidden');
+                    targetBanner.classList.add('flex');
+                }
+                if (targetSlotNoEl) targetSlotNoEl.textContent = target.slotNo;
+                if (targetContextLabelEl) targetContextLabelEl.textContent = CONTEXT_LABELS[context] || context;
+
+                updateAssignButtons();
+
+                const listSection = root.querySelector('[data-job-art-list]');
+                if (listSection) {
+                    listSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            };
+
+            const clearTarget = () => {
+                target = null;
+                root.querySelectorAll('[data-job-art-slot-card]').forEach((card) => {
+                    card.classList.remove('ring-2', 'ring-indigo-400', 'border-indigo-300');
+                });
+                if (targetBanner) {
+                    targetBanner.classList.add('hidden');
+                    targetBanner.classList.remove('flex');
+                }
+                updateAssignButtons();
+            };
+
+            window.jobArtClearTarget = clearTarget;
+
+            const assignSkillToSlot = async (context, slotNo, skillId, policy, anchorSelector) => {
+                const formData = new FormData();
+                if (skillId) formData.append('skill_id', skillId);
+                formData.append('slot_no', String(slotNo));
+                formData.append('slot_context', context);
+                formData.append('activation_policy', policy || 'normal');
+
+                const anchorBefore = anchorSelector ? root.querySelector(anchorSelector) : null;
+                const beforeTop = anchorBefore ? anchorBefore.getBoundingClientRect().top : null;
+
+                let payload;
+                try {
+                    const response = await fetch(SLOT_SET_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': CSRF_TOKEN,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    });
+                    payload = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(payload.message || '保存できませんでした。');
+                    }
+                } catch (error) {
+                    alert(error.message || '保存できませんでした。');
+                    return;
+                }
+
+                const slotsContainer = root.querySelector('[data-job-art-slots="' + context + '"]');
+                if (slotsContainer && typeof payload.slots_html === 'string') {
+                    slotsContainer.innerHTML = payload.slots_html;
+                }
+
+                const totalEl = root.querySelector('[data-job-art-total-cost="' + context + '"]');
+                if (totalEl && typeof payload.total_cost !== 'undefined') {
+                    totalEl.textContent = payload.total_cost;
+                }
+
+                if (payload.selected_slot_by_skill) {
+                    root.querySelectorAll('[data-job-art-card]').forEach((card) => {
+                        const badge = card.querySelector('[data-job-art-status="' + context + '"]');
+                        if (!badge) return;
+                        const cardSlotNo = payload.selected_slot_by_skill[card.dataset.jobArtId] || 0;
+                        if (cardSlotNo) {
+                            badge.classList.remove('hidden');
+                            const slotSpan = badge.querySelector('[data-job-art-status-slot]');
+                            if (slotSpan) slotSpan.textContent = cardSlotNo;
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    });
+                }
+
+                if (target && target.context === context && Number(target.slotNo) === Number(slotNo)) {
+                    clearTarget();
+                }
+
+                if (beforeTop !== null) {
+                    const anchorAfter = anchorSelector ? root.querySelector(anchorSelector) : null;
+                    const afterTop = anchorAfter ? anchorAfter.getBoundingClientRect().top : beforeTop;
+                    if (afterTop !== beforeTop) {
+                        window.scrollBy(0, afterTop - beforeTop);
+                    }
+                }
+            };
+
+            root.addEventListener('click', (event) => {
+                const targetBtn = event.target.closest('[data-job-art-target-btn]');
+                if (targetBtn) {
+                    setTarget(targetBtn.dataset.slotContext, targetBtn.dataset.slotNo);
+                    return;
+                }
+
+                if (targetCancelBtn && event.target.closest('[data-job-art-target-cancel]')) {
+                    clearTarget();
+                    return;
+                }
+
+                if (targetUnsetBtn && event.target.closest('[data-job-art-target-unset]')) {
+                    if (!target) return;
+                    const { context, slotNo } = target;
+                    const slotCardSelector = '[data-job-art-slot-card="' + context + '-' + slotNo + '"]';
+                    assignSkillToSlot(context, slotNo, null, 'normal', slotCardSelector);
+                    return;
+                }
+
+                const assignBtn = event.target.closest('[data-job-art-assign-btn]');
+                if (assignBtn && target) {
+                    const artId = assignBtn.dataset.artId;
+                    const cardSelector = '[data-job-art-id="' + artId + '"]';
+                    const slotCard = root.querySelector('[data-job-art-slot-card="' + target.context + '-' + target.slotNo + '"]');
+                    const policy = slotCard ? (slotCard.dataset.policy || 'normal') : 'normal';
+                    assignSkillToSlot(target.context, target.slotNo, artId, policy, cardSelector);
+                }
+            });
+
+            root.addEventListener('change', (event) => {
+                const radio = event.target.closest('[data-job-art-policy-radio]');
+                if (!radio) return;
+                const slotContext = radio.dataset.slotContext;
+                const slotNo = radio.dataset.slotNo;
+                const slotCard = radio.closest('[data-job-art-slot-card]');
+                const skillId = slotCard ? slotCard.dataset.skillId : null;
+                const slotCardSelector = '[data-job-art-slot-card="' + slotContext + '-' + slotNo + '"]';
+                assignSkillToSlot(slotContext, slotNo, skillId, radio.value, slotCardSelector);
+            });
+
             const activeClasses = ['border-amber-400', 'bg-amber-50', 'text-amber-700'];
             const inactiveClasses = ['border-slate-200', 'bg-white', 'text-slate-500'];
+            const sortActiveClasses = ['border-sky-400', 'bg-sky-50', 'text-sky-700'];
+            const sortInactiveClasses = ['border-slate-200', 'bg-white', 'text-slate-500'];
+            const listEl = root.querySelector('[data-job-art-list]');
             const countEl = root.querySelector('[data-job-art-visible-count]');
             const emptyEl = root.querySelector('[data-job-art-empty]');
+            const tipsButton = root.querySelector('[data-job-art-tips-toggle]');
+            const tipsPanel = root.querySelector('[data-job-art-tips-panel]');
+            const favoriteStorageKey = 'valzeria.jobArtFavorites.v1';
+            const sortStorageKey = 'valzeria.jobArtSort.v1';
             let currentFilter = @js($filter);
+            let currentSort = 'default';
+            let favoriteIds = new Set();
+
+            try {
+                favoriteIds = new Set(JSON.parse(localStorage.getItem(favoriteStorageKey) || '[]').map(String));
+            } catch (error) {
+                favoriteIds = new Set();
+            }
+
+            try {
+                const savedSort = localStorage.getItem(sortStorageKey);
+                if (['default', 'cost_asc', 'cost_desc', 'rate_desc', 'name_asc'].includes(savedSort)) {
+                    currentSort = savedSort;
+                }
+            } catch (error) {}
+
+            const saveFavorites = () => {
+                localStorage.setItem(favoriteStorageKey, JSON.stringify([...favoriteIds]));
+            };
+
+            const syncFavoriteButtons = () => {
+                root.querySelectorAll('[data-job-art-favorite-toggle]').forEach((button) => {
+                    const artId = String(button.dataset.jobArtFavoriteToggle || '');
+                    const active = favoriteIds.has(artId);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                    button.textContent = active ? '★' : '☆';
+                    button.classList.toggle('border-amber-300', active);
+                    button.classList.toggle('bg-amber-100', active);
+                    button.classList.toggle('text-amber-600', active);
+                    button.classList.toggle('border-slate-200', !active);
+                    button.classList.toggle('bg-white', !active);
+                    button.classList.toggle('text-slate-300', !active);
+                });
+
+                root.querySelectorAll('[data-job-art-card]').forEach((card) => {
+                    const active = favoriteIds.has(String(card.dataset.jobArtId || ''));
+                    card.classList.toggle('ring-2', active);
+                    card.classList.toggle('ring-amber-200', active);
+                });
+            };
 
             const setChipState = (filter) => {
                 root.querySelectorAll('[data-job-art-filter]').forEach((button) => {
@@ -319,12 +522,54 @@
                 });
             };
 
+            const setSortState = (sort) => {
+                root.querySelectorAll('[data-job-art-sort]').forEach((button) => {
+                    const active = button.dataset.jobArtSort === sort;
+                    button.classList.remove(...(active ? sortInactiveClasses : sortActiveClasses));
+                    button.classList.add(...(active ? sortActiveClasses : sortInactiveClasses));
+                });
+            };
+
+            const numberValue = (card, key) => Number.parseInt(card.dataset[key] || '0', 10) || 0;
+            const originalIndex = (card) => numberValue(card, 'sortIndex');
+
+            const compareCards = (a, b) => {
+                const fallback = originalIndex(a) - originalIndex(b);
+                if (currentSort === 'cost_asc') return numberValue(a, 'cost') - numberValue(b, 'cost') || fallback;
+                if (currentSort === 'cost_desc') return numberValue(b, 'cost') - numberValue(a, 'cost') || fallback;
+                if (currentSort === 'rate_desc') return numberValue(b, 'activationRate') - numberValue(a, 'activationRate') || fallback;
+                if (currentSort === 'name_asc') return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'ja') || fallback;
+
+                return fallback;
+            };
+
+            const applySort = (sort) => {
+                currentSort = sort || 'default';
+                try {
+                    localStorage.setItem(sortStorageKey, currentSort);
+                } catch (error) {}
+                if (listEl) {
+                    [...root.querySelectorAll('[data-job-art-card]')]
+                        .sort(compareCards)
+                        .forEach((card) => {
+                            if (emptyEl && emptyEl.parentElement === listEl) {
+                                listEl.insertBefore(card, emptyEl);
+                            } else {
+                                listEl.appendChild(card);
+                            }
+                        });
+                }
+                setSortState(currentSort);
+            };
+
             const applyFilter = (filter) => {
                 currentFilter = filter || 'available';
                 let visibleCount = 0;
                 root.querySelectorAll('[data-job-art-card]').forEach((card) => {
                     const filters = (card.dataset.filters || '').split(/\s+/);
-                    const visible = currentFilter === 'available' || filters.includes(currentFilter);
+                    const isFavorite = favoriteIds.has(String(card.dataset.jobArtId || ''));
+                    const visible = currentFilter === 'available'
+                        || (currentFilter === 'favorite' ? isFavorite : filters.includes(currentFilter));
                     card.classList.toggle('hidden', !visible);
                     if (visible) visibleCount += 1;
                 });
@@ -337,6 +582,38 @@
                 button.addEventListener('click', () => applyFilter(button.dataset.jobArtFilter));
             });
 
+            root.querySelectorAll('[data-job-art-sort]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    applySort(button.dataset.jobArtSort);
+                    applyFilter(currentFilter);
+                });
+            });
+
+            root.querySelectorAll('[data-job-art-favorite-toggle]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const artId = String(button.dataset.jobArtFavoriteToggle || '');
+                    if (!artId) return;
+                    if (favoriteIds.has(artId)) {
+                        favoriteIds.delete(artId);
+                    } else {
+                        favoriteIds.add(artId);
+                    }
+                    saveFavorites();
+                    syncFavoriteButtons();
+                    applyFilter(currentFilter);
+                });
+            });
+
+            if (tipsButton && tipsPanel) {
+                tipsButton.addEventListener('click', () => {
+                    const expanded = tipsButton.getAttribute('aria-expanded') === 'true';
+                    tipsButton.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                    tipsPanel.classList.toggle('hidden', expanded);
+                });
+            }
+
+            syncFavoriteButtons();
+            applySort(currentSort);
             applyFilter(currentFilter);
         })();
     </script>

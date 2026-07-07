@@ -6,20 +6,22 @@ use Livewire\Component;
 use App\Models\Title;
 use Illuminate\Support\Facades\Auth;
 use App\Services\TitleService;
-use Livewire\Attributes\Layout;
 
-#[Layout('components.layouts.app')]
 class TitleList extends Component
 {
     public $titles = [];
     public $characterTitles = [];
+    public $summary = [
+        'unlocked_count' => 0,
+        'total_count' => 0,
+        'equipped_name' => null,
+        'hidden_count' => 0,
+    ];
 
     public function mount()
     {
         $this->updateCharacterTitles();
-        
-        // 全ての称号を表示順に取得（カテゴリのグループ化はしない）
-        $this->titles = Title::orderBy('display_order')->get()->toArray();
+        $this->updateTitles();
     }
 
     public function updateCharacterTitles()
@@ -27,10 +29,38 @@ class TitleList extends Component
         if (Auth::check()) {
             $character = Auth::user()->currentCharacter();
             if ($character) {
-                // キャラクターが所持している称号IDの配列
-                $this->characterTitles = $character->titles()->pluck('title_id')->toArray();
+                $this->characterTitles = $character->titles()
+                    ->get(['title_id', 'is_equipped', 'created_at'])
+                    ->mapWithKeys(fn ($row) => [
+                        $row->title_id => [
+                            'is_equipped' => (bool) $row->is_equipped,
+                            'unlocked_at' => optional($row->created_at)->format('Y/m/d'),
+                        ],
+                    ])
+                    ->toArray();
             }
         }
+    }
+
+    public function updateTitles()
+    {
+        $titles = Title::orderBy('display_order')->orderBy('id')->get();
+        $this->titles = $titles->toArray();
+
+        $equippedId = null;
+        foreach ($this->characterTitles as $titleId => $row) {
+            if ((bool) ($row['is_equipped'] ?? false)) {
+                $equippedId = (int) $titleId;
+                break;
+            }
+        }
+
+        $this->summary = [
+            'unlocked_count' => count($this->characterTitles),
+            'total_count' => $titles->count(),
+            'equipped_name' => $equippedId ? ($titles->firstWhere('id', $equippedId)?->name) : null,
+            'hidden_count' => $titles->where('is_hidden', true)->count(),
+        ];
     }
 
     public function equipTitle($titleId, TitleService $titleService)
@@ -40,6 +70,7 @@ class TitleList extends Component
             if ($character) {
                 $titleService->equipTitle($character, $titleId);
                 $this->updateCharacterTitles();
+                $this->updateTitles();
                 // 左サイドバーに更新を通知
                 $this->dispatch('character-updated');
                 $this->dispatch('titleEquipped');

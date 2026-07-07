@@ -510,13 +510,13 @@ CREATE TABLE job\_armor\_permissions (
 
 | 賢商王       | staff, magic\_device, gun, dagger                                       |
 
-| ヴァルゼリアの英雄 | sword, axe, dagger, bow, staff, magic\_device, gun, spear, fist, katana |
+| ヴァルゼリアの救世主 | sword, axe, dagger, bow, staff, magic\_device, gun, spear, fist, katana |
 
 | 深淵歩き      | sword, axe, dagger, katana, magic\_device                               |
 
 | 古代錬成王     | magic\_device, gun, staff, axe                                          |
 
-| 竜神        | spear, sword, axe, fist                                                |
+| 蒼竜王        | spear, sword, axe, fist                                                |
 
 | 時空王       | staff, magic\_device, dagger, katana, gun                               |
 
@@ -610,13 +610,13 @@ CREATE TABLE job\_armor\_permissions (
 
 | 賢商王       | clothes, robe, cloak, light\_armor              |
 
-| ヴァルゼリアの英雄 | clothes, robe, cloak, light\_armor, heavy\_armor |
+| ヴァルゼリアの救世主 | clothes, robe, cloak, light\_armor, heavy\_armor |
 
 | 深淵歩き      | robe, cloak, light\_armor, heavy\_armor          |
 
 | 古代錬成王     | clothes, robe, cloak, light\_armor, heavy\_armor |
 
-| 竜神        | clothes, light\_armor, heavy\_armor              |
+| 蒼竜王        | clothes, light\_armor, heavy\_armor              |
 
 | 時空王       | clothes, robe, cloak, light\_armor              |
 
@@ -1688,9 +1688,9 @@ if (!$equipmentPermissionService->validateArmorEquip($player, $armor)) {
 
 
 
-\* ヴァルゼリアの英雄：全武器・全防具
+\* ヴァルゼリアの救世主：全武器・全防具
 
-\* 竜神：槍、剣、斧、拳甲
+\* 蒼竜王：槍、剣、斧、拳甲
 
 \* 時空王：杖、魔導具、短剣、刀、銃
 
@@ -1881,6 +1881,8 @@ if (!$equipmentPermissionService->validateArmorEquip($player, $armor)) {
 
 
 この順番で進めれば、既存データへの影響を抑えながら、職業ごとの装備制限を安全に導入できる。
+
+
 
 
 

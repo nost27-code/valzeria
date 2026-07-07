@@ -82,6 +82,6 @@ docs/dev-os/ + Skills（手順層・作業種別ごとに読込）
 
 1. **AGENTS_MD_PROPOSAL.md を確認して AGENTS.md に適用**（検証コマンド未記入・正仕様の二重定義を解消）— 30分
 2. **AI_CONTEXT_PROPOSAL.md を確認して AI_CONTEXT.md を修正**（野球テンプレ残骸・Stack未記入・肥大化した Recent state の移設）— 1時間
-3. docs/ai_development_rules.md と AGENTS.md の統合（ルールの二重管理解消。ai_development_rules の中身をAGENTS.mdへ吸収し、旧ファイルは参照リダイレクトに）— 1時間
+3. ~~docs/ai_development_rules.md と AGENTS.md の統合~~ — **完了（2026-07-07）**。docs/dev-os/tasks/TASK_H_AI_DEV_RULES_CONSOLIDATION.md 参照。旧ファイルはリダイレクトスタブ化済み
 4. FEATURE_STATUS.md の実態同期（全行 `?` のままなら価値ゼロ）— Codexに調査タスクとして依頼可
 5. Skills切り出し（SKILLS_PLAN.md 参照）— 運用が安定してから

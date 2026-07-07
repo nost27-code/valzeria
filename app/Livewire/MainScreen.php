@@ -12,6 +12,7 @@ use App\Services\EquipmentService;
 use App\Services\BeginnerMissionService;
 use App\Services\StorageCapacityService;
 use App\Services\HomeActionService;
+use App\Services\StarTreeTowerService;
 use App\Services\ExplorationStateService;
 use App\Services\ExplorationDepthService;
 use App\Services\SubAreaDiscoveryService;
@@ -372,6 +373,10 @@ class MainScreen extends Component
                     
                     $dungeons[] = $facility;
                 }
+
+                if ($this->starTreeTowerEnabled() && (int) ($currentCity?->id ?? 0) === 3) {
+                    $dungeons[] = $this->starTreeTowerExplorationFacility();
+                }
             }
 
             $clearedDungeonsCount = collect($dungeons)->where('id', '<=', 70)->where('boss_defeated', true)->count();
@@ -429,7 +434,7 @@ class MainScreen extends Component
         $storageIsFull = ($this->character && $isHomeTab) ? $storageCapacityService->isFull($this->character) : false;
         $storageFullMessage = $storageIsFull ? $storageCapacityService->fullMessageHtml($this->character) : null;
         $subAreaDiscoveries = ($this->character && $this->currentLocation === 'dungeon')
-            ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character)
+            ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character, (int) ($currentCity?->id ?? 0))
             : collect();
         $targetAreaId = (int) session()->pull('target_area_id', 0);
 
@@ -554,6 +559,27 @@ class MainScreen extends Component
         return array_values(array_filter($items, fn (array $item) => !empty($item['name'])));
     }
 
+    private function starTreeTowerExplorationFacility(): array
+    {
+        return [
+            'name' => '星樹の塔',
+            'symbol_image' => 'tower/01_tower_symbol.webp',
+            'desc' => '星を宿す枝が、エルフィアの空へ静かに伸びている。',
+            'details' => ['階層挑戦', '到達称号', '週次記録'],
+            'bg_image' => 'tower/01_tower_card_bg.webp',
+            'card_variant' => 'star_tree',
+            'status' => 'active',
+            'action' => '登る',
+            'route' => 'tower.star-tree.index',
+            'is_post' => false,
+        ];
+    }
+
+    private function starTreeTowerEnabled(): bool
+    {
+        return app(StarTreeTowerService::class)->isEnabled();
+    }
+
     private function homeMenuItems(): array
     {
         return [
@@ -563,6 +589,7 @@ class MainScreen extends Component
             ['group' => '記録', 'name' => '印図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'route' => 'monster-marks.index', 'status' => 'active'],
             ['group' => '記録', 'name' => '称号', 'icon_image' => 'icon/icon_242.webp', 'icon' => '🏷️', 'desc' => '獲得した称号を確認する', 'route' => 'titles.index', 'status' => 'active'],
             ['group' => '育成', 'name' => 'ヴァルモン', 'icon_image' => 'menu/menu_valmon.webp', 'icon' => '🥚', 'desc' => '相棒ヴァルモンの確認・育成を行う', 'route' => 'valmons.index', 'status' => 'active'],
+            ['group' => '持ち物', 'name' => '装備', 'icon_image' => 'icon/icon_006.webp', 'icon' => '🗡️', 'desc' => '装備変更・保護・売却を行う', 'route' => 'equipment.index', 'status' => 'active'],
             ['group' => '持ち物', 'name' => '倉庫', 'icon_image' => 'menu/menu_storage.webp', 'icon' => '📦', 'desc' => '素材や探索用アイテムを確認する', 'route' => 'inventory.index', 'status' => 'active'],
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'menu/menu_messages.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージをやり取りする', 'tab' => 'message', 'status' => 'active'],
             ['group' => '案内', 'name' => 'ヘルプ', 'icon_image' => 'menu/menu_help.webp', 'icon' => '📘', 'desc' => '遊び方や施設の説明を確認する', 'route' => 'town.guide', 'status' => 'active'],

@@ -202,8 +202,41 @@ class JobArtController extends Controller
         }
 
         if ($request->expectsJson()) {
+            $character = $character->fresh();
+            $availabilityContext = $slotContext === 'boss' ? 'boss' : 'pve';
+            $normalArts = $jobArtService->availableArts($character, 'pve');
+            $bossArts = $jobArtService->availableArts($character, 'boss');
+            $allAvailableArts = $normalArts->merge($bossArts)->unique('id')->values();
+            $contextArts = $slotContext === 'boss' ? $bossArts : $normalArts;
+            $selectedSlots = $jobArtService->selectedSlots($character, $availabilityContext, $slotContext);
+            $selectedSkills = $selectedSlots->pluck('skill')->filter()->values();
+            $stats = app(CharacterStatusService::class)->getFinalStats($character);
+            $maxSp = max(0, (int) ($stats['max_mp'] ?? $character->mp_base ?? 0));
+            $contextTotalCost = $jobArtService->totalCost($selectedSkills);
+
+            $slotsHtml = '';
+            for ($slotNo = 1; $slotNo <= 3; $slotNo++) {
+                $slotsHtml .= view('job-arts.partials.slot-card', [
+                    'slotContext' => $slotContext,
+                    'slotNo' => $slotNo,
+                    'slot' => $selectedSlots->firstWhere('slot_no', $slotNo),
+                    'contextArts' => $contextArts,
+                    'allAvailableArts' => $allAvailableArts,
+                    'maxSp' => $maxSp,
+                    'activationPolicyLabels' => $jobArtService->activationPolicyLabels(),
+                    'activationPolicyDescriptions' => $jobArtService->activationPolicyDescriptions(),
+                    'contextTotalCost' => $contextTotalCost,
+                ])->render();
+            }
+
             return response()->json([
                 'message' => '奥義スロットを更新しました。',
+                'slot_context' => $slotContext,
+                'total_cost' => $contextTotalCost,
+                'slots_html' => $slotsHtml,
+                'selected_slot_by_skill' => $selectedSlots
+                    ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no])
+                    ->all(),
             ]);
         }
 

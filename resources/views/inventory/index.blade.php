@@ -34,7 +34,7 @@
             $equipmentExpandItem = $storageExpandItems['equipment_storage_expand'] ?? [
                 'name' => '装備倉庫拡張',
                 'price' => 50,
-                'effect_value' => 100,
+                'effect_value' => 300,
             ];
         @endphp
 
@@ -50,7 +50,19 @@
                     expandConfirm: null,
                     submittingExpand: false,
                     supportConfirm: null,
-                    submittingSupport: false
+                    submittingSupport: false,
+                    init() {
+                        const storedTab = sessionStorage.getItem('inventoryStorageTab');
+                        const storedEquipmentTab = sessionStorage.getItem('inventoryEquipmentTab');
+                        if (['material', 'equipment', 'key'].includes(storedTab)) {
+                            this.storageTab = storedTab;
+                        }
+                        if (['weapon', 'armor', 'accessory'].includes(storedEquipmentTab)) {
+                            this.activeEquipmentTab = storedEquipmentTab;
+                        }
+                        sessionStorage.removeItem('inventoryStorageTab');
+                        sessionStorage.removeItem('inventoryEquipmentTab');
+                    }
                 }"
                 @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1);"
             >
@@ -131,7 +143,7 @@
                             <div>
                                 <div class="text-xs font-extrabold text-amber-700 flex items-center gap-1"><img src="{{ asset('images/icon/icon_006.webp') }}" alt="" class="w-4 h-4 object-contain"> 装備一覧</div>
                                 <div class="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1">
-                                    <div class="text-2xl font-black text-slate-900">{{ number_format($storageSummary['equipment_storage_total']) }} / {{ number_format($storageSummary['equipment_storage_limit'] ?? 200) }}</div>
+                                    <div class="text-2xl font-black text-slate-900">{{ number_format($storageSummary['equipment_storage_total']) }} / {{ number_format($storageSummary['equipment_storage_limit'] ?? 300) }}</div>
                                     <button
                                         type="button"
                                         @click.stop="expandConfirm = {
@@ -520,33 +532,117 @@
                     <div class="min-h-[320px]">
                         @foreach(['weapon', 'armor', 'accessory'] as $type)
                             <div x-show="activeEquipmentTab === @js($type)" x-transition @if($type !== 'weapon') style="display: none;" @endif>
+                                <div
+                                    x-show="$store.equipSales && $store.equipSales.count >= 1"
+                                    x-cloak
+                                    class="mb-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-3 shadow-sm"
+                                >
+                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="text-sm font-black text-orange-900">
+                                            選択中:
+                                            <span x-text="$store.equipSales ? $store.equipSales.count : 0"></span>件 /
+                                            合計 <span x-text="$store.equipSales ? $store.equipSales.total.toLocaleString() : '0'"></span>G
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                                            <button
+                                                type="button"
+                                                @click="$store.equipSales.activeTab = activeEquipmentTab; $store.equipSales.confirmOpen = true"
+                                                class="rounded bg-orange-600 px-3 py-2 text-xs font-extrabold text-white shadow-sm transition hover:bg-orange-700 active:scale-95">
+                                                選択装備を売る
+                                            </button>
+                                            <button
+                                                type="button"
+                                                @click="clearEquipmentSelections()"
+                                                class="rounded border border-orange-200 bg-white px-3 py-2 text-xs font-extrabold text-orange-700 transition hover:bg-orange-100">
+                                                選択解除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     @forelse($equipmentGroups[$type] as $characterItem)
                                         @php
                                             $item = $characterItem->item;
                                             $equipmentIcon = $item?->iconImagePath()
                                                 ?? ($type === 'weapon' ? 'images/icon/icon_006.webp' : ($type === 'armor' ? 'images/icon/icon_007.webp' : 'images/icon/icon_008.webp'));
+                                            $sellPrice = (int) ($characterItem->sell_price ?? 0);
+                                            $canSellEquipment = (bool) ($characterItem->can_sell ?? false);
+                                            $sellDisabledTitle = $characterItem->is_equipped
+                                                ? '装備中は売却できません'
+                                                : ($characterItem->is_locked ? '保護中は売却できません' : '売却できません');
+                                            $totalStats = [
+                                                'HP' => (int) ($item->hp_bonus ?? 0) + (int) ($characterItem->affix_hp_bonus ?? 0),
+                                                '攻撃' => (int) ($item->str_bonus ?? 0) + (int) ($characterItem->affix_str_bonus ?? 0),
+                                                '防御' => (int) ($item->def_bonus ?? 0) + (int) ($characterItem->affix_def_bonus ?? 0),
+                                                '敏捷' => (int) ($item->agi_bonus ?? 0) + (int) ($characterItem->affix_agi_bonus ?? 0),
+                                                '魔力' => (int) ($item->mag_bonus ?? 0) + (int) ($characterItem->affix_mag_bonus ?? 0),
+                                                '精神' => (int) ($item->spr_bonus ?? 0) + (int) ($characterItem->affix_spr_bonus ?? 0),
+                                                '運' => (int) ($item->luk_bonus ?? 0) + (int) ($characterItem->affix_luk_bonus ?? 0),
+                                            ];
+                                            $statLines = collect($totalStats)
+                                                ->filter(fn ($value) => $value !== 0)
+                                                ->map(fn ($value, $label) => $label . ' ' . ($value > 0 ? '+' : '') . number_format($value))
+                                                ->values();
                                         @endphp
-                                        <div class="bg-white border border-slate-200 rounded p-4 shadow-sm flex items-center">
+                                        <div class="bg-white border border-slate-200 rounded p-4 shadow-sm flex items-start">
+                                            <div class="mr-3 shrink-0">
+                                                <label class="flex h-8 w-8 items-center justify-center rounded border {{ $canSellEquipment ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-300' }}" title="{{ $canSellEquipment ? 'まとめ売りに選択' : $sellDisabledTitle }}">
+                                                    <input
+                                                        type="checkbox"
+                                                        data-equipment-sale-checkbox
+                                                        class="h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500 disabled:cursor-not-allowed"
+                                                        @disabled(!$canSellEquipment)
+                                                        @change="$store.equipSales.activeTab = @js($type); $store.equipSales.toggle({{ $characterItem->id }}, $event.target.checked, @js(route('equipment.sell', $characterItem)), {{ $sellPrice }}, @js($characterItem->displayName()))"
+                                                    >
+                                                </label>
+                                            </div>
                                             <div class="w-12 h-12 shrink-0 bg-slate-100 rounded border border-slate-300 flex items-center justify-center mr-4 text-2xl">
                                                 <img src="{{ asset($equipmentIcon) }}" alt="" class="w-8 h-8 object-contain">
                                             </div>
                                             <div class="min-w-0 flex-1">
-                                                <div class="font-bold text-slate-800 truncate" title="{{ $characterItem->displayName() }}">{{ $characterItem->displayName() }}</div>
+                                                <div class="font-bold leading-snug text-slate-800 break-words" title="{{ $characterItem->displayName() }}">{{ $characterItem->displayName() }}</div>
                                                 <div class="text-xs text-slate-500">
                                                     Rank {{ $rankLabel($item) }} / {{ $item?->sub_type ?? $typeMeta[$type]['title'] }}
                                                 </div>
                                                 <div class="text-xs font-bold {{ $characterItem->is_equipped ? 'text-amber-700' : 'text-emerald-700' }}">
                                                     @if($characterItem->is_equipped)
                                                         装備中
+                                                    @elseif($characterItem->is_locked)
+                                                        保護中
                                                     @else
                                                         装備変更で装備可
                                                     @endif
                                                 </div>
+                                                @if($statLines->isNotEmpty())
+                                                    <div class="mt-2 flex flex-wrap gap-1">
+                                                        @foreach($statLines as $statLine)
+                                                            <span class="rounded border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">{{ $statLine }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <div class="mt-2 text-[11px] font-bold text-slate-400">能力補正なし</div>
+                                                @endif
                                             </div>
-                                            <div class="ml-2 text-right">
-                                                <div class="text-sm text-slate-500">個数</div>
-                                                <div class="text-lg font-black text-slate-800">1</div>
+                                            <div class="ml-2 shrink-0 text-right">
+                                                <div class="text-sm text-slate-500">売却額</div>
+                                                <div class="text-lg font-black text-slate-800">{{ number_format($sellPrice) }}G</div>
+                                                <form
+                                                    action="{{ route('equipment.sell', $characterItem) }}"
+                                                    method="POST"
+                                                    class="mt-2"
+                                                    onsubmit="return confirm('この装備を売却しますか？\n{{ addslashes($characterItem->displayName()) }} / {{ number_format($sellPrice) }}G');"
+                                                >
+                                                    @csrf
+                                                    <input type="hidden" name="return_to_inventory" value="1">
+                                                    <button
+                                                        type="submit"
+                                                        @disabled(!$canSellEquipment)
+                                                        title="{{ $canSellEquipment ? '装備を売却する' : $sellDisabledTitle }}"
+                                                        class="rounded px-3 py-1.5 text-xs font-extrabold shadow-sm transition active:scale-95 {{ $canSellEquipment ? 'bg-orange-600 text-white hover:bg-orange-700' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">
+                                                        {{ $canSellEquipment ? '売却する' : '売却不可' }}
+                                                    </button>
+                                                </form>
                                             </div>
                                         </div>
                                     @empty
@@ -702,6 +798,82 @@
     </button>
 </div>
 
+{{-- 装備まとめ売りフローティングボタン（選択時に出現） --}}
+<div
+    x-data
+    x-show="$store.equipSales && $store.equipSales.count >= 1"
+    x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 translate-y-3"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 translate-y-0"
+    x-transition:leave-end="opacity-0 translate-y-3"
+    class="fixed bottom-20 inset-x-0 z-50 flex justify-center pointer-events-none px-4"
+>
+    <button
+        type="button"
+        @click="$store.equipSales.confirmOpen = true"
+        class="pointer-events-auto flex items-center gap-3 rounded-full bg-orange-600 px-5 py-3 text-sm font-extrabold text-white shadow-2xl ring-2 ring-orange-400/40 hover:bg-orange-700 active:scale-95 transition-transform"
+    >
+        <span>選択装備を売る</span>
+        <span class="rounded-full bg-orange-800/30 px-2 py-0.5 text-xs tabular-nums">
+            <span x-text="$store.equipSales.count"></span>件
+        </span>
+        <span class="text-orange-100 text-xs tabular-nums">
+            合計 <span x-text="$store.equipSales.total.toLocaleString()"></span>G
+        </span>
+    </button>
+</div>
+
+<div
+    x-data
+    x-show="$store.equipSales && $store.equipSales.confirmOpen"
+    x-cloak
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 px-4"
+    @keydown.escape.window="$store.equipSales.confirmOpen = false"
+>
+    <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" @click.outside="$store.equipSales.confirmOpen = false">
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <div class="text-xs font-black tracking-wide text-orange-700">装備売却</div>
+                <h3 class="mt-1 text-xl font-black text-slate-950">選択した装備を売却しますか？</h3>
+            </div>
+            <button type="button" @click="$store.equipSales.confirmOpen = false" class="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-black text-slate-500 hover:bg-slate-200">×</button>
+        </div>
+
+        <div class="mt-4 rounded-lg border border-orange-100 bg-orange-50 px-3 py-3">
+            <div class="flex items-center justify-between gap-3 text-sm font-black text-slate-800">
+                <span>売却件数</span>
+                <span><span x-text="$store.equipSales.count"></span>件</span>
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-3 text-sm font-black text-orange-800">
+                <span>合計売却額</span>
+                <span><span x-text="$store.equipSales.total.toLocaleString()"></span>G</span>
+            </div>
+        </div>
+
+        <p class="mt-3 text-xs font-bold leading-relaxed text-slate-500">
+            売却した装備は所持品からなくなります。保護中・装備中・売却不可の装備は対象にできません。
+        </p>
+
+        <div class="mt-5 grid grid-cols-2 gap-3">
+            <button type="button" @click="$store.equipSales.confirmOpen = false" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-50">
+                キャンセル
+            </button>
+            <button
+                type="button"
+                @click="bulkSellEquipment('{{ csrf_token() }}')"
+                :disabled="$store.equipSales.submitting"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-wait disabled:opacity-60">
+                <x-loading-spinner x-show="$store.equipSales.submitting" style="display: none;" />
+                <span x-show="!$store.equipSales.submitting">売却する</span>
+                <span x-show="$store.equipSales.submitting" style="display: none;">処理中...</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.store('matSales', {
@@ -709,6 +881,21 @@ document.addEventListener('alpine:init', () => {
         set(id, qty, price) { this.items[id] = { qty, price }; },
         remove(id) { delete this.items[id]; },
         get total() { return Object.values(this.items).reduce((s, i) => s + i.qty * i.price, 0); },
+        get count() { return Object.keys(this.items).length; },
+        clear() { this.items = {}; }
+    });
+
+    Alpine.store('equipSales', {
+        items: {},
+        activeTab: 'weapon',
+        confirmOpen: false,
+        submitting: false,
+        toggle(id, selected, url, price, name) {
+            if (selected) this.items[id] = { url, price, name };
+            else delete this.items[id];
+        },
+        remove(id) { delete this.items[id]; },
+        get total() { return Object.values(this.items).reduce((sum, item) => sum + Number(item.price || 0), 0); },
         get count() { return Object.keys(this.items).length; },
         clear() { this.items = {}; }
     });
@@ -734,6 +921,53 @@ async function bulkSellMaterials(csrfToken, sellUrl) {
     }
     Alpine.store('matSales').clear();
     window.location.reload();
+}
+
+async function bulkSellEquipment(csrfToken) {
+    const store = Alpine.store('equipSales');
+    const items = { ...store.items };
+    const ids = Object.keys(items);
+    if (ids.length < 1) return;
+
+    if (store.submitting) return;
+    store.submitting = true;
+
+    let failed = 0;
+    for (const id of ids) {
+        const item = items[id];
+        const fd = new FormData();
+        fd.append('_token', csrfToken);
+        fd.append('return_to_inventory', '1');
+        try {
+            const response = await fetch(item.url, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: fd
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.success !== true) failed++;
+        } catch (e) {
+            failed++;
+        }
+    }
+
+    store.clear();
+    store.confirmOpen = false;
+    store.submitting = false;
+    sessionStorage.setItem('inventoryStorageTab', 'equipment');
+    sessionStorage.setItem('inventoryEquipmentTab', store.activeTab || 'weapon');
+    if (failed > 0) {
+        alert(`${failed}件は売却できませんでした。保護中・装備中・売却不可の装備が含まれていないか確認してください。`);
+    }
+    window.location.reload();
+}
+
+function clearEquipmentSelections() {
+    const store = Alpine.store('equipSales');
+    if (store) store.clear();
+    document.querySelectorAll('[data-equipment-sale-checkbox]').forEach((checkbox) => {
+        checkbox.checked = false;
+    });
 }
 </script>
 </x-layouts.facility>

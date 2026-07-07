@@ -35,6 +35,47 @@ class ChampBattleService
     private const UPSET_DAMAGE_MAX_HP_PERCENT = 22;
     private const STREAK_DEBUFF_PERCENT_PER_WIN = 2;
     private const STREAK_DEBUFF_MAX_PERCENT = 40;
+    private const CHAMP_REWARD_EXCLUDED_RECIPE_CODES = [
+        'TOKEN_CITY_HIGH_MATERIAL',
+        '5052',
+        '5053',
+        '5054',
+        'ACC_CITY_HIGH_MATERIAL',
+    ];
+    private const CHAMP_REWARD_EXCLUDED_MATERIAL_TYPES = [
+        'accessory_city_high',
+        'back_dungeon',
+        'back_high',
+        'branch_evolution',
+        'city_high',
+        'secret',
+        'weapon_city_high',
+    ];
+    private const CHAMP_REWARD_EXCLUDED_MATERIAL_CODES = [
+        '5009',
+        'ACC0009',
+        'MAT_ENHANCE_HIGH_STONE',
+        'MAT_REFINING_CORE',
+        'MAT_REFINING_CORE_LOW',
+        'MAT_REFINING_CORE_PART_A',
+        'MAT_REFINING_CORE_PART_B',
+        'MAT_REFINING_CORE_PART_C',
+    ];
+    private const CHAMP_REWARD_EXCLUDED_NAME_KEYWORDS = [
+        '古代片',
+        '極印',
+        '導石',
+        '秘境晶',
+        '高純度',
+        '精錬核',
+        '粗精錬核',
+        '覇王黒晶',
+        '蒼炉魔晶',
+        '星樹氷晶',
+    ];
+    private const CHAMP_COMMON_REWARD_MATERIALS = [
+        ['material_code' => 'MAT_COMMON_MONSTER_CORE', 'name' => '魔物の魔核'],
+    ];
 
     public function __construct(
         private CharacterStatusService $statusService,
@@ -1032,7 +1073,7 @@ class ChampBattleService
 
     private function materialReward(Character $character): array
     {
-        $candidates = $this->equippedEvolutionMaterialCandidates($character);
+        $candidates = $this->champRewardMaterialCandidates($character);
         $candidate = !empty($candidates)
             ? $candidates[array_rand($candidates)]
             : ['material_code' => 'MAT_COMMON_MONSTER_FRAGMENT', 'name' => '魔物の欠片'];
@@ -1043,6 +1084,29 @@ class ChampBattleService
             'material' => $material,
             'quantity' => random_int(1, 2),
         ];
+    }
+
+    private function champRewardMaterialCandidates(Character $character): array
+    {
+        $candidates = $this->equippedEvolutionMaterialCandidates($character);
+
+        foreach (self::CHAMP_COMMON_REWARD_MATERIALS as $commonMaterial) {
+            $material = $this->materialByCodeOrName(
+                (string) $commonMaterial['material_code'],
+                (string) $commonMaterial['name']
+            );
+
+            if (!$material || $this->isExcludedChampRewardMaterial($material)) {
+                continue;
+            }
+
+            $candidates[] = [
+                'material_code' => (string) $material->material_code,
+                'name' => $material->displayName(),
+            ];
+        }
+
+        return $this->uniqueMaterialCandidates($candidates);
     }
 
     private function equippedEvolutionMaterialCandidates(Character $character): array
@@ -1067,6 +1131,11 @@ class ChampBattleService
             });
         }
 
+        return $this->uniqueMaterialCandidates($candidates);
+    }
+
+    private function uniqueMaterialCandidates(array $candidates): array
+    {
         $unique = [];
         foreach ($candidates as $candidate) {
             $code = (string) ($candidate['material_code'] ?? '');
@@ -1174,6 +1243,10 @@ class ChampBattleService
             return null;
         }
 
+        if (in_array($code, self::CHAMP_REWARD_EXCLUDED_RECIPE_CODES, true)) {
+            return null;
+        }
+
         $cityId = $this->champRewardCityId($character, $recipe, $item);
         $material = match ($code) {
             'TOKEN_CITY_MATERIAL' => $this->firstMaterialByType('weapon_city', $cityId),
@@ -1191,12 +1264,35 @@ class ChampBattleService
             $material = Material::where('name', $fallbackName)->first();
         }
 
-        if ($material && (string) ($material->material_type ?? '') === 'branch_evolution') {
+        if ($material && $this->isExcludedChampRewardMaterial($material)) {
             return null;
         }
 
         return $material ? ['material_code' => (string) $material->material_code, 'name' => $material->displayName()] : null;
     }
+
+    private function isExcludedChampRewardMaterial(Material $material): bool
+    {
+        $code = (string) ($material->material_code ?? '');
+        if (in_array($code, self::CHAMP_REWARD_EXCLUDED_MATERIAL_CODES, true)) {
+            return true;
+        }
+
+        $type = (string) ($material->material_type ?? '');
+        if (in_array($type, self::CHAMP_REWARD_EXCLUDED_MATERIAL_TYPES, true)) {
+            return true;
+        }
+
+        $name = (string) ($material->name ?? '');
+        foreach (self::CHAMP_REWARD_EXCLUDED_NAME_KEYWORDS as $keyword) {
+            if ($keyword !== '' && str_contains($name, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function champRewardCityId(Character $character, object $recipe, object $item): int
     {
         foreach ([
@@ -1233,14 +1329,18 @@ class ChampBattleService
 
     private function materialByCodeOrFallback(string $code, string $fallbackName): Material
     {
-        $material = Material::where('material_code', $code)->first()
-            ?: ($fallbackName !== '' ? Material::where('name', $fallbackName)->first() : null);
-
+        $material = $this->materialByCodeOrName($code, $fallbackName);
         if ($material) {
             return $material;
         }
 
         return $this->fallbackChampMaterial();
+    }
+
+    private function materialByCodeOrName(string $code, string $name): ?Material
+    {
+        return Material::where('material_code', $code)->first()
+            ?: ($name !== '' ? Material::where('name', $name)->first() : null);
     }
 
     private function fallbackChampMaterial(): Material
@@ -1268,4 +1368,3 @@ class ChampBattleService
         $row->increment('quantity', $quantity);
     }
 }
-

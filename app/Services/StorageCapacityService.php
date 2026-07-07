@@ -28,7 +28,7 @@ class StorageCapacityService
             ->count();
 
         $materialLimit = (int) ($character->material_storage_limit ?? 500);
-        $equipmentLimit = (int) ($character->equipment_storage_limit ?? 200);
+        $equipmentLimit = max(300, (int) ($character->equipment_storage_limit ?? 300));
 
         return [
             'material_total' => (int) $materialTotal,

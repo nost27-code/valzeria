@@ -86,6 +86,7 @@
         merged.season = currentSeason();
         merged.tower = normalizeTowerState(source.tower, merged.season);
         merged.settings = { ...base.settings, ...(source.settings || {}) };
+        merged.settings = syncedSettingsWithTuning(merged.settings, bestTuningFromSettings(merged.settings));
         merged.rankings = source.rankings || {};
         merged.stamina = {
             current: clamp(Number(source.stamina?.current ?? base.stamina.current), 0, staminaMax),
@@ -356,11 +357,55 @@
         return { attack: 0, defense: 0, detect: 0, evasion: 0 };
     }
 
+    function normalizeTuning(tuning) {
+        const source = tuning || {};
+        return Object.fromEntries(statKeys.map((key) => [
+            key,
+            clamp(Number(source[key] || 0), 0, config.tuning.statCap),
+        ]));
+    }
+
+    function tuningTotal(tuning) {
+        const normalized = normalizeTuning(tuning);
+        return statKeys.reduce((sum, key) => sum + Number(normalized[key] || 0), 0);
+    }
+
+    function bestTuningFromSettings(settings) {
+        const rows = Object.values(settings || {})
+            .map((setting) => normalizeTuning(setting?.tuning));
+        if (!rows.length) return defaultTuningFor();
+        return rows.reduce((best, current) => (
+            tuningTotal(current) > tuningTotal(best) ? current : best
+        ), rows[0]);
+    }
+
+    function syncedSettingsWithTuning(settings, tuning) {
+        const sharedTuning = normalizeTuning(tuning);
+        const nextSettings = { ...(settings || {}) };
+        config.valmons.forEach((valmon) => {
+            const key = String(valmon.id);
+            nextSettings[key] = {
+                ...(nextSettings[key] || {}),
+                tuning: { ...sharedTuning },
+            };
+        });
+        return nextSettings;
+    }
+
+    function syncTuningToAllValmons(tuning) {
+        state.settings = syncedSettingsWithTuning(state.settings, tuning);
+    }
+
     function tuningPointLimit(level, bonusPoints = 0) {
         const base = config.tuning.pointsByLevel.reduce((points, rule) => (
             level >= rule.level ? rule.points : points
         ), config.tuning.pointsByLevel[0].points);
         return base + Number(bonusPoints || 0);
+    }
+
+    function seasonTuningPointLimit() {
+        const highestOwnedLevel = Math.max(...config.valmons.map((valmon) => Number(valmon.level || 1)));
+        return tuningPointLimit(highestOwnedLevel, state.tower?.seasonTuningBonusPoints || 0);
     }
 
     function selectedValmon() {
@@ -375,7 +420,7 @@
         const key = String(valmon.id);
         if (!state.settings[key]) {
             state.settings[key] = {
-                tuning: defaultTuningFor(valmon),
+                tuning: bestTuningFromSettings(state.settings),
                 orbCodes: [],
             };
         }
@@ -565,8 +610,8 @@
 
     function renderValmonSelectModal() {
         const currentId = Number(state.draftValmonId);
+        const limit = seasonTuningPointLimit();
         $("valmonSelectList").innerHTML = config.valmons.map((valmon) => {
-            const limit = tuningPointLimit(valmon.level, state.tower?.seasonTuningBonusPoints || 0);
             const isSelected = Number(valmon.id) === currentId;
             return `<button type="button" class="valmon-select-card${isSelected ? " selected" : ""}" data-valmon-pick="${valmon.id}" aria-pressed="${isSelected ? "true" : "false"}">
                 <img src="../../../public/images/valmon/${valmon.image}" alt="">
@@ -582,6 +627,8 @@
     function pickDraftValmon(valmonId) {
         const valmon = config.valmons.find((row) => row.id === Number(valmonId));
         if (!valmon) return;
+        const currentTuning = normalizeTuning(draftSetting().tuning);
+        syncTuningToAllValmons(currentTuning);
         state.draftValmonId = valmon.id;
         state.selectedValmonId = valmon.id;
         saveState();
@@ -679,6 +726,7 @@
         }
         state.tower.seasonTuningBonusPoints += 1;
         setting.tuning[statKey] = Number(setting.tuning[statKey] || 0) + 1;
+        syncTuningToAllValmons(setting.tuning);
         syncActiveRunLoadout();
         saveState();
         flash(`${config.tuning.labels[statKey]}が1上がりました。`);
@@ -701,7 +749,7 @@
 
     function validateSetting(valmon = selectedValmon()) {
         const setting = settingForValmon(valmon);
-        const limit = tuningPointLimit(valmon.level, state.tower?.seasonTuningBonusPoints || 0);
+        const limit = seasonTuningPointLimit();
         const total = statKeys.reduce((sum, key) => sum + Number(setting.tuning[key] || 0), 0);
         const capOver = statKeys.find((key) => Number(setting.tuning[key] || 0) > config.tuning.statCap);
         if (total < limit) {
@@ -2024,7 +2072,7 @@
     function renderPrepare() {
         const valmon = draftValmon();
         const setting = draftSetting();
-        const limit = tuningPointLimit(valmon.level, state.tower?.seasonTuningBonusPoints || 0);
+        const limit = seasonTuningPointLimit();
         const total = statKeys.reduce((sum, key) => sum + Number(setting.tuning[key] || 0), 0);
         const stats = calculateStats(valmon, setting.tuning, emptyTuning(), state.tower.deckCardCodes || [], null);
         syncTowerHpMax(stats.maxHp);
@@ -2034,7 +2082,6 @@
         $("selectedValmonMeta").textContent = `Lv${valmon.level} / 基礎能力値 ${limit}`;
         $("selectedValmonHpText").textContent = `${fmt(hp)} / ${fmt(stats.maxHp)}`;
         setHpBar("selectedValmonHpBar", hp, stats.maxHp);
-        $("tuningLimitLabel").textContent = `合計 ${limit} / 追加 ${state.tower.seasonTuningBonusPoints}`;
         renderTuningList();
         renderOrbList();
         const validation = validateSetting(valmon);
@@ -2045,7 +2092,7 @@
 
     function renderTuningList() {
         const setting = draftSetting();
-        const limit = tuningPointLimit(draftValmon().level, state.tower?.seasonTuningBonusPoints || 0);
+        const limit = seasonTuningPointLimit();
         const total = statKeys.reduce((sum, key) => sum + Number(setting.tuning[key] || 0), 0);
         const hasRemaining = total < limit;
         $("tuningList").innerHTML = statKeys.map((key) => `
@@ -2173,8 +2220,11 @@
     }
 
     function renderBpActions() {
+        if (!$("bpActionGrid")) return;
         const tower = state.tower;
-        $("bpUpgradeLabel").textContent = `未使用TP ${fmt(tower.bp)} / 次 ${fmt(nextBpActionCost())}TP`;
+        if ($("bpUpgradeLabel")) {
+            $("bpUpgradeLabel").textContent = `未使用TP ${fmt(tower.bp)} / 次 ${fmt(nextBpActionCost())}TP`;
+        }
         const nextSlot = tower.deckSlotLimit + 1;
         const slotCost = nextSlot <= config.deck.maxSlotLimit ? nextDeckSlotExpandCost() : null;
         const actions = [
@@ -2892,7 +2942,7 @@
             const delta = Number(target.dataset.delta);
             const current = Number(setting.tuning[key] || 0);
             if (delta > 0) {
-                const limit = tuningPointLimit(draftValmon().level, state.tower?.seasonTuningBonusPoints || 0);
+                const limit = seasonTuningPointLimit();
                 const total = statKeys.reduce((sum, statKey) => sum + Number(setting.tuning[statKey] || 0), 0);
                 if (current >= config.tuning.statCap) {
                     flash(`${config.tuning.labels[key]}は項目上限です。`, "error");
@@ -2904,6 +2954,7 @@
                 }
             }
             setting.tuning[key] = clamp(current + delta, 0, config.tuning.statCap);
+            syncTuningToAllValmons(setting.tuning);
             syncActiveRunLoadout();
             saveState();
             render();

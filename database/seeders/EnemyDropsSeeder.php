@@ -66,10 +66,10 @@ class EnemyDropsSeeder extends Seeder
     ];
     private const BRANCH_PATH_OBTAIN_METHODS = [
         'MAT_BR_WPN_HOLY_PATH' => '素材交換所、または王都アークレアの最深層のレア報酬枠で入手します。',
-        'MAT_BR_WPN_GALE_PATH' => '素材交換所、または精霊の森エルフィアのLv40〜50帯表層探索のレア報酬枠で入手します。',
-        'MAT_BR_WPN_DARK_PATH' => '素材交換所、または鍛冶街グランベルグ周辺のLv40〜50帯表層探索のレア報酬枠で入手します。',
-        'MAT_BR_ARM_HEAVY_ARCANE_PATH' => '素材交換所、または鍛冶街グランベルグ周辺のLv40〜50帯表層探索のレア報酬枠で入手します。',
-        'MAT_BR_ARM_LIGHT_TRAVELER_PATH' => '素材交換所、または精霊の森エルフィアのLv40〜50帯表層探索のレア報酬枠で入手します。',
+        'MAT_BR_WPN_GALE_PATH' => '素材交換所、または精霊の森エルフィアの目安戦力1,631〜2,411帯表層探索のレア報酬枠で入手します。',
+        'MAT_BR_WPN_DARK_PATH' => '素材交換所、または鍛冶街グランベルグ周辺の目安戦力1,631〜2,411帯表層探索のレア報酬枠で入手します。',
+        'MAT_BR_ARM_HEAVY_ARCANE_PATH' => '素材交換所、または鍛冶街グランベルグ周辺の目安戦力1,631〜2,411帯表層探索のレア報酬枠で入手します。',
+        'MAT_BR_ARM_LIGHT_TRAVELER_PATH' => '素材交換所、または精霊の森エルフィアの目安戦力1,631〜2,411帯表層探索のレア報酬枠で入手します。',
     ];
     private const SUPPLEMENTAL_COMMON_MATERIAL_DROPS = [
         'MAT_COMMON_BEAST_FANG' => [

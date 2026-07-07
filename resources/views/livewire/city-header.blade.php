@@ -377,6 +377,11 @@
             position: relative;
             padding: 22px 12px 18px;
         }
+        .adventurer-card-inner.is-support-pass-card {
+            background:
+                linear-gradient(90deg, rgba(120,53,15,.10), transparent 18%, transparent 82%, rgba(120,53,15,.10)),
+                linear-gradient(180deg, rgba(254,243,199,.28), rgba(255,255,255,0) 18%, rgba(254,243,199,.24));
+        }
         .adventurer-card-hero {
             position: relative;
             overflow: visible;
@@ -408,23 +413,103 @@
         }
         .adventurer-card-hero.is-support-pass {
             background:
-                radial-gradient(circle at 78% 10%, rgba(251,191,36,.32), transparent 28%),
-                linear-gradient(180deg, rgba(15,23,42,.18), rgba(15,23,42,.04)),
+                linear-gradient(180deg, rgba(120,53,15,.42) 0 46px, transparent 96px 100%),
+                linear-gradient(135deg, rgba(255,255,255,.82) 0%, rgba(254,243,199,.60) 34%, rgba(15,23,42,.26) 100%),
+                repeating-linear-gradient(135deg, rgba(146,64,14,.16) 0 1px, transparent 1px 9px),
                 var(--adventurer-card-bg, url('{{ asset('images/profile/adventurer_card_bg01.webp') }}')) center / cover no-repeat,
-                linear-gradient(135deg, #111827 0%, #1e293b 58%, #92400e 100%);
-            box-shadow: 0 10px 24px rgba(146, 64, 14, .18), 0 0 0 1px rgba(245, 158, 11, .28);
+                linear-gradient(135deg, #fff7ed 0%, #fef3c7 48%, #dbeafe 100%);
+            box-shadow:
+                0 22px 46px rgba(15, 23, 42, .32),
+                0 0 0 2px rgba(245, 158, 11, .54),
+                0 0 0 6px rgba(120, 53, 15, .10),
+                inset 0 0 0 1px rgba(255, 255, 255, .72),
+                inset 0 0 42px rgba(245, 158, 11, .24);
         }
         .adventurer-card-hero.is-support-pass::before {
-            background: linear-gradient(90deg, rgba(255,255,255,.70) 0%, rgba(254,243,199,.46) 43%, rgba(120,53,15,.08) 100%);
+            inset: 8px;
+            border: 1px solid rgba(180, 83, 9, .24);
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.82) 0%, rgba(254,243,199,.55) 48%, rgba(120,53,15,.10) 100%);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, .60),
+                inset 0 18px 34px rgba(255, 255, 255, .30);
+        }
+        .adventurer-card-hero.is-support-pass::after {
+            filter: drop-shadow(0 0 5px rgba(245, 158, 11, .55));
+        }
+        .adventurer-card-pass-seal {
+            position: absolute;
+            right: 34px;
+            top: 76px;
+            z-index: 4;
+            display: grid;
+            width: 54px;
+            height: 54px;
+            place-items: center;
+            filter: drop-shadow(0 8px 12px rgba(92, 64, 17, .24));
+        }
+        .adventurer-card-pass-seal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-avatar {
+            top: 96px;
+            background: linear-gradient(180deg, rgba(255,251,235,.96), rgba(255,247,237,.78));
+            box-shadow:
+                0 14px 26px rgba(92, 64, 17, .18),
+                0 0 0 1px rgba(245, 158, 11, .32),
+                inset 0 0 18px rgba(255, 255, 255, .55);
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-title {
+            padding-top: 28px;
+            min-height: 138px;
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-title h3 {
+            color: #713f12;
+            text-shadow:
+                0 2px 0 rgba(255, 255, 255, .78),
+                0 8px 18px rgba(146, 64, 14, .18);
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-title p {
+            color: #334155;
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-power-pill {
+            border-color: rgba(245, 158, 11, .56);
+            background: linear-gradient(180deg, rgba(255,255,255,.90), rgba(254,243,199,.86));
+            color: #78350f;
+            box-shadow:
+                0 8px 18px rgba(146, 64, 14, .14),
+                inset 0 0 0 1px rgba(255, 255, 255, .72);
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-vital-bar {
+            border-color: rgba(245, 158, 11, .32);
+            background: rgba(255, 251, 235, .76);
+            box-shadow:
+                inset 0 1px 2px rgba(15,23,42,.14),
+                0 1px 0 rgba(255,255,255,.66);
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-badge {
+            border-color: rgba(245, 158, 11, .38);
+            background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(254,243,199,.78));
+            box-shadow:
+                0 8px 18px rgba(92, 64, 17, .12),
+                inset 0 0 0 1px rgba(255, 255, 255, .62);
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-badge:nth-child(odd) {
+            background: linear-gradient(180deg, rgba(255,251,235,.94), rgba(255,237,213,.82));
         }
         .adventurer-card-pass-record {
             border-color: rgba(245, 158, 11, .34) !important;
             background: linear-gradient(135deg, rgba(255,251,235,.96), rgba(254,243,199,.72)) !important;
+            box-shadow:
+                0 8px 16px rgba(146, 64, 14, .10),
+                inset 0 0 0 1px rgba(255, 255, 255, .70) !important;
         }
         .adventurer-card-avatar {
             position: absolute;
             left: 42px;
-            top: 106px;
+            top: 98px;
             z-index: 2;
             display: grid;
             width: 100px;
@@ -453,9 +538,20 @@
         .adventurer-card-title {
             position: relative;
             z-index: 2;
-            padding: 36px 48px 0;
-            min-height: 156px;
+            display: flex;
+            min-height: 132px;
+            flex-direction: column;
+            align-items: center;
+            padding: 28px 40px 0;
             text-align: center;
+        }
+        .adventurer-card-title-line {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: center;
+            max-width: 100%;
+            gap: 10px;
         }
         .adventurer-card-title h3 {
             color: #6b3f08;
@@ -469,22 +565,44 @@
             text-shadow: 0 2px 0 rgba(255,255,255,.72);
         }
         .adventurer-card-title p {
-            margin-top: 8px;
             color: #475569;
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 900;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+        .adventurer-card-equipped-title {
+            display: block;
+            max-width: 100%;
+            margin: 0 0 2px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: #8a5a0d;
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1.15;
+            text-align: left;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .70);
+            box-shadow: none;
+        }
+        .adventurer-card-equipped-title span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .adventurer-card-power-pill {
             display: inline-flex;
             align-items: baseline;
             gap: 5px;
-            margin-top: 8px;
+            margin-top: 7px;
             border-radius: 999px;
             border: 1px solid rgba(180, 128, 29, .38);
-            background: rgba(255,255,255,.78);
-            padding: 4px 10px;
+            background: rgba(255,255,255,.86);
+            padding: 5px 15px;
             color: #6b3f08;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 900;
             box-shadow: 0 4px 10px rgba(92, 64, 17, .08);
         }
@@ -492,8 +610,8 @@
             position: relative;
             z-index: 2;
             display: grid;
-            gap: 7px;
-            margin: 0 36px 0 164px;
+            gap: 6px;
+            margin: -2px 36px 0 164px;
         }
         .adventurer-card-vital-row {
             display: grid;
@@ -520,21 +638,71 @@
             z-index: 2;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 6px;
-            padding: 22px 54px 28px;
+            gap: 5px;
+            padding: 16px 54px 18px;
+        }
+        .adventurer-card-hero.is-support-pass .adventurer-card-badges,
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badges {
+            padding-top: 40px;
+            padding-bottom: 12px;
         }
         .adventurer-card-badge {
-            min-height: 64px;
-            border-radius: 10px;
+            min-height: 48px;
+            border-radius: 9px;
             border: 1px solid rgba(201, 153, 50, .28);
             background: rgba(255,255,255,.76);
             box-shadow: 0 5px 12px rgba(92, 64, 17, .08);
         }
         .adventurer-card-badge-icon {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             object-fit: contain;
             filter: drop-shadow(0 2px 3px rgba(15,23,42,.18));
+        }
+        .adventurer-card-comment {
+            position: relative;
+            z-index: 2;
+            margin: 0 60px 20px;
+            padding: 0 4px;
+        }
+        .adventurer-card-comment-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: #8a5a0d;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .adventurer-card-comment-edit {
+            flex-shrink: 0;
+            border-radius: 999px;
+            border: 1px solid rgba(212, 175, 55, .54);
+            background: rgba(255,255,255,.72);
+            padding: 3px 8px;
+            color: #8a5a0d;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .adventurer-card-comment-edit:hover {
+            background: rgba(255,251,235,.95);
+        }
+        .adventurer-card-comment-text {
+            margin-top: 5px;
+            max-height: 38px;
+            overflow: hidden;
+            color: #1e293b;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.45;
+            white-space: pre-line;
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-comment-head,
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-comment-edit,
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-equipped-title {
+            color: #1e3a8a;
         }
         .adventurer-card-medals {
             position: relative;
@@ -562,6 +730,158 @@
             border: 1px solid rgba(201, 153, 50, .32);
             background: rgba(255, 255, 255, .74);
             box-shadow: 0 6px 16px rgba(92, 64, 17, .08);
+        }
+        .adventurer-card-inner.is-support-pass-card .adventurer-card-section {
+            position: relative;
+            overflow: hidden;
+            border-color: rgba(245, 158, 11, .44);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,251,235,.86)),
+                repeating-linear-gradient(135deg, rgba(180,83,9,.08) 0 1px, transparent 1px 10px);
+            box-shadow:
+                0 12px 24px rgba(92, 64, 17, .14),
+                inset 0 0 0 1px rgba(255, 255, 255, .72);
+        }
+        .adventurer-card-inner.is-support-pass-card .adventurer-card-section::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-top: 4px solid rgba(180, 83, 9, .58);
+            border-bottom: 1px solid rgba(245, 158, 11, .25);
+            pointer-events: none;
+        }
+        .adventurer-card-inner.is-support-pass-card .adventurer-card-section > div:first-child {
+            position: relative;
+            color: #78350f !important;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .78);
+        }
+        .adventurer-card-inner.is-support-pass-card .adventurer-card-section .grid > div,
+        .adventurer-card-inner.is-support-pass-card .adventurer-card-section .flex.min-h-10 {
+            border-color: rgba(245, 158, 11, .28) !important;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,247,237,.88)) !important;
+            box-shadow:
+                0 6px 12px rgba(92, 64, 17, .08),
+                inset 0 0 0 1px rgba(255,255,255,.66) !important;
+        }
+        .adventurer-card-inner.is-support-pass-card .adventurer-card-section .text-green-600 {
+            color: #059669 !important;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .60);
+        }
+        .adventurer-card-inner.is-support-pass-blue-gold-card {
+            background:
+                linear-gradient(90deg, rgba(30,64,175,.14), transparent 18%, transparent 82%, rgba(14,165,233,.12)),
+                linear-gradient(180deg, rgba(219,234,254,.38), rgba(255,255,255,0) 18%, rgba(224,242,254,.24));
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold {
+            background:
+                linear-gradient(180deg, rgba(30,64,175,.48) 0 46px, transparent 96px 100%),
+                linear-gradient(135deg, rgba(239,246,255,.88) 0%, rgba(191,219,254,.58) 40%, rgba(56,189,248,.24) 100%),
+                repeating-linear-gradient(135deg, rgba(30,64,175,.13) 0 1px, transparent 1px 9px),
+                var(--adventurer-card-bg, url('{{ asset('images/profile/adventurer_card_bg01.webp') }}')) center / cover no-repeat,
+                linear-gradient(135deg, #eff6ff 0%, #dbeafe 54%, #e0f2fe 100%);
+            box-shadow:
+                0 22px 46px rgba(15, 23, 42, .32),
+                0 0 0 2px rgba(59, 130, 246, .50),
+                0 0 0 6px rgba(14, 165, 233, .12),
+                inset 0 0 0 1px rgba(255, 255, 255, .74),
+                inset 0 0 42px rgba(59, 130, 246, .18);
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold::before {
+            inset: 8px;
+            border: 1px solid rgba(59, 130, 246, .28);
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.84) 0%, rgba(219,234,254,.60) 50%, rgba(14,165,233,.10) 100%);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, .62),
+                inset 0 18px 34px rgba(255, 255, 255, .32);
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold::after {
+            filter: drop-shadow(0 0 5px rgba(59, 130, 246, .45));
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-pass-seal {
+            filter: drop-shadow(0 8px 12px rgba(15, 23, 42, .25));
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-avatar {
+            top: 96px;
+            background: linear-gradient(180deg, rgba(239,246,255,.96), rgba(219,234,254,.78));
+            box-shadow:
+                0 14px 26px rgba(30, 64, 175, .16),
+                0 0 0 1px rgba(59, 130, 246, .32),
+                inset 0 0 18px rgba(255, 255, 255, .58);
+        }
+            .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-title {
+                padding-top: 28px;
+                min-height: 150px;
+            }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-title h3 {
+            color: #1e3a8a;
+            text-shadow:
+                0 2px 0 rgba(255, 255, 255, .80),
+                0 8px 18px rgba(30, 64, 175, .18);
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-title p {
+            color: #334155;
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-power-pill {
+            border-color: rgba(96, 165, 250, .54);
+            background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(219,234,254,.86));
+            color: #1e3a8a;
+            box-shadow:
+                0 8px 18px rgba(30, 64, 175, .12),
+                inset 0 0 0 1px rgba(255, 255, 255, .72);
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-vital-bar {
+            border-color: rgba(59, 130, 246, .32);
+            background: rgba(239, 246, 255, .78);
+            box-shadow:
+                inset 0 1px 2px rgba(15,23,42,.14),
+                0 1px 0 rgba(255,255,255,.66);
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badge {
+            border-color: rgba(59, 130, 246, .30);
+            background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(219,234,254,.80));
+            box-shadow:
+                0 8px 18px rgba(30, 64, 175, .10),
+                inset 0 0 0 1px rgba(255, 255, 255, .62);
+        }
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badge:nth-child(odd) {
+            background: linear-gradient(180deg, rgba(239,246,255,.94), rgba(224,242,254,.78));
+        }
+        .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-section {
+            position: relative;
+            overflow: hidden;
+            border-color: rgba(59, 130, 246, .34);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.94), rgba(239,246,255,.88)),
+                repeating-linear-gradient(135deg, rgba(30,64,175,.07) 0 1px, transparent 1px 10px);
+            box-shadow:
+                0 12px 24px rgba(30, 64, 175, .11),
+                inset 0 0 0 1px rgba(255, 255, 255, .72);
+        }
+        .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-section::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-top: 4px solid rgba(37, 99, 235, .52);
+            border-bottom: 1px solid rgba(56, 189, 248, .22);
+            pointer-events: none;
+        }
+        .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-section > div:first-child {
+            position: relative;
+            color: #1e3a8a !important;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .78);
+        }
+        .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-section .grid > div,
+        .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-section .flex.min-h-10 {
+            border-color: rgba(59, 130, 246, .22) !important;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(239,246,255,.88)) !important;
+            box-shadow:
+                0 6px 12px rgba(30, 64, 175, .07),
+                inset 0 0 0 1px rgba(255,255,255,.66) !important;
+        }
+        .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-pass-record {
+            border-color: rgba(59, 130, 246, .30) !important;
+            background: linear-gradient(135deg, rgba(239,246,255,.96), rgba(224,242,254,.82)) !important;
         }
         .valmon-badge-case {
             margin-top: 12px;
@@ -644,7 +964,7 @@
             }
             .adventurer-card-avatar {
                 left: 32px;
-                top: 106px;
+                top: 98px;
                 width: 88px;
                 height: 88px;
             }
@@ -652,25 +972,45 @@
                 inset: -19px;
             }
             .adventurer-card-title {
-                padding: 34px 40px 0;
-                min-height: 150px;
+                min-height: 130px;
+                padding: 26px 32px 0;
+            }
+            .adventurer-card-hero.is-support-pass .adventurer-card-title,
+            .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-title {
+                padding-top: 26px;
+                min-height: 130px;
             }
             .adventurer-card-title h3 {
                 font-size: 23px;
             }
             .adventurer-card-title p {
-                font-size: 14px;
+                font-size: 15px;
+            }
+            .adventurer-card-equipped-title {
+                max-width: min(90%, 270px);
+                font-size: 12px;
+                padding: 0;
             }
             .adventurer-card-vitals {
                 margin-left: 134px;
                 margin-right: 28px;
+                margin-top: -2px;
             }
             .adventurer-card-badges {
                 gap: 5px;
-                padding: 22px 44px 24px;
+                padding: 14px 44px 16px;
+            }
+            .adventurer-card-hero.is-support-pass .adventurer-card-badges,
+            .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badges {
+                padding-top: 36px;
+                padding-bottom: 10px;
             }
             .adventurer-card-badge {
-                min-height: 62px;
+                min-height: 46px;
+            }
+            .adventurer-card-comment {
+                margin-inline: 50px;
+                margin-bottom: 14px;
             }
             .adventurer-card-medals {
                 padding-inline: 64px;
@@ -917,6 +1257,7 @@
         </div>
     @endif
 
+    @if($showCityPanel)
     <!-- 1. 全幅ヘッダーエリア -->
     <div class="bg-white rounded-lg shadow-[0_5px_16px_rgba(126,96,28,0.14)] border border-[#d4af37] flex-shrink-0 overflow-hidden w-full font-sans text-xs sm:text-sm">
         <!-- 街ヘッダー -->
@@ -988,20 +1329,33 @@
             @endif
         </div>
     </div>
+    @endif
 
     <!-- キャラ詳細モーダル -->
     <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
         <div class="adventurer-card-modal">
             <template x-if="playerInfo">
-                <div class="adventurer-card-inner">
+                <div class="adventurer-card-inner"
+                     :class="{
+                         'is-support-pass-card': playerInfo.adventurer_card_skin === 'support_pass',
+                         'is-support-pass-blue-gold-card': playerInfo.adventurer_card_skin === 'support_pass_blue_gold'
+                     }">
                     <div class="adventurer-card-hero"
-                         :class="{ 'is-support-pass': playerInfo.adventurer_card_skin === 'support_pass' }"
+                         :class="{
+                             'is-support-pass': playerInfo.adventurer_card_skin === 'support_pass',
+                             'is-support-pass-blue-gold': playerInfo.adventurer_card_skin === 'support_pass_blue_gold'
+                         }"
                          :style="{
                              '--adventurer-card-bg': `url('${playerInfo.adventurer_card_background}')`,
                              '--adventurer-card-frame': `url('${playerInfo.adventurer_card_frame}')`,
                              '--adventurer-avatar-frame': `url('${playerInfo.adventurer_avatar_frame}')`
                          }">
+                        <template x-if="['support_pass', 'support_pass_blue_gold'].includes(playerInfo.adventurer_card_skin)">
+                            <div class="adventurer-card-pass-seal">
+                                <img src="{{ asset('images/icon/icon_259.webp') }}" alt="支援パス">
+                            </div>
+                        </template>
                         <div class="adventurer-card-avatar">
                             <template x-if="playerInfo.icon">
                                 <img :src="playerInfo.icon" alt="アバター">
@@ -1011,8 +1365,10 @@
                             </template>
                         </div>
                         <div class="adventurer-card-title">
-                            <h3 x-text="playerInfo.name"></h3>
-                            <p>Lv.<span x-text="playerInfo.level"></span> / <span x-text="playerInfo.job"></span></p>
+                            <div class="adventurer-card-title-line">
+                                <h3 x-text="playerInfo.name"></h3>
+                                <p>Lv.<span x-text="playerInfo.level"></span> / <span x-text="playerInfo.job"></span></p>
+                            </div>
                             <div class="adventurer-card-power-pill">
                                 <span>戦力</span>
                                 <span class="text-base leading-none" x-text="Number(playerInfo.power || 0).toLocaleString()"></span>
@@ -1020,6 +1376,9 @@
                         </div>
 
                         <div class="adventurer-card-vitals">
+                            <div class="adventurer-card-equipped-title">
+                                <span x-text="playerInfo.equipped_title"></span>
+                            </div>
                             <div class="adventurer-card-vital-row">
                                 <span class="text-emerald-600">HP</span>
                                 <div class="adventurer-card-vital-bar">
@@ -1037,14 +1396,14 @@
                         </div>
 
                         <div class="adventurer-card-badges">
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
                                 <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="adventurer-card-badge-icon">
                                 <div class="min-w-0">
                                     <div class="text-[10px] font-black text-[#8a5a0d]">所属</div>
-                                    <div class="mt-0.5 truncate text-sm font-black leading-tight text-slate-800" x-text="playerInfo.guild"></div>
+                                    <div class="truncate text-xs font-black leading-tight text-slate-800" x-text="playerInfo.guild"></div>
                                 </div>
                             </div>
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
                                 <template x-if="playerInfo.arena_rank_trophy">
                                     <img :src="playerInfo.arena_rank_trophy" alt="" class="adventurer-card-badge-icon">
                                 </template>
@@ -1053,27 +1412,39 @@
                                 </template>
                                 <div class="min-w-0">
                                     <div class="text-[10px] font-black text-[#8a5a0d]">闘技場順位</div>
-                                    <div class="mt-0.5 truncate text-base font-black leading-tight text-slate-800" x-text="playerInfo.arena_rank"></div>
+                                    <div class="truncate text-sm font-black leading-tight text-slate-800" x-text="playerInfo.arena_rank"></div>
                                 </div>
                             </div>
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
                                 <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="adventurer-card-badge-icon">
                                 <div class="min-w-0">
                                     <div class="text-[10px] font-black text-[#8a5a0d]">冒険回数</div>
-                                    <div class="mt-0.5 truncate text-base font-black leading-tight text-slate-800">
-                                        <span x-text="playerInfo.card_records.battles.value"></span><span class="text-[11px] text-orange-700" x-text="playerInfo.card_records.battles.unit"></span>
+                                    <div class="truncate text-sm font-black leading-tight text-slate-800">
+                                        <span x-text="playerInfo.card_records.battles.value"></span><span class="text-[10px] text-orange-700" x-text="playerInfo.card_records.battles.unit"></span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-1 px-1.5 py-2 text-center">
+                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
                                 <img src="{{ asset('images/icon/icon_052.webp') }}" alt="" class="adventurer-card-badge-icon">
                                 <div class="min-w-0">
                                     <div class="text-[10px] font-black text-[#8a5a0d]">冒険日数</div>
-                                    <div class="mt-0.5 truncate text-base font-black leading-tight text-slate-800">
-                                        <span x-text="playerInfo.card_records.days.value"></span><span class="text-[11px] text-orange-700" x-text="playerInfo.card_records.days.unit"></span>
+                                    <div class="truncate text-sm font-black leading-tight text-slate-800">
+                                        <span x-text="playerInfo.card_records.days.value"></span><span class="text-[10px] text-orange-700" x-text="playerInfo.card_records.days.unit"></span>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="adventurer-card-comment">
+                            <div class="adventurer-card-comment-head">
+                                <span>一言コメント</span>
+                                <a x-show="playerInfo && playerInfo.is_self"
+                                   href="{{ route('profile.edit') }}#profile_comment"
+                                   class="adventurer-card-comment-edit">
+                                    編集
+                                </a>
+                            </div>
+                            <div class="adventurer-card-comment-text" x-text="playerInfo.profile_comment"></div>
                         </div>
 
                     </div>
@@ -1235,17 +1606,6 @@
                         </div>
                     </div>
 
-                    <div class="adventurer-card-section px-4 py-3">
-                        <div class="mb-2 flex items-center justify-between gap-2">
-                            <div class="text-sm font-black text-[#6b3f08]">一言コメント</div>
-                            <a x-show="playerInfo && playerInfo.is_self"
-                               href="{{ route('profile.edit') }}#profile_comment"
-                               class="shrink-0 rounded-md border border-[#d4af37]/60 bg-white/85 px-2 py-1 text-[11px] font-black text-[#8a5a0d] shadow-sm hover:bg-amber-50">
-                                編集
-                            </a>
-                        </div>
-                        <div class="text-sm leading-relaxed text-slate-800 whitespace-pre-line" x-text="playerInfo.profile_comment"></div>
-                    </div>
                 </div>
             </template>
 

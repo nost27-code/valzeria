@@ -111,7 +111,7 @@
                                 −
                             </button>
                             <input type="range" min="0"
-                                :max="allocations.{{ $key }} + availableBp()"
+                                :max="remainingBp"
                                 :value="allocations.{{ $key }}"
                                 @input="setAllocation('{{ $key }}', $event.target.value)"
                                 :disabled="isSubmitting"

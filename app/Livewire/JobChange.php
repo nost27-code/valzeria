@@ -113,7 +113,15 @@ class JobChange extends Component
 
     public function changeJob()
     {
-        if (!$this->selectedJobId || !$this->selectedJob) {
+        if (!$this->selectedJobId) {
+            $this->resetJobChangeConfirmation();
+            return;
+        }
+
+        $this->selectedJob = $this->findSelectedJob((int) $this->selectedJobId);
+        if (!$this->selectedJob) {
+            $this->resetJobChangeConfirmation();
+            session()->flash('message', '転職先の職業が見つかりません。もう一度選び直してください。');
             return;
         }
 
@@ -142,6 +150,7 @@ class JobChange extends Component
             }
             session()->flash('message', $message);
         } else {
+            $this->confirmingJobChange = false;
             session()->flash('message', $jobChangeService->getLastFailureMessage() ?: '転職処理に失敗しました。条件を満たしているか確認してください。');
         }
 
@@ -293,6 +302,27 @@ class JobChange extends Component
                 ]))
                 ->values()
         );
+    }
+
+    private function findSelectedJob(int $jobId): ?JobClass
+    {
+        $job = JobClass::with(['masterBonuses', 'requirements.requiredJob', 'jobArts'])
+            ->where('is_active', true)
+            ->find($jobId);
+
+        if ($job) {
+            $this->normalizeRequirementsForDisplay($job);
+        }
+
+        return $job;
+    }
+
+    private function resetJobChangeConfirmation(): void
+    {
+        $this->confirmingJobChange = false;
+        $this->selectedJobId = null;
+        $this->selectedJob = null;
+        $this->statPreview = [];
     }
 
     public function render()

@@ -1,77 +1,89 @@
 <div>
-    <div class="p-6">
-        <!-- ヘッダー -->
-        <div class="flex justify-between items-center mb-6 border-b border-[#d4af37]/50 pb-4">
-            <h2 class="text-2xl font-bold text-[#d4af37] tracking-widest flex items-center gap-2">
-                <img src="{{ asset('images/icon/icon_242.webp') }}" alt="" class="w-7 h-7 object-contain"> 称号一覧
-            </h2>
-            <a href="{{ route('home') }}" class="text-sm bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded transition-colors border border-slate-500 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                街へ戻る
-            </a>
+    @php
+        $rarityLabels = [
+            'normal' => '通常',
+            'common' => '通常',
+            'rare' => '希少',
+            'epic' => '英雄',
+            'legend' => '伝説',
+            'legendary' => '伝説',
+            'mythic' => '神話',
+        ];
+        $rarityClass = [
+            'normal' => 'border-slate-200 bg-slate-50 text-slate-600',
+            'common' => 'border-slate-200 bg-slate-50 text-slate-600',
+            'rare' => 'border-blue-200 bg-blue-50 text-blue-700',
+            'epic' => 'border-purple-200 bg-purple-50 text-purple-700',
+            'legend' => 'border-amber-300 bg-amber-50 text-amber-700',
+            'legendary' => 'border-amber-300 bg-amber-50 text-amber-700',
+            'mythic' => 'border-rose-300 bg-rose-50 text-rose-700',
+        ];
+    @endphp
+
+    <div class="mb-3 grid grid-cols-3 divide-x divide-amber-100 overflow-hidden rounded-xl border border-[#d4af37]/40 bg-amber-50/60">
+        <div class="px-3 py-2.5">
+            <div class="text-[10px] font-black tracking-wide text-amber-600 uppercase">獲得称号</div>
+            <div class="mt-0.5 leading-none">
+                <span class="text-base font-black tabular-nums text-slate-900">{{ number_format($summary['unlocked_count']) }}</span>
+                <span class="text-xs font-bold text-slate-400">/{{ number_format($summary['total_count']) }}</span>
+            </div>
         </div>
-
-        <div class="bg-blue-50 border border-blue-200 rounded p-3 mb-6 text-sm text-blue-800">
-            💡 称号をタップすると装備が切り替わります。
+        <div class="px-3 py-2.5">
+            <div class="text-[10px] font-black tracking-wide text-amber-600 uppercase">装備中</div>
+            <div class="mt-0.5 truncate text-sm font-black leading-none text-slate-900">{{ $summary['equipped_name'] ?? 'なし' }}</div>
         </div>
+        <div class="px-3 py-2.5">
+            <div class="text-[10px] font-black tracking-wide text-amber-600 uppercase">未解放</div>
+            <div class="mt-0.5 text-base font-black tabular-nums leading-none text-slate-900">{{ number_format(max(0, $summary['total_count'] - $summary['unlocked_count'])) }}</div>
+        </div>
+    </div>
 
-        <!-- コンテンツ領域 -->
-        <div class="flex flex-wrap gap-2">
-            @forelse($titles as $title)
-                @php
-                    $isUnlocked = in_array($title['id'], $characterTitles);
-                    $displayRarity = $title['rarity'];
-                    
-                    // レアリティに応じた文字色・背景色（未取得時はグレー固定）
-                    $rarityColor = 'text-slate-400';
-                    $rarityBg = 'bg-slate-50';
-                    $rarityBorder = 'border-slate-200 border-dashed';
-                    $equipped = false;
-                    
-                    if ($isUnlocked) {
-                        if ($displayRarity === 'common') { 
-                            $rarityColor = 'text-slate-700'; $rarityBg = 'bg-slate-100 hover:bg-slate-200'; $rarityBorder = 'border-slate-300 border-solid cursor-pointer';
-                        } elseif ($displayRarity === 'rare') { 
-                            $rarityColor = 'text-blue-700'; $rarityBg = 'bg-blue-50 hover:bg-blue-100'; $rarityBorder = 'border-blue-300 border-solid cursor-pointer';
-                        } elseif ($displayRarity === 'epic') { 
-                            $rarityColor = 'text-purple-700'; $rarityBg = 'bg-purple-50 hover:bg-purple-100'; $rarityBorder = 'border-purple-300 border-solid cursor-pointer';
-                        } elseif ($displayRarity === 'legendary') { 
-                            $rarityColor = 'text-yellow-700'; $rarityBg = 'bg-yellow-50 hover:bg-yellow-100'; $rarityBorder = 'border-yellow-400 border-solid cursor-pointer';
-                        } elseif ($displayRarity === 'mythic') { 
-                            $rarityColor = 'text-red-700'; $rarityBg = 'bg-red-50 hover:bg-red-100'; $rarityBorder = 'border-red-400 border-solid cursor-pointer';
-                        }
+    <div class="mb-4 rounded-xl border border-[#d4af37]/40 bg-white px-3 py-2.5">
+        <div class="flex items-center gap-2">
+            <img src="{{ asset('images/icon/icon_009.webp') }}" alt="" class="h-5 w-5 object-contain">
+            <div class="min-w-0 flex-1">
+                <div class="text-[10px] font-black tracking-widest text-amber-600 uppercase">称号装備</div>
+                <div class="truncate text-sm font-bold text-slate-700">獲得済みの称号を選ぶと、冒険者カードに表示する称号を変更できます。</div>
+            </div>
+        </div>
+    </div>
 
-                        $equipped = Auth::user()->currentCharacter()->titles()->where('is_equipped', true)->value('title_id') == $title['id'];
-                        
-                        // 装備中の場合の上書き
-                        if ($equipped) {
-                            $rarityBg = 'bg-amber-100 shadow-md transform scale-[1.05]';
-                            $rarityBorder = 'border-amber-500 border-2 border-solid cursor-pointer';
-                            $rarityColor = 'text-amber-800';
-                        }
-                    }
-                @endphp
-                
-                <div 
-                    class="px-3 py-1.5 rounded-full border transition-all duration-200 flex items-center gap-1 {{ $rarityBorder }} {{ $rarityBg }} {{ $rarityColor }}"
-                    @if($isUnlocked && !$equipped) wire:click="equipTitle({{ $title['id'] }})" @endif
-                >
-                    @if($equipped)
-                        <img src="{{ asset('images/icon/icon_009.webp') }}" alt="" class="w-3.5 h-3.5 object-contain pr-0.5">
-                    @endif
-                    <span class="font-bold text-sm">
-                        @if($isUnlocked)
-                            {{ $title['name'] }}
-                        @else
-                            {{ $title['is_hidden'] ? '？？？' : $title['name'] }}
-                        @endif
-                    </span>
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        @forelse($titles as $title)
+            @php
+                $isUnlocked = isset($characterTitles[$title['id']]);
+                $isEquipped = (bool) ($characterTitles[$title['id']]['is_equipped'] ?? false);
+                $rarity = strtolower((string) ($title['rarity'] ?? 'common'));
+                $rarityBadgeClass = $rarityClass[$rarity] ?? $rarityClass['common'];
+                $displayName = $isUnlocked ? $title['name'] : '？？？';
+            @endphp
+            <button
+                type="button"
+                @if($isUnlocked && ! $isEquipped) wire:click="equipTitle({{ (int) $title['id'] }})" @endif
+                @disabled(! $isUnlocked || $isEquipped)
+                class="min-h-[74px] rounded-lg border px-2.5 py-2 text-left shadow-sm transition {{ $isEquipped ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-300' : ($isUnlocked ? 'border-[#d4af37]/45 bg-white hover:bg-amber-50' : 'border-slate-100 bg-slate-50/70') }} {{ $isUnlocked && ! $isEquipped ? 'cursor-pointer' : 'cursor-default' }}"
+            >
+                <div class="flex items-start gap-2">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border {{ $isUnlocked ? 'border-amber-200 bg-white' : 'border-slate-200 bg-white/70' }}">
+                        <img src="{{ asset($isEquipped ? 'images/icon/icon_009.webp' : 'images/icon/icon_242.webp') }}" alt="" class="h-6 w-6 object-contain {{ $isUnlocked ? '' : 'grayscale opacity-40' }}">
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="break-words text-sm font-black leading-tight {{ $isUnlocked ? 'text-slate-900' : 'text-slate-400' }}">{{ $displayName }}</div>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                            <span class="rounded border px-1.5 py-0.5 text-[10px] font-black leading-none {{ $rarityBadgeClass }}">{{ $rarityLabels[$rarity] ?? strtoupper($rarity) }}</span>
+                            @if($isEquipped)
+                                <span class="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-black leading-none text-amber-800">装備中</span>
+                            @elseif($isUnlocked)
+                                <span class="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black leading-none text-emerald-700">獲得済み</span>
+                            @endif
+                        </div>
+                    </div>
                 </div>
-            @empty
-                <div class="text-slate-500 text-sm">
-                    称号がありません。
-                </div>
-            @endforelse
-        </div>
+            </button>
+        @empty
+            <div class="col-span-full rounded-lg border border-slate-100 bg-white px-3 py-4 text-sm font-bold text-slate-500">
+                称号がありません。
+            </div>
+        @endforelse
     </div>
 </div>

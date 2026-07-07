@@ -211,6 +211,7 @@ class ExplorationService
         $valmonEggLost = [];
         $materialHuntCompletion = null;
         $playerEncounter = null;
+        $areaClearStorageReward = null;
 
         // 4. 勝敗に応じた処理
         if ($isEventOnly) {
@@ -266,7 +267,17 @@ class ExplorationService
 
             // ボス討伐ならエリア解放
             if ($isBossBattle) {
-                $unlockedAreas = $this->areaService->unlockNextArea($character, $areaId);
+                $areaClearRewards = [];
+                $unlockedAreas = $this->areaService->unlockNextArea($character, $areaId, $areaClearRewards);
+                $areaClearStorageReward = $areaClearRewards['storage'] ?? null;
+                if ($areaClearStorageReward) {
+                    $logText .= '<br><span class="text-emerald-700 font-bold">【街踏破報酬】素材倉庫の保管枠が+'
+                        . number_format((int) $areaClearStorageReward['material_bonus'])
+                        . '、装備倉庫の保管枠が+'
+                        . number_format((int) $areaClearStorageReward['equipment_bonus'])
+                        . 'されました。</span>';
+                }
+
                 $discoveryResult = $this->discoveryService->checkAfterBoss($character, $area);
                 $newDiscoveries = array_merge($newDiscoveries, $discoveryResult['discoveries'] ?? []);
             }
@@ -634,6 +645,7 @@ class ExplorationService
             'valmon_egg_lost' => $valmonEggLost,
             'material_hunt_completion' => $materialHuntCompletion,
             'player_encounter' => $playerEncounter,
+            'area_clear_storage_reward' => $areaClearStorageReward,
             'sub_area_name' => $battleResult->eventData['sub_area_name'] ?? null,
             'sub_area_route_name' => $battleResult->eventData['sub_area_route_name'] ?? null,
             'sub_area_discovery_id' => $battleResult->eventData['sub_area_discovery_id'] ?? null,

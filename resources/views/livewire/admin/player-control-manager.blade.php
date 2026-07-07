@@ -88,7 +88,7 @@
                                     <div class="mt-1 rounded bg-white px-2 py-1 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-200">{{ $character->user?->email ?? 'メール未登録' }}</div>
                                 </div>
                                 <div class="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
-                                    {{ number_format((int) ($character->material_storage_limit ?? 500)) }} / {{ number_format((int) ($character->equipment_storage_limit ?? 200)) }}
+                                    {{ number_format((int) ($character->material_storage_limit ?? 500)) }} / {{ number_format(max(300, (int) ($character->equipment_storage_limit ?? 300))) }}
                                 </div>
                             </div>
                         </button>
@@ -357,7 +357,7 @@
             <section class="rounded-md border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-200 px-5 py-4">
                     <h2 class="text-lg font-black text-slate-950">アイテム送付</h2>
-                    <p class="mt-1 text-xs font-semibold text-slate-500">素材は数量加算、装備と探索アイテムは個体として追加します。</p>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">素材は数量加算、武器・防具・装飾と探索アイテムは個体として追加します。</p>
                 </div>
 
                 @if($selectedCharacter)
@@ -412,7 +412,7 @@
                                 <input type="number" min="1" max="9999" wire:model="grantQuantity" class="mt-1 {{ $fieldClass }}">
                                 @error('grantQuantity') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
                             </div>
-                            @if($grantType === 'equipment')
+                            @if(in_array($grantType, ['equipment', 'weapon', 'armor', 'accessory'], true))
                                 <div>
                                     <label class="{{ $labelClass }}">強化値</label>
                                     <input type="number" min="0" max="999" wire:model="grantEnhanceLevel" class="mt-1 {{ $fieldClass }}">
@@ -427,6 +427,70 @@
                             </button>
                         </div>
                     </form>
+
+                    <div class="border-t border-slate-100 bg-slate-50/60 px-5 py-4">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h3 class="text-sm font-black text-slate-950">直近のアイテム送付履歴</h3>
+                                <p class="mt-1 text-xs font-semibold text-slate-500">この冒険者への管理送付を最新20件まで表示します。</p>
+                            </div>
+                            <div wire:loading.flex wire:target="grantItem" class="items-center gap-2 text-xs font-black text-slate-600">
+                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
+                                履歴更新中
+                            </div>
+                        </div>
+
+                        @if($itemGrantHistory->isNotEmpty())
+                            @php $historyTypeLabels = ['equipment' => '装備'] + $grantTypeLabels; @endphp
+                            <div class="mt-4 overflow-hidden rounded-md border border-slate-200 bg-white">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-slate-100 text-sm">
+                                        <thead class="bg-slate-50 text-xs font-black text-slate-500">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left">日時</th>
+                                                <th class="px-4 py-3 text-left">種別</th>
+                                                <th class="px-4 py-3 text-left">対象</th>
+                                                <th class="px-4 py-3 text-right">数量</th>
+                                                <th class="px-4 py-3 text-right">強化</th>
+                                                <th class="px-4 py-3 text-left">管理者</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            @foreach($itemGrantHistory as $log)
+                                                <tr>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-600">
+                                                        {{ $log->created_at?->format('Y/m/d H:i') ?? '-' }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-black text-slate-700">
+                                                        {{ $historyTypeLabels[$log->grant_type] ?? $log->grant_type }}
+                                                    </td>
+                                                    <td class="min-w-64 px-4 py-3">
+                                                        <div class="font-black text-slate-900">{{ $log->target_name }}</div>
+                                                        <div class="mt-0.5 text-[11px] font-bold text-slate-400">
+                                                            {{ $log->target_type }}: {{ $log->target_id }}
+                                                        </div>
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-right font-black text-slate-900">
+                                                        x{{ number_format((int) $log->quantity) }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-right text-xs font-bold text-slate-600">
+                                                        {{ $log->enhance_level !== null ? '+' . number_format((int) $log->enhance_level) : '-' }}
+                                                    </td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-500">
+                                                        {{ $log->adminUser?->name ?? ($log->admin_user_id ? 'UID ' . $log->admin_user_id : '-') }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @else
+                            <div class="mt-4 rounded-md border border-dashed border-slate-200 bg-white px-4 py-5 text-center text-sm font-bold text-slate-500">
+                                この冒険者へのアイテム送付履歴はまだありません。
+                            </div>
+                        @endif
+                    </div>
                 @else
                     <div class="p-5">
                         <div class="rounded-md border border-slate-200 bg-slate-50 p-5 text-sm font-bold text-slate-600">

@@ -58,6 +58,10 @@
                 <dd class="font-bold leading-7 text-slate-800">決済完了後、通常は直ちにゲーム内へ反映されます。通信状況や外部サービスの状態により遅延する場合があります。</dd>
             </div>
             <div class="grid gap-1 p-4 sm:grid-cols-[10rem_1fr] sm:gap-4">
+                <dt class="text-sm font-black text-slate-500">有効期限</dt>
+                <dd class="font-bold leading-7 text-slate-800">「有償輝石」の有効期限は、購入日から起算して180日間です。無償で付与された輝石については有効期限はありません。詳細は<a href="{{ route('legal.terms') }}" class="text-amber-700 hover:text-amber-800">利用規約</a>をご確認ください。</dd>
+            </div>
+            <div class="grid gap-1 p-4 sm:grid-cols-[10rem_1fr] sm:gap-4">
                 <dt class="text-sm font-black text-slate-500">返品・返金</dt>
                 <dd class="font-bold leading-7 text-slate-800">デジタルコンテンツの性質上、購入後のキャンセル、返品、返金は、法令上必要な場合を除きできません。</dd>
             </div>

@@ -89,10 +89,14 @@
                     @forelse($npcRequests as $request)
                         @php
                             $requestMaterial = $request->materials->first();
-                            $remainingSeconds = $request->remainingSeconds();
-                            $remainingLabel = $remainingSeconds >= 3600
-                                ? 'あと' . max(1, (int) ceil($remainingSeconds / 3600)) . '時間'
-                                : 'あと' . max(1, (int) ceil($remainingSeconds / 60)) . '分';
+                            if ($request->isPersistentUntilCompleted()) {
+                                $remainingLabel = '完納まで';
+                            } else {
+                                $remainingSeconds = $request->remainingSeconds();
+                                $remainingLabel = $remainingSeconds >= 3600
+                                    ? 'あと' . max(1, (int) ceil($remainingSeconds / 3600)) . '時間'
+                                    : 'あと' . max(1, (int) ceil($remainingSeconds / 60)) . '分';
+                            }
                         @endphp
                         <div class="rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
                             <div class="flex items-start justify-between gap-2">

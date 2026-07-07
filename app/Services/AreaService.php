@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Schema;
 
 class AreaService
 {
+    private const AREA_CLEAR_MATERIAL_STORAGE_BONUS = 200;
+    private const AREA_CLEAR_EQUIPMENT_STORAGE_BONUS = 100;
+
     /**
      * キャラクターがアクセスできるエリアとその進行状況を一覧取得する
      */
@@ -128,9 +131,17 @@ class AreaService
      * ボス討伐により次のエリアを解放する
      * @return array 解放されたエリアモデルの配列
      */
-    public function unlockNextArea(Character $character, int $clearedAreaId): array
+    public function unlockNextArea(Character $character, int $clearedAreaId, ?array &$clearRewards = null): array
     {
+        if ($clearRewards !== null) {
+            $clearRewards = [];
+        }
+
         $clearedArea = Area::find($clearedAreaId);
+        if (!$clearedArea) {
+            return [];
+        }
+        $isCityFinalNormalArea = $this->isCityFinalNormalArea($clearedArea);
         
         // クリアしたエリアの進捗を更新
         $progress = CharacterAreaProgress::firstOrCreate(
@@ -143,7 +154,10 @@ class AreaService
             $progress->discovery_state = 'cleared';
             $progress->cleared_at ??= $progress->boss_defeated_at;
             $progress->save();
-            
+
+            if ($clearRewards !== null && $isCityFinalNormalArea) {
+                $clearRewards['storage'] = $this->grantAreaClearStorageBonus($character);
+            }
         }
 
         $usesDiscoveryProgress = Schema::hasTable('area_discovery_links')
@@ -212,5 +226,45 @@ class AreaService
         }
         
         return $unlockedAreas;
+    }
+
+    private function isCityFinalNormalArea(Area $area): bool
+    {
+        if (!$area->city_id || (int) $area->id > 70) {
+            return false;
+        }
+
+        $lastAreaId = Area::where('city_id', $area->city_id)
+            ->where('id', '<=', 70)
+            ->orderBy('sort_order', 'desc')
+            ->orderBy('id', 'desc')
+            ->value('id');
+
+        return (int) $lastAreaId === (int) $area->id;
+    }
+
+    /**
+     * @return array<string,int>
+     */
+    private function grantAreaClearStorageBonus(Character $character): array
+    {
+        $materialBefore = max(500, (int) ($character->material_storage_limit ?? 500));
+        $equipmentBefore = max(300, (int) ($character->equipment_storage_limit ?? 300));
+        $materialAfter = $materialBefore + self::AREA_CLEAR_MATERIAL_STORAGE_BONUS;
+        $equipmentAfter = $equipmentBefore + self::AREA_CLEAR_EQUIPMENT_STORAGE_BONUS;
+
+        $character->forceFill([
+            'material_storage_limit' => $materialAfter,
+            'equipment_storage_limit' => $equipmentAfter,
+        ])->save();
+
+        return [
+            'material_bonus' => self::AREA_CLEAR_MATERIAL_STORAGE_BONUS,
+            'equipment_bonus' => self::AREA_CLEAR_EQUIPMENT_STORAGE_BONUS,
+            'material_before' => $materialBefore,
+            'material_after' => $materialAfter,
+            'equipment_before' => $equipmentBefore,
+            'equipment_after' => $equipmentAfter,
+        ];
     }
 }

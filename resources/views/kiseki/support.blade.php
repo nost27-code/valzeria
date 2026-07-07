@@ -73,6 +73,9 @@
                             $currentPrice = (int) ($supportItem['price'] ?? 0);
                             $isDiscounted = $originalPrice !== null && $originalPrice > $currentPrice;
                             $saleEndsAt = $supportItem['sale_ends_at'] ?? null;
+                            $saleEndsLabel = $saleEndsAt
+                                ? \Illuminate\Support\Carbon::parse($saleEndsAt, 'Asia/Tokyo')->format('Y/m/d H:i') . 'まで'
+                                : null;
                             $currencyLabel = (string) ($supportItem['currency_label'] ?? '輝石');
                             $currencySuffix = (string) ($supportItem['currency_suffix'] ?? '');
                             $currencyIcon = array_key_exists('currency_icon_image', $supportItem) ? $supportItem['currency_icon_image'] : 'images/icon/kiseki.webp';
@@ -110,11 +113,7 @@
                                                         <span>{{ $currencySuffix }}</span>
                                                     @endif
                                                     <span class="rounded bg-red-50 px-1 py-px text-[9px] text-red-600">
-                                                        @if($saleEndsAt)
-                                                            7月5日23:59までセール
-                                                        @else
-                                                            割引
-                                                        @endif
+                                                        {{ $saleEndsLabel ? "{$saleEndsLabel}セール" : '割引' }}
                                                     </span>
                                                 </div>
                                             @endif
@@ -154,12 +153,18 @@
                                                 </ul>
                                             @endif
                                             @if($passStatus['active'] ?? false)
-                                                <p class="text-[11px] font-black {{ (int) ($passStatus['remaining_days'] ?? 0) <= 3 ? 'text-amber-700' : 'text-emerald-700' }}">
-                                                    冒険者支援パス：あと{{ number_format((int) ($passStatus['remaining_days'] ?? 0)) }}日
-                                                    @if(!empty($passStatus['expires_at']))
-                                                        <span class="font-bold text-slate-500">（{{ $passStatus['expires_at']->format('Y/m/d H:i') }}まで）</span>
-                                                    @endif
-                                                </p>
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <p class="text-[11px] font-black {{ (int) ($passStatus['remaining_days'] ?? 0) <= 3 ? 'text-amber-700' : 'text-emerald-700' }}">
+                                                        冒険者支援パス：あと{{ number_format((int) ($passStatus['remaining_days'] ?? 0)) }}日
+                                                        @if(!empty($passStatus['expires_at']))
+                                                            <span class="font-bold text-slate-500">（{{ $passStatus['expires_at']->format('Y/m/d H:i') }}まで）</span>
+                                                        @endif
+                                                    </p>
+                                                    <a href="{{ route('profile.edit') }}#card_skin"
+                                                       class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-black text-sky-700 shadow-sm transition hover:bg-sky-100 active:scale-95">
+                                                        カード見た目を変更
+                                                    </a>
+                                                </div>
                                             @endif
                                         </div>
                                     @endif
@@ -235,7 +240,7 @@
                 <template x-if="confirming?.original_price && Number(confirming.original_price) > Number(confirming?.price ?? 0)">
                     <span class="inline-flex items-center gap-1">
                         <span class="text-xs text-slate-400 line-through decoration-red-500 decoration-2" x-text="Number(confirming.original_price).toLocaleString() + (confirming?.currency_suffix ?? '')"></span>
-                        <span class="rounded bg-red-50 px-1 py-px text-[10px] text-red-600" x-text="confirming?.sale_ends_at ? '7月5日23:59までセール' : '割引'"></span>
+                        <span class="rounded bg-red-50 px-1 py-px text-[10px] text-red-600" x-text="confirming?.sale_ends_at ? `${confirming.sale_ends_at.replaceAll('-', '/')}までセール` : '割引'"></span>
                     </span>
                 </template>
                 <span class="text-red-600" x-text="Number(confirming?.price ?? 0).toLocaleString() + (confirming?.currency_suffix ?? '')"></span>

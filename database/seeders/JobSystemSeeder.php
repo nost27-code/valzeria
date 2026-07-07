@@ -48,6 +48,11 @@ class JobSystemSeeder extends Seeder
         'world_tree_oracle',
         'saint_of_the_end',
         'observer_of_destiny',
+        'valzeria_hero',
+        'abyss_walker',
+        'ancient_alchemist_king',
+        'dragon_god',
+        'time_space_king',
     ];
 
     public function run(): void
@@ -271,10 +276,10 @@ class JobSystemSeeder extends Seeder
             '黄金錬師' => ['magic_device', 'staff', 'gun', 'dagger'],
             '雷拳覇' => ['fist', 'axe', 'spear', 'sword'],
             '戦陣軍師' => ['sword', 'staff', 'magic_device', 'gun'],
-            'ヴァルゼリアの英雄' => ['sword', 'axe', 'dagger', 'bow', 'staff', 'magic_device', 'gun', 'spear', 'fist', 'katana'],
+            'ヴァルゼリアの救世主' => ['sword', 'axe', 'dagger', 'bow', 'staff', 'magic_device', 'gun', 'spear', 'fist', 'katana'],
             '深淵歩き' => ['sword', 'axe', 'dagger', 'katana', 'magic_device'],
             '古代錬成王' => ['magic_device', 'gun', 'staff', 'axe'],
-            '竜神' => ['spear', 'sword', 'axe', 'fist'],
+            '蒼竜王' => ['spear', 'sword', 'axe', 'fist'],
             '時空王' => ['staff', 'magic_device', 'dagger', 'katana', 'gun'],
         ];
 
@@ -333,12 +338,22 @@ class JobSystemSeeder extends Seeder
             '黄金錬師' => ['clothes', 'robe', 'cloak', 'light_armor'],
             '雷拳覇' => ['clothes', 'cloak', 'light_armor', 'heavy_armor'],
             '戦陣軍師' => ['clothes', 'robe', 'cloak', 'light_armor', 'heavy_armor'],
-            'ヴァルゼリアの英雄' => ['clothes', 'robe', 'cloak', 'light_armor', 'heavy_armor'],
+            'ヴァルゼリアの救世主' => ['clothes', 'robe', 'cloak', 'light_armor', 'heavy_armor'],
             '深淵歩き' => ['robe', 'cloak', 'light_armor', 'heavy_armor'],
             '古代錬成王' => ['clothes', 'robe', 'cloak', 'light_armor', 'heavy_armor'],
-            '竜神' => ['clothes', 'light_armor', 'heavy_armor'],
+            '蒼竜王' => ['clothes', 'light_armor', 'heavy_armor'],
             '時空王' => ['clothes', 'robe', 'cloak', 'light_armor'],
         ];
+
+        foreach (config('job_equipment_permissions.high_rank', []) as $permission) {
+            $jobName = $permission['name'] ?? null;
+            if (!$jobName) {
+                continue;
+            }
+
+            $weaponPermissions[$jobName] = $permission['weapons'] ?? [];
+            $armorPermissions[$jobName] = $permission['armors'] ?? [];
+        }
 
         $jobs = JobClass::pluck('id', 'name');
         $now = now();
@@ -398,3 +413,4 @@ class JobSystemSeeder extends Seeder
         ], true) ? 'magical' : 'physical';
     }
 }
+

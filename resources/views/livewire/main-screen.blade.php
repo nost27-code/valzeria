@@ -834,12 +834,15 @@
                             $isComingSoon = $facility['status'] === 'coming_soon';
                             $isInactive = $isLocked || $isComingSoon;
                             $isTargetArea = isset($facility['id']) && (int) ($targetAreaId ?? 0) === (int) $facility['id'];
+                            $isStarTreeCard = ($facility['card_variant'] ?? null) === 'star_tree';
                         @endphp
                         
                         <div @if(isset($facility['id'])) id="dungeon-area-{{ $facility['id'] }}" @endif
-                            class="border border-[#d4af37]/50 rounded-md flex relative overflow-hidden group scroll-mt-24
+                            class="border rounded-md flex relative overflow-hidden group scroll-mt-24
                             {{ $isTargetArea ? 'ring-4 ring-orange-400 ring-offset-2 border-orange-500 shadow-[0_0_0_4px_rgba(251,146,60,0.18),0_14px_28px_rgba(194,65,12,0.18)] animate-pulse' : '' }}
-                            {{ !$isInactive ? 'bg-white hover:border-[#d4af37] shadow hover:shadow-md transition-all' : 'bg-gray-100 border-gray-200 opacity-80 grayscale-[0.6]' }}">
+                            {{ $isStarTreeCard && !$isInactive ? 'border-teal-400/70 bg-slate-950 shadow-[0_10px_24px_rgba(15,76,92,0.20)] transition-all hover:border-cyan-300 hover:shadow-[0_14px_30px_rgba(15,76,92,0.28)]' : '' }}
+                            {{ !$isStarTreeCard && !$isInactive ? 'border-[#d4af37]/50 bg-white hover:border-[#d4af37] shadow hover:shadow-md transition-all' : '' }}
+                            {{ $isInactive ? 'bg-gray-100 border-gray-200 opacity-80 grayscale-[0.6]' : '' }}">
 
                             @if($isTargetArea)
                                 <div class="absolute inset-y-0 left-0 z-20 w-1.5 bg-orange-500"></div>
@@ -856,8 +859,14 @@
                                     <div class="absolute inset-0 z-0 pointer-events-none" style="background-color: rgba(15, 23, 42, {{ min(70, (int) $facility['depth_overlay']) / 100 }});"></div>
                                 @endif
                                 <!-- 文字の可読性を上げるための白グラデーション -->
-                                <div class="absolute inset-0 z-0 bg-gradient-to-r from-white via-white/90 to-transparent w-full md:w-3/4 pointer-events-none"></div>
-                                <div class="absolute inset-0 z-0 bg-white/40 pointer-events-none"></div>
+                                @if($isStarTreeCard)
+                                    <div class="absolute inset-0 z-0 bg-gradient-to-r from-slate-950/92 via-teal-950/74 to-slate-950/20 pointer-events-none"></div>
+                                    <div class="absolute inset-y-0 left-0 z-0 w-1 bg-cyan-300/70 pointer-events-none"></div>
+                                    <div class="absolute inset-0 z-0 bg-[radial-gradient(circle_at_18%_35%,rgba(45,212,191,0.22),transparent_36%)] pointer-events-none"></div>
+                                @else
+                                    <div class="absolute inset-0 z-0 bg-gradient-to-r from-white via-white/90 to-transparent w-full md:w-3/4 pointer-events-none"></div>
+                                    <div class="absolute inset-0 z-0 bg-white/40 pointer-events-none"></div>
+                                @endif
                             @else
                                 <!-- 代替の薄い背景色 -->
                                 <div class="absolute inset-0 z-0 bg-gradient-to-r from-amber-50/30 to-white pointer-events-none"></div>
@@ -879,16 +888,16 @@
                                     
                                     <!-- テキスト情報（中央） -->
                                     <div class="flex min-w-0 flex-1 flex-col justify-center">
-                                        <div class="font-bold text-lg leading-tight mb-1 break-words {{ $isInactive ? 'text-gray-600' : 'text-[#1e293b]' }}">
+                                        <div class="font-bold text-lg leading-tight mb-1 break-words {{ $isInactive ? 'text-gray-600' : ($isStarTreeCard ? 'text-white drop-shadow' : 'text-[#1e293b]') }}">
                                             {{ $facility['name'] }}
                                         </div>
-                                        <div class="text-sm leading-snug {{ $isInactive ? 'text-gray-500' : 'text-gray-700' }} font-medium">
+                                        <div class="text-sm leading-snug {{ $isInactive ? 'text-gray-500' : ($isStarTreeCard ? 'text-cyan-50/90' : 'text-gray-700') }} font-medium">
                                             {{ $facility['desc'] }}
                                         </div>
                                         @if(isset($facility['details']))
                                             <div class="mt-2 flex flex-wrap gap-1.5">
                                                 @foreach($facility['details'] as $detail)
-                                                    <span class="inline-flex max-w-full rounded bg-white/80 border border-[#d4af37]/30 px-2 py-0.5 text-[11px] font-bold leading-snug text-[#9a6b00] shadow-sm">
+                                                    <span class="inline-flex max-w-full rounded px-2 py-0.5 text-[11px] font-bold leading-snug shadow-sm {{ $isStarTreeCard ? 'border border-cyan-200/25 bg-white/10 text-cyan-50' : 'bg-white/80 border border-[#d4af37]/30 text-[#9a6b00]' }}">
                                                         @if(is_array($detail))
                                                             @if(!empty($detail['icon_image']))
                                                                 <img src="{{ asset($detail['icon_image']) }}" alt="" class="mr-1 h-3.5 w-3.5 object-contain">
@@ -1087,7 +1096,7 @@
                                                     </button>
                                                 </form>
                                             @else
-                                                <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" class="inline-flex w-full items-center justify-center bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 active:scale-95 text-center">
+                                                <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" class="inline-flex w-full items-center justify-center px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 active:scale-95 text-center {{ $isStarTreeCard ? 'border-2 border-cyan-200/70 bg-cyan-100 text-slate-950 hover:bg-white' : 'bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-2 border-[#1e3a8a]' }}">
                                                     {{ $facility['action'] }}
                                                 </a>
                                             @endif

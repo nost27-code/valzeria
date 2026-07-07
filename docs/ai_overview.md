@@ -805,7 +805,7 @@ php local_deploy.php
 |---|---|
 | `docs/base.md` | ゲーム仕様書（初期設計の原典） |
 | `docs/project_knowledge.md` | 過去の教訓・バグ事例集 |
-| `docs/ai_development_rules.md` | AI開発ルール |
+| `docs/ai_development_rules.md` | 統合済みリダイレクトスタブ（実体は AGENTS.md + docs/dev-os/ + docs/DOMAIN_RULES.md） |
 | `docs/valzeria_battle_system_implementation.md` | 戦闘システム詳細 |
 | `docs/valzeria_job_change_system_implementation.md` | 職業システム詳細 |
 | `docs/valzeria_equipment_job_restriction.md` | 装備適性ルール |
