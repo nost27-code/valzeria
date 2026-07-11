@@ -9,14 +9,56 @@
  */
 
 // --- 設定 ---
-$serverApiUrl = "https://valzeria.com/server_deploy_api.php"; // XserverのURL
-$secretToken = "nostalgia0905"; // サーバー側と合わせる
+$deployTarget = (string) (getenv('VALZERIA_DEPLOY_TARGET') ?: 'production');
+if (!in_array($deployTarget, ['production', 'staging'], true)) {
+    fwrite(STDERR, "エラー: VALZERIA_DEPLOY_TARGET は production / staging を指定してください。\n");
+    exit(1);
+}
+
+$defaultServerApiUrl = $deployTarget === 'staging'
+    ? 'https://staging.valzeria.com/server_deploy_api.php'
+    : 'https://valzeria.com/server_deploy_api.php';
+$expectedDeployHost = $deployTarget === 'staging' ? 'staging.valzeria.com' : 'valzeria.com';
+$serverApiUrl = (string) (getenv('VALZERIA_DEPLOY_API_URL') ?: $defaultServerApiUrl);
+$serverApiParts = parse_url($serverApiUrl);
+if (($serverApiParts['scheme'] ?? '') !== 'https'
+    || strcasecmp((string) ($serverApiParts['host'] ?? ''), $expectedDeployHost) !== 0) {
+    fwrite(STDERR, "エラー: {$deployTarget} デプロイの送信先は https://{$expectedDeployHost}/server_deploy_api.php に限定されています。\n");
+    exit(1);
+}
+
+$deploySecret = trim((string) getenv('VALZERIA_DEPLOY_SECRET'));
+$localSecretFile = __DIR__ . ($deployTarget === 'staging' ? '/.env.staging.local' : '/.env.production.local');
+if ($deploySecret === '' && is_file($localSecretFile)) {
+    foreach (file($localSecretFile, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+        if (!str_starts_with(trim($line), 'VALZERIA_DEPLOY_SECRET=')) {
+            continue;
+        }
+
+        [, $value] = explode('=', trim($line), 2);
+        $deploySecret = trim($value, " \t\n\r\0\x0B\"'");
+        break;
+    }
+}
+$migrationMode = (string) (getenv('DEPLOY_MIGRATION_MODE') ?: 'none');
+$bootstrapEmpty = getenv('DEPLOY_BOOTSTRAP_EMPTY') === '1';
+$resetStagingDatabase = $deployTarget === 'staging' && getenv('DEPLOY_RESET_STAGING_DATABASE') === '1';
+
+if ($deploySecret === '') {
+    fwrite(STDERR, "エラー: VALZERIA_DEPLOY_SECRET を設定するか、{$localSecretFile} に同名の値を保存してください。\n");
+    exit(1);
+}
+if (!in_array($migrationMode, ['none', 'backward_compatible', 'maintenance_required'], true)) {
+    fwrite(STDERR, "エラー: DEPLOY_MIGRATION_MODE は none / backward_compatible / maintenance_required を指定してください。\n");
+    exit(1);
+}
 
 $sourceDir = __DIR__;
 $zipFilePath = __DIR__ . "/deploy_temp.zip";
+$phpBinary = escapeshellarg(PHP_BINARY);
 
 // 除外するファイル・ディレクトリ
-// vendor は全体除外するが、Stripe SDK とオートローダーだけは含める（$vendorIncludes 参照）
+// リリースは単独で起動するため、Composer vendor 一式も含める。
 $excludes = [
     '.git',
     '.claude',
@@ -32,23 +74,17 @@ $excludes = [
     'deploy_temp.zip',
     'ffa_backup',
     'local_deploy.php',
+    'local_deploy_staging.php',
     'public/hot',
 ];
 
-// vendor 配下でデプロイに含めるパス（Stripe SDK + composer オートローダー）
-$vendorIncludes = [
-    'vendor/stripe',
-    'vendor/autoload.php',
-    'vendor/composer',
-];
-
-echo "== デプロイ処理を開始します ==\n";
+echo "== {$deployTarget} デプロイ処理を開始します ==\n";
 
 // マスタデータの説明文と実装の食い違いを事前チェック
 echo "[0] マスタデータの整合性チェック中...\n";
 $validateOutput = [];
 $validateReturnVar = 0;
-exec('php artisan valzeria:validate-master-data 2>&1', $validateOutput, $validateReturnVar);
+exec($phpBinary . ' artisan valzeria:validate-master-data 2>&1', $validateOutput, $validateReturnVar);
 echo implode("\n", $validateOutput) . "\n";
 if ($validateReturnVar !== 0) {
     die("エラー: マスタデータに不整合があります。デプロイを中止します。\n");
@@ -89,20 +125,6 @@ foreach ($iterator as $file) {
         }
     }
 
-    // vendor 配下は許可リストに一致するものだけ含める
-    if (!$skip && strpos($relativePath, 'vendor/') === 0) {
-        $allowed = false;
-        foreach ($vendorIncludes as $vi) {
-            if (strpos($relativePath, $vi) === 0) {
-                $allowed = true;
-                break;
-            }
-        }
-        if (!$allowed) {
-            $skip = true;
-        }
-    }
-
     if (!$skip && $file->isFile()) {
         $zip->addFile($filePath, $relativePath);
         $count++;
@@ -110,21 +132,8 @@ foreach ($iterator as $file) {
 }
 $zip->close();
 
-// ★初回用の特別処理：本番用.envと空のstorageフォルダ構造をZIPに直接追加する
+// .env / storage はサーバー側の共有領域を使う。ZIPへ本番設定を含めない。
 $zip->open($zipFilePath);
-if (file_exists(__DIR__ . '/production.env')) {
-    $zip->addFile(__DIR__ . '/production.env', '.env');
-}
-$zip->addEmptyDir('storage');
-$zip->addEmptyDir('storage/app');
-$zip->addEmptyDir('storage/app/public');
-$zip->addEmptyDir('storage/framework');
-$zip->addEmptyDir('storage/framework/cache');
-$zip->addEmptyDir('storage/framework/cache/data');
-$zip->addEmptyDir('storage/framework/sessions');
-$zip->addEmptyDir('storage/framework/testing');
-$zip->addEmptyDir('storage/framework/views');
-$zip->addEmptyDir('storage/logs');
 $zip->close();
 
 echo "圧縮完了。対象ファイル数: {$count}\n";
@@ -146,15 +155,26 @@ if (getenv('DEPLOY_BUILD_ONLY') === '1') {
 echo "[3] サーバーへファイルを送信中... ({$serverApiUrl})\n";
 
 $cfile = new CURLFile($zipFilePath, 'application/zip', 'deploy_temp.zip');
+$timestamp = (string) time();
+$nonce = bin2hex(random_bytes(16));
+$payloadHash = hash_file('sha256', $zipFilePath);
+$signature = hash_hmac('sha256', $timestamp . "\n" . $nonce . "\n" . $payloadHash, $deploySecret);
 $postData = [
-    'token' => $secretToken,
-    'deploy_zip' => $cfile
+    'deploy_zip' => $cfile,
+    'migration_mode' => $migrationMode,
+    'bootstrap_empty' => $bootstrapEmpty ? '1' : '0',
+    'reset_staging_database' => $resetStagingDatabase ? '1' : '0',
 ];
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $serverApiUrl);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'X-Deploy-Timestamp: ' . $timestamp,
+    'X-Deploy-Nonce: ' . $nonce,
+    'X-Deploy-Signature: ' . $signature,
+]);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // ローカルテスト等でSSLエラーになる場合の回避
 $response = curl_exec($ch);
@@ -170,7 +190,11 @@ if ((int) $httpCode === 0 && stripos(PHP_OS_FAMILY, 'Windows') !== false) {
     echo "PHP cURLで応答を取得できなかったため、curl.exe で再送します...\n";
     $curlCommand = 'curl.exe -s -w "\nHTTP_CODE:%{http_code}\n" '
         . '-X POST '
-        . '-F "token=' . addcslashes($secretToken, '\\"') . '" '
+        . '-H "X-Deploy-Timestamp: ' . addcslashes($timestamp, '\\"') . '" '
+        . '-H "X-Deploy-Nonce: ' . addcslashes($nonce, '\\"') . '" '
+        . '-H "X-Deploy-Signature: ' . addcslashes($signature, '\\"') . '" '
+        . '-F "migration_mode=' . addcslashes($migrationMode, '\\"') . '" '
+        . '-F "reset_staging_database=' . ($resetStagingDatabase ? '1' : '0') . '" '
         . '-F "deploy_zip=@' . addcslashes($zipFilePath, '\\"') . ';type=application/zip;filename=deploy_temp.zip" '
         . '"' . addcslashes($serverApiUrl, '\\"') . '"';
     $fallbackOutput = [];

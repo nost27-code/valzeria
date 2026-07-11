@@ -17,6 +17,7 @@ class TowerRankingService
             ->with(['character.jobClass'])
             ->where('tower_key', $towerKey)
             ->where('season_key', $seasonKey)
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->where('best_cleared_floor', '>', 0)
             ->orderByDesc('best_cleared_floor')
             ->orderBy('achieved_at')
@@ -30,6 +31,7 @@ class TowerRankingService
         return TowerCharacterRecord::query()
             ->with(['character.jobClass'])
             ->where('tower_key', $towerKey)
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->where('best_cleared_floor', '>', 0)
             ->orderByDesc('best_cleared_floor')
             ->orderBy('achieved_at')
@@ -173,24 +175,26 @@ class TowerRankingService
     private function publishMilestoneLog(TowerRun $run, int $oldBest): void
     {
         $newBest = (int) $run->cleared_floor;
-        $milestone = max(10, intdiv($newBest, 10) * 10);
-        if ($newBest < 10 || $milestone <= $oldBest || !Schema::hasTable('public_logs')) {
+        $milestone = intdiv($newBest, 10) * 10;
+        $publicLogMilestones = [50, 60, 70, 80, 90, 100];
+
+        if (!in_array($milestone, $publicLogMilestones, true) || $milestone <= $oldBest || !Schema::hasTable('public_logs')) {
             return;
         }
 
         $character = Character::query()->find((int) $run->character_id);
-        if (!$character) {
+        if (!$character || $character->isAdminTester()) {
             return;
         }
 
-        $logLabel = (string) config('star_tree_tower.star_tree.display.public_log_label', '星梯の塔');
+        $logLabel = (string) config('star_tree_tower.star_tree.display.public_log_label', '星樹の塔');
         $towerName = (string) config('star_tree_tower.star_tree.display.name', '星樹の塔');
 
         app(PublicLogService::class)->addLog(
             'tower',
             "【{$logLabel}】{$character->name}さんが{$towerName} {$milestone}階を踏破しました！",
             $character,
-            $milestone >= 50 ? 3 : 2
+            3
         );
     }
 }

@@ -43,7 +43,7 @@ class TowerMerchantService
                 'effect_value' => $hpRate,
                 'recover_amount' => max(1, (int) floor((int) $run->tower_max_hp * $hpRate / 100)),
                 'description' => $this->merchantDescription(
-                    $this->merchantItemConfig('hp', 'description_template', '塔内HPを最大HPの{rate}%回復'),
+                    $this->merchantItemConfig('hp', 'description_template', 'HPを最大HPの{rate}%回復'),
                     $hpRate
                 ),
                 'purchased' => in_array($this->merchantItemConfig('hp', 'key', 'star_leaf_herb'), $purchasedItemKeys, true),
@@ -56,7 +56,7 @@ class TowerMerchantService
                 'effect_value' => $mpRate,
                 'recover_amount' => max(1, (int) floor((int) $run->tower_max_mp * $mpRate / 100)),
                 'description' => $this->merchantDescription(
-                    $this->merchantItemConfig('sp', 'description_template', '塔内SPを最大SPの{rate}%回復'),
+                    $this->merchantItemConfig('sp', 'description_template', 'SPを最大SPの{rate}%回復'),
                     $mpRate
                 ),
                 'purchased' => in_array($this->merchantItemConfig('sp', 'key', 'moon_dew_vial'), $purchasedItemKeys, true),
@@ -85,6 +85,9 @@ class TowerMerchantService
 
         $clearedFloor = (int) $run->cleared_floor;
         if ($clearedFloor < 2 || $run->pending_event) {
+            return null;
+        }
+        if ($this->isRewardFloor($clearedFloor)) {
             return null;
         }
 
@@ -125,6 +128,19 @@ class TowerMerchantService
                 'message' => $this->displayText('merchant_appeared_message', '星灯の行商人が、枝の上に腰かけていた。'),
             ]);
         });
+    }
+
+    private function isRewardFloor(int $floor): bool
+    {
+        $rewardFloors = collect(array_keys((array) config('star_tree_tower_rewards.weapon_rewards', [])))
+            ->map(fn ($rewardFloor): int => (int) $rewardFloor)
+            ->push((int) config('star_tree_tower_rewards.card_background.floor', 0))
+            ->push((int) config('star_tree_tower_rewards.card_frame.floor', 0))
+            ->filter(fn (int $rewardFloor): bool => $rewardFloor > 0)
+            ->unique()
+            ->all();
+
+        return in_array($floor, $rewardFloors, true);
     }
 
     public function buy(Character $character, TowerRun $run, string $itemKey): TowerRunEvent
@@ -277,7 +293,7 @@ class TowerMerchantService
             if ($product['effect_type'] === 'hp_recover_rate') {
                 $recoverAmount = max(1, (int) floor((int) $lockedRun->tower_max_hp * (int) $product['effect_value'] / 100));
                 if ((int) $lockedRun->tower_current_hp >= (int) $lockedRun->tower_max_hp) {
-                    throw new RuntimeException('塔内HPはすでに最大です。');
+                    throw new RuntimeException('HPはすでに最大です。');
                 }
 
                 $lockedRun->tower_current_hp = min(
@@ -287,7 +303,7 @@ class TowerMerchantService
             } elseif ($product['effect_type'] === 'mp_recover_rate') {
                 $recoverAmount = max(1, (int) floor((int) $lockedRun->tower_max_mp * (int) $product['effect_value'] / 100));
                 if ((int) $lockedRun->tower_current_mp >= (int) $lockedRun->tower_max_mp) {
-                    throw new RuntimeException('塔内SPはすでに最大です。');
+                    throw new RuntimeException('SPはすでに最大です。');
                 }
 
                 $lockedRun->tower_current_mp = min(

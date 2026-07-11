@@ -15,7 +15,7 @@ class CityPopulationService
             return collect();
         }
 
-        return Character::query()
+        return Character::visibleToPublic()
             ->whereNotNull('current_city_id')
             ->selectRaw('current_city_id, COUNT(*) as total')
             ->groupBy('current_city_id')
@@ -31,7 +31,7 @@ class CityPopulationService
 
         $limitPerCity = max(1, min(12, $limitPerCity));
 
-        $query = Character::query()
+        $query = Character::visibleToPublic()
             ->select([
                 'characters.current_city_id',
                 'characters.icon_path',

@@ -8,6 +8,11 @@ use App\Models\CharacterMaterial;
 
 class StorageCapacityService
 {
+    public const CITY_CLEAR_MATERIAL_STORAGE_BONUS = 200;
+    public const CITY_CLEAR_EQUIPMENT_STORAGE_BONUS = 100;
+
+    private const CITY_FINAL_NORMAL_AREA_IDS = [7, 14, 21, 28, 35, 42, 49, 56, 63, 70];
+
     public function summary(Character $character): array
     {
         $materialTotal = CharacterMaterial::query()
@@ -27,8 +32,8 @@ class StorageCapacityService
             ->reject(fn (CharacterItem $row) => $this->isKeyItem($row))
             ->count();
 
-        $materialLimit = (int) ($character->material_storage_limit ?? 500);
-        $equipmentLimit = max(300, (int) ($character->equipment_storage_limit ?? 300));
+        $materialLimit = $this->materialLimit($character);
+        $equipmentLimit = $this->equipmentLimit($character);
 
         return [
             'material_total' => (int) $materialTotal,
@@ -70,6 +75,49 @@ class StorageCapacityService
             . '<a href="' . e($supportUrl) . '" class="underline underline-offset-2 font-extrabold">こちら</a>'
             . 'で行えます。'
             . $details;
+    }
+
+    public function materialLimit(Character $character): int
+    {
+        $baseLimit = max(500, (int) ($character->material_storage_limit ?? 500));
+
+        return $baseLimit + ($this->cityClearStorageBonusCount($character) * self::CITY_CLEAR_MATERIAL_STORAGE_BONUS);
+    }
+
+    public function equipmentLimit(Character $character): int
+    {
+        $baseLimit = max(300, (int) ($character->equipment_storage_limit ?? 300));
+
+        return $baseLimit + ($this->cityClearStorageBonusCount($character) * self::CITY_CLEAR_EQUIPMENT_STORAGE_BONUS);
+    }
+
+    /**
+     * @return array<string,int>
+     */
+    public function nextCityClearStorageReward(Character $character): array
+    {
+        $materialBefore = $this->materialLimit($character);
+        $equipmentBefore = $this->equipmentLimit($character);
+
+        return [
+            'material_bonus' => self::CITY_CLEAR_MATERIAL_STORAGE_BONUS,
+            'equipment_bonus' => self::CITY_CLEAR_EQUIPMENT_STORAGE_BONUS,
+            'material_before' => $materialBefore,
+            'material_after' => $materialBefore + self::CITY_CLEAR_MATERIAL_STORAGE_BONUS,
+            'equipment_before' => $equipmentBefore,
+            'equipment_after' => $equipmentBefore + self::CITY_CLEAR_EQUIPMENT_STORAGE_BONUS,
+        ];
+    }
+
+    public function cityClearStorageBonusCount(Character $character): int
+    {
+        return $character->titles()
+            ->join('titles', 'character_titles.title_id', '=', 'titles.id')
+            ->where('titles.unlock_type', 'dungeon_boss_clear')
+            ->where('titles.target_type', 'dungeon')
+            ->whereIn('titles.target_id', array_map('strval', self::CITY_FINAL_NORMAL_AREA_IDS))
+            ->distinct('titles.id')
+            ->count('titles.id');
     }
 
     private function isKeyMaterial(?object $material): bool

@@ -151,13 +151,13 @@ class EquipmentEvolutionService
         return $candidates;
     }
 
-    public function evolve(Character $character, string $recipeType, string $recipeId): array
+    public function evolve(Character $character, string $recipeType, string $recipeId, ?int $sourceCharacterItemId = null): array
     {
         if (!in_array($recipeType, ['weapon', 'armor', 'accessory'], true)) {
             throw new RuntimeException('合成種別が不正です。');
         }
 
-        return DB::transaction(function () use ($character, $recipeType, $recipeId) {
+        return DB::transaction(function () use ($character, $recipeType, $recipeId, $sourceCharacterItemId) {
             $recipe = $this->findRecipeForUpdate($recipeType, $recipeId);
             $ownedMaterials = $this->ownedMaterialMap($character);
             $candidate = match ($recipeType) {
@@ -198,7 +198,8 @@ class EquipmentEvolutionService
             $consumedItems = $this->lockEvolutionSourceEquipment(
                 $character,
                 (int) $candidate['from_item']->id,
-                (int) $candidate['equipment_consume_count']
+                (int) $candidate['equipment_consume_count'],
+                $sourceCharacterItemId
             );
 
             if ($consumedItems->count() < $candidate['equipment_consume_count']) {
@@ -211,6 +212,7 @@ class EquipmentEvolutionService
             $maxConsumedEnhanceLevel = (int) $consumedItems->max('enhance_level');
             $affixSource = $this->selectAffixInheritanceSource($consumedItems);
             $inheritedAffixes = $affixSource ? $this->affixInheritancePayload($affixSource) : [];
+            $consumedEquipmentName = $consumedItems->first()?->displayName() ?? $candidate['from_name'];
             CharacterItem::whereIn('id', $consumedItems->pluck('id'))->delete();
 
             $consumedMaterials = [];
@@ -261,7 +263,7 @@ class EquipmentEvolutionService
             ]);
 
             return [
-                'message' => "{$candidate['from_name']}を合成して、{$candidate['to_name']}を手に入れました！"
+                'message' => "{$consumedEquipmentName}を合成して、{$candidate['to_name']}を手に入れました！"
                     . ($goldCost > 0 ? ' 合成費用として' . number_format($goldCost) . 'Gを支払いました。' : '')
                     . ($equippedSlot ? ' 装備中だったため、そのまま装備しました。' : '')
                     . ($sourceWasLocked ? ' 保護状態も引き継ぎました。' : '')
@@ -487,21 +489,15 @@ class EquipmentEvolutionService
         ?string $unlockReason = null,
         array $discoveredItemIds = []
     ): array {
-        $ownedEquipmentCount = $fromItem
-            ? $this->evolutionSourceEquipmentQuery($character, $fromItem->id)->count()
-            : 0;
-        $ownedEnhancedEquipmentCount = $fromItem
-            ? $this->evolutionSourceEquipmentQuery($character, $fromItem->id)->where('enhance_level', '>', 0)->count()
-            : 0;
-        $ownedSourceCount = $fromItem
-            ? CharacterItem::where('character_id', $character->id)->where('item_id', $fromItem->id)->count()
-            : 0;
-        $hasEquippedSource = $fromItem
-            ? CharacterItem::where('character_id', $character->id)
-                ->where('item_id', $fromItem->id)
-                ->where('is_equipped', true)
-                ->exists()
-            : false;
+        $sourceItems = $fromItem
+            ? $this->evolutionSourceEquipmentQuery($character, $fromItem->id)
+                ->with(['item', 'affixPrefix', 'affixSuffix'])
+                ->get()
+            : collect();
+        $ownedEquipmentCount = $sourceItems->count();
+        $ownedEnhancedEquipmentCount = $sourceItems->where('enhance_level', '>', 0)->count();
+        $ownedSourceCount = $ownedEquipmentCount;
+        $hasEquippedSource = $sourceItems->contains(fn (CharacterItem $item): bool => (bool) $item->is_equipped);
         $toIsDiscovered = $toItem && in_array((int) $toItem->id, $discoveredItemIds, true);
         $canEquipSource = $fromItem ? $this->permissionService->canEquip($character, $fromItem) : true;
         $goldCost = app(GoldService::class)->evolutionCost($toRank);
@@ -546,6 +542,11 @@ class EquipmentEvolutionService
             $unavailableReason = 'Goldが不足しています。';
         }
 
+        $toDisplayName = $toIsDiscovered
+            ? ($toItem?->name ?? $toName)
+            : $this->undiscoveredName($type, $toItem, $toRank);
+        $sourceOptions = $this->sourceOptionPayloads($sourceItems, $toItem, $toDisplayName);
+        $singleSourceOption = count($sourceOptions) === 1 ? $sourceOptions[0] : null;
         $canEvolve = $unavailableReason === null;
         $missingTotal = $missingBaseEquipment + $missingAlternative + $missingMaterials + $missingGold;
         $equipmentConsumeCount = $requiredBaseEquipmentCount;
@@ -560,9 +561,9 @@ class EquipmentEvolutionService
             'to_equipment_id' => $toItem?->id,
             'from_name' => $fromItem?->name ?? $fromName,
             'to_name' => $toItem?->name ?? $toName,
-            'to_display_name' => $toIsDiscovered
-                ? ($toItem?->name ?? $toName)
-                : $this->undiscoveredName($type, $toItem, $toRank),
+            'from_display_name' => $singleSourceOption['display_name'] ?? ($fromItem?->name ?? $fromName),
+            'to_display_name' => $toDisplayName,
+            'to_preview_display_name' => $singleSourceOption['evolved_display_name'] ?? null,
             'to_is_discovered' => $toIsDiscovered,
             'from_rank' => $fromRank,
             'to_rank' => $toRank,
@@ -573,6 +574,7 @@ class EquipmentEvolutionService
             'owned_enhanced_equipment_count' => $ownedEnhancedEquipmentCount,
             'owned_extra_equipment_count' => $ownedExtraEquipmentCount,
             'owned_source_count' => $ownedSourceCount,
+            'source_options' => $sourceOptions,
             'has_equipped_source' => $hasEquippedSource,
             'can_equip_source' => $canEquipSource,
             'missing_equipment_count' => $missingBaseEquipment,
@@ -593,6 +595,52 @@ class EquipmentEvolutionService
             'equipment_sort' => (int) ($fromItem?->sort_order ?? 999999),
             'rank_sort' => $this->rankSort((string) $fromRank),
         ];
+    }
+
+    private function sourceOptionPayloads(Collection $sourceItems, ?Item $toItem = null, ?string $toDisplayName = null): array
+    {
+        $goldService = app(GoldService::class);
+
+        return $sourceItems
+            ->map(function (CharacterItem $item) use ($toItem, $toDisplayName, $goldService): array {
+                return [
+                    'id' => (int) $item->id,
+                    'display_name' => $item->displayName(),
+                    'evolved_display_name' => $this->evolvedSourceDisplayName($item, $toItem, $toDisplayName),
+                    'is_equipped' => (bool) $item->is_equipped,
+                    'is_locked' => (bool) $item->is_locked,
+                    'can_sell' => $goldService->canSellEquipment($item),
+                    'sell_price' => $goldService->equipmentSalePrice($item->item),
+                    'enhance_level' => (int) ($item->enhance_level ?? 0),
+                    'has_affix' => $this->hasInheritableAffix($item),
+                    'affix_lines' => $item->affixEffectLines(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function evolvedSourceDisplayName(CharacterItem $source, ?Item $toItem, ?string $toDisplayName = null): ?string
+    {
+        if (!$toItem) {
+            return null;
+        }
+
+        $preview = new CharacterItem(array_merge(
+            $this->affixInheritancePayload($source),
+            ['enhance_level' => 0]
+        ));
+        $preview->setRelation('item', new Item(['name' => $toDisplayName ?: $toItem->name]));
+
+        if ($source->relationLoaded('affixPrefix')) {
+            $preview->setRelation('affixPrefix', $source->affixPrefix);
+        }
+
+        if ($source->relationLoaded('affixSuffix')) {
+            $preview->setRelation('affixSuffix', $source->affixSuffix);
+        }
+
+        return $preview->displayName();
     }
 
     private function rankSort(string $rank): int
@@ -1398,9 +1446,35 @@ class EquipmentEvolutionService
         return $locked;
     }
 
-    private function lockEvolutionSourceEquipment(Character $character, int $itemId, int $requiredCount)
+    private function lockEvolutionSourceEquipment(Character $character, int $itemId, int $requiredCount, ?int $sourceCharacterItemId = null)
     {
+        if ($sourceCharacterItemId !== null) {
+            $selected = $this->evolutionSourceEquipmentQuery($character, $itemId)
+                ->where('id', $sourceCharacterItemId)
+                ->with(['item', 'affixPrefix', 'affixSuffix'])
+                ->lockForUpdate()
+                ->first();
+
+            if (!$selected) {
+                throw new RuntimeException('選択した進化元装備が見つかりません。');
+            }
+
+            if ($requiredCount <= 1) {
+                return collect([$selected]);
+            }
+
+            $remaining = $this->evolutionSourceEquipmentQuery($character, $itemId)
+                ->where('id', '!=', $sourceCharacterItemId)
+                ->with(['item', 'affixPrefix', 'affixSuffix'])
+                ->lockForUpdate()
+                ->limit($requiredCount - 1)
+                ->get();
+
+            return collect([$selected])->concat($remaining)->values();
+        }
+
         return $this->evolutionSourceEquipmentQuery($character, $itemId)
+            ->with(['item', 'affixPrefix', 'affixSuffix'])
             ->lockForUpdate()
             ->limit($requiredCount)
             ->get();

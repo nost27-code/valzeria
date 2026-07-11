@@ -91,23 +91,28 @@
                             $requestMaterial = $request->materials->first();
                             if ($request->isPersistentUntilCompleted()) {
                                 $remainingLabel = '完納まで';
+                                $requestScheduleLabel = '長期募集';
                             } else {
                                 $remainingSeconds = $request->remainingSeconds();
                                 $remainingLabel = $remainingSeconds >= 3600
                                     ? 'あと' . max(1, (int) ceil($remainingSeconds / 3600)) . '時間'
                                     : 'あと' . max(1, (int) ceil($remainingSeconds / 60)) . '分';
+                                $requestScheduleLabel = $request->npc_procurement_request_template_id ? '日替わり' : null;
                             }
                         @endphp
                         <div class="rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2">
-                                        @if($request->npc)
-                                            <img src="{{ asset($request->npc->image_path) }}" alt="" class="h-7 w-7 shrink-0 object-contain">
-                                        @endif
+                                        <img src="{{ asset($request->requesterIconPath()) }}" alt="" class="h-7 w-7 shrink-0 object-contain">
                                         <div class="truncate text-sm font-black text-slate-900">{{ $request->requester_name }}</div>
                                     </div>
                                     <div class="mt-0.5 text-xs font-bold text-slate-500">{{ $request->title }}</div>
+                                    @if($requestScheduleLabel)
+                                        <div class="mt-1">
+                                            <span class="rounded {{ $request->isPersistentUntilCompleted() ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700' }} px-1.5 py-0.5 text-[10px] font-black">{{ $requestScheduleLabel }}</span>
+                                        </div>
+                                    @endif
                                     @if($requestMaterial)
                                         <div class="mt-1 text-xs font-bold text-slate-500">
                                             必要数：{{ number_format((int) $requestMaterial->delivered_quantity) }} / {{ number_format((int) $requestMaterial->required_quantity) }}

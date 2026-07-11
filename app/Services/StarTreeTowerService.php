@@ -55,7 +55,7 @@ class StarTreeTowerService
             'merchant_none_message' => $this->displayText('merchant_none_message', '星灯の行商人はいません。'),
             'merchant_pending_message' => $this->displayText('merchant_pending_message', '星灯の行商人が待っています。購入するか、見送ってから次の階へ進んでください。'),
             'merchant_skipped_message' => $this->displayText('merchant_skipped_message', '星灯の行商人を見送りました。'),
-            'public_log_label' => $this->displayText('public_log_label', '星梯の塔'),
+            'public_log_label' => $this->displayText('public_log_label', '星樹の塔'),
             'breath_name' => $this->displayText('breath_name', '星樹の息吹'),
             'scout_flavor' => $this->displayText('scout_flavor', '星樹の気配を読み、次に立ちはだかる相手を見定めた。'),
             'assets' => [

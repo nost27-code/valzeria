@@ -12,7 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         // 本番環境デプロイ時に、更新された敵データと職業データを反映する
-        if (file_exists(base_path('update_enemies_data.php'))) {
+        // This migration updated a populated legacy database. A fresh database
+        // receives its enemy master from the seeders after all areas exist.
+        if (Schema::hasTable('areas')
+            && Schema::hasTable('enemies')
+            && \Illuminate\Support\Facades\DB::table('areas')->exists()
+            && file_exists(base_path('update_enemies_data.php'))) {
             require_once base_path('update_enemies_data.php');
         }
         

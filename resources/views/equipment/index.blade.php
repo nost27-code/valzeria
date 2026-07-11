@@ -31,21 +31,31 @@
                     'empty_inventory' => '倉庫に装飾品はありません。',
                 ],
             ];
+            $belongingsTab = $explorationSupportEnabled ? [
+                'icon_image' => 'images/facilities/shop_item_symbol.webp',
+                'label' => 'もちもの',
+            ] : null;
         @endphp
 
         <div class="w-full space-y-6">
+            @php
+                $requestedTab = request()->query('tab', session('activeTab', 'weapon'));
+                $availableTabs = $explorationSupportEnabled ? ['weapon', 'armor', 'accessory', 'belongings'] : ['weapon', 'armor', 'accessory'];
+                $initialTab = in_array($requestedTab, $availableTabs, true) ? $requestedTab : 'weapon';
+            @endphp
             <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200"
                  x-data="{
-                    activeTab: @js(in_array(session('activeTab', 'weapon'), ['weapon', 'armor', 'accessory'], true) ? session('activeTab', 'weapon') : 'weapon'),
+                    activeTab: @js($initialTab),
                     sortBy: {},
                     visible: {},
                     step: 20,
                     tabs: ['weapon', 'armor', 'accessory'],
+                    allTabs: @js($availableTabs),
                     keyOf(tab) {
                         return 'inventory_' + tab;
                     },
                     init() {
-                        if (!this.tabs.includes(this.activeTab)) this.activeTab = 'weapon';
+                        if (!this.allTabs.includes(this.activeTab)) this.activeTab = 'weapon';
                         this.tabs.forEach((tab) => {
                             const key = this.keyOf(tab);
                             this.sortBy[key] = 'recommend';
@@ -115,6 +125,14 @@
                             <img src="{{ asset($tab['icon_image']) }}" alt="" class="w-5 h-5 object-contain mr-1 inline-block">{{ $tab['label'] }}
                         </button>
                     @endforeach
+                    @if($explorationSupportEnabled)
+                        <button type="button"
+                                @click="activeTab = 'belongings'"
+                                class="flex-1 py-3 px-2 sm:px-4 font-bold text-center rounded-t-lg transition-all duration-150 transform active:scale-95 outline-none whitespace-nowrap text-sm sm:text-base"
+                                :class="activeTab === 'belongings' ? 'bg-slate-800 text-white border-b-4 border-white shadow-inner' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border-b-4 border-transparent'">
+                            <img src="{{ asset($belongingsTab['icon_image']) }}" alt="" class="w-5 h-5 object-contain mr-1 inline-block">{{ $belongingsTab['label'] }}
+                        </button>
+                    @endif
                 </div>
 
                 <div class="min-h-[400px]">
@@ -169,6 +187,21 @@
                             </div>
                         </div>
                     @endforeach
+
+                    @if($explorationSupportEnabled)
+                        {{-- もちものタブ --}}
+                        <div x-show="activeTab === 'belongings'"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             style="display: none;">
+                            <div class="text-sm text-slate-500 mb-3">
+                                探索の前に持ち込める補助品です。1回の探索で使えるのは1つだけです。「自動補充」をONにすると、30戦使い切った時に同じ品を自動で補充して使い続けます。
+                            </div>
+
+                            @include('apothecary.partials.belongings-list', ['belongings' => $belongings])
+                        </div>
+                    @endif
                 </div>
 
                 <script>

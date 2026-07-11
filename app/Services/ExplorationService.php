@@ -446,6 +446,12 @@ class ExplorationService
                     $newDiscoveries = array_merge($newDiscoveries, $discoveryResult['discoveries'] ?? []);
                     if ($developmentResult && ($developmentResult['gained'] ?? 0) > 0) {
                         $logText .= "<br><span class=\"text-emerald-700 font-bold\">【開拓】{$area->name}の開拓度 +{$developmentResult['gained']}（{$developmentResult['after']} / {$developmentResult['max']}）</span>";
+                        foreach (($developmentResult['events'] ?? []) as $event) {
+                            $eventText = e((string) ($event['text'] ?? ''));
+                            if ($eventText !== '') {
+                                $logText .= "<br><span class=\"text-amber-700 font-bold\">{$eventText}</span>";
+                            }
+                        }
                     }
 
                     $playerEncounter = $this->rollPlayerEncounter($character, $area);
@@ -605,6 +611,18 @@ class ExplorationService
             $this->kisekiDropService->attachBattleLog((int) $kisekiDrop['transaction_id'], $battleLog->id);
         }
 
+        $supportResult = app(ExplorationSupportService::class)->completeBattle(
+            $character,
+            $battleLog,
+            $battleResult->explorationSupportSnapshot ?? null,
+        );
+        foreach ($supportResult['logs'] ?? [] as $supportLog) {
+            $logText .= '<br>' . $supportLog;
+        }
+        if (($supportResult['logs'] ?? []) !== []) {
+            $battleLog->forceFill(['log_text' => $logText])->save();
+        }
+
         return [
             'success' => true,
             'result' => $battleResult->result,
@@ -624,11 +642,13 @@ class ExplorationService
             'monster_mark_drop' => $monsterMarkDrop,
             'kiseki_drop' => $kisekiDrop,
             'drop_results' => $dropResults,
+            'exploration_support' => $supportResult['active'] ?? app(ExplorationSupportService::class)->payload($character),
             'material_penalty' => $materialPenalty,
             'chain_loot_summary' => $chainLootSummary,
             'exploration_progress' => $explorationProgress,
             'exploration_summary' => $explorationSummary,
             'development' => $developmentResult,
+            'story_record' => app(FerdiaMapService::class)->storyRecordForArea($character, $area),
             'new_discoveries' => $newDiscoveries,
             'special_event' => $specialEvent['type'] ?? null,
             'secret_realm_image' => $this->secretRealmImagePath($area),
@@ -1027,7 +1047,7 @@ class ExplorationService
             return null;
         }
 
-        $candidate = Character::query()
+        $candidate = Character::visibleToPublic()
             ->with('currentJob')
             ->whereKeyNot($character->id)
             ->where('is_frozen', false)

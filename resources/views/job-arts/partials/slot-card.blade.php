@@ -7,6 +7,7 @@
     $artCost = $hasArt ? (int) $slotArt->art_cost : 0;
     $artOrigin = $hasArt ? ($slotArt->getAttribute('job_art_origin') ?: 'current') : '';
     $artSpCost = $hasArt ? $slotArt->jobArtSpCostForMaxSp($maxSp, $artOrigin) : 0;
+    $artInheritedRate = $hasArt ? (int) round(((float) ($slotArt->getAttribute('job_art_rate') ?: 1.0)) * 100) : 100;
     $costBadgeClass = match ($artCost) {
         1 => 'bg-emerald-50 text-emerald-700',
         2 => 'bg-sky-50 text-sky-700',
@@ -40,7 +41,7 @@
             <div class="min-w-0 flex-1">
                 <div class="flex items-baseline gap-1.5 flex-wrap">
                     <span class="text-[15px] font-black text-slate-900">{{ $slotArt->name }}</span>
-                    <span class="shrink-0 text-[10px] font-black {{ $artOrigin === 'current' ? 'text-amber-600' : 'text-indigo-600' }}">{{ $artOrigin === 'current' ? '本職' : '継承' }}</span>
+                    <span class="shrink-0 text-[10px] font-black {{ $artOrigin === 'current' ? 'text-amber-600' : 'text-indigo-600' }}">{{ $artOrigin === 'current' ? '本職' : '継承 ' . $artInheritedRate . '%' }}</span>
                 </div>
                 <div class="mt-0.5 text-[11px] font-bold text-slate-400">{{ $slotArt->jobClass?->name ?? '職業' }} · Rank{{ $slotArt->learn_rank }} · SP{{ $artSpCost }} · {{ $activationPolicyLabels[$slotPolicy] ?? '通常' }}</div>
             </div>

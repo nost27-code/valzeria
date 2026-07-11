@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('key')->unique();
             $table->string('name');
-            $table->enum('rank', ['normal', 'middle', 'advanced', 'legend']);
+            $table->string('rank');
             $table->string('category')->nullable();
             $table->text('description')->nullable();
 

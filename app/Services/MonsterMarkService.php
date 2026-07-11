@@ -118,7 +118,10 @@ class MonsterMarkService
                 ];
             });
 
-        return $this->deduplicateCollectionEntries($entries);
+        return $this->deduplicateCollectionEntries($entries)
+            ->filter(fn (array $entry): bool => (bool) ($entry['is_area_discovered'] ?? false)
+                || (bool) ($entry['is_discovered'] ?? false))
+            ->values();
     }
 
     public function groupedCollectionFor(Character $character, ?Collection $collection = null): Collection

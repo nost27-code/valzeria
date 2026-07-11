@@ -22,7 +22,7 @@ return [
             'merchant_none_message' => '星灯の行商人はいません。',
             'merchant_pending_message' => '星灯の行商人が待っています。購入するか、見送ってから次の階へ進んでください。',
             'merchant_skipped_message' => '星灯の行商人を見送りました。',
-            'public_log_label' => '星梯の塔',
+            'public_log_label' => '星樹の塔',
             'breath_name' => '星樹の息吹',
             'scout_flavor' => '星樹の気配を読み、次に立ちはだかる相手を見定めた。',
         ],
@@ -52,12 +52,12 @@ return [
             'hp' => [
                 'key' => 'star_leaf_herb',
                 'name' => '星葉の薬草',
-                'description_template' => '塔内HPを最大HPの{rate}%回復',
+                'description_template' => 'HPを最大HPの{rate}%回復',
             ],
             'sp' => [
                 'key' => 'moon_dew_vial',
                 'name' => '月露の小瓶',
-                'description_template' => '塔内SPを最大SPの{rate}%回復',
+                'description_template' => 'SPを最大SPの{rate}%回復',
             ],
             'ward' => [
                 'key' => 'kodama_ward',
@@ -70,6 +70,10 @@ return [
         'strategy_breathe_recover_rate' => 10,
         'strategy_breathe_enemy_power_rate' => 5,
         'strategy_cautious_enemy_agi_luk_down_rate' => 15,
+        'stance_start_floor' => 50,
+        'stance_interval' => 5,
+        'stance_buff_rate' => 2,
+        'stance_debuff_rate' => 1,
         'seed_floor_count' => 100,
         'stamina_cost_schedule' => [
             1 => 1,
@@ -85,7 +89,7 @@ return [
         ],
         'enemy_scaling' => [
             'late_floor_threshold' => 40,
-            'max_hp' => ['base' => 500, 'floor' => 90, 'floor_square' => 6, 'late_square' => 15],
+            'max_hp' => ['base' => 500, 'floor' => 90, 'floor_square' => 6, 'late_square' => 12],
             'str' => ['base' => 80, 'floor' => 7, 'floor_square' => 0.10, 'late_square' => 0.20],
             'def' => ['base' => 30, 'floor' => 5, 'floor_square' => 0.04, 'late_square' => 0.05],
             'mag' => ['base' => 70, 'floor' => 7, 'floor_square' => 0.12, 'late_square' => 0.22],

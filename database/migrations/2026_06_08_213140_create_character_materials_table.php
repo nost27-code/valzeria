@@ -11,6 +11,24 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('materials')) {
+            Schema::create('materials', function (Blueprint $table) {
+                $table->id();
+                $table->string('material_code')->unique()->comment('MAT0001等');
+                $table->string('name');
+                $table->string('category')->comment('素材カテゴリ');
+                $table->string('rarity')->comment('レア度(N, N+, R, SR, SSR等)');
+                $table->string('element')->nullable()->comment('属性');
+                $table->string('main_use')->nullable()->comment('主用途');
+                $table->integer('npc_sale_price')->default(0)->comment('NPC売却価格');
+                $table->boolean('is_tradable')->default(true)->comment('市場取引可');
+                $table->unsignedBigInteger('city_id')->nullable();
+                $table->unsignedBigInteger('dungeon_id')->nullable();
+                $table->unsignedBigInteger('source_enemy_id')->nullable()->comment('主な入手敵のID');
+                $table->timestamps();
+            });
+        }
+
         if (!Schema::hasTable('character_materials')) {
             Schema::create('character_materials', function (Blueprint $table) {
                 $table->id();

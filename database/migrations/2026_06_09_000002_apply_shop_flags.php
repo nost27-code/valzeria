@@ -7,6 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Fresh databases create this column in a later legacy migration and
+        // receive shop data from the current seeders.
+        if (!Schema::hasColumn('items', 'unlock_city_id')) {
+            return;
+        }
+
         $items = [
             ['id' => 1, 'is_shop_item' => 1, 'unlock_city_id' => null],
             ['id' => 2, 'is_shop_item' => 1, 'unlock_city_id' => null],

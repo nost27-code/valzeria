@@ -440,6 +440,10 @@ class ExplorationStateService
             return 0;
         }
 
+        if (app(FerdiaMapService::class)->isFerdiaAreaId((int) $enemy->area_id)) {
+            return rand(3, 5);
+        }
+
         if (str_contains($text, 'レア')) {
             return rand(15, 30);
         }

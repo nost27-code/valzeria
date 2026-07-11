@@ -177,6 +177,56 @@
         }
         .online-empty { text-align: center; font-size: 12.5px; color: #7e89a3; }
 
+        /* ===== 現在のチャンプ ===== */
+        .champ-band { background: linear-gradient(180deg, #0c1830, #0a1628); border-bottom: 1px solid var(--navy-line); padding: 20px 16px 26px; }
+        .champ-inner { max-width: 460px; margin: 0 auto; }
+        .champ-title {
+            display: flex; align-items: center; justify-content: center; gap: 7px;
+            font-size: 12px; font-weight: 800; letter-spacing: .1em; color: var(--ink-sub); margin-bottom: 12px;
+        }
+        .champ-card {
+            background: rgba(16,28,51,.7); border: 1.5px solid rgba(212,175,55,.55);
+            border-radius: 14px; overflow: hidden;
+            box-shadow: 0 8px 26px rgba(0,0,0,.5), 0 0 18px rgba(212,175,55,.08);
+        }
+        .champ-card-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 14px; background: rgba(0,0,0,.25);
+        }
+        .champ-card-head .label { font-size: 11px; font-weight: 900; letter-spacing: .15em; color: var(--gold-soft); }
+        .champ-card-head .streak { font-size: 11px; font-weight: 800; color: #fcd34d; }
+        .champ-card-body { display: flex; gap: 14px; padding: 16px; align-items: center; background: #faf7f0; }
+        .champ-card-body img.champ-icon {
+            width: 68px; height: 84px; object-fit: contain; flex-shrink: 0;
+            filter: drop-shadow(0 2px 4px rgba(15,23,42,.2));
+        }
+        .champ-info { min-width: 0; flex: 1; text-align: left; }
+        .champ-info .name { font-size: 16px; font-weight: 800; color: #0f172a; }
+        .champ-info .job { font-size: 12px; font-weight: 700; color: #64748b; margin-top: 2px; }
+        .champ-info .power { font-size: 12.5px; font-weight: 800; color: #b45309; margin-top: 4px; }
+        .champ-bar-row { margin-top: 8px; }
+        .champ-bar-row .bar-label { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: #94a3b8; margin-bottom: 2px; }
+        .champ-bar-track { height: 5px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+        .champ-bar-fill { height: 100%; border-radius: 999px; }
+        .champ-bar-fill.hp { background: #f43f5e; }
+        .champ-bar-fill.mp { background: #38bdf8; }
+        .champ-card-log {
+            border-top: 1px solid #ecdfba; background: #faf7f0; padding: 8px 14px;
+            font-size: 11px; color: #64748b; text-align: left;
+        }
+        .champ-card-log time { color: #94a3b8; margin-left: 6px; }
+        .champ-detail { background: #faf7f0; border-top: 1px solid #ecdfba; padding: 12px 16px; display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+        .champ-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+        .champ-stat { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; font-weight: 700; }
+        .champ-stat .k { display: flex; align-items: center; gap: 4px; color: #64748b; }
+        .champ-stat .k img { width: 13px; height: 13px; object-fit: contain; }
+        .champ-stat .v { color: #0f172a; font-variant-numeric: tabular-nums; }
+        .champ-equip { display: flex; flex-direction: column; gap: 5px; }
+        .champ-equip-row { display: flex; align-items: center; gap: 6px; }
+        .champ-equip-row .tag { flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px; background: #1e293b; color: #fff; font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+        .champ-equip-row .val { min-width: 0; font-size: 11.5px; font-weight: 700; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .champ-cta { display: block; text-align: center; padding: 10px 14px; font-size: 12.5px; font-weight: 800; color: #1a1204; background: linear-gradient(180deg, var(--gold), #b8912e); }
+
         /* ===== 特徴カード ===== */
         .features-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
         @media (min-width: 640px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -410,6 +460,90 @@
             </div>
         </div>
     </div>
+
+    {{-- 現在のチャンプ --}}
+    @if(!empty($champSummary))
+        @php
+            $champ = $champSummary['champ'];
+            $champRecentLog = (!empty($champSummary['recent_logs']) && $champSummary['recent_logs']->isNotEmpty())
+                ? $champSummary['recent_logs']->first()
+                : null;
+            $champStats = $champSummary['champ_effective_stats'] ?? [
+                'atk' => $champ->atk, 'def' => $champ->def, 'mag' => $champ->mag,
+                'spr' => $champ->spr, 'spd' => $champ->spd, 'luk' => $champ->luk,
+            ];
+            $champStatList = [
+                ['攻撃', $champStats['atk'], 'images/icon/icon_str.webp'],
+                ['防御', $champStats['def'], 'images/icon/icon_def.webp'],
+                ['魔法', $champStats['mag'], 'images/icon/icon_mag.webp'],
+                ['精神', $champStats['spr'], 'images/icon/icon_spr.webp'],
+                ['速さ', $champStats['spd'], 'images/icon/icon_agi.webp'],
+                ['運',   $champStats['luk'], 'images/icon/icon_luk.webp'],
+            ];
+            $champEquipList = [
+                ['武', $champ->weapon_name],
+                ['防', $champ->armor_name],
+                ['飾', $champ->accessory_name],
+            ];
+        @endphp
+        <div class="champ-band">
+            <div class="champ-inner">
+                <div class="champ-title">◆ 現在のチャンプ ◆</div>
+                <div class="champ-card">
+                    <div class="champ-card-head">
+                        <span class="label">CHAMPION</span>
+                        <span class="streak">{{ number_format((int) $champ->defense_count) }}連勝中</span>
+                    </div>
+                    <div class="champ-card-body">
+                        <img class="champ-icon" src="{{ \App\Support\CharacterIconCatalog::versionedAsset($champ->icon_path ?? '/images/chara/chara_001.webp') }}" alt="{{ $champ->player_name }}">
+                        <div class="champ-info">
+                            <div class="name">{{ $champ->player_name }}</div>
+                            <div class="job">Lv {{ number_format((int) $champ->level) }} / {{ $champ->job_name ?? '冒険者' }}★{{ number_format((int) $champ->job_rank) }}</div>
+                            <div class="power">戦力 {{ number_format((int) ($champSummary['champ_power'] ?? 0)) }}</div>
+                            <div class="champ-bar-row">
+                                <div class="bar-label"><span>HP</span><span>{{ number_format($champ->current_hp) }}/{{ number_format($champ->max_hp) }}</span></div>
+                                <div class="champ-bar-track"><div class="champ-bar-fill hp" style="width:{{ $champSummary['hp_percent'] }}%"></div></div>
+                            </div>
+                            <div class="champ-bar-row">
+                                <div class="bar-label"><span>SP</span><span>{{ number_format((int) ($champ->current_mp ?? 0)) }}/{{ number_format((int) ($champ->max_mp ?? 0)) }}</span></div>
+                                <div class="champ-bar-track"><div class="champ-bar-fill mp" style="width:{{ $champSummary['mp_percent'] ?? 0 }}%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="champ-detail">
+                        <div class="champ-stat-grid">
+                            @foreach($champStatList as [$label, $value, $iconPath])
+                                <div class="champ-stat">
+                                    <span class="k"><img src="{{ asset($iconPath) }}" alt="{{ $label }}">{{ $label }}</span>
+                                    <span class="v">{{ number_format($value) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="champ-equip">
+                            @foreach($champEquipList as [$type, $name])
+                                <div class="champ-equip-row">
+                                    <span class="tag">{{ $type }}</span>
+                                    <span class="val">{{ $name ?: 'なし' }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @if($champRecentLog)
+                        <div class="champ-card-log">
+                            {{ $champRecentLog->challenger_player_name }}が{{ $champRecentLog->champ_player_name }}に{{ number_format($champRecentLog->damage) }}ダメージ
+                            @if($champRecentLog->is_champ_defeated)
+                                <strong style="color:#fcd34d;">撃破</strong>
+                            @endif
+                            <time>{{ $champRecentLog->created_at?->format('H:i') }}</time>
+                        </div>
+                    @endif
+                    <a class="champ-cta" href="{{ route('auth.google') }}" data-top-event="champ_challenge_click" data-top-label="チャンプに挑む">
+                        冒険を始めてチャンプに挑む
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- いま街にいる冒険者 --}}
     <div class="online-band">

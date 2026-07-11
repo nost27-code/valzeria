@@ -3,6 +3,12 @@
     pageBgImage="images/facilities/sakaba01.webp"
     pageBgOverlay="bg-stone-950/30"
     exitTextClass="text-amber-200/80 hover:text-amber-300">
+    @php
+        $localRumor = match ($character?->currentCity?->name) {
+            '辺境の町ルヴァン' => '木の卓を囲む旅人たちが、見晴らしの丘道で見つかった古い標柱と、清流リミュエールへ続く水音の噂を交わしている。',
+            default => null,
+        };
+    @endphp
     <div class="py-8 w-full mx-auto sm:px-6 lg:px-8">
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-[#d4af37]/60 shadow-2xl overflow-hidden">
             <div class="p-6">
@@ -17,6 +23,12 @@
                         訪問 {{ number_format($visit->visit_count) }}回
                     </div>
                 </div>
+
+                @if($localRumor)
+                    <div class="rounded-lg bg-stone-900/85 border border-amber-300/70 px-4 py-3 mb-5 text-sm font-bold text-amber-50 shadow-inner">
+                        {{ $localRumor }}
+                    </div>
+                @endif
 
                 <div class="rounded-lg bg-amber-50/80 border border-amber-200/60 px-4 py-3 mb-5">
                     @if($npcs->isEmpty())

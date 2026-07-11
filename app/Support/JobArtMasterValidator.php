@@ -9,6 +9,7 @@ class JobArtMasterValidator
     private const DROP_KEYWORDS = ['Drop', 'DROP', 'drop', '素材率', 'ドロップ', '報酬判定'];
     private const FORBIDDEN_MEMO_WORDS = ['ターン', '反撃', '継続ダメージ', '解除', '状態異常', '回避率', '会心率'];
     private const DAMAGE_REWARD_TEMPLATES = ['PHYSICAL_DAMAGE_REWARD', 'MAGICAL_DAMAGE_REWARD'];
+    private const GOLD_ONLY_DAMAGE_REWARD_TEMPLATES = ['PHYSICAL_DAMAGE_GOLD_REWARD'];
     private const DAMAGE_REWARD_BONUS_BY_RANK = [1 => 1, 5 => 2, 9 => 3];
 
     public static function validateRows(array $rows): array
@@ -101,6 +102,26 @@ class JobArtMasterValidator
                 }
             }
 
+            if (preg_match('/複数\s*HIT|複数\s*Hit|複数\s*hit/u', $memo)) {
+                $actualHits = (int) ($row['hit_count'] ?? JobArtEffectCatalog::hitCount($template));
+                if ($actualHits < 2) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoは複数Hitですが hit_count=%d です',
+                        $jobId,
+                        $name,
+                        $actualHits
+                    );
+                }
+            }
+
+            if (self::memoMentionsLuckScaling($memo) && (float) ($row['luk_power_rate'] ?? 0) <= 0) {
+                $problems[] = sprintf(
+                    'job_id=%d %s: memoはLUK依存ですが luk_power_rate が設定されていません',
+                    $jobId,
+                    $name
+                );
+            }
+
             if (self::memoMentionsHpRecovery($memo)
                 && ! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)
                 && (int) ($row['heal_percent'] ?? 0) <= 0
@@ -114,6 +135,52 @@ class JobArtMasterValidator
                 && (int) ($row['damage_reduction_percent'] ?? 0) <= 0
             ) {
                 $problems[] = sprintf('job_id=%d %s: memoは被ダメ軽減を示しますが軽減効果が設定されていません', $jobId, $name);
+            }
+
+            if (preg_match('/被ダメ[^%\d]{0,6}(\d+)\s*%\s*軽減/u', $memo, $matches)
+                && ! in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)
+            ) {
+                $expectedReduction = (int) $matches[1];
+                $actualReduction = (int) ($row['damage_reduction_percent'] ?? 0);
+                if ($actualReduction !== $expectedReduction) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoは被ダメ%d%%軽減ですが damage_reduction_percent=%d です',
+                        $jobId,
+                        $name,
+                        $expectedReduction,
+                        $actualReduction
+                    );
+                }
+            }
+
+            if (preg_match('/最大HPの?(\d+)%\s*回復|HP(?:を)?(\d+)%\s*回復/u', $memo, $matches)
+                && ! in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)
+            ) {
+                $expectedHeal = (int) (($matches[1] ?? '') !== '' ? $matches[1] : ($matches[2] ?? 0));
+                $actualHeal = (int) ($row['heal_percent'] ?? 0);
+                if ($expectedHeal > 0 && $actualHeal !== $expectedHeal) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoはHP%d%%回復ですが heal_percent=%d です',
+                        $jobId,
+                        $name,
+                        $expectedHeal,
+                        $actualHeal
+                    );
+                }
+            }
+
+            if (preg_match('/反動で?最大HPの?(\d+)%/u', $memo, $matches)) {
+                $expectedSelfDamage = (int) $matches[1];
+                $actualSelfDamage = (int) ($row['self_damage_percent'] ?? 0);
+                if ($actualSelfDamage !== $expectedSelfDamage) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: memoは反動最大HP%d%%ダメージですが self_damage_percent=%d です',
+                        $jobId,
+                        $name,
+                        $expectedSelfDamage,
+                        $actualSelfDamage
+                    );
+                }
             }
 
             if (str_contains($memo, '吸収')
@@ -131,6 +198,24 @@ class JobArtMasterValidator
                 if ($expectedBonus === null || (int) $goldBonus !== $expectedBonus || (int) $dropBonus !== $expectedBonus) {
                     $problems[] = sprintf(
                         'job_id=%d %s: %s は learn_rank=%d の報酬補正を Gold/Drop ともに %s%% で明示してください',
+                        $jobId,
+                        $name,
+                        $template,
+                        $learnRank,
+                        $expectedBonus === null ? '未定義' : (string) $expectedBonus
+                    );
+                }
+            }
+
+            if (in_array($template, self::GOLD_ONLY_DAMAGE_REWARD_TEMPLATES, true)) {
+                $learnRank = (int) ($row['learn_rank'] ?? 0);
+                $expectedBonus = self::DAMAGE_REWARD_BONUS_BY_RANK[$learnRank] ?? null;
+                $goldBonus = $row['gold_bonus_percent'] ?? null;
+                $dropBonus = $row['drop_bonus_percent'] ?? 0;
+
+                if ($expectedBonus === null || (int) $goldBonus !== $expectedBonus || (int) $dropBonus !== 0) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: %s は learn_rank=%d のGold補正を %s%%、Drop補正を0%%で明示してください',
                         $jobId,
                         $name,
                         $template,
@@ -168,6 +253,12 @@ class JobArtMasterValidator
             && ! str_contains($memo, 'drop補正なし')
             && ! str_contains($memo, '素材率補正なし')
             && ! str_contains($memo, 'ドロップ補正なし');
+    }
+
+    private static function memoMentionsLuckScaling(string $memo): bool
+    {
+        return str_contains($memo, 'LUK依存多段')
+            || str_contains($memo, 'LUKに応じて');
     }
 
     private static function containsAny(string $haystack, array $needles): bool

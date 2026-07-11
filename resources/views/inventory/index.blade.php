@@ -477,6 +477,10 @@
                                             class="mt-2 rounded bg-sky-700 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-sky-800 active:scale-95">
                                             {{ $entry['use_label'] }}
                                         </button>
+                                    @elseif(!empty($entry['manage_url']))
+                                        <a href="{{ $entry['manage_url'] }}" class="mt-2 inline-flex rounded bg-emerald-700 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-emerald-800">
+                                            薬屋で設定
+                                        </a>
                                     @endif
                                 </div>
                             </div>

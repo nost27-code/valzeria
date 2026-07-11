@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\CityVisualCatalog;
+
 class CityThemeService
 {
     public function backgroundColorForCityId(?int $cityId): string
@@ -23,10 +25,8 @@ class CityThemeService
 
     public function bgImageForCityId(?int $cityId): ?string
     {
-        $id = (int) $cityId;
-        if ($id < 1 || $id > 10) {
-            return null;
-        }
-        return sprintf('images/cities/city%02d.webp', $id);
+        $path = CityVisualCatalog::cardBackground($cityId);
+
+        return $path ? 'images/' . $path : null;
     }
 }

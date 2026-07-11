@@ -15,6 +15,7 @@ class ValidateMasterData extends Command
     {
         $checks = [
             '奥義データ' => 'valzeria:validate-job-arts',
+            'ダンジョンデータ' => 'dungeon:validate',
         ];
 
         $failed = false;

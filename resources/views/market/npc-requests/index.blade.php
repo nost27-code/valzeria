@@ -60,16 +60,16 @@
                             <div class="min-w-0">
                                 <h3 class="text-base font-black text-slate-950">{{ $request->title }}</h3>
                                 <div class="mt-1 flex items-center gap-2 text-xs font-bold text-slate-500">
-                                    @if($request->npc)
-                                        <img src="{{ asset($request->npc->image_path) }}" alt="" class="h-8 w-8 shrink-0 object-contain">
-                                    @endif
+                                    <img src="{{ asset($request->requesterIconPath()) }}" alt="" class="h-8 w-8 shrink-0 object-contain">
                                     <span class="min-w-0 truncate">依頼者：{{ $request->requester_name }}</span>
                                 </div>
                                 @if($request->purpose_label)
                                     <div class="mt-0.5 text-xs font-bold text-amber-700">用途：{{ $request->purpose_label }}</div>
                                 @endif
                                 <div class="mt-1 flex flex-wrap gap-1">
-                                    @if($request->npc_procurement_request_template_id)
+                                    @if($request->isPersistentUntilCompleted())
+                                        <span class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">長期募集</span>
+                                    @elseif($request->npc_procurement_request_template_id)
                                         <span class="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">日替わり</span>
                                     @endif
                                     <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">{{ $typeLabel }}</span>

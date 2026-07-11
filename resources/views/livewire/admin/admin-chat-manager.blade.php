@@ -3,7 +3,7 @@
         <p class="text-xs font-black tracking-[0.24em] text-amber-600">ADMIN CHAT</p>
         <h1 class="mt-2 text-3xl font-black text-slate-950">管理人チャット</h1>
         <p class="mt-2 text-sm font-bold text-slate-500">
-            ホーム画面下部の全体チャットへ、管理人メッセージとして投稿します。
+            ホーム画面下部の全体チャットへ、管理人メッセージまたはお知らせとして投稿します。
         </p>
     </div>
 
@@ -29,6 +29,7 @@
                         <span class="w-11 shrink-0 text-slate-400">{{ $log['time'] }}</span>
                         <span class="min-w-0 break-words
                             @if($log['type'] === 'admin') text-[#1e40af] font-black
+                            @elseif($log['type'] === 'notice') text-cyan-700 font-black
                             @elseif($log['type'] === 'system') text-orange-600 font-bold
                             @elseif($log['type'] === 'chat') text-green-700 font-bold
                             @elseif($log['type'] === 'drop') text-yellow-600 font-bold
@@ -44,6 +45,8 @@
                         ">
                             @if($log['type'] === 'admin')
                                 【管理人】{{ $log['message'] }}
+                            @elseif($log['type'] === 'notice')
+                                【お知らせ】{{ $log['message'] }}
                             @elseif(in_array($log['type'], ['chat', 'guild'], true))
                                 【{{ $log['name'] ?? '名無し' }}】{{ $log['message'] }}
                             @else
@@ -68,8 +71,24 @@
             </div>
 
             <form wire:submit="sendMessage" class="border-t border-slate-200 bg-slate-50 p-3">
+                <div class="mb-3">
+                    <span class="text-xs font-black text-slate-500">投稿モード</span>
+                    <div class="mt-1 grid grid-cols-2 gap-2">
+                        <label class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs font-black shadow-sm {{ $messageType === 'admin' ? 'border-[#1e40af] bg-blue-50 text-[#1e40af]' : 'border-slate-200 bg-white text-slate-600' }}">
+                            <input type="radio" wire:model.live="messageType" value="admin" class="border-slate-300 text-[#1e40af] focus:ring-[#1e40af]">
+                            <span>管理人</span>
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs font-black shadow-sm {{ $messageType === 'notice' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-slate-200 bg-white text-slate-600' }}">
+                            <input type="radio" wire:model.live="messageType" value="notice" class="border-slate-300 text-cyan-600 focus:ring-cyan-500">
+                            <span>お知らせ</span>
+                        </label>
+                    </div>
+                    @error('messageType')
+                        <div class="mt-2 text-xs font-bold text-red-600">{{ $message }}</div>
+                    @enderror
+                </div>
                 <label class="block">
-                    <span class="text-xs font-black text-slate-500">管理人メッセージ</span>
+                    <span class="text-xs font-black text-slate-500">{{ $messageType === 'notice' ? 'お知らせ' : '管理人メッセージ' }}</span>
                     <textarea wire:model="message" rows="3" maxlength="160" required placeholder="全体チャットに流す内容を入力"
                               class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold shadow-sm focus:border-[#1e40af] focus:ring focus:ring-[#1e40af]/30"></textarea>
                 </label>
@@ -77,7 +96,9 @@
                     <div class="mt-2 text-xs font-bold text-red-600">{{ $message }}</div>
                 @enderror
                 <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <p class="text-xs font-bold text-slate-500">プレイヤー側ではヴァルゼリアブルーで表示されます。</p>
+                    <p class="text-xs font-bold text-slate-500">
+                        プレイヤー側では{{ $messageType === 'notice' ? '【お知らせ】として表示されます。' : '【管理人】としてヴァルゼリアブルーで表示されます。' }}
+                    </p>
                     <button type="submit" class="rounded-md bg-[#1e40af] px-5 py-2.5 text-sm font-black text-white shadow hover:bg-[#1e3a8a]">
                         送信する
                     </button>

@@ -69,6 +69,11 @@
                     <div class="mt-0.5 text-[11px] font-black text-amber-700">
                         戦力 {{ number_format((int) ($champSummary['champ_power'] ?? 0)) }}
                     </div>
+                    @if(!empty($champComment))
+                        <div class="mt-1 rounded-md border border-amber-100 bg-amber-50/70 px-2 py-1 text-[11px] font-bold leading-snug text-slate-600 line-clamp-2">
+                            {{ $champComment }}
+                        </div>
+                    @endif
                     @if(($champFatigue['percent'] ?? 0) > 0)
                         <div class="mt-1 inline-flex rounded border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-black text-orange-700">
                             連勝疲労 -{{ $champFatigue['percent'] }}%

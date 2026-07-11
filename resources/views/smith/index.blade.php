@@ -3,13 +3,33 @@
     $bgImage = 'images/card_bg/shop_blacksmith.webp';
     $title = '合成屋 (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
 
-    // 進化元 × タイプでグループ化
-    $grouped = collect($evolutionCandidates)->groupBy(function ($c) {
-        return ($c['equipment_type'] ?? '') . '::' . ($c['from_equipment_id'] ?? $c['from_name']) . '::' . ($c['from_rank'] ?? '');
+    // 所持している装備個体ごとに表示する。1個体に複数ルートがある場合だけ、カード内で分岐させる。
+    $displayCandidates = collect($evolutionCandidates)->flatMap(function ($candidate) {
+        $sourceOptions = $candidate['source_options'] ?? [];
+        if (empty($sourceOptions)) {
+            return [$candidate];
+        }
+
+        return collect($sourceOptions)->map(function ($sourceOption) use ($candidate) {
+            $row = $candidate;
+            $row['source_options'] = [$sourceOption];
+            $row['display_source_item_id'] = $sourceOption['id'] ?? null;
+            $row['from_display_name'] = $sourceOption['display_name'] ?? ($candidate['from_display_name'] ?? $candidate['from_name']);
+            $row['to_preview_display_name'] = $sourceOption['evolved_display_name'] ?? ($candidate['to_preview_display_name'] ?? null);
+            $row['has_equipped_source'] = (bool) ($sourceOption['is_equipped'] ?? false);
+
+            return $row;
+        });
     })->values();
 
-    $candidateCount = count($evolutionCandidates);
-    $evolvableCount = collect($evolutionCandidates)->where('can_evolve', true)->count();
+    $grouped = $displayCandidates->groupBy(function ($c) {
+        return ($c['equipment_type'] ?? '')
+            . '::source::' . ($c['display_source_item_id'] ?? 'unknown')
+            . '::' . ($c['from_equipment_id'] ?? $c['from_name']);
+    })->values();
+
+    $candidateCount = $grouped->count();
+    $evolvableCount = $grouped->filter(fn ($group) => collect($group)->contains('can_evolve', true))->count();
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
     <div class="w-full mx-auto pb-10" x-data="{ modalOpen: false, selected: null, typeFilter: 'all', statusFilter: 'all', srcPopup: { open: false, sources: [], label: '', required: 0 } }">
@@ -66,6 +86,38 @@
                 </button>
             </div>
 
+            <div class="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-600">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="inline-flex items-center gap-1">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        <span>緑枠: 進化可能</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1">
+                        <span class="h-2 w-2 rounded-full bg-orange-500"></span>
+                        <span>オレンジ枠: あと少しで進化可能</span>
+                    </span>
+                    <span class="text-slate-400">素材やGoldの不足が少ない候補です。</span>
+                </div>
+            </div>
+
+            <div id="smithBulkSellBar" class="hidden fixed inset-x-3 bottom-20 z-40 mx-auto max-w-xl rounded-xl border border-orange-200 bg-orange-50/95 px-3 py-2 shadow-2xl backdrop-blur sm:bottom-6 sm:px-4">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="text-xs font-bold text-orange-800">
+                        売却選択:
+                        <span data-smith-bulk-sell-count class="font-black">0</span>件 /
+                        <span data-smith-bulk-sell-total class="font-black">0G</span>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <button type="button" data-smith-bulk-sell-clear class="rounded border border-orange-200 bg-white px-2.5 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100">
+                            選択解除
+                        </button>
+                        <button type="button" data-smith-bulk-sell-submit data-csrf="{{ csrf_token() }}" class="rounded bg-orange-600 px-3 py-1.5 text-xs font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-wait disabled:opacity-60">
+                            売却
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             @if(session('status'))
                 <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded mb-4 font-bold">
                     合成成功！ {{ session('status') }}
@@ -76,6 +128,7 @@
                     {{ session('error') }}
                 </div>
             @endif
+            <div id="smith-async-message" class="pointer-events-none fixed left-3 right-3 top-3 z-[70] hidden rounded-xl px-4 py-3 text-sm font-black shadow-2xl transition-all duration-200 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-md sm:-translate-x-1/2"></div>
 
             @if($candidateCount === 0)
                 <div class="text-center py-10 text-slate-500">
@@ -89,14 +142,30 @@
                             $first = $paths[0];
                             $groupType = $first['equipment_type'];
                             $groupHasEvolvable = collect($paths)->contains('can_evolve', true);
+                            $groupHasEquipped = collect($paths)->contains('has_equipped_source', true);
+                            $groupIsNear = !$groupHasEvolvable && collect($paths)->where('sort_status', 1)->isNotEmpty();
                             $pathCount = count($paths);
                             $multiPath = $pathCount > 1;
-                            $groupKey = 'evo_' . $groupType . '_' . ($first['from_equipment_id'] ?? md5($first['from_name'])) . '_' . ($first['from_rank'] ?? '');
+                            $groupKey = 'evo_' . $groupType . '_' . ($first['display_source_item_id'] ?? ($first['from_equipment_id'] ?? md5($first['from_name']))) . '_' . ($first['from_rank'] ?? '');
                             $fromEquipmentIcon = ($first['from_item'] ?? null)?->iconImagePath();
+                            $firstSourceOptions = $first['source_options'] ?? [];
+                            $groupSourceOption = count($firstSourceOptions) === 1 ? $firstSourceOptions[0] : null;
+                            $fromDisplayName = count($firstSourceOptions) === 1
+                                ? ($firstSourceOptions[0]['display_name'] ?? ($first['from_display_name'] ?? $first['from_name']))
+                                : ($first['from_display_name'] ?? $first['from_name']);
+                            $groupSourceItemId = (int) ($first['display_source_item_id'] ?? ($groupSourceOption['id'] ?? 0));
+                            $groupCanSell = (bool) ($groupSourceOption['can_sell'] ?? false);
+                            $groupSellPrice = (int) ($groupSourceOption['sell_price'] ?? 0);
+                            $groupSellDisabledTitle = ($groupSourceOption['is_equipped'] ?? false)
+                                ? '装備中は売却不可'
+                                : (($groupSourceOption['is_locked'] ?? false) ? '保護中は売却不可' : '売却不可');
                         @endphp
                         <div
+                            data-smith-source-card
+                            data-source-item-id="{{ $groupSourceItemId ?: '' }}"
                             x-show="(typeFilter === 'all' || typeFilter === '{{ $groupType }}') && (statusFilter === 'all' || {{ $groupHasEvolvable ? 'true' : 'false' }})"
                             x-data="{
+                                groupOpen: false,
                                 activeTab: -1,
                                 storageKey: '{{ $groupKey }}',
                                 init() {
@@ -108,32 +177,46 @@
                             class="rounded-lg border {{ $groupHasEvolvable ? 'border-emerald-200 bg-white' : (collect($paths)->where('sort_status', 1)->isNotEmpty() ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 bg-slate-50') }} flex flex-col"
                         >
                             {{-- グループヘッダー --}}
-                            <div class="px-3 pt-2.5 pb-2">
-                                <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                                    <span class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">{{ $first['equipment_type_label'] }}</span>
-                                    <span class="inline-flex items-center rounded border border-[#d4af37]/60 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 leading-none">{{ $first['from_rank'] ?? '-' }}→{{ $first['to_rank'] ?? '-' }}</span>
-                                    @if($first['has_equipped_source'] ?? false)
-                                        <span class="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 leading-none">装備中</span>
-                                    @endif
-                                    @if(!($first['can_equip_source'] ?? true))
-                                        <span class="inline-flex items-center rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 leading-none">現職不可</span>
-                                    @endif
-                                    @if($groupHasEvolvable)
-                                        <span class="inline-flex items-center rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">進化可能</span>
-                                    @endif
-                                    @if($multiPath)
-                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 leading-none">{{ $pathCount }}ルートで分岐</span>
-                                    @endif
-                                </div>
-                                <div class="flex items-center gap-1.5 text-base font-extrabold text-slate-900 leading-tight">
+                            <div class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left">
+                                <button
+                                    type="button"
+                                    class="flex min-w-0 flex-1 items-center gap-1.5 text-left text-base font-extrabold leading-tight text-slate-900"
+                                    @click="groupOpen = !groupOpen"
+                                >
                                     @if($fromEquipmentIcon)
                                         <img src="{{ asset($fromEquipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
                                     @endif
-                                    <span>[{{ $first['from_rank'] ?? '-' }}] {{ $first['from_name'] }}</span>
-                                </div>
+                                    <span class="truncate">[{{ $first['from_rank'] ?? '-' }}] {{ $fromDisplayName }}</span>
+                                    @if($groupHasEquipped)
+                                        <span class="shrink-0 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">装備中</span>
+                                    @endif
+                                </button>
+                                <span class="flex shrink-0 items-center gap-2">
+                                    @if($groupSourceItemId > 0)
+                                        <label class="flex h-7 w-7 items-center justify-center rounded border {{ $groupCanSell ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-300' }}" title="{{ $groupCanSell ? 'まとめ売りに選択' : $groupSellDisabledTitle }}">
+                                            <input
+                                                type="checkbox"
+                                                class="h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                                data-smith-bulk-sell-checkbox
+                                                data-source-item-id="{{ $groupSourceItemId }}"
+                                                data-sell-url="{{ route('equipment.sell', $groupSourceItemId) }}"
+                                                data-sell-price="{{ $groupSellPrice }}"
+                                                data-source-name="{{ $fromDisplayName }}"
+                                                @disabled(!$groupCanSell)
+                                            >
+                                        </label>
+                                    @endif
+                                    @if($groupHasEvolvable)
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.12)]" title="進化可能" aria-label="進化可能"></span>
+                                    @elseif($groupIsNear)
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500 shadow-[0_0_0_2px_rgba(245,158,11,0.14)]" title="あと少しで進化可能" aria-label="あと少しで進化可能"></span>
+                                    @endif
+                                    <button type="button" class="text-xs text-slate-400 transition-transform" :class="groupOpen ? 'rotate-180' : ''" @click="groupOpen = !groupOpen">▼</button>
+                                </span>
                             </div>
 
                             {{-- 進化先アコーディオン --}}
+                            <div x-show="groupOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
                             @if($multiPath)
                                 <div class="border-t border-slate-100">
                                     <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100">
@@ -142,7 +225,9 @@
                                 @foreach($paths as $pi => $candidate)
                                     @php
                                         $canEvolve = $candidate['can_evolve'];
-                                        $toDisplayName = $candidate['to_display_name'] ?? $candidate['to_name'];
+                                        $sourceOptions = $candidate['source_options'] ?? [];
+                                        $singleSourceOption = count($sourceOptions) === 1 ? $sourceOptions[0] : null;
+                                        $toDisplayName = $singleSourceOption['evolved_display_name'] ?? $candidate['to_preview_display_name'] ?? $candidate['to_display_name'] ?? $candidate['to_name'];
                                         if (mb_strrchr($toDisplayName, '・') !== false) {
                                             $shortName = ltrim(mb_strrchr($toDisplayName, '・'), '・');
                                         } elseif (mb_strpos($toDisplayName, '未鑑定の') === 0) {
@@ -208,7 +293,9 @@
                                     $canEvolve = $candidate['can_evolve'];
                                     $stone = $candidate['evolution_stone_requirement'] ?? null;
                                     $canUseStone = $candidate['can_use_evolution_stone'] ?? false;
-                                    $toDisplayName = $candidate['to_display_name'] ?? $candidate['to_name'];
+                                    $sourceOptions = $candidate['source_options'] ?? [];
+                                    $singleSourceOption = count($sourceOptions) === 1 ? $sourceOptions[0] : null;
+                                    $toDisplayName = $singleSourceOption['evolved_display_name'] ?? $candidate['to_preview_display_name'] ?? $candidate['to_display_name'] ?? $candidate['to_name'];
                                     $toEquipmentIcon = ($candidate['to_item'] ?? null)?->iconImagePath();
                                 @endphp
                                 <div class="border-t border-slate-100 px-3 pb-3 pt-2 flex flex-col gap-2">
@@ -221,11 +308,271 @@
                                     @include('smith._evolution_detail', ['candidate' => $candidate, 'stone' => $stone, 'canUseStone' => $canUseStone, 'canEvolve' => $canEvolve])
                                 </div>
                             @endif
+                            </div>
                         </div>
                     @endforeach
                 </div>
             @endif
         </div>
+
+        {{-- 一括売却確認モーダル --}}
+        <div id="smithBulkSellConfirmModal" class="fixed inset-0 z-50 hidden overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="smith-bulk-sell-title">
+            <div class="flex min-h-screen items-center justify-center px-4 py-6 text-center">
+                <button type="button" data-smith-bulk-modal-close class="fixed inset-0 cursor-default bg-slate-900/50 backdrop-blur-sm" aria-label="閉じる"></button>
+                <div class="relative z-10 inline-block w-full max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all">
+                    <div class="border-b border-slate-200 px-5 py-5">
+                        <div class="text-xs font-black tracking-wide text-orange-700">装備売却</div>
+                        <h3 class="mt-1 text-lg font-extrabold text-slate-900" id="smith-bulk-sell-title">選択した装備を売却しますか？</h3>
+                        <div class="mt-3 rounded-lg border border-orange-100 bg-orange-50 px-3 py-3 text-sm font-bold text-orange-800">
+                            <div class="flex items-center justify-between gap-3">
+                                <span>売却件数</span>
+                                <span data-smith-bulk-confirm-count class="font-mono text-base font-black">0</span>
+                            </div>
+                            <div class="mt-1 flex items-center justify-between gap-3">
+                                <span>合計売却額</span>
+                                <span data-smith-bulk-confirm-total class="font-mono text-base font-black">0G</span>
+                            </div>
+                        </div>
+                        <p class="mt-3 text-xs leading-relaxed text-slate-500">
+                            売却した装備は所持品からなくなります。保護中・装備中・売却不可の装備は選択できません。
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 px-5 py-4 sm:flex sm:flex-row-reverse sm:gap-3">
+                        <button type="button" data-smith-bulk-modal-confirm class="inline-flex w-full items-center justify-center rounded-md bg-orange-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-700 disabled:cursor-wait disabled:opacity-70 sm:w-auto">
+                            売却する
+                        </button>
+                        <button type="button" data-smith-bulk-modal-close class="mt-3 inline-flex w-full justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:mt-0 sm:w-auto">
+                            キャンセル
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            (() => {
+                const message = document.getElementById('smith-async-message');
+                let messageTimer = null;
+
+                function showSmithMessage(text, success = true) {
+                    if (!message) return;
+
+                    if (messageTimer) {
+                        clearTimeout(messageTimer);
+                    }
+
+                    message.textContent = text;
+                    message.classList.remove(
+                        'hidden',
+                        'translate-y-[-12px]',
+                        'opacity-0',
+                        'bg-emerald-600',
+                        'border',
+                        'border-emerald-400',
+                        'text-white',
+                        'bg-red-600',
+                        'border-red-400'
+                    );
+                    message.classList.add(
+                        success ? 'bg-emerald-600' : 'bg-red-600',
+                        'border',
+                        success ? 'border-emerald-400' : 'border-red-400',
+                        'text-white'
+                    );
+
+                    messageTimer = setTimeout(() => {
+                        message.classList.add('opacity-0', 'translate-y-[-12px]');
+                        setTimeout(() => message.classList.add('hidden'), 180);
+                    }, 3200);
+                }
+
+                function removeSourceCard(sourceId, form) {
+                    const card = sourceId
+                        ? document.querySelector(`[data-smith-source-card][data-source-item-id="${sourceId}"]`)
+                        : form.closest('[data-smith-source-card]');
+
+                    if (!card) return;
+
+                    card.querySelectorAll('[data-smith-bulk-sell-checkbox]').forEach((checkbox) => {
+                        checkbox.checked = false;
+                        checkbox.disabled = true;
+                    });
+                    card.classList.add('opacity-40', 'pointer-events-none');
+                    setTimeout(() => card.remove(), 180);
+                }
+
+                function bulkSellCheckboxes() {
+                    return Array.from(document.querySelectorAll('[data-smith-bulk-sell-checkbox]'));
+                }
+
+                function selectedBulkSellCheckboxes() {
+                    return bulkSellCheckboxes().filter((checkbox) => checkbox.checked && !checkbox.disabled);
+                }
+
+                function updateBulkSellBar() {
+                    const selected = selectedBulkSellCheckboxes();
+                    const bar = document.getElementById('smithBulkSellBar');
+                    if (!bar) return;
+
+                    const total = selected.reduce((sum, checkbox) => sum + Number(checkbox.dataset.sellPrice || 0), 0);
+                    bar.classList.toggle('hidden', selected.length === 0);
+                    document.body.classList.toggle('pb-24', selected.length > 0);
+                    bar.querySelector('[data-smith-bulk-sell-count]').textContent = selected.length.toLocaleString();
+                    bar.querySelector('[data-smith-bulk-sell-total]').textContent = `${total.toLocaleString()}G`;
+                }
+
+                async function sellOneSelectedEquipment(checkbox, csrfToken) {
+                    const formData = new FormData();
+                    formData.append('_token', csrfToken);
+                    formData.append('return_to_smith', '1');
+
+                    const response = await fetch(checkbox.dataset.sellUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok || data.success !== true) {
+                        throw new Error(data.message || '売却に失敗しました。');
+                    }
+
+                    removeSourceCard(checkbox.dataset.sourceItemId, checkbox.closest('[data-smith-source-card]'));
+                    return data;
+                }
+
+                document.addEventListener('change', (event) => {
+                    if (!event.target.matches('[data-smith-bulk-sell-checkbox]')) return;
+                    updateBulkSellBar();
+                });
+
+                document.querySelector('[data-smith-bulk-sell-clear]')?.addEventListener('click', () => {
+                    selectedBulkSellCheckboxes().forEach((checkbox) => {
+                        checkbox.checked = false;
+                    });
+                    updateBulkSellBar();
+                });
+
+                function bulkSellModal() {
+                    return document.getElementById('smithBulkSellConfirmModal');
+                }
+
+                function closeBulkSellModal() {
+                    bulkSellModal()?.classList.add('hidden');
+                }
+
+                function openBulkSellModal() {
+                    const selected = selectedBulkSellCheckboxes();
+                    if (selected.length === 0) return;
+
+                    const total = selected.reduce((sum, checkbox) => sum + Number(checkbox.dataset.sellPrice || 0), 0);
+                    const modal = bulkSellModal();
+                    if (!modal) return;
+
+                    modal.querySelector('[data-smith-bulk-confirm-count]').textContent = selected.length.toLocaleString();
+                    modal.querySelector('[data-smith-bulk-confirm-total]').textContent = `${total.toLocaleString()}G`;
+                    modal.classList.remove('hidden');
+                }
+
+                async function executeBulkSell(button) {
+                    const selected = selectedBulkSellCheckboxes();
+                    if (selected.length === 0) {
+                        closeBulkSellModal();
+                        return;
+                    }
+
+                    const originalText = button.textContent;
+                    button.disabled = true;
+                    button.textContent = '売却中...';
+
+                    let success = 0;
+                    let failed = 0;
+                    for (const checkbox of selected) {
+                        try {
+                            checkbox.disabled = true;
+                            await sellOneSelectedEquipment(checkbox, button.dataset.csrf);
+                            success++;
+                        } catch (error) {
+                            failed++;
+                            checkbox.disabled = false;
+                            checkbox.checked = false;
+                        }
+                    }
+
+                    button.disabled = false;
+                    button.textContent = originalText;
+                    closeBulkSellModal();
+                    updateBulkSellBar();
+
+                    if (success > 0) {
+                        showSmithMessage(`${success}件の装備を売却しました。${failed > 0 ? ` ${failed}件は売却できませんでした。` : ''}`, true);
+                    } else {
+                        showSmithMessage('選択した装備を売却できませんでした。', false);
+                    }
+                }
+
+                document.querySelector('[data-smith-bulk-sell-submit]')?.addEventListener('click', openBulkSellModal);
+
+                document.querySelectorAll('[data-smith-bulk-modal-close]').forEach((button) => {
+                    button.addEventListener('click', closeBulkSellModal);
+                });
+
+                document.querySelector('[data-smith-bulk-modal-confirm]')?.addEventListener('click', async (event) => {
+                    await executeBulkSell(event.currentTarget);
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        closeBulkSellModal();
+                    }
+                });
+
+                document.addEventListener('submit', async (event) => {
+                    const form = event.target.closest('[data-smith-sell-form]');
+                    if (!form) return;
+
+                    event.preventDefault();
+
+                    const button = form.querySelector('[data-smith-sell-submit]');
+                    const originalText = button?.textContent || '';
+                    if (button) {
+                        button.disabled = true;
+                        button.textContent = '売却中...';
+                        button.classList.add('opacity-70');
+                    }
+
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: new FormData(form),
+                        });
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok || data.success !== true) {
+                            throw new Error(data.message || '売却に失敗しました。');
+                        }
+
+                        showSmithMessage(data.message || '装備を売却しました。', true);
+                        removeSourceCard(form.dataset.sourceItemId, form);
+                        updateBulkSellBar();
+                    } catch (error) {
+                        showSmithMessage(error.message || '売却に失敗しました。', false);
+                        if (button) {
+                            button.disabled = false;
+                            button.textContent = originalText;
+                            button.classList.remove('opacity-70');
+                        }
+                    }
+                });
+            })();
+        </script>
 
         {{-- 入手場所ポップアップ --}}
         <div x-show="srcPopup.open" style="display:none;" @click="srcPopup.open = false"
@@ -277,6 +624,7 @@
                         @csrf
                         <input type="hidden" name="recipe_type" :value="selected?.recipeType">
                         <input type="hidden" name="recipe_id" :value="selected?.recipeId">
+                        <input type="hidden" name="source_character_item_id" :value="selected?.sourceCharacterItemId">
 
                         <div class="border-b border-slate-200 px-5 py-5">
                             <h3 class="text-lg font-extrabold text-slate-900" id="modal-title">合成の確認</h3>
@@ -288,7 +636,7 @@
                                 合成費用: <span x-text="selected?.goldCost"></span>
                             </p>
                             <p class="mt-3 text-xs text-slate-500">
-                                装備中の進化元はロック中でも使用でき、進化後の装備へ自動で付け替えます。+1以上の同名装備も進化元として使用できます。合成後の装備は +0 です。
+                                選んだ装備を進化元として使用します。装備中なら進化後の装備へ自動で付け替え、保護中なら保護状態も引き継ぎます。合成後の装備は +0 です。
                             </p>
                         </div>
                         <div class="bg-slate-50 px-5 py-4 sm:flex sm:flex-row-reverse sm:gap-3">

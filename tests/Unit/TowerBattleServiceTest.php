@@ -126,6 +126,7 @@ class TowerBattleServiceTest extends TestCase
             $table->unsignedInteger('gold_spent')->default(0);
             $table->unsignedInteger('stamina_spent')->default(0);
             $table->string('last_event_type', 50)->nullable();
+            $table->json('metadata')->nullable();
             $table->dateTime('started_at');
             $table->dateTime('ended_at')->nullable();
             $table->timestamps();
@@ -463,6 +464,22 @@ class TowerBattleServiceTest extends TestCase
         $this->assertSame(69, $event->exp_gained);
         $this->assertSame('full_force', $event->metadata['strategy']['key']);
         $this->assertGreaterThan(0, (int) $event->metadata['pre_battle']['sp_spent']);
+        $this->assertSame(1000, (int) $event->metadata['battle_start_status']['hp']);
+        $this->assertSame(1000, (int) $event->metadata['battle_start_status']['max_hp']);
+        $this->assertSame(92, (int) $event->metadata['battle_start_status']['sp']);
+        $this->assertSame(100, (int) $event->metadata['battle_start_status']['max_sp']);
+        $this->assertSame(500, (int) $event->metadata['player_start_stats']['str']);
+        $this->assertSame(200, (int) $event->metadata['player_start_stats']['def']);
+        $this->assertSame(100, (int) $event->metadata['player_start_stats']['mag']);
+        $this->assertSame(100, (int) $event->metadata['player_start_stats']['spr']);
+        $this->assertSame(100, (int) $event->metadata['player_start_stats']['agi']);
+        $this->assertSame(100, (int) $event->metadata['player_start_stats']['luk']);
+        $this->assertSame(500, (int) $event->metadata['player_base_stats']['str']);
+        $this->assertSame(200, (int) $event->metadata['player_base_stats']['def']);
+        $this->assertSame(0, (int) $event->metadata['enemy_stats']['mp']);
+        $this->assertSame(0, (int) $event->metadata['enemy_stats']['max_mp']);
+        $this->assertSame(0, (int) $event->metadata['enemy_base_stats']['mp']);
+        $this->assertSame(0, (int) $event->metadata['enemy_base_stats']['max_mp']);
     }
 
     public function test_scout_strategy_reveals_enemy_without_battle(): void
@@ -530,6 +547,90 @@ class TowerBattleServiceTest extends TestCase
         $this->assertNull($event->metadata['ward']);
     }
 
+    public function test_stance_choice_opens_every_five_floors_after_floor_fifty_and_blocks_next_battle_until_selected(): void
+    {
+        $character = $this->createCharacter();
+        $this->createFloor(floor: 50, staminaCost: 2);
+        $this->createFloor(floor: 51, staminaCost: 2);
+        $run = app(StarTreeTowerService::class)->startRun($character);
+        $run->forceFill([
+            'current_floor' => 50,
+            'reached_floor' => 50,
+            'cleared_floor' => 49,
+        ])->save();
+
+        $event = app(TowerBattleService::class)->challengeCurrentFloor($character, $run);
+        $run->refresh();
+
+        $this->assertSame('victory', $event->result);
+        $this->assertSame(50, (int) $event->metadata['pending_stance']['floor']);
+        $this->assertSame(50, (int) $run->metadata['stance']['pending_floor']);
+
+        $this->expectException(RuntimeException::class);
+        app(TowerBattleService::class)->challengeCurrentFloor($character, $run->refresh(), acquireRequestGuard: false);
+    }
+
+    public function test_stance_choice_does_not_open_after_final_floor_clear(): void
+    {
+        $character = $this->createCharacter();
+        $this->createFloor(floor: 100, staminaCost: 2);
+        $run = app(StarTreeTowerService::class)->startRun($character);
+        $run->forceFill([
+            'current_floor' => 100,
+            'reached_floor' => 100,
+            'cleared_floor' => 99,
+        ])->save();
+
+        $event = app(TowerBattleService::class)->challengeCurrentFloor($character, $run->refresh());
+        $run->refresh();
+
+        $this->assertSame('victory', $event->result);
+        $this->assertSame(100, (int) $run->cleared_floor);
+        $this->assertSame(101, (int) $run->current_floor);
+        $this->assertNull($event->metadata['pending_stance']);
+        $this->assertNull($run->metadata['stance']['pending_floor'] ?? null);
+    }
+
+    public function test_stance_choice_applies_cumulative_stat_modifiers_to_tower_battle_actor(): void
+    {
+        $character = $this->createCharacter();
+        $this->createFloor(floor: 50, staminaCost: 2);
+        $run = app(StarTreeTowerService::class)->startRun($character);
+        $run->forceFill([
+            'current_floor' => 50,
+            'reached_floor' => 50,
+            'cleared_floor' => 49,
+            'metadata' => [
+                'stance' => [
+                    'pending_floor' => 50,
+                    'selected' => [],
+                    'totals' => [],
+                ],
+            ],
+        ])->save();
+
+        $result = app(TowerBattleService::class)->chooseStance($character, $run->refresh(), 'attack');
+        $run->refresh();
+
+        $this->assertSame('攻めの構え', $result['choice']['name']);
+        $this->assertNull($run->metadata['stance']['pending_floor'] ?? null);
+        $this->assertSame(2, (int) $run->metadata['stance']['totals']['str']);
+        $this->assertSame(2, (int) $run->metadata['stance']['totals']['mag']);
+        $this->assertSame(-1, (int) $run->metadata['stance']['totals']['def']);
+        $this->assertSame(-1, (int) $run->metadata['stance']['totals']['spr']);
+
+        $method = new \ReflectionMethod(TowerBattleService::class, 'makePlayerActor');
+        $method->setAccessible(true);
+        $actor = $method->invoke(app(TowerBattleService::class), $character, $run);
+
+        $this->assertSame(510, $actor->str);
+        $this->assertSame(198, $actor->def);
+        $this->assertSame(102, $actor->mag);
+        $this->assertSame(99, $actor->spr);
+        $this->assertSame(100, $actor->agi);
+        $this->assertSame(100, $actor->luk);
+    }
+
     private function createCharacter(array $overrides = []): Character
     {
         return Character::query()->create($overrides + [
@@ -555,18 +656,18 @@ class TowerBattleServiceTest extends TestCase
         ]);
     }
 
-    private function createFloor(int $staminaCost = 1): TowerFloorMaster
+    private function createFloor(int $staminaCost = 1, int $floor = 1): TowerFloorMaster
     {
         return TowerFloorMaster::query()->create([
             'tower_key' => 'star_tree_tower',
-            'floor' => 1,
+            'floor' => $floor,
             'layer_key' => 'sprout',
             'layer_name' => '若葉層',
             'enemy_name' => '若葉の影',
             'enemy_profile' => 'physical',
             'enemy_type_name' => '標準型',
             'stamina_cost' => $staminaCost,
-            'sort_order' => 1,
+            'sort_order' => $floor,
             'is_active' => true,
         ]);
     }

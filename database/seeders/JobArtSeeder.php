@@ -82,6 +82,7 @@ class JobArtSeeder extends Seeder
                     'mp_recover_percent' => (int) ($row['mp_recover_percent'] ?? 0),
                     'gold_bonus_percent' => $this->rewardBonusPercentFor($row, 'gold_bonus_percent', $template, $power),
                     'drop_bonus_percent' => $this->rewardBonusPercentFor($row, 'drop_bonus_percent', $template, $power),
+                    'luk_power_rate' => (float) ($row['luk_power_rate'] ?? 0),
                     'activation_phrase' => $this->nullableString($row['activation_phrase'] ?? null),
                     'activation_description' => $this->nullableString($row['activation_description'] ?? null),
                 ]
@@ -146,7 +147,7 @@ class JobArtSeeder extends Seeder
 
         $costs = match (true) {
             $limitGroup === 'TIME' || $template === 'TIME_CONTROL_CURRENT_ONLY' => [1 => 12, 5 => 32, 9 => 65],
-            $limitGroup === 'REWARD' || str_starts_with($template, 'REWARD_') || in_array($template, ['PHYSICAL_DAMAGE_REWARD', 'MAGICAL_DAMAGE_REWARD'], true) => [1 => 12, 5 => 30, 9 => 65],
+            $limitGroup === 'REWARD' || str_starts_with($template, 'REWARD_') || in_array($template, ['PHYSICAL_DAMAGE_REWARD', 'MAGICAL_DAMAGE_REWARD', 'PHYSICAL_DAMAGE_GOLD_REWARD'], true) => [1 => 12, 5 => 30, 9 => 65],
             $limitGroup === 'GUTS' || $template === 'GUTS' => [1 => 12, 5 => 30, 9 => 65],
             $limitGroup === 'HEAL' || in_array($template, ['HEAL', 'HEAL_CLEANSE'], true) => [1 => 10, 5 => 26, 9 => 60],
             $template === 'DRAIN' => [1 => 10, 5 => 28, 9 => 62],

@@ -13,9 +13,10 @@
         'secret_crystal' => '秘境晶',
         'city_path_stone' => '導石',
         'accessory_evolution_material' => '装飾素材',
+        'recovery_brewing' => '回復調合',
         'enemy_to_common' => '共通化',
     ];
-    $keywordFilters = ['強化石', '守護石', '調律石', '粗精錬核', '精錬核', '覇王黒晶', '蒼炉魔晶', '星樹氷晶', '共通素材', '小鬼の牙', '魔鉱片', '導石'];
+    $keywordFilters = ['強化石', '守護石', '調律石', '粗精錬核', '精錬核', '覇王黒晶', '蒼炉魔晶', '星樹氷晶', '薬草', '共通素材', '小鬼の牙', '魔鉱片', '導石'];
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
     <div class="w-full mx-auto pb-10" x-data="{
@@ -58,7 +59,7 @@
                         <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-7 h-7 object-contain"> 素材交換
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        敵素材の共通化、強化石系素材の合成・精製、導石・秘境晶・装飾素材の錬成を行います。
+                        敵素材の共通化、強化石系素材の合成・精製、回復調合、導石・秘境晶・装飾素材の錬成を行います。
                     </p>
                 </div>
                 <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">

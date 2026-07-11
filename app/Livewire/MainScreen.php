@@ -29,6 +29,14 @@ use Livewire\Attributes\On;
 #[Layout('components.layouts.app')]
 class MainScreen extends Component
 {
+    private const FERDIA_STORY_VISUAL_ORDERS = [
+        1025 => 14, // 星詠みの廃塔
+        1027 => 15, // 風化列柱都市オルド
+        1026 => 16, // 瀑布神殿アクエリス
+        1028 => 17, // 白潮灯台
+        1029 => 18, // 地下の謎の穴
+    ];
+
     public $currentLocation = 'home';
     public $character;
 
@@ -63,6 +71,11 @@ class MainScreen extends Component
             $this->newName = $this->character->name;
             $this->isNameModalOpen = true;
         }
+    }
+
+    public function openChatDisplaySettings(): void
+    {
+        $this->dispatch('open-chat-settings-modal');
     }
 
     public function closeNameModal()
@@ -124,6 +137,7 @@ class MainScreen extends Component
 
         if ($this->character) {
             $this->character->refresh();
+            app(\App\Services\FerdiaMapService::class)->relocateFromDisabledRegion($this->character);
 
             // 称号の一括遡及チェック
             $titleUnlockService = app(\App\Services\TitleUnlockService::class);
@@ -195,7 +209,10 @@ class MainScreen extends Component
 
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
 
-        $locationData = $this->getLocationData($currentCity, $this->character);
+        $isFerdiaSimpleBase = $this->isFerdiaSimpleBase($currentCity);
+        $isFerdiaRegion = $currentCity
+            && app(\App\Services\FerdiaMapService::class)->isFerdiaCityId((int) $currentCity->id);
+        $locationData = $this->getLocationData($currentCity, $this->character, $isFerdiaSimpleBase);
         // Apply facility text overrides from admin panel
         if (isset($locationData['town']['facilities'])) {
             $locationData['town']['facilities'] = $this->applyFacilityOverrides(
@@ -246,6 +263,7 @@ class MainScreen extends Component
                     ->groupBy('area_id');
                 $depthService = app(ExplorationDepthService::class);
                 $powerService = app(CharacterPowerService::class);
+                $ferdiaMapService = app(\App\Services\FerdiaMapService::class);
                 $dungeonOrder = 1;
                 foreach ($areas as $area) {
                     $cityIdStr = sprintf('%02d', $area->city_id);
@@ -253,7 +271,8 @@ class MainScreen extends Component
                     $orderStr = sprintf('%02d', $imageOrder);
                     
                     // 左側の丸アイコン用
-                    $symbolRelativePath = "symbol/dungeon_{$cityIdStr}_{$orderStr}.webp";
+                    $symbolRelativePath = $this->ferdiaDungeonVisualPath($area, 'symbol')
+                        ?? "symbol/dungeon_{$cityIdStr}_{$orderStr}.webp";
                     if (file_exists(public_path("images/" . $symbolRelativePath))) {
                         $iconHtml = '<img src="/images/' . $symbolRelativePath . '" alt="' . $area->name . '" class="w-full h-full object-cover rounded">';
                     } else {
@@ -261,7 +280,8 @@ class MainScreen extends Component
                     }
                     
                     // 専用のカード背景画像用
-                    $cardBgRelativePath = "card_bg/dungeon_{$cityIdStr}_{$orderStr}.webp";
+                    $cardBgRelativePath = $this->ferdiaDungeonVisualPath($area, 'card_bg')
+                        ?? "card_bg/dungeon_{$cityIdStr}_{$orderStr}.webp";
                     if (file_exists(public_path("images/" . $cardBgRelativePath))) {
                         $bgImage = $cardBgRelativePath;
                     } else {
@@ -283,8 +303,9 @@ class MainScreen extends Component
                     $explorationSummary = $explorationStateService->summaryForArea($this->character, $area);
                     $recommendedPower = $powerService->recommendedRangeForArea($area);
                     $details = ['目安戦力: ' . $powerService->formatRange($recommendedPower)];
+                    $developmentMax = $ferdiaMapService->maxDevelopmentPointForArea($area) ?? 100;
                     if ((int) ($area->development_point ?? 0) > 0 || $area->is_route_area) {
-                        $details[] = '開拓度: ' . min(100, (int) ($area->development_point ?? 0)) . '/100';
+                        $details[] = '開拓度: ' . min($developmentMax, (int) ($area->development_point ?? 0)) . '/' . $developmentMax;
                     }
                     if ($explorationSummary['exploration_point'] > 0 || $explorationSummary['chain_count'] > 0) {
                         $depth = $explorationSummary['depth'] ?? null;
@@ -367,7 +388,9 @@ class MainScreen extends Component
                         $facility['hide_explore'] = true;
                     }
 
-                    if ($hasBoss && ($area->id >= 71 && $area->id <= 74 || !$area->boss_defeated) && $status === 'active') {
+                    $canChallengeBoss = !$ferdiaMapService->hasBossForArea($area)
+                        || $ferdiaMapService->canChallengeBoss($this->character, $area);
+                    if ($hasBoss && $canChallengeBoss && ($area->id >= 71 && $area->id <= 74 || !$area->boss_defeated) && $status === 'active') {
                         $facility['boss_action'] = 'ボスに挑む';
                     }
                     
@@ -396,6 +419,10 @@ class MainScreen extends Component
                 ) {
                     $nextCityTravel = $nextCity;
                 }
+            }
+            if (!$nextCityTravel && $currentCity && $this->character) {
+                $nextCityTravel = app(\App\Services\FerdiaMapService::class)
+                    ->nextTravelCityFor($this->character, $currentCity);
             }
             if ($allDungeonsCleared && (
                 collect($dungeons)->contains(fn (array $dungeon) => (int) ($dungeon['id'] ?? 0) >= 75)
@@ -428,7 +455,8 @@ class MainScreen extends Component
 
         // ホームタブ専用データ（他タブでは計算不要）
         $nextGoal = ($this->character && $isHomeTab) ? $goalService->getNextGoal($this->character) : null;
-        $beginnerMissions = ($this->character && $isHomeTab) ? $beginnerMissionService->summary($this->character) : null;
+        $showsBeginnerMissions = in_array($this->currentLocation, ['town', 'dungeon', 'home', 'guild'], true);
+        $beginnerMissions = ($this->character && $showsBeginnerMissions) ? $beginnerMissionService->summary($this->character) : null;
 
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
         $storageIsFull = ($this->character && $isHomeTab) ? $storageCapacityService->isFull($this->character) : false;
@@ -437,17 +465,33 @@ class MainScreen extends Component
             ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character, (int) ($currentCity?->id ?? 0))
             : collect();
         $targetAreaId = (int) session()->pull('target_area_id', 0);
+        $targetAreaPurpose = (string) session()->pull(
+            'target_area_purpose',
+            session()->has('material_hunt') ? 'material_source' : 'focus'
+        );
 
         $cities = null;
         $highestCityOrder = 0;
         $cityPopulationCounts = collect();
         $cityIconSamples = collect();
+        $ferdiaMap = null;
+        $initialMapRegion = 'valzeria';
         if ($this->currentLocation === 'move') {
-            $cities = \App\Models\City::orderBy('sort_order', 'asc')->get();
+            $ferdiaMapService = app(\App\Services\FerdiaMapService::class);
+            $cities = \App\Models\City::orderBy('sort_order', 'asc')
+                ->get()
+                ->reject(fn (\App\Models\City $city): bool => $ferdiaMapService->isFerdiaCityId((int) $city->id))
+                ->values();
             $highestCityOrder = $this->character && $this->character->highestCity ? $this->character->highestCity->sort_order : 0;
             $cityPopulationService = app(\App\Services\CityPopulationService::class);
             $cityPopulationCounts = $cityPopulationService->countsByCity();
             $cityIconSamples = $cityPopulationService->iconSamplesByCity(12);
+            if ($this->character) {
+                $ferdiaMap = $ferdiaMapService->mapFor($this->character);
+                if (!empty($ferdiaMap) && $ferdiaMapService->isFerdiaCityId((int) ($this->character->current_city_id ?? 0))) {
+                    $initialMapRegion = 'ferdia';
+                }
+            }
         }
         $rankingSpotlightLeader = $this->currentLocation === 'town'
             ? $this->rankingSpotlightLeader()
@@ -460,6 +504,10 @@ class MainScreen extends Component
             'highestCityOrder' => $highestCityOrder,
             'cityPopulationCounts' => $cityPopulationCounts,
             'cityIconSamples' => $cityIconSamples,
+            'ferdiaMap' => $ferdiaMap,
+            'initialMapRegion' => $initialMapRegion,
+            'isFerdiaSimpleBase' => $isFerdiaSimpleBase,
+            'isFerdiaRegion' => $isFerdiaRegion,
             'jobName' => $jobName,
             'rankingData' => $rankingData ?? [],
             'locationData' => $locationData[$this->currentLocation] ?? $locationData['town'],
@@ -478,6 +526,7 @@ class MainScreen extends Component
             'storageFullMessage' => $storageFullMessage,
             'subAreaDiscoveries' => $subAreaDiscoveries,
             'targetAreaId' => $targetAreaId,
+            'targetAreaPurpose' => $targetAreaPurpose,
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
             'rankingSpotlightLeader' => $rankingSpotlightLeader,
         ]);
@@ -522,6 +571,33 @@ class MainScreen extends Component
         }
 
         return $fallbackOrder;
+    }
+
+    private function ferdiaDungeonVisualPath($area, string $directory): ?string
+    {
+        $areaId = (int) ($area->id ?? 0);
+        if ($areaId <= 0) {
+            return null;
+        }
+
+        $visualOrder = self::FERDIA_STORY_VISUAL_ORDERS[$areaId] ?? null;
+        if ($visualOrder === null) {
+            $mainAreaIds = collect(config('ferdia_world_map.nodes', []))
+                ->filter(fn (array $node): bool => ($node['route_group'] ?? null) === 'main' && !empty($node['area_id']))
+                ->sortBy('sequence')
+                ->pluck('area_id')
+                ->values();
+            $index = $mainAreaIds->search($areaId);
+            if ($index === false) {
+                return null;
+            }
+
+            $visualOrder = $index + 1;
+        }
+
+        $relativePath = sprintf('%s/dungeon_11_%02d.webp', $directory, $visualOrder);
+
+        return file_exists(public_path("images/{$relativePath}")) ? $relativePath : null;
     }
 
     private function simpleFacilities(array $locationData): array
@@ -593,6 +669,7 @@ class MainScreen extends Component
             ['group' => '持ち物', 'name' => '倉庫', 'icon_image' => 'menu/menu_storage.webp', 'icon' => '📦', 'desc' => '素材や探索用アイテムを確認する', 'route' => 'inventory.index', 'status' => 'active'],
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'menu/menu_messages.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージをやり取りする', 'tab' => 'message', 'status' => 'active'],
             ['group' => '案内', 'name' => 'ヘルプ', 'icon_image' => 'menu/menu_help.webp', 'icon' => '📘', 'desc' => '遊び方や施設の説明を確認する', 'route' => 'town.guide', 'status' => 'active'],
+            ['group' => '案内', 'name' => '不具合報告', 'icon_image' => 'icon/icon_033.webp', 'icon' => '!', 'desc' => '不具合や表示崩れを管理人へ報告する', 'route' => 'bug-reports.create', 'status' => 'active'],
             ['group' => '設定', 'name' => '設定', 'icon_image' => 'menu/menu_settings.webp', 'icon' => '⚙️', 'desc' => '名前やアイコンなどを変更する', 'tab' => 'settings', 'status' => 'active'],
         ];
     }
@@ -623,11 +700,35 @@ class MainScreen extends Component
         }, $items);
     }
 
-    private function getLocationData($currentCity = null, $character = null)
+    private function isFerdiaSimpleBase($currentCity = null): bool
+    {
+        if (!$this->character || !$currentCity || $this->currentLocation !== 'dungeon') {
+            return false;
+        }
+
+        $ferdiaMapService = app(\App\Services\FerdiaMapService::class);
+        if (!$ferdiaMapService->isFerdiaCityId((int) $currentCity->id)) {
+            return false;
+        }
+
+        $areaId = (int) session('target_area_id', 0);
+        if ($areaId <= 0) {
+            $state = app(ExplorationStateService::class)->currentFor($this->character);
+            $areaId = (int) ($state?->area_id ?? 0);
+        }
+
+        return $areaId > 0 && $ferdiaMapService->isFerdiaAreaId($areaId);
+    }
+
+    private function getLocationData($currentCity = null, $character = null, bool $isFerdiaSimpleBase = false)
     {
         $cityName = $currentCity ? $currentCity->name : '冒険都市ヴァルゼリア';
         $cityDesc = $currentCity ? $currentCity->description : '冒険者たちが集まるヴァルゼリアの玄関口です。';
         $cityId = (int) ($currentCity->id ?? 0);
+        if ($isFerdiaSimpleBase) {
+            $cityName = 'フェルディア簡易拠点';
+            $cityDesc = '';
+        }
         $hasEquipmentShop = $cityId >= 1 && $cityId <= 6;
         $innRestBlocked = false;
         $innRestBlockMessage = 'HP/SPが満タンです。宿屋で休む必要はありません。';
@@ -637,6 +738,48 @@ class MainScreen extends Component
             $maxMp = (int) ($finalStats['max_mp'] ?? 0);
             $innRestBlocked = (int) $character->current_hp >= $maxHp
                 && ($maxMp === 0 || (int) $character->current_mp >= $maxMp);
+        }
+
+        $explorationSupportEnabled = app(\App\Services\ExplorationSupportService::class)->isEnabled();
+
+        $townFacilities = [
+            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
+            ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
+            ...($hasEquipmentShop && !$isFerdiaSimpleBase ? [
+                ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
+            ] : []),
+            ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石系素材で装備を+1〜+5へ強化する', 'details' => ['装備強化', '成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
+            ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
+            ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材精製・錬成・調合で必要素材を作る', 'details' => ['強化石・導石・秘境晶', '装飾素材・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
+            ...($explorationSupportEnabled ? [
+                ['category' => '工房', 'name' => '薬屋', 'symbol_image' => 'facilities/shop_item_symbol.webp', 'desc' => 'フェルディアの薬素材から30戦有効の探索補助品を調合する', 'details' => ['探索補助品', '薬素材調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'apothecary.index', 'is_post' => false],
+            ] : []),
+            ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
+            ...(!$isFerdiaSimpleBase ? [
+                ['category' => '記録', 'name' => 'アイテム図鑑', 'symbol_image' => 'icon/icon_241.webp', 'desc' => '素材の入手方法・作り方・用途を確認する', 'details' => ['未所持も表示', '作り方確認'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '見る', 'route' => 'item-book.index', 'is_post' => false],
+            ] : []),
+            ['category' => '育成', 'name' => '神殿', 'symbol_image' => 'facilities/facility_temple.webp', 'desc' => '職業変更と職業ランクを確認する', 'details' => ['転職', '職業ランク'], 'bg_image' => 'facilities/01_転職所.webp', 'status' => 'active', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false],
+            ...(!$isFerdiaSimpleBase ? [
+                ['category' => 'その他', 'name' => '案内所', 'symbol_image' => 'facilities/facility_guide_300.webp', 'desc' => 'ヴァルゼリアの遊び方やヘルプを確認する', 'details' => ['初心者おすすめ'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'town.guide', 'is_post' => false],
+            ] : []),
+            ['category' => 'その他', 'name' => '銀行', 'symbol_image' => 'facilities/facility_bank.webp', 'desc' => 'Goldを預けて探索中の喪失から守る', 'details' => ['預ける', '引き出す'], 'bg_image' => 'facilities/bank.webp', 'status' => 'active', 'action' => '入る', 'route' => 'bank.index', 'is_post' => false],
+            ...(!$isFerdiaSimpleBase ? [
+                ['category' => 'その他', 'name' => '酒場', 'symbol_image' => 'facilities/facility_tavern_300.webp', 'desc' => '冒険者たちの噂話や名簿を確認する', 'details' => ['NPC出現中'], 'bg_image' => 'facilities/tavern.webp', 'status' => 'active', 'action' => '入る', 'route' => 'tavern.index', 'is_post' => false],
+            ] : []),
+            ['category' => 'その他', 'name' => '番付掲示板', 'symbol_image' => 'icon/icon_223.webp', 'desc' => '戦績・収集・商いなど冒険者たちの各種番付を見る', 'details' => ['勝利数', '収集', '市場売上'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false],
+            ...(!$isFerdiaSimpleBase ? [
+                ['category' => 'その他', 'name' => '冒険者協会', 'symbol_image' => 'facilities/association_symbol.webp', 'desc' => '救助支援システムを調整中', 'details' => ['準備中'], 'bg_image' => 'facilities/association.webp', 'status' => 'coming_soon', 'action' => '準備中'],
+            ] : []),
+            ['category' => 'ショップ', 'name' => '輝石ショップ', 'symbol_image' => 'facilities/kiseki_shop.webp', 'desc' => '有償輝石を購入してアイテムや強化に役立てる', 'details' => ['5種類のパック', 'クレジットカード・PayPay決済'], 'bg_image' => 'facilities/kiseki.webp', 'status' => 'active', 'action' => '購入する', 'route' => 'kiseki.shop', 'is_post' => false],
+            ['category' => 'ショップ', 'name' => '補給商会', 'symbol_image' => 'facilities/hokyu_symbol.webp', 'desc' => '輝石やGoldで冒険支援アイテムを購入できる', 'details' => ['救助保険', '緊急支援', '補給箱'], 'bg_image' => 'facilities/hokyu.webp', 'status' => 'active', 'action' => '入る', 'route' => 'kiseki.support', 'is_post' => false],
+        ];
+
+        if ($isFerdiaSimpleBase) {
+            $townFacilities = array_map(function (array $facility): array {
+                $facility['category'] = '簡易拠点';
+
+                return $facility;
+            }, $townFacilities);
         }
 
         return [
@@ -661,26 +804,7 @@ class MainScreen extends Component
                     '黒猫旅団が新しい冒険者を募集しています',
                     '本日の決闘は198戦です'
                 ],
-                'facilities' => [
-                    ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
-                    ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
-                    ...($hasEquipmentShop ? [
-                        ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
-                    ] : []),
-                    ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石系素材で装備を+1〜+5へ強化する', 'details' => ['装備強化', '成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
-                    ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
-                    ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材精製・錬成・調合で必要素材を作る', 'details' => ['強化石・導石・秘境晶', '装飾素材・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
-                    ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
-                    ['category' => '記録', 'name' => 'アイテム図鑑', 'symbol_image' => 'icon/icon_241.webp', 'desc' => '素材の入手方法・作り方・用途を確認する', 'details' => ['未所持も表示', '作り方確認'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '見る', 'route' => 'item-book.index', 'is_post' => false],
-                    ['category' => '育成', 'name' => '神殿', 'symbol_image' => 'facilities/facility_temple.webp', 'desc' => '職業変更と職業ランクを確認する', 'details' => ['転職', '職業ランク'], 'bg_image' => 'facilities/01_転職所.webp', 'status' => 'active', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false],
-                    ['category' => 'その他', 'name' => '案内所', 'symbol_image' => 'facilities/facility_guide_300.webp', 'desc' => 'ヴァルゼリアの遊び方やヘルプを確認する', 'details' => ['初心者おすすめ'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'town.guide', 'is_post' => false],
-                    ['category' => 'その他', 'name' => '銀行', 'symbol_image' => 'facilities/facility_bank.webp', 'desc' => 'Goldを預けて探索中の喪失から守る', 'details' => ['預ける', '引き出す'], 'bg_image' => 'facilities/bank.webp', 'status' => 'active', 'action' => '入る', 'route' => 'bank.index', 'is_post' => false],
-                    ['category' => 'その他', 'name' => '酒場', 'symbol_image' => 'facilities/facility_tavern_300.webp', 'desc' => '冒険者たちの噂話や名簿を確認する', 'details' => ['NPC出現中'], 'bg_image' => 'facilities/tavern.webp', 'status' => 'active', 'action' => '入る', 'route' => 'tavern.index', 'is_post' => false],
-                    ['category' => 'その他', 'name' => '番付掲示板', 'symbol_image' => 'icon/icon_223.webp', 'desc' => '戦績・収集・商いなど冒険者たちの各種番付を見る', 'details' => ['勝利数', '収集', '市場売上'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false],
-                    ['category' => 'その他', 'name' => '冒険者協会', 'symbol_image' => 'facilities/association_symbol.webp', 'desc' => '救助支援システムを調整中', 'details' => ['準備中'], 'bg_image' => 'facilities/association.webp', 'status' => 'coming_soon', 'action' => '準備中'],
-                    ['category' => 'ショップ', 'name' => '輝石ショップ', 'symbol_image' => 'facilities/kiseki_shop.webp', 'desc' => '有償輝石を購入してアイテムや強化に役立てる', 'details' => ['5種類のパック', 'クレジットカード決済'], 'bg_image' => 'facilities/kiseki.webp', 'status' => 'active', 'action' => '購入する', 'route' => 'kiseki.shop', 'is_post' => false],
-                    ['category' => 'ショップ', 'name' => '補給商会', 'symbol_image' => 'facilities/hokyu_symbol.webp', 'desc' => '輝石やGoldで冒険支援アイテムを購入できる', 'details' => ['救助保険', '緊急支援', '補給箱'], 'bg_image' => 'facilities/hokyu.webp', 'status' => 'active', 'action' => '入る', 'route' => 'kiseki.support', 'is_post' => false],
-                ]
+                'facilities' => $townFacilities,
             ],
             'dungeon' => [
                 'title' => '探索へ',
@@ -755,6 +879,7 @@ class MainScreen extends Component
                     ['name' => 'アイコン変更', 'icon_image' => 'icon/icon_059.webp', 'icon' => '🖼️', 'desc' => 'キャラクターの見た目を変更します', 'details' => ['現在: ' . basename($character->icon_path ?? '')], 'bg_image' => 'facilities/03_アイコン変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openIconModal'],
                     ['name' => '名前変更', 'icon_image' => 'icon/icon_014.webp', 'icon' => '🏷️', 'desc' => 'キャラクターの名前を変更します', 'details' => ['現在の名前: ' . ($character->name ?? '')], 'bg_image' => 'facilities/04_名前変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openNameModal'],
                     ['name' => 'プロフィール編集', 'icon_image' => 'icon/icon_021.webp', 'icon' => '📝', 'desc' => '自己紹介文や牧場背景を編集します', 'details' => ['コメント', '背景'], 'status' => 'active', 'action' => '編集する', 'route' => 'profile.edit', 'is_post' => false],
+                    ['name' => 'チャット表示項目', 'icon_image' => 'icon/icon_022.webp', 'icon' => '⚙️', 'desc' => '全体チャットに表示する項目を変更します', 'details' => ['冒険者ごとに保存'], 'status' => 'active', 'action' => '開く', 'method' => 'openChatDisplaySettings'],
                     ['name' => 'ログアウト', 'icon_image' => 'icon/icon_046.webp', 'icon' => '↩', 'desc' => '現在のアカウントからログアウトします', 'details' => ['ログイン画面へ戻る'], 'status' => 'active', 'action' => 'ログアウト', 'route' => 'auth.logout', 'is_post' => true],
                     ['name' => 'アカウント削除', 'icon_image' => 'icon/icon_046.webp', 'icon' => '⚠️', 'desc' => 'Google連携と作成データを完全に削除します', 'details' => ['取り消し不可'], 'status' => 'active', 'action' => '確認する', 'route' => 'account.delete', 'is_post' => false],
                 ]

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Area;
 use App\Models\Character;
+use App\Models\CharacterAreaProgress;
 
 class ExplorationDepthService
 {
@@ -86,6 +87,10 @@ class ExplorationDepthService
 
     public function activeTierFor(Character $character, Area $area, int $explorationPoint, int $dangerRate): array
     {
+        if ($this->ferdiaDevelopmentIncomplete($character, $area)) {
+            return self::TIERS[0];
+        }
+
         $state = app(ExplorationStateService::class)->currentFor($character);
         if (!$state || (int) $state->area_id !== (int) $area->id) {
             return self::TIERS[0];
@@ -107,6 +112,10 @@ class ExplorationDepthService
 
     public function nextReachableTierFor(Character $character, Area $area, int $explorationPoint, int $dangerRate): ?array
     {
+        if ($this->ferdiaDevelopmentIncomplete($character, $area)) {
+            return null;
+        }
+
         $active = $this->activeTierFor($character, $area, $explorationPoint, $dangerRate);
         $next = self::TIERS[$this->tierIndex($active['key'] ?? 'surface') + 1] ?? null;
         if (!$next) {
@@ -303,6 +312,25 @@ class ExplorationDepthService
             'min' => $baseMin + (int) $tier['level_offset_min'],
             'max' => $baseMax + (int) $tier['level_offset_max'],
         ];
+    }
+
+    private function ferdiaDevelopmentIncomplete(Character $character, Area $area): bool
+    {
+        $ferdiaMap = app(FerdiaMapService::class);
+        if (!$ferdiaMap->isFerdiaAreaId((int) $area->id)) {
+            return false;
+        }
+
+        $max = $ferdiaMap->maxDevelopmentPointForArea($area);
+        if ($max === null || $max <= 0) {
+            return false;
+        }
+
+        $point = (int) (CharacterAreaProgress::where('character_id', (int) $character->id)
+            ->where('area_id', (int) $area->id)
+            ->value('development_point') ?? 0);
+
+        return $point < $max;
     }
 
     private function tierIndex(string $key): int

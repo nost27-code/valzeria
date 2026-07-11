@@ -72,6 +72,7 @@ class OuterWorldDungeonGenerationService
             'clear_condition_type' => 'development_point',
             'development_required_point' => $requiredPoint,
             'is_route_area' => false,
+            'is_published' => false,
             'sort_order' => $sortOrder,
         ];
 

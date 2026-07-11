@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\TowerCharacterRecord;
 use App\Models\TowerFloorMaster;
 use App\Models\TowerMerchantPurchase;
+use App\Models\TowerRewardClaim;
 use App\Models\TowerRunEvent;
 use App\Models\TowerWeeklyRecord;
 use App\Services\AdventureSupportService;
 use App\Services\CharacterStatusService;
 use App\Services\ExplorationStaminaService;
+use App\Services\StarTreeTowerRewardService;
 use App\Services\StarTreeTowerService;
 use App\Services\TowerBattleService;
 use App\Services\TowerMerchantService;
@@ -26,6 +28,7 @@ class StarTreeTowerController extends Controller
         ExplorationStaminaService $staminaService,
         TowerBattleService $battleService,
         TowerTitleRewardService $titleRewardService,
+        StarTreeTowerRewardService $rewardService,
     ) {
         if (! $towerService->isEnabled()) {
             return $this->disabledRedirect();
@@ -34,7 +37,9 @@ class StarTreeTowerController extends Controller
         $character = Auth::user()->currentCharacter();
         $towerKey = $towerService->towerKey();
         $activeRun = $towerService->getActiveRun($character);
-        $currentFloor = $activeRun
+        $maxTowerFloor = max(1, (int) config('star_tree_tower.star_tree.seed_floor_count', 100));
+        $isTowerCompleted = $activeRun && (int) ($activeRun->cleared_floor ?? 0) >= $maxTowerFloor;
+        $currentFloor = $activeRun && !$isTowerCompleted
             ? TowerFloorMaster::query()
                 ->where('tower_key', $towerKey)
                 ->where('floor', (int) $activeRun->current_floor)
@@ -49,7 +54,7 @@ class StarTreeTowerController extends Controller
         $towerRecoveryItems = $activeRun
             ? $merchantService->availableRecoveryItems($activeRun)
             : [];
-        $checkpointStartFloor = $activeRun
+        $checkpointStartFloor = $activeRun && !$isTowerCompleted
             ? (int) $activeRun->current_floor
             : $towerService->checkpointStartFloor($character);
         $entryFloor = $currentFloor ?: TowerFloorMaster::query()
@@ -71,8 +76,12 @@ class StarTreeTowerController extends Controller
             ->where('character_id', $character->id)
             ->where('tower_key', $towerKey)
             ->first();
+        if ($characterRecord) {
+            $rewardService->createPendingRewardsFromBestRecord($character, (int) $characterRecord->best_cleared_floor, $towerKey);
+        }
         $unlockedTitleNames = $titleRewardService->unlockEarnedMilestones($character, $towerKey);
-        $hasScoutedEntryFloor = $activeRun
+        $pendingTowerRewards = $rewardService->pendingRewardsFor($character, $towerKey);
+        $hasScoutedEntryFloor = $activeRun && !$isTowerCompleted
             ? TowerRunEvent::query()
                 ->where('tower_run_id', $activeRun->id)
                 ->where('event_type', 'scout')
@@ -94,10 +103,14 @@ class StarTreeTowerController extends Controller
             'weeklyRecord' => $weeklyRecord,
             'characterRecord' => $characterRecord,
             'unlockedTitleNames' => $unlockedTitleNames,
+            'pendingTowerRewards' => $pendingTowerRewards,
             'hasScoutedEntryFloor' => $hasScoutedEntryFloor,
             'supportItemCounts' => app(AdventureSupportService::class)->countsFor($character),
             'stamina' => $staminaService->summary($character),
             'towerActionStrategies' => $battleService->actionStrategies(),
+            'towerStanceChoices' => $battleService->stanceChoices(),
+            'pendingTowerStance' => $activeRun && !$isTowerCompleted ? $battleService->pendingStance($activeRun) : null,
+            'towerStanceState' => $activeRun ? $battleService->stanceState($activeRun) : null,
             'towerUi' => $towerService->uiConfig(),
         ]);
     }
@@ -169,6 +182,11 @@ class StarTreeTowerController extends Controller
         }
 
         try {
+            if ($battleService->pendingStance($run)) {
+                $battleService->chooseStance($character, $run, (string) request()->input('stance', 'none'));
+                $run->refresh();
+            }
+
             $event = $battleService->challengeCurrentFloor(
                 $character,
                 $run,
@@ -186,6 +204,43 @@ class StarTreeTowerController extends Controller
         }
 
         return $this->redirectToResult($event);
+    }
+
+    public function chooseStance(
+        StarTreeTowerService $towerService,
+        TowerBattleService $battleService,
+    ) {
+        if (! $towerService->isEnabled()) {
+            return $this->disabledRedirect();
+        }
+
+        $character = Auth::user()->currentCharacter();
+        $run = $towerService->getActiveRun($character);
+
+        if (!$run) {
+            return redirect()->route('tower.star-tree.index')->with('error', $this->noActiveRunMessage($towerService));
+        }
+
+        try {
+            $result = $battleService->chooseStance($character, $run, (string) request()->input('stance', 'none'));
+        } catch (RuntimeException | InvalidArgumentException $e) {
+            return redirect()->route('tower.star-tree.index')->with('error', $this->friendlyError($e));
+        }
+
+        $returnEventId = (int) request()->input('return_event_id', 0);
+        $event = $returnEventId > 0
+            ? TowerRunEvent::query()
+                ->whereKey($returnEventId)
+                ->where('tower_run_id', $run->id)
+                ->where('character_id', $character->id)
+                ->first()
+            : null;
+
+        $message = (int) ($result['floor'] ?? 0).'階の節目で「'.(string) ($result['choice']['name'] ?? '構えなし').'」を選びました。';
+
+        return $event
+            ? $this->redirectToResult($event)->with('message', $message)
+            : redirect()->route('tower.star-tree.index')->with('message', $message);
     }
 
     public function return(StarTreeTowerService $towerService)
@@ -207,9 +262,14 @@ class StarTreeTowerController extends Controller
             return redirect()->route('tower.star-tree.index')->with('error', $this->friendlyError($e));
         }
 
+        $maxTowerFloor = max(1, (int) config('star_tree_tower.star_tree.seed_floor_count', 100));
+        $message = (int) ($pausedRun->cleared_floor ?? 0) >= $maxTowerFloor
+            ? "{$towerService->displayText('name', '星樹の塔')}を踏破しました。入口へ戻りました。"
+            : "{$towerService->displayText('name', '星樹の塔')}から出ました。次は{$pausedRun->current_floor}階から再開できます。";
+
         return redirect()
             ->route('tower.star-tree.index')
-            ->with('message', "{$towerService->displayText('name', '星樹の塔')}から出ました。次は{$pausedRun->current_floor}階から再開できます。")
+            ->with('message', $message)
             ->with('tower_event_id', TowerRunEvent::query()
                 ->where('tower_run_id', $pausedRun->id)
                 ->where('event_type', 'pause')
@@ -308,6 +368,11 @@ class StarTreeTowerController extends Controller
 
         try {
             $strategy = (string) request()->input('strategy', 'normal');
+            if ($battleService->pendingStance($run)) {
+                $battleService->chooseStance($character, $run, (string) request()->input('stance', 'none'));
+                $run->refresh();
+            }
+
             $towerKey = $towerService->towerKey();
             $currentFloor = TowerFloorMaster::query()
                 ->where('tower_key', $towerKey)
@@ -382,6 +447,7 @@ class StarTreeTowerController extends Controller
     public function result(
         StarTreeTowerService $towerService,
         ExplorationStaminaService $staminaService,
+        StarTreeTowerRewardService $rewardService,
         TowerRunEvent $event,
     ) {
         if (! $towerService->isEnabled()) {
@@ -396,9 +462,30 @@ class StarTreeTowerController extends Controller
         return view('tower.star-tree.result', $this->resultViewData(
             $towerService,
             $staminaService,
+            $rewardService,
             $character,
             $event
         ));
+    }
+
+    public function claimReward(
+        StarTreeTowerService $towerService,
+        StarTreeTowerRewardService $rewardService,
+        TowerRewardClaim $reward,
+    ) {
+        if (! $towerService->isEnabled()) {
+            return $this->disabledRedirect();
+        }
+
+        $character = Auth::user()->currentCharacter();
+
+        try {
+            $result = $rewardService->claim($reward, $character, request()->input('weapon_category'));
+        } catch (RuntimeException | InvalidArgumentException $e) {
+            return back()->with('error', $this->friendlyError($e));
+        }
+
+        return back()->with('message', (string) ($result['message'] ?? '報酬を受け取りました。'));
     }
 
     public function ranking(
@@ -478,6 +565,7 @@ class StarTreeTowerController extends Controller
     private function resultViewData(
         StarTreeTowerService $towerService,
         ExplorationStaminaService $staminaService,
+        StarTreeTowerRewardService $rewardService,
         $character,
         TowerRunEvent $event,
     ): array {
@@ -491,6 +579,11 @@ class StarTreeTowerController extends Controller
                 ->where('is_active', true)
                 ->first()
             : null;
+        $eventFloor = TowerFloorMaster::query()
+            ->where('tower_key', $towerKey)
+            ->where('floor', (int) $event->floor)
+            ->where('is_active', true)
+            ->first();
 
         $merchantService = app(TowerMerchantService::class);
         $merchantProducts = $run && $run->pending_event === TowerMerchantService::PENDING_EVENT
@@ -519,14 +612,21 @@ class StarTreeTowerController extends Controller
             'run' => $run,
             'event' => $event,
             'currentFloor' => $currentFloor,
+            'eventFloor' => $eventFloor,
             'merchantProducts' => $merchantProducts,
             'towerRecoveryItems' => $towerRecoveryItems,
             'hasScoutedCurrentFloor' => $hasScoutedCurrentFloor,
             'towerActionStrategies' => $battleService->actionStrategies(),
+            'towerStanceChoices' => $battleService->stanceChoices(),
+            'pendingTowerStance' => $run ? $battleService->pendingStance($run) : null,
+            'towerStanceState' => $run ? $battleService->stanceState($run) : null,
             'towerChallengeGuardSeconds' => $challengeGuardSeconds,
             'towerChallengeGuardRemainingMs' => $challengeGuardRemainingMs,
             'towerUi' => $towerService->uiConfig(),
             'supportItemCounts' => app(AdventureSupportService::class)->countsFor($character),
+            'pendingTowerRewards' => $rewardService->pendingRewardsFor($character, $towerKey)
+                ->filter(fn (array $reward): bool => (int) ($reward['floor'] ?? 0) === (int) $event->floor)
+                ->values(),
             'checkpointStartFloor' => $towerService->checkpointStartFloor($character),
             'stamina' => $staminaService->summary($character),
             'finalStats' => app(CharacterStatusService::class)->getFinalStats($character),

@@ -58,6 +58,7 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+        app(\App\Services\PlayerLifecycleEventService::class)->recordLogin(Auth::user());
 
         return redirect()->intended(route('character.select'));
     }
@@ -86,6 +87,8 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        app(\App\Services\PlayerLifecycleEventService::class)->recordRegistration($user);
+        app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user);
 
         return redirect()->route('character.select');
     }
@@ -120,6 +123,7 @@ class AuthController extends Controller
             );
 
             Auth::login($user);
+            app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user);
 
             // ログイン成功後は必ずキャラ選択画面へ遷移する
             return redirect()->route('character.select');
@@ -142,7 +146,8 @@ class AuthController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $this->authService->mockLogin();
+        $user = $this->authService->mockLogin();
+        app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user);
         
         // ログイン成功後は必ずキャラ選択画面へ遷移する
         return redirect()->route('character.select');
@@ -156,7 +161,8 @@ class AuthController extends Controller
                 ->with('error', '現在、新規登録の受付を停止しています。既存アカウントでログインしてください。');
         }
 
-        $this->authService->guestLogin();
+        $user = $this->authService->guestLogin();
+        app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user);
 
         // ログイン成功後は必ずキャラ選択画面へ遷移する
         return redirect()->route('character.select');

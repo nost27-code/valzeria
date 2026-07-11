@@ -42,6 +42,8 @@ class CheckCharacterSelected
             $character->timestamps = true;
         }
 
+        app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user, $character);
+
         return $next($request);
     }
 }

@@ -12,6 +12,7 @@
             $weapon = $equippedItems['weapon'] ?? null;
             $armor = $equippedItems['armor'] ?? null;
             $accessory = $equippedItems['accessory'] ?? null;
+            $activeSupport = app(\App\Services\ExplorationSupportService::class)->payload($character);
 
             $jobExpPercent = 0;
             if (isset($jobExpInfo) && $jobExpInfo) {
@@ -263,6 +264,7 @@
                         'SSS'  => '#f97316', // オレンジ
                         'SS'   => '#c084fc', // 紫
                         'S'    => '#d4af37', // ゴールド
+                        'SPECIAL' => '#0f766e', // 星樹の塔報酬
                         'A'    => '#ef4444', // 赤
                         'B'    => '#3b82f6', // 青
                         'C'    => '#22c55e', // 緑
@@ -276,10 +278,24 @@
                         $rankColors[$_r] = $rankColors[strtoupper($_r)];
                     }
                     unset($_r);
+                    $equipmentRankSlot = function ($label, $characterItem, $rankColumn) {
+                        $item = $characterItem?->item;
+                        $rank = strtoupper((string) ($item?->{$rankColumn} ?? $item?->rarity ?? ''));
+
+                        return [
+                            'label' => $label,
+                            'item' => $characterItem,
+                            'rank' => $rank,
+                            'rank_label' => $rank === 'SPECIAL' && (string) ($item?->source_type ?? '') === 'star_tree_tower_reward'
+                                ? '星樹'
+                                : $rank,
+                        ];
+                    };
+
                     $equippedSlots = [
-                        ['label' => '武器', 'item' => $weapon,    'rank' => strtoupper((string)($weapon?->item?->weapon_rank    ?? $weapon?->item?->rarity    ?? ''))],
-                        ['label' => '防具', 'item' => $armor,     'rank' => strtoupper((string)($armor?->item?->armor_rank      ?? $armor?->item?->rarity     ?? ''))],
-                        ['label' => '装飾', 'item' => $accessory, 'rank' => strtoupper((string)($accessory?->item?->accessory_rank ?? $accessory?->item?->rarity ?? ''))],
+                        $equipmentRankSlot('武器', $weapon, 'weapon_rank'),
+                        $equipmentRankSlot('防具', $armor, 'armor_rank'),
+                        $equipmentRankSlot('装飾', $accessory, 'accessory_rank'),
                     ];
                 @endphp
                 <div class="space-y-1">
@@ -290,7 +306,7 @@
                             @if($slot['rank'])
                                 @php $rankColor = $rankColors[$slot['rank']] ?? '#94a3b8'; @endphp
                                 <div class="ml-1 inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
-                                     style="background-color:{{ $rankColor }};">{{ $slot['rank'] }}</div>
+                                     style="background-color:{{ $rankColor }};">{{ $slot['rank_label'] }}</div>
                             @endif
                             <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-800 font-semibold">{{ $slot['item']->displayName() }}</div>
                         @else
@@ -298,6 +314,24 @@
                         @endif
                     </div>
                     @endforeach
+                </div>
+            </div>
+
+            <!-- もちもの -->
+            <div class="mt-2">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] text-slate-500 font-bold">◆ もちもの</span>
+                    <a href="{{ route('equipment.index', ['tab' => 'belongings']) }}" wire:navigate class="text-xs text-blue-600 hover:underline">もちもの変更</a>
+                </div>
+                <div class="space-y-1">
+                    <div class="flex items-center border border-slate-200 rounded text-xs bg-slate-50 overflow-hidden">
+                        <div class="px-2 py-1 bg-slate-100 border-r border-slate-200 text-slate-600 w-12 text-center flex-shrink-0 text-[10px] font-bold whitespace-nowrap">補助品</div>
+                        @if($activeSupport)
+                            <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-800 font-semibold">{{ $activeSupport['name'] }}</div>
+                        @else
+                            <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-400">なし</div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>

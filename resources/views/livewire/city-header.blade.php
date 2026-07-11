@@ -1550,6 +1550,7 @@
                                           x-text="playerInfo.equipment.weapon.rank"></span>
                                 </template>
                                 <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.weapon.name"></span>
+                                <template x-if="playerInfo.equipment.weapon.bonus_text"><span class="shrink-0 text-[10px] font-black text-violet-700" x-text="playerInfo.equipment.weapon.bonus_text"></span></template>
                             </div>
                             <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
                                 <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-sky-200 bg-sky-50 text-xs font-black text-sky-700">防</div>
@@ -1559,6 +1560,7 @@
                                           x-text="playerInfo.equipment.armor.rank"></span>
                                 </template>
                                 <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.armor.name"></span>
+                                <template x-if="playerInfo.equipment.armor.bonus_text"><span class="shrink-0 text-[10px] font-black text-violet-700" x-text="playerInfo.equipment.armor.bonus_text"></span></template>
                             </div>
                             <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
                                 <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-violet-200 bg-violet-50 text-xs font-black text-violet-700">飾</div>

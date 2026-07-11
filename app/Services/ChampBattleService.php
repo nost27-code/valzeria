@@ -172,11 +172,13 @@ class ChampBattleService
     {
         return DB::transaction(function () use ($challenger) {
             $challenger = Character::query()
-                ->with('jobClass')
+                ->with(['jobClass', 'user'])
                 ->lockForUpdate()
                 ->findOrFail($challenger->id);
+            $isAdminTester = $challenger->isAdminTester();
 
             $champ = ChampState::query()->lockForUpdate()->first() ?? $this->createInitialChamp();
+            $champ = $this->replaceAdminTesterChamp($champ);
             $availability = $this->challengeAvailability($challenger, $champ);
             if (!$availability['can_challenge']) {
                 return [
@@ -204,9 +206,9 @@ class ChampBattleService
             ];
             $challengerActor = $this->resultActorSnapshot($challenger);
             $battle = $this->runBattle($challenger, $champ);
-            $damage = min($champHpBefore, max(0, (int) $battle['damage']));
-            $champDefeated = $damage >= $champHpBefore;
-            $champHpAfter = $champDefeated ? 0 : max(0, $champHpBefore - $damage);
+            $champDefeated = (bool) ($battle['champ_defeated'] ?? false);
+            $champHpAfter = $champDefeated ? 0 : max(0, (int) ($battle['champ_hp_after_battle'] ?? $champHpBefore));
+            $damage = max(0, $champHpBefore - $champHpAfter);
 
             $baseExp = $this->baseExpReward($challenger);
             $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
@@ -230,22 +232,26 @@ class ChampBattleService
             $battle['log'][] = "<br><span class=\"text-green-600 font-bold\">【素材獲得】{$materialName} x{$materialQuantity} を手に入れた！</span>";
 
             if ($champDefeated) {
-                ChampHistory::create([
-                    'character_id' => $champ->character_id,
-                    'player_name' => $champ->player_name,
-                    'job_name' => $champ->job_name,
-                    'job_rank' => $champ->job_rank,
-                    'level' => $champ->level,
-                    'max_hp' => $champ->max_hp,
-                    'defense_count' => $champ->defense_count,
-                    'appointed_at' => $champ->appointed_at,
-                    'defeated_at' => now(),
-                    'defeated_by_character_id' => $challenger->id,
-                    'defeated_by_player_name' => $challenger->name,
-                ]);
+                if ($isAdminTester) {
+                    $battle['log'][] = '<span class="text-slate-600 font-bold">【検証】テストキャラのため、チャンプ交代は本番表示へ反映しません。</span>';
+                } else {
+                    ChampHistory::create([
+                        'character_id' => $champ->character_id,
+                        'player_name' => $champ->player_name,
+                        'job_name' => $champ->job_name,
+                        'job_rank' => $champ->job_rank,
+                        'level' => $champ->level,
+                        'max_hp' => $champ->max_hp,
+                        'defense_count' => $champ->defense_count,
+                        'appointed_at' => $champ->appointed_at,
+                        'defeated_at' => now(),
+                        'defeated_by_character_id' => $challenger->id,
+                        'defeated_by_player_name' => $challenger->name,
+                    ]);
 
-                $this->appointNewChamp($champ, $challenger);
-                $battle['log'][] = "<span class=\"text-amber-700 font-bold\">【チャンプ交代】{$challenger->name}が新しいチャンプになった！</span>";
+                    $this->appointNewChamp($champ, $challenger);
+                    $battle['log'][] = "<span class=\"text-amber-700 font-bold\">【チャンプ交代】{$challenger->name}が新しいチャンプになった！</span>";
+                }
             } else {
                 $champ->current_hp = $champHpAfter;
                 $champ->current_mp = max(0, (int) ($battle['champ_mp_after'] ?? $champ->current_mp ?? 0));
@@ -259,7 +265,7 @@ class ChampBattleService
                 'challenger_character_id' => $challenger->id,
                 'challenger_player_name' => $challenger->name,
                 'damage' => $damage,
-                'is_champ_defeated' => $champDefeated,
+                'is_champ_defeated' => $champDefeated && ! $isAdminTester,
                 'champ_hp_before' => $champHpBefore,
                 'champ_hp_after' => $champHpAfter,
                 'exp_gained' => $expGained,
@@ -274,12 +280,12 @@ class ChampBattleService
 
             return [
                 'ok' => true,
-                'champ_defeated' => $champDefeated,
+                'champ_defeated' => $champDefeated && ! $isAdminTester,
                 'damage' => $damage,
                 'turns' => $battle['turns'],
                 'battle_log' => $battle['log'],
                 'champ_before_name' => $oldChamp['player_name'],
-                'champ_after_name' => $champDefeated ? $challenger->name : $champ->player_name,
+                'champ_after_name' => ($champDefeated && ! $isAdminTester) ? $challenger->name : $champ->player_name,
                 'challenger_actor' => array_merge($challengerActor, [
                     'current_mp' => $battle['challenger_mp_after'] ?? (int) ($challengerActor['current_mp'] ?? 0),
                 ]),
@@ -291,7 +297,7 @@ class ChampBattleService
                 'champ_hp_after' => $champHpAfter,
                 'champ_mp_after' => $battle['champ_mp_after'] ?? (int) ($oldChamp['current_mp'] ?? 0),
                 'challenger_mp_after' => $battle['challenger_mp_after'] ?? (int) ($challengerActor['current_mp'] ?? 0),
-                'champ_max_hp' => $champDefeated ? $this->snapshotStats($challenger)['max_hp'] : (int) $champ->max_hp,
+                'champ_max_hp' => ($champDefeated && ! $isAdminTester) ? $this->snapshotStats($challenger)['max_hp'] : (int) $champ->max_hp,
                 'exp_gained' => $expGained,
                 'job_exp_gained' => $jobExpGained,
                 'progression' => $levelResult['progression'] ?? null,
@@ -309,6 +315,14 @@ class ChampBattleService
     public function recentLogs(int $limit = 5)
     {
         return ChampBattleLog::query()
+            ->where(function ($query): void {
+                $query->whereNull('challenger_character_id')
+                    ->orWhereHas('challenger', fn ($characterQuery) => $characterQuery->visibleToPublic());
+            })
+            ->where(function ($query): void {
+                $query->whereNull('champ_character_id')
+                    ->orWhereHas('champCharacter', fn ($characterQuery) => $characterQuery->visibleToPublic());
+            })
             ->latest()
             ->limit($limit)
             ->get();
@@ -316,12 +330,38 @@ class ChampBattleService
 
     public function ensureChamp(): ChampState
     {
-        return ChampState::query()->first() ?? $this->createInitialChamp();
+        $champ = ChampState::query()->first() ?? $this->createInitialChamp();
+
+        return $this->replaceAdminTesterChamp($champ);
     }
 
     private function createInitialChamp(): ChampState
     {
-        return ChampState::create([
+        return ChampState::create($this->initialChampPayload());
+    }
+
+    private function replaceAdminTesterChamp(ChampState $champ): ChampState
+    {
+        if (! $champ->character_id) {
+            return $champ;
+        }
+
+        $character = Character::query()
+            ->with('user')
+            ->find((int) $champ->character_id);
+
+        if (! $character?->isAdminTester()) {
+            return $champ;
+        }
+
+        $champ->forceFill($this->initialChampPayload())->save();
+
+        return $champ->refresh();
+    }
+
+    private function initialChampPayload(): array
+    {
+        return [
             'character_id' => null,
             'player_name' => '冒険者協会の試練官',
             'icon_path' => '/images/chara/chara_001.webp',
@@ -347,7 +387,7 @@ class ChampBattleService
             'normal_attack_type' => 'physical',
             'defense_count' => 0,
             'appointed_at' => now(),
-        ]);
+        ];
     }
 
     private function currentChampIconPath(ChampState $champ): string
@@ -478,6 +518,10 @@ class ChampBattleService
                 }
 
                 $target->takeDamage($damage);
+                if ($target->gutsJustTriggered) {
+                    $target->gutsJustTriggered = false;
+                    $log[] = "<span class=\"text-orange-700 font-extrabold\">{$target->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>";
+                }
 
                 if ($actor->isPlayer) {
                     $totalDamage += $damage;
@@ -504,6 +548,10 @@ class ChampBattleService
 
         return [
             'damage' => $totalDamage,
+            'champ_defeated' => $defender->isDead(),
+            'champ_hp_after_battle' => max(0, (int) $defender->hp),
+            'challenger_defeated' => $attacker->isDead(),
+            'challenger_hp_after_battle' => max(0, (int) $attacker->hp),
             'turns' => min($turn, self::MAX_TURNS),
             'log' => $log,
             'affinity_multiplier' => $affinityMultiplier,
@@ -680,6 +728,10 @@ class ChampBattleService
             $selfDamage = (int) floor($attacker->maxHp * ((int) $skill->self_damage_percent / 100));
             $attacker->takeDamage($selfDamage);
             $logs[] = "<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>";
+            if ($attacker->gutsJustTriggered) {
+                $attacker->gutsJustTriggered = false;
+                $logs[] = "<span class=\"text-orange-700 font-extrabold\">{$attacker->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>";
+            }
         }
 
         if ($skill->isJobArt()) {
@@ -688,7 +740,7 @@ class ChampBattleService
 
         $this->applyStructuredDebuffs($defender, $skill, $logs);
 
-        if ((int) $skill->damage_reduction_percent > 0) {
+        if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
             $logs[] = "{$attacker->name} は次の被ダメージを軽減する構えをとった！";
         }
@@ -715,7 +767,7 @@ class ChampBattleService
         array &$logs
     ): void {
         $template = (string) $skill->effect_template;
-        $power = max(80, (int) ($skill->power ?: 100));
+        $power = max(1, (int) ($skill->power ?: 100));
 
         if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
             $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
@@ -735,28 +787,59 @@ class ChampBattleService
         }
 
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
-            $reduction = min(25, max(10, (int) floor($power / 10)));
+            $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
+            $reduction = $this->jobArtGuardReduction($skill, $rate);
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, $reduction));
             $logs[] = "<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>";
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
+            $beforeStr = $attacker->str;
+            $beforeMag = $attacker->mag;
             $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-            $logs[] = "<span class=\"text-indigo-600 font-bold\">{$attacker->name} の戦闘力が高まった！</span>";
+            $logs[] = $this->statChangeLog($attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
         }
 
         if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
+            $beforeDef = $defender->def;
+            $beforeSpr = $defender->spr;
             $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
             $defender->spr = max(1, $defender->spr - max(1, (int) floor($defender->baseSpr * 0.05)));
-            $logs[] = "<span class=\"text-violet-700 font-bold\">{$defender->name} の守りが乱れた！</span>";
+            $logs[] = $this->statChangeLog($defender->name, 'DEF', $beforeDef, $defender->def, 'SPR', $beforeSpr, $defender->spr, false);
         }
 
         if ($template === 'TIME_CONTROL_CURRENT_ONLY' && !$this->hasStructuredDebuff($skill)) {
             $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
+            $before = $defender->agi;
             $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
-            $logs[] = "<span class=\"text-sky-700 font-bold\">{$defender->name} の動きが鈍った！</span>";
+            $pct = $before > 0 ? (int) round((abs($before - $defender->agi) / $before) * 100) : 0;
+            $logs[] = "<span class=\"text-sky-700 font-bold\">{$defender->name} のSPDが {$pct}% 低下した！</span>";
         }
+    }
+
+    private function statChangeLog(
+        string $actorName,
+        string $mainLabel,
+        int $mainBefore,
+        int $mainAfter,
+        string $subLabel,
+        int $subBefore,
+        int $subAfter,
+        bool $isBuff
+    ): string {
+        $mainPct = $mainBefore > 0 ? (int) round((abs($mainAfter - $mainBefore) / $mainBefore) * 100) : 0;
+        $subPct = $subBefore > 0 ? (int) round((abs($subAfter - $subBefore) / $subBefore) * 100) : 0;
+
+        if ($mainAfter === $mainBefore && $subAfter === $subBefore) {
+            $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
+            $verb = $isBuff ? '強化' : '弱体化';
+            return "<span class=\"{$color} font-bold\">{$actorName} はこれ以上{$verb}できない！</span>";
+        }
+
+        $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
+        $direction = $isBuff ? '上昇' : '低下';
+        return "<span class=\"{$color} font-bold\">{$actorName} の{$mainLabel}が {$mainPct}% / {$subLabel}が {$subPct}% {$direction}した！</span>";
     }
 
     private function hasStructuredDebuff(Skill $skill): bool
@@ -766,6 +849,16 @@ class ChampBattleService
             || (int) $skill->enemy_def_down_percent > 0
             || (int) $skill->enemy_spr_down_percent > 0
             || (int) $skill->enemy_spd_down_percent > 0;
+    }
+
+    private function jobArtGuardReduction(Skill $skill, float $rate = 1.0): int
+    {
+        if ((int) $skill->damage_reduction_percent > 0) {
+            return min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
+        }
+
+        // powerは呼び出し元でskillForExecution()により既に継承倍率でスケール済み
+        return min(25, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
     }
 
     private function applyStructuredDebuffs(BattleActor $defender, Skill $skill, array &$logs): void

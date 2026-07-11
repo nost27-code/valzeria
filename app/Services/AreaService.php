@@ -9,19 +9,29 @@ use Illuminate\Support\Facades\Schema;
 
 class AreaService
 {
-    private const AREA_CLEAR_MATERIAL_STORAGE_BONUS = 200;
-    private const AREA_CLEAR_EQUIPMENT_STORAGE_BONUS = 100;
-
     /**
      * キャラクターがアクセスできるエリアとその進行状況を一覧取得する
      */
     public function getAreasWithProgress(Character $character)
     {
+        if (app(FerdiaMapService::class)->isFerdiaCityId((int) $character->current_city_id)
+            && !app(FerdiaMapService::class)->isEnabled()
+        ) {
+            return collect();
+        }
+
         app(DiscoveryService::class)->ensureInitialDiscoveries($character);
 
-        $areas = Area::where('city_id', $character->current_city_id)
+        $ferdiaMapService = app(FerdiaMapService::class);
+        $areas = app(DungeonPublicationService::class)->publishedAreas()
+                     ->where('city_id', $character->current_city_id)
                      ->orderBy('sort_order', 'asc')
                      ->get();
+        if ($ferdiaMapService->isFerdiaCityId((int) $character->current_city_id)) {
+            $areas = $areas
+                ->filter(fn (Area $area): bool => $ferdiaMapService->isFerdiaAreaId((int) $area->id))
+                ->values();
+        }
 
         // 最初のエリアは常に進行データを生成して解放済みにする
         $firstArea = $areas->first();
@@ -109,9 +119,23 @@ class AreaService
      */
     public function canEnterArea(Character $character, int $areaId): bool
     {
+        if (app(FerdiaMapService::class)->isFerdiaAreaId($areaId)
+            && !app(FerdiaMapService::class)->isEnabled()
+        ) {
+            return false;
+        }
+
         $areas = $this->getAreasWithProgress($character);
         $targetArea = collect($areas)->firstWhere('id', $areaId);
-        
+
+        if (!$targetArea && app(FerdiaMapService::class)->canAccessArea($character, $areaId)) {
+            $targetArea = Area::find($areaId);
+            if ($targetArea) {
+                $targetArea->is_unlocked = true;
+                $targetArea->meets_job_requirements = true;
+            }
+        }
+
         if (!$targetArea) {
             return false;
         }
@@ -154,9 +178,10 @@ class AreaService
             $progress->discovery_state = 'cleared';
             $progress->cleared_at ??= $progress->boss_defeated_at;
             $progress->save();
+            app(PlayerLifecycleEventService::class)->recordFirstBossDefeat($character);
 
             if ($clearRewards !== null && $isCityFinalNormalArea) {
-                $clearRewards['storage'] = $this->grantAreaClearStorageBonus($character);
+                $clearRewards['storage'] = app(StorageCapacityService::class)->nextCityClearStorageReward($character);
             }
         }
 
@@ -168,7 +193,9 @@ class AreaService
 
         // 次のエリア（条件がclearedAreaIdのもの）を探して解放
         $unlockedAreas = [];
-        $nextAreas = Area::where('unlock_required_area_id', $clearedAreaId)->get();
+        $nextAreas = app(DungeonPublicationService::class)->publishedAreas()
+            ->where('unlock_required_area_id', $clearedAreaId)
+            ->get();
         foreach ($nextAreas as $nextArea) {
             $nextProgress = CharacterAreaProgress::firstOrCreate(
                 ['character_id' => $character->id, 'area_id' => $nextArea->id]
@@ -209,9 +236,12 @@ class AreaService
                     $highestCity = $character->highestCity;
                     $highestOrder = $highestCity ? $highestCity->sort_order : 0;
                     
-                    if ($nextCity->sort_order > $highestOrder) {
+                    if ($nextCity->sort_order > $highestOrder
+                        && !app(FerdiaMapService::class)->isFerdiaCityId((int) $nextCity->id)
+                    ) {
                         $character->highest_city_id = $nextCity->id;
                         $character->save();
+                        app(PlayerLifecycleEventService::class)->recordCityReached($character, $nextCity);
                         
                         // 公開ログ（街の解放）
                         app(PublicLogService::class)->addLog(
@@ -243,28 +273,4 @@ class AreaService
         return (int) $lastAreaId === (int) $area->id;
     }
 
-    /**
-     * @return array<string,int>
-     */
-    private function grantAreaClearStorageBonus(Character $character): array
-    {
-        $materialBefore = max(500, (int) ($character->material_storage_limit ?? 500));
-        $equipmentBefore = max(300, (int) ($character->equipment_storage_limit ?? 300));
-        $materialAfter = $materialBefore + self::AREA_CLEAR_MATERIAL_STORAGE_BONUS;
-        $equipmentAfter = $equipmentBefore + self::AREA_CLEAR_EQUIPMENT_STORAGE_BONUS;
-
-        $character->forceFill([
-            'material_storage_limit' => $materialAfter,
-            'equipment_storage_limit' => $equipmentAfter,
-        ])->save();
-
-        return [
-            'material_bonus' => self::AREA_CLEAR_MATERIAL_STORAGE_BONUS,
-            'equipment_bonus' => self::AREA_CLEAR_EQUIPMENT_STORAGE_BONUS,
-            'material_before' => $materialBefore,
-            'material_after' => $materialAfter,
-            'equipment_before' => $equipmentBefore,
-            'equipment_after' => $equipmentAfter,
-        ];
-    }
 }

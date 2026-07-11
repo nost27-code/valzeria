@@ -1,9 +1,15 @@
+@php
+    $explorationSupportEnabled = app(\App\Services\ExplorationSupportService::class)->isEnabled();
+@endphp
 <div class="flex flex-col gap-4 text-sm font-sans w-full h-full"
-     x-data="{ 
-         isModalOpen: false, 
-         modalMessage: '', 
+     x-data="{
+         isModalOpen: false,
+         modalMessage: '',
          modalTitle: 'システム',
          playerInfo: null,
+         belongingsModalOpen: false,
+         belongingsLoading: false,
+         belongingsHtml: '',
          openModal(title, message) {
              this.modalTitle = title;
              this.modalMessage = message;
@@ -14,6 +20,27 @@
              this.playerInfo = player;
              this.modalTitle = player.name;
              this.isModalOpen = true;
+         },
+         async openBelongingsModal() {
+             this.belongingsModalOpen = true;
+             this.belongingsLoading = true;
+             try {
+                 const response = await fetch(@js(route('apothecary.belongings')), {
+                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                 });
+                 this.belongingsHtml = await response.text();
+                 this.$nextTick(() => {
+                     this.$refs.belongingsBody?.querySelectorAll('script').forEach((oldScript) => {
+                         const newScript = document.createElement('script');
+                         newScript.textContent = oldScript.textContent;
+                         oldScript.replaceWith(newScript);
+                     });
+                 });
+             } catch (error) {
+                 this.belongingsHtml = '<p class=\'text-sm text-red-600 font-bold\'>読み込みに失敗しました。</p>';
+             } finally {
+                 this.belongingsLoading = false;
+             }
          }
      }">
 
@@ -23,18 +50,18 @@
 
 
         <!-- 右カラム（旧）：移動メニューとメイン画面 -->
-        <div class="w-full flex flex-col gap-0 bg-white border border-[#d4af37] rounded-xl overflow-hidden shadow-sm shrink-0 min-h-[80vh]">
+        <div class="w-full flex flex-col gap-0 rounded-xl overflow-hidden shadow-sm shrink-0 min-h-[80vh] {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border border-emerald-300/70 bg-white' : 'bg-white border border-[#d4af37]' }}">
 
             <!-- タブナビゲーション -->
             <livewire:nav-menu />
 
             <!-- メインコンテンツ表示枠（施設ハブ） -->
-            <div class="p-4 flex-grow flex flex-col relative bg-white"
+            <div class="p-4 flex-grow flex flex-col relative {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'bg-emerald-50/15' : 'bg-white' }}"
                  wire:loading.class.add="opacity-40 pointer-events-none"
                  wire:target="changeLocation">
                 <div wire:loading wire:target="changeLocation"
-                     class="absolute inset-0 z-50 flex items-center justify-center bg-white/60 rounded-b-xl">
-                    <svg class="w-8 h-8 text-[#d4af37] animate-spin" fill="none" viewBox="0 0 24 24">
+                     class="absolute inset-0 z-50 flex items-center justify-center rounded-b-xl {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'bg-white/70' : 'bg-white/60' }}">
+                    <svg class="w-8 h-8 animate-spin {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'text-emerald-600' : 'text-[#d4af37]' }}" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                     </svg>
@@ -44,28 +71,39 @@
                 @if($currentLocation !== 'home')
                     @php
                         $locationHeaderTitle = $currentLocation === 'town'
-                            ? '街の施設'
+                            ? (!empty($isFerdiaSimpleBase) ? 'フェルディア簡易拠点' : '街の施設')
                             : ($locationData['title'] ?? '');
                     @endphp
-                        <div class="mb-4 pb-2 border-b-2 border-gray-100 flex items-start justify-between gap-3">
+                        <div class="mb-4 pb-2 border-b-2 flex items-start justify-between gap-3 {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border-emerald-100' : 'border-gray-100' }}">
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2">
-                                    <span class="shrink-0 text-[#d4af37] text-2xl">⚜</span>
-                                    <h3 class="text-xl min-w-0 truncate font-bold text-[#1e293b]">
+                                    <span class="shrink-0 text-2xl {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'text-emerald-600' : 'text-[#d4af37]' }}">⚜</span>
+                                    <h3 class="text-xl min-w-0 truncate font-bold {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'text-slate-900' : 'text-[#1e293b]' }}">
                                         {{ $locationHeaderTitle }}
                                     </h3>
                                 </div>
-                                <p class="mt-2 text-xs leading-relaxed text-gray-600">
-                                    {{ $locationData['description'] }}
-                                </p>
+                                @if(!empty($locationData['description']))
+                                    <p class="mt-2 text-xs leading-relaxed text-gray-600">
+                                        {{ $locationData['description'] }}
+                                    </p>
+                                @endif
                             </div>
                             @if(in_array($currentLocation, ['town', 'dungeon', 'guild'], true))
-                                <button type="button"
-                                        wire:click="$dispatch('changeTab', { newLocation: 'move' })"
-                                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
-                                        class="shrink-0 rounded-md border border-[#d4af37] bg-white px-3 py-1.5 text-[12px] font-black text-[#9a6b00] shadow-sm transition hover:bg-amber-50 active:scale-95">
-                                    MAPへ
-                                </button>
+                                <div class="shrink-0 flex items-center gap-2">
+                                    @if($explorationSupportEnabled)
+                                        <button type="button"
+                                                @click="openBelongingsModal()"
+                                                class="shrink-0 rounded-md border bg-white px-3 py-1.5 text-[12px] font-black shadow-sm transition active:scale-95 {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50/50' : 'border-[#d4af37] text-[#9a6b00] hover:bg-amber-50' }}">
+                                            もちもの
+                                        </button>
+                                    @endif
+                                    <button type="button"
+                                            wire:click="$dispatch('changeTab', { newLocation: 'move' })"
+                                            @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
+                                            class="shrink-0 rounded-md border bg-white px-3 py-1.5 text-[12px] font-black shadow-sm transition active:scale-95 {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50/50' : 'border-[#d4af37] text-[#9a6b00] hover:bg-amber-50' }}">
+                                        MAPへ
+                                    </button>
+                                </div>
                             @endif
                         </div>
                 @endif
@@ -405,12 +443,32 @@
                             ->values()
                             ->all();
                         $worldZoomIconCount = count($worldZoomIconItems);
+                        $hasFerdiaMap = !empty($ferdiaMap);
+                        $initialMapRegion = $hasFerdiaMap ? ($initialMapRegion ?? 'valzeria') : 'valzeria';
                     @endphp
+                    <div x-data="{ activeRegion: @js($initialMapRegion) }">
+                    @if($hasFerdiaMap)
+                        <div class="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                            <button type="button"
+                                    class="rounded-md px-3 py-2 text-sm font-black transition"
+                                    x-bind:class="activeRegion === 'valzeria' ? 'bg-white text-[#1e40af] shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/70'"
+                                    @click="activeRegion = 'valzeria'">
+                                ヴァルゼリア大陸
+                            </button>
+                            <button type="button"
+                                    class="rounded-md px-3 py-2 text-sm font-black transition"
+                                    x-bind:class="activeRegion === 'ferdia' ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200' : 'text-slate-500 hover:bg-white/70'"
+                                    @click="activeRegion = 'ferdia'">
+                                フェルディア大陸
+                            </button>
+                        </div>
+                    @endif
+                    <div x-show="activeRegion === 'valzeria'" style="{{ $initialMapRegion === 'valzeria' ? '' : 'display: none;' }}">
                     <div class="mb-4 overflow-hidden rounded-xl border-2 border-[#d4af37] bg-[#f8f1df] shadow-md">
                         <div class="relative" x-data="{ zoomOpen: false, zoomName: '', zoomX: 50, zoomY: 50, zoomPopulation: 0, zoomIcons: [], selectedPlayer: null, panX: 0, panY: 0, isPanning: false, panStartX: 0, panStartY: 0, panOriginX: 0, panOriginY: 0 }">
-                            <img src="{{ asset($worldMapPath) }}" alt="ヴァルゼリア世界地図" class="block h-auto w-full">
+                            <img src="{{ asset($worldMapPath) }}" alt="ヴァルゼリア大陸MAP" class="block h-auto w-full">
                             <div class="absolute left-2 top-2 rounded bg-black/60 px-2 py-1 text-xs font-bold text-white shadow">
-                            ヴァルゼリア世界地図
+                            ヴァルゼリア大陸MAP
                             </div>
 
                             <div class="absolute right-2 top-2 hidden rounded border border-amber-900/25 bg-[#fff8e7]/90 px-2.5 py-1.5 text-[10px] font-bold text-slate-800 shadow sm:block">
@@ -597,12 +655,12 @@
                             @php
                                 $isUnlocked = $city->sort_order <= $highestCityOrder;
                                 $isCurrent = $character && $character->current_city_id == $city->id;
-                                $cityBgImg = sprintf('images/cities/city%02d.webp', $city->id);
-                                $cityBgExists = file_exists(public_path($cityBgImg));
+                                $cityBgPath = \App\Support\CityVisualCatalog::cardBackground((int) $city->id);
+                                $cityBgImg = $cityBgPath ? 'images/' . $cityBgPath : null;
                             @endphp
                             <div class="border {{ $isCurrent ? 'border-amber-500' : ($isUnlocked ? 'border-gray-200 hover:border-[#d4af37]' : 'border-gray-200 opacity-60') }} rounded-lg overflow-hidden transition-all shadow-sm flex flex-col relative {{ !$isUnlocked ? 'grayscale-[0.5]' : '' }}" style="min-height:200px;">
                                 {{-- 全体背景画像 --}}
-                                @if($cityBgExists)
+                                @if($cityBgImg)
                                     <img src="{{ asset($cityBgImg) }}" alt=""
                                          class="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
                                          style="filter: contrast(1.08) saturate(1.1);">
@@ -638,6 +696,13 @@
                                 </div>
                             </div>
                         @endforeach
+                    </div>
+                    </div>
+                    @if($hasFerdiaMap)
+                        <div x-show="activeRegion === 'ferdia'" style="{{ $initialMapRegion === 'ferdia' ? '' : 'display: none;' }}">
+                            <x-ferdia-map :map="$ferdiaMap" :character="$character" />
+                        </div>
+                    @endif
                     </div>
                 @elseif($currentLocation === 'message')
                     <!-- 個人チャットコンポーネントを直接埋め込む -->
@@ -702,6 +767,9 @@
                     </div>
                 @else
                     <!-- 施設カードグリッド -->
+                    @php
+                        $usesFerdiaFacilityTheme = !empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase);
+                    @endphp
                     @if(in_array($currentLocation, ['town', 'guild'], true))
                         @php
                             $groupedLocFacilities = collect($locationData['facilities'])->groupBy('category');
@@ -767,15 +835,14 @@
                         <!-- スマホ版（md未満）: カテゴリグループリスト -->
                         <div class="{{ $currentLocation === 'guild' ? 'pb-4 space-y-2.5' : 'md:hidden pb-4 space-y-2.5' }}">
                         @foreach($groupedLocFacilities as $facCategory => $facGroup)
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                                @if($facCategory)<div class="border-b border-slate-100 bg-slate-50 px-4 py-1.5"><span class="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">{{ $facCategory }}</span></div>@endif
+                            <div class="overflow-hidden rounded-xl border shadow-sm {{ $usesFerdiaFacilityTheme ? 'border-emerald-100 bg-white shadow-emerald-950/5' : 'border-slate-200 bg-white' }}">
+                                @if($facCategory)<div class="border-b px-4 py-1.5 {{ $usesFerdiaFacilityTheme ? 'border-emerald-100 bg-emerald-50/45' : 'border-slate-100 bg-slate-50' }}"><span class="text-[10px] font-extrabold tracking-widest uppercase {{ $usesFerdiaFacilityTheme ? 'text-emerald-700' : 'text-slate-400' }}">{{ $facCategory }}</span></div>@endif
                                 @foreach($facGroup as $facility)
                                     @php
                                         $facIsInactive = in_array($facility['status'] ?? 'active', ['locked', 'coming_soon']);
                                         $facDetails = $facility['details'] ?? [];
                                         $facHasFree = in_array('無料', $facDetails);
                                         $facSubText = collect($facDetails)->reject(fn($d) => $d === '無料')->implode(' · ');
-                                        $facBorder = $loop->last ? '' : 'border-b border-slate-100';
                                         $facRestBlocked = (bool) ($facility['rest_blocked'] ?? false);
                                         $facRestBlockMessage = (string) ($facility['rest_block_message'] ?? 'HP/SPが満タンです。宿屋で休む必要はありません。');
                                         $facIconHtml = isset($facility['symbol_image'])
@@ -783,19 +850,23 @@
                                             : (isset($facility['icon_image'])
                                                 ? '<img src="' . asset('images/' . $facility['icon_image']) . '" alt="" class="w-7 h-7 object-contain">'
                                                 : '<span class="text-xl leading-none">' . ($facility['icon'] ?? '🏛') . '</span>');
+                                        $facRowBorder = $usesFerdiaFacilityTheme ? 'border-b border-emerald-50' : 'border-b border-slate-100';
+                                        $facBorder = $loop->last ? '' : $facRowBorder;
+                                        $facHoverClass = $usesFerdiaFacilityTheme ? 'hover:bg-emerald-50/40 active:bg-emerald-50' : 'hover:bg-slate-50 active:bg-slate-100';
+                                        $facIconBgClass = $usesFerdiaFacilityTheme ? 'bg-emerald-50/45 ring-1 ring-emerald-50' : 'bg-amber-50';
                                     @endphp
                                     @if(!$facIsInactive && isset($facility['route']) && !empty($facility['is_post']))
                                     <form action="{{ route($facility['route'], $facility['params'] ?? []) }}" method="POST" class="{{ $facBorder }}" x-data="{ sub: false }" @submit="if (@js($facRestBlocked)) { $event.preventDefault(); openModal('宿屋', @js($facRestBlockMessage)); return; } sub = true">
                                         @csrf
-                                        <button type="submit" x-bind:disabled="sub" class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:opacity-60">
-                                            <div class="w-9 h-9 shrink-0 rounded-lg bg-amber-50 flex items-center justify-center overflow-hidden">{!! $facIconHtml !!}</div>
+                                        <button type="submit" x-bind:disabled="sub" class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors disabled:opacity-60 {{ $facHoverClass }}">
+                                            <div class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center overflow-hidden {{ $facIconBgClass }}">{!! $facIconHtml !!}</div>
                                             <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
                                             <div class="shrink-0 flex items-center gap-1.5">@if(!empty($facility['badge']))<span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">{{ $facility['badge'] }}</span>@elseif($facHasFree)<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">無料</span>@endif<svg class="w-4 h-4 text-slate-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg></div>
                                         </button>
                                     </form>
                                     @elseif(!$facIsInactive && isset($facility['route']))
-                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $facBorder }}">
-                                        <div class="w-9 h-9 shrink-0 rounded-lg bg-amber-50 flex items-center justify-center overflow-hidden">{!! $facIconHtml !!}</div>
+                                    <a href="{{ route($facility['route'], $facility['params'] ?? []) }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 transition-colors {{ $facHoverClass }} {{ $facBorder }}">
+                                        <div class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center overflow-hidden {{ $facIconBgClass }}">{!! $facIconHtml !!}</div>
                                         <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
                                         <div class="shrink-0 flex items-center gap-1.5">
                                             @if(!empty($facility['badge_count']))
@@ -807,8 +878,8 @@
                                         </div>
                                     </a>
                                     @elseif(!$facIsInactive && isset($facility['method']))
-                                    <button wire:click="{{ $facility['method'] }}" class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $facBorder }}">
-                                        <div class="w-9 h-9 shrink-0 rounded-lg bg-amber-50 flex items-center justify-center overflow-hidden">{!! $facIconHtml !!}</div>
+                                    <button wire:click="{{ $facility['method'] }}" class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors {{ $facHoverClass }} {{ $facBorder }}">
+                                        <div class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center overflow-hidden {{ $facIconBgClass }}">{!! $facIconHtml !!}</div>
                                         <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-800 leading-tight">{{ $facility['name'] }}</div>@if($facSubText)<div class="text-[11px] text-slate-500 truncate mt-0.5">{{ $facSubText }}</div>@endif</div>
                                         <svg class="w-4 h-4 text-slate-300 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg>
                                     </button>
@@ -834,20 +905,26 @@
                             $isComingSoon = $facility['status'] === 'coming_soon';
                             $isInactive = $isLocked || $isComingSoon;
                             $isTargetArea = isset($facility['id']) && (int) ($targetAreaId ?? 0) === (int) $facility['id'];
+                            $targetAreaBadgeLabel = match ((string) ($targetAreaPurpose ?? 'focus')) {
+                                'material_source' => '素材の入手場所',
+                                'next_action' => 'おすすめ探索先',
+                                default => '選択中',
+                            };
                             $isStarTreeCard = ($facility['card_variant'] ?? null) === 'star_tree';
+                            $isFerdiaTownFacilityCard = $usesFerdiaFacilityTheme && $currentLocation === 'town' && !$isStarTreeCard;
                         @endphp
                         
                         <div @if(isset($facility['id'])) id="dungeon-area-{{ $facility['id'] }}" @endif
                             class="border rounded-md flex relative overflow-hidden group scroll-mt-24
                             {{ $isTargetArea ? 'ring-4 ring-orange-400 ring-offset-2 border-orange-500 shadow-[0_0_0_4px_rgba(251,146,60,0.18),0_14px_28px_rgba(194,65,12,0.18)] animate-pulse' : '' }}
                             {{ $isStarTreeCard && !$isInactive ? 'border-teal-400/70 bg-slate-950 shadow-[0_10px_24px_rgba(15,76,92,0.20)] transition-all hover:border-cyan-300 hover:shadow-[0_14px_30px_rgba(15,76,92,0.28)]' : '' }}
-                            {{ !$isStarTreeCard && !$isInactive ? 'border-[#d4af37]/50 bg-white hover:border-[#d4af37] shadow hover:shadow-md transition-all' : '' }}
+                            {{ !$isStarTreeCard && !$isInactive ? ($isFerdiaTownFacilityCard ? 'border-emerald-100 bg-white hover:border-emerald-200 shadow hover:shadow-md hover:shadow-emerald-950/5 transition-all' : 'border-[#d4af37]/50 bg-white hover:border-[#d4af37] shadow hover:shadow-md transition-all') : '' }}
                             {{ $isInactive ? 'bg-gray-100 border-gray-200 opacity-80 grayscale-[0.6]' : '' }}">
 
                             @if($isTargetArea)
                                 <div class="absolute inset-y-0 left-0 z-20 w-1.5 bg-orange-500"></div>
                                 <div class="absolute right-2 top-2 z-20 rounded-full border border-orange-300 bg-orange-50 px-2.5 py-1 text-[11px] font-black text-orange-700 shadow-sm">
-                                    素材の入手場所
+                                    {{ $targetAreaBadgeLabel }}
                                 </div>
                             @endif
 
@@ -864,12 +941,12 @@
                                     <div class="absolute inset-y-0 left-0 z-0 w-1 bg-cyan-300/70 pointer-events-none"></div>
                                     <div class="absolute inset-0 z-0 bg-[radial-gradient(circle_at_18%_35%,rgba(45,212,191,0.22),transparent_36%)] pointer-events-none"></div>
                                 @else
-                                    <div class="absolute inset-0 z-0 bg-gradient-to-r from-white via-white/90 to-transparent w-full md:w-3/4 pointer-events-none"></div>
-                                    <div class="absolute inset-0 z-0 bg-white/40 pointer-events-none"></div>
+                                    <div class="absolute inset-0 z-0 bg-gradient-to-r {{ $isFerdiaTownFacilityCard ? 'from-white via-white/94 to-transparent' : 'from-white via-white/90 to-transparent' }} w-full md:w-3/4 pointer-events-none"></div>
+                                    <div class="absolute inset-0 z-0 {{ $isFerdiaTownFacilityCard ? 'bg-emerald-50/10' : 'bg-white/40' }} pointer-events-none"></div>
                                 @endif
                             @else
                                 <!-- 代替の薄い背景色 -->
-                                <div class="absolute inset-0 z-0 bg-gradient-to-r from-amber-50/30 to-white pointer-events-none"></div>
+                                <div class="absolute inset-0 z-0 bg-gradient-to-r {{ $isFerdiaTownFacilityCard ? 'from-emerald-50/25 to-white' : 'from-amber-50/30 to-white' }} pointer-events-none"></div>
                             @endif
 
                             <div class="relative z-10 p-3 {{ $isTargetArea ? 'pt-9 sm:pt-3' : '' }} flex flex-col sm:flex-row w-full sm:items-center sm:justify-between gap-3">
@@ -1139,12 +1216,12 @@
                     @if($currentLocation === 'dungeon' && !empty($locationData['next_city_travel'] ?? null))
                         @php
                             $nextCity = $locationData['next_city_travel'];
-                            $nextCityBgImg = sprintf('images/cities/city%02d.webp', $nextCity->id);
-                            $nextCityBgExists = file_exists(public_path($nextCityBgImg));
+                            $nextCityBgPath = \App\Support\CityVisualCatalog::cardBackground((int) $nextCity->id);
+                            $nextCityBgImg = $nextCityBgPath ? 'images/' . $nextCityBgPath : null;
                         @endphp
                         <div class="col-span-1 xl:col-span-2 overflow-hidden rounded-md border border-[#d4af37]/60 bg-white shadow-md">
                             <div class="relative flex min-h-[168px] flex-col justify-end p-4">
-                                @if($nextCityBgExists)
+                                @if($nextCityBgImg)
                                     <img src="{{ asset($nextCityBgImg) }}" alt="" class="absolute inset-0 h-full w-full object-cover object-center">
                                 @else
                                     <div class="absolute inset-0" style="background:{{ app(\App\Services\CityThemeService::class)->backgroundColorForCityId($nextCity->id) }}"></div>
@@ -1212,6 +1289,40 @@
             </div>
         </div>
     </template>
+
+    @if($explorationSupportEnabled)
+    <!-- もちものモーダル -->
+    <template x-teleport="body">
+        <div x-show="belongingsModalOpen" style="display: none;" class="fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="belongings-modal-title" role="dialog" aria-modal="true">
+            <div class="flex min-h-screen items-center justify-center p-4 text-center">
+                <div
+                    x-show="belongingsModalOpen"
+                    x-transition.opacity
+                    class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
+                    @click="belongingsModalOpen = false"
+                    aria-hidden="true"
+                ></div>
+
+                <div
+                    x-show="belongingsModalOpen"
+                    x-transition
+                    class="relative z-10 inline-block w-full max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all"
+                >
+                    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                        <h3 class="text-lg font-extrabold text-slate-900" id="belongings-modal-title">もちもの</h3>
+                        <button type="button" @click="belongingsModalOpen = false" class="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-sm font-black text-slate-500 hover:bg-slate-50" aria-label="閉じる">×</button>
+                    </div>
+                    <div class="max-h-[70vh] overflow-y-auto px-5 py-4" x-ref="belongingsBody">
+                        <template x-if="belongingsLoading">
+                            <p class="text-sm font-bold text-slate-400">読み込み中...</p>
+                        </template>
+                        <div x-show="!belongingsLoading" x-html="belongingsHtml"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    @endif
     <!-- キャラアイコン変更モーダル -->
     @if($isIconModalOpen)
     <template x-teleport="body">

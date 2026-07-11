@@ -73,9 +73,14 @@ class CharacterService
             $character->current_mp = $finalStats['max_mp'] ?? 0;
             $character->save();
 
+            app(PlayerLifecycleEventService::class)->recordCharacterCreated($character);
+            if ($initialCity) {
+                app(PlayerLifecycleEventService::class)->recordCityReached($character, $initialCity);
+            }
+
             app(NewcomerRegistrationCampaignService::class)->grantIfEligible($character);
             app(PublicLogService::class)->addLog(
-                'info',
+                'newcomer',
                 "新しい冒険者「{$character->name}」がヴァルゼリアの地に降り立ちました。",
                 $character,
                 1

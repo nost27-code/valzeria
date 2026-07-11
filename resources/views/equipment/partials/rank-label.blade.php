@@ -1,11 +1,20 @@
 @php
     $rank = strtoupper((string) (
-        $item->weapon_rank
+        $item->display_rank
+        ?? $item->weapon_rank
         ?? $item->armor_rank
         ?? $item->accessory_rank
         ?? $item->rarity
         ?? ''
     ));
+    $rankText = (string) (
+        $item->display_rank
+        ?? $item->weapon_rank
+        ?? $item->armor_rank
+        ?? $item->accessory_rank
+        ?? $item->rarity
+        ?? ''
+    );
 
     $rankColor = match ($rank) {
         'G' => '#d1d5db',
@@ -26,6 +35,6 @@
 @if($rank !== '' && $rank !== 'NORMAL')
     <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
           style="background-color: {{ $rankColor }};">
-        {{ $rank }}
+        {{ $rankText }}
     </span>
 @endif

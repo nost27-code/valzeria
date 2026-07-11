@@ -85,7 +85,10 @@ class NpcProcurementRequestService
             ->join('npc_procurement_requests', 'npc_procurement_requests.id', '=', 'npc_procurement_request_materials.npc_procurement_request_id')
             ->where('npc_procurement_requests.status', 'active')
             ->where('npc_procurement_requests.starts_at', '<=', now())
-            ->where('npc_procurement_requests.expires_at', '>', now())
+            ->where(function ($query) {
+                $query->where('npc_procurement_requests.expires_at', '>', now())
+                    ->orWhereIn('npc_procurement_requests.title', NpcProcurementRequest::PERSISTENT_UNTIL_COMPLETED_TITLES);
+            })
             ->whereColumn('npc_procurement_request_materials.delivered_quantity', '<', 'npc_procurement_request_materials.required_quantity')
             ->select('npc_procurement_request_materials.material_id', DB::raw('COUNT(*) as request_count'))
             ->groupBy('npc_procurement_request_materials.material_id')

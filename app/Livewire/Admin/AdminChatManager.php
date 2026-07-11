@@ -13,6 +13,7 @@ class AdminChatManager extends Component
     private const MAX_LOG_LIMIT = 500;
 
     public string $message = '';
+    public string $messageType = 'admin';
     public int $logLimit = self::INITIAL_LOG_LIMIT;
 
     public function loadMoreLogs(): void
@@ -24,18 +25,21 @@ class AdminChatManager extends Component
     {
         $this->validate([
             'message' => ['required', 'string', 'max:160'],
+            'messageType' => ['required', 'in:admin,notice'],
         ]);
 
-        $logService->addLog('admin', trim($this->message), null, 4);
+        $type = $this->messageType === 'notice' ? 'notice' : 'admin';
+        $logService->addLog($type, trim($this->message), null, $type === 'admin' ? 4 : 3);
 
         $this->message = '';
-        session()->flash('status', '管理人メッセージを全体チャットへ送信しました。');
+        $label = $type === 'notice' ? 'お知らせ' : '管理人メッセージ';
+        session()->flash('status', $label . 'を全体チャットへ送信しました。');
     }
 
     public function render(PublicLogService $logService)
     {
         $onlineWindowMinutes = max(1, (int) config('services.pochi_game_portal.online_window_minutes', 5));
-        $onlineCharacters = Character::query()
+        $onlineCharacters = Character::visibleToPublic()
             ->where('last_seen_at', '>=', now()->subMinutes($onlineWindowMinutes))
             ->orderByDesc('last_seen_at')
             ->limit(80)

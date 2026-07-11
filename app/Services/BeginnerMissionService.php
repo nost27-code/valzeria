@@ -40,9 +40,12 @@ class BeginnerMissionService
         $rewardGranted = $allPersisted ? $this->grantCompletionReward($character) : false;
 
         if (!$allPersisted || $rewardGranted) {
+            $alreadyClaimed = Schema::hasColumn('characters', 'beginner_mission_reward_claimed')
+                && (bool) ($character->beginner_mission_reward_claimed ?? false);
+
             return [
                 'label' => '初心者ミッション',
-                'should_show' => ($completed < $total && (int) $character->level <= 20) || $rewardGranted,
+                'should_show' => (!$alreadyClaimed && $completed < $total) || $rewardGranted,
                 'completed' => $completed,
                 'total' => $total,
                 'percent' => $total > 0 ? (int) floor(($completed / $total) * 100) : 0,
@@ -117,7 +120,10 @@ class BeginnerMissionService
         $hasBossWin = BattleLog::where('character_id', $character->id)
             ->where('battle_type', 'boss')
             ->where('result', 'win')
-            ->exists();
+            ->exists()
+            || CharacterAreaProgress::where('character_id', $character->id)
+                ->where('boss_defeated', true)
+                ->exists();
 
         return [
             [

@@ -12,6 +12,8 @@ use App\Services\EquipmentService;
 use App\Services\CharacterProfileService;
 use App\Services\CharacterNotificationService;
 use App\Services\ExplorationStaminaService;
+use App\Services\ExplorationStateService;
+use App\Services\FerdiaMapService;
 use App\Services\SupportPassService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
@@ -159,6 +161,12 @@ class CityHeader extends Component
         $topPlayer = $character ? $this->topPlayerBar($character) : null;
         $currentCity = $character ? $character->currentCity : null;
         $cityName = $currentCity ? $currentCity->name : '冒険都市ヴァルゼリア';
+        $cityId = $currentCity ? (int) $currentCity->id : null;
+
+        if ($cityId && $this->shouldShowFerdiaSimpleBase($character, $cityId)) {
+            $cityName = 'フェルディア簡易拠点';
+        }
+
         $notifications = collect();
         $unreadNotificationCount = 0;
 
@@ -170,7 +178,6 @@ class CityHeader extends Component
             $unreadNotificationCount = $notificationService->unreadCount($character);
         }
 
-        $cityId = $currentCity ? (int) $currentCity->id : null;
         $cityIcon = CityVisualCatalog::icon($cityId);
         $cityBackground = CityVisualCatalog::background($cityId);
 
@@ -189,8 +196,8 @@ class CityHeader extends Component
 
     private function onlinePlayers(): array
     {
-        return Cache::remember('city_header_online_players_v1', now()->addSeconds(20), function (): array {
-            return Character::query()
+        return Cache::remember('city_header_online_players_v2', now()->addSeconds(20), function (): array {
+            return Character::visibleToPublic()
                 ->where('last_seen_at', '>=', now()->subMinutes(5))
                 ->orderBy('last_seen_at', 'desc')
                 ->take(20)
@@ -201,6 +208,26 @@ class CityHeader extends Component
                 ])
                 ->toArray();
         });
+    }
+
+    private function shouldShowFerdiaSimpleBase(?Character $character, int $cityId): bool
+    {
+        if (!$character || session('current_location') !== 'dungeon') {
+            return false;
+        }
+
+        $ferdiaMapService = app(FerdiaMapService::class);
+        if (!$ferdiaMapService->isFerdiaCityId($cityId)) {
+            return false;
+        }
+
+        $areaId = (int) session('target_area_id', 0);
+        if ($areaId <= 0) {
+            $state = app(ExplorationStateService::class)->currentFor($character);
+            $areaId = (int) ($state?->area_id ?? 0);
+        }
+
+        return $areaId > 0 && $ferdiaMapService->isFerdiaAreaId($areaId);
     }
 
     private function topPlayerBar(Character $character): array
@@ -436,6 +463,7 @@ class CityHeader extends Component
                 'name' => 'なし',
                 'rank' => null,
                 'rank_color' => '#94a3b8',
+                'bonus_text' => null,
             ];
         }
 
@@ -448,9 +476,19 @@ class CityHeader extends Component
 
         return [
             'name' => $characterItem->displayName(),
-            'rank' => $rank,
+            'rank' => $this->equipmentRankLabel($rank, (string) ($characterItem->item?->source_type ?? '')),
             'rank_color' => $this->rankColor($rank),
+            'bonus_text' => null,
         ];
+    }
+
+    private function equipmentRankLabel(?string $rank, string $sourceType): ?string
+    {
+        if (strtoupper((string) $rank) === 'SPECIAL' && $sourceType === 'star_tree_tower_reward') {
+            return '星樹';
+        }
+
+        return $rank;
     }
 
     private function rankColor(?string $rank): string
@@ -460,6 +498,7 @@ class CityHeader extends Component
             'SSS' => '#f97316',
             'SS' => '#c084fc',
             'S' => '#d4af37',
+            'SPECIAL' => '#0f766e',
             'A' => '#ef4444',
             'B' => '#3b82f6',
             'C' => '#22c55e',

@@ -102,7 +102,9 @@ EOT;
         foreach ($lines as $line) {
             if (empty(trim($line))) continue;
 
-            $cols = explode("\t", trim($line));
+            // Preserve trailing empty TSV columns; trim() would drop them and
+            // make valid dungeon rows look malformed on a fresh database.
+            $cols = explode("\t", rtrim($line, "\r\n"));
             
             // タブ連続で空文字になっている要素も配列に含まれるため、countは11になるはず
             if (count($cols) < 11) {

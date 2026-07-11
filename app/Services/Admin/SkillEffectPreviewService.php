@@ -153,8 +153,8 @@ class SkillEffectPreviewService
             ? max(0, (int) round(((int) ($skill->power ?: 100)) * $rate))
             : max(0, (int) round((float) ($skill->power_multiplier ?: 0) * 100));
 
-        if (! $skill->isJobArt() && (float) $skill->luk_power_rate > 0) {
-            $power += (int) floor($attacker->luk * (float) $skill->luk_power_rate);
+        if ((float) $skill->luk_power_rate > 0) {
+            $power += (int) floor($attacker->luk * (float) $skill->luk_power_rate * $rate);
         }
 
         $damageType = $this->damageType($skill, $attacker);
@@ -219,11 +219,20 @@ class SkillEffectPreviewService
         return max(1, (int) floor($damage));
     }
 
+    private const ADAPTIVE_DAMAGE_TEMPLATES = ['DAMAGE_BUFF', 'DAMAGE_DEBUFF', 'MULTI_HIT', 'DAMAGE_GUARD_BARRIER'];
+
     private function damageType(Skill $skill, BattleActor $attacker): string
     {
+        $template = (string) $skill->effect_template;
+        if ($skill->isJobArt() && in_array($template, self::ADAPTIVE_DAMAGE_TEMPLATES, true)) {
+            // 実戦闘(BattleService等)ではこれらのテンプレートは damage_type カラムを見ず、
+            // 常に攻撃者の usesMagForNormalAttack() で物理/魔法を動的判定している。
+            // プレビューも同じ判定に揃える。
+            return $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
+        }
+
         $type = (string) ($skill->damage_type ?: 'physical');
         if ($type === 'support' && $skill->isJobArt()) {
-            $template = (string) $skill->effect_template;
             $type = JobArtEffectCatalog::damageType($template);
         }
 
@@ -290,11 +299,10 @@ class SkillEffectPreviewService
         if ($template === 'DRAIN' && $damage > 0 && (float) $skill->drain_hp_rate > 0) {
             $attacker->healHp(max(1, (int) floor($damage * (float) $skill->drain_hp_rate * $rate)));
         }
-        if ((int) $skill->damage_reduction_percent > 0) {
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate))));
-        }
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, max(10, (int) floor(((int) $skill->power ?: 100) / 10))));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, $this->jobArtGuardReduction($skill, $rate));
+        } elseif ((int) $skill->damage_reduction_percent > 0) {
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate))));
         }
 
         $this->applySelfBuffs($attacker, $skill, $rate);
@@ -373,9 +381,18 @@ class SkillEffectPreviewService
         };
     }
 
+    private function jobArtGuardReduction(Skill $skill, float $rate = 1.0): int
+    {
+        $base = (int) $skill->damage_reduction_percent > 0
+            ? (int) $skill->damage_reduction_percent
+            : min(25, max(10, (int) floor(((int) $skill->power ?: 100) / 10)));
+
+        return min(25, max(1, (int) floor($base * $rate)));
+    }
+
     private function templateHealAmount(BattleActor $attacker, Skill $skill, float $rate): int
     {
-        $power = max(80, (int) ($skill->power ?: 100));
+        $power = max(1, (int) ($skill->power ?: 100));
 
         return max(1, (int) floor($attacker->spr * ($power / 100) * $rate));
     }

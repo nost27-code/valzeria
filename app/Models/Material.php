@@ -158,6 +158,20 @@ class Material extends Model
         'MAT_TREASURE_DRAGON_SCALE' => 'images/icon/icon_256.webp',
         'MAT_TREASURE_BEAST_HORN' => 'images/icon/icon_257.webp',
         'MAT_TREASURE_ANCIENT_GOLD_COIN' => 'images/icon/icon_258.webp',
+        'MAT_BREW_HERB' => 'images/icon/icon_261.webp',
+        'MAT_FERDIA_BLUE_LIFE_LEAF' => 'images/icon/icon_262.webp',
+        'MAT_FERDIA_HEMOSTATIC_MOSS' => 'images/icon/icon_263.webp',
+        'MAT_FERDIA_CLEARSTREAM_DROP' => 'images/icon/icon_264.webp',
+        'MAT_FERDIA_DETOX_GALL' => 'images/icon/icon_265.webp',
+        'MAT_FERDIA_GUARDTREE_RESIN' => 'images/icon/icon_266.webp',
+        'MAT_FERDIA_LIFEROOT' => 'images/icon/icon_267.webp',
+        'MAT_BR_ARM_TRAVELER_ANCIENT' => 'images/icon/icon_268.webp',
+        'MAT_BR_ARM_LIGHT_ANCIENT' => 'images/icon/icon_269.webp',
+        'MAT_BR_WPN_GALE_ANCIENT' => 'images/icon/icon_270.webp',
+        'MAT_BR_ARM_ARCANE_ANCIENT' => 'images/icon/icon_271.webp',
+        'MAT_BR_ARM_HEAVY_ANCIENT' => 'images/icon/icon_272.webp',
+        'MAT_BR_WPN_HOLY_ANCIENT' => 'images/icon/icon_273.webp',
+        'MAT_BR_WPN_DARK_ANCIENT' => 'images/icon/icon_274.webp',
     ];
 
     private const ICON_BY_NAME = [

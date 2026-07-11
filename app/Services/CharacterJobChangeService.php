@@ -233,6 +233,7 @@ class CharacterJobChangeService
                 $fromJobName = $fromJobId ? JobClass::find($fromJobId)->name : '無職';
                 $message = "【転職】{$character->name}さんが{$fromJobName}から{$targetJob->name}へ転職しました！（転職{$character->reincarnation_count}回目）";
                 $this->publicLogService->addLog('job_change', $message, $character, 2);
+                app(PlayerLifecycleEventService::class)->recordFirstJobChange($character);
             });
             
             return true;

@@ -17,7 +17,7 @@ return new class extends Migration
                 $table->string('key')->nullable()->unique();
             }
             if (!Schema::hasColumn('job_classes', 'rank')) {
-                $table->enum('rank', ['normal', 'middle', 'advanced', 'legend'])->default('normal');
+                $table->string('rank')->default('normal');
             }
             if (!Schema::hasColumn('job_classes', 'category')) {
                 $table->string('category')->nullable();

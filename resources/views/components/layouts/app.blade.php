@@ -69,6 +69,26 @@
         <div class="fixed inset-x-0 bottom-0 h-32 bg-[#0f172a]" aria-hidden="true"></div>
         <div class="relative z-10 min-h-screen" style="background-color: {{ $bgColor }};">
         <x-pwa-install-banner />
+        @if (session('toast_success') || session('toast_error'))
+            @php
+                $isToastSuccess = (bool) session('toast_success');
+                $toastText = session('toast_success') ?? session('toast_error');
+            @endphp
+            <div
+                x-data="{ show: true }"
+                x-show="show"
+                x-init="setTimeout(() => show = false, 3200)"
+                x-transition:enter="transition-all duration-200"
+                x-transition:enter-start="opacity-0 -translate-y-3"
+                x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:leave="transition-all duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0"
+                x-transition:leave-end="opacity-0 -translate-y-3"
+                class="pointer-events-none fixed left-3 right-3 top-3 z-[70] rounded-xl border px-4 py-3 text-sm font-black shadow-2xl sm:left-1/2 sm:right-auto sm:w-full sm:max-w-md sm:-translate-x-1/2 {{ $isToastSuccess ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-red-600 border-red-400 text-white' }}"
+            >
+                {{ $toastText }}
+            </div>
+        @endif
         @if (session('message'))
             <div x-data="{ show: true }" x-show="show" class="bg-blue-600 text-white px-4 py-3 shadow-md w-full fixed top-0 z-50 flex justify-between items-center" x-init="setTimeout(() => show = false, 3000)">
                 <div class="flex items-center">
@@ -113,6 +133,7 @@
                 <!-- 右カラム: チャンプ戦カード + メインコンテンツ -->
                 <div class="flex-1 min-w-0 flex flex-col gap-4">
                     <livewire:champ-card />
+                    <livewire:star-tree-tower-ranking-widget />
 
                     <div class="min-w-0 flex flex-col gap-0 rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)]" data-main-content>
                         <div class="bg-white border border-[#d4af37] rounded-xl p-0 flex-grow min-h-0 overflow-hidden">

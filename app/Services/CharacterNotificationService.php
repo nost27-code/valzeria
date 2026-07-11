@@ -93,8 +93,6 @@ class CharacterNotificationService
         return CharacterNotification::query()
             ->where('character_id', $character->id)
             ->active()
-            ->orderByRaw('read_at IS NULL DESC')
-            ->orderByDesc(Schema::hasColumn('character_notifications', 'priority') ? 'priority' : 'created_at')
             ->latest()
             ->limit($limit)
             ->get();

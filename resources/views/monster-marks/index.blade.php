@@ -57,7 +57,14 @@
     <div class="space-y-2">
         @foreach($groups as $cityGroup)
             @php
-                $cityImageNo = str_pad((string) ((int) ($cityGroup['city']?->id ?? $loop->iteration)), 2, '0', STR_PAD_LEFT);
+                $cityId = (int) ($cityGroup['city']?->id ?? 0);
+                $ferdiaCityImageNumbers = [
+                    101 => '11',
+                    102 => '12',
+                    103 => '13',
+                ];
+                $cityImageNo = $ferdiaCityImageNumbers[$cityId]
+                    ?? str_pad((string) ($cityId ?: $loop->iteration), 2, '0', STR_PAD_LEFT);
                 $cityBgImage = asset("images/cities/city{$cityImageNo}_side.webp");
                 $citySymbolImages = [
                     '01' => '01.royal-capital-arclea.webp',
@@ -70,6 +77,9 @@
                     '08' => '08.demon-realm-city-necrom.webp',
                     '09' => '09.sky-city-celestia.webp',
                     '10' => '10.demon-king-castle-valzeria.webp',
+                    '11' => '11.ferdia_ruvan_symbol_icon_white.webp',
+                    '12' => '12.ferdia_granford_symbol_icon_white.webp',
+                    '13' => '13.ferdia_arven_symbol_icon_white.webp',
                 ];
                 $citySymbolImage = asset('images/symbol/' . ($citySymbolImages[$cityImageNo] ?? $citySymbolImages['01']));
             @endphp
@@ -162,6 +172,10 @@
                 </div>
             </details>
         @endforeach
+    </div>
+
+    <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-[11px] font-bold leading-relaxed text-slate-500">
+        探索や街の進行に応じて、印図鑑には新しい地域と印が追加されます。
     </div>
 
 </x-layouts.facility>

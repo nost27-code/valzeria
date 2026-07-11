@@ -25,6 +25,7 @@ class AuthService
                 'avatar_url' => $avatarUrl,
                 // パスワードは不要なため設定しない
             ]);
+            app(PlayerLifecycleEventService::class)->recordRegistration($user);
         } else {
             // google_idが未設定の場合は更新
             if (empty($user->google_id)) {
@@ -66,6 +67,7 @@ class AuthService
             'email' => "guest_{$guestId}@example.com",
             'avatar_url' => "https://ui-avatars.com/api/?name=Guest&background=random",
         ]);
+        app(PlayerLifecycleEventService::class)->recordRegistration($user);
 
         Auth::login($user);
 

@@ -158,6 +158,94 @@ class Skill extends Model
         };
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public function jobArtNumericEffectLabels(): array
+    {
+        if (! $this->isJobArt()) {
+            return [];
+        }
+
+        $template = (string) $this->effect_template;
+        $power = max(0, (int) ($this->power ?: 0));
+        $labels = [];
+
+        if (JobArtEffectCatalog::dealsDamage($template)) {
+            $labels[] = "威力 {$power}%";
+            $hitCount = max(1, (int) $this->hit_count);
+            if ($hitCount > 1) {
+                $labels[] = "{$hitCount}Hit";
+            }
+        }
+
+        if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
+            $labels[] = "HP回復 SPR×{$power}%";
+        }
+
+        if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
+            $buff = (int) $this->self_buff_percent;
+            if ($buff <= 0) {
+                $buff = $this->jobArtTierPercent($power);
+            }
+            $labels[] = '自己強化 主+' . $buff . '% / 副+' . intdiv($buff, 2) . '%';
+        }
+
+        if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
+            $reduction = (int) $this->damage_reduction_percent;
+            if ($reduction <= 0) {
+                $reduction = min(25, max(10, intdiv(max(1, $power), 10)));
+            }
+            $labels[] = "被ダメージ -{$reduction}%";
+        }
+
+        $debuffLabels = [
+            'enemy_atk_down_percent' => '敵ATK',
+            'enemy_mag_down_percent' => '敵MAG',
+            'enemy_def_down_percent' => '敵DEF',
+            'enemy_spr_down_percent' => '敵SPR',
+            'enemy_spd_down_percent' => '敵SPD',
+        ];
+        $hasStructuredDebuff = false;
+        foreach ($debuffLabels as $field => $label) {
+            $percent = (int) $this->{$field};
+            if ($percent > 0) {
+                $labels[] = "{$label} -{$percent}%";
+                $hasStructuredDebuff = true;
+            }
+        }
+
+        if (! $hasStructuredDebuff && in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true)) {
+            $debuff = $this->jobArtTierPercent($power);
+            $labels[] = "敵DEF -{$debuff}% / SPR -" . intdiv($debuff, 2) . '%';
+        }
+
+        foreach ([
+            'def_ignore_percent' => '敵DEF/SPR無視',
+            'heal_percent' => '最大HP回復',
+            'mp_recover_percent' => '最大SP回復',
+            'gold_bonus_percent' => 'Gold判定',
+            'drop_bonus_percent' => '素材判定',
+            'rare_bonus_percent' => 'レア判定',
+        ] as $field => $label) {
+            $percent = (int) $this->{$field};
+            if ($percent > 0) {
+                $labels[] = "{$label} +{$percent}%";
+            }
+        }
+
+        return array_values(array_unique($labels));
+    }
+
+    private function jobArtTierPercent(int $power): int
+    {
+        return match (true) {
+            $power >= 200 => 20,
+            $power >= 140 => 15,
+            default => 10,
+        };
+    }
+
     public function spCostForMaxSp(int $maxSp): int
     {
         if ($this->sp_cost_fixed !== null) {

@@ -13,10 +13,11 @@ use Illuminate\Support\Facades\Schema;
 class TownRankingService
 {
     private const LIMIT = 30;
+    private const TESTER_EMAIL_PATTERN = 'tester_%@valzeria.local';
 
     public function boards(): array
     {
-        return Cache::remember('town_ranking_boards_v5', now()->addMinutes(5), function (): array {
+        return Cache::remember('town_ranking_boards_v6', now()->addMinutes(5), function (): array {
             $definitions = $this->definitions();
 
             return collect($definitions)
@@ -136,7 +137,7 @@ class TownRankingService
             return collect();
         }
 
-        return DB::table('characters')
+        return $this->publicCharacterQuery()
             ->select([
                 'characters.id',
                 'characters.name',
@@ -284,7 +285,7 @@ class TownRankingService
 
     private function joinedAggregateRows($sub, string $characterColumn, string $detailLabel): Collection
     {
-        return DB::table('characters')
+        return $this->publicCharacterQuery()
             ->joinSub($sub, 'rank_values', function ($join) use ($characterColumn) {
                 $join->on('rank_values.' . $characterColumn, '=', 'characters.id');
             })
@@ -302,6 +303,13 @@ class TownRankingService
             ->limit(self::LIMIT)
             ->get()
             ->map(fn ($row) => $this->formatRow($row, "{$detailLabel} " . number_format((int) $row->score)));
+    }
+
+    private function publicCharacterQuery()
+    {
+        return DB::table('characters')
+            ->join('users as character_users', 'character_users.id', '=', 'characters.user_id')
+            ->where('character_users.email', 'not like', self::TESTER_EMAIL_PATTERN);
     }
 
     private function formatRow(object $row, string $detail): array

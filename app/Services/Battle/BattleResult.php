@@ -25,4 +25,5 @@ class BattleResult
 
     public int $playerHpAfter = 0;
     public int $playerMpAfter = 0;
+    public ?array $explorationSupportSnapshot = null;
 }

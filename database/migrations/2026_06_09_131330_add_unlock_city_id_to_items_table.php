@@ -13,9 +13,6 @@ return new class extends Migration
     {
         Schema::table('items', function (Blueprint $table) {
             $table->unsignedBigInteger('unlock_city_id')->nullable()->after('required_level');
-            
-            // 外部キー制約
-            $table->foreign('unlock_city_id')->references('id')->on('cities')->onDelete('set null');
         });
     }
 

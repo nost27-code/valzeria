@@ -82,6 +82,8 @@ class EquipmentService
 
             DB::commit();
 
+            app(PlayerLifecycleEventService::class)->recordFirstEquipmentChange($character);
+
             return ['success' => true, 'message' => "{$characterItem->displayName()}を装備しました。"];
         } catch (\Exception $e) {
             DB::rollBack();

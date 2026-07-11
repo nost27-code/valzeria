@@ -21,7 +21,9 @@ class SendPortalOnlineCount extends Command
         $apiKey = (string) config('services.pochi_game_portal.api_key', '');
         $windowMinutes = max(1, (int) config('services.pochi_game_portal.online_window_minutes', 5));
 
-        $onlineCount = Character::where('last_seen_at', '>=', now()->subMinutes($windowMinutes))->count();
+        $onlineCount = Character::visibleToPublic()
+            ->where('last_seen_at', '>=', now()->subMinutes($windowMinutes))
+            ->count();
 
         if ($this->option('dry-run')) {
             $this->info("online_count={$onlineCount}");

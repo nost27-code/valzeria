@@ -1,5 +1,13 @@
 <!-- 3. 下部：全幅チャットログエリア -->
-<div wire:poll.60s class="w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans">
+<div
+    wire:poll.60s
+    x-data="{
+        settingsOpen: false,
+        settingsModalOpen: false
+    }"
+    @open-chat-settings-modal.window="settingsModalOpen = true"
+    class="relative w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans"
+>
     <!-- タブ -->
     <div class="flex items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500 shrink-0">
         <div class="flex min-w-0 flex-1 overflow-x-auto">
@@ -11,6 +19,15 @@
             <button wire:click="setTab('info')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
         </div>
         <button
+            type="button"
+            @click="settingsOpen = !settingsOpen"
+            class="shrink-0 border-l border-gray-200 bg-white px-3 py-2 text-sm font-black leading-none text-gray-500 hover:bg-blue-50 hover:text-[#1e40af]"
+            aria-label="全体チャット表示設定"
+            title="全体チャット表示設定"
+        >
+            ⚙
+        </button>
+        <button
             wire:click="toggleExpanded"
             type="button"
             class="shrink-0 border-l border-gray-200 bg-white px-3 py-2 text-sm font-black leading-none text-[#1e40af] hover:bg-blue-50"
@@ -19,14 +36,97 @@
         >
             {{ $isExpanded ? '▲' : '▼' }}
         </button>
+        <div
+            x-show="settingsOpen"
+            x-transition
+            @click.outside="settingsOpen = false"
+            class="absolute right-2 top-10 z-30 max-h-[calc(100%-3rem)] w-[min(21rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
+            style="display: none;"
+        >
+            <div class="mb-2 flex items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                <span class="text-[12px] font-black text-slate-700">全体チャット</span>
+                <button type="button" @click="settingsOpen = false" class="rounded px-2 py-1 text-[12px] font-black text-gray-400 hover:bg-gray-50 hover:text-gray-700" aria-label="閉じる" title="閉じる">×</button>
+            </div>
+            <div class="grid gap-2">
+                @foreach($allTabFilterOptions as $option)
+                    <div wire:key="all-tab-filter-{{ $option['key'] }}" class="flex items-center justify-between gap-3 rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
+                        <div class="min-w-0">
+                            <div class="truncate text-[12px] font-black text-slate-700">{{ $option['label'] }}</div>
+                        </div>
+                        <button
+                            type="button"
+                            wire:click="setAllTabVisibility('{{ $option['key'] }}', {{ $option['enabled'] ? 'false' : 'true' }})"
+                            class="relative h-6 w-11 shrink-0 rounded-full transition {{ $option['enabled'] ? 'bg-[#1e40af]' : 'bg-gray-300' }}"
+                            aria-label="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
+                            title="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
+                        >
+                            <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition {{ $option['enabled'] ? 'left-5' : 'left-0.5' }}"></span>
+                        </button>
+                    </div>
+                @endforeach
+            </div>
+        </div>
     </div>
+
+    <div
+        x-show="settingsModalOpen"
+        x-transition.opacity
+        class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-6"
+        style="display: none;"
+        role="dialog"
+        aria-modal="true"
+        aria-label="チャット表示項目"
+    >
+        <div
+            @click.outside="settingsModalOpen = false"
+            class="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
+        >
+            <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                <div class="min-w-0">
+                    <div class="text-sm font-black text-slate-800">チャット表示項目</div>
+                    <div class="mt-0.5 text-[11px] font-bold text-slate-500">全体チャットに表示する項目</div>
+                </div>
+                <button
+                    type="button"
+                    @click="settingsModalOpen = false"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg font-black text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                    aria-label="閉じる"
+                    title="閉じる"
+                >
+                    ×
+                </button>
+            </div>
+            <div class="max-h-[min(70vh,28rem)] overflow-y-auto p-3">
+                <div class="grid gap-2">
+                    @foreach($allTabFilterOptions as $option)
+                        <div wire:key="all-tab-modal-filter-{{ $option['key'] }}" class="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+                            <div class="min-w-0">
+                                <div class="truncate text-[13px] font-black text-slate-700">{{ $option['label'] }}</div>
+                            </div>
+                            <button
+                                type="button"
+                                wire:click="setAllTabVisibility('{{ $option['key'] }}', {{ $option['enabled'] ? 'false' : 'true' }})"
+                                class="relative h-6 w-11 shrink-0 rounded-full transition {{ $option['enabled'] ? 'bg-[#1e40af]' : 'bg-gray-300' }}"
+                                aria-label="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
+                                title="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
+                            >
+                                <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition {{ $option['enabled'] ? 'left-5' : 'left-0.5' }}"></span>
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ログ表示部 -->
     <div class="p-3 flex-grow overflow-y-auto space-y-1 text-[11px] bg-white font-sans leading-relaxed">
         @foreach($systemLogs as $log)
             <div class="flex" wire:key="chat-log-{{ $log['id'] }}">
                 <span class="text-gray-400 w-10 shrink-0">{{ $log['time'] }}</span>
                 <span class="
-                    @if($log['type'] == 'system') text-orange-600 font-bold
+                    @if(str_contains($log['message'] ?? '', '【星樹の塔】') && str_contains($log['message'] ?? '', '100階を踏破しました')) text-pink-600 font-black
+                    @elseif($log['type'] == 'system' || $log['type'] == 'newcomer') text-orange-600 font-bold
                     @elseif($log['type'] == 'chat') text-green-700 font-bold
                     @elseif($log['type'] == 'private')
                         @if(isset($log['is_sender']) && $log['is_sender']) text-slate-900 font-bold
@@ -40,6 +140,7 @@
                     @elseif($log['type'] == 'arena') text-amber-700 font-bold
                     @elseif($log['type'] == 'duel') text-red-600 font-bold
                     @elseif($log['type'] == 'admin') text-[#1e40af] font-black
+                    @elseif($log['type'] == 'notice') text-cyan-700 font-black
                     @elseif($log['type'] == 'guild') text-blue-600 font-bold
                     @elseif($log['type'] == 'valmon') text-teal-600 font-bold
                     @elseif($log['type'] == 'sub_area') text-cyan-600 font-bold

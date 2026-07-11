@@ -28,12 +28,35 @@
             </div>
 
             <p class="text-gray-600 mb-6">
-                現在地: <span class="font-bold text-[#1e293b]">{{ $character->currentCity ? $character->currentCity->name : '不明' }}</span>
+                現在地: <span class="font-bold text-[#1e293b]">{{ $currentLocationName ?? ($character->currentCity ? $character->currentCity->name : '不明') }}</span>
                 <br>
                 行きたい街を選択してください。未解放の街へは移動できません。
             </p>
 
+            @php
+                $hasFerdiaMap = !empty($ferdiaMap);
+                $initialMapRegion = $hasFerdiaMap ? ($initialMapRegion ?? 'valzeria') : 'valzeria';
+            @endphp
+            <div x-data="{ activeRegion: @js($initialMapRegion) }">
+                @if($hasFerdiaMap)
+                    <div class="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                        <button type="button"
+                                class="rounded-md px-3 py-2 text-sm font-black transition"
+                                x-bind:class="activeRegion === 'valzeria' ? 'bg-white text-[#1e40af] shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/70'"
+                                @click="activeRegion = 'valzeria'">
+                            ヴァルゼリア大陸
+                        </button>
+                        <button type="button"
+                                class="rounded-md px-3 py-2 text-sm font-black transition"
+                                x-bind:class="activeRegion === 'ferdia' ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200' : 'text-slate-500 hover:bg-white/70'"
+                                @click="activeRegion = 'ferdia'">
+                            フェルディア大陸
+                        </button>
+                    </div>
+                @endif
+
             <!-- 世界地図 -->
+            <div x-show="activeRegion === 'valzeria'" style="{{ $initialMapRegion === 'valzeria' ? '' : 'display: none;' }}">
             @php
                 $worldMapPath = config('valzeria_world_map.image_path', 'images/map/map01.webp');
                 $mapCitiesByName = collect(config('valzeria_world_map.cities', []))->keyBy('city_name');
@@ -69,11 +92,32 @@
                     ->all();
                 $worldZoomIconCount = count($worldZoomIconItems);
             @endphp
-            <div class="mb-6 overflow-hidden rounded-xl border-2 border-[#d4af37] bg-[#f8f1df] shadow-md">
-                <div class="relative" x-data="{ zoomOpen: false, zoomName: '', zoomX: 50, zoomY: 50, zoomPopulation: 0, zoomIcons: [], selectedPlayer: null, panX: 0, panY: 0, isPanning: false, panStartX: 0, panStartY: 0, panOriginX: 0, panOriginY: 0 }">
-                    <img src="{{ asset($worldMapPath) }}" alt="ヴァルゼリア世界地図" class="block h-auto w-full">
+            <section class="mb-6 overflow-hidden rounded-xl border-2 border-[#d4af37] bg-[#f8f1df] shadow-md"
+                     x-data="{ worldMapZoom: 1, zoomOpen: false, zoomName: '', zoomX: 50, zoomY: 50, zoomPopulation: 0, zoomIcons: [], selectedPlayer: null, panX: 0, panY: 0, isPanning: false, panStartX: 0, panStartY: 0, panOriginX: 0, panOriginY: 0 }">
+                <div class="border-b border-amber-100 bg-white/85 px-4 py-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] font-black text-amber-700">冒険者たちが集う大地</div>
+                            <h3 class="text-lg font-black leading-tight text-slate-950">ヴァルゼリア大陸</h3>
+                        </div>
+                        <div class="text-right text-[11px] font-bold leading-5 text-slate-600">
+                            <div>現在: <span class="font-black text-slate-900">{{ $currentLocationName ?? ($character->currentCity ? $character->currentCity->name : '不明') }}</span></div>
+                            <div>最高到達: <span class="font-black text-amber-700">{{ $highestCityName ?? '未到達' }}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-1 border-b border-amber-100 bg-white/85 px-3 py-2">
+                    <button type="button" @click="worldMapZoom = 1; $nextTick(() => $refs.valzeriaMapScroll.scrollLeft = 0)" class="h-8 min-w-12 rounded border px-2 text-xs font-black shadow-sm" :class="worldMapZoom === 1 ? 'border-amber-700 bg-amber-600 text-white' : 'border-slate-300 bg-white text-slate-700'">等倍</button>
+                    <button type="button" @click="worldMapZoom = 2" class="h-8 min-w-12 rounded border px-2 text-xs font-black shadow-sm" :class="worldMapZoom === 2 ? 'border-amber-700 bg-amber-600 text-white' : 'border-slate-300 bg-white text-slate-700'">2倍</button>
+                    <button type="button" @click="worldMapZoom = 3" class="h-8 min-w-12 rounded border px-2 text-xs font-black shadow-sm" :class="worldMapZoom === 3 ? 'border-amber-700 bg-amber-600 text-white' : 'border-slate-300 bg-white text-slate-700'">3倍</button>
+                </div>
+
+                <div x-ref="valzeriaMapScroll" class="overflow-x-auto bg-[#f8f1df] overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
+                <div class="relative bg-[#f8f1df] transition-[width] duration-200 ease-out" :style="{ width: (worldMapZoom * 100) + '%' }">
+                    <img src="{{ asset($worldMapPath) }}" alt="ヴァルゼリア大陸MAP" class="block h-auto w-full">
                     <div class="absolute left-2 top-2 rounded bg-black/60 px-2 py-1 text-xs font-bold text-white shadow">
-                        ヴァルゼリア世界地図
+                        ヴァルゼリア大陸MAP
                     </div>
 
                     <div class="absolute right-2 top-2 hidden rounded border border-amber-900/25 bg-[#fff8e7]/90 px-2.5 py-1.5 text-[10px] font-bold text-slate-800 shadow sm:block">
@@ -254,20 +298,21 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                </div>
+            </section>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($cities as $city)
                     @php
                         $isUnlocked = $city->sort_order <= $highestCityOrder;
                         $isCurrent = $character->current_city_id == $city->id;
-                        $cityImgPath = sprintf('images/cities/city%02d.webp', $city->id);
-                        $cityImgExists = file_exists(public_path($cityImgPath));
+                        $cityImgBackground = \App\Support\CityVisualCatalog::cardBackground((int) $city->id);
+                        $cityImgPath = $cityImgBackground ? 'images/' . $cityImgBackground : null;
                     @endphp
                     <div class="border {{ $isCurrent ? 'border-amber-500' : ($isUnlocked ? 'border-gray-200 hover:border-[#d4af37]' : 'border-gray-200 opacity-60') }} rounded-lg overflow-hidden transition-all shadow-sm {{ !$isUnlocked ? 'grayscale-[0.6]' : '' }}">
                         {{-- 都市サムネイル --}}
                         <div class="relative h-28 bg-gray-100 overflow-hidden">
-                            @if($cityImgExists)
+                            @if($cityImgPath)
                                 <img src="{{ asset($cityImgPath) }}" alt="{{ $city->name }}"
                                      class="w-full h-full object-cover object-top {{ !$isUnlocked ? 'opacity-50' : '' }}">
                             @else
@@ -314,6 +359,14 @@
                         </div>
                     </div>
                 @endforeach
+            </div>
+            </div>
+
+            @if($hasFerdiaMap)
+                <div x-show="activeRegion === 'ferdia'" style="{{ $initialMapRegion === 'ferdia' ? '' : 'display: none;' }}">
+                    <x-ferdia-map :map="$ferdiaMap" :character="$character" />
+                </div>
+            @endif
             </div>
         </div>
     </div>

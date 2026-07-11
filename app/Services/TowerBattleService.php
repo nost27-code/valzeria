@@ -28,6 +28,7 @@ class TowerBattleService extends BattleService
         private readonly ExplorationStaminaService $staminaService,
         private readonly TowerMerchantService $merchantService,
         private readonly TowerTitleRewardService $titleRewardService,
+        private readonly StarTreeTowerRewardService $rewardService,
         private readonly LevelService $levelService,
     ) {
         parent::__construct($statusService, $damageCalculator, $jobArtService);
@@ -58,7 +59,7 @@ class TowerBattleService extends BattleService
             'full_force' => [
                 'key' => 'full_force',
                 'name' => '全力で突破',
-                'summary' => '塔内SPを少し消費。勝利時EXPが少し増える',
+                'summary' => 'SPを少し消費。勝利時EXPが少し増える',
                 'stamina_extra' => 0,
                 'battle' => true,
             ],
@@ -77,6 +78,154 @@ class TowerBattleService extends BattleService
                 'fixed_stamina_cost' => 1,
                 'battle' => false,
             ],
+        ];
+    }
+
+    public function stanceChoices(): array
+    {
+        $buffRate = max(0, (int) config('star_tree_tower.star_tree.stance_buff_rate', 2));
+        $debuffRate = max(0, (int) config('star_tree_tower.star_tree.stance_debuff_rate', 1));
+
+        return [
+            'attack' => [
+                'key' => 'attack',
+                'name' => '攻めの構え',
+                'summary' => "ATK/MAG +{$buffRate}%、DEF/SPR -{$debuffRate}%",
+                'modifiers' => [
+                    'str' => $buffRate,
+                    'mag' => $buffRate,
+                    'def' => -$debuffRate,
+                    'spr' => -$debuffRate,
+                ],
+            ],
+            'guard' => [
+                'key' => 'guard',
+                'name' => '守りの構え',
+                'summary' => "DEF/SPR +{$buffRate}%、SPD -{$debuffRate}%",
+                'modifiers' => [
+                    'def' => $buffRate,
+                    'spr' => $buffRate,
+                    'agi' => -$debuffRate,
+                ],
+            ],
+            'speed' => [
+                'key' => 'speed',
+                'name' => '疾風の構え',
+                'summary' => "SPD/LUK +{$buffRate}%、ATK/MAG -{$debuffRate}%",
+                'modifiers' => [
+                    'agi' => $buffRate,
+                    'luk' => $buffRate,
+                    'str' => -$debuffRate,
+                    'mag' => -$debuffRate,
+                ],
+            ],
+            'none' => [
+                'key' => 'none',
+                'name' => '構えなし',
+                'summary' => '能力補正を選ばず、このまま進む',
+                'modifiers' => [],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function stanceState(TowerRun $run): array
+    {
+        $stance = (array) (($run->metadata ?? [])['stance'] ?? []);
+        $totals = [];
+        foreach ((array) ($stance['totals'] ?? []) as $key => $rate) {
+            if (in_array($key, ['str', 'def', 'agi', 'mag', 'spr', 'luk'], true)) {
+                $totals[$key] = (int) $rate;
+            }
+        }
+
+        return [
+            'selected' => array_values((array) ($stance['selected'] ?? [])),
+            'totals' => $totals,
+            'display_totals' => $this->formatModifierTotals($totals),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public function pendingStance(TowerRun $run): ?array
+    {
+        $pendingFloor = (int) (($run->metadata ?? [])['stance']['pending_floor'] ?? 0);
+        if ($pendingFloor <= 0) {
+            return null;
+        }
+
+        return [
+            'floor' => $pendingFloor,
+            'choices' => $this->stanceChoices(),
+            'state' => $this->stanceState($run),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function chooseStance(Character $character, TowerRun $run, string $stanceKey): array
+    {
+        if ((int) $run->character_id !== (int) $character->id) {
+            throw new InvalidArgumentException('Tower run does not belong to the character.');
+        }
+
+        if ($run->status !== StarTreeTowerService::STATUS_RUNNING) {
+            throw new InvalidArgumentException('Tower run is not running.');
+        }
+
+        $pending = $this->pendingStance($run);
+        if (!$pending) {
+            throw new RuntimeException('今は星樹の構えを選べません。');
+        }
+
+        $choices = $this->stanceChoices();
+        $choice = $choices[$stanceKey] ?? null;
+        if (!$choice) {
+            throw new InvalidArgumentException('Unknown tower stance.');
+        }
+
+        $metadata = (array) ($run->metadata ?? []);
+        $stance = (array) ($metadata['stance'] ?? []);
+        $selected = array_values((array) ($stance['selected'] ?? []));
+        $totals = (array) ($stance['totals'] ?? []);
+        $floor = (int) $pending['floor'];
+
+        foreach ($selected as $selectedStance) {
+            if ((int) ($selectedStance['floor'] ?? 0) === $floor) {
+                throw new RuntimeException('この階の構えはすでに選択済みです。');
+            }
+        }
+
+        foreach ((array) ($choice['modifiers'] ?? []) as $key => $rate) {
+            $totals[$key] = (int) ($totals[$key] ?? 0) + (int) $rate;
+        }
+
+        $selected[] = [
+            'floor' => $floor,
+            'key' => (string) $choice['key'],
+            'name' => (string) $choice['name'],
+            'summary' => (string) $choice['summary'],
+            'modifiers' => (array) ($choice['modifiers'] ?? []),
+            'selected_at' => now()->toDateTimeString(),
+        ];
+
+        $metadata['stance'] = [
+            'selected' => $selected,
+            'totals' => $totals,
+        ];
+
+        $run->forceFill(['metadata' => $metadata])->save();
+        $run->refresh();
+
+        return [
+            'floor' => $floor,
+            'choice' => $choice,
+            'state' => $this->stanceState($run),
         ];
     }
 
@@ -107,7 +256,14 @@ class TowerBattleService extends BattleService
 
         $preBattle = $this->applyPreBattleStrategy($run, $strategySpec);
         $ward = $this->consumeNextBattleWard($run);
+        $battleStartStatus = [
+            'hp' => (int) $run->tower_current_hp,
+            'max_hp' => (int) $run->tower_max_hp,
+            'sp' => (int) $run->tower_current_mp,
+            'max_sp' => (int) $run->tower_max_mp,
+        ];
         $battle = $this->runBattle($character, $run, $floorMaster, $strategySpec, $ward);
+        $battleStartStatus['stats'] = $battle['player_start_stats'];
         $battle['logs'] = array_values(array_filter([
             ...$preBattle['logs'],
             ...($ward['logs'] ?? []),
@@ -133,6 +289,8 @@ class TowerBattleService extends BattleService
             );
             $this->merchantService->maybeReserveAfterVictory($character, $updatedRun);
             $unlockedTitles = $this->titleRewardService->unlockFloorMilestones($character, (int) $updatedRun->cleared_floor);
+            $pendingRewards = $this->rewardService->createPendingRewardsForClearedFloor($character, (int) $updatedRun->cleared_floor, (string) $updatedRun->tower_key);
+            $updatedRun = $this->openPendingStanceChoiceIfNeeded($updatedRun);
         } else {
             $reward = ['exp_gained' => 0, 'job_exp_gained' => 0, 'result' => null];
             $updatedRun = $this->towerService->finishAsDefeated(
@@ -145,6 +303,7 @@ class TowerBattleService extends BattleService
             $updatedRun->increment('stamina_spent', (int) ($stamina['consumed'] ?? 0));
             $updatedRun->refresh();
             $unlockedTitles = [];
+            $pendingRewards = [];
         }
 
         return TowerRunEvent::query()->create([
@@ -165,14 +324,21 @@ class TowerBattleService extends BattleService
             'metadata' => [
                 'logs' => $battle['logs'],
                 'enemy_stats' => $battle['enemy_stats'],
+                'enemy_base_stats' => $battle['enemy_base_stats'],
+                'player_start_stats' => $battle['player_start_stats'],
+                'player_base_stats' => $battle['player_base_stats'],
                 'turn_count' => $battle['turn_count'],
                 'cleared_floor' => $updatedRun->cleared_floor,
                 'current_floor' => $updatedRun->current_floor,
                 'reward_result' => $reward['result'],
                 'unlocked_titles' => $unlockedTitles,
+                'pending_rewards' => $pendingRewards,
                 'strategy' => $strategySpec,
                 'pre_battle' => $preBattle,
+                'battle_start_status' => $battleStartStatus,
                 'ward' => $ward,
+                'stance' => $this->stanceState($updatedRun),
+                'pending_stance' => $this->pendingStance($updatedRun),
             ],
         ]);
     }
@@ -193,7 +359,7 @@ class TowerBattleService extends BattleService
     }
 
     /**
-     * @return array{result:string,logs:array<int,string>,turn_count:int,player_hp_after:int,player_mp_after:int,enemy_stats:array<string,int>}
+     * @return array{result:string,logs:array<int,string>,turn_count:int,player_hp_after:int,player_mp_after:int,enemy_stats:array<string,int>,enemy_base_stats:array<string,int>,player_start_stats:array<string,int>,player_base_stats:array<string,int>}
      */
     private function runBattle(
         Character $character,
@@ -203,12 +369,18 @@ class TowerBattleService extends BattleService
         ?array $ward = null,
     ): array
     {
-        $player = $this->makePlayerActor($character, $run);
+        $playerBaseStats = [];
+        $player = $this->makePlayerActor($character, $run, $playerBaseStats);
+        $enemyBaseStats = $this->enemyScalingService->statsForFloorMaster($floorMaster);
         $enemyStats = $this->applyBattleModifiers(
-            $this->enemyScalingService->statsForFloorMaster($floorMaster),
+            $enemyBaseStats,
             $strategySpec,
             $ward
         );
+        $enemyBaseStats['mp'] = 0;
+        $enemyBaseStats['max_mp'] = 0;
+        $enemyStats['mp'] = 0;
+        $enemyStats['max_mp'] = 0;
         $enemyModel = new Enemy([
             'name' => (string) $floorMaster->enemy_name,
             'type_name' => $floorMaster->enemy_type_name ?: '標準型',
@@ -274,14 +446,37 @@ class TowerBattleService extends BattleService
             'player_hp_after' => max(0, $player->hp),
             'player_mp_after' => max(0, $player->mp),
             'enemy_stats' => $enemyStats,
+            'enemy_base_stats' => $enemyBaseStats,
+            'player_start_stats' => [
+                'max_hp' => (int) $player->maxHp,
+                'max_mp' => (int) $player->maxMp,
+                'str' => (int) $player->str,
+                'def' => (int) $player->def,
+                'agi' => (int) $player->agi,
+                'mag' => (int) $player->mag,
+                'spr' => (int) $player->spr,
+                'luk' => (int) $player->luk,
+            ],
+            'player_base_stats' => $playerBaseStats,
         ];
     }
 
-    private function makePlayerActor(Character $character, TowerRun $run): BattleActor
+    private function makePlayerActor(Character $character, TowerRun $run, ?array &$playerBaseStats = null): BattleActor
     {
         app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
         $character->refresh();
         $stats = $this->statusService->getFinalStats($character);
+        $playerBaseStats = [
+            'max_hp' => (int) ($stats['max_hp'] ?? $run->tower_max_hp),
+            'max_mp' => (int) ($stats['max_mp'] ?? $run->tower_max_mp),
+            'str' => (int) ($stats['str'] ?? 1),
+            'def' => (int) ($stats['def'] ?? 0),
+            'agi' => (int) ($stats['agi'] ?? 1),
+            'mag' => (int) ($stats['mag'] ?? 0),
+            'spr' => (int) ($stats['spr'] ?? 0),
+            'luk' => (int) ($stats['luk'] ?? 0),
+        ];
+        $stats = $this->applyStanceModifiersToStats($stats, $run);
         $equippedWeapon = $character->characterItems()
             ->where('is_equipped', true)
             ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
@@ -292,6 +487,10 @@ class TowerBattleService extends BattleService
             ->whereHas('item', fn ($query) => $query->where('type', 'armor'))
             ->with('item')
             ->first();
+
+        $currentJob = $character->current_job_id
+            ? $character->currentJob()->with('skill')->first()
+            : null;
 
         $actor = new BattleActor($character->name, true, [
             'hp' => min((int) $run->tower_current_hp, (int) ($stats['max_hp'] ?? $run->tower_max_hp)),
@@ -304,18 +503,18 @@ class TowerBattleService extends BattleService
             'mag' => (int) ($stats['mag'] ?? 0),
             'spr' => (int) ($stats['spr'] ?? 0),
             'luk' => (int) ($stats['luk'] ?? 0),
+            'normal_attack_type' => $currentJob?->normal_attack_type,
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
             'weapon_killer_damage_rate' => (float) ($equippedWeapon?->killer_damage_rate ?? 0),
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
             'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
         ], clone $character);
 
-        if ($character->current_job_id) {
-            $currentJob = $character->currentJob()->with('skill')->first();
-            if ($currentJob?->skill) {
+        if ($currentJob) {
+            if ($currentJob->skill) {
                 $actor->skill = $currentJob->skill;
             }
-            $actor->jobKey = $currentJob?->key;
+            $actor->jobKey = $currentJob->key;
         }
 
         $actor->jobArtActivationPolicy = (string) ($character->job_art_activation_policy ?: 'normal');
@@ -355,7 +554,16 @@ class TowerBattleService extends BattleService
 
     private function towerEnemySpeciesKey(TowerFloorMaster $floorMaster): string
     {
-        return (string) ($floorMaster->enemy_type_name ?: $floorMaster->enemy_profile ?: '');
+        return match ((string) ($floorMaster->enemy_type_name ?: $floorMaster->enemy_profile ?: '')) {
+            '植物' => 'plant',
+            '獣' => 'beast',
+            '小鬼' => 'goblin',
+            'スライム' => 'slime',
+            '虫' => 'insect',
+            '飛行' => 'flying',
+            '精霊', '妖精' => 'spirit',
+            default => (string) ($floorMaster->enemy_type_name ?: $floorMaster->enemy_profile ?: ''),
+        };
     }
 
     /**
@@ -459,6 +667,100 @@ class TowerBattleService extends BattleService
             ->where('event_type', 'scout')
             ->where('floor', $floor)
             ->exists();
+    }
+
+    private function openPendingStanceChoiceIfNeeded(TowerRun $run): TowerRun
+    {
+        $clearedFloor = (int) $run->cleared_floor;
+        if (! $this->isStanceFloor($clearedFloor)) {
+            return $run;
+        }
+
+        $metadata = (array) ($run->metadata ?? []);
+        $stance = (array) ($metadata['stance'] ?? []);
+        if ((int) ($stance['pending_floor'] ?? 0) === $clearedFloor) {
+            return $run;
+        }
+
+        foreach ((array) ($stance['selected'] ?? []) as $selectedStance) {
+            if ((int) ($selectedStance['floor'] ?? 0) === $clearedFloor) {
+                return $run;
+            }
+        }
+
+        $stance['pending_floor'] = $clearedFloor;
+        $metadata['stance'] = $stance;
+        $run->forceFill(['metadata' => $metadata])->save();
+        $run->refresh();
+
+        return $run;
+    }
+
+    private function isStanceFloor(int $floor): bool
+    {
+        $startFloor = max(1, (int) config('star_tree_tower.star_tree.stance_start_floor', 50));
+        $interval = max(1, (int) config('star_tree_tower.star_tree.stance_interval', 5));
+        $maxFloor = max($startFloor, (int) config('star_tree_tower.star_tree.seed_floor_count', 100));
+
+        return $floor >= $startFloor
+            && $floor < $maxFloor
+            && (($floor - $startFloor) % $interval) === 0;
+    }
+
+    /**
+     * @param array<string,int|float> $stats
+     * @return array<string,int|float>
+     */
+    private function applyStanceModifiersToStats(array $stats, TowerRun $run): array
+    {
+        $totals = (array) ($this->stanceState($run)['totals'] ?? []);
+        foreach (['str', 'def', 'agi', 'mag', 'spr', 'luk'] as $key) {
+            $rate = (int) ($totals[$key] ?? 0);
+            if ($rate === 0) {
+                continue;
+            }
+
+            $base = max(0, (int) ($stats[$key] ?? 0));
+            $adjusted = $rate > 0
+                ? (int) ceil($base * (100 + $rate) / 100)
+                : (int) floor($base * (100 + $rate) / 100);
+            $stats[$key] = max($key === 'luk' ? 0 : 1, $adjusted);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param array<string,int> $totals
+     * @return array<int,array{key:string,label:string,rate:int,text:string}>
+     */
+    private function formatModifierTotals(array $totals): array
+    {
+        $labels = [
+            'str' => 'ATK',
+            'def' => 'DEF',
+            'agi' => 'SPD',
+            'mag' => 'MAG',
+            'spr' => 'SPR',
+            'luk' => 'LUK',
+        ];
+        $result = [];
+
+        foreach ($labels as $key => $label) {
+            $rate = (int) ($totals[$key] ?? 0);
+            if ($rate === 0) {
+                continue;
+            }
+
+            $result[] = [
+                'key' => $key,
+                'label' => $label,
+                'rate' => $rate,
+                'text' => $label.($rate > 0 ? '+' : '').$rate.'%',
+            ];
+        }
+
+        return $result;
     }
 
     /**
@@ -660,6 +962,10 @@ class TowerBattleService extends BattleService
 
         if ($run->pending_event === TowerMerchantService::PENDING_EVENT) {
             throw new RuntimeException($this->towerService->displayText('merchant_pending_message', '星灯の行商人が待っています。購入するか、見送ってから次の階へ進んでください。'));
+        }
+
+        if ($this->pendingStance($run)) {
+            throw new RuntimeException('星樹の構えを選んでから次の階へ進んでください。');
         }
     }
 }

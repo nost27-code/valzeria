@@ -21,7 +21,7 @@ class MaterialSeeder extends Seeder
     private const BREWING_MATERIALS = [
         'MAT_BREW_BEAST_FANG' => ['name' => '獣牙素材', 'rarity' => 'N'],
         'MAT_BREW_TOXIN' => ['name' => '毒素材', 'rarity' => 'N'],
-        'MAT_BREW_HERB' => ['name' => '草素材', 'rarity' => 'N'],
+        'MAT_BREW_HERB' => ['name' => '薬草の若葉', 'rarity' => 'N'],
         'MAT_BREW_MAGIC_POWDER' => ['name' => '魔粉素材', 'rarity' => 'N+'],
         'MAT_BREW_LOW_MONSTER' => ['name' => '低級魔物素材', 'rarity' => 'N'],
     ];
@@ -217,7 +217,7 @@ class MaterialSeeder extends Seeder
                 'category' => '調合素材',
                 'rarity' => $material['rarity'],
                 'element' => null,
-                'main_use' => '回復アイテム調合',
+                'main_use' => $code === 'MAT_BREW_HERB' ? '薬草の調合' : '回復アイテム調合',
                 'npc_sale_price' => 0,
                 'is_tradable' => false,
                 'city_id' => null,
@@ -238,7 +238,9 @@ class MaterialSeeder extends Seeder
                 $payload['is_consumable'] = true;
             }
             if (Schema::hasColumn('materials', 'obtain_method')) {
-                $payload['obtain_method'] = '素材交換所で敵が落とした部位素材を渡して入手。';
+                $payload['obtain_method'] = $code === 'MAT_BREW_HERB'
+                    ? 'はじまりの草原の自然系の敵から入手。'
+                    : '素材交換所で敵が落とした部位素材を渡して入手。';
             }
 
             Material::updateOrCreate(['material_code' => $code], $payload);

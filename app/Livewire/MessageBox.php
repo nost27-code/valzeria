@@ -243,7 +243,8 @@ class MessageBox extends Component
             } elseif ($this->activeTab === 'create') {
                 $search = trim($this->receiverSearch);
 
-                $availableReceivers = Character::where('id', '!=', $character->id)
+                $availableReceivers = Character::visibleToPublic()
+                    ->where('id', '!=', $character->id)
                     ->when($search !== '', function ($query) use ($search) {
                         $query->where('name', 'like', '%' . $search . '%');
                     })
@@ -252,7 +253,8 @@ class MessageBox extends Component
                     ->get();
 
                 if ($this->receiverId !== '' && !$availableReceivers->contains('id', (int) $this->receiverId)) {
-                    $selectedReceiver = Character::where('id', $this->receiverId)
+                    $selectedReceiver = Character::visibleToPublic()
+                        ->where('id', $this->receiverId)
                         ->where('id', '!=', $character->id)
                         ->first();
 

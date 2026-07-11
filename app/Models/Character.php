@@ -10,6 +10,8 @@ class Character extends Model
 {
     use HasFactory;
 
+    private const TESTER_EMAIL_PATTERN = 'tester_%@valzeria.local';
+
     protected $guarded = [];
 
     protected static function booted(): void
@@ -70,6 +72,7 @@ class Character extends Model
         'profile_avatar_frame' => 'string',
         'profile_valmon_case' => 'string',
         'private_chat_theme' => 'string',
+        'chat_all_tab_visibility' => 'array',
     ];
 
     /**
@@ -78,6 +81,26 @@ class Character extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scopeVisibleToPublic($query)
+    {
+        return $query->whereDoesntHave('user', function ($userQuery): void {
+            $userQuery->where('email', 'like', self::TESTER_EMAIL_PATTERN);
+        });
+    }
+
+    public function scopeAdminTesters($query)
+    {
+        return $query->whereHas('user', function ($userQuery): void {
+            $userQuery->where('email', 'like', self::TESTER_EMAIL_PATTERN);
+        });
+    }
+
+    public function isAdminTester(): bool
+    {
+        return str_starts_with((string) ($this->user?->email ?? ''), 'tester_')
+            && str_ends_with((string) ($this->user?->email ?? ''), '@valzeria.local');
     }
 
     /**
@@ -181,6 +204,11 @@ class Character extends Model
     public function characterMaterials()
     {
         return $this->hasMany(CharacterMaterial::class);
+    }
+
+    public function namelessEquipments()
+    {
+        return $this->hasMany(PlayerNamelessEquipment::class);
     }
 
     public function consumableItems()

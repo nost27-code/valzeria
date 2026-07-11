@@ -111,6 +111,7 @@ class SmithController extends Controller
         $sessionValues = [
             'current_location' => 'dungeon',
             'target_area_id' => (int) $area->id,
+            'target_area_purpose' => 'material_source',
         ];
         if ($materialHunt) {
             $sessionValues['material_hunt'] = $materialHunt;
@@ -135,13 +136,15 @@ class SmithController extends Controller
         $validated = $request->validate([
             'recipe_type' => 'required|in:weapon,armor,accessory',
             'recipe_id' => 'required|string|max:100',
+            'source_character_item_id' => 'nullable|integer',
         ]);
 
         try {
             $result = $this->equipmentEvolutionService->evolve(
                 $character,
                 $validated['recipe_type'],
-                $validated['recipe_id']
+                $validated['recipe_id'],
+                $validated['source_character_item_id'] ?? null
             );
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());

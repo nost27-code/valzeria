@@ -8,14 +8,16 @@ use App\Models\CharacterMonsterMark;
 use App\Models\Character;
 use App\Services\AdventureSupportService;
 use App\Services\ExplorationStaminaService;
+use App\Services\ExplorationSupportService;
 use App\Services\GoldService;
+use App\Services\StorageCapacityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
-    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService)
+    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService, StorageCapacityService $storageCapacityService, ExplorationSupportService $explorationSupportService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -89,6 +91,7 @@ class InventoryController extends Controller
         ];
 
         $supportItems = $this->recoveryConsumablesFor($character)
+            ->concat($explorationSupportService->isEnabled() ? $this->explorationSupportConsumablesFor($character) : collect())
             ->concat(collect($supportService->ownedConsumablesFor($character)))
             ->values();
         $staminaSummary = $staminaService->summary($character);
@@ -117,7 +120,7 @@ class InventoryController extends Controller
             ->sortBy(fn ($entry) => $entry['name'])
             ->values();
 
-        $storageSummary = $this->buildStorageSummary($character, $materials, $marks, $equipmentGroups, $keyItems, $supportItems);
+        $storageSummary = $this->buildStorageSummary($character, $materials, $marks, $equipmentGroups, $keyItems, $supportItems, $storageCapacityService);
 
         return view('inventory.index', compact(
             'character',
@@ -131,7 +134,7 @@ class InventoryController extends Controller
         ));
     }
 
-    private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems, Collection $supportItems): array
+    private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems, Collection $supportItems, StorageCapacityService $storageCapacityService): array
     {
         $weaponCount = $equipmentGroups['weapon']->count();
         $armorCount = $equipmentGroups['armor']->count();
@@ -150,10 +153,10 @@ class InventoryController extends Controller
         return [
             'total' => collect($categories)->sum('count') + $ownedItemCount,
             'material_storage_total' => (int) ($categories['material']['count'] ?? 0),
-            'material_storage_limit' => (int) ($character->material_storage_limit ?? 500),
+            'material_storage_limit' => $storageCapacityService->materialLimit($character),
             'material_storage_types' => $materials->count(),
             'equipment_storage_total' => $weaponCount + $armorCount + $accessoryCount,
-            'equipment_storage_limit' => max(300, (int) ($character->equipment_storage_limit ?? 300)),
+            'equipment_storage_limit' => $storageCapacityService->equipmentLimit($character),
             'key_item_total' => $ownedItemCount,
             'key_item_types' => $supportItems->count() + $keyItems->count(),
             'support_item_total' => $supportItemCount,
@@ -196,6 +199,38 @@ class InventoryController extends Controller
                 'can_use' => false,
                 'use_label' => '',
                 'use_note' => '探索中に使用できます。持ち込みは各10個までです。',
+            ])
+            ->values();
+    }
+
+    private function explorationSupportConsumablesFor(Character $character): Collection
+    {
+        $definitionsByName = collect(ExplorationSupportService::ITEMS)->keyBy('name');
+
+        return CharacterItem::query()
+            ->selectRaw('item_id, COUNT(*) as quantity')
+            ->where('character_id', $character->id)
+            ->where('is_equipped', false)
+            ->whereHas('item', fn ($query) => $query
+                ->where('type', 'consumable')
+                ->whereIn('name', $definitionsByName->keys()))
+            ->with('item')
+            ->groupBy('item_id')
+            ->get()
+            ->sortBy(fn (CharacterItem $row) => array_search((string) ($row->item?->name ?? ''), $definitionsByName->keys()->all(), true))
+            ->map(fn (CharacterItem $row) => [
+                'key' => 'exploration_support_item_' . (int) $row->item_id,
+                'name' => (string) ($row->item?->name ?? '探索補助品'),
+                'category' => '探索補助品',
+                'description' => (string) ($row->item?->description ?? ''),
+                'icon_image' => null,
+                'effect_type' => 'exploration_support_item',
+                'effect_value' => 0,
+                'quantity' => (int) $row->quantity,
+                'can_use' => false,
+                'use_label' => '',
+                'use_note' => '薬屋で使用・自動継続を設定できます。1個で30戦有効です。',
+                'manage_url' => route('apothecary.index'),
             ])
             ->values();
     }

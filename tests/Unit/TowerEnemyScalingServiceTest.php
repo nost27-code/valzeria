@@ -17,8 +17,8 @@ class TowerEnemyScalingServiceTest extends TestCase
             20 => ['max_hp' => 4700, 'str' => 260, 'def' => 146, 'mag' => 258, 'spr' => 146, 'agi' => 160, 'luk' => 60],
             30 => ['max_hp' => 8600, 'str' => 380, 'def' => 216, 'mag' => 388, 'spr' => 216, 'agi' => 235, 'luk' => 80],
             40 => ['max_hp' => 13700, 'str' => 520, 'def' => 294, 'mag' => 542, 'spr' => 294, 'agi' => 320, 'luk' => 100],
-            50 => ['max_hp' => 21500, 'str' => 700, 'def' => 385, 'mag' => 742, 'spr' => 385, 'agi' => 423, 'luk' => 120],
-            60 => ['max_hp' => 33500, 'str' => 940, 'def' => 494, 'mag' => 1010, 'spr' => 494, 'agi' => 552, 'luk' => 140],
+            50 => ['max_hp' => 21200, 'str' => 700, 'def' => 385, 'mag' => 742, 'spr' => 385, 'agi' => 423, 'luk' => 120],
+            60 => ['max_hp' => 32300, 'str' => 940, 'def' => 494, 'mag' => 1010, 'spr' => 494, 'agi' => 552, 'luk' => 140],
         ];
 
         foreach ($expected as $floor => $stats) {

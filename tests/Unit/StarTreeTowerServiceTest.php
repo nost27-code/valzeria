@@ -11,6 +11,7 @@ use App\Services\CharacterStatusService;
 use App\Services\StarTreeTowerService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
@@ -31,6 +32,7 @@ class StarTreeTowerServiceTest extends TestCase
             'tower_character_records',
             'tower_weekly_records',
             'tower_runs',
+            'public_logs',
             'characters',
         ] as $table) {
             Schema::dropIfExists($table);
@@ -69,6 +71,7 @@ class StarTreeTowerServiceTest extends TestCase
             $table->unsignedInteger('gold_spent')->default(0);
             $table->unsignedInteger('stamina_spent')->default(0);
             $table->string('last_event_type', 50)->nullable();
+            $table->json('metadata')->nullable();
             $table->dateTime('started_at');
             $table->dateTime('ended_at')->nullable();
             $table->timestamps();
@@ -124,6 +127,16 @@ class StarTreeTowerServiceTest extends TestCase
             $table->unique(['character_id', 'tower_key']);
         });
 
+        Schema::create('public_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->string('type', 50);
+            $table->text('message');
+            $table->unsignedBigInteger('character_id')->nullable();
+            $table->unsignedBigInteger('receiver_id')->nullable();
+            $table->unsignedTinyInteger('importance')->default(1);
+            $table->timestamps();
+        });
+
         $this->app->instance(CharacterStatusService::class, new class extends CharacterStatusService
         {
             public function getFinalStats(Character $character): array
@@ -151,6 +164,7 @@ class StarTreeTowerServiceTest extends TestCase
             'tower_character_records',
             'tower_weekly_records',
             'tower_runs',
+            'public_logs',
             'characters',
         ] as $table) {
             Schema::dropIfExists($table);
@@ -217,6 +231,42 @@ class StarTreeTowerServiceTest extends TestCase
         $this->assertSame(1, TowerWeeklyRecord::query()->value('best_cleared_floor'));
         $this->assertSame(1, TowerCharacterRecord::query()->value('best_cleared_floor'));
         $this->assertSame(1, TowerCharacterRecord::query()->value('total_wins'));
+    }
+
+    public function test_public_log_is_limited_to_fifty_and_later_ten_floor_milestones(): void
+    {
+        $character = $this->createCharacter(['name' => 'tesuto']);
+        $service = app(StarTreeTowerService::class);
+        $run = $service->startRun($character);
+
+        $run->forceFill([
+            'current_floor' => 49,
+            'cleared_floor' => 48,
+            'reached_floor' => 49,
+        ])->save();
+        $service->recordFloorCleared($character, $run->refresh(), 49);
+
+        $this->assertSame(0, DB::table('public_logs')->where('type', 'tower')->count());
+
+        $service->recordFloorCleared($character, $run->refresh(), 50);
+
+        $this->assertSame(1, DB::table('public_logs')->where('type', 'tower')->count());
+        $this->assertSame(
+            '【星樹の塔】tesutoさんが星樹の塔 50階を踏破しました！',
+            DB::table('public_logs')->where('type', 'tower')->value('message')
+        );
+
+        $run->refresh()->forceFill([
+            'current_floor' => 59,
+            'cleared_floor' => 58,
+            'reached_floor' => 59,
+        ])->save();
+        $service->recordFloorCleared($character, $run->refresh(), 59);
+        $service->recordFloorCleared($character, $run->refresh(), 60);
+
+        $this->assertSame(2, DB::table('public_logs')->where('type', 'tower')->count());
+        $this->assertTrue(DB::table('public_logs')->where('message', 'like', '% 60階を踏破しました！')->exists());
+        $this->assertFalse(DB::table('public_logs')->where('message', 'like', '%星梯の塔%')->exists());
     }
 
     public function test_start_run_resumes_from_ten_floor_checkpoint_after_previous_record(): void
@@ -348,9 +398,9 @@ class StarTreeTowerServiceTest extends TestCase
         ]);
     }
 
-    private function createCharacter(): Character
+    private function createCharacter(array $overrides = []): Character
     {
-        return Character::query()->create([
+        return Character::query()->create($overrides + [
             'name' => 'Tower Tester',
             'highest_city_id' => 5,
             'explore_stamina' => 250,

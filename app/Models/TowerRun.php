@@ -23,6 +23,7 @@ class TowerRun extends Model
         'last_merchant_floor' => 'integer',
         'gold_spent' => 'integer',
         'stamina_spent' => 'integer',
+        'metadata' => 'array',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];

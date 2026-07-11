@@ -151,6 +151,8 @@ class EquipmentEnhancementService
             $locked->enhance_level = $nextLevel;
             $locked->save();
 
+            app(PlayerLifecycleEventService::class)->recordFirstEnhancement($character);
+
             return [
                 'message' => "{$displayName} を +{$nextLevel} に強化しました。",
                 'enhance_level' => $nextLevel,
@@ -361,7 +363,7 @@ class EquipmentEnhancementService
             'type' => $item?->type ?? 'equipment',
             'type_label' => $this->typeLabel((string) ($item?->type ?? '')),
             'name' => $characterItem->displayName(),
-            'rank' => $this->rankLabel($item),
+            'rank' => $this->rankDisplayLabel($item),
             'category' => $this->categoryLabel($item),
             'is_equipped' => (bool) $characterItem->is_equipped,
             'is_locked' => (bool) $characterItem->is_locked,
@@ -432,7 +434,7 @@ class EquipmentEnhancementService
             return 0;
         }
 
-        $rank = strtoupper(trim((string) $this->rankLabel($item)));
+        $rank = strtoupper(trim((string) $this->rankRawLabel($item)));
         $multiplier = self::RANK_GOLD_MULTIPLIERS[$rank] ?? 1.0;
 
         return (int) ceil($baseCost * $multiplier);
@@ -517,7 +519,18 @@ class EquipmentEnhancementService
         };
     }
 
-    private function rankLabel(?object $item): string
+    private function rankDisplayLabel(?object $item): string
+    {
+        $rank = $this->rankRawLabel($item);
+
+        if (strtoupper($rank) === 'SPECIAL' && (string) ($item?->source_type ?? '') === 'star_tree_tower_reward') {
+            return '星樹';
+        }
+
+        return $rank;
+    }
+
+    private function rankRawLabel(?object $item): string
     {
         if (!$item) {
             return '-';

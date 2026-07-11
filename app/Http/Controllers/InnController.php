@@ -35,7 +35,7 @@ class InnController extends Controller
                     ]);
             }
 
-            return redirect()->route('home')->with('error', $result['message']);
+            return redirect()->route('home')->with('toast_error', $result['message']);
         }
 
         $cooldownSeconds = (int) ($result['cooldown_seconds'] ?? 0);
@@ -62,7 +62,7 @@ class InnController extends Controller
             ? "宿屋で休み、HPとSPが全回復した！{$payText} 次の探索まで{$cooldownSeconds}秒待機してください。"
             : "宿屋で休み、HPとSPが全回復した！{$payText}";
 
-        return redirect()->route('home')->with('message', $message);
+        return redirect()->route('home')->with('toast_success', $message);
     }
 
     public function rescue()

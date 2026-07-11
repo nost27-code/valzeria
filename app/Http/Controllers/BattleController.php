@@ -97,7 +97,10 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'このエリアにはまだ入れません。');
         }
 
-        if (!$this->acquireExploreRequestDelay($character)) {
+        // 深度入口を選んだ直後の継続は、同じ操作内で直前の探索リクエストを完了済みとして扱う。
+        // Request attributes are server-side only, so a client cannot forge this bypass.
+        $skipRequestDelay = (bool) $request->attributes->get('skip_explore_request_delay', false);
+        if (!$skipRequestDelay && !$this->acquireExploreRequestDelay($character)) {
             return $this->redirectExploreRequestBusy($request, $character, $areaId);
         }
 
@@ -400,6 +403,12 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'このエリアにはまだ入れません。');
         }
 
+        $area = Area::findOrFail($areaId);
+        $ferdiaMap = app(\App\Services\FerdiaMapService::class);
+        if ($ferdiaMap->hasBossForArea($area) && !$ferdiaMap->canChallengeBoss($character, $area)) {
+            return redirect()->route('home')->with('error', '開拓度を100まで進めると、この地の関門ボスに挑めます。');
+        }
+
         if (!Enemy::where('area_id', $areaId)->where('is_boss', true)->exists()) {
             return redirect()->route('home')->with('error', 'この場所には討伐対象のボスがいません。探索で道を開拓しましょう。');
         }
@@ -635,6 +644,7 @@ class BattleController extends Controller
         }
 
         $request->merge(['continue_chain' => true]);
+        $request->attributes->set('skip_explore_request_delay', true);
 
         return $this->explore($request, $areaId)->with('status', $statusMessage);
     }
@@ -1146,6 +1156,11 @@ class BattleController extends Controller
             return null;
         }
 
+        $ferdiaPath = $this->ferdiaDungeonVisualPath($area, 'card_bg');
+        if ($ferdiaPath) {
+            return 'images/' . $ferdiaPath;
+        }
+
         $order = (bool) ($area->is_route_area ?? false)
             ? 10
             : $this->normalDungeonImageOrder($area);
@@ -1193,6 +1208,11 @@ class BattleController extends Controller
             return null;
         }
 
+        $ferdiaPath = $this->ferdiaDungeonVisualPath($area, 'symbol');
+        if ($ferdiaPath) {
+            return 'images/' . $ferdiaPath;
+        }
+
         $areaIds = Area::where('city_id', $area->city_id)
             ->orderBy('id')
             ->pluck('id')
@@ -1205,6 +1225,23 @@ class BattleController extends Controller
         $relativePath = sprintf('images/symbol/dungeon_%02d_%02d.webp', (int) $area->city_id, $areaIndex + 1);
 
         return file_exists(public_path($relativePath)) ? $relativePath : null;
+    }
+
+    private function ferdiaDungeonVisualPath(Area $area, string $directory): ?string
+    {
+        $mainAreaIds = collect(config('ferdia_world_map.nodes', []))
+            ->filter(fn (array $node): bool => ($node['route_group'] ?? null) === 'main' && !empty($node['area_id']))
+            ->sortBy('sequence')
+            ->pluck('area_id')
+            ->values();
+        $index = $mainAreaIds->search((int) $area->id);
+        if ($index === false) {
+            return null;
+        }
+
+        $relativePath = sprintf('%s/dungeon_11_%02d.webp', $directory, $index + 1);
+
+        return file_exists(public_path("images/{$relativePath}")) ? $relativePath : null;
     }
 
     /**

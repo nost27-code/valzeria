@@ -162,6 +162,8 @@ class StripeWebhookController extends Controller
             return;
         }
 
+        app(\App\Services\PlayerLifecycleEventService::class)->recordPaymentCompleted($character, (int) $order->id);
+
         $buyerEmail = $session->customer_details->email ?? null;
         try {
             $mailer = Mail::mailer(config('mail.purchase_notification_mailer'));

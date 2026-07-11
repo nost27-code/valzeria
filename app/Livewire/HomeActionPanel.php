@@ -32,6 +32,7 @@ class HomeActionPanel extends Component
         session([
             'current_location' => 'dungeon',
             'target_area_id' => $areaId,
+            'target_area_purpose' => 'next_action',
         ]);
 
         $this->dispatch('changeTab', newLocation: 'dungeon');

@@ -13,6 +13,7 @@ class Area extends Model
 
     protected $casts = [
         'is_route_area' => 'boolean',
+        'is_published' => 'boolean',
         'development_required_point' => 'integer',
     ];
 

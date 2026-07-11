@@ -12,7 +12,7 @@ class BattleLogService
      */
     public function addLog(Character $character, int $areaId, int $enemyId, string $battleType, string $result, int $expGained, int $goldGained, int $levelUpCount, string $logText, ?int $droppedItemId = null, ?int $droppedCharacterItemId = null, int $goldLost = 0): BattleLog
     {
-        return BattleLog::create([
+        $log = BattleLog::create([
             'character_id' => $character->id,
             'area_id' => $areaId,
             'enemy_id' => $enemyId,
@@ -26,5 +26,9 @@ class BattleLogService
             'dropped_item_id' => $droppedItemId,
             'dropped_character_item_id' => $droppedCharacterItemId,
         ]);
+
+        app(PlayerLifecycleEventService::class)->recordFirstBattle($character, $result);
+
+        return $log;
     }
 }

@@ -97,4 +97,25 @@ class NpcProcurementRequest extends Model
     {
         return in_array((string) $this->title, self::PERSISTENT_UNTIL_COMPLETED_TITLES, true);
     }
+
+    public function requesterIconPath(): string
+    {
+        if ((int) ($this->npc_id ?? 0) > 0) {
+            return sprintf('images/npc/npc_%03d.webp', (int) $this->npc_id);
+        }
+
+        $numericSeed = (int) ($this->id
+            ?? $this->npc_procurement_request_template_id
+            ?? $this->display_order
+            ?? 0);
+
+        if ($numericSeed > 0) {
+            $iconIndex = ($numericSeed - 1) % 10;
+        } else {
+            $textSeed = (string) $this->title . '|' . (string) $this->requester_name . '|' . (string) $this->requester_type;
+            $iconIndex = (int) (sprintf('%u', crc32($textSeed)) % 10);
+        }
+
+        return sprintf('images/npc/npc_icon_%03d.webp', $iconIndex);
+    }
 }

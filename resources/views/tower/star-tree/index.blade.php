@@ -7,12 +7,17 @@
     $towerSymbolImage = (string) ($towerAssets['symbol'] ?? 'images/tower/01_tower_symbol.webp');
     $towerBackgroundImage = (string) ($towerAssets['background'] ?? 'images/tower/01_tower.webp');
     $towerLogoImage = (string) ($towerAssets['logo'] ?? 'images/tower/01_tower_logo.webp');
+    $maxTowerFloor = max(1, (int) config('star_tree_tower.star_tree.seed_floor_count', 100));
+    $isTowerCompleted = $activeRun && (int) ($activeRun->cleared_floor ?? 0) >= $maxTowerFloor;
+    $displayFloorNumber = $activeRun
+        ? min((int) $activeRun->current_floor, $maxTowerFloor)
+        : (int) ($checkpointStartFloor ?? 1);
     $title = $activeRun
-        ? $towerName . ' ' . number_format((int) $activeRun->current_floor) . '階'
+        ? $towerName . ' ' . number_format($displayFloorNumber) . '階'
         : $towerName;
     $bestClearedFloor = (int) ($characterRecord->best_cleared_floor ?? 0);
     $weeklyBestClearedFloor = (int) ($weeklyRecord->best_cleared_floor ?? 0);
-    $currentFloorNumber = (int) ($activeRun->current_floor ?? 1);
+    $currentFloorNumber = $displayFloorNumber;
     $checkpointStartFloor = (int) ($checkpointStartFloor ?? 1);
     $isMerchantPending = $activeRun?->pending_event === \App\Services\TowerMerchantService::PENDING_EVENT;
     $continueRoute = $isMerchantPending
@@ -24,6 +29,9 @@
     $restartStaminaCost = (int) ($restartFloor?->stamina_cost ?? 1);
     $supportItemCounts = $supportItemCounts ?? [];
     $hasScoutedEntryFloor = (bool) ($hasScoutedEntryFloor ?? false);
+    $hasPendingTowerStance = !empty($pendingTowerStance) && !$isTowerCompleted;
+    $strategyFloorNumber = $activeRun ? $currentFloorNumber : $checkpointStartFloor;
+    $showTowerActionStrategies = !$isTowerCompleted && $strategyFloorNumber >= 2;
     $towerActionStrategies = collect($towerActionStrategies ?? [])
         ->reject(fn ($strategy) => $hasScoutedEntryFloor && (string) ($strategy['key'] ?? '') === 'scout')
         ->values();
@@ -98,6 +106,8 @@
             </div>
         @endif
 
+        @include('tower.star-tree.partials.reward-claims', ['pendingTowerRewards' => $pendingTowerRewards ?? []])
+
         <div class="pt-[12vh] text-center">
             <img
                 src="{{ asset($towerLogoImage) }}"
@@ -133,15 +143,75 @@
                 </div>
                 <div class="mt-6 text-center">
                     @if($activeRun)
-                        <div class="text-xs font-black text-emerald-100 drop-shadow">現在</div>
-                        <div class="mt-1 text-4xl font-black text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">{{ number_format($currentFloorNumber) }}階</div>
+                        <div class="text-xs font-black text-emerald-100 drop-shadow">{{ $isTowerCompleted ? '踏破済み' : '現在' }}</div>
+                        <div class="mt-1 text-4xl font-black text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">
+                            {{ number_format($currentFloorNumber) }}階{{ $isTowerCompleted ? '踏破' : '' }}
+                        </div>
                     @else
                         <div class="text-xs font-black text-emerald-100 drop-shadow">再開地点</div>
                         <div class="mt-1 text-4xl font-black text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">{{ number_format($checkpointStartFloor) }}階</div>
                     @endif
                 </div>
 
-                @if($towerActionStrategies->isNotEmpty() && !$isMerchantPending)
+                <details class="mt-6 text-left">
+                    <summary class="mx-auto inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-emerald-200 bg-white/90 px-3 py-1.5 text-xs font-black text-emerald-700 shadow-sm backdrop-blur transition hover:bg-emerald-50 [&::-webkit-details-marker]:hidden">
+                        攻略のヒント
+                    </summary>
+                    <section class="mt-3 rounded-lg border border-emerald-100 bg-white/90 px-4 py-3 text-left shadow-lg backdrop-blur">
+                        <div class="space-y-3 text-xs font-bold leading-5 text-slate-600">
+                            <p class="text-slate-700">
+                                {{ $towerName }}は、HP/SPと探索力を見ながら一階ずつ登る長期挑戦です。回復、偵察、構えの選び方で突破しやすさが変わります。
+                            </p>
+                            <div class="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+                                <div class="font-black text-sky-800">敗北後の再開地点</div>
+                                <p class="mt-1">
+                                    敗れて挑戦が終わっても、最高踏破階に応じた10階ごとの再開地点から登り直せます。初めて18階で倒れたら11階から、56階で倒れたら51階から再挑戦できます。
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+                                <div class="font-black text-amber-800">{{ $towerUi['merchant_name'] ?? '星灯の行商人' }}</div>
+                                <p class="mt-1">
+                                    まれに現れ、{{ $towerName }}専用の回復薬を売ってくれます。挑戦に敗れると塔内アイテムは失われるため、温存しすぎず、危ない階で使う判断が大切です。
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                                <div class="font-black text-emerald-800">2階以降：次階前の行動</div>
+                                <div class="mt-1 space-y-1">
+                                    <p><span class="font-black text-slate-800">通常に進む</span>：消耗を抑えてそのまま挑む。</p>
+                                    <p><span class="font-black text-slate-800">慎重に進む</span>：探索力+1で敵の先制と痛恨を抑える。</p>
+                                    <p><span class="font-black text-slate-800">全力で突破</span>：SPを使い、勝利時EXPを少し伸ばす。</p>
+                                    <p><span class="font-black text-slate-800">息を整える</span>：HP/SPを回復するが、敵も少し強まる。</p>
+                                    <p><span class="font-black text-slate-800">様子を見る</span>：探索力1で次の敵を確認し、戦闘は進めない。</p>
+                                </div>
+                                <div class="mt-1 font-black text-emerald-700">残りHP/SPと敵タイプを見て、戦略的に登ろう。</div>
+                            </div>
+                            <div class="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2">
+                                <div class="font-black text-teal-800">50階以降：星樹の構え</div>
+                                <p class="mt-1">5階ごとに、バフとデバフがある構えを選べます。</p>
+                                <div class="mt-1 space-y-1">
+                                    <p><span class="font-black text-slate-800">攻めの構え</span>：ATK/MAG重視、DEF/SPR低下。</p>
+                                    <p><span class="font-black text-slate-800">守りの構え</span>：DEF/SPR重視、SPD低下。</p>
+                                    <p><span class="font-black text-slate-800">疾風の構え</span>：SPD/LUK重視、ATK/MAG低下。</p>
+                                    <p><span class="font-black text-slate-800">構えなし</span>：補正を受けず、今の状態を維持。</p>
+                                </div>
+                                <div class="mt-1 font-black text-teal-700">伸ばす能力と削る能力を見極めて、有利に進めよう。</div>
+                            </div>
+                            <div class="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-violet-800">
+                                <span class="font-black">初回到達報酬：</span>50階、70階、90階、100階に用意されています。
+                            </div>
+                        </div>
+                    </section>
+                </details>
+
+                @if($hasPendingTowerStance)
+                    @include('tower.star-tree.partials.stance-choice', [
+                        'pendingTowerStance' => $pendingTowerStance ?? null,
+                        'towerStanceState' => $towerStanceState ?? null,
+                        'towerStanceChoices' => $towerStanceChoices ?? [],
+                    ])
+                @endif
+
+                @if($showTowerActionStrategies && $towerActionStrategies->isNotEmpty() && !$isMerchantPending)
                     <section class="mt-6 rounded-lg border border-emerald-100 bg-white/88 px-4 py-3 text-left shadow-lg backdrop-blur">
                         <div class="mb-3 flex items-center justify-between gap-2">
                             <div>
@@ -178,12 +248,23 @@
                 @endif
 
                 <div class="mt-6 space-y-2">
-                    @if($activeRun)
+                    @if($isTowerCompleted)
+                        <section class="rounded-lg border border-pink-200 bg-white/90 px-4 py-3 text-center shadow-lg backdrop-blur">
+                            <div class="text-xs font-black text-pink-600">{{ number_format($maxTowerFloor) }}階踏破</div>
+                            <div class="mt-1 text-base font-black text-slate-950">{{ $towerName }}の頂に到達済みです。</div>
+                            <p class="mt-1 text-xs font-bold leading-5 text-slate-600">
+                                ランキングを確認するか、1階から登り直して新しい記録を狙えます。
+                            </p>
+                        </section>
+                    @elseif($activeRun)
                         <form method="POST" action="{{ $continueRoute }}" data-tower-submit-form data-tower-entry-form data-tower-strategy-form="{{ $isMerchantPending ? '0' : '1' }}" data-loading-text="{{ $continueLoadingText }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $entryStaminaCost }}" data-base-stamina-cost="{{ $entryStaminaCost }}" data-ready-text="{{ $continueText }}">
                             @csrf
                             @unless($isMerchantPending)
                                 <input type="hidden" name="strategy" value="normal" data-tower-entry-strategy-input>
                             @endunless
+                            @if($hasPendingTowerStance)
+                                <input type="hidden" name="stance" value="none" data-tower-stance-input>
+                            @endif
                             <button type="submit" class="w-full rounded-lg bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-80" data-tower-submit-button>
                                 <span class="inline-flex items-center justify-center gap-1.5">
                                     <x-loading-spinner class="hidden" data-tower-submit-spinner size="h-4 w-4" />
@@ -324,6 +405,10 @@
                 return document.querySelector('[data-tower-entry-strategy-option]:checked');
             }
 
+            function selectedTowerStance() {
+                return document.querySelector('[data-tower-stance-option]:checked');
+            }
+
             function towerEntryStrategyRequiredStamina(form, option) {
                 const base = Number(form.dataset.baseStaminaCost || form.dataset.requiredStamina || 0);
                 const fixed = option && option.dataset.fixedStaminaCost !== ''
@@ -364,6 +449,21 @@
                         el.textContent = towerEntryNumber(displayedRequired);
                     });
                 }
+            }
+
+            function updateTowerStanceForms() {
+                const option = selectedTowerStance();
+                const key = option ? option.value || 'none' : 'none';
+
+                document.querySelectorAll('[data-tower-stance-input]').forEach(function(input) {
+                    input.value = key;
+                });
+                document.querySelectorAll('[data-tower-stance-option]').forEach(function(stanceOption) {
+                    const label = stanceOption.closest('label')?.querySelector('[data-tower-stance-label]');
+                    if (label) {
+                        label.textContent = stanceOption.checked ? '選択中' : '選択';
+                    }
+                });
             }
 
             function openTowerEntryStaminaModal(form) {
@@ -623,9 +723,13 @@
                 if (event.target.closest('[data-tower-entry-strategy-option]')) {
                     updateTowerEntryStrategyForms();
                 }
+                if (event.target.closest('[data-tower-stance-option]')) {
+                    updateTowerStanceForms();
+                }
             });
 
             updateTowerEntryStrategyForms();
+            updateTowerStanceForms();
         </script>
     @endonce
 </x-layouts.facility>

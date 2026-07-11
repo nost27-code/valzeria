@@ -137,6 +137,7 @@ class ArenaNpcAutoBattleService
     private function targetFor(ArenaNpcRanking $attacker): ?array
     {
         $players = ArenaRanking::with('character')
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->where('rank', '>=', ArenaNpcRankingService::PLAYER_TOP_PROTECTED_RANK + 1)
             ->where('rank', '<', (int) $attacker->rank)
             ->lockForUpdate()

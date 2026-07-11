@@ -214,9 +214,17 @@ class PlayerControlManager extends Component
         $selectedCharacter = $this->selectedCharacterId
             ? Character::query()->with(['user', 'currentJob'])->find($this->selectedCharacterId)
             : null;
+        $characterStorageLimits = $characters
+            ->mapWithKeys(fn (Character $character) => [
+                $character->id => [
+                    'material' => $storageCapacityService->materialLimit($character),
+                    'equipment' => $storageCapacityService->equipmentLimit($character),
+                ],
+            ]);
 
         return view('livewire.admin.player-control-manager', [
             'characters' => $characters,
+            'characterStorageLimits' => $characterStorageLimits,
             'selectedCharacter' => $selectedCharacter,
             'storageSummary' => $selectedCharacter ? $storageCapacityService->summary($selectedCharacter) : null,
             'cooldownSummary' => $selectedCharacter ? $this->cooldownSummary($selectedCharacter) : null,

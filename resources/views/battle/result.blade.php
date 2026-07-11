@@ -344,7 +344,51 @@
                                 || ($isDepthGate && !empty($result['batch_explore']));
                         @endphp
                         @if($shouldShowBattleLog && !empty($result['log']))
-                            <div class="px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
+                            <style>
+                                .battle-log-entry { letter-spacing: .01em; }
+                                .battle-log-entry .battle-log-enemy-action,
+                                .battle-log-entry .battle-log-telegraph,
+                                .battle-log-entry .battle-log-condition,
+                                .battle-log-entry .battle-log-dot,
+                                .battle-log-entry .battle-log-percent {
+                                    display: inline-block;
+                                    margin: .12rem 0;
+                                    padding: .08rem .42rem;
+                                    border-radius: .35rem;
+                                    font-weight: 800;
+                                    line-height: 1.65;
+                                }
+                                .battle-log-entry .battle-log-enemy-action { color: #be123c; background: #fff1f2; border-left: 3px solid #fb7185; }
+                                .battle-log-entry .battle-log-telegraph { color: #92400e; background: #fffbeb; border-left: 3px solid #f59e0b; }
+                                .battle-log-entry .battle-log-percent { color: #9f1239; background: #fff1f2; border-left: 3px solid #e11d48; }
+                                .battle-log-entry .battle-log-condition-burn,
+                                .battle-log-entry .battle-log-dot-burn { color: #c2410c; background: #fff7ed; border-left: 3px solid #f97316; }
+                                .battle-log-entry .battle-log-condition-poison,
+                                .battle-log-entry .battle-log-dot-poison { color: #047857; background: #ecfdf5; border-left: 3px solid #10b981; }
+                                .battle-log-entry .battle-log-condition-bleed,
+                                .battle-log-entry .battle-log-dot-bleed { color: #be123c; background: #fff1f2; border-left: 3px solid #e11d48; }
+                                .battle-log-entry .battle-log-condition-def_down,
+                                .battle-log-entry .battle-log-condition-slow,
+                                .battle-log-entry .battle-log-condition-recovery_block { color: #6d28d9; background: #f5f3ff; border-left: 3px solid #8b5cf6; }
+                                .battle-log-entry .battle-log-special-title { color: #4338ca; font-weight: 900; }
+                                .battle-log-entry .battle-log-special-phrase {
+                                    display: inline-block;
+                                    margin: .12rem 0;
+                                    color: #312e81;
+                                    font-size: 1.08em;
+                                    font-weight: 900;
+                                    line-height: 1.7;
+                                }
+                                .battle-log-entry .battle-log-special-description {
+                                    display: inline-block;
+                                    margin: .08rem 0 .16rem;
+                                    color: #3730a3;
+                                    font-size: 1.12em;
+                                    font-weight: 900;
+                                    line-height: 1.75;
+                                }
+                            </style>
+                            <div class="battle-log-entry px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
                                 {!! nl2br($result['log']) !!}
                             </div>
                         @endif
@@ -588,6 +632,15 @@
                                         <div class="mb-4"></div>
                                     @endif
                                 @endunless
+
+                                @if(!$isTreasure && !empty($result['story_record']))
+                                    <div class="mt-4 rounded-lg border border-violet-300 bg-violet-50 p-3 shadow-sm">
+                                        <div class="text-sm font-extrabold text-violet-900">旅の手帳</div>
+                                        <div class="mt-2 rounded border border-violet-200 bg-white/80 px-3 py-2 text-sm font-bold leading-relaxed text-slate-800">
+                                            {{ $result['story_record'] }}
+                                        </div>
+                                    </div>
+                                @endif
 
                                 @if(!empty($result['kiseki_drop']))
                                     <div class="mt-4 rounded-lg border border-sky-300 bg-sky-50 p-3 shadow-sm">
@@ -964,6 +1017,26 @@
                                         </div>
                                     </div>
 
+                                    @if(!empty($result['exploration_support']))
+                                        @php
+                                            $support = $result['exploration_support'];
+                                        @endphp
+                                        <div style="margin:0 14px 10px;padding:8px 10px;border:1px solid {{ ($support['remaining'] ?? 0) <= 5 ? '#fbbf24' : '#a7f3d0' }};background:{{ ($support['remaining'] ?? 0) <= 5 ? '#fffbeb' : '#ecfdf5' }};border-radius:8px;">
+                                            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+                                                <span style="font-size:10px;font-weight:800;color:#047857;letter-spacing:.05em;">探索補助</span>
+                                                <span style="font-size:10px;font-weight:800;color:#475569;">残り{{ $support['remaining'] }}/30戦</span>
+                                            </div>
+                                            <div style="margin-top:2px;font-size:11px;font-weight:800;color:#0f172a;">
+                                                {{ $support['name'] }}
+                                                @if(($support['procs_remaining'] ?? null) !== null)
+                                                    <span style="color:#64748b;">/ 発動{{ $support['procs_remaining'] }}回</span>
+                                                @endif
+                                            </div>
+                                            <div style="margin-top:1px;font-size:10px;color:#475569;">{{ $support['description'] }} / 自動継続{{ $support['auto_renew'] ? 'ON' : 'OFF' }}</div>
+                                            <a href="{{ route('apothecary.index') }}" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#047857;text-decoration:underline;">変更・解除</a>
+                                        </div>
+                                    @endif
+
                                     {{-- 回復アイテム --}}
                                     @if(!empty($recoveryItems))
                                         <div id="exploration-items-panel" style="padding:0 14px 10px;display:flex;flex-direction:column;gap:5px;">
@@ -1308,12 +1381,15 @@
                                 : '';
                             $initialExploreLockSeconds = $usesStamina ? 2 : 0;
                             $supportItemCounts = $supportItemCounts ?? [];
+                            $supportItemControlService = app(\App\Services\AdventureSupportItemControlService::class);
                             $staminaRecoveryChoices = collect(['explore_stamina_small_bottle', 'explore_stamina_potion'])
-                                ->map(function (string $itemKey) use ($supportItemCounts) {
+                                ->map(function (string $itemKey) use ($supportItemCounts, $supportItemControlService) {
                                     $item = config("adventure_support.items.{$itemKey}");
                                     if (!$item) {
                                         return null;
                                     }
+
+                                    $item = $supportItemControlService->effectiveItem($itemKey, $item);
 
                                     return [
                                         'key' => $itemKey,
@@ -1321,6 +1397,8 @@
                                         'icon_image' => $item['icon_image'] ?? null,
                                         'effect_value' => (int) ($item['effect_value'] ?? 0),
                                         'price' => (int) ($item['price'] ?? 0),
+                                        'original_price' => isset($item['original_price']) ? (int) $item['original_price'] : null,
+                                        'sale_ends_at' => $item['sale_ends_at'] ?? null,
                                         'quantity' => (int) ($supportItemCounts[$itemKey] ?? 0),
                                         'use_url' => route('inventory.support-items.use', ['itemKey' => $itemKey]),
                                         'purchase_url' => route('kiseki.support.purchase'),
@@ -1567,6 +1645,7 @@
                                 <div class="mt-3 flex flex-col gap-2">
                                     @foreach($staminaRecoveryChoices as $choice)
                                         @php($hasOwnedStaminaItem = (int) $choice['quantity'] > 0)
+                                        @php($isDiscountedStaminaItem = ($choice['original_price'] ?? null) !== null && (int) $choice['original_price'] > (int) $choice['price'])
                                         <div class="rounded-lg border {{ $hasOwnedStaminaItem ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white' }} p-2">
                                             <button type="button"
                                                     data-batch-stamina-item
@@ -1603,6 +1682,10 @@
                                                             data-price="{{ $choice['price'] }}"
                                                             class="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-black text-amber-900 transition hover:bg-amber-100 active:scale-95">
                                                         <span>輝石で購入して使う</span>
+                                                        @if($isDiscountedStaminaItem)
+                                                            <span class="rounded bg-red-50 px-1 py-px text-[10px] text-red-600">セール</span>
+                                                            <span class="text-[11px] text-slate-400 line-through decoration-red-500 decoration-2">{{ number_format($choice['original_price']) }}</span>
+                                                        @endif
                                                         <img src="{{ asset('images/icon/kiseki.webp') }}" alt="" class="h-3.5 w-3.5 object-contain">
                                                         <span>{{ number_format($choice['price']) }}</span>
                                                     </button>

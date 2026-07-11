@@ -40,7 +40,7 @@ class Item extends Model
     ];
 
     protected $fillable = [
-        'name', 'type', 'description', 'rarity', 'price', 'sell_price',
+        'name', 'type', 'description', 'rarity', 'display_rank', 'source_type', 'is_evolvable', 'price', 'sell_price',
         'hp_bonus', 'mp_bonus', 'str_bonus', 'def_bonus', 'agi_bonus', 'mag_bonus', 'spr_bonus', 'luk_bonus',
         'required_level', 'is_shop_item', 'is_active', 'sort_order', 'unlock_city_id',
         'sub_type', 'element',
@@ -61,6 +61,7 @@ class Item extends Model
         'is_shop_item' => 'boolean',
         'is_active' => 'boolean',
         'is_evolution_enabled' => 'boolean',
+        'is_evolvable' => 'boolean',
         'is_drop_enabled' => 'boolean',
         'affix_enabled' => 'boolean',
         'is_supply_enabled' => 'boolean',

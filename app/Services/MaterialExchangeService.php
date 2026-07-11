@@ -131,6 +131,27 @@ class MaterialExchangeService
 
     private const RECOVERY_ITEM_NAMES = ['薬草', '回復薬', '魔力水'];
 
+    // 毎日の無料補給を主軸にしつつ、進行帯ごとの余剰素材を探索中の回復へ戻せるようにする。
+    private const RECOVERY_ITEM_RECIPES = [
+        [
+            'target' => '薬草',
+            'label' => '草原の薬草',
+            'sources' => [
+                ['MAT_BREW_HERB', 5],
+                ['MAT_REGION_ARKREA_RAW', 2],
+            ],
+        ],
+        [
+            'target' => '薬草',
+            'label' => '世界樹の薬草',
+            'sources' => [
+                ['MAT_REGION_WORLD_TREE_LEAF', 1],
+                ['MAT_COMMON_FAIRY_DUST', 3],
+            ],
+            'target_quantity' => 2,
+        ],
+    ];
+
     private const PATH_STONE_RECIPES = [
         'MAT_BR_WPN_HOLY_PATH' => [['5025', 7], ['5033', 3]],
         'MAT_BR_WPN_DARK_PATH' => [['5043', 7], ['5031', 3]],
@@ -242,6 +263,7 @@ class MaterialExchangeService
     private function buildRecipes(Character $character, bool $ownedOnly): array
     {
         $owned = $this->ownedMaterialMap($character);
+        $ownedItems = $this->ownedItemMap($character);
         $materials = $this->materialsByCode();
         $recipes = [];
 
@@ -260,6 +282,7 @@ class MaterialExchangeService
         $recipes = array_merge($recipes, $this->ancientCompositeRecipes($materials, $owned, $ownedOnly));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $owned, $ownedOnly));
         $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $owned, $ownedOnly));
+        $recipes = array_merge($recipes, $this->recoveryItemRecipes($materials, $owned, $ownedItems, $ownedOnly));
 
         usort($recipes, fn (array $a, array $b): int => [
             $a['can_exchange'] ? 0 : 1,
@@ -575,7 +598,43 @@ class MaterialExchangeService
         $recipes = array_merge($recipes, $this->ancientCompositeRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->accessoryEvolutionMaterialRecipes($materials, $emptyOwned, false));
         $recipes = array_merge($recipes, $this->enemyPartToCommonMaterialRecipes($materials, $emptyOwned, false));
+        $recipes = array_merge($recipes, $this->recoveryItemRecipes($materials, $emptyOwned, [], false));
 
+        return $recipes;
+    }
+
+    private function recoveryItemRecipes(array $materials, array $owned, array $ownedItems, bool $ownedOnly = true): array
+    {
+        $items = $this->recoveryItemsByName();
+        $recipes = [];
+        $index = 0;
+
+        foreach (self::RECOVERY_ITEM_RECIPES as $definition) {
+            $itemName = (string) ($definition['target'] ?? '');
+            if (!isset($items[$itemName])) {
+                continue;
+            }
+
+            $recipes[] = $this->multiSourceRecipePayload(
+                'recovery_brewing',
+                '回復調合',
+                $definition['label'],
+                $definition['sources'],
+                'item',
+                $itemName,
+                $itemName,
+                (int) ($definition['target_quantity'] ?? 1),
+                $materials,
+                $owned,
+                $ownedItems,
+                20 + $index
+            );
+            $index++;
+        }
+
+        $recipes = array_values(array_filter($recipes));
+
+        // 回復調合は進行先ごとのレシピを比較できるよう、素材未所持でも表示する。
         return $recipes;
     }
 
@@ -706,7 +765,8 @@ class MaterialExchangeService
 
         $recipes = array_values(array_filter($recipes));
 
-        return $ownedOnly ? $this->visibleRecipes($recipes) : $recipes;
+        // 精錬材は全3種を一覧で確認できるよう、素材未所持でも隠さない。
+        return $recipes;
     }
 
     private function lowRefiningCoreRecipes(array $materials, array $owned, int $ownedGold = PHP_INT_MAX, bool $ownedOnly = true): array
@@ -1066,6 +1126,10 @@ class MaterialExchangeService
 
     private function targetUsageText(string $type, string $targetCode, string $targetName, string $groupLabel): string
     {
+        if ($type === 'recovery_brewing' && $targetCode === '薬草') {
+            return '探索中にHPを30%回復';
+        }
+
         if (in_array($targetCode, ['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], true)) {
             return '鍛冶+1→+2、鍛冶+2→+3に利用';
         }

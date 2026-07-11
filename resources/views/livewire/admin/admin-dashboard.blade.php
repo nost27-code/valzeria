@@ -77,6 +77,42 @@
         </section>
     @endif
 
+    <section class="mt-6 overflow-hidden rounded-md border-2 border-emerald-300 bg-white shadow-sm">
+        <div class="border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+            <h2 class="text-xl font-black text-slate-950">新規導線・継続率</h2>
+            <p class="mt-1 text-xs font-bold text-emerald-700">D1/D7/D30は、登録日からちょうどN日後に再訪した割合です。</p>
+        </div>
+        @if($lifecycle['ready'])
+            <div class="grid grid-cols-1 gap-4 border-b border-slate-100 p-5 lg:grid-cols-2">
+                <div>
+                    <h3 class="text-sm font-black text-slate-900">本日の新規登録からの初期導線</h3>
+                    <div class="mt-3 space-y-2">
+                        @foreach($lifecycle['today_funnel'] as $step)
+                            <div class="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
+                                <span class="text-sm font-bold text-slate-700">{{ $step['label'] }}</span>
+                                <span class="shrink-0 text-sm font-black text-slate-950">{{ number_format($step['count']) }}人 @if($step['rate'] !== null)<span class="text-emerald-700">（{{ number_format($step['rate'], 1) }}%）</span>@endif</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900">再訪コホート</h3>
+                    <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        @foreach($lifecycle['retention'] as $metric)
+                            <div class="rounded-md bg-slate-50 p-3">
+                                <div class="text-xs font-black text-slate-500">{{ $metric['label'] }}</div>
+                                <div class="mt-1 text-xl font-black text-emerald-700">{{ $metric['rate'] === null ? '-' : number_format($metric['rate'], 1) . '%' }}</div>
+                                <div class="mt-1 text-[11px] font-bold text-slate-400">{{ $metric['cohort_date'] }}登録<br>{{ number_format($metric['retained']) }} / {{ number_format($metric['registered']) }}人</div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            <p class="px-5 py-3 text-xs font-bold text-slate-400">行動ログの計測開始後に登録したユーザーが対象です。過去行動は補完せず、実測値のみを表示します。</p>
+        @else
+            <p class="p-5 text-sm font-bold text-slate-500">行動ログ用テーブルを準備中です。migration反映後から計測を開始します。</p>
+        @endif
+    </section>
     <section class="mt-6 rounded-md border border-slate-200 bg-white shadow-sm"
              x-data="{
                 includeTitle: true,
@@ -98,8 +134,18 @@
              }">
         <div class="border-b border-slate-100 px-5 py-4">
             <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                <h2 class="text-lg font-black text-slate-950">最近の更新情報</h2>
-                <p class="text-xs font-bold text-slate-400">AI実装タスクの運営向けサマリ（最大50件）</p>
+                <div>
+                    <h2 class="text-lg font-black text-slate-950">最近の更新情報</h2>
+                    <p class="text-xs font-bold text-slate-400">日付を選んで、その日の更新だけを表示します。</p>
+                </div>
+                <label class="text-xs font-black text-slate-600">
+                    表示日
+                    <select wire:model.live="updateDate" class="mt-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold shadow-sm">
+                        @foreach($adminUpdateDates as $date)
+                            <option value="{{ $date }}">{{ \Illuminate\Support\Carbon::parse($date)->format('Y/m/d') }}</option>
+                        @endforeach
+                    </select>
+                </label>
             </div>
         </div>
         @if(!empty($adminUpdateSummaries))
@@ -236,8 +282,8 @@
 
         <section class="rounded-md border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-100 px-5 py-4">
-                <h2 class="text-lg font-black text-slate-950">離脱が多い地点</h2>
-                <p class="mt-1 text-xs font-bold text-slate-400">7日以上ログインしていないキャラの最終到達街による推定です。</p>
+                <h2 class="text-lg font-black text-slate-950">離脱が多い画面</h2>
+                <p class="mt-1 text-xs font-bold text-slate-400">計測開始後の登録者について、7日以上再訪がない最後の初期導線を集計します。</p>
             </div>
             <div class="divide-y divide-slate-100">
                 @forelse($dropOffPoints as $row)
@@ -249,7 +295,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="p-6 text-sm font-bold text-slate-500">7日以上未ログインのキャラクターはありません。</div>
+                    <div class="p-6 text-sm font-bold text-slate-500">計測開始後に7日以上再訪がないユーザーはありません。</div>
                 @endforelse
             </div>
         </section>

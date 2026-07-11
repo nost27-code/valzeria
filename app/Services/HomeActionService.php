@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterAreaProgress;
 use App\Models\JobClass;
+use App\Models\NpcProcurementRequest;
 use App\Models\NpcProcurementRequestMaterial;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -80,7 +81,10 @@ class HomeActionService
             })
             ->where('npc_procurement_requests.status', 'active')
             ->where('npc_procurement_requests.starts_at', '<=', now())
-            ->where('npc_procurement_requests.expires_at', '>', now())
+            ->where(function ($query) {
+                $query->where('npc_procurement_requests.expires_at', '>', now())
+                    ->orWhereIn('npc_procurement_requests.title', NpcProcurementRequest::PERSISTENT_UNTIL_COMPLETED_TITLES);
+            })
             ->whereColumn('npc_procurement_request_materials.delivered_quantity', '<', 'npc_procurement_request_materials.required_quantity')
             ->count();
     }

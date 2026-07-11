@@ -48,6 +48,7 @@ class BattleActor
     public bool $isDefending = false;
     public int $damageReductionRate = 0;
     public bool $gutsReady = false;
+    public bool $gutsJustTriggered = false;
 
     private const MAG_NORMAL_ATTACK_JOB_KEYS = [
         'mage',
@@ -109,6 +110,7 @@ class BattleActor
         if ($this->hp <= 0 && $this->gutsReady) {
             $this->hp = 1;
             $this->gutsReady = false;
+            $this->gutsJustTriggered = true;
             return;
         }
 
@@ -117,12 +119,16 @@ class BattleActor
         }
     }
 
-    public function healHp(int $amount): void
+    public function healHp(int $amount): int
     {
+        $amount = max(0, (int) floor($amount * (1 - $this->conditionRate('recovery_block'))));
+        $before = $this->hp;
         $this->hp += $amount;
         if ($this->hp > $this->maxHp) {
             $this->hp = $this->maxHp;
         }
+
+        return $this->hp - $before;
     }
 
     public function consumeMp(int $amount): bool
@@ -136,6 +142,10 @@ class BattleActor
 
     public function usesMagForNormalAttack(): bool
     {
+        if ($this->normalAttackType === 'adaptive') {
+            return $this->mag > $this->str;
+        }
+
         if ($this->normalAttackType !== null) {
             return $this->normalAttackType === 'magical';
         }
@@ -143,10 +153,47 @@ class BattleActor
         return $this->jobKey !== null && in_array($this->jobKey, self::MAG_NORMAL_ATTACK_JOB_KEYS, true);
     }
 
+    public function effectiveStr(): int
+    {
+        return $this->effectiveStat($this->str, 'atk_down');
+    }
+
+    public function effectiveDef(): int
+    {
+        return $this->effectiveStat($this->def, 'def_down');
+    }
+
+    public function effectiveAgi(): int
+    {
+        return $this->effectiveStat($this->agi, 'slow');
+    }
+
+    public function effectiveMag(): int
+    {
+        return $this->effectiveStat($this->mag, 'mag_down');
+    }
+
+    public function effectiveSpr(): int
+    {
+        return $this->effectiveStat($this->spr, 'spr_down');
+    }
+
+    public function conditionRate(string $key): float
+    {
+        $condition = $this->conditions[$key] ?? null;
+
+        return is_array($condition) ? max(0.0, min(1.0, (float) ($condition['rate'] ?? 0))) : 0.0;
+    }
+
+    private function effectiveStat(int $value, string $conditionKey): int
+    {
+        return max(1, (int) floor($value * (1 - $this->conditionRate($conditionKey))));
+    }
+
     private function normalizeNormalAttackType(?string $value): ?string
     {
         $value = strtolower(trim((string) $value));
-        if (in_array($value, ['physical', 'magical'], true)) {
+        if (in_array($value, ['physical', 'magical', 'adaptive'], true)) {
             return $value;
         }
 

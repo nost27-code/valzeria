@@ -262,6 +262,27 @@ class TowerMerchantServiceTest extends TestCase
         $this->assertNull($run->refresh()->pending_event);
     }
 
+    public function test_merchant_is_not_reserved_on_reward_floor(): void
+    {
+        config(['star_tree_tower.star_tree.merchant_rate' => 100]);
+
+        $character = $this->createCharacter(1000);
+        $run = $this->createRun($character);
+        $run->forceFill([
+            'current_floor' => 71,
+            'reached_floor' => 71,
+            'cleared_floor' => 70,
+            'last_merchant_floor' => null,
+            'pending_event' => null,
+        ])->save();
+
+        $event = app(TowerMerchantService::class)->maybeReserveAfterVictory($character, $run->refresh());
+
+        $this->assertNull($event);
+        $this->assertNull($run->refresh()->pending_event);
+        $this->assertSame(0, $run->merchant_encounter_count);
+    }
+
     private function createCharacter(int $money): Character
     {
         return Character::query()->create([

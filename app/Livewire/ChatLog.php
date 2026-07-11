@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Character;
 use App\Models\PublicLog;
 use App\Services\PublicLogService;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -13,9 +14,75 @@ class ChatLog extends Component
     public string $activeTab = 'all';
     public bool $isExpanded = false;
     public int $logLimit = 15;
+    public array $allTabVisibility = [];
 
     const LOG_STEP = 50;
     const LOG_MAX  = 500;
+    private const ALL_TAB_FILTERS = [
+        'chat' => [
+            'label' => 'チャット',
+            'description' => '冒険者の全体発言',
+            'types' => ['chat', 'guild'],
+            'fallback_tab' => 'チャット',
+            'default' => true,
+        ],
+        'admin_info' => [
+            'label' => '管理人・お知らせ',
+            'description' => '管理人投稿と運営お知らせ',
+            'types' => ['admin', 'notice', 'info'],
+            'fallback_tab' => 'お知らせ',
+            'default' => true,
+        ],
+        'drop' => [
+            'label' => 'レアドロップ',
+            'description' => '装備や特別な入手ログ',
+            'types' => ['drop'],
+            'fallback_tab' => 'レアドロップ',
+            'default' => true,
+        ],
+        'growth' => [
+            'label' => '成長・転職',
+            'description' => 'レベル到達や転職ログ',
+            'types' => ['growth', 'job', 'job_change'],
+            'fallback_tab' => 'システム',
+            'default' => true,
+        ],
+        'discovery' => [
+            'label' => '発見・進行',
+            'description' => '街道、エリア、亜域の発見',
+            'types' => ['area', 'sub_area'],
+            'fallback_tab' => 'システム',
+            'default' => true,
+        ],
+        'arena' => [
+            'label' => '闘技場',
+            'description' => '順位変動や決闘ログ',
+            'types' => ['arena', 'duel'],
+            'fallback_tab' => 'システム',
+            'default' => true,
+        ],
+        'valmon' => [
+            'label' => 'ヴァルモン',
+            'description' => '卵や仲間に関するログ',
+            'types' => ['valmon'],
+            'fallback_tab' => 'システム',
+            'default' => true,
+        ],
+        'system' => [
+            'label' => 'システム',
+            'description' => 'その他のシステムログ',
+            'types' => ['system'],
+            'fallback_tab' => 'システム',
+            'default' => true,
+        ],
+        'newcomer' => [
+            'label' => '新規冒険者',
+            'description' => '新しい冒険者の到着ログ',
+            'types' => ['newcomer'],
+            'fallback_tab' => 'システム',
+            'default' => false,
+        ],
+    ];
 
     // チャット入力用プロパティ
     public string $message = '';
@@ -26,7 +93,7 @@ class ChatLog extends Component
 
     public function mount()
     {
-        // マウント時の初期化などが必要な場合はここで行う
+        $this->allTabVisibility = $this->storedAllTabVisibility();
     }
 
     public function setTab($tab)
@@ -47,6 +114,25 @@ class ChatLog extends Component
     {
         $this->logLimit = min(self::LOG_MAX, $this->logLimit + self::LOG_STEP);
         $this->isExpanded = true;
+    }
+
+    public function setAllTabVisibility(string $key, bool $enabled): void
+    {
+        if (! array_key_exists($key, self::ALL_TAB_FILTERS)) {
+            return;
+        }
+
+        $this->allTabVisibility = $this->normalizedAllTabVisibility(array_merge(
+            $this->allTabVisibility,
+            [$key => $enabled],
+        ));
+
+        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        if ($character && $this->canPersistAllTabVisibility()) {
+            $character->forceFill([
+                'chat_all_tab_visibility' => $this->allTabVisibility,
+            ])->save();
+        }
     }
 
     public function sendMessage(PublicLogService $logService)
@@ -159,22 +245,24 @@ class ChatLog extends Component
         $count = 0;
 
         foreach ($publicLogs as $log) {
-            if ($this->activeTab === 'all' && $log->type === 'private') {
+            $isNewcomerLog = $this->isNewcomerLog($log);
+
+            if ($this->activeTab === 'all' && ! $this->shouldShowInAllTab($log, $isNewcomerLog)) {
                 continue;
             }
 
             // タブによるフィルタリング
             if ($this->activeTab !== 'all') {
-                if ($this->activeTab === 'system' && !in_array($log->type, ['system', 'area', 'job', 'growth'])) {
+                if ($this->activeTab === 'system' && !in_array($log->type, ['system', 'area', 'job', 'growth', 'job_change', 'newcomer', 'sub_area', 'arena', 'duel', 'valmon'], true) && ! $isNewcomerLog) {
                     continue;
                 }
                 if ($this->activeTab === 'drop' && $log->type !== 'drop') {
                     continue;
                 }
-                if ($this->activeTab === 'chat' && $log->type !== 'chat') {
+                if ($this->activeTab === 'chat' && !in_array($log->type, ['chat', 'guild'], true)) {
                     continue;
                 }
-                if ($this->activeTab === 'info' && !in_array($log->type, ['info', 'admin'], true)) {
+                if ($this->activeTab === 'info' && !in_array($log->type, ['info', 'admin', 'notice'], true)) {
                     continue;
                 }
                 if ($this->activeTab === 'private' && $log->type !== 'private') {
@@ -207,6 +295,8 @@ class ChatLog extends Component
                 }
             } elseif ($log->type === 'admin') {
                 $replyPrefix = '【管理人】';
+            } elseif ($log->type === 'notice') {
+                $replyPrefix = '【お知らせ】';
             } elseif ($log->type === 'guild') {
                 $replyPrefix = '【' . ($log->character ? $log->character->name : '名無し') . '】';
                 $replyId = $log->character_id;
@@ -214,7 +304,7 @@ class ChatLog extends Component
 
             $systemLogs[] = [
                 'id' => $log->id,
-                'type' => $log->type,
+                'type' => $isNewcomerLog ? 'newcomer' : $log->type,
                 'message' => $displayMessage,
                 'reply_prefix' => $replyPrefix,
                 'reply_id' => $replyId,
@@ -234,14 +324,15 @@ class ChatLog extends Component
 
         $availableReceivers = [];
         if ($characterId && $this->shouldLoadReceivers()) {
-            $availableReceivers = Character::where('id', '!=', $characterId)
+            $availableReceivers = Character::visibleToPublic()
+                ->where('id', '!=', $characterId)
                 ->orderBy('updated_at', 'desc')
                 ->limit(100) // 直近アクティブな100人など
                 ->get(['id', 'name']);
 
             if ($this->receiverId
                 && ! $availableReceivers->contains('id', (int) $this->receiverId)) {
-                $selectedReceiver = Character::query()
+                $selectedReceiver = Character::visibleToPublic()
                     ->whereKey($this->receiverId)
                     ->where('id', '!=', $characterId)
                     ->first(['id', 'name']);
@@ -260,6 +351,7 @@ class ChatLog extends Component
         return view('livewire.chat-log', [
             'systemLogs' => $systemLogs,
             'availableReceivers' => $availableReceivers,
+            'allTabFilterOptions' => $this->allTabFilterOptions(),
         ]);
     }
 
@@ -267,5 +359,86 @@ class ChatLog extends Component
     {
         return $this->chatTarget === 'private'
             || $this->activeTab === 'private';
+    }
+
+    private function isNewcomerLog(PublicLog $log): bool
+    {
+        return $log->type === 'newcomer'
+            || (str_starts_with((string) $log->message, '新しい冒険者')
+                && str_contains((string) $log->message, 'ヴァルゼリアの地に降り立ちました。'));
+    }
+
+    private function shouldShowInAllTab(PublicLog $log, bool $isNewcomerLog): bool
+    {
+        if ($log->type === 'private') {
+            return false;
+        }
+
+        $key = $isNewcomerLog ? 'newcomer' : $this->filterKeyForType((string) $log->type);
+        if ($key === null) {
+            return true;
+        }
+
+        return (bool) ($this->allTabVisibility[$key] ?? self::ALL_TAB_FILTERS[$key]['default']);
+    }
+
+    private function filterKeyForType(string $type): ?string
+    {
+        foreach (self::ALL_TAB_FILTERS as $key => $option) {
+            if (in_array($type, $option['types'], true)) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    private function defaultAllTabVisibility(): array
+    {
+        return collect(self::ALL_TAB_FILTERS)
+            ->mapWithKeys(fn (array $option, string $key): array => [$key => (bool) $option['default']])
+            ->all();
+    }
+
+    private function storedAllTabVisibility(): array
+    {
+        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        if (! $character || ! $this->canPersistAllTabVisibility()) {
+            return $this->defaultAllTabVisibility();
+        }
+
+        return $this->normalizedAllTabVisibility((array) ($character->chat_all_tab_visibility ?? []));
+    }
+
+    private function normalizedAllTabVisibility(array $visibility): array
+    {
+        $defaults = $this->defaultAllTabVisibility();
+
+        return collect($defaults)
+            ->mapWithKeys(fn (bool $default, string $key): array => [
+                $key => array_key_exists($key, $visibility) ? (bool) $visibility[$key] : $default,
+            ])
+            ->all();
+    }
+
+    private function canPersistAllTabVisibility(): bool
+    {
+        return Schema::hasColumn('characters', 'chat_all_tab_visibility');
+    }
+
+    private function allTabFilterOptions(): array
+    {
+        return collect(self::ALL_TAB_FILTERS)
+            ->map(function (array $option, string $key): array {
+                return [
+                    'key' => $key,
+                    'label' => $option['label'],
+                    'description' => $option['description'],
+                    'fallback_tab' => $option['fallback_tab'],
+                    'enabled' => (bool) ($this->allTabVisibility[$key] ?? $option['default']),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

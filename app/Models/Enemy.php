@@ -26,4 +26,9 @@ class Enemy extends Model
     {
         return $this->hasMany(EnemyDrop::class);
     }
+
+    public function actions()
+    {
+        return $this->hasMany(EnemyAction::class)->orderBy('sort_order')->orderBy('id');
+    }
 }

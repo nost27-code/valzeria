@@ -13,6 +13,10 @@ class PublicLogService
      */
     public function addLog(string $type, string $message, ?Character $character = null, int $importance = 1, ?int $receiverId = null): void
     {
+        if ($character?->isAdminTester() && $type !== 'private') {
+            return;
+        }
+
         $log = PublicLog::create([
             'type' => $type,
             'message' => $message,
@@ -51,6 +55,11 @@ class PublicLogService
         $query = PublicLog::with(['character', 'receiver'])
             ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc');
+
+        $query->where(function ($q): void {
+            $q->whereNull('character_id')
+                ->orWhereDoesntHave('character', fn ($characterQuery) => $characterQuery->adminTesters());
+        });
 
         // 自分に関係のない個人チャット（private）は除外する
         $query->where(function ($q) use ($currentCharacterId) {

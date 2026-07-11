@@ -118,7 +118,7 @@
                     <div><span class="font-black text-slate-800">発動率</span>：奥義候補になった時に発動する確率。</div>
                     <div><span class="font-black text-slate-800">消費SP</span>：発動時に使うSPの基本値。</div>
                     <div><span class="font-black text-slate-800">本職</span>：現在職で使う時の実消費SP。</div>
-                    <div><span class="font-black text-slate-800">継承</span>：継承奥義として使う時の実消費SP。</div>
+                    <div><span class="font-black text-slate-800">継承</span>：継承奥義として使う時の実消費SP。マスター職から継承した奥義は、威力・効果量が本来の70〜85%になります。</div>
                     <div><span class="font-black text-slate-800">CT</span>：使用後、再発動までに必要なターン数。</div>
                     <div><span class="font-black text-slate-800">1戦回数</span>：1戦中に発動できる最大回数。</div>
                     <div><span class="font-black text-slate-800">発動条件</span>：HP割合など、発動候補に入る条件。</div>
@@ -196,6 +196,7 @@
                             'LUK' => '運',
                         ];
                         $displayMemo = strtr((string) ($art->memo ?: $art->description), $statLabelReplacements);
+                        $numericEffectLabels = $art->jobArtNumericEffectLabels();
                         $validContexts = [];
                         if (($availableArtsByContext['normal'] ?? collect())->contains('id', $art->id)) {
                             $validContexts[] = 'normal';
@@ -240,6 +241,9 @@
                         </div>
                         <div class="mt-2 flex flex-wrap gap-1 text-[10px] font-black">
                             <span class="rounded bg-white px-2 py-0.5 text-slate-600">{{ $art->jobArtEffectLabel() }}</span>
+                            @foreach($numericEffectLabels as $numericEffectLabel)
+                                <span class="rounded bg-indigo-50 px-2 py-0.5 text-indigo-700">{{ $numericEffectLabel }}</span>
+                            @endforeach
                             @if($limitLabel)
                                 <span class="rounded bg-white px-2 py-0.5 text-slate-500">{{ $limitLabel }}</span>
                             @endif

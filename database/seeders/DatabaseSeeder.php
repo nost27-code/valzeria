@@ -16,19 +16,22 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            JobSeeder::class,
+            CitySeeder::class,
+            AllDungeonsSeeder::class,
+            RouteAreaSeeder::class,
+            FerdiaRegionSeeder::class,
+            JobSystemSeeder::class,
             SkillSeeder::class,
             ItemSeeder::class,
             JobArtSeeder::class,
             Phase1Seeder::class,
-            EnemyDropsSeeder::class,
-            AllDungeonsSeeder::class,
-            RouteAreaSeeder::class,
-            AreaDiscoveryLinkSeeder::class,
             EnemySeeder::class,
+            EnemyDropsSeeder::class,
             DropEquipmentAdditionsSeeder::class,
+            AreaDiscoveryLinkSeeder::class,
             ValmonSeeder::class,
             NpcProcurementRequestSeeder::class,
+            TitleSeeder::class,
             StarTreeTowerFloorSeeder::class,
             StarTreeTowerTitleSeeder::class,
         ]);

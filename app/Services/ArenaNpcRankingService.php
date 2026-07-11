@@ -15,6 +15,7 @@ class ArenaNpcRankingService
 {
     public const PLAYER_TOP_PROTECTED_RANK = 10;
     public const NPC_LOWER_ENTRY_FLOOR_RANK = 50;
+    private const HIDDEN_TESTER_RANK_BASE = 800000;
 
     public const EXCLUDED_NPC_IDS = [
         8, 12, 17, 26, 29, 37, 38, 39, 45, 48, 50, 57,
@@ -58,7 +59,9 @@ class ArenaNpcRankingService
 
     public function nextRank(): int
     {
-        $playerNextRank = (int) (ArenaRanking::max('rank') ?? 0) + 1;
+        $playerNextRank = (int) (ArenaRanking::query()
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
+            ->max('rank') ?? 0) + 1;
         $firstNpcRank = Schema::hasTable('arena_npc_rankings')
             ? (int) (ArenaNpcRanking::where('is_active', true)->min('rank') ?? 0)
             : 0;
@@ -73,6 +76,18 @@ class ArenaNpcRankingService
     public function ensurePlayerRanking(Character $character): ArenaRanking
     {
         return DB::transaction(function () use ($character): ArenaRanking {
+            $character->loadMissing('user');
+            if ($character->isAdminTester()) {
+                return ArenaRanking::query()->firstOrCreate(
+                    ['character_id' => $character->id],
+                    [
+                        'rank' => $this->nextHiddenTesterRank(),
+                        'wins' => 0,
+                        'losses' => 0,
+                    ]
+                );
+            }
+
             $this->compactVisibleRanksIfNeeded();
 
             $existing = ArenaRanking::where('character_id', $character->id)
@@ -131,7 +146,13 @@ class ArenaNpcRankingService
         }
 
         $players = ArenaRanking::query()
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->orderBy('rank')
+            ->orderBy('id')
+            ->get(['id', 'rank']);
+
+        $hiddenPlayers = ArenaRanking::query()
+            ->whereHas('character', fn ($query) => $query->adminTesters())
             ->orderBy('id')
             ->get(['id', 'rank']);
 
@@ -167,14 +188,25 @@ class ArenaNpcRankingService
         }
 
         if (! $needsCompact) {
+            $needsCompact = $hiddenPlayers
+                ->contains(fn (ArenaRanking $ranking): bool => (int) $ranking->rank < self::HIDDEN_TESTER_RANK_BASE);
+        }
+
+        if (! $needsCompact) {
             return;
         }
 
-        DB::transaction(function () use ($players, $activeNpcs, $inactiveNpcs, $npcStartRank): void {
+        DB::transaction(function () use ($players, $hiddenPlayers, $activeNpcs, $inactiveNpcs, $npcStartRank): void {
             foreach ($players as $player) {
                 ArenaRanking::query()
                     ->whereKey($player->id)
                     ->update(['rank' => -2000000 - (int) $player->id]);
+            }
+
+            foreach ($hiddenPlayers as $player) {
+                ArenaRanking::query()
+                    ->whereKey($player->id)
+                    ->update(['rank' => -3000000 - (int) $player->id]);
             }
 
             foreach ($activeNpcs as $npc) {
@@ -193,6 +225,12 @@ class ArenaNpcRankingService
                 ArenaRanking::query()
                     ->whereKey($player->id)
                     ->update(['rank' => $index + 1]);
+            }
+
+            foreach ($hiddenPlayers->values() as $index => $player) {
+                ArenaRanking::query()
+                    ->whereKey($player->id)
+                    ->update(['rank' => self::HIDDEN_TESTER_RANK_BASE + $index + 1]);
             }
 
             foreach ($activeNpcs->values() as $index => $npc) {
@@ -214,6 +252,7 @@ class ArenaNpcRankingService
         }
 
         ArenaRanking::query()
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->whereBetween('rank', [$minRank, $maxRank])
             ->when($exceptCharacterId, fn ($query) => $query->where('character_id', '!=', $exceptCharacterId))
             ->orderByDesc('rank')
@@ -257,7 +296,9 @@ class ArenaNpcRankingService
 
     public function maxCombinedRank(): int
     {
-        $playerMax = (int) (ArenaRanking::max('rank') ?? 0);
+        $playerMax = (int) (ArenaRanking::query()
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
+            ->max('rank') ?? 0);
         $npcMax = Schema::hasTable('arena_npc_rankings')
             ? (int) (ArenaNpcRanking::where('is_active', true)->max('rank') ?? 0)
             : 0;
@@ -267,9 +308,20 @@ class ArenaNpcRankingService
 
     public function npcLowerEntryStartRank(): int
     {
-        $playerMax = (int) (ArenaRanking::max('rank') ?? 0);
+        $playerMax = (int) (ArenaRanking::query()
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
+            ->max('rank') ?? 0);
 
         return max($playerMax, self::PLAYER_TOP_PROTECTED_RANK, self::NPC_LOWER_ENTRY_FLOOR_RANK) + 1;
+    }
+
+    private function nextHiddenTesterRank(): int
+    {
+        $currentMax = (int) (ArenaRanking::query()
+            ->where('rank', '>=', self::HIDDEN_TESTER_RANK_BASE)
+            ->max('rank') ?? self::HIDDEN_TESTER_RANK_BASE);
+
+        return $currentMax + 1;
     }
 
     private function combinedEntries(): Collection
@@ -277,6 +329,7 @@ class ArenaNpcRankingService
         $this->ensureRankings();
 
         $players = ArenaRanking::with(['character.jobClass'])
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->get()
             ->map(function (ArenaRanking $ranking): array {
                 $character = $ranking->character;

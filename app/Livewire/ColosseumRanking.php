@@ -30,7 +30,8 @@ class ColosseumRanking extends Component
 
     public function openPlayerModal(int $characterId): void
     {
-        $character = Character::with(['jobClass', 'arenaRanking'])
+        $character = Character::visibleToPublic()
+            ->with(['jobClass', 'arenaRanking'])
             ->find($characterId);
 
         if (!$character) {

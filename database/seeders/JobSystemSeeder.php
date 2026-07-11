@@ -390,7 +390,7 @@ class JobSystemSeeder extends Seeder
     private function normalAttackType(string $jobKey, mixed $value): string
     {
         $value = strtolower(trim((string) $value));
-        if (in_array($value, ['physical', 'magical'], true)) {
+        if (in_array($value, ['physical', 'magical', 'adaptive'], true)) {
             return $value;
         }
 

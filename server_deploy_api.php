@@ -1,421 +1,541 @@
 <?php
+
+declare(strict_types=1);
+
 /**
- * サーバー側受信スクリプト (Xserver等へ配置)
- * 【バージョン2: セキュアな非公開領域分離パターン】
- * 
- * 展開先を public_html の一つ上の非公開領域(valzeria_project)とし、
- * public_html 内には中継用の index.php とアセットへのシンボリックリンクのみを生成します。
+ * Release-based deploy endpoint.
+ *
+ * Initial setup (performed by an operator during a maintenance window):
+ * - Create ../valzeria_shared/.deploy_secret (random secret, mode 0600)
+ * - Create ../valzeria_shared/.deploy_allowed_ips (one trusted IP per line)
+ * - Take and verify a database backup.
+ *
+ * This endpoint never overwrites the active release. A failed preparation
+ * leaves ../valzeria_current unchanged.
  */
 
-// --- 設定 ---
-$secretToken = "nostalgia0905"; // ローカル側と合わせたトークン
+const VALZERIA_MAX_ZIP_FILES = 16000;
+const VALZERIA_MAX_ZIP_BYTES = 220000000;
+const VALZERIA_MAX_ZIP_RATIO = 100;
+const VALZERIA_SIGNATURE_TTL_SECONDS = 300;
 
-// Xserverの public_html ディレクトリ（このファイルが置かれている場所）
 $publicHtmlDir = __DIR__;
+// A staging endpoint has an explicit marker in its public directory and keeps
+// every release/shared path outside public_html. Production has no marker and
+// retains the existing layout.
+$isIsolatedStaging = is_file($publicHtmlDir . '/.deploy_staging');
+$baseDir = $isIsolatedStaging ? dirname(__DIR__, 2) : dirname(__DIR__);
+$deploymentPrefix = $isIsolatedStaging ? 'staging_valzeria' : 'valzeria';
+$releasesDir = $baseDir . '/' . $deploymentPrefix . '_releases';
+$sharedDir = $baseDir . '/' . $deploymentPrefix . '_shared';
+$legacyProjectDir = $baseDir . '/' . $deploymentPrefix . '_project';
+$currentLink = $baseDir . '/' . $deploymentPrefix . '_current';
+$auditLog = $sharedDir . '/deployments.log';
 
-// プロジェクトの展開先（public_html の一つ上の階層にある valzeria_project フォルダ）
-$projectDir = realpath(__DIR__ . '/..') . '/valzeria_project';
+header('Content-Type: text/plain; charset=UTF-8');
 
-// --- 処理開始 ---
-header("Content-Type: text/plain; charset=UTF-8");
-
-// POSTメソッドのみ許可
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    die("エラー: Method Not Allowed");
-}
-
-// トークン認証
-$postToken = $_POST['token'] ?? '';
-if ($postToken !== $secretToken) {
-    http_response_code(403);
-    die("エラー: トークンが一致しません。認証に失敗しました。");
-}
-
-// ファイルのアップロード確認
-if (!isset($_FILES['deploy_zip'])) {
-    http_response_code(400);
-    die("エラー: ZIPファイルがアップロードされていません。");
-}
-
-$file = $_FILES['deploy_zip'];
-if ($file['error'] !== UPLOAD_ERR_OK) {
-    http_response_code(500);
-    die("エラー: ファイルのアップロードに失敗しました (Error Code: " . $file['error'] . ")");
-}
-
-$zipPath = $file['tmp_name'];
-
-// プロジェクトディレクトリの作成（存在しない場合）
-if (!file_exists($projectDir)) {
-    if (!mkdir($projectDir, 0755, true)) {
-        http_response_code(500);
-        die("エラー: プロジェクトディレクトリの作成に失敗しました ({$projectDir})");
-    }
-}
-
-// --- メンテナンスモード ここから ---
-// ZIP展開中はファイルが新旧混在し、マイグレーション未実行のままDBアクセスするとエラー画面になりうる。
-// Laravelの `php artisan down --render` 相当を、フレームワークを起動せず素のPHPファイル操作で再現する。
-// （storage/framework/down が存在する間、public_html/index.php が事前描画済みHTMLを即返す）
-function valzeria_deploy_maintenance_html(): string
+function deploy_fail(int $status, string $message): never
 {
-    return <<<'HTML'
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>メンテナンス中 - ヴァルゼリアの冒険者</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:#e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; }
-  .card { max-width: 420px; margin: 16px; padding: 32px 28px; background:#1e293b; border:1px solid #334155; border-radius:16px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.4); }
-  .icon { font-size:40px; margin-bottom:12px; }
-  h1 { font-size:18px; margin:0 0 12px; color:#fff; }
-  p { font-size:14px; line-height:1.7; color:#cbd5e1; margin:0 0 20px; }
-  button { appearance:none; border:none; cursor:pointer; background:#f59e0b; color:#1e293b; font-weight:700; font-size:14px; padding:12px 28px; border-radius:9999px; transition: transform .15s, background .15s; }
-  button:hover { background:#fbbf24; transform:translateY(-1px); }
-  button:active { transform:translateY(0); }
-  .hint { margin-top:14px; font-size:12px; color:#64748b; }
-</style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon">&#9875;&#65039;</div>
-    <h1>ただいまメンテナンス中です</h1>
-    <p>裏側でゲームデータの更新作業を行っています。<br>少し待ってから、下のボタンで画面を更新してください。</p>
-    <button onclick="location.reload()">画面を更新する</button>
-    <div class="hint" id="auto-hint"></div>
-  </div>
-  <script>
-    (function () {
-      var seconds = 10;
-      var hint = document.getElementById('auto-hint');
-      var timer = setInterval(function () {
-        seconds -= 1;
-        if (hint) { hint.textContent = seconds + '秒後に自動で更新します…'; }
-        if (seconds <= 0) {
-          clearInterval(timer);
-          location.reload();
+    http_response_code($status);
+    echo $message . "\n";
+    exit;
+}
+
+function deploy_log(string $path, array $data): void
+{
+    $data['at'] = gmdate('c');
+    @file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+}
+
+function deploy_header(string $name): string
+{
+    $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+
+    return trim((string) ($_SERVER[$key] ?? ''));
+}
+
+function deploy_safe_zip_path(string $path): ?string
+{
+    $path = str_replace('\\', '/', $path);
+    if ($path === '' || str_contains($path, "\0") || str_starts_with($path, '/') || preg_match('/^[A-Za-z]:/', $path)) {
+        return null;
+    }
+
+    $parts = explode('/', $path);
+    foreach ($parts as $part) {
+        if ($part === '' || $part === '.' || $part === '..') {
+            return null;
         }
-      }, 1000);
-    })();
-  </script>
-</body>
-</html>
-HTML;
+    }
+
+    return $path;
 }
 
-function valzeria_deploy_maintenance_stub(): string
+function deploy_claim_nonce(string $sharedDir, string $nonce): void
 {
-    // Laravel標準の storage/framework/maintenance.php スタブと同等の内容。
-    // public_html/index.php から Composer/フレームワークを読み込む前に呼ばれ、
-    // storage/framework/down が存在する間は事前描画済みHTMLだけを返して即終了する。
-    return <<<'PHP'
+    if (!preg_match('/^[a-f0-9]{32,128}$/', $nonce)) {
+        throw new RuntimeException('nonce の形式が不正です。');
+    }
+    $nonceDir = $sharedDir . '/nonces';
+    if (!is_dir($nonceDir) && !mkdir($nonceDir, 0700, true)) {
+        throw new RuntimeException('nonce 保管領域を作成できません。');
+    }
+    $path = $nonceDir . '/' . hash('sha256', $nonce);
+    $handle = @fopen($path, 'x');
+    if ($handle === false) {
+        throw new RuntimeException('同じ署名リクエストは再利用できません。');
+    }
+    fwrite($handle, (string) time());
+    fclose($handle);
+    @chmod($path, 0600);
+}
+
+function deploy_is_symlink_entry(array $stat): bool
+{
+    $mode = ((int) ($stat['external_attributes'] ?? 0) >> 16) & 0xF000;
+
+    return $mode === 0xA000;
+}
+
+function deploy_atomic_link(string $target, string $link): void
+{
+    $temporary = $link . '.next-' . bin2hex(random_bytes(6));
+    if (!symlink($target, $temporary)) {
+        throw new RuntimeException("一時シンボリックリンクを作成できません: {$link}");
+    }
+    if (!rename($temporary, $link)) {
+        @unlink($temporary);
+        throw new RuntimeException("シンボリックリンクを切り替えできません: {$link}");
+    }
+}
+
+function deploy_link_if_missing(string $target, string $link): void
+{
+    if (is_link($link) || file_exists($link)) {
+        return;
+    }
+    if (!symlink($target, $link)) {
+        throw new RuntimeException("共有リンクを作成できません: {$link}");
+    }
+}
+
+function deploy_remove_new_release_path(string $path): void
+{
+    if (is_link($path) || is_file($path)) {
+        if (!unlink($path)) {
+            throw new RuntimeException("新規リリースの一時パスを削除できません: {$path}");
+        }
+        return;
+    }
+    if (!is_dir($path)) {
+        return;
+    }
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+    foreach ($iterator as $file) {
+        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+    }
+    if (!rmdir($path)) {
+        throw new RuntimeException("新規リリースの一時ディレクトリを削除できません: {$path}");
+    }
+}
+
+function deploy_copy_missing(string $source, string $destination): void
+{
+    if (!is_dir($source)) {
+        return;
+    }
+    if (!is_dir($destination) && !mkdir($destination, 0755, true)) {
+        throw new RuntimeException("アセット用ディレクトリを作成できません: {$destination}");
+    }
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+    foreach ($iterator as $file) {
+        $relative = substr($file->getPathname(), strlen($source) + 1);
+        $target = $destination . '/' . $relative;
+        if ($file->isDir()) {
+            if (!is_dir($target) && !mkdir($target, 0755, true)) {
+                throw new RuntimeException("アセット用ディレクトリを作成できません: {$target}");
+            }
+            continue;
+        }
+        if (!file_exists($target) && !copy($file->getPathname(), $target)) {
+            throw new RuntimeException("旧アセットを保持できません: {$relative}");
+        }
+    }
+}
+
+function deploy_prepare_shared_storage(string $storage): void
+{
+    foreach (['app/public', 'framework/cache/data', 'framework/sessions', 'framework/views', 'logs'] as $relativePath) {
+        $path = $storage . '/' . $relativePath;
+        if (!is_dir($path) && !mkdir($path, 0755, true)) {
+            throw new RuntimeException("共有 storage の初期化に失敗しました: {$relativePath}");
+        }
+    }
+}
+
+function deploy_assert_shared_app_key(string $sharedEnv): void
+{
+    $contents = @file_get_contents($sharedEnv);
+    if ($contents === false || !preg_match('/^APP_KEY\\s*=\\s*(.*?)\\s*$/m', $contents, $matches)) {
+        throw new RuntimeException('共有 .env に APP_KEY がありません。ステージング用のアプリケーションキーを設定してください。');
+    }
+
+    $key = trim($matches[1], " \t\n\r\0\x0B\"'");
+    if ($key === '') {
+        throw new RuntimeException('共有 .env の APP_KEY が空です。ステージング用のアプリケーションキーを設定してください。');
+    }
+}
+
+function deploy_release_health_check(string $releaseDir, string $currentLink): void
+{
+    if (realpath($currentLink) !== realpath($releaseDir)) {
+        throw new RuntimeException('current リリースの切替確認に失敗しました。');
+    }
+    foreach (['public/index.php', 'artisan', 'vendor/autoload.php', 'bootstrap/app.php'] as $required) {
+        if (!is_file($releaseDir . '/' . $required)) {
+            throw new RuntimeException("ヘルスチェックで必須ファイルが見つかりません: {$required}");
+        }
+    }
+    Illuminate\Support\Facades\DB::connection()->getPdo();
+}
+
+function deploy_write_public_entry(string $publicHtmlDir, string $currentLink): void
+{
+    $currentLinkLiteral = var_export($currentLink, true);
+    $entry = <<<PHP
 <?php
+declare(strict_types=1);
 
-if (! file_exists($down = __DIR__.'/down')) {
-    return;
+\$releaseRoot = realpath({$currentLinkLiteral});
+if (\$releaseRoot === false || !is_file(\$releaseRoot . '/public/index.php')) {
+    http_response_code(503);
+    exit('Service temporarily unavailable.');
 }
 
-$data = json_decode(file_get_contents($down), true);
-
-if (! isset($data['template'])) {
-    return;
-}
-
-http_response_code($data['status'] ?? 503);
-
-if (isset($data['retry'])) {
-    header('Retry-After: '.$data['retry']);
-}
-
-echo $data['template'];
-
-exit;
+require \$releaseRoot . '/public/index.php';
 PHP;
-}
-
-function valzeria_deploy_maintenance_paths(string $projectDir): array
-{
-    $frameworkDir = $projectDir . '/storage/framework';
-    return [$frameworkDir, $frameworkDir . '/maintenance.php', $frameworkDir . '/down'];
-}
-
-function valzeria_deploy_enter_maintenance(string $projectDir): void
-{
-    [$frameworkDir, $stubPath, $downPath] = valzeria_deploy_maintenance_paths($projectDir);
-
-    if (!is_dir($frameworkDir)) {
-        mkdir($frameworkDir, 0755, true);
-    }
-
-    file_put_contents($stubPath, valzeria_deploy_maintenance_stub());
-
-    file_put_contents($downPath, json_encode([
-        'except' => [],
-        'redirect' => null,
-        'retry' => 15,
-        'refresh' => null,
-        'secret' => null,
-        'status' => 503,
-        'template' => valzeria_deploy_maintenance_html(),
-    ], JSON_PRETTY_PRINT));
-}
-
-function valzeria_deploy_exit_maintenance(string $projectDir): void
-{
-    [, , $downPath] = valzeria_deploy_maintenance_paths($projectDir);
-
-    if (file_exists($downPath)) {
-        unlink($downPath);
+    $temporary = $publicHtmlDir . '/index.php.next';
+    if (file_put_contents($temporary, $entry, LOCK_EX) === false || !rename($temporary, $publicHtmlDir . '/index.php')) {
+        @unlink($temporary);
+        throw new RuntimeException('公開エントリポイントを更新できません。');
     }
 }
 
-valzeria_deploy_enter_maintenance($projectDir);
-echo "・メンテナンスモードを開始しました（展開完了まで一時的にメンテナンス画面を表示します）。\n";
+function deploy_write_public_htaccess(string $publicHtmlDir, string $currentLink): void
+{
+    $source = $currentLink . '/public/.htaccess';
+    if (!is_file($source)) {
+        throw new RuntimeException('公開用 .htaccess がリリース内にありません。');
+    }
 
-// die()/exit() や致命的エラーで途中終了した場合でもメンテナンスモードの解除漏れが起きないよう、
-// finally ではなくシャットダウン関数で確実に解除する。
-register_shutdown_function(function () use ($projectDir) {
-    valzeria_deploy_exit_maintenance($projectDir);
-});
-// --- メンテナンスモード ここまで（実際の解除は上記シャットダウン関数が保証する） ---
+    $temporary = $publicHtmlDir . '/.htaccess.next';
+    if (!copy($source, $temporary) || !rename($temporary, $publicHtmlDir . '/.htaccess')) {
+        @unlink($temporary);
+        throw new RuntimeException('公開用 .htaccess を更新できません。');
+    }
+}
 
-// ZIP展開処理
-$zip = new ZipArchive();
-if ($zip->open($zipPath) === true) {
-    // 【1】非公開領域(valzeria_project)へファイルを上書き展開
-    if (!$zip->extractTo($projectDir)) {
-        http_response_code(500);
-        $zip->close();
-        die("エラー: ZIPファイルの展開に失敗しました。ディレクトリの書き込み権限を確認してください。");
+function deploy_enable_maintenance(string $storage): void
+{
+    $framework = $storage . '/framework';
+    if (!is_dir($framework) && !mkdir($framework, 0755, true)) {
+        throw new RuntimeException('メンテナンス用ディレクトリを作成できません。');
+    }
+    $stub = "<?php\nif (file_exists(\$down = __DIR__ . '/down')) { \$data = json_decode(file_get_contents(\$down), true); http_response_code(503); echo \$data['template'] ?? 'Maintenance'; exit; }\n";
+    file_put_contents($framework . '/maintenance.php', $stub, LOCK_EX);
+    file_put_contents($framework . '/down', json_encode(['template' => 'ただいまメンテナンス中です。しばらくしてから再度お試しください。'], JSON_UNESCAPED_UNICODE), LOCK_EX);
+}
+
+function deploy_disable_maintenance(string $storage): void
+{
+    @unlink($storage . '/framework/down');
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    deploy_fail(405, 'POSTメソッドのみ利用できます。');
+}
+if (!is_dir($sharedDir) || !is_file($sharedDir . '/.deploy_secret') || !is_file($sharedDir . '/.deploy_allowed_ips')) {
+    deploy_fail(503, '安全なデプロイ共有領域が未初期化です。初回移行手順を完了してください。');
+}
+
+$allowedIps = array_filter(array_map('trim', file($sharedDir . '/.deploy_allowed_ips', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: []));
+$remoteIp = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+if ($allowedIps === [] || !in_array($remoteIp, $allowedIps, true)) {
+    deploy_log($auditLog, ['event' => 'denied_ip', 'ip' => $remoteIp]);
+    deploy_fail(403, '許可されていない送信元です。');
+}
+$useServerStagedZip = (string) ($_POST['server_staged_zip'] ?? '0') === '1';
+$serverStagedZipPath = null;
+if ($useServerStagedZip) {
+    if (!$isIsolatedStaging) {
+        deploy_fail(403, '共有領域へ置いたZIPからのデプロイはステージング専用です。');
+    }
+    $serverStagedZipPath = $sharedDir . '/manual_upload/staging_deploy.zip';
+    if (!is_file($serverStagedZipPath) || !is_readable($serverStagedZipPath)) {
+        deploy_fail(400, '共有領域の staging_deploy.zip を確認できません。');
+    }
+    $zipPath = $serverStagedZipPath;
+} elseif (!isset($_FILES['deploy_zip']) || $_FILES['deploy_zip']['error'] !== UPLOAD_ERR_OK) {
+    $uploadError = isset($_FILES['deploy_zip'])
+        ? (int) $_FILES['deploy_zip']['error']
+        : UPLOAD_ERR_NO_FILE;
+    $contentLength = (string) ($_SERVER['CONTENT_LENGTH'] ?? 'unknown');
+    deploy_fail(
+        400,
+        'デプロイZIPを受信できませんでした。'
+        . " upload_error={$uploadError}; content_length={$contentLength};"
+        . ' post_max_size=' . ini_get('post_max_size')
+        . '; upload_max_filesize=' . ini_get('upload_max_filesize')
+    );
+} else {
+    $zipPath = (string) $_FILES['deploy_zip']['tmp_name'];
+}
+
+$timestamp = deploy_header('X-Deploy-Timestamp');
+$nonce = deploy_header('X-Deploy-Nonce');
+$signature = deploy_header('X-Deploy-Signature');
+$secret = trim((string) file_get_contents($sharedDir . '/.deploy_secret'));
+if (!ctype_digit($timestamp) || abs(time() - (int) $timestamp) > VALZERIA_SIGNATURE_TTL_SECONDS || $secret === '') {
+    deploy_fail(401, 'デプロイ署名の前提条件が不正です。');
+}
+$payloadHash = hash_file('sha256', $zipPath);
+$expected = hash_hmac('sha256', $timestamp . "\n" . $nonce . "\n" . $payloadHash, $secret);
+if ($payloadHash === false || !hash_equals($expected, $signature)) {
+    deploy_log($auditLog, ['event' => 'denied_signature', 'ip' => $remoteIp]);
+    deploy_fail(403, 'デプロイ署名が一致しません。');
+}
+try {
+    deploy_claim_nonce($sharedDir, $nonce);
+} catch (RuntimeException $error) {
+    deploy_log($auditLog, ['event' => 'denied_replay', 'ip' => $remoteIp, 'error' => $error->getMessage()]);
+    deploy_fail(409, $error->getMessage());
+}
+
+if (!is_dir($releasesDir) && !mkdir($releasesDir, 0755, true)) {
+    deploy_fail(500, 'リリース領域を作成できません。');
+}
+$lock = fopen($sharedDir . '/deploy.lock', 'c');
+if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+    deploy_fail(409, '別のデプロイ処理が実行中です。');
+}
+
+$maintenanceEnabled = false;
+$releaseDir = null;
+try {
+    $mode = (string) ($_POST['migration_mode'] ?? 'none');
+    $bootstrapEmpty = (string) ($_POST['bootstrap_empty'] ?? '0') === '1';
+    $resetStagingDatabase = (string) ($_POST['reset_staging_database'] ?? '0') === '1';
+    if (!in_array($mode, ['none', 'backward_compatible', 'maintenance_required'], true)) {
+        throw new RuntimeException('migration_mode は none / backward_compatible / maintenance_required を指定してください。');
+    }
+    $initialMigration = !is_link($currentLink);
+    if ($initialMigration && !$bootstrapEmpty && !is_dir($legacyProjectDir)) {
+        throw new RuntimeException('初回移行元の valzeria_project が見つかりません。');
+    }
+    if ($bootstrapEmpty && !$isIsolatedStaging) {
+        throw new RuntimeException('空DB初期化はステージング専用です。');
+    }
+    if ($resetStagingDatabase && !$isIsolatedStaging) {
+        throw new RuntimeException('ステージングDBの初期化はステージング専用です。');
+    }
+    $sharedStorage = $sharedDir . '/storage';
+    $sharedEnv = $sharedDir . '/.env';
+    $sharedAssets = $sharedDir . '/assets';
+    if (!is_dir($sharedAssets) && !mkdir($sharedAssets, 0755, true)) {
+        throw new RuntimeException('共有アセット領域を作成できません。');
+    }
+    if (!$bootstrapEmpty) {
+        deploy_link_if_missing($legacyProjectDir . '/storage', $sharedStorage);
+        deploy_link_if_missing($legacyProjectDir . '/.env', $sharedEnv);
+        deploy_link_if_missing($legacyProjectDir . '/public/build', $sharedAssets . '/build');
+    }
+    if (!is_dir($sharedStorage) || !is_file($sharedEnv)) {
+        throw new RuntimeException('共有 storage または .env を確認できません。');
+    }
+    deploy_assert_shared_app_key($sharedEnv);
+    deploy_prepare_shared_storage($sharedStorage);
+    if ($initialMigration || $mode === 'maintenance_required' || $resetStagingDatabase) {
+        deploy_enable_maintenance($sharedStorage);
+        $maintenanceEnabled = true;
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath) !== true) {
+        throw new RuntimeException('ZIPを開けません。');
+    }
+    if ($zip->numFiles > VALZERIA_MAX_ZIP_FILES) {
+        throw new RuntimeException('ZIP内のファイル数が上限を超えています。');
+    }
+    $releaseId = gmdate('Ymd_His') . '_' . bin2hex(random_bytes(4));
+    $releaseDir = $releasesDir . '/' . $releaseId;
+    if (!mkdir($releaseDir, 0755, true)) {
+        throw new RuntimeException('新規リリース領域を作成できません。');
+    }
+    $totalBytes = 0;
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $stat = $zip->statIndex($i);
+        $name = (string) ($stat['name'] ?? '');
+        $path = deploy_safe_zip_path($name);
+        if ($path === null || deploy_is_symlink_entry($stat ?: [])) {
+            throw new RuntimeException("不正なZIPエントリを検出しました: {$name}");
+        }
+        if (str_ends_with($path, '/')) {
+            continue;
+        }
+        $totalBytes += (int) ($stat['size'] ?? 0);
+        if ($totalBytes > VALZERIA_MAX_ZIP_BYTES) {
+            throw new RuntimeException('展開後のZIPサイズが上限を超えています。');
+        }
+        $compressedBytes = (int) ($stat['comp_size'] ?? 0);
+        if (((int) ($stat['size'] ?? 0) > 0) && ($compressedBytes === 0 || ((int) ($stat['size'] ?? 0) / $compressedBytes) > VALZERIA_MAX_ZIP_RATIO)) {
+            throw new RuntimeException("ZIP圧縮率が上限を超えています: {$path}");
+        }
+        $target = $releaseDir . '/' . $path;
+        $parent = dirname($target);
+        if (!is_dir($parent) && !mkdir($parent, 0755, true)) {
+            throw new RuntimeException("展開先を作成できません: {$path}");
+        }
+        $input = $zip->getStream($name);
+        if ($input === false || ($output = fopen($target, 'xb')) === false) {
+            throw new RuntimeException("ZIPを安全に展開できません: {$path}");
+        }
+        $written = stream_copy_to_stream($input, $output);
+        fclose($input);
+        fclose($output);
+        if ($written !== (int) ($stat['size'] ?? 0) || !is_file($target) || filesize($target) !== (int) ($stat['size'] ?? 0)) {
+            throw new RuntimeException("ZIP展開後の検証に失敗しました: {$path}");
+        }
     }
     $zip->close();
 
-    // ローカル開発サーバー用の Vite hot ファイルが本番に残ると CSS/JS が localhost 参照になるため削除
-    $viteHotFile = $projectDir . '/public/hot';
-    if (is_file($viteHotFile) || is_link($viteHotFile)) {
-        unlink($viteHotFile);
-        echo "・Vite hot ファイルを削除しました。\n";
+    @unlink($releaseDir . '/public/hot');
+    if (!is_file($releaseDir . '/artisan') || !is_file($releaseDir . '/vendor/autoload.php')) {
+        throw new RuntimeException('リリースの必須ファイルが不足しています。');
     }
+    deploy_remove_new_release_path($releaseDir . '/storage');
+    deploy_remove_new_release_path($releaseDir . '/.env');
+    deploy_atomic_link($sharedStorage, $releaseDir . '/storage');
+    deploy_atomic_link($sharedEnv, $releaseDir . '/.env');
 
-    // 内部ドキュメント（仕様書・更新ログ等）を本番から除去
-    $docsDir = $projectDir . '/docs';
-    if (is_dir($docsDir)) {
-        $it = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($docsDir, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
-        );
-        foreach ($it as $file) {
-            $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
-        }
-        rmdir($docsDir);
-        echo "・docs/ ディレクトリを削除しました。\n";
+    $oldRelease = is_link($currentLink)
+        ? realpath($currentLink)
+        : ($initialMigration ? realpath($legacyProjectDir) : null);
+    if ($oldRelease !== false && $oldRelease !== null) {
+        deploy_copy_missing($oldRelease . '/public/images', $releaseDir . '/public/images');
     }
-    
-    // 【2】公開領域(public_html)にLaravelへ繋ぐ中継用 index.php を自動生成
-    $indexCode = <<<PHP
-<?php
-define('LARAVEL_START', microtime(true));
+    deploy_copy_missing($releaseDir . '/public/build', $sharedAssets . '/build');
 
-// メンテナンスモード確認（デプロイ中の一時的なファイル不整合でエラー画面が出ないようにする）
-if (file_exists(\$maintenance = __DIR__.'/../valzeria_project/storage/framework/maintenance.php')) {
-    require \$maintenance;
-}
-
-require __DIR__.'/../valzeria_project/vendor/autoload.php';
-\$app = require_once __DIR__.'/../valzeria_project/bootstrap/app.php';
-\$app->handleRequest(Illuminate\Http\Request::capture());
-PHP;
-    file_put_contents($publicHtmlDir . '/index.php', $indexCode);
-
-    // 【3】公開領域に静的アセット（画像やCSS/JS）へのシンボリックリンクを作成
-    // ※ 展開された valzeria_project/public の中身を参照するショートカット
-    // ※ manifest.json は Laravel ルート経由で配信するためここには含めない
-    // ※ sw.js はシンボリックリンクではなく実ファイルとしてコピーする（MIME type の確実な配信のため）
-    $obsoleteAssetLinks = ['admin'];
-    foreach ($obsoleteAssetLinks as $asset) {
-        $link = $publicHtmlDir . '/' . $asset;
-        if (is_link($link)) {
-            unlink($link);
-        }
+    require $releaseDir . '/vendor/autoload.php';
+    $app = require $releaseDir . '/bootstrap/app.php';
+    $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+    $kernel->bootstrap();
+    Illuminate\Support\Facades\Artisan::call('config:clear');
+    if (!$resetStagingDatabase) {
+        Illuminate\Support\Facades\Artisan::call('cache:clear');
     }
-
-    // storage シンボリックリンク（public_html/storage → valzeria_project/storage/app/public）
-    $storageTarget = $projectDir . '/storage/app/public';
-    $storageLink   = $publicHtmlDir . '/storage';
-    if (!file_exists($storageTarget)) {
-        mkdir($storageTarget, 0755, true);
-    }
-    // 既存のリンクまたはディレクトリを除去してから再作成
-    if (is_link($storageLink)) {
-        unlink($storageLink);
-    } elseif (is_dir($storageLink)) {
-        // 空ディレクトリなら削除、中身がある場合はスキップ
-        @rmdir($storageLink);
-    }
-    if (!file_exists($storageLink) && !is_link($storageLink)) {
-        symlink($storageTarget, $storageLink);
-        echo "・storage シンボリックリンク作成: {$storageLink} → {$storageTarget}\n";
-    } else {
-        echo "・storage シンボリックリンク: スキップ（既存ディレクトリが存在します）\n";
-    }
-
-    $symlinkAssets = ['build', 'images', 'tools', 'contact_images', 'favicon.ico', 'robots.txt'];
-    foreach ($symlinkAssets as $asset) {
-        $target = $projectDir . '/public/' . $asset;
-        $link = $publicHtmlDir . '/' . $asset;
-        
-        if (file_exists($target)) {
-            // 既にリンクやファイルがあれば削除して上書き
-            if (file_exists($link) || is_link($link)) {
-                if (is_dir($link) && !is_link($link)) {
-                    continue;
-                }
-                unlink($link);
+    Illuminate\Support\Facades\Artisan::call('view:clear');
+    if ($mode !== 'none') {
+        if ($resetStagingDatabase) {
+            $wipeStatus = Illuminate\Support\Facades\Artisan::call('db:wipe', ['--force' => true]);
+            if ($wipeStatus !== 0) {
+                throw new RuntimeException('ステージングDBの初期化に失敗しました。');
             }
-            symlink($target, $link);
+        }
+        $migrationCommand = 'migrate';
+        $disableForeignKeyChecks = $resetStagingDatabase;
+        if ($disableForeignKeyChecks) {
+            Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        }
+        try {
+            $migrationStatus = Illuminate\Support\Facades\Artisan::call($migrationCommand, ['--force' => true]);
+        } finally {
+            if ($disableForeignKeyChecks) {
+                Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            }
+        }
+        if ($migrationStatus !== 0) {
+            throw new RuntimeException('migration に失敗しました。');
         }
     }
-
-    // sw.js は実ファイルとしてコピー（シンボリックリンクだとMIMEタイプが不安定なため）
-    $swSource = $projectDir . '/public/sw.js';
-    $swDest = $publicHtmlDir . '/sw.js';
-    if (file_exists($swSource)) {
-        if (file_exists($swDest) || is_link($swDest)) {
-            unlink($swDest);
-        }
-        copy($swSource, $swDest);
-    }
-
-    // manifest.json のシンボリックリンクが残っていれば削除
-    // (Laravel ルート /manifest.json で正しいContent-Typeで配信するため)
-    $manifestLink = $publicHtmlDir . '/manifest.json';
-    if (file_exists($manifestLink) || is_link($manifestLink)) {
-        unlink($manifestLink);
-    }
-
-    // 【4】server_deploy_api.php 自身を最新版に自己更新
-    // デプロイされたプロジェクト内の最新版で public_html 側のスクリプトを上書きする
-    $selfSource = $projectDir . '/server_deploy_api.php';
-    // Xserverの構成: /home/nos27/valzeria.com/public_html/ ← このスクリプトの場所
-    //                /home/nos27/valzeria.com/valzeria_project/ ← $projectDir
-    // $publicHtmlDir = __DIR__ (このスクリプト自身が public_html/ にある)
-    $selfDest = $publicHtmlDir . '/server_deploy_api.php';
-    if (file_exists($selfSource)) {
-        if (copy($selfSource, $selfDest)) {
-            echo "・server_deploy_api.php を最新版に自己更新しました。\n";
-        } else {
-            echo "・警告: server_deploy_api.php の自己更新に失敗しました。\n";
+    if (($initialMigration && $bootstrapEmpty) || $resetStagingDatabase) {
+        $seedStatus = Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+        if ($seedStatus !== 0) {
+            throw new RuntimeException('初回マスタデータ投入に失敗しました。');
         }
     }
-
-    $adminDeploySource = $projectDir . '/server_admin_deploy_api.php';
-    $adminDeployDest = $publicHtmlDir . '/server_admin_deploy_api.php';
-    if (file_exists($adminDeploySource)) {
-        if (copy($adminDeploySource, $adminDeployDest)) {
-            echo "・server_admin_deploy_api.php を最新版に配置しました。\n";
-        } else {
-            echo "・警告: server_admin_deploy_api.php の配置に失敗しました。\n";
-        }
+    if (($initialMigration && $bootstrapEmpty) || $resetStagingDatabase) {
+        Illuminate\Support\Facades\Artisan::call('cache:clear');
     }
+    Illuminate\Support\Facades\Artisan::call('config:cache');
+    Illuminate\Support\Facades\Artisan::call('event:cache');
+    Illuminate\Support\Facades\Artisan::call('view:cache');
 
-    // 【5】マイグレーションの自動実行 (CLIのPHPバージョン問題を回避するためWebプロセス内で実行)
+    if ($initialMigration) {
+        deploy_atomic_link($bootstrapEmpty ? $releaseDir : $legacyProjectDir, $currentLink);
+        deploy_write_public_entry($publicHtmlDir, $currentLink);
+        foreach (['build', 'images', 'tools', 'contact_images', 'favicon.ico', 'robots.txt'] as $asset) {
+            $target = $asset === 'build'
+                ? $sharedAssets . '/build'
+                : $currentLink . '/public/' . $asset;
+            $link = $publicHtmlDir . '/' . $asset;
+            if (is_link($link) || is_file($link)) {
+                @unlink($link);
+            }
+            if (!file_exists($link) && !is_link($link)) {
+                symlink($target, $link);
+            }
+        }
+        deploy_atomic_link($sharedStorage . '/app/public', $publicHtmlDir . '/storage');
+    }
+    $previousRelease = $oldRelease !== false ? $oldRelease : null;
+    deploy_atomic_link($releaseDir, $currentLink);
     try {
-        require $projectDir . '/vendor/autoload.php';
-        $app = require_once $projectDir . '/bootstrap/app.php';
-        $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
-        $kernel->bootstrap();
-
-        \Illuminate\Support\Facades\Artisan::call('config:clear');
-        echo "・config:clear 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('cache:clear');
-        echo "・cache:clear 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('view:clear');
-        echo "・view:clear 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('route:clear');
-        echo "・route:clear 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('event:clear');
-        echo "・event:clear 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-        echo "・マイグレーション実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'RouteAreaSeeder', '--force' => true]);
-        echo "・シーダー(RouteAreaSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'AreaDiscoveryLinkSeeder', '--force' => true]);
-        echo "・シーダー(AreaDiscoveryLinkSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('valzeria:rebuild-discovery-progress');
-        echo "・発見進行再構築結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'JobSystemSeeder', '--force' => true]);
-        echo "・シーダー(JobSystemSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'SkillSeeder', '--force' => true]);
-        echo "・シーダー(SkillSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'JobArtSeeder', '--force' => true]);
-        echo "・シーダー(JobArtSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'EnemySeeder', '--force' => true]);
-        echo "・シーダー(EnemySeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'TopUpdateSeeder', '--force' => true]);
-        echo "・シーダー(TopUpdateSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('enemy:stats:apply', [
-            '--all' => true,
-            '--include-locked' => true,
-            '--backup-key' => 'pre_enemy_curve_v1_9_1_2026_06',
-            '--force' => true,
-        ]);
-        echo "・敵ステータス自動生成(v1.9.1)反映結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'EnemyDropsSeeder', '--force' => true]);
-        echo "・シーダー(EnemyDropsSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'ArmorsSeeder', '--force' => true]);
-        echo "・シーダー(ArmorsSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'DropEquipmentAdditionsSeeder', '--force' => true]);
-        echo "・シーダー(DropEquipmentAdditionsSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'ValmonSeeder', '--force' => true]);
-        echo "・シーダー(ValmonSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('valzeria:cleanup-duplicate-valmons', ['--delete' => true]);
-        echo "・重複ヴァルモン削除結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'NpcProcurementRequestSeeder', '--force' => true]);
-        echo "・シーダー(NpcProcurementRequestSeeder)実行結果:\n" . \Illuminate\Support\Facades\Artisan::output() . "\n";
-
-        \Illuminate\Support\Facades\Artisan::call('config:cache');
-        echo "・config:cache 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('event:cache');
-        echo "・event:cache 実行完了\n";
-
-        \Illuminate\Support\Facades\Artisan::call('view:cache');
-        echo "・view:cache 実行完了\n";
-
-        echo "・route:cache はクロージャルートがあるため未実行（route:clear のみ）\n";
-    } catch (\Exception $e) {
-        echo "・Artisan実行エラー: " . $e->getMessage() . "\n";
+        deploy_release_health_check($releaseDir, $currentLink);
+    } catch (Throwable $healthError) {
+        if (is_string($previousRelease) && is_dir($previousRelease)) {
+            deploy_atomic_link($previousRelease, $currentLink);
+            if (function_exists('opcache_reset')) {
+                @opcache_reset();
+            }
+            deploy_log($auditLog, ['event' => 'rolled_back', 'ip' => $remoteIp, 'release' => $releaseId, 'reason' => $healthError->getMessage()]);
+        }
+        throw new RuntimeException('切替後ヘルスチェックに失敗し、直前リリースへ戻しました: ' . $healthError->getMessage());
     }
-
-    echo "デプロイが正常に完了しました！\n";
-    echo "・本体展開先: {$projectDir}\n";
-    echo "・中継ファイル生成: {$publicHtmlDir}/index.php\n";
-    echo "・アセットリンク作成完了\n";
-
-} else {
-    http_response_code(500);
-    die("エラー: ZIPファイルを開けませんでした。");
+    $userIni = $releaseDir . '/public/.user.ini';
+    if (is_file($userIni)) {
+        @copy($userIni, $publicHtmlDir . '/.user.ini');
+    }
+    $serviceWorker = $releaseDir . '/public/sw.js';
+    if (is_file($serviceWorker)) {
+        $temporaryWorker = $publicHtmlDir . '/sw.js.next';
+        if (copy($serviceWorker, $temporaryWorker)) {
+            @rename($temporaryWorker, $publicHtmlDir . '/sw.js');
+        }
+    }
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+    }
+    deploy_write_public_htaccess($publicHtmlDir, $currentLink);
+    $source = $releaseDir . '/server_deploy_api.php';
+    if (is_file($source)) {
+        @copy($source, $publicHtmlDir . '/server_deploy_api.php');
+    }
+    $adminSource = $releaseDir . '/server_admin_deploy_api.php';
+    if (is_file($adminSource)) {
+        @copy($adminSource, $publicHtmlDir . '/server_admin_deploy_api.php');
+    }
+    deploy_log($auditLog, ['event' => 'success', 'ip' => $remoteIp, 'release' => $releaseId, 'migration_mode' => $mode, 'bootstrap_empty' => $bootstrapEmpty, 'reset_staging_database' => $resetStagingDatabase]);
+    echo "デプロイが正常に完了しました。\nrelease: {$releaseId}\n";
+} catch (Throwable $error) {
+    deploy_log($auditLog, ['event' => 'failed', 'ip' => $remoteIp, 'release' => $releaseDir, 'error' => $error->getMessage()]);
+    deploy_fail(500, 'デプロイを中止しました。公開中リリースは切り替えていません: ' . $error->getMessage());
+} finally {
+    if ($maintenanceEnabled) {
+        deploy_disable_maintenance($sharedDir . '/storage');
+    }
+    if ($serverStagedZipPath !== null && is_file($serverStagedZipPath)) {
+        @unlink($serverStagedZipPath);
+    }
+    flock($lock, LOCK_UN);
+    fclose($lock);
 }

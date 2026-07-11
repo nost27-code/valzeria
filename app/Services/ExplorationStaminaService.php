@@ -47,8 +47,8 @@ class ExplorationStaminaService
     public static function baseMaxForWins(int $wins): int
     {
         $max = 250;
-        $max += intdiv(min($wins, 2000), 10);                         // 〜2,000勝: 10勝で+1
-        $max += intdiv(min(max(0, $wins - 2000), 1000), 20);           // 2,001〜3,000勝: 20勝で+1
+        $max += intdiv(min($wins, 2000), 100) * 10;                         // 〜2,000勝: 100勝ごとに+10
+        $max += intdiv(min(max(0, $wins - 2000), 1000), 100) * 5;           // 2,001〜3,000勝: 100勝ごとに+5
 
         return min(500, $max);
     }
@@ -288,9 +288,8 @@ class ExplorationStaminaService
         $current = max(0, (int) ($character->explore_stamina ?? $max));
         $updatedAt = $character->explore_stamina_updated_at ?: now();
 
-        if ($storedMax < $baseMax && $current <= $storedMax) {
-            $current = $baseMax;
-            $updatedAt = now();
+        if ($storedMax < $baseMax) {
+            $current = min($baseMax, $current + ($baseMax - $storedMax));
         }
 
         return [$current, $updatedAt];

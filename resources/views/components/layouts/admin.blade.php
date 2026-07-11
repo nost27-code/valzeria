@@ -59,6 +59,7 @@
                 'label' => '運用',
                 'items' => [
                     ['route' => 'admin.players', 'label' => 'プレイヤー一覧', 'abbr' => 'P'],
+                    ['route' => 'admin.bug-reports', 'label' => '不具合フォーム', 'abbr' => '!'],
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],
                     ['route' => 'admin.player-controls', 'label' => '輝石付与・プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
@@ -95,6 +96,7 @@
                     ['route' => 'admin.battle-simulator', 'label' => '戦闘シミュレーション', 'abbr' => 'B'],
                     ['route' => 'admin.balance-battle-lab', 'label' => '仮想バランス検証', 'abbr' => 'S'],
                     ['route' => 'admin.skill-effect-lab', 'label' => '技効果検証', 'abbr' => 'K'],
+                    ['route' => 'admin.route-health', 'label' => '正常性チェック', 'abbr' => 'H'],
                     ['route' => 'admin.testers', 'label' => 'テストキャラ管理', 'abbr' => 'T'],
                 ],
             ],

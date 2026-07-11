@@ -115,6 +115,18 @@ class DropService
             return $result;
         }
 
+        // フェルディアは敵ごとの条件付き確率をそのまま使い、既存の汎用素材・装備プールへは流さない。
+        if ($this->isFerdiaEnemy($enemy)) {
+            $result['materials'] = $this->rollFerdiaMaterialDrops($character, $enemy, $trackExplorationLoot);
+            $result['by_slot']['material'] = $result['materials'];
+            if ($rollMonsterMark) {
+                $monsterMark = app(MonsterMarkService::class)->rollAndGrant($character, $enemy);
+                $result['monster_mark'] = $monsterMark;
+                $result['by_slot']['monster_mark'] = $monsterMark;
+            }
+            return $result;
+        }
+
         $rates = $this->withSkillRewardBonus(
             $this->withDangerRewardBonus($this->dropRates($enemy), $character),
             $dropBonusPercent,
@@ -194,6 +206,10 @@ class DropService
             return $this->rollFirstClearMaterials($character, $enemy);
         }
 
+        if ($this->isFerdiaEnemy($enemy)) {
+            return $this->rollFerdiaMaterialDrops($character, $enemy);
+        }
+
         $drops = [];
         $branchMaterial = $this->rollConfiguredBranchEvolutionMaterial($character, $enemy);
         if ($branchMaterial) {
@@ -218,22 +234,37 @@ class DropService
         return $this->grantMaterial($character, $material, $kind, $enemy);
     }
 
+    /** フェルディア専用: material_drops の値を重みではなく敵撃破ごとの条件付き確率として扱う。 */
+    private function rollFerdiaMaterialDrops(Character $character, Enemy $enemy, bool $trackExplorationLoot = true): array
+    {
+        $drops = [];
+        $rows = MaterialDrop::query()->where('enemy_id', $enemy->id)->where('is_active', true)
+            ->where('drop_first_clear_only', false)->with('material')->get();
+        foreach ($rows as $row) {
+            if (!$row->material || !$this->rollPercent((float) $row->drop_rate)) {
+                continue;
+            }
+            $drops[] = $this->grantMaterial($character, $row->material, 'felderia_material', $enemy, $trackExplorationLoot);
+        }
+        return $drops;
+    }
+
     public function dropRates(Enemy $enemy): array
     {
         $cityTier = $this->enemyCityTier($enemy);
 
         if ($this->isBackDungeon($enemy)) {
-            return $this->applyOperationalDropRateSettings(['material' => 65, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5]);
+            return $this->applyOperationalDropRateSettings(['material' => 65, 'weapon' => 0.75, 'armor' => 0.75, 'accessory' => 0.25]);
         }
 
         if ($this->isGrassland($enemy)) {
-            return $this->applyOperationalDropRateSettings(['material' => 40, 'weapon' => 1, 'armor' => 0.75, 'accessory' => 0.25]);
+            return $this->applyOperationalDropRateSettings(['material' => 40, 'weapon' => 0.75, 'armor' => 0.5, 'accessory' => 0.15]);
         }
 
         $rates = match ($cityTier) {
-            1, 2, 3, 4 => ['material' => 50, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5],
-            5, 6, 7 => ['material' => 55, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5],
-            default => ['material' => 60, 'weapon' => 1.5, 'armor' => 1, 'accessory' => 0.5],
+            1, 2, 3, 4 => ['material' => 50, 'weapon' => 0.75, 'armor' => 0.75, 'accessory' => 0.25],
+            5, 6, 7 => ['material' => 55, 'weapon' => 0.75, 'armor' => 0.75, 'accessory' => 0.25],
+            default => ['material' => 60, 'weapon' => 0.75, 'armor' => 0.75, 'accessory' => 0.25],
         };
 
         return $this->applyOperationalDropRateSettings($rates);
@@ -294,6 +325,10 @@ class DropService
 
     private function rollEquipmentBySpec(Character $character, Enemy $enemy, string $type, int $rareBonusPercent = 0, bool $trackExplorationLoot = true): ?array
     {
+        if ($this->isFerdiaEnemy($enemy)) {
+            return null;
+        }
+
         $rankWeights = $this->equipmentRankWeights($enemy, $rareBonusPercent);
 
         while (!empty($rankWeights)) {
@@ -458,7 +493,7 @@ class DropService
             })
             ->values();
 
-        if ($drops->isNotEmpty()) {
+        if ($drops->isNotEmpty() && !$this->isFerdiaEnemy($enemy)) {
             $drops = $this->withRegionalMaterialCandidate($drops, $enemy);
         }
 
@@ -467,6 +502,10 @@ class DropService
             if ($material) {
                 return $this->grantMaterial($character, $material, 'drop', $enemy, $trackExplorationLoot);
             }
+        }
+
+        if ($this->isFerdiaEnemy($enemy)) {
+            return null;
         }
 
         // drops未登録の敵への最終フォールバック（汎用素材）
@@ -765,6 +804,13 @@ class DropService
         return $enemy->relationLoaded('area')
             ? $enemy->area
             : $enemy->area()->with('city')->first();
+    }
+
+    private function isFerdiaEnemy(Enemy $enemy): bool
+    {
+        $area = $this->enemyArea($enemy);
+
+        return $area && app(FerdiaMapService::class)->isFerdiaAreaId((int) $area->id);
     }
 
     private function enemyCityTier(Enemy $enemy): int

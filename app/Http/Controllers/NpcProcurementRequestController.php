@@ -4,20 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Models\NpcProcurementRequest;
 use App\Models\NpcProcurementRequestMaterial;
+use App\Services\NpcProcurementRequestGenerationService;
 use App\Services\NpcProcurementRequestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class NpcProcurementRequestController extends Controller
 {
-    public function index(NpcProcurementRequestService $service)
+    public function index(
+        NpcProcurementRequestService $service,
+        NpcProcurementRequestGenerationService $generationService
+    )
     {
         $character = Auth::user()->currentCharacter();
         if (! $character) {
             return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         }
 
+        $generationService->ensurePersistentRequests();
         $requests = $service->getActiveRequests($character);
+        if ($requests->isEmpty()) {
+            $generationService->generateDailyRequests(force: true);
+            $requests = $service->getActiveRequests($character);
+        }
 
         return view('market.npc-requests.index', compact('character', 'requests'));
     }

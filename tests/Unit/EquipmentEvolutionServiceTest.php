@@ -3,6 +3,9 @@
 namespace Tests\Unit;
 
 use App\Models\CharacterItem;
+use App\Models\EquipmentAffixPrefix;
+use App\Models\EquipmentAffixSuffix;
+use App\Models\Item;
 use App\Services\EquipmentEvolutionService;
 use App\Services\EquipmentPermissionService;
 use Illuminate\Support\Collection;
@@ -81,6 +84,45 @@ class EquipmentEvolutionServiceTest extends TestCase
         $this->assertSame('undead', $payload['resist_species_key']);
         $this->assertSame(0.12, $payload['species_damage_reduction_rate']);
         $this->assertEquals($generatedAt, $payload['affix_generated_at']);
+    }
+
+    public function test_source_option_payloads_show_affixed_display_names_and_flags(): void
+    {
+        $service = new EquipmentEvolutionService($this->createMock(EquipmentPermissionService::class));
+
+        $item = new Item(['name' => '鉄の剣']);
+        $toItem = new Item(['name' => '鋼の剣']);
+        $prefix = new EquipmentAffixPrefix(['name' => '鋭い']);
+        $suffix = new EquipmentAffixSuffix(['name' => '竜断']);
+        $source = new CharacterItem([
+            'is_equipped' => true,
+            'is_locked' => true,
+            'enhance_level' => 2,
+            'affix_prefix_id' => 10,
+            'affix_suffix_id' => 20,
+            'affix_quality' => 'excellent',
+            'affix_str_bonus' => 4,
+            'killer_species_key' => 'dragon',
+            'killer_damage_rate' => 0.15,
+        ]);
+        $source->id = 99;
+        $source->setRelation('item', $item);
+        $source->setRelation('affixPrefix', $prefix);
+        $source->setRelation('affixSuffix', $suffix);
+
+        $payloads = $this->invokePrivate($service, 'sourceOptionPayloads', [new Collection([$source]), $toItem]);
+
+        $this->assertSame(99, $payloads[0]['id']);
+        $this->assertSame('鋭い鉄の剣・竜断【逸品】 +2', $payloads[0]['display_name']);
+        $this->assertSame('鋭い鋼の剣・竜断【逸品】', $payloads[0]['evolved_display_name']);
+        $this->assertTrue($payloads[0]['is_equipped']);
+        $this->assertTrue($payloads[0]['is_locked']);
+        $this->assertTrue($payloads[0]['has_affix']);
+        $this->assertContains('攻撃+4', $payloads[0]['affix_lines']);
+        $this->assertContains('種族が竜の敵への与ダメージ +15%', $payloads[0]['affix_lines']);
+
+        $maskedPayloads = $this->invokePrivate($service, 'sourceOptionPayloads', [new Collection([$source]), $toItem, '未鑑定の剣']);
+        $this->assertSame('鋭い未鑑定の剣・竜断【逸品】', $maskedPayloads[0]['evolved_display_name']);
     }
 
     private function invokePrivate(object $object, string $method, array $arguments = []): mixed

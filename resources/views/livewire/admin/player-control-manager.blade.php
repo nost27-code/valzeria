@@ -88,7 +88,7 @@
                                     <div class="mt-1 rounded bg-white px-2 py-1 text-xs font-black text-slate-700 shadow-sm ring-1 ring-slate-200">{{ $character->user?->email ?? 'メール未登録' }}</div>
                                 </div>
                                 <div class="shrink-0 rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">
-                                    {{ number_format((int) ($character->material_storage_limit ?? 500)) }} / {{ number_format(max(300, (int) ($character->equipment_storage_limit ?? 300))) }}
+                                    {{ number_format((int) ($characterStorageLimits[$character->id]['material'] ?? 500)) }} / {{ number_format((int) ($characterStorageLimits[$character->id]['equipment'] ?? 300)) }}
                                 </div>
                             </div>
                         </button>

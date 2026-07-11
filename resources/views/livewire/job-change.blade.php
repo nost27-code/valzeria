@@ -171,6 +171,12 @@
         return true;
     };
     $unspentBp = (int) ($character->bonus_points ?? 0);
+
+    $rankOrder = \App\Support\JobRankCatalog::keys();
+    $groupedAvailableJobs = collect($availableJobs)
+        ->groupBy(fn ($job) => \App\Support\JobRankCatalog::normalize($job->rank))
+        ->sortBy(fn ($jobs, $rank) => array_search($rank, $rankOrder, true))
+        ->all();
 @endphp
 
 <div class="max-w-7xl mx-auto p-4 flex flex-col gap-4 text-sm font-sans text-[#1e293b]"
@@ -293,52 +299,72 @@
                 </h2>
                 
                 @if(count($availableJobs) > 0)
-                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        @foreach($availableJobs as $job)
-                            @php
-                                $progress = $jobProgress[$job->id] ?? ['level' => 0, 'is_mastered' => false];
-                                $stars = max(0, min(9, (int) ($progress['level'] ?? 0)));
-                                $bonusChips = ($progress['is_mastered'] ?? false) ? $formatMasterBonuses($job) : [];
-                                $rankStyle = $rankStyles[$job->rank] ?? $rankStyles['normal'];
-                            @endphp
-                            <div class="text-left group border {{ $rankStyle['card'] }} rounded-lg p-3 transition-all duration-200 hover:shadow-md relative overflow-hidden">
-                                <div class="absolute inset-0 bg-gradient-to-r {{ $rankStyle['hoverOverlay'] }} to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div class="relative z-10 flex justify-between items-start mb-1">
-                                    <div class="font-bold text-[#1e293b] {{ $rankStyle['title'] }} transition-colors">{{ $job->name }}</div>
-                                    <span class="text-[10px] px-2 py-0.5 rounded border {{ $rankStyle['badge'] }} font-bold">
-                                        {{ $rankLabel($job->rank) }}
-                                    </span>
-                                </div>
-                                <div class="relative z-10 mt-1 font-sans">
-                                    @if($progress['is_mastered'] ?? false)
-                                        <span class="inline-flex items-center rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 tracking-wide">MASTER</span>
-                                        @if(!empty($bonusChips))
-                                            <div class="mt-1 flex flex-wrap gap-1">
-                                                @foreach($bonusChips as $bonus)
-                                                    <span class="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                                                        {{ $bonus['label'] }}+{{ $bonus['value'] }}{{ $bonus['suffix'] }}
-                                                    </span>
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                    @else
-                                        <span class="text-[11px] tracking-[0.08em] {{ $rankStyle['stars'] }} font-bold">
-                                            {{ str_repeat('★', $stars) }}{{ str_repeat('☆', 10 - $stars) }}
+                    <div class="space-y-3">
+                        @foreach($groupedAvailableJobs as $rank => $jobsInRank)
+                            <div class="border border-gray-200 rounded-lg overflow-hidden" x-data="{ open: false }">
+                                <button type="button"
+                                        @click="open = !open"
+                                        class="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+                                    <span class="flex items-center gap-2">
+                                        <span class="text-[11px] px-2 py-0.5 rounded border {{ $rankStyles[$rank]['badge'] ?? $rankStyles['normal']['badge'] }} font-bold">
+                                            {{ $rankLabel($rank) }}
                                         </span>
-                                    @endif
-                                </div>
-                                <div class="relative z-10 text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{{ $job->description ?? '説明なし' }}</div>
-                                <div class="relative z-10 mt-3 flex gap-2">
-                                    <button type="button"
-                                            wire:click="showJobDetail({{ $job->id }})"
-                                            class="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-600 shadow-sm hover:bg-slate-50">
-                                        詳細
-                                    </button>
-                                    <button type="button"
-                                            wire:click="confirmJobChange({{ $job->id }})"
-                                            class="flex-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-amber-600">
-                                        転職する
-                                    </button>
+                                        <span class="text-sm font-bold text-[#1e293b]">{{ \App\Support\JobRankCatalog::label($rank) }}</span>
+                                        <span class="text-xs text-gray-400 font-medium">({{ count($jobsInRank) }})</span>
+                                    </span>
+                                    <span class="text-gray-400 text-xs font-bold transition-transform" x-bind:class="open ? 'rotate-180' : ''">▼</span>
+                                </button>
+                                <div x-show="open" class="p-3">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        @foreach($jobsInRank as $job)
+                                            @php
+                                                $progress = $jobProgress[$job->id] ?? ['level' => 0, 'is_mastered' => false];
+                                                $stars = max(0, min(9, (int) ($progress['level'] ?? 0)));
+                                                $bonusChips = ($progress['is_mastered'] ?? false) ? $formatMasterBonuses($job) : [];
+                                                $rankStyle = $rankStyles[$job->rank] ?? $rankStyles['normal'];
+                                            @endphp
+                                            <div class="text-left group border {{ $rankStyle['card'] }} rounded-lg p-3 transition-all duration-200 hover:shadow-md relative overflow-hidden">
+                                                <div class="absolute inset-0 bg-gradient-to-r {{ $rankStyle['hoverOverlay'] }} to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                <div class="relative z-10 flex justify-between items-start mb-1">
+                                                    <div class="font-bold text-[#1e293b] {{ $rankStyle['title'] }} transition-colors">{{ $job->name }}</div>
+                                                    <span class="text-[10px] px-2 py-0.5 rounded border {{ $rankStyle['badge'] }} font-bold">
+                                                        {{ $rankLabel($job->rank) }}
+                                                    </span>
+                                                </div>
+                                                <div class="relative z-10 mt-1 font-sans">
+                                                    @if($progress['is_mastered'] ?? false)
+                                                        <span class="inline-flex items-center rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 tracking-wide">MASTER</span>
+                                                        @if(!empty($bonusChips))
+                                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                                @foreach($bonusChips as $bonus)
+                                                                    <span class="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                                                                        {{ $bonus['label'] }}+{{ $bonus['value'] }}{{ $bonus['suffix'] }}
+                                                                    </span>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    @else
+                                                        <span class="text-[11px] tracking-[0.08em] {{ $rankStyle['stars'] }} font-bold">
+                                                            {{ str_repeat('★', $stars) }}{{ str_repeat('☆', 10 - $stars) }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <div class="relative z-10 text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{{ $job->description ?? '説明なし' }}</div>
+                                                <div class="relative z-10 mt-3 flex gap-2">
+                                                    <button type="button"
+                                                            wire:click="showJobDetail({{ $job->id }})"
+                                                            class="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-600 shadow-sm hover:bg-slate-50">
+                                                        詳細
+                                                    </button>
+                                                    <button type="button"
+                                                            wire:click="confirmJobChange({{ $job->id }})"
+                                                            class="flex-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-amber-600">
+                                                        転職する
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
@@ -546,6 +572,13 @@
                                     <div class="mt-2 text-xs font-medium leading-relaxed text-slate-600">
                                         {{ $art->memo ?? $art->description ?? '効果説明なし' }}
                                     </div>
+                                    @if($art->jobArtNumericEffectLabels())
+                                        <div class="mt-2 flex flex-wrap gap-1 text-[10px] font-bold text-indigo-700">
+                                            @foreach($art->jobArtNumericEffectLabels() as $numericEffectLabel)
+                                                <span class="rounded border border-indigo-100 bg-white px-2 py-0.5">{{ $numericEffectLabel }}</span>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                     @if($art->activation_phrase || $art->activation_description)
                                         <div class="mt-2 rounded-md bg-white/70 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-indigo-700">
                                             @if($art->activation_phrase)

@@ -50,6 +50,11 @@ Fixed rulings (2026-07-02):
 - Before finishing, run the applicable sections of docs/dev-os/QA_CHECKLIST.md and include the results in the final report.
 - For spec changes, consult docs/dev-os/IMPACT_MAP.md and list affected features in the plan.
 
+## 実装で気づいたこと・今後自然に実施してほしいこと
+- 勝利報酬は、必ず戦闘ログの下部にすること。時系列は上から下です。矛盾が無いようにすること。
+- 「到達階の報酬を受け取れます。武器宝箱は受け取る武器種を選んでください。」のような説明口調ではなく、
+　「宝箱を発見した！どれか一つが受け取れるようだ。」のような冒険者の視点での説明をすること。
+
 ## Implementation flow
 
 1. Identify relevant files from docs/CODEMAP.md.

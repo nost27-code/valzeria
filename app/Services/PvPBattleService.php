@@ -353,6 +353,7 @@ class PvPBattleService
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
         $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $this->logGutsIfTriggered($defender, $state);
     }
 
     protected function executePhysicalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
@@ -381,9 +382,10 @@ class PvPBattleService
         );
         $defender->takeDamage($damage);
         $this->rewardRankBattleFocusAfterDamage($attacker, $defender, $damage, $isCrit, $affinityMultiplier);
-        
+
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $this->logGutsIfTriggered($defender, $state);
     }
 
     /**
@@ -481,8 +483,9 @@ class PvPBattleService
                 $defender->takeDamage($damage);
                 $this->rewardRankBattleFocusAfterDamage($attacker, $defender, $damage, $isCrit, $affinityMultiplier ?? 1.0);
                 $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $this->logGutsIfTriggered($defender, $state);
             }
-            
+
             if ($defender->isDead()) break;
         }
 
@@ -506,11 +509,12 @@ class PvPBattleService
             $selfDamage = (int)($attacker->maxHp * ($skill->self_damage_percent / 100));
             $attacker->takeDamage($selfDamage);
             $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
+            $this->logGutsIfTriggered($attacker, $state);
         }
 
         $this->applyStructuredDebuffs($defender, $state, $skill);
 
-        if ((int) $skill->damage_reduction_percent > 0) {
+        if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
             $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
         }
@@ -531,7 +535,7 @@ class PvPBattleService
         int $totalDamage
     ): void {
         $template = (string) $skill->effect_template;
-        $power = max(80, (int) ($skill->power ?: 100));
+        $power = max(1, (int) ($skill->power ?: 100));
 
         if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
             $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
@@ -550,29 +554,63 @@ class PvPBattleService
             $state->addLog("<span class=\"text-orange-700 font-bold\">{$attacker->name} は一度だけ踏みとどまる覚悟を固めた！</span>");
         }
 
+
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
-            $reduction = min(25, max(10, (int) floor($power / 10)));
+            $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
+            $reduction = $this->jobArtGuardReduction($skill, $rate);
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, $reduction));
             $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
+            $beforeStr = $attacker->str;
+            $beforeMag = $attacker->mag;
             $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-            $state->addLog("<span class=\"text-indigo-600 font-bold\">{$attacker->name} の戦闘力が高まった！</span>");
+            $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
         }
 
         if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
+            $beforeDef = $defender->def;
+            $beforeSpr = $defender->spr;
             $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
             $defender->spr = max(1, $defender->spr - max(1, (int) floor($defender->baseSpr * 0.05)));
-            $state->addLog("<span class=\"text-violet-700 font-bold\">{$defender->name} の守りが乱れた！</span>");
+            $this->logStatChange($state, $defender->name, 'DEF', $beforeDef, $defender->def, 'SPR', $beforeSpr, $defender->spr, false);
         }
 
         if ($template === 'TIME_CONTROL_CURRENT_ONLY' && !$this->hasStructuredDebuff($skill)) {
             $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
+            $before = $defender->agi;
             $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
-            $state->addLog("<span class=\"text-sky-700 font-bold\">{$defender->name} の動きが鈍った！</span>");
+            $pct = $before > 0 ? (int) round((abs($before - $defender->agi) / $before) * 100) : 0;
+            $state->addLog("<span class=\"text-sky-700 font-bold\">{$defender->name} のSPDが {$pct}% 低下した！</span>");
         }
+    }
+
+    private function logStatChange(
+        BattleState $state,
+        string $actorName,
+        string $mainLabel,
+        int $mainBefore,
+        int $mainAfter,
+        string $subLabel,
+        int $subBefore,
+        int $subAfter,
+        bool $isBuff
+    ): void {
+        $mainPct = $mainBefore > 0 ? (int) round((abs($mainAfter - $mainBefore) / $mainBefore) * 100) : 0;
+        $subPct = $subBefore > 0 ? (int) round((abs($subAfter - $subBefore) / $subBefore) * 100) : 0;
+
+        if ($mainAfter === $mainBefore && $subAfter === $subBefore) {
+            $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
+            $verb = $isBuff ? '強化' : '弱体化';
+            $state->addLog("<span class=\"{$color} font-bold\">{$actorName} はこれ以上{$verb}できない！</span>");
+            return;
+        }
+
+        $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
+        $direction = $isBuff ? '上昇' : '低下';
+        $state->addLog("<span class=\"{$color} font-bold\">{$actorName} の{$mainLabel}が {$mainPct}% / {$subLabel}が {$subPct}% {$direction}した！</span>");
     }
 
     private function hasStructuredDebuff(Skill $skill): bool
@@ -582,6 +620,16 @@ class PvPBattleService
             || (int) $skill->enemy_def_down_percent > 0
             || (int) $skill->enemy_spr_down_percent > 0
             || (int) $skill->enemy_spd_down_percent > 0;
+    }
+
+    private function jobArtGuardReduction(Skill $skill, float $rate = 1.0): int
+    {
+        if ((int) $skill->damage_reduction_percent > 0) {
+            return min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
+        }
+
+        // powerは呼び出し元でskillForExecution()により既に継承倍率でスケール済み
+        return min(25, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
     }
 
     private function applyStructuredDebuffs(BattleActor $defender, BattleState $state, Skill $skill): void
@@ -619,7 +667,7 @@ class PvPBattleService
     private function normalAttackType(?object $job): string
     {
         $type = strtolower(trim((string) ($job?->normal_attack_type ?? '')));
-        if (in_array($type, ['physical', 'magical'], true)) {
+        if (in_array($type, ['physical', 'magical', 'adaptive'], true)) {
             return $type;
         }
 
@@ -629,6 +677,16 @@ class PvPBattleService
     private function affinityMultiplier(BattleActor $attacker, BattleActor $defender): float
     {
         return BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
+    }
+
+    private function logGutsIfTriggered(BattleActor $actor, BattleState $state): void
+    {
+        if (!$actor->gutsJustTriggered) {
+            return;
+        }
+
+        $actor->gutsJustTriggered = false;
+        $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
     }
 
     private function focus(BattleActor $actor): int

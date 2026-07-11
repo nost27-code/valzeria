@@ -142,7 +142,7 @@ return new class extends Migration
 
         if (Schema::hasTable('materials')) {
             DB::table('materials')
-                ->whereIn('material_code', array_keys(self::CLOTH_MATERIALS))
+                ->whereIn('material_code', $this->clothMaterialCodes())
                 ->update([
                     'is_tradable' => false,
                     'trade_policy' => 'unmarketable',
@@ -161,6 +161,7 @@ return new class extends Migration
         }
 
         foreach (self::CLOTH_MATERIALS as $materialCode => $data) {
+            $materialCode = (string) $materialCode;
             $price = (int) $data['price'];
 
             DB::table('materials')
@@ -222,6 +223,7 @@ return new class extends Migration
 
             $keptMaterialIds = [];
             foreach ($materials as [$materialCode, $requiredQuantity, $rewardGoldPerUnit]) {
+                $materialCode = (string) $materialCode;
                 $materialId = (int) DB::table('materials')
                     ->where('material_code', $materialCode)
                     ->value('id');
@@ -253,5 +255,10 @@ return new class extends Migration
                     ->delete();
             }
         }
+    }
+
+    private function clothMaterialCodes(): array
+    {
+        return array_map('strval', array_keys(self::CLOTH_MATERIALS));
     }
 };

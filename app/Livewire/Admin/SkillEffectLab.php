@@ -7,6 +7,7 @@ use App\Models\Enemy;
 use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\Admin\SkillEffectPreviewService;
+use App\Support\JobArtEffectCatalog;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -253,8 +254,16 @@ class SkillEffectLab extends Component
         $this->addEffectRow($rows, '職業', $skill->jobClass ? $this->jobLabel($skill->jobClass) : null);
         $this->addEffectRow($rows, '効果テンプレート', $skill->effect_template);
         $this->addEffectRow($rows, '攻撃タイプ', $skill->damage_type);
-        $this->addEffectRow($rows, '威力', $skill->isJobArt() ? (string) ($skill->power ?? '-') : ($skill->power_multiplier !== null ? number_format((float) $skill->power_multiplier, 2) . '倍' : null));
-        $this->addEffectRow($rows, 'Hit数', $skill->hit_count !== null ? (string) $skill->hit_count : null);
+        if ($skill->isJobArt()) {
+            $hitCount = $this->jobArtBattleHitCount($skill);
+            $power = (int) ($skill->power ?? 0);
+            $this->addEffectRow($rows, '総威力', $power > 0 ? $power : null);
+            $this->addEffectRow($rows, 'Hit数', $hitCount);
+            $this->addEffectRow($rows, '1Hit威力目安', $power > 0 ? max(60, (int) round($power / max(1, $hitCount))) : null);
+        } else {
+            $this->addEffectRow($rows, '威力', $skill->power_multiplier !== null ? number_format((float) $skill->power_multiplier, 2) . '倍' : null);
+            $this->addEffectRow($rows, 'Hit数', $skill->hit_count !== null ? (string) $skill->hit_count : null);
+        }
         $this->addEffectRow($rows, '発動率', $skill->effectiveActivationRate() > 0 ? $skill->effectiveActivationRate() . '%' : null);
         $this->addEffectRow($rows, '継承倍率', $skill->isJobArt() && $skill->inherited_rate !== null ? number_format((float) $skill->inherited_rate, 2) . '倍' : null);
         $this->addEffectRow($rows, 'DEF/SPR無視', (int) $skill->def_ignore_percent > 0 ? $skill->def_ignore_percent . '%' : null);
@@ -296,6 +305,16 @@ class SkillEffectLab extends Component
             'label' => $label,
             'value' => (string) $value,
         ];
+    }
+
+    private function jobArtBattleHitCount(Skill $skill): int
+    {
+        $hitCount = (int) $skill->hit_count;
+        if ($hitCount > 0) {
+            return $hitCount;
+        }
+
+        return max(1, JobArtEffectCatalog::hitCount((string) $skill->effect_template));
     }
 
     private function jobLabel(JobClass $job): string

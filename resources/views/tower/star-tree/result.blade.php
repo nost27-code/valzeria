@@ -9,10 +9,13 @@
     $towerBackgroundImage = (string) ($towerAssets['background'] ?? 'images/tower/01_tower.webp');
     $merchantIconImage = (string) ($towerAssets['merchant_icon'] ?? 'images/icon/icon_082.webp');
     $isMerchantPending = $run?->pending_event === \App\Services\TowerMerchantService::PENDING_EVENT;
-    $titleFloor = $run?->status === \App\Services\StarTreeTowerService::STATUS_RUNNING || $event->event_type !== 'battle'
+    $isBattleEvent = $event->event_type === 'battle';
+    $titleFloor = ! $isBattleEvent && $run?->status === \App\Services\StarTreeTowerService::STATUS_RUNNING
         ? (int) ($run->current_floor ?? $event->floor)
         : (int) $event->floor;
-    $titleLayer = $currentFloor?->layer_name;
+    $titleLayer = $isBattleEvent
+        ? ($eventFloor?->layer_name ?? null)
+        : ($currentFloor?->layer_name ?? null);
     $title = $titleFloor > 0
         ? $towerName . ' ' . number_format($titleFloor) . '階'
         : $towerName;
@@ -28,6 +31,9 @@
     };
     $battleLogs = collect($event->metadata['logs'] ?? []);
     $unlockedTitles = collect($event->metadata['unlocked_titles'] ?? [])->filter();
+    $claimedCardBackgroundRewards = collect($event->metadata['pending_rewards'] ?? [])
+        ->filter(fn ($reward) => ($reward['reward_type'] ?? '') === \App\Services\StarTreeTowerRewardService::TYPE_CARD_BACKGROUND)
+        ->values();
     $activatedWard = $event->metadata['ward'] ?? null;
     $enemyStats = $event->metadata['enemy_stats'] ?? [];
     $enemyNameForSpecies = (string) ($event->enemy_name ?? '');
@@ -41,10 +47,12 @@
         str_contains($enemyNameForSpecies, '樹') || str_contains($enemyNameForSpecies, '蔦') || str_contains($enemyNameForSpecies, '葉') => '植物',
         default => '魔物',
     };
-    $isBattleEvent = $event->event_type === 'battle';
     $isVictory = $event->result === 'victory';
     $isPositiveResult = $isVictory || !$isBattleEvent;
     $isRunning = $run && $run->status === \App\Services\StarTreeTowerService::STATUS_RUNNING;
+    $maxTowerFloor = max(1, (int) config('star_tree_tower.star_tree.seed_floor_count', 100));
+    $isTowerCleared = $run && (int) ($run->cleared_floor ?? 0) >= $maxTowerFloor;
+    $isFinalFloorVictory = $isBattleEvent && $isVictory && (int) $event->floor >= $maxTowerFloor;
     $hasMerchant = $isRunning && $isMerchantPending;
     $staminaCost = (int) ($currentFloor?->stamina_cost ?? 0);
     $nextFloorActionLabel = $currentFloor
@@ -83,11 +91,55 @@
         ->values();
     $currentKiseki = (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0);
     $hasScoutedCurrentFloor = (bool) ($hasScoutedCurrentFloor ?? false);
+    $hasPendingTowerStance = !empty($pendingTowerStance) && !$isTowerCleared && $currentFloor;
     $towerActionStrategies = collect($towerActionStrategies ?? [])
         ->reject(fn ($strategy) => $hasScoutedCurrentFloor && (string) ($strategy['key'] ?? '') === 'scout')
         ->values();
     $currentStrategyKey = (string) ($event->metadata['strategy']['key'] ?? 'normal');
     $isScoutEvent = $event->event_type === 'scout';
+    $battleStartStatus = (array) ($event->metadata['battle_start_status'] ?? []);
+    $battleStartHp = (int) ($battleStartStatus['hp'] ?? ($event->hp_after ?? ($run->tower_current_hp ?? 0)));
+    $battleStartMaxHp = (int) ($battleStartStatus['max_hp'] ?? ($run->tower_max_hp ?? ($finalStats['max_hp'] ?? 0)));
+    $battleStartSp = (int) ($battleStartStatus['sp'] ?? ($event->mp_after ?? ($run->tower_current_mp ?? 0)));
+    $battleStartMaxSp = (int) ($battleStartStatus['max_sp'] ?? ($run->tower_max_mp ?? ($finalStats['max_mp'] ?? 0)));
+    $battleStartHpPercent = $battleStartMaxHp > 0
+        ? min(100, (int) floor(($battleStartHp / max(1, $battleStartMaxHp)) * 100))
+        : 0;
+    $playerStartStats = array_merge([
+        'str' => (int) ($finalStats['str'] ?? 0),
+        'def' => (int) ($finalStats['def'] ?? 0),
+        'mag' => (int) ($finalStats['mag'] ?? 0),
+        'spr' => (int) ($finalStats['spr'] ?? 0),
+        'agi' => (int) ($finalStats['agi'] ?? 0),
+        'luk' => (int) ($finalStats['luk'] ?? 0),
+    ], (array) ($event->metadata['player_start_stats'] ?? ($battleStartStatus['stats'] ?? [])));
+    $playerBaseStats = array_merge($playerStartStats, (array) ($event->metadata['player_base_stats'] ?? []));
+    $enemyBattleStats = array_merge([
+        'max_hp' => 0,
+        'mp' => 0,
+        'max_mp' => 0,
+        'str' => 0,
+        'def' => 0,
+        'mag' => 0,
+        'spr' => 0,
+        'agi' => 0,
+        'luk' => 0,
+    ], (array) $enemyStats);
+    $enemyBaseStats = array_merge($enemyBattleStats, (array) ($event->metadata['enemy_base_stats'] ?? []));
+    $formatStatWithDelta = function (array $stats, array $baseStats, string $key): string {
+        $value = (int) ($stats[$key] ?? 0);
+        $base = (int) ($baseStats[$key] ?? $value);
+        $delta = $value - $base;
+        $html = number_format($delta === 0 ? $value : $base);
+
+        if ($delta > 0) {
+            $html .= ' <span class="ml-1 text-[10px] font-black text-emerald-600">+'.number_format($delta).'</span>';
+        } elseif ($delta < 0) {
+            $html .= ' <span class="ml-1 text-[10px] font-black text-rose-600">'.number_format($delta).'</span>';
+        }
+
+        return $html;
+    };
 @endphp
 
 <x-layouts.facility
@@ -122,14 +174,32 @@
                                             <td class="w-1/4 font-bold">{{ number_format((int) $character->level) }}</td>
                                         </tr>
                                         <tr>
-                                            <th class="bg-amber-50 py-1 text-slate-600">塔内HP</th>
-                                            <td class="font-bold {{ $towerHpPercent <= 20 ? 'text-red-600' : 'text-slate-800' }}" data-tower-hp-summary>
-                                                {{ number_format((int) ($run->tower_current_hp ?? 0)) }} / {{ number_format((int) ($run->tower_max_hp ?? ($finalStats['max_hp'] ?? 0))) }}
+                                            <th class="bg-amber-50 py-1 text-slate-600">HP</th>
+                                            <td class="font-bold text-xs sm:text-sm {{ $battleStartHpPercent <= 20 ? 'text-red-600' : 'text-slate-800' }}" data-tower-hp-summary>
+                                                {{ number_format($battleStartHp) }} / {{ number_format($battleStartMaxHp) }}
                                             </td>
-                                            <th class="bg-amber-50 py-1 text-slate-600">塔内SP</th>
-                                            <td class="font-bold text-blue-700" data-tower-sp-summary>
-                                                {{ number_format((int) ($run->tower_current_mp ?? 0)) }} / {{ number_format((int) ($run->tower_max_mp ?? ($finalStats['max_mp'] ?? 0))) }}
+                                            <th class="bg-amber-50 py-1 text-slate-600">SP</th>
+                                            <td class="font-bold text-xs text-blue-700 sm:text-sm" data-tower-sp-summary>
+                                                {{ number_format($battleStartSp) }} / {{ number_format($battleStartMaxSp) }}
                                             </td>
+                                        </tr>
+                                        <tr class="border-t border-amber-100">
+                                            <th class="bg-amber-50 py-1 text-slate-600">ATK</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'str') !!}</td>
+                                            <th class="bg-amber-50 py-1 text-slate-600">DEF</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'def') !!}</td>
+                                        </tr>
+                                        <tr class="border-t border-amber-100">
+                                            <th class="bg-amber-50 py-1 text-slate-600">MAG</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'mag') !!}</td>
+                                            <th class="bg-amber-50 py-1 text-slate-600">SPR</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'spr') !!}</td>
+                                        </tr>
+                                        <tr class="border-t border-amber-100">
+                                            <th class="bg-amber-50 py-1 text-slate-600">SPD</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'agi') !!}</td>
+                                            <th class="bg-amber-50 py-1 text-slate-600">LUK</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'luk') !!}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -147,29 +217,34 @@
                                     <tbody>
                                         <tr class="border-b border-red-100">
                                             <th class="bg-red-50 w-1/4 py-1 text-slate-600">HP</th>
-                                            <td class="w-1/4">{{ number_format((int) ($enemyStats['max_hp'] ?? 0)) }}</td>
-                                            <th class="bg-red-50 w-1/4 text-slate-600">種族</th>
-                                            <td class="w-1/4">{{ $enemySpeciesLabel }}</td>
+                                            <td class="w-1/4 font-bold text-xs sm:text-sm">{{ number_format((int) ($enemyBattleStats['max_hp'] ?? 0)) }} / {{ number_format((int) ($enemyBattleStats['max_hp'] ?? 0)) }}</td>
+                                            <th class="bg-red-50 w-1/4 text-slate-600">SP</th>
+                                            <td class="w-1/4 font-bold text-xs text-blue-700 sm:text-sm">{{ number_format((int) ($enemyBattleStats['mp'] ?? 0)) }} / {{ number_format((int) ($enemyBattleStats['max_mp'] ?? 0)) }}</td>
                                         </tr>
                                         <tr>
-                                            <th class="bg-red-50 py-1 text-slate-600">攻撃</th>
-                                            <td>{{ number_format((int) ($enemyStats['str'] ?? 0)) }}</td>
-                                            <th class="bg-red-50 py-1 text-slate-600">防御</th>
-                                            <td>{{ number_format((int) ($enemyStats['def'] ?? 0)) }}</td>
+                                            <th class="bg-red-50 py-1 text-slate-600">ATK</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'str') !!}</td>
+                                            <th class="bg-red-50 py-1 text-slate-600">DEF</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'def') !!}</td>
+                                        </tr>
+                                        <tr class="border-t border-red-100">
+                                            <th class="bg-red-50 py-1 text-slate-600">MAG</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'mag') !!}</td>
+                                            <th class="bg-red-50 py-1 text-slate-600">SPR</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'spr') !!}</td>
+                                        </tr>
+                                        <tr class="border-t border-red-100">
+                                            <th class="bg-red-50 py-1 text-slate-600">SPD</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'agi') !!}</td>
+                                            <th class="bg-red-50 py-1 text-slate-600">LUK</th>
+                                            <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'luk') !!}</td>
+                                        </tr>
+                                        <tr class="border-t border-red-100">
+                                            <th class="bg-red-50 py-1 text-slate-600">種族</th>
+                                            <td colspan="3" class="font-bold">{{ $enemySpeciesLabel }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
-                    @endif
-
-                    @if($unlockedTitles->isNotEmpty())
-                        <div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
-                            <div class="text-xs font-black text-yellow-700">称号獲得</div>
-                            <div class="mt-2 flex flex-wrap gap-2">
-                                @foreach($unlockedTitles as $unlockedTitle)
-                                    <span class="rounded-full bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">{{ $unlockedTitle }}</span>
-                                @endforeach
                             </div>
                         </div>
                     @endif
@@ -193,6 +268,47 @@
                             @endif
                         </div>
                     @endif
+
+                    @if($isFinalFloorVictory)
+                        <div class="mb-5 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-4 shadow-sm">
+                            <div class="text-xs font-black text-emerald-700">{{ number_format($maxTowerFloor) }}階踏破</div>
+                            <div class="mt-1 text-xl font-black leading-relaxed text-slate-950">
+                                {{ $character->name }}は、{{ $towerName }}の頂に立った！
+                            </div>
+                            <p class="mt-2 text-sm font-bold leading-6 text-slate-700">
+                                星樹の梢を越え、長い挑戦の果てに最上階へ到達しました。おめでとうございます！
+                            </p>
+                        </div>
+                    @endif
+
+                    @if($unlockedTitles->isNotEmpty())
+                        <div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
+                            <div class="text-xs font-black text-yellow-700">称号獲得</div>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach($unlockedTitles as $unlockedTitle)
+                                    <span class="rounded-full bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">{{ $unlockedTitle }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($claimedCardBackgroundRewards->isNotEmpty())
+                        <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                            <div class="text-xs font-black text-emerald-700">冒険者カード背景獲得</div>
+                            <div class="mt-2 space-y-2 text-sm font-bold leading-6 text-slate-700">
+                                @foreach($claimedCardBackgroundRewards as $reward)
+                                    <p>
+                                        「{{ $reward['name'] ?? '冒険者カード背景「エルフィア」' }}」を手に入れた！
+                                        プロフィール変更から背景画像を変更できるぞ！
+                                    </p>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="mb-5">
+                        @include('tower.star-tree.partials.reward-claims', ['pendingTowerRewards' => $pendingTowerRewards ?? []])
+                    </div>
 
                     @if($isScoutEvent)
                         <div class="mb-5 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 shadow-sm">
@@ -284,6 +400,14 @@
                         </section>
                     @endif
 
+                    @if($hasPendingTowerStance)
+                        @include('tower.star-tree.partials.stance-choice', [
+                            'pendingTowerStance' => $pendingTowerStance ?? null,
+                            'towerStanceState' => $towerStanceState ?? null,
+                            'towerStanceChoices' => $towerStanceChoices ?? [],
+                        ])
+                    @endif
+
                     @if($isRunning && $currentFloor && $towerActionStrategies->isNotEmpty())
                         <section class="mb-5 rounded-lg border border-emerald-100 bg-emerald-50/70 px-4 py-3 shadow-sm">
                             <div class="mb-3 flex items-center justify-between gap-2">
@@ -333,7 +457,7 @@
                             <div data-tower-status-body>
                                 <div class="mb-3">
                                     <div class="mb-1 flex items-center justify-between text-[11px] font-black text-slate-500">
-                                        <span>塔内HP</span>
+                                        <span>HP</span>
                                         <span class="{{ $towerHpPercent <= 20 ? 'text-red-600' : 'text-emerald-700' }}" data-tower-hp-text>{{ number_format((int) ($run->tower_current_hp ?? 0)) }} / {{ number_format((int) ($run->tower_max_hp ?? 0)) }} {{ $towerHpPercent }}%</span>
                                     </div>
                                     <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -342,7 +466,7 @@
                                 </div>
                                 <div>
                                     <div class="mb-1 flex items-center justify-between text-[11px] font-black text-slate-500">
-                                        <span>塔内SP</span>
+                                        <span>SP</span>
                                         <span class="text-blue-700" data-tower-sp-text>{{ number_format((int) ($run->tower_current_mp ?? 0)) }} / {{ number_format((int) ($run->tower_max_mp ?? 0)) }} {{ $towerMpPercent }}%</span>
                                     </div>
                                     <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -416,6 +540,9 @@
                             <form action="{{ route('tower.star-tree.challenge') }}" method="POST" class="w-full sm:w-auto" data-tower-submit-form data-tower-challenge-form data-loading-text="探索中..." data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-base-stamina-cost="{{ $staminaCost }}" data-ready-text="{{ $nextFloorActionLabel }}（探索力 -{{ number_format($staminaCost) }}）">
                                 @csrf
                                 <input type="hidden" name="strategy" value="normal" data-tower-strategy-input>
+                                @if($hasPendingTowerStance)
+                                    <input type="hidden" name="stance" value="none" data-tower-stance-input>
+                                @endif
                                 <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-80 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2" data-tower-submit-button>
                                     <x-loading-spinner class="hidden" data-tower-submit-spinner size="h-4 w-4" />
                                     <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain">
@@ -435,6 +562,9 @@
                             <form method="POST" action="{{ route('tower.star-tree.merchant.skip') }}" class="w-full sm:w-auto" data-tower-submit-form data-tower-challenge-form data-loading-text="探索中..." data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-base-stamina-cost="{{ $staminaCost }}" data-ready-text="{{ $nextFloorActionLabel }}（探索力 -{{ number_format($staminaCost) }}）">
                                 @csrf
                                 <input type="hidden" name="strategy" value="normal" data-tower-strategy-input>
+                                @if($hasPendingTowerStance)
+                                    <input type="hidden" name="stance" value="none" data-tower-stance-input>
+                                @endif
                                 <button type="submit" class="w-full rounded-lg bg-amber-600 px-8 py-3 text-sm font-black text-white shadow-md transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-80" data-tower-submit-button>
                                     <span class="inline-flex items-center justify-center gap-1.5">
                                         <x-loading-spinner class="hidden" data-tower-submit-spinner size="h-4 w-4" />
@@ -442,6 +572,14 @@
                                             {{ $nextFloorActionLabel }}（探索力 -{{ number_format($staminaCost) }}）
                                         </span>
                                     </span>
+                                </button>
+                            </form>
+                        @elseif($isRunning && $isTowerCleared)
+                            <form method="POST" action="{{ route('tower.star-tree.return') }}" class="w-full sm:w-auto" data-tower-submit-form data-loading-text="移動中...">
+                                @csrf
+                                <button type="submit" class="w-full rounded-lg bg-emerald-600 px-8 py-3 text-sm font-black text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-80 flex items-center justify-center gap-2" data-tower-submit-button>
+                                    <x-loading-spinner class="hidden" data-tower-submit-spinner size="h-4 w-4" />
+                                    <span data-tower-submit-text>{{ $towerName }}の入口へ戻る</span>
                                 </button>
                             </form>
                         @elseif(!$isRunning)
@@ -628,6 +766,10 @@
                 return document.querySelector('[data-tower-strategy-option]:checked');
             }
 
+            function selectedTowerStance() {
+                return document.querySelector('[data-tower-stance-option]:checked');
+            }
+
             function towerStrategyRequiredStamina(form, option) {
                 const base = Number(form.dataset.baseStaminaCost || form.dataset.requiredStamina || 0);
                 const fixed = option && option.dataset.fixedStaminaCost !== ''
@@ -659,6 +801,21 @@
                     if (text && form.dataset.submitted !== '1' && form.dataset.towerGuarded !== '1') {
                         text.textContent = nextText;
                         text.dataset.originalText = nextText;
+                    }
+                });
+            }
+
+            function updateTowerStanceForms() {
+                const option = selectedTowerStance();
+                const key = option ? option.value || 'none' : 'none';
+
+                document.querySelectorAll('[data-tower-stance-input]').forEach(function(input) {
+                    input.value = key;
+                });
+                document.querySelectorAll('[data-tower-stance-option]').forEach(function(stanceOption) {
+                    const label = stanceOption.closest('label')?.querySelector('[data-tower-stance-label]');
+                    if (label) {
+                        label.textContent = stanceOption.checked ? '選択中' : '選択';
                     }
                 });
             }
@@ -1161,7 +1318,12 @@
                 if (event.target.closest('[data-tower-strategy-option]')) {
                     updateTowerStrategyForms();
                 }
+                if (event.target.closest('[data-tower-stance-option]')) {
+                    updateTowerStanceForms();
+                }
             });
+
+            updateTowerStanceForms();
 
             document.addEventListener('click', function(event) {
                 const closeButton = event.target.closest('[data-tower-stamina-modal-close]');

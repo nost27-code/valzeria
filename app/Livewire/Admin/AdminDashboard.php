@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\City;
 use App\Models\ContactMessage;
 use App\Models\User;
+use App\Services\Admin\PlayerLifecycleAnalyticsService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -14,6 +15,8 @@ use Livewire\Component;
 class AdminDashboard extends Component
 {
     public bool $showDailyNewUsers = false;
+
+    public string $updateDate = '';
 
     public function render()
     {
@@ -73,6 +76,7 @@ class AdminDashboard extends Component
             : 0;
         $changedJobCharacters = $this->changedJobCharacters();
         $retention = $this->retention($sevenDaysAgo);
+        $lifecycle = app(PlayerLifecycleAnalyticsService::class)->dashboardMetrics();
 
         return [
             'generatedAt' => $now,
@@ -92,9 +96,11 @@ class AdminDashboard extends Component
             'dungeonLosses' => $this->dungeonLosses(),
             'popularJobs' => $this->popularJobs($totalCharacters),
             'popularWeapons' => $this->popularWeapons(),
-            'dropOffPoints' => $this->dropOffPoints(),
+            'dropOffPoints' => $lifecycle['ready'] ? $lifecycle['drop_offs'] : [],
+            'lifecycle' => $lifecycle,
             'dailyNewUsers' => $dailyNewUsers,
             'adminUpdateSummaries' => $this->adminUpdateSummaries(),
+            'adminUpdateDates' => $this->adminUpdateDates(),
         ];
     }
 
@@ -148,11 +154,28 @@ class AdminDashboard extends Component
                 ['date', 'desc'],
                 ['index', 'asc'],
             ])
-            ->take(50)
+            ->values();
+
+        $dates = $this->adminUpdateDates();
+        $selectedDate = in_array($this->updateDate, $dates, true) ? $this->updateDate : ($dates[0] ?? '');
+
+        return $summaries
+            ->where('date', $selectedDate)
             ->values()
             ->all();
+    }
 
-        return $summaries;
+    private function adminUpdateDates(): array
+    {
+        return collect(config('admin_update_summaries', []))
+            ->filter(fn ($summary): bool => is_array($summary) && !empty($summary['date']))
+            ->pluck('date')
+            ->map(fn ($date): string => (string) $date)
+            ->unique()
+            ->sortDesc()
+            ->take(90)
+            ->values()
+            ->all();
     }
 
     private function adminUpdateCategoryLabel(string $category): string

@@ -15,7 +15,7 @@
             <div class="border-b border-slate-100 px-5 py-4">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h2 class="text-lg font-black text-slate-950">ヴァルゼリア世界地図</h2>
+                        <h2 class="text-lg font-black text-slate-950">ヴァルゼリア大陸MAP</h2>
                         <p class="mt-1 text-xs font-bold text-slate-400">街マーカーを選択すると、右側または下部に詳細を表示します。</p>
                     </div>
                     <div class="text-xs font-black text-slate-500">
@@ -27,7 +27,7 @@
             <div class="p-4 sm:p-5">
                 <div class="relative w-full overflow-hidden rounded-md border border-slate-200 bg-slate-900">
                     @if($imageExists)
-                        <img src="{{ asset($imagePath) }}" alt="ラベルなしヴァルゼリア世界地図" class="block h-auto w-full">
+                        <img src="{{ asset($imagePath) }}" alt="ラベルなしヴァルゼリア大陸MAP" class="block h-auto w-full">
                     @else
                         <div class="flex aspect-[16/10] w-full items-center justify-center bg-slate-800 text-center">
                             <div>

@@ -115,6 +115,7 @@ class DiscoveryService
             })
             ->orderBy('sort_order')
             ->get()
+            ->filter(fn (AreaDiscoveryLink $link) => $this->isLinkTargetPublished($link))
             ->filter(fn (AreaDiscoveryLink $link) => !$this->isTargetDiscovered($character, $link));
 
         if ($cityId) {
@@ -149,7 +150,8 @@ class DiscoveryService
             ->orderBy('sort_order')
             ->get()
             ->first(function (AreaDiscoveryLink $link) use ($character) {
-                return !$this->isTargetDiscovered($character, $link);
+                return $this->isLinkTargetPublished($link)
+                    && !$this->isTargetDiscovered($character, $link);
             });
 
         return $link ? ['text' => (string) $link->rumor_text] : null;
@@ -164,7 +166,8 @@ class DiscoveryService
         $progress = $this->progressFor($character, $area);
         $before = (int) $progress->development_point;
         $maxDevelopmentPoint = $this->maxDevelopmentPointFor($area);
-        $after = min($maxDevelopmentPoint, $before + self::DEVELOPMENT_GAIN_PER_VICTORY);
+        $gain = $this->developmentGainFor($area);
+        $after = min($maxDevelopmentPoint, $before + $gain);
 
         if ($after !== $before) {
             $progress->development_point = $after;
@@ -183,6 +186,7 @@ class DiscoveryService
                 'after' => $after,
                 'gained' => max(0, $after - $before),
                 'max' => $maxDevelopmentPoint,
+                'events' => app(FerdiaMapService::class)->crossedDevelopmentEvents($area, $before, $after),
             ],
             'discoveries' => $discoveries,
         ];
@@ -230,7 +234,7 @@ class DiscoveryService
             ->where('from_id', $fromId)
             ->orderBy('sort_order')
             ->get()
-            ->filter(fn (AreaDiscoveryLink $link) => $this->linkConditionMet($link, $sourceProgress))
+            ->filter(fn (AreaDiscoveryLink $link) => $this->linkConditionMet($character, $link, $sourceProgress))
             ->map(fn (AreaDiscoveryLink $link) => $this->applyDiscoveryLink($character, $link))
             ->filter()
             ->values()
@@ -245,7 +249,7 @@ class DiscoveryService
 
         if (in_array($link->to_type, ['area', 'route_area'], true)) {
             $area = Area::find((int) $link->to_id);
-            if (!$area) {
+            if (!$area || !app(DungeonPublicationService::class)->isPublished($area)) {
                 return null;
             }
 
@@ -313,7 +317,8 @@ class DiscoveryService
             ->get()
             ->each(fn (AreaDiscoveryLink $link) => $this->applyDiscoveryLink($character, $link));
 
-        $firstArea = Area::where('city_id', $city->id)
+        $firstArea = app(DungeonPublicationService::class)->publishedAreas()
+            ->where('city_id', $city->id)
             ->where('id', '<=', 70)
             ->orderBy('sort_order')
             ->first();
@@ -324,6 +329,18 @@ class DiscoveryService
 
     private function writeCityDiscoveryPublicLog(Character $character, City $city): void
     {
+        if (app(FerdiaMapService::class)->isFerdiaCityId((int) $city->id)) {
+            $message = match ((string) $city->name) {
+                '辺境の町ルヴァン' => "【発見】{$character->name}さんが「辺境の町ルヴァン」を発見しました！",
+                '王都グランフォード' => "【街発見】{$character->name}さんが「王都グランフォード」に到達しました！",
+                '港町アーヴェン' => "【街発見】{$character->name}さんが「港町アーヴェン」に到達しました！",
+                default => "【街発見】{$character->name}さんが「{$city->name}」に到達しました！",
+            };
+
+            app(PublicLogService::class)->addLog('area', $message, $character, 3);
+            return;
+        }
+
         app(PublicLogService::class)->addLog(
             'area',
             "【街発見】{$character->name}さんが新たな街「{$city->name}」を発見しました！",
@@ -334,6 +351,22 @@ class DiscoveryService
 
     private function writeAreaDiscoveryPublicLog(Character $character, Area $area, AreaDiscoveryLink $link): void
     {
+        $node = app(FerdiaMapService::class)->nodeForArea((int) $area->id);
+        if ($node) {
+            $message = match ((string) ($node['key'] ?? '')) {
+                'daiju_seijo' => "【発見】{$character->name}さんが「大樹の聖城」への道を見つけました！",
+                'elvan_peak' => "【踏破】{$character->name}さんが「北境の霊峰エルヴァン」に到達しました！",
+                'old_supply_depot' => "【発見】{$character->name}さんが「古王国の補給廠」への入口を見つけました！",
+                'sunken_supply_ship' => "【発見】{$character->name}さんが「沈んだ補給船」を発見しました！",
+                default => null,
+            };
+
+            if ($message) {
+                app(PublicLogService::class)->addLog('area', $message, $character, 3);
+            }
+            return;
+        }
+
         // 隠し/裏などの探索先は、種別や存在を公開チャットに出さない。
     }
 
@@ -350,20 +383,31 @@ class DiscoveryService
         );
     }
 
-    private function linkConditionMet(AreaDiscoveryLink $link, CharacterAreaProgress $sourceProgress): bool
+    private function linkConditionMet(Character $character, AreaDiscoveryLink $link, CharacterAreaProgress $sourceProgress): bool
     {
-        return match ($link->condition_type) {
+        $conditionMet = match ($link->condition_type) {
             'initial', 'city_discovered' => true,
             'development_point' => (int) $sourceProgress->development_point >= (int) $link->required_development_point,
             'boss_defeated' => (bool) $sourceProgress->boss_defeated,
             'boss_or_development' => (bool) $sourceProgress->boss_defeated
                 || (int) $sourceProgress->development_point >= (int) $link->required_development_point,
+            'all_story_branches_cleared' => app(FerdiaMapService::class)->allNodesCompleted(
+                $character,
+                (array) config('ferdia_world_map.story_final_unlock.required_node_keys', [])
+            ),
             default => false,
         };
+
+        return $conditionMet && (!$link->requires_boss_defeated || (bool) $sourceProgress->boss_defeated);
     }
 
     private function maxDevelopmentPointFor(Area $area): int
     {
+        $ferdiaMax = app(FerdiaMapService::class)->maxDevelopmentPointForArea($area);
+        if ($ferdiaMax !== null) {
+            return $ferdiaMax;
+        }
+
         $fromType = $area->is_route_area ? 'route_area' : 'area';
         $linkRequiredPoint = (int) AreaDiscoveryLink::where('from_type', $fromType)
             ->where('from_id', (int) $area->id)
@@ -375,6 +419,12 @@ class DiscoveryService
             (int) ($area->development_required_point ?? 0),
             $linkRequiredPoint
         );
+    }
+
+    private function developmentGainFor(Area $area): int
+    {
+        return app(FerdiaMapService::class)->developmentGainForArea($area)
+            ?? self::DEVELOPMENT_GAIN_PER_VICTORY;
     }
 
     private function isTargetDiscovered(Character $character, AreaDiscoveryLink $link): bool
@@ -394,6 +444,17 @@ class DiscoveryService
         }
 
         return true;
+    }
+
+    private function isLinkTargetPublished(AreaDiscoveryLink $link): bool
+    {
+        if (!in_array($link->to_type, ['area', 'route_area'], true)) {
+            return true;
+        }
+
+        $area = Area::find((int) $link->to_id);
+
+        return $area !== null && app(DungeonPublicationService::class)->isPublished($area);
     }
 
     private function isAvailable(): bool

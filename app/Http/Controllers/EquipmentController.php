@@ -7,6 +7,7 @@ use App\Models\CharacterItem;
 use App\Services\EquipmentAutoUnequipService;
 use App\Services\EquipmentPermissionService;
 use App\Services\EquipmentService;
+use App\Services\ExplorationSupportService;
 use App\Services\GoldService;
 use Illuminate\Support\Facades\Auth;
 use RuntimeException;
@@ -16,7 +17,8 @@ class EquipmentController extends Controller
     public function index(
         EquipmentService $equipmentService,
         EquipmentAutoUnequipService $autoUnequipService,
-        EquipmentPermissionService $permissionService
+        EquipmentPermissionService $permissionService,
+        ExplorationSupportService $supportService
     )
     {
         $character = Auth::user()->currentCharacter();
@@ -33,13 +35,17 @@ class EquipmentController extends Controller
         $weapons = $characterItems->filter(fn($ci) => $ci->item->type === 'weapon')->sortByDesc('sort_recommend')->values();
         $armors = $characterItems->filter(fn($ci) => $ci->item->type === 'armor')->sortByDesc('sort_recommend')->values();
         $accessories = $characterItems->filter(fn($ci) => $ci->item->type === 'accessory' && !$equipmentService->isMark($ci->item))->sortByDesc('sort_recommend')->values();
+        $explorationSupportEnabled = $supportService->isEnabled();
+        $belongings = $explorationSupportEnabled ? $supportService->belongingsFor($character) : [];
 
         return view('equipment.index', compact(
             'character',
             'permissionService',
             'weapons',
             'armors',
-            'accessories'
+            'accessories',
+            'belongings',
+            'explorationSupportEnabled'
         ));
     }
 
@@ -272,7 +278,12 @@ class EquipmentController extends Controller
         $tab = $characterItem->item ? $equipmentService->getAccessoryTab($characterItem->item) : 'weapon';
         $character = Auth::user()->currentCharacter();
         $mode = 'inventory';
-        $redirectRoute = $request->boolean('return_to_inventory') ? 'inventory.index' : 'equipment.index';
+        $redirectRoute = 'equipment.index';
+        if ($request->boolean('return_to_inventory')) {
+            $redirectRoute = 'inventory.index';
+        } elseif ($request->boolean('return_to_smith')) {
+            $redirectRoute = 'smith.index';
+        }
 
         if (!$character || (int) $characterItem->character_id !== (int) $character->id) {
             $message = 'この装備は所持していません。';

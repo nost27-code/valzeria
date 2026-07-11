@@ -150,6 +150,7 @@ class CharacterItem extends Model
             'insect' => '虫',
             'machine' => '機械',
             'mage' => '魔法型',
+            'plant' => '植物',
             'slime' => 'スライム',
             'soldier' => '人型',
             'spirit' => '精霊',

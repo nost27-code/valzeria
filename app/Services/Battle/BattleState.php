@@ -19,6 +19,11 @@ class BattleState
     public array $jobArtUseCounts = [];
     public bool $valmonAssistUsed = false;
     public string $battleType;
+    public array $enemyActionUseTurns = [];
+    public array $enemyActionUseCounts = [];
+    public ?int $pendingEnemyActionId = null;
+    public int $pendingEnemyActionTurns = 0;
+    public ?array $explorationSupportSnapshot = null;
 
     public function __construct(BattleActor $player, BattleActor $enemy, string $battleType = 'pve')
     {

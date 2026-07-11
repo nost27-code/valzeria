@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -23,6 +24,20 @@ return new class extends Migration
             $table->boolean('is_initial')->default(false);
             $table->timestamps();
         });
+
+        $now = now();
+        DB::table('cities')->insert([
+            ['id' => 1, 'name' => '王都アークレア', 'sort_order' => 10, 'is_initial' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 2, 'name' => '港町マリネス', 'sort_order' => 20, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 3, 'name' => '精霊の森エルフィア', 'sort_order' => 30, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 4, 'name' => '鍛冶街グランベルグ', 'sort_order' => 40, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 5, 'name' => '雪原の町フロストリア', 'sort_order' => 50, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 6, 'name' => '砂漠の宿場サンドラ', 'sort_order' => 60, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 7, 'name' => '魔導学院ルミナス', 'sort_order' => 70, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 8, 'name' => '死霊街ネクロム', 'sort_order' => 80, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 9, 'name' => '天空神殿セレスティア', 'sort_order' => 90, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 10, 'name' => '魔王城ヴァルゼリア', 'sort_order' => 100, 'is_initial' => false, 'created_at' => $now, 'updated_at' => $now],
+        ]);
 
         Schema::table('characters', function (Blueprint $table) {
             if (!Schema::hasColumn('characters', 'current_city_id')) {

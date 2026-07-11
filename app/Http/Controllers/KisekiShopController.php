@@ -20,6 +20,7 @@ class KisekiShopController extends Controller
         }
 
         $packs = config('kiseki.packs');
+        app(\App\Services\PlayerLifecycleEventService::class)->recordPurchaseScreenViewed($character);
 
         return view('kiseki.shop', compact('character', 'packs'));
     }
@@ -35,6 +36,7 @@ class KisekiShopController extends Controller
         $supportCounts = $supportService->countsFor($character);
         $insuranceEnabled = $supportService->insuranceEnabled($character);
         $supportPassStatus = app(SupportPassService::class)->statusForCharacter($character);
+        app(\App\Services\PlayerLifecycleEventService::class)->recordPurchaseScreenViewed($character);
 
         return view('kiseki.support', compact('character', 'supportCatalog', 'supportCounts', 'insuranceEnabled', 'supportPassStatus'));
     }
@@ -66,6 +68,7 @@ class KisekiShopController extends Controller
 
         $session = StripeSession::create([
             'mode'        => 'payment',
+            'payment_method_types' => ['card', 'link', 'paypay'],
             'line_items'  => [[
                 'price'    => $pack['price_id'],
                 'quantity' => 1,

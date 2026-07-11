@@ -23,6 +23,7 @@ class JobArtEffectCatalog
         'REWARD_GOLD' => ['label' => '報酬', 'damage_type' => 'gold', 'gold_bonus' => true],
         'REWARD_DROP' => ['label' => '報酬', 'damage_type' => 'drop', 'drop_bonus' => true],
         'REWARD_MIXED' => ['label' => '報酬', 'damage_type' => 'drop', 'gold_bonus' => true, 'drop_bonus' => true],
+        'PHYSICAL_DAMAGE_GOLD_REWARD' => ['label' => '攻撃+Gold', 'damage_type' => 'physical', 'deals_damage' => true, 'gold_bonus' => true],
         'PHYSICAL_DAMAGE_REWARD' => ['label' => '攻撃+報酬', 'damage_type' => 'physical', 'deals_damage' => true, 'gold_bonus' => true, 'drop_bonus' => true],
         'MAGICAL_DAMAGE_REWARD' => ['label' => '魔法+報酬', 'damage_type' => 'magical', 'deals_damage' => true, 'gold_bonus' => true, 'drop_bonus' => true],
         'TIME_CONTROL_CURRENT_ONLY' => ['label' => '時空', 'damage_type' => 'support'],

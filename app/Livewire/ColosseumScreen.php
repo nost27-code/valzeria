@@ -49,8 +49,12 @@ class ColosseumScreen extends Component
     public function render(StorageCapacityService $storageCapacityService)
     {
         $playerLogs = ArenaLog::with(['attacker', 'defender'])
-            ->where('attacker_id', $this->character->id)
-            ->orWhere('defender_id', $this->character->id)
+            ->where(function ($query): void {
+                $query->where('attacker_id', $this->character->id)
+                    ->orWhere('defender_id', $this->character->id);
+            })
+            ->whereHas('attacker', fn ($query) => $query->visibleToPublic())
+            ->whereHas('defender', fn ($query) => $query->visibleToPublic())
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get()

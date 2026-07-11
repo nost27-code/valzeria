@@ -40,7 +40,7 @@ class DamageCalculator
         $baseHitRate = 90;
         $baseHitRate = $baseHitRate * ($skillAccuracy / 100);
 
-        $agiDiff = $attacker->agi - $defender->agi;
+        $agiDiff = $attacker->effectiveAgi() - $defender->effectiveAgi();
         $hitRate = $baseHitRate + ($agiDiff * $agiFactor);
 
         if ($hitRate < $minHitRate) $hitRate = $minHitRate;
@@ -92,9 +92,9 @@ class DamageCalculator
         ?int $overrideSpr = null
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
-        $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->mag : $attacker->str);
-        $def = $overrideDef ?? $defender->def;
-        $spr = $overrideSpr ?? $defender->spr;
+        $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr());
+        $def = $overrideDef ?? $defender->effectiveDef();
+        $spr = $overrideSpr ?? $defender->effectiveSpr();
 
         $effectiveDefense = $attackType === 'magical'
             ? ($spr * 0.7) + ($def * 0.3)
@@ -139,9 +139,9 @@ class DamageCalculator
         int $hitCount = 1
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
-        $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->mag : $attacker->str);
-        $def = $overrideDef ?? $defender->def;
-        $spr = $overrideSpr ?? $defender->spr;
+        $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr());
+        $def = $overrideDef ?? $defender->effectiveDef();
+        $spr = $overrideSpr ?? $defender->effectiveSpr();
 
         $effectiveDefense = $attackType === 'magical'
             ? ($spr * 0.72) + ($def * 0.28)
@@ -230,8 +230,8 @@ class DamageCalculator
      */
     public function calculatePhysicalDamage(BattleActor $attacker, BattleActor $defender, int $skillPower = 100, bool $isCritical = false, ?int $overrideAtk = null, ?int $overrideDef = null): int
     {
-        $atk = $overrideAtk ?? $attacker->str;
-        $def = $overrideDef ?? $defender->def;
+        $atk = $overrideAtk ?? $attacker->effectiveStr();
+        $def = $overrideDef ?? $defender->effectiveDef();
 
         if ($isCritical) {
             $def = (int)($def * 0.5); // クリティカル時は敵の防御力半減
@@ -267,8 +267,8 @@ class DamageCalculator
      */
     public function calculateMagicalDamage(BattleActor $attacker, BattleActor $defender, int $skillPower = 100, bool $isCritical = false, ?int $overrideAtk = null, ?int $overrideDef = null): int
     {
-        $atk = $overrideAtk ?? $attacker->mag;
-        $def = $overrideDef ?? $defender->spr;
+        $atk = $overrideAtk ?? $attacker->effectiveMag();
+        $def = $overrideDef ?? $defender->effectiveSpr();
 
         if ($isCritical) {
             $def = (int)($def * 0.5);
