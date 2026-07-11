@@ -111,9 +111,12 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertNotFalse($production);
         $this->assertStringContainsString('environment: staging', $staging);
         $this->assertStringContainsString('DEPLOY_TARGET=staging', $staging);
+        $this->assertStringContainsString('Verify SSH connection', $staging);
+        $this->assertStringContainsString('IdentitiesOnly=yes', $staging);
         $this->assertStringContainsString('environment: production', $production);
         $this->assertStringContainsString("inputs.confirmation == 'deploy-production'", $production);
         $this->assertStringContainsString('DEPLOY_TARGET=production', $production);
+        $this->assertStringContainsString('IdentitiesOnly=yes', $production);
 
         $resetWorkflow = file_get_contents(base_path('.github/workflows/reset-staging-database.yml'));
         $resetScript = file_get_contents(base_path('scripts/deploy/reset-staging-database.sh'));

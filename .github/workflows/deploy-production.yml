@@ -78,11 +78,15 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Verify SSH connection
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" true
+
       - name: Upload and switch release
         run: |
           release="release-${GITHUB_SHA}.tar.gz"
           remote="$SSH_USER@$SSH_HOST"
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$remote" "mkdir -p '$DEPLOY_ROOT/deploy-incoming'"
-          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" "$RUNNER_TEMP/release.tar.gz" "$remote:$DEPLOY_ROOT/deploy-incoming/$release"
-          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" scripts/deploy/remote-release.sh "$remote:$DEPLOY_ROOT/deploy-incoming/remote-release.sh"
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$remote" "chmod 700 '$DEPLOY_ROOT/deploy-incoming/remote-release.sh' && DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_TARGET=production DEPLOY_ARCHIVE='$DEPLOY_ROOT/deploy-incoming/$release' DEPLOY_MIGRATION_MODE='${{ inputs.migration_mode }}' DEPLOY_PHP_BINARY='$DEPLOY_PHP_BINARY' bash '$DEPLOY_ROOT/deploy-incoming/remote-release.sh'"
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$remote" "mkdir -p '$DEPLOY_ROOT/deploy-incoming'"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$RUNNER_TEMP/release.tar.gz" "$remote:$DEPLOY_ROOT/deploy-incoming/$release"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes scripts/deploy/remote-release.sh "$remote:$DEPLOY_ROOT/deploy-incoming/remote-release.sh"
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$remote" "chmod 700 '$DEPLOY_ROOT/deploy-incoming/remote-release.sh' && DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_TARGET=production DEPLOY_ARCHIVE='$DEPLOY_ROOT/deploy-incoming/$release' DEPLOY_MIGRATION_MODE='${{ inputs.migration_mode }}' DEPLOY_PHP_BINARY='$DEPLOY_PHP_BINARY' bash '$DEPLOY_ROOT/deploy-incoming/remote-release.sh'"

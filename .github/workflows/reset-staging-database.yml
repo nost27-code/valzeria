@@ -40,5 +40,5 @@ jobs:
       - name: Reset only the staging database
         run: |
           remote="$SSH_USER@$SSH_HOST"
-          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" scripts/deploy/reset-staging-database.sh "$remote:$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh"
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$remote" "chmod 700 '$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh' && DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_PHP_BINARY='$DEPLOY_PHP_BINARY' bash '$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh'"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes scripts/deploy/reset-staging-database.sh "$remote:$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh"
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$remote" "chmod 700 '$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh' && DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_PHP_BINARY='$DEPLOY_PHP_BINARY' bash '$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh'"

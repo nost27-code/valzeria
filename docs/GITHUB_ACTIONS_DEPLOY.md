@@ -7,6 +7,7 @@
 - `staging` と `production` はGitHub Environmentsを分け、同名でも別のSecretsを登録する。
 - 本番ワークフローは手動実行のみで、`deploy-production` の確認入力とGitHub Environmentの承認を両方必要にする。
 - SSH接続先のホスト鍵は `SSH_KNOWN_HOSTS` に固定し、接続時に取得して信頼する方式を使わない。
+- Actionsは登録した秘密鍵だけを使う非対話SSH接続を先に検証してから、アップロードやDB操作へ進む。
 - ステージングと本番でSSH鍵を分け、GitHub Environmentごとに対応する秘密鍵だけを保存する。同一XserverのSSHユーザーを使う限り、鍵だけでサーバー上のフォルダ権限は分離されないため、本番の実行制御はGitHub Environmentの承認と本番専用ワークフローで行う。
 - アーカイブはWeb公開領域外の `deploy-incoming` に置き、展開・migrationが成功してから `*_current` を原子的に切り替える。
 
