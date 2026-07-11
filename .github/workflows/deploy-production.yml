@@ -74,7 +74,7 @@ jobs:
   deploy:
     name: Deploy production from trusted runner
     needs: build
-    runs-on: [self-hosted, Windows, X64, valzeria-deploy]
+    runs-on: [self-hosted, Windows, X64]
     environment: production
     env:
       DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}

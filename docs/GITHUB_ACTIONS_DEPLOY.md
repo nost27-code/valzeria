@@ -4,7 +4,7 @@
 
 ## 安全設計
 
-- ビルドはGitHubホステッドRunner、SSH転送だけをラベル `valzeria-deploy` のWindowsセルフホストRunnerで行う。
+- ビルドはGitHubホステッドRunner、SSH転送だけをこのリポジトリ専用のWindowsセルフホストRunnerで行う。
 - ステージングは任意refを実行せず、信頼済みの `main` だけをビルド・転送する。
 - `staging` と `production` はGitHub Environmentsを分け、同名でも別の接続先Secretsを登録する。
 - 本番ワークフローは手動実行のみで、`deploy-production` の確認入力とGitHub Environmentの承認を両方必要にする。
@@ -25,7 +25,7 @@ GitHubホステッドRunnerからXserverへの直接SSHは、Xserver側から接
 
 ## セルフホストRunner
 
-GitHubリポジトリの **Settings → Actions → Runners** からWindows x64 RunnerをこのPCへ登録し、カスタムラベル `valzeria-deploy` を付ける。初回は対話実行の `run.cmd` で動作確認する。サービス化する場合は、SSH鍵と `known_hosts` を持つWindowsユーザーで動かす。
+GitHubリポジトリの **Settings → Actions → Runners** からWindows x64 RunnerをこのPCへ登録する。ワークフローは標準の `self-hosted` / `Windows` / `X64` ラベルを使う。初回は対話実行の `run.cmd` で動作確認する。サービス化する場合は、SSH鍵と `known_hosts` を持つWindowsユーザーで動かす。
 
 このRunnerはValzeriaリポジトリ専用とし、Pull Requestや任意ブランチのコードを実行するworkflowには割り当てない。PCが停止中はdeployジョブが待機し、公開状態は変わらない。
 

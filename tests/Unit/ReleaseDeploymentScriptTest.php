@@ -110,14 +110,14 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertNotFalse($staging);
         $this->assertNotFalse($production);
         $this->assertStringContainsString('environment: staging', $staging);
-        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64, valzeria-deploy]', $staging);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $staging);
         $this->assertStringContainsString('actions/upload-artifact@v4', $staging);
         $this->assertStringContainsString('actions/download-artifact@v4', $staging);
         $this->assertStringContainsString('-Target staging', $staging);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $staging);
         $this->assertStringContainsString('environment: production', $production);
         $this->assertStringContainsString("inputs.confirmation == 'deploy-production'", $production);
-        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64, valzeria-deploy]', $production);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $production);
         $this->assertStringContainsString('-Target production', $production);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $production);
 
@@ -132,7 +132,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertNotFalse($resetWorkflow);
         $this->assertNotFalse($resetScript);
         $this->assertStringContainsString("inputs.confirmation == 'reset-staging-database'", $resetWorkflow);
-        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64, valzeria-deploy]', $resetWorkflow);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $resetWorkflow);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $resetWorkflow);
         $this->assertFileExists(base_path('scripts/deploy/invoke-staging-database-reset.ps1'));
         $this->assertStringContainsString('staging_valzeria_current', $resetScript);

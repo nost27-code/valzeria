@@ -19,7 +19,7 @@ jobs:
   reset:
     name: Reset staging database from trusted runner
     if: inputs.confirmation == 'reset-staging-database'
-    runs-on: [self-hosted, Windows, X64, valzeria-deploy]
+    runs-on: [self-hosted, Windows, X64]
     environment: staging
     env:
       DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}

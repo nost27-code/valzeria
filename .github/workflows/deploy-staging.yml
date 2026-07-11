@@ -69,7 +69,7 @@ jobs:
   deploy:
     name: Deploy staging from trusted runner
     needs: build
-    runs-on: [self-hosted, Windows, X64, valzeria-deploy]
+    runs-on: [self-hosted, Windows, X64]
     environment: staging
     env:
       DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
