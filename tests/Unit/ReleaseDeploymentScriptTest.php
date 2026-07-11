@@ -110,19 +110,31 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertNotFalse($staging);
         $this->assertNotFalse($production);
         $this->assertStringContainsString('environment: staging', $staging);
-        $this->assertStringContainsString('DEPLOY_TARGET=staging', $staging);
-        $this->assertStringContainsString('Verify SSH connection', $staging);
-        $this->assertStringContainsString('IdentitiesOnly=yes', $staging);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64, valzeria-deploy]', $staging);
+        $this->assertStringContainsString('actions/upload-artifact@v4', $staging);
+        $this->assertStringContainsString('actions/download-artifact@v4', $staging);
+        $this->assertStringContainsString('-Target staging', $staging);
+        $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $staging);
         $this->assertStringContainsString('environment: production', $production);
         $this->assertStringContainsString("inputs.confirmation == 'deploy-production'", $production);
-        $this->assertStringContainsString('DEPLOY_TARGET=production', $production);
-        $this->assertStringContainsString('IdentitiesOnly=yes', $production);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64, valzeria-deploy]', $production);
+        $this->assertStringContainsString('-Target production', $production);
+        $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $production);
+
+        $this->assertFileExists(base_path('scripts/deploy/invoke-remote-release.ps1'));
+        $invokeRelease = file_get_contents(base_path('scripts/deploy/invoke-remote-release.ps1'));
+        $this->assertStringContainsString('valzeria_staging_deploy', $invokeRelease);
+        $this->assertStringContainsString('valzeria_production_deploy', $invokeRelease);
+        $this->assertStringContainsString('StrictHostKeyChecking=yes', $invokeRelease);
 
         $resetWorkflow = file_get_contents(base_path('.github/workflows/reset-staging-database.yml'));
         $resetScript = file_get_contents(base_path('scripts/deploy/reset-staging-database.sh'));
         $this->assertNotFalse($resetWorkflow);
         $this->assertNotFalse($resetScript);
         $this->assertStringContainsString("inputs.confirmation == 'reset-staging-database'", $resetWorkflow);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64, valzeria-deploy]', $resetWorkflow);
+        $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $resetWorkflow);
+        $this->assertFileExists(base_path('scripts/deploy/invoke-staging-database-reset.ps1'));
         $this->assertStringContainsString('staging_valzeria_current', $resetScript);
         $this->assertStringContainsString('db:wipe --force', $resetScript);
         $this->assertStringContainsString('dungeon:validate', $resetScript);

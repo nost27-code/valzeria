@@ -1,23 +1,39 @@
 # GitHub Actions + SSH デプロイ
 
-この方式では、公開PHPのデプロイAPI、File Manager経由のZIPアップロード、ローカルのデプロイ秘密鍵を使わない。GitHub Actionsがビルド済みリリースをSSH/SCPで非公開領域へ転送し、SSH上のリリーススクリプトがmigration・キャッシュ生成・`current` 切替を行う。
+この方式では、公開PHPのデプロイAPIやFile Manager経由のZIPアップロードを使わない。GitHubホステッドRunnerがリリースをビルドし、このPCのリポジトリ専用セルフホストRunnerが成果物を受け取ってXserverへSSH/SCP転送する。SSH上のリリーススクリプトがmigration・キャッシュ生成・`current` 切替を行う。
 
 ## 安全設計
 
-- `staging` と `production` はGitHub Environmentsを分け、同名でも別のSecretsを登録する。
+- ビルドはGitHubホステッドRunner、SSH転送だけをラベル `valzeria-deploy` のWindowsセルフホストRunnerで行う。
+- ステージングは任意refを実行せず、信頼済みの `main` だけをビルド・転送する。
+- `staging` と `production` はGitHub Environmentsを分け、同名でも別の接続先Secretsを登録する。
 - 本番ワークフローは手動実行のみで、`deploy-production` の確認入力とGitHub Environmentの承認を両方必要にする。
-- SSH接続先のホスト鍵は `SSH_KNOWN_HOSTS` に固定し、接続時に取得して信頼する方式を使わない。
-- Actionsは登録した秘密鍵だけを使う非対話SSH接続を先に検証してから、アップロードやDB操作へ進む。
-- ステージングと本番でSSH鍵を分け、GitHub Environmentごとに対応する秘密鍵だけを保存する。同一XserverのSSHユーザーを使う限り、鍵だけでサーバー上のフォルダ権限は分離されないため、本番の実行制御はGitHub Environmentの承認と本番専用ワークフローで行う。
+- SSH秘密鍵と検証済み `known_hosts` はこのPCの実行ユーザー配下だけに置き、GitHub Secretsへ保存しない。
+- Actionsは対象環境のローカル秘密鍵だけを使う非対話SSH接続を先に検証してから、アップロードやDB操作へ進む。
+- ステージングと本番でSSH鍵を分ける。同一XserverのSSHユーザーを使う限りサーバー上のフォルダ権限は分離されないため、本番の実行制御はGitHub Environmentの承認と本番専用ワークフローで行う。
 - アーカイブはWeb公開領域外の `deploy-incoming` に置き、展開・migrationが成功してから `*_current` を原子的に切り替える。
+
+GitHubホステッドRunnerからXserverへの直接SSHは、Xserver側から接続を閉じられることを実機確認済み。このためセルフホストRunnerはビルド用途ではなく、接続可能なこのPCからの転送用途だけに限定する。
 
 ## Xserver側の初回準備
 
 1. サーバーパネルでSSHを有効化する。
-2. ステージング用と本番用に、それぞれSSH鍵ペアを作る。秘密鍵はGitHub Environment Secretだけに保存し、チャットやリポジトリへ置かない。
-3. 各公開鍵をXserverのSSH公開鍵設定へ登録する。同一SSHユーザーでは両鍵とも同じサーバー権限になるため、鍵の分離はローテーション・監査・GitHub側のSecret分離のために行う。
+2. ステージング用と本番用に、それぞれSSH鍵ペアを作る。秘密鍵はこのPCの実行ユーザー配下だけに保存し、チャット・GitHub・リポジトリへ置かない。
+3. 各公開鍵をXserverのSSH公開鍵設定へ登録する。同一SSHユーザーでは両鍵とも同じサーバー権限になるため、鍵の分離はローテーション・監査・ワークフロー分離のために行う。
 4. `valzeria.com` の直下に、SSHログインユーザーが書き込める `deploy-incoming` を作る。既存の `staging_valzeria_shared` / `valzeria_shared`、`*_releases`、`*_current` はそのまま使う。
 5. `staging.valzeria.com` と本番の共有 `.env`、共有 `storage`、公開フォルダは従来どおり分離して保つ。
+
+## セルフホストRunner
+
+GitHubリポジトリの **Settings → Actions → Runners** からWindows x64 RunnerをこのPCへ登録し、カスタムラベル `valzeria-deploy` を付ける。初回は対話実行の `run.cmd` で動作確認する。サービス化する場合は、SSH鍵と `known_hosts` を持つWindowsユーザーで動かす。
+
+このRunnerはValzeriaリポジトリ専用とし、Pull Requestや任意ブランチのコードを実行するworkflowには割り当てない。PCが停止中はdeployジョブが待機し、公開状態は変わらない。
+
+ローカルで使用するファイルは次のとおり。
+
+- `C:\Users\yuta\.ssh\valzeria_staging_deploy`
+- `C:\Users\yuta\.ssh\valzeria_production_deploy`
+- `C:\Users\yuta\.ssh\known_hosts`
 
 ## GitHub Environments とSecrets
 
@@ -30,8 +46,6 @@ GitHubリポジトリの **Settings → Environments** で `staging` と `produc
 | `SSH_HOST` | XserverのSSHホスト名 |
 | `SSH_PORT` | Xserverで指定されたSSHポート |
 | `SSH_USER` | SSHユーザー名 |
-| `SSH_PRIVATE_KEY` | 対象環境専用の秘密鍵全文 |
-| `SSH_KNOWN_HOSTS` | `ssh-keyscan -p <port> <host>` の結果を別経路で照合した値 |
 | `DEPLOY_ROOT` | 例: `/home/<server-user>/valzeria.com` |
 | `DEPLOY_PHP_BINARY` | XserverのPHP 8.4実行パス。空欄時は `php` |
 
@@ -39,7 +53,7 @@ GitHubリポジトリの **Settings → Environments** で `staging` と `produc
 
 ## 実行方法
 
-- ステージング: Actionsの **Deploy staging** を開き、確認したいGit refとmigration modeを選んで実行する。
+- ステージング: セルフホストRunnerを起動し、Actionsの **Deploy staging** を開いてmigration modeを選んで実行する。反映元は `main` 固定。
 - 本番: Actionsの **Deploy production** を開き、確認欄へ `deploy-production` と入力する。GitHub Environmentの承認後、`main` のみを反映する。
 
 通常のコード変更は、ステージングで実プレイ確認した後に本番ワークフローを明示実行する。Seeder・DB全消去・既存プレイヤー向けのデータ補正は、このワークフローに含めない。

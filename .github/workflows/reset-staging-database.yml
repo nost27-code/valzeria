@@ -11,11 +11,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
 jobs:
   reset:
-    name: Reset staging database
+    name: Reset staging database from trusted runner
     if: inputs.confirmation == 'reset-staging-database'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64, valzeria-deploy]
     environment: staging
     env:
       DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
@@ -23,22 +27,12 @@ jobs:
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure SSH
-        run: |
-          test -n "$SSH_HOST" && test -n "$SSH_PORT" && test -n "$SSH_USER" && test -n "$DEPLOY_ROOT"
-          install -d -m 700 ~/.ssh
-          printf '%s' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+        with:
+          ref: main
 
       - name: Reset only the staging database
+        shell: pwsh
         run: |
-          remote="$SSH_USER@$SSH_HOST"
-          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes scripts/deploy/reset-staging-database.sh "$remote:$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh"
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$remote" "chmod 700 '$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh' && DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_PHP_BINARY='$DEPLOY_PHP_BINARY' bash '$DEPLOY_ROOT/deploy-incoming/reset-staging-database.sh'"
+          & .\scripts\deploy\invoke-staging-database-reset.ps1
