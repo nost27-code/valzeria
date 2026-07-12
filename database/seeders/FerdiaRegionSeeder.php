@@ -9,6 +9,7 @@ use App\Models\Enemy;
 use App\Models\EnemyAction;
 use App\Services\Enemy\EnemyStatGenerationService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class FerdiaRegionSeeder extends Seeder
@@ -46,7 +47,7 @@ class FerdiaRegionSeeder extends Seeder
     private function seedCities(): void
     {
         foreach (config('ferdia_world_map.cities', []) as $city) {
-            City::updateOrCreate(
+            DB::table('cities')->updateOrInsert(
                 ['id' => (int) $city['id']],
                 [
                     'name' => $city['name'],
@@ -55,6 +56,8 @@ class FerdiaRegionSeeder extends Seeder
                     'recommended_level_max' => (int) $city['recommended_level_max'],
                     'sort_order' => (int) $city['sort_order'],
                     'is_initial' => false,
+                    'updated_at' => now(),
+                    'created_at' => now(),
                 ]
             );
         }
