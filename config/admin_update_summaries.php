@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-12-staging-master-seed-order',
+        'date' => '2026-07-12',
+        'category' => 'internal',
+        'title' => 'ステージング追加マスタの同期順を修正',
+        'detail' => '本番未公開の追加コンテンツも、ステージング初期化後に検証できるようにしました。',
+    ],
+    [
         'id' => '2026-07-12-release-readiness-guard',
         'date' => '2026-07-12',
         'category' => 'internal',

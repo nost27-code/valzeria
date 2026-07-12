@@ -162,5 +162,10 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('sync-staging-master-data.sh" apply', $resetScript);
         $this->assertStringContainsString('db:wipe --force', $resetScript);
         $this->assertStringContainsString('dungeon:validate', $resetScript);
+        $this->assertLessThan(
+            strpos($resetScript, 'db:seed --force'),
+            strpos($resetScript, 'sync-staging-master-data.sh" apply'),
+            '本番マスタ同期後にSeederを実行して、ステージング専用の追加マスタを復元する。'
+        );
     }
 }

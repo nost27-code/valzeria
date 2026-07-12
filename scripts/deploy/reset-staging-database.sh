@@ -27,8 +27,10 @@ trap cleanup EXIT
 "$SCRIPT_DIR/sync-staging-master-data.sh" prepare "$SYNC_DIR"
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" db:wipe --force --no-interaction
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" migrate --force --no-interaction
-"$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" db:seed --force --no-interaction
 "$SCRIPT_DIR/sync-staging-master-data.sh" apply "$SYNC_DIR"
+# 本番にまだない追加コンテンツのマスタは、同期後に現行コードのSeederで補う。
+# 先にseedすると本番マスタ同期で消えてしまい、ステージング検証が本番より古い状態になる。
+"$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" db:seed --force --no-interaction
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" dungeon:validate --no-interaction
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" optimize:clear --no-interaction
 
