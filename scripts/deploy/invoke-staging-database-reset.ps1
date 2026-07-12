@@ -40,6 +40,7 @@ foreach ($value in @($deployRoot, $phpBinary, $sshHost, $sshPort, $sshUser)) {
 
 $resetScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'reset-staging-database.sh')).Path
 $masterSyncScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'sync-staging-master-data.sh')).Path
+$masterCopyScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'copy-staging-master-data.php')).Path
 $keyPath = Join-Path $HOME '.ssh\valzeria_staging_deploy'
 if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
     throw "SSH private key is missing: $keyPath"
@@ -54,6 +55,7 @@ Invoke-CheckedCommand 'ssh.exe' ($sshOptions + @($remote, 'true'))
 Invoke-CheckedCommand 'ssh.exe' ($sshOptions + @($remote, "mkdir -p '$incomingDir'"))
 Invoke-CheckedCommand 'scp.exe' ($scpOptions + @($resetScript, "${remote}:$incomingDir/reset-staging-database.sh"))
 Invoke-CheckedCommand 'scp.exe' ($scpOptions + @($masterSyncScript, "${remote}:$incomingDir/sync-staging-master-data.sh"))
+Invoke-CheckedCommand 'scp.exe' ($scpOptions + @($masterCopyScript, "${remote}:$incomingDir/copy-staging-master-data.php"))
 
-$remoteCommand = "chmod 700 '$incomingDir/reset-staging-database.sh' '$incomingDir/sync-staging-master-data.sh' && DEPLOY_ROOT='$deployRoot' DEPLOY_PHP_BINARY='$phpBinary' bash '$incomingDir/reset-staging-database.sh'"
+$remoteCommand = "chmod 700 '$incomingDir/reset-staging-database.sh' '$incomingDir/sync-staging-master-data.sh' '$incomingDir/copy-staging-master-data.php' && DEPLOY_ROOT='$deployRoot' DEPLOY_PHP_BINARY='$phpBinary' bash '$incomingDir/reset-staging-database.sh'"
 Invoke-CheckedCommand 'ssh.exe' ($sshOptions + @($remote, $remoteCommand))

@@ -144,10 +144,14 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringNotContainsString('secrets.DEPLOY_PHP_BINARY', $resetWorkflow);
         $this->assertFileExists(base_path('scripts/deploy/invoke-staging-database-reset.ps1'));
         $this->assertFileExists(base_path('scripts/deploy/sync-staging-master-data.sh'));
+        $this->assertFileExists(base_path('scripts/deploy/copy-staging-master-data.php'));
         $masterSyncScript = file_get_contents(base_path('scripts/deploy/sync-staging-master-data.sh'));
-        $this->assertStringContainsString('Production master snapshot prepared.', $masterSyncScript);
-        $this->assertStringContainsString('Staging master data synchronized from production.', $masterSyncScript);
+        $masterCopyScript = file_get_contents(base_path('scripts/deploy/copy-staging-master-data.php'));
+        $this->assertStringContainsString('Production master connection validated.', $masterSyncScript);
+        $this->assertStringContainsString('Staging master data synchronized from production.', $masterCopyScript);
         $this->assertStringContainsString('characters, inventories, logs, payments', $masterSyncScript);
+        $this->assertStringContainsString('source-only columns skipped', $masterCopyScript);
+        $this->assertStringContainsString('SET FOREIGN_KEY_CHECKS=0', $masterCopyScript);
         $this->assertStringContainsString('staging_valzeria_current', $resetScript);
         $this->assertStringContainsString('sync-staging-master-data.sh" prepare', $resetScript);
         $this->assertStringContainsString('sync-staging-master-data.sh" apply', $resetScript);

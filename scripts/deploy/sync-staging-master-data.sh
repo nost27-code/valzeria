@@ -20,8 +20,8 @@ STAGING_APP="$DEPLOY_ROOT/staging_valzeria_current"
 STAGING_ENV="$DEPLOY_ROOT/staging_valzeria_shared/.env"
 PRODUCTION_APP="$DEPLOY_ROOT/valzeria_project"
 PRODUCTION_ENV="$PRODUCTION_APP/.env"
-MASTER_DUMP="$SYNC_DIR/production-master.sql"
 STAGING_BACKUP_DIR="$DEPLOY_ROOT/staging_valzeria_shared/backups"
+COPY_SCRIPT="$(cd "$(dirname "$0")" && pwd -P)/copy-staging-master-data.php"
 
 # This list intentionally contains only game masters and their relationships.
 # Player-owned, operational, payment, analytics, and log tables are excluded.
@@ -86,7 +86,7 @@ for command in mysql mysqldump gzip; do
     }
 done
 
-for file in "$STAGING_APP/artisan" "$STAGING_ENV" "$PRODUCTION_APP/artisan" "$PRODUCTION_ENV"; do
+for file in "$STAGING_APP/artisan" "$STAGING_ENV" "$PRODUCTION_APP/artisan" "$PRODUCTION_ENV" "$COPY_SCRIPT"; do
     [[ -f "$file" ]] || {
         echo "Required staging/production file is missing: $file" >&2
         exit 66
@@ -161,36 +161,11 @@ if [[ "$MODE" == "prepare" ]]; then
     staging_backup="$STAGING_BACKUP_DIR/master-before-sync-$timestamp.sql.gz"
 
     mysqldump --defaults-extra-file="$STAGING_DEFAULTS" --single-transaction --skip-lock-tables --no-create-info --skip-triggers --complete-insert "$STAGING_DATABASE" "${MASTER_TABLES[@]}" | gzip -c > "$staging_backup"
-    mysqldump --defaults-extra-file="$PRODUCTION_DEFAULTS" --single-transaction --skip-lock-tables --no-create-info --skip-triggers --complete-insert "$PRODUCTION_DATABASE" "${MASTER_TABLES[@]}" > "$MASTER_DUMP"
-    chmod 600 "$staging_backup" "$MASTER_DUMP"
+    chmod 600 "$staging_backup"
 
     echo "Staging master backup created: $staging_backup"
-    echo "Production master snapshot prepared."
+    echo "Production master connection validated."
     exit 0
 fi
 
-[[ -s "$MASTER_DUMP" ]] || {
-    echo "Production master snapshot is missing: $MASTER_DUMP" >&2
-    exit 66
-}
-
-{
-    echo 'SET FOREIGN_KEY_CHECKS=0;'
-    for table in "${MASTER_TABLES[@]}"; do
-        printf 'DELETE FROM `%s`;\n' "$table"
-    done
-    echo 'SET FOREIGN_KEY_CHECKS=1;'
-} | mysql --defaults-extra-file="$STAGING_DEFAULTS" "$STAGING_DATABASE"
-
-mysql --defaults-extra-file="$STAGING_DEFAULTS" "$STAGING_DATABASE" < "$MASTER_DUMP"
-
-for table in "${MASTER_TABLES[@]}"; do
-    production_count="$(master_count "$PRODUCTION_DEFAULTS" "$PRODUCTION_DATABASE" "$table")"
-    staging_count="$(master_count "$STAGING_DEFAULTS" "$STAGING_DATABASE" "$table")"
-    if [[ "$production_count" != "$staging_count" ]]; then
-        echo "Master count mismatch after sync: $table (production=$production_count, staging=$staging_count)" >&2
-        exit 70
-    fi
-done
-
-echo "Staging master data synchronized from production."
+"$DEPLOY_PHP_BINARY" "$COPY_SCRIPT" "$STAGING_APP" "$PRODUCTION_ENV" "$STAGING_ENV" "${MASTER_TABLES[@]}"
