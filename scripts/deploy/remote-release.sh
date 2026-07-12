@@ -161,6 +161,9 @@ done
 
 for file in favicon.ico robots.txt sw.js; do
     if [[ -f "$release_dir/public/$file" ]]; then
+        if [[ -e "$PUBLIC_DIR/$file" && "$release_dir/public/$file" -ef "$PUBLIC_DIR/$file" ]]; then
+            continue
+        fi
         cp "$release_dir/public/$file" "$PUBLIC_DIR/$file"
     fi
 done
