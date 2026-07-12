@@ -32,7 +32,7 @@ X = deprecated/removed
 - Auth: Google OAuth, 1 account = 1 character
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)
 - Tests: PHPUnit via `php artisan test`
-- Deploy: 現行は `php local_deploy.php` が署名付きリリースZIPを送信し、`server_deploy_api.php` が `valzeria_current` を原子的に切り替える。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。置換先はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成。Runner登録後の初回リリースは未確認で、手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
+- Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージングの初回リリースと公開確認（`/` 200、未ログイン `/home` 302）は成功済み。本番SSHリリースは未実行。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
 
 ## Product summary
 
