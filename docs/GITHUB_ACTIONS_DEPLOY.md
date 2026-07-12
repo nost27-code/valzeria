@@ -22,6 +22,7 @@ GitHubホステッドRunnerからXserverへの直接SSHは、Xserver側から接
 3. 各公開鍵をXserverのSSH公開鍵設定へ登録する。同一SSHユーザーでは両鍵とも同じサーバー権限になるため、鍵の分離はローテーション・監査・ワークフロー分離のために行う。
 4. `valzeria.com` の直下に、SSHログインユーザーが書き込める `deploy-incoming` を作る。既存の `staging_valzeria_shared` / `valzeria_shared`、`*_releases`、`*_current` はそのまま使う。
 5. `staging.valzeria.com` と本番の共有 `.env`、共有 `storage`、公開フォルダは従来どおり分離して保つ。
+6. Googleログインを使う場合は、ステージング共有 `.env` に `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REDIRECT_URI=https://staging.valzeria.com/auth/google/callback` を設定し、Google Cloud ConsoleのOAuthクライアントにもこのURLを許可済みリダイレクトURIとして追加する。本番用の `https://valzeria.com/auth/google/callback` は残す。
 
 ## セルフホストRunner
 
