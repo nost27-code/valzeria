@@ -47,9 +47,10 @@ GitHubリポジトリの **Settings → Environments** で `staging` と `produc
 | `SSH_PORT` | Xserverで指定されたSSHポート |
 | `SSH_USER` | SSHユーザー名 |
 | `DEPLOY_ROOT` | 例: `/home/<server-user>/valzeria.com` |
-| `DEPLOY_PHP_BINARY` | XserverのPHP 8.4実行パス。空欄時は `php` |
 
 `DEPLOY_ROOT` は公開フォルダではなく `valzeria.com` 自体を指定する。ワークフローは対象に応じて `public_html` または `public_html/staging.valzeria.com`、`valzeria_*` または `staging_valzeria_*` だけを扱う。
+
+XserverのCLI PHPは古い `php`（PHP 5.4）を指すため、ワークフローでは確認済みの `/usr/bin/php8.4` を固定で使用する。これは秘密情報ではないためGitHub Secretには登録しない。
 
 ## 実行方法
 

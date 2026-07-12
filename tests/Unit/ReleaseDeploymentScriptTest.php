@@ -115,11 +115,15 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('actions/download-artifact@v4', $staging);
         $this->assertStringContainsString('-Target staging', $staging);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $staging);
+        $this->assertStringContainsString('DEPLOY_PHP_BINARY: /usr/bin/php8.4', $staging);
+        $this->assertStringNotContainsString('secrets.DEPLOY_PHP_BINARY', $staging);
         $this->assertStringContainsString('environment: production', $production);
         $this->assertStringContainsString("inputs.confirmation == 'deploy-production'", $production);
         $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $production);
         $this->assertStringContainsString('-Target production', $production);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $production);
+        $this->assertStringContainsString('DEPLOY_PHP_BINARY: /usr/bin/php8.4', $production);
+        $this->assertStringNotContainsString('secrets.DEPLOY_PHP_BINARY', $production);
 
         $this->assertFileExists(base_path('scripts/deploy/invoke-remote-release.ps1'));
         $invokeRelease = file_get_contents(base_path('scripts/deploy/invoke-remote-release.ps1'));
@@ -134,6 +138,8 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString("inputs.confirmation == 'reset-staging-database'", $resetWorkflow);
         $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $resetWorkflow);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $resetWorkflow);
+        $this->assertStringContainsString('DEPLOY_PHP_BINARY: /usr/bin/php8.4', $resetWorkflow);
+        $this->assertStringNotContainsString('secrets.DEPLOY_PHP_BINARY', $resetWorkflow);
         $this->assertFileExists(base_path('scripts/deploy/invoke-staging-database-reset.ps1'));
         $this->assertStringContainsString('staging_valzeria_current', $resetScript);
         $this->assertStringContainsString('db:wipe --force', $resetScript);
