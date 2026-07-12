@@ -52,6 +52,20 @@
             overflow-x: hidden;
             overflow-y: auto;
         }
+
+        @media (min-width: 1024px) {
+            .admin-layout {
+                height: 100dvh;
+                overflow: hidden;
+            }
+
+            .admin-content-scroll {
+                height: 100dvh;
+                overflow-y: auto;
+                overscroll-behavior-y: contain;
+                scrollbar-gutter: stable;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-100 font-sans antialiased text-slate-900">
@@ -124,7 +138,7 @@
         $mailNavActive = request()->routeIs($mailNavItem['route']);
     @endphp
 
-    <div class="min-h-screen lg:flex"
+    <div class="admin-layout min-h-screen lg:flex"
          x-data="{ mobileNavOpen: false, mobileOpenGroup: @js($activeGroupKey) }"
          x-init="document.documentElement.style.removeProperty('overflow'); document.body.style.removeProperty('overflow')"
          @keydown.window.escape="mobileNavOpen = false">
@@ -187,7 +201,7 @@
             </div>
         </aside>
 
-        <div class="min-w-0 flex-1 lg:pl-72">
+        <div class="admin-content-scroll min-w-0 flex-1 lg:pl-72">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur lg:hidden">
                 <div class="flex h-16 items-center justify-between px-4">
                     <button type="button"
