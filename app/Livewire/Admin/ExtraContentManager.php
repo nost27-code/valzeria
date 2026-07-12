@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Services\ExtraContentControlService;
+use App\Services\ReleaseReadinessService;
 use Livewire\Component;
 
 class ExtraContentManager extends Component
@@ -15,7 +16,7 @@ class ExtraContentManager extends Component
         $this->loadContents($controlService);
     }
 
-    public function toggle(string $contentKey, ExtraContentControlService $controlService): void
+    public function toggle(string $contentKey, ExtraContentControlService $controlService, ReleaseReadinessService $readiness): void
     {
         $contents = $controlService->allStatuses();
         if (!array_key_exists($contentKey, $contents)) {
@@ -26,6 +27,15 @@ class ExtraContentManager extends Component
         }
 
         $nextEnabled = !((bool) ($contents[$contentKey]['enabled'] ?? false));
+        if ($nextEnabled) {
+            $issues = $readiness->contentIssues($contentKey);
+            if ($issues !== []) {
+                session()->flash('error', '必要なマスタが揃っていないためONにできません。' . PHP_EOL . implode(PHP_EOL, $issues));
+                $this->contents = $contents;
+
+                return;
+            }
+        }
         $controlService->setEnabled($contentKey, $nextEnabled);
         $this->loadContents($controlService);
 
@@ -33,7 +43,7 @@ class ExtraContentManager extends Component
         session()->flash('status', "{$name}を" . ($nextEnabled ? 'ON' : 'OFF') . 'にしました。');
     }
 
-    public function savePeriod(string $contentKey, ExtraContentControlService $controlService): void
+    public function savePeriod(string $contentKey, ExtraContentControlService $controlService, ReleaseReadinessService $readiness): void
     {
         $contents = $controlService->allStatuses();
         if (!array_key_exists($contentKey, $contents)) {
@@ -41,6 +51,16 @@ class ExtraContentManager extends Component
             $this->loadContents($controlService);
 
             return;
+        }
+
+        if ((bool) ($contents[$contentKey]['enabled'] ?? false)) {
+            $issues = $readiness->contentIssues($contentKey);
+            if ($issues !== []) {
+                session()->flash('error', '必要なマスタが揃っていないため開催期間を保存できません。' . PHP_EOL . implode(PHP_EOL, $issues));
+                $this->contents = $contents;
+
+                return;
+            }
         }
 
         $input = $this->periodInputs[$contentKey] ?? [];

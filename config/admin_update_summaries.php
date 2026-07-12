@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-12-release-readiness-guard',
+        'date' => '2026-07-12',
+        'category' => 'internal',
+        'title' => '公開前のマスタ整合性検査を追加',
+        'detail' => 'migration前の参照・統合影響確認と、追加コンテンツ公開前の必須マスタ確認を行えるようにしました。',
+    ],
+    [
         'id' => '2026-07-12-ferdia-story-dungeon-card-backgrounds',
         'date' => '2026-07-12',
         'category' => 'changed',

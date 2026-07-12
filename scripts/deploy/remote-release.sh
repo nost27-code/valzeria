@@ -81,11 +81,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" && -L "$CURRENT_LINK" ]]; then
-    "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" down --retry=60 --no-interaction
-    maintenance_enabled=1
-fi
-
 mkdir -p "$release_dir"
 tar -xzf "$DEPLOY_ARCHIVE" -C "$release_dir"
 rm -f "$release_dir/public/hot"
@@ -104,8 +99,22 @@ done
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" view:clear --no-interaction
 
 if [[ "$DEPLOY_MIGRATION_MODE" != "none" ]]; then
+    preflight_args=()
+    if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" ]]; then
+        preflight_args+=(--allow-enemy-merge)
+    fi
+    "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:preflight-pending-migrations "${preflight_args[@]}" --no-interaction
+
+    if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" && -L "$CURRENT_LINK" ]]; then
+        "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" down --retry=60 --no-interaction
+        maintenance_enabled=1
+    fi
+
     "$DEPLOY_PHP_BINARY" "$release_dir/artisan" migrate --force --no-interaction
 fi
+
+"$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:validate-master-data --no-interaction
+"$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:validate-release-readiness --all --no-interaction
 
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" cache:clear --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" config:cache --no-interaction

@@ -71,6 +71,11 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('Refusing to replace non-link public directory', $remoteSource);
         $this->assertStringContainsString('-ef "$PUBLIC_DIR/$file"', $remoteSource);
         $this->assertStringContainsString("realpath('\${escaped_current_link}')", $remoteSource);
+        $this->assertStringContainsString('valzeria:preflight-pending-migrations', $remoteSource);
+        $this->assertStringContainsString('--allow-enemy-merge', $remoteSource);
+        $this->assertStringContainsString('valzeria:validate-release-readiness --all', $remoteSource);
+        $this->assertFileExists(base_path('app/Console/Commands/PreflightPendingMigrations.php'));
+        $this->assertFileExists(base_path('app/Console/Commands/ValidateReleaseReadiness.php'));
         $this->assertStringNotContainsString('extractTo(', $source);
     }
 
