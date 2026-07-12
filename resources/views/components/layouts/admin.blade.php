@@ -35,6 +35,23 @@
     @livewireStyles
     <style>
         [x-cloak] { display: none !important; }
+
+        /*
+         * 通常画面のタブ切替中に付与された body の overflow: hidden が、
+         * Livewire Navigate 経由で管理画面まで残る場合がある。
+         * 管理画面はページ全体をスクロール領域として使うため、基準の
+         * スクロール設定をここで明示する。
+         */
+        html {
+            min-height: 100%;
+            overflow-y: auto;
+        }
+
+        body {
+            min-height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body class="bg-slate-100 font-sans antialiased text-slate-900">
@@ -107,7 +124,10 @@
         $mailNavActive = request()->routeIs($mailNavItem['route']);
     @endphp
 
-    <div class="min-h-screen lg:flex" x-data="{ mobileNavOpen: false, mobileOpenGroup: @js($activeGroupKey) }" @keydown.window.escape="mobileNavOpen = false">
+    <div class="min-h-screen lg:flex"
+         x-data="{ mobileNavOpen: false, mobileOpenGroup: @js($activeGroupKey) }"
+         x-init="document.documentElement.style.removeProperty('overflow'); document.body.style.removeProperty('overflow')"
+         @keydown.window.escape="mobileNavOpen = false">
         <aside class="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 lg:flex-col bg-slate-950 text-white shadow-2xl">
             <div class="flex h-full flex-col">
                 <div class="px-7 pt-7 pb-4">
@@ -281,6 +301,19 @@
 
     @livewireScripts
     <script>
+        (() => {
+            const restoreAdminScroll = () => {
+                document.documentElement.style.removeProperty('overflow');
+                document.documentElement.style.removeProperty('overflow-y');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('overflow-y');
+            };
+
+            restoreAdminScroll();
+            window.addEventListener('pageshow', restoreAdminScroll);
+            document.addEventListener('livewire:navigated', restoreAdminScroll);
+        })();
+
         (() => {
             const badgeUrl = @js(route('admin.contact-messages.badge-count'));
             const baseTitle = document.title;

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-12-admin-scroll-recovery',
+        'date' => '2026-07-12',
+        'category' => 'internal',
+        'title' => '管理画面のスクロール停止を自動復旧',
+        'detail' => 'ゲーム画面から管理画面へ移動した後も、管理画面を縦方向へ操作できるようにしました。',
+    ],
+    [
         'id' => '2026-07-12-exploration-support-master-seeder',
         'date' => '2026-07-12',
         'category' => 'internal',
