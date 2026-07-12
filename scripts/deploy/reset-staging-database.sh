@@ -9,6 +9,8 @@ DEPLOY_PHP_BINARY="${DEPLOY_PHP_BINARY:-php}"
 
 DEPLOY_ROOT="$(cd "$DEPLOY_ROOT" && pwd -P)"
 CURRENT_LINK="$DEPLOY_ROOT/staging_valzeria_current"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+SYNC_DIR="$DEPLOY_ROOT/deploy-incoming/staging-master-sync-$(date -u +%Y%m%d_%H%M%S)_$RANDOM"
 
 if [[ ! -f "$CURRENT_LINK/artisan" ]]; then
     echo "Staging release is not available: $CURRENT_LINK" >&2
@@ -17,13 +19,16 @@ fi
 
 cleanup() {
     "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" up --no-interaction >/dev/null 2>&1 || true
+    rm -rf "$SYNC_DIR" || true
 }
 trap cleanup EXIT
 
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" down --render="errors::503" --retry=60 --no-interaction
+"$SCRIPT_DIR/sync-staging-master-data.sh" prepare "$SYNC_DIR"
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" db:wipe --force --no-interaction
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" migrate --force --no-interaction
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" db:seed --force --no-interaction
+"$SCRIPT_DIR/sync-staging-master-data.sh" apply "$SYNC_DIR"
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" dungeon:validate --no-interaction
 "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" optimize:clear --no-interaction
 
