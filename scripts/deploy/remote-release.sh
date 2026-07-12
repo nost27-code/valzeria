@@ -83,6 +83,7 @@ trap cleanup EXIT
 
 mkdir -p "$release_dir"
 tar -xzf "$DEPLOY_ARCHIVE" -C "$release_dir"
+mkdir -p "$release_dir/bootstrap/cache/views"
 rm -f "$release_dir/public/hot"
 rm -rf "$release_dir/storage" "$release_dir/.env"
 ln -s "$SHARED_STORAGE" "$release_dir/storage"

@@ -12,6 +12,7 @@
 - Actionsは対象環境のローカル秘密鍵だけを使う非対話SSH接続を先に検証してから、アップロードやDB操作へ進む。
 - ステージングと本番でSSH鍵を分ける。同一XserverのSSHユーザーを使う限りサーバー上のフォルダ権限は分離されないため、本番の実行制御はGitHub Environmentの承認と本番専用ワークフローで行う。
 - アーカイブはWeb公開領域外の `deploy-incoming` に置き、展開・migrationが成功してから `*_current` を原子的に切り替える。
+- Bladeのコンパイル済みファイルは各リリースの `bootstrap/cache/views` に分離する。共有storageに置かないため、切替後に旧テンプレートが残らない。
 
 GitHubホステッドRunnerからXserverへの直接SSHは、Xserver側から接続を閉じられることを実機確認済み。このためセルフホストRunnerはビルド用途ではなく、接続可能なこのPCからの転送用途だけに限定する。
 
