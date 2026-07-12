@@ -33,6 +33,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Internal
 
+- ステージングDB初期化後にも、薬屋の探索補助品マスタを復元して検証できるようにしました。
+
 - ステージングDB初期化後にも、未公開の追加コンテンツ用マスタを検証できるよう同期・Seederの実行順を整えました。
 
 - リリース前に外部キー参照・旧敵統合の影響を確認し、追加コンテンツの必要マスタが揃わない状態では公開できないようにしました。

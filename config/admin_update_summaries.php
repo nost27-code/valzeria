@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-12-exploration-support-master-seeder',
+        'date' => '2026-07-12',
+        'category' => 'internal',
+        'title' => '探索補助品マスタを初期化後も復元',
+        'detail' => 'ステージングDB初期化後も、薬屋の探索補助品を検証できるようにしました。',
+    ],
+    [
         'id' => '2026-07-12-staging-master-seed-order',
         'date' => '2026-07-12',
         'category' => 'internal',

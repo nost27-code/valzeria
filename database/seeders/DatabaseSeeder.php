@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             AllDungeonsSeeder::class,
             RouteAreaSeeder::class,
             FerdiaRegionSeeder::class,
+            ExplorationSupportMasterSeeder::class,
             JobSystemSeeder::class,
             SkillSeeder::class,
             ItemSeeder::class,

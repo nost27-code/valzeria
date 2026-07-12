@@ -34,6 +34,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $databaseSeeder = file_get_contents(base_path('database/seeders/DatabaseSeeder.php'));
         $this->assertNotFalse($databaseSeeder);
         $this->assertStringContainsString('JobSystemSeeder::class', $databaseSeeder);
+        $this->assertStringContainsString('ExplorationSupportMasterSeeder::class', $databaseSeeder);
         $this->assertStringNotContainsString('JobSeeder::class', $databaseSeeder);
     }
 
