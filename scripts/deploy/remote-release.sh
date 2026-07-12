@@ -128,7 +128,7 @@ cat > "$PUBLIC_DIR/index.php.next" <<PHP
 <?php
 declare(strict_types=1);
 
-\$releaseRoot = realpath('{$escaped_current_link}');
+\$releaseRoot = realpath('${escaped_current_link}');
 if (\$releaseRoot === false || !is_file(\$releaseRoot . '/public/index.php')) {
     http_response_code(503);
     exit('Service temporarily unavailable.');
