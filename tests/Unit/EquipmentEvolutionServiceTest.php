@@ -114,7 +114,9 @@ class EquipmentEvolutionServiceTest extends TestCase
 
         $this->assertSame(99, $payloads[0]['id']);
         $this->assertSame('[A] 鋭いI鉄の剣・竜断I【逸品】 +2', $payloads[0]['display_name']);
-        $this->assertSame('鋭いI鋼の剣・竜断I【逸品】', $payloads[0]['evolved_display_name']);
+        $this->assertSame('鋭いI鋼の剣・竜断I【逸品】 +2', $payloads[0]['evolved_display_name']);
+        $this->assertSame(2, $payloads[0]['enhance_level']);
+        $this->assertSame(2, $payloads[0]['inherited_enhance_level']);
         $this->assertTrue($payloads[0]['is_equipped']);
         $this->assertTrue($payloads[0]['is_locked']);
         $this->assertTrue($payloads[0]['has_affix']);
@@ -122,7 +124,7 @@ class EquipmentEvolutionServiceTest extends TestCase
         $this->assertContains('種族が竜の敵への与ダメージ +8.1%', $payloads[0]['affix_lines']);
 
         $maskedPayloads = $this->invokePrivate($service, 'sourceOptionPayloads', [new Collection([$source]), $toItem, '未鑑定の剣']);
-        $this->assertSame('鋭いI未鑑定の剣・竜断I【逸品】', $maskedPayloads[0]['evolved_display_name']);
+        $this->assertSame('鋭いI未鑑定の剣・竜断I【逸品】 +2', $maskedPayloads[0]['evolved_display_name']);
     }
 
     private function invokePrivate(object $object, string $method, array $arguments = []): mixed

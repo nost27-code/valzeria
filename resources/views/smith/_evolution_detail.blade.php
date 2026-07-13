@@ -105,6 +105,9 @@
                             @if(!empty($sourceOption['evolved_display_name']))
                                 <div class="mt-0.5 break-words text-[11px] font-black text-amber-700">→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $sourceOption['evolved_display_name'] }}</div>
                             @endif
+                            @if((int) ($sourceOption['enhance_level'] ?? 0) > 0)
+                                <div class="mt-0.5 text-[10px] font-black text-emerald-700">強化値: +{{ (int) $sourceOption['enhance_level'] }} → +{{ (int) ($sourceOption['inherited_enhance_level'] ?? 0) }} を引き継ぐ</div>
+                            @endif
                             <div class="mt-1 flex flex-wrap gap-1">
                                 @if($sourceOption['is_locked'])
                                     <span class="text-sm leading-none text-yellow-500" title="保護中" aria-label="保護中">★</span>
@@ -166,6 +169,7 @@
                                         sourceCharacterItemId: {{ (int) $sourceOption['id'] }},
                                         fromName: @js($sourceOption['display_name']),
                                         toName: @js($sourceOption['evolved_display_name'] ?? $candidate['to_name']),
+                                        enhancementLabel: @js((int) ($sourceOption['enhance_level'] ?? 0) > 0 ? '強化値: +' . (int) $sourceOption['enhance_level'] . ' → +' . (int) ($sourceOption['inherited_enhance_level'] ?? 0) . ' を引き継ぎます。' : null),
                                         goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G')
                                     }; modalOpen = true"
                                 >この装備で合成</button>
@@ -255,6 +259,7 @@
                     sourceCharacterItemId: null,
                     fromName: @js($candidate['from_name']),
                     toName: @js($toActionName),
+                    enhancementLabel: null,
                     goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G')
                 }; modalOpen = true"
             >合成する</button>
@@ -268,6 +273,7 @@
                     sourceCharacterItemId: {{ (int) $singleSourceOption['id'] }},
                     fromName: @js($singleSourceOption['display_name']),
                     toName: @js($singleSourceOption['evolved_display_name'] ?? $candidate['to_name']),
+                    enhancementLabel: @js((int) ($singleSourceOption['enhance_level'] ?? 0) > 0 ? '強化値: +' . (int) $singleSourceOption['enhance_level'] . ' → +' . (int) ($singleSourceOption['inherited_enhance_level'] ?? 0) . ' を引き継ぎます。' : null),
                     goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G')
                 }; modalOpen = true"
             >合成する</button>

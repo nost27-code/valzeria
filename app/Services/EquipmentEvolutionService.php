@@ -214,7 +214,14 @@ class EquipmentEvolutionService
             $equippedConsumed = $consumedItems->firstWhere('is_equipped', true);
             $equippedSlot = $equippedConsumed?->equipped_slot;
             $sourceWasLocked = $consumedItems->contains(fn (CharacterItem $item): bool => (bool) $item->is_locked);
-            $maxConsumedEnhanceLevel = (int) $consumedItems->max('enhance_level');
+            $selectedSource = $sourceCharacterItemId !== null
+                ? $consumedItems->firstWhere('id', $sourceCharacterItemId)
+                : $consumedItems->first();
+            $sourceEnhanceLevel = (int) ($selectedSource?->enhance_level ?? 0);
+            $inheritedEnhanceLevel = min(
+                $sourceEnhanceLevel,
+                app(EquipmentEnhancementService::class)->maxEnhanceFor($candidate['to_item'])
+            );
             $affixSource = $this->selectAffixInheritanceSource($consumedItems);
             $inheritedAffixes = $affixSource ? $this->affixInheritancePayload($affixSource) : [];
             $consumedEquipmentName = $consumedItems->first()?->displayName() ?? $candidate['from_name'];
@@ -251,7 +258,7 @@ class EquipmentEvolutionService
                 'is_equipped' => $equippedSlot !== null,
                 'is_stored' => false,
                 'is_locked' => $sourceWasLocked,
-                'enhance_level' => 0,
+                'enhance_level' => $inheritedEnhanceLevel,
                 'equipped_slot' => $equippedSlot,
                 'acquired_from' => 'evolution',
                 'market_relistable_at' => $consumedItems->max('market_relistable_at'),
@@ -274,7 +281,7 @@ class EquipmentEvolutionService
                     . ($equippedSlot ? ' 装備中だったため、そのまま装備しました。' : '')
                     . ($sourceWasLocked ? ' 保護状態も引き継ぎました。' : '')
                     . ($affixSource ? ' 銘も引き継ぎました。' : '')
-                    . ($maxConsumedEnhanceLevel > 0 ? " 進化元の+{$maxConsumedEnhanceLevel}強化値は進化後にリセットされました。" : ''),
+                    . ($sourceEnhanceLevel > 0 ? " 進化元の+{$sourceEnhanceLevel}強化値を+{$inheritedEnhanceLevel}として引き継ぎました。" : ''),
                 'created_equipment_id' => $created->id,
             ];
         }, 3);
@@ -619,6 +626,9 @@ class EquipmentEvolutionService
                     'can_sell' => $goldService->canSellEquipment($item),
                     'sell_price' => $goldService->equipmentSalePrice($item->item),
                     'enhance_level' => (int) ($item->enhance_level ?? 0),
+                    'inherited_enhance_level' => $toItem
+                        ? min((int) ($item->enhance_level ?? 0), app(EquipmentEnhancementService::class)->maxEnhanceFor($toItem))
+                        : 0,
                     'has_affix' => $this->hasInheritableAffix($item),
                     'affix_lines' => $item->affixEffectLines(),
                 ];
@@ -635,7 +645,7 @@ class EquipmentEvolutionService
 
         $preview = new CharacterItem(array_merge(
             $this->affixInheritancePayload($source),
-            ['enhance_level' => 0]
+            ['enhance_level' => min((int) ($source->enhance_level ?? 0), app(EquipmentEnhancementService::class)->maxEnhanceFor($toItem))]
         ));
         $preview->setRelation('item', new Item(['name' => $toDisplayName ?: $toItem->name]));
 

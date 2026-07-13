@@ -239,6 +239,8 @@
                                         $sourceOptions = $candidate['source_options'] ?? [];
                                         $singleSourceOption = count($sourceOptions) === 1 ? $sourceOptions[0] : null;
                                         $toDisplayName = $singleSourceOption['evolved_display_name'] ?? $candidate['to_preview_display_name'] ?? $candidate['to_display_name'] ?? $candidate['to_name'];
+                                        $sourceEnhanceLevel = (int) ($singleSourceOption['enhance_level'] ?? 0);
+                                        $inheritedEnhanceLevel = (int) ($singleSourceOption['inherited_enhance_level'] ?? 0);
                                         if (mb_strrchr($toDisplayName, '・') !== false) {
                                             $shortName = ltrim(mb_strrchr($toDisplayName, '・'), '・');
                                         } elseif (mb_strpos($toDisplayName, '未鑑定の') === 0) {
@@ -291,6 +293,9 @@
                                                 @endif
                                                 <span>→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $toDisplayName }}</span>
                                             </div>
+                                            @if($sourceEnhanceLevel > 0)
+                                                <div class="text-[11px] font-black text-emerald-700">強化値: +{{ $sourceEnhanceLevel }} → +{{ $inheritedEnhanceLevel }} を引き継ぐ</div>
+                                            @endif
                                             @include('smith._evolution_detail', ['candidate' => $candidate, 'stone' => $stone, 'canUseStone' => $canUseStone, 'canEvolve' => $canEvolve])
                                         </div>
                                     </div>
@@ -307,6 +312,8 @@
                                     $sourceOptions = $candidate['source_options'] ?? [];
                                     $singleSourceOption = count($sourceOptions) === 1 ? $sourceOptions[0] : null;
                                     $toDisplayName = $singleSourceOption['evolved_display_name'] ?? $candidate['to_preview_display_name'] ?? $candidate['to_display_name'] ?? $candidate['to_name'];
+                                    $sourceEnhanceLevel = (int) ($singleSourceOption['enhance_level'] ?? 0);
+                                    $inheritedEnhanceLevel = (int) ($singleSourceOption['inherited_enhance_level'] ?? 0);
                                     $toEquipmentIcon = ($candidate['to_item'] ?? null)?->iconImagePath();
                                 @endphp
                                 <div class="border-t border-slate-100 px-3 pb-3 pt-2 flex flex-col gap-2">
@@ -316,6 +323,9 @@
                                         @endif
                                         <span>→ [{{ $candidate['to_rank'] ?? '-' }}] {{ $toDisplayName }}</span>
                                     </div>
+                                    @if($sourceEnhanceLevel > 0)
+                                        <div class="text-[11px] font-black text-emerald-700">強化値: +{{ $sourceEnhanceLevel }} → +{{ $inheritedEnhanceLevel }} を引き継ぐ</div>
+                                    @endif
                                     @include('smith._evolution_detail', ['candidate' => $candidate, 'stone' => $stone, 'canUseStone' => $canUseStone, 'canEvolve' => $canEvolve])
                                 </div>
                             @endif
@@ -643,11 +653,12 @@
                                 <span class="font-bold text-slate-900" x-text="selected?.fromName"></span> を素材にして、<br>
                                 <span class="font-bold text-amber-700" x-text="selected?.toName"></span> を作成します。
                             </p>
+                            <p x-show="selected?.enhancementLabel" class="mt-3 rounded bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-800" x-text="selected?.enhancementLabel"></p>
                             <p class="mt-3 rounded bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
                                 合成費用: <span x-text="selected?.goldCost"></span>
                             </p>
                             <p class="mt-3 text-xs text-slate-500">
-                                選んだ装備を進化元として使用します。装備中なら進化後の装備へ自動で付け替え、保護中なら保護状態も引き継ぎます。合成後の装備は +0 です。
+                                選んだ装備を進化元として使用します。装備中なら進化後の装備へ自動で付け替え、保護中なら保護状態も引き継ぎます。強化値は進化先の上限まで引き継がれます。
                             </p>
                         </div>
                         <div class="bg-slate-50 px-5 py-4 sm:flex sm:flex-row-reverse sm:gap-3">
