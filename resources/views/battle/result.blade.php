@@ -130,21 +130,6 @@
                             $showGrowthCta = !($result['special_event'] ?? null)
                                 && ($isDefeatResult || $growthCtaTurnCount > 10);
                         @endphp
-                        @if($showGrowthCta)
-                            <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
-                                <p class="text-sm font-bold text-amber-800">
-                                    レベルや職業を育てる、武器を進化させる、鍛冶・銘・種族特攻・持ち物を見直すことで攻略しやすくなります。
-                                </p>
-                                <div class="mt-2 flex flex-wrap gap-2">
-                                    <a href="{{ route('smith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">装備を進化させる</a>
-                                    <a href="{{ route('blacksmith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">鍛冶で強化する</a>
-                                    <a href="{{ route('blacksmith.traits.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">銘・種族特攻を鍛える</a>
-                                    <a href="{{ route('equipment.index') }}" class="rounded border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm hover:bg-amber-50">装備を見直す</a>
-                                </div>
-                                <p class="mt-2 text-[11px] font-semibold text-amber-600">必要な進化素材と入手できる場所は「装備を進化させる」の画面で確認できます。</p>
-                            </div>
-                        @endif
-
                         {{-- ステータス・イベント表示 --}}
                         @if($isDepthGate)
                             @php
@@ -423,6 +408,21 @@
                             </style>
                             <div class="battle-log-entry px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
                                 {!! nl2br($result['log']) !!}
+                            </div>
+                        @endif
+
+                        @if($showGrowthCta)
+                            <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
+                                <p class="text-sm font-bold text-amber-800">
+                                    レベルや職業を育てる、武器を進化させる、鍛冶・銘・種族特攻・持ち物を見直すことで攻略しやすくなります。
+                                </p>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <a href="{{ route('smith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">装備を進化させる</a>
+                                    <a href="{{ route('blacksmith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">鍛冶で強化する</a>
+                                    <a href="{{ route('blacksmith.traits.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">銘・種族特攻を鍛える</a>
+                                    <a href="{{ route('equipment.index') }}" class="rounded border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm hover:bg-amber-50">装備を見直す</a>
+                                </div>
+                                <p class="mt-2 text-[11px] font-semibold text-amber-600">必要な進化素材と入手できる場所は「装備を進化させる」の画面で確認できます。</p>
                             </div>
                         @endif
 

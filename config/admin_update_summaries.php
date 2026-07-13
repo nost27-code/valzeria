@@ -9,6 +9,13 @@ return [
         'detail' => '銘・特攻付き武器の市場査定を見直し、高段階の武器も出品・購入しやすい価格帯へ調整しました。出品価格の幅と、成立時だけかかる10%の手数料は変わりません。',
     ],
     [
+        'id' => '2026-07-13-battle-defeat-growth-guidance-order',
+        'date' => '2026-07-13',
+        'category' => 'fixed',
+        'title' => '敗北後の強化案内の表示順を修正',
+        'detail' => '戦闘で倒れたとき、装備育成の案内を「倒れてしまった……。」の直後に表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-13-weapon-trait-killer-target-list',
         'date' => '2026-07-13',
         'category' => 'changed',
