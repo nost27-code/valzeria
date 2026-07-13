@@ -372,11 +372,11 @@
 
                             <div class="mb-8 hidden md:grid md:grid-cols-2 md:items-start md:gap-x-20 md:gap-y-5">
                                 @if(!$isTreasure)
-                                    <div class="col-span-2 row-start-1 mx-auto flex w-full max-w-xl items-center justify-center gap-10">
-                                        <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="h-28 w-28 -scale-x-100 object-contain">
-                                        <span class="text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
+                                    <div class="col-span-2 row-start-1 mx-auto grid w-full max-w-4xl grid-cols-[1fr_auto_1fr] items-center">
+                                        <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="h-28 w-28 -translate-x-10 justify-self-center -scale-x-100 object-contain">
+                                        <span class="justify-self-center text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
                                         @if($enemyImagePath)
-                                            <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-28 w-28 object-contain">
+                                            <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-28 w-28 justify-self-center object-contain">
                                         @endif
                                     </div>
                                 @endif

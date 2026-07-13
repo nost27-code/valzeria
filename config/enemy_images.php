@@ -15,6 +15,7 @@ return [
     '小鬼の森の親分' => 'images/enemy/enemy_011.webp',
     '古洞コウモリ' => 'images/enemy/enemy_012.webp',
     '古洞ワーム' => 'images/enemy/enemy_013.webp',
+    '岩トカゲ' => 'images/enemy/enemy_055.webp',
     'スケルトン見習い' => 'images/enemy/enemy_014.webp',
     '石かじりネズミ' => 'images/enemy/enemy_015.webp',
     '洞窟トロル' => 'images/enemy/enemy_016.webp',
