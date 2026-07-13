@@ -445,6 +445,20 @@ class EquipmentEnhancementService
         return (int) ceil($baseCost * $multiplier);
     }
 
+    public function maxEnhanceFor(?object $item): int
+    {
+        if (!$item) {
+            return 0;
+        }
+
+        $rank = strtoupper(trim($this->rankRawLabel($item)));
+        $rankCap = config('equipment_enhancement.rank_caps.' . $rank);
+        if ($rankCap !== null) {
+            return min(self::MAX_EQUIPMENT_ENHANCE, (int) $rankCap);
+        }
+
+        return min(self::MAX_EQUIPMENT_ENHANCE, (int) ($item->max_enhance ?: self::MAX_EQUIPMENT_ENHANCE));
+    }
     private function resolveDynamicMaterials(?array $requirements, string $type, ?Character $character, ?object $item): ?array
     {
         if (!$requirements) {
