@@ -357,7 +357,7 @@
             <section class="rounded-md border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-200 px-5 py-4">
                     <h2 class="text-lg font-black text-slate-950">アイテム送付</h2>
-                    <p class="mt-1 text-xs font-semibold text-slate-500">素材は数量加算、武器・防具・装飾と探索アイテムは個体として追加します。</p>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">素材は数量加算、武器・防具・装飾と探索アイテムは個体として追加します。武器は銘・特攻・品質を指定して送付できます。</p>
                 </div>
 
                 @if($selectedCharacter)
@@ -421,8 +421,67 @@
                             @endif
                         </div>
 
+                        @if($grantType === 'weapon')
+                            <div class="mt-4 rounded-md border border-violet-200 bg-violet-50 p-4">
+                                <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                                    <div class="text-sm font-black text-violet-950">銘・特攻の指定</div>
+                                    <div class="text-xs font-bold text-violet-700">未指定なら通常の武器を送付します</div>
+                                </div>
+                                <div class="mt-3 grid gap-4 lg:grid-cols-3">
+                                    <div>
+                                        <label class="{{ $labelClass }}">銘</label>
+                                        <select wire:model="grantAffixPrefixId" class="mt-1 {{ $fieldClass }}">
+                                            <option value="">指定なし</option>
+                                            @foreach($engravingCandidates as $affix)
+                                                <option value="{{ $affix->id }}">{{ $affix->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('grantAffixPrefixId') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="{{ $labelClass }}">銘の段階</label>
+                                        <select wire:model="grantAffixPrefixLevel" @disabled($grantAffixPrefixId === '') class="mt-1 {{ $fieldClass }} disabled:cursor-not-allowed disabled:bg-slate-100">
+                                            @for($level = 1; $level <= 5; $level++)
+                                                <option value="{{ $level }}">{{ ['I', 'II', 'III', 'IV', 'V'][$level - 1] }}</option>
+                                            @endfor
+                                        </select>
+                                        @error('grantAffixPrefixLevel') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="{{ $labelClass }}">品質</label>
+                                        <select wire:model="grantAffixQuality" class="mt-1 {{ $fieldClass }}">
+                                            <option value="normal">通常品</option>
+                                            <option value="good">良品</option>
+                                            <option value="excellent">逸品</option>
+                                        </select>
+                                        @error('grantAffixQuality') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="{{ $labelClass }}">特攻</label>
+                                        <select wire:model="grantAffixSuffixId" class="mt-1 {{ $fieldClass }}">
+                                            <option value="">指定なし</option>
+                                            @foreach($slayerCandidates as $affix)
+                                                <option value="{{ $affix->id }}">{{ $affix->name }}（{{ $affix->species_key }}）</option>
+                                            @endforeach
+                                        </select>
+                                        @error('grantAffixSuffixId') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="{{ $labelClass }}">特攻の段階</label>
+                                        <select wire:model="grantAffixSuffixLevel" @disabled($grantAffixSuffixId === '') class="mt-1 {{ $fieldClass }} disabled:cursor-not-allowed disabled:bg-slate-100">
+                                            @for($level = 1; $level <= 5; $level++)
+                                                <option value="{{ $level }}">{{ ['I', 'II', 'III', 'IV', 'V'][$level - 1] }}</option>
+                                            @endfor
+                                        </select>
+                                        @error('grantAffixSuffixLevel') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <p class="mt-3 text-xs font-bold leading-relaxed text-violet-800">武器ランクごとの段階上限を超える指定はできません。送付内容は完成名・銘・特攻・品質・個体IDを管理送付履歴に残します。</p>
+                            </div>
+                        @endif
+
                         <div class="mt-5 flex justify-end">
-                            <button type="submit" class="rounded-md bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800">
+                            <button type="submit" wire:confirm="選択したアイテムを送付しますか？送付内容は管理履歴に残ります。" wire:loading.attr="disabled" wire:target="grantItem" class="rounded-md bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
                                 選択したアイテムを送付
                             </button>
                         </div>

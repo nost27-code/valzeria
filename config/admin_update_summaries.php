@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-13-admin-affixed-weapon-grant',
+        'date' => '2026-07-13',
+        'category' => 'changed',
+        'title' => '管理者が銘・特攻付き武器を送付可能に',
+        'detail' => '管理者が武器を送付する際、銘・特攻・段階・品質を指定できるようになりました。送付内容は管理履歴に残ります。',
+    ],
+    [
+        'id' => '2026-07-13-admin-weapon-trait-operation-audit',
+        'date' => '2026-07-13',
+        'category' => 'internal',
+        'title' => '銘・特攻鍛錬の補填用履歴を追加',
+        'detail' => '管理者の行動ログとユーザー個別調査で、銘・特攻鍛錬のベース武器、消費素材、完成武器、Gold、日時を確認できます。',
+    ],
+    [
         'id' => '2026-07-13-ferdia-treasure-ancient-fragment',
         'date' => '2026-07-13',
         'category' => 'balance',

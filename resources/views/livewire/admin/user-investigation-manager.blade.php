@@ -492,6 +492,26 @@
                 </x-admin-investigation.table>
             </div>
 
+            <div class="mb-6">
+                <x-admin-investigation.table title="銘・特攻鍛錬履歴（補填確認用）">
+                    <x-slot:head>
+                        <th class="px-4 py-3 text-left">日時</th><th class="px-4 py-3 text-left">操作</th><th class="px-4 py-3 text-left">ベース武器</th><th class="px-4 py-3 text-left">消費した素材武器</th><th class="px-4 py-3 text-left">完成武器</th><th class="px-4 py-3 text-right">Gold</th>
+                    </x-slot:head>
+                    @forelse($weaponTraitLogs as $log)
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">{{ $log->created_at?->format('Y/m/d H:i:s') }}</td>
+                            <td class="px-4 py-3 text-xs font-black text-fuchsia-700">{{ $log->operationLabel() }}</td>
+                            <td class="px-4 py-3 text-sm font-bold text-slate-900">{{ $log->baseDisplayName() }}</td>
+                            <td class="px-4 py-3 text-sm font-bold text-orange-700">{{ $log->materialDisplayName() }}</td>
+                            <td class="px-4 py-3 text-sm font-black text-emerald-700">{{ $log->completedDisplayName() }}</td>
+                            <td class="px-4 py-3 text-right text-sm font-black text-slate-900">-{{ number_format((int) $log->gold_cost) }}G</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">銘・特攻鍛錬の履歴はありません。</td></tr>
+                    @endforelse
+                </x-admin-investigation.table>
+            </div>
+
             <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
                 <x-admin-investigation.simple-list title="ログイン履歴" :logs="$loginLogs" empty="ログイン履歴テーブルは未作成、または履歴がありません。" />
                 <x-admin-investigation.simple-list title="エラー履歴" :logs="$errorLogs" empty="エラー履歴テーブルは未作成、または履歴がありません。" />

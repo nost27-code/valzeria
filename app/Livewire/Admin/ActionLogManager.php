@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Character;
+use App\Models\WeaponTraitOperationLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -52,6 +53,7 @@ class ActionLogManager extends Component
             'kiseki' => fn () => $this->kisekiLogs(),
             'shop' => fn () => $this->shopLogs(),
             'evolution' => fn () => $this->evolutionLogs(),
+            'weapon_trait' => fn () => $this->weaponTraitLogs(),
             'decomposition' => fn () => $this->decompositionLogs(),
             'valmon_feed' => fn () => $this->valmonFeedLogs(),
             'valmon_find' => fn () => $this->valmonFindLogs(),
@@ -68,6 +70,7 @@ class ActionLogManager extends Component
             'kiseki' => '輝石',
             'shop' => '課金支援',
             'evolution' => '進化',
+            'weapon_trait' => '銘・特攻鍛錬',
             'decomposition' => '分解集約',
             'valmon_feed' => 'ヴァルモン餌',
             'valmon_find' => 'ヴァルモン探索',
@@ -296,6 +299,34 @@ class ActionLogManager extends Component
                 ($row->before_name ?? '装備') . ' → ' . ($row->after_name ?? '進化装備'),
                 $row->recipe_type ?? '-',
                 'bg-amber-100 text-amber-700'
+            ));
+    }
+
+    private function weaponTraitLogs()
+    {
+        if (!Schema::hasTable('weapon_trait_operation_logs')) {
+            return collect();
+        }
+
+        return WeaponTraitOperationLog::query()
+            ->with('character:id,name,user_id')
+            ->when($this->searchQuery !== '', function ($query): void {
+                $search = '%' . $this->searchQuery . '%';
+                $query->whereHas('character', function ($characterQuery) use ($search): void {
+                    $characterQuery->where('name', 'like', $search)
+                        ->orWhereHas('user', fn ($userQuery) => $userQuery->where('email', 'like', $search));
+                });
+            })
+            ->orderByDesc('created_at')
+            ->limit($this->limit)
+            ->get()
+            ->map(fn (WeaponTraitOperationLog $log) => $this->row(
+                $log->created_at,
+                '銘・特攻鍛錬',
+                $log->character?->name,
+                $log->operationLabel() . '：' . $log->baseDisplayName() . ' + ' . $log->materialDisplayName(),
+                '完成：' . $log->completedDisplayName() . ' / 消費Gold ' . number_format((int) $log->gold_cost) . 'G',
+                'bg-fuchsia-100 text-fuchsia-700'
             ));
     }
 

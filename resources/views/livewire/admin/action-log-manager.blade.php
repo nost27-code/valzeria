@@ -3,7 +3,7 @@
         <div>
             <p class="text-xs font-black tracking-[0.24em] text-amber-600">ACTION LOGS</p>
             <h1 class="mt-2 text-3xl font-black text-slate-950">行動ログ閲覧</h1>
-            <p class="mt-2 text-sm font-bold text-slate-500">通常戦闘は10分単位で集約し、輝石・課金・進化・重要戦利品などは個別に確認できます。個人チャットは専用画面に分離しています。</p>
+            <p class="mt-2 text-sm font-bold text-slate-500">通常戦闘は10分単位で集約し、輝石・課金・進化・銘・特攻鍛錬・重要戦利品などは個別に確認できます。銘・特攻鍛錬では、ベース・消費素材・完成武器・Goldを補填確認用に保存します。</p>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row">
             <a href="{{ route('admin.private-chat-logs') }}" class="inline-flex items-center justify-center rounded-md bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-slate-800">

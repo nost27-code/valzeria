@@ -6,16 +6,20 @@ use App\Models\AdminItemGrantLog;
 use App\Models\Character;
 use App\Models\CharacterConsumableItem;
 use App\Models\CharacterItem;
+use App\Models\EquipmentAffixPrefix;
+use App\Models\EquipmentAffixSuffix;
 use App\Models\CharacterMaterial;
 use App\Models\Item;
 use App\Models\KisekiTransaction;
 use App\Models\Material;
 use App\Services\CharacterNotificationService;
 use App\Services\CooldownSettingService;
+use App\Services\EquipmentAffixRulesService;
 use App\Services\NewcomerRegistrationCampaignService;
 use App\Services\StorageCapacityService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class PlayerControlManager extends Component
@@ -29,6 +33,11 @@ class PlayerControlManager extends Component
     public string $grantTargetId = '';
     public int $grantQuantity = 1;
     public int $grantEnhanceLevel = 0;
+    public string $grantAffixPrefixId = '';
+    public int $grantAffixPrefixLevel = 1;
+    public string $grantAffixSuffixId = '';
+    public int $grantAffixSuffixLevel = 1;
+    public string $grantAffixQuality = 'normal';
     public int $kisekiGrantAmount = 1;
     public string $kisekiGrantReason = '';
     public string $freezeReason = '';
@@ -51,6 +60,11 @@ class PlayerControlManager extends Component
         $this->grantSearch = '';
         $this->grantQuantity = 1;
         $this->grantEnhanceLevel = 0;
+        $this->grantAffixPrefixId = '';
+        $this->grantAffixPrefixLevel = 1;
+        $this->grantAffixSuffixId = '';
+        $this->grantAffixSuffixLevel = 1;
+        $this->grantAffixQuality = 'normal';
     }
 
     public function saveStorageLimits(): void
@@ -129,6 +143,9 @@ class PlayerControlManager extends Component
             'grantTargetId' => ['required', 'string'],
             'grantQuantity' => ['required', 'integer', 'min:1', 'max:9999'],
             'grantEnhanceLevel' => ['required', 'integer', 'min:0', 'max:999'],
+            'grantAffixPrefixLevel' => ['required', 'integer', 'min:1', 'max:5'],
+            'grantAffixSuffixLevel' => ['required', 'integer', 'min:1', 'max:5'],
+            'grantAffixQuality' => ['required', 'in:normal,good,excellent'],
         ]);
 
         $character = Character::findOrFail($this->selectedCharacterId);
@@ -230,6 +247,8 @@ class PlayerControlManager extends Component
             'cooldownSummary' => $selectedCharacter ? $this->cooldownSummary($selectedCharacter) : null,
             'grantCandidates' => $this->grantCandidates(),
             'grantTypeLabels' => $this->grantTypeLabels(),
+            'engravingCandidates' => $this->engravingCandidates(),
+            'slayerCandidates' => $this->slayerCandidates(),
             'controlIdeas' => $this->controlIdeas(),
             'kisekiGrantHistory' => $this->kisekiGrantHistory($selectedCharacter),
             'itemGrantHistory' => $this->itemGrantHistory($selectedCharacter),
@@ -267,7 +286,7 @@ class PlayerControlManager extends Component
         return [
             ['label' => '倉庫上限', 'state' => '実装済み', 'body' => '素材倉庫・装備倉庫の上限を個別に調整できます。'],
             ['label' => '探索クールタイム', 'state' => '実装済み', 'body' => '不具合救済やテスト用に探索待機を解除できます。'],
-            ['label' => 'アイテム送付', 'state' => '実装済み', 'body' => '素材・武器・防具・装飾・探索用アイテム・サポートアイテムを送付できます。'],
+            ['label' => 'アイテム送付', 'state' => '実装済み', 'body' => '素材・武器・防具・装飾・探索用アイテム・サポートアイテムを送付できます。武器は銘・特攻付きで送付できます。'],
             ['label' => 'HP/SP回復', 'state' => '候補', 'body' => '問い合わせ対応や検証用に現在HP/SPを回復できます。'],
             ['label' => '輝石付与', 'state' => '実装済み', 'body' => '有償輝石として付与し、課金監査ログと通知ベルに記録します。'],
             ['label' => '進行復旧', 'state' => '候補', 'body' => '街・エリア解放・ボス討伐状態を個別に確認して復旧できます。'],
@@ -416,6 +435,26 @@ class PlayerControlManager extends Component
         };
     }
 
+    private function engravingCandidates(): Collection
+    {
+        return EquipmentAffixPrefix::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'name']);
+    }
+
+    private function slayerCandidates(): Collection
+    {
+        return EquipmentAffixSuffix::query()
+            ->where('item_type', 'weapon')
+            ->where('effect_type', 'killer_damage')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'name', 'species_key']);
+    }
+
     private function grantMaterial(Character $character): string
     {
         $material = Material::findOrFail((int) $this->grantTargetId);
@@ -443,8 +482,10 @@ class PlayerControlManager extends Component
     {
         $item = Item::whereIn('type', $this->equipmentTypesForGrant() ?? ['weapon', 'armor', 'accessory'])
             ->findOrFail((int) $this->grantTargetId);
+        $affix = $this->equipmentGrantAffix($item);
+        $grantedItems = collect();
         for ($i = 0; $i < $this->grantQuantity; $i++) {
-            CharacterItem::create([
+            $grantedItems->push(CharacterItem::create(array_merge([
                 'character_id' => $character->id,
                 'item_id' => $item->id,
                 'is_equipped' => false,
@@ -452,25 +493,107 @@ class PlayerControlManager extends Component
                 'is_locked' => false,
                 'enhance_level' => $this->grantEnhanceLevel,
                 'acquired_from' => 'admin_grant',
-            ]);
+            ], $affix['attributes'])));
         }
 
-        $enhanceText = $this->grantEnhanceLevel > 0 ? " +{$this->grantEnhanceLevel}" : '';
+        $displayName = $grantedItems->first()?->load(['item', 'affixPrefix', 'affixSuffix'])->displayName() ?? $item->name;
         $this->recordItemGrant($character, [
             'grant_type' => $this->grantType,
             'target_type' => 'item',
             'target_id' => (string) $item->id,
-            'target_name' => $item->name,
+            'target_name' => $displayName,
             'quantity' => $this->grantQuantity,
             'enhance_level' => $this->grantEnhanceLevel,
             'metadata' => [
                 'item_type' => $item->type,
                 'external_item_id' => $item->external_item_id,
                 'rarity' => $item->rarity,
+                'character_item_ids' => $grantedItems->pluck('id')->all(),
+                'affix' => $affix['metadata'],
             ],
         ]);
 
-        return "{$character->name} に {$item->name}{$enhanceText} x{$this->grantQuantity} を送付しました。";
+        return "{$character->name} に {$displayName} x{$this->grantQuantity} を送付しました。";
+    }
+
+    /**
+     * @return array{attributes: array<string, mixed>, metadata: array<string, mixed>|null}
+     */
+    private function equipmentGrantAffix(Item $item): array
+    {
+        $hasEngraving = $this->grantAffixPrefixId !== '';
+        $hasSlayer = $this->grantAffixSuffixId !== '';
+        if (!$hasEngraving && !$hasSlayer) {
+            return ['attributes' => [], 'metadata' => null];
+        }
+
+        if ((string) $item->type !== 'weapon') {
+            throw ValidationException::withMessages([
+                'grantType' => '銘・特攻を指定できるのは武器だけです。',
+            ]);
+        }
+        if (!(bool) $item->affix_enabled) {
+            throw ValidationException::withMessages([
+                'grantTargetId' => 'この武器には銘・特攻を付与できません。',
+            ]);
+        }
+
+        $prefix = $hasEngraving
+            ? EquipmentAffixPrefix::query()->where('is_active', true)->findOrFail((int) $this->grantAffixPrefixId)
+            : null;
+        $suffix = $hasSlayer
+            ? EquipmentAffixSuffix::query()
+                ->where('item_type', 'weapon')
+                ->where('effect_type', 'killer_damage')
+                ->where('is_active', true)
+                ->findOrFail((int) $this->grantAffixSuffixId)
+            : null;
+        $rules = app(EquipmentAffixRulesService::class);
+        $maximumLevel = $rules->maxLevelForItem($item);
+
+        if ($prefix && $this->grantAffixPrefixLevel > $maximumLevel) {
+            throw ValidationException::withMessages([
+                'grantAffixPrefixLevel' => "この武器に付与できる銘は{$maximumLevel}段階までです。",
+            ]);
+        }
+        if ($suffix && $this->grantAffixSuffixLevel > $maximumLevel) {
+            throw ValidationException::withMessages([
+                'grantAffixSuffixLevel' => "この武器に付与できる特攻は{$maximumLevel}段階までです。",
+            ]);
+        }
+
+        $prefixLevel = $prefix ? $this->grantAffixPrefixLevel : 0;
+        $suffixLevel = $suffix ? $this->grantAffixSuffixLevel : 0;
+        $bonuses = $prefix
+            ? $rules->prefixBonuses($item, $prefix, $prefixLevel, $this->grantAffixQuality)
+            : [];
+
+        return [
+            'attributes' => [
+                'affix_prefix_id' => $prefix?->id,
+                'affix_prefix_level' => $prefixLevel,
+                'affix_suffix_id' => $suffix?->id,
+                'affix_suffix_level' => $suffixLevel,
+                'affix_quality' => $this->grantAffixQuality,
+                'affix_hp_bonus' => $bonuses['hp'] ?? 0,
+                'affix_str_bonus' => $bonuses['str'] ?? 0,
+                'affix_def_bonus' => $bonuses['def'] ?? 0,
+                'affix_mag_bonus' => $bonuses['mag'] ?? 0,
+                'affix_spr_bonus' => $bonuses['spr'] ?? 0,
+                'affix_agi_bonus' => $bonuses['agi'] ?? 0,
+                'affix_luk_bonus' => $bonuses['luk'] ?? 0,
+                'killer_species_key' => $suffix?->species_key,
+                'killer_damage_rate' => $suffix
+                    ? $rules->weaponKillerDamageRate($item, $suffixLevel, $this->grantAffixQuality)
+                    : 0,
+                'affix_generated_at' => now(),
+            ],
+            'metadata' => [
+                'quality' => $this->grantAffixQuality,
+                'engraving' => $prefix ? ['id' => $prefix->id, 'name' => $prefix->name, 'level' => $prefixLevel] : null,
+                'slayer' => $suffix ? ['id' => $suffix->id, 'name' => $suffix->name, 'level' => $suffixLevel] : null,
+            ],
+        ];
     }
 
     private function grantExplorationItem(Character $character): string

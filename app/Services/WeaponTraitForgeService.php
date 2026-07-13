@@ -357,8 +357,10 @@ class WeaponTraitForgeService
             'is_locked' => (bool) $characterItem->is_locked,
             'market_relistable_at' => $characterItem->market_relistable_at?->toIso8601String(),
             'engraving_id' => $characterItem->affix_prefix_id,
+            'engraving_name' => $characterItem->affixPrefix?->name,
             'engraving_level' => $characterItem->effectiveAffixPrefixLevel(),
             'slayer_type_id' => $characterItem->affix_suffix_id,
+            'slayer_name' => $characterItem->affixSuffix?->name,
             'slayer_level' => $characterItem->effectiveAffixSuffixLevel(),
         ];
     }

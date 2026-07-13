@@ -8,6 +8,7 @@ use App\Models\Enemy;
 use App\Models\KisekiTransaction;
 use App\Models\StripeOrder;
 use App\Models\User;
+use App\Models\WeaponTraitOperationLog;
 use App\Services\CharacterStatusService;
 use App\Services\ExplorationStaminaService;
 use App\Services\JobService;
@@ -108,6 +109,7 @@ class UserInvestigationManager extends Component
 
         $battleLogs = $character ? $this->battleLogs($character) : collect();
         $paymentLogs = $character ? $this->paymentLogs($character) : collect();
+        $weaponTraitLogs = $character ? $this->weaponTraitLogs($character) : collect();
         $loginLogs = $this->loginLogs($user);
         $errorLogs = $this->errorLogs($user, $character);
         $enemyCandidates = $this->enemyCandidates();
@@ -134,6 +136,7 @@ class UserInvestigationManager extends Component
             'areaProgresses' => $character ? $character->areaProgresses->sortBy(fn ($progress) => [$progress->area?->city_id ?? 9999, $progress->area_id])->values() : collect(),
             'battleLogs' => $battleLogs,
             'paymentLogs' => $paymentLogs,
+            'weaponTraitLogs' => $weaponTraitLogs,
             'loginLogs' => $loginLogs,
             'errorLogs' => $errorLogs,
             'enemyCandidates' => $enemyCandidates,
@@ -203,6 +206,19 @@ class UserInvestigationManager extends Component
         }
 
         return $logs->sortByDesc('occurred_at')->take(80)->values();
+    }
+
+    private function weaponTraitLogs(Character $character): Collection
+    {
+        if (!Schema::hasTable('weapon_trait_operation_logs')) {
+            return collect();
+        }
+
+        return WeaponTraitOperationLog::query()
+            ->where('character_id', $character->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
     }
 
     private function loginLogs(?User $user): Collection

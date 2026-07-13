@@ -42,6 +42,9 @@ class WeaponTraitForgeServiceTest extends TestCase
             'material_character_item_id' => $material->id,
             'gold_cost' => 80_000,
         ]);
+        $operationLog = \App\Models\WeaponTraitOperationLog::query()->firstOrFail();
+        $this->assertSame($prefix->name, data_get($operationLog->before_snapshot, 'engraving_name'));
+        $this->assertSame($suffix->name, data_get($operationLog->material_snapshot, 'slayer_name'));
     }
 
     public function test_dual_forge_can_raise_different_matching_levels_together(): void
