@@ -16,17 +16,22 @@ class EquipmentMarketAppraisalService
         $rankValue = (int) config("equipment_market.weapon_rank_values.{$rank}", 0);
         if ($rankValue <= 0) throw new RuntimeException('この武器は市場査定できません。');
 
-        $prefixValue = $characterItem->affix_prefix_id ? $this->tierValue($characterItem->effectiveAffixPrefixLevel()) : 0;
-        $suffixValue = $characterItem->affix_suffix_id ? $this->tierValue($characterItem->effectiveAffixSuffixLevel()) : 0;
         $quality = (string) ($characterItem->affix_quality ?: 'normal');
         $qualityBps = (int) config("equipment_market.quality_multipliers_bps.{$quality}", 10000);
         $enhanceBps = (int) config('equipment_market.enhance_multipliers_bps.' . min(3, max(0, (int) $characterItem->enhance_level)), 10000);
-        $appraisal = intdiv(($rankValue + $prefixValue + $suffixValue) * $qualityBps * $enhanceBps, self::BPS * self::BPS);
+        $bodyAppraisal = intdiv($rankValue * $qualityBps * $enhanceBps, self::BPS * self::BPS);
+        [$traitAppraisal, $traitBreakdown, $traitCount] = $this->traitAppraisal($characterItem);
+        $appraisal = $bodyAppraisal + $traitAppraisal;
 
         return [
+            'body_appraisal_price' => $bodyAppraisal,
+            'trait_appraisal_price' => $traitAppraisal,
+            'trait_breakdown' => $traitBreakdown,
+            'trait_count' => $traitCount,
             'appraisal_price' => $appraisal,
             'minimum_price' => intdiv($appraisal * (int) config('equipment_market.minimum_price_bps'), self::BPS),
             'maximum_price' => intdiv($appraisal * (int) config('equipment_market.maximum_price_bps'), self::BPS),
+            'appraisal_version' => (int) config('equipment_market.appraisal_version', 2),
         ];
     }
 
@@ -45,8 +50,64 @@ class EquipmentMarketAppraisalService
         return [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V'][$level] ?? '-';
     }
 
-    private function tierValue(int $level): int
+    private function traitAppraisal(CharacterItem $characterItem): array
     {
-        return (int) config('equipment_market.affix_tier_values.' . min(5, max(1, $level)), 0);
+        $traits = [];
+
+        if ($characterItem->affix_prefix_id) {
+            $traits[] = [
+                'key' => 'engraving',
+                'label' => '銘',
+                'value' => $this->traitAppraisalValue($characterItem->effectiveAffixPrefixLevel()),
+            ];
+        }
+        if ($characterItem->affix_suffix_id) {
+            $traits[] = [
+                'key' => 'slayer',
+                'label' => '特攻',
+                'value' => $this->traitAppraisalValue($characterItem->effectiveAffixSuffixLevel()),
+            ];
+        }
+
+        if (count($traits) === 0) {
+            return [0, [], 0];
+        }
+        if (count($traits) === 1) {
+            return [$traits[0]['value'], [[
+                'key' => $traits[0]['key'],
+                'label' => $traits[0]['label'],
+                'appraisal_price' => $traits[0]['value'],
+                'is_secondary' => false,
+            ]], 1];
+        }
+
+        if ($traits[0]['value'] === $traits[1]['value']) {
+            $secondary = intdiv($traits[1]['value'] * (int) config('equipment_market.secondary_trait_rate_bps'), self::BPS);
+
+            return [$traits[0]['value'] + $secondary, [], 2];
+        }
+
+        usort($traits, fn (array $left, array $right): int => $right['value'] <=> $left['value']);
+        $secondary = intdiv($traits[1]['value'] * (int) config('equipment_market.secondary_trait_rate_bps'), self::BPS);
+
+        return [$traits[0]['value'] + $secondary, [
+            [
+                'key' => $traits[0]['key'],
+                'label' => $traits[0]['label'],
+                'appraisal_price' => $traits[0]['value'],
+                'is_secondary' => false,
+            ],
+            [
+                'key' => $traits[1]['key'],
+                'label' => $traits[1]['label'],
+                'appraisal_price' => $secondary,
+                'is_secondary' => true,
+            ],
+        ], 2];
+    }
+
+    private function traitAppraisalValue(int $level): int
+    {
+        return (int) config('equipment_market.trait_appraisal_values.' . min(5, max(1, $level)), 0);
     }
 }

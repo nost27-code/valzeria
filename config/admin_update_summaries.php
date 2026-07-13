@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-13-equipment-market-appraisal-balance',
+        'date' => '2026-07-13',
+        'category' => 'balance',
+        'title' => '装備市場の高段階査定額を調整しました',
+        'detail' => '銘・特攻付き武器の市場査定を見直し、高段階の武器も出品・購入しやすい価格帯へ調整しました。出品価格の幅と、成立時だけかかる10%の手数料は変わりません。',
+    ],
+    [
         'id' => '2026-07-13-weapon-trait-killer-target-list',
         'date' => '2026-07-13',
         'category' => 'changed',

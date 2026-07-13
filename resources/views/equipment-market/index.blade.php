@@ -112,7 +112,24 @@
                             <div class="flex items-start gap-2">@if($item->item?->iconImagePath())<img src="{{ asset($item->item->iconImagePath()) }}" alt="" class="mt-0.5 h-6 w-6 shrink-0 object-contain">@endif<div class="text-sm font-black text-slate-900">{{ $item->displayName() }}</div></div>
                             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-500"><span>武器種：{{ $categoryLabels[$item->item->weapon_category] ?? ($item->item->weapon_category ?: '武器') }}</span><span>強化：{{ $item->enhance_level > 0 ? '+' . $item->enhance_level : 'なし' }}</span></div>
                             @include('equipment-market.partials.effect-badges', ['base' => $item->basePerformanceLines(), 'engraving' => $item->engravingEffectLines(), 'slayer' => $item->slayerEffectLines()])
-                            <div class="mt-3 grid grid-cols-2 gap-2 rounded bg-slate-50 p-2 text-xs font-bold text-slate-600"><span>査定額<br>{{ number_format($appraisal['appraisal_price']) }}G</span><span>設定できる価格<br>{{ number_format($appraisal['minimum_price']) }}〜{{ number_format($appraisal['maximum_price']) }}G</span></div>
+                            @php($traitBreakdown = $appraisal['trait_breakdown'] ?? [])
+                            <div class="mt-3 rounded bg-slate-50 p-2 text-xs font-bold text-slate-600">
+                                <div class="font-black text-slate-700">査定内訳</div>
+                                <div class="mt-2 grid grid-cols-2 gap-2">
+                                    <span>装備本体査定<br><span class="text-sm text-slate-800">{{ number_format($appraisal['body_appraisal_price']) }}G</span></span>
+                                    @if($appraisal['trait_count'] === 2 && $traitBreakdown === [])
+                                        <span>個体特性査定<br><span class="text-sm text-slate-800">{{ number_format($appraisal['trait_appraisal_price']) }}G</span></span>
+                                    @else
+                                        @foreach($traitBreakdown as $trait)
+                                            <span>{{ $trait['label'] }}査定@if($trait['is_secondary'])（第2特性・60%評価）@endif<br><span class="text-sm text-slate-800">{{ number_format($trait['appraisal_price']) }}G</span></span>
+                                        @endforeach
+                                    @endif
+                                </div>
+                                @if($appraisal['trait_count'] === 2 && $traitBreakdown === [])
+                                    <p class="mt-2 text-[11px] text-slate-500">2つ目の特性は60%評価で計算されます。</p>
+                                @endif
+                                <div class="mt-2 border-t border-slate-200 pt-2 text-slate-800">総査定額 <span class="text-sm font-black text-violet-700">{{ number_format($appraisal['appraisal_price']) }}G</span><br><span class="text-slate-600">設定できる価格 {{ number_format($appraisal['minimum_price']) }}〜{{ number_format($appraisal['maximum_price']) }}G</span></div>
+                            </div>
                             <div class="mt-3"><label class="mb-1 block text-xs font-black text-slate-700">販売価格 <span class="font-bold text-violet-700">（この価格は変更できます）</span></label><div class="flex gap-2"><input type="number" name="listing_price" x-model.number="price" :min="min" :max="max" required class="min-w-0 flex-1 rounded border-slate-300 text-right font-black focus:border-violet-400 focus:ring-violet-400"><span class="self-center text-sm font-black text-slate-600">G</span><button class="rounded bg-violet-600 px-4 py-2 text-sm font-black text-white hover:bg-violet-700">出品</button></div></div>
                             <p class="mt-2 text-right text-[11px] font-bold text-slate-500">成立手数料 <span x-text="fee.toLocaleString()"></span>G / 受取予定 <span class="text-violet-700" x-text="proceeds.toLocaleString()"></span>G</p>
                         </form>
