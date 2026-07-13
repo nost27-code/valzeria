@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
+use App\Models\Item;
 use App\Models\Material;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -363,6 +364,7 @@ class EquipmentEnhancementService
             'type' => $item?->type ?? 'equipment',
             'type_label' => $this->typeLabel((string) ($item?->type ?? '')),
             'name' => $characterItem->displayName(),
+            'display_name_without_rank' => $characterItem->displayName(false),
             'rank' => $this->rankDisplayLabel($item),
             'category' => $this->categoryLabel($item),
             'is_equipped' => (bool) $characterItem->is_equipped,
@@ -386,6 +388,9 @@ class EquipmentEnhancementService
     {
         if ((int) $characterItem->character_id !== (int) $character->id) {
             throw new RuntimeException('この装備は強化できません。');
+        }
+        if ($characterItem->isMarketListed()) {
+            throw new RuntimeException('この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
         }
 
         if (!in_array(($characterItem->item?->type ?? null), ['weapon', 'armor', 'accessory'], true)) {
@@ -547,6 +552,11 @@ class EquipmentEnhancementService
     {
         if (!$item) {
             return '装備';
+        }
+
+        if ($item instanceof Item) {
+            return app(EquipmentPermissionService::class)->categoryLabel($item)
+                ?? $this->typeLabel((string) $item->type);
         }
 
         return $item->weapon_category

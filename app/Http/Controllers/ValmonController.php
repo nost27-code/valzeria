@@ -181,7 +181,11 @@ class ValmonController extends Controller
 
     public function feedMaterial(Request $request, PlayerValmon $valmon, CharacterMaterial $characterMaterial, ValmonService $service)
     {
-        $request->validate(['quantity' => 'required|integer|min:1|max:999']);
+        $request->validateWithBag('feedMaterial' . $characterMaterial->id, [
+            'quantity' => ['required', 'integer', 'min:1', 'max:' . max(1, (int) $characterMaterial->quantity)],
+        ], [], [
+            'quantity' => '個数',
+        ]);
 
         $character = Auth::user()->currentCharacter();
         if (!$character) {

@@ -8,6 +8,7 @@ use App\Models\CharacterMaterial;
 use App\Models\Material;
 use App\Services\EquipmentEnhancementService;
 use App\Services\EquipmentEvolutionService;
+use App\Services\WeaponTraitWorkshopService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use RuntimeException;
@@ -16,7 +17,8 @@ class SmithController extends Controller
 {
     public function __construct(
         private EquipmentEvolutionService $equipmentEvolutionService,
-        private EquipmentEnhancementService $equipmentEnhancementService
+        private EquipmentEnhancementService $equipmentEnhancementService,
+        private WeaponTraitWorkshopService $weaponTraitWorkshopService,
     ) {
     }
 
@@ -30,6 +32,14 @@ class SmithController extends Controller
         $enhancementCandidates = $this->equipmentEnhancementService->candidates($character);
 
         return view('smith.enhance', compact('character', 'currentCity', 'enhancementCandidates'));
+    }
+
+    /**
+     * 装備強化の解説を表示する
+     */
+    public function enhanceHelp()
+    {
+        return $this->helpView('smith.enhance-help');
     }
 
     /**
@@ -60,6 +70,83 @@ class SmithController extends Controller
         $evolutionCandidates = $this->equipmentEvolutionService->candidates($character);
 
         return view('smith.index', compact('character', 'currentCity', 'evolutionCandidates'));
+    }
+
+    /**
+     * 進化合成の解説を表示する
+     */
+    public function evolutionHelp()
+    {
+        return $this->helpView('smith.evolution-help');
+    }
+
+    /**
+     * 武器の銘・特攻を鍛錬する画面を表示する
+     */
+    public function traitIndex()
+    {
+        $character = Auth::user()->currentCharacter();
+        $currentCity = $character->currentCity;
+        $workshopCandidates = $this->weaponTraitWorkshopService->candidates($character);
+        $forgeGoldCosts = config('equipment_affix.forge.single_gold_costs', []);
+        $dualDiscountRate = (float) config('equipment_affix.forge.dual_discount_rate', 0.80);
+
+        return view('smith.traits', compact('character', 'currentCity', 'workshopCandidates', 'forgeGoldCosts', 'dualDiscountRate'));
+    }
+
+    /**
+     * 銘・特攻を鍛える解説を表示する
+     */
+    public function traitHelp()
+    {
+        return $this->helpView('smith.trait-help');
+    }
+
+    /**
+     * 武器特性の自動判定結果を実行する
+     */
+    public function traitWorkshopProcess(Request $request)
+    {
+        $character = Auth::user()->currentCharacter();
+        $validated = $request->validate([
+            'trait_kind' => 'required|in:engraving,slayer',
+            'action' => 'required|in:forge,transfer,dual',
+            'base_character_item_id' => 'required|integer',
+            'material_character_item_id' => 'required|integer|different:base_character_item_id',
+        ]);
+
+        try {
+            $result = $this->weaponTraitWorkshopService->process(
+                $character,
+                $validated['trait_kind'],
+                $validated['action'],
+                (int) $validated['base_character_item_id'],
+                (int) $validated['material_character_item_id'],
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('blacksmith.traits.index')
+            ->with('status', $result['message'])
+            ->with('weapon_trait_kind', $validated['trait_kind']);
+    }
+
+    /**
+     * 旧・銘特攻移しURLから統合画面へ戻す
+     */
+    public function traitTransferIndex()
+    {
+        return redirect()->route('blacksmith.traits.index');
+    }
+
+    private function helpView(string $view)
+    {
+        $character = Auth::user()->currentCharacter();
+        $currentCity = $character->currentCity;
+
+        return view($view, compact('currentCity'));
     }
 
     public function sourceArea(Request $request, Area $area)

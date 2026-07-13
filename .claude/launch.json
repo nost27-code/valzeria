@@ -20,6 +20,12 @@
       "runtimeExecutable": "php",
       "runtimeArgs": ["artisan", "serve", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "laravel-preview",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["artisan", "serve", "--port", "8099"],
+      "port": 8099
     }
   ]
 }

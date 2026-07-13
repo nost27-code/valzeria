@@ -8,6 +8,18 @@
             </div>
 
             <div class="space-y-3 px-4 py-4">
+                @if(!empty($hasActiveValmonEgg))
+                    <section class="rounded-lg border-2 border-rose-300 bg-rose-50 px-3 py-3 shadow-sm" role="status">
+                        <div class="flex items-start gap-2.5">
+                            <img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="h-8 w-8 shrink-0 object-contain">
+                            <div>
+                                <h2 class="text-sm font-black text-rose-950">ヴァルモンの卵を預かっている</h2>
+                                <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。「卵を連れて街へ戻る」で孵化します。</p>
+                            </div>
+                        </div>
+                    </section>
+                @endif
+
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                     <div class="text-[11px] font-black text-slate-400">探索中のエリア</div>
                     <div class="mt-0.5 text-base font-black text-slate-900">{{ $area?->name ?? '探索中のエリア' }}</div>
@@ -87,7 +99,7 @@
                 <form action="{{ route('battle.resume.return') }}" method="POST">
                     @csrf
                     <button type="submit" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95">
-                        街に帰還する
+                        {{ !empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : '街に帰還する' }}
                     </button>
                 </form>
             </div>

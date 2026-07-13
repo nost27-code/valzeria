@@ -90,9 +90,9 @@ class EquipmentEvolutionServiceTest extends TestCase
     {
         $service = new EquipmentEvolutionService($this->createMock(EquipmentPermissionService::class));
 
-        $item = new Item(['name' => '鉄の剣']);
+        $item = new Item(['name' => '鉄の剣', 'type' => 'weapon', 'weapon_rank' => 'A', 'str_bonus' => 20]);
         $toItem = new Item(['name' => '鋼の剣']);
-        $prefix = new EquipmentAffixPrefix(['name' => '鋭い']);
+        $prefix = new EquipmentAffixPrefix(['name' => '鋭い', 'target_stat' => 'str']);
         $suffix = new EquipmentAffixSuffix(['name' => '竜断']);
         $source = new CharacterItem([
             'is_equipped' => true,
@@ -113,16 +113,16 @@ class EquipmentEvolutionServiceTest extends TestCase
         $payloads = $this->invokePrivate($service, 'sourceOptionPayloads', [new Collection([$source]), $toItem]);
 
         $this->assertSame(99, $payloads[0]['id']);
-        $this->assertSame('鋭い鉄の剣・竜断【逸品】 +2', $payloads[0]['display_name']);
-        $this->assertSame('鋭い鋼の剣・竜断【逸品】', $payloads[0]['evolved_display_name']);
+        $this->assertSame('[A] 鋭いI鉄の剣・竜断I【逸品】 +2', $payloads[0]['display_name']);
+        $this->assertSame('鋭いI鋼の剣・竜断I【逸品】', $payloads[0]['evolved_display_name']);
         $this->assertTrue($payloads[0]['is_equipped']);
         $this->assertTrue($payloads[0]['is_locked']);
         $this->assertTrue($payloads[0]['has_affix']);
-        $this->assertContains('攻撃+4', $payloads[0]['affix_lines']);
-        $this->assertContains('種族が竜の敵への与ダメージ +15%', $payloads[0]['affix_lines']);
+        $this->assertContains('攻撃+2', $payloads[0]['affix_lines']);
+        $this->assertContains('種族が竜の敵への与ダメージ +8.1%', $payloads[0]['affix_lines']);
 
         $maskedPayloads = $this->invokePrivate($service, 'sourceOptionPayloads', [new Collection([$source]), $toItem, '未鑑定の剣']);
-        $this->assertSame('鋭い未鑑定の剣・竜断【逸品】', $maskedPayloads[0]['evolved_display_name']);
+        $this->assertSame('鋭いI未鑑定の剣・竜断I【逸品】', $maskedPayloads[0]['evolved_display_name']);
     }
 
     private function invokePrivate(object $object, string $method, array $arguments = []): mixed

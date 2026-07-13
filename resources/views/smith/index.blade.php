@@ -32,7 +32,7 @@
     $evolvableCount = $grouped->filter(fn ($group) => collect($group)->contains('can_evolve', true))->count();
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
-    <div class="w-full mx-auto pb-10" x-data="{ modalOpen: false, selected: null, typeFilter: 'all', statusFilter: 'all', srcPopup: { open: false, sources: [], label: '', required: 0 } }">
+    <div class="w-full mx-auto pb-10" x-data="{ modalOpen: false, helpOpen: false, selected: null, typeFilter: 'all', statusFilter: 'all', srcPopup: { open: false, sources: [], label: '', required: 0 } }">
         <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
                 <div>
@@ -46,16 +46,24 @@
                         所持Gold {{ number_format((int) ($character->money ?? 0)) }}G
                     </p>
                 </div>
-                <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">
-                    候補: <span class="font-bold text-slate-900">{{ $candidateCount }}</span> 件
-                    <span class="mx-1 text-slate-300">/</span>
-                    進化可能: <span class="font-bold text-emerald-700">{{ $evolvableCount }}</span> 件
+                <div class="flex items-center gap-2 self-end sm:self-start">
+                    <a href="{{ route('smith.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="進化合成の解説">
+                        <span class="text-sm leading-none">?</span> 解説
+                    </a>
+                    <div class="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-600 sm:text-sm">
+                        候補: <span class="font-bold text-slate-900">{{ $candidateCount }}</span> 件
+                        <span class="mx-1 text-slate-300">/</span>
+                        進化可能: <span class="font-bold text-emerald-700">{{ $evolvableCount }}</span> 件
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 mb-5">
+            <div class="grid grid-cols-3 gap-2 mb-5">
                 <a href="{{ route('blacksmith.index') }}" class="text-center rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100">
                     武器強化
+                </a>
+                <a href="{{ route('blacksmith.traits.index') }}" class="text-center rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100">
+                    銘・特攻を鍛える
                 </a>
                 <a href="{{ route('smith.index') }}" class="text-center rounded-lg bg-slate-900 px-2 py-3 text-xs sm:text-sm font-bold text-white shadow-sm">
                     進化合成
@@ -153,6 +161,9 @@
                             $fromDisplayName = count($firstSourceOptions) === 1
                                 ? ($firstSourceOptions[0]['display_name'] ?? ($first['from_display_name'] ?? $first['from_name']))
                                 : ($first['from_display_name'] ?? $first['from_name']);
+                            $fromNameForRankBadge = count($firstSourceOptions) === 1
+                                ? ($firstSourceOptions[0]['display_name_without_rank'] ?? $fromDisplayName)
+                                : $fromDisplayName;
                             $groupSourceItemId = (int) ($first['display_source_item_id'] ?? ($groupSourceOption['id'] ?? 0));
                             $groupCanSell = (bool) ($groupSourceOption['can_sell'] ?? false);
                             $groupSellPrice = (int) ($groupSourceOption['sell_price'] ?? 0);
@@ -186,7 +197,7 @@
                                     @if($fromEquipmentIcon)
                                         <img src="{{ asset($fromEquipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
                                     @endif
-                                    <span class="truncate">[{{ $first['from_rank'] ?? '-' }}] {{ $fromDisplayName }}</span>
+                                    <span class="truncate">[{{ $first['from_rank'] ?? '-' }}] {{ $fromNameForRankBadge }}</span>
                                     @if($groupHasEquipped)
                                         <span class="shrink-0 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">装備中</span>
                                     @endif
@@ -653,5 +664,6 @@
                 </div>
             </div>
         </div>
+        @include('smith.partials.operation-help-modal', ['helpType' => 'evolution'])
     </div>
 </x-layouts.facility>

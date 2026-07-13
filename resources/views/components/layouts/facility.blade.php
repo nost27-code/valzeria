@@ -1,5 +1,6 @@
 @props([
     'title' => '施設',
+    'subtitle' => null,
     'headerIcon' => null,
     'headerIconImage' => null,
     'backgroundSymbolImage' => null,
@@ -161,6 +162,11 @@
                             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-widest {{ $headerTitleClass ?? ($isBattleResult ? 'text-red-700' : 'text-[#003366]') }} drop-shadow-sm">
                                 {{ $title ?? '施設' }}
                             </h1>
+                            @if($subtitle)
+                                <div class="mt-0.5 text-xs sm:text-sm font-bold {{ $isBattleResult ? 'text-red-700/70' : 'text-slate-500' }}">
+                                    {{ $subtitle }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                     

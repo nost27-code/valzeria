@@ -140,6 +140,10 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
   position: relative;
   cursor: crosshair;
 }
+#canvas-wrapper.separator-mode {
+  cursor: cell;
+  touch-action: none;
+}
 #canvas-inner { position: relative; transform-origin: 0 0; width: max-content; height: max-content; }
 #canvas-wrapper canvas { display: block; }
 #overlay-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
@@ -225,6 +229,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 .btn-info    { background: #0891b2; color: #fff; }
 .btn-warning { background: #d97706; color: #fff; }
 .btn-ghost   { background: #2d2d5e; color: #c0c0e0; }
+.btn.is-active { box-shadow: 0 0 0 2px #f97316; }
 
 /* Settings */
 .section {
@@ -293,6 +298,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
     <div id="toolbar">
       <button class="btn btn-primary"  onclick="openFilePicker()">📂 画像を追加</button>
       <button class="btn btn-info"     id="btn-detect"  onclick="runDetectAll()" disabled>🔍 全画像を検出</button>
+      <button class="btn btn-warning"  id="btn-separator-mode" onclick="toggleSeparatorMode()" disabled>✏️ 分離線</button>
       <button class="btn btn-success"  id="btn-preview" onclick="runPreviewAll()" disabled>✂️ 分割プレビュー</button>
       <button class="btn btn-warning"  id="btn-zip"     onclick="downloadZip()" disabled>📦 ZIP</button>
       <button class="btn btn-info"     id="btn-indiv"   onclick="downloadIndividual()" disabled>💾 個別保存</button>
@@ -383,6 +389,22 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
     </div>
 
     <div class="section">
+      <h2>手動分離線</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-ghost" id="btn-separator-undo" onclick="undoSeparatorStroke()" disabled>↶ 1本戻す</button>
+        <button class="btn btn-ghost" id="btn-separator-clear" onclick="clearSeparatorStrokes()" disabled>分離線を全消去</button>
+      </div>
+      <div class="field">
+        <label>分離線の太さ (px)</label>
+        <div class="field-row">
+          <input type="range" id="s-separator" min="1" max="20" value="3" oninput="syncVal('s-separator','v-separator')">
+          <div class="val-badge" id="v-separator">3</div>
+        </div>
+      </div>
+      <p class="how-to">「✏️ 分離線」をONにして、つながった2体の境目を背景から背景へなぞります。線を引くたびに分割結果へ反映されます。</p>
+    </div>
+
+    <div class="section">
       <h2>出力設定</h2>
       <div class="field">
         <label>出力サイズ (px)</label>
@@ -461,11 +483,11 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
     </div>
 
     <div class="section">
-      <h2>検出矩形（表示中の画像）<span id="rect-count" style="color:#6060a0;font-weight:400"></span></h2>
+      <h2>検出結果（表示中の画像）<span id="rect-count" style="color:#6060a0;font-weight:400"></span></h2>
       <div id="rect-list"></div>
       <hr class="divider">
       <button class="btn btn-ghost" style="width:100%;margin-top:4px;font-size:0.72rem"
-        onclick="clearActiveRects()">この画像の矩形をクリア</button>
+        onclick="clearActiveRects()">この画像の検出結果をクリア</button>
     </div>
 
     <div class="section">
@@ -474,6 +496,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
         <li>「画像を追加」で複数枚同時選択（またはD&D）</li>
         <li>「全画像を検出」で全枚まとめて矩形検出</li>
         <li>設定調整 → 再検出で精度を上げる</li>
+        <li>接触して1体になった箇所は「✏️ 分離線」で境目をなぞる</li>
         <li>「分割プレビュー生成」で下部に全スプライット表示</li>
         <li>「ZIP」「個別保存」「シート」でダウンロード</li>
       </ol>
@@ -508,7 +531,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 <script>
 /* =============================================================
    State
-   imageSlots: [{img, imgW, imgH, name, thumbUrl, rects, normalized}]
+   imageSlots: [{img, imgW, imgH, name, thumbUrl, rects, masks, separatorStrokes, normalized}]
    activeIdx: 現在左パネルに表示中のスロット番号
 ============================================================= */
 let imageSlots  = [];
@@ -516,6 +539,8 @@ let activeIdx   = -1;
 let bgMode      = 'checker';
 let zoomLevel   = 1;
 let saveDirHandle = null;
+let separatorMode = false;
+let separatorStrokeDraft = null;
 
 const LS_KEY = 'valzeria-sprite-splitter-settings';
 const IDB_NAME = 'valzeria-sprite-splitter';
@@ -542,6 +567,7 @@ function settings() {
     area:     +document.getElementById('s-area').value,
     merge:    +document.getElementById('s-merge').value,
     pad:      +document.getElementById('s-pad').value,
+    separatorWidth: +document.getElementById('s-separator').value,
     size:     +document.getElementById('s-size').value,
     baseline: +document.getElementById('s-baseline').value,
     alphaMode: document.querySelector('input[name="alpha-mode"]:checked').value,
@@ -575,6 +601,7 @@ function loadPersistedSettings() {
   setRange('s-area', 'v-area', saved.area);
   setRange('s-merge', 'v-merge', saved.merge);
   setRange('s-pad', 'v-pad', saved.pad);
+  setRange('s-separator', 'v-separator', saved.separatorWidth);
   setRange('s-baseline', 'v-baseline', saved.baseline);
 
   if (saved.size) document.getElementById('s-size').value = saved.size;
@@ -642,6 +669,8 @@ function loadFilesArray(files) {
         name: file.name,
         thumbUrl: url,
         rects: [],
+        masks: [],
+        separatorStrokes: [],
         normalized: [],
       };
       imageSlots.push(slot);
@@ -691,10 +720,12 @@ function onCanvasWheel(e) {
 function setActiveSlot(idx) {
   activeIdx = idx;
   if (idx < 0 || idx >= imageSlots.length) return;
+  separatorStrokeDraft = null;
   drawSource();
   drawOverlay();
   updateRectList();
   renderSlotStrip(); // update active highlight
+  updateSeparatorControls();
 }
 
 function deleteSlot(idx) {
@@ -709,12 +740,14 @@ function deleteSlot(idx) {
     document.getElementById('drop-zone').style.display = '';
     setInfo('未検出 — 画像を読み込み後、「全画像を検出」を押してください');
     document.getElementById('btn-detect').disabled = true;
+    separatorMode = false;
   } else {
     setActiveSlot(Math.min(idx, imageSlots.length - 1));
   }
   renderSlotStrip();
   renderAllSpritePreviews();
   updateExportButtons();
+  updateSeparatorControls();
 }
 
 function renderSlotStrip() {
@@ -776,7 +809,7 @@ function drawOverlay() {
   const oc   = document.getElementById('overlay-canvas');
   const ctx  = oc.getContext('2d');
   ctx.clearRect(0, 0, oc.width, oc.height);
-  if (!slot.rects.length) return;
+  if (!slot.rects.length && !slot.separatorStrokes.length && !separatorStrokeDraft) return;
 
   const lw = Math.max(1, Math.round(Math.min(slot.imgW, slot.imgH) / 400));
   const fs = Math.max(10, Math.round(slot.imgW / 60));
@@ -790,6 +823,139 @@ function drawOverlay() {
     ctx.strokeRect(r.x + .5, r.y + .5, r.w, r.h);
     ctx.fillText(String(i + 1), r.x + 2, r.y + 2);
   });
+
+  slot.separatorStrokes.forEach(stroke => drawSeparatorStroke(ctx, stroke));
+  if (separatorStrokeDraft?.slotIdx === activeIdx) drawSeparatorStroke(ctx, separatorStrokeDraft, true);
+}
+
+function drawSeparatorStroke(ctx, stroke, isDraft = false) {
+  if (stroke.points.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = isDraft ? 'rgba(251,146,60,0.72)' : 'rgba(249,115,22,0.95)';
+  ctx.lineWidth = stroke.width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+  stroke.points.slice(1).forEach(point => ctx.lineTo(point.x, point.y));
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* =============================================================
+   Manual separator strokes
+============================================================= */
+function toggleSeparatorMode() {
+  if (activeIdx < 0) return;
+  separatorMode = !separatorMode;
+  separatorStrokeDraft = null;
+  updateSeparatorControls();
+  drawOverlay();
+}
+
+function updateSeparatorControls() {
+  const hasActiveSlot = activeIdx >= 0 && activeIdx < imageSlots.length;
+  const strokes = hasActiveSlot ? imageSlots[activeIdx].separatorStrokes : [];
+  const modeButton = document.getElementById('btn-separator-mode');
+  modeButton.disabled = !hasActiveSlot;
+  modeButton.classList.toggle('is-active', separatorMode && hasActiveSlot);
+  modeButton.textContent = separatorMode && hasActiveSlot ? '✏️ 分離線: ON' : '✏️ 分離線';
+  document.getElementById('btn-separator-undo').disabled = !strokes.length;
+  document.getElementById('btn-separator-clear').disabled = !strokes.length;
+  document.getElementById('canvas-wrapper').classList.toggle('separator-mode', separatorMode && hasActiveSlot);
+}
+
+function sourcePointFromEvent(event) {
+  if (activeIdx < 0) return null;
+  const canvas = document.getElementById('main-canvas');
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height || event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return null;
+  const slot = imageSlots[activeIdx];
+  return {
+    x: Math.max(0, Math.min(slot.imgW - 1, Math.round((event.clientX - rect.left) * slot.imgW / rect.width))),
+    y: Math.max(0, Math.min(slot.imgH - 1, Math.round((event.clientY - rect.top) * slot.imgH / rect.height))),
+  };
+}
+
+function onSeparatorPointerDown(event) {
+  if (!separatorMode || event.button !== 0 || activeIdx < 0) return;
+  const point = sourcePointFromEvent(event);
+  if (!point) return;
+  event.preventDefault();
+  separatorStrokeDraft = {
+    slotIdx: activeIdx,
+    pointerId: event.pointerId,
+    width: settings().separatorWidth,
+    points: [point],
+  };
+  document.getElementById('canvas-wrapper').setPointerCapture?.(event.pointerId);
+  drawOverlay();
+}
+
+function onSeparatorPointerMove(event) {
+  if (!separatorStrokeDraft || separatorStrokeDraft.pointerId !== event.pointerId) return;
+  const point = sourcePointFromEvent(event);
+  if (!point) return;
+  event.preventDefault();
+  const previous = separatorStrokeDraft.points.at(-1);
+  if (Math.hypot(point.x - previous.x, point.y - previous.y) < 0.5) return;
+  separatorStrokeDraft.points.push(point);
+  drawOverlay();
+}
+
+function finishSeparatorStroke(event, cancelled = false) {
+  if (!separatorStrokeDraft || separatorStrokeDraft.pointerId !== event.pointerId) return;
+  const draft = separatorStrokeDraft;
+  separatorStrokeDraft = null;
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (wrapper.hasPointerCapture?.(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+  if (!cancelled && draft.points.length >= 2 && draft.slotIdx === activeIdx) {
+    imageSlots[activeIdx].separatorStrokes.push({ width: draft.width, points: draft.points });
+    reDetectActiveSlot('分離線を反映しました。必要なら続けて境目をなぞれます。');
+  } else {
+    drawOverlay();
+  }
+}
+
+function undoSeparatorStroke() {
+  if (activeIdx < 0 || !imageSlots[activeIdx].separatorStrokes.length) return;
+  imageSlots[activeIdx].separatorStrokes.pop();
+  reDetectActiveSlot('分離線を1本取り消しました。');
+}
+
+function clearSeparatorStrokes() {
+  if (activeIdx < 0 || !imageSlots[activeIdx].separatorStrokes.length) return;
+  imageSlots[activeIdx].separatorStrokes = [];
+  reDetectActiveSlot('分離線をすべて消去し、自動検出結果へ戻しました。');
+}
+
+function reDetectActiveSlot(message) {
+  if (activeIdx < 0) return;
+  const slot = imageSlots[activeIdx];
+  const source = sourceCanvasForSlot(slot);
+  const detected = detectSprites(source, settings(), slot.separatorStrokes);
+  slot.rects = detected.rects;
+  slot.masks = detected.masks;
+  imageSlots.forEach(item => { item.normalized = []; });
+  const total = imageSlots.reduce((sum, item) => sum + item.rects.length, 0);
+  drawOverlay();
+  updateRectList();
+  renderSlotStrip();
+  renderAllSpritePreviews();
+  updateExportButtons();
+  document.getElementById('btn-preview').disabled = total === 0;
+  updateSeparatorControls();
+  setInfo(total ? message : '分離後にキャラクターが検出されませんでした。分離線を取り消すか、検出設定を調整してください。', total ? 'ok' : 'err');
+}
+
+function sourceCanvasForSlot(slot) {
+  const canvas = document.createElement('canvas');
+  canvas.width = slot.imgW;
+  canvas.height = slot.imgH;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(slot.img, 0, 0);
+  return canvas;
 }
 
 /* =============================================================
@@ -801,13 +967,9 @@ function runDetectAll() {
   let totalFound = 0;
 
   imageSlots.forEach(slot => {
-    const oc = document.createElement('canvas');
-    oc.width = slot.imgW; oc.height = slot.imgH;
-    const octx = oc.getContext('2d');
-    octx.imageSmoothingEnabled = false;
-    octx.drawImage(slot.img, 0, 0);
-
-    slot.rects = detectSprites(oc, cfg);
+    const detected = detectSprites(sourceCanvasForSlot(slot), cfg, slot.separatorStrokes);
+    slot.rects = detected.rects;
+    slot.masks = detected.masks;
     slot.normalized = [];
     totalFound += slot.rects.length;
   });
@@ -827,7 +989,35 @@ function runDetectAll() {
 }
 
 /* 1枚分の検出ロジック */
-function detectSprites(srcCanvas, cfg) {
+function detectSprites(srcCanvas, cfg, separatorStrokes = []) {
+  const rects = detectAutoSprites(srcCanvas, cfg);
+  if (!separatorStrokes.length || !rects.length) return { rects, masks: rects.map(() => null) };
+
+  const separatedSource = separatedSourceCanvas(srcCanvas, separatorStrokes, cfg);
+  const selections = [];
+  rects.forEach(rect => {
+    const touchingStrokes = separatorStrokes.filter(stroke => strokeTouchesRect(stroke, rect));
+    if (!touchingStrokes.length) {
+      selections.push({ ...rect, mask: null });
+      return;
+    }
+
+    const components = alphaComponentsInRect(separatedSource, rect, cfg.area);
+    if (components.length < 2) {
+      selections.push({ ...rect, mask: null });
+      return;
+    }
+    components.forEach(component => selections.push(maskedSelection(component, srcCanvas.width, srcCanvas.height, cfg)));
+  });
+
+  const sorted = sortRects(selections, cfg.size);
+  return {
+    rects: sorted.map(({ mask, ...rect }) => rect),
+    masks: sorted.map(selection => selection.mask),
+  };
+}
+
+function detectAutoSprites(srcCanvas, cfg) {
   const W = srcCanvas.width, H = srcCanvas.height;
   const data = srcCanvas.getContext('2d').getImageData(0, 0, W, H).data;
 
@@ -891,6 +1081,130 @@ function detectSprites(srcCanvas, cfg) {
   return sortRects(rects, cfg.size);
 }
 
+function separatedSourceCanvas(srcCanvas, separatorStrokes, cfg) {
+  const canvas = document.createElement('canvas');
+  canvas.width = srcCanvas.width;
+  canvas.height = srcCanvas.height;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(srcCanvas, 0, 0);
+  context.save();
+  context.globalCompositeOperation = 'destination-out';
+  separatorStrokes.forEach(stroke => {
+    if (stroke.points.length < 2) return;
+    context.lineWidth = stroke.width;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.beginPath();
+    context.moveTo(stroke.points[0].x, stroke.points[0].y);
+    stroke.points.slice(1).forEach(point => context.lineTo(point.x, point.y));
+    context.stroke();
+  });
+  context.restore();
+  removeBackground(canvas, cfg);
+  return canvas;
+}
+
+function strokeTouchesRect(stroke, rect) {
+  const padding = stroke.width / 2 + 1;
+  const expanded = {
+    x: rect.x - padding,
+    y: rect.y - padding,
+    w: rect.w + padding * 2,
+    h: rect.h + padding * 2,
+  };
+  return stroke.points.slice(1).some((point, index) => segmentTouchesRect(stroke.points[index], point, expanded));
+}
+
+function segmentTouchesRect(start, end, rect) {
+  const left = rect.x;
+  const right = rect.x + rect.w;
+  const top = rect.y;
+  const bottom = rect.y + rect.h;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const p = [-dx, dx, -dy, dy];
+  const q = [start.x - left, right - start.x, start.y - top, bottom - start.y];
+  let entry = 0;
+  let exit = 1;
+  for (let index = 0; index < 4; index++) {
+    if (p[index] === 0) {
+      if (q[index] < 0) return false;
+      continue;
+    }
+    const ratio = q[index] / p[index];
+    if (p[index] < 0) {
+      if (ratio > exit) return false;
+      entry = Math.max(entry, ratio);
+    } else {
+      if (ratio < entry) return false;
+      exit = Math.min(exit, ratio);
+    }
+  }
+  return true;
+}
+
+function alphaComponentsInRect(canvas, rect, minArea) {
+  const { width: W, height: H } = canvas;
+  const data = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const minX = Math.max(0, Math.floor(rect.x));
+  const minY = Math.max(0, Math.floor(rect.y));
+  const maxX = Math.min(W - 1, Math.ceil(rect.x + rect.w - 1));
+  const maxY = Math.min(H - 1, Math.ceil(rect.y + rect.h - 1));
+  const visited = new Uint8Array(W * H);
+  const components = [];
+
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const start = y * W + x;
+      if (visited[start] || data[start * 4 + 3] === 0) continue;
+      const pixels = [start];
+      visited[start] = 1;
+      let cursor = 0;
+      let lowX = x, highX = x, lowY = y, highY = y;
+      while (cursor < pixels.length) {
+        const current = pixels[cursor++];
+        const currentX = current % W;
+        const currentY = (current / W) | 0;
+        if (currentX < lowX) lowX = currentX;
+        if (currentX > highX) highX = currentX;
+        if (currentY < lowY) lowY = currentY;
+        if (currentY > highY) highY = currentY;
+        for (let offsetY = -1; offsetY <= 1; offsetY++) {
+          for (let offsetX = -1; offsetX <= 1; offsetX++) {
+            if (offsetX === 0 && offsetY === 0) continue;
+            const nextX = currentX + offsetX;
+            const nextY = currentY + offsetY;
+            if (nextX < minX || nextX > maxX || nextY < minY || nextY > maxY) continue;
+            const next = nextY * W + nextX;
+            if (visited[next] || data[next * 4 + 3] === 0) continue;
+            visited[next] = 1;
+            pixels.push(next);
+          }
+        }
+      }
+      if (pixels.length >= minArea) components.push({ lowX, highX, lowY, highY, pixels });
+    }
+  }
+  return components;
+}
+
+function maskedSelection(component, W, H, cfg) {
+  const x = Math.max(0, component.lowX - cfg.pad);
+  const y = Math.max(0, component.lowY - cfg.pad);
+  const x2 = Math.min(W - 1, component.highX + cfg.pad);
+  const y2 = Math.min(H - 1, component.highY + cfg.pad);
+  const w = x2 - x + 1;
+  const h = y2 - y + 1;
+  const mask = new Uint8Array(w * h);
+  component.pixels.forEach(pixel => {
+    const pixelX = pixel % W;
+    const pixelY = (pixel / W) | 0;
+    mask[(pixelY - y) * w + pixelX - x] = 1;
+  });
+  return { x, y, w, h, mask };
+}
+
 function mergeRects(rects, dist) {
   const used = new Uint8Array(rects.length);
   const result = [];
@@ -950,12 +1264,8 @@ function runPreviewAll() {
 
   imageSlots.forEach(slot => {
     if (!slot.rects.length) { slot.normalized = []; return; }
-    const oc = document.createElement('canvas');
-    oc.width = slot.imgW; oc.height = slot.imgH;
-    const octx = oc.getContext('2d');
-    octx.imageSmoothingEnabled = false;
-    octx.drawImage(slot.img, 0, 0);
-    slot.normalized = slot.rects.map(r => normalizeSprite(oc, r, cfg));
+    const oc = sourceCanvasForSlot(slot);
+    slot.normalized = slot.rects.map((r, index) => normalizeSprite(oc, r, cfg, slot.masks[index]));
     total += slot.normalized.length;
   });
 
@@ -965,7 +1275,7 @@ function runPreviewAll() {
   toast('プレビュー生成完了');
 }
 
-function normalizeSprite(srcCanvas, rect, cfg) {
+function normalizeSprite(srcCanvas, rect, cfg, mask = null) {
   const {x,y,w,h} = rect;
   const outSize = cfg.size;
 
@@ -974,6 +1284,8 @@ function normalizeSprite(srcCanvas, rect, cfg) {
   const cctx = cut.getContext('2d');
   cctx.imageSmoothingEnabled = false;
   cctx.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+
+  if (mask?.length === w * h) applySpriteMask(cut, mask);
 
   removeBackground(cut, cfg);
 
@@ -999,6 +1311,15 @@ function normalizeSprite(srcCanvas, rect, cfg) {
   const dstY = Math.max(0, outSize-cfg.baseline-dstH);
   octx.drawImage(cut, bounds.minX, bounds.minY, cW, cH, dstX, dstY, dstW, dstH);
   return out;
+}
+
+function applySpriteMask(canvas, mask) {
+  const context = canvas.getContext('2d');
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < mask.length; index++) {
+    if (!mask[index]) imageData.data[index * 4 + 3] = 0;
+  }
+  context.putImageData(imageData, 0, 0);
 }
 
 function removeBackground(canvas, cfg) {
@@ -1139,6 +1460,7 @@ function renderAllSpritePreviews() {
 
 function deleteSpriteFromSlot(slotIdx, localIdx) {
   imageSlots[slotIdx].rects.splice(localIdx, 1);
+  imageSlots[slotIdx].masks.splice(localIdx, 1);
   imageSlots[slotIdx].normalized.splice(localIdx, 1);
   if (slotIdx === activeIdx) { drawOverlay(); updateRectList(); }
   renderSlotStrip();
@@ -1147,7 +1469,7 @@ function deleteSpriteFromSlot(slotIdx, localIdx) {
 }
 
 /* =============================================================
-   Rect list (active slot only)
+   Detection result list (active slot only)
 ============================================================= */
 function updateRectList() {
   const list  = document.getElementById('rect-list');
@@ -1158,8 +1480,9 @@ function updateRectList() {
   count.textContent = slot.rects.length ? `(${slot.rects.length})` : '';
   slot.rects.forEach((r,i) => {
     const item = document.createElement('div');
+    const type = slot.masks[i] ? '分離' : '矩形';
     item.className='rect-item';
-    item.innerHTML=`<span class="rid">#${i+1}</span><span>${r.x},${r.y} ${r.w}×${r.h}</span><button class="rdel" onclick="deleteSpriteFromSlot(${activeIdx},${i})">✕</button>`;
+    item.innerHTML=`<span class="rid">#${i+1}</span><span>${type} ${r.x},${r.y} ${r.w}×${r.h}</span><button class="rdel" onclick="deleteSpriteFromSlot(${activeIdx},${i})">✕</button>`;
     list.appendChild(item);
   });
 }
@@ -1167,6 +1490,7 @@ function updateRectList() {
 function clearActiveRects() {
   if (activeIdx < 0) return;
   imageSlots[activeIdx].rects = [];
+  imageSlots[activeIdx].masks = [];
   imageSlots[activeIdx].normalized = [];
   drawOverlay(); updateRectList(); renderSlotStrip();
   renderAllSpritePreviews(); updateExportButtons();
@@ -1379,6 +1703,8 @@ function saveBlob(blob, filename) {
 function resetAll() {
   imageSlots.forEach(s => URL.revokeObjectURL(s.thumbUrl));
   imageSlots = []; activeIdx = -1;
+  separatorMode = false;
+  separatorStrokeDraft = null;
 
   const mc=document.getElementById('main-canvas');
   mc.width=0; mc.height=0;
@@ -1393,7 +1719,7 @@ function resetAll() {
 
   // スライダーリセット
   [['s-white',245,'v-white'],['s-area',50,'v-area'],['s-merge',12,'v-merge'],
-   ['s-pad',4,'v-pad'],['s-baseline',6,'v-baseline']].forEach(([id,val,bid])=>{
+   ['s-pad',4,'v-pad'],['s-separator',3,'v-separator'],['s-baseline',6,'v-baseline']].forEach(([id,val,bid])=>{
     document.getElementById(id).value=val;
     document.getElementById(bid).textContent=val;
   });
@@ -1402,6 +1728,7 @@ function resetAll() {
   document.getElementById('s-startnum').value=1;
   updateStartPreview();
   zoomReset();
+  updateSeparatorControls();
   toast('リセットしました');
 }
 
@@ -1409,6 +1736,10 @@ function resetAll() {
    Init
 ============================================================= */
 document.getElementById('canvas-wrapper').addEventListener('dragenter', e=>e.preventDefault());
+document.getElementById('canvas-wrapper').addEventListener('pointerdown', onSeparatorPointerDown);
+document.getElementById('canvas-wrapper').addEventListener('pointermove', onSeparatorPointerMove);
+document.getElementById('canvas-wrapper').addEventListener('pointerup', event => finishSeparatorStroke(event));
+document.getElementById('canvas-wrapper').addEventListener('pointercancel', event => finishSeparatorStroke(event, true));
 
 // 設定変更を自動記憶（次回アクセス時に直前の設定を復元）
 document.getElementById('right-panel').addEventListener('input', persistSettings);
@@ -1437,6 +1768,7 @@ document.getElementById('bg-'+bgMode)?.classList.add('active');
 applyZoom();
 tryRestoreSaveDirectory();
 renderSlotStrip();
+updateSeparatorControls();
 </script>
 </body>
 </html>

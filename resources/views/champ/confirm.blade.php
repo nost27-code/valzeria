@@ -47,12 +47,12 @@
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">ATK<br><span class="text-base text-slate-900">{{ $champStats['atk'] }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">DEF<br><span class="text-base text-slate-900">{{ $champStats['def'] }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">SPD<br><span class="text-base text-slate-900">{{ $champStats['spd'] }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">MAG<br><span class="text-base text-slate-900">{{ $champStats['mag'] }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">SPR<br><span class="text-base text-slate-900">{{ $champStats['spr'] }}</span></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">LUK<br><span class="text-base text-slate-900">{{ $champStats['luk'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">攻撃<br><span class="text-base text-slate-900">{{ $champStats['atk'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">防御<br><span class="text-base text-slate-900">{{ $champStats['def'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">敏捷<br><span class="text-base text-slate-900">{{ $champStats['spd'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">魔力<br><span class="text-base text-slate-900">{{ $champStats['mag'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">精神<br><span class="text-base text-slate-900">{{ $champStats['spr'] }}</span></div>
+                    <div class="rounded border border-slate-200 bg-slate-50 p-2">運<br><span class="text-base text-slate-900">{{ $champStats['luk'] }}</span></div>
                 </div>
 
                 @if(($champFatigue['percent'] ?? 0) > 0)

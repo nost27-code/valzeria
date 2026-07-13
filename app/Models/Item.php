@@ -48,7 +48,7 @@ class Item extends Model
         'external_item_id', 'weapon_family_id', 'weapon_family_name',
         'weapon_rank', 'weapon_rank_sort', 'weapon_rank_multiplier',
         'evolution_stage', 'next_item_external_id',
-        'is_evolution_enabled', 'is_drop_enabled', 'affix_enabled', 'is_supply_enabled', 'max_enhance',
+        'is_evolution_enabled', 'is_drop_enabled', 'affix_enabled', 'is_supply_enabled', 'is_tradeable', 'max_enhance',
         'armor_category', 'armor_weight', 'armor_role',
         'armor_family_id', 'armor_family_name', 'armor_category_id', 'armor_category_name',
         'armor_rank', 'armor_rank_sort', 'armor_rank_multiplier',
@@ -64,6 +64,7 @@ class Item extends Model
         'is_evolvable' => 'boolean',
         'is_drop_enabled' => 'boolean',
         'affix_enabled' => 'boolean',
+        'is_tradeable' => 'boolean',
         'is_supply_enabled' => 'boolean',
         'max_enhance' => 'integer',
     ];
@@ -81,11 +82,16 @@ class Item extends Model
     public function iconImagePath(): ?string
     {
         return match ((string) $this->type) {
-            'weapon' => self::WEAPON_ICON_BY_CATEGORY[(string) $this->weapon_category] ?? null,
+            'weapon' => self::weaponIconPathForCategory($this->weapon_category),
             'armor' => self::armorIconImagePathFor($this),
             'accessory' => 'images/icon/icon_238.webp',
             default => null,
         };
+    }
+
+    public static function weaponIconPathForCategory(?string $category): ?string
+    {
+        return self::WEAPON_ICON_BY_CATEGORY[(string) $category] ?? null;
     }
 
     private static function armorIconImagePathFor(self $item): ?string

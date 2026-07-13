@@ -189,9 +189,9 @@
                                 <div class="font-black text-teal-800">50階以降：星樹の構え</div>
                                 <p class="mt-1">5階ごとに、バフとデバフがある構えを選べます。</p>
                                 <div class="mt-1 space-y-1">
-                                    <p><span class="font-black text-slate-800">攻めの構え</span>：ATK/MAG重視、DEF/SPR低下。</p>
-                                    <p><span class="font-black text-slate-800">守りの構え</span>：DEF/SPR重視、SPD低下。</p>
-                                    <p><span class="font-black text-slate-800">疾風の構え</span>：SPD/LUK重視、ATK/MAG低下。</p>
+                                    <p><span class="font-black text-slate-800">攻めの構え</span>：攻撃/魔力重視、防御/精神低下。</p>
+                                    <p><span class="font-black text-slate-800">守りの構え</span>：防御/精神重視、敏捷低下。</p>
+                                    <p><span class="font-black text-slate-800">疾風の構え</span>：敏捷/運重視、攻撃/魔力低下。</p>
                                     <p><span class="font-black text-slate-800">構えなし</span>：補正を受けず、今の状態を維持。</p>
                                 </div>
                                 <div class="mt-1 font-black text-teal-700">伸ばす能力と削る能力を見極めて、有利に進めよう。</div>

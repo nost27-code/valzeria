@@ -24,7 +24,10 @@
             <div class="mb-5">
                 <div>
                     <div class="text-xs font-black tracking-wide text-amber-700">ADVENTURER MARKET</div>
-                    <h2 class="mt-1 text-2xl font-black text-slate-900">素材を売買できます</h2>
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="mt-1 text-2xl font-black text-slate-900">素材を売買できます</h2>
+                        <a href="{{ route('equipment-market.index') }}" class="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100">装備市場へ</a>
+                    </div>
                     <p class="mt-1 text-sm font-bold leading-relaxed text-slate-500">
                         通常素材と地域素材を、冒険者同士で匿名売買します。売る場合、出品手数料として3%引かれます。
                     </p>

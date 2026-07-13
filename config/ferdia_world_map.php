@@ -184,7 +184,7 @@ return [
             'text' => '航海日誌には「濃い霧の沖で鐘の音を追うな。黒い船影は帰る海を忘れさせる」と記されている。',
         ]),
         $node('abyss_prelude', '地下の謎の穴', 'ruin', 'story', 21, 67, 79, 1029, null, $allNodes(['stargazer_ruin', 'aquarius_shrine', 'ordo_columns', 'white_tide_lighthouse']), null, 100, [
-            100 => '大陸横断の手帳が示す、アビスへ続く深い穴を調べ尽くした。',
+            100 => '穴の底から、アビスヴェイルへの門を守る影が現れた。',
         ]),
     ],
     'bosses' => [
@@ -192,6 +192,7 @@ return [
         1007 => ['name' => '外郭の古王近衛アストレア', 'family_key' => 'soldier', 'variant_key' => 'ancient', 'type_name' => '人型', 'element' => '古代'],
         1009 => ['name' => '水門の守護巨獣リヴァイア', 'family_key' => 'aquatic', 'variant_key' => 'forest', 'type_name' => '水棲', 'element' => '水'],
         1013 => ['name' => '霊峰の氷冠竜エルヴァン', 'family_key' => 'dragon', 'variant_key' => 'ancient', 'type_name' => '竜', 'element' => '氷'],
+        1029 => ['name' => '深淵門の番人ヴェイルガード', 'family_key' => 'demon', 'variant_key' => 'ancient', 'type_name' => '悪魔', 'element' => '闇'],
     ],
     'routes' => [
         ['from' => 'ferdia_south_coast', 'to' => 'shiokaze_road', 'group' => 'main'],

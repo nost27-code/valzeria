@@ -476,7 +476,7 @@
             const tipsPanel = root.querySelector('[data-job-art-tips-panel]');
             const favoriteStorageKey = 'valzeria.jobArtFavorites.v1';
             const sortStorageKey = 'valzeria.jobArtSort.v1';
-            let currentFilter = @js($filter);
+            let currentFilters = new Set([@js($filter) || 'available']);
             let currentSort = 'default';
             let favoriteIds = new Set();
 
@@ -518,9 +518,9 @@
                 });
             };
 
-            const setChipState = (filter) => {
+            const setChipState = () => {
                 root.querySelectorAll('[data-job-art-filter]').forEach((button) => {
-                    const active = button.dataset.jobArtFilter === filter;
+                    const active = currentFilters.has(button.dataset.jobArtFilter);
                     button.classList.remove(...(active ? inactiveClasses : activeClasses));
                     button.classList.add(...(active ? activeClasses : inactiveClasses));
                 });
@@ -566,30 +566,47 @@
                 setSortState(currentSort);
             };
 
-            const applyFilter = (filter) => {
-                currentFilter = filter || 'available';
+            const applyFilters = () => {
                 let visibleCount = 0;
                 root.querySelectorAll('[data-job-art-card]').forEach((card) => {
                     const filters = (card.dataset.filters || '').split(/\s+/);
                     const isFavorite = favoriteIds.has(String(card.dataset.jobArtId || ''));
-                    const visible = currentFilter === 'available'
-                        || (currentFilter === 'favorite' ? isFavorite : filters.includes(currentFilter));
+                    const visible = currentFilters.has('available')
+                        || [...currentFilters].some((filter) => filter === 'favorite' ? isFavorite : filters.includes(filter));
                     card.classList.toggle('hidden', !visible);
                     if (visible) visibleCount += 1;
                 });
                 if (countEl) countEl.textContent = visibleCount;
                 if (emptyEl) emptyEl.classList.toggle('hidden', visibleCount > 0);
-                setChipState(currentFilter);
+                setChipState();
+            };
+
+            const toggleFilter = (filter) => {
+                filter = filter || 'available';
+                if (filter === 'available') {
+                    currentFilters = new Set(['available']);
+                } else {
+                    currentFilters.delete('available');
+                    if (currentFilters.has(filter)) {
+                        currentFilters.delete(filter);
+                    } else {
+                        currentFilters.add(filter);
+                    }
+                    if (currentFilters.size === 0) {
+                        currentFilters = new Set(['available']);
+                    }
+                }
+                applyFilters();
             };
 
             root.querySelectorAll('[data-job-art-filter]').forEach((button) => {
-                button.addEventListener('click', () => applyFilter(button.dataset.jobArtFilter));
+                button.addEventListener('click', () => toggleFilter(button.dataset.jobArtFilter));
             });
 
             root.querySelectorAll('[data-job-art-sort]').forEach((button) => {
                 button.addEventListener('click', () => {
                     applySort(button.dataset.jobArtSort);
-                    applyFilter(currentFilter);
+                    applyFilters();
                 });
             });
 
@@ -604,7 +621,7 @@
                     }
                     saveFavorites();
                     syncFavoriteButtons();
-                    applyFilter(currentFilter);
+                    applyFilters();
                 });
             });
 
@@ -618,7 +635,7 @@
 
             syncFavoriteButtons();
             applySort(currentSort);
-            applyFilter(currentFilter);
+            applyFilters();
         })();
     </script>
 </x-layouts.facility>

@@ -35,6 +35,14 @@ class DatabaseSeeder extends Seeder
             TitleSeeder::class,
             StarTreeTowerFloorSeeder::class,
             StarTreeTowerTitleSeeder::class,
+            // WeaponStatRescaleSeeder::class は一時的にチェーンから除外している。
+            // 理由: 銘V逸品の再計算誤り修正・進化素材の入手経路未整備の確認が完了するまで、
+            // itemsテーブルの武器固定値(str_bonus/mag_bonus)を新仕様(×1.8/×2.5)へ
+            // 書き換えたくないため（このSeeder自体は環境変数トグルを持たず、
+            // 実行すれば即座にDBへ反映されるため config だけでは止められない）。
+            // 有効化する際はこの行のコメントを外すか、
+            // `php artisan db:seed --class="Database\Seeders\WeaponStatRescaleSeeder"` を手動実行する。
+            // WeaponStatRescaleSeeder::class,
         ]);
     }
 }

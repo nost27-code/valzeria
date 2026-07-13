@@ -104,6 +104,17 @@
                     </div>
                 </div>
 
+                {{-- 武器の能力値仕様変更（折りたたみ） --}}
+                <details class="mb-4 rounded-lg border border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-500">
+                    <summary class="cursor-pointer select-none px-3 py-2 font-black text-slate-500">武器の能力値仕様が変わりました（詳しく見る）</summary>
+                    <div class="px-3 pb-2.5 leading-relaxed space-y-1.5">
+                        <p>A〜EPICランクの武器は、「固定の攻撃・魔力」に加えて「装備する前の自分の攻撃・魔力に応じた追加補正」が加わるようになりました。</p>
+                        <p>追加補正の割合はランクが上がるほど大きくなります（目安: A+2% → S+4% → SS+7% → SSS+11% → EPIC+16%）。育成が進んでいるキャラクターほど、上位ランクへ持ち替えたときのメリットが大きくなります。</p>
+                        <p>鍛冶強化と銘は「固定の攻撃・魔力」の部分にのみ作用し、追加補正の割合には影響しません。種族特攻はこれまでどおり与ダメージへ別枠で上乗せされます。</p>
+                        <p>各武器のカードには、今の自分がその武器を装備した場合の攻撃・魔力の増減を「▲攻撃+◯」のようなバッジで表示していますので、持ち替え前の目安としてご活用ください。</p>
+                    </div>
+                </details>
+
                 @if(session('status'))
                     <div class="equipment-flash bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded mb-4 shadow-sm">
                         {{ session('status') }}
@@ -346,6 +357,39 @@
                             });
                         }
 
+                        function deltaBadgeHtml(deltaStr, deltaMag) {
+                            if (deltaStr === 0 && deltaMag === 0) return '';
+                            const isUp = (deltaStr + deltaMag) >= 0;
+                            const colorClasses = isUp
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : 'bg-rose-50 text-rose-600 border border-rose-300';
+                            let text = isUp ? '▲' : '▼';
+                            if (deltaStr !== 0) text += `攻撃${deltaStr > 0 ? '+' : ''}${deltaStr}`;
+                            if (deltaMag !== 0) text += `${deltaStr !== 0 ? ' ' : ''}魔力${deltaMag > 0 ? '+' : ''}${deltaMag}`;
+                            return `<span class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-extrabold ${colorClasses}">${text}</span>`;
+                        }
+
+                        // 武器の装備/解除で、装備前主能力は変わらないため、
+                        // 他の武器カードの増減バッジはこのキャラの候補値どうしの差分をJS側で再計算するだけでよい。
+                        function updateWeaponDeltaBadges(newEquippedRow) {
+                            const baseStr = Number(newEquippedRow?.dataset.weaponCandidateStr || 0);
+                            const baseMag = Number(newEquippedRow?.dataset.weaponCandidateMag || 0);
+
+                            document.querySelectorAll('.equipment-item[data-equipment-tab="weapon"]').forEach((row) => {
+                                const slot = row.querySelector('.equipment-delta-slot');
+                                if (!slot) return;
+
+                                if (row === newEquippedRow) {
+                                    slot.innerHTML = '';
+                                    return;
+                                }
+
+                                const str = Number(row.dataset.weaponCandidateStr || 0);
+                                const mag = Number(row.dataset.weaponCandidateMag || 0);
+                                slot.innerHTML = deltaBadgeHtml(str - baseStr, mag - baseMag);
+                            });
+                        }
+
                         function resetButton(button, label) {
                             if (!button) return;
                             button.disabled = false;
@@ -398,9 +442,17 @@
                                     setRowsUnequipped(data.unequipped_ids);
                                     if (row) {
                                         setToggleForm(row, true);
+                                        if (row.dataset.equipmentTab === 'weapon') {
+                                            updateWeaponDeltaBadges(row);
+                                        }
                                     }
                                 } else if (action === 'unequip') {
-                                    if (row) setToggleForm(row, false);
+                                    if (row) {
+                                        setToggleForm(row, false);
+                                        if (row.dataset.equipmentTab === 'weapon') {
+                                            updateWeaponDeltaBadges(null);
+                                        }
+                                    }
                                 } else if (action === 'lock') {
                                     if (row) setLockState(row, data.is_locked === true);
                                 } else if (action === 'unstore') {

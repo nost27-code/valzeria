@@ -108,6 +108,18 @@
                         </div>
                 @endif
 
+                @if($currentLocation === 'dungeon' && !empty($hasActiveValmonEgg))
+                    <section class="mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 px-4 py-3 shadow-sm" role="status">
+                        <div class="flex items-start gap-3">
+                            <img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="h-9 w-9 shrink-0 object-contain">
+                            <div class="min-w-0">
+                                <h2 class="text-sm font-black text-rose-950">ヴァルモンの卵を預かっている</h2>
+                                <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。探索を終えて街へ戻ると孵化します。</p>
+                            </div>
+                        </div>
+                    </section>
+                @endif
+
                 @if(!empty($beginnerMissions['reward_granted']))
                     <section class="mb-4 rounded-lg border border-emerald-300 bg-emerald-50/90 shadow-sm overflow-hidden">
                         <div class="p-3 bg-white/70">
@@ -989,7 +1001,7 @@
                                         @endif
                                     </div>
                                 </div>
-                                
+
                                 <!-- アクションボタン（右側、狭い場合は下へ） -->
                                 <div class="shrink-0 flex w-full flex-col items-stretch justify-end gap-2 sm:ml-auto sm:w-auto sm:min-w-[112px] sm:items-end">
                                     @if(!$isInactive)

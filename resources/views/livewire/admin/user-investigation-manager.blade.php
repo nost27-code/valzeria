@@ -284,7 +284,7 @@
                                     @if($rank)
                                         <div class="ml-2 inline-flex h-6 min-w-6 items-center justify-center border border-black/20 px-1 text-xs font-black text-white shadow-sm" style="background-color: {{ $rankColor }};">{{ $rank }}</div>
                                     @endif
-                                    <div class="min-w-0 flex-1 truncate px-3 py-1.5 font-black text-slate-900">{{ $ci->displayName() }}</div>
+                                    <div class="min-w-0 flex-1 truncate px-3 py-1.5 font-black text-slate-900">{{ $ci->displayName(false) }}</div>
                                 @else
                                     <div class="min-w-0 flex-1 truncate px-3 py-1.5 font-bold text-slate-400">なし</div>
                                 @endif

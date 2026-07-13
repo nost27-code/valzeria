@@ -70,12 +70,13 @@ class BattleController extends Controller
         session(['current_location' => 'dungeon']);
         $lootSummary = app(ExplorationStateService::class)->currentLootSummary($character, (int) $state->area_id);
 
-        return view('battle.resume', [
+        return response()->view('battle.resume', [
             'character' => $character,
             'state' => $state,
             'area' => Area::find((int) $state->area_id),
             'lootSummary' => $lootSummary,
-        ]);
+            'hasActiveValmonEgg' => $this->hasActiveValmonEgg($character),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     public function explore(Request $request, int $areaId)
@@ -95,6 +96,20 @@ class BattleController extends Controller
 
         if (!$this->areaService->canEnterArea($character, $areaId)) {
             return redirect()->route('home')->with('error', 'このエリアにはまだ入れません。');
+        }
+
+        if ($request->boolean('continue_chain')) {
+            $explorationStateService = app(\App\Services\ExplorationStateService::class);
+            $activeState = $explorationStateService->currentFor($character);
+            $hasActive = $explorationStateService->hasActiveExploration($character);
+            if ($hasActive && (int) $activeState->area_id !== $areaId) {
+                // ブラウザバック等で古い画面から別エリア宛にPOSTされたケース。
+                // 現在の探索状態を書き換えず、正規の復帰画面へ誘導する。
+                session(['current_location' => 'dungeon']);
+
+                return redirect()->route('battle.resume')
+                    ->with('message', '別の探索が進行中です。こちらの画面から再開してください。');
+            }
         }
 
         // 深度入口を選んだ直後の継続は、同じ操作内で直前の探索リクエストを完了済みとして扱う。
@@ -722,6 +737,13 @@ class BattleController extends Controller
                 ->header('Retry-After', (string) self::EXPLORE_REQUEST_DELAY_SECONDS);
         }
 
+        if (app(ExplorationStateService::class)->hasActiveExploration($character)) {
+            session(['current_location' => 'dungeon']);
+
+            return redirect()->route('battle.resume')
+                ->with('message', '探索処理が混み合っています。少し待ってから「探索を続ける」を押してください。');
+        }
+
         return redirect()->route('battle.result')->with('battleData', [
             'result' => [
                 'error' => '探索処理中です。少し待ってからもう一度お試しください。',
@@ -1002,6 +1024,7 @@ class BattleController extends Controller
         // ログイン中のキャラクターを再取得
         $battleData['character'] = Auth::user()->currentCharacter();
         \App\Livewire\MainScreen::clearHomeCache($battleData['character']->id);
+        $battleData['hasActiveValmonEgg'] = $this->hasActiveValmonEgg($battleData['character']);
         $battleData['finalStats'] = $this->statusService->getFinalStats($battleData['character']);
         if (!($battleData['isBoss'] ?? false)) {
             $battleData['recoveryItems'] = app(ExplorationItemService::class)->carriedItems($battleData['character']);
@@ -1029,6 +1052,7 @@ class BattleController extends Controller
 
         $areaId = (int) ($battleData['areaId'] ?? 0);
         $battleDepthKey = $this->battleDepthKey($battleData['character'], $areaId);
+        $battleData['areaName'] = Area::find($areaId)?->name;
         $battleData['battleHeaderIconImage'] = $this->battleHeaderIconImage($areaId);
         $battleData['battleCityBackgroundStyle'] = in_array($battleDepthKey, ['deep', 'deepest', 'otherworld'], true)
             ? $this->depthBattleBackgroundStyle($battleDepthKey)
@@ -1038,7 +1062,16 @@ class BattleController extends Controller
         $battleData = array_merge($battleData, $this->depthBattleHeaderTheme($battleDepthKey));
         $battleData['discoveryAreaCardBackgrounds'] = $this->discoveryAreaCardBackgrounds($battleData['result']['new_discoveries'] ?? []);
 
-        return view('battle.result', $battleData);
+        return response()->view('battle.result', $battleData)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    private function hasActiveValmonEgg(Character $character): bool
+    {
+        return $character->valmonEggs()
+            ->where('is_hatched', false)
+            ->where('is_lost', false)
+            ->exists();
     }
 
     private function battleDepthKey(Character $character, int $areaId): string

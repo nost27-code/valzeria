@@ -31,7 +31,7 @@
 @endphp
 
 <x-layouts.facility :title="$title" :headerIcon="$headerIcon" :bgImage="$bgImage">
-    <div class="w-full mx-auto pb-10" x-data="{ activeEnhanceType: @js($initialType) }">
+    <div class="w-full mx-auto pb-10" x-data="{ activeEnhanceType: @js($initialType), helpOpen: false }">
         <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
                 <div>
@@ -42,14 +42,22 @@
                         欠片・強化石系素材・共通素材・Goldを使って +1〜+5 に強化します。輝石は使用しません。
                     </p>
                 </div>
-                <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">
-                    候補: <span class="font-bold text-slate-900">{{ $candidateCount }}</span> 件
+                <div class="flex items-center gap-2 self-end sm:self-start">
+                    <a href="{{ route('blacksmith.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="装備強化の解説">
+                        <span class="text-sm leading-none">?</span> 解説
+                    </a>
+                    <div class="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-600 sm:text-sm">
+                        候補: <span class="font-bold text-slate-900">{{ $candidateCount }}</span> 件
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 mb-5">
+            <div class="grid grid-cols-3 gap-2 mb-5">
                 <a href="{{ route('blacksmith.index') }}" class="text-center rounded-lg bg-slate-900 px-2 py-3 text-xs sm:text-sm font-bold text-white shadow-sm">
                     装備強化
+                </a>
+                <a href="{{ route('blacksmith.traits.index') }}" class="text-center rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100">
+                    銘・特攻を鍛える
                 </a>
                 <a href="{{ route('smith.index') }}" class="text-center rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100">
                     進化合成
@@ -137,7 +145,7 @@
                                         @endif
                                     </div>
                                     <h3 class="text-lg font-extrabold text-slate-900">
-                                        [{{ $candidate['rank'] }}] {{ $candidate['name'] }}
+                                        [{{ $candidate['rank'] }}] {{ $candidate['display_name_without_rank'] ?? $candidate['name'] }}
                                     </h3>
                                     <p class="text-xs text-slate-500 mt-1">
                                         カテゴリ: {{ $candidate['category'] }}
@@ -223,6 +231,7 @@
                     @endforeach
                 </div>
             @endif
+            @include('smith.partials.operation-help-modal', ['helpType' => 'enhance'])
         </div>
     </div>
 </x-layouts.facility>

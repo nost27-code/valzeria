@@ -35,13 +35,16 @@
     feedConfirmName: '',
     feedConfirmExp: 0,
     feedConfirmFormId: '',
+    feedConfirmHighRank: false,
     feedConfirmSubmitting: false,
     feedSubmitting: false,
-    openFeedConfirm(name, exp, formId) {
+    highRanks: ['S', 'SS', 'SSS', 'EPIC'],
+    openFeedConfirm(name, exp, formId, highRank = false) {
         if (this.feedSubmitting) return;
         this.feedConfirmName = name;
         this.feedConfirmExp = exp;
         this.feedConfirmFormId = formId;
+        this.feedConfirmHighRank = highRank;
         this.feedConfirmSubmitting = false;
         this.feedConfirmOpen = true;
     },
@@ -71,7 +74,8 @@
     },
     openBulkFeedConfirm() {
         if (this.selectedEquipmentIds.length <= 0) return;
-        this.openFeedConfirm('選択した装備 ' + this.selectedEquipmentIds.length + '個', this.selectedEquipmentExp(), 'valmonEquipmentBulkFeedForm');
+        const highRank = this.selectedEquipmentIds.some((id) => this.highRanks.includes(this.equipmentFeedRankById[id]));
+        this.openFeedConfirm('選択した装備 ' + this.selectedEquipmentIds.length + '個', this.selectedEquipmentExp(), 'valmonEquipmentBulkFeedForm', highRank);
     },
     closeFeedConfirm() {
         if (this.feedConfirmSubmitting) return;
@@ -379,6 +383,9 @@
                                         </button>
                                     </form>
                                 </div>
+                                @error('quantity', 'feedMaterial' . $row->id)
+                                    <div class="mt-2 text-xs font-bold text-red-600">{{ $message }}</div>
+                                @enderror
                             </div>
                         @empty
                             <div class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-bold text-slate-500">餌にできる素材がありません。</div>
@@ -449,7 +456,7 @@
                                                         <img src="{{ asset($equipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
                                                     @endif
                                                     @include('equipment.partials.rank-label', ['item' => $row->item])
-                                                    <span class="min-w-0 break-words">{{ $row->displayName() }}</span>
+                                                    <span class="min-w-0 break-words">{{ $row->displayName(false) }}</span>
                                                 </h3>
                                                 <div class="mt-1 text-xs font-bold text-slate-500">EXP {{ $row->feed_exp }} / 餌にすると消滅します</div>
                                             </div>
@@ -457,7 +464,7 @@
                                         <form id="valmonEquipmentFeedForm_{{ $row->id }}" method="POST" action="{{ route('valmons.feed.equipment', [$partner, $row]) }}">
                                             @csrf
                                             <button type="button"
-                                                    @click="openFeedConfirm(@js($row->displayName()), {{ (int) $row->feed_exp }}, 'valmonEquipmentFeedForm_{{ $row->id }}')"
+                                                    @click="openFeedConfirm(@js($row->displayName()), {{ (int) $row->feed_exp }}, 'valmonEquipmentFeedForm_{{ $row->id }}', {{ in_array($rowRank, ['S', 'SS', 'SSS', 'EPIC'], true) ? 'true' : 'false' }})"
                                                     :disabled="feedSubmitting"
                                                     class="rounded bg-red-700 px-3 py-2 text-xs font-black text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300">与える</button>
                                         </form>
@@ -542,6 +549,10 @@
                 </div>
                 <p class="text-sm font-bold leading-relaxed text-red-700">
                     餌にした装備は消滅し、元に戻せません。
+                </p>
+                <p x-show="feedConfirmHighRank" x-cloak
+                   class="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-black leading-relaxed text-red-800">
+                    ⚠ 高ランク・レア装備が含まれています。よろしいですか？
                 </p>
             </div>
             <div class="flex gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4">

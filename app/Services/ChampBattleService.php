@@ -1096,6 +1096,43 @@ class ChampBattleService
         return $this->statusService->getFinalStats($character);
     }
 
+    /**
+     * 現チャンプ(character_idがある場合のみ)の保存済み戦闘ステータスを、
+     * 現在のCharacterStatusServiceの計算結果で上書きする。防衛回数・現在HP・任命日時は変更しない
+     * （HP/SPは新最大値を超えないようクランプするのみ）。
+     * 武器の再スケール後、appointed_at時点のスナップショットを最新化するために使う。
+     */
+    public function refreshCurrentChampStats(): ?ChampState
+    {
+        $champ = ChampState::query()->first();
+        if (! $champ || ! $champ->character_id) {
+            return null;
+        }
+
+        $challenger = Character::find($champ->character_id);
+        if (! $challenger) {
+            return null;
+        }
+
+        CharacterStatusService::clearRequestCache($challenger->id);
+        $stats = $this->snapshotStats($challenger);
+
+        $champ->fill([
+            'atk' => $stats['str'],
+            'def' => $stats['def'],
+            'mag' => $stats['mag'],
+            'spr' => $stats['spr'],
+            'spd' => $stats['agi'],
+            'luk' => $stats['luk'],
+            'max_hp' => $stats['max_hp'],
+            'max_mp' => $stats['max_mp'] ?? 0,
+            'current_hp' => min((int) $champ->current_hp, (int) $stats['max_hp']),
+            'current_mp' => min((int) ($champ->current_mp ?? 0), (int) ($stats['max_mp'] ?? 0)),
+        ])->save();
+
+        return $champ;
+    }
+
     private function currentJobRank(Character $character): int
     {
         if (!$character->current_job_id) {

@@ -308,7 +308,7 @@
                                 <div class="ml-1 inline-flex h-5 min-w-5 shrink-0 items-center justify-center border border-black/20 px-1 text-[10px] font-black leading-none text-white shadow-sm"
                                      style="background-color:{{ $rankColor }};">{{ $slot['rank_label'] }}</div>
                             @endif
-                            <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-800 font-semibold">{{ $slot['item']->displayName() }}</div>
+                            <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-800 font-semibold">{{ $slot['item']->displayName(false) }}</div>
                         @else
                             <div class="px-2 py-1 flex-1 truncate leading-tight text-slate-400">なし</div>
                         @endif

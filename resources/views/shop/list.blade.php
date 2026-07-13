@@ -106,7 +106,7 @@
                                         <div class="flex flex-wrap items-center gap-1.5 font-bold text-slate-800 text-xs">
                                             <span>{{ $slotName }}：</span>
                                             @include('equipment.partials.rank-label', ['item' => $equip->item])
-                                            <span>{{ $equip->displayName() }}</span>
+                                            <span>{{ $equip->displayName(false) }}</span>
                                             @if($equip->item->element) <span class="text-[10px] bg-purple-100 text-purple-600 px-1 py-0.5 rounded ml-1 font-normal">{{ $equip->item->element }}属性</span> @endif
                                         </div>
                                         <div class="text-[10px] sm:text-xs text-amber-600 font-semibold leading-tight mt-0.5 flex flex-wrap gap-x-2">

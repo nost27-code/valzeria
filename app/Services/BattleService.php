@@ -50,7 +50,7 @@ class BattleService
         $equippedWeapon = $character->characterItems()
             ->where('is_equipped', true)
             ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
-            ->with('item')
+            ->with(['item', 'affixPrefix', 'affixSuffix'])
             ->first();
         $equippedArmor = $character->characterItems()
             ->where('is_equipped', true)
@@ -70,7 +70,7 @@ class BattleService
             'luk' => $stats['luk'],
             'normal_attack_type' => $currentJob?->normal_attack_type,
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => (float) ($equippedWeapon?->killer_damage_rate ?? 0),
+            'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
             'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
         ], clone $character);
@@ -125,7 +125,15 @@ class BattleService
                 'bonus' => $enemyStats['bonus_hp'],
                 'total' => $enemyStats['max_hp'],
             ],
+            'durability' => [
+                'hp_multiplier' => $enemyStats['durability_hp_multiplier'],
+                'def_spr_multiplier' => $enemyStats['durability_def_spr_multiplier'],
+                'atk_mag_multiplier' => $enemyStats['durability_atk_mag_multiplier'],
+                'tier' => $enemyStats['durability_tier'],
+            ],
         ];
+        $result->enemyDurability = $result->enemyStatDisplay['durability'];
+        $result->playerHpBefore = $playerActor->hp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
         $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character);
@@ -214,6 +222,9 @@ class BattleService
         $result->dropBonusPercent = $state->dropBonusPercent;
         $result->rareBonusPercent = $state->rareBonusPercent;
         $result->explorationSupportSnapshot = $state->explorationSupportSnapshot;
+        $result->turnCount = $state->turnCount;
+        $result->damageDealt = $enemyActor->totalDamageTaken;
+        $result->damageTaken = $playerActor->totalDamageTaken;
 
         app(ExplorationSupportService::class)->persistBattleProcs($character, $state->explorationSupportSnapshot);
 
@@ -242,6 +253,15 @@ class BattleService
             $mag = max(1, (int) floor($mag * 0.92));
         }
 
+        // 装備チェック用の耐久補正（都市帯・敵役割ごと）。危険度ボーナスより先に適用し、
+        // 戦闘実行(このメソッド)と画面表示(enemyStatDisplay)が同じ値を参照するようにする。
+        $durability = app(EnemyDurabilityService::class)->multiplierFor($enemy, $cityId);
+        $hp = max(1, (int) round($hp * $durability['hp']));
+        $def = max(1, (int) round($def * $durability['def_spr']));
+        $spr = max(1, (int) round($spr * $durability['def_spr']));
+        $str = max(1, (int) round($str * $durability['atk_mag']));
+        $mag = max(1, (int) round($mag * $durability['atk_mag']));
+
         $danger = $this->enemyDangerBonus($character, $enemy, [
             'hp' => $hp,
             'str' => $str,
@@ -268,6 +288,10 @@ class BattleService
             'bonus_def' => $danger['def'],
             'danger_rate' => $danger['rate'],
             'danger_label' => $danger['label'],
+            'durability_hp_multiplier' => $durability['hp'],
+            'durability_def_spr_multiplier' => $durability['def_spr'],
+            'durability_atk_mag_multiplier' => $durability['atk_mag'],
+            'durability_tier' => $durability['tier'],
         ];
     }
 

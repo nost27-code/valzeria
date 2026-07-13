@@ -184,21 +184,21 @@
                                             </td>
                                         </tr>
                                         <tr class="border-t border-amber-100">
-                                            <th class="bg-amber-50 py-1 text-slate-600">ATK</th>
+                                            <th class="bg-amber-50 py-1 text-slate-600">攻撃</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'str') !!}</td>
-                                            <th class="bg-amber-50 py-1 text-slate-600">DEF</th>
+                                            <th class="bg-amber-50 py-1 text-slate-600">防御</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'def') !!}</td>
                                         </tr>
                                         <tr class="border-t border-amber-100">
-                                            <th class="bg-amber-50 py-1 text-slate-600">MAG</th>
+                                            <th class="bg-amber-50 py-1 text-slate-600">魔力</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'mag') !!}</td>
-                                            <th class="bg-amber-50 py-1 text-slate-600">SPR</th>
+                                            <th class="bg-amber-50 py-1 text-slate-600">精神</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'spr') !!}</td>
                                         </tr>
                                         <tr class="border-t border-amber-100">
-                                            <th class="bg-amber-50 py-1 text-slate-600">SPD</th>
+                                            <th class="bg-amber-50 py-1 text-slate-600">敏捷</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'agi') !!}</td>
-                                            <th class="bg-amber-50 py-1 text-slate-600">LUK</th>
+                                            <th class="bg-amber-50 py-1 text-slate-600">運</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($playerStartStats, $playerBaseStats, 'luk') !!}</td>
                                         </tr>
                                     </tbody>
@@ -222,21 +222,21 @@
                                             <td class="w-1/4 font-bold text-xs text-blue-700 sm:text-sm">{{ number_format((int) ($enemyBattleStats['mp'] ?? 0)) }} / {{ number_format((int) ($enemyBattleStats['max_mp'] ?? 0)) }}</td>
                                         </tr>
                                         <tr>
-                                            <th class="bg-red-50 py-1 text-slate-600">ATK</th>
+                                            <th class="bg-red-50 py-1 text-slate-600">攻撃</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'str') !!}</td>
-                                            <th class="bg-red-50 py-1 text-slate-600">DEF</th>
+                                            <th class="bg-red-50 py-1 text-slate-600">防御</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'def') !!}</td>
                                         </tr>
                                         <tr class="border-t border-red-100">
-                                            <th class="bg-red-50 py-1 text-slate-600">MAG</th>
+                                            <th class="bg-red-50 py-1 text-slate-600">魔力</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'mag') !!}</td>
-                                            <th class="bg-red-50 py-1 text-slate-600">SPR</th>
+                                            <th class="bg-red-50 py-1 text-slate-600">精神</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'spr') !!}</td>
                                         </tr>
                                         <tr class="border-t border-red-100">
-                                            <th class="bg-red-50 py-1 text-slate-600">SPD</th>
+                                            <th class="bg-red-50 py-1 text-slate-600">敏捷</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'agi') !!}</td>
-                                            <th class="bg-red-50 py-1 text-slate-600">LUK</th>
+                                            <th class="bg-red-50 py-1 text-slate-600">運</th>
                                             <td class="font-bold">{!! $formatStatWithDelta($enemyBattleStats, $enemyBaseStats, 'luk') !!}</td>
                                         </tr>
                                         <tr class="border-t border-red-100">

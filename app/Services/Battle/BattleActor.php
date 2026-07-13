@@ -50,6 +50,9 @@ class BattleActor
     public bool $gutsReady = false;
     public bool $gutsJustTriggered = false;
 
+    /** このアクターが受けたダメージの累計（DOT・追撃含む全経路）。戦闘ログ集計に使う。 */
+    public int $totalDamageTaken = 0;
+
     private const MAG_NORMAL_ATTACK_JOB_KEYS = [
         'mage',
         'priest',
@@ -106,6 +109,7 @@ class BattleActor
 
     public function takeDamage(int $damage): void
     {
+        $this->totalDamageTaken += max(0, $damage);
         $this->hp -= $damage;
         if ($this->hp <= 0 && $this->gutsReady) {
             $this->hp = 1;

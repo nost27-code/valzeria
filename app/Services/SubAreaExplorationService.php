@@ -176,7 +176,9 @@ class SubAreaExplorationService
             $levelUpCount,
             $logText,
             $dropResult['item_id'] ?? null,
-            $dropResult['character_item_id'] ?? null
+            $dropResult['character_item_id'] ?? null,
+            0,
+            $this->battleLogService->telemetryFor($character, $battleResult)
         );
 
         return [

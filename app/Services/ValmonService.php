@@ -455,15 +455,16 @@ class ValmonService
         }
 
         $rank = strtoupper((string) ($item->weapon_rank ?? $item->armor_rank ?? $item->accessory_rank ?? $item->rarity ?? ''));
-        if (in_array($rank, ['S', 'SS', 'SSS', 'EPIC'], true)) {
-            return 0;
-        }
 
         return match ($rank) {
             'G', 'F' => 2,
             'E', 'D' => 5,
             'C', 'B' => 15,
             'A' => 40,
+            'S' => 70,
+            'SS' => 120,
+            'SSS' => 200,
+            'EPIC' => 320,
             default => 0,
         };
     }

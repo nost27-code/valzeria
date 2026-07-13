@@ -28,6 +28,9 @@ class EquipmentService
         if ($characterItem->character_id !== $character->id) {
             return ['success' => false, 'message' => 'この装備は所持していません。'];
         }
+        if ($characterItem->isMarketListed()) {
+            return ['success' => false, 'message' => 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。'];
+        }
 
         $item = $characterItem->item;
         if (!$item) {

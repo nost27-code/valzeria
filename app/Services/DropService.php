@@ -733,6 +733,7 @@ class DropService
         }
 
         $affixLines = $characterItem->affixEffectLines();
+        $affixBonuses = $characterItem->affixStatBonuses();
 
         return [
             'slot' => $slot,
@@ -742,19 +743,19 @@ class DropService
             'base_item_name' => $item->name,
             'rarity' => $item->rarity,
             'rank' => $this->itemRank($item),
-            'hp_bonus' => (int) $item->hp_bonus + (int) ($characterItem->affix_hp_bonus ?? 0),
+            'hp_bonus' => (int) $item->hp_bonus + (int) ($affixBonuses['hp'] ?? 0),
             'mp_bonus' => (int) $item->mp_bonus,
-            'str_bonus' => (int) $item->str_bonus + (int) ($characterItem->affix_str_bonus ?? 0),
-            'def_bonus' => (int) $item->def_bonus + (int) ($characterItem->affix_def_bonus ?? 0),
-            'agi_bonus' => (int) $item->agi_bonus + (int) ($characterItem->affix_agi_bonus ?? 0),
-            'mag_bonus' => (int) $item->mag_bonus + (int) ($characterItem->affix_mag_bonus ?? 0),
-            'spr_bonus' => (int) $item->spr_bonus + (int) ($characterItem->affix_spr_bonus ?? 0),
-            'luk_bonus' => (int) $item->luk_bonus + (int) ($characterItem->affix_luk_bonus ?? 0),
+            'str_bonus' => (int) $item->str_bonus + (int) ($affixBonuses['str'] ?? 0),
+            'def_bonus' => (int) $item->def_bonus + (int) ($affixBonuses['def'] ?? 0),
+            'agi_bonus' => (int) $item->agi_bonus + (int) ($affixBonuses['agi'] ?? 0),
+            'mag_bonus' => (int) $item->mag_bonus + (int) ($affixBonuses['mag'] ?? 0),
+            'spr_bonus' => (int) $item->spr_bonus + (int) ($affixBonuses['spr'] ?? 0),
+            'luk_bonus' => (int) $item->luk_bonus + (int) ($affixBonuses['luk'] ?? 0),
             'has_affix' => $characterItem->hasAffix(),
             'affix_quality' => $characterItem->affix_quality,
             'affix_effect_lines' => $affixLines,
             'killer_species_key' => $characterItem->killer_species_key,
-            'killer_damage_rate' => (float) ($characterItem->killer_damage_rate ?? 0),
+            'killer_damage_rate' => $characterItem->effectiveKillerDamageRate(),
             'resist_species_key' => $characterItem->resist_species_key,
             'species_damage_reduction_rate' => (float) ($characterItem->species_damage_reduction_rate ?? 0),
             'character_item_id' => $characterItem->id,

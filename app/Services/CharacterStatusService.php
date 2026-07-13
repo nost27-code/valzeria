@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Models\Item;
 use App\Services\JobService;
 use App\Services\EquipmentEnhancementService;
 
@@ -44,11 +45,19 @@ class CharacterStatusService
 
         // 現在職のレート（倍率補正）は仕様変更により廃止
 
-        // 装備ボーナスの集計
+        $markBonuses = app(MonsterMarkService::class)->permanentBonuses($character);
+
+        // ---- パス1: 装備を一切含まない主能力（武器の比例補正はこの値を基準にする） ----
+        // 職業基礎値 + マスター済み職の永続蓄積 + 現在職レベルボーナス + モンスターマーク永続ボーナス。
+        // 装備ループより前に確定させることで、装備順や装備ループ内の集計に依存しない値になる。
+        $preEquipStr = (int) $jobStats['atk'] + $job_str_bonus + (int) ($markBonuses['str'] ?? 0);
+        $preEquipMag = (int) $jobStats['mag'] + $job_mag_bonus + (int) ($markBonuses['mag'] ?? 0);
+
+        // ---- パス2: 装備ボーナスの集計（固定値 + 銘 + 武器の比例補正） ----
         $hp_equip = 0; $mp_equip = 0; $atk_equip = 0; $def_equip = 0;
         $spd_equip = 0; $mag_equip = 0; $spr_equip = 0; $luk_equip = 0;
 
-        $equippedItems = $character->characterItems()->where('is_equipped', true)->with('item')->get();
+        $equippedItems = $character->characterItems()->where('is_equipped', true)->with(['item', 'affixPrefix'])->get();
         foreach ($equippedItems as $charItem) {
             if ($charItem->item) {
                 if ($this->isLegacyMarkItem($charItem->item)) {
@@ -67,17 +76,23 @@ class CharacterStatusService
                 $spr_equip += $enhancedStats['spr'] ?? 0;
                 $luk_equip += $enhancedStats['luk'] ?? 0;
 
-                $hp_equip += (int) ($charItem->affix_hp_bonus ?? 0);
-                $atk_equip += (int) ($charItem->affix_str_bonus ?? 0);
-                $def_equip += (int) ($charItem->affix_def_bonus ?? 0);
-                $spd_equip += (int) ($charItem->affix_agi_bonus ?? 0);
-                $mag_equip += (int) ($charItem->affix_mag_bonus ?? 0);
-                $spr_equip += (int) ($charItem->affix_spr_bonus ?? 0);
-                $luk_equip += (int) ($charItem->affix_luk_bonus ?? 0);
+                if ((string) ($charItem->item->type ?? '') === 'weapon') {
+                    $proportional = $this->weaponProportionalBonus($charItem->item, $preEquipStr, $preEquipMag);
+                    $atk_equip += $proportional['str'];
+                    $mag_equip += $proportional['mag'];
+                }
+
+                $affixBonuses = $charItem->affixStatBonuses();
+                $hp_equip += (int) ($affixBonuses['hp'] ?? 0);
+                $atk_equip += (int) ($affixBonuses['str'] ?? 0);
+                $def_equip += (int) ($affixBonuses['def'] ?? 0);
+                $spd_equip += (int) ($affixBonuses['agi'] ?? 0);
+                $mag_equip += (int) ($affixBonuses['mag'] ?? 0);
+                $spr_equip += (int) ($affixBonuses['spr'] ?? 0);
+                $luk_equip += (int) ($affixBonuses['luk'] ?? 0);
             }
         }
 
-        $markBonuses = app(MonsterMarkService::class)->permanentBonuses($character);
         $hp_equip += $markBonuses['hp'] ?? 0;
         $mp_equip += $markBonuses['mp'] ?? 0;
         $atk_equip += $markBonuses['str'] ?? 0;
@@ -137,6 +152,68 @@ class CharacterStatusService
                 'luk' => $total_luk_bonus,
             ],
             'monster_mark_bonuses' => $markBonuses,
+            // 装備を一切含まない主能力（武器の比例補正の基準値）。装備比較表示などで再利用する。
+            'pre_equipment' => [
+                'str' => $preEquipStr,
+                'mag' => $preEquipMag,
+            ],
+        ];
+    }
+
+    /**
+     * 武器の比例補正（固定値には影響しない）。装備前主能力 × ランク補正率 を、
+     * 武器自身のSTR/MAG固定値比率で按分してSTR/MAGへ振り分ける。
+     * 鍛冶強化・銘は一切参照しないため、比例部分へ二重に乗ることはない。
+     *
+     * @return array{str: int, mag: int}
+     */
+    private function weaponProportionalBonus(Item $item, int $preEquipStr, int $preEquipMag): array
+    {
+        if (! (bool) config('equipment_scaling.weapon.proportional_enabled', true)) {
+            return ['str' => 0, 'mag' => 0];
+        }
+
+        $rank = strtoupper((string) ($item->weapon_rank ?? ''));
+        $rate = (float) config("equipment_scaling.weapon.proportional_rate.{$rank}", 0.0);
+        if ($rate <= 0.0) {
+            return ['str' => 0, 'mag' => 0];
+        }
+
+        $strBase = max(0, (int) ($item->str_bonus ?? 0));
+        $magBase = max(0, (int) ($item->mag_bonus ?? 0));
+        $total = $strBase + $magBase;
+        if ($total <= 0) {
+            return ['str' => 0, 'mag' => 0];
+        }
+
+        return [
+            'str' => (int) floor(max(0, $preEquipStr) * $rate * ($strBase / $total)),
+            'mag' => (int) floor(max(0, $preEquipMag) * $rate * ($magBase / $total)),
+        ];
+    }
+
+    /**
+     * 表示層向け: 指定の武器アイテムをキャラクターが装備した場合の比例補正内訳を返す。
+     * 装備中かどうかに関わらず、現在の装備前主能力を基準に見込み値を計算する。
+     *
+     * @return array{rate: float, str: int, mag: int}
+     */
+    public function weaponProportionalPreview(Character $character, Item $item): array
+    {
+        $stats = $this->getFinalStats($character);
+        $pre = $stats['pre_equipment'] ?? ['str' => 0, 'mag' => 0];
+        $rank = strtoupper((string) ($item->weapon_rank ?? ''));
+        $rate = (float) config("equipment_scaling.weapon.proportional_rate.{$rank}", 0.0);
+        if (! (bool) config('equipment_scaling.weapon.proportional_enabled', true)) {
+            $rate = 0.0;
+        }
+
+        $bonus = $this->weaponProportionalBonus($item, (int) $pre['str'], (int) $pre['mag']);
+
+        return [
+            'rate' => $rate,
+            'str' => $bonus['str'],
+            'mag' => $bonus['mag'],
         ];
     }
 

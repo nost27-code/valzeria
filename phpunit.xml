@@ -32,5 +32,14 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- 本番はデフォルトOFF（config参照）。テストは新仕様を常に検証するためtrueに固定する。 -->
+        <env name="EQUIPMENT_WEAPON_PROPORTIONAL_ENABLED" value="true"/>
+        <env name="EQUIPMENT_ENGRAVING_NEW_RATES_ENABLED" value="true"/>
+        <env name="ENEMY_DURABILITY_ENABLED" value="true"/>
+        <env name="ENEMY_DURABILITY_CITY8_ENABLED" value="true"/>
+        <env name="ENEMY_DURABILITY_CITY9_ENABLED" value="true"/>
+        <env name="ENEMY_DURABILITY_CITY10_ENABLED" value="true"/>
+        <env name="ENEMY_DURABILITY_HIKYO_ENABLED" value="true"/>
+        <env name="ENEMY_DURABILITY_SUPER_BOSS_ENABLED" value="true"/>
     </php>
 </phpunit>

@@ -17,6 +17,7 @@ use App\Http\Controllers\ChampBattleController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\JobArtController;
 use App\Http\Controllers\MarketController;
+use App\Http\Controllers\EquipmentMarketController;
 use App\Http\Controllers\NpcProcurementRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StarTreeTowerController;
@@ -324,8 +325,14 @@ Route::middleware('auth')->group(function () {
 
         // 鍛冶屋・合成屋
         Route::get('/blacksmith', [\App\Http\Controllers\SmithController::class, 'enhanceIndex'])->name('blacksmith.index');
+        Route::get('/blacksmith/help', [\App\Http\Controllers\SmithController::class, 'enhanceHelp'])->name('blacksmith.help');
         Route::post('/blacksmith/{characterItem}/enhance', [\App\Http\Controllers\SmithController::class, 'enhance'])->name('blacksmith.enhance');
+        Route::get('/blacksmith/traits', [\App\Http\Controllers\SmithController::class, 'traitIndex'])->name('blacksmith.traits.index');
+        Route::get('/blacksmith/traits/help', [\App\Http\Controllers\SmithController::class, 'traitHelp'])->name('blacksmith.traits.help');
+        Route::post('/blacksmith/traits', [\App\Http\Controllers\SmithController::class, 'traitWorkshopProcess'])->name('blacksmith.traits.process');
+        Route::get('/blacksmith/traits/transfer', [\App\Http\Controllers\SmithController::class, 'traitTransferIndex'])->name('blacksmith.trait-transfer.index');
         Route::get('/smith', [\App\Http\Controllers\SmithController::class, 'index'])->name('smith.index');
+        Route::get('/smith/help', [\App\Http\Controllers\SmithController::class, 'evolutionHelp'])->name('smith.help');
         Route::get('/smith/source-area/{area}', [\App\Http\Controllers\SmithController::class, 'sourceArea'])->name('smith.source-area');
         Route::post('/smith/craft', [\App\Http\Controllers\SmithController::class, 'craft'])->name('smith.craft');
         Route::get('/smith/disassemble', [\App\Http\Controllers\SmithController::class, 'disassembleIndex'])->name('smith.disassemble.index');
@@ -365,6 +372,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/market/materials/list', [MarketController::class, 'listMaterial'])->name('market.materials.list');
         Route::post('/market/materials/buy', [MarketController::class, 'buyMaterial'])->name('market.materials.buy');
         Route::post('/market/listings/{listing}/cancel', [MarketController::class, 'cancelListing'])->name('market.listings.cancel');
+        Route::get('/market/equipment', [EquipmentMarketController::class, 'index'])->name('equipment-market.index');
+        Route::get('/market/equipment/{listing}', [EquipmentMarketController::class, 'show'])->name('equipment-market.show');
+        Route::post('/market/equipment/list', [EquipmentMarketController::class, 'store'])->name('equipment-market.store');
+        Route::post('/market/equipment/{listing}/buy', [EquipmentMarketController::class, 'buy'])->name('equipment-market.buy');
+        Route::post('/market/equipment/{listing}/cancel', [EquipmentMarketController::class, 'cancel'])->name('equipment-market.cancel');
         Route::get('/market/npc-requests', [NpcProcurementRequestController::class, 'index'])->name('market.npc-requests.index');
         Route::get('/market/npc-requests/{npcProcurementRequest}', [NpcProcurementRequestController::class, 'show'])->name('market.npc-requests.show');
         Route::post('/market/npc-requests/materials/{requestMaterial}/deliver', [NpcProcurementRequestController::class, 'deliver'])->name('market.npc-requests.deliver');
@@ -480,6 +492,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/bug-reports', \App\Livewire\Admin\BugReportManager::class)->name('admin.bug-reports');
     Route::get('/admin/bug-reports/attachments/{attachment}', [\App\Http\Controllers\BugReportController::class, 'attachment'])->name('admin.bug-reports.attachments.show');
     Route::get('/admin/npc-market-analytics', \App\Livewire\Admin\NpcMarketAnalyticsManager::class)->name('admin.npc-market-analytics');
+    Route::get('/admin/equipment-market', [\App\Http\Controllers\Admin\EquipmentMarketAdminController::class, 'index'])->name('admin.equipment-market.index');
+    Route::post('/admin/equipment-market/{listing}/cancel', [\App\Http\Controllers\Admin\EquipmentMarketAdminController::class, 'cancel'])->name('admin.equipment-market.cancel');
     Route::get('/admin/reward-settings', \App\Livewire\Admin\RewardSettingManager::class)->name('admin.reward-settings');
     Route::get('/admin/adventure-support-items', \App\Livewire\Admin\AdventureSupportItemManager::class)->name('admin.adventure-support-items');
     Route::get('/admin/extra-contents', \App\Livewire\Admin\ExtraContentManager::class)->name('admin.extra-contents');

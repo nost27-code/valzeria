@@ -1,4 +1,4 @@
-<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitLabel="(isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null">
+<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
     <div class="py-1 flex flex-col items-center" data-battle-result-page>
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
@@ -12,6 +12,18 @@
                         <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 shadow-sm font-bold">
                             {{ session('error') }}
                         </div>
+                    @endif
+
+                    @if(!empty($hasActiveValmonEgg))
+                        <section class="mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 px-4 py-3 shadow-sm" role="status">
+                            <div class="flex items-start gap-3">
+                                <img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="h-9 w-9 shrink-0 object-contain">
+                                <div class="min-w-0">
+                                    <h2 class="text-sm font-black text-rose-950">ヴァルモンの卵を預かっている</h2>
+                                    <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。画面下の「卵を連れて街へ戻る」を選ぶと孵化します。</p>
+                                </div>
+                            </div>
+                        </section>
                     @endif
 
                     {{-- 戦闘結果エラー時 --}}
@@ -111,6 +123,27 @@
                                     || str_contains($name, '極印');
                             };
                         @endphp
+
+                        {{-- 装備育成への導線（敗北時、または長期戦だった場合） --}}
+                        @php
+                            $growthCtaTurnCount = (int) ($result['turn_count'] ?? 0);
+                            $showGrowthCta = !($result['special_event'] ?? null)
+                                && ($isDefeatResult || $growthCtaTurnCount > 10);
+                        @endphp
+                        @if($showGrowthCta)
+                            <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
+                                <p class="text-sm font-bold text-amber-800">
+                                    レベルや職業を育てる、武器を進化させる、鍛冶・銘・種族特攻・持ち物を見直すことで攻略しやすくなります。
+                                </p>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <a href="{{ route('smith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">装備を進化させる</a>
+                                    <a href="{{ route('blacksmith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">鍛冶で強化する</a>
+                                    <a href="{{ route('blacksmith.traits.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">銘・種族特攻を鍛える</a>
+                                    <a href="{{ route('equipment.index') }}" class="rounded border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm hover:bg-amber-50">装備を見直す</a>
+                                </div>
+                                <p class="mt-2 text-[11px] font-semibold text-amber-600">必要な進化素材と入手できる場所は「装備を進化させる」の画面で確認できます。</p>
+                            </div>
+                        @endif
 
                         {{-- ステータス・イベント表示 --}}
                         @if($isDepthGate)
@@ -1594,6 +1627,14 @@
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
                                     <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">あと {{ $retryWaitSeconds }} 秒...</span>
+                                </button>
+                            </form>
+                        @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索処理中'))
+                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="2" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
+                                @csrf
+                                <input type="hidden" name="continue_chain" value="1">
+                                <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                    <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">あと 2 秒...</span>
                                 </button>
                             </form>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索力'))

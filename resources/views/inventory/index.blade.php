@@ -575,14 +575,15 @@
                                             $sellDisabledTitle = $characterItem->is_equipped
                                                 ? '装備中は売却できません'
                                                 : ($characterItem->is_locked ? '保護中は売却できません' : '売却できません');
+                                            $affixBonuses = $characterItem->affixStatBonuses();
                                             $totalStats = [
-                                                'HP' => (int) ($item->hp_bonus ?? 0) + (int) ($characterItem->affix_hp_bonus ?? 0),
-                                                '攻撃' => (int) ($item->str_bonus ?? 0) + (int) ($characterItem->affix_str_bonus ?? 0),
-                                                '防御' => (int) ($item->def_bonus ?? 0) + (int) ($characterItem->affix_def_bonus ?? 0),
-                                                '敏捷' => (int) ($item->agi_bonus ?? 0) + (int) ($characterItem->affix_agi_bonus ?? 0),
-                                                '魔力' => (int) ($item->mag_bonus ?? 0) + (int) ($characterItem->affix_mag_bonus ?? 0),
-                                                '精神' => (int) ($item->spr_bonus ?? 0) + (int) ($characterItem->affix_spr_bonus ?? 0),
-                                                '運' => (int) ($item->luk_bonus ?? 0) + (int) ($characterItem->affix_luk_bonus ?? 0),
+                                                'HP' => (int) ($item->hp_bonus ?? 0) + (int) ($affixBonuses['hp'] ?? 0),
+                                                '攻撃' => (int) ($item->str_bonus ?? 0) + (int) ($affixBonuses['str'] ?? 0),
+                                                '防御' => (int) ($item->def_bonus ?? 0) + (int) ($affixBonuses['def'] ?? 0),
+                                                '敏捷' => (int) ($item->agi_bonus ?? 0) + (int) ($affixBonuses['agi'] ?? 0),
+                                                '魔力' => (int) ($item->mag_bonus ?? 0) + (int) ($affixBonuses['mag'] ?? 0),
+                                                '精神' => (int) ($item->spr_bonus ?? 0) + (int) ($affixBonuses['spr'] ?? 0),
+                                                '運' => (int) ($item->luk_bonus ?? 0) + (int) ($affixBonuses['luk'] ?? 0),
                                             ];
                                             $statLines = collect($totalStats)
                                                 ->filter(fn ($value) => $value !== 0)

@@ -464,6 +464,12 @@ class MainScreen extends Component
         $subAreaDiscoveries = ($this->character && $this->currentLocation === 'dungeon')
             ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character, (int) ($currentCity?->id ?? 0))
             : collect();
+        $hasActiveValmonEgg = $this->character && $this->currentLocation === 'dungeon'
+            ? $this->character->valmonEggs()
+                ->where('is_hatched', false)
+                ->where('is_lost', false)
+                ->exists()
+            : false;
         $targetAreaId = (int) session()->pull('target_area_id', 0);
         $targetAreaPurpose = (string) session()->pull(
             'target_area_purpose',
@@ -525,6 +531,7 @@ class MainScreen extends Component
             'storageIsFull' => $storageIsFull,
             'storageFullMessage' => $storageFullMessage,
             'subAreaDiscoveries' => $subAreaDiscoveries,
+            'hasActiveValmonEgg' => $hasActiveValmonEgg,
             'targetAreaId' => $targetAreaId,
             'targetAreaPurpose' => $targetAreaPurpose,
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
@@ -845,14 +852,16 @@ class MainScreen extends Component
             ],
             'guild' => [
                 'title' => '市場・依頼',
-                'description' => '素材の売買や、冒険者同士の依頼を扱う場所。',
+                'description' => '素材・装備の売買や、冒険者同士の依頼を扱う場所。',
                 'news_title' => '市場掲示板',
                 'news' => [
-                    '冒険者市場で素材の売買が始まりました',
+                    '素材市場で素材の売買が始まりました',
+                    '装備市場で銘・特攻付き武器を売買できます',
                     '調達依頼で素材を納品できるようになりました'
                 ],
                 'facilities' => [
-                    ['name' => '冒険者市場', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '⚖️', 'desc' => '通常素材・地域素材を匿名で売買する', 'details' => ['3%手数料', '48時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'market.index', 'is_post' => false],
+                    ['name' => '素材市場', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '⚖️', 'desc' => '通常素材・地域素材を匿名で売買する', 'details' => ['3%手数料', '48時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'market.index', 'is_post' => false],
+                    ['name' => '装備市場', 'symbol_image' => 'facilities/facility_market_300.webp', 'icon' => '⚔️', 'desc' => '銘・特攻付き武器を匿名で売買する', 'details' => ['成立手数料10%', '72時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'equipment-market.index', 'is_post' => false],
                     ['name' => '調達依頼', 'symbol_image' => 'facilities/facility_request_board.webp', 'icon' => '📋', 'desc' => '街や組織が必要としている素材を納品する', 'details' => ['NPC依頼', '即時報酬'], 'status' => 'active', 'action' => '開く', 'route' => 'market.npc-requests.index', 'is_post' => false],
                 ]
             ],

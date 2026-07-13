@@ -103,12 +103,12 @@
             <div class="mb-4 grid grid-cols-2 gap-2 text-sm">
                 <div class="rounded border border-red-100 bg-red-50 px-3 py-2 font-bold text-red-700">HP <span class="float-right text-slate-900">{{ $selectedPlayer['hp'] }} / {{ $selectedPlayer['max_hp'] }}</span></div>
                 <div class="rounded border border-blue-100 bg-blue-50 px-3 py-2 font-bold text-blue-700">SP <span class="float-right text-slate-900">{{ $selectedPlayer['mp'] }} / {{ $selectedPlayer['max_mp'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">ATK <span class="float-right">{{ $selectedPlayer['str'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">DEF <span class="float-right">{{ $selectedPlayer['def'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">MAG <span class="float-right">{{ $selectedPlayer['mag'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">SPR <span class="float-right">{{ $selectedPlayer['spr'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">SPD <span class="float-right">{{ $selectedPlayer['agi'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">LUK <span class="float-right">{{ $selectedPlayer['luk'] }}</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">攻撃 <span class="float-right">{{ $selectedPlayer['str'] }}</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">防御 <span class="float-right">{{ $selectedPlayer['def'] }}</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">魔力 <span class="float-right">{{ $selectedPlayer['mag'] }}</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">精神 <span class="float-right">{{ $selectedPlayer['spr'] }}</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">敏捷 <span class="float-right">{{ $selectedPlayer['agi'] }}</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">運 <span class="float-right">{{ $selectedPlayer['luk'] }}</span></div>
             </div>
 
             <div class="space-y-1.5 rounded border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -146,12 +146,12 @@
             <div class="mb-4 grid grid-cols-2 gap-2 text-sm">
                 <div class="rounded border border-red-100 bg-red-50 px-3 py-2 font-bold text-red-700">HP <span class="float-right text-slate-900">？？？</span></div>
                 <div class="rounded border border-blue-100 bg-blue-50 px-3 py-2 font-bold text-blue-700">SP <span class="float-right text-slate-900">？？？</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">ATK <span class="float-right">？？？</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">DEF <span class="float-right">？？？</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">MAG <span class="float-right">？？？</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">SPR <span class="float-right">？？？</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">SPD <span class="float-right">？？？</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">LUK <span class="float-right">？？？</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">攻撃 <span class="float-right">？？？</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">防御 <span class="float-right">？？？</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">魔力 <span class="float-right">？？？</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">精神 <span class="float-right">？？？</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">敏捷 <span class="float-right">？？？</span></div>
+                <div class="rounded border border-slate-200 px-3 py-2 font-bold">運 <span class="float-right">？？？</span></div>
             </div>
 
             <div class="space-y-1.5 rounded border border-slate-200 bg-slate-50 p-3 text-sm">

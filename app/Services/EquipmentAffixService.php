@@ -16,6 +16,10 @@ class EquipmentAffixService
         'prefix_suffix_excellent',
     ];
 
+    public function __construct(private readonly EquipmentAffixRulesService $rules)
+    {
+    }
+
     public function shouldApplyAffix(?Item $item): bool
     {
         return $item !== null
@@ -47,20 +51,24 @@ class EquipmentAffixService
             'prefix_suffix_excellent' => 'excellent',
             default => 'normal',
         };
-        $bonuses = $this->calculatePrefixBonuses($item, $prefix, $quality);
+        $prefixLevel = $this->rules->clampLevel($item, 1);
+        $bonuses = $this->rules->prefixBonuses($item, $prefix, $prefixLevel, $quality);
 
         $suffix = null;
         $killerSpeciesKey = null;
         $killerDamageRate = 0.0;
         $resistSpeciesKey = null;
         $speciesDamageReductionRate = 0.0;
+        $suffixLevel = 0;
         if (in_array($tier, self::PREFIX_SUFFIX_TIERS, true)) {
             $suffix = $this->rollSuffixForItemType((string) $item->type);
             if ($suffix && (string) $item->type === 'weapon') {
+                $suffixLevel = $this->rules->clampLevel($item, 1);
                 $killerSpeciesKey = (string) $suffix->species_key;
-                $killerDamageRate = $this->resolveKillerRate($suffix, $quality);
+                $killerDamageRate = $this->rules->weaponKillerDamageRate($item, $suffixLevel, $quality);
             }
             if ($suffix && (string) $item->type === 'armor') {
+                $suffixLevel = $this->rules->clampLevel($item, 1);
                 $resistSpeciesKey = (string) $suffix->species_key;
                 $speciesDamageReductionRate = $this->resolveArmorReductionRate($suffix, $quality);
             }
@@ -68,7 +76,9 @@ class EquipmentAffixService
 
         $characterItem->forceFill([
             'affix_prefix_id' => $prefix->id,
+            'affix_prefix_level' => $prefixLevel,
             'affix_suffix_id' => $suffix?->id,
+            'affix_suffix_level' => $suffix ? $suffixLevel : 0,
             'affix_quality' => $quality,
             'affix_hp_bonus' => $bonuses['hp'] ?? 0,
             'affix_str_bonus' => $bonuses['str'] ?? 0,
@@ -142,67 +152,12 @@ class EquipmentAffixService
         );
     }
 
-    private function calculatePrefixBonuses(Item $item, EquipmentAffixPrefix $prefix, string $quality): array
-    {
-        $basePower = max(
-            (int) ($item->str_bonus ?? 0),
-            (int) ($item->def_bonus ?? 0),
-            (int) ($item->mag_bonus ?? 0),
-            (int) ($item->spr_bonus ?? 0),
-            (int) ($item->agi_bonus ?? 0),
-            (int) ($item->luk_bonus ?? 0),
-            (int) floor(((int) ($item->hp_bonus ?? 0)) / 5),
-            1
-        );
-        $multiplier = $this->qualityMultiplier($quality);
-        $rate = (float) $prefix->calculation_rate;
-        $value = max(1, (int) ceil($basePower * $rate * $multiplier));
-
-        return match ((string) $prefix->target_stat) {
-            'hp' => ['hp' => $value],
-            'str' => ['str' => $value],
-            'def' => ['def' => $value],
-            'mag' => ['mag' => $value],
-            'spr' => ['spr' => $value],
-            'agi' => ['agi' => $value],
-            'luk' => ['luk' => $value],
-            'all' => [
-                'hp' => $value * 3,
-                'str' => $value,
-                'def' => $value,
-                'mag' => $value,
-                'spr' => $value,
-                'agi' => $value,
-                'luk' => $value,
-            ],
-            default => [],
-        };
-    }
-
-    private function resolveKillerRate(EquipmentAffixSuffix $suffix, string $quality): float
-    {
-        return match ($quality) {
-            'good' => 0.0600,
-            'excellent' => 0.0700,
-            default => max(0.0, (float) ($suffix->base_effect_rate ?: $suffix->base_killer_rate)),
-        };
-    }
-
     private function resolveArmorReductionRate(EquipmentAffixSuffix $suffix, string $quality): float
     {
         return match ($quality) {
             'good' => 0.0500,
             'excellent' => 0.0600,
             default => max(0.0, (float) ($suffix->base_effect_rate ?: 0.0400)),
-        };
-    }
-
-    private function qualityMultiplier(string $quality): float
-    {
-        return match ($quality) {
-            'good' => 1.2,
-            'excellent' => 1.5,
-            default => 1.0,
         };
     }
 

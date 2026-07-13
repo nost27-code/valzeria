@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
+use RuntimeException;
 
 class StorageCapacityService
 {
@@ -50,6 +51,14 @@ class StorageCapacityService
         $summary = $this->summary($character);
 
         return $summary['material_full'] || $summary['equipment_full'];
+    }
+
+    public function assertCanReceiveEquipment(Character $character, int $count = 1): void
+    {
+        $summary = $this->summary($character);
+        if ($summary['equipment_limit'] > 0 && $summary['equipment_total'] + $count > $summary['equipment_limit']) {
+            throw new RuntimeException('装備所持枠が不足しています。');
+        }
     }
 
     public function fullMessageHtml(Character $character): string

@@ -33,7 +33,9 @@ class EquipmentEvolutionService
     private const HIDDEN_AREA_MAX_ID = 74;
     private const AFFIX_INHERIT_COLUMNS = [
         'affix_prefix_id',
+        'affix_prefix_level',
         'affix_suffix_id',
+        'affix_suffix_level',
         'affix_quality',
         'affix_hp_bonus',
         'affix_str_bonus',
@@ -205,6 +207,9 @@ class EquipmentEvolutionService
             if ($consumedItems->count() < $candidate['equipment_consume_count']) {
                 throw new RuntimeException($usesEvolutionStone ? '進化元の装備が不足しています。' : '素材にできる同名装備が不足しています。');
             }
+            if ($consumedItems->contains(fn (CharacterItem $item): bool => $item->isMarketListed())) {
+                throw new RuntimeException('この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
+            }
 
             $equippedConsumed = $consumedItems->firstWhere('is_equipped', true);
             $equippedSlot = $equippedConsumed?->equipped_slot;
@@ -249,6 +254,7 @@ class EquipmentEvolutionService
                 'enhance_level' => 0,
                 'equipped_slot' => $equippedSlot,
                 'acquired_from' => 'evolution',
+                'market_relistable_at' => $consumedItems->max('market_relistable_at'),
             ], $inheritedAffixes));
 
             EquipmentEvolutionLog::create([
@@ -606,6 +612,7 @@ class EquipmentEvolutionService
                 return [
                     'id' => (int) $item->id,
                     'display_name' => $item->displayName(),
+                    'display_name_without_rank' => $item->displayName(false),
                     'evolved_display_name' => $this->evolvedSourceDisplayName($item, $toItem, $toDisplayName),
                     'is_equipped' => (bool) $item->is_equipped,
                     'is_locked' => (bool) $item->is_locked,

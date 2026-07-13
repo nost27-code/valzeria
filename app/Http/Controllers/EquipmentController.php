@@ -28,7 +28,7 @@ class EquipmentController extends Controller
 
         $autoUnequipService->unequipInvalidItems($character);
 
-        $characterItems = $character->characterItems()->with('item')->get()
+        $characterItems = $character->characterItems()->with(['item', 'affixPrefix', 'affixSuffix'])->get()
             ->filter(fn($ci) => $ci->item)
             ->map(fn($ci) => $this->attachSortValues($ci, $equipmentService));
 
@@ -158,6 +158,9 @@ class EquipmentController extends Controller
                 ->with('activeMode', $mode)
                 ->with('activeTab', $tab);
         }
+        if ($characterItem->isMarketListed()) {
+            return redirect()->route('equipment.index')->with('error', 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
+        }
 
         $characterItem->is_locked = !$characterItem->is_locked;
         $characterItem->save();
@@ -195,6 +198,9 @@ class EquipmentController extends Controller
             }
 
             return redirect()->route('equipment.index')->with('error', 'この装備は所持していません。');
+        }
+        if ($characterItem->isMarketListed()) {
+            return redirect()->route('equipment.index')->with('error', 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
         }
 
         if (!$characterItem->item || !in_array($characterItem->item->type, ['weapon', 'armor', 'accessory'], true)) {
@@ -250,6 +256,9 @@ class EquipmentController extends Controller
             }
 
             return redirect()->route('equipment.index')->with('error', 'この装備は所持していません。')->with('activeMode', 'storage');
+        }
+        if ($characterItem->isMarketListed()) {
+            return redirect()->route('equipment.index')->with('error', 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
         }
 
         $characterItem->is_stored = false;
@@ -385,13 +394,14 @@ class EquipmentController extends Controller
         $item = $characterItem->item;
         $rank = $this->itemRankSort($item);
 
-        $str = (int) ($item->str_bonus ?? 0) + (int) ($characterItem->affix_str_bonus ?? 0);
-        $def = (int) ($item->def_bonus ?? 0) + (int) ($characterItem->affix_def_bonus ?? 0);
-        $mag = (int) ($item->mag_bonus ?? 0) + (int) ($characterItem->affix_mag_bonus ?? 0);
-        $agi = (int) ($item->agi_bonus ?? 0) + (int) ($characterItem->affix_agi_bonus ?? 0);
-        $spr = (int) ($item->spr_bonus ?? 0) + (int) ($characterItem->affix_spr_bonus ?? 0);
-        $luk = (int) ($item->luk_bonus ?? 0) + (int) ($characterItem->affix_luk_bonus ?? 0);
-        $hp = (int) ($item->hp_bonus ?? 0) + (int) ($characterItem->affix_hp_bonus ?? 0);
+        $affixBonuses = $characterItem->affixStatBonuses();
+        $str = (int) ($item->str_bonus ?? 0) + (int) ($affixBonuses['str'] ?? 0);
+        $def = (int) ($item->def_bonus ?? 0) + (int) ($affixBonuses['def'] ?? 0);
+        $mag = (int) ($item->mag_bonus ?? 0) + (int) ($affixBonuses['mag'] ?? 0);
+        $agi = (int) ($item->agi_bonus ?? 0) + (int) ($affixBonuses['agi'] ?? 0);
+        $spr = (int) ($item->spr_bonus ?? 0) + (int) ($affixBonuses['spr'] ?? 0);
+        $luk = (int) ($item->luk_bonus ?? 0) + (int) ($affixBonuses['luk'] ?? 0);
+        $hp = (int) ($item->hp_bonus ?? 0) + (int) ($affixBonuses['hp'] ?? 0);
 
         $recommend = match ($item->type) {
             'weapon' => $str + ($mag * 0.8) + ($agi * 0.3) + ($luk * 0.2),

@@ -605,7 +605,8 @@ class ExplorationService
             $logText,
             $dropResult['item_id'] ?? null,
             $dropResult['character_item_id'] ?? null,
-            $goldLossAmount ?? 0
+            $goldLossAmount ?? 0,
+            $this->battleLogService->telemetryFor($character, $battleResult)
         );
         if ($kisekiDrop && !empty($kisekiDrop['transaction_id'])) {
             $this->kisekiDropService->attachBattleLog((int) $kisekiDrop['transaction_id'], $battleLog->id);
@@ -626,6 +627,7 @@ class ExplorationService
         return [
             'success' => true,
             'result' => $battleResult->result,
+            'turn_count' => $battleResult->turnCount,
             'log' => $logText,
             'enemy' => $targetEnemy,
             'exp_gained' => $expGained,

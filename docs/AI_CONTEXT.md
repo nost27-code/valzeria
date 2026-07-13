@@ -38,7 +38,7 @@ X = deprecated/removed
 
 ヴァルゼリアの冒険者 is a browser fantasy RPG recreating the feel of classic CGI-game FFA.
 Core loop: login → explore/battle → EXP·Gold → level up → equip → job change → unlock next city → climb rankings.
-Level cap: Lv255. Player-facing stat labels: HP / SP / ATK / DEF / MAG / SPR / SPD / LUK (old internal names like mp/str/agi remain in DB columns only).
+Level cap: Lv255. Player-facing stat labels: HP / SP / 攻撃 / 防御 / 魔力 / 精神 / 敏捷 / 運 (old internal names like mp/str/agi and ATK/DEF/MAG/SPR/SPD/LUK remain internal only).
 Primary currencies: Gold (in-game), 輝石 (paid/support currency).
 Main player entities: character (1 per user), jobs (rank ★1-10), equipment (with 銘 affixes), materials, valmon (companion), monster marks, arena rankings, tavern NPCs.
 World: 10 cities (アークレア→…→ヴァルゼリア城), 40+ dungeons (area 1-70 normal, 71-74 special, 75-83 街道).
@@ -87,6 +87,9 @@ Hidden / disabled（承認なしに有効化しない）:
 - S→SS装飾品進化と古代片入手は未実装表示
 
 Recent key points:
+- 地下の謎の穴は開拓度100でLv180の「深淵門の番人ヴェイルガード」に挑戦できる。火傷・回復阻害・予兆つき強攻撃を使い、撃破で同地点を踏破扱いにするが、アビスヴェイル本体は未実装で解放しない。
+- 「市場・依頼」タブには素材市場・装備市場・調達依頼を別カードで表示する。素材市場とは別に、装備市場では銘または特攻付き武器を個体単位で売買する（2026-07-13裁定：匿名売買を廃止し出品者名を表示）。`EquipmentMarketService` が行ロックとGoldService経由の支払い・受取を管理し、販売額の10%をGold sinkとして回収する。出品は査定額の50〜250%、72時間で期限切れ、購入後は72時間再出品できず、進化後にも制限を引き継ぐ。出品中の武器は装備・売却・強化・進化できない。装備市場の出品・購入画面では、ランク/武器種/強化値・出品者名を日本語ラベルで表示し、武具の基本性能・銘の性能・種族特攻の能力上昇値はカード分けせず色分けバッジで一覧表示する。出品価格は査定範囲内で変更できることを入力欄の近くに明記する。
+- 銘・種族特攻は段階I〜Vを持つ。品質倍率は通常品1.00/良品1.15/逸品1.35、銘の基礎性能補正はI〜Vで8/16/24/32/40%、武器の種族特攻は6/12/18/24/30%に品質倍率を掛ける。装備ランク別の段階上限はG〜B=II、A=III、S=IV、SS以上=V。通常PvE・ボス戦にだけ特攻を反映し、PvP・チャンプ戦には反映しない。鍛冶屋の統合画面は「銘を鍛える」「特攻を鍛える」の二入口で、ベース・素材選択後に結果を自動判定する。同じ武器種・同じ特性・同じ段階なら段階を上げ、特性名が違うか素材の段階が高ければ武器種を問わず対象特性だけを移す。両方が一致する場合だけ、任意で「両方まとめて鍛える」を選べる。選択カードから既存の保護/保護解除も行え、完成後の武器名と必要Goldを実行前に確認できる。鍛錬画面の移し操作は、残す武器・消える素材武器・完成後の武器名・必要Goldを確認するモーダルで実行を選んで送信する。素材武器は消滅し、ベース武器の品質・強化値・装備/保護状態・市場再出品可能日時は維持する。
 - 職業階層は8層（normal〜myth、EXP倍率1/2/5/8/10/15/22/30、転職引き継ぎ1/2・2/5・1/3）
 - 星樹の塔は1〜100階マスタ、塔戦闘、戦闘後に通常探索に近い結果画面から次階へ進む導線、次階前の行動選択、50階以降5階ごとの挑戦中累積「星樹の構え」、一時中断/再開、軽量EXP/Job EXP報酬、行商人、行商人購入アイテムの塔内使用/次戦闘自動護符、ランキング、50/60/70/80/90/100階の公開ログ、10階刻み到達称号、50/70/90階初回到達の選択式武器宝箱、50階初回到達の冒険者カード背景自動付与（背景獲得の公開ログなし）、100階初回到達の冒険者カード装飾枠、エルフィアのダンジョン一覧からの導線、管理画面でのON/OFFと開催期間設定まで実装済み。ただし `STAR_TREE_TOWER_ENABLED=false` 既定で、管理設定がONかつ開催期間内の時だけダンジョン一覧に表示。汎用Gold/ランダムドロップ報酬は未実装
 - フェルディア地方は `config/ferdia_world_map.php` と `FerdiaMapService` で本線13探索地・公開物語分岐4地点・アビス前段1地点＋3街のMAP状態を管理し、`extra_content.enabled.ferdia_unlocked` がONかつ期間内の時だけ街移動画面にタブ表示する。探索地は既存 `areas` / `character_area_progresses.development_point` を使い、フェルディアだけ勝利時開拓度が1〜2上がる。見晴らしの丘道・グランフォード外郭路・水門街道は開拓度150後の関門ボス撃破で次の街を解放し、北境の霊峰エルヴァンには最終ボスを置く。星詠みの廃塔・瀑布神殿アクエリス・風化列柱都市オルド・白潮灯台は本線の到達条件で必ず公開され、4地点すべての開拓度を最大にすると地下の謎の穴が恒久解放される。街はルヴァン、グランフォード、アーヴェンの3つを既存Cityとして登録し、街滞在時は通常の街施設を表示する。MAP上の探索地ボタンから探索タブへ移った場合だけ、街タブは「フェルディア簡易拠点」として主要施設を表示する。薬屋ではフェルディア薬素材から30戦有効・同時1種の探索補助品を調合でき、`ExplorationSupportService` が戦闘開始前の自動継続、戦闘後の残数確定、効果発動を管理する。探索補助品は独立した追加コンテンツ `exploration_support` がONかつ期間内の時だけ利用でき、OFF中はデータを残したまま効果を凍結する。

@@ -37,6 +37,7 @@ class GoldService
         return $item
             && !$characterItem->is_equipped
             && !$characterItem->is_locked
+            && !$characterItem->isMarketListed()
             && $this->equipmentSalePrice($item) > 0
             && !$this->isProtectedEquipment($item);
     }
@@ -122,6 +123,9 @@ class GoldService
         }
 
         if (!$this->canSellEquipment($characterItem)) {
+            if ($characterItem->isMarketListed()) {
+                throw new RuntimeException('この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
+            }
             throw new RuntimeException('この装備は売却できません。');
         }
 

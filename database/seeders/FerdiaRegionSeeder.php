@@ -44,6 +44,21 @@ class FerdiaRegionSeeder extends Seeder
         $this->seedStoryFinalLinks();
     }
 
+    public function seedAreaMaster(int $areaId): void
+    {
+        $nodes = collect(config('ferdia_world_map.nodes', []))
+            ->filter(fn (array $node): bool => (int) ($node['area_id'] ?? 0) === $areaId)
+            ->values()
+            ->all();
+
+        if ($nodes === []) {
+            return;
+        }
+
+        $areas = $this->seedAreas($nodes);
+        $this->seedEnemies($areas);
+    }
+
     private function seedCities(): void
     {
         foreach (config('ferdia_world_map.cities', []) as $city) {
@@ -282,7 +297,7 @@ class FerdiaRegionSeeder extends Seeder
             1026 => [160, 162],
             1027 => [158, 160],
             1028 => [166, 168],
-            1029 => [168, 170],
+            1029 => [175, 180],
         ];
     }
 
@@ -425,9 +440,9 @@ class FerdiaRegionSeeder extends Seeder
                 $add('ランタン・ガル', '風', 'flying', '飛行')
             ],
             1029 => [
-                $s('アビスの粘体', '闇'), $b('深穴の魔狼', '闇'),
-                $h('深層の案内人影', '古代'), $g('奈落の巨兵', '闇'),
-                $add('虚穴の飛魔', '闇', 'demon', '悪魔')
+                $s('アビスの粘体', '闇'), array_merge($b('深穴の魔狼', '闇'), ['level_offset' => 1]),
+                array_merge($h('深層の案内人影', '古代'), ['level_offset' => 2]), array_merge($g('奈落の巨兵', '闇'), ['level_offset' => 5]),
+                array_merge($add('虚穴の飛魔', '闇', 'demon', '悪魔'), ['level_offset' => 4])
             ],
             default => [
                 $s('フェルディアの粘体', '森'), $b('フェルディアの獣', '風'),
@@ -541,6 +556,17 @@ class FerdiaRegionSeeder extends Seeder
 
     private function seedEnemyActions(Enemy $enemy, Area $area): void
     {
+        if ($enemy->is_boss && (int) $area->id === 1029) {
+            foreach ($this->abyssVeilGatekeeperActions() as $sortOrder => $action) {
+                EnemyAction::updateOrCreate(
+                    ['enemy_id' => $enemy->id, 'action_key' => $action['action_key']],
+                    array_merge($action, ['enemy_id' => $enemy->id, 'sort_order' => ($sortOrder + 1) * 10])
+                );
+            }
+
+            return;
+        }
+
         $type = (string) $enemy->type_name;
         $action = match ($type) {
             'スライム' => $this->statusAction(
@@ -575,6 +601,23 @@ class FerdiaRegionSeeder extends Seeder
             ['enemy_id' => $enemy->id, 'action_key' => $action['action_key']],
             array_merge($action, ['enemy_id' => $enemy->id, 'sort_order' => 10])
         );
+    }
+
+    private function abyssVeilGatekeeperActions(): array
+    {
+        return [
+            $this->action('burn', '深淵の灼炎', ['duration_turns' => 3]),
+            $this->action('recovery_block', '封魔の鎖', ['effect_percent' => 35, 'duration_turns' => 3]),
+            $this->action('charge', '深淵門の崩落', [
+                'power_percent' => 200,
+                'cooldown_turns' => 4,
+                'can_use_on_first_turn' => false,
+                'is_telegraphed' => true,
+                'telegraph_turns' => 1,
+                'can_be_guarded' => true,
+                'guard_reduction_rate' => 0.50,
+            ]),
+        ];
     }
 
     private function statusAction(string $type): array

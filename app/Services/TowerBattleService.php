@@ -480,7 +480,7 @@ class TowerBattleService extends BattleService
         $equippedWeapon = $character->characterItems()
             ->where('is_equipped', true)
             ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
-            ->with('item')
+            ->with(['item', 'affixPrefix', 'affixSuffix'])
             ->first();
         $equippedArmor = $character->characterItems()
             ->where('is_equipped', true)
@@ -505,7 +505,7 @@ class TowerBattleService extends BattleService
             'luk' => (int) ($stats['luk'] ?? 0),
             'normal_attack_type' => $currentJob?->normal_attack_type,
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => (float) ($equippedWeapon?->killer_damage_rate ?? 0),
+            'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
             'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
         ], clone $character);

@@ -23,6 +23,11 @@ use Livewire\Component;
 
 class CityHeader extends Component
 {
+    /** 本番確認用。現在の冒険者一覧だけから除外するテストアカウント */
+    private const HIDDEN_ONLINE_TEST_USER_ID = 1;
+
+    private const HIDDEN_ONLINE_TEST_CHARACTER_ID = 5;
+
     // モーダル用状態
     public $isPlayerModalOpen = false;
     public $playerInfo = null;
@@ -196,8 +201,13 @@ class CityHeader extends Component
 
     private function onlinePlayers(): array
     {
-        return Cache::remember('city_header_online_players_v2', now()->addSeconds(20), function (): array {
+        return Cache::remember('city_header_online_players_v4', now()->addSeconds(20), function (): array {
             return Character::visibleToPublic()
+                // visibleToPublic() の全公開面除外とは分け、現在の冒険者だけから運営テスト用を隠す。
+                ->where(function ($query): void {
+                    $query->where('id', '!=', self::HIDDEN_ONLINE_TEST_CHARACTER_ID)
+                        ->orWhere('user_id', '!=', self::HIDDEN_ONLINE_TEST_USER_ID);
+                })
                 ->where('last_seen_at', '>=', now()->subMinutes(5))
                 ->orderBy('last_seen_at', 'desc')
                 ->take(20)
@@ -475,7 +485,7 @@ class CityHeader extends Component
         }
 
         return [
-            'name' => $characterItem->displayName(),
+            'name' => $characterItem->displayName(false),
             'rank' => $this->equipmentRankLabel($rank, (string) ($characterItem->item?->source_type ?? '')),
             'rank_color' => $this->rankColor($rank),
             'bonus_text' => null,
