@@ -99,6 +99,7 @@
                     ['route' => 'admin.private-chat-logs', 'label' => '個人チャットログ', 'abbr' => 'D'],
                     ['route' => 'admin.kiseki-purchases', 'label' => '課金監査', 'abbr' => 'K'],
                     ['route' => 'admin.npc-market-analytics', 'label' => 'NPC市場分析', 'abbr' => 'M'],
+                    ['route' => 'admin.equipment-market.index', 'label' => '装備市場管理', 'abbr' => 'EM'],
                     ['route' => 'admin.reward-settings', 'label' => '運営・報酬設定', 'abbr' => 'R'],
                     ['route' => 'admin.adventure-support-items', 'label' => '補給商会ON/OFF', 'abbr' => 'S'],
                     ['route' => 'admin.extra-contents', 'label' => '追加コンテンツON/OFF', 'abbr' => 'X'],

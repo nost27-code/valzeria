@@ -12,8 +12,12 @@ use RuntimeException;
 
 class EquipmentMarketAdminController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $tab = in_array($request->query('tab'), ['listings', 'history'], true)
+            ? $request->query('tab')
+            : 'listings';
+
         $summary = [
             'active' => EquipmentMarketListing::where('status', 'active')->where('expires_at', '>', now())->count(),
             'sold' => EquipmentMarketTransaction::count(),
@@ -22,8 +26,17 @@ class EquipmentMarketAdminController extends Controller
             'average' => (int) EquipmentMarketTransaction::avg('sale_price'),
         ];
         $byRank = EquipmentMarketListing::select('weapon_rank', DB::raw('COUNT(*) as count'))->where('status', 'sold')->groupBy('weapon_rank')->orderByDesc('count')->get();
-        $listings = EquipmentMarketListing::with(['seller', 'buyer'])->latest()->limit(100)->get();
-        return view('admin.equipment-market.index', compact('summary', 'byRank', 'listings'));
+        $listings = EquipmentMarketListing::with(['seller'])
+            ->active()
+            ->latest('created_at')
+            ->limit(200)
+            ->get();
+        $transactions = EquipmentMarketTransaction::with(['seller', 'buyer', 'listing'])
+            ->latest('sold_at')
+            ->limit(200)
+            ->get();
+
+        return view('admin.equipment-market.index', compact('summary', 'byRank', 'listings', 'transactions', 'tab'));
     }
 
     public function cancel(EquipmentMarketListing $listing, EquipmentMarketService $service, Request $request)

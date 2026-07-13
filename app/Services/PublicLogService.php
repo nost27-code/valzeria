@@ -13,7 +13,7 @@ class PublicLogService
      */
     public function addLog(string $type, string $message, ?Character $character = null, int $importance = 1, ?int $receiverId = null): void
     {
-        if ($character?->isAdminTester() && $type !== 'private') {
+        if ($character?->isExcludedFromPublicLogs() && $type !== 'private') {
             return;
         }
 
@@ -58,7 +58,7 @@ class PublicLogService
 
         $query->where(function ($q): void {
             $q->whereNull('character_id')
-                ->orWhereDoesntHave('character', fn ($characterQuery) => $characterQuery->adminTesters());
+                ->orWhereDoesntHave('character', fn ($characterQuery) => $characterQuery->excludedFromPublicLogs());
         });
 
         // 自分に関係のない個人チャット（private）は除外する

@@ -103,6 +103,20 @@ class Character extends Model
             && str_ends_with((string) ($this->user?->email ?? ''), '@valzeria.local');
     }
 
+    public function isExcludedFromPublicLogs(): bool
+    {
+        return $this->isAdminTester()
+            || $this->user?->role === 'admin';
+    }
+
+    public function scopeExcludedFromPublicLogs($query)
+    {
+        return $query->whereHas('user', function ($userQuery): void {
+            $userQuery->where('email', 'like', self::TESTER_EMAIL_PATTERN)
+                ->orWhere('role', 'admin');
+        });
+    }
+
     /**
      * 現在の職業とのリレーション
      */
