@@ -1084,7 +1084,7 @@ class BattleController extends Controller
     }
 
     /**
-     * @return list<array{slot: string, name: string, icon: ?string, trait_label: ?string, is_killer_active: bool, is_resist_active: bool}>
+     * @return list<array{slot: string, rank: string, name: string, icon: ?string, trait_label: ?string, is_killer_active: bool, is_resist_active: bool}>
      */
     private function battleEquipmentSummary(Character $character, string $enemySpeciesKey): array
     {
@@ -1119,6 +1119,12 @@ class BattleController extends Controller
 
                 return [
                     'slot' => $this->battleEquipmentSlotLabel((string) $characterItem->item->type),
+                    'rank' => strtoupper((string) match ($characterItem->item->type) {
+                        'weapon' => $characterItem->item->weapon_rank ?? $characterItem->item->rarity,
+                        'armor' => $characterItem->item->armor_rank ?? $characterItem->item->rarity,
+                        'accessory' => $characterItem->item->accessory_rank ?? $characterItem->item->rarity,
+                        default => $characterItem->item->rarity,
+                    }),
                     'name' => $characterItem->displayName(false),
                     'icon' => $characterItem->item->iconImagePath(),
                     'trait_label' => $traitLabel,

@@ -311,8 +311,22 @@
                                     @if(!empty($equippedItems ?? []))
                                         <div class="space-y-1 border-t border-amber-200 bg-amber-50/60 p-2">
                                             @foreach($equippedItems as $equippedItem)
-                                                <div class="grid grid-cols-[3.75rem_minmax(0,1fr)] overflow-hidden rounded border text-sm font-bold leading-tight {{ $equippedItem['is_killer_active'] ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : ($equippedItem['is_resist_active'] ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 bg-slate-50 text-slate-700') }}">
-                                                    <span class="flex items-center justify-center border-r border-inherit bg-white/60 px-1 text-xs text-slate-500">{{ $equippedItem['slot'] }}</span>
+                                                @php
+                                                    $rankBadgeClass = match ($equippedItem['rank'] ?? '') {
+                                                        'S', 'SS', 'SSS', 'EPIC' => 'border-amber-500 bg-amber-400 text-white',
+                                                        'A' => 'border-violet-500 bg-violet-500 text-white',
+                                                        'B' => 'border-sky-500 bg-sky-500 text-white',
+                                                        'C' => 'border-emerald-500 bg-emerald-500 text-white',
+                                                        default => 'border-slate-400 bg-slate-400 text-white',
+                                                    };
+                                                @endphp
+                                                <div class="grid grid-cols-[6rem_minmax(0,1fr)] overflow-hidden rounded border text-sm font-bold leading-tight {{ $equippedItem['is_killer_active'] ? 'border-emerald-400 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : ($equippedItem['is_resist_active'] ? 'border-sky-400 bg-sky-50 text-sky-800 ring-1 ring-sky-200' : 'border-slate-200 bg-slate-50 text-slate-700') }}">
+                                                    <span class="flex items-center justify-center gap-1 border-r border-inherit bg-white/60 px-1 text-xs text-slate-500">
+                                                        <span>{{ $equippedItem['slot'] }}</span>
+                                                        @if(!empty($equippedItem['rank']))
+                                                            <span class="inline-flex min-w-6 items-center justify-center rounded border px-1 py-0.5 text-[10px] font-black {{ $rankBadgeClass }}">{{ $equippedItem['rank'] }}</span>
+                                                        @endif
+                                                    </span>
                                                     <span class="flex min-w-0 items-center gap-1.5 px-2 py-1.5">
                                                         @if($equippedItem['icon'])
                                                             <img src="{{ asset($equippedItem['icon']) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
@@ -329,7 +343,7 @@
                                 </div>
 
                                 <div class="mx-auto flex max-w-sm items-center justify-center gap-3 py-4">
-                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="h-28 w-28 object-contain">
+                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="h-28 w-28 -scale-x-100 object-contain">
                                     <span class="text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
                                     @if($enemyImagePath)
                                         <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-28 w-28 object-contain">
@@ -387,7 +401,19 @@
                                             <div class="mb-1 text-center text-[10px] font-bold text-amber-800">装備中</div>
                                             <div class="flex flex-wrap justify-center gap-1.5">
                                                 @foreach($equippedItems as $equippedItem)
+                                                    @php
+                                                        $rankBadgeClass = match ($equippedItem['rank'] ?? '') {
+                                                            'S', 'SS', 'SSS', 'EPIC' => 'border-amber-500 bg-amber-400 text-white',
+                                                            'A' => 'border-violet-500 bg-violet-500 text-white',
+                                                            'B' => 'border-sky-500 bg-sky-500 text-white',
+                                                            'C' => 'border-emerald-500 bg-emerald-500 text-white',
+                                                            default => 'border-slate-400 bg-slate-400 text-white',
+                                                        };
+                                                    @endphp
                                                     <div class="inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-1 text-[10px] font-bold leading-tight {{ $equippedItem['is_killer_active'] ? 'border-emerald-400 bg-emerald-100 text-emerald-800 shadow-sm shadow-emerald-200' : ($equippedItem['is_resist_active'] ? 'border-sky-400 bg-sky-100 text-sky-800 shadow-sm shadow-sky-200' : 'border-amber-200 bg-white text-slate-600') }}">
+                                                        @if(!empty($equippedItem['rank']))
+                                                            <span class="inline-flex min-w-5 items-center justify-center rounded border px-1 py-0.5 text-[9px] font-black {{ $rankBadgeClass }}">{{ $equippedItem['rank'] }}</span>
+                                                        @endif
                                                         @if($equippedItem['icon'])
                                                             <img src="{{ asset($equippedItem['icon']) }}" alt="" class="h-4 w-4 shrink-0 object-contain">
                                                         @endif
