@@ -104,7 +104,11 @@ if [[ "$DEPLOY_MIGRATION_MODE" != "none" ]]; then
     if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" ]]; then
         preflight_args+=(--allow-enemy-merge)
     fi
-    "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:preflight-pending-migrations "${preflight_args[@]}" --no-interaction
+    if [[ "${#preflight_args[@]}" -gt 0 ]]; then
+        "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:preflight-pending-migrations "${preflight_args[@]}" --no-interaction
+    else
+        "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:preflight-pending-migrations --no-interaction
+    fi
 
     if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" && -L "$CURRENT_LINK" ]]; then
         "$DEPLOY_PHP_BINARY" "$CURRENT_LINK/artisan" down --retry=60 --no-interaction
