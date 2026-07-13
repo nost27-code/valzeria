@@ -370,9 +370,18 @@
                                 @endif
                             </div>
 
-                            <div class="hidden md:flex md:flex-row items-center justify-center gap-4 mb-8">
+                            <div class="mb-8 hidden md:grid md:grid-cols-2 md:items-start md:gap-x-20 md:gap-y-5">
+                                @if(!$isTreasure)
+                                    <div class="col-span-2 row-start-1 mx-auto flex w-full max-w-xl items-center justify-center gap-10">
+                                        <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="h-28 w-28 -scale-x-100 object-contain">
+                                        <span class="text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
+                                        @if($enemyImagePath)
+                                            <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-28 w-28 object-contain">
+                                        @endif
+                                    </div>
+                                @endif
                                 {{-- キャラクター情報 --}}
-                                <div class="w-full {{ $isTreasure ? 'md:w-7/12' : 'md:w-5/12' }} border-2 border-amber-200 rounded-lg overflow-hidden">
+                                <div class="w-full {{ $isTreasure ? '' : 'md:col-start-1 md:row-start-2' }} border-2 border-amber-200 rounded-lg overflow-hidden">
                                     <div class="bg-amber-100 text-amber-900 font-bold text-center py-1 border-b border-amber-200">
                                         {{ $character->name }}
                                     </div>
@@ -438,17 +447,17 @@
                                     </div>
                                 @else
                                     {{-- VS アイコン --}}
-                                    <div class="w-full md:w-2/12 flex justify-center items-center self-stretch">
+                                    <div class="hidden">
                                         <span class="text-3xl font-extrabold text-red-500 italic drop-shadow-md">VS</span>
                                     </div>
 
                                     {{-- 敵情報 --}}
-                                    <div class="w-full md:w-5/12 border-2 {{ $enemyFrameClass }} rounded-lg overflow-hidden flex flex-col">
+                                    <div class="w-full md:col-start-2 md:row-start-2 border-2 {{ $enemyFrameClass }} rounded-lg overflow-hidden flex flex-col">
                                         <div class="{{ $enemyHeaderClass }} font-bold text-center py-1 border-b">
                                             {{ $result['enemy']->name }}
                                         </div>
                                         @if($enemyImagePath)
-                                            <div class="flex justify-center border-b {{ $enemyRowBorderClass }} bg-slate-50 p-2">
+                                            <div class="hidden">
                                                 <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-36 w-36 object-contain sm:h-40 sm:w-40">
                                             </div>
                                         @endif
