@@ -104,6 +104,7 @@
                             $enemyFamilyKey = (string) ($result['enemy']->family_key ?? '');
                             $enemyFamilyText = $enemyFamilyLabels[$enemyFamilyKey] ?? ($enemyFamilyKey !== '' ? $enemyFamilyKey : $enemyTypeText);
                             $enemyImagePath = config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
+                            $characterImagePath = $character->icon_path ?: \App\Support\CharacterIconCatalog::DEFAULT_ICON;
                             $enemyStatDisplay = $result['enemy_stat_display'] ?? [];
                             $enemyStr = $enemyStatDisplay['str'] ?? ['base' => (int) $result['enemy']->str, 'bonus' => 0, 'total' => (int) $result['enemy']->str];
                             $enemyDef = $enemyStatDisplay['def'] ?? ['base' => (int) $result['enemy']->def, 'bonus' => 0, 'total' => (int) $result['enemy']->def];
@@ -277,7 +278,85 @@
                                     </div>
                                 </div>
                             @endif
-                            <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-8">
+                            <div class="mb-8 md:hidden">
+                                @if($isTreasure)
+                                    <div class="mx-auto max-w-xl overflow-hidden rounded-xl border-2 border-amber-300 bg-amber-50 shadow-lg shadow-amber-900/10">
+                                        <div class="bg-gradient-to-b from-amber-100 to-yellow-50 px-4 py-5 text-center">
+                                            <img src="{{ asset('images/icon/shining_treasure_chest.webp') }}" alt="輝く宝箱" class="mx-auto h-24 w-24 object-contain drop-shadow-md">
+                                            <div class="mt-2 text-xl font-extrabold text-amber-900">輝く宝箱</div>
+                                        </div>
+                                    </div>
+                                @else
+                                {{-- スマホ戦闘表示: 冒険者情報 → 対峙 → 敵情報 --}}
+                                <div class="mx-auto max-w-xl overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-sm">
+                                    <div class="border-b border-amber-200 bg-amber-100 py-1 text-center font-bold text-amber-900">
+                                        {{ $character->name }}
+                                    </div>
+                                    <table class="w-full text-center text-sm">
+                                        <tbody>
+                                            <tr class="border-b border-amber-100">
+                                                <th class="w-1/4 bg-amber-50 py-1 text-slate-600">職業</th>
+                                                <td class="w-1/4 font-bold">{{ $character->jobClass->name ?? '冒険者' }} <span class="text-xs">(Lv.{{ $jobLevel }})</span></td>
+                                                <th class="w-1/4 bg-amber-50 text-slate-600">Lv</th>
+                                                <td class="w-1/4 font-bold">{{ $character->level }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th class="bg-amber-50 py-1 text-slate-600">残りHP</th>
+                                                <td class="font-bold {{ $character->current_hp <= ($finalStats['max_hp'] * 0.2) ? 'text-red-600' : 'text-slate-800' }}">{{ $character->current_hp }} / {{ $finalStats['max_hp'] }}</td>
+                                                <th class="bg-amber-50 text-slate-600">残りSP</th>
+                                                <td class="font-bold text-blue-700">{{ $character->current_mp }} / {{ $finalStats['max_mp'] }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    @if(!empty($equippedItems ?? []))
+                                        <div class="space-y-1 border-t border-amber-200 bg-amber-50/60 p-2">
+                                            @foreach($equippedItems as $equippedItem)
+                                                <div class="grid grid-cols-[3.75rem_minmax(0,1fr)] overflow-hidden rounded border text-sm font-bold leading-tight {{ $equippedItem['is_killer_active'] ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : ($equippedItem['is_resist_active'] ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 bg-slate-50 text-slate-700') }}">
+                                                    <span class="flex items-center justify-center border-r border-inherit bg-white/60 px-1 text-xs text-slate-500">{{ $equippedItem['slot'] }}</span>
+                                                    <span class="flex min-w-0 items-center gap-1.5 px-2 py-1.5">
+                                                        @if($equippedItem['icon'])
+                                                            <img src="{{ asset($equippedItem['icon']) }}" alt="" class="h-5 w-5 shrink-0 object-contain">
+                                                        @endif
+                                                        <span class="truncate">{{ $equippedItem['name'] }}</span>
+                                                        @if($equippedItem['trait_label'])
+                                                            <span class="shrink-0 text-[10px] {{ $equippedItem['is_killer_active'] ? 'text-emerald-700' : 'text-sky-700' }}">{{ $equippedItem['trait_label'] }}</span>
+                                                        @endif
+                                                    </span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="mx-auto flex max-w-sm items-center justify-center gap-3 py-4">
+                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterImagePath) }}" alt="{{ $character->name }}" class="h-28 w-28 object-contain">
+                                    <span class="text-3xl font-extrabold italic text-red-500 drop-shadow-md">VS</span>
+                                    @if($enemyImagePath)
+                                        <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-28 w-28 object-contain">
+                                    @endif
+                                </div>
+
+                                <div class="mx-auto max-w-xl overflow-hidden rounded-xl border-2 {{ $enemyFrameClass }} bg-white">
+                                    <div class="{{ $enemyHeaderClass }} border-b py-1 text-center text-lg font-bold">{{ $result['enemy']->name }}</div>
+                                    <table class="w-full text-center text-sm">
+                                        <tbody>
+                                            <tr class="border-b {{ $enemyRowBorderClass }}">
+                                                <th class="{{ $enemyThClass }} w-1/4 py-1">攻撃</th>
+                                                <td class="{{ $enemyTdClass }} w-1/4">{{ number_format($enemyStr['base']) }}@if(($enemyStr['bonus'] ?? 0) > 0) <span class="font-extrabold text-orange-600">+{{ number_format($enemyStr['bonus']) }}</span>@endif</td>
+                                                <th class="{{ $enemyThClass }} w-1/4">防御</th>
+                                                <td class="{{ $enemyTdClass }} w-1/4">{{ number_format($enemyDef['base']) }}@if(($enemyDef['bonus'] ?? 0) > 0) <span class="font-extrabold text-orange-600">+{{ number_format($enemyDef['bonus']) }}</span>@endif</td>
+                                            </tr>
+                                            <tr>
+                                                <th class="{{ $enemyThClass }} py-1">種族</th>
+                                                <td colspan="3" class="{{ $enemyTdClass ?: 'text-slate-600' }}">{{ $enemyFamilyText }}@if($enemyDangerRate > 0) <span class="ml-1 font-bold text-orange-700">危険度{{ number_format($enemyDangerRate) }}%</span>@endif</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @endif
+                            </div>
+
+                            <div class="hidden md:flex md:flex-row items-center justify-center gap-4 mb-8">
                                 {{-- キャラクター情報 --}}
                                 <div class="w-full {{ $isTreasure ? 'md:w-7/12' : 'md:w-5/12' }} border-2 border-amber-200 rounded-lg overflow-hidden">
                                     <div class="bg-amber-100 text-amber-900 font-bold text-center py-1 border-b border-amber-200">
@@ -303,6 +382,25 @@
                                             </tr>
                                         </tbody>
                                     </table>
+                                    @if(!empty($equippedItems ?? []))
+                                        <div class="border-t border-amber-200 bg-amber-50/60 px-2 py-2 text-left">
+                                            <div class="mb-1 text-center text-[10px] font-bold text-amber-800">装備中</div>
+                                            <div class="flex flex-wrap justify-center gap-1.5">
+                                                @foreach($equippedItems as $equippedItem)
+                                                    <div class="inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-1 text-[10px] font-bold leading-tight {{ $equippedItem['is_killer_active'] ? 'border-emerald-400 bg-emerald-100 text-emerald-800 shadow-sm shadow-emerald-200' : ($equippedItem['is_resist_active'] ? 'border-sky-400 bg-sky-100 text-sky-800 shadow-sm shadow-sky-200' : 'border-amber-200 bg-white text-slate-600') }}">
+                                                        @if($equippedItem['icon'])
+                                                            <img src="{{ asset($equippedItem['icon']) }}" alt="" class="h-4 w-4 shrink-0 object-contain">
+                                                        @endif
+                                                        <span class="shrink-0 text-slate-400">{{ $equippedItem['slot'] }}</span>
+                                                        <span class="truncate">{{ $equippedItem['name'] }}</span>
+                                                        @if($equippedItem['trait_label'])
+                                                            <span class="shrink-0 {{ $equippedItem['is_killer_active'] ? 'text-emerald-700' : 'text-sky-700' }}">{{ $equippedItem['trait_label'] }}</span>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 @if($isTreasure)

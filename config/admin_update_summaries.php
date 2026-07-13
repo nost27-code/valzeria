@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-battle-mobile-confrontation-layout',
+        'date' => '2026-07-14',
+        'category' => 'changed',
+        'title' => '戦闘結果の対峙表示を見やすく改善',
+        'detail' => 'スマホの戦闘結果で、装備中の武器・防具・装飾品と、冒険者と敵モンスターが向かい合う姿を見やすく表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-14-equipment-evolution-enhancement-preview',
         'date' => '2026-07-14',
         'category' => 'fixed',

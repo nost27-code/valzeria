@@ -1041,6 +1041,15 @@ class BattleController extends Controller
             $battleData['result']['enemy'] = (object) $battleData['result']['enemy'];
         }
 
+        $battleEnemy = $battleData['result']['enemy'] ?? null;
+        $enemySpeciesKey = is_object($battleEnemy)
+            ? (string) ($battleEnemy->species_key ?? $battleEnemy->family_key ?? '')
+            : '';
+        $battleData['equippedItems'] = $this->battleEquipmentSummary(
+            $battleData['character'],
+            $enemySpeciesKey,
+        );
+
         // アンロックされたエリアが配列ならオブジェクトにキャスト
         if (isset($battleData['result']['unlocked_areas']) && is_array($battleData['result']['unlocked_areas'])) {
             foreach ($battleData['result']['unlocked_areas'] as $key => $area) {
@@ -1072,6 +1081,71 @@ class BattleController extends Controller
             ->where('is_hatched', false)
             ->where('is_lost', false)
             ->exists();
+    }
+
+    /**
+     * @return list<array{slot: string, name: string, icon: ?string, trait_label: ?string, is_killer_active: bool, is_resist_active: bool}>
+     */
+    private function battleEquipmentSummary(Character $character, string $enemySpeciesKey): array
+    {
+        $slotOrder = ['weapon' => 0, 'armor' => 1, 'accessory' => 2];
+
+        return $character->characterItems()
+            ->where('is_equipped', true)
+            ->with(['item', 'affixPrefix', 'affixSuffix'])
+            ->get()
+            ->filter(fn ($characterItem) => $characterItem->item !== null)
+            ->sortBy(fn ($characterItem) => [
+                $slotOrder[$characterItem->item->type] ?? 99,
+                $characterItem->id,
+            ])
+            ->map(function ($characterItem) use ($enemySpeciesKey): array {
+                $killerRate = $characterItem->effectiveKillerDamageRate();
+                $isKillerActive = $characterItem->killer_species_key !== null
+                    && $killerRate > 0
+                    && $enemySpeciesKey !== ''
+                    && $characterItem->killer_species_key === $enemySpeciesKey;
+                $isResistActive = $characterItem->resist_species_key !== null
+                    && (float) ($characterItem->species_damage_reduction_rate ?? 0) > 0
+                    && $enemySpeciesKey !== ''
+                    && $characterItem->resist_species_key === $enemySpeciesKey;
+
+                $traitLabel = null;
+                if ($isKillerActive) {
+                    $traitLabel = '特攻発動 与ダメージ +' . $this->battlePercentageLabel($killerRate) . '%';
+                } elseif ($isResistActive) {
+                    $traitLabel = '耐性発動 被ダメージ -' . $this->battlePercentageLabel((float) $characterItem->species_damage_reduction_rate) . '%';
+                }
+
+                return [
+                    'slot' => $this->battleEquipmentSlotLabel((string) $characterItem->item->type),
+                    'name' => $characterItem->displayName(false),
+                    'icon' => $characterItem->item->iconImagePath(),
+                    'trait_label' => $traitLabel,
+                    'is_killer_active' => $isKillerActive,
+                    'is_resist_active' => $isResistActive,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function battleEquipmentSlotLabel(string $type): string
+    {
+        return [
+            'weapon' => '武器',
+            'armor' => '防具',
+            'accessory' => '装飾品',
+        ][$type] ?? '装備';
+    }
+
+    private function battlePercentageLabel(float $rate): string
+    {
+        $percentage = round($rate * 100, 1);
+
+        return $percentage === floor($percentage)
+            ? (string) (int) $percentage
+            : number_format($percentage, 1, '.', '');
     }
 
     private function battleDepthKey(Character $character, int $areaId): string
