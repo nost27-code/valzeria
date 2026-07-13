@@ -409,6 +409,12 @@ try {
     $zip->close();
 
     @unlink($releaseDir . '/public/hot');
+    if (!is_file($releaseDir . '/vendor/autoload.php')) {
+        $previousReleaseForVendor = is_link($currentLink) ? realpath($currentLink) : null;
+        if (is_string($previousReleaseForVendor) && is_dir($previousReleaseForVendor . '/vendor')) {
+            deploy_copy_missing($previousReleaseForVendor . '/vendor', $releaseDir . '/vendor');
+        }
+    }
     if (!is_file($releaseDir . '/artisan') || !is_file($releaseDir . '/vendor/autoload.php')) {
         throw new RuntimeException('リリースの必須ファイルが不足しています。');
     }

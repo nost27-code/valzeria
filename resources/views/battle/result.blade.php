@@ -103,6 +103,7 @@
                             ];
                             $enemyFamilyKey = (string) ($result['enemy']->family_key ?? '');
                             $enemyFamilyText = $enemyFamilyLabels[$enemyFamilyKey] ?? ($enemyFamilyKey !== '' ? $enemyFamilyKey : $enemyTypeText);
+                            $enemyImagePath = config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
                             $enemyStatDisplay = $result['enemy_stat_display'] ?? [];
                             $enemyStr = $enemyStatDisplay['str'] ?? ['base' => (int) $result['enemy']->str, 'bonus' => 0, 'total' => (int) $result['enemy']->str];
                             $enemyDef = $enemyStatDisplay['def'] ?? ['base' => (int) $result['enemy']->def, 'bonus' => 0, 'total' => (int) $result['enemy']->def];
@@ -322,6 +323,11 @@
                                         <div class="{{ $enemyHeaderClass }} font-bold text-center py-1 border-b">
                                             {{ $result['enemy']->name }}
                                         </div>
+                                        @if($enemyImagePath)
+                                            <div class="flex justify-center border-b {{ $enemyRowBorderClass }} bg-slate-50 p-2">
+                                                <img src="{{ asset($enemyImagePath) }}" alt="{{ $result['enemy']->name }}" class="h-36 w-36 object-contain sm:h-40 sm:w-40">
+                                            </div>
+                                        @endif
                                         <table class="w-full text-sm text-center flex-grow">
                                             <tbody>
                                                 <tr class="border-b {{ $enemyRowBorderClass }}">

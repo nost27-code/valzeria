@@ -20,7 +20,7 @@
 
             <div class="max-h-[calc(100vh-10rem)] overflow-y-auto p-4 sm:p-5">
                 @if($helpType === 'enhance')
-                    <p class="text-sm leading-relaxed text-slate-600">武器・防具・装飾品を+1〜+5にして、装備そのものの性能を伸ばす操作です。</p>
+                    <p class="text-sm leading-relaxed text-slate-600">武器・防具・装飾品を、装備ランクごとの上限まで強化して性能を伸ばす操作です。G〜Eは+10、D〜Bは+15、Aは+20、Sは+25、SS〜EPICは+30まで強化できます。</p>
                     <section class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
                         <h4 class="font-black text-amber-950">必要なもの</h4>
                         <p class="mt-1.5 text-sm leading-relaxed text-slate-700">強化段階に応じて、欠片・強化石系素材・共通素材・Goldを使います。必要数は装備ごとのカードに表示され、輝石は使いません。</p>
@@ -65,11 +65,11 @@
                         <h4 class="font-black text-violet-950">進化するとどうなる？</h4>
                         <ul class="mt-1.5 space-y-1.5 text-sm leading-relaxed text-slate-700">
                             <li>・進化元は進化後の上位装備へ置き換わります。</li>
-                            <li>・<strong>+強化値は+0に戻ります。</strong></li>
+                            <li>・<strong>+強化値は進化先の上限まで引き継がれます。</strong></li>
                             <li>・銘、銘の段階、種族特攻、種族特攻の段階、品質は引き継がれます。</li>
                         </ul>
                     </section>
-                    <p class="mt-3 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm leading-relaxed text-slate-700">例：銘II・獣特攻Iの<strong>+3 Aランク剣</strong>を上位武器へ進化すると、進化後は<strong>+0</strong>になりますが、銘IIと獣特攻Iはそのまま引き継がれます。</p>
+                    <p class="mt-3 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm leading-relaxed text-slate-700">例：銘II・獣特攻Iの<strong>+3 Aランク剣</strong>を上位武器へ進化すると、進化後も<strong>+3</strong>のままです。銘IIと獣特攻Iもそのまま引き継がれます。</p>
                 @endif
             </div>
 

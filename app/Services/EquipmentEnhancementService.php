@@ -12,7 +12,7 @@ use RuntimeException;
 
 class EquipmentEnhancementService
 {
-    public const MAX_EQUIPMENT_ENHANCE = 5;
+    public const MAX_EQUIPMENT_ENHANCE = 30;
 
     private const STAT_FIELDS = [
         'hp' => 'hp_bonus',
@@ -84,6 +84,37 @@ class EquipmentEnhancementService
             3 => [['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 1], ['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_BEAST_FUR', 'material_name' => '獣の毛皮', 'quantity' => 6]],
             4 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 1], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1]],
             5 => [['material_id' => '5009', 'material_name' => '高純度守護石', 'quantity' => 2], ['material_id' => '5008', 'material_name' => '守護石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
+        ],
+    ];
+
+    private const EXTENDED_MATERIALS = [
+        'weapon' => [
+            'fragment' => ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片'],
+            'stone' => ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石'],
+            'high_purity' => ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石'],
+            'common' => ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核'],
+            'city_low' => ['material_id' => 'WEAPON_CITY_MATERIAL', 'material_name' => '街の鍛材'],
+            'city_high' => ['material_id' => 'WEAPON_CITY_HIGH_MATERIAL', 'material_name' => '高位の街鍛材'],
+        ],
+        'armor' => [
+            'fragment' => ['material_id' => '5007', 'material_name' => '守護石の欠片'],
+            'stone' => ['material_id' => '5008', 'material_name' => '守護石'],
+            'high_purity' => ['material_id' => '5009', 'material_name' => '高純度守護石'],
+            'common' => ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核'],
+            'city_low' => ['material_id' => 'ARMOR_CITY_MATERIAL', 'material_name' => '街の装甲材'],
+            'city_high' => ['material_id' => 'ARMOR_CITY_HIGH_MATERIAL', 'material_name' => '高位の街装甲材'],
+        ],
+        'accessory' => [
+            'fragment' => ['material_id' => 'ACC0007', 'material_name' => '調律石の欠片'],
+            'stone' => ['material_id' => 'ACC0008', 'material_name' => '調律石'],
+            'high_purity' => ['material_id' => 'ACC0009', 'material_name' => '高純度調律石'],
+            'common' => ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核'],
+            'city_low' => ['material_id' => 'ACCESSORY_CITY_MATERIAL', 'material_name' => '街の調律材'],
+            'city_high' => ['material_id' => 'ACCESSORY_CITY_HIGH_MATERIAL', 'material_name' => '高位の街調律材'],
+        ],
+        'shared' => [
+            'low_core' => ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核'],
+            'core' => ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核'],
         ],
     ];
 
@@ -168,9 +199,9 @@ class EquipmentEnhancementService
         }
 
         $level = min(self::MAX_EQUIPMENT_ENHANCE, $enhanceLevel);
-        $rateBonus = (int) floor($base * 0.03 * $level);
+        $rateBonus = (int) floor($base * self::enhancementRateBps($level) / 10000);
 
-        return $base + max($level, $rateBonus);
+        return $base + max(self::minimumStatBonus($level), $rateBonus);
     }
 
     /**
@@ -253,7 +284,7 @@ class EquipmentEnhancementService
         }
 
         $level = min(self::MAX_EQUIPMENT_ENHANCE, $enhanceLevel);
-        $extraTotal = $level * 2;
+        $extraTotal = self::accessoryExtraTotal($level);
         $positiveStats = array_filter($baseStats, fn (int $base): bool => $base > 0);
         $totalBase = array_sum($positiveStats);
 
@@ -313,7 +344,7 @@ class EquipmentEnhancementService
     {
         $item = $characterItem->item;
         $currentLevel = (int) ($characterItem->enhance_level ?? 0);
-        $maxLevel = min(self::MAX_EQUIPMENT_ENHANCE, (int) ($item?->max_enhance ?: self::MAX_EQUIPMENT_ENHANCE));
+        $maxLevel = $this->maxEnhanceFor($item);
         $nextLevel = $currentLevel + 1;
         $requirements = [];
         $canEnhance = $item && $currentLevel < $maxLevel;
@@ -397,7 +428,7 @@ class EquipmentEnhancementService
             throw new RuntimeException('強化できるのは武器・防具・装飾品のみです。');
         }
 
-        $maxLevel = min(self::MAX_EQUIPMENT_ENHANCE, (int) ($characterItem->item?->max_enhance ?: self::MAX_EQUIPMENT_ENHANCE));
+        $maxLevel = $this->maxEnhanceFor($characterItem->item);
         if ((int) ($characterItem->enhance_level ?? 0) >= $maxLevel) {
             throw new RuntimeException('これ以上強化できません。');
         }
@@ -405,6 +436,20 @@ class EquipmentEnhancementService
 
     private function recipeForLevel(int $level, string $type = 'weapon', ?Character $character = null, ?object $item = null): array
     {
+        if ($level > 5) {
+            $materials = $this->extendedMaterialsFor($level, $type, $character, $item);
+            if (!$materials) {
+                throw new RuntimeException("+{$level} の装備強化レシピが見つかりません。");
+            }
+
+            return [
+                'materials' => $materials,
+                'gold_cost' => $this->goldCostForLevel($level, $item),
+                'success_rate' => 100,
+                'effect' => $this->effectDescription($level, $type),
+            ];
+        }
+
         if ($type === 'accessory') {
             $materials = $this->resolveDynamicMaterials(self::ACCESSORY_ENHANCEMENT_MATERIALS[$level] ?? null, $type, $character, $item);
             if (!$materials) {
@@ -415,7 +460,7 @@ class EquipmentEnhancementService
                 'materials' => $materials,
                 'gold_cost' => $this->goldCostForLevel($level, $item),
                 'success_rate' => 100,
-                'effect' => '基礎性能+' . ($level * 3) . '%',
+                'effect' => $this->effectDescription($level, $type),
             ];
         }
 
@@ -428,21 +473,32 @@ class EquipmentEnhancementService
             'materials' => $materials,
             'gold_cost' => $this->goldCostForLevel($level, $item),
             'success_rate' => 100,
-            'effect' => '基礎性能+' . ($level * 3) . '%',
+            'effect' => $this->effectDescription($level, $type),
         ];
     }
 
     private function goldCostForLevel(int $level, ?object $item): int
     {
-        $baseCost = self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0;
+        $rank = strtoupper(trim((string) $this->rankRawLabel($item)));
+        $rankOverride = config('equipment_enhancement.rank_gold_cost_overrides.' . $rank . '.' . $level);
+        if ($rankOverride !== null) {
+            return max(0, (int) $rankOverride);
+        }
+
+        $baseCost = (int) config('equipment_enhancement.base_gold_costs.' . $level, self::ENHANCEMENT_GOLD_COSTS[$level] ?? 0);
         if ($baseCost <= 0) {
             return 0;
         }
 
-        $rank = strtoupper(trim((string) $this->rankRawLabel($item)));
-        $multiplier = self::RANK_GOLD_MULTIPLIERS[$rank] ?? 1.0;
+        if ($level <= 5) {
+            $multiplier = self::RANK_GOLD_MULTIPLIERS[$rank] ?? 1.0;
 
-        return (int) ceil($baseCost * $multiplier);
+            return (int) ceil($baseCost * $multiplier);
+        }
+
+        $multiplierBps = (int) config('equipment_enhancement.extended_rank_gold_multipliers_bps.' . $rank, 10000);
+
+        return (int) ceil($baseCost * $multiplierBps / 10000);
     }
 
     public function maxEnhanceFor(?object $item): int
@@ -459,6 +515,78 @@ class EquipmentEnhancementService
 
         return min(self::MAX_EQUIPMENT_ENHANCE, (int) ($item->max_enhance ?: self::MAX_EQUIPMENT_ENHANCE));
     }
+
+    private static function enhancementRateBps(int $level): int
+    {
+        $total = 0;
+        foreach (config('equipment_enhancement.performance_bands', []) as $band) {
+            $from = (int) ($band['from'] ?? 1);
+            $to = (int) ($band['to'] ?? 0);
+            $appliedLevels = max(0, min($level, $to) - $from + 1);
+            $total += $appliedLevels * (int) ($band['rate_bps_per_level'] ?? 0);
+        }
+
+        return $total;
+    }
+
+    private static function minimumStatBonus(int $level): int
+    {
+        if ($level <= 5) {
+            return $level;
+        }
+
+        return 5 + intdiv($level - 5, 2);
+    }
+
+    private static function accessoryExtraTotal(int $level): int
+    {
+        if ($level <= 5) {
+            return $level * 2;
+        }
+
+        return 10 + min($level - 5, 10) + intdiv(max(0, $level - 15), 2);
+    }
+
+    private function extendedMaterialsFor(int $level, string $type, ?Character $character, ?object $item): ?array
+    {
+        $band = collect(config('equipment_enhancement.extended_material_bands', []))
+            ->first(fn (array $candidate): bool => $level >= (int) $candidate['from'] && $level <= (int) $candidate['to']);
+        if (!$band || !isset(self::EXTENDED_MATERIALS[$type])) {
+            return null;
+        }
+
+        $quantities = $band['materials'] ?? [];
+        if ($level === (int) $band['to']) {
+            foreach (($band['milestone'] ?? []) as $key => $quantity) {
+                $quantities[$key] = (int) ($quantities[$key] ?? 0) + (int) $quantity;
+            }
+        }
+
+        $requirements = [];
+        foreach ($quantities as $key => $quantity) {
+            $definition = self::EXTENDED_MATERIALS[$type][$key] ?? self::EXTENDED_MATERIALS['shared'][$key] ?? null;
+            if (!$definition || $quantity <= 0) {
+                continue;
+            }
+
+            $requirements[] = $definition + ['quantity' => (int) $quantity];
+        }
+
+        return $this->resolveDynamicMaterials($requirements, $type, $character, $item);
+    }
+
+    private function effectDescription(int $level, string $type): string
+    {
+        if ($type === 'accessory') {
+            return '能力補正 合計+' . self::accessoryExtraTotal($level);
+        }
+
+        $bps = self::enhancementRateBps($level);
+        $percent = $bps % 100 === 0 ? (string) intdiv($bps, 100) : number_format($bps / 100, 1, '.', '');
+
+        return '基礎性能+' . $percent . '%';
+    }
+
     private function resolveDynamicMaterials(?array $requirements, string $type, ?Character $character, ?object $item): ?array
     {
         if (!$requirements) {

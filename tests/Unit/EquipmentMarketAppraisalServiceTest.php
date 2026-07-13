@@ -11,7 +11,7 @@ class EquipmentMarketAppraisalServiceTest extends TestCase
 {
     public function test_it_uses_the_new_shared_trait_appraisal_values(): void
     {
-        foreach ([1 => 5000, 2 => 15000, 3 => 50000, 4 => 150000, 5 => 500000] as $level => $expected) {
+        foreach ([1 => 5000, 2 => 25000, 3 => 150000, 4 => 450000, 5 => 1200000] as $level => $expected) {
             $appraisal = $this->appraisal('SS', $level);
 
             $this->assertSame($expected, $appraisal['trait_appraisal_price']);
@@ -19,7 +19,7 @@ class EquipmentMarketAppraisalServiceTest extends TestCase
         }
 
         $slayerOnly = $this->appraisal('SS', null, 3);
-        $this->assertSame(50000, $slayerOnly['trait_appraisal_price']);
+        $this->assertSame(150000, $slayerOnly['trait_appraisal_price']);
     }
 
     public function test_it_applies_the_second_trait_at_sixty_percent(): void
@@ -28,9 +28,9 @@ class EquipmentMarketAppraisalServiceTest extends TestCase
         $slayerPrimary = $this->appraisal('SS', 3, 5);
         $sameLevelTraits = $this->appraisal('SS', 5, 5);
 
-        $this->assertSame(530000, $engravingPrimary['trait_appraisal_price']);
-        $this->assertSame(530000, $slayerPrimary['trait_appraisal_price']);
-        $this->assertSame(800000, $sameLevelTraits['trait_appraisal_price']);
+        $this->assertSame(1290000, $engravingPrimary['trait_appraisal_price']);
+        $this->assertSame(1290000, $slayerPrimary['trait_appraisal_price']);
+        $this->assertSame(1920000, $sameLevelTraits['trait_appraisal_price']);
         $this->assertSame([], $sameLevelTraits['trait_breakdown']);
         $this->assertSame(2, $sameLevelTraits['trait_count']);
     }
@@ -44,24 +44,24 @@ class EquipmentMarketAppraisalServiceTest extends TestCase
         $enhancedSingleFive = $this->appraisal('SS', 5, null, 'excellent', 3);
 
         $this->assertSame(100000, $aDoubleThree['body_appraisal_price']);
-        $this->assertSame(80000, $aDoubleThree['trait_appraisal_price']);
-        $this->assertSame(180000, $aDoubleThree['appraisal_price']);
-        $this->assertSame(90000, $aDoubleThree['minimum_price']);
-        $this->assertSame(450000, $aDoubleThree['maximum_price']);
+        $this->assertSame(240000, $aDoubleThree['trait_appraisal_price']);
+        $this->assertSame(340000, $aDoubleThree['appraisal_price']);
+        $this->assertSame(170000, $aDoubleThree['minimum_price']);
+        $this->assertSame(850000, $aDoubleThree['maximum_price']);
 
-        $this->assertSame(490000, $sDoubleFour['appraisal_price']);
-        $this->assertSame(1400000, $ssDoubleFive['appraisal_price']);
-        $this->assertSame(700000, $ssDoubleFive['minimum_price']);
-        $this->assertSame(3500000, $ssDoubleFive['maximum_price']);
+        $this->assertSame(970000, $sDoubleFour['appraisal_price']);
+        $this->assertSame(2520000, $ssDoubleFive['appraisal_price']);
+        $this->assertSame(1260000, $ssDoubleFive['minimum_price']);
+        $this->assertSame(6300000, $ssDoubleFive['maximum_price']);
 
         $this->assertSame(810000, $excellentDoubleFive['body_appraisal_price']);
-        $this->assertSame(800000, $excellentDoubleFive['trait_appraisal_price']);
-        $this->assertSame(1610000, $excellentDoubleFive['appraisal_price']);
-        $this->assertSame(4025000, $excellentDoubleFive['maximum_price']);
+        $this->assertSame(1920000, $excellentDoubleFive['trait_appraisal_price']);
+        $this->assertSame(2730000, $excellentDoubleFive['appraisal_price']);
+        $this->assertSame(6825000, $excellentDoubleFive['maximum_price']);
 
-        $this->assertSame(891000, $enhancedSingleFive['body_appraisal_price']);
-        $this->assertSame(500000, $enhancedSingleFive['trait_appraisal_price']);
-        $this->assertSame(1391000, $enhancedSingleFive['appraisal_price']);
+        $this->assertSame(882900, $enhancedSingleFive['body_appraisal_price']);
+        $this->assertSame(1200000, $enhancedSingleFive['trait_appraisal_price']);
+        $this->assertSame(2082900, $enhancedSingleFive['appraisal_price']);
     }
 
     public function test_weapon_category_does_not_change_trait_appraisal(): void
@@ -69,7 +69,7 @@ class EquipmentMarketAppraisalServiceTest extends TestCase
         $sword = $this->appraisal('SS', 5, null, 'normal', 0, 'sword');
         $staff = $this->appraisal('SS', 5, null, 'normal', 0, 'staff');
 
-        $this->assertSame(500000, $sword['trait_appraisal_price']);
+        $this->assertSame(1200000, $sword['trait_appraisal_price']);
         $this->assertSame($sword['trait_appraisal_price'], $staff['trait_appraisal_price']);
         $this->assertSame(2, $sword['appraisal_version']);
     }

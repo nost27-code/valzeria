@@ -58,25 +58,41 @@ $zipFilePath = __DIR__ . "/deploy_temp.zip";
 $phpBinary = escapeshellarg(PHP_BINARY);
 
 // 除外するファイル・ディレクトリ
-// リリースは単独で起動するため、Composer vendor 一式も含める。
+// Composer vendor はサーバーの直前リリースから引き継ぐ。
 $excludes = [
     '.git',
     '.claude',
     '.codex',
     '.codex-remote-attachments',
     'node_modules',
+    'vendor',
     'outputs',
     'storage',
+    'scratch',
     '.gemini',
     'backups',
     '.env',
+    '.deploy_secret',
+    '.deploy_allowed_ips',
+    'database/database.sqlite',
     'docs',
-    'deploy_temp.zip',
+    'deploy_',
     'ffa_backup',
+    'render_test.php',
+    'scratch_',
     'local_deploy.php',
     'local_deploy_staging.php',
     'public/hot',
+    // サーバー側の vendor と一致しない Composer パッケージ検出キャッシュを持ち込まない。
+    'bootstrap/cache/packages.php',
+    'bootstrap/cache/services.php',
+    'bootstrap/cache/views',
 ];
+
+// 既存リリースから画像を引き継ぐ軽量デプロイ用。画像を変更したリリースでは指定しない。
+if (getenv('DEPLOY_REUSE_EXISTING_IMAGES') === '1') {
+    $excludes[] = 'public/images';
+}
 
 echo "== {$deployTarget} デプロイ処理を開始します ==\n";
 

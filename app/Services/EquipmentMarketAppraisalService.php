@@ -18,7 +18,7 @@ class EquipmentMarketAppraisalService
 
         $quality = (string) ($characterItem->affix_quality ?: 'normal');
         $qualityBps = (int) config("equipment_market.quality_multipliers_bps.{$quality}", 10000);
-        $enhanceBps = (int) config('equipment_market.enhance_multipliers_bps.' . min(3, max(0, (int) $characterItem->enhance_level)), 10000);
+        $enhanceBps = (int) config('equipment_market.enhance_multipliers_bps.' . min(30, max(0, (int) $characterItem->enhance_level)), 10000);
         $bodyAppraisal = intdiv($rankValue * $qualityBps * $enhanceBps, self::BPS * self::BPS);
         [$traitAppraisal, $traitBreakdown, $traitCount] = $this->traitAppraisal($characterItem);
         $appraisal = $bodyAppraisal + $traitAppraisal;

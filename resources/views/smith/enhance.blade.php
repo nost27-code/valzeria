@@ -31,7 +31,65 @@
 @endphp
 
 <x-layouts.facility :title="$title" :headerIcon="$headerIcon" :bgImage="$bgImage">
-    <div class="w-full mx-auto pb-10" x-data="{ activeEnhanceType: @js($initialType), helpOpen: false }">
+    <div
+        class="w-full mx-auto pb-10"
+        x-data="{
+            activeEnhanceType: @js($initialType),
+            helpOpen: false,
+            enhanceSort: 'recommended',
+            init() {
+                let savedSort = null;
+                try {
+                    savedSort = window.localStorage.getItem('valzeria.blacksmith.enhance.sort');
+                } catch (error) {
+                    // 保存領域が利用できない環境では、画面を初期順で表示する。
+                }
+                if (['recommended', 'rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'].includes(savedSort)) {
+                    this.enhanceSort = savedSort;
+                }
+
+                this.$nextTick(() => this.sortEnhancementCandidates());
+            },
+            sortEnhancementCandidates() {
+                const list = this.$refs.enhancementCandidateList;
+                if (!list) {
+                    return;
+                }
+
+                const rankOrder = { J: 1, I: 2, H: 3, G: 4, F: 5, E: 6, D: 7, C: 8, B: 9, A: 10, S: 11, SS: 12, SSS: 13, EPIC: 14, 星樹: 15 };
+                const compare = (left, right) => {
+                    const defaultOrder = () => Number(left.dataset.enhancementDefaultOrder) - Number(right.dataset.enhancementDefaultOrder);
+
+                    if (this.enhanceSort === 'rank_desc') {
+                        return (rankOrder[right.dataset.enhancementRank] ?? 0) - (rankOrder[left.dataset.enhancementRank] ?? 0) || defaultOrder();
+                    }
+                    if (this.enhanceSort === 'enhance_asc') {
+                        return Number(left.dataset.enhancementLevel) - Number(right.dataset.enhancementLevel) || defaultOrder();
+                    }
+                    if (this.enhanceSort === 'enhance_desc') {
+                        return Number(right.dataset.enhancementLevel) - Number(left.dataset.enhancementLevel) || defaultOrder();
+                    }
+                    if (this.enhanceSort === 'name_asc') {
+                        return left.dataset.enhancementName.localeCompare(right.dataset.enhancementName, 'ja') || defaultOrder();
+                    }
+
+                    return defaultOrder();
+                };
+
+                ['weapon', 'armor', 'accessory'].forEach((type) => {
+                    [...list.querySelectorAll(`[data-enhancement-candidate][data-enhancement-type=&quot;${type}&quot;]`)]
+                        .sort(compare)
+                        .forEach((card) => list.appendChild(card));
+                });
+
+                try {
+                    window.localStorage.setItem('valzeria.blacksmith.enhance.sort', this.enhanceSort);
+                } catch (error) {
+                    // 保存領域が利用できない場合も、現在の表示内では並び替えを継続する。
+                }
+            },
+        }"
+    >
         <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
                 <div>
@@ -39,7 +97,7 @@
                         <span class="text-2xl">🔨</span> 装備強化
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        欠片・強化石系素材・共通素材・Goldを使って +1〜+5 に強化します。輝石は使用しません。
+                        欠片・強化石系素材・共通素材・Goldを使って、装備ランクごとの上限まで強化します（+5〜+30）。輝石は使用しません。
                     </p>
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-start">
@@ -78,6 +136,24 @@
                 @endforeach
             </div>
 
+            @if($candidateCount > 1)
+                <div class="mb-4 flex items-center justify-end gap-2">
+                    <label for="enhance-sort" class="text-xs font-bold text-slate-600">並び順</label>
+                    <select
+                        id="enhance-sort"
+                        x-model="enhanceSort"
+                        @change="sortEnhancementCandidates()"
+                        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
+                    >
+                        <option value="recommended">おすすめ順</option>
+                        <option value="rank_desc">ランクが高い順</option>
+                        <option value="enhance_asc">強化値が低い順</option>
+                        <option value="enhance_desc">強化値が高い順</option>
+                        <option value="name_asc">名前順</option>
+                    </select>
+                </div>
+            @endif
+
             @if(session('status'))
                 <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded mb-4 font-bold">
                     {{ session('status') }}
@@ -94,7 +170,7 @@
                     <p>強化できる装備を所持していません。</p>
                 </div>
             @else
-                <div class="space-y-3">
+                <div class="space-y-3" x-ref="enhancementCandidateList">
                     @foreach($typeTabs as $type => $label)
                         @if($typeCounts[$type] === 0)
                             <div
@@ -120,6 +196,12 @@
                             x-show="activeEnhanceType === @js($candidate['type'] ?? 'weapon')"
                             style="display: none;"
                             class="rounded-lg border {{ $cardClass }} p-4"
+                            data-enhancement-candidate
+                            data-enhancement-type="{{ $candidate['type'] ?? 'weapon' }}"
+                            data-enhancement-rank="{{ $candidate['rank'] }}"
+                            data-enhancement-level="{{ $level }}"
+                            data-enhancement-name="{{ $candidate['display_name_without_rank'] ?? $candidate['name'] }}"
+                            data-enhancement-default-order="{{ $loop->index }}"
                         >
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                 <div class="min-w-0 flex-1">

@@ -506,6 +506,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/tools/remover.html', function () {
         return response()->file(public_path('admin/tools/remover.html'));
     })->name('admin.tools.remover');
+    Route::get('/admin/tools/weapon-appraisal', \App\Livewire\Admin\WeaponAppraisalTool::class)->name('admin.tools.weapon-appraisal');
     Route::get('/admin/route-health', \App\Livewire\Admin\RouteHealthCheck::class)->name('admin.route-health');
     Route::get('/admin/tools', \App\Livewire\Admin\ToolCollection::class)->name('admin.tools');
 });

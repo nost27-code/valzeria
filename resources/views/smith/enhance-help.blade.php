@@ -10,7 +10,7 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <h2 class="flex items-center gap-2 text-xl font-bold text-slate-800"><span class="text-2xl">🔨</span> 装備強化の解説</h2>
-                    <p class="mt-2 text-sm leading-relaxed text-slate-600">武器・防具・装飾品を+1〜+5にして、装備そのものの性能を伸ばす操作です。</p>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-600">武器・防具・装飾品を、装備ランクごとの上限まで強化して性能を伸ばす操作です。G〜Eは+10、D〜Bは+15、Aは+20、Sは+25、SS〜EPICは+30まで強化できます。</p>
                 </div>
                 <a href="{{ route('blacksmith.index') }}" class="rounded-lg bg-slate-900 px-4 py-3 text-center text-sm font-black text-white shadow-sm transition hover:bg-slate-700">装備強化へ戻る</a>
             </div>
@@ -23,7 +23,7 @@
 
             <section class="mt-6 rounded-lg border border-amber-200 bg-white p-4">
                 <h3 class="text-lg font-black text-amber-950">具体例</h3>
-                <p class="mt-2 text-sm leading-relaxed text-slate-700">基礎攻撃が100の武器を<strong>+2</strong>にすると、基礎攻撃は106になります。武器・防具は、強化1段階ごとに基礎性能が約3%ずつ上がります。</p>
+                <p class="mt-2 text-sm leading-relaxed text-slate-700">基礎攻撃が100の武器を<strong>+2</strong>にすると、基礎攻撃は106になります。+5までは1段階ごとに約3%伸び、以降は伸び幅を少しずつ抑えながら、+30で合計約47.5%上がります。</p>
             </section>
 
             <section class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
