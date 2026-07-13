@@ -20,6 +20,9 @@ class ExplorationService
     private const GOLDEN_GOBLIN_REWARD_MIN_MULTIPLIER = 2.0;
     private const GOLDEN_GOBLIN_REWARD_MAX_MULTIPLIER = 3.0;
     private const PLAYER_ENCOUNTER_CHANCE_PERCENT = 0.1;
+    private const TREASURE_ANCIENT_DROP_CHANCE_PERCENT = 0.5;
+    private const FERDIA_AREA_ID_MIN = 1001;
+    private const FERDIA_AREA_ID_MAX = 1013;
     private const PLAYER_ENCOUNTER_GIFT_ITEM_NAME = '薬草';
 
     protected BattleService $battleService;
@@ -1366,6 +1369,13 @@ class ExplorationService
         $result->logs[] = "【探索】輝く宝箱を発見した！";
 
         $drops = [];
+        $ancient = $this->treasureAncientMaterial($area);
+        if ($ancient && $this->rollPercent(self::TREASURE_ANCIENT_DROP_CHANCE_PERCENT)) {
+            $drop = $this->dropService->grantMaterialReward($character, $ancient, 'treasure_ancient', $baseEnemy);
+            $result->drops[] = $drop;
+            $drops[] = $drop['name'];
+        }
+
         $quantity = rand(2, 4);
         for ($i = 0; $i < $quantity; $i++) {
             $material = $this->treasureMaterial($area, $baseEnemy);
@@ -1493,10 +1503,38 @@ class ExplorationService
             ->map(fn (Material $material) => $this->normalizeTreasureMaterial($material))
             ->filter()
             ->reject(fn (Material $material) => (string) ($material->material_type ?? '') === 'sell_treasure')
+            ->reject(fn (Material $material) => $this->isAncientMaterial($material))
             ->unique('id')
             ->values();
 
         return $materials->isNotEmpty() ? $materials->random() : null;
+    }
+
+    private function treasureAncientMaterial(Area $area): ?Material
+    {
+        if ((int) $area->id < self::FERDIA_AREA_ID_MIN || (int) $area->id > self::FERDIA_AREA_ID_MAX) {
+            return null;
+        }
+
+        $materials = MaterialDrop::whereHas('enemy', fn ($query) => $query->where('area_id', $area->id))
+            ->where('is_active', true)
+            ->where('drop_first_clear_only', false)
+            ->where('drop_rate', '>', 0)
+            ->whereHas('material', fn ($query) => $query->where('name', 'like', '%古代片%'))
+            ->with('material')
+            ->get()
+            ->pluck('material')
+            ->filter()
+            ->filter(fn (Material $material) => $this->isAncientMaterial($material))
+            ->unique('id')
+            ->values();
+
+        return $materials->isNotEmpty() ? $materials->random() : null;
+    }
+
+    private function isAncientMaterial(Material $material): bool
+    {
+        return str_contains((string) $material->name, '古代片');
     }
 
     private function treasureValuableMaterial(): ?Material

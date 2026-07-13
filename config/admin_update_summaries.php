@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-13-ferdia-treasure-ancient-fragment',
+        'date' => '2026-07-13',
+        'category' => 'balance',
+        'title' => 'フェルディア宝箱に古代片を追加',
+        'detail' => 'フェルディアの輝く宝箱から、まれに装備系統に対応した古代片が見つかるようになりました。',
+    ],
+    [
         'id' => '2026-07-13-equipment-market-appraisal-balance',
         'date' => '2026-07-13',
         'category' => 'balance',
