@@ -101,6 +101,16 @@ Never execute these without explicit user approval in the current task:
 
 For these, present the impact, risk, and rollback plan first, then wait.
 
+## 緊急ホットフィックス
+
+本番で 500 エラー等により主要画面または基本ゲームループが操作不能になった場合は、通常変更より復旧を優先する。
+
+- ユーザーが当該タスク内で本番デプロイを明示承認したら、ステージングでの実プレイ確認完了を待たず、対象コミットだけを本番へ緊急デプロイしてよい。
+- 本番前には最低限、変更ファイルの構文チェック・最も近い自動テスト・差分確認を行う。失敗した確認は無視してデプロイしない。
+- 緊急デプロイの対象は、障害原因を直す最小のコード変更に限定する。migration、Seeder、既存データ更新・削除、決済・通貨・認証変更はこの手順に含めず、通常どおり個別の承認を得る。
+- デプロイ直後に公開ページと障害画面を確認し、復旧結果を直ちに報告する。ステージング確認や追加の実プレイ確認は、復旧後に補完する。
+- 緊急性の根拠、対象コミット、実施した最小確認、ロールバック先を報告に残す。
+
 ## Admin update summary rule
 
 Maintain `config/admin_update_summaries.php` as the source for the admin dashboard update summary.

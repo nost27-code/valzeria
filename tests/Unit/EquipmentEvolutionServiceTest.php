@@ -7,6 +7,7 @@ use App\Models\EquipmentAffixPrefix;
 use App\Models\EquipmentAffixSuffix;
 use App\Models\Item;
 use App\Services\EquipmentEvolutionService;
+use App\Services\EquipmentEnhancementService;
 use App\Services\EquipmentPermissionService;
 use Illuminate\Support\Collection;
 use ReflectionMethod;
@@ -116,6 +117,10 @@ class EquipmentEvolutionServiceTest extends TestCase
         $this->assertSame('[A] 鋭いI鉄の剣・竜断I【逸品】 +2', $payloads[0]['display_name']);
         $this->assertSame('鋭いI鋼の剣・竜断I【逸品】 +2', $payloads[0]['evolved_display_name']);
         $this->assertSame(2, $payloads[0]['enhance_level']);
+        $this->assertSame(
+            array_sum(EquipmentEnhancementService::enhancedStatTotalsForItem($item, 2)) + array_sum($source->affixStatBonuses()),
+            $payloads[0]['total_stat_value']
+        );
         $this->assertSame(2, $payloads[0]['inherited_enhance_level']);
         $this->assertTrue($payloads[0]['is_equipped']);
         $this->assertTrue($payloads[0]['is_locked']);

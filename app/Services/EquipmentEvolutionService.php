@@ -626,6 +626,10 @@ class EquipmentEvolutionService
                     'can_sell' => $goldService->canSellEquipment($item),
                     'sell_price' => $goldService->equipmentSalePrice($item->item),
                     'enhance_level' => (int) ($item->enhance_level ?? 0),
+                    'total_stat_value' => array_sum(EquipmentEnhancementService::enhancedStatTotalsForItem(
+                        $item->item,
+                        (int) ($item->enhance_level ?? 0),
+                    )) + array_sum($item->affixStatBonuses()),
                     'inherited_enhance_level' => $toItem
                         ? min((int) ($item->enhance_level ?? 0), app(EquipmentEnhancementService::class)->maxEnhanceFor($toItem))
                         : 0,

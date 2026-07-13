@@ -32,7 +32,7 @@
     $evolvableCount = $grouped->filter(fn ($group) => collect($group)->contains('can_evolve', true))->count();
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
-    <div class="w-full mx-auto pb-10" x-data="{ modalOpen: false, helpOpen: false, selected: null, typeFilter: 'all', statusFilter: 'all', srcPopup: { open: false, sources: [], label: '', required: 0 } }">
+    <div class="w-full mx-auto pb-10" x-data="{ modalOpen: false, helpOpen: false, selected: null, typeFilter: 'all', statusFilter: 'all', sortBy: 'default', srcPopup: { open: false, sources: [], label: '', required: 0 } }">
         <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
                 <div>
@@ -92,6 +92,15 @@
                 <button type="button" @click="statusFilter = 'ready'" :class="statusFilter === 'ready' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg px-2 py-2.5 text-xs sm:text-sm font-bold transition">
                     進化可能のみ
                 </button>
+            </div>
+
+            <div class="mb-5 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <label for="smith-sort" class="shrink-0 text-xs font-bold text-slate-700">並び替え</label>
+                <select id="smith-sort" x-model="sortBy" class="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-amber-500 focus:ring-amber-500">
+                    <option value="default">おすすめ順</option>
+                    <option value="enhance">強化値が高い順</option>
+                    <option value="stats">能力値が高い順</option>
+                </select>
             </div>
 
             <div class="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-600">
@@ -167,6 +176,8 @@
                             $groupSourceItemId = (int) ($first['display_source_item_id'] ?? ($groupSourceOption['id'] ?? 0));
                             $groupCanSell = (bool) ($groupSourceOption['can_sell'] ?? false);
                             $groupSellPrice = (int) ($groupSourceOption['sell_price'] ?? 0);
+                            $groupEnhanceLevel = (int) ($groupSourceOption['enhance_level'] ?? 0);
+                            $groupTotalStatValue = (int) ($groupSourceOption['total_stat_value'] ?? 0);
                             $groupSellDisabledTitle = ($groupSourceOption['is_equipped'] ?? false)
                                 ? '装備中は売却不可'
                                 : (($groupSourceOption['is_locked'] ?? false) ? '保護中は売却不可' : '売却不可');
@@ -175,6 +186,7 @@
                             data-smith-source-card
                             data-source-item-id="{{ $groupSourceItemId ?: '' }}"
                             x-show="(typeFilter === 'all' || typeFilter === '{{ $groupType }}') && (statusFilter === 'all' || {{ $groupHasEvolvable ? 'true' : 'false' }})"
+                            :style="sortBy === 'enhance' ? { order: -{{ $groupEnhanceLevel }} } : (sortBy === 'stats' ? { order: -{{ $groupTotalStatValue }} } : {})"
                             x-data="{
                                 groupOpen: false,
                                 activeTab: -1,
