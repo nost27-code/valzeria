@@ -18,7 +18,7 @@ class JobServiceTest extends TestCase
         ])));
     }
 
-    public function test_hidden_legend_and_myth_jobs_are_not_released_yet(): void
+    public function test_hidden_crown_and_higher_jobs_are_not_released_without_a_character_proof(): void
     {
         $service = new JobService();
 

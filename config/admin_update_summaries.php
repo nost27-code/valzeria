@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-crown-proof-crown-job-unlock',
+        'date' => '2026-07-15',
+        'category' => 'added',
+        'title' => '冠位の証で冠位職を解放',
+        'detail' => '冠位の証を持つと神殿に冠位職が表示され、Lv30以上かつ未使用BPなしで転職できるようになりました。冠位の証は素材倉庫の保管数に含まれません。',
+    ],
+    [
         'id' => '2026-07-15-ancient-fragment-source-copy',
         'date' => '2026-07-15',
         'category' => 'fixed',

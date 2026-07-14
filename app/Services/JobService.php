@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Models\CharacterMaterial;
 use App\Models\JobClass;
 use App\Models\CharacterJob;
 use App\Models\JobExpTable;
@@ -12,30 +13,43 @@ use App\Support\JobRankCatalog;
 class JobService
 {
     private const MASTER_JOB_LEVEL = 10;
+    public const CROWN_PROOF_MATERIAL_CODE = 'MAT_FERDIA_CROWN_PROOF';
 
     /**
      * 指定の職業に転職可能か判定する
      */
     public function canChangeJob(Character $character, JobClass $job): bool
     {
-        return $this->isReleasedForJobChange($job)
+        return $this->isReleasedForJobChange($job, $character)
             && $this->meetsJobRequirements($character, $job)
             && $this->passesBonusPointGate($character);
     }
 
     public function canRevealJob(Character $character, JobClass $job): bool
     {
-        return $this->isReleasedForJobChange($job)
+        return $this->isReleasedForJobChange($job, $character)
             && $this->meetsJobRequirements($character, $job);
     }
 
-    public function isReleasedForJobChange(JobClass $job): bool
+    public function isReleasedForJobChange(JobClass $job, ?Character $character = null): bool
     {
         if (! (bool) $job->is_hidden) {
             return true;
         }
 
-        return JobRankCatalog::normalize($job->rank) === JobRankCatalog::SUPER;
+        $rank = JobRankCatalog::normalize($job->rank);
+
+        return $rank === JobRankCatalog::SUPER
+            || ($rank === JobRankCatalog::CROWN && $character && $this->hasCrownProof($character));
+    }
+
+    public function hasCrownProof(Character $character): bool
+    {
+        return CharacterMaterial::query()
+            ->where('character_id', $character->id)
+            ->where('quantity', '>', 0)
+            ->whereHas('material', fn ($query) => $query->where('material_code', self::CROWN_PROOF_MATERIAL_CODE))
+            ->exists();
     }
 
     public function prerequisiteMasterRanksFor(JobClass $job): array
@@ -62,7 +76,8 @@ class JobService
         $requirements = $job->requirements;
 
         if ($requirements->isEmpty()) {
-            return JobRankCatalog::isBasic($job->rank); // 条件がなければ基本職のみ転職可能
+            return JobRankCatalog::isBasic($job->rank)
+                || (JobRankCatalog::normalize($job->rank) === JobRankCatalog::CROWN && $this->hasCrownProof($character));
         }
 
         foreach ($requirements as $req) {
@@ -98,6 +113,10 @@ class JobService
 
     private function meetsRankProgressionRequirements(Character $character, JobClass $job): bool
     {
+        if (JobRankCatalog::normalize($job->rank) === JobRankCatalog::CROWN && $this->hasCrownProof($character)) {
+            return true;
+        }
+
         $requiredRanks = $this->prerequisiteMasterRanksFor($job);
         if ($requiredRanks === []) {
             return true;

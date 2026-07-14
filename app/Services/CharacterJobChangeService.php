@@ -48,14 +48,14 @@ class CharacterJobChangeService
             ];
         }
 
-        if (!$targetJob->is_active) {
+        if (!$targetJob->is_active && ! $jobService->isReleasedForJobChange($targetJob, $character)) {
             return [
                 'success' => false,
                 'message' => 'この職業には現在転職できません。'
             ];
         }
 
-        if (! $jobService->isReleasedForJobChange($targetJob)) {
+        if (! $jobService->isReleasedForJobChange($targetJob, $character)) {
             return [
                 'success' => false,
                 'message' => 'この職業には現在転職できません。'

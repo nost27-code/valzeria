@@ -33,6 +33,7 @@ class JobChange extends Component
     public array $detailJobGrowthStats = [];
     public array $detailJobMasterBonusChips = [];
     public bool $detailJobCanChange = false;
+    public bool $hasCrownProof = false;
 
     public function mount()
     {
@@ -55,8 +56,15 @@ class JobChange extends Component
     public function loadJobs()
     {
         $jobService = new JobService();
+        $this->hasCrownProof = $jobService->hasCrownProof($this->character);
         $jobQuery = JobClass::with(['masterBonuses', 'requirements.requiredJob', 'jobArts'])
-            ->where('is_active', true);
+            ->where(function ($query) {
+                $query->where('is_active', true);
+
+                if ($this->hasCrownProof) {
+                    $query->orWhere('rank', JobRankCatalog::CROWN);
+                }
+            });
         $allJobs = JobRankCatalog::orderByRank($jobQuery)
             ->orderBy('sort_order')
             ->get();
@@ -162,15 +170,21 @@ class JobChange extends Component
 
     public function showJobDetail(int $jobId): void
     {
+        $jobService = new JobService();
         $job = JobClass::with(['jobArts', 'masterBonuses', 'requirements.requiredJob'])
-            ->where('is_active', true)
+            ->where(function ($query) use ($jobService) {
+                $query->where('is_active', true);
+
+                if ($jobService->hasCrownProof($this->character)) {
+                    $query->orWhere('rank', JobRankCatalog::CROWN);
+                }
+            })
             ->find($jobId);
 
         if (! $job) {
             return;
         }
 
-        $jobService = new JobService();
         $canChange = $jobService->canChangeJob($this->character, $job);
         $canReveal = $jobService->canRevealJob($this->character, $job);
 
@@ -306,8 +320,15 @@ class JobChange extends Component
 
     private function findSelectedJob(int $jobId): ?JobClass
     {
+        $jobService = new JobService();
         $job = JobClass::with(['masterBonuses', 'requirements.requiredJob', 'jobArts'])
-            ->where('is_active', true)
+            ->where(function ($query) use ($jobService) {
+                $query->where('is_active', true);
+
+                if ($jobService->hasCrownProof($this->character)) {
+                    $query->orWhere('rank', JobRankCatalog::CROWN);
+                }
+            })
             ->find($jobId);
 
         if ($job) {

@@ -259,6 +259,13 @@
                                 Rank {{ $level }} {{ $isMastered ? '(MASTER)' : '' }}
                             </span>
                         </div>
+
+                        @if($hasCrownProof)
+                            <div class="flex items-center justify-between rounded border border-rose-200 bg-rose-50 p-2 text-sm font-bold text-rose-700">
+                                <span>👑 冠位の証</span>
+                                <span>所持済</span>
+                            </div>
+                        @endif
                         
                         @if(isset($expInfo) && !$expInfo['is_mastered'])
                             @php
