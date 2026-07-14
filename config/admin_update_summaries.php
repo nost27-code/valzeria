@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-ancient-fragment-source-display',
+        'date' => '2026-07-15',
+        'category' => 'fixed',
+        'title' => '古代片の入手場所表示を修正',
+        'detail' => '進化素材の古代片で、実際に入手できるフェルディアの探索地とドロップ率を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-15-ferdia-material-drop-rate-doubled',
         'date' => '2026-07-15',
         'category' => 'balance',

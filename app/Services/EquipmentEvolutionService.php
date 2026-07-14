@@ -737,10 +737,6 @@ class EquipmentEvolutionService
             return $this->materialSourceCache[$code] = ['素材マスタ未登録'];
         }
 
-        if (str_contains((string) $material->name, '古代片') || str_contains((string) $material->name, '古代装飾片')) {
-            return $this->materialSourceCache[$code] = [$this->sourcePayload('未実装')];
-        }
-
         $sources = [];
         $dropRows = DB::table('material_drops')
             ->join('enemies', 'material_drops.enemy_id', '=', 'enemies.id')
@@ -786,8 +782,12 @@ class EquipmentEvolutionService
                 ->map(fn ($row): ?float => $this->effectiveMaterialDropRate($row, $material))
                 ->filter(fn (?float $rate): bool => $rate !== null)
                 ->values();
+            $isFerdiaDrop = $repeatRows->isNotEmpty()
+                && $repeatRows->every(fn ($row): bool => $this->isFerdiaMaterialDrop($row));
             $rateText = $rates->isNotEmpty()
-                ? $this->materialSourceRateLabel((float) $rates->min(), (float) $rates->max())
+                ? ($isFerdiaDrop
+                    ? $this->ferdiaMaterialSourceRateLabel((float) $rates->min(), (float) $rates->max())
+                    : $this->materialSourceRateLabel((float) $rates->min(), (float) $rates->max()))
                 : ($rows->contains(fn ($row): bool => (bool) ($row->drop_first_clear_only ?? false)) ? '初回確定' : '入手率変動');
             $sources[] = $this->sourcePayload(
                 trim(($cityName !== '' ? $cityName . ' / ' : '') . $areaName . '（' . $rateText . '）'),
@@ -797,7 +797,7 @@ class EquipmentEvolutionService
         }
 
         $method = trim((string) ($material->obtain_method ?? ''));
-        if ($method !== '') {
+        if ($method !== '' && !($this->isAncientMaterial($material) && $dropRows->isNotEmpty())) {
             $sources[] = $this->sourcePayload($method);
         }
 
@@ -865,6 +865,10 @@ class EquipmentEvolutionService
         $dropRate = (float) ($row->drop_rate ?? 0);
         if ($dropRate <= 0) {
             return null;
+        }
+
+        if ($this->isFerdiaMaterialDrop($row)) {
+            return $dropRate;
         }
 
         $band = $this->sourceMaterialBand($row);
@@ -1002,6 +1006,37 @@ class EquipmentEvolutionService
     {
         return (int) ($row->area_id ?? 0) >= 71
             || str_contains((string) ($row->area_name ?? ''), '裏');
+    }
+
+    private function isFerdiaMaterialDrop(object $row): bool
+    {
+        $areaId = (int) ($row->area_id ?? 0);
+
+        return $areaId >= 1001 && $areaId <= 1013;
+    }
+
+    private function isAncientMaterial(Material $material): bool
+    {
+        $name = (string) $material->name;
+
+        return str_contains($name, '古代片') || str_contains($name, '古代装飾片');
+    }
+
+    private function ferdiaMaterialSourceRateLabel(float $minRate, float $maxRate): string
+    {
+        $minRate = max(0.0, $minRate);
+        $maxRate = max($minRate, $maxRate);
+
+        if (abs($maxRate - $minRate) < 0.005) {
+            return $this->formatFerdiaMaterialRate($maxRate);
+        }
+
+        return $this->formatFerdiaMaterialRate($minRate) . '-' . $this->formatFerdiaMaterialRate($maxRate);
+    }
+
+    private function formatFerdiaMaterialRate(float $rate): string
+    {
+        return rtrim(rtrim(number_format($rate, 2), '0'), '.') . '%';
     }
 
     private function isSourceGrassland(object $row): bool
