@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-early-dungeon-enemy-rates',
+        'date' => '2026-07-14',
+        'category' => 'balance',
+        'title' => '序盤ダンジョンの敵出現率を調整',
+        'detail' => 'はじまりの草原から見習い訓練場まで、通常敵が偏らず出会えるよう出現率を均等にしました。',
+    ],
+    [
         'id' => '2026-07-14-special-enemy-images',
         'date' => '2026-07-14',
         'category' => 'changed',
