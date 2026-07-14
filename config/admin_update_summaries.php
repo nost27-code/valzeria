@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-15-admin-individual-gold-grant',
+        'date' => '2026-07-15',
+        'category' => 'internal',
+        'title' => '管理画面に個別Gold送付を追加',
+        'detail' => '選択した冒険者へ理由付きでGoldを送付し、取引履歴と通知に記録できるようにしました。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-15-valzeria-enemy-job-exp-master-cap',
         'date' => '2026-07-15',
         'category' => 'balance',

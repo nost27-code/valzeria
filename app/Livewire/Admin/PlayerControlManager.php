@@ -10,11 +10,13 @@ use App\Models\EquipmentAffixPrefix;
 use App\Models\EquipmentAffixSuffix;
 use App\Models\CharacterMaterial;
 use App\Models\Item;
+use App\Models\GoldTransaction;
 use App\Models\KisekiTransaction;
 use App\Models\Material;
 use App\Services\CharacterNotificationService;
 use App\Services\CooldownSettingService;
 use App\Services\EquipmentAffixRulesService;
+use App\Services\GoldService;
 use App\Services\NewcomerRegistrationCampaignService;
 use App\Services\StorageCapacityService;
 use Illuminate\Support\Collection;
@@ -40,6 +42,8 @@ class PlayerControlManager extends Component
     public string $grantAffixQuality = 'normal';
     public int $kisekiGrantAmount = 1;
     public string $kisekiGrantReason = '';
+    public int $goldGrantAmount = 1;
+    public string $goldGrantReason = '';
     public string $freezeReason = '';
 
     public function selectCharacter(int $characterId): void
@@ -234,6 +238,62 @@ class PlayerControlManager extends Component
         $this->kisekiGrantReason = '';
     }
 
+    public function grantGold(): void
+    {
+        $this->validate([
+            'selectedCharacterId' => ['required', 'integer', 'exists:characters,id'],
+            'goldGrantAmount' => ['required', 'integer', 'min:1', 'max:999999'],
+            'goldGrantReason' => ['required', 'string', 'max:255'],
+        ], [
+            'goldGrantReason.required' => '送付理由を入力してください。',
+        ]);
+
+        $message = DB::transaction(function () {
+            $character = Character::query()
+                ->whereKey($this->selectedCharacterId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $amount = (int) $this->goldGrantAmount;
+            $admin = auth()->user();
+
+            $transaction = app(GoldService::class)->add(
+                $character,
+                $amount,
+                'admin_grant',
+                '管理者送付: ' . $this->goldGrantReason,
+                'admin_grant',
+                $admin?->id,
+                [
+                    'reason' => $this->goldGrantReason,
+                    'admin_user_id' => $admin?->id,
+                    'admin_user_name' => $admin?->name,
+                ]
+            );
+
+            app(CharacterNotificationService::class)->create(
+                $character,
+                'system',
+                'admin_gold_grant',
+                'Goldが送付されました',
+                number_format($amount) . ' Goldが送付されました。',
+                null,
+                null,
+                [
+                    'amount' => $amount,
+                    'transaction_id' => $transaction->id,
+                    'granted_by' => 'admin_grant',
+                ],
+                10
+            );
+
+            return "{$character->name} に " . number_format($amount) . ' Goldを送付しました。';
+        });
+
+        session()->flash('message', $message);
+        $this->goldGrantAmount = 1;
+        $this->goldGrantReason = '';
+    }
+
     public function render(
         StorageCapacityService $storageCapacityService,
         NewcomerRegistrationCampaignService $newcomerRegistrationCampaignService
@@ -264,6 +324,7 @@ class PlayerControlManager extends Component
             'slayerCandidates' => $this->slayerCandidates(),
             'controlIdeas' => $this->controlIdeas(),
             'kisekiGrantHistory' => $this->kisekiGrantHistory($selectedCharacter),
+            'goldGrantHistory' => $this->goldGrantHistory($selectedCharacter),
             'itemGrantHistory' => $this->itemGrantHistory($selectedCharacter),
             'newcomerGiftSummary' => $newcomerRegistrationCampaignService->summary(syncPending: true),
         ])->layout('components.layouts.admin');
@@ -302,6 +363,7 @@ class PlayerControlManager extends Component
             ['label' => 'アイテム送付', 'state' => '実装済み', 'body' => '素材・武器・防具・装飾・探索用アイテム・サポートアイテムを送付できます。武器は銘・特攻付きで送付できます。'],
             ['label' => 'HP/SP回復', 'state' => '候補', 'body' => '問い合わせ対応や検証用に現在HP/SPを回復できます。'],
             ['label' => '輝石付与', 'state' => '実装済み', 'body' => '有償輝石として付与し、課金監査ログと通知ベルに記録します。'],
+            ['label' => 'Gold送付', 'state' => '実装済み', 'body' => 'Goldを個別に送付し、取引台帳と通知ベルに記録します。'],
             ['label' => '進行復旧', 'state' => '候補', 'body' => '街・エリア解放・ボス討伐状態を個別に確認して復旧できます。'],
             ['label' => 'ヴァルモン救済', 'state' => '候補', 'body' => '卵・相棒・なつきなどを調査画面と連動して調整できます。'],
         ];
@@ -361,6 +423,21 @@ class PlayerControlManager extends Component
         return KisekiTransaction::query()
             ->where('character_id', $character->id)
             ->where('transaction_type', 'admin_grant')
+            ->where('source_type', 'admin_grant')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+    }
+
+    private function goldGrantHistory(?Character $character): Collection
+    {
+        if (!$character) {
+            return collect();
+        }
+
+        return GoldTransaction::query()
+            ->where('character_id', $character->id)
+            ->where('type', 'admin_grant')
             ->where('source_type', 'admin_grant')
             ->orderByDesc('created_at')
             ->limit(10)

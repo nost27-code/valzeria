@@ -138,6 +138,103 @@
                 @endif
             </section>
 
+            <section class="rounded-md border border-yellow-300 bg-white shadow-sm">
+                <div class="border-b border-yellow-300 bg-yellow-50 px-5 py-4">
+                    <h2 class="text-lg font-black text-yellow-900">Gold送付</h2>
+                    <p class="mt-1 text-xs font-semibold text-yellow-800">補填・検証用にGoldを個別送付し、Gold取引台帳へ記録します。</p>
+                </div>
+
+                @if($selectedCharacter)
+                    <form wire:submit.prevent="grantGold" class="p-5">
+                        <div class="mb-5 grid gap-3 md:grid-cols-3">
+                            <div class="rounded-md border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+                                <div class="text-xs font-black text-slate-500">送付先</div>
+                                <div class="mt-1 text-sm font-black text-slate-950">{{ $selectedCharacter->name }}</div>
+                                <div class="mt-1 text-xs font-bold text-slate-500">CID {{ $selectedCharacter->id }} / {{ $selectedCharacter->user?->email ?? '-' }}</div>
+                            </div>
+                            <div class="rounded-md border border-yellow-300 bg-yellow-50 p-4">
+                                <div class="text-xs font-black text-yellow-800">現在の所持Gold</div>
+                                <div class="mt-1 text-xl font-black text-slate-950">{{ number_format((int) $selectedCharacter->money) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-[220px_1fr]">
+                            <div>
+                                <label class="{{ $labelClass }}">送付Gold</label>
+                                <input type="number" min="1" max="999999" step="1" wire:model="goldGrantAmount" class="mt-1 {{ $fieldClass }}">
+                                @error('goldGrantAmount') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                            </div>
+                            <div>
+                                <label class="{{ $labelClass }}">送付理由（必須）</label>
+                                <input type="text" maxlength="255" wire:model="goldGrantReason" class="mt-1 {{ $fieldClass }}" placeholder="例: 不具合発生期間の補填">
+                                @error('goldGrantReason') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+
+                        <div class="mt-5 flex justify-end">
+                            <button
+                                type="submit"
+                                wire:confirm="{{ $selectedCharacter->name }} にGoldを送付しますか？送付後は取引台帳に残ります。"
+                                wire:loading.attr="disabled"
+                                wire:loading.class="cursor-not-allowed bg-yellow-200 text-slate-600"
+                                wire:target="grantGold"
+                                class="inline-flex min-w-40 items-center justify-center gap-2 rounded-md bg-yellow-400 px-5 py-2.5 text-sm font-black text-slate-950 shadow-sm transition hover:bg-yellow-300 active:scale-[0.98] disabled:pointer-events-none disabled:shadow-none"
+                            >
+                                <span wire:loading.remove wire:target="grantGold">Goldを送付</span>
+                                <span wire:loading.flex wire:target="grantGold" class="items-center gap-2">
+                                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent"></span>
+                                    送付中...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="border-t border-yellow-200 bg-yellow-50/40 px-5 py-4">
+                        <div>
+                            <h3 class="text-sm font-black text-yellow-900">直近のGold送付履歴</h3>
+                            <p class="mt-1 text-xs font-semibold text-yellow-800">この冒険者への管理者送付を最新10件まで表示します。</p>
+                        </div>
+
+                        @if($goldGrantHistory->isNotEmpty())
+                            <div class="mt-4 overflow-hidden rounded-md border border-yellow-200 bg-white">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-slate-100 text-sm">
+                                        <thead class="bg-slate-50 text-xs font-black text-slate-500">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left">日時</th>
+                                                <th class="px-4 py-3 text-right">Gold</th>
+                                                <th class="px-4 py-3 text-left">理由</th>
+                                                <th class="px-4 py-3 text-left">管理者</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            @foreach($goldGrantHistory as $transaction)
+                                                <tr>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-500">{{ $transaction->created_at?->format('Y-m-d H:i:s') ?? '-' }}</td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-right font-black text-yellow-800">+{{ number_format((int) $transaction->amount) }}</td>
+                                                    <td class="px-4 py-3 font-bold text-slate-700">{{ data_get($transaction->metadata, 'reason', $transaction->note ?? '-') }}</td>
+                                                    <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-600">{{ data_get($transaction->metadata, 'admin_user_name', 'ID ' . ($transaction->source_id ?? '-')) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @else
+                            <div class="mt-4 rounded-md border border-dashed border-yellow-300 bg-white px-4 py-5 text-center text-sm font-bold text-slate-500">
+                                この冒険者へのGold送付履歴はまだありません。
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <div class="p-5">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 p-5 text-sm font-bold text-slate-600">
+                            左の一覧からキャラクターを選択してください。
+                        </div>
+                    </div>
+                @endif
+            </section>
+
             <section class="rounded-md border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-200 px-5 py-4">
                     <h2 class="text-lg font-black text-slate-950">倉庫上限</h2>
