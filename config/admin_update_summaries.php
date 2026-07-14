@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-remaining-enemy-images',
+        'date' => '2026-07-14',
+        'category' => 'changed',
+        'title' => '残りの敵モンスター画像を追加',
+        'detail' => '戦闘結果で、水門街道から次元回廊までの残りの敵モンスター画像を表示できるようにしました。',
+    ],
+    [
         'id' => '2026-07-14-battle-mobile-confrontation-layout',
         'date' => '2026-07-14',
         'category' => 'changed',
