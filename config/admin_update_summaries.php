@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-special-enemy-images',
+        'date' => '2026-07-14',
+        'category' => 'changed',
+        'title' => '特殊モンスター画像を追加',
+        'detail' => '戦闘結果で、ダンジョン主・秘境主・黄金ゴブリンの画像を表示できるようにしました。',
+    ],
+    [
         'id' => '2026-07-14-remaining-enemy-images',
         'date' => '2026-07-14',
         'category' => 'changed',
