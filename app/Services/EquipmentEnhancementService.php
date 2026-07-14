@@ -26,6 +26,8 @@ class EquipmentEnhancementService
         'luk' => 'luk_bonus',
     ];
 
+    private const ACCESSORY_FULL_STAT_KEYS = ['str', 'def', 'agi', 'mag', 'spr', 'luk'];
+
     private const MATERIAL_CODE_ALIASES = [
         'MAT_WEAPON_FRAGMENT' => 'MAT_EQUIPMENT_FRAGMENT',
         'WEV0001' => 'MAT_EQUIPMENT_FRAGMENT',
@@ -272,7 +274,7 @@ class EquipmentEnhancementService
             return $baseStats;
         }
 
-        $extraTotal = self::accessoryExtraTotalForItem($totalBase, $level, $item);
+        $extraTotal = self::accessoryExtraTotalForItem($totalBase, $positiveStats, $level, $item);
 
         $extras = array_fill_keys(array_keys($baseStats), 0);
         $remainders = [];
@@ -547,17 +549,26 @@ class EquipmentEnhancementService
         return 10 + min($level - 5, 10) + intdiv(max(0, $level - 15), 2);
     }
 
-    private static function accessoryExtraTotalForItem(int $baseTotal, int $level, ?object $item): int
+    /**
+     * @param  array<string, int>  $positiveStats
+     */
+    private static function accessoryExtraTotalForItem(int $baseTotal, array $positiveStats, int $level, ?object $item): int
     {
         $rank = strtoupper(trim((string) (
             $item?->accessory_rank
             ?? $item?->rarity
             ?? ''
         )));
-        $targetTotal = config('equipment_enhancement.accessory_total_stat_targets_at_max.' . $rank);
+        $targetTotal = self::isFullAbilityAccessory($positiveStats)
+            ? config('equipment_enhancement.accessory_full_stat_target_per_stat_at_max.' . $rank)
+            : config('equipment_enhancement.accessory_total_stat_targets_at_max.' . $rank);
 
         if ($targetTotal === null) {
             return self::accessoryExtraTotal($level);
+        }
+
+        if (self::isFullAbilityAccessory($positiveStats)) {
+            $targetTotal *= count(self::ACCESSORY_FULL_STAT_KEYS);
         }
 
         $maxLevel = min(
@@ -568,6 +579,14 @@ class EquipmentEnhancementService
         $totalAtLevel = $baseTotal + intdiv(($targetTotal - $baseTotal) * $level, max(1, $maxLevel));
 
         return $totalAtLevel - $baseTotal;
+    }
+
+    /**
+     * @param  array<string, int>  $positiveStats
+     */
+    private static function isFullAbilityAccessory(array $positiveStats): bool
+    {
+        return array_keys($positiveStats) === self::ACCESSORY_FULL_STAT_KEYS;
     }
 
     private function extendedMaterialsFor(int $level, string $type, ?Character $character, ?object $item): ?array

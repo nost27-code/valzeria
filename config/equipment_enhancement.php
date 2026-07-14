@@ -26,11 +26,17 @@ return [
         ['from' => 21, 'to' => 25, 'rate_bps_per_level' => 100],
         ['from' => 26, 'to' => 30, 'rate_bps_per_level' => 80],
     ],
-    // SS以上の装飾品は、+30時の正の能力値合計を元の比率で配分してこの値へ到達させる。
+    // 単能力型のSS以上は、+30時の正の能力値合計を元の比率で配分してこの値へ到達させる。
     'accessory_total_stat_targets_at_max' => [
         'SS' => 200,
         'SSS' => 300,
         'EPIC' => 400,
+    ],
+    // ATK・DEF・SPD・MAG・SPR・LUKをすべて持つ全能力型は、+30時に各能力を単能力型の半分へ到達させる。
+    'accessory_full_stat_target_per_stat_at_max' => [
+        'SS' => 100,
+        'SSS' => 150,
+        'EPIC' => 200,
     ],
     'base_gold_costs' => [
         1 => 100, 2 => 500, 3 => 1500, 4 => 5000, 5 => 15000,

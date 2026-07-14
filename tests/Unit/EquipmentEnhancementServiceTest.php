@@ -48,7 +48,7 @@ class EquipmentEnhancementServiceTest extends TestCase
         );
     }
 
-    public function test_high_rank_accessories_reach_their_configured_total_at_plus_thirty(): void
+    public function test_high_rank_accessories_reach_their_configured_targets_at_plus_thirty(): void
     {
         $ssItem = (object) [
             'type' => 'accessory',
@@ -60,7 +60,32 @@ class EquipmentEnhancementServiceTest extends TestCase
             'accessory_rank' => 'SSS',
             'str_bonus' => 44,
         ];
-        $epicItem = (object) [
+        $ssFullItem = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'SS',
+            'str_bonus' => 11,
+            'def_bonus' => 11,
+            'agi_bonus' => 11,
+            'mag_bonus' => 11,
+            'spr_bonus' => 11,
+            'luk_bonus' => 11,
+        ];
+        $sssFullItem = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'SSS',
+            'str_bonus' => 14,
+            'def_bonus' => 14,
+            'agi_bonus' => 14,
+            'mag_bonus' => 14,
+            'spr_bonus' => 14,
+            'luk_bonus' => 14,
+        ];
+        $epicSingleItem = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'EPIC',
+            'str_bonus' => 60,
+        ];
+        $epicFullItem = (object) [
             'type' => 'accessory',
             'accessory_rank' => 'EPIC',
             'str_bonus' => 20,
@@ -73,9 +98,18 @@ class EquipmentEnhancementServiceTest extends TestCase
 
         $this->assertSame(['str' => 200], EquipmentEnhancementService::enhancedStatTotalsForItem($ssItem, 30));
         $this->assertSame(['str' => 300], EquipmentEnhancementService::enhancedStatTotalsForItem($sssItem, 30));
+        $this->assertSame(['str' => 400], EquipmentEnhancementService::enhancedStatTotalsForItem($epicSingleItem, 30));
         $this->assertSame(
-            ['str' => 67, 'def' => 67, 'agi' => 67, 'mag' => 67, 'spr' => 66, 'luk' => 66],
-            EquipmentEnhancementService::enhancedStatTotalsForItem($epicItem, 30)
+            ['str' => 100, 'def' => 100, 'agi' => 100, 'mag' => 100, 'spr' => 100, 'luk' => 100],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($ssFullItem, 30)
+        );
+        $this->assertSame(
+            ['str' => 150, 'def' => 150, 'agi' => 150, 'mag' => 150, 'spr' => 150, 'luk' => 150],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($sssFullItem, 30)
+        );
+        $this->assertSame(
+            ['str' => 200, 'def' => 200, 'agi' => 200, 'mag' => 200, 'spr' => 200, 'luk' => 200],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($epicFullItem, 30)
         );
     }
 
