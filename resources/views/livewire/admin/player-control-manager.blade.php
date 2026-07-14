@@ -397,7 +397,7 @@
 
                         <div class="mt-4">
                             <label class="{{ $labelClass }}">送付対象</label>
-                            <select wire:model="grantTargetId" class="mt-1 {{ $fieldClass }}">
+                            <select wire:model.live="grantTargetId" class="mt-1 {{ $fieldClass }}">
                                 <option value="">選択してください</option>
                                 @foreach($grantCandidates as $candidate)
                                     <option value="{{ $candidate['id'] }}">{{ $candidate['name'] }}（{{ $candidate['meta'] }}）</option>
@@ -421,7 +421,7 @@
                             @endif
                         </div>
 
-                        @if($grantType === 'weapon')
+                        @if($grantType === 'weapon' && $selectedWeaponAffixEnabled !== false)
                             <div class="mt-4 rounded-md border border-violet-200 bg-violet-50 p-4">
                                 <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                     <div class="text-sm font-black text-violet-950">銘・特攻の指定</div>
@@ -477,6 +477,10 @@
                                     </div>
                                 </div>
                                 <p class="mt-3 text-xs font-bold leading-relaxed text-violet-800">武器ランクごとの段階上限を超える指定はできません。送付内容は完成名・銘・特攻・品質・個体IDを管理送付履歴に残します。</p>
+                            </div>
+                        @elseif($grantType === 'weapon')
+                            <div class="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-600">
+                                この武器は通常品としてのみ送付できます。銘・特攻を付与できる武器を選ぶと指定欄を表示します。
                             </div>
                         @endif
 

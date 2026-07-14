@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-14-epic-weapon-affix-grant',
+        'date' => '2026-07-14',
+        'category' => 'fixed',
+        'title' => 'EPIC武器の銘・特攻送付を修正',
+        'detail' => 'EPICランク武器に銘・特攻を指定して送付できるようにしました。送付対象には付与可否も表示されます。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-14-early-dungeon-enemy-rates',
         'date' => '2026-07-14',
         'category' => 'balance',

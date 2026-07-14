@@ -110,4 +110,78 @@ class AdminAffixedWeaponGrantTest extends TestCase
         $this->assertDatabaseCount('character_items', 0);
         $this->assertDatabaseCount('admin_item_grant_logs', 0);
     }
+
+    public function test_admin_can_grant_an_epic_weapon_with_level_five_affixes(): void
+    {
+        $admin = User::factory()->create();
+        $recipient = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '配布先冒険者',
+            'explore_stamina' => 0,
+        ]);
+        $item = Item::query()->create([
+            'name' => '管理配布のEPIC剣',
+            'type' => 'weapon',
+            'rarity' => 'EPIC',
+            'weapon_category' => 'sword',
+            'weapon_rank' => 'EPIC',
+            'str_bonus' => 500,
+            'affix_enabled' => true,
+            'is_active' => true,
+        ]);
+        $prefix = EquipmentAffixPrefix::query()->where('affix_key', 'power')->firstOrFail();
+        $suffix = EquipmentAffixSuffix::query()
+            ->where('item_type', 'weapon')
+            ->where('effect_type', 'killer_damage')
+            ->where('species_key', 'dragon')
+            ->firstOrFail();
+
+        $this->actingAs($admin);
+
+        Livewire::test(PlayerControlManager::class)
+            ->call('selectCharacter', $recipient->id)
+            ->set('grantType', 'weapon')
+            ->set('grantTargetId', (string) $item->id)
+            ->set('grantAffixPrefixId', (string) $prefix->id)
+            ->set('grantAffixPrefixLevel', 5)
+            ->set('grantAffixSuffixId', (string) $suffix->id)
+            ->set('grantAffixSuffixLevel', 5)
+            ->set('grantAffixQuality', 'excellent')
+            ->call('grantItem')
+            ->assertHasNoErrors();
+
+        $granted = CharacterItem::query()->where('character_id', $recipient->id)->sole();
+        $this->assertSame(5, $granted->affix_prefix_level);
+        $this->assertSame(5, $granted->affix_suffix_level);
+        $this->assertSame('excellent', $granted->affix_quality);
+    }
+
+    public function test_admin_hides_affix_inputs_for_a_weapon_that_does_not_allow_them(): void
+    {
+        $admin = User::factory()->create();
+        $recipient = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '配布先冒険者',
+            'explore_stamina' => 0,
+        ]);
+        $item = Item::query()->create([
+            'name' => '通常送付の剣',
+            'type' => 'weapon',
+            'rarity' => 'B',
+            'weapon_category' => 'sword',
+            'weapon_rank' => 'B',
+            'str_bonus' => 50,
+            'affix_enabled' => false,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(PlayerControlManager::class)
+            ->call('selectCharacter', $recipient->id)
+            ->set('grantType', 'weapon')
+            ->set('grantTargetId', (string) $item->id)
+            ->assertSee('この武器は通常品としてのみ送付できます。')
+            ->assertDontSee('銘の段階');
+    }
 }

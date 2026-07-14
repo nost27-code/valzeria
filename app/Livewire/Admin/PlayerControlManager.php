@@ -60,6 +60,18 @@ class PlayerControlManager extends Component
         $this->grantSearch = '';
         $this->grantQuantity = 1;
         $this->grantEnhanceLevel = 0;
+        $this->resetGrantAffixSelection();
+    }
+
+    public function updatedGrantTargetId(): void
+    {
+        if ($this->grantType === 'weapon' && $this->selectedWeaponAffixEnabled() === false) {
+            $this->resetGrantAffixSelection();
+        }
+    }
+
+    private function resetGrantAffixSelection(): void
+    {
         $this->grantAffixPrefixId = '';
         $this->grantAffixPrefixLevel = 1;
         $this->grantAffixSuffixId = '';
@@ -246,6 +258,7 @@ class PlayerControlManager extends Component
             'storageSummary' => $selectedCharacter ? $storageCapacityService->summary($selectedCharacter) : null,
             'cooldownSummary' => $selectedCharacter ? $this->cooldownSummary($selectedCharacter) : null,
             'grantCandidates' => $this->grantCandidates(),
+            'selectedWeaponAffixEnabled' => $this->selectedWeaponAffixEnabled(),
             'grantTypeLabels' => $this->grantTypeLabels(),
             'engravingCandidates' => $this->engravingCandidates(),
             'slayerCandidates' => $this->slayerCandidates(),
@@ -387,11 +400,18 @@ class PlayerControlManager extends Component
                 ->orderBy('name')
                 ->limit(40)
                 ->get()
-                ->map(fn (Item $item) => [
-                    'id' => (string) $item->id,
-                    'name' => $item->name,
-                    'meta' => "#{$item->id} / {$item->type} / " . ($item->rarity ?? '-'),
-                ]),
+                ->map(function (Item $item): array {
+                    $meta = "#{$item->id} / {$item->type} / " . ($item->rarity ?? '-');
+                    if ($item->type === 'weapon') {
+                        $meta .= (bool) $item->affix_enabled ? ' / 銘・特攻可' : ' / 通常のみ';
+                    }
+
+                    return [
+                        'id' => (string) $item->id,
+                        'name' => $item->name,
+                        'meta' => $meta,
+                    ];
+                }),
             'exploration_item' => Item::query()
                 ->where('type', 'consumable')
                 ->whereIn('name', ['薬草', '回復薬', '魔力水'])
@@ -453,6 +473,20 @@ class PlayerControlManager extends Component
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get(['id', 'name', 'species_key']);
+    }
+
+    private function selectedWeaponAffixEnabled(): ?bool
+    {
+        if ($this->grantType !== 'weapon' || $this->grantTargetId === '') {
+            return null;
+        }
+
+        $affixEnabled = Item::query()
+            ->whereKey((int) $this->grantTargetId)
+            ->where('type', 'weapon')
+            ->value('affix_enabled');
+
+        return $affixEnabled === null ? null : (bool) $affixEnabled;
     }
 
     private function grantMaterial(Character $character): string
