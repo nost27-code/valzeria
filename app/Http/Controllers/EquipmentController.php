@@ -15,6 +15,7 @@ use RuntimeException;
 class EquipmentController extends Controller
 {
     public function index(
+        Request $request,
         EquipmentService $equipmentService,
         EquipmentAutoUnequipService $autoUnequipService,
         EquipmentPermissionService $permissionService,
@@ -26,7 +27,9 @@ class EquipmentController extends Controller
             return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         }
 
-        $autoUnequipService->unequipInvalidItems($character);
+        if (!$request->attributes->has(\App\Services\GameHealthCheckService::REQUEST_ATTRIBUTE)) {
+            $autoUnequipService->unequipInvalidItems($character);
+        }
 
         $characterItems = $character->characterItems()->with(['item', 'affixPrefix', 'affixSuffix'])->get()
             ->filter(fn($ci) => $ci->item)

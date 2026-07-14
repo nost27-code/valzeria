@@ -116,6 +116,13 @@ class MainScreen extends Component
     public function mount()
     {
         $this->character = Auth::user()->currentCharacter();
+        $healthProbeLocation = request()->attributes->get(\App\Services\GameHealthCheckService::REQUEST_ATTRIBUTE);
+        if (is_string($healthProbeLocation)) {
+            $this->currentLocation = $healthProbeLocation;
+
+            return;
+        }
+
         $hasActiveExploration = $this->character
             && app(ExplorationStateService::class)->hasActiveExploration($this->character);
         $defaultLocation = $hasActiveExploration ? 'dungeon' : 'home';

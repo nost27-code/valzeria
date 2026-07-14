@@ -23,6 +23,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StarTreeTowerController;
 use App\Http\Controllers\TitleController;
 use App\Http\Controllers\TopPageAnalyticsController;
+use App\Http\Controllers\GameHealthController;
 
 if (app()->environment('local')) {
 Route::get('/debug-area', function () {
@@ -59,6 +60,10 @@ Route::get('/', function () {
 Route::post('/top-analytics/event', [TopPageAnalyticsController::class, 'event'])
     ->name('top.analytics.event')
     ->middleware('throttle:120,1');
+
+Route::get('/system/health', [GameHealthController::class, 'show'])
+    ->middleware('throttle:12,1')
+    ->name('system.health');
 
 // 旧実験版URL: 正式採用に伴いTOPへ301リダイレクト（重複URLのSEO評価分散を防ぐ）
 Route::redirect('/index2', '/', 301);
