@@ -2,11 +2,11 @@
 
 return [
     [
-        'id' => '2026-07-15-accessory-enhancement-fixed-materials',
+        'id' => '2026-07-15-equipment-enhancement-fixed-materials',
         'date' => '2026-07-15',
         'category' => 'balance',
-        'title' => '装飾品強化の必要素材を統一',
-        'detail' => '装飾品強化でも、強化値帯ごとの固定都市素材を使うようにしました。武器は強化石系、装飾品は同数の調律石系を使います。',
+        'title' => '防具・装飾品強化の必要素材を統一',
+        'detail' => '防具・装飾品強化でも、強化値帯ごとの固定都市素材を使うようにしました。武器は強化石系、防具は守護石系、装飾品は調律石系を同数使います。',
     ],
     [
         'id' => '2026-07-15-admin-action-log-job-exp-tracking',

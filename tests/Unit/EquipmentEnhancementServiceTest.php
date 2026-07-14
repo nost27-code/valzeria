@@ -255,4 +255,27 @@ class EquipmentEnhancementServiceTest extends TestCase
         $this->assertSame(3, $plusThirty['WEV0032'] ?? null);
         $this->assertSame(3, $plusThirty['WEV0051'] ?? null);
     }
+
+    public function test_armor_recipes_use_the_same_fixed_city_materials_with_guard_stones(): void
+    {
+        $service = app(EquipmentEnhancementService::class);
+        $method = new \ReflectionMethod($service, 'armorMaterialsFor');
+        $method->setAccessible(true);
+
+        $plusTen = collect($method->invoke($service, 10))
+            ->mapWithKeys(fn (array $material): array => [$material['material_id'] => $material['quantity']])
+            ->all();
+        $plusThirty = collect($method->invoke($service, 30))
+            ->mapWithKeys(fn (array $material): array => [$material['material_id'] => $material['quantity']])
+            ->all();
+
+        $this->assertSame(6, $plusTen['5008'] ?? null);
+        $this->assertSame(1, $plusTen['5009'] ?? null);
+        $this->assertSame(1, $plusTen['WEV0037'] ?? null);
+        $this->assertSame(1, $plusTen['WEV0039'] ?? null);
+        $this->assertSame(16, $plusThirty['5008'] ?? null);
+        $this->assertSame(10, $plusThirty['5009'] ?? null);
+        $this->assertSame(3, $plusThirty['WEV0032'] ?? null);
+        $this->assertSame(3, $plusThirty['WEV0051'] ?? null);
+    }
 }

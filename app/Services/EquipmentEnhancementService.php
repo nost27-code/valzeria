@@ -429,11 +429,13 @@ class EquipmentEnhancementService
 
     private function recipeForLevel(int $level, string $type = 'weapon', ?Character $character = null, ?object $item = null): array
     {
-        if (in_array($type, ['weapon', 'accessory'], true)) {
+        if (in_array($type, ['weapon', 'armor', 'accessory'], true)) {
             return [
-                'materials' => $type === 'weapon'
-                    ? $this->weaponMaterialsFor($level)
-                    : $this->accessoryMaterialsFor($level),
+                'materials' => match ($type) {
+                    'weapon' => $this->weaponMaterialsFor($level),
+                    'armor' => $this->armorMaterialsFor($level),
+                    default => $this->accessoryMaterialsFor($level),
+                },
                 'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
                 'effect' => $this->effectDescription($level, $type, $item),
@@ -634,6 +636,30 @@ class EquipmentEnhancementService
                 'MAT_ENHANCE_HIGH_STONE' => [
                     'material_id' => 'ACC0009',
                     'material_name' => '高純度調律石',
+                    'quantity' => $material['quantity'],
+                ],
+                default => $material,
+            };
+        }, $this->weaponMaterialsFor($level));
+    }
+
+    private function armorMaterialsFor(int $level): array
+    {
+        return array_map(function (array $material): array {
+            return match ($material['material_id']) {
+                'MAT_ENHANCE_FRAGMENT' => [
+                    'material_id' => '5007',
+                    'material_name' => '守護石の欠片',
+                    'quantity' => $material['quantity'],
+                ],
+                'MAT_ENHANCE_STONE' => [
+                    'material_id' => '5008',
+                    'material_name' => '守護石',
+                    'quantity' => $material['quantity'],
+                ],
+                'MAT_ENHANCE_HIGH_STONE' => [
+                    'material_id' => '5009',
+                    'material_name' => '高純度守護石',
                     'quantity' => $material['quantity'],
                 ],
                 default => $material,
