@@ -61,9 +61,7 @@ class ExplorationService
     {
         $staminaService = app(ExplorationStaminaService::class);
         $consumesStamina = $staminaService->enabled();
-        $usesStaminaRewards = !$isBossBattle && $consumesStamina;
         $staminaSummary = $consumesStamina ? $staminaService->summary($character) : null;
-        $jobExpCap = $usesStaminaRewards ? LevelService::MAX_JOB_EXP_GAIN : null;
         $consumedStamina = 0;
         $staminaUpdatedAtBeforeConsume = null;
         $staminaMaxUp = 0;
@@ -236,7 +234,6 @@ class ExplorationService
                     if ($jobExpGained > 0) {
                         $jobExpGained = max(1, (int) ceil($jobExpGained * $depthReward['multiplier']));
                     }
-                    $jobExpGained = $this->levelService->capJobExpGain($jobExpGained);
                     $battleResult->exp = $expGained;
                     $battleResult->jobExp = $jobExpGained;
                 }
@@ -250,7 +247,7 @@ class ExplorationService
             }
 
             // レベルアップ処理
-            $rewardResult = $this->levelService->addRewardAndCheckLevelUp($character, $expGained, $goldGained, $jobExpGained, $jobExpCap);
+            $rewardResult = $this->levelService->addRewardAndCheckLevelUp($character, $expGained, $goldGained, $jobExpGained);
             $levelUpCount = $rewardResult['level_up_count'];
             $levelUpDetails = $rewardResult['details'];
             $progression = $rewardResult['progression'] ?? null;

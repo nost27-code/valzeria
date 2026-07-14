@@ -122,7 +122,7 @@ class SubAreaExplorationService
             $character->wins += 1;
             $expGained = max(1, (int) floor($battleResult->exp * 1.8));
             $goldGained = (int) $battleResult->gold;
-            $jobExpGained = $this->levelService->capJobExpGain(max(1, (int) ceil(max(1, $battleResult->jobExp) * 1.5)));
+            $jobExpGained = max(1, (int) ceil(max(1, $battleResult->jobExp) * 1.5));
             $battleResult->exp = $expGained;
             $battleResult->jobExp = $jobExpGained;
 

@@ -486,7 +486,8 @@ class FerdiaRegionSeeder extends Seeder
             $values['exp_reward'] = $this->expReward($level, 5.25);
             $values['gold_reward'] = max(1, (int) round((10 + ($level * 2)) * 45));
             if (Schema::hasColumn('enemies', 'job_exp_reward')) {
-                $values['job_exp_reward'] = 7;
+                $rewardKey = (string) ($boss['job_exp_reward_key'] ?? 'gate_boss');
+                $values['job_exp_reward'] = (int) config("ferdia_world_map.job_exp_rewards.{$rewardKey}", 4);
             }
             if (Schema::hasColumn('enemies', 'manual_adjustment_note')) {
                 $values['manual_adjustment_note'] = 'Ferdia region gate boss. Generated from the standard boss curve.';
@@ -511,6 +512,7 @@ class FerdiaRegionSeeder extends Seeder
         $stats = $generated['stats'];
         $roleKey = (string) $definition['role_key'];
         $rewardMultiplier = $roleKey === 'strong' ? 1.2 : ($roleKey === 'normal_weak' ? 0.88 : 1.0);
+        $jobExpRewardKey = $roleKey === 'strong' ? 'strong' : 'normal';
 
         $values = [
             'area_id' => (int) $area->id,
@@ -531,7 +533,7 @@ class FerdiaRegionSeeder extends Seeder
 
         foreach ([
             'spr' => $stats['spirit'],
-            'job_exp_reward' => $roleKey === 'strong' ? 2 : 1,
+            'job_exp_reward' => (int) config("ferdia_world_map.job_exp_rewards.{$jobExpRewardKey}", 2),
             'role' => (string) $definition['role'],
             'type_name' => (string) $definition['type_name'],
             'element' => (string) $definition['element'],

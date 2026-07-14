@@ -66,6 +66,12 @@ return [
         'bonus' => 1,
         'bonus_chance_percent' => 40,
     ],
+    'job_exp_rewards' => [
+        'normal' => 2,
+        'strong' => 3,
+        'gate_boss' => 4,
+        'final_boss' => 5,
+    ],
     'story_final_unlock' => [
         'final_node_key' => 'abyss_prelude',
         'required_node_keys' => ['stargazer_ruin', 'aquarius_shrine', 'ordo_columns', 'white_tide_lighthouse'],
@@ -188,11 +194,11 @@ return [
         ]),
     ],
     'bosses' => [
-        1003 => ['name' => '丘陵の守護獣グリムウルフ', 'family_key' => 'beast', 'variant_key' => 'forest', 'type_name' => '獣', 'element' => '風'],
-        1007 => ['name' => '外郭の古王近衛アストレア', 'family_key' => 'soldier', 'variant_key' => 'ancient', 'type_name' => '人型', 'element' => '古代'],
-        1009 => ['name' => '水門の守護巨獣リヴァイア', 'family_key' => 'aquatic', 'variant_key' => 'forest', 'type_name' => '水棲', 'element' => '水'],
-        1013 => ['name' => '霊峰の氷冠竜エルヴァン', 'family_key' => 'dragon', 'variant_key' => 'ancient', 'type_name' => '竜', 'element' => '氷'],
-        1029 => ['name' => '深淵門の番人ヴェイルガード', 'family_key' => 'demon', 'variant_key' => 'ancient', 'type_name' => '悪魔', 'element' => '闇'],
+        1003 => ['name' => '丘陵の守護獣グリムウルフ', 'family_key' => 'beast', 'variant_key' => 'forest', 'type_name' => '獣', 'element' => '風', 'job_exp_reward_key' => 'gate_boss'],
+        1007 => ['name' => '外郭の古王近衛アストレア', 'family_key' => 'soldier', 'variant_key' => 'ancient', 'type_name' => '人型', 'element' => '古代', 'job_exp_reward_key' => 'gate_boss'],
+        1009 => ['name' => '水門の守護巨獣リヴァイア', 'family_key' => 'aquatic', 'variant_key' => 'forest', 'type_name' => '水棲', 'element' => '水', 'job_exp_reward_key' => 'gate_boss'],
+        1013 => ['name' => '霊峰の氷冠竜エルヴァン', 'family_key' => 'dragon', 'variant_key' => 'ancient', 'type_name' => '竜', 'element' => '氷', 'job_exp_reward_key' => 'final_boss'],
+        1029 => ['name' => '深淵門の番人ヴェイルガード', 'family_key' => 'demon', 'variant_key' => 'ancient', 'type_name' => '悪魔', 'element' => '闇', 'job_exp_reward_key' => 'final_boss'],
     ],
     'routes' => [
         ['from' => 'ferdia_south_coast', 'to' => 'shiokaze_road', 'group' => 'main'],
