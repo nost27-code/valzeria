@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-ferdia-map-undiscovered-current-city',
+        'date' => '2026-07-14',
+        'category' => 'fixed',
+        'title' => '未発見の街名表示を修正',
+        'detail' => 'フェルディアMAPの街カードで、街を発見するまでは現在地を「未発見」と表示するようにしました。発見後は通常の街名と説明に切り替わります。',
+    ],
+    [
         'id' => '2026-07-14-ferdia-simple-base-name',
         'date' => '2026-07-14',
         'category' => 'fixed',

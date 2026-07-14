@@ -43,6 +43,36 @@ class FerdiaSimpleBaseDisplayTest extends TestCase
         $this->assertFalse($this->invoke($cityHeader, 'shouldShowFerdiaSimpleBase', $character, $visitedCity));
     }
 
+    public function test_current_undiscovered_ferdia_city_card_hides_its_name(): void
+    {
+        $character = new Character();
+        $character->current_city_id = 101;
+
+        $view = $this->view('components.ferdia-map', [
+            'character' => $character,
+            'map' => [
+                'name' => 'フェルディア大陸',
+                'subtitle' => '',
+                'map_image' => 'images/map/map02.webp',
+                'placeholder_image' => 'images/map/map02.webp',
+                'image_exists' => true,
+                'nodes' => [[
+                    'key' => 'luvan',
+                    'name' => '未発見',
+                    'city_id' => 101,
+                    'state' => 'unlocked',
+                    'x_percent' => 50,
+                    'y_percent' => 50,
+                ]],
+                'routes' => [],
+            ],
+        ]);
+
+        $view->assertSee('現在地：未発見');
+        $view->assertSee('未発見の街を調査中です。');
+        $view->assertDontSee('辺境の町ルヴァン');
+    }
+
     private function invoke(object $target, string $methodName, mixed ...$arguments): mixed
     {
         $method = new ReflectionMethod($target, $methodName);

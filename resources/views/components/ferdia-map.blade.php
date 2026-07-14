@@ -26,15 +26,17 @@
                 $node = $cityNodesById->get($cityId);
                 $state = (string) ($node['state'] ?? 'hidden');
                 $isCurrent = $character && (int) ($character->current_city_id ?? 0) === $cityId;
+                $isDiscovered = $state === 'completed';
                 $canTravel = !$isCurrent && $state === 'completed';
                 $imagePath = \App\Support\CityVisualCatalog::cardBackground($cityId);
 
                 return [
                     'id' => $cityId,
-                    'name' => (string) ($city['name'] ?? ($node['name'] ?? '未知の街')),
-                    'description' => (string) ($city['description'] ?? ($node['description'] ?? '')),
+                    'name' => $isDiscovered ? (string) ($city['name'] ?? ($node['name'] ?? '未知の街')) : '未発見',
+                    'description' => $isDiscovered ? (string) ($city['description'] ?? ($node['description'] ?? '')) : '未発見の街を調査中です。',
                     'state' => $state,
                     'is_current' => $isCurrent,
+                    'is_current_undiscovered' => $isCurrent && !$isDiscovered,
                     'can_travel' => $canTravel,
                     'image_path' => $imagePath ? 'images/' . $imagePath : null,
                 ];
@@ -289,12 +291,12 @@
                     @foreach($cityCards as $city)
                         @php
                             $isLocked = !in_array($city['state'], ['hinted', 'unlocked', 'completed'], true) && !$city['is_current'];
-                            $badgeText = $city['is_current'] ? '現在地' : match ($city['state']) {
+                            $badgeText = $city['is_current_undiscovered'] ? '現在地：未発見' : ($city['is_current'] ? '現在地' : match ($city['state']) {
                                 'completed' => '移動可能',
                                 'unlocked' => '発見間近',
                                 'hinted' => '遠景',
                                 default => '未発見',
-                            };
+                            });
                             $badgeClass = $city['is_current']
                                 ? 'bg-emerald-700 text-white'
                                 : match ($city['state']) {
@@ -319,7 +321,7 @@
                                 <p class="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-slate-700">{{ $city['description'] }}</p>
                                 <div class="mt-3">
                                     @if($city['is_current'])
-                                        <div class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-black text-emerald-800">滞在中</div>
+                                        <div class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-black text-emerald-800">{{ $city['is_current_undiscovered'] ? '調査中' : '滞在中' }}</div>
                                     @elseif($city['can_travel'])
                                         <form action="{{ route('city.travel', ['city' => (int) $city['id']]) }}" method="POST" x-data="{ submitting: false }" @submit="submitting = true">
                                             @csrf
