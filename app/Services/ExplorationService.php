@@ -602,6 +602,7 @@ class ExplorationService
             $battleResult->result === 'defeat' ? 'lose' : 'win',
             $expGained,
             $goldGained,
+            $jobExpGained,
             $levelUpCount,
             $logText,
             $dropResult['item_id'] ?? null,

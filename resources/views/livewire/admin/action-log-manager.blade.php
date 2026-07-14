@@ -3,7 +3,7 @@
         <div>
             <p class="text-xs font-black tracking-[0.24em] text-amber-600">ACTION LOGS</p>
             <h1 class="mt-2 text-3xl font-black text-slate-950">行動ログ閲覧</h1>
-            <p class="mt-2 text-sm font-bold text-slate-500">通常戦闘は10分単位で集約し、輝石・課金・進化・銘・特攻鍛錬・重要戦利品などは個別に確認できます。銘・特攻鍛錬では、ベース・消費素材・完成武器・Goldを補填確認用に保存します。</p>
+            <p class="mt-2 text-sm font-bold text-slate-500">通常戦闘は10分単位で集約し、JobEXP合計・最高値・上限超過を確認できます。輝石・課金・進化・転職・銘・特攻鍛錬・重要戦利品などは個別に確認できます。</p>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row">
             <a href="{{ route('admin.private-chat-logs') }}" class="inline-flex items-center justify-center rounded-md bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-slate-800">
@@ -21,7 +21,7 @@
     <div class="rounded-md bg-white/95 shadow-sm ring-1 ring-slate-200 overflow-hidden">
         <div class="border-b border-slate-200 px-4 py-3 flex items-center justify-between">
             <h2 class="text-lg font-black text-slate-950">最新ログ</h2>
-            <div class="text-xs font-bold text-slate-500">最大 {{ number_format($limit) }} 行</div>
+            <div class="text-xs font-bold text-slate-500">{{ number_format($perPage) }}件ずつ表示</div>
         </div>
 
         <div class="overflow-x-auto">
@@ -65,6 +65,12 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3">
+            <button type="button" wire:click="previousPage" @disabled($currentPage <= 1) class="rounded-md px-3 py-2 text-sm font-black transition {{ $currentPage <= 1 ? 'cursor-not-allowed bg-slate-200 text-slate-400' : 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-100' }}">前へ</button>
+            <span class="text-xs font-black text-slate-500">{{ number_format($currentPage) }}ページ目</span>
+            <button type="button" wire:click="nextPage" @disabled(!$hasMore) class="rounded-md px-3 py-2 text-sm font-black transition {{ !$hasMore ? 'cursor-not-allowed bg-slate-200 text-slate-400' : 'bg-slate-950 text-white shadow-sm hover:bg-slate-800' }}">次へ</button>
         </div>
     </div>
 </div>

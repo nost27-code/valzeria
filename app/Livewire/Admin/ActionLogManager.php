@@ -14,11 +14,28 @@ class ActionLogManager extends Component
 {
     public string $searchQuery = '';
     public string $eventType = 'all';
-    public int $limit = 1000;
+    public int $currentPage = 1;
+    public int $perPage = 50;
 
     public function updatedSearchQuery(): void
     {
         $this->searchQuery = trim($this->searchQuery);
+        $this->resetPage();
+    }
+
+    public function updatedEventType(): void
+    {
+        $this->resetPage();
+    }
+
+    public function previousPage(): void
+    {
+        $this->currentPage = max(1, $this->currentPage - 1);
+    }
+
+    public function nextPage(): void
+    {
+        $this->currentPage++;
     }
 
     public function render()
@@ -33,15 +50,19 @@ class ActionLogManager extends Component
             $logs = $logs->merge($source());
         }
 
-        $logs = $logs
+        $sortedLogs = $logs
             ->sortByDesc(fn (array $row) => $row['occurred_at_sort'])
-            ->take($this->limit)
             ->values();
+
+        $offset = ($this->currentPage - 1) * $this->perPage;
+        $logs = $sortedLogs->slice($offset, $this->perPage)->values();
 
         return view('livewire.admin.action-log-manager', [
             'logs' => $logs,
             'eventTypes' => $this->eventTypes(),
-            'limit' => $this->limit,
+            'currentPage' => $this->currentPage,
+            'perPage' => $this->perPage,
+            'hasMore' => $sortedLogs->count() > ($offset + $this->perPage),
         ])->layout('components.layouts.admin');
     }
 
@@ -49,6 +70,8 @@ class ActionLogManager extends Component
     {
         return [
             'battle' => fn () => $this->battleLogs(),
+            'job_exp_alert' => fn () => $this->jobExpAlertLogs(),
+            'job_change' => fn () => $this->jobChangeLogs(),
             'loot' => fn () => $this->lootLogs(),
             'kiseki' => fn () => $this->kisekiLogs(),
             'shop' => fn () => $this->shopLogs(),
@@ -66,6 +89,8 @@ class ActionLogManager extends Component
         return [
             'all' => 'すべて',
             'battle' => '戦闘集約',
+            'job_exp_alert' => '職業EXP超過',
+            'job_change' => '転職',
             'loot' => '重要戦利品',
             'kiseki' => '輝石',
             'shop' => '課金支援',
@@ -84,6 +109,8 @@ class ActionLogManager extends Component
             return collect();
         }
 
+        $hasJobExp = Schema::hasColumn('battle_logs', 'job_exp_gained');
+
         $battles = $this->characterScopedQuery('battle_logs')
             ->leftJoin('areas', 'battle_logs.area_id', '=', 'areas.id')
             ->select([
@@ -93,13 +120,14 @@ class ActionLogManager extends Component
                 'battle_logs.battle_type',
                 'battle_logs.result',
                 'battle_logs.exp_gained',
+                $hasJobExp ? 'battle_logs.job_exp_gained' : DB::raw('0 as job_exp_gained'),
                 'battle_logs.gold_gained',
                 'battle_logs.level_up_count',
                 'characters.name as character_name',
                 'areas.name as area_name',
             ])
             ->orderByDesc('battle_logs.created_at')
-            ->limit($this->limit * 15)
+            ->limit($this->sourceLimit(15))
             ->get();
 
         $lootSummaries = $this->lootSummariesForBattleBuckets($battles);
@@ -116,6 +144,9 @@ class ActionLogManager extends Component
                 $battleTypes = $rows->pluck('battle_type')->filter()->unique()->implode(' / ');
                 $areas = $rows->pluck('area_name')->filter()->unique()->take(3)->implode('、') ?: '-';
                 $loot = $lootSummaries[$bucketKey] ?? ['materials' => 0, 'equipment' => 0, 'penalized' => 0];
+                $jobExpTotal = (int) $rows->sum('job_exp_gained');
+                $jobExpMax = (int) $rows->max('job_exp_gained');
+                $jobExpOverCap = $rows->filter(fn ($row): bool => (int) $row->job_exp_gained > 3)->count();
 
                 $summary = sprintf(
                     '%s-%s / %d戦 %d勝 %d敗',
@@ -127,8 +158,11 @@ class ActionLogManager extends Component
                 );
 
                 $detail = sprintf(
-                    'EXP +%s / Gold +%s / LvUp %d / 戦利品: 素材%d・装備%d%s / %s / %s',
+                    'EXP +%s / JobEXP +%s（最高+%s%s）/ Gold +%s / LvUp %d / 戦利品: 素材%d・装備%d%s / %s / %s',
                     number_format((int) $rows->sum('exp_gained')),
+                    number_format($jobExpTotal),
+                    number_format($jobExpMax),
+                    $jobExpOverCap > 0 ? '・上限超過' . $jobExpOverCap . '戦' : '',
                     number_format((int) $rows->sum('gold_gained')),
                     (int) $rows->sum('level_up_count'),
                     (int) $loot['materials'],
@@ -148,6 +182,29 @@ class ActionLogManager extends Component
                 );
             })
             ->values();
+    }
+
+    private function jobExpAlertLogs()
+    {
+        if (!Schema::hasTable('battle_logs') || !Schema::hasColumn('battle_logs', 'job_exp_gained')) return collect();
+
+        return $this->characterScopedQuery('battle_logs')->leftJoin('areas', 'battle_logs.area_id', '=', 'areas.id')
+            ->where('battle_logs.job_exp_gained', '>', 3)
+            ->select(['battle_logs.created_at', 'battle_logs.job_exp_gained', 'battle_logs.battle_type', 'characters.name as character_name', 'areas.name as area_name'])
+            ->orderByDesc('battle_logs.created_at')->limit($this->sourceLimit())->get()
+            ->map(fn ($row) => $this->row($row->created_at, '職業EXP超過', $row->character_name, 'JobEXP +' . number_format((int) $row->job_exp_gained), trim(($row->area_name ?? '-') . ' / ' . ($row->battle_type ?? 'normal') . ' / 通常上限3を超過'), 'bg-rose-100 text-rose-700'));
+    }
+
+    private function jobChangeLogs()
+    {
+        if (!Schema::hasTable('job_change_logs')) return collect();
+
+        return $this->characterScopedQuery('job_change_logs')
+            ->leftJoin('job_classes as from_jobs', 'job_change_logs.from_job_id', '=', 'from_jobs.id')
+            ->leftJoin('job_classes as to_jobs', 'job_change_logs.to_job_id', '=', 'to_jobs.id')
+            ->select(['job_change_logs.created_at', 'job_change_logs.before_level', 'job_change_logs.reincarnation_count_after', 'characters.name as character_name', 'from_jobs.name as from_job_name', 'to_jobs.name as to_job_name'])
+            ->orderByDesc('job_change_logs.created_at')->limit($this->sourceLimit())->get()
+            ->map(fn ($row) => $this->row($row->created_at, '転職', $row->character_name, ($row->from_job_name ?? '無職') . ' → ' . ($row->to_job_name ?? '職業'), '転職前Lv' . number_format((int) $row->before_level) . ' / 転職' . number_format((int) $row->reincarnation_count_after) . '回目', 'bg-indigo-100 text-indigo-700'));
     }
 
     private function lootLogs()
@@ -178,7 +235,7 @@ class ActionLogManager extends Component
                 'items.name as item_name',
             ])
             ->orderByDesc('exploration_loot_logs.created_at')
-            ->limit($this->limit * 10)
+            ->limit($this->sourceLimit(10))
             ->get()
             ->filter(fn ($row) => $this->isImportantLoot($row))
             ->values();
@@ -232,7 +289,7 @@ class ActionLogManager extends Component
                 'enemies.name as enemy_name',
             ])
             ->orderByDesc('kiseki_transactions.created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn ($row) => $this->row(
                 $row->created_at,
@@ -261,7 +318,7 @@ class ActionLogManager extends Component
                 'characters.name as character_name',
             ])
             ->orderByDesc('shop_purchase_logs.created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn ($row) => $this->row(
                 $row->created_at,
@@ -290,7 +347,7 @@ class ActionLogManager extends Component
                 'after_items.name as after_name',
             ])
             ->orderByDesc('equipment_evolution_logs.created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn ($row) => $this->row(
                 $row->created_at,
@@ -318,7 +375,7 @@ class ActionLogManager extends Component
                 });
             })
             ->orderByDesc('created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn (WeaponTraitOperationLog $log) => $this->row(
                 $log->created_at,
@@ -346,7 +403,7 @@ class ActionLogManager extends Component
                 'characters.name as character_name',
             ])
             ->orderByDesc('equipment_decomposition_logs.created_at')
-            ->limit($this->limit * 10)
+            ->limit($this->sourceLimit(10))
             ->get();
 
         return $logs
@@ -405,7 +462,7 @@ class ActionLogManager extends Component
                 'valmon_masters.name as valmon_name',
             ])
             ->orderByDesc('valmon_feed_logs.created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn ($row) => $this->row(
                 $row->created_at,
@@ -435,7 +492,7 @@ class ActionLogManager extends Component
                 'valmon_masters.name as valmon_name',
             ])
             ->orderByDesc('valmon_material_find_logs.created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn ($row) => $this->row(
                 $row->created_at,
@@ -462,7 +519,7 @@ class ActionLogManager extends Component
                 'characters.name as character_name',
             ])
             ->orderByDesc('public_logs.created_at')
-            ->limit($this->limit)
+            ->limit($this->sourceLimit())
             ->get()
             ->map(fn ($row) => $this->row(
                 $row->created_at,
@@ -534,6 +591,16 @@ class ActionLogManager extends Component
         $bucket = $time->copy()->minute($bucketMinute)->second(0);
 
         return $characterId . ':' . $bucket->format('YmdHi');
+    }
+
+    private function sourceLimit(int $multiplier = 1): int
+    {
+        return max($this->perPage, (($this->currentPage * $this->perPage) + 1) * $multiplier);
+    }
+
+    private function resetPage(): void
+    {
+        $this->currentPage = 1;
     }
 
     private function isImportantLoot($row): bool

@@ -173,6 +173,7 @@ class SubAreaExplorationService
             $battleResult->result,
             $expGained,
             $goldGained,
+            $jobExpGained,
             $levelUpCount,
             $logText,
             $dropResult['item_id'] ?? null,

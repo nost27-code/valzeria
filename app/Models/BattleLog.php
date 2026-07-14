@@ -11,6 +11,10 @@ class BattleLog extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'job_exp_gained' => 'integer',
+    ];
+
     public function character()
     {
         return $this->belongsTo(Character::class);

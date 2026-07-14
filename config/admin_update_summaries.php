@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-15-admin-action-log-job-exp-tracking',
+        'date' => '2026-07-15',
+        'category' => 'internal',
+        'title' => '行動ログで職業EXPを追跡',
+        'detail' => '戦闘ごとの実際の職業EXP、上限超過、転職履歴を行動ログから確認できるようにしました。表示は50件ずつに分け、ログが多い場合も開きやすくしています。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-15-high-rank-accessory-enhancement-balance',
         'date' => '2026-07-15',
         'category' => 'balance',
