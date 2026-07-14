@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterNotification;
+use App\Models\City;
 use App\Models\ValmonMaster;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
@@ -12,7 +13,6 @@ use App\Services\EquipmentService;
 use App\Services\CharacterProfileService;
 use App\Services\CharacterNotificationService;
 use App\Services\ExplorationStaminaService;
-use App\Services\ExplorationStateService;
 use App\Services\FerdiaMapService;
 use App\Services\SupportPassService;
 use App\Support\CharacterIconCatalog;
@@ -168,7 +168,7 @@ class CityHeader extends Component
         $cityName = $currentCity ? $currentCity->name : '冒険都市ヴァルゼリア';
         $cityId = $currentCity ? (int) $currentCity->id : null;
 
-        if ($cityId && $this->shouldShowFerdiaSimpleBase($character, $cityId)) {
+        if ($currentCity && $this->shouldShowFerdiaSimpleBase($character, $currentCity)) {
             $cityName = 'フェルディア簡易拠点';
         }
 
@@ -220,24 +220,18 @@ class CityHeader extends Component
         });
     }
 
-    private function shouldShowFerdiaSimpleBase(?Character $character, int $cityId): bool
+    private function shouldShowFerdiaSimpleBase(?Character $character, City $city): bool
     {
-        if (!$character || session('current_location') !== 'dungeon') {
+        if (!$character) {
             return false;
         }
 
         $ferdiaMapService = app(FerdiaMapService::class);
-        if (!$ferdiaMapService->isFerdiaCityId($cityId)) {
+        if (!$ferdiaMapService->isFerdiaCityId((int) $city->id)) {
             return false;
         }
 
-        $areaId = (int) session('target_area_id', 0);
-        if ($areaId <= 0) {
-            $state = app(ExplorationStateService::class)->currentFor($character);
-            $areaId = (int) ($state?->area_id ?? 0);
-        }
-
-        return $areaId > 0 && $ferdiaMapService->isFerdiaAreaId($areaId);
+        return !$ferdiaMapService->canTravelCity($character, $city);
     }
 
     private function topPlayerBar(Character $character): array

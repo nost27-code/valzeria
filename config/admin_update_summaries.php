@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-ferdia-simple-base-name',
+        'date' => '2026-07-14',
+        'category' => 'fixed',
+        'title' => 'フェルディア簡易拠点名を修正',
+        'detail' => 'フェルディアの探索地にいる間は、未発見の街名ではなく「フェルディア簡易拠点」と表示されるようにしました。街を発見した後は通常の街名と施設に切り替わります。',
+    ],
+    [
         'id' => '2026-07-14-epic-weapon-affix-grant',
         'date' => '2026-07-14',
         'category' => 'fixed',

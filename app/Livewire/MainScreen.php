@@ -716,7 +716,7 @@ class MainScreen extends Component
 
     private function isFerdiaSimpleBase($currentCity = null): bool
     {
-        if (!$this->character || !$currentCity || $this->currentLocation !== 'dungeon') {
+        if (!$this->character || !$currentCity) {
             return false;
         }
 
@@ -725,13 +725,7 @@ class MainScreen extends Component
             return false;
         }
 
-        $areaId = (int) session('target_area_id', 0);
-        if ($areaId <= 0) {
-            $state = app(ExplorationStateService::class)->currentFor($this->character);
-            $areaId = (int) ($state?->area_id ?? 0);
-        }
-
-        return $areaId > 0 && $ferdiaMapService->isFerdiaAreaId($areaId);
+        return !$ferdiaMapService->canTravelCity($this->character, $currentCity);
     }
 
     private function getLocationData($currentCity = null, $character = null, bool $isFerdiaSimpleBase = false)
