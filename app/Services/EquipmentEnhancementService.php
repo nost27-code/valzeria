@@ -429,9 +429,11 @@ class EquipmentEnhancementService
 
     private function recipeForLevel(int $level, string $type = 'weapon', ?Character $character = null, ?object $item = null): array
     {
-        if ($type === 'weapon') {
+        if (in_array($type, ['weapon', 'accessory'], true)) {
             return [
-                'materials' => $this->weaponMaterialsFor($level),
+                'materials' => $type === 'weapon'
+                    ? $this->weaponMaterialsFor($level)
+                    : $this->accessoryMaterialsFor($level),
                 'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
                 'effect' => $this->effectDescription($level, $type, $item),
@@ -442,20 +444,6 @@ class EquipmentEnhancementService
             $materials = $this->extendedMaterialsFor($level, $type, $character, $item);
             if (!$materials) {
                 throw new RuntimeException("+{$level} の装備強化レシピが見つかりません。");
-            }
-
-            return [
-                'materials' => $materials,
-                'gold_cost' => $this->goldCostForLevel($level, $type, $item),
-                'success_rate' => 100,
-                'effect' => $this->effectDescription($level, $type, $item),
-            ];
-        }
-
-        if ($type === 'accessory') {
-            $materials = $this->resolveDynamicMaterials(self::ACCESSORY_ENHANCEMENT_MATERIALS[$level] ?? null, $type, $character, $item);
-            if (!$materials) {
-                throw new RuntimeException("+{$level} の装飾品強化レシピが見つかりません。");
             }
 
             return [
@@ -627,6 +615,30 @@ class EquipmentEnhancementService
         }
 
         return $band['materials'] ?? [];
+    }
+
+    private function accessoryMaterialsFor(int $level): array
+    {
+        return array_map(function (array $material): array {
+            return match ($material['material_id']) {
+                'MAT_ENHANCE_FRAGMENT' => [
+                    'material_id' => 'ACC0007',
+                    'material_name' => '調律石の欠片',
+                    'quantity' => $material['quantity'],
+                ],
+                'MAT_ENHANCE_STONE' => [
+                    'material_id' => 'ACC0008',
+                    'material_name' => '調律石',
+                    'quantity' => $material['quantity'],
+                ],
+                'MAT_ENHANCE_HIGH_STONE' => [
+                    'material_id' => 'ACC0009',
+                    'material_name' => '高純度調律石',
+                    'quantity' => $material['quantity'],
+                ],
+                default => $material,
+            };
+        }, $this->weaponMaterialsFor($level));
     }
 
     private function effectDescription(int $level, string $type, ?object $item): string

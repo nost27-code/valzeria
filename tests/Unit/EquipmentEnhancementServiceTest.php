@@ -232,4 +232,27 @@ class EquipmentEnhancementServiceTest extends TestCase
             }
         }
     }
+
+    public function test_accessory_recipes_use_the_same_fixed_city_materials_with_tuning_stones(): void
+    {
+        $service = app(EquipmentEnhancementService::class);
+        $method = new \ReflectionMethod($service, 'accessoryMaterialsFor');
+        $method->setAccessible(true);
+
+        $plusTen = collect($method->invoke($service, 10))
+            ->mapWithKeys(fn (array $material): array => [$material['material_id'] => $material['quantity']])
+            ->all();
+        $plusThirty = collect($method->invoke($service, 30))
+            ->mapWithKeys(fn (array $material): array => [$material['material_id'] => $material['quantity']])
+            ->all();
+
+        $this->assertSame(6, $plusTen['ACC0008'] ?? null);
+        $this->assertSame(1, $plusTen['ACC0009'] ?? null);
+        $this->assertSame(1, $plusTen['WEV0037'] ?? null);
+        $this->assertSame(1, $plusTen['WEV0039'] ?? null);
+        $this->assertSame(16, $plusThirty['ACC0008'] ?? null);
+        $this->assertSame(10, $plusThirty['ACC0009'] ?? null);
+        $this->assertSame(3, $plusThirty['WEV0032'] ?? null);
+        $this->assertSame(3, $plusThirty['WEV0051'] ?? null);
+    }
 }
