@@ -20,7 +20,7 @@ class ExplorationService
     private const GOLDEN_GOBLIN_REWARD_MIN_MULTIPLIER = 2.0;
     private const GOLDEN_GOBLIN_REWARD_MAX_MULTIPLIER = 3.0;
     private const PLAYER_ENCOUNTER_CHANCE_PERCENT = 0.1;
-    private const TREASURE_ANCIENT_DROP_CHANCE_PERCENT = 0.5;
+    private const TREASURE_ANCIENT_DROP_CHANCE_PERCENT = 1.0;
     private const FERDIA_AREA_ID_MIN = 1001;
     private const FERDIA_AREA_ID_MAX = 1013;
     private const PLAYER_ENCOUNTER_GIFT_ITEM_NAME = '薬草';

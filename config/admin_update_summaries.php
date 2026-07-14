@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-ferdia-material-drop-rate-doubled',
+        'date' => '2026-07-15',
+        'category' => 'balance',
+        'title' => 'フェルディア素材の入手率を調整',
+        'detail' => 'フェルディアの薬素材・古代片の敵ドロップ率を2倍に調整し、輝く宝箱から古代片を見つける確率も上げました。',
+    ],
+    [
         'id' => '2026-07-14-weapon-enhancement-fixed-recipes',
         'date' => '2026-07-14',
         'category' => 'balance',
