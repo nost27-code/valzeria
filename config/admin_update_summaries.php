@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-ferdia-crown-proof',
+        'date' => '2026-07-15',
+        'category' => 'added',
+        'title' => 'フェルディア最終ボスに冠位の証を追加',
+        'detail' => 'フェルディア最終ボス「霊峰の氷冠竜エルヴァン」を初めて倒すと、冠位職に至るための「冠位の証」を受け取れるようにしました。',
+    ],
+    [
         'id' => '2026-07-15-admin-individual-gold-grant',
         'date' => '2026-07-15',
         'category' => 'internal',
