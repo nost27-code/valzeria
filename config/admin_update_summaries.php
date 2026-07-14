@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-ancient-fragment-source-copy',
+        'date' => '2026-07-15',
+        'category' => 'fixed',
+        'title' => '古代片の入手案内を訂正',
+        'detail' => '古代片の入手案内を、フェルディアで実際に探索できる地点の内容へ更新しました。',
+    ],
+    [
         'id' => '2026-07-15-ferdia-crown-proof',
         'date' => '2026-07-15',
         'category' => 'added',
