@@ -190,7 +190,7 @@ class BattleService
             
             // 職業経験値（J-EXP）の算出ロジック
             if ($enemy->job_exp_reward > 0) {
-                $result->jobExp = max(0, (int) $enemy->job_exp_reward);
+                $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $enemy->job_exp_reward);
             } else {
                 $levelDiff = $enemy->level - $character->level;
                 $jobExp = 0;
@@ -209,7 +209,7 @@ class BattleService
                     $jobExp += rand(1, 2);
                 }
 
-                $result->jobExp = max(0, $jobExp);
+                $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $jobExp);
             }
         } else {
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">双方が疲弊し、戦闘は終了した。</span>");

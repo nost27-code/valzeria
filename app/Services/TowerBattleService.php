@@ -932,7 +932,7 @@ class TowerBattleService extends BattleService
         if ($expBonusRate > 0 && $exp > 0) {
             $exp += max(1, (int) floor($exp * $expBonusRate / 100));
         }
-        $jobExp = max(0, (int) config('star_tree_tower.star_tree.victory_job_exp', 1));
+        $jobExp = $this->levelService->capJobExpGain((int) config('star_tree_tower.star_tree.victory_job_exp', 1));
 
         return [
             'exp_gained' => $exp,

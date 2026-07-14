@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Balance
+
+- 探索深度や亜域などの補正後も、1回の戦闘で獲得する職業EXPを最大3に戻しました。
+
 ### Fixed
 
 - フェルディアMAPの未発見の街カードが、現在地かどうかを区別せずグレーの「未発見」と表示されるようにしました。

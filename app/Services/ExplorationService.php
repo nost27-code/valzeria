@@ -234,6 +234,7 @@ class ExplorationService
                     if ($jobExpGained > 0) {
                         $jobExpGained = max(1, (int) ceil($jobExpGained * $depthReward['multiplier']));
                     }
+                    $jobExpGained = $this->levelService->capJobExpGain($jobExpGained);
                     $battleResult->exp = $expGained;
                     $battleResult->jobExp = $jobExpGained;
                 }

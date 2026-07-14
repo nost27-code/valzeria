@@ -214,7 +214,7 @@ class ChampBattleService
             $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
             $gapMultiplier = $this->champLevelGapExpMultiplier($levelGap);
             $expGained = $this->champExpReward($baseExp, $champDefeated, $gapMultiplier);
-            $jobExpGained = $this->champJobExpReward($champDefeated, $levelGap);
+            $jobExpGained = $this->levelService->capJobExpGain($this->champJobExpReward($champDefeated, $levelGap));
             $gapRewardNote = $levelGap > 0
                 ? "格上チャンプ挑戦ボーナス Lv差{$levelGap} / EXP倍率x" . number_format($gapMultiplier, 1)
                 : null;

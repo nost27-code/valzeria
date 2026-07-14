@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-job-exp-cap-restored',
+        'date' => '2026-07-14',
+        'category' => 'fixed',
+        'title' => '職業EXPの獲得上限を復旧',
+        'detail' => '探索深度や亜域などの補正後も、1回の戦闘で獲得する職業EXPが最大3になるよう修正しました。',
+    ],
+    [
         'id' => '2026-07-14-ferdia-map-tap-guidance',
         'date' => '2026-07-14',
         'category' => 'changed',
