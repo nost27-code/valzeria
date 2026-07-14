@@ -68,8 +68,9 @@ class FerdiaSimpleBaseDisplayTest extends TestCase
             ],
         ]);
 
-        $view->assertSee('現在地：未発見');
-        $view->assertSee('未発見の街を調査中です。');
+        $view->assertSee('未発見');
+        $view->assertSee('まだ向かえません');
+        $view->assertDontSee('現在地：未発見');
         $view->assertDontSee('辺境の町ルヴァン');
     }
 
