@@ -123,6 +123,9 @@
                     $state = (string) ($node['state'] ?? 'hidden');
                     $isClickable = !empty($node['is_clickable']);
                     $isCurrentCity = !empty($node['city_id']) && $character && (int) $character->current_city_id === (int) $node['city_id'];
+                    $isCurrentExplorationNode = $isClickable
+                        && !empty($node['area_id'])
+                        && (string) ($node['key'] ?? '') === (string) data_get($map, 'current_node.key');
                     $tone = match ($state) {
                         'completed' => 'border-emerald-800 bg-emerald-700 text-white',
                         'unlocked' => 'border-blue-900 bg-blue-800 text-white',
@@ -140,8 +143,18 @@
                 <div class="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                      style="left: {{ (float) ($node['x_percent'] ?? 50) }}%; top: {{ (float) ($node['y_percent'] ?? 50) }}%;">
                     <div class="flex items-center justify-center gap-0.5">
+                        @if($isCurrentExplorationNode)
+                            <div x-show="ferdiaSelectedNode === ''" x-transition.opacity class="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[180px] -translate-x-1/2 text-center" aria-hidden="true">
+                                <div class="animate-bounce rounded-lg border-2 border-blue-900 bg-white px-3 py-1.5 text-xs font-black leading-tight text-blue-950 shadow-lg">
+                                    <div>ここをタップ</div>
+                                    <div class="mt-0.5 text-[10px] text-slate-600">{{ $node['name'] }}を探索する</div>
+                                </div>
+                                <div class="mx-auto -mt-px h-2 w-2 rotate-45 border-b-2 border-r-2 border-blue-900 bg-white"></div>
+                            </div>
+                            <span x-show="ferdiaSelectedNode === ''" class="pointer-events-none absolute h-11 w-11 rounded-full border-2 border-blue-500/70 opacity-75 animate-ping" aria-hidden="true"></span>
+                        @endif
                         <button type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[11px] font-black shadow transition active:scale-95 {{ $tone }}"
+                                class="relative flex {{ $isCurrentExplorationNode ? 'h-10 w-10' : 'h-6 w-6' }} items-center justify-center rounded-full border-2 border-white text-[11px] font-black shadow transition active:scale-95 {{ $tone }}"
                                 :class="ferdiaSelectedNode === @js($node['key']) ? 'ring-2 ring-amber-300 ring-offset-1' : ''"
                                 @click.stop="ferdiaSelectedNode = @js($node['key'])"
                                 aria-label="{{ $node['name'] }}を確認">

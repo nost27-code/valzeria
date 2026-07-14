@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-ferdia-map-tap-guidance',
+        'date' => '2026-07-14',
+        'category' => 'changed',
+        'title' => 'フェルディアMAPの探索導線を改善',
+        'detail' => 'フェルディアMAPでは、いま探索できる地点を青い円の誘導と「ここをタップ」の表示で案内するようにしました。',
+    ],
+    [
         'id' => '2026-07-14-ferdia-map-undiscovered-current-city',
         'date' => '2026-07-14',
         'category' => 'fixed',

@@ -74,6 +74,36 @@ class FerdiaSimpleBaseDisplayTest extends TestCase
         $view->assertDontSee('辺境の町ルヴァン');
     }
 
+    public function test_current_ferdia_exploration_node_shows_a_tap_guidance(): void
+    {
+        $character = new Character();
+
+        $view = $this->view('components.ferdia-map', [
+            'character' => $character,
+            'map' => [
+                'name' => 'フェルディア大陸',
+                'subtitle' => '',
+                'map_image' => 'images/map/map02.webp',
+                'placeholder_image' => 'images/map/map02.webp',
+                'image_exists' => true,
+                'current_node' => ['key' => 'ferdia_south_coast'],
+                'nodes' => [[
+                    'key' => 'ferdia_south_coast',
+                    'name' => 'フェルディア南岸',
+                    'area_id' => 1001,
+                    'state' => 'unlocked',
+                    'is_clickable' => true,
+                    'x_percent' => 50,
+                    'y_percent' => 50,
+                ]],
+                'routes' => [],
+            ],
+        ]);
+
+        $view->assertSee('ここをタップ');
+        $view->assertSee('フェルディア南岸を探索する');
+    }
+
     private function invoke(object $target, string $methodName, mixed ...$arguments): mixed
     {
         $method = new ReflectionMethod($target, $methodName);
