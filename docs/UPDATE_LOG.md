@@ -9,6 +9,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 ### Balance
 
 - 探索深度や亜域などの補正後も、1回の戦闘で獲得する職業EXPを最大3に戻しました。
+- 武器強化の素材とGoldを、武器ランクではなく次に到達する+値で決まる方式へ変更しました。強化値帯ごとに固定した都市素材を使い、どのランクから強化しても同じ費用になります。
 
 ### Fixed
 

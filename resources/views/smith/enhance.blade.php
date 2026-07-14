@@ -97,7 +97,7 @@
                         <span class="text-2xl">🔨</span> 装備強化
                     </h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        欠片・強化石系素材・共通素材・Goldを使って、装備ランクごとの上限まで強化します（+5〜+30）。輝石は使用しません。
+                        武器は到達強化値ごとの固定素材と固定Goldを使い、防具・装飾品は従来のレシピで、装備ランクごとの上限まで強化します（+5〜+30）。輝石は使用しません。
                     </p>
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-start">
@@ -215,6 +215,11 @@
                                         <span class="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
                                             +{{ $level }} / +{{ $maxLevel }}
                                         </span>
+                                        @if($level < $maxLevel)
+                                            <span class="inline-flex items-center rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                                                次: +{{ $nextLevel }}
+                                            </span>
+                                        @endif
                                         @if($candidate['is_equipped'])
                                             <span class="inline-flex items-center rounded bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
                                                 装備中
@@ -270,14 +275,26 @@
                                                         {{ $material['owned'] }} / {{ $material['required'] }}
                                                     </span>
                                                 </div>
+                                                @if($material['missing'] > 0)
+                                                    <p class="text-right text-xs font-bold text-red-600">{{ $material['name'] }}が{{ $material['missing'] }}個不足しています。</p>
+                                                @endif
                                             @endforeach
                                             @if(($candidate['gold_cost'] ?? 0) > 0)
                                                 <div class="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-sm">
-                                                    <span class="font-bold text-slate-700">Gold</span>
+                                                    <span class="font-bold text-slate-700">必要Gold</span>
                                                     <span class="font-mono font-bold {{ ($candidate['missing_gold'] ?? 0) === 0 ? 'text-amber-700' : 'text-red-600' }}">
-                                                        {{ number_format($candidate['owned_gold'] ?? 0) }} / {{ number_format($candidate['gold_cost'] ?? 0) }}G
+                                                        {{ number_format($candidate['gold_cost'] ?? 0) }}G
                                                     </span>
                                                 </div>
+                                                <div class="flex items-center justify-between gap-3 text-sm">
+                                                    <span class="font-bold text-slate-700">所持Gold</span>
+                                                    <span class="font-mono font-bold {{ ($candidate['missing_gold'] ?? 0) === 0 ? 'text-amber-700' : 'text-red-600' }}">
+                                                        {{ number_format($candidate['owned_gold'] ?? 0) }}G
+                                                    </span>
+                                                </div>
+                                                @if(($candidate['missing_gold'] ?? 0) > 0)
+                                                    <p class="text-right text-xs font-bold text-red-600">Goldが{{ number_format($candidate['missing_gold']) }}G不足しています。</p>
+                                                @endif
                                             @endif
                                         </div>
                                     @endif

@@ -34,9 +34,10 @@ return [
         21 => 400000, 22 => 460000, 23 => 520000, 24 => 580000, 25 => 650000,
         26 => 720000, 27 => 800000, 28 => 880000, 29 => 960000, 30 => 1050000,
     ],
-    'rank_gold_cost_overrides' => [
-        // SSSは素材を主な育成壁とし、Goldは+1〜+10を軽め、+11〜+20を中盤、+21〜+30を長期育成帯にする。
-        // +1〜+10: 300,000G / +11〜+20: 1,200,000G / +21〜+30: 3,500,000G
+    // 武器のGoldは到達強化値nに対して n × n × 300G。武器ランクによる倍率・上書きは使用しない。
+    'weapon_gold_per_level_squared' => 300,
+    // 防具・装飾品の既存費用を維持するための設定。武器強化では参照しない。
+    'non_weapon_rank_gold_cost_overrides' => [
         'SSS' => [
             1 => 4000, 2 => 7000, 3 => 12000, 4 => 18000, 5 => 26000,
             6 => 30000, 7 => 35000, 8 => 42000, 9 => 55000, 10 => 71000,
@@ -46,11 +47,140 @@ return [
             26 => 345000, 27 => 390000, 28 => 445000, 29 => 500000, 30 => 585000,
         ],
     ],
-    'extended_rank_gold_multipliers_bps' => [
+    'non_weapon_rank_gold_multipliers_bps' => [
         'J' => 10000, 'I' => 10000, 'H' => 10000,
         'G' => 10000, 'F' => 10000, 'E' => 10000,
         'D' => 15000, 'C' => 15000, 'B' => 15000,
         'A' => 25000, 'S' => 40000, 'SS' => 60000, 'SSS' => 80000, 'EPIC' => 100000,
+    ],
+    'non_weapon_rank_gold_multipliers' => [
+        'G' => 1.0, 'F' => 1.2, 'E' => 1.5, 'D' => 2.0, 'C' => 3.0,
+        'B' => 5.0, 'A' => 8.0, 'S' => 15.0, 'SS' => 30.0, 'SSS' => 60.0, 'EPIC' => 120.0,
+    ],
+    'weapon_material_recipes' => [
+        ['from' => 1, 'to' => 1, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 5],
+        ]],
+        ['from' => 2, 'to' => 2, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 10],
+        ]],
+        ['from' => 3, 'to' => 3, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 15],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 2],
+        ]],
+        ['from' => 4, 'to' => 4, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 2],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 3],
+        ]],
+        ['from' => 5, 'to' => 5, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 4],
+            ['material_id' => 'WEV0023', 'material_name' => '王都の鉄片', 'quantity' => 1],
+        ]],
+        ['from' => 6, 'to' => 6, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 3],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 3],
+            ['material_id' => 'WEV0024', 'material_name' => '潮風の貝殻', 'quantity' => 1],
+        ]],
+        ['from' => 7, 'to' => 7, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 3],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 3],
+            ['material_id' => 'WEV0025', 'material_name' => '精霊樹の葉', 'quantity' => 1],
+        ]],
+        ['from' => 8, 'to' => 8, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 3],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 3],
+            ['material_id' => 'WEV0026', 'material_name' => '黒鉄鉱', 'quantity' => 1],
+        ]],
+        ['from' => 9, 'to' => 9, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 3],
+            ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 3],
+            ['material_id' => 'WEV0033', 'material_name' => '王紋鋼', 'quantity' => 1],
+            ['material_id' => 'WEV0035', 'material_name' => '海鳴りの蒼鉱', 'quantity' => 1],
+        ]],
+        ['from' => 10, 'to' => 10, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 6],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 1],
+            ['material_id' => 'WEV0037', 'material_name' => '精霊樹の琥珀', 'quantity' => 1],
+            ['material_id' => 'WEV0039', 'material_name' => '炉心鋼', 'quantity' => 1],
+            ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1],
+        ]],
+        ['from' => 11, 'to' => 13, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 2],
+            ['material_id' => 'WEV0027', 'material_name' => '氷晶石', 'quantity' => 2],
+            ['material_id' => 'WEV0041', 'material_name' => '氷帝晶', 'quantity' => 1],
+        ]],
+        ['from' => 14, 'to' => 14, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 2],
+            ['material_id' => 'WEV0028', 'material_name' => '砂金石', 'quantity' => 2],
+            ['material_id' => 'WEV0043', 'material_name' => '砂王金晶', 'quantity' => 1],
+        ]],
+        ['from' => 15, 'to' => 15, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 8],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 4],
+            ['material_id' => 'WEV0028', 'material_name' => '砂金石', 'quantity' => 3],
+            ['material_id' => 'WEV0043', 'material_name' => '砂王金晶', 'quantity' => 2],
+            ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1],
+        ]],
+        ['from' => 16, 'to' => 16, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 5],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 3],
+            ['material_id' => 'WEV0028', 'material_name' => '砂金石', 'quantity' => 2],
+            ['material_id' => 'WEV0043', 'material_name' => '砂王金晶', 'quantity' => 2],
+        ]],
+        ['from' => 17, 'to' => 19, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 5],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 3],
+            ['material_id' => 'MAT_REGION_MAGIC_CRYSTAL', 'material_name' => '魔導結晶', 'quantity' => 2],
+            ['material_id' => 'WEV0045', 'material_name' => 'ルミナス魔晶', 'quantity' => 2],
+        ]],
+        ['from' => 20, 'to' => 20, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 10],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 6],
+            ['material_id' => 'MAT_REGION_MAGIC_CRYSTAL', 'material_name' => '魔導結晶', 'quantity' => 4],
+            ['material_id' => 'WEV0045', 'material_name' => 'ルミナス魔晶', 'quantity' => 3],
+            ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1],
+        ]],
+        ['from' => 21, 'to' => 23, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 6],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 4],
+            ['material_id' => 'WEV0030', 'material_name' => '瘴気の骨片', 'quantity' => 1],
+            ['material_id' => 'WEV0047', 'material_name' => '深魔骨核', 'quantity' => 1],
+        ]],
+        ['from' => 24, 'to' => 24, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 6],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 4],
+            ['material_id' => 'WEV0031', 'material_name' => '天空石', 'quantity' => 1],
+            ['material_id' => 'WEV0049', 'material_name' => 'セレスティア星晶', 'quantity' => 1],
+        ]],
+        ['from' => 25, 'to' => 25, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 12],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 8],
+            ['material_id' => 'WEV0031', 'material_name' => '天空石', 'quantity' => 2],
+            ['material_id' => 'WEV0049', 'material_name' => 'セレスティア星晶', 'quantity' => 2],
+            ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 2],
+        ]],
+        ['from' => 26, 'to' => 26, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 8],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 5],
+            ['material_id' => 'WEV0031', 'material_name' => '天空石', 'quantity' => 1],
+            ['material_id' => 'WEV0049', 'material_name' => 'セレスティア星晶', 'quantity' => 2],
+        ]],
+        ['from' => 27, 'to' => 29, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 8],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 5],
+            ['material_id' => 'WEV0032', 'material_name' => '魔王城の黒晶', 'quantity' => 1],
+            ['material_id' => 'WEV0051', 'material_name' => 'ヴァルゼリア黒核', 'quantity' => 2],
+        ]],
+        ['from' => 30, 'to' => 30, 'materials' => [
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 16],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 10],
+            ['material_id' => 'WEV0032', 'material_name' => '魔王城の黒晶', 'quantity' => 3],
+            ['material_id' => 'WEV0051', 'material_name' => 'ヴァルゼリア黒核', 'quantity' => 3],
+            ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 3],
+        ]],
     ],
     'extended_material_bands' => [
         ['from' => 6, 'to' => 10, 'materials' => ['fragment' => 10, 'stone' => 2, 'common' => 8, 'city_low' => 2], 'milestone' => ['high_purity' => 1, 'low_core' => 1]],

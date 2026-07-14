@@ -90,22 +90,70 @@ class EquipmentEnhancementServiceTest extends TestCase
         $this->assertSame(30, $service->maxEnhanceFor(new Item(['weapon_rank' => 'EPIC'])));
     }
 
-    public function test_sss_enhancement_gold_costs_follow_the_three_band_five_million_design(): void
+    public function test_weapon_gold_costs_are_fixed_by_the_target_enhancement_level(): void
     {
         $service = app(EquipmentEnhancementService::class);
         $method = new \ReflectionMethod($service, 'goldCostForLevel');
         $method->setAccessible(true);
-        $item = new Item(['weapon_rank' => 'SSS']);
+        $gWeapon = new Item(['type' => 'weapon', 'weapon_rank' => 'G']);
+        $sssWeapon = new Item(['type' => 'weapon', 'weapon_rank' => 'SSS']);
+        $epicWeapon = new Item(['type' => 'weapon', 'weapon_rank' => 'EPIC']);
 
-        $costs = [];
-        for ($level = 1; $level <= 30; $level++) {
-            $costs[$level] = $method->invoke($service, $level, $item);
+        foreach ([1 => 300, 5 => 7500, 10 => 30000, 20 => 120000, 30 => 270000] as $level => $expected) {
+            $this->assertSame($expected, $method->invoke($service, $level, 'weapon', $gWeapon));
+            $this->assertSame($expected, $method->invoke($service, $level, 'weapon', $sssWeapon));
+            $this->assertSame($expected, $method->invoke($service, $level, 'weapon', $epicWeapon));
         }
 
-        $this->assertSame(300000, array_sum(array_slice($costs, 0, 10)));
-        $this->assertSame(1200000, array_sum(array_slice($costs, 10, 10)));
-        $this->assertSame(3500000, array_sum(array_slice($costs, 20, 10)));
-        $this->assertSame(5000000, array_sum($costs));
-        $this->assertSame(585000, $costs[30]);
+        $this->assertSame(2836500, array_sum(array_map(
+            fn (int $level): int => $method->invoke($service, $level, 'weapon', $gWeapon),
+            range(1, 30)
+        )));
+    }
+
+    public function test_weapon_recipes_use_fixed_materials_for_each_target_level(): void
+    {
+        $service = app(EquipmentEnhancementService::class);
+        $method = new \ReflectionMethod($service, 'weaponMaterialsFor');
+        $method->setAccessible(true);
+        $materials = $method->invoke($service, 15);
+
+        $this->assertSame([
+            ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 8],
+            ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 4],
+            ['material_id' => 'WEV0028', 'material_name' => '砂金石', 'quantity' => 3],
+            ['material_id' => 'WEV0043', 'material_name' => '砂王金晶', 'quantity' => 2],
+            ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1],
+        ], $materials);
+    }
+
+    public function test_weapon_recipes_use_the_fixed_material_bands(): void
+    {
+        $service = app(EquipmentEnhancementService::class);
+        $method = new \ReflectionMethod($service, 'weaponMaterialsFor');
+        $method->setAccessible(true);
+
+        foreach ([
+            11 => ['WEV0027' => 2, 'WEV0041' => 1],
+            14 => ['WEV0028' => 2, 'WEV0043' => 1],
+            15 => ['WEV0028' => 3, 'WEV0043' => 2],
+            16 => ['WEV0028' => 2, 'WEV0043' => 2],
+            17 => ['MAT_REGION_MAGIC_CRYSTAL' => 2, 'WEV0045' => 2],
+            20 => ['MAT_REGION_MAGIC_CRYSTAL' => 4, 'WEV0045' => 3],
+            21 => ['WEV0030' => 1, 'WEV0047' => 1],
+            24 => ['WEV0031' => 1, 'WEV0049' => 1],
+            25 => ['WEV0031' => 2, 'WEV0049' => 2],
+            26 => ['WEV0031' => 1, 'WEV0049' => 2],
+            27 => ['WEV0032' => 1, 'WEV0051' => 2],
+            30 => ['WEV0032' => 3, 'WEV0051' => 3],
+        ] as $level => $expectedMaterials) {
+            $actualMaterials = collect($method->invoke($service, $level))
+                ->mapWithKeys(fn (array $material): array => [$material['material_id'] => $material['quantity']])
+                ->all();
+
+            foreach ($expectedMaterials as $materialCode => $quantity) {
+                $this->assertSame($quantity, $actualMaterials[$materialCode] ?? null, "+{$level} {$materialCode}");
+            }
+        }
     }
 }

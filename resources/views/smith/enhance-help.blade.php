@@ -17,7 +17,7 @@
 
             <section class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
                 <h3 class="text-lg font-black text-amber-950">必要なもの</h3>
-                <p class="mt-2 text-sm leading-relaxed text-slate-700">強化段階に応じて、欠片・強化石系素材・共通素材・Goldを使います。必要数は装備ごとのカードに表示されます。輝石は使いません。</p>
+                <p class="mt-2 text-sm leading-relaxed text-slate-700">武器は次に到達する+値で素材とGoldが決まり、武器ランク・現在地・出身街では変わりません。+nへの必要Goldは n×n×300Gです。都市素材は強化値帯ごとに固定され、防具・装飾品は従来のレシピです。</p>
                 <p class="mt-3 text-sm leading-relaxed text-slate-700">強化したい装備そのものは消えません。素材とGoldだけを消費して、+値が1段階ずつ上がります。</p>
             </section>
 

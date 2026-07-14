@@ -7,6 +7,7 @@ use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\Item;
 use App\Models\Material;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -56,28 +57,7 @@ class EquipmentEnhancementService
         5 => 15000,
     ];
 
-    private const RANK_GOLD_MULTIPLIERS = [
-        'G' => 1.0,
-        'F' => 1.2,
-        'E' => 1.5,
-        'D' => 2.0,
-        'C' => 3.0,
-        'B' => 5.0,
-        'A' => 8.0,
-        'S' => 15.0,
-        'SS' => 30.0,
-        'SSS' => 60.0,
-        'EPIC' => 120.0,
-    ];
-
     private const ENHANCEMENT_MATERIALS = [
-        'weapon' => [
-            1 => [['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 3]],
-            2 => [['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_GOBLIN_FANG', 'material_name' => '小鬼の牙', 'quantity' => 3]],
-            3 => [['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片', 'quantity' => 5], ['material_id' => 'MAT_COMMON_MAGIC_ORE', 'material_name' => '魔鉱片', 'quantity' => 6]],
-            4 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 1], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 2], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 6], ['material_id' => 'MAT_REFINING_CORE_LOW', 'material_name' => '粗精錬核', 'quantity' => 1]],
-            5 => [['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石', 'quantity' => 2], ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石', 'quantity' => 4], ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核', 'quantity' => 10], ['material_id' => 'MAT_REFINING_CORE', 'material_name' => '精錬核', 'quantity' => 1]],
-        ],
         'armor' => [
             1 => [['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 3]],
             2 => [['material_id' => '5007', 'material_name' => '守護石の欠片', 'quantity' => 8], ['material_id' => 'MAT_COMMON_MONSTER_SHELL', 'material_name' => '魔物の外殻', 'quantity' => 3]],
@@ -88,14 +68,6 @@ class EquipmentEnhancementService
     ];
 
     private const EXTENDED_MATERIALS = [
-        'weapon' => [
-            'fragment' => ['material_id' => 'MAT_ENHANCE_FRAGMENT', 'material_name' => '強化石の欠片'],
-            'stone' => ['material_id' => 'MAT_ENHANCE_STONE', 'material_name' => '強化石'],
-            'high_purity' => ['material_id' => 'MAT_ENHANCE_HIGH_STONE', 'material_name' => '高純度強化石'],
-            'common' => ['material_id' => 'MAT_COMMON_MONSTER_CORE', 'material_name' => '魔物の魔核'],
-            'city_low' => ['material_id' => 'WEAPON_CITY_MATERIAL', 'material_name' => '街の鍛材'],
-            'city_high' => ['material_id' => 'WEAPON_CITY_HIGH_MATERIAL', 'material_name' => '高位の街鍛材'],
-        ],
         'armor' => [
             'fragment' => ['material_id' => '5007', 'material_name' => '守護石の欠片'],
             'stone' => ['material_id' => '5008', 'material_name' => '守護石'],
@@ -137,59 +109,68 @@ class EquipmentEnhancementService
 
     public function enhance(Character $character, CharacterItem $characterItem): array
     {
-        return DB::transaction(function () use ($character, $characterItem) {
-            $locked = CharacterItem::with('item')
-                ->where('id', $characterItem->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        $executionLock = Cache::lock("equipment-enhancement:{$character->id}:{$characterItem->id}", 30);
+        if (!$executionLock->get()) {
+            throw new RuntimeException('この装備は強化処理中です。少し待ってからもう一度お試しください。');
+        }
 
-            $this->validateEnhanceTarget($character, $locked);
-
-            $nextLevel = ((int) ($locked->enhance_level ?? 0)) + 1;
-            $displayName = $locked->displayName();
-            $type = (string) ($locked->item?->type ?? '');
-            $recipe = $this->recipeForLevel($nextLevel, $type, $character, $locked->item);
-            $goldCost = (int) ($recipe['gold_cost'] ?? 0);
-            if ($goldCost > 0 && (int) ($character->money ?? 0) < $goldCost) {
-                throw new RuntimeException(number_format($goldCost) . 'G必要です。');
-            }
-
-            foreach ($recipe['materials'] as $materialRequirement) {
-                $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
-                $owned = CharacterMaterial::where('character_id', $character->id)
-                    ->where('material_id', $material->id)
+        try {
+            return DB::transaction(function () use ($character, $characterItem) {
+                $locked = CharacterItem::with('item')
+                    ->where('id', $characterItem->id)
                     ->lockForUpdate()
-                    ->first();
+                    ->firstOrFail();
 
-                $quantity = (int) ($owned->quantity ?? 0);
-                $required = (int) $materialRequirement['quantity'];
-                if ($quantity < $required) {
-                    throw new RuntimeException("{$material->name}が{$required}個必要です。");
+                $this->validateEnhanceTarget($character, $locked);
+
+                $nextLevel = ((int) ($locked->enhance_level ?? 0)) + 1;
+                $displayName = $locked->displayName();
+                $type = (string) ($locked->item?->type ?? '');
+                $recipe = $this->recipeForLevel($nextLevel, $type, $character, $locked->item);
+                $goldCost = (int) ($recipe['gold_cost'] ?? 0);
+                if ($goldCost > 0 && (int) ($character->money ?? 0) < $goldCost) {
+                    throw new RuntimeException(number_format($goldCost) . 'G必要です。');
                 }
 
-                $owned->quantity = $quantity - $required;
-                $owned->save();
-            }
+                foreach ($recipe['materials'] as $materialRequirement) {
+                    $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
+                    $owned = CharacterMaterial::where('character_id', $character->id)
+                        ->where('material_id', $material->id)
+                        ->lockForUpdate()
+                        ->first();
 
-            if ($goldCost > 0) {
-                app(GoldService::class)->spend(
-                    $character,
-                    $goldCost,
-                    'equipment_enhancement',
-                    "{$displayName} +{$nextLevel} 強化"
-                );
-            }
+                    $quantity = (int) ($owned->quantity ?? 0);
+                    $required = (int) $materialRequirement['quantity'];
+                    if ($quantity < $required) {
+                        throw new RuntimeException("{$material->name}が{$required}個必要です。");
+                    }
 
-            $locked->enhance_level = $nextLevel;
-            $locked->save();
+                    $owned->quantity = $quantity - $required;
+                    $owned->save();
+                }
 
-            app(PlayerLifecycleEventService::class)->recordFirstEnhancement($character);
+                if ($goldCost > 0) {
+                    app(GoldService::class)->spend(
+                        $character,
+                        $goldCost,
+                        'equipment_enhancement',
+                        "{$displayName} +{$nextLevel} 強化"
+                    );
+                }
 
-            return [
-                'message' => "{$displayName} を +{$nextLevel} に強化しました。",
-                'enhance_level' => $nextLevel,
-            ];
-        });
+                $locked->enhance_level = $nextLevel;
+                $locked->save();
+
+                app(PlayerLifecycleEventService::class)->recordFirstEnhancement($character);
+
+                return [
+                    'message' => "{$displayName} を +{$nextLevel} に強化しました。",
+                    'enhance_level' => $nextLevel,
+                ];
+            });
+        } finally {
+            optional($executionLock)->release();
+        }
     }
 
     public static function bonusWithEnhancement(int $base, int $enhanceLevel): int
@@ -358,33 +339,42 @@ class EquipmentEnhancementService
             $canEnhance = false;
             $reason = '最大強化済みです。';
         } else {
-            $recipe = $this->recipeForLevel($nextLevel, (string) $item->type, $character, $item);
-            foreach ($recipe['materials'] as $materialRequirement) {
-                $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
-                $owned = $materials[(string) $material->material_code] ?? 0;
-                $required = (int) $materialRequirement['quantity'];
-                $missing = max(0, $required - $owned);
-                $requirements[] = [
-                    'material_code' => (string) $material->material_code,
-                    'name' => $material->name,
-                    'icon_image' => $material->iconImagePath(),
-                    'owned' => $owned,
-                    'required' => $required,
-                    'missing' => $missing,
-                ];
-                if ($missing > 0) {
+            try {
+                $recipe = $this->recipeForLevel($nextLevel, (string) $item->type, $character, $item);
+            } catch (RuntimeException $e) {
+                $canEnhance = false;
+                $reason = $e->getMessage();
+            }
+
+            if ($recipe !== null) {
+                foreach ($recipe['materials'] as $materialRequirement) {
+                    $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
+                    $owned = $materials[(string) $material->material_code] ?? 0;
+                    $required = (int) $materialRequirement['quantity'];
+                    $missing = max(0, $required - $owned);
+                    $requirements[] = [
+                        'material_code' => (string) $material->material_code,
+                        'name' => $material->name,
+                        'icon_image' => $material->iconImagePath(),
+                        'owned' => $owned,
+                        'required' => $required,
+                        'missing' => $missing,
+                        'source' => $materialRequirement['source'] ?? null,
+                    ];
+                    if ($missing > 0) {
+                        $canEnhance = false;
+                    }
+                }
+
+                if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
                     $canEnhance = false;
                 }
-            }
 
-            if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
-                $canEnhance = false;
-            }
-
-            if (!$canEnhance) {
-                $reason = '素材が不足しています。';
-                if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
-                    $reason = '素材またはGoldが不足しています。';
+                if (!$canEnhance) {
+                    $reason = '素材が不足しています。';
+                    if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
+                        $reason = '素材またはGoldが不足しています。';
+                    }
                 }
             }
         }
@@ -436,6 +426,15 @@ class EquipmentEnhancementService
 
     private function recipeForLevel(int $level, string $type = 'weapon', ?Character $character = null, ?object $item = null): array
     {
+        if ($type === 'weapon') {
+            return [
+                'materials' => $this->weaponMaterialsFor($level),
+                'gold_cost' => $this->goldCostForLevel($level, $type, $item),
+                'success_rate' => 100,
+                'effect' => $this->effectDescription($level, $type),
+            ];
+        }
+
         if ($level > 5) {
             $materials = $this->extendedMaterialsFor($level, $type, $character, $item);
             if (!$materials) {
@@ -444,7 +443,7 @@ class EquipmentEnhancementService
 
             return [
                 'materials' => $materials,
-                'gold_cost' => $this->goldCostForLevel($level, $item),
+                'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
                 'effect' => $this->effectDescription($level, $type),
             ];
@@ -458,7 +457,7 @@ class EquipmentEnhancementService
 
             return [
                 'materials' => $materials,
-                'gold_cost' => $this->goldCostForLevel($level, $item),
+                'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
                 'effect' => $this->effectDescription($level, $type),
             ];
@@ -471,16 +470,20 @@ class EquipmentEnhancementService
 
         return [
             'materials' => $materials,
-            'gold_cost' => $this->goldCostForLevel($level, $item),
+            'gold_cost' => $this->goldCostForLevel($level, $type, $item),
             'success_rate' => 100,
             'effect' => $this->effectDescription($level, $type),
         ];
     }
 
-    private function goldCostForLevel(int $level, ?object $item): int
+    private function goldCostForLevel(int $level, string $type, ?object $item): int
     {
+        if ($type === 'weapon') {
+            return $level * $level * (int) config('equipment_enhancement.weapon_gold_per_level_squared', 300);
+        }
+
         $rank = strtoupper(trim((string) $this->rankRawLabel($item)));
-        $rankOverride = config('equipment_enhancement.rank_gold_cost_overrides.' . $rank . '.' . $level);
+        $rankOverride = config('equipment_enhancement.non_weapon_rank_gold_cost_overrides.' . $rank . '.' . $level);
         if ($rankOverride !== null) {
             return max(0, (int) $rankOverride);
         }
@@ -491,14 +494,10 @@ class EquipmentEnhancementService
         }
 
         if ($level <= 5) {
-            $multiplier = self::RANK_GOLD_MULTIPLIERS[$rank] ?? 1.0;
-
-            return (int) ceil($baseCost * $multiplier);
+            return (int) ceil($baseCost * (float) config('equipment_enhancement.non_weapon_rank_gold_multipliers.' . $rank, 1.0));
         }
 
-        $multiplierBps = (int) config('equipment_enhancement.extended_rank_gold_multipliers_bps.' . $rank, 10000);
-
-        return (int) ceil($baseCost * $multiplierBps / 10000);
+        return (int) ceil($baseCost * (int) config('equipment_enhancement.non_weapon_rank_gold_multipliers_bps.' . $rank, 10000) / 10000);
     }
 
     public function maxEnhanceFor(?object $item): int
@@ -575,6 +574,18 @@ class EquipmentEnhancementService
         return $this->resolveDynamicMaterials($requirements, $type, $character, $item);
     }
 
+    private function weaponMaterialsFor(int $level): array
+    {
+        $band = collect(config('equipment_enhancement.weapon_material_recipes', []))
+            ->first(fn (array $candidate): bool => $level >= (int) $candidate['from'] && $level <= (int) $candidate['to']);
+
+        if (!$band) {
+            throw new RuntimeException("+{$level} の武器強化レシピが見つかりません。");
+        }
+
+        return $band['materials'] ?? [];
+    }
+
     private function effectDescription(int $level, string $type): string
     {
         if ($type === 'accessory') {
@@ -606,21 +617,18 @@ class EquipmentEnhancementService
                 'material_id' => $code,
                 'material_name' => $name,
                 'quantity' => (int) $requirement['quantity'],
+                'source' => $requirement['source'] ?? null,
             ];
         }, $requirements);
     }
 
     private function resolveDynamicMaterialCode(string $code, string $name, string $type, ?Character $character, ?object $item): array
     {
-        $cityId = $this->enhancementCityId($character, $item);
-
         return match ($code) {
-            'WEAPON_CITY_MATERIAL' => $this->resolveCityMaterial('weapon_city', $cityId, $code, $name),
-            'WEAPON_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('weapon_city_high', $cityId, $code, $name),
-            'ARMOR_CITY_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, false),
-            'ARMOR_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, true),
-            'ACCESSORY_CITY_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, false),
-            'ACCESSORY_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('city_material', $cityId, $code, $name, true),
+            'ARMOR_CITY_MATERIAL' => $this->resolveCityMaterial('city_material', $this->enhancementCityId($character, $item), $code, $name, false),
+            'ARMOR_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('city_material', $this->enhancementCityId($character, $item), $code, $name, true),
+            'ACCESSORY_CITY_MATERIAL' => $this->resolveCityMaterial('city_material', $this->enhancementCityId($character, $item), $code, $name, false),
+            'ACCESSORY_CITY_HIGH_MATERIAL' => $this->resolveCityMaterial('city_material', $this->enhancementCityId($character, $item), $code, $name, true),
             default => [$code, $name],
         };
     }

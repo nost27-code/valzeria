@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-14-weapon-enhancement-fixed-recipes',
+        'date' => '2026-07-14',
+        'category' => 'balance',
+        'title' => '武器強化の必要素材と費用を調整',
+        'detail' => '武器強化に必要な素材とGoldを、武器ランクではなく強化値によって決まる方式へ変更しました。進化前の低ランク武器を先に強化する方が有利になる価格差を解消し、どのランクから強化しても同じ費用になるよう統一しています。',
+    ],
+    [
         'id' => '2026-07-14-job-exp-cap-restored',
         'date' => '2026-07-14',
         'category' => 'fixed',
