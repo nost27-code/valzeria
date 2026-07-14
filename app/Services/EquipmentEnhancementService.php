@@ -209,7 +209,7 @@ class EquipmentEnhancementService
         }
 
         if ((string) ($item->type ?? '') === 'accessory') {
-            return self::accessoryStatsWithEnhancement($baseStats, $enhanceLevel);
+            return self::accessoryStatsWithEnhancement($baseStats, $enhanceLevel, $item);
         }
 
         $stats = [];
@@ -258,20 +258,21 @@ class EquipmentEnhancementService
      * @param  array<string, int>  $baseStats
      * @return array<string, int>
      */
-    private static function accessoryStatsWithEnhancement(array $baseStats, int $enhanceLevel): array
+    private static function accessoryStatsWithEnhancement(array $baseStats, int $enhanceLevel, ?object $item = null): array
     {
         if ($baseStats === [] || $enhanceLevel <= 0) {
             return $baseStats;
         }
 
         $level = min(self::MAX_EQUIPMENT_ENHANCE, $enhanceLevel);
-        $extraTotal = self::accessoryExtraTotal($level);
         $positiveStats = array_filter($baseStats, fn (int $base): bool => $base > 0);
         $totalBase = array_sum($positiveStats);
 
         if ($totalBase <= 0) {
             return $baseStats;
         }
+
+        $extraTotal = self::accessoryExtraTotalForItem($totalBase, $level, $item);
 
         $extras = array_fill_keys(array_keys($baseStats), 0);
         $remainders = [];
@@ -431,7 +432,7 @@ class EquipmentEnhancementService
                 'materials' => $this->weaponMaterialsFor($level),
                 'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
-                'effect' => $this->effectDescription($level, $type),
+                'effect' => $this->effectDescription($level, $type, $item),
             ];
         }
 
@@ -445,7 +446,7 @@ class EquipmentEnhancementService
                 'materials' => $materials,
                 'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
-                'effect' => $this->effectDescription($level, $type),
+                'effect' => $this->effectDescription($level, $type, $item),
             ];
         }
 
@@ -459,7 +460,7 @@ class EquipmentEnhancementService
                 'materials' => $materials,
                 'gold_cost' => $this->goldCostForLevel($level, $type, $item),
                 'success_rate' => 100,
-                'effect' => $this->effectDescription($level, $type),
+                'effect' => $this->effectDescription($level, $type, $item),
             ];
         }
 
@@ -472,7 +473,7 @@ class EquipmentEnhancementService
             'materials' => $materials,
             'gold_cost' => $this->goldCostForLevel($level, $type, $item),
             'success_rate' => 100,
-            'effect' => $this->effectDescription($level, $type),
+            'effect' => $this->effectDescription($level, $type, $item),
         ];
     }
 
@@ -546,6 +547,29 @@ class EquipmentEnhancementService
         return 10 + min($level - 5, 10) + intdiv(max(0, $level - 15), 2);
     }
 
+    private static function accessoryExtraTotalForItem(int $baseTotal, int $level, ?object $item): int
+    {
+        $rank = strtoupper(trim((string) (
+            $item?->accessory_rank
+            ?? $item?->rarity
+            ?? ''
+        )));
+        $targetTotal = config('equipment_enhancement.accessory_total_stat_targets_at_max.' . $rank);
+
+        if ($targetTotal === null) {
+            return self::accessoryExtraTotal($level);
+        }
+
+        $maxLevel = min(
+            self::MAX_EQUIPMENT_ENHANCE,
+            (int) config('equipment_enhancement.rank_caps.' . $rank, self::MAX_EQUIPMENT_ENHANCE)
+        );
+        $targetTotal = max($baseTotal, (int) $targetTotal);
+        $totalAtLevel = $baseTotal + intdiv(($targetTotal - $baseTotal) * $level, max(1, $maxLevel));
+
+        return $totalAtLevel - $baseTotal;
+    }
+
     private function extendedMaterialsFor(int $level, string $type, ?Character $character, ?object $item): ?array
     {
         $band = collect(config('equipment_enhancement.extended_material_bands', []))
@@ -586,10 +610,15 @@ class EquipmentEnhancementService
         return $band['materials'] ?? [];
     }
 
-    private function effectDescription(int $level, string $type): string
+    private function effectDescription(int $level, string $type, ?object $item): string
     {
         if ($type === 'accessory') {
-            return '能力補正 合計+' . self::accessoryExtraTotal($level);
+            $total = array_sum(array_filter(
+                self::enhancedStatTotalsForItem($item, $level),
+                fn (int $value): bool => $value > 0
+            ));
+
+            return '装飾品の能力値合計 ' . $total;
         }
 
         $bps = self::enhancementRateBps($level);

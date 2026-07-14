@@ -48,6 +48,48 @@ class EquipmentEnhancementServiceTest extends TestCase
         );
     }
 
+    public function test_high_rank_accessories_reach_their_configured_total_at_plus_thirty(): void
+    {
+        $ssItem = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'SS',
+            'str_bonus' => 33,
+        ];
+        $sssItem = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'SSS',
+            'str_bonus' => 44,
+        ];
+        $epicItem = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'EPIC',
+            'str_bonus' => 20,
+            'def_bonus' => 20,
+            'agi_bonus' => 20,
+            'mag_bonus' => 20,
+            'spr_bonus' => 20,
+            'luk_bonus' => 20,
+        ];
+
+        $this->assertSame(['str' => 200], EquipmentEnhancementService::enhancedStatTotalsForItem($ssItem, 30));
+        $this->assertSame(['str' => 300], EquipmentEnhancementService::enhancedStatTotalsForItem($sssItem, 30));
+        $this->assertSame(
+            ['str' => 67, 'def' => 67, 'agi' => 67, 'mag' => 67, 'spr' => 66, 'luk' => 66],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($epicItem, 30)
+        );
+    }
+
+    public function test_lower_rank_accessories_keep_the_existing_total_bonus_formula(): void
+    {
+        $item = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'S',
+            'str_bonus' => 24,
+        ];
+
+        $this->assertSame(['str' => 49], EquipmentEnhancementService::enhancedStatTotalsForItem($item, 25));
+    }
+
     public function test_weapon_enhancement_keeps_existing_per_stat_formula(): void
     {
         $item = (object) [

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-high-rank-accessory-enhancement-balance',
+        'date' => '2026-07-15',
+        'category' => 'balance',
+        'title' => '高ランク装飾品の強化性能を調整',
+        'detail' => 'SS以上の装飾品を+30まで強化したとき、元の能力値比率を保ちながら、SSは合計200、SSSは合計300、EPICは合計400になるよう性能を調整しました。',
+    ],
+    [
         'id' => '2026-07-15-ancient-fragment-source-display',
         'date' => '2026-07-15',
         'category' => 'fixed',

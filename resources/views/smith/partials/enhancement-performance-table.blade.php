@@ -5,7 +5,7 @@
 
 <section class="mt-3 rounded-lg border border-amber-200 bg-white p-3">
     <h4 class="font-black text-amber-950">武器・防具の性能上昇</h4>
-    <p class="mt-1.5 text-sm leading-relaxed text-slate-700">基礎性能に対する上昇率です。低い基礎性能では、この割合より高い最低保証が適用される場合があります。装飾品は能力値を合計で配分する別の仕組みです。</p>
+    <p class="mt-1.5 text-sm leading-relaxed text-slate-700">基礎性能に対する上昇率です。低い基礎性能では、この割合より高い最低保証が適用される場合があります。装飾品は元の能力値比率で配分する別の仕組みで、+30時の能力値合計はSSが200、SSSが300、EPICが400になります。</p>
     <div class="mt-3 overflow-x-auto">
         <table class="min-w-full text-left text-xs text-slate-700">
             <thead class="border-b border-amber-200 text-amber-950">
