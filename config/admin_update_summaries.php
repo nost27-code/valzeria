@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-valzeria-enemy-job-exp-master-cap',
+        'date' => '2026-07-15',
+        'category' => 'balance',
+        'title' => '大陸モンスターの職業EXPを調整',
+        'detail' => 'ヴァルゼリア大陸のモンスターに設定された職業EXPを見直し、敵マスタの時点で最大3になるよう調整しました。',
+    ],
+    [
         'id' => '2026-07-15-equipment-enhancement-fixed-materials',
         'date' => '2026-07-15',
         'category' => 'balance',
