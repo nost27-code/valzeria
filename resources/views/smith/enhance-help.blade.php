@@ -24,6 +24,7 @@
             <section class="mt-6 rounded-lg border border-amber-200 bg-white p-4">
                 <h3 class="text-lg font-black text-amber-950">具体例</h3>
                 <p class="mt-2 text-sm leading-relaxed text-slate-700">基礎攻撃が100の武器を<strong>+2</strong>にすると、基礎攻撃は106になります。+5までは1段階ごとに約3%伸び、以降は伸び幅を少しずつ抑えながら、+30で合計約47.5%上がります。</p>
+                @include('smith.partials.enhancement-performance-table')
             </section>
 
             <section class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">

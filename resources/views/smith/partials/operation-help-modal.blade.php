@@ -29,6 +29,7 @@
                         <h4 class="font-black text-amber-950">具体例</h4>
                         <p class="mt-1.5 text-sm leading-relaxed text-slate-700">基礎攻撃が100の武器を<strong>+2</strong>にすると、基礎攻撃は106になります。強化したい装備自体は消えず、素材とGoldだけを消費します。</p>
                     </section>
+                    @include('smith.partials.enhancement-performance-table')
                     <p class="mt-3 text-xs font-bold text-slate-500">市場出品中の装備は、出品を取り消すまで強化できません。</p>
                 @elseif($helpType === 'traits')
                     <p class="text-sm leading-relaxed text-slate-600">「銘を鍛える」か「特攻を鍛える」を選び、<strong>残したい武器（ベース）</strong>と<strong>消えてよい武器（素材）</strong>を選びます。</p>
