@@ -126,11 +126,10 @@
                             };
                         @endphp
 
-                        {{-- 装備育成への導線（敗北時、または長期戦だった場合） --}}
+                        {{-- 装備育成への導線（敗北時のみ） --}}
                         @php
-                            $growthCtaTurnCount = (int) ($result['turn_count'] ?? 0);
                             $showGrowthCta = !($result['special_event'] ?? null)
-                                && ($isDefeatResult || $growthCtaTurnCount > 10);
+                                && $isDefeatResult;
                         @endphp
                         {{-- ステータス・イベント表示 --}}
                         @if($isDepthGate)

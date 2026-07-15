@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-battle-result-defeat-guidance',
+        'date' => '2026-07-15',
+        'category' => 'fixed',
+        'title' => '勝利時の育成案内を非表示に修正',
+        'detail' => '戦闘に勝利したときは、敗北後の育成案内が表示されないようにしました。',
+    ],
+    [
         'id' => '2026-07-15-job-change-bp-guidance',
         'date' => '2026-07-15',
         'category' => 'fixed',
