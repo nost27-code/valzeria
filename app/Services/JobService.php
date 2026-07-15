@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
-use App\Models\CharacterMaterial;
+use App\Models\CharacterAreaProgress;
 use App\Models\JobClass;
 use App\Models\CharacterJob;
 use App\Models\JobExpTable;
@@ -13,7 +13,7 @@ use App\Support\JobRankCatalog;
 class JobService
 {
     private const MASTER_JOB_LEVEL = 10;
-    public const CROWN_PROOF_MATERIAL_CODE = 'MAT_FERDIA_CROWN_PROOF';
+    public const CROWN_PROOF_AREA_ID = 1013;
 
     /**
      * 指定の職業に転職可能か判定する
@@ -45,10 +45,10 @@ class JobService
 
     public function hasCrownProof(Character $character): bool
     {
-        return CharacterMaterial::query()
+        return CharacterAreaProgress::query()
             ->where('character_id', $character->id)
-            ->where('quantity', '>', 0)
-            ->whereHas('material', fn ($query) => $query->where('material_code', self::CROWN_PROOF_MATERIAL_CODE))
+            ->where('area_id', self::CROWN_PROOF_AREA_ID)
+            ->where('boss_defeated', true)
             ->exists();
     }
 

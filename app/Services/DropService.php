@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 
 class DropService
 {
+    private const CROWN_PROOF_MATERIAL_CODE = 'MAT_FERDIA_CROWN_PROOF';
     private const RANKS_BLOCKED_FROM_NORMAL_DROP = ['S', 'SS', 'SSS', 'EPIC'];
     private const EQUIPMENT_FRAGMENT_CODE = 'MAT_EQUIPMENT_FRAGMENT';
     private const FINE_EQUIPMENT_FRAGMENT_CODE = 'MAT_FINE_EQUIPMENT_FRAGMENT';
@@ -683,6 +684,9 @@ class DropService
         foreach ($materialDrops as $materialDrop) {
             $material = $materialDrop->material;
             if (!$material) {
+                continue;
+            }
+            if ((string) $material->material_code === self::CROWN_PROOF_MATERIAL_CODE) {
                 continue;
             }
             if ($this->isDirectDropDisabledEnhanceMaterial($material)) {

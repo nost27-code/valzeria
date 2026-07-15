@@ -197,6 +197,7 @@ class ExplorationService
         $monsterMarkDrop = null;
         $secretRealmRewards = [];
         $kisekiDrop = null;
+        $crownProofAwarded = false;
         $materialPenalty = ['total_lost' => 0, 'materials' => [], 'items' => []];
         $chainLootSummary = ['materials' => [], 'items' => [], 'material_total' => 0, 'item_total' => 0, 'risk_total' => 0];
         $explorationProgress = null;
@@ -268,8 +269,15 @@ class ExplorationService
 
             // ボス討伐ならエリア解放
             if ($isBossBattle) {
+                $hadCrownProof = app(JobService::class)->hasCrownProof($character);
                 $areaClearRewards = [];
                 $unlockedAreas = $this->areaService->unlockNextArea($character, $areaId, $areaClearRewards);
+                $crownProofAwarded = !$hadCrownProof
+                    && (int) $areaId === JobService::CROWN_PROOF_AREA_ID
+                    && app(JobService::class)->hasCrownProof($character);
+                if ($crownProofAwarded) {
+                    $logText .= '<br><span class="text-rose-700 font-bold">【討伐の証】冠位の証が刻まれた！ 冠位職への道が開かれた。</span>';
+                }
                 $areaClearStorageReward = $areaClearRewards['storage'] ?? null;
                 if ($areaClearStorageReward) {
                     $logText .= '<br><span class="text-emerald-700 font-bold">【街踏破報酬】素材倉庫の保管枠が+'
@@ -645,6 +653,7 @@ class ExplorationService
             'material_drop' => $this->summarizeMaterialDrops($materialDropResult ?? []),
             'monster_mark_drop' => $monsterMarkDrop,
             'kiseki_drop' => $kisekiDrop,
+            'crown_proof_awarded' => $crownProofAwarded,
             'drop_results' => $dropResults,
             'exploration_support' => $supportResult['active'] ?? app(ExplorationSupportService::class)->payload($character),
             'material_penalty' => $materialPenalty,

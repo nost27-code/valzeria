@@ -830,6 +830,17 @@
                                     </div>
                                 @endif
 
+                                @if(!empty($result['crown_proof_awarded']))
+                                    <div class="mt-4 rounded-lg border border-rose-300 bg-rose-50 p-3 shadow-sm">
+                                        <div class="text-sm font-extrabold text-rose-800">討伐の証</div>
+                                        <div class="mt-1 flex items-center gap-2 text-base font-extrabold text-slate-900">
+                                            <span aria-hidden="true">👑</span>
+                                            <span>冠位の証が刻まれた！</span>
+                                        </div>
+                                        <div class="mt-1 text-xs font-bold text-rose-700">冠位職への道が開かれた。</div>
+                                    </div>
+                                @endif
+
                                 @if(!empty($result['material_drop']))
                                     <div class="{{ $isTreasure ? 'mt-3' : 'mt-4 pt-4 border-t border-amber-200' }}">
                                         <h4 class="text-lg font-bold text-green-700 mb-2 flex items-center gap-1"><img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="w-5 h-5 object-contain"> 素材獲得！</h4>

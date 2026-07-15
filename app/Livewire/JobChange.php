@@ -34,6 +34,7 @@ class JobChange extends Component
     public array $detailJobMasterBonusChips = [];
     public bool $detailJobCanChange = false;
     public bool $hasCrownProof = false;
+    public int $bonusPointBlockedJobCount = 0;
 
     public function mount()
     {
@@ -79,6 +80,7 @@ class JobChange extends Component
         
         $this->availableJobs = [];
         $this->unavailableJobs = [];
+        $this->bonusPointBlockedJobCount = 0;
 
         foreach ($allJobs as $job) {
             $this->normalizeRequirementsForDisplay($job);
@@ -88,10 +90,15 @@ class JobChange extends Component
                 continue;
             }
 
+            $canReveal = $jobService->canRevealJob($this->character, $job);
+            if ((int) ($this->character->bonus_points ?? 0) > 0 && $canReveal) {
+                $this->bonusPointBlockedJobCount++;
+            }
+
             if ($jobService->canChangeJob($this->character, $job)) {
                 $this->availableJobs[] = $job;
             } else {
-                if (!$job->is_hidden || $jobService->canRevealJob($this->character, $job)) {
+                if (!$job->is_hidden || $canReveal) {
                     $this->unavailableJobs[] = clone $job;
                 }
             }

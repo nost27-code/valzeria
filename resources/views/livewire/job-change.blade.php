@@ -263,7 +263,7 @@
                         @if($hasCrownProof)
                             <div class="flex items-center justify-between rounded border border-rose-200 bg-rose-50 p-2 text-sm font-bold text-rose-700">
                                 <span>👑 冠位の証</span>
-                                <span>所持済</span>
+                                <span>討伐済</span>
                             </div>
                         @endif
                         
@@ -375,6 +375,14 @@
                                 </div>
                             </div>
                         @endforeach
+                    </div>
+                @elseif($bonusPointBlockedJobCount > 0)
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-5 text-center">
+                        <div class="text-sm font-extrabold text-amber-900">転職可能な職業があります</div>
+                        <div class="mt-1 text-xs font-bold text-amber-700">未使用BPをすべて能力へ割り振ると、転職できます。</div>
+                        <a href="{{ route('bonus-points.index') }}" class="mt-3 inline-flex items-center justify-center rounded-md bg-[#1e293b] px-4 py-2 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#0f172a]">
+                            能力割振りへ
+                        </a>
                     </div>
                 @else
                     <div class="text-gray-500 text-sm text-center py-6 bg-gray-50 rounded-lg border border-gray-100 font-medium">
