@@ -48,6 +48,19 @@ class MonsterMarkServiceTest extends TestCase
         );
     }
 
+    public function test_boss_and_dungeon_lord_are_not_eligible_for_monster_marks(): void
+    {
+        $service = new MonsterMarkService();
+
+        $boss = new Enemy(['is_boss' => true]);
+        $dungeonLord = new Enemy(['is_boss' => false, 'role' => 'ダンジョン主']);
+        $normalEnemy = new Enemy(['is_boss' => false, 'role' => '通常']);
+
+        $this->assertFalse($this->invokePrivate($service, 'isEligibleEnemy', [$boss]));
+        $this->assertFalse($this->invokePrivate($service, 'isEligibleEnemy', [$dungeonLord]));
+        $this->assertTrue($this->invokePrivate($service, 'isEligibleEnemy', [$normalEnemy]));
+    }
+
     private function entry(MonsterMark $mark, Enemy $enemy, Area $area, int $quantity): array
     {
         return [

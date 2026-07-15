@@ -19,7 +19,7 @@ class MonsterMarkService
 
     public function rollAndGrant(Character $character, Enemy $enemy): ?array
     {
-        if ($enemy->is_boss) {
+        if (! $this->isEligibleEnemy($enemy)) {
             return null;
         }
 
@@ -189,7 +189,8 @@ class MonsterMarkService
             ->get();
 
         $rowsByMark = $rows
-            ->filter(fn (CharacterMonsterMark $row): bool => (bool) ($row->monsterMark?->is_active ?? false))
+            ->filter(fn (CharacterMonsterMark $row): bool => (bool) ($row->monsterMark?->is_active ?? false)
+                && $this->isEligibleEnemy($row->monsterMark?->enemy))
             ->groupBy(fn (CharacterMonsterMark $row): string => $this->markSignature($row->monsterMark));
 
         foreach ($rowsByMark as $duplicateRows) {
@@ -312,6 +313,15 @@ class MonsterMarkService
         }
 
         return $dropRate;
+    }
+
+    private function isEligibleEnemy(?Enemy $enemy): bool
+    {
+        if (! $enemy || (bool) $enemy->is_boss) {
+            return false;
+        }
+
+        return ! str_contains((string) ($enemy->role ?? ''), 'ダンジョン主');
     }
 
     private function markForEnemy(Enemy $enemy): ?MonsterMark
