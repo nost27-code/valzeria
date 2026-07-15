@@ -113,10 +113,6 @@ class JobService
 
     private function meetsRankProgressionRequirements(Character $character, JobClass $job): bool
     {
-        if (JobRankCatalog::normalize($job->rank) === JobRankCatalog::CROWN && $this->hasCrownProof($character)) {
-            return true;
-        }
-
         $requiredRanks = $this->prerequisiteMasterRanksFor($job);
         if ($requiredRanks === []) {
             return true;

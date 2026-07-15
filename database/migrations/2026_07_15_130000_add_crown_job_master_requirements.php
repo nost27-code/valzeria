@@ -1,0 +1,9 @@
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    private const REQUIREMENTS = ['crown_sword_knight'=>'holy_sword_general','black_crown_magic_knight'=>'black_flame_knight','dragon_crown_lance_general'=>'azure_sky_dragoon','star_crown_sage'=>'star_reader_sage','shadow_crown_hunter'=>'shadow_stitcher','steel_crown_machina_sage'=>'steel_machina_sage','holy_crown_guardian'=>'sanctuary_guardian','gold_crown_alchemist'=>'golden_alchemist','thunder_crown_fist_saint'=>'thunder_fist_overlord','war_crown_commander'=>'battlefield_tactician'];
+    public function up(): void { if (!Schema::hasTable('job_classes') || !Schema::hasTable('job_requirements')) return; $jobs=DB::table('job_classes')->whereIn('key',array_keys(self::REQUIREMENTS))->pluck('id','key'); $required=DB::table('job_classes')->whereIn('key',array_values(self::REQUIREMENTS))->pluck('id','key'); foreach(self::REQUIREMENTS as $jobKey=>$requiredKey){$jobId=$jobs[$jobKey]??null;$requiredId=$required[$requiredKey]??null;if(!$jobId||!$requiredId)continue;DB::table('job_requirements')->where('job_id',$jobId)->delete();DB::table('job_requirements')->insert(['job_id'=>$jobId,'requirement_type'=>'master_job','required_job_id'=>$requiredId,'required_value'=>null,'required_key'=>null,'created_at'=>now(),'updated_at'=>now()]);}}
+    public function down(): void { if (!Schema::hasTable('job_classes') || !Schema::hasTable('job_requirements')) return; $jobs=DB::table('job_classes')->whereIn('key',array_keys(self::REQUIREMENTS))->pluck('id')->all(); $required=DB::table('job_classes')->whereIn('key',array_values(self::REQUIREMENTS))->pluck('id')->all(); DB::table('job_requirements')->whereIn('job_id',$jobs)->where('requirement_type','master_job')->whereIn('required_job_id',$required)->delete(); }
+};
