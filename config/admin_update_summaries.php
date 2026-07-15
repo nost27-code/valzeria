@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-15-battle-portrait-baseline',
+        'date' => '2026-07-15',
+        'category' => 'fixed',
+        'title' => '戦闘中の対峙画像の足元を調整',
+        'detail' => '戦闘画面で冒険者と敵の画像の足元がそろって見えるようにしました。',
+    ],
+    [
+        'id' => '2026-07-15-battle-portrait-sizes',
+        'date' => '2026-07-15',
+        'category' => 'changed',
+        'title' => '戦闘画面の対峙画像を調整',
+        'detail' => '戦闘画面の冒険者画像を見やすく小さくし、ボスや強敵は少し大きく表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-15-battle-result-defeat-guidance',
         'date' => '2026-07-15',
         'category' => 'fixed',

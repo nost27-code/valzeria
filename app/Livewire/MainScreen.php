@@ -756,7 +756,7 @@ class MainScreen extends Component
             ...($hasEquipmentShop && !$isFerdiaSimpleBase ? [
                 ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
             ] : []),
-            ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石系素材で装備をランク上限まで強化する', 'details' => ['+5〜+30', '成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
+            ['category' => '工房', 'name' => '鍛冶屋', 'symbol_image' => 'facilities/facility_blacksmith_300.webp', 'desc' => '強化石系素材で装備をランク上限まで強化する', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'blacksmith.index', 'is_post' => false],
             ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
             ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材精製・錬成・調合で必要素材を作る', 'details' => ['強化石・導石・秘境晶', '装飾素材・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
             ...($explorationSupportEnabled ? [
