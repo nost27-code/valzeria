@@ -3,6 +3,8 @@
           playerInfo: @entangle('playerInfo'),
           playersExpanded: false,
           notificationOpen: false,
+          selectedJobBadgeTier: null,
+          selectedJobBadge: null,
      }">
     <style>
         .profile-frame-modal {
@@ -1448,6 +1450,136 @@
                         </div>
 
                     </div>
+
+                    <template x-if="playerInfo.favorite_weapons_enabled">
+                        <div class="px-1 py-2">
+                            <div class="rounded-2xl border border-[#9b7a35] bg-[linear-gradient(145deg,#1b2a45_0%,#101b31_58%,#0a1324_100%)] p-1.5 shadow-[0_2px_0_#d1a74c,0_6px_14px_rgba(15,23,42,0.28)]">
+                                <div class="relative mb-1.5 flex items-center gap-2 px-1 pr-9">
+                                    <div class="h-px flex-1 bg-gradient-to-r from-transparent to-amber-300/70"></div>
+                                    <div class="px-1 text-[13px] font-black tracking-wide text-[#f6e6b6] drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)]">お気に入り武器</div>
+                                    <div class="h-px flex-1 bg-gradient-to-l from-transparent to-amber-300/70"></div>
+                                    <a x-show="playerInfo.is_self" href="{{ route('profile.edit') }}#favorite_weapons" class="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-black text-amber-100/85 underline decoration-amber-300/60 underline-offset-2 hover:text-white">編集</a>
+                                </div>
+                                <div class="overflow-hidden rounded-xl border border-white/70 bg-[linear-gradient(160deg,#fdfefe_0%,#edf3f8_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_3px_rgba(71,85,105,0.12)]">
+                                    <div class="mb-1.5 flex items-center justify-between px-0.5">
+                                        <span class="text-[9px] font-black tracking-[0.16em] text-slate-500">WEAPON COLLECTION</span>
+                                        <span class="text-[9px] font-bold text-slate-400">お気に入り 3本</span>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-1.5">
+                                        <template x-for="weapon in playerInfo.favorite_weapons" :key="weapon.id">
+                                            <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_2px_6px_rgba(15,23,42,0.12)]" :style="weapon.quality ? `border-color: ${weapon.quality.border_color}` : ''">
+                                                <div class="relative grid aspect-square place-items-center bg-[radial-gradient(circle_at_center,#ffffff_15%,#f7f9fc_70%,#e6edf4_100%)] p-1.5" :style="weapon.quality ? `background: ${weapon.quality.display_background}` : ''">
+                                                    <img :src="weapon.image" :alt="weapon.name" class="h-full w-full object-contain drop-shadow-[0_3px_2px_rgba(41,31,14,0.32)]">
+                                                    <template x-if="weapon.rank">
+                                                        <span class="absolute left-1 top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-white/40 px-1 text-[10px] font-black leading-none text-white shadow-sm" :style="`background-color: ${weapon.rank_color}`" x-text="weapon.rank"></span>
+                                                    </template>
+                                                    <div class="absolute bottom-1 right-1 rounded-full border px-1.5 py-0.5 font-black leading-none" :style="`color: ${weapon.enhance_style.color}; background-color: ${weapon.enhance_style.background}; border-color: ${weapon.enhance_style.border_color}; font-size: ${weapon.enhance_style.font_size}; box-shadow: ${weapon.enhance_style.shadow}`">
+                                                        +<span x-text="weapon.enhance_level"></span>
+                                                    </div>
+                                                </div>
+                                                <div class="border-t border-slate-100 bg-white px-1 py-1.5 text-center">
+                                                    <div class="mb-0.5 flex h-5 items-center justify-center overflow-hidden">
+                                                        <template x-if="weapon.quality">
+                                                            <span class="rounded border px-1 py-px text-[9px] font-black leading-tight shadow-sm" :style="`color: ${weapon.quality.color}; background-color: ${weapon.quality.background}; border-color: ${weapon.quality.border_color}`" x-text="weapon.quality.label"></span>
+                                                        </template>
+                                                    </div>
+                                                    <div class="break-words text-xs font-black leading-snug text-slate-800" x-text="weapon.name"></div>
+                                                    <div x-show="weapon.engraving || weapon.killer" class="mt-1 flex items-center justify-center gap-1 whitespace-nowrap text-[10px] font-black leading-tight">
+                                                        <template x-if="weapon.engraving">
+                                                            <span :style="`color: ${weapon.engraving.color}`" x-text="weapon.engraving.label"></span>
+                                                        </template>
+                                                        <template x-if="weapon.engraving && weapon.killer">
+                                                            <span class="text-slate-300">/</span>
+                                                        </template>
+                                                        <template x-if="weapon.killer">
+                                                            <span :style="`color: ${weapon.killer.color}`" x-text="weapon.killer.label"></span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template x-for="slot in Math.max(0, 3 - (playerInfo.favorite_weapons || []).length)" :key="`empty-favorite-${slot}`">
+                                            <div class="grid aspect-[3/4] place-items-center rounded-lg border border-dashed border-slate-300 bg-white/65 px-1 text-center text-slate-400 shadow-[inset_0_1px_3px_rgba(71,85,105,0.08)]">
+                                                <div>
+                                                    <div class="text-xl font-normal leading-none text-slate-300">＋</div>
+                                                    <div class="mt-1 text-[10px] font-black">未設定</div>
+                                                    <a x-show="playerInfo.is_self" href="{{ route('profile.edit') }}#favorite_weapons" class="mt-1 inline-block text-[9px] font-black text-slate-600 underline decoration-slate-300 underline-offset-2">お気に入りに登録</a>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="playerInfo.job_master_badges_enabled">
+                        <div class="px-1 py-2">
+                            <div class="rounded-2xl border border-[#9b7a35] bg-[linear-gradient(145deg,#1b2a45_0%,#101b31_58%,#0a1324_100%)] p-1.5 shadow-[0_2px_0_#d1a74c,0_6px_14px_rgba(15,23,42,0.28)]">
+                                <div class="mb-1.5 flex items-center gap-2 px-1">
+                                    <div class="h-px flex-1 bg-gradient-to-r from-transparent to-amber-300/70"></div>
+                                    <div class="px-1 text-[13px] font-black tracking-wide text-[#f6e6b6] drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)]">極めた職業</div>
+                                    <div class="h-px flex-1 bg-gradient-to-l from-transparent to-amber-300/70"></div>
+                                </div>
+                                <div class="overflow-hidden rounded-xl border border-white/70 bg-[linear-gradient(160deg,#fdfefe_0%,#edf3f8_100%)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),inset_0_-1px_3px_rgba(71,85,105,0.12)]">
+                                    <div class="mb-1.5 flex items-center justify-between px-0.5">
+                                        <span class="text-[9px] font-black tracking-[0.16em] text-slate-500">JOB COLLECTION</span>
+                                        <span class="text-[9px] font-bold text-slate-400">階層を選択</span>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-1.5">
+                                        <template x-for="tier in playerInfo.job_master_badge_tiers" :key="tier.rank">
+                                            <button
+                                                type="button"
+                                                class="relative overflow-hidden rounded-lg border px-1.5 py-1.5 text-left transition duration-150 active:scale-[0.98]"
+                                                :class="selectedJobBadgeTier === tier.rank ? 'border-transparent bg-white shadow-[0_2px_6px_rgba(15,23,42,0.16)] ring-1 ring-offset-1' : 'border-slate-200 bg-white/65 hover:border-slate-300 hover:bg-white'"
+                                                :style="selectedJobBadgeTier === tier.rank ? `--tw-ring-color: ${tier.color}` : ''"
+                                                @click="if (selectedJobBadgeTier === tier.rank) { selectedJobBadgeTier = null; selectedJobBadge = null; } else { selectedJobBadgeTier = tier.rank; selectedJobBadge = null; }"
+                                            >
+                                                <span class="absolute inset-x-0 top-0 h-0.5" :style="`background-color: ${tier.color}`"></span>
+                                                <span class="block truncate text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
+                                                <span class="block text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職</span>
+                                            </button>
+                                        </template>
+                                    </div>
+
+                                    <template x-for="tier in playerInfo.job_master_badge_tiers" :key="`panel-${tier.rank}`">
+                                        <div x-show="selectedJobBadgeTier === tier.rank" x-transition class="mt-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-[0_2px_7px_rgba(15,23,42,0.08)]">
+                                            <div class="mb-1.5 flex items-center justify-between gap-2 rounded-md px-1.5 py-1" :style="`background-color: color-mix(in srgb, ${tier.color} 10%, white)`">
+                                                <span class="text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
+                                                <span class="text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職を表示</span>
+                                            </div>
+                                            <div class="grid grid-cols-7 gap-1 rounded-md border border-slate-100 bg-[radial-gradient(circle_at_50%_0%,#f8fafc_0%,#e7eef5_100%)] p-1.5 shadow-[inset_0_1px_3px_rgba(71,85,105,0.11)]">
+                                                <template x-for="job in tier.jobs" :key="job.id">
+                                                    <button
+                                                        type="button"
+                                                        class="relative aspect-square overflow-hidden rounded-full border transition duration-150 active:scale-90"
+                                                        :class="[selectedJobBadge && selectedJobBadge.id === job.id ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-100' : 'hover:brightness-110', job.is_mastered ? 'border-[#fff1b8] bg-[radial-gradient(circle_at_35%_25%,#fffbe5_0%,#f4c84d_44%,#9a6814_100%)] p-[3px] shadow-[0_0_0_1px_#b77912,0_0_8px_rgba(251,191,36,0.80),0_2px_4px_rgba(15,23,42,0.32)]' : 'border-[#ab8a48] bg-[radial-gradient(circle_at_34%_27%,#ffffff_0%,#d8e1e9_25%,#5a6877_64%,#202936_100%)] p-0.5 shadow-[0_1px_0_#73542a,0_2px_3px_rgba(15,23,42,0.28)]']"
+                                                        :aria-label="`${job.name}、職業ランク${job.job_level}`"
+                                                        :aria-pressed="selectedJobBadge && selectedJobBadge.id === job.id"
+                                                        @click="selectedJobBadge = selectedJobBadge && selectedJobBadge.id === job.id ? null : job"
+                                                    >
+                                                        <div class="relative grid h-full w-full place-items-center overflow-hidden rounded-full border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.24),inset_0_0_6px_rgba(0,0,0,0.58)]" :class="job.is_mastered ? 'border-[#ffe5a0] bg-[radial-gradient(circle,#fff7d1_0%,#e8b63d_48%,#7d5110_100%)]' : 'border-[#f5df9d]/80 bg-[radial-gradient(circle,#1b2a42_0%,#0c1422_72%)]'">
+                                                            <div x-show="!job.is_mastered" class="absolute inset-x-0 bottom-0 z-0 bg-[linear-gradient(180deg,rgba(125,211,252,0.58),rgba(14,116,144,0.78))] transition-[height] duration-500" :style="`height: ${job.fill_percent}%`"></div>
+                                                            <div x-show="!job.is_mastered" class="absolute inset-x-0 bottom-[55%] z-10 h-px bg-white/60" :style="`transform: translateY(${100 - job.fill_percent}%); opacity: ${job.fill_percent ? 1 : 0}`"></div>
+                                                            <template x-if="job.badge_image">
+                                                                <img :src="job.badge_image" alt="" class="absolute inset-0 z-20 h-full w-full object-contain p-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]" aria-hidden="true">
+                                                            </template>
+                                                        </div>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                            <div x-show="selectedJobBadge && selectedJobBadge.tier_rank === tier.rank" x-transition class="mt-2 rounded-md border border-sky-200 bg-slate-50/95 px-2 py-1.5 text-left shadow-sm">
+                                                <div class="text-xs font-black text-slate-800" x-text="selectedJobBadge?.name"></div>
+                                                <div x-show="selectedJobBadge?.is_mastered && selectedJobBadge?.mastered_at" class="mt-1 text-[9px] font-black text-amber-700">MASTER <span class="ml-1 text-amber-600" x-text="`マスター日 ${selectedJobBadge?.mastered_at}`"></span></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div x-show="!selectedJobBadgeTier && (playerInfo.job_master_badge_tiers || []).length" class="py-3 text-center text-[10px] font-black text-slate-500">階層を選ぶと、極めた職業を確認できます。</div>
+                                    <div x-show="!(playerInfo.job_master_badge_tiers || []).length" class="py-3 text-center text-[10px] font-black text-slate-500">職業マスタを読み込めませんでした。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
 
                     <!-- 冒険の記録 -->
                     <div class="adventurer-card-section px-4 py-3">

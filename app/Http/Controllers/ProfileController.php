@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CharacterProfileService;
+use App\Services\FavoriteWeaponService;
 use App\Services\SupportPassService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,7 +12,7 @@ use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
-    public function edit(CharacterProfileService $profileService, SupportPassService $supportPassService)
+    public function edit(CharacterProfileService $profileService, SupportPassService $supportPassService, FavoriteWeaponService $favoriteWeaponService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -22,6 +23,8 @@ class ProfileController extends Controller
         $cardFrames = $profileService->ownedAdventurerCardFrames($character);
         $avatarFrames = $profileService->ownedAdventurerAvatarFrames($character);
         $valmonCases = $profileService->ownedValmonCases($character);
+
+        $favoriteWeaponsEnabled = $favoriteWeaponService->enabled();
 
         return view('profile.edit', [
             'character' => $character,
@@ -37,10 +40,29 @@ class ProfileController extends Controller
             'selectedCardSkin' => $supportPassService->selectedCardSkin($character->user),
             'displayedCardSkin' => $supportPassService->displayedCardSkin($character->user),
             'supportPassStatus' => $supportPassService->statusForCharacter($character),
+            'favoriteWeaponsEnabled' => $favoriteWeaponsEnabled,
+            'favoriteWeaponPage' => $favoriteWeaponsEnabled
+                ? $this->favoriteWeaponPage($favoriteWeaponService, $character)
+                : null,
+            'selectedFavoriteWeaponIds' => $favoriteWeaponService->selectedIds($character),
         ]);
     }
 
-    public function update(Request $request, CharacterProfileService $profileService, SupportPassService $supportPassService)
+    public function favoriteWeapons(Request $request, FavoriteWeaponService $favoriteWeaponService)
+    {
+        abort_unless($favoriteWeaponService->enabled(), 404);
+
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            abort(403);
+        }
+
+        $request->validate(['page' => ['nullable', 'integer', 'min:1']]);
+
+        return response()->json($this->favoriteWeaponPage($favoriteWeaponService, $character));
+    }
+
+    public function update(Request $request, CharacterProfileService $profileService, SupportPassService $supportPassService, FavoriteWeaponService $favoriteWeaponService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -67,6 +89,11 @@ class ProfileController extends Controller
             ])];
         }
 
+        if ($favoriteWeaponService->enabled()) {
+            $rules['favorite_weapon_ids'] = ['nullable', 'array', 'max:'.$favoriteWeaponService->maxCount()];
+            $rules['favorite_weapon_ids.*'] = ['integer', 'distinct'];
+        }
+
         $validated = $request->validate($rules);
 
         try {
@@ -82,6 +109,13 @@ class ProfileController extends Controller
         $character->profile_card_frame = $profileService->selectedAdventurerCardFrame($character, $validated['profile_card_frame']);
         $character->profile_avatar_frame = $profileService->selectedAdventurerAvatarFrame($character, $validated['profile_avatar_frame']);
         $character->profile_valmon_case = $profileService->selectedValmonCase($character, $validated['profile_valmon_case']);
+        if ($favoriteWeaponService->enabled()) {
+            try {
+                $favoriteWeaponService->saveSelection($character, $validated['favorite_weapon_ids'] ?? []);
+            } catch (\InvalidArgumentException $e) {
+                return back()->withErrors(['favorite_weapon_ids' => $e->getMessage()])->withInput();
+            }
+        }
         $character->save();
         if ($selectedCardSkin !== null) {
             $character->user->forceFill(['selected_card_skin' => $selectedCardSkin])->save();
@@ -109,5 +143,20 @@ class ProfileController extends Controller
         }
 
         return redirect()->route('profile.edit')->with('message', 'プロフィール枠機能は現在停止中です。');
+    }
+
+    private function favoriteWeaponPage(FavoriteWeaponService $favoriteWeaponService, $character): array
+    {
+        $paginator = $favoriteWeaponService->paginateAvailableWeapons($character, 12);
+
+        return [
+            'weapons' => $paginator->getCollection()
+                ->map(fn ($weapon) => $favoriteWeaponService->toDisplayArray($weapon))
+                ->values()
+                ->all(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'total' => $paginator->total(),
+        ];
     }
 }

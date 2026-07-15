@@ -5,6 +5,7 @@
         $currentAvatarFrame = old('profile_avatar_frame', $selectedAvatarFrame);
         $currentValmonCase = old('profile_valmon_case', $selectedValmonCase);
         $currentCardSkin = old('selected_card_skin', $selectedCardSkin);
+        $currentFavoriteWeaponIds = collect(old('favorite_weapon_ids', $selectedFavoriteWeaponIds))->map(fn ($id) => (int) $id)->all();
     @endphp
 
     <div class="mx-auto max-w-3xl space-y-4">
@@ -46,7 +47,38 @@
                   selectedCardFrame: @js($currentCardFrame),
                   selectedAvatarFrame: @js($currentAvatarFrame),
                   selectedValmonCase: @js($currentValmonCase),
-                  selectedCardSkin: @js($currentCardSkin)
+                  selectedCardSkin: @js($currentCardSkin),
+                  selectedFavoriteWeaponIds: @js($currentFavoriteWeaponIds),
+                  favoriteWeaponPage: @js($favoriteWeaponPage),
+                  favoriteWeaponsLoading: false,
+                  favoriteWeaponsError: '',
+                  async loadFavoriteWeaponPage(page) {
+                      if (this.favoriteWeaponsLoading || page < 1 || page > this.favoriteWeaponPage.last_page) return;
+                      this.favoriteWeaponsLoading = true;
+                      this.favoriteWeaponsError = '';
+                      try {
+                          const response = await fetch(`{{ route('profile.favorite-weapons') }}?page=${page}`, {
+                              headers: { Accept: 'application/json' },
+                          });
+                          if (!response.ok) throw new Error('favorite weapons request failed');
+                          this.favoriteWeaponPage = await response.json();
+                      } catch {
+                          this.favoriteWeaponsError = '武器一覧を読み込めませんでした。時間をおいてもう一度お試しください。';
+                      } finally {
+                          this.favoriteWeaponsLoading = false;
+                      }
+                  },
+                  toggleFavoriteWeapon(id, checked) {
+                      id = Number(id);
+                      const index = this.selectedFavoriteWeaponIds.indexOf(id);
+                      if (checked && index === -1) {
+                          if (this.selectedFavoriteWeaponIds.length >= 3) return false;
+                          this.selectedFavoriteWeaponIds.push(id);
+                      } else if (!checked && index !== -1) {
+                          this.selectedFavoriteWeaponIds.splice(index, 1);
+                      }
+                      return true;
+                  }
               }">
             @csrf
 
@@ -217,6 +249,71 @@
                     </div>
                 </div>
             </section>
+
+            @if($favoriteWeaponsEnabled)
+                <section id="favorite_weapons" class="scroll-mt-20 rounded-lg border border-[#d4af37]/50 bg-white p-4 shadow-sm">
+                    <div class="mb-3">
+                        <div class="text-sm font-black text-slate-900">お気に入り武器 <span class="text-emerald-700">3本</span></div>
+                        <div class="mt-0.5 text-xs font-bold text-slate-500">冒険者カードに飾る、所持中の武器を最大3本選べます。</div>
+                    </div>
+
+                    <template x-if="favoriteWeaponPage.total">
+                        <div>
+                            <template x-for="id in selectedFavoriteWeaponIds" :key="`selected-favorite-${id}`">
+                                <input type="hidden" name="favorite_weapon_ids[]" :value="id">
+                            </template>
+                            <div class="relative grid grid-cols-3 gap-2" :class="favoriteWeaponsLoading ? 'pointer-events-none opacity-50' : ''">
+                                <template x-for="weapon in favoriteWeaponPage.weapons" :key="weapon.id">
+                                    <label class="cursor-pointer overflow-hidden rounded-xl border bg-white shadow-sm transition"
+                                           :class="selectedFavoriteWeaponIds.includes(weapon.id) ? 'border-amber-400 ring-2 ring-amber-400/60 shadow-[0_0_0_3px_rgba(251,191,36,0.16)]' : 'border-slate-200 hover:border-slate-300'"
+                                           :style="weapon.quality ? `border-color: ${weapon.quality.border_color}` : ''">
+                                        <input type="checkbox"
+                                               :value="weapon.id"
+                                               :checked="selectedFavoriteWeaponIds.includes(weapon.id)"
+                                               class="sr-only"
+                                               @change="if (!toggleFavoriteWeapon(weapon.id, $event.target.checked)) $event.target.checked = false">
+                                        <div class="relative grid aspect-square place-items-center bg-white p-1.5 sm:p-2" :style="weapon.quality ? `background: ${weapon.quality.display_background}` : ''">
+                                            <img :src="weapon.image" :alt="weapon.name" class="h-full w-full object-contain drop-shadow-sm">
+                                            <template x-if="weapon.rank">
+                                                <span class="absolute left-1 top-1 inline-flex h-5 min-w-5 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm" :style="`background-color: ${weapon.rank_color}`" x-text="weapon.rank"></span>
+                                            </template>
+                                            <template x-if="selectedFavoriteWeaponIds.includes(weapon.id)">
+                                                <span class="absolute right-1 top-1 rounded-md border border-amber-100 bg-[#51350f] px-1.5 py-1 text-[10px] font-black leading-none text-amber-50 shadow-sm"><span x-text="selectedFavoriteWeaponIds.indexOf(weapon.id) + 1"></span>番目</span>
+                                            </template>
+                                            <span class="absolute bottom-1 right-1 rounded-full border px-1.5 py-0.5 font-black leading-none" :style="`color: ${weapon.enhance_style.color}; background-color: ${weapon.enhance_style.background}; border-color: ${weapon.enhance_style.border_color}; font-size: ${weapon.enhance_style.font_size}; box-shadow: ${weapon.enhance_style.shadow}`">+<span x-text="weapon.enhance_level"></span></span>
+                                        </div>
+                                        <div class="border-t border-slate-100 px-1.5 py-1.5 sm:px-2">
+                                            <div class="mb-0.5 flex h-5 items-center overflow-hidden">
+                                                <template x-if="weapon.quality">
+                                                    <span class="rounded border px-1 py-px text-[9px] font-black leading-tight shadow-sm" :style="`color: ${weapon.quality.color}; background-color: ${weapon.quality.background}; border-color: ${weapon.quality.border_color}`" x-text="weapon.quality.label"></span>
+                                                </template>
+                                            </div>
+                                            <div class="break-words text-xs font-black leading-snug text-slate-800" x-text="weapon.name"></div>
+                                            <div x-show="weapon.engraving || weapon.killer" class="mt-1 flex items-center gap-1 whitespace-nowrap text-[9px] font-black leading-tight">
+                                                <template x-if="weapon.engraving"><span :style="`color: ${weapon.engraving.color}`" x-text="weapon.engraving.label"></span></template>
+                                                <template x-if="weapon.engraving && weapon.killer"><span class="text-slate-300">/</span></template>
+                                                <template x-if="weapon.killer"><span :style="`color: ${weapon.killer.color}`" x-text="weapon.killer.label"></span></template>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </template>
+                            </div>
+                            <div x-show="favoriteWeaponPage.last_page > 1" class="mt-3 flex items-center justify-between gap-3">
+                                <button type="button" class="min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-black text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-40" :disabled="favoriteWeaponsLoading || favoriteWeaponPage.current_page <= 1" @click="loadFavoriteWeaponPage(favoriteWeaponPage.current_page - 1)">前へ</button>
+                                <span class="text-xs font-black text-slate-500"><span x-text="favoriteWeaponPage.current_page"></span> / <span x-text="favoriteWeaponPage.last_page"></span></span>
+                                <button type="button" class="min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-black text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-40" :disabled="favoriteWeaponsLoading || favoriteWeaponPage.current_page >= favoriteWeaponPage.last_page" @click="loadFavoriteWeaponPage(favoriteWeaponPage.current_page + 1)">次へ</button>
+                            </div>
+                            <p x-show="favoriteWeaponsError" x-text="favoriteWeaponsError" class="mt-2 text-xs font-bold text-red-600"></p>
+                        </div>
+                    </template>
+                    <template x-if="!favoriteWeaponPage.total">
+                        <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs font-bold text-slate-500">飾れる武器をまだ所持していません。</div>
+                    </template>
+                    @error('favorite_weapon_ids')
+                        <div class="mt-2 text-xs font-bold text-red-600">{{ $message }}</div>
+                    @enderror
+                </section>
+            @endif
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <a href="{{ route('home') }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 shadow-sm hover:bg-slate-50">

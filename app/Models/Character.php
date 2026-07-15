@@ -71,6 +71,7 @@ class Character extends Model
         'profile_card_frame' => 'string',
         'profile_avatar_frame' => 'string',
         'profile_valmon_case' => 'string',
+        'profile_favorite_weapon_ids' => 'array',
         'private_chat_theme' => 'string',
         'chat_all_tab_visibility' => 'array',
     ];

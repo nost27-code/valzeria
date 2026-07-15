@@ -266,6 +266,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/tavern/roster/{npc}', [TavernController::class, 'rosterDetail'])->name('tavern.roster.detail');
         Route::get('/home', MainScreen::class)->name('home');
         Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::get('/profile/favorite-weapons', [ProfileController::class, 'favoriteWeapons'])->name('profile.favorite-weapons');
         Route::post('/profile/edit', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/frame/compress', [ProfileController::class, 'compressFrameMaterial'])->name('profile.frame.compress');
         Route::post('/profile/frame/unlock', [ProfileController::class, 'unlockFrame'])->name('profile.frame.unlock');

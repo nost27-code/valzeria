@@ -6,6 +6,7 @@ use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterNotification;
 use App\Models\City;
+use App\Models\JobClass;
 use App\Models\ValmonMaster;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
@@ -14,9 +15,11 @@ use App\Services\CharacterProfileService;
 use App\Services\CharacterNotificationService;
 use App\Services\ExplorationStaminaService;
 use App\Services\FerdiaMapService;
+use App\Services\FavoriteWeaponService;
 use App\Services\SupportPassService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
+use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
@@ -296,6 +299,7 @@ class CityHeader extends Component
         $profileService = app(CharacterProfileService::class);
         $supportPassService = app(SupportPassService::class);
         $supportPassStatus = $supportPassService->statusForCharacter($character);
+        $favoriteWeaponService = app(FavoriteWeaponService::class);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
         $adventureRecords = $this->adventureRecords($character);
         $equippedTitle = $character->titles()
@@ -334,6 +338,10 @@ class CityHeader extends Component
                 'active' => (bool) ($supportPassStatus['active'] ?? false),
                 'remaining_days' => (int) ($supportPassStatus['remaining_days'] ?? 0),
             ],
+            'favorite_weapons_enabled' => $favoriteWeaponService->enabled(),
+            'favorite_weapons' => $favoriteWeaponService->enabled() ? $favoriteWeaponService->displayWeapons($character) : [],
+            'job_master_badges_enabled' => (bool) config('job_master_badges.enabled', false),
+            'job_master_badge_tiers' => $this->jobMasterBadgeTiers($character),
             'adventurer_card_background' => asset($profileService->selectedAdventurerCardBackground($character, $character->profile_card_background)),
             'adventurer_card_frame' => asset($profileService->selectedAdventurerCardFrame($character, $character->profile_card_frame)),
             'adventurer_avatar_frame' => asset($profileService->selectedAdventurerAvatarFrame($character, $character->profile_avatar_frame)),
@@ -355,6 +363,57 @@ class CityHeader extends Component
                 'accessory' => $this->equipmentLine($accessory, 'accessory_rank'),
             ],
         ];
+    }
+
+    private function jobMasterBadgeTiers(Character $character): array
+    {
+        if (! config('job_master_badges.enabled', false) || ! Schema::hasTable('job_classes')) {
+            return [];
+        }
+
+        $jobs = JobRankCatalog::orderByRank(
+            JobClass::query()->select(['id', 'rank', 'name', 'max_job_level', 'sort_order'])
+        )
+            ->orderBy('sort_order')
+            ->get()
+            ->values();
+        $jobs->each(fn (JobClass $job, int $index) => $job->setAttribute('badge_index', $index + 1));
+        $jobsByTier = $jobs->groupBy('rank');
+        $jobProgress = $character->jobHistories()
+            ->get(['job_class_id', 'job_level', 'is_mastered', 'mastered_at'])
+            ->keyBy('job_class_id');
+
+        return collect(config('job_master_badges.tiers', []))
+            ->map(function (array $tier) use ($jobsByTier, $jobProgress): array {
+                $tier['jobs'] = ($jobsByTier->get($tier['rank']) ?? collect())
+                    ->map(function (JobClass $job) use ($jobProgress): array {
+                        $progress = $jobProgress->get($job->id);
+                        $maxLevel = max(1, (int) ($job->max_job_level ?? 10));
+                        $level = min($maxLevel, max(0, (int) ($progress?->job_level ?? 0)));
+                        $isMastered = (bool) ($progress?->is_mastered ?? false) || $level >= $maxLevel;
+                        $badgePath = sprintf('images/job' . 'badge/job' . 'badge_%03d.webp', (int) $job->badge_index);
+
+                        return [
+                            'id' => (int) $job->id,
+                            'tier_rank' => (string) $job->rank,
+                            'name' => (string) $job->name,
+                            'job_level' => $level,
+                            'max_job_level' => $maxLevel,
+                            'fill_percent' => $isMastered ? 100 : (int) round(($level / $maxLevel) * 100),
+                            'is_mastered' => $isMastered,
+                            'mastered_at' => $progress?->mastered_at?->format('Y年n月j日'),
+                            'badge_image' => is_file(public_path($badgePath)) ? asset($badgePath) : null,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+                $tier['total'] = count($tier['jobs']);
+
+                return $tier;
+            })
+            ->filter(fn (array $tier): bool => $tier['total'] > 0)
+            ->values()
+            ->all();
     }
 
     private function adventureRecords(Character $character): array

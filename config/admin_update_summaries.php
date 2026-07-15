@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-16-adventurer-card-collection-shelves',
+        'date' => '2026-07-16',
+        'category' => 'added',
+        'title' => '冒険者カードに愛用品と職業棚を追加',
+        'detail' => '愛用武器3本を飾り、基本職から超級職までの修めた職業をバッジで見られるようにしました。',
+    ],
+    [
+        'id' => '2026-07-16-regional-and-enemy-weapon-images',
+        'date' => '2026-07-16',
+        'category' => 'changed',
+        'title' => '地域・塔報酬武器の画像を追加',
+        'detail' => '王都から砂都までの地域武器、一部の敵専用武器、星樹の塔報酬武器に個別画像を追加しました。冒険者カードでも武器の見た目を確認できます。',
+    ],
+    [
         'id' => '2026-07-15-star-tree-tower-ended-widget',
         'date' => '2026-07-15',
         'category' => 'changed',
