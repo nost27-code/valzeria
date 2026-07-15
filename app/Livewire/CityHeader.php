@@ -402,7 +402,8 @@ class CityHeader extends Component
                             'fill_percent' => $isMastered ? 100 : (int) round(($level / $maxLevel) * 100),
                             'is_mastered' => $isMastered,
                             'mastered_at' => $progress?->mastered_at?->format('Y年n月j日'),
-                            'badge_image' => is_file(public_path($badgePath)) ? asset($badgePath) : null,
+                            // 未マスター職は水位と★ランクだけで進捗を見せるため、職業画像は表示しない。
+                            'badge_image' => $isMastered && is_file(public_path($badgePath)) ? asset($badgePath) : null,
                         ];
                     })
                     ->values()

@@ -1561,9 +1561,10 @@
                                                         <div class="relative grid h-full w-full place-items-center overflow-hidden rounded-full border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.24),inset_0_0_6px_rgba(0,0,0,0.58)]" :class="job.is_mastered ? 'border-[#ffe5a0] bg-[radial-gradient(circle,#fff7d1_0%,#e8b63d_48%,#7d5110_100%)]' : 'border-[#f5df9d]/80 bg-[radial-gradient(circle,#1b2a42_0%,#0c1422_72%)]'">
                                                             <div x-show="!job.is_mastered" class="absolute inset-x-0 bottom-0 z-0 bg-[linear-gradient(180deg,rgba(125,211,252,0.58),rgba(14,116,144,0.78))] transition-[height] duration-500" :style="`height: ${job.fill_percent}%`"></div>
                                                             <div x-show="!job.is_mastered" class="absolute inset-x-0 bottom-[55%] z-10 h-px bg-white/60" :style="`transform: translateY(${100 - job.fill_percent}%); opacity: ${job.fill_percent ? 1 : 0}`"></div>
-                                                            <template x-if="job.badge_image">
+                                                            <template x-if="job.is_mastered && job.badge_image">
                                                                 <img :src="job.badge_image" alt="" class="absolute inset-0 z-20 h-full w-full object-contain p-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]" aria-hidden="true">
                                                             </template>
+                                                            <span x-show="!job.is_mastered && job.job_level > 0" class="relative z-20 rounded-full border border-white/55 bg-slate-950/30 px-1 py-0.5 text-[9px] font-black tracking-tight text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]" :style="`opacity: ${0.4 + (job.fill_percent * 0.006)}`" x-text="`★${job.job_level}`"></span>
                                                         </div>
                                                     </button>
                                                 </template>
