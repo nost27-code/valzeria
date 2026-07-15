@@ -1,22 +1,22 @@
-<section x-data="{ tab: '{{ $towerEnabled ? 'tower' : 'arena' }}' }"
+<section @if($towerEnabled) x-data="{ tab: 'tower' }" @endif
          class="w-full overflow-hidden rounded-lg border border-[#d4af37] bg-white shadow-[0_4px_14px_rgba(126,96,28,0.12)]">
-    <div class="flex bg-[#0a1628]">
-        <button type="button"
-                @click="tab = 'tower'"
-                class="flex-1 px-3 py-1.5 text-[11px] font-black tracking-widest transition"
-                :class="tab === 'tower' ? 'bg-[#1b2c47] text-[#d4af37]' : 'text-amber-100/50'">
-            星樹の塔
-        </button>
-        <button type="button"
-                @click="tab = 'arena'"
-                class="flex-1 px-3 py-1.5 text-[11px] font-black tracking-widest transition"
-                :class="tab === 'arena' ? 'bg-[#1b2c47] text-[#d4af37]' : 'text-amber-100/50'">
-            闘技場
-        </button>
-    </div>
+    @if($towerEnabled)
+        <div class="flex bg-[#0a1628]">
+            <button type="button"
+                    @click="tab = 'tower'"
+                    class="flex-1 px-3 py-1.5 text-[11px] font-black tracking-widest transition"
+                    :class="tab === 'tower' ? 'bg-[#1b2c47] text-[#d4af37]' : 'text-amber-100/50'">
+                星樹の塔
+            </button>
+            <button type="button"
+                    @click="tab = 'arena'"
+                    class="flex-1 px-3 py-1.5 text-[11px] font-black tracking-widest transition"
+                    :class="tab === 'arena' ? 'bg-[#1b2c47] text-[#d4af37]' : 'text-amber-100/50'">
+                闘技場
+            </button>
+        </div>
 
-    <div x-show="tab === 'tower'">
-        @if($towerEnabled)
+        <div x-show="tab === 'tower'">
             <div class="flex items-center bg-amber-50 px-3 py-1">
                 <span class="text-[10px] font-bold text-amber-700">今期 〜7/15 17:59</span>
             </div>
@@ -59,14 +59,14 @@
                class="block bg-amber-50 px-3 py-1.5 text-center text-[11px] font-black text-amber-800 active:scale-[0.99]">
                 星樹の塔ランキングを見る
             </a>
-        @else
-            <div class="px-3 py-4 text-center text-[11px] font-bold text-slate-400">
-                星樹の塔は終了しました
-            </div>
-        @endif
-    </div>
+        </div>
+    @else
+        <div class="bg-[#0a1628] px-3 py-1.5 text-center text-[11px] font-black tracking-widest text-[#d4af37]">
+            闘技場
+        </div>
+    @endif
 
-    <div x-show="tab === 'arena'" style="display: none;">
+    <div @if($towerEnabled) x-show="tab === 'arena'" style="display: none;" @endif>
         <div class="divide-y divide-slate-100">
             @forelse($arenaEntries as $entry)
                 @php

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-15-star-tree-tower-ended-widget',
+        'date' => '2026-07-15',
+        'category' => 'changed',
+        'title' => '終了した星樹の塔表示を整理',
+        'detail' => '星樹の塔の開催終了中は、街画面のランキング欄に終了案内を表示せず、闘技場ランキングだけを表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-15-battle-portrait-baseline',
         'date' => '2026-07-15',
         'category' => 'fixed',

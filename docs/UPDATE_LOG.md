@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Changed
+
+- 星樹の塔の開催終了中は、街画面のランキング欄から終了案内を取り除き、闘技場ランキングだけを表示するようにしました。
+
 ### Balance
 
 - ヴァルゼリア大陸のモンスターに設定された職業EXPを見直し、敵マスタの時点で最大3になるよう調整しました。
