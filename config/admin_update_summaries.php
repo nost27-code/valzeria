@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-16-weapon-trait-material-rank-fix',
+        'date' => '2026-07-16',
+        'category' => 'fixed',
+        'title' => '銘鍛錬の素材ランク判定を修正',
+        'detail' => '銘や特攻を鍛えるとき、完成後の段階を保持できるベース武器なら、素材武器は現在段階を持っていれば使えるように修正しました。',
+    ],
+    [
         'id' => '2026-07-16-guest-google-data-link',
         'date' => '2026-07-16',
         'category' => 'added',

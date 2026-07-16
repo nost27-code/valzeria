@@ -190,13 +190,13 @@ class WeaponTraitForgeService
         if ($operation === 'engraving_forge' || $operation === 'dual_forge') {
             $this->assertMatchingAffix($base, $material, 'prefix');
             $prefixLevel++;
-            $this->assertResultLevelAllowed($base, $material, $prefixLevel, '銘');
+            $this->assertResultLevelAllowed($base, $prefixLevel, '銘');
         }
 
         if ($operation === 'slayer_forge' || $operation === 'dual_forge') {
             $this->assertMatchingAffix($base, $material, 'suffix');
             $suffixLevel++;
-            $this->assertResultLevelAllowed($base, $material, $suffixLevel, '特攻');
+            $this->assertResultLevelAllowed($base, $suffixLevel, '特攻');
         }
 
         if ($operation === 'dual_forge') {
@@ -265,17 +265,15 @@ class WeaponTraitForgeService
         }
     }
 
-    private function assertResultLevelAllowed(CharacterItem $base, CharacterItem $material, int $resultLevel, string $label): void
+    private function assertResultLevelAllowed(CharacterItem $base, int $resultLevel, string $label): void
     {
         if ($resultLevel > (int) config('equipment_affix.maximum_level', 5)) {
             throw new RuntimeException("この武器の{$label}は最大段階に到達しています。");
         }
 
         $requiredRank = $this->rules->minimumEquipmentRankForLevel($resultLevel);
-        foreach ([$base, $material] as $weapon) {
-            if ($resultLevel > $this->rules->maxLevelForItem($weapon->item)) {
-                throw new RuntimeException("完成後の{$label}" . $this->romanLevel($resultLevel) . "には{$requiredRank}ランク以上の武器が必要です。");
-            }
+        if ($resultLevel > $this->rules->maxLevelForItem($base->item)) {
+            throw new RuntimeException("完成後の{$label}" . $this->romanLevel($resultLevel) . "には{$requiredRank}ランク以上の武器が必要です。");
         }
     }
 

@@ -47,6 +47,20 @@ class WeaponTraitForgeServiceTest extends TestCase
         $this->assertSame($suffix->name, data_get($operationLog->material_snapshot, 'slayer_name'));
     }
 
+    public function test_engraving_forge_allows_a_lower_rank_material_that_can_hold_the_current_level(): void
+    {
+        $character = $this->createCharacter(100_000);
+        [$prefix, $suffix] = $this->affixes();
+        $base = $this->weapon($character, 'S', 'sword', $prefix, 2, $suffix, 1);
+        $material = $this->weapon($character, 'E', 'sword', $prefix, 2, $suffix, 1);
+
+        app(WeaponTraitForgeService::class)->forge($character, 'engraving_forge', $base->id, $material->id);
+
+        $this->assertDatabaseHas('character_items', ['id' => $base->id, 'affix_prefix_level' => 3]);
+        $this->assertDatabaseMissing('character_items', ['id' => $material->id]);
+        $this->assertSame(20_000, $character->fresh()->money);
+    }
+
     public function test_dual_forge_can_raise_different_matching_levels_together(): void
     {
         $character = $this->createCharacter(500_000);
@@ -69,7 +83,7 @@ class WeaponTraitForgeServiceTest extends TestCase
         $character = $this->createCharacter(500_000);
         [$prefix, $suffix] = $this->affixes();
         $base = $this->weapon($character, 'A', 'sword', $prefix, 3, $suffix, 1);
-        $material = $this->weapon($character, 'A', 'sword', $prefix, 3, $suffix, 1);
+        $material = $this->weapon($character, 'S', 'sword', $prefix, 3, $suffix, 1);
 
         try {
             app(WeaponTraitForgeService::class)->forge($character, 'engraving_forge', $base->id, $material->id);
