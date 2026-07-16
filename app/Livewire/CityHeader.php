@@ -16,6 +16,7 @@ use App\Services\CharacterNotificationService;
 use App\Services\ExplorationStaminaService;
 use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
+use App\Services\JobService;
 use App\Services\SupportPassService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
@@ -379,12 +380,23 @@ class CityHeader extends Component
             ->values();
         $jobs->each(fn (JobClass $job, int $index) => $job->setAttribute('badge_index', $index + 1));
         $jobsByTier = $jobs->groupBy('rank');
+        $hasCrownProof = app(JobService::class)->hasCrownProof($character);
         $jobProgress = $character->jobHistories()
             ->get(['job_class_id', 'job_level', 'is_mastered', 'mastered_at'])
             ->keyBy('job_class_id');
 
         return collect(config('job_master_badges.tiers', []))
-            ->map(function (array $tier) use ($jobsByTier, $jobProgress): array {
+            ->map(function (array $tier) use ($hasCrownProof, $jobsByTier, $jobProgress): array {
+                if ($tier['rank'] === JobRankCatalog::CROWN && ! $hasCrownProof) {
+                    return [
+                        ...$tier,
+                        'label' => '？？？',
+                        'locked' => true,
+                        'jobs' => [],
+                        'total' => null,
+                    ];
+                }
+
                 $tier['jobs'] = ($jobsByTier->get($tier['rank']) ?? collect())
                     ->map(function (JobClass $job) use ($jobProgress): array {
                         $progress = $jobProgress->get($job->id);
@@ -409,6 +421,7 @@ class CityHeader extends Component
                     ->values()
                     ->all();
                 $tier['total'] = count($tier['jobs']);
+                $tier['locked'] = false;
 
                 return $tier;
             })

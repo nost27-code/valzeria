@@ -1531,13 +1531,14 @@
                                             <button
                                                 type="button"
                                                 class="relative overflow-hidden rounded-lg border px-1.5 py-1.5 text-left transition duration-150 active:scale-[0.98]"
-                                                :class="selectedJobBadgeTier === tier.rank ? 'border-transparent bg-white shadow-[0_2px_6px_rgba(15,23,42,0.16)] ring-1 ring-offset-1' : 'border-slate-200 bg-white/65 hover:border-slate-300 hover:bg-white'"
+                                                :class="[selectedJobBadgeTier === tier.rank ? 'border-transparent bg-white shadow-[0_2px_6px_rgba(15,23,42,0.16)] ring-1 ring-offset-1' : 'border-slate-200 bg-white/65 hover:border-slate-300 hover:bg-white', tier.locked ? 'border-dashed' : '']"
                                                 :style="selectedJobBadgeTier === tier.rank ? `--tw-ring-color: ${tier.color}` : ''"
                                                 @click="if (selectedJobBadgeTier === tier.rank) { selectedJobBadgeTier = null; selectedJobBadge = null; } else { selectedJobBadgeTier = tier.rank; selectedJobBadge = null; }"
                                             >
                                                 <span class="absolute inset-x-0 top-0 h-0.5" :style="`background-color: ${tier.color}`"></span>
                                                 <span class="block truncate text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
-                                                <span class="block text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職</span>
+                                                <span x-show="!tier.locked" class="block text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職</span>
+                                                <span x-show="tier.locked" class="block text-[9px] font-black text-slate-400">？？？</span>
                                             </button>
                                         </template>
                                     </div>
@@ -1546,9 +1547,11 @@
                                         <div x-show="selectedJobBadgeTier === tier.rank" x-transition class="mt-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-[0_2px_7px_rgba(15,23,42,0.08)]">
                                             <div class="mb-1.5 flex items-center justify-between gap-2 rounded-md px-1.5 py-1" :style="`background-color: color-mix(in srgb, ${tier.color} 10%, white)`">
                                                 <span class="text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
-                                                <span class="text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職を表示</span>
+                                                <span x-show="!tier.locked" class="text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職を表示</span>
+                                                <span x-show="tier.locked" class="text-[9px] font-black text-slate-400">？？？</span>
                                             </div>
-                                            <div class="grid grid-cols-7 gap-1 rounded-md border border-slate-100 bg-[radial-gradient(circle_at_50%_0%,#f8fafc_0%,#e7eef5_100%)] p-1.5 shadow-[inset_0_1px_3px_rgba(71,85,105,0.11)]">
+                                            <div x-show="tier.locked" class="rounded-md border border-dashed border-slate-300 bg-slate-100/70 py-5 text-center text-sm font-black tracking-[0.35em] text-slate-400">？？？</div>
+                                            <div x-show="!tier.locked" class="grid grid-cols-7 gap-1 rounded-md border border-slate-100 bg-[radial-gradient(circle_at_50%_0%,#f8fafc_0%,#e7eef5_100%)] p-1.5 shadow-[inset_0_1px_3px_rgba(71,85,105,0.11)]">
                                                 <template x-for="job in tier.jobs" :key="job.id">
                                                     <button
                                                         type="button"
@@ -1569,7 +1572,7 @@
                                                     </button>
                                                 </template>
                                             </div>
-                                            <div x-show="selectedJobBadge && selectedJobBadge.tier_rank === tier.rank" x-transition class="mt-2 rounded-md border border-sky-200 bg-slate-50/95 px-2 py-1.5 text-left shadow-sm">
+                                            <div x-show="!tier.locked && selectedJobBadge && selectedJobBadge.tier_rank === tier.rank" x-transition class="mt-2 rounded-md border border-sky-200 bg-slate-50/95 px-2 py-1.5 text-left shadow-sm">
                                                 <div class="text-xs font-black text-slate-800" x-text="selectedJobBadge?.name"></div>
                                                 <div x-show="selectedJobBadge?.is_mastered && selectedJobBadge?.mastered_at" class="mt-1 text-[9px] font-black text-amber-700">MASTER <span class="ml-1 text-amber-600" x-text="`マスター日 ${selectedJobBadge?.mastered_at}`"></span></div>
                                             </div>
