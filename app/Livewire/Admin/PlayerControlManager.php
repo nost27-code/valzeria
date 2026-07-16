@@ -69,7 +69,7 @@ class PlayerControlManager extends Component
 
     public function updatedGrantTargetId(): void
     {
-        if ($this->grantType === 'weapon' && $this->selectedWeaponAffixEnabled() === false) {
+        if ($this->grantType === 'weapon' && $this->selectedWeaponSupportsAffixes() === false) {
             $this->resetGrantAffixSelection();
         }
     }
@@ -318,7 +318,7 @@ class PlayerControlManager extends Component
             'storageSummary' => $selectedCharacter ? $storageCapacityService->summary($selectedCharacter) : null,
             'cooldownSummary' => $selectedCharacter ? $this->cooldownSummary($selectedCharacter) : null,
             'grantCandidates' => $this->grantCandidates(),
-            'selectedWeaponAffixEnabled' => $this->selectedWeaponAffixEnabled(),
+            'selectedWeaponSupportsAffixes' => $this->selectedWeaponSupportsAffixes(),
             'grantTypeLabels' => $this->grantTypeLabels(),
             'engravingCandidates' => $this->engravingCandidates(),
             'slayerCandidates' => $this->slayerCandidates(),
@@ -480,7 +480,7 @@ class PlayerControlManager extends Component
                 ->map(function (Item $item): array {
                     $meta = "#{$item->id} / {$item->type} / " . ($item->rarity ?? '-');
                     if ($item->type === 'weapon') {
-                        $meta .= (bool) $item->affix_enabled ? ' / 銘・特攻可' : ' / 通常のみ';
+                        $meta .= $this->weaponSupportsAffixGrant($item) ? ' / 銘・特攻可' : ' / 銘・特攻対象外';
                     }
 
                     return [
@@ -552,18 +552,24 @@ class PlayerControlManager extends Component
             ->get(['id', 'name', 'species_key']);
     }
 
-    private function selectedWeaponAffixEnabled(): ?bool
+    private function selectedWeaponSupportsAffixes(): ?bool
     {
         if ($this->grantType !== 'weapon' || $this->grantTargetId === '') {
             return null;
         }
 
-        $affixEnabled = Item::query()
+        $item = Item::query()
             ->whereKey((int) $this->grantTargetId)
             ->where('type', 'weapon')
-            ->value('affix_enabled');
+            ->first();
 
-        return $affixEnabled === null ? null : (bool) $affixEnabled;
+        return $item ? $this->weaponSupportsAffixGrant($item) : null;
+    }
+
+    private function weaponSupportsAffixGrant(Item $item): bool
+    {
+        return (string) $item->type === 'weapon'
+            && app(EquipmentAffixRulesService::class)->supportsAffixes($item);
     }
 
     private function grantMaterial(Character $character): string
@@ -643,7 +649,7 @@ class PlayerControlManager extends Component
                 'grantType' => '銘・特攻を指定できるのは武器だけです。',
             ]);
         }
-        if (!(bool) $item->affix_enabled) {
+        if (!$this->weaponSupportsAffixGrant($item)) {
             throw ValidationException::withMessages([
                 'grantTargetId' => 'この武器には銘・特攻を付与できません。',
             ]);

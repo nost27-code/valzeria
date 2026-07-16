@@ -518,7 +518,7 @@
                             @endif
                         </div>
 
-                        @if($grantType === 'weapon' && $selectedWeaponAffixEnabled !== false)
+                        @if($grantType === 'weapon' && $selectedWeaponSupportsAffixes !== false)
                             <div class="mt-4 rounded-md border border-violet-200 bg-violet-50 p-4">
                                 <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                     <div class="text-sm font-black text-violet-950">銘・特攻の指定</div>
@@ -577,7 +577,7 @@
                             </div>
                         @elseif($grantType === 'weapon')
                             <div class="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-600">
-                                この武器は通常品としてのみ送付できます。銘・特攻を付与できる武器を選ぶと指定欄を表示します。
+                                この武器は仕様上、銘・特攻の付与対象外です。
                             </div>
                         @endif
 

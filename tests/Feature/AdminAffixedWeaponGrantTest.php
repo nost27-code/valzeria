@@ -165,7 +165,7 @@ class AdminAffixedWeaponGrantTest extends TestCase
         $this->assertSame('excellent', $granted->affix_quality);
     }
 
-    public function test_admin_hides_affix_inputs_for_a_weapon_that_does_not_allow_them(): void
+    public function test_admin_can_grant_affixes_to_a_ranked_weapon_when_random_drop_affixes_are_disabled(): void
     {
         $admin = User::factory()->create();
         $recipient = Character::query()->create([
@@ -176,9 +176,9 @@ class AdminAffixedWeaponGrantTest extends TestCase
         $item = Item::query()->create([
             'name' => '通常送付の剣',
             'type' => 'weapon',
-            'rarity' => 'B',
+            'rarity' => 'S',
             'weapon_category' => 'sword',
-            'weapon_rank' => 'B',
+            'weapon_rank' => 'S',
             'str_bonus' => 50,
             'affix_enabled' => false,
             'is_active' => true,
@@ -190,7 +190,53 @@ class AdminAffixedWeaponGrantTest extends TestCase
             ->call('selectCharacter', $recipient->id)
             ->set('grantType', 'weapon')
             ->set('grantTargetId', (string) $item->id)
-            ->assertSee('この武器は通常品としてのみ送付できます。')
-            ->assertDontSee('銘の段階');
+            ->assertSee('銘・特攻可')
+            ->assertSee('銘の段階')
+            ->assertDontSee('通常のみ')
+            ->set('grantAffixPrefixId', (string) EquipmentAffixPrefix::query()->where('affix_key', 'power')->firstOrFail()->id)
+            ->set('grantAffixPrefixLevel', 4)
+            ->call('grantItem')
+            ->assertHasNoErrors();
+
+        $granted = CharacterItem::query()->where('character_id', $recipient->id)->sole();
+        $this->assertSame(4, $granted->affix_prefix_level);
+    }
+
+    public function test_admin_rejects_affixes_for_a_special_weapon_that_is_fixed_to_normal_quality(): void
+    {
+        $admin = User::factory()->create();
+        $recipient = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '配布先冒険者',
+            'explore_stamina' => 0,
+        ]);
+        $item = Item::query()->create([
+            'name' => '星樹の特別剣',
+            'type' => 'weapon',
+            'rarity' => 'special',
+            'display_rank' => 'SS+相当',
+            'weapon_category' => 'sword',
+            'weapon_rank' => 'SPECIAL',
+            'str_bonus' => 300,
+            'affix_enabled' => false,
+            'is_active' => true,
+        ]);
+        $prefix = EquipmentAffixPrefix::query()->where('affix_key', 'power')->firstOrFail();
+
+        $this->actingAs($admin);
+
+        Livewire::test(PlayerControlManager::class)
+            ->call('selectCharacter', $recipient->id)
+            ->set('grantType', 'weapon')
+            ->set('grantTargetId', (string) $item->id)
+            ->assertSee('銘・特攻対象外')
+            ->assertSee('この武器は仕様上、銘・特攻の付与対象外です。')
+            ->assertDontSee('銘の段階')
+            ->set('grantAffixPrefixId', (string) $prefix->id)
+            ->call('grantItem')
+            ->assertHasErrors(['grantTargetId']);
+
+        $this->assertDatabaseCount('character_items', 0);
+        $this->assertDatabaseCount('admin_item_grant_logs', 0);
     }
 }

@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-17-admin-ranked-weapon-affix-grant-fix',
+        'date' => '2026-07-17',
+        'category' => 'fixed',
+        'title' => '通常ランク武器の銘・特攻送付を修正',
+        'detail' => '管理人の武器送付で、通常ランクの武器にはドロップ設定に関係なく、ランク上限内の銘・特攻を指定できるようにしました。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-17-notification-panel-layer-fix',
         'date' => '2026-07-17',
         'category' => 'fixed',

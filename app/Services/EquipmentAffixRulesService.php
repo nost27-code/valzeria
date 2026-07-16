@@ -72,9 +72,17 @@ class EquipmentAffixRulesService
 
     public function maxLevelForItem(?Item $item): int
     {
-        $rank = strtoupper((string) ($item?->weapon_rank ?: $item?->armor_rank ?: ''));
+        $rank = $this->equipmentRank($item);
 
         return (int) config('equipment_affix.maximum_level_by_equipment_rank.' . $rank, 1);
+    }
+
+    public function supportsAffixes(?Item $item): bool
+    {
+        $rank = $this->equipmentRank($item);
+        $maximumLevels = (array) config('equipment_affix.maximum_level_by_equipment_rank', []);
+
+        return $rank !== '' && array_key_exists($rank, $maximumLevels);
     }
 
     public function clampLevel(?Item $item, int $level): int
@@ -90,5 +98,10 @@ class EquipmentAffixRulesService
     private function normalizeLevel(int $level): int
     {
         return min((int) config('equipment_affix.maximum_level', 5), max(1, $level));
+    }
+
+    private function equipmentRank(?Item $item): string
+    {
+        return strtoupper((string) ($item?->weapon_rank ?: $item?->armor_rank ?: ''));
     }
 }
