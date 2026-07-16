@@ -528,8 +528,8 @@
                         label,
                     };
                 },
-                canHoldLevel(base, material, level) {
-                    return level <= base.maximum_level && level <= material.maximum_level;
+                canHoldLevel(base, level) {
+                    return level <= base.maximum_level;
                 },
                 rankLimitSummary(item, role) {
                     const rank = item.rank || '-';
@@ -569,13 +569,10 @@
                         if (resultLevel > 5) {
                             return { available: false, reason: `${this.kindLabel()}はVが最大段階です。` };
                         }
-                        if (!this.canHoldLevel(base, material, resultLevel)) {
-                            const limitedItem = resultLevel > base.maximum_level ? base : material;
-                            const role = limitedItem === base ? 'ベース武器' : '素材武器';
-
+                        if (!this.canHoldLevel(base, resultLevel)) {
                             return {
                                 available: false,
-                                reason: `${this.rankLimitSummary(limitedItem, role)} 完成後の${this.kindLabel()}${this.roman(resultLevel)}は作れません。`,
+                                reason: `${this.rankLimitSummary(base, 'ベース武器')} 完成後の${this.kindLabel()}${this.roman(resultLevel)}は作れません。`,
                             };
                         }
                         const resultTrait = this.withTraitLevel(current, resultLevel);
@@ -637,7 +634,7 @@
 
                     const engravingResult = engravingBase.level + 1;
                     const slayerResult = slayerBase.level + 1;
-                    if (!this.canHoldLevel(base, material, engravingResult) || !this.canHoldLevel(base, material, slayerResult)) return null;
+                    if (!this.canHoldLevel(base, engravingResult) || !this.canHoldLevel(base, slayerResult)) return null;
                     const engravingAfter = this.withTraitLevel(engravingBase, engravingResult);
                     const slayerAfter = this.withTraitLevel(slayerBase, slayerResult);
 
