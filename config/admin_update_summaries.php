@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-admin-item-grant-notification',
+        'date' => '2026-07-17',
+        'category' => 'added',
+        'title' => '管理送付の通知ベルを追加',
+        'detail' => '管理人から素材・装備・探索アイテム・サポートアイテムが送られたとき、受け取った内容を通知ベルで確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-17-bug-report-admin-private-replies',
         'date' => '2026-07-17',
         'category' => 'added',

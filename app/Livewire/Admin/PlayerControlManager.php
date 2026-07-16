@@ -783,6 +783,22 @@ class PlayerControlManager extends Component
             'enhance_level' => $attributes['enhance_level'] ?? null,
             'metadata' => $attributes['metadata'] ?? null,
         ]);
+
+        app(CharacterNotificationService::class)->create(
+            $character,
+            'system',
+            'admin_item_grant',
+            '管理人からアイテムが送られました',
+            "{$attributes['target_name']} x{$attributes['quantity']} が送られました。",
+            payload: [
+                'grant_type' => $attributes['grant_type'],
+                'target_type' => $attributes['target_type'],
+                'target_id' => $attributes['target_id'],
+                'target_name' => $attributes['target_name'],
+                'quantity' => $attributes['quantity'],
+            ],
+            priority: 10,
+        );
     }
 
 }

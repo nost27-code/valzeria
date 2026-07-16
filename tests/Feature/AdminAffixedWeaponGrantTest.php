@@ -6,6 +6,7 @@ use App\Livewire\Admin\PlayerControlManager;
 use App\Models\AdminItemGrantLog;
 use App\Models\Character;
 use App\Models\CharacterItem;
+use App\Models\CharacterNotification;
 use App\Models\EquipmentAffixPrefix;
 use App\Models\EquipmentAffixSuffix;
 use App\Models\Item;
@@ -74,6 +75,14 @@ class AdminAffixedWeaponGrantTest extends TestCase
         $this->assertSame($prefix->name, data_get($grantLog->metadata, 'affix.engraving.name'));
         $this->assertSame($suffix->name, data_get($grantLog->metadata, 'affix.slayer.name'));
         $this->assertSame([$granted->id], data_get($grantLog->metadata, 'character_item_ids'));
+
+        $notification = CharacterNotification::query()
+            ->where('character_id', $recipient->id)
+            ->where('type', 'admin_item_grant')
+            ->sole();
+        $this->assertSame('管理人からアイテムが送られました', $notification->title);
+        $this->assertStringContainsString($granted->displayName(), (string) $notification->body);
+        $this->assertSame('weapon', data_get($notification->data, 'grant_type'));
     }
 
     public function test_admin_cannot_grant_an_affix_above_the_weapon_rank_cap(): void

@@ -8,6 +8,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Added
 
+- 管理人から素材・装備・探索アイテム・サポートアイテムが送られたとき、通知ベルで受け取った内容を確認できるようにしました。
 - 不具合フォームから、報告者と「管理人」の個人チャットで状況確認や返答をやり取りできるようにしました。
 
 ### Changed
