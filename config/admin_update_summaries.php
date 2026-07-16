@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-16-ferdia-normal-material-drop-rate',
+        'date' => '2026-07-16',
+        'category' => 'balance',
+        'title' => 'フェルディア薬素材の入手を緩和',
+        'detail' => 'フェルディア探索で得られる薬素材の入手しやすさを調整しました。古代片の敵ドロップ率と輝く宝箱の追加抽選率は変わりません。',
+    ],
+    [
         'id' => '2026-07-16-adventurer-card-collection-shelves',
         'date' => '2026-07-16',
         'category' => 'added',
