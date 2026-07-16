@@ -2,6 +2,22 @@
 
 return [
     [
+        'id' => '2026-07-17-admin-user-investigation-workspace',
+        'date' => '2026-07-17',
+        'category' => 'internal',
+        'title' => 'ユーザー個別調査の情報整理と導線改善',
+        'detail' => 'ユーザー個別調査を概要・所持育成・進行行動・運営監査・技術調査に整理し、各件数を確認できる折りたたみ表示へ改善しました。不具合フォームから報告者の調査画面も直接開けます。',
+        'internal' => true,
+    ],
+    [
+        'id' => '2026-07-17-admin-user-investigation-notifications',
+        'date' => '2026-07-17',
+        'category' => 'internal',
+        'title' => '個別調査で通知を確認可能に',
+        'detail' => 'ユーザー個別調査で、対象冒険者へ届いた通知と未読・既読状態を確認できるようにしました。管理側の確認では既読になりません。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-17-admin-item-grant-notification',
         'date' => '2026-07-17',
         'category' => 'added',

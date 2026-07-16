@@ -9,6 +9,7 @@ use App\Models\KisekiTransaction;
 use App\Models\StripeOrder;
 use App\Models\User;
 use App\Models\WeaponTraitOperationLog;
+use App\Services\CharacterNotificationService;
 use App\Services\CharacterStatusService;
 use App\Services\ExplorationStaminaService;
 use App\Services\JobService;
@@ -110,11 +111,41 @@ class UserInvestigationManager extends Component
         $battleLogs = $character ? $this->battleLogs($character) : collect();
         $paymentLogs = $character ? $this->paymentLogs($character) : collect();
         $weaponTraitLogs = $character ? $this->weaponTraitLogs($character) : collect();
+        $notifications = $character
+            ? app(CharacterNotificationService::class)->latestForAdmin($character, 50)
+            : collect();
         $loginLogs = $this->loginLogs($user);
         $errorLogs = $this->errorLogs($user, $character);
         $enemyCandidates = $this->enemyCandidates();
         $simulationSnapshot = $character ? $this->simulationSnapshot($character, $finalStats) : [];
         $explorationStamina = $character ? $staminaService->summary($character) : null;
+        $characterItems = $character?->characterItems ?? collect();
+        $equipmentTypes = ['weapon', 'armor', 'accessory'];
+        $equippedItems = $characterItems
+            ->filter(fn ($item) => (bool) $item->is_equipped)
+            ->values();
+        $unequippedItems = $characterItems
+            ->filter(fn ($item) => ! (bool) $item->is_equipped);
+        $ownedEquipment = $unequippedItems
+            ->filter(fn ($item) => in_array((string) ($item->item?->type ?? ''), $equipmentTypes, true))
+            ->sortByDesc('id')
+            ->take(80)
+            ->values();
+        $inventoryItems = $unequippedItems
+            ->reject(fn ($item) => in_array((string) ($item->item?->type ?? ''), $equipmentTypes, true))
+            ->groupBy('item_id')
+            ->map(function (Collection $items): array {
+                $latest = $items->sortByDesc('id')->first();
+
+                return [
+                    'item' => $latest?->item,
+                    'quantity' => $items->count(),
+                    'latest_character_item_id' => $items->max('id'),
+                ];
+            })
+            ->sortByDesc('latest_character_item_id')
+            ->take(80)
+            ->values();
 
         return view('livewire.admin.user-investigation-manager', [
             'user' => $user,
@@ -128,8 +159,9 @@ class UserInvestigationManager extends Component
             'valmonIsMaxLevel' => $valmonIsMaxLevel,
             'valmonExpPercent' => $valmonExpPercent,
             'explorationStamina' => $explorationStamina,
-            'equippedItems' => $character ? $character->characterItems->where('is_equipped', true)->values() : collect(),
-            'ownedItems' => $character ? $character->characterItems->where('is_equipped', false)->sortByDesc('id')->take(80)->values() : collect(),
+            'equippedItems' => $equippedItems,
+            'ownedEquipment' => $ownedEquipment,
+            'inventoryItems' => $inventoryItems,
             'materials' => $character ? $character->characterMaterials->sortByDesc('quantity')->values() : collect(),
             'valmons' => $character ? $character->valmons->sortByDesc('level')->values() : collect(),
             'cityProgress' => $this->cityProgress($character),
@@ -137,6 +169,7 @@ class UserInvestigationManager extends Component
             'battleLogs' => $battleLogs,
             'paymentLogs' => $paymentLogs,
             'weaponTraitLogs' => $weaponTraitLogs,
+            'notifications' => $notifications,
             'loginLogs' => $loginLogs,
             'errorLogs' => $errorLogs,
             'enemyCandidates' => $enemyCandidates,

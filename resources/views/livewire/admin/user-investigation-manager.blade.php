@@ -43,7 +43,7 @@
             </div>
 
             <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <div class="text-xs font-black text-slate-500">問い合わせ用メモ</div>
+                <div class="text-xs font-black text-slate-500">調査サマリー</div>
                 <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
                     <div>
                         <div class="text-xs font-bold text-slate-500">最終表示</div>
@@ -52,6 +52,14 @@
                     <div>
                         <div class="text-xs font-bold text-slate-500">最終戦闘</div>
                         <div class="font-black text-slate-950">{{ $character?->last_battle_at ? $character->last_battle_at->format('Y/m/d H:i') : '-' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-500">現在地</div>
+                        <div class="font-black text-slate-950">{{ $character?->currentCity?->name ?? '-' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-500">最高到達街</div>
+                        <div class="font-black text-slate-950">{{ $character?->highestCity?->name ?? '-' }}</div>
                     </div>
                     <div>
                         <div class="text-xs font-bold text-slate-500">有償/無償輝石</div>
@@ -90,6 +98,20 @@
                 </div>
             </div>
         </div>
+
+        @if($character)
+            <nav aria-label="調査項目" class="mb-6 flex flex-wrap gap-2 rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
+                @foreach([
+                    '#investigation-overview' => '現在の状態',
+                    '#investigation-assets' => '所持・育成',
+                    '#investigation-progress' => '進行・行動',
+                    '#investigation-audit' => '運営・監査',
+                    '#investigation-technical' => '技術調査',
+                ] as $href => $label)
+                    <a href="{{ $href }}" class="rounded-md bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 hover:bg-amber-50 hover:text-amber-800">{{ $label }}</a>
+                @endforeach
+            </nav>
+        @endif
 
         @if(!$character)
             <div class="rounded-md bg-amber-50 p-6 font-bold text-amber-800 ring-1 ring-amber-200">
@@ -131,7 +153,7 @@
                 ];
             @endphp
 
-            <div class="mb-6 rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div id="investigation-overview" class="mb-6 scroll-mt-6 rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.72fr)]">
                     <div class="min-w-0">
                         <div class="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4">
@@ -164,19 +186,6 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-4 gap-2">
-                                    @foreach([
-                                        ['icon_image' => 'images/icon/icon_025.webp', 'label' => '倉庫'],
-                                        ['icon_image' => 'images/icon/icon_006.webp', 'label' => '装備'],
-                                        ['icon_image' => 'images/icon/icon_013.webp', 'label' => '印'],
-                                        ['icon_image' => 'images/icon/icon_014.webp', 'label' => '称号'],
-                                    ] as $menu)
-                                        <div class="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm font-black text-slate-600">
-                                            <img src="{{ asset($menu['icon_image']) }}" alt="" class="w-5 h-5 object-contain leading-none">
-                                            <span>{{ $menu['label'] }}</span>
-                                        </div>
-                                    @endforeach
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -294,108 +303,120 @@
                 </div>
             </div>
 
-            <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
-                @foreach([
-                    'Lv' => $character->level,
-                    'HP' => ($character->current_hp ?? 0) . ' / ' . ($finalStats['max_hp'] ?? '-'),
-                    'MP' => ($character->current_mp ?? 0) . ' / ' . ($finalStats['max_mp'] ?? '-'),
-                    'ATK' => $finalStats['str'] ?? '-',
-                    'DEF' => $finalStats['def'] ?? '-',
-                    'MAG' => $finalStats['mag'] ?? '-',
-                    'SPR' => $finalStats['spr'] ?? '-',
-                    'SPD' => $finalStats['agi'] ?? '-',
-                ] as $label => $value)
-                    <div class="rounded-md bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                        <div class="text-xs font-black text-slate-500">{{ $label }}</div>
-                        <div class="mt-2 text-xl font-black text-slate-950">{{ $value }}</div>
+            <details class="group mb-8 overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                    <div>
+                        <h2 class="text-lg font-black text-slate-950">能力値の内訳</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-500">基礎値と装備などによる補正を確認</p>
                     </div>
-                @endforeach
-            </div>
-
-            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-                <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <h2 class="text-lg font-black text-slate-950">基本状態</h2>
-                    <dl class="mt-4 space-y-3 text-sm">
-                        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-500">キャラID</dt><dd class="font-black text-slate-950">#{{ $character->id }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-500">職業</dt><dd class="font-black text-slate-950">{{ $character->currentJob?->name ?? '-' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-500">職ランク</dt><dd class="font-black text-slate-950">{{ $currentJobHistory?->job_level ?? '-' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-500">職EXP</dt><dd class="font-black text-slate-950">{{ number_format($currentJobHistory?->job_exp ?? 0) }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-500">現在街</dt><dd class="font-black text-slate-950">{{ $character->currentCity?->name ?? '-' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-500">最高到達街</dt><dd class="font-black text-slate-950">{{ $character->highestCity?->name ?? '-' }}</dd></div>
-                    </dl>
-                </div>
-
-                <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <h2 class="text-lg font-black text-slate-950">BP振り・基礎値</h2>
-                    <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-                        @foreach([
-                            '未使用BP' => $character->bonus_points ?? 0,
-                            'HP基礎' => $character->hp_base ?? 0,
-                            'MP基礎' => $character->mp_base ?? 0,
-                            'ATK基礎' => $character->attack_base ?? 0,
-                            'DEF基礎' => $character->defense_base ?? 0,
-                            'MAG基礎' => $character->magic_base ?? 0,
-                            'SPR基礎' => $character->spirit_base ?? 0,
-                            'SPD基礎' => $character->speed_base ?? 0,
-                            'LUK基礎' => $character->luck_base ?? 0,
-                        ] as $label => $value)
-                            <div class="rounded bg-slate-50 px-3 py-2">
-                                <div class="text-[11px] font-black text-slate-500">{{ $label }}</div>
-                                <div class="font-black text-slate-950">{{ number_format((int) $value) }}</div>
-                            </div>
-                        @endforeach
+                    <svg aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+                    </svg>
+                </summary>
+                <div class="grid grid-cols-1 gap-5 border-t border-slate-200 bg-slate-50/60 p-5 xl:grid-cols-2">
+                    <div class="rounded-md bg-white p-4 ring-1 ring-slate-200">
+                        <h3 class="text-sm font-black text-slate-900">基礎値・BP</h3>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                            @foreach([
+                                '未使用BP' => $character->bonus_points ?? 0,
+                                'HP基礎' => $character->hp_base ?? 0,
+                                'SP基礎' => $character->mp_base ?? 0,
+                                '攻撃基礎' => $character->attack_base ?? 0,
+                                '防御基礎' => $character->defense_base ?? 0,
+                                '魔力基礎' => $character->magic_base ?? 0,
+                                '精神基礎' => $character->spirit_base ?? 0,
+                                '敏捷基礎' => $character->speed_base ?? 0,
+                                '運基礎' => $character->luck_base ?? 0,
+                            ] as $label => $value)
+                                <div class="rounded bg-slate-50 px-3 py-2">
+                                    <div class="text-[11px] font-black text-slate-500">{{ $label }}</div>
+                                    <div class="font-black text-slate-950">{{ number_format((int) $value) }}</div>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
-                </div>
 
-                <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <h2 class="text-lg font-black text-slate-950">最終補正</h2>
-                    <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-                        @foreach(($finalStats['bonuses'] ?? []) as $key => $value)
-                            <div class="rounded bg-emerald-50 px-3 py-2">
-                                <div class="text-[11px] font-black uppercase text-emerald-700">{{ $key }}</div>
-                                <div class="font-black text-slate-950">{{ number_format((int) $value) }}</div>
-                            </div>
-                        @endforeach
+                    <div class="rounded-md bg-white p-4 ring-1 ring-slate-200">
+                        <h3 class="text-sm font-black text-slate-900">装備などによる補正</h3>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                            @foreach([
+                                'HP' => $finalStats['bonuses']['hp'] ?? 0,
+                                'SP' => $finalStats['bonuses']['mp'] ?? 0,
+                                '攻撃' => $finalStats['bonuses']['str'] ?? 0,
+                                '防御' => $finalStats['bonuses']['def'] ?? 0,
+                                '魔力' => $finalStats['bonuses']['mag'] ?? 0,
+                                '精神' => $finalStats['bonuses']['spr'] ?? 0,
+                                '敏捷' => $finalStats['bonuses']['agi'] ?? 0,
+                                '運' => $finalStats['bonuses']['luk'] ?? 0,
+                            ] as $label => $value)
+                                <div class="rounded bg-emerald-50 px-3 py-2">
+                                    <div class="text-[11px] font-black text-emerald-700">{{ $label }}</div>
+                                    <div class="font-black text-slate-950">{{ (int) $value >= 0 ? '+' : '' }}{{ number_format((int) $value) }}</div>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
-            </div>
+            </details>
 
-            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <x-admin-investigation.table title="装備中アイテム">
+            <section id="investigation-assets" class="mb-10 scroll-mt-6">
+                <div class="mb-4">
+                    <p class="text-[11px] font-black tracking-[0.2em] text-amber-600">ASSETS & GROWTH</p>
+                    <h2 class="mt-1 text-xl font-black text-slate-950">所持・育成</h2>
+                    <p class="mt-1 text-xs font-bold text-slate-500">装備、消耗品、素材、ヴァルモンを確認します。</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <x-admin-investigation.table title="装備中" summary="{{ number_format($equippedItems->count()) }}件">
                     <x-slot:head>
-                        <th class="px-4 py-3 text-left">Slot</th><th class="px-4 py-3 text-left">装備</th><th class="px-4 py-3 text-right">強化</th><th class="px-4 py-3 text-left">性能</th>
+                        <th class="px-4 py-3 text-left">部位</th><th class="px-4 py-3 text-left">装備</th><th class="px-4 py-3 text-right">強化</th><th class="px-4 py-3 text-left">性能</th>
                     </x-slot:head>
                     @forelse($equippedItems as $ci)
                         <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 text-xs font-bold text-slate-500">{{ $ci->equipped_slot ?? '-' }}</td>
+                            <td class="px-4 py-3 text-xs font-bold text-slate-500">{{ ['weapon' => '武器', 'armor' => '防具', 'accessory' => '装飾'][$ci->equipped_slot] ?? ($ci->equipped_slot ?? '-') }}</td>
                             <td class="px-4 py-3 font-black text-slate-900">{{ $ci->displayName() }}<div class="text-xs font-bold text-slate-500">#{{ $ci->id }} / {{ $ci->item?->type ?? '-' }}</div></td>
                             <td class="px-4 py-3 text-right font-black text-slate-900">+{{ (int) $ci->enhance_level }}</td>
-                            <td class="px-4 py-3 text-xs font-bold text-slate-600">ATK {{ (int) ($ci->item?->str_bonus ?? 0) }} / DEF {{ (int) ($ci->item?->def_bonus ?? 0) }} / MAG {{ (int) ($ci->item?->mag_bonus ?? 0) }}</td>
+                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ implode(' / ', $ci->basePerformanceLines()) ?: '-' }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">装備中アイテムはありません。</td></tr>
                     @endforelse
                 </x-admin-investigation.table>
 
-                <x-admin-investigation.table title="装備一覧">
+                <x-admin-investigation.table title="装備倉庫" summary="{{ number_format($ownedEquipment->count()) }}件">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">装備</th><th class="px-4 py-3 text-left">種別</th><th class="px-4 py-3 text-right">強化</th><th class="px-4 py-3 text-left">状態</th>
                     </x-slot:head>
-                    @forelse($ownedItems as $ci)
+                    @forelse($ownedEquipment as $ci)
                         <tr class="hover:bg-slate-50">
                             <td class="px-4 py-3 font-black text-slate-900">{{ $ci->displayName() }}<div class="text-xs font-bold text-slate-500">#{{ $ci->id }}</div></td>
-                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ $ci->item?->type ?? '-' }}</td>
+                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ ['weapon' => '武器', 'armor' => '防具', 'accessory' => '装飾'][$ci->item?->type] ?? ($ci->item?->type ?? '-') }}</td>
                             <td class="px-4 py-3 text-right font-black text-slate-900">+{{ (int) $ci->enhance_level }}</td>
-                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ $ci->is_equipped ? '装備中' : '未装備' }} {{ $ci->is_locked ? '/ ロック' : '' }}</td>
+                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ $ci->is_locked ? '保護中' : '通常' }}{{ $ci->market_listing_id ? ' / 市場出品中' : '' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">装備はありません。</td></tr>
+                        <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">装備倉庫は空です。</td></tr>
                     @endforelse
                 </x-admin-investigation.table>
             </div>
 
-            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <x-admin-investigation.table title="所持素材">
+                <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <x-admin-investigation.table title="所持アイテム" summary="{{ number_format($inventoryItems->sum('quantity')) }}個 / {{ number_format($inventoryItems->count()) }}種">
+                    <x-slot:head>
+                        <th class="px-4 py-3 text-left">アイテム</th><th class="px-4 py-3 text-left">種別</th><th class="px-4 py-3 text-right">数量</th>
+                    </x-slot:head>
+                    @forelse($inventoryItems as $row)
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 font-black text-slate-900">{{ $row['item']?->name ?? '不明' }}<div class="text-xs font-bold text-slate-500">Item #{{ $row['item']?->id ?? '-' }}</div></td>
+                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ $row['item']?->type ?? '-' }}</td>
+                            <td class="px-4 py-3 text-right font-black text-slate-900">{{ number_format((int) $row['quantity']) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="3" class="px-6 py-8 text-center text-slate-500">所持アイテムはありません。</td></tr>
+                    @endforelse
+                </x-admin-investigation.table>
+
+                <x-admin-investigation.table title="所持素材" summary="{{ number_format($materials->count()) }}種">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">素材</th><th class="px-4 py-3 text-left">種別</th><th class="px-4 py-3 text-right">数量</th>
                     </x-slot:head>
@@ -410,7 +431,10 @@
                     @endforelse
                 </x-admin-investigation.table>
 
-                <x-admin-investigation.table title="ヴァルモン">
+                </div>
+
+                <div class="mt-4">
+                <x-admin-investigation.table title="ヴァルモン" summary="{{ number_format($valmons->count()) }}体">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">名前</th><th class="px-4 py-3 text-right">Lv</th><th class="px-4 py-3 text-right">好感度</th><th class="px-4 py-3 text-left">状態</th>
                     </x-slot:head>
@@ -425,10 +449,18 @@
                         <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">ヴァルモンはいません。</td></tr>
                     @endforelse
                 </x-admin-investigation.table>
-            </div>
+                </div>
+            </section>
 
-            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <x-admin-investigation.table title="街進行度">
+            <section id="investigation-progress" class="mb-10 scroll-mt-6">
+                <div class="mb-4">
+                    <p class="text-[11px] font-black tracking-[0.2em] text-sky-600">PROGRESS & ACTIVITY</p>
+                    <h2 class="mt-1 text-xl font-black text-slate-950">進行・行動</h2>
+                    <p class="mt-1 text-xs font-bold text-slate-500">到達状況と直近の戦闘を確認します。</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <x-admin-investigation.table title="街進行度" summary="{{ number_format($cityProgress->count()) }}街">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">街</th><th class="px-4 py-3 text-right">解放D</th><th class="px-4 py-3 text-right">撃破D</th><th class="px-4 py-3 text-left">状態</th>
                     </x-slot:head>
@@ -442,7 +474,7 @@
                     @endforeach
                 </x-admin-investigation.table>
 
-                <x-admin-investigation.table title="ダンジョン進行度">
+                <x-admin-investigation.table title="ダンジョン進行度" summary="{{ number_format($areaProgresses->where('is_unlocked', true)->count()) }}解放">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">ダンジョン</th><th class="px-4 py-3 text-left">街</th><th class="px-4 py-3 text-left">状態</th><th class="px-4 py-3 text-left">撃破日時</th>
                     </x-slot:head>
@@ -459,8 +491,8 @@
                 </x-admin-investigation.table>
             </div>
 
-            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <x-admin-investigation.table title="戦闘履歴">
+                <div class="mt-4">
+                <x-admin-investigation.table title="戦闘履歴" summary="直近{{ number_format($battleLogs->count()) }}件">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">日時</th><th class="px-4 py-3 text-left">敵/場所</th><th class="px-4 py-3 text-left">結果</th><th class="px-4 py-3 text-right">EXP</th>
                     </x-slot:head>
@@ -475,8 +507,18 @@
                         <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">戦闘履歴はありません。</td></tr>
                     @endforelse
                 </x-admin-investigation.table>
+                </div>
+            </section>
 
-                <x-admin-investigation.table title="課金履歴">
+            <section id="investigation-audit" class="mb-10 scroll-mt-6">
+                <div class="mb-4">
+                    <p class="text-[11px] font-black tracking-[0.2em] text-fuchsia-600">OPERATIONS & AUDIT</p>
+                    <h2 class="mt-1 text-xl font-black text-slate-950">運営・監査</h2>
+                    <p class="mt-1 text-xs font-bold text-slate-500">課金・鍛錬・通知・ログを補填や問い合わせ確認に使います。</p>
+                </div>
+
+                <div>
+                <x-admin-investigation.table title="課金履歴" summary="{{ number_format($paymentLogs->count()) }}件">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">日時</th><th class="px-4 py-3 text-left">種別</th><th class="px-4 py-3 text-left">内容</th>
                     </x-slot:head>
@@ -492,8 +534,8 @@
                 </x-admin-investigation.table>
             </div>
 
-            <div class="mb-6">
-                <x-admin-investigation.table title="銘・特攻鍛錬履歴（補填確認用）">
+                <div class="mt-4">
+                <x-admin-investigation.table title="銘・特攻鍛錬履歴（補填確認用）" summary="{{ number_format($weaponTraitLogs->count()) }}件">
                     <x-slot:head>
                         <th class="px-4 py-3 text-left">日時</th><th class="px-4 py-3 text-left">操作</th><th class="px-4 py-3 text-left">ベース武器</th><th class="px-4 py-3 text-left">消費した素材武器</th><th class="px-4 py-3 text-left">完成武器</th><th class="px-4 py-3 text-right">Gold</th>
                     </x-slot:head>
@@ -512,12 +554,48 @@
                 </x-admin-investigation.table>
             </div>
 
-            <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <x-admin-investigation.simple-list title="ログイン履歴" :logs="$loginLogs" empty="ログイン履歴テーブルは未作成、または履歴がありません。" />
-                <x-admin-investigation.simple-list title="エラー履歴" :logs="$errorLogs" empty="エラー履歴テーブルは未作成、または履歴がありません。" />
+                <div class="mt-4">
+                <x-admin-investigation.table title="通知（閲覧のみ）" summary="未読 {{ number_format($notifications->whereNull('read_at')->count()) }} / 全{{ number_format($notifications->count()) }}件">
+                    <x-slot:head>
+                        <th class="px-4 py-3 text-left">日時</th><th class="px-4 py-3 text-left">状態</th><th class="px-4 py-3 text-left">種別</th><th class="px-4 py-3 text-left">内容</th>
+                    </x-slot:head>
+                    @forelse($notifications as $notification)
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">{{ $notification->created_at?->format('Y/m/d H:i:s') }}</td>
+                            <td class="px-4 py-3 text-xs font-black {{ $notification->read_at ? 'text-slate-500' : 'text-rose-600' }}">{{ $notification->read_at ? '既読' : '未読' }}</td>
+                            <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ $notification->category ?? $notification->type ?? '-' }}</td>
+                            <td class="px-4 py-3">
+                                <div class="font-black text-slate-900">{{ $notification->title }}</div>
+                                @if($notification->body)
+                                    <div class="mt-1 whitespace-pre-wrap text-xs font-bold text-slate-500">{{ $notification->body }}</div>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">届いている通知はありません。</td></tr>
+                    @endforelse
+                </x-admin-investigation.table>
+                <p class="mt-2 text-xs font-bold text-slate-500">管理画面で表示しても、プレイヤー側の未読通知は既読になりません。</p>
             </div>
 
-            <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+                <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <x-admin-investigation.simple-list title="ログイン履歴" :logs="$loginLogs" summary="{{ number_format($loginLogs->count()) }}件" empty="ログイン履歴テーブルは未作成、または履歴がありません。" />
+                    <x-admin-investigation.simple-list title="エラー履歴" :logs="$errorLogs" summary="{{ number_format($errorLogs->count()) }}件" empty="エラー履歴テーブルは未作成、または履歴がありません。" />
+                </div>
+            </section>
+
+            <details id="investigation-technical" class="group scroll-mt-6 overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                    <div>
+                        <p class="text-[11px] font-black tracking-[0.2em] text-slate-500">TECHNICAL</p>
+                        <h2 class="mt-1 text-xl font-black text-slate-950">技術調査</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-500">敵データとシミュレーション用スナップショット。必要な場合のみ開きます。</p>
+                    </div>
+                    <svg aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+                    </svg>
+                </summary>
+                <div class="grid grid-cols-1 gap-4 border-t border-slate-200 bg-slate-50/60 p-4 xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
                 <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
                     <div class="flex items-center justify-between gap-3">
                         <h2 class="text-lg font-black text-slate-950">敵データ候補</h2>
@@ -529,7 +607,7 @@
                                 <div class="font-black text-slate-950">#{{ $enemy->id }} {{ $enemy->name }}</div>
                                 <div class="mt-1 text-xs font-bold text-slate-500">{{ $enemy->area?->city?->name ?? '-' }} / {{ $enemy->area?->name ?? '-' }}</div>
                                 <div class="mt-2 grid grid-cols-4 gap-1 text-[11px] font-black text-slate-600">
-                                    <span>Lv {{ $enemy->level }}</span><span>HP {{ $enemy->max_hp }}</span><span>ATK {{ $enemy->str }}</span><span>DEF {{ $enemy->def }}</span>
+                                    <span>Lv {{ $enemy->level }}</span><span>HP {{ $enemy->max_hp }}</span><span>攻撃 {{ $enemy->str }}</span><span>防御 {{ $enemy->def }}</span>
                                 </div>
                             </div>
                         @empty
@@ -542,7 +620,8 @@
                     <h2 class="text-lg font-black text-white">バトルシミュレーション用スナップショット</h2>
                     <pre class="mt-4 max-h-[520px] overflow-auto rounded bg-black/40 p-4 text-xs leading-relaxed text-slate-100">{{ $simulationSnapshotJson }}</pre>
                 </div>
-            </div>
+                </div>
+            </details>
         @endif
     @endif
 </div>

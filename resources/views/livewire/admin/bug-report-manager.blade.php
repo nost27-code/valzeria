@@ -46,6 +46,11 @@
                         <p class="mt-1 text-xs font-bold text-slate-400">送信 {{ $selectedReport->created_at->format('Y/m/d H:i') }} @if($selectedReport->character?->jobClass) / {{ $selectedReport->character->jobClass->name }} @endif</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
+                        @if($selectedReport->user_id || $selectedReport->character?->user_id)
+                            <a href="{{ route('admin.user-investigation', ['user_id' => $selectedReport->user_id ?? $selectedReport->character?->user_id]) }}" target="_blank" rel="noopener" class="rounded-md bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">
+                                ユーザー個別調査を開く
+                            </a>
+                        @endif
                         @foreach(['read' => '確認中にする', 'resolved' => '対応済みにする', 'archived' => '保管する'] as $nextStatus => $label)
                             <button type="button" wire:click="markStatus({{ $selectedReport->id }}, '{{ $nextStatus }}')" class="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">{{ $label }}</button>
                         @endforeach

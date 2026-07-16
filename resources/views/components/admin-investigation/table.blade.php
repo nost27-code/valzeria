@@ -1,10 +1,18 @@
-@props(['title'])
+@props(['title', 'summary' => null])
 
-<div class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
-    <div class="border-b border-slate-200 px-4 py-3">
-        <h2 class="text-lg font-black text-slate-950">{{ $title }}</h2>
-    </div>
-    <div class="overflow-x-auto">
+<details data-admin-investigation-accordion class="group min-w-0 self-start overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
+    <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <h2 class="min-w-0 text-base font-black text-slate-950 sm:text-lg">{{ $title }}</h2>
+        <span class="ml-auto flex shrink-0 items-center gap-2">
+            @if($summary)
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">{{ $summary }}</span>
+            @endif
+            <svg aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+            </svg>
+        </span>
+    </summary>
+    <div class="overflow-x-auto border-t border-slate-200">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-xs font-black text-slate-700">
                 <tr>{{ $head }}</tr>
@@ -14,4 +22,4 @@
             </tbody>
         </table>
     </div>
-</div>
+</details>

@@ -98,6 +98,22 @@ class CharacterNotificationService
             ->get();
     }
 
+    /**
+     * 管理画面のユーザー個別調査用。通知の既読状態を変更せずに直近を取得する。
+     */
+    public function latestForAdmin(Character $character, int $limit = 50): Collection
+    {
+        if (! Schema::hasTable('character_notifications')) {
+            return collect();
+        }
+
+        return CharacterNotification::query()
+            ->where('character_id', $character->id)
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
     public function markAllAsRead(Character $character): int
     {
         if (! Schema::hasTable('character_notifications')) {

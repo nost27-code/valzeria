@@ -38,6 +38,8 @@ class BugReportAdminReplyTest extends TestCase
 
         Livewire::test(BugReportManager::class)
             ->call('selectReport', $report->id)
+            ->assertSee('ユーザー個別調査を開く')
+            ->assertSeeHtml(route('admin.user-investigation', ['user_id' => $reporterUser->id]))
             ->set('replyMessage', 'ご報告ありがとうございます。調査します。')
             ->call('sendReply')
             ->assertHasNoErrors()
