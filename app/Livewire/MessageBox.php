@@ -17,6 +17,8 @@ class MessageBox extends Component
 {
     use WithPagination;
 
+    private const ADMIN_CONVERSATION_ID = -1;
+
     public $activeTab = 'threads'; // threads, create
     
     // 新規作成用
@@ -78,6 +80,23 @@ class MessageBox extends Component
         $this->resetPage();
     }
 
+    public function openAdminConversation(): void
+    {
+        $character = Auth::user()->currentCharacter();
+        if (! $character) {
+            return;
+        }
+
+        $this->activeTab = 'threads';
+        $this->selectedConversationId = self::ADMIN_CONVERSATION_ID;
+        $this->receiverId = '';
+        $this->replyingToName = '管理人';
+        $this->message = '';
+        $this->resetSendConfirmation();
+        $this->markMessageNotificationsRead();
+        $this->resetPage();
+    }
+
     public function backToConversationList(): void
     {
         $this->selectedConversationId = null;
@@ -110,8 +129,6 @@ class MessageBox extends Component
 
     public function confirmMessage()
     {
-        $this->validateMessageInput();
-
         $character = Auth::user()->currentCharacter();
         if (!$character) return;
 
@@ -119,6 +136,17 @@ class MessageBox extends Component
             $this->addError('message', 'アカウントが凍結されているため送信できません。');
             return;
         }
+
+        if ($this->isAdminConversation()) {
+            $this->validate([
+                'message' => 'required|string|max:200',
+            ]);
+            $this->confirmReceiverName = '管理人';
+            $this->showSendConfirm = true;
+            return;
+        }
+
+        $this->validateMessageInput();
 
         $receiver = Character::where('id', $this->receiverId)
             ->where('id', '!=', $character->id)
@@ -158,8 +186,6 @@ class MessageBox extends Component
 
     public function sendMessage(PublicLogService $logService)
     {
-        $this->validateMessageInput();
-
         $character = Auth::user()->currentCharacter();
         if (!$character) return;
 
@@ -167,6 +193,19 @@ class MessageBox extends Component
             $this->addError('message', 'アカウントが凍結されているため送信できません。');
             return;
         }
+
+        if ($this->isAdminConversation()) {
+            $this->validate([
+                'message' => 'required|string|max:200',
+            ]);
+            $logService->addAdminPrivateReply($this->message, $character);
+
+            $this->message = '';
+            $this->resetSendConfirmation();
+            return;
+        }
+
+        $this->validateMessageInput();
 
         // PublicLogService を利用して送信
         $logService->addLog('private', $this->message, $character, 1, (int) $this->receiverId);
@@ -196,10 +235,17 @@ class MessageBox extends Component
             $this->privateChatThemeKey = $this->selectedPrivateChatThemeKey($character);
 
             $privateLogs = PublicLog::with(['character', 'receiver'])
-                ->where('type', 'private')
                 ->where(function ($query) use ($character) {
-                    $query->where('receiver_id', $character->id)
-                        ->orWhere('character_id', $character->id);
+                    $query->where(function ($privateQuery) use ($character) {
+                        $privateQuery->where('type', 'private')
+                            ->where(function ($participantQuery) use ($character) {
+                                $participantQuery->where('receiver_id', $character->id)
+                                    ->orWhere('character_id', $character->id);
+                            });
+                    })->orWhere(function ($adminQuery) use ($character) {
+                        $adminQuery->whereIn('type', ['admin_private', 'admin_private_reply'])
+                            ->where('receiver_id', $character->id);
+                    });
                 })
                 ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc')
@@ -212,7 +258,16 @@ class MessageBox extends Component
             if ($this->activeTab === 'threads') {
                 $conversations = $latestConversationByPartner->values();
 
-                if ($this->selectedConversationId) {
+                if ($this->selectedConversationId === self::ADMIN_CONVERSATION_ID) {
+                    $selectedConversation = ['name' => '管理人', 'is_admin' => true];
+                    $threadMessages = PublicLog::query()
+                        ->whereIn('type', ['admin_private', 'admin_private_reply'])
+                        ->where('receiver_id', $character->id)
+                        ->orderBy('created_at')
+                        ->orderBy('id')
+                        ->limit(120)
+                        ->get();
+                } elseif ($this->selectedConversationId) {
                     $selectedConversation = Character::find($this->selectedConversationId);
 
                     if ($selectedConversation) {
@@ -300,6 +355,18 @@ class MessageBox extends Component
     {
         return $privateLogs
             ->map(function (PublicLog $log) use ($character) {
+                if (in_array($log->type, ['admin_private', 'admin_private_reply'], true)) {
+                    return [
+                        'partner_id' => self::ADMIN_CONVERSATION_ID,
+                        'partner' => null,
+                        'name' => '管理人',
+                        'last_message' => $log->message,
+                        'last_at' => $log->created_at,
+                        'is_mine' => $log->type === 'admin_private_reply',
+                        'is_admin' => true,
+                    ];
+                }
+
                 $isMine = (int) $log->character_id === (int) $character->id;
                 $partner = $isMine ? $log->receiver : $log->character;
 
@@ -313,6 +380,7 @@ class MessageBox extends Component
                     'last_message' => $log->message,
                     'last_at' => $log->created_at,
                     'is_mine' => $isMine,
+                    'is_admin' => false,
                 ];
             })
             ->filter()
@@ -351,6 +419,11 @@ class MessageBox extends Component
             'message' => 'required|string|max:200',
             'receiverId' => 'required|exists:characters,id',
         ]);
+    }
+
+    private function isAdminConversation(): bool
+    {
+        return $this->selectedConversationId === self::ADMIN_CONVERSATION_ID;
     }
 
     private function resetSendConfirmation(): void

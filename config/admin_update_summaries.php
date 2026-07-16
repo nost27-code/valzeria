@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-bug-report-admin-private-replies',
+        'date' => '2026-07-17',
+        'category' => 'added',
+        'title' => '不具合報告へ個別返信を追加',
+        'detail' => '不具合フォームを送った冒険者と、管理人の個人チャットで状況確認や返答をやり取りできるようにしました。',
+    ],
+    [
         'id' => '2026-07-17-gale-weapon-path-stone-name-fix',
         'date' => '2026-07-17',
         'category' => 'fixed',

@@ -53,6 +53,37 @@
                 </div>
                 <div class="whitespace-pre-wrap py-5 text-sm font-semibold leading-8 text-slate-800">{{ $selectedReport->body }}</div>
 
+                <div class="border-t border-slate-100 pt-5">
+                    <h3 class="text-sm font-black text-slate-900">管理人から返信</h3>
+                    @if(session('status'))
+                        <p class="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">{{ session('status') }}</p>
+                    @endif
+                    @if($selectedReport->character)
+                        <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">{{ $selectedReport->character->name }}さんの個人チャットへ「管理人」名義で届きます。冒険者からの返信も、この運営スレッドで確認できます。</p>
+                        @if($adminConversation->isNotEmpty())
+                            <div class="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-3">
+                                @foreach($adminConversation as $message)
+                                    @php($isAdminMessage = $message->type === 'admin_private')
+                                    <div class="rounded-md px-3 py-2 text-xs font-semibold leading-relaxed {{ $isAdminMessage ? 'bg-white text-slate-700' : 'bg-sky-50 text-sky-900' }}">
+                                        <div class="mb-1 font-black {{ $isAdminMessage ? 'text-slate-900' : 'text-sky-800' }}">{{ $isAdminMessage ? '管理人' : ($message->character?->name ?? '冒険者') }} <span class="ml-1 text-[10px] font-bold text-slate-400">{{ $message->created_at?->format('m/d H:i') }}</span></div>
+                                        <div class="whitespace-pre-wrap">{{ $message->message }}</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                        <form wire:submit.prevent="sendReply" class="mt-3">
+                            <textarea wire:model="replyMessage" rows="4" maxlength="200" placeholder="不具合フォームへの返答を入力" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold leading-relaxed text-slate-800 focus:border-rose-400 focus:ring focus:ring-rose-200"></textarea>
+                            @error('replyMessage') <p class="mt-1 text-xs font-bold text-rose-600">{{ $message }}</p> @enderror
+                            <div class="mt-2 flex items-center justify-between gap-3">
+                                <span class="text-[11px] font-bold text-slate-400"><span x-data x-text="$wire.replyMessage.length"></span> / 200</span>
+                                <button type="submit" wire:loading.attr="disabled" wire:target="sendReply" class="rounded-md bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-slate-800 disabled:opacity-60">個人チャットへ送信</button>
+                            </div>
+                        </form>
+                    @else
+                        <p class="mt-2 text-xs font-bold text-rose-600">送信者キャラクターが見つからないため、個人チャットへは返信できません。</p>
+                    @endif
+                </div>
+
                 @if($selectedReport->attachments->isNotEmpty())
                     <div class="border-t border-slate-100 pt-5">
                         <h3 class="text-sm font-black text-slate-900">添付画像</h3>

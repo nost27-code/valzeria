@@ -37,11 +37,12 @@ class PrivateChatLogManager extends Component
             $query = DB::table('public_logs')
                 ->leftJoin('characters as sender', 'public_logs.character_id', '=', 'sender.id')
                 ->leftJoin('characters as receiver', 'public_logs.receiver_id', '=', 'receiver.id')
-                ->where('public_logs.type', 'private')
+                ->whereIn('public_logs.type', ['private', 'admin_private', 'admin_private_reply'])
                 ->select([
                     'public_logs.id',
                     'public_logs.created_at',
                     'public_logs.message',
+                    'public_logs.type',
                     'sender.name as sender_name',
                     'receiver.name as receiver_name',
                 ]);

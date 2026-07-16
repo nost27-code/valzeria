@@ -370,7 +370,7 @@ class ChatLog extends Component
 
     private function shouldShowInAllTab(PublicLog $log, bool $isNewcomerLog): bool
     {
-        if ($log->type === 'private') {
+        if (in_array($log->type, ['private', 'admin_private', 'admin_private_reply'], true)) {
             return false;
         }
 

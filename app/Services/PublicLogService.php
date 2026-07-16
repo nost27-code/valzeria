@@ -48,6 +48,50 @@ class PublicLogService
     }
 
     /**
+     * 不具合報告などへの運営からの個別連絡を記録する。
+     */
+    public function addAdminPrivateMessage(string $message, Character $receiver): void
+    {
+        $log = PublicLog::create([
+            'type' => 'admin_private',
+            'message' => $message,
+            'character_id' => null,
+            'receiver_id' => $receiver->id,
+            'importance' => 4,
+        ]);
+
+        app(CharacterNotificationService::class)->create(
+            character: $receiver,
+            category: 'message',
+            type: 'admin_private_message',
+            title: '管理人からメッセージが届きました',
+            body: '不具合フォームへの返答: ' . Str::limit($message, 70),
+            actionLabel: '会話へ',
+            actionUrl: route('message.index'),
+            payload: [
+                'public_log_id' => $log->id,
+                'sender_type' => 'admin',
+            ],
+            priority: 90,
+            expiresAt: now()->addDays(30),
+        );
+    }
+
+    /**
+     * 冒険者から管理人スレッドへ送る返答を記録する。
+     */
+    public function addAdminPrivateReply(string $message, Character $character): void
+    {
+        PublicLog::create([
+            'type' => 'admin_private_reply',
+            'message' => $message,
+            'character_id' => $character->id,
+            'receiver_id' => $character->id,
+            'importance' => 1,
+        ]);
+    }
+
+    /**
      * 最新の公開ログを取得する
      */
     public function getRecentLogs(int $limit = 20, ?int $currentCharacterId = null)
@@ -61,9 +105,9 @@ class PublicLogService
                 ->orWhereDoesntHave('character', fn ($characterQuery) => $characterQuery->excludedFromPublicLogs());
         });
 
-        // 自分に関係のない個人チャット（private）は除外する
+        // 個人チャットと管理人スレッドは下部チャットに出さない
         $query->where(function ($q) use ($currentCharacterId) {
-            $q->where('type', '!=', 'private');
+            $q->whereNotIn('type', ['private', 'admin_private', 'admin_private_reply']);
             if ($currentCharacterId) {
                 $q->orWhere(function ($q2) use ($currentCharacterId) {
                     $q2->where('type', 'private')

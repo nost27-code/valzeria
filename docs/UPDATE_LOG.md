@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Added
+
+- 不具合フォームから、報告者と「管理人」の個人チャットで状況確認や返答をやり取りできるようにしました。
+
 ### Changed
 
 - 星樹の塔の開催終了中は、街画面のランキング欄から終了案内を取り除き、闘技場ランキングだけを表示するようにしました。

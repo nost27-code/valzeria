@@ -53,7 +53,7 @@
                                 <td class="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-500">
                                     {{ \Illuminate\Support\Carbon::parse($log->created_at)->format('Y/m/d H:i:s') }}
                                 </td>
-                                <td class="whitespace-nowrap px-4 py-3 font-black text-slate-900">{{ $log->sender_name ?? '-' }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 font-black text-slate-900">{{ $log->type === 'admin_private' ? '管理人' : ($log->sender_name ?? '-') }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 font-black text-blue-900">{{ $log->receiver_name ?? '-' }}</td>
                                 <td class="min-w-[28rem] px-4 py-3 font-bold leading-relaxed text-slate-700">
                                     <div class="whitespace-pre-wrap break-words">{{ $log->message }}</div>

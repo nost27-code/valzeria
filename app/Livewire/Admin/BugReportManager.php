@@ -3,6 +3,8 @@
 namespace App\Livewire\Admin;
 
 use App\Models\BugReport;
+use App\Models\PublicLog;
+use App\Services\PublicLogService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -15,6 +17,8 @@ class BugReportManager extends Component
     public string $search = '';
 
     public ?int $selectedReportId = null;
+
+    public string $replyMessage = '';
 
     public function updatedStatus(): void
     {
@@ -36,6 +40,33 @@ class BugReportManager extends Component
         }
 
         $this->selectedReportId = $report->id;
+        $this->resetValidation('replyMessage');
+        $this->replyMessage = '';
+    }
+
+    public function sendReply(PublicLogService $logService): void
+    {
+        $this->validate([
+            'replyMessage' => ['required', 'string', 'max:200'],
+        ]);
+
+        $report = $this->selectedReportId
+            ? BugReport::query()->with('character')->find($this->selectedReportId)
+            : null;
+
+        if (! $report || ! $report->character) {
+            $this->addError('replyMessage', '送信先の冒険者が見つかりません。');
+            return;
+        }
+
+        $logService->addAdminPrivateMessage(trim($this->replyMessage), $report->character);
+
+        if ($report->status === 'new') {
+            $report->update(['status' => 'read', 'read_at' => now()]);
+        }
+
+        $this->replyMessage = '';
+        session()->flash('status', $report->character->name . 'さんへ管理人メッセージを送信しました。');
     }
 
     public function markStatus(int $reportId, string $status): void
@@ -76,9 +107,21 @@ class BugReportManager extends Component
             $this->selectedReportId = $selectedReport->id;
         }
 
+        $adminConversation = $selectedReport?->character_id
+            ? PublicLog::query()
+                ->with('character')
+                ->whereIn('type', ['admin_private', 'admin_private_reply'])
+                ->where('receiver_id', $selectedReport->character_id)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->limit(120)
+                ->get()
+            : collect();
+
         return view('livewire.admin.bug-report-manager', [
             'reports' => $reports,
             'selectedReport' => $selectedReport,
+            'adminConversation' => $adminConversation,
             'counts' => [
                 'new' => BugReport::where('status', 'new')->count(),
                 'read' => BugReport::where('status', 'read')->count(),

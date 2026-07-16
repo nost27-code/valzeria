@@ -32,11 +32,11 @@
                                 ‹
                             </button>
                             <div class="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-amber-200 bg-white">
-                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($selectedConversation->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-full w-full object-contain" alt="icon">
+                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset(is_array($selectedConversation) ? 'images/chara/chara_001.webp' : ($selectedConversation->icon_path ?? 'images/chara/chara_001.webp')) }}" class="h-full w-full object-contain" alt="icon">
                             </div>
                             <div class="min-w-0">
-                                <div class="truncate text-base font-black text-blue-950">{{ $selectedConversation->name }}</div>
-                                <div class="text-[11px] font-bold text-slate-500">個人チャット</div>
+                                <div class="truncate text-base font-black text-blue-950">{{ is_array($selectedConversation) ? $selectedConversation['name'] : $selectedConversation->name }}</div>
+                                <div class="text-[11px] font-bold text-slate-500">{{ is_array($selectedConversation) ? '運営との個人チャット' : '個人チャット' }}</div>
                             </div>
                         </div>
 
@@ -76,7 +76,7 @@
                                           required
                                           rows="2"
                                           maxlength="200"
-                                          placeholder="{{ $selectedConversation->name }}さんへ返信..."
+                                          placeholder="{{ is_array($selectedConversation) ? '管理人へ返信...' : $selectedConversation->name . 'さんへ返信...' }}"
                                           class="min-h-[44px] flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-800 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
                                 <button type="submit"
                                         class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-black shadow active:scale-95"
@@ -137,14 +137,14 @@
                         @forelse($conversations as $conversation)
                             @php($partner = $conversation['partner'])
                             <button type="button"
-                                    wire:click="openConversation({{ $conversation['partner_id'] }})"
+                                    wire:click="{{ $conversation['is_admin'] ? 'openAdminConversation' : 'openConversation(' . $conversation['partner_id'] . ')' }}"
                                     class="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-white px-4 py-3 text-left shadow-sm transition active:scale-[.99]">
                                 <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200 bg-slate-50">
-                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($partner->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-12 w-12 object-contain drop-shadow-sm" alt="icon">
+                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($conversation['is_admin'] ? 'images/chara/chara_001.webp' : ($partner->icon_path ?? 'images/chara/chara_001.webp')) }}" class="h-12 w-12 object-contain drop-shadow-sm" alt="icon">
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center justify-between gap-3">
-                                        <div class="truncate text-base font-black text-blue-950">{{ $partner->name }}</div>
+                                        <div class="truncate text-base font-black text-blue-950">{{ $conversation['is_admin'] ? $conversation['name'] : $partner->name }}</div>
                                         <div class="shrink-0 text-[11px] font-bold text-slate-400">{{ $conversation['last_at']?->format('m/d H:i') }}</div>
                                     </div>
                                     <div class="mt-1 truncate text-sm font-bold text-slate-500">
