@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-notification-panel-layer-fix',
+        'date' => '2026-07-17',
+        'category' => 'fixed',
+        'title' => '通知パネルの重なり順を修正',
+        'detail' => '不具合報告などの施設画面で通知を開いたとき、画面の見出しや本文の後ろに隠れず、正しく手前に表示されるように修正しました。',
+    ],
+    [
         'id' => '2026-07-17-material-warehouse-list-display-fix',
         'date' => '2026-07-17',
         'category' => 'fixed',

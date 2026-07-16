@@ -100,7 +100,7 @@
         @endphp
         <x-pwa-install-banner />
         @if($showGameHeader)
-            <div class="relative z-10 mx-auto w-full max-w-screen-2xl px-2 pt-4 sm:px-4 sm:pt-6 lg:px-6">
+            <div class="relative z-[60] mx-auto w-full max-w-screen-2xl px-2 pt-4 sm:px-4 sm:pt-6 lg:px-6">
                 <livewire:city-header :show-city-panel="$gameHeaderShowCityPanel" />
             </div>
         @endif
