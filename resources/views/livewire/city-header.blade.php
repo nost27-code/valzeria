@@ -547,6 +547,27 @@
             padding: 28px 40px 0;
             text-align: center;
         }
+        .adventurer-card-guest-play-label {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            z-index: 4;
+            transform: translateX(-50%);
+            border: 1px solid rgba(180, 133, 38, .44);
+            border-radius: 999px;
+            background: rgba(255, 251, 235, .94);
+            box-shadow: 0 2px 6px rgba(92, 64, 17, .14);
+            color: #9a5b0a;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .04em;
+            line-height: 1.25;
+            padding: 3px 8px;
+            white-space: nowrap;
+        }
+        .adventurer-card-title.adventurer-card-title-has-guest-play-label {
+            padding-top: 46px;
+        }
         .adventurer-card-title-line {
             display: inline-flex;
             flex-wrap: wrap;
@@ -1372,6 +1393,9 @@
                              '--adventurer-card-frame': `url('${playerInfo.adventurer_card_frame}')`,
                              '--adventurer-avatar-frame': `url('${playerInfo.adventurer_avatar_frame}')`
                          }">
+                        <template x-if="playerInfo.is_self && @js($isGuestUser)">
+                            <div class="adventurer-card-guest-play-label">テストプレイ（データ未連携）</div>
+                        </template>
                         <template x-if="['support_pass', 'support_pass_blue_gold'].includes(playerInfo.adventurer_card_skin)">
                             <div class="adventurer-card-pass-seal">
                                 <img src="{{ asset('images/icon/icon_259.webp') }}" alt="支援パス">
@@ -1385,7 +1409,8 @@
                                 <div class="flex aspect-square items-center justify-center rounded-xl bg-white/70 text-2xl font-bold text-gray-400">?</div>
                             </template>
                         </div>
-                        <div class="adventurer-card-title">
+                        <div class="adventurer-card-title"
+                             :class="{ 'adventurer-card-title-has-guest-play-label': playerInfo.is_self && @js($isGuestUser) }">
                             <div class="adventurer-card-title-line">
                                 <h3 x-text="playerInfo.name"></h3>
                                 <p>Lv.<span x-text="playerInfo.level"></span> / <span x-text="playerInfo.job"></span></p>

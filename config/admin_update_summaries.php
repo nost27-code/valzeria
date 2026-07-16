@@ -9,6 +9,13 @@ return [
         'detail' => 'ゲストプレイ中でも、画面上部の案内からGoogleアカウントへ今の冒険データを引き継げるようにしました。',
     ],
     [
+        'id' => '2026-07-16-guest-play-card-label',
+        'date' => '2026-07-16',
+        'category' => 'changed',
+        'title' => '未連携の冒険者カードを明示',
+        'detail' => 'データ未連携で遊んでいる間は、自分の冒険者カード上部にテストプレイ中であることを表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-16-ferdia-normal-material-drop-rate',
         'date' => '2026-07-16',
         'category' => 'balance',
