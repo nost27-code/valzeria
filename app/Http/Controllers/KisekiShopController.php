@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use App\Services\AdventureSupportService;
+use App\Services\AuthService;
 use App\Services\SupportPassService;
 use Stripe\Stripe;
 use Stripe\Checkout\Session as StripeSession;
@@ -20,9 +21,10 @@ class KisekiShopController extends Controller
         }
 
         $packs = config('kiseki.packs');
+        $isGuestUser = app(AuthService::class)->isGuestUser(Auth::user());
         app(\App\Services\PlayerLifecycleEventService::class)->recordPurchaseScreenViewed($character);
 
-        return view('kiseki.shop', compact('character', 'packs'));
+        return view('kiseki.shop', compact('character', 'packs', 'isGuestUser'));
     }
 
     public function supportShop(AdventureSupportService $supportService)
@@ -43,6 +45,12 @@ class KisekiShopController extends Controller
 
     public function createCheckout(Request $request)
     {
+        if (app(AuthService::class)->isGuestUser(Auth::user())) {
+            return redirect()
+                ->route('kiseki.shop')
+                ->with('error', '輝石の購入にはメール連携が必要です。Google連携を完了してからもう一度お試しください。');
+        }
+
         $request->validate(['pack_key' => 'required|string']);
 
         $packKey = $request->input('pack_key');

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-kiseki-purchase-account-link-required',
+        'date' => '2026-07-17',
+        'category' => 'changed',
+        'title' => '輝石購入にメール連携を必須化',
+        'detail' => 'ゲストプレイ中は有償輝石を購入できなくなりました。Google連携またはメールアドレス登録後に、冒険データを引き継いだまま購入できます。',
+    ],
+    [
         'id' => '2026-07-17-admin-ranked-weapon-affix-grant-fix',
         'date' => '2026-07-17',
         'category' => 'fixed',

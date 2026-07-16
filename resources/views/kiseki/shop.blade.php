@@ -17,6 +17,17 @@
         </div>
     @endif
 
+    @if($isGuestUser)
+        <section class="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p class="font-bold">輝石の購入にはメール連携が必要です。</p>
+            <p class="mt-1 text-xs leading-relaxed">Googleと連携してメールアドレスを登録すると、冒険データを引き継いだまま購入できます。</p>
+            <a href="{{ route('account.link.google') }}"
+               class="mt-3 inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white hover:bg-blue-800">
+                Google連携をする
+            </a>
+        </section>
+    @endif
+
     {{-- 現在の輝石残高 --}}
     <div class="mb-6 bg-slate-800 rounded-xl px-6 py-4 flex items-center gap-6">
         <div class="text-center">
@@ -86,19 +97,23 @@
                         <div class="text-lg font-bold text-slate-800 mb-2">
                             ¥{{ number_format($pack['price_jpy']) }}
                         </div>
-                        <form method="POST" action="{{ route('kiseki.checkout') }}" x-data="{ submitting: false }" @submit="if (submitting) { $event.preventDefault(); return; } submitting = true">
-                            @csrf
-                            <input type="hidden" name="pack_key" value="{{ $packKey }}">
-                            <button type="submit"
-                                    :disabled="submitting"
-                                    class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:cursor-wait disabled:opacity-60
-                                           {{ $pack['tag'] === 'おすすめ' ? 'bg-yellow-500 hover:bg-yellow-600' :
-                                              ($pack['tag'] === '最大お得' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700') }}">
-                                <x-loading-spinner x-show="submitting" style="display: none;" />
-                                <span x-show="!submitting">購入する</span>
-                                <span x-show="submitting" style="display: none;">処理中...</span>
-                            </button>
-                        </form>
+                        @if($isGuestUser)
+                            <span class="inline-flex rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-500">メール連携が必要です</span>
+                        @else
+                            <form method="POST" action="{{ route('kiseki.checkout') }}" x-data="{ submitting: false }" @submit="if (submitting) { $event.preventDefault(); return; } submitting = true">
+                                @csrf
+                                <input type="hidden" name="pack_key" value="{{ $packKey }}">
+                                <button type="submit"
+                                        :disabled="submitting"
+                                        class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:cursor-wait disabled:opacity-60
+                                               {{ $pack['tag'] === 'おすすめ' ? 'bg-yellow-500 hover:bg-yellow-600' :
+                                                  ($pack['tag'] === '最大お得' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700') }}">
+                                    <x-loading-spinner x-show="submitting" style="display: none;" />
+                                    <span x-show="!submitting">購入する</span>
+                                    <span x-show="submitting" style="display: none;">処理中...</span>
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             </div>
