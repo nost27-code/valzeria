@@ -132,6 +132,26 @@ class EquipmentEvolutionServiceTest extends TestCase
         $this->assertSame('鋭いI未鑑定の剣・竜断I【逸品】 +2', $maskedPayloads[0]['evolved_display_name']);
     }
 
+    public function test_gale_weapon_branch_uses_rapid_blade_path_stone_name(): void
+    {
+        $master = json_decode(
+            (string) file_get_contents(base_path('database/data/equipment_branch_evolution_master.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+
+        $pathStone = collect($master['materials'])
+            ->firstWhere('material_code', 'MAT_BR_WPN_GALE_PATH');
+        $ingredients = collect($master['ingredients'])
+            ->where('material_code', 'MAT_BR_WPN_GALE_PATH')
+            ->values();
+
+        $this->assertSame('迅刃の導石', $pathStone['name']);
+        $this->assertCount(10, $ingredients);
+        $this->assertSame(['迅刃の導石'], $ingredients->pluck('material_name')->unique()->values()->all());
+    }
+
     private function invokePrivate(object $object, string $method, array $arguments = []): mixed
     {
         $reflection = new ReflectionMethod($object, $method);

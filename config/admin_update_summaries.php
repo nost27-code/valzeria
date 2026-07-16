@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-gale-weapon-path-stone-name-fix',
+        'date' => '2026-07-17',
+        'category' => 'fixed',
+        'title' => '疾風系武器の進化素材名を修正',
+        'detail' => '疾風系の武器をAランクからSランクへ進化させる際、必要素材の表示を実際に作成できる「迅刃の導石」へ修正しました。',
+    ],
+    [
         'id' => '2026-07-16-weapon-trait-material-rank-fix',
         'date' => '2026-07-16',
         'category' => 'fixed',

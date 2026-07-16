@@ -9621,7 +9621,7 @@
         },
         {
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "name": "疾風の導石",
+            "name": "迅刃の導石",
             "category": "分岐進化素材",
             "rarity": "SR",
             "material_type": "branch_evolution",
@@ -13950,7 +13950,7 @@
             "recipe_id": "BR_WPN_WPN_0007_TO_WPN_BR_SWORD_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14046,7 +14046,7 @@
             "recipe_id": "BR_WPN_WPN_0018_TO_WPN_BR_DAGGER_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14142,7 +14142,7 @@
             "recipe_id": "BR_WPN_WPN_0029_TO_WPN_BR_SPEAR_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14238,7 +14238,7 @@
             "recipe_id": "BR_WPN_WPN_0040_TO_WPN_BR_AXE_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14334,7 +14334,7 @@
             "recipe_id": "BR_WPN_WPN_0051_TO_WPN_BR_CLUB_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14430,7 +14430,7 @@
             "recipe_id": "BR_WPN_WPN_0062_TO_WPN_BR_BOW_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14526,7 +14526,7 @@
             "recipe_id": "BR_WPN_WPN_0073_TO_WPN_BR_STAFF_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14622,7 +14622,7 @@
             "recipe_id": "BR_WPN_WPN_0084_TO_WPN_BR_GRIMOIRE_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14718,7 +14718,7 @@
             "recipe_id": "BR_WPN_WPN_0095_TO_WPN_BR_FIST_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
@@ -14814,7 +14814,7 @@
             "recipe_id": "BR_WPN_WPN_0106_TO_WPN_BR_GUN_GALE_S",
             "type": "weapon",
             "material_code": "MAT_BR_WPN_GALE_PATH",
-            "material_name": "疾風の導石",
+            "material_name": "迅刃の導石",
             "quantity": 3,
             "is_consumed": true
         },
