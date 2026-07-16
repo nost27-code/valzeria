@@ -32,7 +32,7 @@
                                 ‹
                             </button>
                             <div class="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-amber-200 bg-white">
-                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset(is_array($selectedConversation) ? 'images/chara/chara_001.webp' : ($selectedConversation->icon_path ?? 'images/chara/chara_001.webp')) }}" class="h-full w-full object-contain" alt="icon">
+                                <img src="{{ is_array($selectedConversation) ? \App\Support\CharacterIconCatalog::adminIconAsset() : \App\Support\CharacterIconCatalog::versionedAsset($selectedConversation->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-full w-full object-contain" alt="icon">
                             </div>
                             <div class="min-w-0">
                                 <div class="truncate text-base font-black text-blue-950">{{ is_array($selectedConversation) ? $selectedConversation['name'] : $selectedConversation->name }}</div>
@@ -48,7 +48,7 @@
                                     <div class="flex max-w-[82%] items-end gap-2 {{ $isMine ? 'flex-row-reverse' : '' }}">
                                         @unless($isMine)
                                             <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white bg-white shadow-sm">
-                                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($msg->character?->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-full w-full object-contain" alt="icon">
+                                                <img src="{{ $msg->type === 'admin_private' ? \App\Support\CharacterIconCatalog::adminIconAsset() : \App\Support\CharacterIconCatalog::versionedAsset($msg->character?->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-full w-full object-contain" alt="icon">
                                             </div>
                                         @endunless
                                         <div>
@@ -140,7 +140,7 @@
                                     wire:click="{{ $conversation['is_admin'] ? 'openAdminConversation' : 'openConversation(' . $conversation['partner_id'] . ')' }}"
                                     class="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-white px-4 py-3 text-left shadow-sm transition active:scale-[.99]">
                                 <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200 bg-slate-50">
-                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($conversation['is_admin'] ? 'images/chara/chara_001.webp' : ($partner->icon_path ?? 'images/chara/chara_001.webp')) }}" class="h-12 w-12 object-contain drop-shadow-sm" alt="icon">
+                                    <img src="{{ $conversation['is_admin'] ? \App\Support\CharacterIconCatalog::adminIconAsset() : \App\Support\CharacterIconCatalog::versionedAsset($partner->icon_path ?? 'images/chara/chara_001.webp') }}" class="h-12 w-12 object-contain drop-shadow-sm" alt="icon">
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center justify-between gap-3">

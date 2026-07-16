@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-admin-private-chat-icon',
+        'date' => '2026-07-17',
+        'category' => 'changed',
+        'title' => '管理人の個人チャットアイコンを変更',
+        'detail' => '管理人との個人チャットに、専用のドット絵キャラクターアイコンを表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-17-kiseki-purchase-account-link-required',
         'date' => '2026-07-17',
         'category' => 'changed',

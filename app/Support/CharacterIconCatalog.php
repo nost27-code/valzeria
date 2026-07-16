@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\File;
 class CharacterIconCatalog
 {
     public const DEFAULT_ICON = '/images/chara/chara_001.webp';
+    private const ADMIN_ICON = '/images/chara/admin/chara_admin.webp';
     private const MAX_ICON_NUMBER = 155;
 
     /**
@@ -62,6 +63,14 @@ class CharacterIconCatalog
         $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
 
         return asset($normalized) . '?v=' . $version;
+    }
+
+    public static function adminIconAsset(): string
+    {
+        $absolutePath = public_path(ltrim(self::ADMIN_ICON, '/'));
+        $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
+
+        return asset(self::ADMIN_ICON) . '?v=' . $version;
     }
 
     private static function numberFromPath(string $path): int

@@ -10,6 +10,7 @@ use App\Models\Character;
 use App\Models\PublicLog;
 use App\Models\User;
 use App\Services\PublicLogService;
+use App\Support\CharacterIconCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -92,6 +93,7 @@ class BugReportAdminReplyTest extends TestCase
 
         Livewire::test(MessageBox::class)
             ->assertSee('管理人')
+            ->assertSeeHtml(CharacterIconCatalog::adminIconAsset())
             ->call('openAdminConversation')
             ->assertSee('運営からの返答です。')
             ->set('message', '現在も同じ状態です。')
