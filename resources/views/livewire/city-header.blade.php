@@ -1259,6 +1259,25 @@
         </div>
     @endif
 
+    @if($isGuestUser)
+        <section class="relative z-30 mb-3 overflow-hidden rounded-xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 via-white to-sky-50 px-3 py-2.5 shadow-[0_5px_16px_rgba(180,83,9,0.18)] sm:px-4" role="status">
+            <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 text-sm font-black text-amber-950 sm:text-base">
+                        <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-400 text-xs text-amber-950 shadow-sm">!</span>
+                        <span>この冒険データを守る</span>
+                    </div>
+                    <p class="mt-0.5 text-[11px] font-bold leading-snug text-amber-900 sm:text-xs">Googleと連携すると、別の端末でも今の冒険を続けられます。</p>
+                </div>
+                <a href="{{ route('account.link.google') }}"
+                   class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-blue-800 bg-blue-700 px-3 py-2 text-xs font-black text-white shadow-md transition hover:bg-blue-800 active:scale-95 sm:px-4 sm:text-sm">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.35 11.1H12v2.98h5.38c-.52 2.75-2.87 4.2-5.37 4.2a6.3 6.3 0 1 1 4.1-11.08l2.1-2.12A9.27 9.27 0 1 0 21.35 11.1Z"/></svg>
+                    <span>データを引き継ぐ</span>
+                </a>
+            </div>
+        </section>
+    @endif
+
     @if($showCityPanel)
     <!-- 1. 全幅ヘッダーエリア -->
     <div class="bg-white rounded-lg shadow-[0_5px_16px_rgba(126,96,28,0.14)] border border-[#d4af37] flex-shrink-0 overflow-hidden w-full font-sans text-xs sm:text-sm">

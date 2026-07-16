@@ -29,7 +29,7 @@ X = deprecated/removed
 - App: Laravel 11 (PHP) + Livewire v3 + Blade + Alpine.js
 - Styling: Tailwind CSS
 - DB: MySQL (production on Xserver)
-- Auth: Google OAuth, 1 account = 1 character
+- Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)
 - Tests: PHPUnit via `php artisan test`
 - Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージングの初回リリースと公開確認（`/` 200、未ログイン `/home` 302）は成功済み。本番SSHリリースは未実行。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
@@ -53,7 +53,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)
 - State management: Livewire component state + DB; no SPA framework
 - DB access: Eloquent models (snake_case columns); DTO/BattleActor use camelCase
-- Auth/session: Google OAuth login, character via Auth::user()->characters()->first()
+- Auth/session: Google OAuth login, guest session is linkable to Google from the shared header, character via Auth::user()->characters()->first()
 - Logging: battle_logs, player_lifecycle_events, gold_transactions, kiseki_transactions, admin_item_grant_logs, public_logs (bottom chat), admin analytics screens
 - Battle: server-side auto turn-based; PRG pattern (redirect after POST); 3s cooldown via last_battle_at
 

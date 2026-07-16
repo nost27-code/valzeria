@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-16-guest-google-data-link',
+        'date' => '2026-07-16',
+        'category' => 'added',
+        'title' => 'ゲスト冒険データをGoogle連携',
+        'detail' => 'ゲストプレイ中でも、画面上部の案内からGoogleアカウントへ今の冒険データを引き継げるようにしました。',
+    ],
+    [
         'id' => '2026-07-16-ferdia-normal-material-drop-rate',
         'date' => '2026-07-16',
         'category' => 'balance',

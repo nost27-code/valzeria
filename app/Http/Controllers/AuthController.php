@@ -28,6 +28,24 @@ class AuthController extends Controller
         return Socialite::driver('google')->stateless()->redirect();
     }
 
+    /**
+     * 現在ログイン中のゲストデータへGoogleログインを追加する。
+     */
+    public function beginGoogleLink(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$this->authService->isGuestUser($user)) {
+            return redirect()
+                ->route('home')
+                ->with('error', 'Google連携はゲストプレイ中にだけ行えます。');
+        }
+
+        $request->session()->put('auth.google_link_user_id', $user->id);
+
+        return Socialite::driver('google')->stateless()->redirect();
+    }
+
     public function showEmailLoginForm()
     {
         return view('auth.email-login');
@@ -100,10 +118,33 @@ class AuthController extends Controller
         return $name !== '' ? mb_substr($name, 0, 40) : 'メール冒険者';
     }
 
-    public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
+
+            $linkUserId = $request->session()->pull('auth.google_link_user_id');
+            if ($linkUserId !== null) {
+                $currentUser = Auth::user();
+                if (!$currentUser || (int) $currentUser->id !== (int) $linkUserId) {
+                    return redirect()
+                        ->route('top')
+                        ->with('error', '連携元のゲストデータを確認できませんでした。もう一度お試しください。');
+                }
+
+                $this->authService->linkGuestToGoogle(
+                    $currentUser,
+                    (string) $googleUser->getId(),
+                    (string) $googleUser->getEmail(),
+                    $googleUser->getAvatar(),
+                );
+
+                $request->session()->regenerate();
+
+                return redirect()
+                    ->route('home')
+                    ->with('message', 'Google連携が完了しました。冒険データはこのGoogleアカウントで引き継げます。');
+            }
 
             $existingUser = User::where('google_id', $googleUser->getId())
                 ->orWhere('email', $googleUser->getEmail())
@@ -128,6 +169,10 @@ class AuthController extends Controller
             // ログイン成功後は必ずキャラ選択画面へ遷移する
             return redirect()->route('character.select');
 
+        } catch (\InvalidArgumentException | \LogicException $e) {
+            return redirect()
+                ->route('home')
+                ->with('error', $e->getMessage());
         } catch (Exception $e) {
             Log::warning('Google login failed.', [
                 'message' => $e->getMessage(),

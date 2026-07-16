@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class AuthService
@@ -72,5 +73,61 @@ class AuthService
         Auth::login($user);
 
         return $user;
+    }
+
+    /**
+     * ゲストアカウントへGoogleログイン情報を追加する。
+     *
+     * ユーザーIDは変更しないため、キャラクターや進行データはそのまま維持される。
+     */
+    public function linkGuestToGoogle(User $user, string $googleId, string $email, ?string $avatarUrl = null): User
+    {
+        $googleId = trim($googleId);
+        $email = Str::lower(trim($email));
+
+        if ($googleId === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new \InvalidArgumentException('Googleアカウント情報を確認できませんでした。');
+        }
+
+        return DB::transaction(function () use ($user, $googleId, $email, $avatarUrl): User {
+            $guestUser = User::query()->lockForUpdate()->findOrFail($user->id);
+
+            if (!$this->isGuestUser($guestUser)) {
+                throw new \LogicException('このアカウントはすでに連携済みです。');
+            }
+
+            $isAlreadyLinked = User::query()
+                ->whereKeyNot($guestUser->id)
+                ->where(function ($query) use ($googleId, $email): void {
+                    $query->where('google_id', $googleId)
+                        ->orWhere('email', $email);
+                })
+                ->exists();
+
+            if ($isAlreadyLinked) {
+                throw new \LogicException('このGoogleアカウントは、すでに別の冒険者データに連携されています。');
+            }
+
+            $guestUser->google_id = $googleId;
+            $guestUser->email = $email;
+            if (!empty($avatarUrl)) {
+                $guestUser->avatar_url = $avatarUrl;
+            }
+            $guestUser->save();
+
+            return $guestUser;
+        });
+    }
+
+    /**
+     * ログイン手段を持たない、このアプリで作成したゲストアカウントかを判定する。
+     */
+    public function isGuestUser(?User $user): bool
+    {
+        if (!$user || !empty($user->google_id) || !empty($user->password)) {
+            return false;
+        }
+
+        return (bool) preg_match('/^guest_[0-9a-f-]+@example\\.com$/i', (string) $user->email);
     }
 }

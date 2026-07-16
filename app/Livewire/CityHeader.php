@@ -200,6 +200,7 @@ class CityHeader extends Component
             'topPlayer' => $topPlayer,
             'notifications' => $notifications,
             'unreadNotificationCount' => $unreadNotificationCount,
+            'isGuestUser' => app(\App\Services\AuthService::class)->isGuestUser(auth()->user()),
         ]);
     }
 

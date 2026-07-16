@@ -10,7 +10,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 | UI components | <path> | <short> |
 | Server actions/API | <path> | <short> |
 | DB client | <path> | <short> |
-| Auth | <path> | <short> |
+| Auth | `app/Http/Controllers/AuthController.php`, `app/Services/AuthService.php`, `app/Livewire/CityHeader.php`, `resources/views/livewire/city-header.blade.php`, `routes/web.php` | Google・メール・ゲストログインを扱う。ゲスト中は共通ヘッダからGoogle連携を開始し、同じユーザーIDのまま冒険データを引き継ぐ。 |
 | Game logic | <path> | <short> |
 | Exploration | <path> | <short> |
 | Battle | `app/Http/Controllers/BattleController.php`, `app/Http/Controllers/ChampBattleController.php`, `app/Services/BattleService.php`, `app/Services/ChampBattleService.php`, `app/Services/BattleLogService.php`, `app/Models/EnemyAction.php`, `config/enemy_images.php`, `database/migrations/*enemy_actions*`, `database/migrations/*telemetry_columns_to_battle_logs*`, `app/Services/ExplorationDepthService.php`, `app/Services/SubAreaDiscoveryService.php`, `app/Services/SubAreaExplorationService.php`, `app/Services/CharacterPowerService.php`, `app/Services/Enemy/EnemyStatGenerationService.php`, `app/Services/Enemy/EnemyStatPreviewService.php`, `app/Services/OuterWorldDungeonGenerationService.php`, `app/Services/TowerBattleService.php`, `app/Services/TowerEnemyScalingService.php`, `app/Console/Commands/GenerateOuterWorldDungeon.php` | Runs PvE/champ/sub-area battle and enemy-action patterns. `config/enemy_images.php` maps enemy names to their result-screen portraits. PvE enemy actions use one feature-action roll per enemy turn, then weighted action selection with cooldowns, telegraphs, and temporary conditions. Normal exploration persists nullable battle telemetry without parsing log text. |

@@ -4,7 +4,7 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
-| Login | ? | <file/route> | 未確認 |
+| Login | D | `AuthController`, `AuthService`, `CityHeader`, `/auth/google`, `/account/link/google` | Google・メール・ゲストで開始できる。ゲスト中は共通ヘッダの「データを引き継ぐ」からGoogle連携を開始し、同じユーザーIDとキャラクターのまま進行データを引き継げる。すでに別データへ連携済みのGoogleアカウントは統合せず拒否する。|
 | Ferdia region map | P | `config/ferdia_world_map.php`, `config/extra_content.php`, `FerdiaMapService`, `FerdiaRegionSeeder`, `city.index`, `main-screen`, `DiscoveryService`, `DropService`, `JobService` | フェルディア地方を追加コンテンツ `ferdia_unlocked` として管理し、ONかつ期間内の時だけ街移動画面にタブ表示する。見晴らしの丘道・グランフォード外郭路・水門街道は開拓度150後の関門ボス撃破で次の街へ進み、北境の霊峰エルヴァンには最終ボスを配置する。エルヴァン初回撃破では冠位の証が撃破記録へ刻まれる。冠位の証は素材・所持品・素材報酬ではない。公開分岐4地点をすべて踏破すると地下の謎の穴が解放され、フェルディア探索勝利時だけ開拓度が1〜2上がる。 |
 | Ferdia shining treasure ancient fragments | D | `app/Services/ExplorationService.php`, `database/migrations/2026_07_10_201000_seed_ferdia_apothecary_materials_and_drops.php` | フェルディア13探索地の輝く宝箱は、通常素材と古代片を分離し、1宝箱1.0%で装備系統に対応する古代片を1個追加抽選する。 |
 | Crown proof representation | D | `JobService`, `ExplorationService`, `DropService`, `battle.result`, `job-change.blade.php` | エルヴァン撃破で冠位の証を撃破記録へ刻み、冠位職を解放する。冠位の証は素材・所持品・素材報酬として扱わず、戦闘結果では専用の討伐の証として表示する。 |

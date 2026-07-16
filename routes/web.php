@@ -225,6 +225,7 @@ Route::get('/auth/logout', fn () => redirect()->route('top'))->name('auth.logout
 
 // 認証が必要なルート
 Route::middleware('auth')->group(function () {
+    Route::get('/account/link/google', [AuthController::class, 'beginGoogleLink'])->name('account.link.google');
     // キャラクター未選択でもアクセス可能なルート
     Route::get('/character/select', \App\Livewire\CharacterSelect::class)->name('character.select');
     Route::get('/character/create', CharacterCreate::class)->name('character.create');
