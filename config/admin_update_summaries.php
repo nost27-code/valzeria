@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-17-material-warehouse-list-display-fix',
+        'date' => '2026-07-17',
+        'category' => 'fixed',
+        'title' => '素材倉庫の一覧表示を修正',
+        'detail' => '素材倉庫で検索や用途の絞り込みを使わない場合にも、所持している素材が正しく一覧表示されるように修正しました。',
+    ],
+    [
+        'id' => '2026-07-17-material-warehouse-search-and-filters',
+        'date' => '2026-07-17',
+        'category' => 'changed',
+        'title' => '素材倉庫を探しやすく改善',
+        'detail' => '素材名や用途での入力検索、用途ごとの絞り込み、所持数・新着・名前順の並び替えができるようになりました。',
+    ],
+    [
         'id' => '2026-07-17-admin-user-investigation-workspace',
         'date' => '2026-07-17',
         'category' => 'internal',

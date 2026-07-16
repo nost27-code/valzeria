@@ -45,12 +45,42 @@
                     storageTab: 'material',
                     activeMaterialTab: 'material',
                     activeEquipmentTab: 'weapon',
+                    materialQuery: '',
+                    materialPurpose: 'all',
+                    materialSort: 'name_asc',
                     materialStorageTotal: {{ (int) ($storageSummary['material_storage_total'] ?? 0) }},
                     materialStorageTypes: {{ (int) ($storageSummary['material_storage_types'] ?? 0) }},
                     expandConfirm: null,
                     submittingExpand: false,
                     supportConfirm: null,
                     submittingSupport: false,
+                    normalizeMaterialText(value) {
+                        return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
+                    },
+                    matchesMaterial(element) {
+                        const query = this.normalizeMaterialText(this.materialQuery);
+                        const searchText = this.normalizeMaterialText(element.dataset.materialSearch);
+                        const purposes = (element.dataset.materialPurposes || '').split(',').filter(Boolean);
+
+                        return (!query || searchText.includes(query))
+                            && (this.materialPurpose === 'all' || purposes.includes(this.materialPurpose));
+                    },
+                    sortMaterialCards() {
+                        const grid = this.$refs.materialGrid;
+                        if (!grid) return;
+
+                        const cards = Array.from(grid.querySelectorAll('[data-material-card]'));
+                        const compareText = (a, b) => String(a).localeCompare(String(b), 'ja');
+                        cards.sort((a, b) => {
+                            if (this.materialSort === 'quantity_desc') return Number(b.dataset.materialQuantity) - Number(a.dataset.materialQuantity) || compareText(a.dataset.materialName, b.dataset.materialName);
+                            if (this.materialSort === 'quantity_asc') return Number(a.dataset.materialQuantity) - Number(b.dataset.materialQuantity) || compareText(a.dataset.materialName, b.dataset.materialName);
+                            if (this.materialSort === 'newest') return Number(b.dataset.materialCreatedAt) - Number(a.dataset.materialCreatedAt) || compareText(a.dataset.materialName, b.dataset.materialName);
+
+                            return compareText(a.dataset.materialName, b.dataset.materialName);
+                        });
+
+                        cards.forEach((card) => grid.appendChild(card));
+                    },
                     init() {
                         const storedTab = sessionStorage.getItem('inventoryStorageTab');
                         const storedEquipmentTab = sessionStorage.getItem('inventoryEquipmentTab');
@@ -62,9 +92,11 @@
                         }
                         sessionStorage.removeItem('inventoryStorageTab');
                         sessionStorage.removeItem('inventoryEquipmentTab');
+                        this.$nextTick(() => this.sortMaterialCards());
+                        this.$watch('materialSort', () => this.$nextTick(() => this.sortMaterialCards()));
                     }
                 }"
-                @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1);"
+                @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1); $nextTick(() => sortMaterialCards());"
             >
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -209,34 +241,61 @@
 
                     <div class="min-h-[320px]">
                         <div x-show="activeMaterialTab === 'material'" x-transition>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="mb-3 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                    <label class="sm:col-span-2">
+                                        <span class="mb-1 block text-[11px] font-bold text-emerald-800">素材を探す</span>
+                                        <input type="search" x-model.debounce.150ms="materialQuery" placeholder="素材名・用途を入力" class="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                    </label>
+                                    <label>
+                                        <span class="mb-1 block text-[11px] font-bold text-emerald-800">並び替え</span>
+                                        <select x-model="materialSort" class="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                            <option value="name_asc">名前順</option>
+                                            <option value="newest">新着順</option>
+                                            <option value="quantity_desc">所持数が多い順</option>
+                                            <option value="quantity_asc">所持数が少ない順</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                    <span class="mr-1 text-[11px] font-bold text-emerald-800">用途</span>
+                                    <button type="button" @click="materialPurpose = 'all'" :class="materialPurpose === 'all' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                                    @foreach($materialPurposeFilters as $filter)
+                                        <button type="button" @click="materialPurpose = @js($filter['key'])" :class="materialPurpose === @js($filter['key']) ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">{{ $filter['label'] }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div x-ref="materialGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 @forelse($materials as $cm)
                                     @php
+                                        $materialBrowseMeta = $materialBrowseMetadata[$cm->id] ?? ['name' => '', 'search_text' => '', 'purposes' => [], 'created_at' => 0];
                                         $unitSalePrice = max(0, (int) ($cm->material?->npc_sale_price ?? 0));
                                         $canSellMaterial = $unitSalePrice > 0;
-                                        $usageTags = $cm->material?->usage_tags ?? [];
                                         $matBadges = [];
-                                        foreach ($usageTags as $tag) {
-                                            if (str_contains($tag, '進化') || str_contains($tag, '合成')) {
-                                                $matBadges['合成'] = ['label' => '合成', 'color' => 'bg-emerald-100 text-emerald-700 border-emerald-300'];
+                                        $badgeDefinitions = [
+                                            'crafting' => ['label' => '合成', 'color' => 'bg-emerald-100 text-emerald-700 border-emerald-300'],
+                                            'smithing' => ['label' => '鍛冶・強化', 'color' => 'bg-orange-100 text-orange-700 border-orange-300'],
+                                            'exchange' => ['label' => '交換所', 'color' => 'bg-purple-100 text-purple-700 border-purple-300'],
+                                            'brewing' => ['label' => '調合', 'color' => 'bg-teal-100 text-teal-700 border-teal-300'],
+                                            'market' => ['label' => '市場', 'color' => 'bg-sky-100 text-sky-700 border-sky-300'],
+                                            'cash' => ['label' => '換金用', 'color' => 'bg-amber-100 text-amber-700 border-amber-300'],
+                                        ];
+                                        foreach ($materialBrowseMeta['purposes'] as $purpose) {
+                                            if (isset($badgeDefinitions[$purpose])) {
+                                                $matBadges[$purpose] = $badgeDefinitions[$purpose];
                                             }
-                                            if (str_contains($tag, '鍛冶')) {
-                                                $matBadges['鍛冶'] = ['label' => '鍛冶', 'color' => 'bg-orange-100 text-orange-700 border-orange-300'];
-                                            }
-                                            if (str_contains($tag, '交換所')) {
-                                                $matBadges['交換所'] = ['label' => '交換所', 'color' => 'bg-purple-100 text-purple-700 border-purple-300'];
-                                            }
-                                        }
-                                        if ($cm->material?->is_cash_item) {
-                                            $matBadges['換金用'] = ['label' => '換金用', 'color' => 'bg-amber-100 text-amber-700 border-amber-300'];
-                                        }
-                                        if ($cm->material?->is_tradable && ($cm->material?->trade_policy ?? '') === 'marketable') {
-                                            $matBadges['市場'] = ['label' => '市場', 'color' => 'bg-sky-100 text-sky-700 border-sky-300'];
                                         }
                                     @endphp
                                     <div
                                         class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm"
-                                        x-show="remainingQty > 0"
+                                        data-material-card
+                                        data-material-name="{{ $materialBrowseMeta['name'] }}"
+                                        data-material-search="{{ $materialBrowseMeta['search_text'] }}"
+                                        data-material-purposes="{{ implode(',', $materialBrowseMeta['purposes']) }}"
+                                        data-material-created-at="{{ $materialBrowseMeta['created_at'] }}"
+                                        :data-material-quantity="remainingQty"
+                                        x-show="remainingQty > 0 && matchesMaterial($el)"
                                         x-transition
                                         x-data="{
                                             discardOpen: false,

@@ -45,6 +45,7 @@ class InventoryController extends Controller
         $materials = $allMaterials
             ->reject(fn ($row) => $this->isKeyMaterial($row->material))
             ->values();
+        [$materialBrowseMetadata, $materialPurposeFilters] = $this->materialBrowseData($materials);
 
         $marks = CharacterMonsterMark::query()
             ->where('character_id', $character->id)
@@ -125,6 +126,8 @@ class InventoryController extends Controller
         return view('inventory.index', compact(
             'character',
             'materials',
+            'materialBrowseMetadata',
+            'materialPurposeFilters',
             'marks',
             'equipmentGroups',
             'supportItems',
@@ -132,6 +135,68 @@ class InventoryController extends Controller
             'keyItems',
             'storageSummary'
         ));
+    }
+
+    private function materialBrowseData(Collection $materials): array
+    {
+        $definitions = [
+            'crafting' => ['label' => '合成', 'keywords' => ['進化', '合成']],
+            'smithing' => ['label' => '鍛冶・強化', 'keywords' => ['鍛冶', '強化']],
+            'exchange' => ['label' => '交換所', 'keywords' => ['交換所']],
+            'brewing' => ['label' => '調合', 'keywords' => ['調合']],
+            'market' => ['label' => '市場', 'keywords' => []],
+            'cash' => ['label' => '換金用', 'keywords' => []],
+        ];
+
+        $metadata = $materials->mapWithKeys(function (CharacterMaterial $row) use ($definitions) {
+            $material = $row->material;
+            $usageTags = is_array($material?->usage_tags) ? $material->usage_tags : [];
+            $purposeText = implode(' ', array_filter([
+                (string) ($material?->main_use ?? ''),
+                ...$usageTags,
+            ]));
+
+            $purposes = collect($definitions)
+                ->filter(function (array $definition, string $key) use ($purposeText, $material) {
+                    if ($key === 'market') {
+                        return (bool) ($material?->is_tradable) && (string) ($material?->trade_policy ?? '') === 'marketable';
+                    }
+
+                    if ($key === 'cash') {
+                        return (bool) ($material?->is_cash_item);
+                    }
+
+                    return collect($definition['keywords'])
+                        ->contains(fn (string $keyword) => str_contains($purposeText, $keyword));
+                })
+                ->keys()
+                ->values()
+                ->all();
+
+            return [(int) $row->id => [
+                'name' => (string) ($material?->displayName() ?? ''),
+                'search_text' => implode(' ', array_filter([
+                    (string) ($material?->displayName() ?? ''),
+                    (string) ($material?->category ?? ''),
+                    $purposeText,
+                ])),
+                'purposes' => $purposes,
+                'created_at' => (int) ($row->updated_at?->getTimestamp() ?? $row->created_at?->getTimestamp() ?? 0),
+            ]];
+        })->all();
+
+        $availablePurposes = collect($metadata)
+            ->pluck('purposes')
+            ->flatten()
+            ->flip();
+
+        $filters = collect($definitions)
+            ->filter(fn (array $definition, string $key) => $availablePurposes->has($key))
+            ->map(fn (array $definition, string $key) => ['key' => $key, 'label' => $definition['label']])
+            ->values()
+            ->all();
+
+        return [$metadata, $filters];
     }
 
     private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems, Collection $supportItems, StorageCapacityService $storageCapacityService): array
