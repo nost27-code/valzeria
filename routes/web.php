@@ -515,6 +515,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     })->name('admin.tools.remover');
     Route::get('/admin/tools/weapon-appraisal', \App\Livewire\Admin\WeaponAppraisalTool::class)->name('admin.tools.weapon-appraisal');
     Route::get('/admin/route-health', \App\Livewire\Admin\RouteHealthCheck::class)->name('admin.route-health');
+    Route::get('/admin/security-anomalies', \App\Livewire\Admin\SecurityAnomalyManager::class)->name('admin.security-anomalies');
     Route::get('/admin/tools', \App\Livewire\Admin\ToolCollection::class)->name('admin.tools');
 });
 

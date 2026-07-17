@@ -89,6 +89,7 @@
                 'key' => 'operations',
                 'label' => '運用',
                 'items' => [
+                    ['route' => 'admin.security-anomalies', 'label' => '異常検知・不正調査', 'abbr' => 'P1'],
                     ['route' => 'admin.players', 'label' => 'プレイヤー一覧', 'abbr' => 'P'],
                     ['route' => 'admin.bug-reports', 'label' => '不具合フォーム', 'abbr' => '!'],
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],

@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-17-admin-security-anomaly-detection',
+        'date' => '2026-07-17',
+        'category' => 'internal',
+        'title' => '異常検知・不正調査機能を追加',
+        'detail' => '管理画面で、10分で5,000戦以上の大量戦闘、通貨、Job EXP、同一IP、所持品、市場取引の異常候補を定期検知し、確認状況と判断履歴を管理できるようにしました。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-17-departure-set-purchased-reason',
         'date' => '2026-07-17',
         'category' => 'fixed',
