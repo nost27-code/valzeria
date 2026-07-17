@@ -23,6 +23,7 @@ use App\Support\CityVisualCatalog;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class CityHeader extends Component
@@ -37,7 +38,9 @@ class CityHeader extends Component
     public $playerInfo = null;
     public $locationName = '';
     public bool $showCityPanel = true;
+    public bool $modalOnly = false;
 
+    #[On('open-adventurer-card')]
     public function openPlayerModal(int $characterId)
     {
         $character = Character::with([
@@ -122,10 +125,14 @@ class CityHeader extends Component
         app(CharacterNotificationService::class)->markAllAsRead($character);
     }
 
-    public function mount(bool $showCityPanel = true)
+    public function mount(bool $showCityPanel = true, bool $modalOnly = false)
     {
-        $this->showCityPanel = $showCityPanel;
-        $this->determineLocationName();
+        $this->modalOnly = $modalOnly;
+        $this->showCityPanel = !$modalOnly && $showCityPanel;
+
+        if (!$modalOnly) {
+            $this->determineLocationName();
+        }
     }
 
     // タブ切り替え時のリッスンは不要な再描画を防ぐため削除しました
@@ -156,6 +163,13 @@ class CityHeader extends Component
 
     public function render()
     {
+        if ($this->modalOnly) {
+            return view('livewire.city-header', [
+                'topPlayer' => null,
+                'isGuestUser' => app(\App\Services\AuthService::class)->isGuestUser(auth()->user()),
+            ]);
+        }
+
         // ヘッダー用ダミーデータ
         $headerInfo = [
             'online_count' => rand(15, 30),

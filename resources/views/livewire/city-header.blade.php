@@ -1037,7 +1037,7 @@
             }
         }
     </style>
-    @if(!empty($topPlayer))
+    @if(!$modalOnly && !empty($topPlayer))
         <div class="relative left-1/2 z-40 mb-3 -mt-4 w-full -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
             {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [探索力/ゴールド/輝石] [ベル] --}}
             <div class="mx-auto grid max-w-screen-2xl grid-cols-[auto_minmax(5.75rem,1.35fr)_minmax(4rem,7rem)_minmax(4.8rem,auto)_auto] grid-rows-2 items-center gap-x-1.5 px-2.5 py-1.5 sm:grid-cols-[auto_minmax(8rem,1.4fr)_minmax(5rem,8rem)_minmax(5.8rem,auto)_auto] sm:gap-x-2 sm:px-4 lg:px-6"
@@ -1270,7 +1270,7 @@
         </div>
     @endif
 
-    @if($isGuestUser)
+    @if(!$modalOnly && $isGuestUser)
         <section class="relative z-30 mb-3 overflow-hidden rounded-xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 via-white to-sky-50 px-3 py-2.5 shadow-[0_5px_16px_rgba(180,83,9,0.18)] sm:px-4" role="status">
             <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
@@ -1289,7 +1289,7 @@
         </section>
     @endif
 
-    @if($showCityPanel)
+    @if(!$modalOnly && $showCityPanel)
     <!-- 1. 全幅ヘッダーエリア -->
     <div class="bg-white rounded-lg shadow-[0_5px_16px_rgba(126,96,28,0.14)] border border-[#d4af37] flex-shrink-0 overflow-hidden w-full font-sans text-xs sm:text-sm">
         <!-- 街ヘッダー -->

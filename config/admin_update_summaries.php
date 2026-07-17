@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-colosseum-ranking-adventurer-card',
+        'date' => '2026-07-18',
+        'category' => 'changed',
+        'title' => '闘技場ランキングの冒険者表示を統一',
+        'detail' => '闘技場ランキングで冒険者名を押したとき、現在の冒険者と同じ冒険者カードを確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-18-star-tree-favorite-weapon-display',
         'date' => '2026-07-18',
         'category' => 'changed',

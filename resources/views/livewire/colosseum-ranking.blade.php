@@ -2,7 +2,7 @@
     <div class="mb-5 flex flex-col gap-3 border-b border-[#d4af37]/50 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-black tracking-widest text-[#1e293b]">闘技場ランキング</h2>
-            <p class="mt-1 text-sm font-bold text-slate-500">TOP100まで表示します。名前を押すと個別ステータスを確認できます。</p>
+            <p class="mt-1 text-sm font-bold text-slate-500">TOP100まで表示します。名前を押すと冒険者カードを確認できます。</p>
         </div>
         <a href="{{ route('home') }}" class="inline-flex items-center justify-center rounded bg-slate-800 px-4 py-2 text-sm font-bold text-white shadow transition hover:bg-slate-700">
             闘技場へ戻る
@@ -77,53 +77,6 @@
         </div>
     </div>
 
-    @if($selectedPlayer)
-        <div class="fixed inset-0 z-[9998] bg-black/50" wire:click="closePlayerModal"></div>
-        <div class="fixed left-1/2 top-1/2 z-[9999] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-[#d4af37] bg-white p-5 shadow-xl">
-            <button type="button" wire:click="closePlayerModal" class="absolute right-3 top-3 text-slate-400 hover:text-slate-700">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-
-            <div class="mb-4 flex items-center gap-4 border-b border-slate-200 pb-4">
-                <div class="h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-[#d4af37] bg-slate-100">
-                    @if(!empty($selectedPlayer['icon']))
-                        <img src="{{ $selectedPlayer['icon'] }}" alt="" class="h-full w-full object-cover">
-                    @else
-                        <div class="flex h-full w-full items-center justify-center text-2xl font-black text-slate-400">?</div>
-                    @endif
-                </div>
-                <div class="min-w-0">
-                    <div class="truncate text-xl font-black text-slate-900">{{ $selectedPlayer['name'] }}</div>
-                    <div class="mt-1 text-sm font-bold text-slate-500">Lv.{{ $selectedPlayer['level'] }} / {{ $selectedPlayer['job'] }}</div>
-                    <div class="mt-1 text-xs font-black text-amber-700">戦力 {{ number_format((int) $selectedPlayer['power']) }}</div>
-                    <div class="mt-1 text-xs font-bold text-amber-700">闘技場 {{ $selectedPlayer['rank'] ?? '-' }}位</div>
-                </div>
-            </div>
-
-            <div class="mb-4 grid grid-cols-2 gap-2 text-sm">
-                <div class="rounded border border-red-100 bg-red-50 px-3 py-2 font-bold text-red-700">HP <span class="float-right text-slate-900">{{ $selectedPlayer['hp'] }} / {{ $selectedPlayer['max_hp'] }}</span></div>
-                <div class="rounded border border-blue-100 bg-blue-50 px-3 py-2 font-bold text-blue-700">SP <span class="float-right text-slate-900">{{ $selectedPlayer['mp'] }} / {{ $selectedPlayer['max_mp'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">攻撃 <span class="float-right">{{ $selectedPlayer['str'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">防御 <span class="float-right">{{ $selectedPlayer['def'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">魔力 <span class="float-right">{{ $selectedPlayer['mag'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">精神 <span class="float-right">{{ $selectedPlayer['spr'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">敏捷 <span class="float-right">{{ $selectedPlayer['agi'] }}</span></div>
-                <div class="rounded border border-slate-200 px-3 py-2 font-bold">運 <span class="float-right">{{ $selectedPlayer['luk'] }}</span></div>
-            </div>
-
-            <div class="space-y-1.5 rounded border border-slate-200 bg-slate-50 p-3 text-sm">
-                <div class="mb-1 text-xs font-black text-slate-500">現在の装備</div>
-                <div class="font-bold">武器: <span class="font-medium text-slate-700">{{ $selectedPlayer['weapon'] }}</span></div>
-                <div class="font-bold">防具: <span class="font-medium text-slate-700">{{ $selectedPlayer['armor'] }}</span></div>
-                <div class="font-bold">装飾: <span class="font-medium text-slate-700">{{ $selectedPlayer['accessory'] }}</span></div>
-            </div>
-
-            <button type="button" wire:click="closePlayerModal" class="mt-4 w-full rounded bg-slate-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">
-                閉じる
-            </button>
-        </div>
-    @endif
-
     @if($selectedNpc)
         <div class="fixed inset-0 z-[9998] bg-black/50" wire:click="closeNpcModal"></div>
         <div class="fixed left-1/2 top-1/2 z-[9999] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-[#d4af37] bg-white p-5 shadow-xl">
@@ -166,4 +119,6 @@
             </button>
         </div>
     @endif
+
+    <livewire:city-header :show-city-panel="false" :modal-only="true" />
 </div>
