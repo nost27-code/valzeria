@@ -13,9 +13,6 @@ use Illuminate\Validation\ValidationException;
 
 class MarketService
 {
-    private const SALE_FEE_RATE = 0.03;
-    private const LISTING_HOURS = 48;
-
     public function __construct(
         private readonly GoldService $goldService,
         private readonly CharacterNotificationService $notificationService
@@ -62,7 +59,7 @@ class MarketService
                 'unit_price' => $unitPrice,
                 'listing_fee' => 0,
                 'status' => 'active',
-                'expires_at' => now()->addHours(self::LISTING_HOURS),
+                'expires_at' => now()->addHours($this->listingHours()),
             ]);
         });
     }
@@ -133,7 +130,7 @@ class MarketService
             $lines = [];
             foreach ($fills as [$listing, $fillQuantity, $lineTotal]) {
                 $isNpcListing = $listing->isNpcListing();
-                $saleFee = $isNpcListing ? 0 : (int) floor($lineTotal * self::SALE_FEE_RATE);
+                $saleFee = $this->saleFee($lineTotal, $isNpcListing);
                 $sellerReceived = max(0, $lineTotal - $saleFee);
                 $seller = null;
 
@@ -353,5 +350,21 @@ class MarketService
                 'unit_price' => "単価は {$min}G 〜 {$max}G の範囲で指定してください。",
             ]);
         }
+    }
+
+    private function listingHours(): int
+    {
+        return max(1, (int) config('material_market.listing_hours'));
+    }
+
+    private function saleFee(int $lineTotal, bool $isNpcListing): int
+    {
+        if ($isNpcListing || $lineTotal <= 0) {
+            return 0;
+        }
+
+        $feeRateBps = min(10_000, max(0, (int) config('material_market.sale_fee_rate_bps')));
+
+        return intdiv($lineTotal * $feeRateBps, 10_000);
     }
 }

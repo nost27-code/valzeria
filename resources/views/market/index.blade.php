@@ -29,7 +29,7 @@
                         <a href="{{ route('equipment-market.index') }}" class="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100">装備市場へ</a>
                     </div>
                     <p class="mt-1 text-sm font-bold leading-relaxed text-slate-500">
-                        通常素材と地域素材を、冒険者同士で匿名売買します。売る場合、出品手数料として3%引かれます。
+                        通常素材と地域素材を、冒険者同士で匿名売買します。出品手数料はかかりません。売買成立時に、売り手の受取額から5%の手数料が差し引かれます。
                     </p>
                 </div>
             </div>

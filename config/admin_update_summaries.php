@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-material-market-sale-fee',
+        'date' => '2026-07-17',
+        'category' => 'balance',
+        'title' => '素材市場の手数料方式を変更',
+        'detail' => '素材市場は出品時の手数料をなくし、売買が成立した時だけ売り手の受取額から5%の手数料がかかるようにしました。',
+    ],
+    [
         'id' => '2026-07-17-admin-user-investigation-recent-login-cards',
         'date' => '2026-07-17',
         'category' => 'internal',
