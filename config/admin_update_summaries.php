@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-adventurer-frame-bottom-spacing',
+        'date' => '2026-07-18',
+        'category' => 'fixed',
+        'title' => '限定冒険者カード枠の下側余白を調整',
+        'detail' => '限定冒険者カード枠を縦方向へ広げ、一言コメントと枠の装飾が重ならないようにしました。',
+    ],
+    [
         'id' => '2026-07-17-favorite-weapon-stale-selection',
         'date' => '2026-07-17',
         'category' => 'fixed',
