@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-17-admin-user-investigation-recent-login-cards',
+        'date' => '2026-07-17',
+        'category' => 'internal',
+        'title' => '個別調査に最近ログイン一覧を追加',
+        'detail' => 'ユーザー個別調査を開いた直後に、冒険者アイコン付きで最近ログインしたユーザーをカード表示し、そのまま個別調査を開けるようにしました。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-17-equipment-warehouse-search-and-filters',
         'date' => '2026-07-17',
         'category' => 'changed',

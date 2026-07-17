@@ -47,6 +47,12 @@ class UserInvestigationManager extends Component
         }
     }
 
+    public function investigateUser(int $userId): void
+    {
+        $this->userIdInput = (string) $userId;
+        $this->searchUser();
+    }
+
     public function selectCharacter(int $characterId): void
     {
         $this->selectedCharacterId = $characterId;
@@ -117,6 +123,7 @@ class UserInvestigationManager extends Component
         $loginLogs = $this->loginLogs($user);
         $errorLogs = $this->errorLogs($user, $character);
         $enemyCandidates = $this->enemyCandidates();
+        $recentlyLoggedInUsers = $this->selectedUserId ? collect() : $this->recentlyLoggedInUsers();
         $simulationSnapshot = $character ? $this->simulationSnapshot($character, $finalStats) : [];
         $explorationStamina = $character ? $staminaService->summary($character) : null;
         $characterItems = $character?->characterItems ?? collect();
@@ -173,8 +180,31 @@ class UserInvestigationManager extends Component
             'loginLogs' => $loginLogs,
             'errorLogs' => $errorLogs,
             'enemyCandidates' => $enemyCandidates,
+            'recentlyLoggedInUsers' => $recentlyLoggedInUsers,
             'simulationSnapshotJson' => json_encode($simulationSnapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
         ])->layout('components.layouts.admin');
+    }
+
+    private function recentlyLoggedInUsers(): Collection
+    {
+        if (!Schema::hasTable('player_lifecycle_events')) {
+            return collect();
+        }
+
+        $lastLoginSubquery = DB::table('player_lifecycle_events')
+            ->select('user_id', DB::raw('MAX(occurred_at) as last_login_at'))
+            ->where('event_name', 'login')
+            ->groupBy('user_id');
+
+        return User::query()
+            ->joinSub($lastLoginSubquery, 'last_logins', fn ($join) => $join->on('users.id', '=', 'last_logins.user_id'))
+            ->select('users.*', 'last_logins.last_login_at')
+            ->withCasts(['last_login_at' => 'datetime'])
+            ->with('characters')
+            ->orderByDesc('last_logins.last_login_at')
+            ->orderByDesc('users.id')
+            ->limit(60)
+            ->get();
     }
 
     private function battleLogs(Character $character): Collection

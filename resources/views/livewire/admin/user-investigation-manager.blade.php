@@ -11,9 +11,49 @@
     </div>
 
     @if(!$selectedUserId)
-        <div class="rounded-md bg-white p-8 text-center font-bold text-slate-500 shadow-sm ring-1 ring-slate-200">
-            ユーザーIDを入力すると、キャラクター状態と各種履歴を表示します。
-        </div>
+        <section class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-black text-slate-950">最近ログインしたユーザー</h2>
+                    <p class="mt-1 text-xs font-bold text-slate-500">直近60件を最後に記録されたログイン日が新しい順に表示します。選ぶと個別調査を開けます。</p>
+                </div>
+                <div class="text-xs font-black text-slate-400">{{ number_format($recentlyLoggedInUsers->count()) }}件</div>
+            </div>
+
+            <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                @forelse($recentlyLoggedInUsers as $recentUser)
+                    @php
+                        $recentCharacter = $recentUser->characters->first();
+                        $recentIconPath = \App\Support\CharacterIconCatalog::versionedAsset($recentCharacter?->icon_path);
+                    @endphp
+                    <button type="button" wire:click="investigateUser({{ $recentUser->id }})" class="group rounded-md border border-slate-200 bg-slate-50 p-4 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:shadow">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-slate-200">
+                                <img src="{{ $recentIconPath }}" alt="{{ $recentCharacter?->name ?? $recentUser->name ?? '冒険者' }}" class="h-full w-full object-contain">
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="text-[11px] font-black tracking-[0.12em] text-slate-500">USER #{{ $recentUser->id }}</div>
+                                        <div class="mt-1 truncate text-base font-black text-slate-950 group-hover:text-amber-800">{{ $recentUser->name ?? '名称なし' }}</div>
+                                        <div class="mt-1 truncate text-xs font-bold text-slate-500">{{ $recentUser->email ?? 'メールなし' }}</div>
+                                    </div>
+                                    <span class="shrink-0 rounded bg-white px-2 py-1 text-[11px] font-black text-slate-500 ring-1 ring-slate-200">調査</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 border-t border-slate-200 pt-3 text-xs font-bold text-slate-600">
+                            <div>最終ログイン {{ $recentUser->last_login_at?->format('Y/m/d H:i') ?? '-' }}</div>
+                            <div class="mt-1 truncate">{{ $recentUser->characters->pluck('name')->filter()->join(' / ') ?: 'キャラクターなし' }}</div>
+                        </div>
+                    </button>
+                @empty
+                    <div class="col-span-full rounded-md bg-slate-50 px-5 py-10 text-center text-sm font-bold text-slate-500">
+                        ログイン記録がまだありません。ユーザーIDを入力すると個別に調査できます。
+                    </div>
+                @endforelse
+            </div>
+        </section>
     @elseif(!$user)
         <div class="rounded-md bg-red-50 p-6 font-bold text-red-700 ring-1 ring-red-200">
             User #{{ $selectedUserId }} は見つかりません。
