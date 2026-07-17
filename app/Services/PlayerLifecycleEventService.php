@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\City;
 use App\Models\PlayerLifecycleEvent;
 use App\Models\User;
+use App\Services\Admin\SecurityLoginObservationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
 
@@ -18,6 +19,9 @@ class PlayerLifecycleEventService
 
     public function recordLogin(User $user, ?Character $character = null): void
     {
+        $ipAddress = app()->bound('request') ? request()->ip() : null;
+        app(SecurityLoginObservationService::class)->observe($user, $ipAddress);
+
         $date = now()->toDateString();
         $this->record($user, 'login', "login:{$date}", $character, ['date' => $date]);
     }
@@ -87,7 +91,7 @@ class PlayerLifecycleEventService
 
     private function record(User $user, string $eventName, string $eventKey, ?Character $character = null, array $metadata = []): void
     {
-        if ((string) ($user->role ?? '') === 'admin' || !Schema::hasTable('player_lifecycle_events')) {
+        if ((string) ($user->role ?? '') === 'admin' || ! Schema::hasTable('player_lifecycle_events')) {
             return;
         }
 
