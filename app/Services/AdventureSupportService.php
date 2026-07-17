@@ -11,6 +11,7 @@ use App\Models\Item;
 use App\Models\KisekiTransaction;
 use App\Models\ShopPurchaseLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdventureSupportService
 {
@@ -22,7 +23,7 @@ class AdventureSupportService
         $controlService = app(AdventureSupportItemControlService::class);
         $items = collect(config('adventure_support.items', []))
             ->reject(fn (array $item, string $key) => !$controlService->isVisible($key, $item))
-            ->reject(fn (array $item) => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
+            ->reject(fn (array $item) => $this->requiresSupportPass($item)
                 && !app(SupportPassService::class)->enabled())
             ->map(fn (array $item, string $key) => $controlService->effectiveItem($key, $item))
             ->all();
@@ -53,7 +54,7 @@ class AdventureSupportService
 
     public function ownedConsumablesFor(Character $character): array
     {
-        $items = config('adventure_support.items', []);
+        $items = $this->supportItemDefinitions();
 
         $itemOrder = array_flip(array_keys($items));
 
@@ -175,13 +176,17 @@ class AdventureSupportService
 
     public function useConsumable(Character $character, string $itemKey): array
     {
-        $items = config('adventure_support.items', []);
+        $items = $this->supportItemDefinitions();
         if (!isset($items[$itemKey]) || !$this->supportConsumableKeys()->contains($itemKey)) {
             return ['success' => false, 'message' => '使用できないアイテムです。'];
         }
 
         if ($itemKey === self::RESCUE_INSURANCE) {
             return $this->useRescueInsurance($character);
+        }
+
+        if (($items[$itemKey]['effect_type'] ?? null) === 'support_pass_activation') {
+            return $this->useSupportPassTicket($character, $itemKey, $items[$itemKey]);
         }
 
         if (($items[$itemKey]['effect_type'] ?? null) !== 'explore_stamina_recovery') {
@@ -224,10 +229,11 @@ class AdventureSupportService
     private function applyPurchaseEffect(Character $character, string $itemKey, array $item): string
     {
         return match ($itemKey) {
+            'adventurer_departure_set' => $this->grantAdventurerDepartureSet($character, $itemKey, $item),
             'material_storage_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'material_storage_gold_expand' => $this->expandStorage($character, 'material_storage_limit', $itemKey, $item),
             'equipment_storage_expand' => $this->expandStorage($character, 'equipment_storage_limit', $itemKey, $item),
-            SupportPassService::PASS_TYPE => $this->activateSupportPass($character, (int) $item['price']),
+            SupportPassService::PASS_TYPE => $this->grantSupportPassTicket($character),
             'adventurer_supply_box' => $this->grantSupplyBox($character),
             self::RESCUE_INSURANCE,
             self::EMERGENCY_RESCUE_REQUEST => $this->grantConsumable($character, $itemKey, $item['name']),
@@ -237,30 +243,139 @@ class AdventureSupportService
         };
     }
 
-    private function activateSupportPass(Character $character, int $priceAmount): string
+    private function grantSupportPassTicket(Character $character): string
     {
-        $result = app(SupportPassService::class)->purchaseFor($character, $priceAmount);
-        if (!($result['success'] ?? false)) {
-            throw new \RuntimeException($result['message'] ?? '冒険者支援パスを購入できませんでした。');
+        $this->grantConsumableQuantity($character, 'support_pass_30d_ticket', 1);
+
+        return '冒険者支援パス30日利用券を購入しました。所持品から使用すると支援パスが有効になります。';
+    }
+
+    private function grantAdventurerDepartureSet(Character $character, string $itemKey, array $item): string
+    {
+        $storageCapacity = app(StorageCapacityService::class);
+        $materialBefore = $storageCapacity->materialLimit($character);
+        $equipmentBefore = $storageCapacity->equipmentLimit($character);
+
+        foreach ((array) data_get($item, 'grants.consumables', []) as $consumableKey => $quantity) {
+            $this->grantConsumableQuantity($character, (string) $consumableKey, (int) $quantity);
         }
 
-        return $result['message'];
+        foreach ((array) data_get($item, 'grants.storage_expansions', []) as $storageItemKey => $count) {
+            $this->grantStorageExpansion($character, (string) $storageItemKey, (int) $count);
+        }
+
+        $now = now();
+        foreach ((array) data_get($item, 'grants.profile_assets', []) as $asset) {
+            DB::table('character_adventurer_card_assets')->insertOrIgnore([
+                'character_id' => $character->id,
+                'asset_type' => (string) ($asset['asset_type'] ?? ''),
+                'asset_path' => (string) ($asset['asset_path'] ?? ''),
+                'source' => 'adventurer_departure_set',
+                'obtained_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        $this->incrementLimit($character, $itemKey, 'purchased_count');
+
+        $materialAfter = $storageCapacity->materialLimit($character);
+        $equipmentAfter = $storageCapacity->equipmentLimit($character);
+        $materialIncrease = $materialAfter - $materialBefore;
+        $equipmentIncrease = $equipmentAfter - $equipmentBefore;
+
+        return implode("\n", [
+            '冒険者旅立ちセットを受け取りました。',
+            '冒険者支援パス30日利用券×1と探索力の薬×3を所持品へ追加しました',
+            '素材倉庫 ' . number_format($materialBefore) . ' → ' . number_format($materialAfter) . '（+' . number_format($materialIncrease) . '）へ拡張しました。',
+            '装備倉庫 ' . number_format($equipmentBefore) . ' → ' . number_format($equipmentAfter) . '（+' . number_format($equipmentIncrease) . '）へ拡張しました。',
+            '限定カードフレームも付与しました。',
+        ]);
+    }
+
+    private function grantConsumableQuantity(Character $character, string $itemKey, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        CharacterConsumableItem::updateOrCreate(
+            ['character_id' => $character->id, 'item_key' => $itemKey],
+            ['updated_at' => now()]
+        )->increment('quantity', $quantity);
+    }
+
+    private function grantStorageExpansion(Character $character, string $storageItemKey, int $count): void
+    {
+        if ($count <= 0) {
+            return;
+        }
+
+        $storageItem = config("adventure_support.items.{$storageItemKey}");
+        if (!is_array($storageItem)) {
+            throw new \RuntimeException('倉庫拡張の設定が見つかりません。');
+        }
+
+        $column = match ($storageItemKey) {
+            'material_storage_expand' => 'material_storage_limit',
+            'equipment_storage_expand' => 'equipment_storage_limit',
+            default => throw new \RuntimeException('未対応の倉庫拡張です。'),
+        };
+        $defaultLimit = $column === 'material_storage_limit' ? 500 : 300;
+        $currentLimit = max($defaultLimit, (int) ($character->{$column} ?? $defaultLimit));
+        $character->{$column} = $currentLimit + ((int) ($storageItem['effect_value'] ?? 0) * $count);
+        $character->kiseki = (int) ($character->paid_kiseki ?? 0) + (int) ($character->free_kiseki ?? 0);
+        $character->save();
     }
 
     private function expandStorage(Character $character, string $column, string $itemKey, array $item): string
     {
+        $storageCapacity = app(StorageCapacityService::class);
+        $displayBefore = $column === 'material_storage_limit'
+            ? $storageCapacity->materialLimit($character)
+            : $storageCapacity->equipmentLimit($character);
         $defaultLimit = $column === 'material_storage_limit' ? 500 : 300;
         $currentLimit = max($defaultLimit, (int) ($character->{$column} ?? $defaultLimit));
-        $character->{$column} = $currentLimit + (int) $item['effect_value'];
+        $newLimit = $currentLimit + (int) $item['effect_value'];
+        $character->{$column} = $newLimit;
         $character->kiseki = (int) ($character->paid_kiseki ?? 0) + (int) ($character->free_kiseki ?? 0);
         $character->save();
         $this->incrementLimit($character, $itemKey, 'purchased_count');
 
-        $effectValue = number_format((int) ($item['effect_value'] ?? 0));
+        $displayAfter = $column === 'material_storage_limit'
+            ? $storageCapacity->materialLimit($character)
+            : $storageCapacity->equipmentLimit($character);
+        $effectValue = number_format($displayAfter - $displayBefore);
+        $before = number_format($displayBefore);
+        $after = number_format($displayAfter);
 
         return $column === 'material_storage_limit'
-            ? "素材倉庫を拡張しました。素材倉庫の保管枠が+{$effectValue}されました。"
-            : "装備倉庫を拡張しました。装備倉庫の保管枠が+{$effectValue}されました。";
+            ? "素材倉庫を拡張しました。保管枠：{$before} → {$after}（+{$effectValue}）"
+            : "装備倉庫を拡張しました。保管枠：{$before} → {$after}（+{$effectValue}）";
+    }
+
+    private function useSupportPassTicket(Character $character, string $itemKey, array $item): array
+    {
+        return DB::transaction(function () use ($character, $itemKey, $item) {
+            $row = CharacterConsumableItem::where('character_id', $character->id)
+                ->where('item_key', $itemKey)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$row || (int) $row->quantity <= 0) {
+                return ['success' => false, 'message' => "{$item['name']}を所持していません。"];
+            }
+
+            $lockedCharacter = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $result = app(SupportPassService::class)->purchaseFor($lockedCharacter, 0, 'ticket');
+            if (!($result['success'] ?? false)) {
+                return ['success' => false, 'message' => $result['message'] ?? '冒険者支援パスを有効にできませんでした。'];
+            }
+
+            $row->decrement('quantity');
+
+            return ['success' => true, 'message' => $result['message']];
+        });
     }
 
     private function grantSupplyBox(Character $character): string
@@ -364,29 +479,33 @@ class AdventureSupportService
         $total = $currency === 'gold'
             ? (int) ($character->money ?? 0)
             : (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0);
+        $purchasedCount = $this->purchasedCount($character, $key, null, $locked);
+        $dailyPurchasedCount = $this->purchasedCount($character, $key, today('Asia/Tokyo')->toDateString(), $locked);
         $disabledReason = null;
 
         if (!app(AdventureSupportItemControlService::class)->isVisible($key, $item)) {
             $disabledReason = "{$item['name']}は現在販売していません。";
         } elseif (!app(AdventureSupportItemControlService::class)->isEnabled($key, $item)) {
             $disabledReason = "{$item['name']}は現在販売休止中です。";
+        } elseif (($item['purchase_limit'] ?? null) && $purchasedCount >= (int) $item['purchase_limit']) {
+            $disabledReason = $key === 'adventurer_departure_set'
+                ? 'このセットは一度限りの購入です。すでに購入済みです。'
+                : "{$item['name']}はこれ以上購入できません。";
+        } elseif (($item['daily_purchase_limit'] ?? null) && $dailyPurchasedCount >= (int) $item['daily_purchase_limit']) {
+            $disabledReason = "{$item['name']}は本日の購入上限に達しています。";
         } elseif ($total < (int) $item['price']) {
             $disabledReason = $currency === 'gold'
                 ? 'Goldが不足しています。素材売却や探索でGoldを集めてから再度お試しください。'
                 : '輝石が不足しています。輝石を購入してから再度お試しください。';
-        } elseif (($item['purchase_limit'] ?? null) && $this->purchasedCount($character, $key, null, $locked) >= (int) $item['purchase_limit']) {
-            $disabledReason = "{$item['name']}はこれ以上購入できません。";
-        } elseif (($item['daily_purchase_limit'] ?? null) && $this->purchasedCount($character, $key, today('Asia/Tokyo')->toDateString(), $locked) >= (int) $item['daily_purchase_limit']) {
-            $disabledReason = "{$item['name']}は本日の購入上限に達しています。";
         } elseif (($item['effect_type'] ?? null) === 'explore_stamina_recovery'
             && app(ExplorationStaminaService::class)->recoverableAmount($character, (int) ($item['effect_value'] ?? 0)) <= 0) {
             $disabledReason = '探索力制が有効な時だけ購入できます。';
-        } elseif (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
+        } elseif ($this->requiresSupportPass($item)
             && !app(SupportPassService::class)->enabled()) {
             $disabledReason = '冒険者支援パスは現在販売していません。';
-        } elseif (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
-            && !app(SupportPassService::class)->canExtend($character->user)) {
-            $disabledReason = '冒険者支援パスは最大90日先まで延長できます。現在はこれ以上延長できません。';
+        } elseif (($item['effect_type'] ?? null) === 'adventurer_departure_set'
+            && !$this->departureSetAssetsReady($item)) {
+            $disabledReason = '限定カードフレームの準備中です。しばらくしてからお試しください。';
         } elseif ($key === 'adventurer_supply_box' && $this->isExploring($character)) {
             $disabledReason = '探索中は冒険者補給箱を購入できません。街に戻ってから購入してください。';
         }
@@ -394,8 +513,8 @@ class AdventureSupportService
         return [
             'can_purchase' => $disabledReason === null,
             'disabled_reason' => $disabledReason,
-            'purchased_count' => $this->purchasedCount($character, $key, null, $locked),
-            'daily_purchased_count' => $this->purchasedCount($character, $key, today('Asia/Tokyo')->toDateString(), $locked),
+            'purchased_count' => $purchasedCount,
+            'daily_purchased_count' => $dailyPurchasedCount,
             'used_today' => $this->usedToday($character, $key, $locked),
             'support_pass' => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
                 ? app(SupportPassService::class)->statusForCharacter($character)
@@ -405,6 +524,10 @@ class AdventureSupportService
 
     private function purchaseLabel(Character $character, string $key, array $item, array $state): string
     {
+        if (!empty($item['purchase_button_label'])) {
+            return (string) $item['purchase_button_label'];
+        }
+
         if (($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE) {
             if (!($state['can_purchase'] ?? false)) {
                 $disabledReason = (string) ($state['disabled_reason'] ?? '');
@@ -415,12 +538,32 @@ class AdventureSupportService
                 return '購入不可';
             }
 
-            return app(SupportPassService::class)->isActiveForCharacter($character)
-                ? '30日延長する'
-                : '購入する';
+            return '利用券を購入';
         }
 
         return '購入する';
+    }
+
+    private function requiresSupportPass(array $item): bool
+    {
+        return (bool) ($item['requires_support_pass'] ?? false)
+            || ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE;
+    }
+
+    private function departureSetAssetsReady(array $item): bool
+    {
+        if (!Schema::hasTable('character_adventurer_card_assets')) {
+            return false;
+        }
+
+        foreach ((array) data_get($item, 'grants.profile_assets', []) as $asset) {
+            $path = (string) ($asset['asset_path'] ?? '');
+            if ($path === '' || !is_file(public_path($path))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function currency(array $item): string
@@ -512,9 +655,9 @@ class AdventureSupportService
 
     private function supportConsumableKeys(): \Illuminate\Support\Collection
     {
-        return collect(config('adventure_support.items', []))
+        return collect($this->supportItemDefinitions())
             ->filter(fn (array $item, string $key) => in_array($key, [self::RESCUE_INSURANCE, self::EMERGENCY_RESCUE_REQUEST], true)
-                || ($item['effect_type'] ?? null) === 'explore_stamina_recovery')
+                || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation'], true))
             ->keys()
             ->values();
     }
@@ -522,7 +665,7 @@ class AdventureSupportService
     private function canUseFromInventory(string $key, array $item): bool
     {
         return $key === self::RESCUE_INSURANCE
-            || ($item['effect_type'] ?? null) === 'explore_stamina_recovery';
+            || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation'], true);
     }
 
     private function useLabel(string $key, array $item): string
@@ -531,7 +674,9 @@ class AdventureSupportService
             return '探索前に使用';
         }
 
-        return ($item['effect_type'] ?? null) === 'explore_stamina_recovery' ? '使用する' : '';
+        return in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation'], true)
+            ? '使用する'
+            : '';
     }
 
     private function useNote(string $key, array $item): string
@@ -544,6 +689,18 @@ class AdventureSupportService
             return '使用すると探索力を回復します。上限超過分も蓄積されます。';
         }
 
+        if (($item['effect_type'] ?? null) === 'support_pass_activation') {
+            return '使用すると冒険者支援パスが30日間有効になります。残り期間がある場合は現在の期限から30日延長されます。';
+        }
+
         return '';
+    }
+
+    private function supportItemDefinitions(): array
+    {
+        return array_merge(
+            config('adventure_support.items', []),
+            config('adventure_support.inventory_items', [])
+        );
     }
 }

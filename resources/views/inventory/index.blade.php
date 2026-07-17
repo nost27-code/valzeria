@@ -829,7 +829,7 @@
                             このアイテムを使用しますか？
                         </p>
 
-                        <div class="mt-4 rounded-lg border border-sky-100 bg-sky-50 px-3 py-3">
+                        <div x-show="supportConfirm?.effect_type === 'explore_stamina_recovery'" class="mt-4 rounded-lg border border-sky-100 bg-sky-50 px-3 py-3">
                             <div class="flex items-center justify-between gap-3 text-sm font-black text-slate-800">
                                 <span>現在の探索力</span>
                                 <span class="tabular-nums">
@@ -850,6 +850,12 @@
                                 </div>
                             </template>
                         </div>
+
+                        <template x-if="supportConfirm?.effect_type === 'support_pass_activation'">
+                            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-bold leading-relaxed text-amber-900">
+                                使用すると冒険者支援パスが30日間有効になります。残り期間がある場合は現在の期限から30日延長されます。最大90日先まで延長できます。
+                            </div>
+                        </template>
 
                         <div class="mt-5 grid grid-cols-2 gap-3">
                             <button type="button" @click="supportConfirm = null; submittingSupport = false" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-50">

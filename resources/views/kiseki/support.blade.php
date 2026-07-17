@@ -3,7 +3,7 @@
     <div x-data="{ confirming: null, submitting: false }">
 
     @if(session('status'))
-        <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+        <div class="mb-3 whitespace-pre-line rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
             {{ session('status') }}
         </div>
     @endif
@@ -81,7 +81,8 @@
                             $currencyIcon = array_key_exists('currency_icon_image', $supportItem) ? $supportItem['currency_icon_image'] : 'images/icon/kiseki.webp';
                             $purchaseLabel = (string) ($supportItem['purchase_label'] ?? '購入する');
                         @endphp
-                        <div class="rounded-xl border {{ $canPurchase ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/50' }} shadow-sm transition">
+                        <div @if(($supportItem['effect_type'] ?? null) === 'support_pass_30d') id="adventurer-support-pass" @elseif(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set') id="adventurer-departure-set" @endif
+                             class="scroll-mt-4 rounded-xl border {{ ($supportItem['effect_type'] ?? null) === 'adventurer_departure_set' ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-sky-50 ring-1 ring-amber-200' : ($canPurchase ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/50') }} shadow-sm transition target:border-amber-400 target:bg-amber-50 target:ring-2 target:ring-amber-300/60">
                             <div class="flex gap-3 p-3">
                                 {{-- アイコン --}}
                                 @if(!empty($supportItem['icon_image']))
@@ -96,6 +97,9 @@
                                         <div class="min-w-0 flex-1">
                                             <div class="flex flex-wrap items-baseline gap-1.5">
                                                 <span class="text-sm font-black leading-tight text-slate-900">{{ $supportItem['name'] }}</span>
+                                                @if(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set')
+                                                    <span class="rounded bg-gradient-to-r from-amber-500 to-orange-500 px-1.5 py-0.5 text-[9px] font-black leading-none text-white">一度限り</span>
+                                                @endif
                                                 @if($limitText)
                                                     <span class="rounded border border-slate-200 bg-white px-1.5 py-px text-[10px] font-black leading-none text-slate-500">{{ $limitText }}</span>
                                                 @endif
@@ -130,6 +134,25 @@
                                     </div>
                                     {{-- 説明 --}}
                                     <p class="mt-0.5 text-[11px] font-bold leading-relaxed text-slate-500">{{ $supportItem['description'] }}</p>
+                                    @if(($supportItem['effect_type'] ?? null) === 'adventurer_departure_set')
+                                        <div class="mt-2 rounded-lg border border-amber-200 bg-white/80 p-2.5">
+                                            <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
+                                                <span class="text-[11px] font-black text-amber-800">通常{{ number_format((int) ($supportItem['regular_value_kiseki'] ?? 0)) }}輝石相当＋限定品</span>
+                                                <span class="text-[10px] font-black text-sky-700">100輝石（約{{ number_format((int) ($supportItem['approx_value_jpy'] ?? 0)) }}円相当）</span>
+                                            </div>
+                                            <ul class="grid gap-1 text-[11px] font-bold leading-relaxed text-slate-600 sm:grid-cols-2">
+                                                @foreach(($supportItem['effects'] ?? []) as $effectLine)
+                                                    <li class="flex gap-1.5"><span class="text-amber-600">・</span><span>{{ $effectLine }}</span></li>
+                                                @endforeach
+                                            </ul>
+                                            <div class="mt-2 flex items-center gap-2 rounded-md bg-sky-50 p-2">
+                                                <img src="{{ asset('images/profile/adventurer_avatar_frame91.webp') }}" alt="限定冒険者カードフレーム" class="h-12 w-12 shrink-0 object-contain">
+                                                <p class="text-[10px] font-bold leading-relaxed text-sky-800">
+                                                    限定の青金フレームは、購入後に<a href="{{ route('profile.edit') }}#card_skin" class="font-black underline decoration-sky-400 underline-offset-2 transition hover:text-sky-950">プロフィール編集</a>の「カードの見た目」から選べます。
+                                                </p>
+                                            </div>
+                                        </div>
+                                    @endif
                                     {{-- 所持数 --}}
                                     @if($supportItem['key'] === 'rescue_insurance')
                                         <p class="mt-1 text-[11px] font-black text-sky-700">
@@ -222,7 +245,7 @@
                 <div x-show="confirming?.icon_image" class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50 p-1.5">
                     <img :src="confirming?.icon_image ? '{{ url('/') }}/' + confirming.icon_image : ''" alt="" class="h-full w-full object-contain">
                 </div>
-                <div class="text-base font-black text-slate-950" x-text="`${confirming?.name ?? ''}を${confirming?.purchase_label === '30日延長する' ? '延長' : '購入'}しますか？`"></div>
+                <div class="text-base font-black text-slate-950" x-text="`${confirming?.name ?? ''}を購入しますか？`"></div>
             </div>
             <p class="mt-3 text-xs font-bold leading-relaxed text-slate-600" x-text="confirming?.description ?? ''"></p>
             <template x-if="confirming?.effects?.length">

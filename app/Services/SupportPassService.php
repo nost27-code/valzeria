@@ -183,7 +183,11 @@ class SupportPassService
         return $this->nextExpiresAt($user)->lte($this->maxExtendUntil());
     }
 
-    public function purchaseFor(Character $character, ?int $priceAmount = null): array
+    public function purchaseFor(
+        Character $character,
+        ?int $priceAmount = null,
+        string $priceCurrency = 'kiseki'
+    ): array
     {
         if (!$this->enabled()) {
             return [
@@ -216,7 +220,7 @@ class SupportPassService
             'user_id' => $user->id,
             'character_id' => $character->id,
             'pass_type' => self::PASS_TYPE,
-            'price_currency' => 'kiseki',
+            'price_currency' => $priceCurrency,
             'price_amount' => $priceAmount ?? $this->priceKiseki(),
             'purchased_at' => now(),
             'previous_expires_at' => $previousExpiresAt,
@@ -226,13 +230,15 @@ class SupportPassService
         if ($previousExpiresAt && $previousExpiresAt->isFuture()) {
             return [
                 'success' => true,
-                'message' => '冒険者支援パスを30日延長しました。新しい有効期限：' . $newExpiresAt->format('Y/m/d H:i'),
+                'message' => ($priceCurrency === 'ticket' ? '利用券を使用し、' : '')
+                    . '冒険者支援パスを30日延長しました。新しい有効期限：' . $newExpiresAt->format('Y/m/d H:i'),
             ];
         }
 
         return [
             'success' => true,
-            'message' => '冒険者支援パスを購入しました。30日間、探索力上限+250と冒険者カードの特別デザインが有効になります。',
+            'message' => ($priceCurrency === 'ticket' ? '冒険者支援パス30日利用券を使用しました。' : '冒険者支援パスを購入しました。')
+                . '30日間、探索力上限+250と冒険者カードの特別デザインが有効になります。',
         ];
     }
 

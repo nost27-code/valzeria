@@ -2,6 +2,46 @@
 
 return [
     'items' => [
+        'adventurer_departure_set' => [
+            'name' => '冒険者旅立ちセット',
+            'category' => 'おすすめ',
+            'icon_image' => 'images/icon/icon_259.webp',
+            'price' => 100,
+            'description' => '冒険に役立つ支援パス・探索力の薬・倉庫拡張と、限定カードフレームをまとめた一度限りのセットです。',
+            'effect_type' => 'adventurer_departure_set',
+            'purchase_limit' => 1,
+            'purchase_button_label' => '旅立ちセットを購入',
+            'regular_value_kiseki' => 225,
+            'approx_value_jpy' => 980,
+            'requires_support_pass' => true,
+            'effects' => [
+                '冒険者支援パス30日利用券 ×1（通常50輝石 / 所持品から使用）',
+                '探索力の薬 ×3（通常75輝石）',
+                '素材倉庫拡張 ×1（通常50輝石 / 保管枠+500）',
+                '装備倉庫拡張 ×1（通常50輝石 / 保管枠+300）',
+                '限定冒険者カードフレーム（外枠・丸枠）',
+            ],
+            'grants' => [
+                'consumables' => [
+                    'support_pass_30d_ticket' => 1,
+                    'explore_stamina_potion' => 3,
+                ],
+                'storage_expansions' => [
+                    'material_storage_expand' => 1,
+                    'equipment_storage_expand' => 1,
+                ],
+                'profile_assets' => [
+                    [
+                        'asset_type' => 'card_frame',
+                        'asset_path' => 'images/profile/adventurer_card_frame91.webp',
+                    ],
+                    [
+                        'asset_type' => 'avatar_frame',
+                        'asset_path' => 'images/profile/adventurer_avatar_frame91.webp',
+                    ],
+                ],
+            ],
+        ],
         'explore_stamina_small_bottle' => [
             'name' => '探索力の小瓶',
             'category' => '探索支援',
@@ -27,12 +67,12 @@ return [
             'category' => '冒険者支援パス',
             'icon_image' => 'images/icon/icon_259.webp',
             'price' => 50,
-            'description' => '30日間、冒険を少し快適にする支援パスです。探索力上限が+250され、冒険者カードの特別な見た目を選べるようになります。強さに直接影響する効果はありません。',
+            'description' => '購入すると30日利用券が所持品に入ります。利用券を使用すると、探索力上限が+250され、冒険者カードの特別な見た目を30日間選べるようになります。強さに直接影響する効果はありません。',
             'effect_type' => 'support_pass_30d',
             'effects' => [
                 '探索力上限 +250',
                 '冒険者カード見た目「支援パスカード」解放',
-                '有効期間：30日',
+                '所持品から使用後、有効期間：30日',
                 '自動更新なし',
             ],
         ],
@@ -88,6 +128,16 @@ return [
             'description' => '全滅時に使用すると、今回の入手品ロストを0にします。ただし、探索は終了し、街へ帰還します。',
             'daily_use_limit' => 1,
             'sale_suspended' => true,
+        ],
+    ],
+    'inventory_items' => [
+        'support_pass_30d_ticket' => [
+            'name' => '冒険者支援パス30日利用券',
+            'category' => '支援アイテム',
+            'icon_image' => 'images/icon/icon_259.webp',
+            'description' => '使用すると冒険者支援パスが30日間有効になります。残り期間がある場合は現在の期限から30日延長されます。',
+            'effect_type' => 'support_pass_activation',
+            'effect_value' => 30,
         ],
     ],
 ];

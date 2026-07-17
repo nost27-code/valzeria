@@ -20,14 +20,14 @@ class AdventureSupportServiceTest extends TestCase
         $this->assertSame('購入不可', $label);
     }
 
-    public function test_support_pass_disabled_label_keeps_extension_limit_message(): void
+    public function test_support_pass_purchase_label_describes_ticket_purchase(): void
     {
         $label = $this->supportPassPurchaseLabel([
-            'can_purchase' => false,
-            'disabled_reason' => '冒険者支援パスは最大90日先まで延長できます。現在はこれ以上延長できません。',
+            'can_purchase' => true,
+            'disabled_reason' => null,
         ]);
 
-        $this->assertSame('これ以上延長できません', $label);
+        $this->assertSame('利用券を購入', $label);
     }
 
     private function supportPassPurchaseLabel(array $state): string

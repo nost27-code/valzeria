@@ -300,10 +300,13 @@ class CharacterProfileService
             ->map(fn (string $path) => 'images/profile/' . basename($path))
             ->sort()
             ->values()
-            ->map(function (string $path, int $index) use ($labelPrefix) {
+            ->map(function (string $path) use ($labelPrefix) {
+                preg_match('/(\d+)$/', pathinfo($path, PATHINFO_FILENAME), $matches);
+                $assetNumber = $matches[1] ?? '01';
+
                 return [
                     'path' => $path,
-                    'label' => $labelPrefix . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                    'label' => $assetNumber === '91' ? '冒険者' : $labelPrefix . $assetNumber,
                 ];
             })
             ->all();
@@ -381,4 +384,5 @@ class CharacterProfileService
             ]
         );
     }
+
 }
