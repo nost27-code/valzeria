@@ -667,11 +667,6 @@
             gap: 5px;
             padding: 16px 54px 18px;
         }
-        .adventurer-card-hero.is-support-pass .adventurer-card-badges,
-        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badges {
-            padding-top: 40px;
-            padding-bottom: 12px;
-        }
         .adventurer-card-badge {
             min-height: 48px;
             border-radius: 9px;
@@ -1025,11 +1020,6 @@
             .adventurer-card-badges {
                 gap: 5px;
                 padding: 14px 44px 16px;
-            }
-            .adventurer-card-hero.is-support-pass .adventurer-card-badges,
-            .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badges {
-                padding-top: 36px;
-                padding-bottom: 10px;
             }
             .adventurer-card-badge {
                 min-height: 46px;
