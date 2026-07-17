@@ -414,7 +414,7 @@
             pointer-events: none;
         }
         .adventurer-card-hero.is-card-frame-91 {
-            min-height: 384px;
+            min-height: 420px;
         }
         .adventurer-card-hero.is-support-pass {
             background:
