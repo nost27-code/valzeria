@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('security_anomaly_case_id')->constrained('security_anomaly_cases')->cascadeOnDelete();
             $table->char('fingerprint', 64)->unique();
-            $table->timestamp('created_at');
+            $table->dateTime('created_at');
 
             $table->index(['security_anomaly_case_id', 'created_at'], 'security_anomaly_signatures_case_created_idx');
         });

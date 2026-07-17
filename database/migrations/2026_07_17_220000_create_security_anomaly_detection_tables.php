@@ -21,11 +21,11 @@ return new class extends Migration
             $table->text('summary');
             $table->json('evidence')->nullable();
             $table->unsignedInteger('detection_count')->default(1);
-            $table->timestamp('first_detected_at');
-            $table->timestamp('last_detected_at');
+            $table->dateTime('first_detected_at');
+            $table->dateTime('last_detected_at');
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('reviewed_at')->nullable();
-            $table->timestamp('resolved_at')->nullable();
+            $table->dateTime('reviewed_at')->nullable();
+            $table->dateTime('resolved_at')->nullable();
             $table->text('resolution_note')->nullable();
             $table->timestamps();
 
@@ -43,7 +43,7 @@ return new class extends Migration
             $table->string('from_status', 20);
             $table->string('to_status', 20);
             $table->text('note')->nullable();
-            $table->timestamp('created_at');
+            $table->dateTime('created_at');
 
             $table->index(['security_anomaly_case_id', 'created_at'], 'security_anomaly_events_case_created_idx');
         });
@@ -54,8 +54,8 @@ return new class extends Migration
             $table->char('ip_hash', 64);
             $table->string('masked_ip', 64);
             $table->date('observed_date');
-            $table->timestamp('first_observed_at');
-            $table->timestamp('last_observed_at');
+            $table->dateTime('first_observed_at');
+            $table->dateTime('last_observed_at');
             $table->unsignedInteger('observation_count')->default(1);
             $table->timestamps();
 
@@ -68,7 +68,7 @@ return new class extends Migration
             $table->foreignId('character_id')->primary()->constrained()->cascadeOnDelete();
             $table->unsignedInteger('equipment_count')->default(0);
             $table->unsignedBigInteger('material_quantity')->default(0);
-            $table->timestamp('captured_at');
+            $table->dateTime('captured_at');
             $table->timestamps();
         });
 
