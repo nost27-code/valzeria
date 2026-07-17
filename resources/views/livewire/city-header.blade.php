@@ -380,6 +380,29 @@
         .adventurer-card-modal.has-card-frame-91 {
             overflow-y: auto;
         }
+        .adventurer-card-modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 20;
+            display: inline-flex;
+            width: 28px;
+            height: 28px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(190, 24, 93, .32);
+            border-radius: 999px;
+            background: rgba(255, 251, 252, .96);
+            color: #be123c;
+            font-size: 18px;
+            font-weight: 900;
+            line-height: 1;
+            box-shadow: 0 2px 7px rgba(15, 23, 42, .16);
+        }
+        .adventurer-card-modal-close:hover {
+            background: #ffe4e6;
+            color: #9f1239;
+        }
         .adventurer-card-inner {
             position: relative;
             padding: 22px 12px 18px;
@@ -1380,6 +1403,9 @@
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
         <div class="adventurer-card-modal"
              :class="{ 'has-card-frame-91': playerInfo && playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp') }">
+            <button type="button" wire:click="closePlayerModal" @click="isPlayerModalOpen = false" class="adventurer-card-modal-close" aria-label="閉じる" title="閉じる">
+                <span aria-hidden="true">×</span>
+            </button>
             <template x-if="playerInfo">
                 <div class="adventurer-card-inner"
                      :class="{
