@@ -376,7 +376,8 @@
             scrollbar-color: rgba(180, 133, 38, .62) rgba(255, 248, 232, .72);
         }
         .adventurer-card-modal.has-card-frame-91 {
-            overflow: visible;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         .adventurer-card-inner {
             position: relative;
@@ -417,11 +418,11 @@
             pointer-events: none;
         }
         .adventurer-card-hero.is-card-frame-91 {
-            padding-bottom: 24px;
+            padding-bottom: 0;
         }
         .adventurer-card-hero.is-card-frame-91::after {
-            inset: -42px -34px -58px;
-            background-size: 112% 118%;
+            inset: -18px -30px -14px;
+            background-size: 112% 106%;
         }
         .adventurer-card-hero.is-support-pass {
             background:
