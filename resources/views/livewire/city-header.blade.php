@@ -415,7 +415,7 @@
         }
         .adventurer-card-hero.is-card-frame-91::after {
             inset: -12px;
-            transform: scale(1.08);
+            transform: scale(1.04);
             transform-origin: center;
         }
         .adventurer-card-hero.is-support-pass {
