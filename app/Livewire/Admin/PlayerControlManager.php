@@ -46,6 +46,14 @@ class PlayerControlManager extends Component
     public string $goldGrantReason = '';
     public string $freezeReason = '';
 
+    public function mount(): void
+    {
+        $characterId = (int) request()->query('character_id', 0);
+        if ($characterId > 0) {
+            $this->selectCharacter($characterId);
+        }
+    }
+
     public function selectCharacter(int $characterId): void
     {
         $character = Character::find($characterId);

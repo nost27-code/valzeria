@@ -26,27 +26,32 @@
                         $recentCharacter = $recentUser->characters->first();
                         $recentIconPath = \App\Support\CharacterIconCatalog::versionedAsset($recentCharacter?->icon_path);
                     @endphp
-                    <button type="button" wire:click="investigateUser({{ $recentUser->id }})" class="group rounded-md border border-slate-200 bg-slate-50 p-4 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:shadow">
+                    <article class="group rounded-md border border-slate-200 bg-slate-50 p-4 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:shadow">
                         <div class="flex items-start gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-slate-200">
-                                <img src="{{ $recentIconPath }}" alt="{{ $recentCharacter?->name ?? $recentUser->name ?? '冒険者' }}" class="h-full w-full object-contain">
+                                <img src="{{ $recentIconPath }}" alt="{{ $recentCharacter?->name ?? '冒険者' }}" class="h-full w-full object-contain">
                             </div>
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <div class="text-[11px] font-black tracking-[0.12em] text-slate-500">USER #{{ $recentUser->id }}</div>
-                                        <div class="mt-1 truncate text-base font-black text-slate-950 group-hover:text-amber-800">{{ $recentUser->name ?? '名称なし' }}</div>
+                                        <div class="mt-1 truncate text-xl font-black leading-tight text-slate-950 group-hover:text-amber-800">{{ $recentCharacter?->name ?? 'キャラクターなし' }}</div>
                                         <div class="mt-1 truncate text-xs font-bold text-slate-500">{{ $recentUser->email ?? 'メールなし' }}</div>
                                     </div>
-                                    <span class="shrink-0 rounded bg-white px-2 py-1 text-[11px] font-black text-slate-500 ring-1 ring-slate-200">調査</span>
+                                    <button type="button" wire:click="investigateUser({{ $recentUser->id }})" class="shrink-0 rounded bg-white px-2 py-1 text-[11px] font-black text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100">調査</button>
                                 </div>
                             </div>
                         </div>
                         <div class="mt-4 border-t border-slate-200 pt-3 text-xs font-bold text-slate-600">
                             <div>最終ログイン {{ $recentUser->last_login_at?->format('Y/m/d H:i') ?? '-' }}</div>
-                            <div class="mt-1 truncate">{{ $recentUser->characters->pluck('name')->filter()->join(' / ') ?: 'キャラクターなし' }}</div>
                         </div>
-                    </button>
+                        @if($recentCharacter)
+                            <div class="mt-3 grid grid-cols-2 gap-2">
+                                <a href="{{ route('admin.player-controls', ['character_id' => $recentCharacter->id]) }}" class="rounded-md bg-slate-950 px-2 py-2 text-center text-[11px] font-black text-white hover:bg-slate-800">輝石付与・調整</a>
+                                <a href="{{ route('admin.public-logs', ['character_id' => $recentCharacter->id]) }}" class="rounded-md bg-white px-2 py-2 text-center text-[11px] font-black text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100">この人の公開ログ</a>
+                            </div>
+                        @endif
+                    </article>
                 @empty
                     <div class="col-span-full rounded-md bg-slate-50 px-5 py-10 text-center text-sm font-bold text-slate-500">
                         ログイン記録がまだありません。ユーザーIDを入力すると個別に調査できます。

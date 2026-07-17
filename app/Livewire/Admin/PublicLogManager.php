@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Character;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -16,6 +17,7 @@ class PublicLogManager extends Component
     public string $typeFilter = 'all';
     public string $dateFrom = '';
     public string $dateTo = '';
+    public ?int $characterId = null;
     public int $perPage = 100;
     public bool $selectPage = false;
     public bool $includeProtectedLogs = false;
@@ -25,6 +27,14 @@ class PublicLogManager extends Component
 
     /** @var list<string> */
     private array $protectedTypes = ['admin'];
+
+    public function mount(): void
+    {
+        $characterId = (int) request()->query('character_id', 0);
+        $this->characterId = $characterId > 0 && Character::query()->whereKey($characterId)->exists()
+            ? $characterId
+            : null;
+    }
 
     public function updatedSearchQuery(): void
     {
@@ -99,6 +109,7 @@ class PublicLogManager extends Component
         $this->typeFilter = 'all';
         $this->dateFrom = '';
         $this->dateTo = '';
+        $this->characterId = null;
         $this->includeProtectedLogs = false;
         $this->resetSelectionAndPage();
     }
@@ -181,6 +192,7 @@ class PublicLogManager extends Component
             'canManageLogs' => $canManageLogs,
             'protectedTypes' => $this->protectedTypes,
             'canDeleteProtectedLogs' => $this->canDeleteProtectedLogs(),
+            'filteredCharacter' => $this->characterId ? Character::find($this->characterId) : null,
         ])->layout('components.layouts.admin');
     }
 
@@ -232,6 +244,16 @@ class PublicLogManager extends Component
 
         if ($this->typeFilter !== 'all') {
             $query->where('public_logs.type', $this->typeFilter);
+        }
+
+        if ($this->characterId) {
+            $query->where(function ($characterQuery) use ($hasReceiverId): void {
+                $characterQuery->where('public_logs.character_id', $this->characterId);
+
+                if ($hasReceiverId) {
+                    $characterQuery->orWhere('public_logs.receiver_id', $this->characterId);
+                }
+            });
         }
 
         if ($this->searchQuery !== '') {

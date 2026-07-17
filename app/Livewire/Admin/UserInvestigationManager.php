@@ -200,7 +200,7 @@ class UserInvestigationManager extends Component
             ->joinSub($lastLoginSubquery, 'last_logins', fn ($join) => $join->on('users.id', '=', 'last_logins.user_id'))
             ->select('users.*', 'last_logins.last_login_at')
             ->withCasts(['last_login_at' => 'datetime'])
-            ->with('characters')
+            ->with(['characters.currentJob', 'characters.currentCity'])
             ->orderByDesc('last_logins.last_login_at')
             ->orderByDesc('users.id')
             ->limit(60)

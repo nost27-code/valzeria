@@ -18,8 +18,8 @@ class AdminUserInvestigationRecentLoginTest extends TestCase
     {
         $olderUser = User::factory()->create(['name' => '先にログインした冒険者']);
         $recentUser = User::factory()->create(['name' => '最後にログインした冒険者']);
-        Character::query()->create(['user_id' => $olderUser->id, 'name' => '先行キャラクター']);
-        Character::query()->create(['user_id' => $recentUser->id, 'name' => '最新キャラクター', 'icon_path' => '/images/chara/chara_002.webp']);
+        $olderCharacter = Character::query()->create(['user_id' => $olderUser->id, 'name' => '先行キャラクター']);
+        $recentCharacter = Character::query()->create(['user_id' => $recentUser->id, 'name' => '最新キャラクター', 'icon_path' => '/images/chara/chara_002.webp']);
 
         PlayerLifecycleEvent::query()->create([
             'user_id' => $olderUser->id,
@@ -36,9 +36,13 @@ class AdminUserInvestigationRecentLoginTest extends TestCase
 
         Livewire::test(UserInvestigationManager::class)
             ->assertSee('最近ログインしたユーザー')
-            ->assertSeeInOrder(['最後にログインした冒険者', '先にログインした冒険者'])
+            ->assertSeeInOrder([$recentCharacter->name, $olderCharacter->name])
+            ->assertDontSee('最後にログインした冒険者')
+            ->assertDontSee('先にログインした冒険者')
             ->assertSee('最新キャラクター')
             ->assertSee('chara_002.webp')
+            ->assertSeeHtml(route('admin.player-controls', ['character_id' => $recentCharacter->id]))
+            ->assertSeeHtml(route('admin.public-logs', ['character_id' => $recentCharacter->id]))
             ->call('investigateUser', $recentUser->id)
             ->assertSet('selectedUserId', $recentUser->id);
     }

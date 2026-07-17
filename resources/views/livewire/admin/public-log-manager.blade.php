@@ -28,6 +28,13 @@
         </div>
     @endif
 
+    @if($filteredCharacter)
+        <div class="mb-4 flex flex-col gap-2 rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-bold text-sky-900 sm:flex-row sm:items-center sm:justify-between">
+            <div>絞り込み中: {{ $filteredCharacter->name }}（CID {{ $filteredCharacter->id }}）の送信・受信ログ</div>
+            <a href="{{ route('admin.user-investigation', ['user_id' => $filteredCharacter->user_id]) }}" class="text-xs font-black text-sky-700 underline hover:text-sky-900">個別調査へ戻る</a>
+        </div>
+    @endif
+
     <div class="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div class="rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm lg:col-span-2">
             <div class="text-xs font-black text-slate-400">該当ログ</div>
