@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-18-exploration-stamina-modal-scroll-fix',
+        'date' => '2026-07-18',
+        'category' => 'fixed',
+        'title' => '探索力回復ポップアップの操作を修正',
+        'detail' => '探索力不足時の回復・購入ポップアップで、閉じる・アイテム使用・購入操作ができ、背面の戦闘履歴が動かないよう修正しました。',
+    ],
+    [
+        'id' => '2026-07-18-adventurer-card-modal-scroll-fix',
+        'date' => '2026-07-18',
+        'category' => 'fixed',
+        'title' => '冒険者カードのスクロールを修正',
+        'detail' => '限定冒険者カード枠を使っている場合も、プロフィールを上下にスクロールでき、背面のホーム画面が動かないよう修正しました。',
+    ],
+    [
         'id' => '2026-07-18-adventurer-card-frame-91-refresh',
         'date' => '2026-07-18',
         'category' => 'fixed',

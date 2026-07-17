@@ -1816,8 +1816,8 @@
 
                     </div>
                     @if($usesStamina)
-                        <div id="batch-stamina-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/45 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="batch-stamina-modal-title">
-                            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-2xl">
+                        <div id="batch-stamina-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/45 px-4 py-6" style="z-index: 10000; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; -webkit-overflow-scrolling: touch;" role="dialog" aria-modal="true" aria-labelledby="batch-stamina-modal-title">
+                            <div class="w-full max-w-sm rounded-lg bg-white p-4 shadow-2xl" style="max-height: calc(100dvh - 3rem); overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; -webkit-overflow-scrolling: touch;">
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
                                         <h3 id="batch-stamina-modal-title" class="text-base font-black text-slate-900">探索力を回復して探索を続けますか？</h3>
@@ -1984,6 +1984,44 @@
                 return document.getElementById('batch-stamina-modal');
             }
 
+            function bindBatchStaminaModal(modal) {
+                if (!modal || modal.dataset.interactionBound === '1') return;
+
+                modal.dataset.interactionBound = '1';
+                modal.addEventListener('click', function(event) {
+                    const closeButton = event.target.closest('[data-batch-stamina-modal-close]');
+                    if (closeButton) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeBatchStaminaModal();
+                        return;
+                    }
+
+                    const staminaItemButton = event.target.closest('[data-batch-stamina-item]');
+                    if (staminaItemButton) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!staminaItemButton.disabled) {
+                            useBatchStaminaItem(staminaItemButton);
+                        }
+                        return;
+                    }
+
+                    const staminaBuyButton = event.target.closest('[data-batch-stamina-buy]');
+                    if (staminaBuyButton) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!staminaBuyButton.disabled) {
+                            purchaseAndUseBatchStaminaItem(staminaBuyButton);
+                        }
+                    }
+                });
+
+                modal.addEventListener('touchmove', function(event) {
+                    event.stopPropagation();
+                }, { passive: true });
+            }
+
             function openBatchStaminaModal(form, current, required) {
                 const modal = batchStaminaModal();
                 if (!modal) {
@@ -1994,6 +2032,8 @@
                 if (modal.parentElement !== document.body) {
                     document.body.appendChild(modal);
                 }
+
+                bindBatchStaminaModal(modal);
 
                 modal.dataset.formId = form.id || '';
                 const currentText = modal.querySelector('[data-batch-stamina-current]');
@@ -2007,7 +2047,12 @@
                 modal.style.alignItems = 'center';
                 modal.style.justifyContent = 'center';
                 modal.style.minHeight = '100dvh';
+                modal.style.zIndex = '10000';
+                modal.style.pointerEvents = 'auto';
+                modal.dataset.previousHtmlOverflow = document.documentElement.style.overflow;
+                modal.dataset.previousBodyOverflow = document.body.style.overflow;
                 document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
             }
@@ -2016,7 +2061,8 @@
                 const modal = batchStaminaModal();
                 if (!modal) return;
                 modal.style.display = '';
-                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflow = modal.dataset.previousHtmlOverflow || '';
+                document.body.style.overflow = modal.dataset.previousBodyOverflow || '';
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
             }

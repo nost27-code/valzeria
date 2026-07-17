@@ -374,9 +374,11 @@
             color: #2f2415;
             scrollbar-width: thin;
             scrollbar-color: rgba(180, 133, 38, .62) rgba(255, 248, 232, .72);
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
         .adventurer-card-modal.has-card-frame-91 {
-            overflow: visible;
+            overflow-y: auto;
         }
         .adventurer-card-inner {
             position: relative;
