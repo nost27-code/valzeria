@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\Item;
 use App\Services\FavoriteWeaponService;
@@ -46,6 +47,46 @@ class FavoriteWeaponServiceTest extends TestCase
         $this->assertStringContainsString('#e2bd67', $display['quality']['display_background']);
         $this->assertSame('#c2410c', $display['enhance_style']['color']);
         $this->assertSame('0.9rem', $display['enhance_style']['font_size']);
+    }
+
+    public function test_stale_saved_weapon_ids_are_excluded_and_cleaned_on_save(): void
+    {
+        $character = new Character();
+        $character->profile_favorite_weapon_ids = [101, 102];
+        $service = $this->serviceWithAvailableWeaponIds([102]);
+
+        $this->assertSame([102], $service->selectedIds($character));
+
+        $service->saveSelection($character, [101, 102]);
+
+        $this->assertSame([102], $character->profile_favorite_weapon_ids);
+    }
+
+    public function test_new_unowned_weapon_id_is_still_rejected(): void
+    {
+        $character = new Character();
+        $character->profile_favorite_weapon_ids = [102];
+        $service = $this->serviceWithAvailableWeaponIds([102]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('所持していない武器はお気に入りに設定できません。');
+
+        $service->saveSelection($character, [102, 999]);
+    }
+
+    private function serviceWithAvailableWeaponIds(array $ids): FavoriteWeaponService
+    {
+        return new class($ids) extends FavoriteWeaponService
+        {
+            public function __construct(private readonly array $ids)
+            {
+            }
+
+            protected function ownedWeaponIds(Character $character): array
+            {
+                return $this->ids;
+            }
+        };
     }
 
     private function weapon(string $category, string $rank, string $externalId, string $name = '確認用武器'): CharacterItem

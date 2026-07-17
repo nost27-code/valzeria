@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-favorite-weapon-stale-selection',
+        'date' => '2026-07-17',
+        'category' => 'fixed',
+        'title' => 'お気に入り武器の更新不能を修正',
+        'detail' => 'お気に入りに登録した武器を進化・売却・市場移管した後も、プロフィールのお気に入り武器を選び直して更新できるよう修正しました。',
+    ],
+    [
         'id' => '2026-07-17-admin-security-anomaly-detection',
         'date' => '2026-07-17',
         'category' => 'internal',

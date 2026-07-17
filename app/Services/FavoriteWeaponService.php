@@ -85,9 +85,11 @@ class FavoriteWeaponService
 
     public function selectedIds(Character $character): array
     {
-        return collect($character->profile_favorite_weapon_ids ?? [])
-            ->map(fn ($id) => (int) $id)->filter(fn (int $id) => $id > 0)
-            ->unique()->take($this->maxCount())->values()->all();
+        $ownedIds = $this->ownedWeaponIds($character);
+
+        return $this->storedSelectedIds($character)
+            ->filter(fn (int $id) => in_array($id, $ownedIds, true))
+            ->values()->all();
     }
 
     public function availableWeapons(Character $character): Collection
@@ -108,25 +110,43 @@ class FavoriteWeaponService
             ->orderByDesc('is_equipped')->orderByDesc('enhance_level')->orderByDesc('id');
     }
 
+    protected function ownedWeaponIds(Character $character): array
+    {
+        return $character->characterItems()
+            ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
+            ->pluck('character_items.id')->map(fn ($id) => (int) $id)->all();
+    }
+
     public function saveSelection(Character $character, array $weaponIds): void
     {
         $requestedIds = collect($weaponIds)->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => $id > 0)->unique()->take($this->maxCount())->values();
-        $ownedIds = $this->availableWeapons($character)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $ownedIds = $this->ownedWeaponIds($character);
+        $knownStaleIds = $this->storedSelectedIds($character)->diff($ownedIds);
+        $unknownUnownedIds = $requestedIds->diff($ownedIds)->diff($knownStaleIds);
 
-        if ($requestedIds->diff($ownedIds)->isNotEmpty()) {
+        if ($unknownUnownedIds->isNotEmpty()) {
             throw new \InvalidArgumentException('所持していない武器はお気に入りに設定できません。');
         }
 
-        $character->profile_favorite_weapon_ids = $requestedIds->all();
+        $character->profile_favorite_weapon_ids = $requestedIds
+            ->filter(fn (int $id) => in_array($id, $ownedIds, true))
+            ->values()->all();
     }
 
     public function displayWeapons(Character $character): array
     {
         $weaponsById = $this->availableWeapons($character)->keyBy('id');
 
-        return collect($this->selectedIds($character))->map(fn (int $id) => $weaponsById->get($id))
+        return $this->storedSelectedIds($character)->map(fn (int $id) => $weaponsById->get($id))
             ->filter()->map(fn (CharacterItem $weapon) => $this->toDisplayArray($weapon))->values()->all();
+    }
+
+    private function storedSelectedIds(Character $character): Collection
+    {
+        return collect($character->profile_favorite_weapon_ids ?? [])
+            ->map(fn ($id) => (int) $id)->filter(fn (int $id) => $id > 0)
+            ->unique()->take($this->maxCount())->values();
     }
 
     public function toDisplayArray(CharacterItem $weapon): array
