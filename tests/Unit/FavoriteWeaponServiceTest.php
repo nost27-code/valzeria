@@ -49,6 +49,19 @@ class FavoriteWeaponServiceTest extends TestCase
         $this->assertSame('0.9rem', $display['enhance_style']['font_size']);
     }
 
+    public function test_special_weapon_uses_compact_rank_and_elfia_background(): void
+    {
+        $display = (new FavoriteWeaponService())->toDisplayArray(
+            $this->weapon('staff', 'SPECIAL', 'TOWER_STAR_TREE_F90_STAFF', '星樹の聖杖')
+        );
+
+        $this->assertSame('SP', $display['rank']);
+        $this->assertSame('#13795b', $display['rank_color']);
+        $this->assertTrue($display['is_special']);
+        $this->assertStringContainsString('#d9efad', $display['display_background']);
+        $this->assertStringContainsString('#174b38', $display['display_background']);
+    }
+
     public function test_stale_saved_weapon_ids_are_excluded_and_cleaned_on_save(): void
     {
         $character = new Character();

@@ -1507,8 +1507,8 @@
                                     </div>
                                     <div class="grid grid-cols-3 gap-1.5">
                                         <template x-for="weapon in playerInfo.favorite_weapons" :key="weapon.id">
-                                            <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_2px_6px_rgba(15,23,42,0.12)]" :style="weapon.quality ? `border-color: ${weapon.quality.border_color}` : ''">
-                                                <div class="relative grid aspect-square place-items-center bg-[radial-gradient(circle_at_center,#ffffff_15%,#f7f9fc_70%,#e6edf4_100%)] p-1.5" :style="weapon.quality ? `background: ${weapon.quality.display_background}` : ''">
+                                            <div class="overflow-hidden rounded-lg border bg-white" :class="weapon.is_special ? 'border-[#d7bd67] shadow-[0_0_0_1px_rgba(230,211,139,0.45),0_3px_9px_rgba(15,95,61,0.3)]' : 'border-slate-200 shadow-[0_2px_6px_rgba(15,23,42,0.12)]'" :style="!weapon.is_special && weapon.quality ? `border-color: ${weapon.quality.border_color}` : ''">
+                                                <div class="relative grid aspect-square place-items-center bg-[radial-gradient(circle_at_center,#ffffff_15%,#f7f9fc_70%,#e6edf4_100%)] p-1.5" :style="weapon.display_background ? `background: ${weapon.display_background}` : ''">
                                                     <img :src="weapon.image" :alt="weapon.name" class="h-full w-full object-contain drop-shadow-[0_3px_2px_rgba(41,31,14,0.32)]">
                                                     <template x-if="weapon.rank">
                                                         <span class="absolute left-1 top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-white/40 px-1 text-[10px] font-black leading-none text-white shadow-sm" :style="`background-color: ${weapon.rank_color}`" x-text="weapon.rank"></span>

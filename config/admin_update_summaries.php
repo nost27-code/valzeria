@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-star-tree-favorite-weapon-display',
+        'date' => '2026-07-18',
+        'category' => 'changed',
+        'title' => '星樹武器のお気に入り展示を特別仕様に変更',
+        'detail' => '冒険者カードのお気に入り武器で、星樹武器のランク表示を「SP」に短縮し、エルフィアを思わせる緑系の専用展示背景へ変更しました。',
+    ],
+    [
         'id' => '2026-07-18-adventurer-frame-bottom-spacing',
         'date' => '2026-07-18',
         'category' => 'fixed',

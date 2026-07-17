@@ -37,6 +37,8 @@ class FavoriteWeaponService
         ],
     ];
 
+    private const SPECIAL_DISPLAY_BACKGROUND = 'radial-gradient(circle at 22% 18%, rgba(255,248,180,0.95) 0 1px, transparent 2px), radial-gradient(circle at 79% 27%, rgba(229,255,201,0.92) 0 1px, transparent 2px), radial-gradient(circle at 68% 76%, rgba(255,244,176,0.78) 0 1px, transparent 2px), radial-gradient(circle at 50% 38%, #ffffe8 0%, #d9efad 24%, #6cac74 62%, #174b38 100%)';
+
     /** @var array<string, int> 添付済みの武器画像カタログ（武器名 => weapon_XXX.webp） */
     private const IMAGE_NUMBER_BY_NAME = [
         '木の剣' => 1, '鉄の剣' => 2, '鋼の剣' => 3, '騎士の剣' => 4, '白銀の剣' => 5, '王家の剣' => 6, '英雄の剣' => 7, '聖剣アークレア' => 8, '星冠の誓剣' => 9, '天命の聖剣' => 10, '星冠聖剣セレスティル' => 11, '黒炎の魔剣' => 12, '冥哭剣ネクロム' => 13, '深淵喰らいの魔剣' => 14, '深淵魔剣ネクロディア' => 15, '風切りの英雄剣' => 16, '翠嵐剣エルフィア' => 17, '天翔の迅剣' => 18, '天翔迅剣エルフィード' => 19,
@@ -154,15 +156,19 @@ class FavoriteWeaponService
         $item = $weapon->item;
         $rank = strtoupper((string) ($item?->weapon_rank ?? $item?->rarity ?? ''));
         $enhanceLevel = max(0, (int) ($weapon->enhance_level ?? 0));
+        $quality = self::QUALITY_DISPLAY[(string) $weapon->affix_quality] ?? null;
+        $isSpecial = $rank === 'SPECIAL';
 
         return [
             'id' => (int) $weapon->id,
             'name' => (string) ($item?->name ?? '不明な武器'),
-            'rank' => $rank !== '' && $rank !== 'NORMAL' ? $rank : null,
+            'rank' => $rank !== '' && $rank !== 'NORMAL' ? ($isSpecial ? 'SP' : $rank) : null,
             'rank_color' => $this->rankColor($rank),
+            'is_special' => $isSpecial,
+            'display_background' => $isSpecial ? self::SPECIAL_DISPLAY_BACKGROUND : ($quality['display_background'] ?? null),
             'enhance_level' => $enhanceLevel,
             'enhance_style' => $this->enhanceStyle($enhanceLevel),
-            'quality' => self::QUALITY_DISPLAY[(string) $weapon->affix_quality] ?? null,
+            'quality' => $quality,
             'engraving' => $this->affixDisplay($weapon->affixPrefix?->name, $weapon->effectiveAffixPrefixLevel()),
             'killer' => $this->affixDisplay($weapon->affixSuffix?->name, $weapon->effectiveAffixSuffixLevel()),
             'image' => asset($this->imagePathFor($item)),
@@ -245,6 +251,7 @@ class FavoriteWeaponService
     {
         return [
             'EPIC' => '#e11d48', 'SSS' => '#f97316', 'SS' => '#c084fc', 'S' => '#d4af37',
+            'SPECIAL' => '#13795b',
             'A' => '#ef4444', 'B' => '#3b82f6', 'C' => '#22c55e', 'D' => '#94a3b8',
             'E' => '#64748b', 'F' => '#b0bec5', 'G' => '#d1d5db',
         ][$rank] ?? '#94a3b8';
