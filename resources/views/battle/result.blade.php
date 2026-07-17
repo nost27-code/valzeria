@@ -1825,10 +1825,8 @@
                                             探索力が足りません。使うアイテムを選んでください。
                                         </p>
                                     </div>
-                                    <button type="button" data-batch-stamina-modal-close class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="閉じる">
-                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
-                                        </svg>
+                                    <button type="button" data-batch-stamina-modal-close class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-sm font-black leading-none text-rose-600 shadow-sm transition hover:bg-rose-100 hover:text-rose-800 active:scale-95" aria-label="閉じる" title="閉じる">
+                                        <span aria-hidden="true">×</span>
                                     </button>
                                 </div>
                                 <div class="mt-3 rounded border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-extrabold text-sky-800">
