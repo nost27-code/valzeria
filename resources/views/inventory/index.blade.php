@@ -48,6 +48,9 @@
                     materialQuery: '',
                     materialPurpose: 'all',
                     materialSort: 'name_asc',
+                    equipmentQuery: '',
+                    equipmentStatus: 'all',
+                    equipmentSort: 'rank_desc',
                     materialStorageTotal: {{ (int) ($storageSummary['material_storage_total'] ?? 0) }},
                     materialStorageTypes: {{ (int) ($storageSummary['material_storage_types'] ?? 0) }},
                     expandConfirm: null,
@@ -81,6 +84,34 @@
 
                         cards.forEach((card) => grid.appendChild(card));
                     },
+                    normalizeEquipmentText(value) {
+                        return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
+                    },
+                    matchesEquipment(element) {
+                        const query = this.normalizeEquipmentText(this.equipmentQuery);
+                        const searchText = this.normalizeEquipmentText(element.dataset.equipmentSearch);
+
+                        return (!query || searchText.includes(query))
+                            && (this.equipmentStatus === 'all' || element.dataset.equipmentStatus === this.equipmentStatus);
+                    },
+                    sortEquipmentCards() {
+                        const compareText = (a, b) => String(a).localeCompare(String(b), 'ja');
+
+                        this.$el.querySelectorAll('[data-equipment-grid]').forEach((grid) => {
+                            const cards = Array.from(grid.querySelectorAll('[data-equipment-card]'));
+                            cards.sort((a, b) => {
+                                if (this.equipmentSort === 'newest') return Number(b.dataset.equipmentCreatedAt) - Number(a.dataset.equipmentCreatedAt) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'rank_asc') return Number(a.dataset.equipmentRank) - Number(b.dataset.equipmentRank) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'price_desc') return Number(b.dataset.equipmentPrice) - Number(a.dataset.equipmentPrice) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'price_asc') return Number(a.dataset.equipmentPrice) - Number(b.dataset.equipmentPrice) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'name_asc') return compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+
+                                return Number(b.dataset.equipmentRank) - Number(a.dataset.equipmentRank) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                            });
+
+                            cards.forEach((card) => grid.appendChild(card));
+                        });
+                    },
                     init() {
                         const storedTab = sessionStorage.getItem('inventoryStorageTab');
                         const storedEquipmentTab = sessionStorage.getItem('inventoryEquipmentTab');
@@ -92,8 +123,12 @@
                         }
                         sessionStorage.removeItem('inventoryStorageTab');
                         sessionStorage.removeItem('inventoryEquipmentTab');
-                        this.$nextTick(() => this.sortMaterialCards());
+                        this.$nextTick(() => {
+                            this.sortMaterialCards();
+                            this.sortEquipmentCards();
+                        });
                         this.$watch('materialSort', () => this.$nextTick(() => this.sortMaterialCards()));
+                        this.$watch('equipmentSort', () => this.$nextTick(() => this.sortEquipmentCards()));
                     }
                 }"
                 @material-discarded="materialStorageTotal = Math.max(0, materialStorageTotal - Number($event.detail.quantity || 0)); if ($event.detail.removed) materialStorageTypes = Math.max(0, materialStorageTypes - 1); $nextTick(() => sortMaterialCards());"
@@ -592,6 +627,33 @@
                         @endforeach
                     </div>
 
+                    <div class="mb-3 rounded-lg border border-amber-100 bg-amber-50/60 p-3">
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            <label class="sm:col-span-2">
+                                <span class="mb-1 block text-[11px] font-bold text-amber-800">装備を探す</span>
+                                <input type="search" x-model.debounce.150ms="equipmentQuery" placeholder="装備名・武器種・ランクを入力" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                            </label>
+                            <label>
+                                <span class="mb-1 block text-[11px] font-bold text-amber-800">並び替え</span>
+                                <select x-model="equipmentSort" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                    <option value="rank_desc">ランクが高い順</option>
+                                    <option value="name_asc">名前順</option>
+                                    <option value="newest">新着順</option>
+                                    <option value="rank_asc">ランクが低い順</option>
+                                    <option value="price_desc">売却額が高い順</option>
+                                    <option value="price_asc">売却額が低い順</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span class="mr-1 text-[11px] font-bold text-amber-800">状態</span>
+                            <button type="button" @click="equipmentStatus = 'all'" :class="equipmentStatus === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                            <button type="button" @click="equipmentStatus = 'equipped'" :class="equipmentStatus === 'equipped' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備中</button>
+                            <button type="button" @click="equipmentStatus = 'locked'" :class="equipmentStatus === 'locked' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">保護中</button>
+                            <button type="button" @click="equipmentStatus = 'ready'" :class="equipmentStatus === 'ready' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備可能</button>
+                        </div>
+                    </div>
+
                     <div class="min-h-[320px]">
                         @foreach(['weapon', 'armor', 'accessory'] as $type)
                             <div x-show="activeEquipmentTab === @js($type)" x-transition @if($type !== 'weapon') style="display: none;" @endif>
@@ -623,7 +685,7 @@
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div data-equipment-grid class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     @forelse($equipmentGroups[$type] as $characterItem)
                                         @php
                                             $item = $characterItem->item;
@@ -634,6 +696,18 @@
                                             $sellDisabledTitle = $characterItem->is_equipped
                                                 ? '装備中は売却できません'
                                                 : ($characterItem->is_locked ? '保護中は売却できません' : '売却できません');
+                                            $equipmentRankSort = match ($type) {
+                                                'weapon' => (int) ($item?->weapon_rank_sort ?? 0),
+                                                'armor' => (int) ($item?->armor_rank_sort ?? 0),
+                                                default => (int) ($item?->accessory_rank_sort ?? 0),
+                                            };
+                                            $equipmentStatus = $characterItem->is_equipped ? 'equipped' : ($characterItem->is_locked ? 'locked' : 'ready');
+                                            $equipmentSearchText = implode(' ', array_filter([
+                                                $characterItem->displayName(),
+                                                $typeMeta[$type]['title'],
+                                                (string) ($item?->sub_type ?? ''),
+                                                'Rank ' . $rankLabel($item),
+                                            ]));
                                             $affixBonuses = $characterItem->affixStatBonuses();
                                             $totalStats = [
                                                 'HP' => (int) ($item->hp_bonus ?? 0) + (int) ($affixBonuses['hp'] ?? 0),
@@ -649,7 +723,18 @@
                                                 ->map(fn ($value, $label) => $label . ' ' . ($value > 0 ? '+' : '') . number_format($value))
                                                 ->values();
                                         @endphp
-                                        <div class="bg-white border border-slate-200 rounded p-4 shadow-sm flex items-start">
+                                        <div
+                                            class="bg-white border border-slate-200 rounded p-4 shadow-sm flex items-start"
+                                            data-equipment-card
+                                            data-equipment-name="{{ $characterItem->displayName() }}"
+                                            data-equipment-search="{{ $equipmentSearchText }}"
+                                            data-equipment-status="{{ $equipmentStatus }}"
+                                            data-equipment-rank="{{ $equipmentRankSort }}"
+                                            data-equipment-price="{{ $sellPrice }}"
+                                            data-equipment-created-at="{{ (int) ($characterItem->created_at?->getTimestamp() ?? 0) }}"
+                                            x-show="matchesEquipment($el)"
+                                            x-transition
+                                        >
                                             <div class="mr-3 shrink-0">
                                                 <label class="flex h-8 w-8 items-center justify-center rounded border {{ $canSellEquipment ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-300' }}" title="{{ $canSellEquipment ? 'まとめ売りに選択' : $sellDisabledTitle }}">
                                                     <input

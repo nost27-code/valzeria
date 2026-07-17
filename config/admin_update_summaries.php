@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-equipment-warehouse-search-and-filters',
+        'date' => '2026-07-17',
+        'category' => 'changed',
+        'title' => '装備倉庫を探しやすく改善',
+        'detail' => '装備名・武器種・ランクでの入力検索、状態ごとの絞り込み、ランク・売却額・新着・名前順の並び替えができるようになりました。',
+    ],
+    [
         'id' => '2026-07-17-enhanced-weapon-engraving-balance',
         'date' => '2026-07-17',
         'category' => 'balance',
