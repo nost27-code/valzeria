@@ -235,7 +235,7 @@ class WeaponTraitTransferService
         if ($kind === 'engraving') {
             /** @var EquipmentAffixPrefix $prefix */
             $prefix = $material->affixPrefix;
-            $bonuses = $this->rules->prefixBonuses($base->item, $prefix, $level, $base->affix_quality);
+            $bonuses = $this->rules->prefixBonuses($base->item, $prefix, $level, $base->affix_quality, (int) ($base->enhance_level ?? 0));
             $base->forceFill([
                 'affix_prefix_id' => $prefix->id,
                 'affix_prefix_level' => $level,

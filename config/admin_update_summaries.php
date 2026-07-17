@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-17-enhanced-weapon-engraving-balance',
+        'date' => '2026-07-17',
+        'category' => 'balance',
+        'title' => '強化武器の銘性能を調整',
+        'detail' => '武器を強化すると銘の能力値補正も伸びるようにしました。全能力を上げる調律の銘は、各能力への補正を単能力銘の55%に調整しています。',
+    ],
+    [
         'id' => '2026-07-17-admin-private-chat-icon',
         'date' => '2026-07-17',
         'category' => 'changed',

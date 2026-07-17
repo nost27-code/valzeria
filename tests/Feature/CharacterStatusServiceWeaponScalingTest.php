@@ -146,6 +146,20 @@ class CharacterStatusServiceWeaponScalingTest extends TestCase
         $this->assertSame(90, $withEngraving - $baseline);
     }
 
+    public function test_engraving_bonus_scales_with_the_weapon_enhancement_level(): void
+    {
+        $character = $this->character(attackBase: 1000, magicBase: 0);
+        $weapon = $this->weaponItem('EPIC', strBonus: 500, magBonus: 0);
+        $prefix = EquipmentAffixPrefix::query()->where('affix_key', 'power')->firstOrFail();
+
+        $baseline = $this->equipAndGetStr($character, $weapon, enhanceLevel: 5);
+        $this->unequipAll($character);
+        $withEngraving = $this->equipAndGetStr($character, $weapon, enhanceLevel: 5, prefix: $prefix, prefixLevel: 3);
+
+        // +5で500 -> 575。銘IIIの18%は103.5なので切り上げ104。
+        $this->assertSame(104, $withEngraving - $baseline);
+    }
+
     public function test_proportional_bonus_is_recomputed_after_job_change_resets_base_stats(): void
     {
         $character = $this->character(attackBase: 1000, magicBase: 0);

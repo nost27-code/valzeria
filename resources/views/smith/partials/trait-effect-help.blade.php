@@ -27,9 +27,9 @@
         <div class="grid gap-2 sm:grid-cols-2">
             <article class="rounded-lg border border-violet-100 bg-white p-3 text-sm leading-relaxed text-slate-700">
                 <h5 class="font-black text-violet-950">銘：能力値を上げます</h5>
-                <p class="mt-1.5">武器の<strong>最も高い基礎能力値</strong>を基準に、対象の能力値へ補正を加えます。通常品の補正率は次のとおりです。</p>
+                <p class="mt-1.5">強化後の武器で<strong>最も高い基礎能力値</strong>を基準に、対象の能力値へ補正を加えます。武器を強化すると銘の補正も伸びます。通常品の補正率は次のとおりです。</p>
                 <p class="mt-2 rounded border border-violet-100 bg-violet-50 px-2 py-1.5 text-xs font-black text-violet-900">I：6%　II：12%　III：18%　IV：24%　V：30%</p>
-                <p class="mt-2 text-xs font-bold text-slate-600">良品は<strong>1.15倍</strong>、逸品は<strong>1.35倍</strong>。端数は切り上げます。生命の銘などHPを上げる銘は、計算した値の<strong>3倍</strong>がHPに加わります。</p>
+                <p class="mt-2 text-xs font-bold text-slate-600">良品は<strong>1.15倍</strong>、逸品は<strong>1.35倍</strong>。端数は切り上げます。生命の銘などHPを上げる銘は、計算した値の<strong>3倍</strong>がHPに加わります。全能力を上げる調律の銘は、各能力が単能力銘の<strong>55%</strong>です。</p>
                 <p class="mt-2 text-xs font-bold text-violet-800">例：基礎攻撃100の通常品に力の銘IIIなら、攻撃+18です。</p>
             </article>
             <article class="rounded-lg border border-sky-100 bg-white p-3 text-sm leading-relaxed text-slate-700">

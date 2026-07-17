@@ -682,7 +682,7 @@ class PlayerControlManager extends Component
         $prefixLevel = $prefix ? $this->grantAffixPrefixLevel : 0;
         $suffixLevel = $suffix ? $this->grantAffixSuffixLevel : 0;
         $bonuses = $prefix
-            ? $rules->prefixBonuses($item, $prefix, $prefixLevel, $this->grantAffixQuality)
+            ? $rules->prefixBonuses($item, $prefix, $prefixLevel, $this->grantAffixQuality, $this->grantEnhanceLevel)
             : [];
 
         return [

@@ -158,6 +158,7 @@ class CharacterItem extends Model
                 $this->affixPrefix,
                 $this->effectiveAffixPrefixLevel(),
                 $this->affix_quality,
+                (int) ($this->enhance_level ?? 0),
             );
         }
 

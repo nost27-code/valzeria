@@ -52,7 +52,7 @@ class EquipmentAffixService
             default => 'normal',
         };
         $prefixLevel = $this->rules->clampLevel($item, 1);
-        $bonuses = $this->rules->prefixBonuses($item, $prefix, $prefixLevel, $quality);
+        $bonuses = $this->rules->prefixBonuses($item, $prefix, $prefixLevel, $quality, (int) ($characterItem->enhance_level ?? 0));
 
         $suffix = null;
         $killerSpeciesKey = null;

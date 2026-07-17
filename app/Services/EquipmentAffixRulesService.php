@@ -10,22 +10,17 @@ class EquipmentAffixRulesService
     /**
      * @return array<string, int>
      */
-    public function prefixBonuses(Item $item, EquipmentAffixPrefix $prefix, int $level, ?string $quality): array
+    public function prefixBonuses(Item $item, EquipmentAffixPrefix $prefix, int $level, ?string $quality, int $enhanceLevel = 0): array
     {
-        $basePower = max(
-            (int) ($item->str_bonus ?? 0),
-            (int) ($item->def_bonus ?? 0),
-            (int) ($item->mag_bonus ?? 0),
-            (int) ($item->spr_bonus ?? 0),
-            (int) ($item->agi_bonus ?? 0),
-            (int) ($item->luk_bonus ?? 0),
-            (int) floor(((int) ($item->hp_bonus ?? 0)) / 5),
-            1,
-        );
+        $basePower = $this->engravingBasePower($item, $enhanceLevel);
+        $multiplier = $prefix->target_stat === 'all'
+            ? $this->allStatMultiplier()
+            : 1.0;
         $value = max(1, (int) ceil(
             $basePower
             * $this->engravingEffectRate($this->clampLevel($item, $level))
             * $this->qualityMultiplier($quality)
+            * $multiplier
         ));
 
         return match ((string) $prefix->target_stat) {
@@ -70,6 +65,11 @@ class EquipmentAffixRulesService
         return (float) config('equipment_affix.quality_multipliers.' . ($quality ?: 'normal'), 1.0);
     }
 
+    public function allStatMultiplier(): float
+    {
+        return (float) config('equipment_affix.all_stat_multiplier', 0.55);
+    }
+
     public function maxLevelForItem(?Item $item): int
     {
         $rank = $this->equipmentRank($item);
@@ -103,5 +103,21 @@ class EquipmentAffixRulesService
     private function equipmentRank(?Item $item): string
     {
         return strtoupper((string) ($item?->weapon_rank ?: $item?->armor_rank ?: ''));
+    }
+
+    private function engravingBasePower(Item $item, int $enhanceLevel): int
+    {
+        $stats = app(EquipmentEnhancementService::class)->enhancedStatTotalsForItem($item, max(0, $enhanceLevel));
+
+        return max(
+            (int) ($stats['str'] ?? 0),
+            (int) ($stats['def'] ?? 0),
+            (int) ($stats['mag'] ?? 0),
+            (int) ($stats['spr'] ?? 0),
+            (int) ($stats['agi'] ?? 0),
+            (int) ($stats['luk'] ?? 0),
+            (int) floor(((int) ($stats['hp'] ?? 0)) / 5),
+            1,
+        );
     }
 }

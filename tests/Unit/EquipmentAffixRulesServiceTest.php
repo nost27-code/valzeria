@@ -86,4 +86,40 @@ class EquipmentAffixRulesServiceTest extends TestCase
         $this->assertEqualsWithDelta(0.207, $characterItem->effectiveKillerDamageRate(), 0.00001);
         $this->assertContains('種族が竜の敵への与ダメージ +20.7%', $characterItem->slayerEffectLines());
     }
+
+    public function test_engraving_uses_the_enhanced_base_stat_and_tuning_uses_55_percent(): void
+    {
+        $item = new Item(['type' => 'weapon', 'weapon_rank' => 'EPIC', 'str_bonus' => 500]);
+        $single = new EquipmentAffixPrefix(['target_stat' => 'def']);
+        $tuning = new EquipmentAffixPrefix(['target_stat' => 'all']);
+        $service = app(EquipmentAffixRulesService::class);
+
+        // +30で500 -> 737。銘Vの30%は222.1なので切り上げ222。
+        $this->assertSame(['def' => 222], $service->prefixBonuses($item, $single, 5, 'normal', 30));
+        $this->assertSame([
+            'hp' => 366,
+            'str' => 122,
+            'def' => 122,
+            'mag' => 122,
+            'spr' => 122,
+            'agi' => 122,
+            'luk' => 122,
+        ], $service->prefixBonuses($item, $tuning, 5, 'normal', 30));
+    }
+
+    public function test_character_item_uses_its_enhancement_level_for_engraving_bonuses(): void
+    {
+        $item = new Item(['type' => 'weapon', 'weapon_rank' => 'EPIC', 'str_bonus' => 500]);
+        $prefix = new EquipmentAffixPrefix(['target_stat' => 'def']);
+        $characterItem = new CharacterItem([
+            'enhance_level' => 30,
+            'affix_prefix_id' => 1,
+            'affix_prefix_level' => 5,
+            'affix_quality' => 'normal',
+        ]);
+        $characterItem->setRelation('item', $item);
+        $characterItem->setRelation('affixPrefix', $prefix);
+
+        $this->assertSame(['def' => 222], $characterItem->affixStatBonuses());
+    }
 }
