@@ -359,7 +359,9 @@ class CityHeader extends Component
             'job_master_badges_enabled' => (bool) config('job_master_badges.enabled', false),
             'job_master_badge_tiers' => $this->jobMasterBadgeTiers($character),
             'adventurer_card_background' => asset($profileService->selectedAdventurerCardBackground($character, $character->profile_card_background)),
-            'adventurer_card_frame' => asset($profileService->selectedAdventurerCardFrame($character, $character->profile_card_frame)),
+            'adventurer_card_frame' => $this->versionedProfileAsset(
+                $profileService->selectedAdventurerCardFrame($character, $character->profile_card_frame)
+            ),
             'adventurer_avatar_frame' => asset($profileService->selectedAdventurerAvatarFrame($character, $character->profile_avatar_frame)),
             'valmon_case' => asset($profileService->selectedValmonCase($character, $character->profile_valmon_case)),
             'adventure_records' => $adventureRecords,
@@ -379,6 +381,14 @@ class CityHeader extends Component
                 'accessory' => $this->equipmentLine($accessory, 'accessory_rank'),
             ],
         ];
+    }
+
+    private function versionedProfileAsset(string $path): string
+    {
+        $absolutePath = public_path(ltrim($path, '/'));
+        $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
+
+        return asset($path) . '?v=' . $version;
     }
 
     private function jobMasterBadgeTiers(Character $character): array

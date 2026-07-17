@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-adventurer-card-frame-91-refresh',
+        'date' => '2026-07-18',
+        'category' => 'fixed',
+        'title' => '限定冒険者カード枠の新デザインを反映',
+        'detail' => '限定冒険者カード枠を少し小さく表示し、外周の装飾も見えるよう調整しました。画像を更新した際もすぐに反映されます。',
+    ],
+    [
         'id' => '2026-07-18-colosseum-ranking-adventurer-card',
         'date' => '2026-07-18',
         'category' => 'changed',

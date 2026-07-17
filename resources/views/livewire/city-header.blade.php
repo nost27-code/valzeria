@@ -375,6 +375,9 @@
             scrollbar-width: thin;
             scrollbar-color: rgba(180, 133, 38, .62) rgba(255, 248, 232, .72);
         }
+        .adventurer-card-modal.has-card-frame-91 {
+            overflow: visible;
+        }
         .adventurer-card-inner {
             position: relative;
             padding: 22px 12px 18px;
@@ -412,6 +415,13 @@
             z-index: 3;
             background: var(--adventurer-card-frame, url('{{ asset('images/profile/adventurer_card_frame01.webp') }}')) center / 124% 124% no-repeat;
             pointer-events: none;
+        }
+        .adventurer-card-hero.is-card-frame-91 {
+            padding-bottom: 24px;
+        }
+        .adventurer-card-hero.is-card-frame-91::after {
+            inset: -42px -34px -58px;
+            background-size: 97% 97%;
         }
         .adventurer-card-hero.is-support-pass {
             background:
@@ -1366,7 +1376,8 @@
     <!-- キャラ詳細モーダル -->
     <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
-        <div class="adventurer-card-modal">
+        <div class="adventurer-card-modal"
+             :class="{ 'has-card-frame-91': playerInfo && playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp') }">
             <template x-if="playerInfo">
                 <div class="adventurer-card-inner"
                      :class="{
@@ -1374,9 +1385,10 @@
                          'is-support-pass-blue-gold-card': playerInfo.adventurer_card_skin === 'support_pass_blue_gold'
                      }">
                     <div class="adventurer-card-hero"
-                         :class="{
+                        :class="{
                              'is-support-pass': playerInfo.adventurer_card_skin === 'support_pass',
-                             'is-support-pass-blue-gold': playerInfo.adventurer_card_skin === 'support_pass_blue_gold'
+                            'is-support-pass-blue-gold': playerInfo.adventurer_card_skin === 'support_pass_blue_gold',
+                            'is-card-frame-91': playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp')
                          }"
                          :style="{
                              '--adventurer-card-bg': `url('${playerInfo.adventurer_card_background}')`,
