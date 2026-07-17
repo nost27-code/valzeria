@@ -413,6 +413,9 @@
             background: var(--adventurer-card-frame, url('{{ asset('images/profile/adventurer_card_frame01.webp') }}')) center / 124% 124% no-repeat;
             pointer-events: none;
         }
+        .adventurer-card-hero.is-card-frame-91 {
+            min-height: 384px;
+        }
         .adventurer-card-hero.is-support-pass {
             background:
                 linear-gradient(180deg, rgba(120,53,15,.42) 0 46px, transparent 96px 100%),
@@ -1386,7 +1389,8 @@
                     <div class="adventurer-card-hero"
                          :class="{
                              'is-support-pass': playerInfo.adventurer_card_skin === 'support_pass',
-                             'is-support-pass-blue-gold': playerInfo.adventurer_card_skin === 'support_pass_blue_gold'
+                             'is-support-pass-blue-gold': playerInfo.adventurer_card_skin === 'support_pass_blue_gold',
+                             'is-card-frame-91': playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp')
                          }"
                          :style="{
                              '--adventurer-card-bg': `url('${playerInfo.adventurer_card_background}')`,

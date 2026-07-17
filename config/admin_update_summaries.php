@@ -5,8 +5,8 @@ return [
         'id' => '2026-07-18-adventurer-frame-bottom-spacing',
         'date' => '2026-07-18',
         'category' => 'fixed',
-        'title' => '限定冒険者カード枠の表示を統一',
-        'detail' => '限定の冒険者カード枠も、ほかの四角枠と同じ大きさ・配置で表示されるように統一しました。',
+        'title' => '限定冒険者カード枠の表示を調整',
+        'detail' => '限定の冒険者カード枠は、ほかの四角枠と共通の表示方式を保ったまま、下側に余白を追加して見やすくしました。',
     ],
     [
         'id' => '2026-07-17-favorite-weapon-stale-selection',
