@@ -138,7 +138,6 @@
                                         <div class="mt-2 rounded-lg border border-amber-200 bg-white/80 p-2.5">
                                             <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
                                                 <span class="text-[11px] font-black text-amber-800">通常{{ number_format((int) ($supportItem['regular_value_kiseki'] ?? 0)) }}輝石相当＋限定品</span>
-                                                <span class="text-[10px] font-black text-sky-700">100輝石（約{{ number_format((int) ($supportItem['approx_value_jpy'] ?? 0)) }}円相当）</span>
                                             </div>
                                             <ul class="grid gap-1 text-[11px] font-bold leading-relaxed text-slate-600 sm:grid-cols-2">
                                                 @foreach(($supportItem['effects'] ?? []) as $effectLine)
