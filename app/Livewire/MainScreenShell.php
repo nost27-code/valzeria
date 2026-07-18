@@ -13,12 +13,16 @@ use Livewire\Component;
 class MainScreenShell extends Component
 {
     /** @var array<int, string> */
-    public array $tabLocations = [
+    public array $cachedTabLocations = [
         'town',
         'dungeon',
         'home',
         'guild',
         'colosseum',
+    ];
+
+    /** @var array<int, string> */
+    public array $utilityTabLocations = [
         'move',
         'settings',
         'message',
@@ -83,7 +87,7 @@ class MainScreenShell extends Component
     public function changeLocation($newLocation): void
     {
         $newLocation = $this->normalizeLocation($newLocation);
-        if (!in_array($newLocation, $this->tabLocations, true)) {
+        if (!in_array($newLocation, [...$this->cachedTabLocations, ...$this->utilityTabLocations], true)) {
             return;
         }
 

@@ -7,7 +7,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 | Concern | Files/dirs | Notes |
 |---|---|---|
 | Routes/pages | <path> | <short> |
-| Main screen tabs | `app/Livewire/MainScreenShell.php`, `app/Livewire/MainScreen.php`, `app/Livewire/NavMenu.php`, `resources/views/livewire/main-screen-shell.blade.php`, `resources/views/livewire/main-screen.blade.php`, `resources/views/livewire/nav-menu.blade.php` | The lightweight shell stores the active tab and exploration-exit side effects. Heavy tab panels load lazily once, remain mounted for instant client-side revisits, refresh after 60 seconds when revisited, and invalidate the dungeon panel after leaving exploration. |
+| Main screen tabs | `app/Livewire/MainScreenShell.php`, `app/Livewire/MainScreen.php`, `app/Livewire/NavMenu.php`, `resources/views/livewire/main-screen-shell.blade.php`, `resources/views/livewire/main-screen.blade.php`, `resources/views/livewire/nav-menu.blade.php` | The lightweight shell stores the active tab and exploration-exit side effects. The five primary tab panels preload after the initial panel, remain mounted for instant client-side revisits, refresh after 60 seconds when revisited, and invalidate the dungeon panel after leaving exploration. MAP/settings/message load only when selected. |
 | Server actions/API | <path> | <short> |
 | DB client | <path> | <short> |
 | Auth | `app/Http/Controllers/AuthController.php`, `app/Services/AuthService.php`, `app/Livewire/CityHeader.php`, `resources/views/livewire/city-header.blade.php`, `routes/web.php` | Google・メール・ゲストログインを扱う。ゲスト中は共通ヘッダからGoogle連携を開始し、同じユーザーIDのまま冒険データを引き継ぐ。 |

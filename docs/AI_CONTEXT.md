@@ -52,7 +52,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - Routing: routes/web.php; screens are Livewire components + Blade views
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)
 - State management: Livewire component state + DB; no SPA framework
-- メイン画面内のタブ導線は、`MainScreenShell` が現在タブと探索退出処理を管理する。各タブの重い `MainScreen` は初回表示時だけ遅延読込し、その後はDOMへ保持してAlpineで即時切替する。保持中のパネルは60秒経過後の再表示時にバックグラウンド更新し、探索退出時は探索パネルを即時無効化する。
+- メイン画面内のタブ導線は、`MainScreenShell` が現在タブと探索退出処理を管理する。街・探索・冒険者・市場・闘技場の重い `MainScreen` は初期タブの表示後にバックグラウンドで事前読込し、その後はDOMへ保持してAlpineで即時切替する。MAP・設定・メッセージは必要時だけ読み込む。保持中のパネルは60秒経過後の再表示時にバックグラウンド更新し、探索退出時は探索パネルを即時無効化する。
 - 闘技場タブは `ArenaNpcRankingService::screenEntries()` でTOP5と挑戦候補3件だけを取得し、画面表示時に全ランキングの戦力を組み立てない。同一リクエスト内の順位整合性確認と倉庫集計も各1回にまとめる。
 - DB access: Eloquent models (snake_case columns); DTO/BattleActor use camelCase
 - Auth/session: Google OAuth login, guest session is linkable to Google from the shared header, character via Auth::user()->characters()->first()

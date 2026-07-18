@@ -14,8 +14,9 @@ class MainTabPanelCacheViewTest extends TestCase
         $this->assertStringContainsString('x-show="currentLocation === @js($location)"', $source);
         $this->assertStringContainsString("style=\"{{ \$currentLocation === \$location ? '' : 'display: none;' }}\"", $source);
         $this->assertStringContainsString(':fixed-location="$location"', $source);
-        $this->assertStringContainsString('lazy', $source);
+        $this->assertStringContainsString('lazy="on-load"', $source);
         $this->assertStringContainsString("'main-tab-panel-'.\$location", $source);
+        $this->assertStringContainsString('data-main-tab-utility', $source);
     }
 
     public function test_heavy_main_screen_no_longer_listens_for_every_tab_change(): void

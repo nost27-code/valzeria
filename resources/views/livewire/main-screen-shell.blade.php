@@ -4,7 +4,7 @@
 >
     <livewire:nav-menu />
 
-    @foreach($tabLocations as $location)
+    @foreach($cachedTabLocations as $location)
         <section
             x-cloak
             x-show="currentLocation === @js($location)"
@@ -20,9 +20,24 @@
                 <livewire:main-screen
                     :fixed-location="$location"
                     :key="'main-tab-panel-'.$location"
-                    lazy
+                    lazy="on-load"
                 />
             @endif
         </section>
     @endforeach
+
+    <section
+        x-show="@js($utilityTabLocations).includes(currentLocation)"
+        style="{{ in_array($currentLocation, $utilityTabLocations, true) ? '' : 'display: none;' }}"
+        data-main-tab-utility
+    >
+        @if(in_array($currentLocation, $utilityTabLocations, true))
+            <livewire:main-screen
+                :fixed-location="$currentLocation"
+                :key="'main-tab-utility-'.$currentLocation"
+            />
+        @else
+            @include('livewire.main-screen-placeholder')
+        @endif
+    </section>
 </div>
