@@ -14,8 +14,7 @@
         <div class="grid grid-cols-5">
             @foreach($bottomNavs as $key => $nav)
                 <button type="button"
-                        wire:click="$dispatch('changeTab', { newLocation: '{{ $key }}' })"
-                        @click="pending = '{{ $key }}'; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $key }}' } }))"
+                        @click="pending = '{{ $key }}'; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $key }}' } })); $dispatch('changeTab', { newLocation: '{{ $key }}' })"
                         class="relative flex flex-col items-center justify-center gap-0.5 py-1 transition-all active:scale-90">
 
                     {{-- アクティブインジケーター（上部ライン） --}}

@@ -1357,8 +1357,7 @@
                     </div>
                 </div>
                 <button type="button"
-                        wire:click="$dispatch('changeTab', { newLocation: 'move' })"
-                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
+                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
                         class="ml-auto flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
                         aria-label="街を移動する">
                     <img src="{{ asset('images/icon/move_map.png') }}" alt="" class="h-7 w-7 object-contain drop-shadow-sm sm:h-8 sm:w-8">

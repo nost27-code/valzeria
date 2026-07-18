@@ -98,8 +98,7 @@
                                         </button>
                                     @endif
                                     <button type="button"
-                                            wire:click="$dispatch('changeTab', { newLocation: 'move' })"
-                                            @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
+                                            @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
                                             class="shrink-0 rounded-md border bg-white px-3 py-1.5 text-[12px] font-black shadow-sm transition active:scale-95 {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50/50' : 'border-[#d4af37] text-[#9a6b00] hover:bg-amber-50' }}">
                                         MAPへ
                                     </button>
@@ -176,8 +175,7 @@
                                         </a>
                                     @elseif(!empty($currentMission['tab']))
                                         <button type="button"
-                                                wire:click="$dispatch('changeTab', { newLocation: '{{ $currentMission['tab'] }}' })"
-                                                @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $currentMission['tab'] }}' } }))"
+                                                @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $currentMission['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $currentMission['tab'] }}' })"
                                                 class="inline-flex items-center justify-center rounded bg-[#1e40af] px-3 py-2 text-xs font-bold text-white shadow border border-[#1e3a8a] active:scale-95">
                                             {{ $currentMission['action_label'] }}
                                         </button>
@@ -290,8 +288,7 @@
                                             </a>
                                         @elseif(!$menuIsInactive && isset($menuItem['tab']))
                                             <button type="button"
-                                                    wire:click="$dispatch('changeTab', { newLocation: '{{ $menuItem['tab'] }}' })"
-                                                    @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $menuItem['tab'] }}' } }))"
+                                                    @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $menuItem['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $menuItem['tab'] }}' })"
                                                     class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
                                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 p-1">{!! $menuIconHtml !!}</div>
                                                 <div class="min-w-0 flex-1">
@@ -392,8 +389,7 @@
                                             @elseif(!$isInactive && !empty($facility['tab']))
                                                 <button type="button"
                                                         x-data="{ submitting: false }"
-                                                        @click="if (submitting) return; submitting = true; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $facility['tab'] }}' } })); $dispatch('tabSelectedFromOutside', { location: '{{ $facility['tab'] }}' }); setTimeout(() => submitting = false, 700);"
-                                                        wire:click="$dispatch('changeTab', { newLocation: '{{ $facility['tab'] }}' })"
+                                                        @click="if (submitting) return; submitting = true; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $facility['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $facility['tab'] }}' }); setTimeout(() => submitting = false, 700);"
                                                         x-bind:class="submitting ? 'opacity-60 cursor-wait' : ''"
                                                         class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
                                                     @if($iconImage)
@@ -1260,7 +1256,7 @@
                         <div class="col-span-1 xl:col-span-2 border-2 border-[#d4af37] bg-amber-50 rounded-lg p-5 mt-4 flex flex-col items-center justify-center text-center shadow-md">
                             <h3 class="text-lg font-bold text-[#b8860b] mb-2 flex items-center justify-center gap-2">この街の探索を全て完了しました。</h3>
                             <p class="text-gray-700 mb-4 font-medium">新しい街へ旅立つ準備が整いました。次の冒険の舞台へ向かいましょう。</p>
-                            <button wire:click="$dispatch('changeTab', { newLocation: 'move' })" @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))" class="inline-flex cursor-pointer items-center justify-center bg-[#1e40af] hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] text-white font-bold py-2.5 px-8 rounded text-center shadow-md transition-transform hover:-translate-y-1">
+                            <button @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })" class="inline-flex cursor-pointer items-center justify-center bg-[#1e40af] hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] text-white font-bold py-2.5 px-8 rounded text-center shadow-md transition-transform hover:-translate-y-1">
                                 <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain inline-block mr-1"> 街を移動する
                             </button>
                         </div>
