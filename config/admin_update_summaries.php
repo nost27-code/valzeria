@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-adventurer-departure-set-home-banner',
+        'date' => '2026-07-18',
+        'category' => 'added',
+        'title' => '序盤冒険者へ旅立ちセットを案内',
+        'detail' => '鍛冶街グランベルグに到達する前で、旅立ちセットを未購入の冒険者に、ホームから補給商会のセットへ進める案内を追加しました。',
+    ],
+    [
         'id' => '2026-07-18-main-tab-panel-cache',
         'date' => '2026-07-18',
         'category' => 'changed',

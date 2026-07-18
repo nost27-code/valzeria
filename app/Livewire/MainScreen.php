@@ -206,7 +206,7 @@ class MainScreen extends Component
         return $location === 'job' ? 'town' : ($location ?: 'home');
     }
 
-    public function render(AreaService $areaService, PublicLogService $logService, CharacterGoalService $goalService, CharacterStatusService $statusService, EquipmentService $equipmentService, BeginnerMissionService $beginnerMissionService, StorageCapacityService $storageCapacityService, HomeActionService $homeActionService)
+    public function render(AreaService $areaService, PublicLogService $logService, CharacterGoalService $goalService, CharacterStatusService $statusService, EquipmentService $equipmentService, BeginnerMissionService $beginnerMissionService, StorageCapacityService $storageCapacityService, HomeActionService $homeActionService, \App\Services\AdventureSupportService $adventureSupportService)
     {
         // ジョブが取得できない場合のエラー回避
         $jobName = $this->character && $this->character->jobClass ? $this->character->jobClass->name : '冒険者';
@@ -492,6 +492,9 @@ class MainScreen extends Component
 
         // ホームタブ専用データ（他タブでは計算不要）
         $nextGoal = ($this->character && $isHomeTab) ? $goalService->getNextGoal($this->character) : null;
+        $departureSetHomeBanner = ($this->character && $isHomeTab)
+            ? $adventureSupportService->departureSetHomeBannerFor($this->character)
+            : null;
         $showsBeginnerMissions = in_array($this->currentLocation, ['town', 'dungeon', 'home', 'guild'], true);
         $beginnerMissions = ($this->character && $showsBeginnerMissions) ? $beginnerMissionService->summary($this->character) : null;
 
@@ -561,6 +564,7 @@ class MainScreen extends Component
             'locationData' => $locationData[$this->currentLocation] ?? $locationData['town'],
             'townFacilities' => $locationData['town']['facilities'] ?? [],
             'nextGoal' => $nextGoal,
+            'departureSetHomeBanner' => $departureSetHomeBanner,
             'beginnerMissions' => $beginnerMissions,
             'finalStats' => $finalStats,
             'equippedItems' => $equippedItems,

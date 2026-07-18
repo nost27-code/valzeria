@@ -7,6 +7,7 @@ use App\Models\CharacterConsumableItem;
 use App\Models\CharacterExplorationState;
 use App\Models\CharacterItem;
 use App\Models\CharacterShopLimit;
+use App\Models\City;
 use App\Models\Item;
 use App\Models\KisekiTransaction;
 use App\Models\ShopPurchaseLog;
@@ -50,6 +51,36 @@ class AdventureSupportService
         return $this->supportConsumableKeys()
             ->mapWithKeys(fn (string $key) => [$key => $this->consumableQuantity($character, $key)])
             ->all();
+    }
+
+    public function departureSetHomeBannerFor(Character $character): ?array
+    {
+        $itemKey = 'adventurer_departure_set';
+        $item = config("adventure_support.items.{$itemKey}");
+        if (!is_array($item)) {
+            return null;
+        }
+
+        $controlService = app(AdventureSupportItemControlService::class);
+        if (!$controlService->isVisible($itemKey, $item)
+            || !$controlService->isEnabled($itemKey, $item)
+            || ($this->requiresSupportPass($item) && !app(SupportPassService::class)->enabled())
+            || !$this->departureSetAssetsReady($item)
+            || $this->purchasedCount($character, $itemKey, null) >= (int) ($item['purchase_limit'] ?? 1)) {
+            return null;
+        }
+
+        $bannerUntilCity = City::find((int) ($item['home_banner_until_city_id'] ?? 0));
+        $highestCity = $character->highestCity ?? $character->currentCity;
+        if (!$bannerUntilCity || !$highestCity || (int) $highestCity->sort_order >= (int) $bannerUntilCity->sort_order) {
+            return null;
+        }
+
+        return [
+            'name' => (string) ($item['name'] ?? '冒険者旅立ちセット'),
+            'price' => (int) ($item['price'] ?? 0),
+            'icon_image' => $item['icon_image'] ?? null,
+        ];
     }
 
     public function ownedConsumablesFor(Character $character): array

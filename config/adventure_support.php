@@ -10,6 +10,7 @@ return [
             'description' => '冒険に役立つ支援パス・探索力の薬・倉庫拡張と、限定カードフレームをまとめた一度限りのセットです。',
             'effect_type' => 'adventurer_departure_set',
             'purchase_limit' => 1,
+            'home_banner_until_city_id' => 4,
             'purchase_button_label' => '旅立ちセットを購入',
             'regular_value_kiseki' => 225,
             'approx_value_jpy' => 980,

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Character;
+use App\Models\CharacterShopLimit;
 use App\Models\User;
 use App\Services\AdventureSupportService;
 use App\Services\GameSettingService;
@@ -133,6 +134,31 @@ class AdventurerDepartureSetTest extends TestCase
             'price_currency' => 'ticket',
             'price_amount' => 0,
         ]);
+    }
+
+    public function test_departure_set_home_banner_is_limited_to_pre_granberg_unpurchased_characters(): void
+    {
+        [, $character] = $this->createCharacterWithKiseki(0, 0);
+        $character->forceFill(['current_city_id' => 1, 'highest_city_id' => 1])->save();
+
+        $banner = app(AdventureSupportService::class)->departureSetHomeBannerFor($character);
+
+        $this->assertSame('冒険者旅立ちセット', $banner['name']);
+        $this->assertSame(100, $banner['price']);
+
+        $character->forceFill(['highest_city_id' => 4])->save();
+        $character->unsetRelation('highestCity');
+        $this->assertNull(app(AdventureSupportService::class)->departureSetHomeBannerFor($character));
+
+        [, $purchasedCharacter] = $this->createCharacterWithKiseki(0, 0);
+        $purchasedCharacter->forceFill(['current_city_id' => 1, 'highest_city_id' => 1])->save();
+        CharacterShopLimit::create([
+            'character_id' => $purchasedCharacter->id,
+            'shop_item_key' => 'adventurer_departure_set',
+            'purchased_count' => 1,
+        ]);
+
+        $this->assertNull(app(AdventureSupportService::class)->departureSetHomeBannerFor($purchasedCharacter));
     }
 
     public function test_departure_set_can_only_be_purchased_once(): void
