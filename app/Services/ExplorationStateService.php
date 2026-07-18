@@ -467,9 +467,16 @@ class ExplorationStateService
         return null;
     }
 
-    public function summaryForArea(Character $character, Area $area): array
+    public function summaryForArea(
+        Character $character,
+        Area $area,
+        ?CharacterExplorationState $state = null,
+        bool $stateAlreadyLoaded = false
+    ): array
     {
-        $state = $this->currentFor($character);
+        if (! $stateAlreadyLoaded) {
+            $state = $this->currentFor($character);
+        }
         $isCurrentArea = $state && (int) $state->area_id === (int) $area->id;
         $point = $isCurrentArea ? (int) $state->exploration_point : 0;
         $chain = $isCurrentArea ? (int) $state->chain_count : 0;

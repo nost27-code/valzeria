@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-main-tab-mobile-performance',
+        'date' => '2026-07-18',
+        'category' => 'changed',
+        'title' => 'スマホのメインタブ切り替えを軽量化',
+        'detail' => '街・探索・冒険者・市場などのタブ切り替え時に、不要な読み込みを抑えて表示を軽量化しました。',
+    ],
+    [
         'id' => '2026-07-18-adventurer-card-frame-91-width',
         'date' => '2026-07-18',
         'category' => 'changed',

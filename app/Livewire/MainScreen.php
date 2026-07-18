@@ -219,14 +219,25 @@ class MainScreen extends Component
         $isFerdiaSimpleBase = $this->isFerdiaSimpleBase($currentCity);
         $isFerdiaRegion = $currentCity
             && app(\App\Services\FerdiaMapService::class)->isFerdiaCityId((int) $currentCity->id);
-        $locationData = $this->getLocationData($currentCity, $this->character, $isFerdiaSimpleBase);
+        $needsTownState = in_array($this->currentLocation, ['home', 'town'], true);
+        $townFinalStats = $finalStats;
+        if ($this->character && $needsTownState && $townFinalStats === null) {
+            $townFinalStats = $statusService->getFinalStats($this->character);
+        }
+        $locationData = $this->getLocationData(
+            $currentCity,
+            $this->character,
+            $isFerdiaSimpleBase,
+            $townFinalStats,
+            $needsTownState
+        );
         // Apply facility text overrides from admin panel
-        if (isset($locationData['town']['facilities'])) {
+        if ($needsTownState && isset($locationData['town']['facilities'])) {
             $locationData['town']['facilities'] = $this->applyFacilityOverrides(
                 $locationData['town']['facilities'], 'town'
             );
         }
-        if ($this->character && isset($locationData['guild']['facilities'])) {
+        if ($this->character && $this->currentLocation === 'guild' && isset($locationData['guild']['facilities'])) {
             $deliverableNpcRequestCount = $homeActionService->deliverableNpcRequestCount($this->character);
             foreach ($locationData['guild']['facilities'] as &$guildFacility) {
                 if (($guildFacility['route'] ?? null) === 'market.npc-requests.index') {
@@ -261,6 +272,12 @@ class MainScreen extends Component
                 }
 
                 $areas = $areaService->getAreasWithProgress($this->character);
+                $bossAreaIds = \App\Models\Enemy::query()
+                    ->whereIn('area_id', $areas->pluck('id'))
+                    ->where('is_boss', true)
+                    ->pluck('area_id')
+                    ->mapWithKeys(fn ($areaId) => [(int) $areaId => true]);
+                $currentExplorationState = $explorationStateService->currentFor($this->character);
                 $discoveryRumors = app(DiscoveryService::class)->visibleRumors($this->character, $currentCity?->id);
                 $recordedDepthGatesByArea = DB::table('character_depth_gate_discoveries')
                     ->where('character_id', (int) $this->character->id)
@@ -297,7 +314,7 @@ class MainScreen extends Component
                     
                     $dungeonOrder++;
 
-                    $hasBoss = \App\Models\Enemy::where('area_id', $area->id)->where('is_boss', true)->exists();
+                    $hasBoss = isset($bossAreaIds[(int) $area->id]);
 
                     $status = $area->is_unlocked ? 'active' : 'locked';
                     $actionText = $area->is_route_area ? '道を進む' : '探索する';
@@ -307,7 +324,12 @@ class MainScreen extends Component
                         $actionText = '条件未達';
                     }
 
-                    $explorationSummary = $explorationStateService->summaryForArea($this->character, $area);
+                    $explorationSummary = $explorationStateService->summaryForArea(
+                        $this->character,
+                        $area,
+                        $currentExplorationState,
+                        true
+                    );
                     $recommendedPower = $powerService->recommendedRangeForArea($area);
                     $details = ['目安戦力: ' . $powerService->formatRange($recommendedPower)];
                     $developmentMax = $ferdiaMapService->maxDevelopmentPointForArea($area) ?? 100;
@@ -728,7 +750,13 @@ class MainScreen extends Component
         return !$ferdiaMapService->canTravelCity($this->character, $currentCity);
     }
 
-    private function getLocationData($currentCity = null, $character = null, bool $isFerdiaSimpleBase = false)
+    private function getLocationData(
+        $currentCity = null,
+        $character = null,
+        bool $isFerdiaSimpleBase = false,
+        ?array $townFinalStats = null,
+        bool $resolveTownState = true
+    )
     {
         $cityName = $currentCity ? $currentCity->name : '冒険都市ヴァルゼリア';
         $cityDesc = $currentCity ? $currentCity->description : '冒険者たちが集まるヴァルゼリアの玄関口です。';
@@ -740,10 +768,10 @@ class MainScreen extends Component
         $hasEquipmentShop = $cityId >= 1 && $cityId <= 6;
         $innRestBlocked = false;
         $innRestBlockMessage = 'HP/SPが満タンです。宿屋で休む必要はありません。';
-        if ($character) {
-            $finalStats = app(CharacterStatusService::class)->getFinalStats($character);
-            $maxHp = (int) ($finalStats['max_hp'] ?? $character->hp_base);
-            $maxMp = (int) ($finalStats['max_mp'] ?? 0);
+        if ($character && $resolveTownState) {
+            $townFinalStats ??= app(CharacterStatusService::class)->getFinalStats($character);
+            $maxHp = (int) ($townFinalStats['max_hp'] ?? $character->hp_base);
+            $maxMp = (int) ($townFinalStats['max_mp'] ?? 0);
             $innRestBlocked = (int) $character->current_hp >= $maxHp
                 && ($maxMp === 0 || (int) $character->current_mp >= $maxMp);
         }
@@ -751,7 +779,7 @@ class MainScreen extends Component
         $explorationSupportEnabled = app(\App\Services\ExplorationSupportService::class)->isEnabled();
 
         $townFacilities = [
-            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
+            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character && $resolveTownState ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
             ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
             ...($hasEquipmentShop && !$isFerdiaSimpleBase ? [
                 ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],

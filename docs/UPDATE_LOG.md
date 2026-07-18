@@ -8,6 +8,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- スマホで街・探索・冒険者・市場などのメインタブを切り替える際の、不要な読み込みを抑えて表示を軽量化しました。
 - 限定冒険者カード枠の左右を少し広げ、装飾が見えやすくなるよう調整しました。
 
 ### Internal
