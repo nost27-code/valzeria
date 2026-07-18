@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-sub-area-defeat-return-only',
+        'date' => '2026-07-18',
+        'category' => 'fixed',
+        'title' => '共有サブエリア敗北後の再探索を防止',
+        'detail' => '共有サブエリアで敗北した後は、再探索せず、戦利品を持って帰る導線だけが表示されるよう修正しました。',
+    ],
+    [
         'id' => '2026-07-18-exploration-stamina-modal-scroll-fix',
         'date' => '2026-07-18',
         'category' => 'fixed',

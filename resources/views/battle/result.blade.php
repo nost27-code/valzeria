@@ -1734,7 +1734,7 @@
                                     <span>↩</span> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : '今は探索を続ける ' . $staminaCostHtml) !!}</span>
                                 </button>
                             </form>
-                        @elseif(!isset($result['error']) && !$isBoss && ($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
+                        @elseif(!isset($result['error']) && !$isBoss && $isVictoryResult && ($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
                             <form action="{{ route('battle.sub_area.explore', ['discovery' => $result['sub_area_discovery_id']]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
                                 @csrf
                                 <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-indigo-700 hover:bg-indigo-800 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
@@ -1799,7 +1799,7 @@
                                     <span>街へ戻る</span>
                                 </button>
                             </form>
-                        @elseif(!isset($result['error']) && !in_array($result['result'], ['victory', 'win'], true))
+                        @elseif(!isset($result['error']) && !in_array($result['result'], ['victory', 'win'], true) && !($isSubAreaExplore && $isDefeatResult))
                             <a href="{{ route('home') }}"
                                x-data="{ loading: false }"
                                @click="if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) loading = true"
