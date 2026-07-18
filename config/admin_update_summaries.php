@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-equipment-market-relisting-fix',
+        'date' => '2026-07-18',
+        'category' => 'fixed',
+        'title' => '装備市場の取消後再出品を修正',
+        'detail' => '装備市場で出品を取り消した武器を、すぐに再出品できるよう修正しました。失敗時も市場画面で案内を表示します。',
+    ],
+    [
         'id' => '2026-07-18-sub-area-defeat-return-only',
         'date' => '2026-07-18',
         'category' => 'fixed',

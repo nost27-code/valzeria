@@ -83,6 +83,37 @@ class EquipmentMarketSnapshotRefreshTest extends TestCase
         $this->assertSame('cancelled', $listing->status);
     }
 
+    public function test_cancelling_listing_allows_immediate_relisting_of_the_same_weapon(): void
+    {
+        $character = $this->createCharacter(100_000);
+        $prefix = EquipmentAffixPrefix::query()->where('affix_key', 'power')->firstOrFail();
+        $item = Item::query()->create([
+            'name' => '再出品試験剣', 'type' => 'weapon', 'weapon_category' => 'sword',
+            'weapon_rank' => 'S', 'str_bonus' => 100, 'is_active' => true, 'is_tradeable' => true,
+        ]);
+        $characterItem = CharacterItem::query()->create([
+            'character_id' => $character->id, 'item_id' => $item->id,
+            'affix_prefix_id' => $prefix->id, 'affix_prefix_level' => 2,
+            'is_equipped' => false, 'is_locked' => false, 'is_tradeable' => true,
+        ]);
+
+        $service = app(EquipmentMarketService::class);
+        $appraisal = app(EquipmentMarketAppraisalService::class)->appraisal($characterItem);
+        $firstListing = $service->listWeapon($character, $characterItem, $appraisal['appraisal_price']);
+
+        $service->cancelListing($character, $firstListing);
+
+        $characterItem->refresh();
+        $this->assertNull($characterItem->market_listing_id);
+        $this->assertNull($characterItem->market_relistable_at);
+
+        $relisted = $service->listWeapon($character, $characterItem, $appraisal['appraisal_price']);
+
+        $this->assertNotSame($firstListing->id, $relisted->id);
+        $this->assertSame($characterItem->id, $relisted->character_item_id);
+        $this->assertSame('active', $relisted->status);
+    }
+
     public function test_refresh_active_snapshots_does_not_reprice_a_legacy_listing(): void
     {
         $character = $this->createCharacter(100_000);

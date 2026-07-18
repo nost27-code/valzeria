@@ -9,7 +9,9 @@ use App\Services\EquipmentMarketAppraisalService;
 use App\Services\EquipmentMarketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Throwable;
 
 class EquipmentMarketController extends Controller
 {
@@ -98,7 +100,18 @@ class EquipmentMarketController extends Controller
         if (! $character) return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         $data = $request->validate(['character_item_id' => ['required', 'integer', 'exists:character_items,id'], 'listing_price' => ['required', 'integer', 'min:1', 'max:999999999']]);
         $item = CharacterItem::findOrFail($data['character_item_id']);
-        $listing = $this->service->listWeapon($character, $item, (int) $data['listing_price']);
+        try {
+            $listing = $this->service->listWeapon($character, $item, (int) $data['listing_price']);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (RuntimeException $e) {
+            return redirect()->route('equipment-market.index', ['tab' => 'sell'])->with('error', $e->getMessage());
+        } catch (Throwable $e) {
+            report($e);
+
+            return redirect()->route('equipment-market.index', ['tab' => 'sell'])->with('error', '出品処理に失敗しました。時間をおいて再度お試しください。');
+        }
+
         return redirect()->route('equipment-market.index', ['tab' => 'listings'])->with('status', "{$listing->display_name_snapshot}を" . number_format($listing->listing_price) . 'Gで出品しました。');
     }
 
@@ -120,6 +133,11 @@ class EquipmentMarketController extends Controller
         if (! $character) return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         try { $this->service->cancelListing($character, $listing); }
         catch (RuntimeException $e) { return redirect()->route('equipment-market.index', ['tab' => 'listings'])->with('error', $e->getMessage()); }
+        catch (Throwable $e) {
+            report($e);
+
+            return redirect()->route('equipment-market.index', ['tab' => 'listings'])->with('error', '出品の取消しに失敗しました。時間をおいて再度お試しください。');
+        }
         return redirect()->route('equipment-market.index', ['tab' => 'listings'])->with('status', '出品を取り消しました。');
     }
 }
