@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BankController;
 use App\Livewire\CharacterCreate;
-use App\Livewire\MainScreen;
+use App\Livewire\MainScreenShell;
 use App\Http\Controllers\BattleController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\EquipmentController;
@@ -265,7 +265,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/tavern/npcs/{npc}/talk', [TavernController::class, 'talk'])->name('tavern.talk');
         Route::get('/tavern/roster', [TavernController::class, 'roster'])->name('tavern.roster');
         Route::get('/tavern/roster/{npc}', [TavernController::class, 'rosterDetail'])->name('tavern.roster.detail');
-        Route::get('/home', MainScreen::class)->name('home');
+        Route::get('/home', MainScreenShell::class)->name('home');
         Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::get('/profile/favorite-weapons', [ProfileController::class, 'favoriteWeapons'])->name('profile.favorite-weapons');
         Route::post('/profile/edit', [ProfileController::class, 'update'])->name('profile.update');

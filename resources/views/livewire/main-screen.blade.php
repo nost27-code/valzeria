@@ -10,6 +10,7 @@
          belongingsModalOpen: false,
          belongingsLoading: false,
          belongingsHtml: '',
+         lastRefreshedAt: Date.now(),
          openModal(title, message) {
              this.modalTitle = title;
              this.modalMessage = message;
@@ -42,7 +43,19 @@
                  this.belongingsLoading = false;
              }
          }
-     }">
+     }"
+     @main-tab-selected.window="
+         if ($event.detail.location === @js($currentLocation) && Date.now() - lastRefreshedAt >= 60000) {
+             lastRefreshedAt = Date.now();
+             $wire.$refresh();
+         }
+     "
+     @main-tab-invalidated.window="
+         if ($event.detail.location === @js($currentLocation)) {
+             lastRefreshedAt = Date.now();
+             $wire.$refresh();
+         }
+     ">
 
 
     <!-- 2. 中段：メイン2カラム -->
@@ -53,7 +66,9 @@
         <div class="w-full flex flex-col gap-0 rounded-xl overflow-hidden shadow-sm shrink-0 min-h-[80vh] {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border border-emerald-300/70 bg-white' : 'bg-white border border-[#d4af37]' }}">
 
             <!-- タブナビゲーション -->
-            <livewire:nav-menu />
+            @unless($embedded)
+                <livewire:nav-menu />
+            @endunless
 
             <!-- メインコンテンツ表示枠（施設ハブ） -->
             <div class="p-4 flex-grow flex flex-col relative {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'bg-emerald-50/15' : 'bg-white' }}"

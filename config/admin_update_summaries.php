@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-main-tab-panel-cache',
+        'date' => '2026-07-18',
+        'category' => 'changed',
+        'title' => '読み込み済みメインタブを即時表示',
+        'detail' => '街・探索・冒険者・市場・闘技場を初回だけ読み込み、読み込み済みのタブを保持する方式へ変更しました。2回目以降はサーバーの再読込を待たずに表示されます。',
+    ],
+    [
         'id' => '2026-07-18-main-tab-mobile-performance',
         'date' => '2026-07-18',
         'category' => 'changed',
