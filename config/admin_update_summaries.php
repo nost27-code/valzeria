@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-18-adventurer-card-frame-91-width',
+        'date' => '2026-07-18',
+        'category' => 'changed',
+        'title' => '限定冒険者カード枠の横幅を調整',
+        'detail' => '限定冒険者カード枠の左右を少し広げ、装飾が見えやすくなるよう調整しました。',
+    ],
+    [
         'id' => '2026-07-18-bug-report-codex-copy',
         'date' => '2026-07-18',
         'category' => 'internal',

@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Changed
+
+- 限定冒険者カード枠の左右を少し広げ、装飾が見えやすくなるよう調整しました。
+
 ### Internal
 
 - 不具合フォームで、報告内容と利用環境をCodex向けの調査依頼文としてコピーできるようにしました。必要な添付画像は続けて貼り付けられます。

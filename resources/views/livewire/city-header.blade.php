@@ -446,7 +446,7 @@
         }
         .adventurer-card-hero.is-card-frame-91::after {
             inset: -42px -34px -58px;
-            background-size: 97% 97%;
+            background-size: 100% 97%;
         }
         .adventurer-card-hero.is-support-pass {
             background:
