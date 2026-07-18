@@ -21,8 +21,13 @@ class ChampCard extends Component
     {
         $character = Auth::check() ? Auth::user()->currentCharacter() : null;
         $champSummary = $character ? $champBattleService->summary($character) : null;
-        $storageIsFull = $character ? $storageCapacityService->isFull($character) : false;
-        $storageFullMessage = $storageIsFull ? $storageCapacityService->fullMessageHtml($character) : null;
+        $storageSummary = $character ? $storageCapacityService->summary($character) : null;
+        $storageIsFull = $storageSummary
+            ? ($storageSummary['material_full'] || $storageSummary['equipment_full'])
+            : false;
+        $storageFullMessage = $storageIsFull
+            ? $storageCapacityService->fullMessageHtml($character, $storageSummary)
+            : null;
 
         $champValmon = null;
         $champComment = null;

@@ -23,11 +23,13 @@ class GameTextService
             ['value' => $value, 'description' => $description]
         );
         Cache::forget("game_text:{$key}");
+        $this->forgetRelatedPrefixCache($key);
     }
 
     public function forget(string $key): void
     {
         Cache::forget("game_text:{$key}");
+        $this->forgetRelatedPrefixCache($key);
     }
 
     /**
@@ -36,12 +38,21 @@ class GameTextService
      */
     public function getAllForPrefix(string $prefix): array
     {
-        $rows = GameText::where('key', 'like', $prefix . '%')->get(['key', 'value']);
-        $result = [];
-        foreach ($rows as $row) {
-            $result[$row->key] = $row->value;
-            Cache::put("game_text:{$row->key}", $row->value, self::TTL);
+        return Cache::remember($this->prefixCacheKey($prefix), self::TTL, fn (): array => GameText::query()
+            ->where('key', 'like', $prefix . '%')
+            ->pluck('value', 'key')
+            ->all());
+    }
+
+    private function forgetRelatedPrefixCache(string $key): void
+    {
+        if (preg_match('/^(fac\.[^.]+\.)/', $key, $matches) === 1) {
+            Cache::forget($this->prefixCacheKey($matches[1]));
         }
-        return $result;
+    }
+
+    private function prefixCacheKey(string $prefix): string
+    {
+        return 'game_text_prefix:' . sha1($prefix);
     }
 }

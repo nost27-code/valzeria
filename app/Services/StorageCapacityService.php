@@ -61,9 +61,9 @@ class StorageCapacityService
         }
     }
 
-    public function fullMessageHtml(Character $character): string
+    public function fullMessageHtml(Character $character, ?array $summary = null): string
     {
-        $summary = $this->summary($character);
+        $summary ??= $this->summary($character);
         $lines = [];
 
         if ($summary['material_full']) {

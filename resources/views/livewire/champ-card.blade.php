@@ -30,7 +30,7 @@
             : null;
     @endphp
 
-    <section wire:poll.15s
+    <section wire:poll.60s
              x-data="{ expanded: false }"
              class="w-full overflow-hidden rounded-lg border border-[#d4af37] bg-white shadow-[0_4px_14px_rgba(126,96,28,0.12)]">
 

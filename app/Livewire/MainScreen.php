@@ -18,6 +18,7 @@ use App\Services\ExplorationDepthService;
 use App\Services\SubAreaDiscoveryService;
 use App\Services\DiscoveryService;
 use App\Services\TownRankingService;
+use App\Services\GameTextService;
 use App\Support\CharacterIconCatalog;
 use App\Support\FacilityConfig;
 use Illuminate\Support\Facades\Auth;
@@ -488,8 +489,13 @@ class MainScreen extends Component
         $beginnerMissions = ($this->character && $showsBeginnerMissions) ? $beginnerMissionService->summary($this->character) : null;
 
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
-        $storageIsFull = ($this->character && $isHomeTab) ? $storageCapacityService->isFull($this->character) : false;
-        $storageFullMessage = $storageIsFull ? $storageCapacityService->fullMessageHtml($this->character) : null;
+        $storageSummary = ($this->character && $isHomeTab) ? $storageCapacityService->summary($this->character) : null;
+        $storageIsFull = $storageSummary
+            ? ($storageSummary['material_full'] || $storageSummary['equipment_full'])
+            : false;
+        $storageFullMessage = $storageIsFull
+            ? $storageCapacityService->fullMessageHtml($this->character, $storageSummary)
+            : null;
         $subAreaDiscoveries = ($this->character && $this->currentLocation === 'dungeon')
             ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character, (int) ($currentCity?->id ?? 0))
             : collect();
@@ -713,16 +719,18 @@ class MainScreen extends Component
     private function applyFacilityOverrides(array $items, string $section): array
     {
         $slugMap = FacilityConfig::nameToSlug($section);
-        return array_map(function (array $item) use ($section, $slugMap) {
+        $overrides = app(GameTextService::class)->getAllForPrefix("fac.{$section}.");
+
+        return array_map(function (array $item) use ($section, $slugMap, $overrides) {
             $name = $item['name'] ?? '';
             $slug = $slugMap[$name] ?? null;
             if (!$slug) {
                 return $item;
             }
             $prefix = "fac.{$section}.{$slug}";
-            $nameOverride = game_text("{$prefix}.name");
-            $descOverride = game_text("{$prefix}.desc");
-            $iconOverride = game_text("{$prefix}.icon");
+            $nameOverride = (string) ($overrides["{$prefix}.name"] ?? '');
+            $descOverride = (string) ($overrides["{$prefix}.desc"] ?? '');
+            $iconOverride = (string) ($overrides["{$prefix}.icon"] ?? '');
             if ($nameOverride !== '') {
                 $item['name'] = $nameOverride;
             }
