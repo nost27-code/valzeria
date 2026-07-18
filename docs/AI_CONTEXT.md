@@ -53,6 +53,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)
 - State management: Livewire component state + DB; no SPA framework
 - メイン画面内のタブ導線は、Alpineのブラウザイベントから `MainScreen::changeLocation()` を直接呼び、ナビ用Livewireコンポーネントを経由する追加通信を発生させない。
+- 闘技場タブは `ArenaNpcRankingService::screenEntries()` でTOP5と挑戦候補3件だけを取得し、画面表示時に全ランキングの戦力を組み立てない。同一リクエスト内の順位整合性確認と倉庫集計も各1回にまとめる。
 - DB access: Eloquent models (snake_case columns); DTO/BattleActor use camelCase
 - Auth/session: Google OAuth login, guest session is linkable to Google from the shared header, character via Auth::user()->characters()->first()
 - Logging: battle_logs, player_lifecycle_events, gold_transactions, kiseki_transactions, admin_item_grant_logs, public_logs (bottom chat), admin analytics screens
