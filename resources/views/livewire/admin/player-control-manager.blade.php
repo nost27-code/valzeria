@@ -51,6 +51,22 @@
                 </div>
             @endif
         </div>
+        <div class="flex flex-col gap-3 border-t border-sky-100 bg-sky-50/50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-xs font-semibold leading-relaxed text-slate-600">
+                初回配布済みの {{ number_format($newcomerBonusSummary['target_count']) }} 名へ、{{ $newcomerBonusSummary['item_name'] }} x{{ number_format($newcomerBonusSummary['quantity']) }} を追加送付します。
+                配布済み {{ number_format($newcomerBonusSummary['already_granted_count']) }} 名／未配布 {{ number_format($newcomerBonusSummary['pending_count']) }} 名
+            </div>
+            @if($newcomerBonusSummary['pending_count'] > 0)
+                <button type="button"
+                        wire:click="grantNewcomerCampaignBonus"
+                        wire:confirm="現在の対象211名へ探索力の薬5個を追加送付します。実行しますか？"
+                        class="shrink-0 rounded-md bg-sky-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-800">
+                    211名へ追加送付
+                </button>
+            @else
+                <span class="shrink-0 rounded bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-800">追加送付済み</span>
+            @endif
+        </div>
     </section>
 
     <div class="grid gap-6 xl:grid-cols-[420px_1fr]">

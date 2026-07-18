@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-19-newcomer-campaign-potion-bonus',
+        'date' => '2026-07-19',
+        'category' => 'internal',
+        'title' => '7月登録CPの追加配布に対応',
+        'detail' => '初回配布済みの対象人数を確認したうえで、探索力の薬を一度だけ追加送付できるようにしました。',
+    ],
+    [
         'id' => '2026-07-18-adventurer-departure-set-home-banner',
         'date' => '2026-07-18',
         'category' => 'added',
