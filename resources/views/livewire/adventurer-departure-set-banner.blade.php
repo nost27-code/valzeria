@@ -11,8 +11,7 @@
                     <p class="mt-1 text-[11px] font-bold leading-relaxed text-slate-600">探索・倉庫・見た目をまとめて強化できる、序盤冒険者向けの特別セットです。</p>
                 </div>
                 <a href="{{ route('kiseki.support') }}#adventurer-departure-set" class="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-center text-[11px] font-black text-white shadow-sm transition hover:bg-amber-700 active:scale-95">
-                    <span class="block">{{ number_format($departureSetBanner['price']) }}輝石</span>
-                    <span class="block text-[10px]">セットを見る</span>
+                    <span>セットを見る</span>
                 </a>
             </div>
         </section>

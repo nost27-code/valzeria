@@ -173,6 +173,7 @@ class AdventurerDepartureSetTest extends TestCase
             ->assertSee('冒険者旅立ちセット')
             ->assertSee('冒険のスタートを、もっと軽やかに。')
             ->assertSee('探索・倉庫・見た目をまとめて強化できる、序盤冒険者向けの特別セットです。')
+            ->assertDontSee('100輝石')
             ->assertSee('images/icon/icon_259.webp');
     }
 
