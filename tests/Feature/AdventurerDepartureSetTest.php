@@ -171,6 +171,8 @@ class AdventurerDepartureSetTest extends TestCase
 
         Livewire::test(\App\Livewire\AdventurerDepartureSetBanner::class)
             ->assertSee('冒険者旅立ちセット')
+            ->assertSee('冒険のスタートを、もっと軽やかに。')
+            ->assertSee('探索・倉庫・見た目をまとめて強化できる、序盤冒険者向けの特別セットです。')
             ->assertSee('images/icon/icon_259.webp');
     }
 
