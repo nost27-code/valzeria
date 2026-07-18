@@ -117,8 +117,8 @@ class BalanceBattleLab extends Component
         $playerDamage = max($playerPhysical, $playerMagical);
         $playerAttackType = $playerMagical > $playerPhysical ? '魔法' : '物理';
 
-        $enemyPhysical = $this->averagePhysicalDamage($enemyStats['str'], $player['def']);
-        $enemyMagical = $this->averageMagicalDamage($enemyStats['mag'], $player['spr']);
+        $enemyPhysical = $this->averageEnemyPhysicalDamage($enemyStats['str'], $player['def']);
+        $enemyMagical = $this->averageEnemyMagicalDamage($enemyStats['mag'], $player['spr']);
         $enemyDamage = max($enemyPhysical, $enemyMagical);
         $enemyAttackType = $enemyMagical > $enemyPhysical ? '魔法' : '物理';
 
@@ -436,6 +436,29 @@ class BalanceBattleLab extends Component
     private function averageMagicalDamage(int $magic, int $spirit): int
     {
         return max(1, (int) floor($magic - ($spirit / 2)));
+    }
+
+    private function averageEnemyPhysicalDamage(int $attack, int $defense): int
+    {
+        return $this->averageEnemyPercentageDefenseDamage($attack, $defense);
+    }
+
+    private function averageEnemyMagicalDamage(int $magic, int $spirit): int
+    {
+        return $this->averageEnemyPercentageDefenseDamage($magic, $spirit);
+    }
+
+    private function averageEnemyPercentageDefenseDamage(int $attack, int $defense): int
+    {
+        if (! config('battle.pve_enemy_percentage_defense.enabled', false)) {
+            return max(1, (int) floor($attack - ($defense / 2)));
+        }
+
+        $attack = max(1, $attack);
+        $defense = max(0, $defense);
+        $coefficient = max(0.0, (float) config('battle.pve_enemy_percentage_defense.defense_coefficient', 0.8));
+
+        return max(1, (int) floor(($attack * $attack) / ($attack + ($coefficient * $defense))));
     }
 
     private function judgement(float $margin, int $turnsToDefeatEnemy): array

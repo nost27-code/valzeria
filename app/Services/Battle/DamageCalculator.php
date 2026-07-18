@@ -2,6 +2,8 @@
 
 namespace App\Services\Battle;
 
+use Illuminate\Container\Container;
+
 class DamageCalculator
 {
     private const DUEL_DEFENSE_RATE = 0.50;
@@ -233,6 +235,14 @@ class DamageCalculator
         $atk = $overrideAtk ?? $attacker->effectiveStr();
         $def = $overrideDef ?? $defender->effectiveDef();
 
+        if ($this->usesPveEnemyPercentageDefense($attacker, $defender)) {
+            if ($overrideDef === null) {
+                $def = $this->effectivePercentageDefense($defender, 'physical');
+            }
+
+            return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical);
+        }
+
         if ($isCritical) {
             $def = (int)($def * 0.5); // クリティカル時は敵の防御力半減
         }
@@ -270,6 +280,14 @@ class DamageCalculator
         $atk = $overrideAtk ?? $attacker->effectiveMag();
         $def = $overrideDef ?? $defender->effectiveSpr();
 
+        if ($this->usesPveEnemyPercentageDefense($attacker, $defender)) {
+            if ($overrideDef === null) {
+                $def = $this->effectivePercentageDefense($defender, 'magical');
+            }
+
+            return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical);
+        }
+
         if ($isCritical) {
             $def = (int)($def * 0.5);
         }
@@ -295,5 +313,63 @@ class DamageCalculator
         }
 
         return max(1, $finalDamage);
+    }
+
+    private function usesPveEnemyPercentageDefense(BattleActor $attacker, BattleActor $defender): bool
+    {
+        return (bool) $this->battleConfig('pve_enemy_percentage_defense.enabled', false)
+            && ! $attacker->isPlayer
+            && $defender->isPlayer;
+    }
+
+    private function effectivePercentageDefense(BattleActor $defender, string $attackType): float
+    {
+        $stat = $attackType === 'magical' ? $defender->spr : $defender->def;
+        $condition = $attackType === 'magical' ? 'spr_down' : 'def_down';
+
+        // 新式では防御0をそのまま扱い、基礎ダメージを攻撃力と一致させる。
+        return max(0.0, floor($stat * (1 - $defender->conditionRate($condition))));
+    }
+
+    private function calculatePveEnemyPercentageDamage(int $attackPower, float $defense, BattleActor $defender, int $skillPower, bool $isCritical): int
+    {
+        $attackPower = max(1, $attackPower);
+        $effectiveDefense = max(0.0, $defense);
+        if ($isCritical) {
+            $effectiveDefense /= 2;
+        }
+
+        $coefficient = max(0.0, (float) $this->battleConfig('pve_enemy_percentage_defense.defense_coefficient', 0.8));
+        $baseDamage = $this->calculatePveEnemyPercentageBaseDamage($attackPower, $effectiveDefense, $coefficient);
+
+        $damage = $baseDamage * ($skillPower / 100);
+        if ($isCritical) {
+            $damage *= 1.5;
+        }
+        $damage *= rand(85, 115) / 100;
+
+        if ($defender->isDefending) {
+            $damage *= 0.5;
+        }
+        if ($defender->damageReductionRate > 0) {
+            $damage *= (1 - ($defender->damageReductionRate / 100));
+        }
+
+        return max(1, (int) floor($damage));
+    }
+
+    private function calculatePveEnemyPercentageBaseDamage(int $attackPower, float $effectiveDefense, float $coefficient): float
+    {
+        return ($attackPower * $attackPower) / ($attackPower + ($coefficient * $effectiveDefense));
+    }
+
+    private function battleConfig(string $key, mixed $default): mixed
+    {
+        $container = Container::getInstance();
+        if (! $container->bound('config')) {
+            return $default;
+        }
+
+        return $container->make('config')->get('battle.' . $key, $default);
     }
 }
