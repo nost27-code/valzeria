@@ -10,6 +10,7 @@ use App\Services\GameSettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdventurerDepartureSetTest extends TestCase
@@ -159,6 +160,18 @@ class AdventurerDepartureSetTest extends TestCase
         ]);
 
         $this->assertNull(app(AdventureSupportService::class)->departureSetHomeBannerFor($purchasedCharacter));
+    }
+
+    public function test_departure_set_banner_component_uses_the_configured_image_path(): void
+    {
+        [$user, $character] = $this->createCharacterWithKiseki(0, 0);
+        $character->forceFill(['current_city_id' => 1, 'highest_city_id' => 1])->save();
+
+        $this->actingAs($user);
+
+        Livewire::test(\App\Livewire\AdventurerDepartureSetBanner::class)
+            ->assertSee('冒険者旅立ちセット')
+            ->assertSee('images/icon/icon_259.webp');
     }
 
     public function test_departure_set_can_only_be_purchased_once(): void
