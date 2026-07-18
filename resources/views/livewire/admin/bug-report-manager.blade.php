@@ -46,6 +46,13 @@
                         <p class="mt-1 text-xs font-bold text-slate-400">送信 {{ $selectedReport->created_at->format('Y/m/d H:i') }} @if($selectedReport->character?->jobClass) / {{ $selectedReport->character->jobClass->name }} @endif</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
+                        <div x-data="{ copied: false, failed: false, copy() { if (!navigator.clipboard?.writeText) { this.failed = true; return; } navigator.clipboard.writeText(@js($codexInvestigationText)).then(() => { this.copied = true; this.failed = false; setTimeout(() => this.copied = false, 2500); }).catch(() => { this.failed = true; this.copied = false; }); } }">
+                            <button type="button" x-on:click="copy" class="rounded-md bg-sky-600 px-3 py-2 text-xs font-black text-white shadow-sm hover:bg-sky-700">
+                                <span x-show="!copied && !failed">Codex調査用にコピー</span>
+                                <span x-cloak x-show="copied">コピーしました</span>
+                                <span x-cloak x-show="failed">コピーできませんでした</span>
+                            </button>
+                        </div>
                         @if($selectedReport->user_id || $selectedReport->character?->user_id)
                             <a href="{{ route('admin.user-investigation', ['user_id' => $selectedReport->user_id ?? $selectedReport->character?->user_id]) }}" target="_blank" rel="noopener" class="rounded-md bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">
                                 ユーザー個別調査を開く
@@ -57,6 +64,7 @@
                     </div>
                 </div>
                 <div class="whitespace-pre-wrap py-5 text-sm font-semibold leading-8 text-slate-800">{{ $selectedReport->body }}</div>
+                <p class="-mt-2 pb-5 text-xs font-semibold leading-relaxed text-slate-500">「Codex調査用にコピー」で本文・報告元URL・利用環境をコピーできます。添付画像は必要なものを続けて貼り付けてください。</p>
 
                 <div class="border-t border-slate-100 pt-5">
                     <h3 class="text-sm font-black text-slate-900">管理人から返信</h3>

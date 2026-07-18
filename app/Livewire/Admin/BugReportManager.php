@@ -82,6 +82,34 @@ class BugReportManager extends Component
         ]);
     }
 
+    private function codexInvestigationText(BugReport $report): string
+    {
+        $reportedUrl = $report->reported_url
+            ? explode('?', $report->reported_url, 2)[0]
+            : '未取得';
+
+        return implode("\n", [
+            '# 不具合調査依頼',
+            '',
+            '「ヴァルゼリアの冒険者」の現行コードを確認し、以下の報告を調査してください。',
+            '現在の仕様、原因、再現条件、影響範囲、問題なら最小修正案と確認方法を日本語で報告してください。',
+            '',
+            '## 報告情報',
+            '- 報告者: ' . ($report->character?->name ?? 'キャラクター不明'),
+            '- 送信日時: ' . $report->created_at->format('Y/m/d H:i'),
+            '- 職業: ' . ($report->character?->jobClass?->name ?? '未取得'),
+            '- 報告元URL: ' . $reportedUrl,
+            '- 利用環境: ' . ($report->user_agent ?: '未取得'),
+            '- 添付画像: ' . $report->attachments->count() . '枚',
+            '',
+            '## 報告内容',
+            $report->body,
+            '',
+            '## 添付画像について',
+            '必要に応じて、この依頼文を貼り付けた後に不具合フォームの添付画像を続けて貼り付けます。',
+        ]);
+    }
+
     public function render()
     {
         $query = BugReport::query()->with(['character', 'attachments'])->latest();
@@ -122,6 +150,7 @@ class BugReportManager extends Component
             'reports' => $reports,
             'selectedReport' => $selectedReport,
             'adminConversation' => $adminConversation,
+            'codexInvestigationText' => $selectedReport ? $this->codexInvestigationText($selectedReport) : '',
             'counts' => [
                 'new' => BugReport::where('status', 'new')->count(),
                 'read' => BugReport::where('status', 'read')->count(),

@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-07-18-bug-report-codex-copy',
+        'date' => '2026-07-18',
+        'category' => 'internal',
+        'title' => '不具合報告をCodex調査用にコピー',
+        'detail' => '不具合フォームで、報告内容と利用環境をCodex向けの調査依頼文としてコピーできるようにしました。必要な添付画像も続けて貼り付けられます。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-07-18-equipment-market-relisting-fix',
         'date' => '2026-07-18',
         'category' => 'fixed',
