@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-19-exploration-stamina-modal-close-fix',
+        'date' => '2026-07-19',
+        'category' => 'fixed',
+        'title' => '探索力回復ポップアップの閉じる操作を修正',
+        'detail' => '探索力不足時の回復・購入ポップアップで、iPhoneでも右上の×と「閉じる」から確実に画面を閉じられるようにしました。',
+    ],
+    [
         'id' => '2026-07-19-equipment-weapon-images',
         'date' => '2026-07-19',
         'category' => 'changed',

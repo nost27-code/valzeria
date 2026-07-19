@@ -1986,12 +1986,24 @@
                 if (!modal || modal.dataset.interactionBound === '1') return;
 
                 modal.dataset.interactionBound = '1';
+                const closeModalFromControl = function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeBatchStaminaModal();
+                };
+
+                // iOS Safari can consume a bubbled click after the scrollable
+                // modal has handled a touch. Bind the close controls directly as
+                // well as keeping the delegated fallback below.
+                modal.querySelectorAll('[data-batch-stamina-modal-close]').forEach((button) => {
+                    button.addEventListener('click', closeModalFromControl);
+                    button.addEventListener('touchend', closeModalFromControl, { passive: false });
+                });
+
                 modal.addEventListener('click', function(event) {
                     const closeButton = event.target.closest('[data-batch-stamina-modal-close]');
                     if (closeButton) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        closeBatchStaminaModal();
+                        closeModalFromControl(event);
                         return;
                     }
 
