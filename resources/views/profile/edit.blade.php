@@ -21,6 +21,8 @@
             </div>
         @endif
 
+        <livewire:city-header :modal-only="true" />
+
         <form method="POST"
               action="{{ route('profile.update') }}"
               class="space-y-4"
@@ -323,6 +325,8 @@
                     保存する
                 </button>
             </div>
+
         </form>
+
     </div>
 </x-layouts.facility>

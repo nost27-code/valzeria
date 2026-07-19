@@ -5,6 +5,49 @@
           notificationOpen: false,
           selectedJobBadgeTier: null,
           selectedJobBadge: null,
+          isSharingAdventurerCard: false,
+          adventurerCardShareMessage: '',
+          async shareAdventurerCard() {
+              if (this.isSharingAdventurerCard || !this.$refs.adventurerCard || !window.adventurerCardToBlob) return;
+
+              this.isSharingAdventurerCard = true;
+              this.adventurerCardShareMessage = '';
+
+              try {
+                  const blob = await window.adventurerCardToBlob(this.$refs.adventurerCard, this.playerInfo);
+                  if (!blob) throw new Error('image export failed');
+
+                  const file = new File([blob], 'valzeria-adventurer-card.png', { type: 'image/png' });
+                  const shareData = {
+                      title: `${this.playerInfo.name}の冒険者カード`,
+                      text: `ヴァルゼリアの冒険者 #ヴァルゼリアの冒険者`,
+                      files: [file],
+                  };
+
+                  if (navigator.canShare?.(shareData)) {
+                      await navigator.share(shareData);
+                      return;
+                  }
+
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `${this.playerInfo.name}-adventurer-card.png`;
+                  link.style.display = 'none';
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  this.adventurerCardShareMessage = '画像を保存しました。SNS投稿時に添付してください。';
+              } catch (error) {
+                  console.error('Adventurer card image export failed.', error);
+                  if (error?.name !== 'AbortError') {
+                      this.adventurerCardShareMessage = '画像を作成できませんでした。時間をおいてもう一度お試しください。';
+                  }
+              } finally {
+                  this.isSharingAdventurerCard = false;
+              }
+          },
      }">
     <style>
         .profile-frame-modal {
@@ -1072,6 +1115,17 @@
             }
         }
     </style>
+    @if($modalOnly)
+        <div class="flex justify-start">
+            <button type="button"
+                    wire:click="openCurrentCharacterPreview"
+                    class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#1e40af] bg-white px-4 text-sm font-black text-[#1e40af] shadow-sm transition hover:bg-blue-50 active:scale-[0.98]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                プレビュー
+            </button>
+        </div>
+    @endif
+
     @if(!$modalOnly && !empty($topPlayer))
         <div class="relative left-1/2 z-40 mb-3 -mt-4 w-full -translate-x-1/2 overflow-visible border-b border-[#d4af37]/50 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.10)] sm:-mt-6">
             {{-- grid: [icon] [名前/レベル/職/戦力] [HP/SPバー] [探索力/ゴールド/輝石] [ベル] --}}
@@ -1357,8 +1411,7 @@
                     </div>
                 </div>
                 <button type="button"
-                        wire:click="$dispatch('changeTab', { newLocation: 'move' })"
-                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
+                        @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
                         class="ml-auto flex w-12 shrink-0 flex-col items-center justify-center rounded-full px-1 py-0.5 text-[#1e293b] transition active:scale-95 sm:w-14"
                         aria-label="街を移動する">
                     <img src="{{ asset('images/icon/move_map.png') }}" alt="" class="h-7 w-7 object-contain drop-shadow-sm sm:h-8 sm:w-8">
@@ -1407,7 +1460,8 @@
                 <span aria-hidden="true">×</span>
             </button>
             <template x-if="playerInfo">
-                <div class="adventurer-card-inner"
+                <div x-ref="adventurerCard"
+                     class="adventurer-card-inner"
                      :class="{
                          'is-support-pass-card': playerInfo.adventurer_card_skin === 'support_pass',
                          'is-support-pass-blue-gold-card': playerInfo.adventurer_card_skin === 'support_pass_blue_gold'
@@ -1822,6 +1876,15 @@
             </template>
 
             <div class="px-5 pb-5 pt-1" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <button x-show="playerInfo && playerInfo.is_self"
+                        type="button"
+                        @click="shareAdventurerCard()"
+                        :disabled="isSharingAdventurerCard"
+                        class="bg-sky-600 hover:bg-sky-700 disabled:cursor-wait disabled:opacity-70 text-white rounded font-bold shadow flex items-center gap-1"
+                        style="padding: 8px 12px; font-size: 12px;">
+                    <svg x-show="!isSharingAdventurerCard" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="m16 6-4-4-4 4M12 2v14"/></svg>
+                    <span x-text="isSharingAdventurerCard ? '画像作成中...' : 'SNS投稿'"></span>
+                </button>
                 <a x-show="playerInfo && playerInfo.is_self"
                    href="{{ route('profile.edit') }}#profile_comment"
                    class="bg-[#1e40af] hover:bg-[#1e3a8a] text-white rounded font-bold shadow flex items-center gap-1"
@@ -1837,6 +1900,7 @@
                 </button>
                 <button wire:click="closePlayerModal" class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded" style="padding: 8px 16px; font-size: 12px; font-weight: bold; cursor: pointer;">閉じる</button>
             </div>
+            <p x-show="adventurerCardShareMessage" x-text="adventurerCardShareMessage" class="px-5 pb-4 text-center text-[11px] font-bold text-slate-500"></p>
         </div>
     </div>
 </div>
