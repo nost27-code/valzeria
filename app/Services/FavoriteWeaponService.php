@@ -156,7 +156,7 @@ class FavoriteWeaponService
         $item = $weapon->item;
         $rank = strtoupper((string) ($item?->weapon_rank ?? $item?->rarity ?? ''));
         $enhanceLevel = max(0, (int) ($weapon->enhance_level ?? 0));
-        $quality = self::QUALITY_DISPLAY[(string) $weapon->affix_quality] ?? null;
+        $quality = $this->qualityDisplayFor($weapon->affix_quality);
         $isSpecial = $rank === 'SPECIAL';
 
         return [
@@ -165,15 +165,31 @@ class FavoriteWeaponService
             'rank' => $rank !== '' && $rank !== 'NORMAL' ? ($isSpecial ? 'SP' : $rank) : null,
             'rank_color' => $this->rankColor($rank),
             'is_special' => $isSpecial,
-            'display_background' => $isSpecial ? self::SPECIAL_DISPLAY_BACKGROUND : ($quality['display_background'] ?? null),
+            'display_background' => $this->displayBackgroundFor($item, $weapon->affix_quality),
             'enhance_level' => $enhanceLevel,
             'enhance_style' => $this->enhanceStyle($enhanceLevel),
             'quality' => $quality,
             'engraving' => $this->affixDisplay($weapon->affixPrefix?->name, $weapon->effectiveAffixPrefixLevel()),
             'killer' => $this->affixDisplay($weapon->affixSuffix?->name, $weapon->effectiveAffixSuffixLevel()),
-            'image' => asset($this->imagePathFor($item)),
+            'image' => asset($this->imagePathFor($item) ?? 'images/icon/icon_006.webp'),
             'is_equipped' => (bool) $weapon->is_equipped,
         ];
+    }
+
+    /** @return array{label: string, color: string, background: string, border_color: string, display_background: string}|null */
+    public function qualityDisplayFor(?string $quality): ?array
+    {
+        return self::QUALITY_DISPLAY[(string) $quality] ?? null;
+    }
+
+    public function displayBackgroundFor(?Item $item, ?string $quality): ?string
+    {
+        $rank = strtoupper((string) ($item?->weapon_rank ?? $item?->rarity ?? ''));
+        if ($rank === 'SPECIAL') {
+            return self::SPECIAL_DISPLAY_BACKGROUND;
+        }
+
+        return $this->qualityDisplayFor($quality)['display_background'] ?? null;
     }
 
     /** @return array{color: string, background: string, border_color: string, font_size: string, shadow: string} */
@@ -221,7 +237,12 @@ class FavoriteWeaponService
         ];
     }
 
-    private function imagePathFor(?Item $item): string
+    /**
+     * 武器名・種別・ランクに対応する専用画像を返す。
+     *
+     * 装備倉庫など、武器をカード表示する画面でも共用する。
+     */
+    public function imagePathFor(?Item $item): ?string
     {
         $imageNumber = self::IMAGE_NUMBER_BY_NAME[(string) ($item?->name ?? '')] ?? null;
         if ($imageNumber !== null) {
@@ -229,7 +250,7 @@ class FavoriteWeaponService
         }
 
         if (!$item || !isset(self::CATEGORY_STARTS[(string) $item->weapon_category])) {
-            return 'images/icon/icon_006.webp';
+            return null;
         }
 
         $rank = strtoupper((string) ($item->weapon_rank ?? $item->rarity ?? ''));
@@ -243,7 +264,7 @@ class FavoriteWeaponService
         }
 
         return $offset === null
-            ? 'images/icon/icon_006.webp'
+            ? null
             : sprintf('images/weapon/weapon_%03d.webp', self::CATEGORY_STARTS[$item->weapon_category] + $offset);
     }
 

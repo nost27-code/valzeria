@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-19-equipment-weapon-images',
+        'date' => '2026-07-19',
+        'category' => 'changed',
+        'title' => '装備変更の武器画像と品質背景を改善',
+        'detail' => '装備変更画面の武器カードで、各武器の専用画像をコンパクトに表示し、通常は白、良品は銀系、逸品は金系の背景で品質を見分けられるようにしました。',
+    ],
+    [
         'id' => '2026-07-19-forge-quality-upgrades',
         'date' => '2026-07-19',
         'category' => 'added',
