@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-19-profile-edit-card-preview',
+        'date' => '2026-07-19',
+        'category' => 'added',
+        'title' => 'プロフィール編集にカード確認とSNS投稿を追加',
+        'detail' => 'プロフィール編集画面から自分の冒険者カードをポップアップで確認でき、画像にしてSNSへ投稿・保存できるようにしました。',
+    ],
+    [
         'id' => '2026-07-19-exploration-stamina-modal-close-fix',
         'date' => '2026-07-19',
         'category' => 'fixed',

@@ -59,6 +59,15 @@ class CityHeader extends Component
         $this->isPlayerModalOpen = true;
     }
 
+    #[On('open-current-adventurer-card-preview')]
+    public function openCurrentCharacterPreview(): void
+    {
+        $character = auth()->user()?->currentCharacter();
+        if ($character) {
+            $this->openPlayerModal((int) $character->id);
+        }
+    }
+
     public function closePlayerModal()
     {
         $this->isPlayerModalOpen = false;
