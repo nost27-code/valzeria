@@ -100,6 +100,9 @@ class WeaponTraitForgeService
                 'affix_prefix_level' => $result['prefix_level'],
                 'affix_suffix_level' => $result['suffix_level'],
             ])->save();
+            $qualityUpgrade = in_array($operation, ['engraving_forge', 'slayer_forge'], true)
+                ? app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($base)
+                : null;
             $base->load(['item', 'affixPrefix', 'affixSuffix']);
             $afterSnapshot = $this->snapshot($base);
 
@@ -116,11 +119,21 @@ class WeaponTraitForgeService
                 'gold_cost' => $result['gold_cost'],
             ]);
 
+            if ($qualityUpgrade === 'excellent') {
+                app(PublicLogService::class)->addLog(
+                    'drop',
+                    "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$base->displayName()}」を逸品に仕上げました！",
+                    $lockedCharacter,
+                    3,
+                );
+            }
+
             return [
                 'message' => self::OPERATIONS[$operation] . 'に成功！ '
                     . $base->displayName() . 'になった。 '
                     . $materialSnapshot['display_name'] . 'を素材として消費し、'
-                    . number_format($result['gold_cost']) . 'Gを支払った。',
+                    . number_format($result['gold_cost']) . 'Gを支払った。'
+                    . ($qualityUpgrade === 'good' ? ' 良品に仕上がった！' : ($qualityUpgrade === 'excellent' ? ' 逸品に仕上がった！' : '')),
                 'base_character_item_id' => (int) $base->id,
                 'gold_cost' => $result['gold_cost'],
             ];

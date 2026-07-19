@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-19-forge-quality-upgrades',
+        'date' => '2026-07-19',
+        'category' => 'added',
+        'title' => '鍛冶で良品・逸品化する仕上げを追加',
+        'detail' => '銘または特攻付き武器の+強化・銘鍛錬・特攻磨きで、ごくまれに良品や逸品へ仕上がるようになりました。逸品完成はレアドロップチャットでもお知らせします。',
+    ],
+    [
         'id' => '2026-07-19-newcomer-campaign-potion-bonus',
         'date' => '2026-07-19',
         'category' => 'internal',

@@ -163,10 +163,21 @@ class EquipmentEnhancementService
                 $locked->enhance_level = $nextLevel;
                 $locked->save();
 
+                $qualityUpgrade = app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($locked);
+                if ($qualityUpgrade === 'excellent') {
+                    app(PublicLogService::class)->addLog(
+                        'drop',
+                        "【逸品】{$character->name}さんが鍛冶で「{$locked->displayName()}」を逸品に仕上げました！",
+                        $character,
+                        3,
+                    );
+                }
+
                 app(PlayerLifecycleEventService::class)->recordFirstEnhancement($character);
 
                 return [
-                    'message' => "{$displayName} を +{$nextLevel} に強化しました。",
+                    'message' => "{$displayName} を +{$nextLevel} に強化しました。"
+                        . ($qualityUpgrade === 'good' ? ' 良品に仕上がった！' : ($qualityUpgrade === 'excellent' ? ' 逸品に仕上がった！' : '')),
                     'enhance_level' => $nextLevel,
                 ];
             });

@@ -9,6 +9,12 @@ return [
         'excellent' => 1.35,
     ],
 
+    // 鍛冶での武器品質昇格率（1/10000）。武器の+強化、銘鍛錬、特攻磨きの成功時だけ抽選する。
+    'forge_quality_upgrade_rates_bps' => [
+        'good' => 100, // 1%
+        'excellent' => 10, // 0.1%
+    ],
+
     // 全能力を上げる「調律の」銘は、単能力の銘と比べて各能力を55%に抑える。
     'all_stat_multiplier' => 0.55,
 

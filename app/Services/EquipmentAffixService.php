@@ -110,6 +110,88 @@ class EquipmentAffixService
         };
     }
 
+    /**
+     * 鍛冶成功時に、銘または特攻を持つ武器だけを品質昇格の対象にする。
+     *
+     * @return 'good'|'excellent'|null 昇格した品質。昇格しなければ null。
+     */
+    public function upgradeQualityAfterWeaponForge(CharacterItem $characterItem): ?string
+    {
+        $characterItem->loadMissing(['item', 'affixPrefix', 'affixSuffix']);
+        if (($characterItem->item?->type ?? null) !== 'weapon'
+            || (!$characterItem->affix_prefix_id && !$characterItem->affix_suffix_id)) {
+            return null;
+        }
+
+        $currentQuality = (string) ($characterItem->affix_quality ?: 'normal');
+        $nextQuality = $this->qualityAfterForgeRoll($currentQuality);
+        if ($nextQuality === $currentQuality) {
+            return null;
+        }
+
+        $characterItem->affix_quality = $nextQuality;
+        $this->refreshAffixEffects($characterItem);
+        $characterItem->save();
+
+        return $nextQuality;
+    }
+
+    /**
+     * @return 'normal'|'good'|'excellent'
+     */
+    public function qualityAfterForgeRoll(string $currentQuality, ?int $roll = null): string
+    {
+        if ($currentQuality === 'excellent') {
+            return 'excellent';
+        }
+
+        $roll ??= random_int(1, 10000);
+        $excellentRate = max(0, (int) config('equipment_affix.forge_quality_upgrade_rates_bps.excellent', 10));
+        $goodRate = max(0, (int) config('equipment_affix.forge_quality_upgrade_rates_bps.good', 100));
+
+        if ($roll <= $excellentRate) {
+            return 'excellent';
+        }
+
+        if ($roll <= $excellentRate + $goodRate) {
+            return 'good';
+        }
+
+        return $currentQuality === 'good' ? 'good' : 'normal';
+    }
+
+    private function refreshAffixEffects(CharacterItem $characterItem): void
+    {
+        $item = $characterItem->item;
+        if (!$item) {
+            return;
+        }
+
+        $fill = [];
+        if ($characterItem->affix_prefix_id && $characterItem->affixPrefix) {
+            $bonuses = $this->rules->prefixBonuses(
+                $item,
+                $characterItem->affixPrefix,
+                $characterItem->effectiveAffixPrefixLevel(),
+                $characterItem->affix_quality,
+                (int) ($characterItem->enhance_level ?? 0),
+            );
+            foreach (['hp', 'str', 'def', 'mag', 'spr', 'agi', 'luk'] as $stat) {
+                $fill['affix_' . $stat . '_bonus'] = $bonuses[$stat] ?? 0;
+            }
+        }
+
+        if ($characterItem->affix_suffix_id) {
+            $fill['killer_damage_rate'] = $this->rules->weaponKillerDamageRate(
+                $item,
+                $characterItem->effectiveAffixSuffixLevel(),
+                $characterItem->affix_quality,
+            );
+        }
+
+        $characterItem->forceFill($fill);
+    }
+
     public function getDisplayName(CharacterItem $characterItem): string
     {
         return $characterItem->displayName();
