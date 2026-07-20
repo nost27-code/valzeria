@@ -1,0 +1,57 @@
+name: Inspect production PvE defense formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type inspect-production-pve-defense to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Read PvE defense formula setting
+    if: ${{ inputs.confirmation == 'inspect-production-pve-defense' }}
+    runs-on: [self-hosted, Windows, X64]
+    environment: production
+    env:
+      DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
+      DEPLOY_PHP_BINARY: /usr/bin/php8.4
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+    steps:
+      - name: Read effective formula setting
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          foreach ($name in @('DEPLOY_ROOT', 'DEPLOY_PHP_BINARY', 'SSH_HOST', 'SSH_PORT', 'SSH_USER')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^[A-Za-z0-9_./:-]+$') {
+              throw "$name is missing or invalid."
+            }
+          }
+
+          $keyPath = Join-Path $HOME '.ssh\valzeria_production_deploy'
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+            throw 'Production SSH key is missing.'
+          }
+
+          $sshOptions = @('-i', $keyPath, '-p', $env:SSH_PORT, '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=yes')
+          $remote = "$($env:SSH_USER)@$($env:SSH_HOST)"
+          $remoteCommand = "cd '$($env:DEPLOY_ROOT)/valzeria_current' && $($env:DEPLOY_PHP_BINARY) artisan tinker --execute=`"echo config('battle.pve_enemy_percentage_defense.enabled') ? 'ON' : 'OFF';`""
+          $output = & ssh.exe @sshOptions $remote $remoteCommand
+          if ($LASTEXITCODE -ne 0) {
+            throw "Production setting check failed with exit code $LASTEXITCODE."
+          }
+
+          $value = ($output | Where-Object { $_ -match '^(ON|OFF)$' } | Select-Object -Last 1)
+          if ($value -notin @('ON', 'OFF')) {
+            throw 'Production setting check returned an unexpected value.'
+          }
+
+          Write-Output "PVE_ENEMY_PERCENTAGE_DEFENSE_ENABLED=$value"
