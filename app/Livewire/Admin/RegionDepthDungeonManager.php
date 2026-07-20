@@ -3,10 +3,12 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Area;
+use App\Models\CharacterRegionDungeonRun;
 use App\Models\City;
 use App\Models\RegionDepthDungeon;
 use App\Services\RegionDepthDungeonService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
@@ -125,11 +127,89 @@ class RegionDepthDungeonManager extends Component
 
     public function render()
     {
+        $dungeons = RegionDepthDungeon::with(['city', 'sourceArea', 'baselineArea'])->orderBy('id')->get();
+
         return view('livewire.admin.region-depth-dungeon-manager', [
-            'dungeons' => RegionDepthDungeon::with(['city', 'sourceArea', 'baselineArea'])->orderBy('id')->get(),
+            'dungeons' => $dungeons,
+            'dungeonMetrics' => [
+                'summaries' => $this->analyticsForDungeons($dungeons->pluck('key')->all()),
+                'run_history' => $this->recentRunsForDungeons($dungeons->pluck('key')->all())
+                    ->map(fn (CharacterRegionDungeonRun $run) => [
+                        'entered_at' => $run->entered_at?->format('m/d H:i'),
+                        'character_name' => $run->character?->name ?? '削除済み冒険者',
+                        'dungeon_key' => $run->dungeon_key,
+                        'status' => $run->status,
+                        'max_danger_rate' => (int) $run->max_danger_rate,
+                        'max_chain_count' => (int) $run->max_chain_count,
+                        'total_exp' => (int) $run->total_exp,
+                        'total_job_exp' => (int) $run->total_job_exp,
+                    ])->all(),
+            ],
             'cities' => City::orderBy('sort_order')->get(),
             'areas' => Area::query()->with('city')->whereHas('enemies', fn ($query) => $query->where('is_boss', false))->orderBy('city_id')->orderBy('sort_order')->get(),
         ])->layout('components.layouts.admin');
+    }
+
+    private function analyticsForDungeons(array $dungeonKeys): array
+    {
+        $keys = array_values(array_filter($dungeonKeys));
+        if ($keys === [] || !Schema::hasTable('character_region_dungeon_runs')) {
+            return [];
+        }
+
+        $rows = DB::table('character_region_dungeon_runs')
+            ->whereIn('dungeon_key', $keys)
+            ->selectRaw(
+                "dungeon_key,
+                COUNT(*) as total_entries,
+                COUNT(DISTINCT character_id) as unique_challengers,
+                SUM(CASE WHEN entered_at >= ? THEN 1 ELSE 0 END) as entries_24h,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_runs,
+                SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END) as returned_runs,
+                SUM(CASE WHEN status = 'defeated' THEN 1 ELSE 0 END) as defeated_runs,
+                AVG(CASE WHEN status <> 'active' THEN max_danger_rate END) as average_max_danger,
+                AVG(CASE WHEN status <> 'active' THEN max_chain_count END) as average_chain_count,
+                AVG(CASE WHEN status <> 'active' THEN total_exp END) as average_total_exp,
+                AVG(CASE WHEN status <> 'active' THEN total_job_exp END) as average_total_job_exp",
+                [now()->subDay()]
+            )
+            ->groupBy('dungeon_key')
+            ->get();
+
+        return $rows->mapWithKeys(function ($row) {
+            $returned = (int) ($row->returned_runs ?? 0);
+            $defeated = (int) ($row->defeated_runs ?? 0);
+            $finished = $returned + $defeated;
+
+            return [(string) $row->dungeon_key => [
+                'total_entries' => (int) ($row->total_entries ?? 0),
+                'unique_challengers' => (int) ($row->unique_challengers ?? 0),
+                'entries_24h' => (int) ($row->entries_24h ?? 0),
+                'active_runs' => (int) ($row->active_runs ?? 0),
+                'returned_runs' => $returned,
+                'defeated_runs' => $defeated,
+                'defeat_rate' => $finished > 0 ? round($defeated / $finished * 100, 1) : null,
+                'average_max_danger' => $finished > 0 ? round((float) ($row->average_max_danger ?? 0), 1) : null,
+                'average_chain_count' => $finished > 0 ? round((float) ($row->average_chain_count ?? 0), 1) : null,
+                'average_total_exp' => $finished > 0 ? round((float) ($row->average_total_exp ?? 0)) : null,
+                'average_total_job_exp' => $finished > 0 ? round((float) ($row->average_total_job_exp ?? 0), 1) : null,
+            ]];
+        })->all();
+    }
+
+    private function recentRunsForDungeons(array $dungeonKeys)
+    {
+        $keys = array_values(array_filter($dungeonKeys));
+        if ($keys === [] || !Schema::hasTable('character_region_dungeon_runs')) {
+            return collect();
+        }
+
+        return CharacterRegionDungeonRun::query()
+            ->with('character:id,name,icon_path')
+            ->whereIn('dungeon_key', $keys)
+            ->orderByDesc('entered_at')
+            ->limit(15)
+            ->get();
     }
 
     private function rules(): array

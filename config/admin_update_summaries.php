@@ -1,6 +1,7 @@
 <?php
 
 return [
+    ['id' => '2026-07-20-region-depth-dungeon-analytics', 'date' => '2026-07-20', 'category' => 'internal', 'title' => '追加ダンジョンの探索状況を確認可能に', 'detail' => '追加ダンジョン管理画面で、入場数・敗北率・平均危険度・平均報酬と直近の潜行履歴を確認できるようにしました。'],
     [
         'id' => '2026-07-20-story-cards-before-additional-dungeons',
         'date' => '2026-07-20',
