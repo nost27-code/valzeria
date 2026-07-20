@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-20-story-cards-before-additional-dungeons',
+        'date' => '2026-07-20',
+        'category' => 'changed',
+        'title' => '物語導線を追加ダンジョンより優先',
+        'detail' => 'ダンジョン一覧で、旅の噂と新しい街への導線を追加ダンジョンより先に表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-20-additional-dungeons-and-stamina-modal',
         'date' => '2026-07-20',
         'category' => 'added',
