@@ -243,6 +243,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/battle/pvp-random', [BattleController::class, 'randomPvp'])->name('battle.pvp_random');
 
         Route::get('/battle/resume', [BattleController::class, 'resumeExploration'])->name('battle.resume');
+        Route::get('/region-depth-dungeons/{dungeonKey}', [\App\Http\Controllers\RegionDepthDungeonController::class, 'show'])->name('region-depth-dungeons.show');
+        Route::post('/region-depth-dungeons/{dungeonKey}/enter', [\App\Http\Controllers\RegionDepthDungeonController::class, 'enter'])->name('region-depth-dungeons.enter');
+        Route::post('/region-depth-dungeons/{dungeonKey}/return', [\App\Http\Controllers\RegionDepthDungeonController::class, 'returnToTown'])->name('region-depth-dungeons.return');
         Route::post('/battle/resume/return', [BattleController::class, 'abandonInterruptedExploration'])->name('battle.resume.return');
         Route::get('/battle/areas/{area}/explore', [BattleController::class, 'exploreGetFallback'])->name('battle.explore.fallback');
         Route::post('/battle/discovered-areas/{area}/travel', [BattleController::class, 'travelDiscoveredArea'])->name('battle.discovered_area.travel');
@@ -485,6 +488,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/job-affinity', \App\Livewire\Admin\JobAffinityChecker::class)->name('admin.job-affinity');
     Route::get('/admin/equipment-compatibility', \App\Livewire\Admin\EquipmentCompatibilityManager::class)->name('admin.equipment-compatibility');
     Route::get('/admin/dungeon-enemies', \App\Livewire\Admin\DungeonEnemyManager::class)->name('admin.dungeon-enemies');
+    Route::get('/admin/region-depth-dungeons', \App\Livewire\Admin\RegionDepthDungeonManager::class)->name('admin.region-depth-dungeons');
     Route::get('/admin/players', \App\Livewire\Admin\PlayerLogs::class)->name('admin.players');
     Route::get('/admin/user-investigation', \App\Livewire\Admin\UserInvestigationManager::class)->name('admin.user-investigation');
     Route::get('/admin/player-controls', \App\Livewire\Admin\PlayerControlManager::class)->name('admin.player-controls');

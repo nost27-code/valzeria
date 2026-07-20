@@ -117,6 +117,7 @@
                     ['route' => 'admin.items', 'label' => 'アイテム一覧', 'abbr' => 'I'],
                     ['route' => 'admin.jobs', 'label' => '職業管理', 'abbr' => 'J'],
                     ['route' => 'admin.dungeon-enemies', 'label' => '敵データ調整', 'abbr' => 'M'],
+                    ['route' => 'admin.region-depth-dungeons', 'label' => '追加ダンジョン管理', 'abbr' => 'RD'],
                     ['route' => 'admin.job-affinity', 'label' => '職業相性', 'abbr' => 'F'],
                     ['route' => 'admin.equipment-compatibility', 'label' => '装備相性', 'abbr' => 'E'],
                 ],

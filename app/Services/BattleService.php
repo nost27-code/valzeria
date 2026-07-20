@@ -262,15 +262,44 @@ class BattleService
         $str = max(1, (int) round($str * $durability['atk_mag']));
         $mag = max(1, (int) round($mag * $durability['atk_mag']));
 
-        $danger = $this->enemyDangerBonus($character, $enemy, [
-            'hp' => $hp,
-            'str' => $str,
-            'def' => $def,
-            'agi' => $agi,
-            'mag' => $mag,
-            'spr' => $spr,
-            'luk' => $luk,
-        ]);
+        $regionDepth = app(RegionDepthDungeonService::class);
+        if ($enemy->getAttribute('region_depth_dungeon_key')) {
+            $dungeonKey = (string) $enemy->getAttribute('region_depth_dungeon_key');
+            $baseMultipliers = $regionDepth->baseEnemyStatMultipliers($dungeonKey);
+            $hp = max(1, (int) floor($hp * $baseMultipliers['hp']));
+            $str = max(1, (int) floor($str * $baseMultipliers['str']));
+            $def = max(1, (int) floor($def * $baseMultipliers['def']));
+            $agi = max(1, (int) floor($agi * $baseMultipliers['agi']));
+            $mag = max(1, (int) floor($mag * $baseMultipliers['mag']));
+            $spr = max(1, (int) floor($spr * $baseMultipliers['spr']));
+            $luk = max(1, (int) floor($luk * $baseMultipliers['luk']));
+            $multipliers = $regionDepth->enemyMultipliers((int) $enemy->getAttribute('region_depth_danger_rate'), $dungeonKey);
+            $totals = [
+                'hp' => max(1, (int) floor($hp * $multipliers['hp'])),
+                'str' => max(1, (int) floor($str * $multipliers['main'])),
+                'def' => max(1, (int) floor($def * $multipliers['main'])),
+                'agi' => max(1, (int) floor($agi * $multipliers['agi_luk'])),
+                'mag' => max(1, (int) floor($mag * $multipliers['main'])),
+                'spr' => max(1, (int) floor($spr * $multipliers['main'])),
+                'luk' => max(1, (int) floor($luk * $multipliers['agi_luk'])),
+            ];
+            $danger = [
+                'rate' => (int) $enemy->getAttribute('region_depth_danger_rate'),
+                'label' => $regionDepth->dangerLabel((int) $enemy->getAttribute('region_depth_danger_rate')),
+                'hp' => $totals['hp'] - $hp, 'str' => $totals['str'] - $str, 'def' => $totals['def'] - $def,
+                'agi' => $totals['agi'] - $agi, 'mag' => $totals['mag'] - $mag, 'spr' => $totals['spr'] - $spr, 'luk' => $totals['luk'] - $luk,
+            ];
+        } else {
+            $danger = $this->enemyDangerBonus($character, $enemy, [
+                'hp' => $hp,
+                'str' => $str,
+                'def' => $def,
+                'agi' => $agi,
+                'mag' => $mag,
+                'spr' => $spr,
+                'luk' => $luk,
+            ]);
+        }
 
         return [
             'base_hp' => $hp,

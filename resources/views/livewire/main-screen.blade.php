@@ -1218,6 +1218,21 @@
                             </div>
                         </div>
                     @endforeach
+                    @if($currentLocation === 'dungeon' && !empty($additionalDungeons))
+                        <div class="col-span-1 md:col-span-2 mt-3 border-t-2 border-slate-300 pt-5">
+                            <h2 class="text-base font-black tracking-wide text-slate-700">追加ダンジョン</h2>
+                            <p class="mt-1 text-xs font-bold text-slate-500">物語の進行とは別の、高難度探索です。</p>
+                        </div>
+                        @foreach($additionalDungeons as $additionalDungeon)
+                            <a href="{{ route('region-depth-dungeons.show', ['dungeonKey' => $additionalDungeon['key']]) }}" class="group relative block overflow-hidden rounded-xl border border-slate-700 bg-gradient-to-br from-slate-950 via-slate-900 to-stone-950 p-4 text-white shadow-md transition hover:border-amber-300 hover:shadow-lg">
+                                @if(!empty($additionalDungeon['card_background_image']))
+                                    <div class="absolute inset-0 bg-cover bg-center opacity-70 transition-transform duration-700 group-hover:scale-105" style="background-image: url('{{ asset('images/' . $additionalDungeon['card_background_image']) }}');"></div>
+                                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-slate-950/35"></div>
+                                @endif
+                                <div class="relative flex items-start justify-between gap-3"><div class="flex min-w-0 gap-3">@if(!empty($additionalDungeon['symbol_image']))<img src="{{ asset('images/' . $additionalDungeon['symbol_image']) }}" alt="" class="h-12 w-12 shrink-0 rounded-full border border-white/30 bg-white/90 p-1 object-contain shadow">@endif<div class="min-w-0"><div class="text-lg font-black">{{ $additionalDungeon['name'] }}</div><p class="mt-1 text-xs font-bold leading-relaxed text-slate-300">{{ $additionalDungeon['description'] ?: '奥へ進むほど、魔物の気配が濃くなる。引き返すまで、張り詰めた空気は消えない。' }}</p></div></div><span class="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-black">挑む</span></div>
+                            </a>
+                        @endforeach
+                    @endif
                     @if($currentLocation === 'dungeon' && !empty($locationData['rumors'] ?? []))
                         <div class="col-span-1 md:col-span-2 rounded-md border border-sky-200 bg-sky-50/80 p-3 shadow-sm">
                             <div class="mb-2 text-sm font-black text-sky-900">旅の噂</div>

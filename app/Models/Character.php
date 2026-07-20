@@ -297,4 +297,14 @@ class Character extends Model
     {
         return $this->hasMany(TowerCharacterRecord::class);
     }
+
+    public function regionDungeonRuns()
+    {
+        return $this->hasMany(CharacterRegionDungeonRun::class);
+    }
+
+    public function regionDungeonRecords()
+    {
+        return $this->hasMany(CharacterRegionDungeonRecord::class);
+    }
 }

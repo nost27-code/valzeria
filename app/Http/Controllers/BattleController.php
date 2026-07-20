@@ -94,8 +94,14 @@ class BattleController extends Controller
             return $redirect;
         }
 
-        if (!$this->areaService->canEnterArea($character, $areaId)) {
+        $regionDepthDungeonService = app(\App\Services\RegionDepthDungeonService::class);
+        $isRegionDepthDungeon = $regionDepthDungeonService->isRegionDepthArea($areaId);
+        if (!$isRegionDepthDungeon && !$this->areaService->canEnterArea($character, $areaId)) {
             return redirect()->route('home')->with('error', 'このエリアにはまだ入れません。');
+        }
+        if ($isRegionDepthDungeon && !$regionDepthDungeonService->canExplore($character, $areaId)) {
+            return redirect()->route('region-depth-dungeons.show', ['dungeonKey' => $regionDepthDungeonService->keyForArea($areaId) ?? 'granberg_black_furnace'])
+                ->with('error', '追加ダンジョンへ入場してから探索してください。');
         }
 
         if ($request->boolean('continue_chain')) {
@@ -120,7 +126,7 @@ class BattleController extends Controller
         }
 
         $targetDepth = (string) $request->input('depth_target', '');
-        if (!$request->boolean('continue_chain')) {
+        if (!$request->boolean('continue_chain') && !$isRegionDepthDungeon) {
             if ($targetDepth !== '') {
                 $depthStartRedirect = $this->startRecordedDepthExploration($character, $areaId, $targetDepth);
                 if ($depthStartRedirect) {
@@ -129,7 +135,7 @@ class BattleController extends Controller
             } else {
                 app(\App\Services\ExplorationStateService::class)->reset($character, $areaId);
             }
-        } elseif ($depthGateRedirect = $this->redirectToDepthGateIfNeeded($request, $character, $areaId)) {
+        } elseif (!$isRegionDepthDungeon && ($depthGateRedirect = $this->redirectToDepthGateIfNeeded($request, $character, $areaId))) {
             return $depthGateRedirect;
         }
 
@@ -155,7 +161,9 @@ class BattleController extends Controller
             $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
         }
 
-        $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
+        if (!$isRegionDepthDungeon) {
+            $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
+        }
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
@@ -462,6 +470,7 @@ class BattleController extends Controller
         $character = Auth::user()->currentCharacter();
         if ($character) {
             $hatchedValmons = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
+            app(\App\Services\RegionDepthDungeonService::class)->finalize($character, 'returned');
             $explorationStateService = app(\App\Services\ExplorationStateService::class);
             $explorationStateService->reset($character);
         }
@@ -763,6 +772,10 @@ class BattleController extends Controller
 
     private function currentDepthGate($character, Area $area): ?array
     {
+        if (app(\App\Services\RegionDepthDungeonService::class)->isRegionDepthArea($area)) {
+            return null;
+        }
+
         $state = app(ExplorationStateService::class)->currentFor($character);
         if (!$state || (int) $state->area_id !== (int) $area->id) {
             return null;

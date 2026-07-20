@@ -517,6 +517,9 @@ class MainScreen extends Component
             'target_area_purpose',
             session()->has('material_hunt') ? 'material_source' : 'focus'
         );
+        $additionalDungeons = ($this->character && $this->currentLocation === 'dungeon' && $currentCity)
+            ? app(\App\Services\RegionDepthDungeonService::class)->enabledForCity((int) $currentCity->id)
+            : [];
 
         $cities = null;
         $highestCityOrder = 0;
@@ -576,6 +579,7 @@ class MainScreen extends Component
             'hasActiveValmonEgg' => $hasActiveValmonEgg,
             'targetAreaId' => $targetAreaId,
             'targetAreaPurpose' => $targetAreaPurpose,
+            'additionalDungeons' => $additionalDungeons,
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
             'rankingSpotlightLeader' => $rankingSpotlightLeader,
         ]);

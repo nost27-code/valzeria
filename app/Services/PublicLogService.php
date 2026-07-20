@@ -13,7 +13,9 @@ class PublicLogService
      */
     public function addLog(string $type, string $message, ?Character $character = null, int $importance = 1, ?int $receiverId = null): void
     {
-        if ($character?->isExcludedFromPublicLogs() && $type !== 'private') {
+        // 黒炉深坑の到達記録は、管理者・テスト用アカウントも含めて
+        // 挑戦結果として公開する。ほかの操作ログの除外方針は維持する。
+        if ($character?->isExcludedFromPublicLogs() && !in_array($type, ['private', 'region_depth_dungeon'], true)) {
             return;
         }
 

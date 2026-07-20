@@ -1979,7 +1979,8 @@
             }
 
             function batchStaminaModal() {
-                return document.getElementById('batch-stamina-modal');
+                return currentResultPage()?.querySelector('#batch-stamina-modal')
+                    || document.getElementById('batch-stamina-modal');
             }
 
             function bindBatchStaminaModal(modal) {
@@ -2040,6 +2041,10 @@
                 }
 
                 if (modal.parentElement !== document.body) {
+                    modal.__batchStaminaModalHome = {
+                        parent: modal.parentElement,
+                        nextSibling: modal.nextSibling,
+                    };
                     document.body.appendChild(modal);
                 }
 
@@ -2075,6 +2080,15 @@
                 document.body.style.overflow = modal.dataset.previousBodyOverflow || '';
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
+
+                const home = modal.__batchStaminaModalHome;
+                if (home?.parent?.isConnected) {
+                    const nextSibling = home.nextSibling?.parentNode === home.parent
+                        ? home.nextSibling
+                        : null;
+                    home.parent.insertBefore(modal, nextSibling);
+                }
+                delete modal.__batchStaminaModalHome;
             }
 
             function csrfToken() {

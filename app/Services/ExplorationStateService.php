@@ -117,6 +117,36 @@ class ExplorationStateService
         ];
     }
 
+    public function recordRegionDepthVictory(Character $character, Enemy $enemy): array
+    {
+        $state = $this->getOrStart($character, (int) $enemy->area_id);
+        $beforeDanger = (int) ($state->danger_rate ?? 0);
+        $regionDepthDungeonService = app(RegionDepthDungeonService::class);
+        $dungeonKey = $regionDepthDungeonService->keyForArea((int) $enemy->area_id);
+        $increased = $dungeonKey !== null && $regionDepthDungeonService->shouldIncreaseDanger($dungeonKey);
+        $state->forceFill([
+            // 追加ダンジョンは危険度と連戦数だけで進行し、通常探索の深度には接続しない。
+            'exploration_point' => 0,
+            'chain_count' => (int) $state->chain_count + 1,
+            'danger_rate' => $beforeDanger + ($increased ? 5 : 0),
+            'depth_tier' => 'surface',
+        ])->save();
+
+        $afterDanger = (int) $state->danger_rate;
+        return [
+            'state' => $state->fresh(),
+            'danger' => [
+                'before' => $beforeDanger,
+                'after' => $afterDanger,
+                'increased' => $increased,
+                'increase' => $increased ? 5 : 0,
+                'label' => app(RegionDepthDungeonService::class)->dangerLabel($afterDanger),
+            ],
+            'milestones' => [],
+            'depth_transitions' => [],
+        ];
+    }
+
     public function recordMaterialLoot(Character $character, Enemy $enemy, Material $material, int $quantity = 1): void
     {
         if ($quantity <= 0 || $enemy->is_boss) {
