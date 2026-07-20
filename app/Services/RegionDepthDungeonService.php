@@ -281,7 +281,8 @@ class RegionDepthDungeonService
             $record->save();
             $run->forceFill(['status' => $reason === 'returned' ? 'returned' : 'defeated', 'end_reason' => $reason, 'ended_at' => now(), 'new_danger_record' => $newDanger])->save();
             $definition = $this->definition($run->dungeon_key); $minimum = (int) ($definition['public_log']['minimum_danger'] ?? 100);
-            if ($newDanger && (int) $run->max_danger_rate >= $minimum && !$run->public_log_sent_at) {
+            $personalRank = $newDanger ? $this->leaderboard($character, $run->dungeon_key)['personal_rank'] : null;
+            if ($newDanger && $personalRank !== null && $personalRank <= 5 && (int) $run->max_danger_rate >= $minimum && !$run->public_log_sent_at) {
                 $rate = (int) $run->max_danger_rate;
                 app(PublicLogService::class)->addLog('region_depth_dungeon', '【' . ($definition['name'] ?? '追加ダンジョン') . '・最高記録】' . $character->name . 'さんが危険度' . number_format($rate) . '%「' . $this->dangerLabel($rate) . '」へ到達しました！', $character, $rate >= 1000 ? 3 : ($rate >= 400 ? 2 : 1));
                 $run->forceFill(['public_log_sent_at' => now()])->save();

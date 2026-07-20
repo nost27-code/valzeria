@@ -1,6 +1,7 @@
 <?php
 
 return [
+    ['id' => '2026-07-21-granberg-depth-top-five-log', 'date' => '2026-07-21', 'category' => 'changed', 'title' => '黒炉深坑の最高記録ログを絞り込み', 'detail' => '黒炉深坑の最高危険度は、全体TOP5に入った記録だけをチャットへ表示するようにしました。'],
     ['id' => '2026-07-20-region-depth-dungeon-analytics', 'date' => '2026-07-20', 'category' => 'internal', 'title' => '追加ダンジョンの探索状況を確認可能に', 'detail' => '追加ダンジョン管理画面で、入場数・敗北率・平均危険度・平均報酬と直近の潜行履歴を確認できるようにしました。'],
     [
         'id' => '2026-07-20-story-cards-before-additional-dungeons',
