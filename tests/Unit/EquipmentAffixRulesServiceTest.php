@@ -122,4 +122,12 @@ class EquipmentAffixRulesServiceTest extends TestCase
 
         $this->assertSame(['def' => 222], $characterItem->affixStatBonuses());
     }
+
+    public function test_armor_tuning_uses_the_six_times_hp_multiplier(): void
+    {
+        $item = new Item(['type' => 'armor', 'armor_rank' => 'SS', 'def_bonus' => 500]);
+        $tuning = new EquipmentAffixPrefix(['target_stat' => 'all']);
+
+        $this->assertSame(732, app(EquipmentAffixRulesService::class)->prefixBonuses($item, $tuning, 5, 'normal', 30)['hp']);
+    }
 }

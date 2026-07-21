@@ -72,7 +72,7 @@ class BattleService
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
             'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
-            'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
+            'armor_species_damage_reduction_rate' => $equippedArmor?->effectiveSpeciesDamageReductionRate() ?? 0.0,
         ], clone $character);
 
         // プレイヤーの職業技をセット
@@ -1657,7 +1657,10 @@ class BattleService
         if (!$attacker->isPlayer && $defender->isPlayer) {
             $attackerSpecies = (string) ($attacker->speciesKey ?? '');
             $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
-            $rate = min(0.10, (float) ($defender->armorSpeciesDamageReductionRate ?? 0));
+            $rate = min(
+                app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
+                (float) ($defender->armorSpeciesDamageReductionRate ?? 0)
+            );
             if ($attackerSpecies !== '' && $resistSpecies !== '' && $rate > 0 && $attackerSpecies === $resistSpecies) {
                 $damage = max(1, (int) floor($damage * (1 - $rate)));
             }

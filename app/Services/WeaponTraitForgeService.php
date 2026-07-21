@@ -17,6 +17,8 @@ class WeaponTraitForgeService
         'dual_forge' => '重ね鍛錬',
     ];
 
+    private const FORGEABLE_ITEM_TYPES = ['weapon', 'armor'];
+
     public function __construct(
         private readonly EquipmentAffixRulesService $rules,
         private readonly GoldService $goldService,
@@ -28,9 +30,9 @@ class WeaponTraitForgeService
      */
     public function candidates(Character $character): array
     {
-        $weapons = CharacterItem::query()
+        $equipments = CharacterItem::query()
             ->where('character_id', $character->id)
-            ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
+            ->whereHas('item', fn ($query) => $query->whereIn('type', self::FORGEABLE_ITEM_TYPES))
             ->with(['item', 'affixPrefix', 'affixSuffix'])
             ->orderByDesc('is_equipped')
             ->orderByDesc('id')
@@ -38,7 +40,7 @@ class WeaponTraitForgeService
 
         $candidates = [];
         foreach (array_keys(self::OPERATIONS) as $operation) {
-            $candidates[$operation] = $this->candidatesForOperation($weapons, $operation);
+            $candidates[$operation] = $this->candidatesForOperation($equipments, $operation);
         }
 
         return $candidates;
@@ -52,7 +54,7 @@ class WeaponTraitForgeService
         $this->assertOperation($operation);
 
         if ($baseCharacterItemId === $materialCharacterItemId) {
-            throw new RuntimeException('同じ武器をベースと素材に選択できません。');
+            throw new RuntimeException('同じ装備をベースと素材に選択できません。');
         }
 
         return DB::transaction(function () use ($character, $operation, $baseCharacterItemId, $materialCharacterItemId) {
@@ -73,7 +75,7 @@ class WeaponTraitForgeService
             $base = $items->get($baseCharacterItemId);
             $material = $items->get($materialCharacterItemId);
             if (!$base || !$material) {
-                throw new RuntimeException('選択した武器が見つかりません。');
+                throw new RuntimeException('選択した装備が見つかりません。');
             }
 
             $result = $this->validatePair($base, $material, $operation);
@@ -84,7 +86,7 @@ class WeaponTraitForgeService
                 $lockedCharacter,
                 $result['gold_cost'],
                 'weapon_trait_forge',
-                self::OPERATIONS[$operation] . '：' . $base->displayName(),
+                $this->operationLabel($operation, $base) . '：' . $base->displayName(),
                 WeaponTraitOperationLog::class,
                 null,
                 [
@@ -96,10 +98,19 @@ class WeaponTraitForgeService
                 ],
             );
 
-            $base->forceFill([
+            $fill = [
                 'affix_prefix_level' => $result['prefix_level'],
                 'affix_suffix_level' => $result['suffix_level'],
-            ])->save();
+            ];
+            // 防具の耐性は保存カラムも参照される箇所が残るため、段階更新に合わせて再計算して保存する。
+            if (($base->item?->type ?? null) === 'armor' && $base->affix_suffix_id) {
+                $fill['species_damage_reduction_rate'] = $this->rules->armorSpeciesResistRate(
+                    $base->item,
+                    $result['suffix_level'],
+                    $base->affix_quality,
+                );
+            }
+            $base->forceFill($fill)->save();
             $qualityUpgrade = in_array($operation, ['engraving_forge', 'slayer_forge'], true)
                 ? app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($base)
                 : null;
@@ -129,7 +140,7 @@ class WeaponTraitForgeService
             }
 
             return [
-                'message' => self::OPERATIONS[$operation] . 'に成功！ '
+                'message' => $this->operationLabel($operation, $base) . 'に成功！ '
                     . $base->displayName() . 'になった。 '
                     . $materialSnapshot['display_name'] . 'を素材として消費し、'
                     . number_format($result['gold_cost']) . 'Gを支払った。'
@@ -143,12 +154,12 @@ class WeaponTraitForgeService
     /**
      * @return list<array<string, mixed>>
      */
-    private function candidatesForOperation(Collection $weapons, string $operation): array
+    private function candidatesForOperation(Collection $equipments, string $operation): array
     {
         $pairs = [];
 
-        foreach ($weapons as $base) {
-            foreach ($weapons as $material) {
+        foreach ($equipments as $base) {
+            foreach ($equipments as $material) {
                 if ((int) $base->id === (int) $material->id) {
                     continue;
                 }
@@ -161,7 +172,7 @@ class WeaponTraitForgeService
 
                 $pairs[] = [
                     'operation' => $operation,
-                    'operation_label' => self::OPERATIONS[$operation],
+                    'operation_label' => $this->operationLabel($operation, $base),
                     'base' => $this->itemPayload($base),
                     'material' => $this->itemPayload($material),
                     'result_prefix_level' => $result['prefix_level'],
@@ -195,7 +206,7 @@ class WeaponTraitForgeService
     private function validatePair(CharacterItem $base, CharacterItem $material, string $operation): array
     {
         $this->assertOperation($operation);
-        $this->assertWeaponsCanBeForged($base, $material);
+        $this->assertEquipmentsCanBeForged($base, $material);
 
         $prefixLevel = $base->effectiveAffixPrefixLevel();
         $suffixLevel = $base->effectiveAffixSuffixLevel();
@@ -209,7 +220,7 @@ class WeaponTraitForgeService
         if ($operation === 'slayer_forge' || $operation === 'dual_forge') {
             $this->assertMatchingAffix($base, $material, 'suffix');
             $suffixLevel++;
-            $this->assertResultLevelAllowed($base, $suffixLevel, '特攻');
+            $this->assertResultLevelAllowed($base, $suffixLevel, $this->suffixTraitLabel($base));
         }
 
         if ($operation === 'dual_forge') {
@@ -234,32 +245,40 @@ class WeaponTraitForgeService
         ];
     }
 
-    private function assertWeaponsCanBeForged(CharacterItem $base, CharacterItem $material): void
+    private function assertEquipmentsCanBeForged(CharacterItem $base, CharacterItem $material): void
     {
-        if (($base->item?->type ?? null) !== 'weapon' || ($material->item?->type ?? null) !== 'weapon') {
-            throw new RuntimeException('武器同士でのみ鍛錬できます。');
+        $baseType = $base->item?->type ?? null;
+        $materialType = $material->item?->type ?? null;
+        if (!in_array($baseType, self::FORGEABLE_ITEM_TYPES, true) || !in_array($materialType, self::FORGEABLE_ITEM_TYPES, true)) {
+            throw new RuntimeException('武器または防具同士でのみ鍛錬できます。');
+        }
+
+        $label = $this->equipmentLabel($base);
+        if ($baseType !== $materialType) {
+            throw new RuntimeException('武器と防具をまたいで鍛錬できません。');
         }
 
         if ($base->isMarketListed()) {
-            throw new RuntimeException('ベース武器は冒険者市場へ出品中です。先に出品を取り消してください。');
+            throw new RuntimeException("ベース{$label}は冒険者市場へ出品中です。先に出品を取り消してください。");
         }
 
         if ($material->is_equipped) {
-            throw new RuntimeException('素材武器は装備中です。先に装備を外してください。');
+            throw new RuntimeException("素材{$label}は装備中です。先に装備を外してください。");
         }
 
         if ($material->is_locked) {
-            throw new RuntimeException('素材武器は保護中です。先に保護を解除してください。');
+            throw new RuntimeException("素材{$label}は保護中です。先に保護を解除してください。");
         }
 
         if ($material->isMarketListed()) {
-            throw new RuntimeException('素材武器は冒険者市場へ出品中です。先に出品を取り消してください。');
+            throw new RuntimeException("素材{$label}は冒険者市場へ出品中です。先に出品を取り消してください。");
         }
 
-        $baseCategory = (string) ($base->item?->weapon_category ?? '');
-        $materialCategory = (string) ($material->item?->weapon_category ?? '');
+        $categoryColumn = $baseType === 'armor' ? 'armor_category' : 'weapon_category';
+        $baseCategory = (string) ($base->item?->{$categoryColumn} ?? '');
+        $materialCategory = (string) ($material->item?->{$categoryColumn} ?? '');
         if ($baseCategory === '' || $baseCategory !== $materialCategory) {
-            throw new RuntimeException('鍛錬には同じ武器種が必要です。');
+            throw new RuntimeException("鍛錬には同じ{$label}種が必要です。");
         }
     }
 
@@ -267,26 +286,28 @@ class WeaponTraitForgeService
     {
         $idColumn = $kind === 'prefix' ? 'affix_prefix_id' : 'affix_suffix_id';
         $levelMethod = $kind === 'prefix' ? 'effectiveAffixPrefixLevel' : 'effectiveAffixSuffixLevel';
-        $label = $kind === 'prefix' ? '銘' : '特攻';
+        $label = $kind === 'prefix' ? '銘' : $this->suffixTraitLabel($base);
+        $equipmentLabel = $this->equipmentLabel($base);
 
         if (!$base->{$idColumn} || (int) $base->{$idColumn} !== (int) $material->{$idColumn}) {
-            throw new RuntimeException("{$label}鍛錬には、同じ{$label}を持つ武器が必要です。");
+            throw new RuntimeException("{$label}鍛錬には、同じ{$label}を持つ{$equipmentLabel}が必要です。");
         }
 
         if ($base->{$levelMethod}() !== $material->{$levelMethod}()) {
-            throw new RuntimeException("{$label}鍛錬には、同じ{$label}段階の武器が必要です。");
+            throw new RuntimeException("{$label}鍛錬には、同じ{$label}段階の{$equipmentLabel}が必要です。");
         }
     }
 
     private function assertResultLevelAllowed(CharacterItem $base, int $resultLevel, string $label): void
     {
+        $equipmentLabel = $this->equipmentLabel($base);
         if ($resultLevel > (int) config('equipment_affix.maximum_level', 5)) {
-            throw new RuntimeException("この武器の{$label}は最大段階に到達しています。");
+            throw new RuntimeException("この{$equipmentLabel}の{$label}は最大段階に到達しています。");
         }
 
         $requiredRank = $this->rules->minimumEquipmentRankForLevel($resultLevel);
         if ($resultLevel > $this->rules->maxLevelForItem($base->item)) {
-            throw new RuntimeException("完成後の{$label}" . $this->romanLevel($resultLevel) . "には{$requiredRank}ランク以上の武器が必要です。");
+            throw new RuntimeException("完成後の{$label}" . $this->romanLevel($resultLevel) . "には{$requiredRank}ランク以上の{$equipmentLabel}が必要です。");
         }
     }
 
@@ -308,7 +329,8 @@ class WeaponTraitForgeService
         return [
             'id' => (int) $characterItem->id,
             'display_name' => $characterItem->displayName(),
-            'rank' => strtoupper((string) ($characterItem->item?->weapon_rank ?? '-')),
+            'item_type' => (string) ($characterItem->item?->type ?? ''),
+            'rank' => $this->equipmentRank($characterItem),
             'weapon_category' => $characterItem->item
                 ? (app(EquipmentPermissionService::class)->categoryLabel($characterItem->item) ?? '不明')
                 : '不明',
@@ -335,14 +357,14 @@ class WeaponTraitForgeService
         if ((int) $material->enhance_level > 0) {
             $warnings[] = '+' . (int) $material->enhance_level;
         }
-        if (in_array(strtoupper((string) ($material->item?->weapon_rank ?? '')), ['S', 'SS', 'SSS', 'EPIC'], true)) {
-            $warnings[] = strtoupper((string) $material->item->weapon_rank) . 'ランク';
+        if (in_array($this->equipmentRank($material), ['S', 'SS', 'SSS', 'EPIC'], true)) {
+            $warnings[] = $this->equipmentRank($material) . 'ランク';
         }
         if ($material->effectiveAffixPrefixLevel() >= 4) {
             $warnings[] = '銘' . $this->romanLevel($material->effectiveAffixPrefixLevel());
         }
         if ($material->effectiveAffixSuffixLevel() >= 4) {
-            $warnings[] = '特攻' . $this->romanLevel($material->effectiveAffixSuffixLevel());
+            $warnings[] = $this->suffixTraitLabel($material) . $this->romanLevel($material->effectiveAffixSuffixLevel());
         }
         if ($material->acquired_from === 'equipment_market') {
             $warnings[] = '市場購入品';
@@ -359,9 +381,10 @@ class WeaponTraitForgeService
         return [
             'character_item_id' => (int) $characterItem->id,
             'item_id' => (int) $characterItem->item_id,
+            'item_type' => (string) ($characterItem->item?->type ?? ''),
             'display_name' => $characterItem->displayName(),
-            'weapon_category' => (string) ($characterItem->item?->weapon_category ?? ''),
-            'weapon_rank' => strtoupper((string) ($characterItem->item?->weapon_rank ?? '')),
+            'weapon_category' => (string) ($characterItem->item?->weapon_category ?? $characterItem->item?->armor_category ?? ''),
+            'weapon_rank' => $this->equipmentRank($characterItem),
             'quality' => (string) ($characterItem->affix_quality ?: 'normal'),
             'enhance_level' => (int) $characterItem->enhance_level,
             'is_equipped' => (bool) $characterItem->is_equipped,
@@ -381,6 +404,35 @@ class WeaponTraitForgeService
         if (!array_key_exists($operation, self::OPERATIONS)) {
             throw new RuntimeException('鍛錬種別が不正です。');
         }
+    }
+
+    /**
+     * 防具の接尾辞は「特攻」ではなく「耐性」なので、操作名も対象に合わせて出し分ける。
+     */
+    private function operationLabel(string $operation, CharacterItem $base): string
+    {
+        if ($operation === 'slayer_forge' && ($base->item?->type ?? null) === 'armor') {
+            return '耐性磨き';
+        }
+
+        return self::OPERATIONS[$operation] ?? $operation;
+    }
+
+    private function equipmentLabel(CharacterItem $characterItem): string
+    {
+        return ($characterItem->item?->type ?? null) === 'armor' ? '防具' : '武器';
+    }
+
+    private function suffixTraitLabel(CharacterItem $characterItem): string
+    {
+        return ($characterItem->item?->type ?? null) === 'armor' ? '耐性' : '特攻';
+    }
+
+    private function equipmentRank(CharacterItem $characterItem): string
+    {
+        $rank = $characterItem->item?->weapon_rank ?: $characterItem->item?->armor_rank;
+
+        return strtoupper((string) ($rank ?: '-'));
     }
 
     private function romanLevel(int $level): string

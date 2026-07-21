@@ -63,7 +63,7 @@
                     武器強化
                 </a>
                 <a href="{{ route('blacksmith.traits.index') }}" class="text-center rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-xs sm:text-sm font-bold text-slate-700 transition hover:bg-slate-100">
-                    銘・特攻を鍛える
+                    銘・特攻・耐性を鍛える
                 </a>
                 <a href="{{ route('smith.index') }}" class="text-center rounded-lg bg-slate-900 px-2 py-3 text-xs sm:text-sm font-bold text-white shadow-sm">
                     進化合成

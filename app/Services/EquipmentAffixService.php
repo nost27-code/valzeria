@@ -70,7 +70,7 @@ class EquipmentAffixService
             if ($suffix && (string) $item->type === 'armor') {
                 $suffixLevel = $this->rules->clampLevel($item, 1);
                 $resistSpeciesKey = (string) $suffix->species_key;
-                $speciesDamageReductionRate = $this->resolveArmorReductionRate($suffix, $quality);
+                $speciesDamageReductionRate = $this->rules->armorSpeciesResistRate($item, $suffixLevel, $quality);
             }
         }
 
@@ -232,15 +232,6 @@ class EquipmentAffixService
                 ->orderBy('sort_order')
                 ->get()
         );
-    }
-
-    private function resolveArmorReductionRate(EquipmentAffixSuffix $suffix, string $quality): float
-    {
-        return match ($quality) {
-            'good' => 0.0500,
-            'excellent' => 0.0600,
-            default => max(0.0, (float) ($suffix->base_effect_rate ?: 0.0400)),
-        };
     }
 
     private function weightedRow(Collection $rows)

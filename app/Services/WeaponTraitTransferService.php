@@ -17,6 +17,8 @@ class WeaponTraitTransferService
         'slayer_transfer' => '特攻移し',
     ];
 
+    private const TRANSFERABLE_ITEM_TYPES = ['weapon', 'armor'];
+
     public function __construct(
         private readonly EquipmentAffixRulesService $rules,
         private readonly GoldService $goldService,
@@ -28,35 +30,35 @@ class WeaponTraitTransferService
      */
     public function candidates(Character $character): array
     {
-        $weapons = CharacterItem::query()
+        $equipments = CharacterItem::query()
             ->where('character_id', $character->id)
-            ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
+            ->whereHas('item', fn ($query) => $query->whereIn('type', self::TRANSFERABLE_ITEM_TYPES))
             ->with(['item', 'affixPrefix', 'affixSuffix'])
             ->orderByDesc('is_equipped')
             ->orderByDesc('id')
             ->get();
 
-        $baseOptions = $weapons
-            ->reject(fn (CharacterItem $weapon): bool => $weapon->isMarketListed())
-            ->map(fn (CharacterItem $weapon): array => $this->itemPayload($weapon))
+        $baseOptions = $equipments
+            ->reject(fn (CharacterItem $equipment): bool => $equipment->isMarketListed())
+            ->map(fn (CharacterItem $equipment): array => $this->itemPayload($equipment))
             ->values()
             ->all();
 
         return [
             'engraving_transfer' => [
                 'base_options' => $baseOptions,
-                'material_options' => $weapons
-                    ->filter(fn (CharacterItem $weapon): bool => $weapon->affix_prefix_id !== null)
-                    ->map(fn (CharacterItem $weapon): array => $this->itemPayload($weapon))
+                'material_options' => $equipments
+                    ->filter(fn (CharacterItem $equipment): bool => $equipment->affix_prefix_id !== null)
+                    ->map(fn (CharacterItem $equipment): array => $this->itemPayload($equipment))
                     ->values()
                     ->all(),
                 'gold_costs' => config('equipment_affix.transfer.gold_costs', []),
             ],
             'slayer_transfer' => [
                 'base_options' => $baseOptions,
-                'material_options' => $weapons
-                    ->filter(fn (CharacterItem $weapon): bool => $weapon->affix_suffix_id !== null)
-                    ->map(fn (CharacterItem $weapon): array => $this->itemPayload($weapon))
+                'material_options' => $equipments
+                    ->filter(fn (CharacterItem $equipment): bool => $equipment->affix_suffix_id !== null)
+                    ->map(fn (CharacterItem $equipment): array => $this->itemPayload($equipment))
                     ->values()
                     ->all(),
                 'gold_costs' => config('equipment_affix.transfer.gold_costs', []),
@@ -72,7 +74,7 @@ class WeaponTraitTransferService
         $this->assertOperation($operation);
 
         if ($baseCharacterItemId === $materialCharacterItemId) {
-            throw new RuntimeException('ベース武器と素材武器に同じ武器を選択できません。');
+            throw new RuntimeException('ベース装備と素材装備に同じ装備を選択できません。');
         }
 
         return DB::transaction(function () use ($character, $operation, $baseCharacterItemId, $materialCharacterItemId) {
@@ -81,7 +83,7 @@ class WeaponTraitTransferService
                 throw new RuntimeException('冒険者情報が見つかりません。');
             }
             if ((bool) $lockedCharacter->is_frozen) {
-                throw new RuntimeException('凍結中のため、武器の移し操作はできません。');
+                throw new RuntimeException('凍結中のため、装備の移し操作はできません。');
             }
 
             $itemIds = [$baseCharacterItemId, $materialCharacterItemId];
@@ -98,10 +100,10 @@ class WeaponTraitTransferService
             $base = $items->get($baseCharacterItemId);
             $material = $items->get($materialCharacterItemId);
             if (!$base || !$material) {
-                throw new RuntimeException('選択した武器が見つかりません。');
+                throw new RuntimeException('選択した装備が見つかりません。');
             }
 
-            $this->assertWeaponsCanBeTransferred($base, $material);
+            $this->assertEquipmentsCanBeTransferred($base, $material);
             $kind = $this->traitKind($operation);
             $this->assertMaterialHasTrait($material, $kind);
             $sourceLevel = $this->traitLevel($material, $kind);
@@ -119,7 +121,7 @@ class WeaponTraitTransferService
                 $lockedCharacter,
                 $goldCost,
                 $operation === 'engraving_transfer' ? 'weapon_engraving_transfer' : 'weapon_slayer_transfer',
-                $operation === 'engraving_transfer' ? '武器の銘移し' : '武器の特攻移し',
+                $this->equipmentLabel($base) . 'の' . $this->operationLabel($operation, $base),
                 WeaponTraitOperationLog::class,
                 null,
                 [
@@ -152,7 +154,7 @@ class WeaponTraitTransferService
             ]);
 
             return [
-                'message' => self::OPERATIONS[$operation] . 'が完了しました。 '
+                'message' => $this->operationLabel($operation, $base) . 'が完了しました。 '
                     . $beforeSnapshot['display_name'] . ' → ' . $afterSnapshot['display_name'] . '。 '
                     . $materialSnapshot['display_name'] . 'を素材として消費し、'
                     . number_format($goldCost) . 'Gを支払った。',
@@ -162,22 +164,29 @@ class WeaponTraitTransferService
         }, 3);
     }
 
-    private function assertWeaponsCanBeTransferred(CharacterItem $base, CharacterItem $material): void
+    private function assertEquipmentsCanBeTransferred(CharacterItem $base, CharacterItem $material): void
     {
-        if (($base->item?->type ?? null) !== 'weapon' || ($material->item?->type ?? null) !== 'weapon') {
-            throw new RuntimeException('銘・特攻移しは武器同士でのみ行えます。');
+        $baseType = $base->item?->type ?? null;
+        $materialType = $material->item?->type ?? null;
+        if (!in_array($baseType, self::TRANSFERABLE_ITEM_TYPES, true) || !in_array($materialType, self::TRANSFERABLE_ITEM_TYPES, true)) {
+            throw new RuntimeException('銘・特攻・耐性移しは武器同士または防具同士でのみ行えます。');
         }
 
+        if ($baseType !== $materialType) {
+            throw new RuntimeException('武器と防具をまたいで移すことはできません。');
+        }
+
+        $label = $this->equipmentLabel($base);
         if ($base->isMarketListed() || $material->isMarketListed()) {
-            throw new RuntimeException('この武器は冒険者市場へ出品中です。移し操作を行うには、先に出品を取り消してください。');
+            throw new RuntimeException("この{$label}は冒険者市場へ出品中です。移し操作を行うには、先に出品を取り消してください。");
         }
 
         if ($material->is_equipped) {
-            throw new RuntimeException('この武器は装備中のため素材に使用できません。');
+            throw new RuntimeException("この{$label}は装備中のため素材に使用できません。");
         }
 
         if ($material->is_locked) {
-            throw new RuntimeException('この武器は保護中のため素材に使用できません。');
+            throw new RuntimeException("この{$label}は保護中のため素材に使用できません。");
         }
     }
 
@@ -187,9 +196,10 @@ class WeaponTraitTransferService
             return;
         }
 
+        $equipmentLabel = $this->equipmentLabel($material);
         throw new RuntimeException($kind === 'engraving'
-            ? '素材武器に銘が付いていません。'
-            : '素材武器に種族特攻が付いていません。');
+            ? "素材{$equipmentLabel}に銘が付いていません。"
+            : "素材{$equipmentLabel}に種族{$this->suffixTraitLabel($material)}が付いていません。");
     }
 
     private function assertBaseCanHoldLevel(CharacterItem $base, int $level, string $kind): void
@@ -199,9 +209,9 @@ class WeaponTraitTransferService
             return;
         }
 
-        $rank = strtoupper((string) ($base->item?->weapon_rank ?? ''));
-        $label = $kind === 'engraving' ? '銘' : '特攻';
-        throw new RuntimeException("{$rank}ランク武器が保持できる{$label}段階は{$this->romanLevel($maximumLevel)}までです。");
+        $rank = $this->equipmentRank($base);
+        $label = $this->traitLabel($base, $kind);
+        throw new RuntimeException("{$rank}ランク{$this->equipmentLabel($base)}が保持できる{$label}段階は{$this->romanLevel($maximumLevel)}までです。");
     }
 
     private function assertMeaningfulTransfer(CharacterItem $base, CharacterItem $material, string $kind): void
@@ -216,7 +226,7 @@ class WeaponTraitTransferService
             return;
         }
 
-        $label = $kind === 'engraving' ? '銘' : '特攻';
+        $label = $this->traitLabel($base, $kind);
         throw new RuntimeException("同じ{$label}の段階を下げることはできません。");
     }
 
@@ -226,8 +236,8 @@ class WeaponTraitTransferService
             return;
         }
 
-        $label = $kind === 'engraving' ? '銘' : '特攻';
-        throw new RuntimeException("保護中の武器に付いている{$label}は上書きできません。");
+        $label = $this->traitLabel($base, $kind);
+        throw new RuntimeException("保護中の{$this->equipmentLabel($base)}に付いている{$label}は上書きできません。");
     }
 
     private function applyTransferredTrait(CharacterItem $base, CharacterItem $material, string $kind, int $level): void
@@ -253,6 +263,17 @@ class WeaponTraitTransferService
 
         /** @var EquipmentAffixSuffix $suffix */
         $suffix = $material->affixSuffix;
+        if (($base->item?->type ?? null) === 'armor') {
+            $base->forceFill([
+                'affix_suffix_id' => $suffix->id,
+                'affix_suffix_level' => $level,
+                'resist_species_key' => $suffix->species_key,
+                'species_damage_reduction_rate' => $this->rules->armorSpeciesResistRate($base->item, $level, $base->affix_quality),
+            ]);
+
+            return;
+        }
+
         $base->forceFill([
             'affix_suffix_id' => $suffix->id,
             'affix_suffix_level' => $level,
@@ -279,10 +300,13 @@ class WeaponTraitTransferService
         return [
             'id' => (int) $characterItem->id,
             'item_name' => (string) ($characterItem->item?->name ?? ''),
+            'item_type' => (string) ($characterItem->item?->type ?? ''),
+            'equipment_label' => $this->equipmentLabel($characterItem),
+            'suffix_trait_label' => $this->suffixTraitLabel($characterItem),
             'display_name' => $characterItem->displayName(),
             'display_name_without_rank' => $characterItem->displayName(false),
             'lock_url' => route('equipment.lock', $characterItem),
-            'rank' => strtoupper((string) ($characterItem->item?->weapon_rank ?? '-')),
+            'rank' => $this->equipmentRank($characterItem),
             'weapon_category' => $characterItem->item
                 ? (app(EquipmentPermissionService::class)->categoryLabel($characterItem->item) ?? '不明')
                 : '不明',
@@ -315,7 +339,9 @@ class WeaponTraitTransferService
         return [
             'id' => $id,
             'level' => $level,
-            'label' => $name ? $this->withLevel($name, $level) : ($kind === 'engraving' ? '銘なし' : '特攻なし'),
+            'label' => $name
+                ? $this->withLevel($name, $level)
+                : ($kind === 'engraving' ? '銘なし' : $this->suffixTraitLabel($characterItem) . 'なし'),
         ];
     }
 
@@ -331,14 +357,14 @@ class WeaponTraitTransferService
         if ((int) $material->enhance_level > 0) {
             $warnings[] = '+' . (int) $material->enhance_level;
         }
-        if (in_array(strtoupper((string) ($material->item?->weapon_rank ?? '')), ['S', 'SS', 'SSS', 'EPIC'], true)) {
-            $warnings[] = strtoupper((string) $material->item->weapon_rank) . 'ランク';
+        if (in_array($this->equipmentRank($material), ['S', 'SS', 'SSS', 'EPIC'], true)) {
+            $warnings[] = $this->equipmentRank($material) . 'ランク';
         }
         if ($material->effectiveAffixPrefixLevel() >= 4) {
             $warnings[] = '銘' . $this->romanLevel($material->effectiveAffixPrefixLevel());
         }
         if ($material->effectiveAffixSuffixLevel() >= 4) {
-            $warnings[] = '特攻' . $this->romanLevel($material->effectiveAffixSuffixLevel());
+            $warnings[] = $this->suffixTraitLabel($material) . $this->romanLevel($material->effectiveAffixSuffixLevel());
         }
         if ($material->acquired_from === 'equipment_market') {
             $warnings[] = '市場購入品';
@@ -356,9 +382,10 @@ class WeaponTraitTransferService
             'character_item_id' => (int) $characterItem->id,
             'item_id' => (int) $characterItem->item_id,
             'item_name' => (string) ($characterItem->item?->name ?? ''),
+            'item_type' => (string) ($characterItem->item?->type ?? ''),
             'display_name' => $characterItem->displayName(),
-            'weapon_category' => (string) ($characterItem->item?->weapon_category ?? ''),
-            'weapon_rank' => strtoupper((string) ($characterItem->item?->weapon_rank ?? '')),
+            'weapon_category' => (string) ($characterItem->item?->weapon_category ?? $characterItem->item?->armor_category ?? ''),
+            'weapon_rank' => $this->equipmentRank($characterItem),
             'quality' => (string) ($characterItem->affix_quality ?: 'normal'),
             'enhance_level' => (int) $characterItem->enhance_level,
             'is_equipped' => (bool) $characterItem->is_equipped,
@@ -407,6 +434,40 @@ class WeaponTraitTransferService
         if (!array_key_exists($operation, self::OPERATIONS)) {
             throw new RuntimeException('移し種別が不正です。');
         }
+    }
+
+    /**
+     * 防具の接尾辞は「特攻」ではなく「耐性」なので、操作名も対象に合わせて出し分ける。
+     */
+    private function operationLabel(string $operation, CharacterItem $base): string
+    {
+        if ($operation === 'slayer_transfer' && ($base->item?->type ?? null) === 'armor') {
+            return '耐性移し';
+        }
+
+        return self::OPERATIONS[$operation] ?? $operation;
+    }
+
+    private function traitLabel(CharacterItem $characterItem, string $kind): string
+    {
+        return $kind === 'engraving' ? '銘' : $this->suffixTraitLabel($characterItem);
+    }
+
+    private function equipmentLabel(CharacterItem $characterItem): string
+    {
+        return ($characterItem->item?->type ?? null) === 'armor' ? '防具' : '武器';
+    }
+
+    private function suffixTraitLabel(CharacterItem $characterItem): string
+    {
+        return ($characterItem->item?->type ?? null) === 'armor' ? '耐性' : '特攻';
+    }
+
+    private function equipmentRank(CharacterItem $characterItem): string
+    {
+        $rank = $characterItem->item?->weapon_rank ?: $characterItem->item?->armor_rank;
+
+        return strtoupper((string) ($rank ?: '-'));
     }
 
     private function withLevel(string $name, int $level): string

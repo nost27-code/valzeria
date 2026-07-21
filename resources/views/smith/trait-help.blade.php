@@ -10,7 +10,7 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <h2 class="flex items-center gap-2 text-xl font-bold text-slate-800"><span class="text-2xl">⚒️</span> 銘・特攻を鍛える解説</h2>
-                    <p class="mt-2 text-sm leading-relaxed text-slate-600">「銘を鍛える」か「特攻を鍛える」を選び、<strong>残したい武器（ベース）</strong>と<strong>消えてよい武器（素材）</strong>を選びます。</p>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-600">「銘を鍛える」か「特攻・耐性を鍛える」を選び、<strong>残したい装備（ベース）</strong>と<strong>消えてよい装備（素材）</strong>を選びます。武器は種族特攻、防具は種族耐性を鍛えられます（武器同士・防具同士のみ）。</p>
                     <p class="mt-2 text-sm font-bold text-slate-700">例：剣の場合</p>
                 </div>
                 <a href="{{ route('blacksmith.traits.index') }}" class="rounded-lg bg-slate-900 px-4 py-3 text-center text-sm font-black text-white shadow-sm transition hover:bg-slate-700">鍛錬画面へ戻る</a>

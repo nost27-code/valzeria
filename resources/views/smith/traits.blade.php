@@ -1,7 +1,7 @@
 @php
     $headerIcon = '⚒️';
     $bgImage = 'images/card_bg/shop_blacksmith.webp';
-    $title = '武器の銘・特攻を鍛える (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
+    $title = '装備の銘・特攻・耐性を鍛える (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
     $initialKind = old('trait_kind', session('weapon_trait_kind', 'engraving'));
 @endphp
 
@@ -22,14 +22,14 @@
             <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h2 class="flex items-center gap-2 text-xl font-bold text-slate-800">
-                        <span class="text-2xl">⚒️</span> 武器の銘・特攻を鍛える
+                        <span class="text-2xl">⚒️</span> 装備の銘・特攻・耐性を鍛える
                     </h2>
                     <p class="mt-2 text-sm leading-relaxed text-slate-600">
-                        銘か種族特攻を選び、ベース武器と素材武器を選ぶだけです。結果は自動で判定されます。
+                        銘か種族特攻・耐性を選び、ベース装備と素材装備を選ぶだけです。結果は自動で判定されます。武器は種族特攻、防具は種族耐性を鍛えられます。
                     </p>
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-start">
-                    <a href="{{ route('blacksmith.traits.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="銘・特攻を鍛える解説">
+                    <a href="{{ route('blacksmith.traits.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="銘・特攻・耐性を鍛える解説">
                         <span class="text-sm leading-none">?</span> 解説
                     </a>
                     <div class="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 sm:text-sm">
@@ -43,7 +43,7 @@
                     装備強化
                 </a>
                 <a href="{{ route('blacksmith.traits.index') }}" class="rounded-lg bg-slate-900 px-2 py-3 text-center text-xs font-bold text-white shadow-sm sm:text-sm">
-                    銘・特攻を鍛える
+                    銘・特攻・耐性を鍛える
                 </a>
                 <a href="{{ route('smith.index') }}" class="rounded-lg border border-slate-300 bg-slate-50 px-2 py-3 text-center text-xs font-bold text-slate-700 transition hover:bg-slate-100 sm:text-sm">
                     進化合成
@@ -68,13 +68,13 @@
                     銘を鍛える
                 </button>
                 <button type="button" @click="setKind('slayer')" :class="kind === 'slayer' ? 'border-slate-300 bg-white text-slate-900 shadow-sm' : 'border-transparent text-slate-500'" class="rounded-md border px-3 py-3 text-sm font-black transition">
-                    特攻を鍛える
+                    特攻・耐性を鍛える
                 </button>
             </div>
 
             <div class="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm font-bold leading-relaxed text-indigo-900">
-                <span x-show="kind === 'engraving'">同じ銘・同じ段階・同じ武器種なら段階を上げます。それ以外では、素材武器の銘を移せるか自動判定します。</span>
-                <span x-show="kind === 'slayer'" style="display: none;">同じ特攻・同じ段階・同じ武器種なら段階を上げます。それ以外では、素材武器の特攻を移せるか自動判定します。</span>
+                <span x-show="kind === 'engraving'">同じ銘・同じ段階・同じ装備種なら段階を上げます。それ以外では、素材装備の銘を移せるか自動判定します。</span>
+                <span x-show="kind === 'slayer'" style="display: none;">同じ特攻・耐性・同じ段階・同じ装備種なら段階を上げます。それ以外では、素材装備の特攻・耐性を移せるか自動判定します。武器同士・防具同士で選んでください。</span>
             </div>
 
             <form method="POST" action="{{ route('blacksmith.traits.process') }}" @submit="confirmTransferBeforeSubmit($event)" class="mt-5 space-y-4">
@@ -84,7 +84,7 @@
                 <input type="hidden" name="material_character_item_id" :value="materialId">
 
                 <div>
-                    <p class="mb-1.5 text-sm font-black text-slate-800">1. 残したいベース武器 <span class="text-xs font-bold text-slate-500">（完成後に残る武器）</span></p>
+                    <p class="mb-1.5 text-sm font-black text-slate-800">1. 残したいベース装備 <span class="text-xs font-bold text-slate-500">（完成後に残る装備）</span></p>
                     <template x-if="selectedBase()">
                         <div class="rounded-xl border-2 border-slate-300 bg-slate-50 p-3 shadow-sm">
                             <div class="flex items-start justify-between gap-3">
@@ -98,24 +98,24 @@
                             <p x-show="effectLines(selectedBase(), 'base_performance_lines')" class="mt-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700"><span class="text-slate-500">能力値:</span> <span x-text="effectLines(selectedBase(), 'base_performance_lines')"></span></p>
                             <div class="mt-2 grid gap-1 text-xs font-bold sm:grid-cols-2">
                                 <p class="rounded border border-violet-100 bg-violet-50 px-2 py-1.5 text-violet-800">銘: <span x-text="selectedBase().engraving.label"></span><span x-show="effectLines(selectedBase(), 'engraving_effect_lines')"> / <span x-text="effectLines(selectedBase(), 'engraving_effect_lines')"></span></span></p>
-                                <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1.5 text-sky-800">特攻: <span x-text="selectedBase().slayer.label"></span><span x-show="effectLines(selectedBase(), 'slayer_effect_lines')"> / <span x-text="effectLines(selectedBase(), 'slayer_effect_lines')"></span></span></p>
+                                <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1.5 text-sky-800"><span x-text="(selectedBase().suffix_trait_label || '特攻') + ':'"></span> <span x-text="selectedBase().slayer.label"></span><span x-show="effectLines(selectedBase(), 'slayer_effect_lines')"> / <span x-text="effectLines(selectedBase(), 'slayer_effect_lines')"></span></span></p>
                             </div>
                         </div>
                     </template>
                     <template x-if="!selectedBase()">
                         <button type="button" @click="openPicker('base')" class="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-500 hover:bg-slate-50">
                             <div>
-                                <p class="text-sm font-black text-slate-900">残したい武器を選ぶ</p>
+                                <p class="text-sm font-black text-slate-900">残したい装備を選ぶ</p>
                                 <p class="mt-1 text-xs font-bold text-slate-500">タップして一覧から選択</p>
                             </div>
                             <span class="shrink-0 rounded-lg bg-slate-900 px-3 py-2 text-xs font-black text-white">選ぶ</span>
                         </button>
                     </template>
-                    <p class="mt-1 text-xs font-bold text-slate-500">装備中の武器もベースに選べます。市場出品中の武器は選べません。</p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">装備中のものもベースに選べます。市場出品中の装備は選べません。</p>
                 </div>
 
                 <div>
-                    <p class="mb-1.5 text-sm font-black text-slate-800">2. 消費する素材武器 <span class="text-xs font-bold text-orange-700">（選ぶと消滅）</span></p>
+                    <p class="mb-1.5 text-sm font-black text-slate-800">2. 消費する素材装備 <span class="text-xs font-bold text-orange-700">（選ぶと消滅）</span></p>
                     <template x-if="selectedMaterial()">
                         <div class="rounded-xl border-2 border-orange-200 bg-orange-50 p-3 shadow-sm">
                             <div class="flex items-start justify-between gap-3">
@@ -129,20 +129,20 @@
                             <p x-show="effectLines(selectedMaterial(), 'base_performance_lines')" class="mt-2 rounded border border-orange-100 bg-white px-2 py-1.5 text-xs font-bold text-orange-800"><span class="text-orange-700">能力値:</span> <span x-text="effectLines(selectedMaterial(), 'base_performance_lines')"></span></p>
                             <div class="mt-2 grid gap-1 text-xs font-bold sm:grid-cols-2">
                                 <p class="rounded border border-violet-100 bg-violet-50 px-2 py-1.5 text-violet-800">銘: <span x-text="selectedMaterial().engraving.label"></span><span x-show="effectLines(selectedMaterial(), 'engraving_effect_lines')"> / <span x-text="effectLines(selectedMaterial(), 'engraving_effect_lines')"></span></span></p>
-                                <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1.5 text-sky-800">特攻: <span x-text="selectedMaterial().slayer.label"></span><span x-show="effectLines(selectedMaterial(), 'slayer_effect_lines')"> / <span x-text="effectLines(selectedMaterial(), 'slayer_effect_lines')"></span></span></p>
+                                <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1.5 text-sky-800"><span x-text="(selectedMaterial().suffix_trait_label || '特攻') + ':'"></span> <span x-text="selectedMaterial().slayer.label"></span><span x-show="effectLines(selectedMaterial(), 'slayer_effect_lines')"> / <span x-text="effectLines(selectedMaterial(), 'slayer_effect_lines')"></span></span></p>
                             </div>
                         </div>
                     </template>
                     <template x-if="!selectedMaterial()">
                         <button type="button" @click="openPicker('material')" class="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-orange-200 bg-orange-50/50 px-4 py-3 text-left shadow-sm transition hover:border-orange-400 hover:bg-orange-50">
                             <div>
-                                <p class="text-sm font-black text-orange-950">消費してよい武器を選ぶ</p>
+                                <p class="text-sm font-black text-orange-950">消費してよい装備を選ぶ</p>
                                 <p class="mt-1 text-xs font-bold text-orange-700">タップして一覧から選択</p>
                             </div>
                             <span class="shrink-0 rounded-lg bg-orange-600 px-3 py-2 text-xs font-black text-white">選ぶ</span>
                         </button>
                     </template>
-                    <p class="mt-1 text-xs font-bold text-slate-500">素材武器は消滅します。装備中・保護中・市場出品中の武器は使えません。</p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">素材装備は消滅します。装備中・保護中・市場出品中のものは使えません。</p>
                 </div>
 
                 <template x-if="lockNotice">
@@ -157,7 +157,7 @@
 
                         <template x-if="preview.available">
                             <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-relaxed text-emerald-950">
-                                <p class="text-xs font-black text-emerald-700">完成後の武器名</p>
+                                <p class="text-xs font-black text-emerald-700">完成後の装備名</p>
                                 <p class="mt-1 text-base font-black text-emerald-950" x-text="preview.completed_name"></p>
                             </div>
                         </template>
@@ -167,11 +167,11 @@
                 <template x-if="dualPreview">
                     <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-bold leading-relaxed text-amber-950">
                         <p class="text-xs font-black tracking-wide text-amber-700">両方一致しているため選べます</p>
-                        <p class="mt-1 text-base font-black">銘と特攻をまとめて鍛える</p>
+                        <p class="mt-1 text-base font-black" x-text="dualPreview.title"></p>
                         <p class="mt-2"><span x-text="dualPreview.engraving_before"></span> → <span x-text="dualPreview.engraving_after"></span></p>
                         <p><span x-text="dualPreview.slayer_before"></span> → <span x-text="dualPreview.slayer_after"></span></p>
                         <div class="mt-3 rounded border border-amber-200 bg-white px-3 py-2">
-                            <p class="text-xs font-black text-amber-700">完成後の武器名</p>
+                            <p class="text-xs font-black text-amber-700">完成後の装備名</p>
                             <p class="mt-1 text-sm font-black" x-text="dualPreview.completed_name"></p>
                         </div>
                         <p class="mt-2">必要Gold: <span class="font-black" x-text="formatGold(dualPreview.gold_cost)"></span> <span class="text-xs text-amber-800">（単独2回より20%お得）</span></p>
@@ -196,13 +196,13 @@
                             <header class="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
                                 <div>
                                     <h3 id="trait-picker-title" class="text-base font-black text-slate-900 sm:text-lg" x-text="pickerTitle()"></h3>
-                                    <p class="mt-1 text-xs font-bold text-slate-500" x-text="picker === 'base' ? '完成後も残す武器を選びます。' : 'この武器は素材として消滅します。'"></p>
+                                    <p class="mt-1 text-xs font-bold text-slate-500" x-text="picker === 'base' ? '完成後も残す装備を選びます。' : 'この装備は素材として消滅します。'"></p>
                                 </div>
-                                <button type="button" @click="picker = null" class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200" aria-label="武器選択を閉じる">×</button>
+                                <button type="button" @click="picker = null" class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200" aria-label="装備選択を閉じる">×</button>
                             </header>
                             <div class="max-h-[calc(100vh-10rem)] space-y-2 overflow-y-auto p-4 sm:p-5">
                                 <template x-if="pickerItems().length === 0">
-                                    <p class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">選べる武器がありません。</p>
+                                    <p class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">選べる装備がありません。</p>
                                 </template>
                                 <template x-for="item in pickerItems()" :key="item.id">
                                     <button type="button" @click="selectPickerItem(item)" :class="isPickerSelected(item) ? 'border-slate-900 bg-slate-100 ring-1 ring-slate-900' : (picker === 'material' ? 'border-orange-200 bg-orange-50/50 hover:border-orange-400' : 'border-slate-200 bg-white hover:border-slate-400')" class="w-full rounded-lg border p-3 text-left transition">
@@ -216,7 +216,7 @@
                                         <p x-show="effectLines(item, 'base_performance_lines')" class="mt-2 rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-700"><span class="text-slate-500">能力値:</span> <span x-text="effectLines(item, 'base_performance_lines')"></span></p>
                                         <div class="mt-2 grid gap-1 text-xs font-bold sm:grid-cols-2">
                                             <p class="rounded border border-violet-100 bg-violet-50 px-2 py-1 text-violet-800">銘: <span x-text="item.engraving.label"></span><span x-show="effectLines(item, 'engraving_effect_lines')"> / <span x-text="effectLines(item, 'engraving_effect_lines')"></span></span></p>
-                                            <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1 text-sky-800">特攻: <span x-text="item.slayer.label"></span><span x-show="effectLines(item, 'slayer_effect_lines')"> / <span x-text="effectLines(item, 'slayer_effect_lines')"></span></span></p>
+                                            <p class="rounded border border-sky-100 bg-sky-50 px-2 py-1 text-sky-800"><span x-text="(item.suffix_trait_label || '特攻') + ':'"></span> <span x-text="item.slayer.label"></span><span x-show="effectLines(item, 'slayer_effect_lines')"> / <span x-text="effectLines(item, 'slayer_effect_lines')"></span></span></p>
                                         </div>
                                         <div class="mt-2 flex flex-wrap gap-1 text-[11px] font-black">
                                             <span x-show="item.is_equipped" class="rounded bg-amber-100 px-2 py-1 text-amber-800">装備中</span>
@@ -241,20 +241,20 @@
                         <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="if (!submittingTransfer) confirmation = null" aria-hidden="true"></div>
                         <section @click.stop class="relative z-10 w-full max-w-md overflow-hidden rounded-xl bg-white text-left shadow-2xl">
                             <header class="border-b border-slate-200 px-4 py-3 sm:px-5">
-                                <h3 id="trait-confirmation-title" class="text-base font-black text-slate-900 sm:text-lg">素材武器を消費します。よろしいですか？</h3>
+                                <h3 id="trait-confirmation-title" class="text-base font-black text-slate-900 sm:text-lg">素材装備を消費します。よろしいですか？</h3>
                             </header>
                             <div class="space-y-3 p-4 text-sm leading-relaxed text-slate-700 sm:p-5">
-                                <p class="rounded-lg border border-red-200 bg-red-50 p-3 font-bold text-red-800">素材にした武器は消滅し、元に戻せません。</p>
+                                <p class="rounded-lg border border-red-200 bg-red-50 p-3 font-bold text-red-800">素材にした装備は消滅し、元に戻せません。</p>
                                 <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                    <p class="text-xs font-black text-slate-500">残すベース武器</p>
+                                    <p class="text-xs font-black text-slate-500">残すベース装備</p>
                                     <p class="mt-1 font-black text-slate-900" x-text="confirmation.base_name"></p>
                                 </div>
                                 <div class="rounded-lg border border-orange-200 bg-orange-50 p-3">
-                                    <p class="text-xs font-black text-orange-700">消える素材武器</p>
+                                    <p class="text-xs font-black text-orange-700">消える素材装備</p>
                                     <p class="mt-1 font-black text-orange-950" x-text="confirmation.material_name"></p>
                                 </div>
                                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                    <p class="text-xs font-black text-emerald-700">完成後の武器名</p>
+                                    <p class="text-xs font-black text-emerald-700">完成後の装備名</p>
                                     <p class="mt-1 font-black text-emerald-950" x-text="confirmation.completed_name"></p>
                                 </div>
                                 <p class="text-center text-base font-black text-amber-800">必要Gold: <span x-text="formatGold(confirmation.gold_cost)"></span></p>
@@ -272,14 +272,14 @@
             </template>
 
             <template x-if="forgingAnimation">
-                <div class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-6 text-center backdrop-blur-sm" role="status" aria-live="assertive" aria-label="武器を鍛えています">
+                <div class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-6 text-center backdrop-blur-sm" role="status" aria-live="assertive" aria-label="装備を鍛えています">
                     <div class="w-full max-w-xs rounded-2xl border border-amber-200 bg-slate-900 px-6 py-7 text-white shadow-2xl">
                         <div class="relative mx-auto h-20 w-28" aria-hidden="true">
                             <span class="weapon-trait-sword absolute bottom-2 left-1/2 text-5xl">🗡️</span>
                             <span class="weapon-trait-hammer absolute left-[78%] top-0 -translate-x-1/2 text-4xl">🔨</span>
                         </div>
                         <p class="mt-3 text-xl font-black tracking-wider text-amber-300" x-text="forgingSound()"></p>
-                        <p class="mt-2 text-sm font-bold text-slate-200">武器を鍛えています…</p>
+                        <p class="mt-2 text-sm font-bold text-slate-200">装備を鍛えています…</p>
                     </div>
                 </div>
             </template>
@@ -349,7 +349,7 @@
                     return options.filter((item) => Number(item.id) !== Number(otherId));
                 },
                 pickerTitle() {
-                    return this.picker === 'base' ? '残したいベース武器を選ぶ' : '消費する素材武器を選ぶ';
+                    return this.picker === 'base' ? '残したいベース装備を選ぶ' : '消費する素材装備を選ぶ';
                 },
                 isPickerSelected(item) {
                     const selectedId = this.picker === 'base' ? this.baseId : this.materialId;
@@ -370,7 +370,13 @@
                     this.picker = null;
                 },
                 kindLabel() {
-                    return this.kind === 'engraving' ? '銘' : '特攻';
+                    if (this.kind === 'engraving') return '銘';
+                    const item = this.selectedBase() || this.selectedMaterial();
+                    return item?.suffix_trait_label || '特攻';
+                },
+                equipLabel() {
+                    const item = this.selectedBase() || this.selectedMaterial();
+                    return item?.equipment_label || '装備';
                 },
                 traitKey() {
                     return this.kind === 'engraving' ? 'engraving' : 'slayer';
@@ -534,24 +540,25 @@
                 rankLimitSummary(item, role) {
                     const rank = item.rank || '-';
 
-                    return `${role}は${rank}ランクです。${rank}ランク武器が保持できる${this.kindLabel()}は${this.roman(item.maximum_level)}までです。`;
+                    return `${role}は${rank}ランクです。${rank}ランク${item.equipment_label || '装備'}が保持できる${this.kindLabel()}は${this.roman(item.maximum_level)}までです。`;
                 },
                 get preview() {
                     const base = this.selectedBase();
                     const material = this.selectedMaterial();
                     if (!base || !material) return null;
-                    if (Number(base.id) === Number(material.id)) return { available: false, reason: '同じ武器をベースと素材に選べません。' };
-                    if (material.is_equipped) return { available: false, reason: '素材武器は装備中です。先に装備を外してください。' };
-                    if (material.is_locked) return { available: false, reason: '素材武器は保護中です。先に保護を解除してください。' };
-                    if (material.is_market_listed) return { available: false, reason: '素材武器は市場へ出品中です。先に出品を取り消してください。' };
+                    if (Number(base.id) === Number(material.id)) return { available: false, reason: '同じ装備をベースと素材に選べません。' };
+                    if (base.item_type !== material.item_type) return { available: false, reason: '武器と防具をまたいで鍛えることはできません。武器同士・防具同士で選んでください。' };
+                    if (material.is_equipped) return { available: false, reason: `素材${this.equipLabel()}は装備中です。先に装備を外してください。` };
+                    if (material.is_locked) return { available: false, reason: `素材${this.equipLabel()}は保護中です。先に保護を解除してください。` };
+                    if (material.is_market_listed) return { available: false, reason: `素材${this.equipLabel()}は市場へ出品中です。先に出品を取り消してください。` };
 
                     const current = this.selectedTrait(base);
                     const source = this.selectedTrait(material);
-                    if (!source.id) return { available: false, reason: `素材武器に${this.kindLabel()}が付いていません。` };
+                    if (!source.id) return { available: false, reason: `素材${this.equipLabel()}に${this.kindLabel()}が付いていません。` };
                     if (source.level > base.maximum_level) {
                         return {
                             available: false,
-                            reason: `${this.rankLimitSummary(base, 'ベース武器')} 素材の${this.kindLabel()}${this.roman(source.level)}は移せません。`,
+                            reason: `${this.rankLimitSummary(base, `ベース${this.equipLabel()}`)} 素材の${this.kindLabel()}${this.roman(source.level)}は移せません。`,
                         };
                     }
 
@@ -562,7 +569,7 @@
 
                     if (sameTrait && source.level === current.level) {
                         if (base.weapon_category !== material.weapon_category) {
-                            return { available: false, reason: `同じ${this.kindLabel()}・同じ段階でも、段階を上げるには同じ武器種が必要です。` };
+                            return { available: false, reason: `同じ${this.kindLabel()}・同じ段階でも、段階を上げるには同じ${this.equipLabel()}種が必要です。` };
                         }
 
                         const resultLevel = current.level + 1;
@@ -572,7 +579,7 @@
                         if (!this.canHoldLevel(base, resultLevel)) {
                             return {
                                 available: false,
-                                reason: `${this.rankLimitSummary(base, 'ベース武器')} 完成後の${this.kindLabel()}${this.roman(resultLevel)}は作れません。`,
+                                reason: `${this.rankLimitSummary(base, `ベース${this.equipLabel()}`)} 完成後の${this.kindLabel()}${this.roman(resultLevel)}は作れません。`,
                             };
                         }
                         const resultTrait = this.withTraitLevel(current, resultLevel);
@@ -590,18 +597,18 @@
                             ),
                             gold_cost: this.forgeGoldCosts[resultLevel] || 0,
                             button_label: `${this.kindLabel()}を1段階上げる`,
-                            description: '同じ武器種・同じ特性・同じ段階のため、素材武器を消費して1段階上げます。',
+                            description: `同じ${this.equipLabel()}種・同じ特性・同じ段階のため、素材${this.equipLabel()}を消費して1段階上げます。`,
                         };
                     }
 
                     if (base.is_locked && current.id) {
-                        return { available: false, reason: `保護中のベース武器に付いている${this.kindLabel()}は上書きできません。` };
+                        return { available: false, reason: `保護中のベース${this.equipLabel()}に付いている${this.kindLabel()}は上書きできません。` };
                     }
 
                     return {
                         available: true,
                         action: 'transfer',
-                        title: `${this.kindLabel()}を素材武器から移す`,
+                        title: `${this.kindLabel()}を素材${this.equipLabel()}から移す`,
                         before: current.label,
                         after: source.label,
                         completed_name: this.weaponDisplayName(
@@ -610,8 +617,8 @@
                             this.kind === 'slayer' ? source : base.slayer,
                         ),
                         gold_cost: this.activeData.gold_costs[source.level] || 0,
-                        button_label: `素材武器を消費して${this.kindLabel()}を移す`,
-                        description: '武器種は問いません。素材武器の特性だけを移し、もう一方の特性・品質・+強化値はベース武器に残ります。',
+                        button_label: `素材${this.equipLabel()}を消費して${this.kindLabel()}を移す`,
+                        description: `${this.equipLabel()}種は問いません。素材${this.equipLabel()}の特性だけを移し、もう一方の特性・品質・+強化値はベース${this.equipLabel()}に残ります。`,
                     };
                 },
                 get dualPreview() {
@@ -639,6 +646,7 @@
                     const slayerAfter = this.withTraitLevel(slayerBase, slayerResult);
 
                     return {
+                        title: `銘と${base.suffix_trait_label || '特攻'}をまとめて鍛える`,
                         engraving_before: engravingBase.label,
                         engraving_after: engravingAfter.label,
                         slayer_before: slayerBase.label,
