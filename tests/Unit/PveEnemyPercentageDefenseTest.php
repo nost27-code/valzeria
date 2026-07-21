@@ -21,11 +21,11 @@ class PveEnemyPercentageDefenseTest extends TestCase
         ]);
     }
 
-    public function test_default_configuration_is_disabled_and_uses_coefficient_zero_point_eight(): void
+    public function test_default_configuration_is_enabled_and_uses_coefficient_zero_point_eight(): void
     {
         $configFile = require base_path('config/battle.php');
 
-        $this->assertFalse($configFile['pve_enemy_percentage_defense']['enabled']);
+        $this->assertTrue($configFile['pve_enemy_percentage_defense']['enabled']);
         $this->assertSame(0.8, $configFile['pve_enemy_percentage_defense']['defense_coefficient']);
     }
 
