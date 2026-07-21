@@ -1,6 +1,7 @@
 <?php
 
 return [
+    ['id' => '2026-07-21-recovery-item-material-exchange', 'date' => '2026-07-21', 'category' => 'balance', 'title' => '回復薬と魔力水を素材調合可能に', 'detail' => '素材交換所で、獣牙と魔物の欠片から回復薬、魔鉱片と魔物の欠片から魔力水を調合できるようになりました。毎日の無料補給はこれまでどおりです。'],
     ['id' => '2026-07-21-armor-tuning-and-resistance-balance', 'date' => '2026-07-21', 'category' => 'balance', 'title' => '防具の調律と種族耐性を強化', 'detail' => '防具の調律はHPが大きく伸びるようになり、種族耐性も対応する敵からの被ダメージをより抑えられるようになりました。'],
     ['id' => '2026-07-21-pve-enemy-damage-formula-enabled', 'date' => '2026-07-21', 'category' => 'balance', 'title' => '敵から受けるダメージ計算を調整', 'detail' => 'PvEで敵から受ける直接攻撃は、防御や精神を伸ばすほど軽減が続く新しい計算方式になりました。'],
     ['id' => '2026-07-21-granberg-depth-top-five-log', 'date' => '2026-07-21', 'category' => 'changed', 'title' => '黒炉深坑の最高記録ログを絞り込み', 'detail' => '黒炉深坑の最高危険度は、全体TOP5に入った記録だけをチャットへ表示するようにしました。'],
