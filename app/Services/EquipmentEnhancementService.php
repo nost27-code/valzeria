@@ -482,7 +482,7 @@ class EquipmentEnhancementService
 
     private function goldCostForLevel(int $level, string $type, ?object $item): int
     {
-        if ($type === 'weapon') {
+        if (in_array($type, ['weapon', 'armor'], true)) {
             return $level * $level * (int) config('equipment_enhancement.weapon_gold_per_level_squared', 300);
         }
 
