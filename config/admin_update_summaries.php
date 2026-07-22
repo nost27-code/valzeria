@@ -1,6 +1,7 @@
 <?php
 
 return [
+    ['id' => '2026-07-22-map-enemy-strength-band', 'date' => '2026-07-22', 'category' => 'balance', 'title' => '探索地図の敵強さを安定化', 'detail' => '新しく見つかる探索地図では、出現敵のLvと目安戦力が地図ごとの基準から大きく外れないようになりました。'],
     ['id' => '2026-07-22-accessory-enhancement-gold-aligned', 'date' => '2026-07-22', 'category' => 'balance', 'title' => '装飾品強化のGold費用を統一', 'detail' => '装飾品の鍛冶強化に必要なGoldを武器・防具と同じ水準に統一しました。調律石系の素材は変わりません。'],
     ['id' => '2026-07-22-armor-enhancement-gold-aligned', 'date' => '2026-07-22', 'category' => 'balance', 'title' => '防具強化のGold費用を統一', 'detail' => '防具の鍛冶強化に必要なGoldを武器と同じ水準に統一しました。守護石系の素材は変わりません。'],
     ['id' => '2026-07-21-recovery-item-material-exchange', 'date' => '2026-07-21', 'category' => 'balance', 'title' => '回復薬と魔力水を素材調合可能に', 'detail' => '素材交換所で、獣牙と魔物の欠片から回復薬、魔鉱片と魔物の欠片から魔力水を調合できるようになりました。毎日の無料補給はこれまでどおりです。'],

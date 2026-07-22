@@ -34,8 +34,9 @@ class ExplorationMapGenerationTest extends TestCase
         $levelRange = config('exploration_maps.grade_level_offsets.' . $map->map_grade);
         $firstVariant = $map->normal_monster_variants_json[0];
         $baseMonster = Enemy::findOrFail($firstVariant['base_monster_id']);
-        $this->assertGreaterThanOrEqual((int) $baseMonster->level + (int) $levelRange['min'], (int) $firstVariant['enemy_level']);
-        $this->assertLessThanOrEqual((int) $baseMonster->level + (int) $levelRange['max'], (int) $firstVariant['enemy_level']);
+        $this->assertSame((int) $map->map_level, (int) $firstVariant['enemy_level']);
+        $this->assertGreaterThanOrEqual(0, (int) $firstVariant['enemy_level'] - (int) $baseMonster->level);
+        $this->assertLessThanOrEqual((int) $levelRange['max'], (int) $firstVariant['enemy_level'] - (int) $baseMonster->level);
         $mapDetails = app(\App\Services\ExplorationMapDisplayService::class)->details($map);
         $this->assertNotSame('不明', $mapDetails['enemy_power_range']);
         $this->assertGreaterThan(0, $mapDetails['enemy_power_min']);
@@ -111,6 +112,7 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertTrue($generated->every(fn ($map) => $map->sourceArea?->city_id >= 1 && $map->sourceArea?->city_id <= 10));
         $this->assertGreaterThan(1, $generated->pluck('source_area_id')->unique()->count());
         $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] >= 45 && (int) $variant['enemy_level'] <= 140)));
+        $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] === (int) $map->map_level)));
         $this->assertTrue($generated->every(fn ($map) => str_ends_with($map->name, 'の地図')));
     }
 

@@ -25,8 +25,8 @@ class ExplorationMapGenerator
         $limit = $this->limit($root, $grade);
         $profile = $this->seeds->weightedPick($root, 'map:v1:reward_profile', collect($this->profiles())->map(fn ($value, $key) => ['value' => $key, 'weight' => 100])->values()->all())['value'];
         $effects = $this->effects($root, $type, $grade);
-        $normal = $this->variants($root, $targetArea, $type, $level, $grade, false);
-        $boss = $this->variants($root, $targetArea, $type, $level, $grade, true);
+        $normal = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, false);
+        $boss = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, true);
         $parts = $this->nameParts($root, $type, $effects, $profile);
         $name = implode('', [$parts['prefix'], $parts['proper'], $parts['place'], 'の地図']);
         $recommendedTownId = (int) ($targetArea->city_id ?? 0) ?: null;
@@ -118,41 +118,47 @@ class ExplorationMapGenerator
         for ($i = 0; $i < $count; $i++) $effects[] = $pool[$this->seeds->int($root, "map:v1:environment:{$i}", 0, count($pool) - 1)];
         return array_values(array_unique($effects));
     }
-    private function variants(string $root, Area $area, string $type, int $level, string $grade, bool $boss): array
+    private function variants(string $root, Area $area, Enemy $referenceEnemy, string $type, int $level, string $grade, bool $boss): array
     {
-        $range = $this->baseMonsterLevelRange($grade);
+        $offsetRange = $this->difficulty->levelOffsetRange($grade);
+        $baseLevelRange = [
+            'min' => max(1, $level - $offsetRange['max']),
+            'max' => $level,
+        ];
         $query = Enemy::query()
             ->where('is_boss', $boss)
-            ->whereBetween('level', [$range['min'], $range['max']])
+            ->whereBetween('level', [$baseLevelRange['min'], $baseLevelRange['max']])
             ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]));
         $candidates = $query->get();
         if ($candidates->isEmpty() && $boss) return [];
         if ($candidates->isEmpty()) {
             $candidates = Enemy::query()
                 ->where('is_boss', false)
-                ->whereBetween('level', [$range['min'], $range['max']])
+                ->whereBetween('level', [$baseLevelRange['min'], $baseLevelRange['max']])
                 ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
                 ->get();
         }
+        $candidates = $this->powerBalancedCandidates($candidates, $referenceEnemy, $level);
         $targetCount = min($candidates->count(), $boss ? min(3, max(1, $this->seeds->int($root, 'map:v1:boss_count', 1, 3))) : min(7, max(4, $this->seeds->int($root, 'map:v1:monster_count', 4, 7))));
         $picked = [];
         for ($i = 0; $i < $targetCount; $i++) {
             $remaining = $candidates->reject(fn (Enemy $enemy) => isset($picked[$enemy->id]));
             if ($remaining->isEmpty()) break;
             $enemy = $remaining->sortBy('id')->values()[$this->seeds->int($root, ($boss ? 'map:v1:boss:' : 'map:v1:monster:') . $i, 0, $remaining->count() - 1)];
-            $picked[$enemy->id] = $this->variant($root, $enemy, $type, $grade, $boss);
+            $picked[$enemy->id] = $this->variant($root, $enemy, $type, $level, $boss);
         }
         return array_values($picked);
     }
-    private function variant(string $root, Enemy $enemy, string $type, string $grade, bool $boss): array
+    private function variant(string $root, Enemy $enemy, string $type, int $mapLevel, bool $boss): array
     {
         $prefixes = MonsterPrefix::query()->where('is_active', true)->where($boss ? 'boss_eligible' : 'normal_eligible', true)->get();
         $prefix = $prefixes->sortBy('id')->first();
         if ($prefixes->isNotEmpty()) $prefix = $prefixes->sortBy('id')->values()[$this->seeds->int($root, "map:v1:monster_prefix:{$enemy->id}", 0, $prefixes->count() - 1)];
         $name = (($prefix?->display_name ?? '異界の') . $enemy->name);
-        $levelOffset = $this->levelOffset($root, $grade, "map:v2:enemy_level_offset:{$enemy->id}");
+        $enemyLevel = max((int) $enemy->level, $mapLevel);
+        $levelOffset = $enemyLevel - (int) $enemy->level;
 
-        return ['base_monster_id' => $enemy->id, 'prefix_id' => $prefix?->id, 'display_name' => mb_substr($name, 0, $boss ? 30 : 20), 'stat_modifiers' => $prefix?->stat_modifiers_json ?? [], 'reward_modifiers' => $prefix?->reward_modifiers_json ?? [], 'biome' => $type, 'enemy_level' => min(255, (int) $enemy->level + $levelOffset), 'level_offset' => $levelOffset];
+        return ['base_monster_id' => $enemy->id, 'prefix_id' => $prefix?->id, 'display_name' => mb_substr($name, 0, $boss ? 30 : 20), 'stat_modifiers' => $prefix?->stat_modifiers_json ?? [], 'reward_modifiers' => $prefix?->reward_modifiers_json ?? [], 'biome' => $type, 'enemy_level' => $enemyLevel, 'level_offset' => $levelOffset];
     }
 
     private function levelOffset(string $root, string $grade, string $key): int
@@ -160,6 +166,38 @@ class ExplorationMapGenerator
         $range = $this->difficulty->levelOffsetRange($grade);
 
         return $this->seeds->int($root, $key, $range['min'], $range['max']);
+    }
+
+    private function powerBalancedCandidates($candidates, Enemy $referenceEnemy, int $mapLevel)
+    {
+        if ($candidates->count() <= 4) {
+            return $candidates;
+        }
+
+        $referencePower = $this->powerAtLevel($referenceEnemy, $mapLevel);
+        $range = config('exploration_maps.variant_power_ratio', ['min' => 0.75, 'max' => 1.25]);
+        $minPower = $referencePower * (float) ($range['min'] ?? 0.75);
+        $maxPower = $referencePower * (float) ($range['max'] ?? 1.25);
+        $balanced = $candidates
+            ->filter(fn (Enemy $candidate) => ($power = $this->powerAtLevel($candidate, $mapLevel)) >= $minPower && $power <= $maxPower)
+            ->values();
+
+        if ($balanced->count() >= 4) {
+            return $balanced;
+        }
+
+        return $candidates
+            ->sortBy(fn (Enemy $candidate) => abs($this->powerAtLevel($candidate, $mapLevel) - $referencePower))
+            ->take(min(7, $candidates->count()))
+            ->values();
+    }
+
+    private function powerAtLevel(Enemy $enemy, int $level): int
+    {
+        $preview = clone $enemy;
+        $this->difficulty->applyToEnemy($preview, $level);
+
+        return app(CharacterPowerService::class)->fromEnemyStats($preview->toArray());
     }
 
     /** @return array{min: int, max: int} */

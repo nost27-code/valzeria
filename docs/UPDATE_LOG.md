@@ -8,6 +8,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 新しく見つかる探索地図では、出現敵のLvと目安戦力が地図ごとの基準から大きく外れないようにしました。
+
 - 公開地図のカードで、探索地に合った背景画像、目安戦力、危険度、報酬傾向を確認できるようになりました。
 
 - 装飾品の鍛冶強化に必要なGoldを武器・防具と同じ水準に統一しました。調律石系の素材は変わりません。
