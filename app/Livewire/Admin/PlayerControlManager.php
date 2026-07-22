@@ -302,6 +302,22 @@ class PlayerControlManager extends Component
         $this->goldGrantReason = '';
     }
 
+    public function grantNewcomerCampaignBonus(): void
+    {
+        try {
+            $grantedCount = app(NewcomerRegistrationCampaignService::class)->grantBonusForExistingRecipients(
+                211,
+                auth()->id()
+            );
+        } catch (\LogicException $exception) {
+            session()->flash('message', $exception->getMessage());
+
+            return;
+        }
+
+        session()->flash('message', "7月登録キャンペーン対象211名へ探索力の薬 x5を追加送付しました（今回 {$grantedCount}名）。");
+    }
+
     public function render(
         StorageCapacityService $storageCapacityService,
         NewcomerRegistrationCampaignService $newcomerRegistrationCampaignService
@@ -335,6 +351,7 @@ class PlayerControlManager extends Component
             'goldGrantHistory' => $this->goldGrantHistory($selectedCharacter),
             'itemGrantHistory' => $this->itemGrantHistory($selectedCharacter),
             'newcomerGiftSummary' => $newcomerRegistrationCampaignService->summary(syncPending: true),
+            'newcomerBonusSummary' => $newcomerRegistrationCampaignService->bonusSummary(),
         ])->layout('components.layouts.admin');
     }
 

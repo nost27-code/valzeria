@@ -21,6 +21,41 @@ class FavoriteWeaponServiceTest extends TestCase
         $this->assertStringEndsWith('/images/weapon/weapon_083.webp', $service->toDisplayArray($this->weapon('axe', 'A', 'WPN_0051', '星砕きの棍棒'))['image']);
     }
 
+    public function test_image_path_for_can_be_shared_by_equipment_cards(): void
+    {
+        $item = new Item([
+            'name' => '月影の刃',
+            'type' => 'weapon',
+            'weapon_category' => 'dagger',
+            'weapon_rank' => 'A',
+            'external_item_id' => 'WPN_0026',
+        ]);
+
+        $this->assertSame('images/weapon/weapon_026.webp', (new FavoriteWeaponService())->imagePathFor($item));
+    }
+
+    public function test_image_path_for_returns_null_when_a_dedicated_image_cannot_be_selected(): void
+    {
+        $item = new Item([
+            'name' => '未対応武器',
+            'type' => 'weapon',
+            'weapon_category' => 'unknown',
+            'weapon_rank' => 'A',
+        ]);
+
+        $this->assertNull((new FavoriteWeaponService())->imagePathFor($item));
+    }
+
+    public function test_display_background_matches_the_profile_quality_presentation(): void
+    {
+        $service = new FavoriteWeaponService();
+        $item = new Item(['type' => 'weapon', 'weapon_rank' => 'A']);
+
+        $this->assertNull($service->displayBackgroundFor($item, 'normal'));
+        $this->assertStringContainsString('#c8d9ec', $service->displayBackgroundFor($item, 'good'));
+        $this->assertStringContainsString('#e2bd67', $service->displayBackgroundFor($item, 'excellent'));
+    }
+
     public function test_display_separates_weapon_name_from_engraving_and_killer(): void
     {
         $weapon = $this->weapon('fist', 'A', 'WPN_0090', '武神の拳');

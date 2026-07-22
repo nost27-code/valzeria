@@ -55,7 +55,7 @@ class CityController extends Controller
 
         // 解放条件チェック: 通常都市は最高到達街以下、フェルディア都市はMAP発見済みであること
         if ($canTravel) {
-            $hatchedValmons = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
+            $resolvedValmonEggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
             $character->current_city_id = $city->id;
             $character->save();
             app(\App\Services\PlayerLifecycleEventService::class)->recordCityReached($character, $city);
@@ -67,13 +67,15 @@ class CityController extends Controller
 
             $routeParams = $request->boolean('from_battle_result') ? ['skip_resume' => 1] : [];
             $redirect = redirect()->route('home', $routeParams)->with('success', "{$city->name} に移動しました。");
-            if (!empty($hatchedValmons)) {
+            if (!empty($resolvedValmonEggs)) {
                 $message = '卵が淡く光りはじめた……<br>';
-                foreach ($hatchedValmons as $hatched) {
-                    $message .= $hatched['name'] . 'が生まれた！<br>';
-                    $message .= ($hatched['already_had'] ?? false)
-                        ? 'すでに仲間にしたことのあるヴァルモンです。<br>'
-                        : '新しいヴァルモンが仲間になった！<br>';
+                foreach ($resolvedValmonEggs as $egg) {
+                    if (!empty($egg['stored'])) {
+                        $message .= $egg['name'] . 'の卵は、すでに仲間にいるため所持品へ入れた。<br>';
+                        continue;
+                    }
+                    $message .= $egg['name'] . 'が生まれた！<br>';
+                    $message .= '新しいヴァルモンが仲間になった！<br>';
                 }
                 $redirect->with('message', $message);
             }

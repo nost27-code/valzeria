@@ -77,6 +77,18 @@ class ExplorationService
         }
 
         $area = Area::findOrFail($areaId);
+        $regionDepthDungeonService = app(RegionDepthDungeonService::class);
+        $activeRegionRun = $regionDepthDungeonService->activeRun($character);
+        $isRegionDepthDungeon = !$isBossBattle && $regionDepthDungeonService->isRegionDepthArea($area);
+        $regionDungeonKey = $isRegionDepthDungeon
+            ? (string) ($activeRegionRun?->dungeon_key ?? $regionDepthDungeonService->keyForArea($area) ?? '')
+            : '';
+        if ($isRegionDepthDungeon && !$regionDepthDungeonService->canExplore($character, $area)) {
+            return ['error' => '追加ダンジョンへ入場してから探索してください。'];
+        }
+        if (!$isRegionDepthDungeon && $activeRegionRun) {
+            return ['error' => '追加ダンジョンを探索中です。別の場所を探索する場合は、先に帰還してください。'];
+        }
         $explorationStateService = app(ExplorationStateService::class);
         $currentState = !$isBossBattle ? $explorationStateService->currentFor($character) : null;
         $currentDanger = $currentState && (int) $currentState->area_id === $areaId
@@ -85,7 +97,7 @@ class ExplorationService
         $currentPoint = $currentState && (int) $currentState->area_id === $areaId
             ? (int) ($currentState->exploration_point ?? 0)
             : 0;
-        $currentDepthTier = !$isBossBattle
+        $currentDepthTier = !$isBossBattle && !$isRegionDepthDungeon
             ? app(ExplorationDepthService::class)->activeTierFor($character, $area, $currentPoint, $currentDanger)
             : ['key' => 'surface'];
         $battleCooldownSeconds = app(CooldownSettingService::class)->explorationBattleSecondsForDepthTier($currentDepthTier);
@@ -103,7 +115,10 @@ class ExplorationService
         }
 
         // 2. 敵の抽選
-        $enemyQuery = Enemy::where('area_id', $areaId);
+        $enemyAreaId = $isRegionDepthDungeon
+            ? (int) ($regionDepthDungeonService->sourceAreaFor($regionDungeonKey)?->id ?? 0)
+            : $areaId;
+        $enemyQuery = Enemy::where('area_id', $enemyAreaId);
         if ($isBossBattle) {
             $enemyQuery->where('is_boss', true);
         } else {
@@ -159,13 +174,20 @@ class ExplorationService
         $state = !$isBossBattle ? $explorationStateService->getOrStart($character, $areaId) : null;
 
         $specialEvent = null;
-        if (!$isBossBattle && $state) {
+        if (!$isBossBattle && $state && !$isRegionDepthDungeon) {
             $specialEvent = $forcedEvent === 'dungeon_lord'
                 ? ['type' => 'dungeon_lord', 'enemy' => $this->makeDungeonLordEnemy($area, $targetEnemy)]
                 : $this->rollSpecialEvent($character, $area, $targetEnemy, $state);
             if (($specialEvent['enemy'] ?? null) instanceof Enemy) {
                 $targetEnemy = $specialEvent['enemy'];
             }
+        }
+
+        if ($isRegionDepthDungeon) {
+            $targetEnemy = clone $targetEnemy;
+            $targetEnemy->name = $regionDepthDungeonService->enemyPrefix($currentDanger) . $targetEnemy->name;
+            $targetEnemy->setAttribute('region_depth_dungeon_key', $regionDungeonKey);
+            $targetEnemy->setAttribute('region_depth_danger_rate', $currentDanger);
         }
 
         // 3. バトル実行
@@ -197,6 +219,7 @@ class ExplorationService
         $monsterMarkDrop = null;
         $secretRealmRewards = [];
         $kisekiDrop = null;
+        $mapDrop = null;
         $crownProofAwarded = false;
         $materialPenalty = ['total_lost' => 0, 'materials' => [], 'items' => []];
         $chainLootSummary = ['materials' => [], 'items' => [], 'material_total' => 0, 'item_total' => 0, 'risk_total' => 0];
@@ -228,7 +251,25 @@ class ExplorationService
             $goldGained = $battleResult->gold;
             $jobExpGained = $battleResult->jobExp;
 
-            if (!$isBossBattle && !in_array(($specialEvent['type'] ?? null), ['treasure', 'hidden_area_gate', 'sub_area_gate'], true)) {
+            $regionJobExp = null;
+            if ($isRegionDepthDungeon) {
+                $expGained = max(1, (int) floor(
+                    $expGained
+                    * $regionDepthDungeonService->baseExpMultiplier($regionDungeonKey)
+                    * $regionDepthDungeonService->expMultiplier($currentDanger, $regionDungeonKey)
+                ));
+                $regionJobExp = $regionDepthDungeonService->calculateJobExp(
+                    $regionDepthDungeonService->baseJobExp($regionDungeonKey, $jobExpGained),
+                    $currentDanger,
+                    null,
+                    $regionDungeonKey,
+                );
+                $jobExpGained = (int) $regionJobExp['total'];
+                $battleResult->exp = $expGained;
+                $battleResult->jobExp = $jobExpGained;
+            }
+
+            if (!$isBossBattle && !$isRegionDepthDungeon && !in_array(($specialEvent['type'] ?? null), ['treasure', 'hidden_area_gate', 'sub_area_gate'], true)) {
                 $depthReward = $this->depthRewardBonus($character, $area, $state);
                 if (($depthReward['multiplier'] ?? 1.0) > 1.0) {
                     $expGained = max(1, (int) floor($expGained * $depthReward['multiplier']));
@@ -249,7 +290,13 @@ class ExplorationService
             }
 
             // レベルアップ処理
-            $rewardResult = $this->levelService->addRewardAndCheckLevelUp($character, $expGained, $goldGained, $jobExpGained);
+            $rewardResult = $this->levelService->addRewardAndCheckLevelUp(
+                $character,
+                $expGained,
+                $goldGained,
+                $jobExpGained,
+                $isRegionDepthDungeon ? (int) ($regionJobExp['cap'] ?? 8) : null
+            );
             $levelUpCount = $rewardResult['level_up_count'];
             $levelUpDetails = $rewardResult['details'];
             $progression = $rewardResult['progression'] ?? null;
@@ -329,7 +376,7 @@ class ExplorationService
                         $targetEnemy,
                         $battleResult->dropBonusPercent,
                         $battleResult->rareBonusPercent,
-                        rollMonsterMark: true
+                        rollMonsterMark: !$isRegionDepthDungeon
                     )
                 );
             }
@@ -397,6 +444,11 @@ class ExplorationService
                 $logText .= "<br><span class=\"text-sky-700 font-extrabold\">【輝石獲得】戦利品の中に、淡く輝く石が混じっていた。輝石 x{$amount} を手に入れた！</span>";
             }
 
+            $mapDrop = app(ExplorationMapDropService::class)->tryDrop($character, $area, $targetEnemy, $isBossBattle);
+            if ($mapDrop) {
+                $logText .= '<br><span class="text-indigo-700 font-extrabold">【探索の地図】見慣れない地図を発見した！ 地図院で調査してみよう。</span>';
+            }
+
             // レア以上の場合は公開ログ
             foreach ($equipmentDropResults as $equipmentDrop) {
                 $rankText = strtoupper((string) ($equipmentDrop['rank'] ?? $equipmentDrop['rarity'] ?? ''));
@@ -429,7 +481,9 @@ class ExplorationService
 
             if (!$isBossBattle) {
                 if (!in_array(($specialEvent['type'] ?? null), ['treasure', 'hidden_area_gate', 'sub_area_gate'], true)) {
-                    $explorationProgress = $explorationStateService->recordVictory($character, $targetEnemy);
+                    $explorationProgress = $isRegionDepthDungeon
+                        ? $explorationStateService->recordRegionDepthVictory($character, $targetEnemy)
+                        : $explorationStateService->recordVictory($character, $targetEnemy);
                     $danger = $explorationProgress['danger'] ?? null;
                     if ($danger && ($danger['increased'] ?? false)) {
                         $logText .= "<br><span class=\"text-orange-700 font-bold\">【危険度】+{$danger['increase']}%（{$danger['before']}% → {$danger['after']}% / {$danger['label']}）</span>";
@@ -438,6 +492,31 @@ class ExplorationService
                         }
                     } elseif ($danger) {
                         $logText .= "<br><span class=\"text-slate-600 font-bold\">【危険度】変化なし（現在 {$danger['after']}% / {$danger['label']}）</span>";
+                    }
+
+                    if ($isRegionDepthDungeon) {
+                        $stateAfterVictory = $explorationProgress['state'] ?? $explorationStateService->currentFor($character);
+                        $oreVein = $regionDepthDungeonService->rollOreVein(
+                            $character,
+                            (int) ($stateAfterVictory->danger_rate ?? 0),
+                            (int) ($stateAfterVictory->chain_count ?? 0),
+                            $targetEnemy,
+                            $regionDungeonKey
+                        );
+                        if ($oreVein) {
+                            $materialDropResult[] = $oreVein;
+                            $dropResults['materials'][] = $oreVein;
+                            $dropResults['by_slot']['material'][] = $oreVein;
+                            $label = !empty($oreVein['rare']) ? '希少鉱脈' : '鉱脈露出';
+                            $logText .= '<br><span class="text-amber-700 font-bold">【' . $label . '】坑道の壁から' . e((string) $oreVein['name']) . 'を発見した！</span>';
+                        }
+                        $regionDepthDungeonService->recordVictoryRewards(
+                            $character,
+                            $expGained,
+                            (int) ($rewardResult['job_exp_gained'] ?? $jobExpGained),
+                            (int) ($stateAfterVictory->danger_rate ?? 0),
+                            (int) ($stateAfterVictory->chain_count ?? 0)
+                        );
                     }
 
                     foreach ($explorationProgress['milestones'] ?? [] as $milestone) {
@@ -450,7 +529,9 @@ class ExplorationService
                     }
 
                     $hasDepthTransition = !empty($explorationProgress['depth_transitions'] ?? []);
-                    $discoveryResult = $this->discoveryService->checkAfterExplore($character, $area, !$hasDepthTransition);
+                    $discoveryResult = $isRegionDepthDungeon
+                        ? ['discoveries' => []]
+                        : $this->discoveryService->checkAfterExplore($character, $area, !$hasDepthTransition);
                     $developmentResult = $discoveryResult['development'] ?? null;
                     $newDiscoveries = array_merge($newDiscoveries, $discoveryResult['discoveries'] ?? []);
                     if ($developmentResult && ($developmentResult['gained'] ?? 0) > 0) {
@@ -582,6 +663,9 @@ class ExplorationService
                     $logText .= "<br><span class=\"text-amber-700 font-extrabold\">【Gold喪失】倒れた隙に荷物を荒らされ、所持Goldの{$goldLoss['rate_label']}として " . number_format($goldLossAmount) . "G を失った。</span>";
                 }
 
+                if ($isRegionDepthDungeon) {
+                    $regionDepthDungeonService->finalize($character, 'defeated');
+                }
                 $explorationStateService->reset($character, $areaId);
             }
             
@@ -653,6 +737,7 @@ class ExplorationService
             'material_drop' => $this->summarizeMaterialDrops($materialDropResult ?? []),
             'monster_mark_drop' => $monsterMarkDrop,
             'kiseki_drop' => $kisekiDrop,
+            'map_drop' => $mapDrop,
             'crown_proof_awarded' => $crownProofAwarded,
             'drop_results' => $dropResults,
             'exploration_support' => $supportResult['active'] ?? app(ExplorationSupportService::class)->payload($character),
@@ -679,6 +764,7 @@ class ExplorationService
             'material_hunt_completion' => $materialHuntCompletion,
             'player_encounter' => $playerEncounter,
             'area_clear_storage_reward' => $areaClearStorageReward,
+            'region_depth_dungeon' => $isRegionDepthDungeon ? $regionDepthDungeonService->payload($character, $regionDungeonKey) : null,
             'sub_area_name' => $battleResult->eventData['sub_area_name'] ?? null,
             'sub_area_route_name' => $battleResult->eventData['sub_area_route_name'] ?? null,
             'sub_area_discovery_id' => $battleResult->eventData['sub_area_discovery_id'] ?? null,

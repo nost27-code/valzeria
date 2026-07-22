@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Character;
+use App\Models\CharacterShopLimit;
 use App\Models\User;
 use App\Services\AdventureSupportService;
 use App\Services\GameSettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdventurerDepartureSetTest extends TestCase
@@ -133,6 +135,46 @@ class AdventurerDepartureSetTest extends TestCase
             'price_currency' => 'ticket',
             'price_amount' => 0,
         ]);
+    }
+
+    public function test_departure_set_home_banner_is_limited_to_pre_granberg_unpurchased_characters(): void
+    {
+        [, $character] = $this->createCharacterWithKiseki(0, 0);
+        $character->forceFill(['current_city_id' => 1, 'highest_city_id' => 1])->save();
+
+        $banner = app(AdventureSupportService::class)->departureSetHomeBannerFor($character);
+
+        $this->assertSame('冒険者旅立ちセット', $banner['name']);
+        $this->assertSame(100, $banner['price']);
+
+        $character->forceFill(['highest_city_id' => 4])->save();
+        $character->unsetRelation('highestCity');
+        $this->assertNull(app(AdventureSupportService::class)->departureSetHomeBannerFor($character));
+
+        [, $purchasedCharacter] = $this->createCharacterWithKiseki(0, 0);
+        $purchasedCharacter->forceFill(['current_city_id' => 1, 'highest_city_id' => 1])->save();
+        CharacterShopLimit::create([
+            'character_id' => $purchasedCharacter->id,
+            'shop_item_key' => 'adventurer_departure_set',
+            'purchased_count' => 1,
+        ]);
+
+        $this->assertNull(app(AdventureSupportService::class)->departureSetHomeBannerFor($purchasedCharacter));
+    }
+
+    public function test_departure_set_banner_component_uses_the_configured_image_path(): void
+    {
+        [$user, $character] = $this->createCharacterWithKiseki(0, 0);
+        $character->forceFill(['current_city_id' => 1, 'highest_city_id' => 1])->save();
+
+        $this->actingAs($user);
+
+        Livewire::test(\App\Livewire\AdventurerDepartureSetBanner::class)
+            ->assertSee('冒険者旅立ちセット')
+            ->assertSee('冒険のスタートを、もっと軽やかに。')
+            ->assertSee('探索・倉庫・見た目をまとめて強化できる、序盤冒険者向けの特別セットです。')
+            ->assertDontSee('100輝石')
+            ->assertSee('images/icon/icon_259.webp');
     }
 
     public function test_departure_set_can_only_be_purchased_once(): void

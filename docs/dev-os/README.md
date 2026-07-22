@@ -18,6 +18,7 @@ Purpose: Codex・ChatGPT・Claude等のAIエージェントで開発を回すと
 | [QA_CHECKLIST.md](QA_CHECKLIST.md) | 実装後QA 3段階チェックリスト | Codexの実装完了後 |
 | [IMPACT_MAP.md](IMPACT_MAP.md) | 仕様変更時の影響範囲チェック（機能別マトリクス） | 仕様を変える前 |
 | [RELEASE_TEMPLATES.md](RELEASE_TEMPLATES.md) | 管理者サマリ/ユーザー告知/SNS告知テンプレート | デプロイ前後 |
+| [GIT_WORKTREE_RELEASE_RULES.md](GIT_WORKTREE_RELEASE_RULES.md) | ブランチ・worktree・並行作業・公開元を整える運用ルール | 実装開始前、統合前、本番公開前 |
 | [IMAGE_TEMPLATES.md](IMAGE_TEMPLATES.md) | 画像生成依頼テンプレート6種 | 素材制作時 |
 | [AGENTS_MD_PROPOSAL.md](AGENTS_MD_PROPOSAL.md) | AGENTS.md改訂案（人間確認後に適用） | 一度だけ |
 | [AI_CONTEXT_PROPOSAL.md](AI_CONTEXT_PROPOSAL.md) | AI_CONTEXT.md修正案と矛盾リスト（人間確認後に適用） | 一度だけ |
@@ -43,11 +44,11 @@ docs/dev-os/ + Skills（手順層・作業種別ごとに読込）
 ```
 1. 仕様検討    IMPACT_MAP.md で影響範囲を先に洗う（人間）
 2. 指示書作成  CODEX_TASK_TEMPLATE.md を埋める（AIに下書きさせてよい。承認は人間）
-3. Codex実装   指示書を渡す。AGENTS.mdが自動で読まれる前提
+3. Codex実装   GIT_WORKTREE_RELEASE_RULES.md に従い、専用worktreeで指示書を渡す。AGENTS.mdが自動で読まれる前提
 4. QA         QA_CHECKLIST.md の該当段階を実施（AI+人間。DB/課金は必ず人間も見る）
 5. docs同期    AI_CONTEXT / DOMAIN_RULES / FEATURE_STATUS の該当行だけ更新
 6. 履歴作成    admin_update_summaries.php 追記 + UPDATE_LOG.md + RELEASE_TEMPLATES.md で告知文
-7. デプロイ    php local_deploy.php（管理画面のみなら local_deploy_admin.php）
+7. デプロイ    GITHUB_ACTIONS_DEPLOY.md の本番ワークフローを標準にする。ZIPフォールバックは GIT_WORKTREE_RELEASE_RULES.md の隔離条件を満たす場合だけ使う
 8. 本番確認    QA_CHECKLIST.md「デプロイ後スモーク」を実施（人間）
 ```
 

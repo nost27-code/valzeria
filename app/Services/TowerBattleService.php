@@ -507,7 +507,7 @@ class TowerBattleService extends BattleService
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
             'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
-            'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
+            'armor_species_damage_reduction_rate' => $equippedArmor?->effectiveSpeciesDamageReductionRate() ?? 0.0,
         ], clone $character);
 
         if ($currentJob) {

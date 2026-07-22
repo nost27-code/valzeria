@@ -57,8 +57,7 @@
                         </button>
                     @elseif(!empty($action['tab']))
                         <button type="button"
-                                wire:click="$dispatch('changeTab', { newLocation: '{{ $action['tab'] }}' })"
-                                @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $action['tab'] }}' } }))"
+                                @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $action['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $action['tab'] }}' })"
                                 aria-label="{{ $actionLabel }}: {{ $action['title'] }}"
                                 class="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80 active:bg-amber-100/80">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-white shadow-sm">

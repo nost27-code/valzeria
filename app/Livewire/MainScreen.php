@@ -18,6 +18,7 @@ use App\Services\ExplorationDepthService;
 use App\Services\SubAreaDiscoveryService;
 use App\Services\DiscoveryService;
 use App\Services\TownRankingService;
+use App\Services\GameTextService;
 use App\Support\CharacterIconCatalog;
 use App\Support\FacilityConfig;
 use Illuminate\Support\Facades\Auth;
@@ -167,17 +168,19 @@ class MainScreen extends Component
         $newLocation = $this->normalizeLocation($newLocation);
 
         if ($this->character && $this->currentLocation === 'dungeon' && $newLocation !== 'dungeon') {
-            $hatchedValmons = app(\App\Services\ValmonService::class)->hatchActiveEggs($this->character);
-            if (!empty($hatchedValmons)) {
+            $resolvedValmonEggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($this->character);
+            if (!empty($resolvedValmonEggs)) {
                 $message = '卵が淡く光りはじめた……<br>';
-                foreach ($hatchedValmons as $hatched) {
-                    if (in_array($hatched['rarity'] ?? 'normal', ['rare', 'super_rare'], true)) {
+                foreach ($resolvedValmonEggs as $egg) {
+                    if (!empty($egg['stored'])) {
+                        $message .= $egg['name'] . 'の卵は、すでに仲間にいるため所持品へ入れた。<br>';
+                        continue;
+                    }
+                    if (in_array($egg['rarity'] ?? 'normal', ['rare', 'super_rare'], true)) {
                         $message .= '卵が強く輝いた……<br>';
                     }
-                    $message .= $hatched['name'] . 'が生まれた！<br>';
-                    $message .= ($hatched['already_had'] ?? false)
-                        ? 'すでに仲間にしたことのあるヴァルモンです。<br>'
-                        : '新しいヴァルモンが仲間になった！<br>';
+                    $message .= $egg['name'] . 'が生まれた！<br>';
+                    $message .= '新しいヴァルモンが仲間になった！<br>';
                 }
                 session()->flash('message', $message);
             }
@@ -219,14 +222,25 @@ class MainScreen extends Component
         $isFerdiaSimpleBase = $this->isFerdiaSimpleBase($currentCity);
         $isFerdiaRegion = $currentCity
             && app(\App\Services\FerdiaMapService::class)->isFerdiaCityId((int) $currentCity->id);
-        $locationData = $this->getLocationData($currentCity, $this->character, $isFerdiaSimpleBase);
+        $needsTownState = in_array($this->currentLocation, ['home', 'town'], true);
+        $townFinalStats = $finalStats;
+        if ($this->character && $needsTownState && $townFinalStats === null) {
+            $townFinalStats = $statusService->getFinalStats($this->character);
+        }
+        $locationData = $this->getLocationData(
+            $currentCity,
+            $this->character,
+            $isFerdiaSimpleBase,
+            $townFinalStats,
+            $needsTownState
+        );
         // Apply facility text overrides from admin panel
-        if (isset($locationData['town']['facilities'])) {
+        if ($needsTownState && isset($locationData['town']['facilities'])) {
             $locationData['town']['facilities'] = $this->applyFacilityOverrides(
                 $locationData['town']['facilities'], 'town'
             );
         }
-        if ($this->character && isset($locationData['guild']['facilities'])) {
+        if ($this->character && $this->currentLocation === 'guild' && isset($locationData['guild']['facilities'])) {
             $deliverableNpcRequestCount = $homeActionService->deliverableNpcRequestCount($this->character);
             foreach ($locationData['guild']['facilities'] as &$guildFacility) {
                 if (($guildFacility['route'] ?? null) === 'market.npc-requests.index') {
@@ -261,6 +275,12 @@ class MainScreen extends Component
                 }
 
                 $areas = $areaService->getAreasWithProgress($this->character);
+                $bossAreaIds = \App\Models\Enemy::query()
+                    ->whereIn('area_id', $areas->pluck('id'))
+                    ->where('is_boss', true)
+                    ->pluck('area_id')
+                    ->mapWithKeys(fn ($areaId) => [(int) $areaId => true]);
+                $currentExplorationState = $explorationStateService->currentFor($this->character);
                 $discoveryRumors = app(DiscoveryService::class)->visibleRumors($this->character, $currentCity?->id);
                 $recordedDepthGatesByArea = DB::table('character_depth_gate_discoveries')
                     ->where('character_id', (int) $this->character->id)
@@ -297,7 +317,7 @@ class MainScreen extends Component
                     
                     $dungeonOrder++;
 
-                    $hasBoss = \App\Models\Enemy::where('area_id', $area->id)->where('is_boss', true)->exists();
+                    $hasBoss = isset($bossAreaIds[(int) $area->id]);
 
                     $status = $area->is_unlocked ? 'active' : 'locked';
                     $actionText = $area->is_route_area ? '道を進む' : '探索する';
@@ -307,7 +327,12 @@ class MainScreen extends Component
                         $actionText = '条件未達';
                     }
 
-                    $explorationSummary = $explorationStateService->summaryForArea($this->character, $area);
+                    $explorationSummary = $explorationStateService->summaryForArea(
+                        $this->character,
+                        $area,
+                        $currentExplorationState,
+                        true
+                    );
                     $recommendedPower = $powerService->recommendedRangeForArea($area);
                     $details = ['目安戦力: ' . $powerService->formatRange($recommendedPower)];
                     $developmentMax = $ferdiaMapService->maxDevelopmentPointForArea($area) ?? 100;
@@ -404,9 +429,31 @@ class MainScreen extends Component
                     $dungeons[] = $facility;
                 }
 
+                $publishedMapCount = \App\Models\TownMapRegistration::query()
+                    ->where('status', 'published')
+                    ->where('remaining_explorations', '>', 0)
+                    ->where('expires_at', '>', now())
+                    ->count();
+                $publishedMapFacility = [
+                    'name' => '地図院で公開された地図',
+                    'icon' => '🗺️',
+                    'desc' => $publishedMapCount > 0
+                        ? '冒険者たちが公開した地図を選んで探索できる。'
+                        : 'いま公開されている地図はない。',
+                    'details' => [
+                        '公開中: ' . number_format($publishedMapCount) . '枚',
+                        '街から地図へ入るたび1回だけ',
+                    ],
+                    'status' => 'active',
+                    'action' => '公開地図を見る',
+                    'route' => 'exploration-maps.published',
+                    'is_post' => false,
+                ];
+
                 if ($this->starTreeTowerEnabled() && (int) ($currentCity?->id ?? 0) === 3) {
                     $dungeons[] = $this->starTreeTowerExplorationFacility();
                 }
+                $dungeons[] = $publishedMapFacility;
             }
 
             $clearedDungeonsCount = collect($dungeons)->where('id', '<=', 70)->where('boss_defeated', true)->count();
@@ -466,8 +513,13 @@ class MainScreen extends Component
         $beginnerMissions = ($this->character && $showsBeginnerMissions) ? $beginnerMissionService->summary($this->character) : null;
 
         $currentCity = $this->character && $this->character->currentCity ? $this->character->currentCity : null;
-        $storageIsFull = ($this->character && $isHomeTab) ? $storageCapacityService->isFull($this->character) : false;
-        $storageFullMessage = $storageIsFull ? $storageCapacityService->fullMessageHtml($this->character) : null;
+        $storageSummary = ($this->character && $isHomeTab) ? $storageCapacityService->summary($this->character) : null;
+        $storageIsFull = $storageSummary
+            ? ($storageSummary['material_full'] || $storageSummary['equipment_full'])
+            : false;
+        $storageFullMessage = $storageIsFull
+            ? $storageCapacityService->fullMessageHtml($this->character, $storageSummary)
+            : null;
         $subAreaDiscoveries = ($this->character && $this->currentLocation === 'dungeon')
             ? app(SubAreaDiscoveryService::class)->discoveredRoutes($this->character, (int) ($currentCity?->id ?? 0))
             : collect();
@@ -475,6 +527,7 @@ class MainScreen extends Component
             ? $this->character->valmonEggs()
                 ->where('is_hatched', false)
                 ->where('is_lost', false)
+                ->whereNull('stored_at')
                 ->exists()
             : false;
         $targetAreaId = (int) session()->pull('target_area_id', 0);
@@ -482,6 +535,9 @@ class MainScreen extends Component
             'target_area_purpose',
             session()->has('material_hunt') ? 'material_source' : 'focus'
         );
+        $additionalDungeons = ($this->character && $this->currentLocation === 'dungeon' && $currentCity)
+            ? app(\App\Services\RegionDepthDungeonService::class)->enabledForCity((int) $currentCity->id)
+            : [];
 
         $cities = null;
         $highestCityOrder = 0;
@@ -541,6 +597,7 @@ class MainScreen extends Component
             'hasActiveValmonEgg' => $hasActiveValmonEgg,
             'targetAreaId' => $targetAreaId,
             'targetAreaPurpose' => $targetAreaPurpose,
+            'additionalDungeons' => $additionalDungeons,
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
             'rankingSpotlightLeader' => $rankingSpotlightLeader,
         ]);
@@ -691,16 +748,18 @@ class MainScreen extends Component
     private function applyFacilityOverrides(array $items, string $section): array
     {
         $slugMap = FacilityConfig::nameToSlug($section);
-        return array_map(function (array $item) use ($section, $slugMap) {
+        $overrides = app(GameTextService::class)->getAllForPrefix("fac.{$section}.");
+
+        return array_map(function (array $item) use ($section, $slugMap, $overrides) {
             $name = $item['name'] ?? '';
             $slug = $slugMap[$name] ?? null;
             if (!$slug) {
                 return $item;
             }
             $prefix = "fac.{$section}.{$slug}";
-            $nameOverride = game_text("{$prefix}.name");
-            $descOverride = game_text("{$prefix}.desc");
-            $iconOverride = game_text("{$prefix}.icon");
+            $nameOverride = (string) ($overrides["{$prefix}.name"] ?? '');
+            $descOverride = (string) ($overrides["{$prefix}.desc"] ?? '');
+            $iconOverride = (string) ($overrides["{$prefix}.icon"] ?? '');
             if ($nameOverride !== '') {
                 $item['name'] = $nameOverride;
             }
@@ -728,7 +787,13 @@ class MainScreen extends Component
         return !$ferdiaMapService->canTravelCity($this->character, $currentCity);
     }
 
-    private function getLocationData($currentCity = null, $character = null, bool $isFerdiaSimpleBase = false)
+    private function getLocationData(
+        $currentCity = null,
+        $character = null,
+        bool $isFerdiaSimpleBase = false,
+        ?array $townFinalStats = null,
+        bool $resolveTownState = true
+    )
     {
         $cityName = $currentCity ? $currentCity->name : '冒険都市ヴァルゼリア';
         $cityDesc = $currentCity ? $currentCity->description : '冒険者たちが集まるヴァルゼリアの玄関口です。';
@@ -740,10 +805,10 @@ class MainScreen extends Component
         $hasEquipmentShop = $cityId >= 1 && $cityId <= 6;
         $innRestBlocked = false;
         $innRestBlockMessage = 'HP/SPが満タンです。宿屋で休む必要はありません。';
-        if ($character) {
-            $finalStats = app(CharacterStatusService::class)->getFinalStats($character);
-            $maxHp = (int) ($finalStats['max_hp'] ?? $character->hp_base);
-            $maxMp = (int) ($finalStats['max_mp'] ?? 0);
+        if ($character && $resolveTownState) {
+            $townFinalStats ??= app(CharacterStatusService::class)->getFinalStats($character);
+            $maxHp = (int) ($townFinalStats['max_hp'] ?? $character->hp_base);
+            $maxMp = (int) ($townFinalStats['max_mp'] ?? 0);
             $innRestBlocked = (int) $character->current_hp >= $maxHp
                 && ($maxMp === 0 || (int) $character->current_mp >= $maxMp);
         }
@@ -751,7 +816,7 @@ class MainScreen extends Component
         $explorationSupportEnabled = app(\App\Services\ExplorationSupportService::class)->isEnabled();
 
         $townFacilities = [
-            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
+            ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character && $resolveTownState ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
             ['category' => '休息・補給', 'name' => '補給所', 'symbol_image' => 'facilities/facility_supply_300.webp', 'desc' => '毎日の回復アイテム補給と残りストックを受け取る', 'details' => ['薬草・回復薬・魔力水', '各10個/日'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '受け取る', 'route' => 'shop.items', 'is_post' => false],
             ...($hasEquipmentShop && !$isFerdiaSimpleBase ? [
                 ['category' => '装備', 'name' => '装備屋', 'symbol_image' => 'facilities/facility_equipment_shop.webp', 'desc' => 'この街で作られた店売り装備をGoldで購入する', 'details' => ['進化不可', '+5強化可'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'shop.equipment', 'is_post' => false],
@@ -772,7 +837,8 @@ class MainScreen extends Component
             ] : []),
             ['category' => 'その他', 'name' => '銀行', 'symbol_image' => 'facilities/facility_bank.webp', 'desc' => 'Goldを預けて探索中の喪失から守る', 'details' => ['預ける', '引き出す'], 'bg_image' => 'facilities/bank.webp', 'status' => 'active', 'action' => '入る', 'route' => 'bank.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [
-                ['category' => 'その他', 'name' => '酒場', 'symbol_image' => 'facilities/facility_tavern_300.webp', 'desc' => '冒険者たちの噂話や名簿を確認する', 'details' => ['NPC出現中'], 'bg_image' => 'facilities/tavern.webp', 'status' => 'active', 'action' => '入る', 'route' => 'tavern.index', 'is_post' => false],
+            ['category' => 'その他', 'name' => '酒場', 'symbol_image' => 'facilities/facility_tavern_300.webp', 'desc' => '冒険者たちの噂話や名簿を確認する', 'details' => ['NPC出現中'], 'bg_image' => 'facilities/tavern.webp', 'status' => 'active', 'action' => '入る', 'route' => 'tavern.index', 'is_post' => false],
+            ['category' => 'その他', 'name' => '地図院', 'icon' => '🗺️', 'desc' => '未調査の探索地図を調べ、公開地図を探索する', 'details' => ['遠征調査', '共有探索'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '入る', 'route' => 'exploration-maps.index', 'is_post' => false],
             ] : []),
             ['category' => 'その他', 'name' => '番付掲示板', 'symbol_image' => 'icon/icon_223.webp', 'desc' => '戦績・収集・商いなど冒険者たちの各種番付を見る', 'details' => ['勝利数', '収集', '市場売上'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [
@@ -852,7 +918,7 @@ class MainScreen extends Component
                 ]
             ],
             'guild' => [
-                'title' => '市場・依頼',
+                'title' => '商店街',
                 'description' => '素材・装備の売買や、冒険者同士の依頼を扱う場所。',
                 'news_title' => '市場掲示板',
                 'news' => [
@@ -861,8 +927,11 @@ class MainScreen extends Component
                     '調達依頼で素材を納品できるようになりました'
                 ],
                 'facilities' => [
-                    ['name' => '素材市場', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '⚖️', 'desc' => '通常素材・地域素材を匿名で売買する', 'details' => ['3%手数料', '48時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'market.index', 'is_post' => false],
-                    ['name' => '装備市場', 'symbol_image' => 'facilities/facility_market_300.webp', 'icon' => '⚔️', 'desc' => '銘・特攻付き武器を匿名で売買する', 'details' => ['成立手数料10%', '72時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'equipment-market.index', 'is_post' => false],
+                    ...(config('features.player_shops_enabled', false) ? [
+                        ['name' => '個人商店街', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '🏪', 'desc' => '冒険者の店を巡り、素材・装備・ヴァルモンの卵を探す', 'details' => ['自分の商店も管理できる'], 'status' => 'active', 'action' => '歩く', 'route' => 'shopping-street.index', 'is_post' => false],
+                    ] : []),
+                    ['name' => '素材市場', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '⚖️', 'desc' => '通常素材・地域素材を売買する', 'details' => ['成立手数料5%', '48時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'market.index', 'is_post' => false],
+                    ['name' => '装備市場', 'symbol_image' => 'facilities/facility_market_300.webp', 'icon' => '⚔️', 'desc' => '銘・特攻付き武器を売買する', 'details' => ['成立手数料10%', '72時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'equipment-market.index', 'is_post' => false],
                     ['name' => '調達依頼', 'symbol_image' => 'facilities/facility_request_board.webp', 'icon' => '📋', 'desc' => '街や組織が必要としている素材を納品する', 'details' => ['NPC依頼', '即時報酬'], 'status' => 'active', 'action' => '開く', 'route' => 'market.npc-requests.index', 'is_post' => false],
                 ]
             ],

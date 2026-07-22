@@ -14,7 +14,7 @@
                             <img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="h-8 w-8 shrink-0 object-contain">
                             <div>
                                 <h2 class="text-sm font-black text-rose-950">ヴァルモンの卵を預かっている</h2>
-                                <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。「卵を連れて街へ戻る」で孵化します。</p>
+                                <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。すでに仲間にいるヴァルモンの卵は、帰還時に所持品へ入ります。</p>
                             </div>
                         </div>
                     </section>

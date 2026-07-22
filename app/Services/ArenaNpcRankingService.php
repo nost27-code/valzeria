@@ -17,12 +17,20 @@ class ArenaNpcRankingService
     public const NPC_LOWER_ENTRY_FLOOR_RANK = 50;
     private const HIDDEN_TESTER_RANK_BASE = 800000;
 
+    private bool $rankingsEnsured = false;
+    private bool $rankIntegrityChecked = false;
+
     public const EXCLUDED_NPC_IDS = [
         8, 12, 17, 26, 29, 37, 38, 39, 45, 48, 50, 57,
     ];
 
     public function ensureRankings(): void
     {
+        if ($this->rankingsEnsured) {
+            return;
+        }
+        $this->rankingsEnsured = true;
+
         if (! Schema::hasTable('arena_npc_rankings')) {
             return;
         }
@@ -131,6 +139,60 @@ class ArenaNpcRankingService
             ->values();
     }
 
+    /**
+     * @return array{top: Collection, targets: Collection}
+     */
+    public function screenEntries(ArenaRanking $myRanking, int $topLimit = 5, int $targetRange = 3): array
+    {
+        $this->ensureRankings();
+        $hasNpcRankings = Schema::hasTable('arena_npc_rankings');
+
+        $topPlayers = ArenaRanking::with(['character.jobClass'])
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
+            ->where('rank', '<=', $topLimit)
+            ->orderBy('rank')
+            ->get();
+        $topNpcs = $hasNpcRankings
+            ? ArenaNpcRanking::with('npc')
+                ->where('is_active', true)
+                ->where('rank', '<=', $topLimit)
+                ->orderBy('rank')
+                ->get()
+            : collect();
+
+        $top = $this->mapPlayerEntries($topPlayers)
+            ->concat($this->mapNpcEntries($topNpcs))
+            ->sortBy('rank')
+            ->values();
+
+        if ((int) $myRanking->rank <= 1) {
+            return ['top' => $top, 'targets' => collect()];
+        }
+
+        $targetPlayers = ArenaRanking::with(['character.jobClass'])
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
+            ->where('rank', '<', (int) $myRanking->rank)
+            ->orderByDesc('rank')
+            ->limit($targetRange)
+            ->get();
+        $targetNpcs = $hasNpcRankings
+            ? ArenaNpcRanking::with('npc')
+                ->where('is_active', true)
+                ->where('rank', '<', (int) $myRanking->rank)
+                ->orderByDesc('rank')
+                ->limit($targetRange)
+                ->get()
+            : collect();
+
+        $targets = $this->mapPlayerEntries($targetPlayers)
+            ->concat($this->mapNpcEntries($targetNpcs))
+            ->sortByDesc('rank')
+            ->take($targetRange)
+            ->values();
+
+        return ['top' => $top, 'targets' => $targets];
+    }
+
     public function rankingEntries(int $limit = 100): Collection
     {
         return $this->combinedEntries()
@@ -141,6 +203,11 @@ class ArenaNpcRankingService
 
     private function compactVisibleRanksIfNeeded(): void
     {
+        if ($this->rankIntegrityChecked) {
+            return;
+        }
+        $this->rankIntegrityChecked = true;
+
         if (! Schema::hasTable('arena_npc_rankings')) {
             return;
         }
@@ -328,55 +395,63 @@ class ArenaNpcRankingService
     {
         $this->ensureRankings();
 
-        $players = ArenaRanking::with(['character.jobClass'])
+        $players = $this->mapPlayerEntries(ArenaRanking::with(['character.jobClass'])
             ->whereHas('character', fn ($query) => $query->visibleToPublic())
-            ->get()
-            ->map(function (ArenaRanking $ranking): array {
-                $character = $ranking->character;
-                $profileService = app(CharacterProfileService::class);
-                $profileFrameTheme = $character
-                    ? $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme)
-                    : 'standard';
-
-                return [
-                    'type' => 'player',
-                    'id' => (int) $ranking->id,
-                    'rank' => (int) $ranking->rank,
-                    'name' => $character?->name ?? '不明',
-                    'level' => $character ? (int) $character->level : null,
-                    'job' => $character?->jobClass?->name ?? '冒険者',
-                    'power' => $this->playerPower($character),
-                    'character' => $character,
-                    'ranking' => $ranking,
-                    'image_path' => CharacterIconCatalog::normalize($character?->icon_path),
-                    'frame_image_path' => $profileService->frameImageForTheme($profileFrameTheme),
-                ];
-            });
+            ->get());
 
         $npcs = Schema::hasTable('arena_npc_rankings')
-            ? ArenaNpcRanking::with('npc')
+            ? $this->mapNpcEntries(ArenaNpcRanking::with('npc')
                 ->where('is_active', true)
-                ->get()
-                ->map(function (ArenaNpcRanking $ranking): array {
-                    $npc = $ranking->npc;
-
-                    return [
-                        'type' => 'npc',
-                        'id' => (int) $ranking->id,
-                        'rank' => (int) $ranking->rank,
-                        'name' => $this->npcDisplayName($npc),
-                        'full_name' => $npc?->npc_name ?? ('放浪冒険者 #' . $ranking->npc_id),
-                        'level' => (int) $ranking->level,
-                        'job' => $this->npcJobLabel($npc),
-                        'power' => $this->npcPower($ranking),
-                        'npc' => $npc,
-                        'ranking' => $ranking,
-                        'image_path' => $npc?->image_path,
-                    ];
-                })
+                ->get())
             : collect();
 
         return $players->concat($npcs);
+    }
+
+    private function mapPlayerEntries(Collection $rankings): Collection
+    {
+        return $rankings->map(function (ArenaRanking $ranking): array {
+            $character = $ranking->character;
+            $profileService = app(CharacterProfileService::class);
+            $profileFrameTheme = $character
+                ? $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme)
+                : 'standard';
+
+            return [
+                'type' => 'player',
+                'id' => (int) $ranking->id,
+                'rank' => (int) $ranking->rank,
+                'name' => $character?->name ?? '不明',
+                'level' => $character ? (int) $character->level : null,
+                'job' => $character?->jobClass?->name ?? '冒険者',
+                'power' => $this->playerPower($character),
+                'character' => $character,
+                'ranking' => $ranking,
+                'image_path' => CharacterIconCatalog::normalize($character?->icon_path),
+                'frame_image_path' => $profileService->frameImageForTheme($profileFrameTheme),
+            ];
+        });
+    }
+
+    private function mapNpcEntries(Collection $rankings): Collection
+    {
+        return $rankings->map(function (ArenaNpcRanking $ranking): array {
+            $npc = $ranking->npc;
+
+            return [
+                'type' => 'npc',
+                'id' => (int) $ranking->id,
+                'rank' => (int) $ranking->rank,
+                'name' => $this->npcDisplayName($npc),
+                'full_name' => $npc?->npc_name ?? ('放浪冒険者 #' . $ranking->npc_id),
+                'level' => (int) $ranking->level,
+                'job' => $this->npcJobLabel($npc),
+                'power' => $this->npcPower($ranking),
+                'npc' => $npc,
+                'ranking' => $ranking,
+                'image_path' => $npc?->image_path,
+            ];
+        });
     }
 
     private function playerPower(?Character $character): ?int

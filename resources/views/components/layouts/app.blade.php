@@ -116,6 +116,7 @@
              @main-tab-selected.window="currentLocation = ($event.detail.location === 'job' ? 'town' : $event.detail.location)">
             <!-- 全幅ヘッダー -->
             <livewire:city-header />
+            <livewire:adventurer-departure-set-banner />
 
             <div x-show="currentLocation === 'home'"
                  style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}">

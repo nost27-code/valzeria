@@ -23,9 +23,9 @@ class LevelService
      * 
      * @return array 獲得した結果やレベルアップ内容を含む連想配列
      */
-    public function addRewardAndCheckLevelUp(Character $character, int $expGained, int $goldGained, int $jobExpGained = 0): array
+    public function addRewardAndCheckLevelUp(Character $character, int $expGained, int $goldGained, int $jobExpGained = 0, ?int $jobExpCap = null): array
     {
-        $jobExpGained = $this->capJobExpGain($jobExpGained);
+        $jobExpGained = $this->capJobExpGain($jobExpGained, $jobExpCap);
 
         if ($goldGained > 0) {
             app(GoldService::class)->add($character, $goldGained, 'battle_reward', '戦闘でGoldを獲得');

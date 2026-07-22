@@ -15,7 +15,8 @@ class MarketService
 {
     public function __construct(
         private readonly GoldService $goldService,
-        private readonly CharacterNotificationService $notificationService
+        private readonly CharacterNotificationService $notificationService,
+        private readonly PlayerShopService $shopService,
     )
     {
     }
@@ -25,6 +26,9 @@ class MarketService
         $quantity = max(1, $quantity);
 
         return DB::transaction(function () use ($seller, $material, $quantity, $unitPrice) {
+            $shop = $this->shopService->isEnabled()
+                ? $this->shopService->assertCanList($seller)
+                : null;
             $material = Material::whereKey($material->id)->lockForUpdate()->firstOrFail();
             $this->assertMarketable($material);
             $this->assertPriceInRange($material, $unitPrice);
@@ -48,8 +52,9 @@ class MarketService
                 $owned->forceFill(['quantity' => $remaining])->save();
             }
 
-            return MarketListing::create([
+            $listing = MarketListing::create([
                 'seller_character_id' => $seller->id,
+                'shop_id' => $shop?->id,
                 'seller_type' => 'character',
                 'seller_npc_id' => null,
                 'listing_type' => 'material',
@@ -61,6 +66,8 @@ class MarketService
                 'status' => 'active',
                 'expires_at' => now()->addHours($this->listingHours()),
             ]);
+            $shop?->update(['last_stocked_at' => now()]);
+            return $listing;
         });
     }
 

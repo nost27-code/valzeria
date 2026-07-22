@@ -17,12 +17,16 @@ class EquipmentMarketService
         private readonly GoldService $goldService,
         private readonly StorageCapacityService $storageCapacityService,
         private readonly CharacterNotificationService $notificationService,
+        private readonly PlayerShopService $shopService,
     ) {}
 
     public function listWeapon(Character $seller, CharacterItem $characterItem, int $listingPrice): EquipmentMarketListing
     {
         return DB::transaction(function () use ($seller, $characterItem, $listingPrice) {
             $seller = Character::query()->lockForUpdate()->findOrFail($seller->id);
+            $shop = $this->shopService->isEnabled()
+                ? $this->shopService->assertCanList($seller)
+                : null;
             $item = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])->lockForUpdate()->findOrFail($characterItem->id);
             $this->assertOwnedBy($item, $seller);
             $this->assertMarketListable($item);
@@ -34,6 +38,7 @@ class EquipmentMarketService
 
             $listing = EquipmentMarketListing::create([
                 'seller_character_id' => $seller->id,
+                'shop_id' => $shop?->id,
                 'character_item_id' => $item->id,
                 'item_id' => $item->item_id,
                 'display_name_snapshot' => $item->displayName(),
@@ -60,6 +65,7 @@ class EquipmentMarketService
             ]);
 
             $item->update(['market_listing_id' => $listing->id]);
+            $shop?->update(['last_stocked_at' => now()]);
             return $listing;
         });
     }
@@ -67,8 +73,8 @@ class EquipmentMarketService
     public function buyWeapon(Character $buyer, EquipmentMarketListing $listing): EquipmentMarketTransaction
     {
         return DB::transaction(function () use ($buyer, $listing) {
-            $listing = EquipmentMarketListing::query()->lockForUpdate()->findOrFail($listing->id);
-            if ($listing->status !== 'active') throw new RuntimeException('この出品は購入できません。');
+            $listing = EquipmentMarketListing::query()->with('shop')->lockForUpdate()->findOrFail($listing->id);
+            if ($listing->status !== 'active' || ($this->shopService->isEnabled() && ! $listing->shop?->isOpen())) throw new RuntimeException('この出品は購入できません。');
             if ($listing->expires_at->isPast()) {
                 $this->expireLockedListing($listing);
                 throw new RuntimeException('この出品は期限切れです。');

@@ -67,6 +67,28 @@ class EnemyDurabilityBattleIntegrationTest extends TestCase
         $this->assertSame(25, $result->enemyStatDisplay['def']['base']);
     }
 
+    public function test_region_depth_enemy_uses_sandra_entry_baseline_before_danger_scaling(): void
+    {
+        $area = Area::query()->create([
+            'name' => '黒炉深坑試験エリア', 'slug' => 'test-region-depth-area-' . uniqid(),
+            'city_id' => 4, 'recommended_level_min' => 56, 'recommended_level_max' => 57,
+        ]);
+        $enemy = Enemy::query()->create([
+            'name' => '黒炉試験敵', 'area_id' => $area->id, 'level' => 56,
+            'max_hp' => 100, 'str' => 100, 'def' => 100, 'agi' => 100, 'mag' => 100, 'spr' => 100, 'luk' => 100,
+            'is_boss' => false, 'role_key' => 'normal', 'exp_reward' => 1, 'gold_reward' => 1,
+        ]);
+        $enemy->setAttribute('region_depth_dungeon_key', 'granberg_black_furnace');
+        $enemy->setAttribute('region_depth_danger_rate', 0);
+
+        $result = app(BattleService::class)->executeBattle($this->character(2000), $enemy);
+
+        $this->assertSame(142, $result->enemyStatDisplay['hp']['base']);
+        $this->assertSame(139, $result->enemyStatDisplay['str']['base']);
+        $this->assertSame(138, $result->enemyStatDisplay['def']['base']);
+        $this->assertSame(0, $result->enemyStatDisplay['hp']['bonus']);
+    }
+
     public function test_super_boss_multiplier_overrides_its_home_city_tier_in_actual_battle(): void
     {
         $area = Area::query()->create([

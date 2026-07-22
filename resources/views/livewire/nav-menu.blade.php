@@ -4,7 +4,7 @@
             'town'      => ['label' => '街',      'icon' => '🏰', 'image' => 'tabs/tab_town.webp'],
             'dungeon'   => ['label' => '探索',    'icon' => '🧭', 'image' => 'tabs/tab_dungeon.webp'],
             'home'      => ['label' => '冒険者',  'icon' => '👤', 'image' => 'tabs/tab_home.webp'],
-            'guild'     => ['label' => '市場・依頼', 'icon' => '⚖️', 'image' => 'tabs/tab_guild.webp'],
+            'guild'     => ['label' => '商店街', 'icon' => '⚖️', 'image' => 'tabs/tab_guild.webp'],
             'colosseum' => ['label' => '闘技場',  'icon' => '🛡️', 'image' => 'tabs/tab_colosseum.webp'],
         ];
     @endphp
@@ -14,8 +14,7 @@
         <div class="grid grid-cols-5">
             @foreach($bottomNavs as $key => $nav)
                 <button type="button"
-                        wire:click="$dispatch('changeTab', { newLocation: '{{ $key }}' })"
-                        @click="pending = '{{ $key }}'; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $key }}' } }))"
+                        @click="pending = '{{ $key }}'; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $key }}' } })); $dispatch('changeTab', { newLocation: '{{ $key }}' })"
                         class="relative flex flex-col items-center justify-center gap-0.5 py-1 transition-all active:scale-90">
 
                     {{-- アクティブインジケーター（上部ライン） --}}

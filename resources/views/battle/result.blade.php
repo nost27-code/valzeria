@@ -1,4 +1,4 @@
-<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
+<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitUrl="isset($mapExploration) ? route('exploration-maps.leave') : null" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
     <div class="py-1 flex flex-col items-center" data-battle-result-page>
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
@@ -1396,7 +1396,7 @@
                                                 <div class="flex flex-wrap gap-1.5">
                                                     <span class="inline-flex items-center rounded border border-[#e11d48]/40 bg-rose-50 px-2 py-1 text-[11px] font-extrabold text-[#9f1239] shadow-sm">
                                                         <img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="w-4 h-4 object-contain mr-1">
-                                                        ヴァルモンの卵
+                                                        {{ $valmonEggFound['name'] ?? 'ヴァルモン' }}の卵
                                                         <span class="ml-1 text-[#e11d48]">x1</span>
                                                     </span>
                                                 </div>
@@ -1800,7 +1800,7 @@
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !in_array($result['result'], ['victory', 'win'], true) && !($isSubAreaExplore && $isDefeatResult))
-                            <a href="{{ route('home') }}"
+                            <a href="{{ isset($mapExploration) ? route('exploration-maps.leave') : route('home') }}"
                                x-data="{ loading: false }"
                                @click="if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) loading = true"
                                :class="loading ? 'pointer-events-none opacity-80' : ''"
@@ -1979,19 +1979,32 @@
             }
 
             function batchStaminaModal() {
-                return document.getElementById('batch-stamina-modal');
+                return currentResultPage()?.querySelector('#batch-stamina-modal')
+                    || document.getElementById('batch-stamina-modal');
             }
 
             function bindBatchStaminaModal(modal) {
                 if (!modal || modal.dataset.interactionBound === '1') return;
 
                 modal.dataset.interactionBound = '1';
+                const closeModalFromControl = function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeBatchStaminaModal();
+                };
+
+                // iOS Safari can consume a bubbled click after the scrollable
+                // modal has handled a touch. Bind the close controls directly as
+                // well as keeping the delegated fallback below.
+                modal.querySelectorAll('[data-batch-stamina-modal-close]').forEach((button) => {
+                    button.addEventListener('click', closeModalFromControl);
+                    button.addEventListener('touchend', closeModalFromControl, { passive: false });
+                });
+
                 modal.addEventListener('click', function(event) {
                     const closeButton = event.target.closest('[data-batch-stamina-modal-close]');
                     if (closeButton) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        closeBatchStaminaModal();
+                        closeModalFromControl(event);
                         return;
                     }
 
@@ -2028,6 +2041,10 @@
                 }
 
                 if (modal.parentElement !== document.body) {
+                    modal.__batchStaminaModalHome = {
+                        parent: modal.parentElement,
+                        nextSibling: modal.nextSibling,
+                    };
                     document.body.appendChild(modal);
                 }
 
@@ -2063,6 +2080,15 @@
                 document.body.style.overflow = modal.dataset.previousBodyOverflow || '';
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
+
+                const home = modal.__batchStaminaModalHome;
+                if (home?.parent?.isConnected) {
+                    const nextSibling = home.nextSibling?.parentNode === home.parent
+                        ? home.nextSibling
+                        : null;
+                    home.parent.insertBefore(modal, nextSibling);
+                }
+                delete modal.__batchStaminaModalHome;
             }
 
             function csrfToken() {

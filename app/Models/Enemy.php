@@ -14,6 +14,9 @@ class Enemy extends Model
     protected $casts = [
         'is_boss' => 'boolean',
         'is_stat_locked' => 'boolean',
+        'map_biome_tags' => 'array',
+        'map_normal_eligible' => 'boolean',
+        'map_boss_eligible' => 'boolean',
         'generated_at' => 'datetime',
     ];
 

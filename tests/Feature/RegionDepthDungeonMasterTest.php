@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterRegionDungeonRecord;
+use App\Models\CharacterRegionDungeonRun;
 use App\Models\City;
 use App\Models\Enemy;
+use App\Models\PublicLog;
 use App\Models\RegionDepthDungeon;
 use App\Models\User;
 use App\Services\RegionDepthDungeonService;
@@ -55,6 +57,24 @@ class RegionDepthDungeonMasterTest extends TestCase
         $this->assertCount(2, $ranking['others']);
         $this->assertSame('先行者', $ranking['others'][0]['record']->character->name);
         $this->assertSame(1, $ranking['others'][0]['rank']);
+    }
+
+    public function test_only_top_five_new_danger_records_are_announced_publicly(): void
+    {
+        $city = City::create(['name' => '記録試験街', 'description' => '', 'recommended_level_min' => 1, 'recommended_level_max' => 10, 'sort_order' => 1]);
+        $area = $this->area($city, '記録試験坑道');
+        $challenger = $this->character('挑戦者');
+        foreach ([1000, 900, 800, 700, 650] as $danger) {
+            CharacterRegionDungeonRecord::create(['character_id' => $this->character('先行者' . $danger)->id, 'dungeon_key' => 'granberg_black_furnace', 'best_danger_rate' => $danger]);
+        }
+
+        CharacterRegionDungeonRun::create(['character_id' => $challenger->id, 'dungeon_key' => 'granberg_black_furnace', 'area_id' => $area->id, 'status' => 'active', 'entered_at' => now(), 'max_danger_rate' => 600]);
+        app(RegionDepthDungeonService::class)->finalize($challenger, 'returned');
+        $this->assertSame(0, PublicLog::query()->where('type', 'region_depth_dungeon')->count());
+
+        CharacterRegionDungeonRun::create(['character_id' => $challenger->id, 'dungeon_key' => 'granberg_black_furnace', 'area_id' => $area->id, 'status' => 'active', 'entered_at' => now(), 'max_danger_rate' => 1100]);
+        app(RegionDepthDungeonService::class)->finalize($challenger, 'returned');
+        $this->assertSame(1, PublicLog::query()->where('type', 'region_depth_dungeon')->count());
     }
 
     private function area(City $city, string $name): Area

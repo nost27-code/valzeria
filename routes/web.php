@@ -18,6 +18,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\JobArtController;
 use App\Http\Controllers\MarketController;
 use App\Http\Controllers\EquipmentMarketController;
+use App\Http\Controllers\PlayerShopController;
 use App\Http\Controllers\NpcProcurementRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StarTreeTowerController;
@@ -243,6 +244,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/battle/pvp-random', [BattleController::class, 'randomPvp'])->name('battle.pvp_random');
 
         Route::get('/battle/resume', [BattleController::class, 'resumeExploration'])->name('battle.resume');
+        Route::get('/exploration-maps', [\App\Http\Controllers\ExplorationMapController::class, 'index'])->name('exploration-maps.index');
+        Route::get('/exploration-maps/published', [\App\Http\Controllers\ExplorationMapController::class, 'published'])->name('exploration-maps.published');
+        Route::get('/exploration-maps/leave', [\App\Http\Controllers\ExplorationMapController::class, 'leave'])->name('exploration-maps.leave');
+        Route::get('/exploration-maps/registrations/{registration}', [\App\Http\Controllers\ExplorationMapController::class, 'show'])->name('exploration-maps.show');
+        Route::post('/exploration-maps/{map}/survey', [\App\Http\Controllers\ExplorationMapController::class, 'startSurvey'])->name('exploration-maps.survey.start');
+        Route::post('/exploration-maps/registrations/{registration}/survey/complete', [\App\Http\Controllers\ExplorationMapController::class, 'completeSurvey'])->name('exploration-maps.survey.complete');
+        Route::post('/exploration-maps/registrations/{registration}/publish', [\App\Http\Controllers\ExplorationMapController::class, 'publish'])->name('exploration-maps.publish');
+        Route::post('/exploration-maps/registrations/{registration}/explore', [\App\Http\Controllers\ExplorationMapController::class, 'explore'])->name('exploration-maps.explore');
+        Route::get('/map-explorations/batches/{uuid}/result', [\App\Http\Controllers\ExplorationMapController::class, 'result'])->name('exploration-maps.result');
+        Route::get('/region-depth-dungeons/{dungeonKey}', [\App\Http\Controllers\RegionDepthDungeonController::class, 'show'])->name('region-depth-dungeons.show');
+        Route::post('/region-depth-dungeons/{dungeonKey}/enter', [\App\Http\Controllers\RegionDepthDungeonController::class, 'enter'])->name('region-depth-dungeons.enter');
+        Route::post('/region-depth-dungeons/{dungeonKey}/return', [\App\Http\Controllers\RegionDepthDungeonController::class, 'returnToTown'])->name('region-depth-dungeons.return');
         Route::post('/battle/resume/return', [BattleController::class, 'abandonInterruptedExploration'])->name('battle.resume.return');
         Route::get('/battle/areas/{area}/explore', [BattleController::class, 'exploreGetFallback'])->name('battle.explore.fallback');
         Route::post('/battle/discovered-areas/{area}/travel', [BattleController::class, 'travelDiscoveredArea'])->name('battle.discovered_area.travel');
@@ -265,9 +278,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/tavern/npcs/{npc}/talk', [TavernController::class, 'talk'])->name('tavern.talk');
         Route::get('/tavern/roster', [TavernController::class, 'roster'])->name('tavern.roster');
         Route::get('/tavern/roster/{npc}', [TavernController::class, 'rosterDetail'])->name('tavern.roster.detail');
-        Route::get('/home', MainScreen::class)->name('home');
-        Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
-        Route::get('/profile/favorite-weapons', [ProfileController::class, 'favoriteWeapons'])->name('profile.favorite-weapons');
+          Route::get('/home', MainScreen::class)->name('home');
+          Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+          Route::get('/profile/favorite-weapons', [ProfileController::class, 'favoriteWeapons'])->name('profile.favorite-weapons');
         Route::post('/profile/edit', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/frame/compress', [ProfileController::class, 'compressFrameMaterial'])->name('profile.frame.compress');
         Route::post('/profile/frame/unlock', [ProfileController::class, 'unlockFrame'])->name('profile.frame.unlock');
@@ -374,6 +387,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/tower/star-tree/ranking', [StarTreeTowerController::class, 'ranking'])->name('tower.star-tree.ranking');
 
         // 冒険者市場
+        Route::get('/shopping-street', [PlayerShopController::class, 'street'])->name('shopping-street.index');
+        Route::get('/shops', [PlayerShopController::class, 'index'])->name('shops.index');
+        Route::get('/shops/me', [PlayerShopController::class, 'mine'])->name('shops.mine');
+        Route::get('/shops/{shop}', [PlayerShopController::class, 'show'])->name('shops.show');
+        Route::patch('/shops/{shop}', [PlayerShopController::class, 'update'])->name('shops.update');
+        Route::post('/shops/{shop}/favorite', [PlayerShopController::class, 'favorite'])->name('shops.favorite');
+        Route::delete('/shops/{shop}/favorite', [PlayerShopController::class, 'unfavorite'])->name('shops.unfavorite');
+        Route::post('/shops/eggs/list', [PlayerShopController::class, 'listEgg'])->name('shops.eggs.list');
+        Route::post('/shops/materials/list', [PlayerShopController::class, 'listMaterial'])->name('shops.materials.list');
+        Route::post('/shops/equipment/list', [PlayerShopController::class, 'listEquipment'])->name('shops.equipment.list');
+        Route::post('/shops/eggs/{listing}/buy', [PlayerShopController::class, 'buyEgg'])->name('shops.eggs.buy');
+        Route::post('/shops/eggs/{listing}/cancel', [PlayerShopController::class, 'cancelEgg'])->name('shops.eggs.cancel');
         Route::get('/market', [MarketController::class, 'index'])->name('market.index');
         Route::get('/market/materials/{material}', [MarketController::class, 'showMaterial'])->name('market.materials.show');
         Route::post('/market/materials/list', [MarketController::class, 'listMaterial'])->name('market.materials.list');
@@ -485,6 +510,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/job-affinity', \App\Livewire\Admin\JobAffinityChecker::class)->name('admin.job-affinity');
     Route::get('/admin/equipment-compatibility', \App\Livewire\Admin\EquipmentCompatibilityManager::class)->name('admin.equipment-compatibility');
     Route::get('/admin/dungeon-enemies', \App\Livewire\Admin\DungeonEnemyManager::class)->name('admin.dungeon-enemies');
+    Route::get('/admin/region-depth-dungeons', \App\Livewire\Admin\RegionDepthDungeonManager::class)->name('admin.region-depth-dungeons');
     Route::get('/admin/players', \App\Livewire\Admin\PlayerLogs::class)->name('admin.players');
     Route::get('/admin/user-investigation', \App\Livewire\Admin\UserInvestigationManager::class)->name('admin.user-investigation');
     Route::get('/admin/player-controls', \App\Livewire\Admin\PlayerControlManager::class)->name('admin.player-controls');
@@ -501,6 +527,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/npc-market-analytics', \App\Livewire\Admin\NpcMarketAnalyticsManager::class)->name('admin.npc-market-analytics');
     Route::get('/admin/equipment-market', [\App\Http\Controllers\Admin\EquipmentMarketAdminController::class, 'index'])->name('admin.equipment-market.index');
     Route::post('/admin/equipment-market/{listing}/cancel', [\App\Http\Controllers\Admin\EquipmentMarketAdminController::class, 'cancel'])->name('admin.equipment-market.cancel');
+    Route::get('/admin/player-shops', [\App\Http\Controllers\Admin\PlayerShopAdminController::class, 'index'])->name('admin.player-shops.index');
+    Route::patch('/admin/player-shops/{shop}', [\App\Http\Controllers\Admin\PlayerShopAdminController::class, 'update'])->name('admin.player-shops.update');
     Route::get('/admin/reward-settings', \App\Livewire\Admin\RewardSettingManager::class)->name('admin.reward-settings');
     Route::get('/admin/adventure-support-items', \App\Livewire\Admin\AdventureSupportItemManager::class)->name('admin.adventure-support-items');
     Route::get('/admin/extra-contents', \App\Livewire\Admin\ExtraContentManager::class)->name('admin.extra-contents');

@@ -141,6 +141,24 @@ class CharacterItem extends Model
         return max(0.0, (float) ($this->killer_damage_rate ?? 0));
     }
 
+    /**
+     * 段階制移行前に生成された個体（良品5%/逸品6%固定）が下がらないよう、保存値と動的算出の高い方を使う。
+     */
+    public function effectiveSpeciesDamageReductionRate(): float
+    {
+        $storedRate = max(0.0, (float) ($this->species_damage_reduction_rate ?? 0));
+
+        if ($this->affix_suffix_id && $this->item?->type === 'armor') {
+            return max($storedRate, app(\App\Services\EquipmentAffixRulesService::class)->armorSpeciesResistRate(
+                $this->item,
+                $this->effectiveAffixSuffixLevel(),
+                $this->affix_quality,
+            ));
+        }
+
+        return $storedRate;
+    }
+
     public function hasAffix(): bool
     {
         return $this->affix_prefix_id !== null
@@ -232,9 +250,10 @@ class CharacterItem extends Model
             $lines[] = '種族が' . $speciesLabel . 'の敵への与ダメージ +' . $this->percentageLabel($killerDamageRate) . '%';
         }
 
-        if ($this->resist_species_key && (float) ($this->species_damage_reduction_rate ?? 0) > 0) {
+        $resistRate = $this->effectiveSpeciesDamageReductionRate();
+        if ($this->resist_species_key && $resistRate > 0) {
             $speciesLabel = $this->speciesLabel((string) $this->resist_species_key);
-            $lines[] = '種族が' . $speciesLabel . 'の敵からの被ダメージ -' . $this->percentageLabel((float) $this->species_damage_reduction_rate) . '%';
+            $lines[] = '種族が' . $speciesLabel . 'の敵からの被ダメージ -' . $this->percentageLabel($resistRate) . '%';
         }
 
         return $lines;

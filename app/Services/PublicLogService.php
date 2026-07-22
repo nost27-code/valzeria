@@ -8,12 +8,22 @@ use Illuminate\Support\Str;
 
 class PublicLogService
 {
+    public function addMapPublishedLog(\App\Models\ExplorationMap $map, \App\Models\TownMapRegistration $registration): void
+    {
+        $marker = \App\Models\MapPublicationLog::firstOrCreate(['map_id' => $map->id]);
+        if (!$marker->wasRecentlyCreated) return;
+        $log = PublicLog::create(['type' => 'system_map_published', 'message' => '🗺️ ' . $map->owner->name . 'さんが「' . $map->name . '」を' . $registration->town->name . '地図院で公開しました！', 'character_id' => $map->owner_character_id, 'importance' => 1]);
+        $marker->update(['public_log_id' => $log->id]);
+    }
+
     /**
      * システムやバトル、エリア解放などの公開ログを記録する
      */
     public function addLog(string $type, string $message, ?Character $character = null, int $importance = 1, ?int $receiverId = null): void
     {
-        if ($character?->isExcludedFromPublicLogs() && $type !== 'private') {
+        // 黒炉深坑の到達記録は、管理者・テスト用アカウントも含めて
+        // 挑戦結果として公開する。ほかの操作ログの除外方針は維持する。
+        if ($character?->isExcludedFromPublicLogs() && !in_array($type, ['private', 'region_depth_dungeon'], true)) {
             return;
         }
 

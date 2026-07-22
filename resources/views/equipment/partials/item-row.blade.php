@@ -6,7 +6,14 @@
     $restrictionJobs = $canEquipByJob ? [] : $permissionService->representativeJobNames($ci->item);
     // ランクは rank-label で別表示するため、名称側には重ねない。
     $displayName = $ci->displayName(false);
-    $equipmentIcon = $ci->item?->iconImagePath();
+    $isWeapon = $ci->item->type === 'weapon';
+    $favoriteWeaponService = app(\App\Services\FavoriteWeaponService::class);
+    $equipmentIcon = $isWeapon
+        ? $favoriteWeaponService->imagePathFor($ci->item) ?? $ci->item->iconImagePath()
+        : $ci->item?->iconImagePath();
+    $weaponDisplayBackground = $isWeapon
+        ? $favoriteWeaponService->displayBackgroundFor($ci->item, $ci->affix_quality)
+        : null;
     $sellPrice = (int) ($ci->sell_price ?? 0);
     $affixLines = $ci->affixEffectLines();
     $affixBonuses = $ci->affixStatBonuses();
@@ -41,7 +48,6 @@
 
     // このアイテムを装備した場合の攻撃・魔力の到達値（固定値+銘+武器比例補正）。
     // 装備中かどうかに関わらず常に算出し、他カードとの差分をJS側でも再計算できるようdata属性へ公開する。
-    $isWeapon = $ci->item->type === 'weapon';
     $candidateStr = $isWeapon ? $totalStats['str'] + ($weaponScaling['str'] ?? 0) : 0;
     $candidateMag = $isWeapon ? $totalStats['mag'] + ($weaponScaling['mag'] ?? 0) : 0;
 
@@ -113,7 +119,7 @@
         {{-- ヘッダー行: ランク + 名前 + バッジ --}}
         <div>
             <div class="flex flex-wrap items-center gap-1.5">
-                @if($equipmentIcon)
+                @if($equipmentIcon && !$isWeapon)
                     <img src="{{ asset($equipmentIcon) }}" alt="" class="h-6 w-6 shrink-0 object-contain">
                 @endif
                 @include('equipment.partials.rank-label', ['item' => $ci->item])
@@ -141,6 +147,14 @@
                 </div>
             @endif
         </div>
+
+        @if($isWeapon && $equipmentIcon)
+            <div class="mt-0.5 flex items-start gap-3">
+                <div class="grid aspect-square w-24 shrink-0 place-items-center overflow-hidden rounded-md bg-white p-1.5" @if($weaponDisplayBackground) style="background: {{ $weaponDisplayBackground }};" @endif>
+                    <img src="{{ asset($equipmentIcon) }}" alt="{{ $displayName }}" class="h-full w-full object-contain">
+                </div>
+                <div class="min-w-0 flex flex-1 flex-col gap-1">
+        @endif
 
         {{-- 今装備した場合の増減バッジ --}}
         <div class="equipment-delta-slot">
@@ -260,6 +274,11 @@
                 @endif
             </form>
         </div>
+
+        @if($isWeapon && $equipmentIcon)
+                </div>
+            </div>
+        @endif
 
     </div>
 </div>

@@ -31,19 +31,25 @@ class ColosseumScreen extends Component
         }
 
         // 闘技場画面を開いた時点で初期ランクを付与
-        $this->myRanking = app(ArenaNpcRankingService::class)->ensurePlayerRanking($this->character);
+        $rankingService = app(ArenaNpcRankingService::class);
+        $this->myRanking = $rankingService->ensurePlayerRanking($this->character);
 
-        $this->loadRankings();
+        $this->loadRankingsUsing($rankingService);
     }
 
     public function loadRankings()
     {
+        $this->loadRankingsUsing(app(ArenaNpcRankingService::class));
+    }
+
+    private function loadRankingsUsing(ArenaNpcRankingService $rankingService): void
+    {
         $this->myRanking->refresh();
         $this->rankBattleCooldownRemaining = $this->rankBattleCooldownRemaining();
 
-        $rankingService = app(ArenaNpcRankingService::class);
-        $this->topRankings = $rankingService->topEntries(5)->all();
-        $this->targetRankings = $rankingService->targetEntries($this->myRanking, 3)->all();
+        $entries = $rankingService->screenEntries($this->myRanking, 5, 3);
+        $this->topRankings = $entries['top']->all();
+        $this->targetRankings = $entries['targets']->all();
     }
 
     public function render(StorageCapacityService $storageCapacityService)
@@ -115,7 +121,10 @@ class ColosseumScreen extends Component
             ->take(10)
             ->values();
 
-        $storageIsFull = $this->character ? $storageCapacityService->isFull($this->character) : false;
+        $storageSummary = $this->character ? $storageCapacityService->summary($this->character) : null;
+        $storageIsFull = $storageSummary
+            ? ($storageSummary['material_full'] || $storageSummary['equipment_full'])
+            : false;
         $profileService = app(\App\Services\CharacterProfileService::class);
         $profileFrameTheme = $this->character
             ? $profileService->selectedFrameThemeFor($this->character, $this->character->profile_frame_theme)
@@ -124,7 +133,9 @@ class ColosseumScreen extends Component
         return view('livewire.colosseum-screen', [
             'recentLogs' => $logs,
             'storageIsFull' => $storageIsFull,
-            'storageFullMessage' => $storageIsFull ? $storageCapacityService->fullMessageHtml($this->character) : null,
+            'storageFullMessage' => $storageIsFull
+                ? $storageCapacityService->fullMessageHtml($this->character, $storageSummary)
+                : null,
             'myProfileFrameImage' => asset($profileService->frameImageForTheme($profileFrameTheme)),
         ]);
     }

@@ -42,7 +42,11 @@ class CheckCharacterSelected
             $character->timestamps = true;
         }
 
-        app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user, $character);
+        // Livewireのタブ切り替えやpollingはログインそのものではないため、
+        // IP観測・日次ログイン記録のDB書き込み対象から外す。
+        if (!$request->hasHeader('X-Livewire')) {
+            app(\App\Services\PlayerLifecycleEventService::class)->recordLogin($user, $character);
+        }
 
         return $next($request);
     }

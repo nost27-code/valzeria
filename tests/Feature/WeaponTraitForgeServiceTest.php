@@ -7,6 +7,7 @@ use App\Models\CharacterItem;
 use App\Models\EquipmentAffixPrefix;
 use App\Models\EquipmentAffixSuffix;
 use App\Models\Item;
+use App\Models\PublicLog;
 use App\Models\User;
 use App\Services\WeaponTraitForgeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,6 +97,29 @@ class WeaponTraitForgeServiceTest extends TestCase
         $this->assertDatabaseHas('character_items', ['id' => $base->id, 'affix_prefix_level' => 3]);
         $this->assertDatabaseHas('character_items', ['id' => $material->id, 'affix_prefix_level' => 3]);
         $this->assertDatabaseCount('weapon_trait_operation_logs', 0);
+    }
+
+    public function test_slayer_forge_can_promote_a_weapon_to_excellent_and_write_a_public_log(): void
+    {
+        config()->set('equipment_affix.forge_quality_upgrade_rates_bps.excellent', 10_000);
+        config()->set('equipment_affix.forge_quality_upgrade_rates_bps.good', 0);
+
+        $character = $this->createCharacter(100_000);
+        [$prefix, $suffix] = $this->affixes();
+        $base = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1);
+        $material = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1);
+
+        $result = app(WeaponTraitForgeService::class)->forge($character, 'slayer_forge', $base->id, $material->id);
+
+        $base->refresh();
+        $this->assertSame('excellent', $base->affix_quality);
+        $this->assertSame(2, $base->affix_suffix_level);
+        $this->assertStringContainsString('逸品に仕上がった！', $result['message']);
+        $this->assertSame(1, PublicLog::query()->count());
+        $this->assertSame(
+            "【逸品】{$character->name}さんが鍛冶で「{$base->displayName()}」を逸品に仕上げました！",
+            PublicLog::query()->value('message'),
+        );
     }
 
     private function createCharacter(int $money): Character

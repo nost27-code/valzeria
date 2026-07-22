@@ -85,30 +85,35 @@ class BeginnerMissionService
 
     private function firstMissions(Character $character, array $completedKeys): array
     {
-        $hasSupplies = ExplorationItemCarry::where('character_id', $character->id)
-            ->whereRaw('(carried_count + used_count) > 0')
-            ->exists()
+        $hasSupplies = in_array('supply', $completedKeys, true)
+            || ExplorationItemCarry::where('character_id', $character->id)
+                ->whereRaw('(carried_count + used_count) > 0')
+                ->exists()
             || CharacterItemDailySupply::where('character_id', $character->id)
                 ->exists()
             || CharacterItem::where('character_id', $character->id)
                 ->where('acquired_from', 'daily_supply')
-            ->exists();
+                ->exists();
 
-        $hasEquipment = CharacterItem::where('character_id', $character->id)
-            ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
-            ->exists();
+        $hasEquipment = in_array('starter_equipment', $completedKeys, true)
+            || CharacterItem::where('character_id', $character->id)
+                ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
+                ->exists();
 
-        $hasEquipped = CharacterItem::where('character_id', $character->id)
-            ->where('is_equipped', true)
-            ->exists();
+        $hasEquipped = in_array('equip', $completedKeys, true)
+            || CharacterItem::where('character_id', $character->id)
+                ->where('is_equipped', true)
+                ->exists();
 
-        $hasExplored = BattleLog::where('character_id', $character->id)
-            ->where('battle_type', 'normal')
-            ->exists();
+        $hasExplored = in_array('explore', $completedKeys, true)
+            || BattleLog::where('character_id', $character->id)
+                ->where('battle_type', 'normal')
+                ->exists();
 
-        $hasLoot = CharacterMaterial::where('character_id', $character->id)
-            ->where('quantity', '>', 0)
-            ->exists()
+        $hasLoot = in_array('loot', $completedKeys, true)
+            || CharacterMaterial::where('character_id', $character->id)
+                ->where('quantity', '>', 0)
+                ->exists()
             || CharacterItem::where('character_id', $character->id)
                 ->whereIn('acquired_from', ['drop', 'treasure', 'boss'])
                 ->exists();
@@ -117,10 +122,11 @@ class BeginnerMissionService
         $hasHandledBp = in_array('bonus_points', $completedKeys, true)
             || ((int) $character->level >= 2 && !$hasBpToSpend);
 
-        $hasBossWin = BattleLog::where('character_id', $character->id)
-            ->where('battle_type', 'boss')
-            ->where('result', 'win')
-            ->exists()
+        $hasBossWin = in_array('first_boss', $completedKeys, true)
+            || BattleLog::where('character_id', $character->id)
+                ->where('battle_type', 'boss')
+                ->where('result', 'win')
+                ->exists()
             || CharacterAreaProgress::where('character_id', $character->id)
                 ->where('boss_defeated', true)
                 ->exists();
@@ -130,7 +136,7 @@ class BeginnerMissionService
                 'key' => 'supply',
                 'title' => '補給所で回復アイテムを受け取る',
                 'desc' => '探索中にHP/SPを立て直せるようになります。',
-                'completed' => in_array('supply', $completedKeys, true) || $hasSupplies,
+                'completed' => $hasSupplies,
                 'action_label' => '補給所へ',
                 'route' => 'shop.items',
                 'persist_completion' => true,
@@ -139,7 +145,7 @@ class BeginnerMissionService
                 'key' => 'starter_equipment',
                 'title' => '装備を確認する',
                 'desc' => '手に入れた装備を確認し、戦闘に備えましょう。',
-                'completed' => in_array('starter_equipment', $completedKeys, true) || $hasEquipment,
+                'completed' => $hasEquipment,
                 'action_label' => '装備変更へ',
                 'route' => 'equipment.index',
                 'persist_completion' => true,
@@ -148,7 +154,7 @@ class BeginnerMissionService
                 'key' => 'equip',
                 'title' => '装備変更で装備を身につける',
                 'desc' => '入手した装備は身につけて初めて強くなります。',
-                'completed' => in_array('equip', $completedKeys, true) || $hasEquipped,
+                'completed' => $hasEquipped,
                 'action_label' => '装備変更へ',
                 'route' => 'equipment.index',
                 'persist_completion' => true,
@@ -157,7 +163,7 @@ class BeginnerMissionService
                 'key' => 'explore',
                 'title' => '最初のダンジョンを探索する',
                 'desc' => '経験値、素材、装備、印を集めましょう。',
-                'completed' => in_array('explore', $completedKeys, true) || $hasExplored,
+                'completed' => $hasExplored,
                 'action_label' => '探索へ',
                 'tab' => 'dungeon',
                 'persist_completion' => true,
@@ -166,7 +172,7 @@ class BeginnerMissionService
                 'key' => 'loot',
                 'title' => '戦利品を1つ持ち帰る',
                 'desc' => '拾った素材や装備が、次の強化につながります。',
-                'completed' => in_array('loot', $completedKeys, true) || $hasLoot,
+                'completed' => $hasLoot,
                 'action_label' => 'もう一度探索',
                 'tab' => 'dungeon',
                 'persist_completion' => true,
@@ -184,7 +190,7 @@ class BeginnerMissionService
                 'key' => 'first_boss',
                 'title' => '最初のボス撃破を目指す',
                 'desc' => 'ボス撃破で次の冒険先が開けます。',
-                'completed' => in_array('first_boss', $completedKeys, true) || $hasBossWin,
+                'completed' => $hasBossWin,
                 'action_label' => '探索へ',
                 'tab' => 'dungeon',
                 'persist_completion' => true,
@@ -204,23 +210,29 @@ class BeginnerMissionService
             return [];
         }
 
-        $progresses = CharacterAreaProgress::where('character_id', $character->id)
-            ->whereIn('area_id', $areas->pluck('id'))
-            ->get()
-            ->keyBy('area_id');
+        $missionAreas = $areas->skip(1)->values();
+        $allPersisted = $missionAreas->every(
+            fn (Area $area): bool => in_array('arkrea_area_' . $area->id, $completedKeys, true)
+        );
+        $progresses = $allPersisted
+            ? collect()
+            : CharacterAreaProgress::where('character_id', $character->id)
+                ->whereIn('area_id', $areas->pluck('id'))
+                ->get()
+                ->keyBy('area_id');
 
         $highestCityId = (int) ($character->highest_city_id ?? $character->current_city_id ?? 0);
         $hasReachedNextCity = $highestCityId > self::ARKREA_CITY_ID;
         $lastAreaId = (int) $areas->last()->id;
 
-        return $areas
-            ->skip(1)
-            ->values()
+        return $missionAreas
             ->map(function (Area $area) use ($completedKeys, $progresses, $hasReachedNextCity, $lastAreaId) {
                 $key = 'arkrea_area_' . $area->id;
                 $isLastArea = (int) $area->id === $lastAreaId;
                 $progress = $progresses->get($area->id);
-                $isCleared = (bool) ($progress?->boss_defeated) || ($isLastArea && $hasReachedNextCity);
+                $isCleared = in_array($key, $completedKeys, true)
+                    || (bool) ($progress?->boss_defeated)
+                    || ($isLastArea && $hasReachedNextCity);
 
                 return [
                     'key' => $key,
@@ -228,7 +240,7 @@ class BeginnerMissionService
                     'desc' => $isLastArea
                         ? '王都アークレア最後のボスを倒し、次の街への道を開きましょう。'
                         : "{$area->name}のボスを倒して、次の冒険先を解放しましょう。",
-                    'completed' => in_array($key, $completedKeys, true) || $isCleared,
+                    'completed' => $isCleared,
                     'action_label' => '探索へ',
                     'tab' => 'dungeon',
                     'persist_completion' => true,

@@ -121,7 +121,7 @@ class ValmonService
 
     public function tryFindEgg(Character $character, Area $area, ?CharacterExplorationState $state): ?array
     {
-        if (!$state || $this->hasActiveEgg($character) || $this->foundEggToday($character)) {
+        if ($this->foundEggToday($character)) {
             return null;
         }
 
@@ -140,7 +140,9 @@ class ValmonService
             'valmon_master_id' => $spawn->valmonMaster->id,
             'found_city_id' => $area->city_id,
             'found_area_id' => $area->id,
-            'found_exploration_state_id' => $state->id,
+            // 探索の地図は通常探索の連鎖・探索度を進めないため、地図内で見つけた卵には
+            // 通常探索状態をひも付けない。抽選条件そのものは通常探索と共通にする。
+            'found_exploration_state_id' => $state?->id,
             'found_at' => now(),
         ]);
 
@@ -153,8 +155,9 @@ class ValmonService
 
         return [
             'egg_id' => $egg->id,
+            'name' => $spawn->valmonMaster->name,
             'rarity' => $spawn->valmonMaster->rarity,
-            'message' => '草むらの奥で、ふしぎな卵を見つけた！ ヴァルモンの卵を手に入れた！ 街へ帰還すると孵化します。',
+            'message' => "草むらの奥で、{$spawn->valmonMaster->name}の卵を見つけた！ ヴァルモンの卵を手に入れた！",
         ];
     }
 
@@ -266,13 +269,14 @@ class ValmonService
 
     public function hatchActiveEggs(Character $character): array
     {
-        $hatched = [];
+        $resolved = [];
 
-        DB::transaction(function () use ($character, &$hatched) {
+        DB::transaction(function () use ($character, &$resolved) {
             $eggs = PlayerValmonEgg::with('master')
                 ->where('character_id', $character->id)
                 ->where('is_hatched', false)
                 ->where('is_lost', false)
+                ->whereNull('stored_at')
                 ->lockForUpdate()
                 ->get();
 
@@ -281,49 +285,42 @@ class ValmonService
                     ->where('valmon_master_id', $egg->valmon_master_id)
                     ->exists();
 
-                $valmon = null;
-                if (!$alreadyHad) {
-                    $valmon = PlayerValmon::create([
-                        'character_id' => $character->id,
-                        'valmon_master_id' => $egg->valmon_master_id,
-                        'level' => 1,
-                        'exp' => 0,
-                        'affection' => 0,
-                        'evolution_stage' => 'child',
-                        'is_partner' => false,
-                        'obtained_source' => 'egg',
-                        'obtained_at' => now(),
-                    ]);
-
-                    if (!PlayerValmon::where('character_id', $character->id)->where('is_partner', true)->where('id', '!=', $valmon->id)->exists()) {
-                        $valmon->forceFill(['is_partner' => true])->save();
-                    }
+                if ($alreadyHad) {
+                    $egg->forceFill(['stored_at' => now()])->save();
+                    $resolved[] = [
+                        'name' => $egg->master?->name ?? 'ヴァルモン',
+                        'rarity' => $egg->master?->rarity ?? 'normal',
+                        'stored' => true,
+                    ];
+                    continue;
                 }
 
+                $valmon = PlayerValmon::create([
+                    'character_id' => $character->id,
+                    'valmon_master_id' => $egg->valmon_master_id,
+                    'level' => 1,
+                    'exp' => 0,
+                    'affection' => 0,
+                    'evolution_stage' => 'child',
+                    'is_partner' => false,
+                    'obtained_source' => 'egg',
+                    'obtained_at' => now(),
+                ]);
+
+                if (!PlayerValmon::where('character_id', $character->id)->where('is_partner', true)->where('id', '!=', $valmon->id)->exists()) {
+                    $valmon->forceFill(['is_partner' => true])->save();
+                }
                 $egg->forceFill(['is_hatched' => true, 'hatched_at' => now()])->save();
 
-                $hatched[] = [
+                $resolved[] = [
                     'name' => $egg->master?->name ?? 'ヴァルモン',
                     'rarity' => $egg->master?->rarity ?? 'normal',
-                    'already_had' => $alreadyHad,
+                    'stored' => false,
                 ];
-
-                $valmonName = $egg->master?->name ?? 'ヴァルモン';
-                $rarity = (string) ($egg->master?->rarity ?? 'normal');
-                $message = $alreadyHad
-                    ? "【ヴァルモンの卵】{$character->name}さんの卵は「{$valmonName}」の気配を宿していました。すでに仲間にいるため牧場には追加されませんでした。"
-                    : "【ヴァルモン誕生】{$character->name}さんの卵から新しい相棒「{$valmonName}」が生まれました！";
-
-                app(PublicLogService::class)->addLog(
-                    'valmon',
-                    $message,
-                    $character,
-                    in_array($rarity, ['rare', 'super_rare'], true) ? 3 : 2
-                );
             }
         });
 
-        return $hatched;
+        return $resolved;
     }
 
     public function loseActiveEggs(Character $character): array
@@ -334,6 +331,7 @@ class ValmonService
             ->where('character_id', $character->id)
             ->where('is_hatched', false)
             ->where('is_lost', false)
+            ->whereNull('stored_at')
             ->get()
             ->each(function (PlayerValmonEgg $egg) use (&$lost) {
                 $lost[] = ['name' => $egg->master?->name ?? 'ヴァルモンの卵'];
@@ -748,14 +746,6 @@ class ValmonService
         );
     }
 
-    private function hasActiveEgg(Character $character): bool
-    {
-        return PlayerValmonEgg::where('character_id', $character->id)
-            ->where('is_hatched', false)
-            ->where('is_lost', false)
-            ->exists();
-    }
-
     private function foundEggToday(Character $character): bool
     {
         return PlayerValmonEgg::where('character_id', $character->id)
@@ -772,17 +762,28 @@ class ValmonService
 
     private function weightedSpawnForArea(Area $area, ?Character $character = null): ?ValmonSpawnRegion
     {
-        $ownedMasterIds = $character
-            ? PlayerValmon::where('character_id', $character->id)->pluck('valmon_master_id')->map(fn ($id) => (int) $id)->all()
-            : [];
-
         $spawns = ValmonSpawnRegion::with('valmonMaster')
             ->where('city_id', $area->city_id)
             ->where('is_active', true)
             ->get()
-            ->filter(fn ($spawn) => $spawn->valmonMaster
-                && $spawn->valmonMaster->is_active
-                && !in_array((int) $spawn->valmon_master_id, $ownedMasterIds, true));
+            ->filter(fn ($spawn) => $spawn->valmonMaster && $spawn->valmonMaster->is_active);
+
+        if (! config('features.duplicate_valmon_egg_discovery_enabled', false) && $character) {
+            $knownMasterIds = PlayerValmon::query()
+                ->where('character_id', $character->id)
+                ->pluck('valmon_master_id')
+                ->all();
+
+            $storedEggMasterIds = PlayerValmonEgg::query()
+                ->where('character_id', $character->id)
+                ->where('is_hatched', false)
+                ->where('is_lost', false)
+                ->pluck('valmon_master_id')
+                ->all();
+
+            $excludedMasterIds = array_unique(array_merge($knownMasterIds, $storedEggMasterIds));
+            $spawns = $spawns->reject(fn ($spawn) => in_array($spawn->valmon_master_id, $excludedMasterIds, true));
+        }
 
         $total = (int) $spawns->sum('spawn_weight');
         if ($total <= 0) {

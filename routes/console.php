@@ -10,6 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('market:expire-listings')->hourly();
 Schedule::command('equipment-market:expire')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('shops:expire-eggs')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('market:generate-npc-listings --limit=6')->everySixHours()->withoutOverlapping();
 Schedule::command('npc-requests:expire')->hourly();
 Schedule::command('npc-requests:generate')->dailyAt('05:00');

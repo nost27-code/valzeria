@@ -11,10 +11,12 @@ use App\Models\Character;
 use App\Models\CharacterAreaProgress;
 use App\Models\CharacterSubAreaRouteDiscovery;
 use App\Models\Enemy;
+use App\Models\TownMapRegistration;
 use App\Services\ExplorationService;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\ExplorationItemService;
+use App\Services\MapExplorationBatchService;
 use App\Services\CityThemeService;
 use App\Services\StorageCapacityService;
 use App\Services\ExplorationDepthService;
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class BattleController extends Controller
 {
@@ -90,12 +93,34 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'このアカウントは凍結されています。お問い合わせください。');
         }
 
+        $mapContext = session('active_map_exploration');
+        if ($request->boolean('continue_chain')
+            && is_array($mapContext)
+            && (int) ($mapContext['area_id'] ?? 0) === $areaId
+            && (int) ($mapContext['registration_id'] ?? 0) > 0) {
+            if (!$this->acquireExploreRequestDelay($character)) {
+                return $this->redirectExploreRequestBusy($request, $character, $areaId);
+            }
+
+            return $this->exploreMap($character, (int) $mapContext['registration_id'], (int) $request->input('batch_count', 1));
+        }
+        if (!$request->boolean('continue_chain')) {
+            app(\App\Services\MapExplorationItemService::class)->end($character);
+            session()->forget('active_map_exploration');
+        }
+
         if (!$request->boolean('continue_chain') && $redirect = $this->redirectIfStorageFull($character)) {
             return $redirect;
         }
 
-        if (!$this->areaService->canEnterArea($character, $areaId)) {
+        $regionDepthDungeonService = app(\App\Services\RegionDepthDungeonService::class);
+        $isRegionDepthDungeon = $regionDepthDungeonService->isRegionDepthArea($areaId);
+        if (!$isRegionDepthDungeon && !$this->areaService->canEnterArea($character, $areaId)) {
             return redirect()->route('home')->with('error', 'このエリアにはまだ入れません。');
+        }
+        if ($isRegionDepthDungeon && !$regionDepthDungeonService->canExplore($character, $areaId)) {
+            return redirect()->route('region-depth-dungeons.show', ['dungeonKey' => $regionDepthDungeonService->keyForArea($areaId) ?? 'granberg_black_furnace'])
+                ->with('error', '追加ダンジョンへ入場してから探索してください。');
         }
 
         if ($request->boolean('continue_chain')) {
@@ -120,7 +145,7 @@ class BattleController extends Controller
         }
 
         $targetDepth = (string) $request->input('depth_target', '');
-        if (!$request->boolean('continue_chain')) {
+        if (!$request->boolean('continue_chain') && !$isRegionDepthDungeon) {
             if ($targetDepth !== '') {
                 $depthStartRedirect = $this->startRecordedDepthExploration($character, $areaId, $targetDepth);
                 if ($depthStartRedirect) {
@@ -129,7 +154,7 @@ class BattleController extends Controller
             } else {
                 app(\App\Services\ExplorationStateService::class)->reset($character, $areaId);
             }
-        } elseif ($depthGateRedirect = $this->redirectToDepthGateIfNeeded($request, $character, $areaId)) {
+        } elseif (!$isRegionDepthDungeon && ($depthGateRedirect = $this->redirectToDepthGateIfNeeded($request, $character, $areaId))) {
             return $depthGateRedirect;
         }
 
@@ -155,7 +180,9 @@ class BattleController extends Controller
             $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
         }
 
-        $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
+        if (!$isRegionDepthDungeon) {
+            $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
+        }
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
@@ -168,6 +195,47 @@ class BattleController extends Controller
         ];
 
         return redirect()->route('battle.result')->with('battleData', $battleData);
+    }
+
+    /**
+     * 地図探索は通常探索と同じ戦闘結果画面・継続ボタンを利用する。
+     */
+    private function exploreMap(Character $character, int $registrationId, int $count)
+    {
+        try {
+            $registration = TownMapRegistration::findOrFail($registrationId);
+            $service = app(MapExplorationBatchService::class);
+            $itemService = app(\App\Services\MapExplorationItemService::class);
+            if (!$itemService->hasEntry($character, $registrationId)) {
+                $itemService->begin($character, $registration);
+            }
+            $execution = $service->execute(
+                $character,
+                $service->reserve($character, $registration, max(1, min(10, $count)), (string) Str::uuid(), false)
+            );
+            $batch = $execution['batch'];
+            $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
+            session(['active_map_exploration' => [
+                'registration_id' => (int) $batch->registration_id,
+                'area_id' => (int) $batch->map->source_area_id,
+            ]]);
+
+            return redirect()->route('battle.result')->with('battleData', [
+                'result' => $execution['battle_result'],
+                'areaId' => (int) $batch->map->source_area_id,
+                'isBoss' => false,
+                'jobLevel' => $jobHistory ? $jobHistory->job_level : 1,
+                'mapExploration' => [
+                    'registration_id' => (int) $batch->registration_id,
+                    'map_name' => (string) $batch->map->name,
+                    'can_continue' => $batch->registration->isOpen() && $batch->registration->remaining_explorations > 0,
+                    'remaining_explorations' => (int) $batch->registration->remaining_explorations,
+                    'entry_fee' => (int) $batch->fee_per_exploration,
+                ],
+            ]);
+        } catch (\RuntimeException $e) {
+            return redirect()->route('battle.result')->with('error', $e->getMessage());
+        }
     }
 
     public function travelDiscoveredArea(Request $request, int $areaId)
@@ -461,30 +529,32 @@ class BattleController extends Controller
     {
         $character = Auth::user()->currentCharacter();
         if ($character) {
-            $hatchedValmons = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
+            $resolvedValmonEggs = app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
+            app(\App\Services\RegionDepthDungeonService::class)->finalize($character, 'returned');
             $explorationStateService = app(\App\Services\ExplorationStateService::class);
             $explorationStateService->reset($character);
+            app(\App\Services\MapExplorationItemService::class)->end($character);
         }
 
-        session()->forget('lastBattleData');
+        session()->forget(['lastBattleData', 'active_map_exploration']);
         session(['current_location' => 'dungeon']);
 
         $redirect = redirect()->route('home', ['skip_resume' => 1]);
-        if (!empty($hatchedValmons ?? [])) {
+        if (!empty($resolvedValmonEggs ?? [])) {
             $messages = ['卵が淡く光りはじめた……'];
-            foreach ($hatchedValmons as $hatched) {
-                $prefix = in_array($hatched['rarity'] ?? 'normal', ['rare', 'super_rare'], true)
+            foreach ($resolvedValmonEggs as $egg) {
+                if (!empty($egg['stored'])) {
+                    $messages[] = "{$egg['name']}の卵は、すでに仲間にいるため所持品へ入れた。";
+                    continue;
+                }
+                $prefix = in_array($egg['rarity'] ?? 'normal', ['rare', 'super_rare'], true)
                     ? '卵が強く輝いた……'
                     : null;
                 if ($prefix) {
                     $messages[] = $prefix;
                 }
-                $messages[] = "{$hatched['name']}が生まれた！";
-                if ($hatched['already_had'] ?? false) {
-                    $messages[] = 'すでに仲間にしたことのあるヴァルモンです。';
-                } else {
-                    $messages[] = '新しいヴァルモンが仲間になった！';
-                }
+                $messages[] = "{$egg['name']}が生まれた！";
+                $messages[] = '新しいヴァルモンが仲間になった！';
             }
             $redirect->with('message', implode('<br>', $messages));
         }
@@ -498,9 +568,10 @@ class BattleController extends Controller
         if ($character) {
             app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
             app(ExplorationStateService::class)->reset($character);
+            app(\App\Services\MapExplorationItemService::class)->end($character);
         }
 
-        session()->forget('lastBattleData');
+        session()->forget(['lastBattleData', 'active_map_exploration']);
         session(['current_location' => 'dungeon']);
 
         return redirect()
@@ -763,6 +834,10 @@ class BattleController extends Controller
 
     private function currentDepthGate($character, Area $area): ?array
     {
+        if (app(\App\Services\RegionDepthDungeonService::class)->isRegionDepthArea($area)) {
+            return null;
+        }
+
         $state = app(ExplorationStateService::class)->currentFor($character);
         if (!$state || (int) $state->area_id !== (int) $area->id) {
             return null;
@@ -1027,7 +1102,10 @@ class BattleController extends Controller
         $battleData['hasActiveValmonEgg'] = $this->hasActiveValmonEgg($battleData['character']);
         $battleData['finalStats'] = $this->statusService->getFinalStats($battleData['character']);
         if (!($battleData['isBoss'] ?? false)) {
-            $battleData['recoveryItems'] = app(ExplorationItemService::class)->carriedItems($battleData['character']);
+            $registrationId = (int) data_get($battleData, 'mapExploration.registration_id', 0);
+            $battleData['recoveryItems'] = $registrationId > 0
+                ? app(\App\Services\MapExplorationItemService::class)->carriedItems($battleData['character'], $registrationId)
+                : app(ExplorationItemService::class)->carriedItems($battleData['character']);
             $battleData['supportItemCounts'] = app(\App\Services\AdventureSupportService::class)->countsFor($battleData['character']);
         }
         if (!($battleData['isBoss'] ?? false) && isset($battleData['result']['exploration_stamina'])) {
@@ -1061,7 +1139,7 @@ class BattleController extends Controller
 
         $areaId = (int) ($battleData['areaId'] ?? 0);
         $battleDepthKey = $this->battleDepthKey($battleData['character'], $areaId);
-        $battleData['areaName'] = Area::find($areaId)?->name;
+        $battleData['areaName'] = data_get($battleData, 'mapExploration.map_name') ?: Area::find($areaId)?->name;
         $battleData['battleHeaderIconImage'] = $this->battleHeaderIconImage($areaId);
         $battleData['battleCityBackgroundStyle'] = in_array($battleDepthKey, ['deep', 'deepest', 'otherworld'], true)
             ? $this->depthBattleBackgroundStyle($battleDepthKey)
@@ -1080,6 +1158,7 @@ class BattleController extends Controller
         return $character->valmonEggs()
             ->where('is_hatched', false)
             ->where('is_lost', false)
+            ->whereNull('stored_at')
             ->exists();
     }
 
@@ -1105,8 +1184,9 @@ class BattleController extends Controller
                     && $killerRate > 0
                     && $enemySpeciesKey !== ''
                     && $characterItem->killer_species_key === $enemySpeciesKey;
+                $resistRate = $characterItem->effectiveSpeciesDamageReductionRate();
                 $isResistActive = $characterItem->resist_species_key !== null
-                    && (float) ($characterItem->species_damage_reduction_rate ?? 0) > 0
+                    && $resistRate > 0
                     && $enemySpeciesKey !== ''
                     && $characterItem->resist_species_key === $enemySpeciesKey;
 
@@ -1114,7 +1194,7 @@ class BattleController extends Controller
                 if ($isKillerActive) {
                     $traitLabel = '特攻発動 与ダメージ +' . $this->battlePercentageLabel($killerRate) . '%';
                 } elseif ($isResistActive) {
-                    $traitLabel = '耐性発動 被ダメージ -' . $this->battlePercentageLabel((float) $characterItem->species_damage_reduction_rate) . '%';
+                    $traitLabel = '耐性発動 被ダメージ -' . $this->battlePercentageLabel($resistRate) . '%';
                 }
 
                 return [

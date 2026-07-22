@@ -103,6 +103,7 @@ class ValmonController extends Controller
         $activeEgg = $character->valmonEggs()
             ->where('is_hatched', false)
             ->where('is_lost', false)
+            ->whereNull('stored_at')
             ->first();
 
         $ranchBackgrounds = $profileService->ownedRanchBackgrounds($character);

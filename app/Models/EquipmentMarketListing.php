@@ -21,10 +21,17 @@ class EquipmentMarketListing extends Model
     public function buyer() { return $this->belongsTo(Character::class, 'buyer_character_id'); }
     public function characterItem() { return $this->belongsTo(CharacterItem::class); }
     public function transaction() { return $this->hasOne(EquipmentMarketTransaction::class, 'listing_id'); }
+    public function shop() { return $this->belongsTo(PlayerShop::class, 'shop_id'); }
 
     public function scopeActive($query)
     {
-        return $query->where('status', 'active')->where('expires_at', '>', now());
+        $query->where('status', 'active')->where('expires_at', '>', now());
+
+        if (config('features.player_shops_enabled', false)) {
+            $query->whereHas('shop', fn ($shopQuery) => $shopQuery->where('status', 'open'));
+        }
+
+        return $query;
     }
 
     public function appraisalRatioPercent(): ?float

@@ -246,6 +246,11 @@ class Character extends Model
         return $this->hasMany(PlayerValmonEgg::class);
     }
 
+    public function playerShop()
+    {
+        return $this->hasOne(PlayerShop::class);
+    }
+
     public function titles()
     {
         return $this->hasMany(CharacterTitle::class);
@@ -296,5 +301,15 @@ class Character extends Model
     public function towerCharacterRecords()
     {
         return $this->hasMany(TowerCharacterRecord::class);
+    }
+
+    public function regionDungeonRuns()
+    {
+        return $this->hasMany(CharacterRegionDungeonRun::class);
+    }
+
+    public function regionDungeonRecords()
+    {
+        return $this->hasMany(CharacterRegionDungeonRecord::class);
     }
 }

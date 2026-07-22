@@ -9,6 +9,7 @@
     'bgImage' => null,
     'showExit' => true,
     'exitLabel' => null,
+    'exitUrl' => null,
     'battleResultLayout' => false,
     'showBattleChatLog' => null,
     'exitTextClass' => 'text-slate-500 hover:text-[#d4af37]',
@@ -97,6 +98,7 @@
                 || str_contains($facilityBaseName, 'ランク戦')
                 || str_contains($facilityBaseName, '決闘'));
             $exitLabel = $exitLabel ?: ($isBattleResult ? '戦利品を持って帰る' : $facilityBaseName . 'から出る');
+            $exitUrl = $exitUrl ?: route('home');
         @endphp
         <x-pwa-install-banner />
         @if($showGameHeader)
@@ -201,7 +203,7 @@
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('home') }}"
+                        <a href="{{ $exitUrl }}"
                            x-data="{ loading: false }"
                            @click="if (loading) { $event.preventDefault(); return; } if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) { $event.preventDefault(); loading = true; setTimeout(() => { window.location.href = $el.href }, 80); }"
                            :class="loading ? 'pointer-events-none opacity-80' : ''"
@@ -240,7 +242,7 @@
                             </button>
                         </form>
                     @else
-                        <x-back-button href="{{ route('home') }}" label="{{ $exitLabel }}" />
+                        <x-back-button href="{{ $exitUrl }}" label="{{ $exitLabel }}" />
                     @endif
                 </div>
             @endif

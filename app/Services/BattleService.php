@@ -35,7 +35,7 @@ class BattleService
      * 
      * @return BattleResult
      */
-    public function executeBattle(Character $character, Enemy $enemy): BattleResult
+    public function executeBattle(Character $character, Enemy $enemy, int $goldDropRateBonusPoints = 0): BattleResult
     {
         $result = new BattleResult();
         $enemy->loadMissing('actions');
@@ -72,7 +72,7 @@ class BattleService
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
             'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
-            'armor_species_damage_reduction_rate' => (float) ($equippedArmor?->species_damage_reduction_rate ?? 0),
+            'armor_species_damage_reduction_rate' => $equippedArmor?->effectiveSpeciesDamageReductionRate() ?? 0.0,
         ], clone $character);
 
         // プレイヤーの職業技をセット
@@ -180,7 +180,7 @@ class BattleService
             
             // 報酬の付与
             $exp = $enemy->exp_reward;
-            $gold = $this->rollGoldReward($enemy, $state->goldBonusPercent);
+            $gold = $this->rollGoldReward($enemy, $state->goldBonusPercent, $goldDropRateBonusPoints);
             
             $result->exp = $exp;
             $result->gold = $gold;
@@ -262,7 +262,35 @@ class BattleService
         $str = max(1, (int) round($str * $durability['atk_mag']));
         $mag = max(1, (int) round($mag * $durability['atk_mag']));
 
-        $danger = $this->enemyDangerBonus($character, $enemy, [
+        $regionDepth = app(RegionDepthDungeonService::class);
+        if ($enemy->getAttribute('region_depth_dungeon_key')) {
+            $dungeonKey = (string) $enemy->getAttribute('region_depth_dungeon_key');
+            $baseMultipliers = $regionDepth->baseEnemyStatMultipliers($dungeonKey);
+            $hp = max(1, (int) floor($hp * $baseMultipliers['hp']));
+            $str = max(1, (int) floor($str * $baseMultipliers['str']));
+            $def = max(1, (int) floor($def * $baseMultipliers['def']));
+            $agi = max(1, (int) floor($agi * $baseMultipliers['agi']));
+            $mag = max(1, (int) floor($mag * $baseMultipliers['mag']));
+            $spr = max(1, (int) floor($spr * $baseMultipliers['spr']));
+            $luk = max(1, (int) floor($luk * $baseMultipliers['luk']));
+            $multipliers = $regionDepth->enemyMultipliers((int) $enemy->getAttribute('region_depth_danger_rate'), $dungeonKey);
+            $totals = [
+                'hp' => max(1, (int) floor($hp * $multipliers['hp'])),
+                'str' => max(1, (int) floor($str * $multipliers['main'])),
+                'def' => max(1, (int) floor($def * $multipliers['main'])),
+                'agi' => max(1, (int) floor($agi * $multipliers['agi_luk'])),
+                'mag' => max(1, (int) floor($mag * $multipliers['main'])),
+                'spr' => max(1, (int) floor($spr * $multipliers['main'])),
+                'luk' => max(1, (int) floor($luk * $multipliers['agi_luk'])),
+            ];
+            $danger = [
+                'rate' => (int) $enemy->getAttribute('region_depth_danger_rate'),
+                'label' => $regionDepth->dangerLabel((int) $enemy->getAttribute('region_depth_danger_rate')),
+                'hp' => $totals['hp'] - $hp, 'str' => $totals['str'] - $str, 'def' => $totals['def'] - $def,
+                'agi' => $totals['agi'] - $agi, 'mag' => $totals['mag'] - $mag, 'spr' => $totals['spr'] - $spr, 'luk' => $totals['luk'] - $luk,
+            ];
+        } else {
+            $danger = $this->enemyDangerBonus($character, $enemy, [
             'hp' => $hp,
             'str' => $str,
             'def' => $def,
@@ -270,7 +298,8 @@ class BattleService
             'mag' => $mag,
             'spr' => $spr,
             'luk' => $luk,
-        ]);
+            ]);
+        }
 
         return [
             'base_hp' => $hp,
@@ -295,9 +324,9 @@ class BattleService
         ];
     }
 
-    private function rollGoldReward(Enemy $enemy, int $goldBonusPercent = 0): int
+    private function rollGoldReward(Enemy $enemy, int $goldBonusPercent = 0, int $goldDropRateBonusPoints = 0): int
     {
-        $rate = (float) config($enemy->is_boss ? 'gold.battle.boss_drop_rate' : 'gold.battle.normal_drop_rate', $enemy->is_boss ? 12 : 5);
+        $rate = min(100, max(0, (float) config($enemy->is_boss ? 'gold.battle.boss_drop_rate' : 'gold.battle.normal_drop_rate', $enemy->is_boss ? 12 : 5) + $goldDropRateBonusPoints));
         if (random_int(1, 10000) > (int) round($rate * 100)) {
             return 0;
         }
@@ -1628,7 +1657,10 @@ class BattleService
         if (!$attacker->isPlayer && $defender->isPlayer) {
             $attackerSpecies = (string) ($attacker->speciesKey ?? '');
             $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
-            $rate = min(0.10, (float) ($defender->armorSpeciesDamageReductionRate ?? 0));
+            $rate = min(
+                app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
+                (float) ($defender->armorSpeciesDamageReductionRate ?? 0)
+            );
             if ($attackerSpecies !== '' && $resistSpecies !== '' && $rate > 0 && $attackerSpecies === $resistSpecies) {
                 $damage = max(1, (int) floor($damage * (1 - $rate)));
             }

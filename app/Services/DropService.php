@@ -94,7 +94,9 @@ class DropService
         int $dropBonusPercent = 0,
         int $rareBonusPercent = 0,
         bool $trackExplorationLoot = true,
-        bool $rollMonsterMark = true
+        bool $rollMonsterMark = true,
+        float $commonMaterialWeightMultiplier = 1.0,
+        array $rateBonuses = []
     ): array
     {
         $result = [
@@ -133,6 +135,7 @@ class DropService
             $dropBonusPercent,
             $rareBonusPercent
         );
+        $rates = $this->withRateBonuses($rates, $rateBonuses);
 
         foreach ($this->rollEnemySpecificEquipmentDrops($character, $enemy, $trackExplorationLoot) as $drop) {
             $result['equipment'][] = $drop;
@@ -153,7 +156,7 @@ class DropService
         }
 
         if ($this->rollPercent($rates['material'])) {
-            $material = $this->rollMaterialBySpec($character, $enemy, $trackExplorationLoot);
+            $material = $this->rollMaterialBySpec($character, $enemy, $trackExplorationLoot, $commonMaterialWeightMultiplier);
             if ($material) {
                 $result['materials'][] = $material;
             }
@@ -324,6 +327,25 @@ class DropService
         return $rates;
     }
 
+    /**
+     * 地図固有の報酬傾向など、独立枠ごとの加算確率を適用する。
+     *
+     * @param array{material?: float|int, weapon?: float|int, armor?: float|int, accessory?: float|int} $bonuses
+     */
+    private function withRateBonuses(array $rates, array $bonuses): array
+    {
+        $caps = ['material' => 95, 'weapon' => 30, 'armor' => 30, 'accessory' => 20];
+
+        foreach ($caps as $slot => $cap) {
+            $bonus = max(0, (float) ($bonuses[$slot] ?? 0));
+            if ($bonus > 0) {
+                $rates[$slot] = min($cap, round((float) ($rates[$slot] ?? 0) + $bonus, 2));
+            }
+        }
+
+        return $rates;
+    }
+
     private function rollEquipmentBySpec(Character $character, Enemy $enemy, string $type, int $rareBonusPercent = 0, bool $trackExplorationLoot = true): ?array
     {
         if ($this->isFerdiaEnemy($enemy)) {
@@ -466,7 +488,7 @@ class DropService
         return $weights;
     }
 
-    private function rollMaterialBySpec(Character $character, Enemy $enemy, bool $trackExplorationLoot = true): ?array
+    private function rollMaterialBySpec(Character $character, Enemy $enemy, bool $trackExplorationLoot = true, float $commonMaterialWeightMultiplier = 1.0): ?array
     {
         $drops = MaterialDrop::where('enemy_id', $enemy->id)
             ->where('is_active', true)
@@ -494,6 +516,8 @@ class DropService
             })
             ->values();
 
+        $drops = $this->withCommonMaterialWeightMultiplier($drops, $commonMaterialWeightMultiplier);
+
         if ($drops->isNotEmpty() && !$this->isFerdiaEnemy($enemy)) {
             $drops = $this->withRegionalMaterialCandidate($drops, $enemy);
         }
@@ -518,6 +542,33 @@ class DropService
         }
 
         return null;
+    }
+
+    /**
+     * 公開地図など、地域素材を狙いやすくしたい探索だけに汎用素材の候補重みを適用する。
+     * 通常探索の素材マスタは変更しない。
+     *
+     * @param Collection<int, MaterialDrop> $drops
+     * @return Collection<int, MaterialDrop>
+     */
+    private function withCommonMaterialWeightMultiplier(Collection $drops, float $multiplier): Collection
+    {
+        $multiplier = max(0.01, min(1.0, $multiplier));
+        if ($multiplier >= 1.0) {
+            return $drops;
+        }
+
+        return $drops->map(function (MaterialDrop $drop) use ($multiplier): MaterialDrop {
+            if (!in_array((string) ($drop->material?->material_code ?? ''), self::GENERIC_FALLBACK_CODES, true)) {
+                return $drop;
+            }
+
+            $adjusted = clone $drop;
+            $adjusted->drop_rate = (float) $drop->drop_rate * $multiplier;
+            $adjusted->setRelation('material', $drop->material);
+
+            return $adjusted;
+        })->values();
     }
 
     private function withRegionalMaterialCandidate(Collection $drops, Enemy $enemy): Collection
@@ -761,7 +812,7 @@ class DropService
             'killer_species_key' => $characterItem->killer_species_key,
             'killer_damage_rate' => $characterItem->effectiveKillerDamageRate(),
             'resist_species_key' => $characterItem->resist_species_key,
-            'species_damage_reduction_rate' => (float) ($characterItem->species_damage_reduction_rate ?? 0),
+            'species_damage_reduction_rate' => $characterItem->effectiveSpeciesDamageReductionRate(),
             'character_item_id' => $characterItem->id,
         ];
     }

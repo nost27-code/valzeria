@@ -98,8 +98,7 @@
                                         </button>
                                     @endif
                                     <button type="button"
-                                            wire:click="$dispatch('changeTab', { newLocation: 'move' })"
-                                            @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))"
+                                            @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
                                             class="shrink-0 rounded-md border bg-white px-3 py-1.5 text-[12px] font-black shadow-sm transition active:scale-95 {{ (!empty($isFerdiaRegion) || !empty($isFerdiaSimpleBase)) ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50/50' : 'border-[#d4af37] text-[#9a6b00] hover:bg-amber-50' }}">
                                         MAPへ
                                     </button>
@@ -114,7 +113,7 @@
                             <img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="h-9 w-9 shrink-0 object-contain">
                             <div class="min-w-0">
                                 <h2 class="text-sm font-black text-rose-950">ヴァルモンの卵を預かっている</h2>
-                                <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。探索を終えて街へ戻ると孵化します。</p>
+                                <p class="mt-1 text-xs font-bold leading-relaxed text-rose-800">探索中に敗北すると卵を失います。すでに仲間にいるヴァルモンの卵は、帰還時に所持品へ入ります。</p>
                             </div>
                         </div>
                     </section>
@@ -176,8 +175,7 @@
                                         </a>
                                     @elseif(!empty($currentMission['tab']))
                                         <button type="button"
-                                                wire:click="$dispatch('changeTab', { newLocation: '{{ $currentMission['tab'] }}' })"
-                                                @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $currentMission['tab'] }}' } }))"
+                                                @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $currentMission['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $currentMission['tab'] }}' })"
                                                 class="inline-flex items-center justify-center rounded bg-[#1e40af] px-3 py-2 text-xs font-bold text-white shadow border border-[#1e3a8a] active:scale-95">
                                             {{ $currentMission['action_label'] }}
                                         </button>
@@ -199,7 +197,6 @@
                         </div>
                     </section>
                 @endif
-
 
                 @if($currentLocation === 'dungeon' && !empty($storageIsFull))
                     <section class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold leading-relaxed text-amber-900 shadow-sm">
@@ -290,8 +287,7 @@
                                             </a>
                                         @elseif(!$menuIsInactive && isset($menuItem['tab']))
                                             <button type="button"
-                                                    wire:click="$dispatch('changeTab', { newLocation: '{{ $menuItem['tab'] }}' })"
-                                                    @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $menuItem['tab'] }}' } }))"
+                                                    @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $menuItem['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $menuItem['tab'] }}' })"
                                                     class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
                                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 p-1">{!! $menuIconHtml !!}</div>
                                                 <div class="min-w-0 flex-1">
@@ -392,8 +388,7 @@
                                             @elseif(!$isInactive && !empty($facility['tab']))
                                                 <button type="button"
                                                         x-data="{ submitting: false }"
-                                                        @click="if (submitting) return; submitting = true; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $facility['tab'] }}' } })); $dispatch('tabSelectedFromOutside', { location: '{{ $facility['tab'] }}' }); setTimeout(() => submitting = false, 700);"
-                                                        wire:click="$dispatch('changeTab', { newLocation: '{{ $facility['tab'] }}' })"
+                                                        @click="if (submitting) return; submitting = true; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $facility['tab'] }}' } })); $dispatch('changeTab', { newLocation: '{{ $facility['tab'] }}' }); setTimeout(() => submitting = false, 700);"
                                                         x-bind:class="submitting ? 'opacity-60 cursor-wait' : ''"
                                                         class="flex min-h-[58px] w-full items-center justify-center gap-2 px-2.5 py-2 text-center transition active:scale-[0.98]">
                                                     @if($iconImage)
@@ -1260,10 +1255,25 @@
                         <div class="col-span-1 xl:col-span-2 border-2 border-[#d4af37] bg-amber-50 rounded-lg p-5 mt-4 flex flex-col items-center justify-center text-center shadow-md">
                             <h3 class="text-lg font-bold text-[#b8860b] mb-2 flex items-center justify-center gap-2">この街の探索を全て完了しました。</h3>
                             <p class="text-gray-700 mb-4 font-medium">新しい街へ旅立つ準備が整いました。次の冒険の舞台へ向かいましょう。</p>
-                            <button wire:click="$dispatch('changeTab', { newLocation: 'move' })" @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } }))" class="inline-flex cursor-pointer items-center justify-center bg-[#1e40af] hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] text-white font-bold py-2.5 px-8 rounded text-center shadow-md transition-transform hover:-translate-y-1">
+                            <button @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })" class="inline-flex cursor-pointer items-center justify-center bg-[#1e40af] hover:bg-[#1e3a8a] border-2 border-[#1e3a8a] text-white font-bold py-2.5 px-8 rounded text-center shadow-md transition-transform hover:-translate-y-1">
                                 <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain inline-block mr-1"> 街を移動する
                             </button>
                         </div>
+                    @endif
+                    @if($currentLocation === 'dungeon' && !empty($additionalDungeons))
+                        <div class="col-span-1 md:col-span-2 mt-3 border-t-2 border-slate-300 pt-5">
+                            <h2 class="text-base font-black tracking-wide text-slate-700">追加ダンジョン</h2>
+                            <p class="mt-1 text-xs font-bold text-slate-500">物語の進行とは別の、高難度探索です。</p>
+                        </div>
+                        @foreach($additionalDungeons as $additionalDungeon)
+                            <a href="{{ route('region-depth-dungeons.show', ['dungeonKey' => $additionalDungeon['key']]) }}" class="group relative block overflow-hidden rounded-xl border border-slate-700 bg-gradient-to-br from-slate-950 via-slate-900 to-stone-950 p-4 text-white shadow-md transition hover:border-amber-300 hover:shadow-lg">
+                                @if(!empty($additionalDungeon['card_background_image']))
+                                    <div class="absolute inset-0 bg-cover bg-center opacity-70 transition-transform duration-700 group-hover:scale-105" style="background-image: url('{{ asset('images/' . $additionalDungeon['card_background_image']) }}');"></div>
+                                    <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-slate-950/35"></div>
+                                @endif
+                                <div class="relative flex items-start justify-between gap-3"><div class="flex min-w-0 gap-3">@if(!empty($additionalDungeon['symbol_image']))<img src="{{ asset('images/' . $additionalDungeon['symbol_image']) }}" alt="" class="h-12 w-12 shrink-0 rounded-full border border-white/30 bg-white/90 p-1 object-contain shadow">@endif<div class="min-w-0"><div class="text-lg font-black">{{ $additionalDungeon['name'] }}</div><p class="mt-1 text-xs font-bold leading-relaxed text-slate-300">{{ $additionalDungeon['description'] ?: '奥へ進むほど、魔物の気配が濃くなる。引き返すまで、張り詰めた空気は消えない。' }}</p></div></div><span class="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-black">挑む</span></div>
+                            </a>
+                        @endforeach
                     @endif
                     </div>
                 @endif

@@ -38,6 +38,6 @@ class BugReportCodexCopyTest extends TestCase
             ->assertSee('不具合調査依頼')
             ->assertSee('調査対象冒険者')
             ->assertSee('装備市場で取り消し後の表示がおかしいです。')
-            ->assertSee('添付画像を続けて貼り付けてください');
+            ->assertSee('添付画像は必要なものを続けて貼り付けてください');
     }
 }

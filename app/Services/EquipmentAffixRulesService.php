@@ -16,6 +16,9 @@ class EquipmentAffixRulesService
         $multiplier = $prefix->target_stat === 'all'
             ? $this->allStatMultiplier()
             : 1.0;
+        $hpMultiplier = $prefix->target_stat === 'all' && $item->type === 'armor'
+            ? (float) config('equipment_affix.armor_tuning_hp_multiplier', 6.0)
+            : 3.0;
         $value = max(1, (int) ceil(
             $basePower
             * $this->engravingEffectRate($this->clampLevel($item, $level))
@@ -32,7 +35,7 @@ class EquipmentAffixRulesService
             'agi' => ['agi' => $value],
             'luk' => ['luk' => $value],
             'all' => [
-                'hp' => $value * 3,
+                'hp' => (int) ceil($value * $hpMultiplier),
                 'str' => $value,
                 'def' => $value,
                 'mag' => $value,
@@ -50,6 +53,12 @@ class EquipmentAffixRulesService
             * $this->qualityMultiplier($quality);
     }
 
+    public function armorSpeciesResistRate(Item $item, int $level, ?string $quality): float
+    {
+        return $this->armorResistRate($this->clampLevel($item, $level))
+            * $this->qualityMultiplier($quality);
+    }
+
     public function engravingEffectRate(int $level): float
     {
         return (float) config('equipment_affix.engraving_effect_rates.' . $this->normalizeLevel($level), 0.0);
@@ -58,6 +67,16 @@ class EquipmentAffixRulesService
     public function killerDamageRate(int $level): float
     {
         return (float) config('equipment_affix.killer_damage_rates.' . $this->normalizeLevel($level), 0.0);
+    }
+
+    public function armorResistRate(int $level): float
+    {
+        return (float) config('equipment_affix.armor_resist_rates.' . $this->normalizeLevel($level), 0.0);
+    }
+
+    public function armorResistDamageReductionCap(): float
+    {
+        return max(0.0, (float) config('equipment_affix.armor_resist_damage_reduction_cap', 0.30));
     }
 
     public function qualityMultiplier(?string $quality): float

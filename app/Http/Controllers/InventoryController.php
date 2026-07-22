@@ -6,6 +6,7 @@ use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\CharacterMonsterMark;
 use App\Models\Character;
+use App\Models\PlayerValmonEgg;
 use App\Services\AdventureSupportService;
 use App\Services\ExplorationStaminaService;
 use App\Services\ExplorationSupportService;
@@ -118,6 +119,23 @@ class InventoryController extends Controller
                 'icon_image' => null,
                 'quantity' => 1,
             ]))
+            ->concat(PlayerValmonEgg::with('master')
+                ->where('character_id', $character->id)
+                ->where('is_hatched', false)
+                ->where('is_lost', false)
+                ->whereNotNull('stored_at')
+                ->orderByDesc('stored_at')
+                ->get()
+                ->map(fn (PlayerValmonEgg $egg) => [
+                    'kind' => 'valmon_egg',
+                    'name' => ($egg->master?->name ?? 'ヴァルモン') . 'の卵',
+                    'category' => 'ヴァルモンの卵',
+                    'rarity' => (string) ($egg->master?->rarity ?? '-'),
+                    'description' => '自分の商店での販売は準備中です。',
+                    'icon' => '🥚',
+                    'icon_image' => 'images/icon/icon_038.webp',
+                    'quantity' => 1,
+                ]))
             ->sortBy(fn ($entry) => $entry['name'])
             ->values();
 

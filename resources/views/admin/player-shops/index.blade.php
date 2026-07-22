@@ -1,0 +1,8 @@
+<x-layouts.admin title="個人商店管理">
+    <div class="space-y-4 p-4">
+        <h1 class="text-xl font-black text-slate-900">個人商店管理</h1>
+        @if(session('status'))<div class="rounded bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{{ session('status') }}</div>@endif
+        <form method="GET" class="flex gap-2"><input name="q" value="{{ request('q') }}" placeholder="店名・店主名" class="rounded border-slate-300 text-sm"><button class="rounded bg-slate-700 px-3 text-sm font-black text-white">検索</button></form>
+        <div class="overflow-x-auto rounded border bg-white"><table class="min-w-full text-sm"><thead class="bg-slate-50 text-left text-xs"><tr><th class="p-3">商店</th><th class="p-3">店主</th><th class="p-3">出品</th><th class="p-3">お気に入り</th><th class="p-3">状態</th></tr></thead><tbody>@foreach($shops as $shop)<tr class="border-t"><td class="p-3 font-bold">{{ $shop->name }}</td><td class="p-3">{{ $shop->character?->name }}</td><td class="p-3">素材{{ $shop->material_listings_count }} / 装備{{ $shop->equipment_listings_count }} / 卵{{ $shop->egg_listings_count }}</td><td class="p-3">{{ $shop->favorites_count }}</td><td class="p-3"><form method="POST" action="{{ route('admin.player-shops.update', $shop) }}" class="flex gap-2">@csrf @method('PATCH')<select name="status" class="rounded border-slate-300 text-xs">@foreach(['open'=>'営業中','suspended'=>'停止中','closed'=>'閉店'] as $key=>$label)<option value="{{ $key }}" @selected($shop->status===$key)>{{ $label }}</option>@endforeach</select><button class="rounded bg-slate-700 px-2 py-1 text-xs font-bold text-white">更新</button></form></td></tr>@endforeach</tbody></table></div>{{ $shops->links() }}
+    </div>
+</x-layouts.admin>

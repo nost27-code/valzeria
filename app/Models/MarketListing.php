@@ -36,6 +36,11 @@ class MarketListing extends Model
         return $this->belongsTo(Material::class);
     }
 
+    public function shop()
+    {
+        return $this->belongsTo(PlayerShop::class, 'shop_id');
+    }
+
     public function transactions()
     {
         return $this->hasMany(MarketTransaction::class, 'listing_id');
@@ -55,7 +60,12 @@ class MarketListing extends Model
     public function scopeMarketSellerEligible($query)
     {
         return $query->where(function ($query) {
-            $query->where('seller_type', 'character')
+            $query->where(function ($characterQuery) {
+                $characterQuery->where('seller_type', 'character');
+                if (config('features.player_shops_enabled', false)) {
+                    $characterQuery->whereHas('shop', fn ($shopQuery) => $shopQuery->where('status', 'open'));
+                }
+            })
                 ->orWhere(function ($query) {
                     $query->where('seller_type', 'npc')
                         ->whereHas('sellerNpc', fn ($npcQuery) => $npcQuery->marketSellerEligible());

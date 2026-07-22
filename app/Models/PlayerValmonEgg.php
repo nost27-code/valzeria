@@ -12,6 +12,7 @@ class PlayerValmonEgg extends Model
         'is_hatched' => 'boolean',
         'is_lost' => 'boolean',
         'found_at' => 'datetime',
+        'stored_at' => 'datetime',
         'hatched_at' => 'datetime',
         'lost_at' => 'datetime',
     ];
@@ -24,5 +25,10 @@ class PlayerValmonEgg extends Model
     public function master()
     {
         return $this->belongsTo(ValmonMaster::class, 'valmon_master_id');
+    }
+
+    public function shopListings()
+    {
+        return $this->hasMany(ShopEggListing::class, 'player_valmon_egg_id');
     }
 }

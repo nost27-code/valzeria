@@ -150,6 +150,22 @@ class MaterialExchangeService
             ],
             'target_quantity' => 2,
         ],
+        [
+            'target' => '回復薬',
+            'label' => '獣牙の回復薬',
+            'sources' => [
+                ['MAT_COMMON_BEAST_FANG', 3],
+                ['MAT_COMMON_MONSTER_FRAGMENT', 2],
+            ],
+        ],
+        [
+            'target' => '魔力水',
+            'label' => '魔鉱の魔力水',
+            'sources' => [
+                ['MAT_COMMON_MAGIC_ORE', 3],
+                ['MAT_COMMON_MONSTER_FRAGMENT', 2],
+            ],
+        ],
     ];
 
     private const PATH_STONE_RECIPES = [
@@ -1126,8 +1142,13 @@ class MaterialExchangeService
 
     private function targetUsageText(string $type, string $targetCode, string $targetName, string $groupLabel): string
     {
-        if ($type === 'recovery_brewing' && $targetCode === '薬草') {
-            return '探索中にHPを30%回復';
+        if ($type === 'recovery_brewing') {
+            return match ($targetCode) {
+                '薬草' => '探索中にHPを30%回復',
+                '回復薬' => '探索中にHPを60%回復',
+                '魔力水' => '探索中にSPを30%回復',
+                default => '探索中の回復アイテムとして利用',
+            };
         }
 
         if (in_array($targetCode, ['MAT_ENHANCE_FRAGMENT', '5007', 'ACC0007'], true)) {

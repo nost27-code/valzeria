@@ -1,7 +1,7 @@
 @php
     $helpModal = match ($helpType) {
         'enhance' => ['icon' => '🔨', 'title' => '装備強化の解説', 'accent' => 'amber'],
-        'traits' => ['icon' => '⚒️', 'title' => '銘・特攻を鍛える解説', 'accent' => 'indigo'],
+        'traits' => ['icon' => '⚒️', 'title' => '銘・特攻・耐性を鍛える解説', 'accent' => 'indigo'],
         'evolution' => ['icon' => '⬆', 'title' => '進化合成の解説', 'accent' => 'violet'],
     };
 @endphp
@@ -32,8 +32,8 @@
                     @include('smith.partials.enhancement-performance-table')
                     <p class="mt-3 text-xs font-bold text-slate-500">市場出品中の装備は、出品を取り消すまで強化できません。</p>
                 @elseif($helpType === 'traits')
-                    <p class="text-sm leading-relaxed text-slate-600">「銘を鍛える」か「特攻を鍛える」を選び、<strong>残したい武器（ベース）</strong>と<strong>消えてよい武器（素材）</strong>を選びます。</p>
-                    <p class="mt-2 text-sm font-bold text-slate-700">例：剣の場合</p>
+                    <p class="text-sm leading-relaxed text-slate-600">「銘を鍛える」か「特攻・耐性を鍛える」を選び、<strong>残したい装備（ベース）</strong>と<strong>消えてよい装備（素材）</strong>を選びます。武器は種族特攻、防具は種族耐性を鍛えられます。武器同士・防具同士でのみ鍛えられます。</p>
+                    <p class="mt-2 text-sm font-bold text-slate-700">例：剣の場合（防具も同じ手順です）</p>
                     <section class="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
                         <h4 class="font-black text-indigo-950">まずは「ベース」と「素材」を決めます</h4>
                         <ul class="mt-1.5 space-y-1.5 text-sm leading-relaxed text-slate-700">
