@@ -57,7 +57,7 @@
                                     <div><dt class="text-xs text-slate-500">出現敵Lv</dt><dd class="mt-1 text-slate-950">{{ $details['enemy_level_range'] }}</dd></div>
                                     <div><dt class="text-xs text-slate-500">危険度</dt><dd class="mt-1 text-slate-950">{{ $details['threat_tier'] }}</dd></div>
                                     <div><dt class="text-xs text-slate-500">目安戦力</dt><dd class="mt-1 text-slate-950">{{ $details['enemy_power_range'] }}</dd></div>
-                                    <div><dt class="text-xs text-slate-500">報酬傾向</dt><dd class="mt-1 text-slate-950">{{ $details['reward'] }}</dd></div>
+                                    <div><dt class="text-xs text-slate-500">報酬傾向</dt><dd class="mt-1 text-slate-950">{{ $details['reward'] ?? 'なし' }}</dd></div>
                                     <div><dt class="text-xs text-slate-500">公開日時</dt><dd class="mt-1 text-slate-950">{{ $registration->published_at?->format('Y/m/d H:i') ?? '-' }}</dd></div>
                                     <div><dt class="text-xs text-slate-500">公開終了</dt><dd class="mt-1 text-slate-950">{{ $registration->expires_at?->format('Y/m/d H:i') ?? '-' }}</dd></div>
                                 </dl>

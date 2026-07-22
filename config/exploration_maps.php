@@ -45,6 +45,11 @@ return [
         'windfall' => ['label' => '落銭の気配', 'modifiers' => ['gold_drop_rate_bonus_points' => 3]],
         'vitality' => ['label' => '精気の余韻', 'modifiers' => ['victory_hp_recovery_percent' => 1.5, 'victory_sp_recovery_percent' => 0.5]],
     ],
+    'legacy_fallback_rewards' => [
+        // 現行の報酬傾向と一致しない既存地図だけを救済する。フェルディア通常敵の上限側に合わせた0.38%。
+        'ancient_fragment_min_enemy_level' => 142,
+        'ancient_fragment_drop_rate_basis_points' => 38,
+    ],
     'drop_rates_basis_points' => [
         'normal' => 20,
         'elite' => 20,

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-22-map-legacy-ancient-fragments',
+        'date' => '2026-07-22',
+        'category' => 'added',
+        'title' => '既存探索地図に古代片の報酬を追加',
+        'detail' => '既存の通常報酬地図のうち、出現敵Lv142以上では地図ごとに決まった古代片が勝利時にまれに見つかるようになりました。新しく見つかる地図の報酬傾向は変わりません。',
+    ],
+    [
         'id' => '2026-07-22-map-survey-status-label',
         'date' => '2026-07-22',
         'category' => 'fixed',

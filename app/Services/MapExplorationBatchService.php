@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 class MapExplorationBatchService
 {
-    public function __construct(private readonly ExplorationMapSeedService $seeds, private readonly MapIncomeService $income, private readonly ExplorationMapDifficultyService $difficulty, private readonly MapExplorationRewardService $rewards) {}
+    public function __construct(private readonly ExplorationMapSeedService $seeds, private readonly MapIncomeService $income, private readonly ExplorationMapDifficultyService $difficulty, private readonly MapExplorationRewardService $rewards, private readonly ExplorationMapLegacyRewardService $legacyRewards) {}
 
     public function reserve(Character $character, TownMapRegistration $registration, int $requestedCount, string $requestUuid, bool $chargeEntryFee = true): MapExplorationBatch
     {
@@ -119,6 +119,9 @@ class MapExplorationBatchService
                     ...((array) ($modifiers['equipment_drop_bonus_points'] ?? [])),
                 ],
             );
+            if ($ancientFragment = $this->legacyRewards->tryDrop($character, $map, $enemy, $rewardSeed)) {
+                $drops['materials'][] = $ancientFragment;
+            }
             $this->applyVictoryRecovery($character, $battle, $modifiers);
             $mapDrop = app(ExplorationMapDropService::class)->tryDrop($character, $map->sourceArea, $enemy, false, true);
             $valmonEggFound = app(ValmonService::class)->tryFindEgg($character, $map->sourceArea, null);

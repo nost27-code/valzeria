@@ -48,7 +48,9 @@
                                     <span class="rounded border border-indigo-100 bg-indigo-50 px-2 py-1 text-indigo-800">{{ $isEnded ? '公開終了' : '残り ' . number_format($registration->remaining_explorations) . ' 回' }}</span>
                                     <span class="rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-800">{{ $isEnded ? '入場できません' : ($isActive ? '入場中：追加料金なし' : ($owner ? '発見者は無料（他の冒険者：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：' . number_format($registration->entry_fee_per_exploration) . 'G')) }}</span>
                                     <span class="rounded border border-amber-100 bg-amber-50 px-2 py-1 text-amber-800">目安戦力：{{ $details['enemy_power_range'] }}</span>
-                                    <span class="rounded border border-violet-100 bg-violet-50 px-2 py-1 text-violet-800">報酬：{{ $details['reward'] }}</span>
+                                    @if($details['reward'])
+                                        <span class="rounded border border-violet-100 bg-violet-50 px-2 py-1 text-violet-800">報酬：{{ $details['reward'] }}</span>
+                                    @endif
                                 </div>
                             </div>
                             <span class="shrink-0 rounded-lg px-3 py-2 text-xs font-black text-white {{ $isEnded ? 'bg-slate-500' : 'bg-indigo-700 group-open:bg-indigo-800' }}">{{ $isEnded ? '公開終了' : '詳細を見る' }}</span>
@@ -61,7 +63,9 @@
                                 <div><dt class="text-xs text-slate-500">出現敵Lv</dt><dd class="mt-1 text-slate-900">{{ $details['enemy_level_range'] }}</dd></div>
                                 <div><dt class="text-xs text-slate-500">目安戦力</dt><dd class="mt-1 text-slate-900">{{ $details['enemy_power_range'] }}</dd></div>
                                 <div><dt class="text-xs text-slate-500">危険度</dt><dd class="mt-1 text-slate-900">{{ $details['threat_tier'] }}</dd></div>
-                                <div><dt class="text-xs text-slate-500">報酬傾向</dt><dd class="mt-1 text-slate-900">{{ $details['reward'] }}</dd></div>
+                                @if($details['reward'])
+                                    <div><dt class="text-xs text-slate-500">報酬傾向</dt><dd class="mt-1 text-slate-900">{{ $details['reward'] }}</dd></div>
+                                @endif
                             </dl>
 
                             <div class="mt-4 rounded-lg border p-3 {{ $isEnded ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50' }}">

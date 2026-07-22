@@ -51,7 +51,9 @@
 
                 <h2 class="mt-4 font-black">地図に記された特徴</h2>
                 <dl class="mt-2 space-y-2 text-sm font-bold text-slate-700">
-                    <div><dt class="text-xs text-slate-500">報酬</dt><dd class="mt-1 text-slate-900">{{ $mapDetails['reward'] }}</dd></div>
+                    @if($mapDetails['reward'])
+                        <div><dt class="text-xs text-slate-500">報酬</dt><dd class="mt-1 text-slate-900">{{ $mapDetails['reward'] }}</dd></div>
+                    @endif
                     @if($mapDetails['environment'])
                         <div><dt class="text-xs text-slate-500">周辺の様子</dt><dd class="mt-1 text-slate-900">{{ implode('、', $mapDetails['environment']) }}</dd></div>
                     @endif

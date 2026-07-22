@@ -7,7 +7,10 @@ use App\Models\ExplorationMap;
 
 class ExplorationMapDisplayService
 {
-    public function __construct(private readonly ExplorationMapDifficultyService $difficulty) {}
+    public function __construct(
+        private readonly ExplorationMapDifficultyService $difficulty,
+        private readonly ExplorationMapLegacyRewardService $legacyRewards,
+    ) {}
 
     public function details(ExplorationMap $map): array
     {
@@ -89,18 +92,22 @@ class ExplorationMapDisplayService
         return $min === $max ? 'Lv' . $min : 'Lv' . $min . '〜' . $max;
     }
 
-    private function rewardLabel(ExplorationMap $map): string
+    private function rewardLabel(ExplorationMap $map): ?string
     {
         $modifiers = $map->reward_modifiers_json ?? [];
         $profile = config('exploration_maps.reward_profiles.' . $map->reward_profile, []);
         if (($profile['label'] ?? null) !== null
-            && ($profile['modifiers'] ?? []) === $modifiers) {
+            && ($profile['modifiers'] ?? []) == $modifiers) {
             return (string) $profile['label'];
         }
         if (($modifiers['exp_multiplier'] ?? 1) > 1) return '経験値が20%多い';
         if (($modifiers['gold_multiplier'] ?? 1) > 1) return 'Goldが25%多い';
 
-        return '通常の報酬';
+        if ($ancientFragment = $this->legacyRewards->ancientFragmentFor($map)) {
+            return '古代片：' . $ancientFragment->displayName();
+        }
+
+        return null;
     }
 
     private function environmentLabel(string $effect): string
