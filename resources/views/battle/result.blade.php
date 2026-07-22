@@ -638,7 +638,6 @@
                                                 </div>
                                             @endforeach
                                         </div>
-                                        <a href="{{ route('exploration-maps.index') }}" class="mt-3 inline-flex rounded border border-indigo-300 bg-white px-3 py-1.5 text-xs font-black text-indigo-800">地図院で確認する</a>
                                     </div>
                                 @endif
                                 @if($playerEncounters->isNotEmpty())
@@ -864,7 +863,6 @@
                                                 <div class="mt-0.5 text-sm font-black text-slate-900">{{ $mapDrop['name'] ?? '未調査の探索地図' }}</div>
                                                 <div class="mt-1 text-xs font-bold text-indigo-700">等級：{{ ['normal' => '通常', 'rare' => '希少', 'hero' => '英雄', 'legend' => '伝説'][$mapDrop['grade'] ?? 'normal'] ?? ($mapDrop['grade'] ?? '通常') }}　地図院で調査できます。</div>
                                             </div>
-                                            <a href="{{ route('exploration-maps.index') }}" class="shrink-0 rounded bg-indigo-700 px-3 py-2 text-xs font-black text-white">地図院へ</a>
                                         </div>
                                     </div>
                                 @endif
