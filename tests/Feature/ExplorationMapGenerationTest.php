@@ -58,7 +58,7 @@ class ExplorationMapGenerationTest extends TestCase
         $published = $publicationService->publish($character, $registration, $entryFee);
         $this->assertTrue($published->isOpen());
         $this->assertSame((int) $published->exploration_limit, (int) $published->remaining_explorations);
-        $this->assertEquals(72, $published->published_at->diffInHours($published->expires_at));
+        $this->assertEquals((int) config('exploration_maps.public_hours'), $published->published_at->diffInHours($published->expires_at));
         $this->assertSame(1, TownMapRegistration::where('map_id', $map->id)->count());
 
         $visitor = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図探索者', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);

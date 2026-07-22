@@ -7,6 +7,7 @@ use App\Models\ExplorationMap;
 use App\Models\MapExplorationBatch;
 use App\Models\TownMapRegistration;
 use App\Services\MapExplorationBatchService;
+use App\Services\ExplorationMapDiscardService;
 use App\Services\ExplorationMapDisplayService;
 use App\Services\MapPublicationService;
 use App\Services\MapExplorationItemService;
@@ -23,6 +24,7 @@ class ExplorationMapController extends Controller
         $character = $this->character();
         $ownedMaps = ExplorationMap::with('registration.town')
             ->where('owner_character_id', $character->id)
+            ->where('status', '!=', 'discarded')
             ->latest()
             ->get()
             ->filter(function (ExplorationMap $map): bool {
@@ -104,6 +106,7 @@ class ExplorationMapController extends Controller
     public function show(TownMapRegistration $registration)
     {
         $registration->load(['map.owner', 'town']);
+        abort_if($registration->map->status === 'discarded', 404);
         abort_unless($registration->isOpen() || $registration->map->owner_character_id === $this->character()->id, 404);
         $publicationService = app(MapPublicationService::class);
         return view('exploration-maps.show', ['registration' => $registration, 'character' => $this->character(), 'recommendedFee' => $publicationService->recommendedFee($registration), 'feeOptions' => $publicationService->feeOptions($registration), 'mapDetails' => app(ExplorationMapDisplayService::class)->details($registration->map)]);
@@ -118,6 +121,17 @@ class ExplorationMapController extends Controller
     {
         try { app(MapSurveyService::class)->complete($this->character(), $registration); return redirect()->route('exploration-maps.show', $registration)->with('message', '遠征調査が完了し、地図の全容が判明した。'); }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
+    }
+    public function discard(ExplorationMap $map)
+    {
+        try {
+            app(ExplorationMapDiscardService::class)->discard($this->character(), $map);
+
+            return redirect()->route('exploration-maps.index')->with('message', '探索地図を破棄した。');
+        }
+        catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
     public function publish(Request $request, TownMapRegistration $registration)
     {

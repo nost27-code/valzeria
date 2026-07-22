@@ -41,9 +41,23 @@ class MapPublicationService
     public function publish(Character $character, TownMapRegistration $registration, int $fee): TownMapRegistration
     {
         return DB::transaction(function () use ($character, $registration, $fee) {
+            // Serialize publications by the same owner so the three-map limit cannot be bypassed by double submits.
+            $character = Character::lockForUpdate()->findOrFail($character->id);
             $registration = TownMapRegistration::with(['map.owner', 'town'])->lockForUpdate()->findOrFail($registration->id);
             if ($registration->map->owner_character_id !== $character->id || $registration->status !== 'surveyed') throw new \RuntimeException('この地図は公開できません。');
             if ($fee < 0 || $fee > $this->maxFee($registration)) throw new \RuntimeException('入場料が設定可能な上限を超えています。');
+
+            $activePublicationCount = TownMapRegistration::query()
+                ->where('status', 'published')
+                ->where('remaining_explorations', '>', 0)
+                ->where('expires_at', '>', now())
+                ->whereHas('map', fn ($query) => $query->where('owner_character_id', $character->id))
+                ->count();
+            $activePublicationLimit = max(1, (int) config('exploration_maps.max_active_publications_per_owner', 3));
+            if ($activePublicationCount >= $activePublicationLimit) {
+                throw new \RuntimeException("公開中の地図は{$activePublicationLimit}件までです。終了を待ってから公開してください。");
+            }
+
             $explorationLimit = max(1, (int) $registration->exploration_limit, (int) $registration->map->exploration_limit);
             $registration->update(['entry_fee_per_exploration' => $fee, 'entry_fee_changed_at' => now(), 'published_at' => now(), 'expires_at' => now()->addHours((int) config('exploration_maps.public_hours')), 'remaining_explorations' => $explorationLimit, 'consumed_explorations' => 0, 'status' => 'published']);
             $registration->map->update(['status' => 'published']);

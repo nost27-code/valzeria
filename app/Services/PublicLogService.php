@@ -10,9 +10,14 @@ class PublicLogService
 {
     public function addMapPublishedLog(\App\Models\ExplorationMap $map, \App\Models\TownMapRegistration $registration): void
     {
+        if (!in_array($map->map_grade, config('exploration_maps.public_log_grades', []), true)) {
+            return;
+        }
+
         $marker = \App\Models\MapPublicationLog::firstOrCreate(['map_id' => $map->id]);
         if (!$marker->wasRecentlyCreated) return;
-        $log = PublicLog::create(['type' => 'system_map_published', 'message' => '🗺️ ' . $map->owner->name . 'さんが「' . $map->name . '」を' . $registration->town->name . '地図院で公開しました！', 'character_id' => $map->owner_character_id, 'importance' => 1]);
+        $grade = ['hero' => '英雄', 'legend' => '伝説'][$map->map_grade] ?? $map->map_grade;
+        $log = PublicLog::create(['type' => 'system_map_published', 'message' => '🗺️【' . $grade . '地図】' . $map->owner->name . 'さんが「' . $map->name . '」を' . $registration->town->name . '地図院で公開しました！', 'character_id' => $map->owner_character_id, 'importance' => 1]);
         $marker->update(['public_log_id' => $log->id]);
     }
 

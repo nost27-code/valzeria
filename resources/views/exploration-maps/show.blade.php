@@ -10,7 +10,11 @@
                 <div>発見者：{{ $map->owner->name }}</div>
                 <div>公開地図院：{{ $registration->town->name }}</div>
                 <div>地図等級：{{ ['normal' => '通常', 'rare' => '希少', 'hero' => '英雄', 'legend' => '伝説'][$map->map_grade] ?? $map->map_grade }}</div>
-                <div>状態：{{ $registration->status === 'surveying' ? '遠征調査中' : ($registration->isOpen() ? '公開中' : '終了') }}</div>
+                <div>状態：{{ match ($registration->status) {
+                    'surveying' => '遠征調査中',
+                    'surveyed' => '調査完了（公開待ち）',
+                    default => $registration->isOpen() ? '公開中' : '終了',
+                } }}</div>
             </div>
         </section>
 

@@ -3,8 +3,11 @@
 return [
     'seed_secret' => env('MAP_SEED_SECRET', env('APP_KEY', 'local-map-seed-secret')),
     'enabled' => env('EXPLORATION_MAPS_ENABLED', true),
-    'public_hours' => 72,
+    // Newly published maps remain available for half a day. Existing registrations keep their saved expiry.
+    'public_hours' => 12,
     'closed_map_display_hours' => 6,
+    'max_active_publications_per_owner' => 3,
+    'public_log_grades' => ['hero', 'legend'],
     'survey' => [
         'costs' => [
             'normal' => 500,

@@ -2,6 +2,27 @@
 
 return [
     [
+        'id' => '2026-07-22-map-survey-status-label',
+        'date' => '2026-07-22',
+        'category' => 'fixed',
+        'title' => '地図の公開待ち表示を修正',
+        'detail' => '遠征調査完了後、入場料を設定して公開する前の地図を「調査完了（公開待ち）」と表示するようにしました。',
+    ],
+    [
+        'id' => '2026-07-22-map-publication-lifecycle',
+        'date' => '2026-07-22',
+        'category' => 'changed',
+        'title' => '探索地図の公開期間を調整',
+        'detail' => '探索地図は公開から12時間で終了し、公開中は発見者ごとに3件までになりました。未調査・調査済みの地図は破棄できます。',
+    ],
+    [
+        'id' => '2026-07-22-map-public-log-reduced',
+        'date' => '2026-07-22',
+        'category' => 'changed',
+        'title' => '探索地図の公開通知を整理',
+        'detail' => '全体チャットには英雄・伝説地図の公開だけを表示し、通常・希少地図は公開地図一覧から確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-22-map-survey-cost-by-grade',
         'date' => '2026-07-22',
         'category' => 'balance',

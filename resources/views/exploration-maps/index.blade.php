@@ -65,6 +65,13 @@
                                 </div>
                             </form>
                         @endif
+
+                        @if(in_array($map->status, ['uninvestigated', 'surveyed'], true))
+                            <form method="POST" action="{{ route('exploration-maps.discard', $map) }}" class="mt-3" onsubmit="return confirm('この地図を破棄しますか？調査済みの場合、遠征調査費は戻りません。');">
+                                @csrf
+                                <button type="submit" class="w-full rounded border border-rose-200 bg-white px-4 py-2 text-xs font-black text-rose-700 hover:bg-rose-50">この地図を破棄する</button>
+                            </form>
+                        @endif
                     </div>
                 @empty
                     <p class="py-4 text-sm font-bold text-slate-500">まだ未調査の地図はない。通常探索や討伐で見つけよう。</p>
