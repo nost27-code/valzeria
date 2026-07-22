@@ -15,7 +15,7 @@ class MapSurveyService
         return DB::transaction(function () use ($character, $map, $town) {
             $map = ExplorationMap::lockForUpdate()->findOrFail($map->id);
             if ($map->owner_character_id !== $character->id || $map->status !== 'uninvestigated') throw new \RuntimeException('この地図は調査に出せません。');
-            $cost = $this->cost();
+            $cost = $this->cost($map);
             $minutes = (int) config('exploration_maps.survey.base_minutes');
             app(GoldService::class)->spend($character, $cost, 'map_survey', '探索の地図の遠征調査費', ExplorationMap::class, $map->id, ['town_id' => $town->id]);
             $surveyedAt = now()->addMinutes($minutes);
@@ -37,8 +37,18 @@ class MapSurveyService
         });
     }
 
-    public function cost(): int
+    public function cost(ExplorationMap $map): int
     {
-        return (int) config('exploration_maps.survey.base_cost');
+        $costs = $this->costs();
+
+        return $costs[$map->map_grade] ?? $costs['normal'];
+    }
+
+    /** @return array<string, int> */
+    public function costs(): array
+    {
+        return collect(config('exploration_maps.survey.costs', []))
+            ->mapWithKeys(fn ($cost, $grade) => [(string) $grade => max(0, (int) $cost)])
+            ->all();
     }
 }

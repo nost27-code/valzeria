@@ -6,7 +6,12 @@ return [
     'public_hours' => 72,
     'closed_map_display_hours' => 6,
     'survey' => [
-        'base_cost' => 5000,
+        'costs' => [
+            'normal' => 500,
+            'rare' => 1500,
+            'hero' => 5000,
+            'legend' => 10000,
+        ],
         'base_minutes' => 0,
     ],
     'entry_fee' => [
@@ -39,15 +44,15 @@ return [
     ],
     'drop_rates_basis_points' => [
         'normal' => 20,
-        'elite' => 120,
-        'boss' => 300,
+        'elite' => 20,
+        'boss' => 20,
         'local_boss' => 700,
-        'map_normal' => 30,
+        'map_normal' => 20,
         'map_elite' => 200,
     ],
     'launch_bonus' => [
         'enabled' => true,
-        'multiplier' => 3,
+        'multiplier' => 2,
         'ends_at' => '2026-07-29 23:59:59',
     ],
     'map_institute_pickup' => [

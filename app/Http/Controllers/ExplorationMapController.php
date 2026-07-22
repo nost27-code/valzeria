@@ -32,9 +32,9 @@ class ExplorationMapController extends Controller
             })
             ->values();
         $towns = City::whereBetween('id', [1, 10])->orderBy('id')->get();
-        $surveyCost = app(MapSurveyService::class)->cost();
+        $surveyCosts = app(MapSurveyService::class)->costs();
 
-        return view('exploration-maps.index', ['character' => $character, 'ownedMaps' => $ownedMaps, 'towns' => $towns, 'surveyCost' => $surveyCost]);
+        return view('exploration-maps.index', ['character' => $character, 'ownedMaps' => $ownedMaps, 'towns' => $towns, 'surveyCosts' => $surveyCosts]);
     }
     public function published()
     {

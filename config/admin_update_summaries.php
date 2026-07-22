@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-22-map-survey-cost-by-grade',
+        'date' => '2026-07-22',
+        'category' => 'balance',
+        'title' => '探索地図の調査費を等級別に調整',
+        'detail' => '遠征調査費を通常500G、希少1,500G、英雄5,000G、伝説10,000Gへ変更しました。',
+    ],
+    [
+        'id' => '2026-07-22-map-drop-launch-bonus-adjusted',
+        'date' => '2026-07-22',
+        'category' => 'balance',
+        'title' => '探索地図の記念倍率を調整',
+        'detail' => '探索の地図の実装記念ボーナスを2倍へ調整しました。通常敵・精鋭敵・ボス・公開地図内の通常敵では、通常時0.2%、ボーナス中0.4%で見つかります。',
+    ],
+    [
         'id' => '2026-07-22-map-drop-reward-display',
         'date' => '2026-07-22',
         'category' => 'fixed',

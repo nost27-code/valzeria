@@ -10,7 +10,7 @@
             <details class="mt-3 rounded-lg border border-indigo-200 bg-white/80 px-3 py-2 text-sm text-indigo-950">
                 <summary class="cursor-pointer font-black">Q. なぜ調査を依頼する地図院を選ぶの？</summary>
                 <div class="mt-2 space-y-2 border-t border-indigo-100 pt-2 text-xs font-bold leading-relaxed text-slate-700">
-                    <p><span class="text-indigo-800">A.</span> 遠征調査には{{ number_format($surveyCost) }}Gがかかります。依頼先は、公開する地図院と入場料の積み立て先を選ぶために指定します。</p>
+                    <p><span class="text-indigo-800">A.</span> 遠征調査費は地図の等級で決まります（通常 500G／希少 1,500G／英雄 5,000G／伝説 10,000G）。依頼先は、公開する地図院と入場料の積み立て先を選ぶために指定します。</p>
                     <p>ほかの冒険者が支払った入場料は、発見者に70%、選んだ街の地図院に20%、システム分として10%に分かれます。たとえばルミナス地図院へ依頼した地図なら、入場料の20%がルミナス地図院の発展値へ積み立てられます。</p>
                     <p>地図院の発展値は、今後その街で利用できる地図院の設備や機能を充実させるために使われる予定です。現在は積み立てのみで、地図内の敵の強さやドロップ率は、どこへ依頼しても変わりません。</p>
                     <p>迷ったときは、好きな街の地図院を選んでかまいません。</p>
@@ -24,6 +24,7 @@
                 @forelse($ownedMaps as $map)
                     @php
                         $dungeonTypeLabel = $dungeonTypeLabels[$map->dungeon_type] ?? $map->dungeon_type;
+                        $surveyCost = $surveyCosts[$map->map_grade] ?? $surveyCosts['normal'];
                         $registration = $map->registration;
                         $isEnded = $registration?->isPublished() && !$registration->isOpen();
                         $status = $isEnded

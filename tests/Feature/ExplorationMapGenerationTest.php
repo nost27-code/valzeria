@@ -43,8 +43,8 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertNotSame('', $mapDetails['reward']);
 
         $surveyService = app(MapSurveyService::class);
-        $expectedSurveyCost = $surveyService->cost();
-        $this->assertSame(5000, $expectedSurveyCost);
+        $expectedSurveyCost = $surveyService->cost($map);
+        $this->assertSame((int) config('exploration_maps.survey.costs.' . $map->map_grade), $expectedSurveyCost);
         $registration = $surveyService->start($character, $map, $city);
         $this->assertSame('completed', $registration->survey_status);
         $this->assertSame($expectedSurveyCost, $registration->survey_cost);

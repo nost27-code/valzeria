@@ -49,7 +49,7 @@ class AdminPublishedMapManagerTest extends TestCase
             'name' => '公開地図の発見者',
             'hp_base' => 100,
             'current_hp' => 100,
-            'money' => 10000,
+            'money' => 50000,
         ]);
 
         $openMap = app(ExplorationMapGenerator::class)->generate($owner, $area, $enemy, '00000000-0000-4000-8000-000000000101');
