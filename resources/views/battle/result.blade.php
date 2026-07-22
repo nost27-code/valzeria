@@ -103,7 +103,7 @@
                             ];
                             $enemyFamilyKey = (string) ($result['enemy']->family_key ?? '');
                             $enemyFamilyText = $enemyFamilyLabels[$enemyFamilyKey] ?? ($enemyFamilyKey !== '' ? $enemyFamilyKey : $enemyTypeText);
-                            $enemyImagePath = config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
+                            $enemyImagePath = $result['enemy_image_path'] ?? config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
                             $characterImagePath = $character->icon_path ?: \App\Support\CharacterIconCatalog::DEFAULT_ICON;
                             $isStrongEnemy = in_array((string) ($result['enemy']->role_key ?? ''), ['strong', 'rare'], true);
                             $characterBattleImageClass = 'h-20 w-20';

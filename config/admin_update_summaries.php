@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-map-enemy-portraits',
+        'date' => '2026-07-23',
+        'category' => 'fixed',
+        'title' => '地図探索の敵画像を表示',
+        'detail' => '公開地図の探索でも、地図内で出会った元モンスターの画像を戦闘結果に表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-23-map-launch-bonus-ended',
         'date' => '2026-07-23',
         'category' => 'balance',

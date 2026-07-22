@@ -76,8 +76,9 @@ class MapExplorationBatchService
         $variants = $map->normal_monster_variants_json ?: [];
         if ($variants === []) throw new \RuntimeException('地図のモンスター候補がありません。');
         $variant = $variants[$this->seeds->int($encounterSeed, 'map:encounter:monster', 0, count($variants) - 1)];
-        $enemy = Enemy::findOrFail($variant['base_monster_id']);
-        $enemy = clone $enemy;
+        $baseEnemy = Enemy::findOrFail($variant['base_monster_id']);
+        $enemyImagePath = config('enemy_images')[(string) $baseEnemy->name] ?? null;
+        $enemy = clone $baseEnemy;
         $enemy->name = (string) $variant['display_name'];
         foreach (($variant['stat_modifiers'] ?? []) as $key => $percent) {
             $column = match ($key) { 'attack_percent' => 'str', 'defense_percent' => 'def', 'magic_percent' => 'mag', 'spirit_percent' => 'spr', 'speed_percent' => 'agi', 'hp_percent' => 'max_hp', default => null };
@@ -151,6 +152,7 @@ class MapExplorationBatchService
             'turn_count' => $battle->turnCount,
             'log' => $logText,
             'enemy' => $enemy,
+            'enemy_image_path' => $enemyImagePath,
             'exp_gained' => $exp,
             'gold_gained' => $gold,
             'job_exp_gained' => $jobExp,
@@ -178,7 +180,9 @@ class MapExplorationBatchService
 
         $variant = $result->monster_variants_json ?? [];
         $enemy = Enemy::find($variant['base_monster_id'] ?? null);
+        $enemyImagePath = null;
         if ($enemy) {
+            $enemyImagePath = config('enemy_images')[(string) $enemy->name] ?? null;
             $enemy = clone $enemy;
             $enemy->name = (string) ($variant['display_name'] ?? $enemy->name);
             $this->difficulty->applyToEnemy($enemy, $this->difficulty->targetLevel($enemy, $variant, (string) $batch->map->map_grade));
@@ -190,6 +194,7 @@ class MapExplorationBatchService
             'turn_count' => 0,
             'log' => '地図探索の結果を再表示しています。',
             'enemy' => $enemy,
+            'enemy_image_path' => $enemyImagePath,
             'exp_gained' => (int) $result->experience,
             'gold_gained' => (int) $result->gold,
             'job_exp_gained' => 0,
