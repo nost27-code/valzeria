@@ -166,7 +166,7 @@ class EquipmentEnhancementServiceTest extends TestCase
         $this->assertSame(30, $service->maxEnhanceFor(new Item(['weapon_rank' => 'EPIC'])));
     }
 
-    public function test_weapon_and_armor_gold_costs_are_fixed_by_the_target_enhancement_level(): void
+    public function test_equipment_gold_costs_are_fixed_by_the_target_enhancement_level(): void
     {
         $service = app(EquipmentEnhancementService::class);
         $method = new \ReflectionMethod($service, 'goldCostForLevel');
@@ -177,6 +177,9 @@ class EquipmentEnhancementServiceTest extends TestCase
         $gArmor = new Item(['type' => 'armor', 'armor_rank' => 'G']);
         $sssArmor = new Item(['type' => 'armor', 'armor_rank' => 'SSS']);
         $epicArmor = new Item(['type' => 'armor', 'armor_rank' => 'EPIC']);
+        $gAccessory = new Item(['type' => 'accessory', 'accessory_rank' => 'G']);
+        $sssAccessory = new Item(['type' => 'accessory', 'accessory_rank' => 'SSS']);
+        $epicAccessory = new Item(['type' => 'accessory', 'accessory_rank' => 'EPIC']);
 
         foreach ([1 => 300, 5 => 7500, 10 => 30000, 20 => 120000, 30 => 270000] as $level => $expected) {
             $this->assertSame($expected, $method->invoke($service, $level, 'weapon', $gWeapon));
@@ -185,6 +188,9 @@ class EquipmentEnhancementServiceTest extends TestCase
             $this->assertSame($expected, $method->invoke($service, $level, 'armor', $gArmor));
             $this->assertSame($expected, $method->invoke($service, $level, 'armor', $sssArmor));
             $this->assertSame($expected, $method->invoke($service, $level, 'armor', $epicArmor));
+            $this->assertSame($expected, $method->invoke($service, $level, 'accessory', $gAccessory));
+            $this->assertSame($expected, $method->invoke($service, $level, 'accessory', $sssAccessory));
+            $this->assertSame($expected, $method->invoke($service, $level, 'accessory', $epicAccessory));
         }
 
         $this->assertSame(2836500, array_sum(array_map(
