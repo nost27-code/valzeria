@@ -50,6 +50,9 @@ return [
         'multiplier' => 3,
         'ends_at' => '2026-07-29 23:59:59',
     ],
+    'map_institute_pickup' => [
+        'ends_at' => '2026-07-25 23:59:59',
+    ],
     'grade_limits' => [
         'normal' => ['min' => 600, 'max' => 1000],
         'rare' => ['min' => 1000, 'max' => 1400],

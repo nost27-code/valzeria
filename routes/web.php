@@ -511,6 +511,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/equipment-compatibility', \App\Livewire\Admin\EquipmentCompatibilityManager::class)->name('admin.equipment-compatibility');
     Route::get('/admin/dungeon-enemies', \App\Livewire\Admin\DungeonEnemyManager::class)->name('admin.dungeon-enemies');
     Route::get('/admin/region-depth-dungeons', \App\Livewire\Admin\RegionDepthDungeonManager::class)->name('admin.region-depth-dungeons');
+    Route::get('/admin/published-maps', \App\Livewire\Admin\PublishedMapManager::class)->name('admin.published-maps');
     Route::get('/admin/players', \App\Livewire\Admin\PlayerLogs::class)->name('admin.players');
     Route::get('/admin/user-investigation', \App\Livewire\Admin\UserInvestigationManager::class)->name('admin.user-investigation');
     Route::get('/admin/player-controls', \App\Livewire\Admin\PlayerControlManager::class)->name('admin.player-controls');

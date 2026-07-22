@@ -810,6 +810,35 @@
                                 }
                             }
                         @endphp
+                        @if($mapInstitutePickup)
+                            <a href="{{ route($mapInstitutePickup['route']) }}" wire:navigate class="mb-4 block overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-md transition hover:border-amber-400 hover:shadow-lg active:scale-[0.99]">
+                                <div class="relative min-h-[112px] px-4 py-3 sm:px-5">
+                                    <div class="absolute inset-0 bg-cover bg-right-center opacity-25" style="background-image: url('{{ asset('images/facilities/guide.webp') }}');"></div>
+                                    <div class="absolute inset-0 bg-gradient-to-r from-white via-white/95 to-white/60"></div>
+                                    <div class="relative z-10 flex items-center gap-3">
+                                        <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-amber-200">
+                                            <span class="text-4xl leading-none">🗺️</span>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="mb-1 flex flex-wrap items-center gap-1.5">
+                                                <span class="rounded bg-[#003366] px-2 py-0.5 text-[10px] font-black text-white">PICKUP</span>
+                                                <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">{{ $mapInstitutePickup['ends_at_label'] }}</span>
+                                            </div>
+                                            <div class="text-lg font-black leading-tight text-slate-950 sm:text-xl">{{ $mapInstitutePickup['name'] }}</div>
+                                            <div class="mt-1 text-xs font-bold leading-relaxed text-slate-600">{{ $mapInstitutePickup['description'] }}</div>
+                                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                                @foreach($mapInstitutePickup['details'] as $detail)
+                                                    <span class="rounded border border-amber-200 bg-amber-50/90 px-2 py-0.5 text-[10px] font-black text-amber-800">{{ $detail }}</span>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        <div class="hidden shrink-0 rounded-md border border-[#1e3a8a] bg-[#1e40af] px-5 py-2 text-sm font-black text-white shadow-sm sm:block">
+                                            入る
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        @endif
                         @if($showRankingSpotlight)
                             <a href="{{ route('ranking.index', !empty($rankingSpotlightLeader['board_key'] ?? null) ? ['board' => $rankingSpotlightLeader['board_key']] : []) }}" wire:navigate class="mb-4 block overflow-hidden rounded-xl border-2 border-amber-300 bg-white shadow-md transition hover:border-amber-400 hover:shadow-lg active:scale-[0.99]">
                                 <div class="relative min-h-[104px] px-4 py-3 sm:px-5">

@@ -21,6 +21,7 @@ use App\Services\TownRankingService;
 use App\Services\GameTextService;
 use App\Support\CharacterIconCatalog;
 use App\Support\FacilityConfig;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -572,6 +573,9 @@ class MainScreen extends Component
         $rankingSpotlightLeader = $this->currentLocation === 'town'
             ? $this->rankingSpotlightLeader()
             : null;
+        $mapInstitutePickup = $this->currentLocation === 'town' && !$isFerdiaSimpleBase
+            ? $this->mapInstitutePickup()
+            : null;
 
         return view('livewire.main-screen', [
             'character' => $this->character,
@@ -607,6 +611,7 @@ class MainScreen extends Component
             'additionalDungeons' => $additionalDungeons,
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
             'rankingSpotlightLeader' => $rankingSpotlightLeader,
+            'mapInstitutePickup' => $mapInstitutePickup,
         ]);
     }
 
@@ -645,6 +650,27 @@ class MainScreen extends Component
             ->values();
 
         return $candidates->isNotEmpty() ? $candidates->random() : null;
+    }
+
+    private function mapInstitutePickup(): ?array
+    {
+        $endsAtValue = config('exploration_maps.map_institute_pickup.ends_at');
+        if (!is_string($endsAtValue) || $endsAtValue === '') {
+            return null;
+        }
+
+        $endsAt = Carbon::parse($endsAtValue, config('app.timezone'));
+        if (now()->gt($endsAt)) {
+            return null;
+        }
+
+        return [
+            'name' => '地図院',
+            'description' => '未調査の探索地図を調べ、公開地図を探索する',
+            'details' => ['遠征調査', '共有探索'],
+            'route' => 'exploration-maps.index',
+            'ends_at_label' => $endsAt->format('n/j H:iまで'),
+        ];
     }
 
     private function dungeonImageOrder($area, int $fallbackOrder): int

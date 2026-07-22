@@ -1,6 +1,20 @@
 <?php
 
 return [
+    [
+        'id' => '2026-07-22-map-institute-pickup',
+        'date' => '2026-07-22',
+        'category' => 'changed',
+        'title' => '地図院を街のPickupに表示',
+        'detail' => '7月25日 23:59まで、地図院を街の施設一覧の上部にPickupとして表示します。',
+    ],
+    [
+        'id' => '2026-07-22-admin-published-map-details',
+        'date' => '2026-07-22',
+        'category' => 'internal',
+        'title' => '公開地図を管理画面で確認可能に',
+        'detail' => '管理画面から、公開中の探索地図の発見者、入場料、残り回数、期限、敵Lv、目安戦力、報酬傾向を確認できるようになりました。',
+    ],
     ['id' => '2026-07-22-map-enemy-strength-band', 'date' => '2026-07-22', 'category' => 'balance', 'title' => '探索地図の敵強さを安定化', 'detail' => '新しく見つかる探索地図では、出現敵のLvと目安戦力が地図ごとの基準から大きく外れないようになりました。'],
     ['id' => '2026-07-22-accessory-enhancement-gold-aligned', 'date' => '2026-07-22', 'category' => 'balance', 'title' => '装飾品強化のGold費用を統一', 'detail' => '装飾品の鍛冶強化に必要なGoldを武器・防具と同じ水準に統一しました。調律石系の素材は変わりません。'],
     ['id' => '2026-07-22-armor-enhancement-gold-aligned', 'date' => '2026-07-22', 'category' => 'balance', 'title' => '防具強化のGold費用を統一', 'detail' => '防具の鍛冶強化に必要なGoldを武器と同じ水準に統一しました。守護石系の素材は変わりません。'],
