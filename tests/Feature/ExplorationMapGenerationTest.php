@@ -93,6 +93,12 @@ class ExplorationMapGenerationTest extends TestCase
     {
         $weights = config('exploration_maps.target_city_weights');
         $this->assertSame(array_fill(1, 10, 1), $weights);
+        $this->assertSame([
+            'normal' => ['min' => 300, 'max' => 600],
+            'rare' => ['min' => 600, 'max' => 900],
+            'hero' => ['min' => 900, 'max' => 1200],
+            'legend' => ['min' => 1200, 'max' => 1500],
+        ], config('exploration_maps.grade_limits'));
         $this->assertSame(['min' => 45, 'max' => 140], config('exploration_maps.target_enemy_level_range'));
         $this->assertSame('images/chizu/map-bg-lava-cave.webp', config('exploration_maps.dungeon_card_backgrounds.mine_volcano'));
         $this->assertSame('images/chizu/map-bg-floating-sanctuary.webp', config('exploration_maps.dungeon_card_backgrounds.sky_ruins'));

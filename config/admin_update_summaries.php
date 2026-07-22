@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-23-map-launch-bonus-ended',
+        'date' => '2026-07-23',
+        'category' => 'balance',
+        'title' => '探索地図の記念ボーナスを終了',
+        'detail' => '探索の地図実装記念ボーナスを終了し、地図の発見率を通常時の0.2%へ戻しました。',
+    ],
+    [
+        'id' => '2026-07-23-map-drop-and-capacity-balance',
+        'date' => '2026-07-23',
+        'category' => 'balance',
+        'title' => '探索地図の供給と回数を調整',
+        'detail' => '地図内の精鋭敵を含め、地図の発見率を通常敵と同じ確率に統一しました。新しく見つかる地図の探索可能回数も調整しています。',
+    ],
+    [
         'id' => '2026-07-22-map-training-limit',
         'date' => '2026-07-22',
         'category' => 'balance',

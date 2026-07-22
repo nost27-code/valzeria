@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\Enemy;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -22,25 +21,8 @@ class ExplorationMapDropService
         return ['id' => $map->id, 'name' => '未調査の探索地図', 'grade' => $map->map_grade, 'map' => $map];
     }
 
-    public function dropRateBasisPoints(string $key, ?CarbonInterface $at = null): int
+    public function dropRateBasisPoints(string $key): int
     {
-        $rate = max(0, min(10000, (int) config("exploration_maps.drop_rates_basis_points.{$key}", 0)));
-        $bonus = config('exploration_maps.launch_bonus', []);
-        $enabled = app(GameSettingService::class)->getBool(
-            'exploration_maps.launch_bonus_enabled',
-            (bool) ($bonus['enabled'] ?? false),
-        );
-        $endsAt = $bonus['ends_at'] ?? null;
-
-        if (! $enabled || ! is_string($endsAt) || $endsAt === '') {
-            return $rate;
-        }
-
-        $now = ($at ?? now())->copy()->setTimezone('Asia/Tokyo');
-        if ($now->gt(\Carbon\Carbon::parse($endsAt, 'Asia/Tokyo'))) {
-            return $rate;
-        }
-
-        return min(10000, (int) round($rate * max(0, (float) ($bonus['multiplier'] ?? 1))));
+        return max(0, min(10000, (int) config("exploration_maps.drop_rates_basis_points.{$key}", 0)));
     }
 }

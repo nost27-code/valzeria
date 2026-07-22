@@ -60,21 +60,16 @@ return [
         'boss' => 20,
         'local_boss' => 700,
         'map_normal' => 20,
-        'map_elite' => 200,
-    ],
-    'launch_bonus' => [
-        'enabled' => true,
-        'multiplier' => 2,
-        'ends_at' => '2026-07-29 23:59:59',
+        'map_elite' => 20,
     ],
     'map_institute_pickup' => [
         'ends_at' => '2026-07-25 23:59:59',
     ],
     'grade_limits' => [
-        'normal' => ['min' => 600, 'max' => 1000],
-        'rare' => ['min' => 1000, 'max' => 1400],
-        'hero' => ['min' => 1400, 'max' => 1800],
-        'legend' => ['min' => 1800, 'max' => 2000],
+        'normal' => ['min' => 300, 'max' => 600],
+        'rare' => ['min' => 600, 'max' => 900],
+        'hero' => ['min' => 900, 'max' => 1200],
+        'legend' => ['min' => 1200, 'max' => 1500],
     ],
     'grade_level_offsets' => [
         'normal' => ['min' => 0, 'max' => 5],
