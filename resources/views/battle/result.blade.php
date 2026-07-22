@@ -623,6 +623,24 @@
                                         輝石 +{{ number_format((int) ($batchExplore['total_kiseki'] ?? 0)) }}
                                     </div>
                                 @endif
+                                @if(!empty($batchExplore['map_drops'] ?? []))
+                                    <div class="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/80 p-3">
+                                        <div class="mb-2 flex items-center gap-1.5 text-sm font-black text-indigo-900">
+                                            <img src="{{ asset('images/icon/icon_275.webp') }}" alt="" class="h-5 w-5 object-contain">
+                                            探索の地図を発見！
+                                        </div>
+                                        <div class="grid gap-2">
+                                            @foreach($batchExplore['map_drops'] as $mapDrop)
+                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+                                                    <span class="text-indigo-600">{{ number_format((int) ($mapDrop['index'] ?? 0)) }}回目</span>
+                                                    <span class="font-black text-indigo-950">{{ $mapDrop['name'] ?? '未調査の探索地図' }}</span>
+                                                    <span class="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">{{ ['normal' => '通常', 'rare' => '希少', 'hero' => '英雄', 'legend' => '伝説'][$mapDrop['grade'] ?? 'normal'] ?? ($mapDrop['grade'] ?? '通常') }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        <a href="{{ route('exploration-maps.index') }}" class="mt-3 inline-flex rounded border border-indigo-300 bg-white px-3 py-1.5 text-xs font-black text-indigo-800">地図院で確認する</a>
+                                    </div>
+                                @endif
                                 @if($playerEncounters->isNotEmpty())
                                     <div class="mt-3 rounded-lg border border-sky-100 bg-white p-3">
                                         <div class="mb-2 flex items-center gap-2 text-sm font-black text-sky-900">
@@ -831,6 +849,23 @@
                                             </div>
                                         </div>
                                         <div class="mt-1 text-xs font-bold text-slate-500">戦闘で入手した無償輝石です。</div>
+                                    </div>
+                                @endif
+
+                                @if(empty($result['batch_explore']) && !empty($result['map_drop']))
+                                    @php $mapDrop = $result['map_drop']; @endphp
+                                    <div class="mt-4 rounded-lg border border-indigo-300 bg-indigo-50 p-3 shadow-sm">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-white">
+                                                <img src="{{ asset('images/icon/icon_275.webp') }}" alt="" class="h-9 w-9 object-contain">
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="text-sm font-extrabold text-indigo-900">探索の地図を発見！</div>
+                                                <div class="mt-0.5 text-sm font-black text-slate-900">{{ $mapDrop['name'] ?? '未調査の探索地図' }}</div>
+                                                <div class="mt-1 text-xs font-bold text-indigo-700">等級：{{ ['normal' => '通常', 'rare' => '希少', 'hero' => '英雄', 'legend' => '伝説'][$mapDrop['grade'] ?? 'normal'] ?? ($mapDrop['grade'] ?? '通常') }}　地図院で調査できます。</div>
+                                            </div>
+                                            <a href="{{ route('exploration-maps.index') }}" class="shrink-0 rounded bg-indigo-700 px-3 py-2 text-xs font-black text-white">地図院へ</a>
+                                        </div>
                                     </div>
                                 @endif
 

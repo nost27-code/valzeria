@@ -8,7 +8,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
-- 7月25日 23:59まで、地図院を街の施設一覧の上部にPickupとして表示します。
+- 地図院を街の施設一覧の上部にPickupとして表示します。
 
 - 新しく見つかる探索地図では、出現敵のLvと目安戦力が地図ごとの基準から大きく外れないようにしました。
 
@@ -33,6 +33,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Fixed
 
+- 通常探索と10回探索で地図を獲得したとき、戦闘結果の獲得報酬に「探索の地図」を表示するよう修正しました。
 - 探索力の薬や小瓶を使って連続探索を再開した後も、次回の回復ポップアップを正しく閉じられるよう修正しました。
 - 探索力不足時の回復・購入ポップアップで、iPhoneでも右上の×と「閉じる」から確実に画面を閉じられるようにしました。
 

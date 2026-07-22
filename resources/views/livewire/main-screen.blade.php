@@ -817,7 +817,7 @@
                                     <div class="absolute inset-0 bg-gradient-to-r from-white via-white/95 to-white/60"></div>
                                     <div class="relative z-10 flex items-center gap-3">
                                         <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-amber-200">
-                                            <span class="text-4xl leading-none">🗺️</span>
+                                            <img src="{{ asset('images/icon/icon_275.webp') }}" alt="地図院" class="h-14 w-14 object-contain">
                                         </div>
                                         <div class="min-w-0 flex-1">
                                             <div class="mb-1 flex flex-wrap items-center gap-1.5">

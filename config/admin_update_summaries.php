@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-22-map-drop-reward-display',
+        'date' => '2026-07-22',
+        'category' => 'fixed',
+        'title' => '探索地図の獲得表示を追加',
+        'detail' => '探索の地図を見つけたとき、通常探索と10回探索の獲得報酬で確認できるようになりました。',
+    ],
+    [
         'id' => '2026-07-22-map-institute-pickup',
         'date' => '2026-07-22',
         'category' => 'changed',

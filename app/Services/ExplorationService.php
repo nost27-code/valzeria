@@ -846,6 +846,7 @@ class ExplorationService
         $materialDrops = [];
         $equipmentDrops = [];
         $monsterMarkDrops = [];
+        $mapDrops = [];
         $newDiscoveries = [];
         $runs = [];
         $lastResult = null;
@@ -898,6 +899,14 @@ class ExplorationService
                     'unlocked_level' => $monsterMarkDrop['unlocked_level'] ?? null,
                     'bonus_stat_label' => (string) ($monsterMarkDrop['bonus_stat_label'] ?? ''),
                     'total_bonus' => (int) ($monsterMarkDrop['total_bonus'] ?? 0),
+                ];
+            }
+
+            if (!empty($result['map_drop']) && is_array($result['map_drop'])) {
+                $mapDrops[] = [
+                    'index' => $i,
+                    'name' => (string) ($result['map_drop']['name'] ?? '未調査の探索地図'),
+                    'grade' => (string) ($result['map_drop']['grade'] ?? 'normal'),
                 ];
             }
 
@@ -1065,6 +1074,7 @@ class ExplorationService
             'total_kiseki' => $totalKiseki,
             'defeat_loss' => $defeatLossSummary,
             'monster_mark_drops' => $monsterMarkDrops,
+            'map_drops' => $mapDrops,
             'runs' => $runs,
         ];
 
