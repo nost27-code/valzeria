@@ -8,17 +8,31 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('map_exploration_item_carries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('character_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('registration_id')->constrained('town_map_registrations')->cascadeOnDelete();
-            $table->foreignId('item_id')->constrained()->cascadeOnDelete();
-            $table->unsignedSmallInteger('carried_count')->default(0);
-            $table->unsignedSmallInteger('used_count')->default(0);
-            $table->timestamps();
+        $tableName = 'map_exploration_item_carries';
+        $uniqueIndex = 'map_item_carries_char_reg_item_uq';
 
-            $table->unique(['character_id', 'registration_id', 'item_id']);
-        });
+        if (! Schema::hasTable($tableName)) {
+            Schema::create($tableName, function (Blueprint $table) use ($uniqueIndex) {
+                $table->id();
+                $table->foreignId('character_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('registration_id')->constrained('town_map_registrations')->cascadeOnDelete();
+                $table->foreignId('item_id')->constrained()->cascadeOnDelete();
+                $table->unsignedSmallInteger('carried_count')->default(0);
+                $table->unsignedSmallInteger('used_count')->default(0);
+                $table->timestamps();
+
+                $table->unique(['character_id', 'registration_id', 'item_id'], $uniqueIndex);
+            });
+
+            return;
+        }
+
+        // MySQLではDDL途中のcreate tableが残るため、本番で一意キー作成だけ失敗した場合も復旧できる。
+        if (! Schema::hasIndex($tableName, $uniqueIndex)) {
+            Schema::table($tableName, function (Blueprint $table) use ($uniqueIndex) {
+                $table->unique(['character_id', 'registration_id', 'item_id'], $uniqueIndex);
+            });
+        }
     }
 
     public function down(): void
