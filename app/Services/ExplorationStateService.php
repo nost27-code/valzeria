@@ -125,7 +125,7 @@ class ExplorationStateService
         $dungeonKey = $regionDepthDungeonService->keyForArea((int) $enemy->area_id);
         $increased = $dungeonKey !== null && $regionDepthDungeonService->shouldIncreaseDanger($dungeonKey);
         $state->forceFill([
-            // 黒炉深坑は危険度と連戦数だけで進行する。通常探索の深部・深層・最深層・異界層には接続しない。
+            // 追加ダンジョンは危険度と連戦数だけで進行し、通常探索の深度には接続しない。
             'exploration_point' => 0,
             'chain_count' => (int) $state->chain_count + 1,
             'danger_rate' => $beforeDanger + ($increased ? 5 : 0),

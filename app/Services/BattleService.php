@@ -291,13 +291,13 @@ class BattleService
             ];
         } else {
             $danger = $this->enemyDangerBonus($character, $enemy, [
-            'hp' => $hp,
-            'str' => $str,
-            'def' => $def,
-            'agi' => $agi,
-            'mag' => $mag,
-            'spr' => $spr,
-            'luk' => $luk,
+                'hp' => $hp,
+                'str' => $str,
+                'def' => $def,
+                'agi' => $agi,
+                'mag' => $mag,
+                'spr' => $spr,
+                'luk' => $luk,
             ]);
         }
 

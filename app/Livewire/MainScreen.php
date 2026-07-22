@@ -25,7 +25,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 
 #[Layout('components.layouts.app')]
 class MainScreen extends Component
@@ -40,6 +39,7 @@ class MainScreen extends Component
 
     public $currentLocation = 'home';
     public $character;
+    public bool $embedded = false;
 
     public $isIconModalOpen = false;
     public $isNameModalOpen = false;
@@ -114,9 +114,17 @@ class MainScreen extends Component
         );
     }
 
-    public function mount()
+    public function mount(?string $fixedLocation = null)
     {
         $this->character = Auth::user()->currentCharacter();
+
+        if ($fixedLocation !== null) {
+            $this->embedded = true;
+            $this->currentLocation = $this->normalizeLocation($fixedLocation);
+
+            return;
+        }
+
         $healthProbeLocation = request()->attributes->get(\App\Services\GameHealthCheckService::REQUEST_ATTRIBUTE);
         if (is_string($healthProbeLocation)) {
             $this->currentLocation = $healthProbeLocation;
@@ -162,7 +170,6 @@ class MainScreen extends Component
         }
     }
 
-    #[On('changeTab')]
     public function changeLocation($newLocation)
     {
         $newLocation = $this->normalizeLocation($newLocation);
@@ -601,6 +608,11 @@ class MainScreen extends Component
             'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
             'rankingSpotlightLeader' => $rankingSpotlightLeader,
         ]);
+    }
+
+    public function placeholder()
+    {
+        return view('livewire.main-screen-placeholder');
     }
 
     public static function clearHomeCache(int $characterId): void

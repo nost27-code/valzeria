@@ -12,38 +12,25 @@
                 @if($errors->any())<div class="rounded-lg bg-rose-50 p-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>@endif<div class="flex gap-2"><button class="flex-1 rounded-lg bg-amber-500 px-4 py-3 font-black text-slate-950">{{ $editingId ? '更新する' : '作成する' }}</button><button type="button" wire:click="resetForm" class="rounded-lg border border-slate-300 px-4 py-3 font-black text-slate-700">クリア</button></div></form></section>
         </div>
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div>
-                <h2 class="text-lg font-black text-slate-950">探索状況</h2>
-                <p class="mt-1 text-xs font-bold text-slate-500">終了した潜行の平均値です。探索中の潜行は入場数・探索中人数だけに含めます。</p>
-            </div>
-            <div class="mt-4 overflow-x-auto">
-                <table class="min-w-full text-left text-sm">
-                    <thead class="border-b border-slate-200 text-xs text-slate-500"><tr><th class="px-3 py-2">ダンジョン</th><th class="px-3 py-2 text-right">24時間入場</th><th class="px-3 py-2 text-right">累計入場 / 挑戦者</th><th class="px-3 py-2 text-right">探索中</th><th class="px-3 py-2 text-right">帰還 / 敗北</th><th class="px-3 py-2 text-right">敗北率</th><th class="px-3 py-2 text-right">平均危険度 / 連戦</th><th class="px-3 py-2 text-right">平均EXP / Job EXP</th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse($dungeons as $dungeon)
-                            @php($summary = $dungeonMetrics['summaries'][$dungeon->key] ?? null)
-                            <tr><td class="px-3 py-3 font-black text-slate-900">{{ $dungeon->name }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($summary['entries_24h'] ?? 0) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($summary['total_entries'] ?? 0) }} / {{ number_format($summary['unique_challengers'] ?? 0) }}</td><td class="px-3 py-3 text-right font-bold {{ ($summary['active_runs'] ?? 0) > 0 ? 'text-emerald-700' : 'text-slate-500' }}">{{ number_format($summary['active_runs'] ?? 0) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($summary['returned_runs'] ?? 0) }} / {{ number_format($summary['defeated_runs'] ?? 0) }}</td><td class="px-3 py-3 text-right font-black {{ ($summary['defeat_rate'] ?? 0) >= 35 ? 'text-rose-600' : 'text-slate-700' }}">{{ ($summary['defeat_rate'] ?? null) === null ? '—' : number_format($summary['defeat_rate'], 1) . '%' }}</td><td class="px-3 py-3 text-right font-bold">{{ ($summary['average_max_danger'] ?? null) === null ? '—' : number_format($summary['average_max_danger'], 1) . '% / ' . number_format($summary['average_chain_count'], 1) }}</td><td class="px-3 py-3 text-right font-bold">{{ ($summary['average_total_exp'] ?? null) === null ? '—' : number_format($summary['average_total_exp']) . ' / ' . number_format($summary['average_total_job_exp'], 1) }}</td></tr>
-                        @empty
-                            <tr><td colspan="8" class="px-3 py-6 text-center font-bold text-slate-500">追加ダンジョンはまだありません。</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            <div><h2 class="text-lg font-black text-slate-950">探索状況</h2><p class="mt-1 text-xs font-bold text-slate-500">終了した潜行の平均値です。探索中の潜行は入場数・探索中人数だけに含めます。</p></div>
+            <div class="mt-4 overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b border-slate-200 text-xs text-slate-500"><tr><th class="px-3 py-2">ダンジョン</th><th class="px-3 py-2 text-right">24時間入場</th><th class="px-3 py-2 text-right">累計入場 / 挑戦者</th><th class="px-3 py-2 text-right">探索中</th><th class="px-3 py-2 text-right">帰還 / 敗北</th><th class="px-3 py-2 text-right">敗北率</th><th class="px-3 py-2 text-right">平均危険度 / 連戦</th><th class="px-3 py-2 text-right">平均EXP / Job EXP</th></tr></thead><tbody class="divide-y divide-slate-100">
+                @forelse($dungeons as $dungeon)
+                    @php($summary = $dungeonMetrics['summaries'][$dungeon->key] ?? null)
+                    <tr><td class="px-3 py-3 font-black text-slate-900">{{ $dungeon->name }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($summary['entries_24h'] ?? 0) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($summary['total_entries'] ?? 0) }} / {{ number_format($summary['unique_challengers'] ?? 0) }}</td><td class="px-3 py-3 text-right font-bold {{ ($summary['active_runs'] ?? 0) > 0 ? 'text-emerald-700' : 'text-slate-500' }}">{{ number_format($summary['active_runs'] ?? 0) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($summary['returned_runs'] ?? 0) }} / {{ number_format($summary['defeated_runs'] ?? 0) }}</td><td class="px-3 py-3 text-right font-black {{ ($summary['defeat_rate'] ?? 0) >= 35 ? 'text-rose-600' : 'text-slate-700' }}">{{ ($summary['defeat_rate'] ?? null) === null ? '—' : number_format($summary['defeat_rate'], 1) . '%' }}</td><td class="px-3 py-3 text-right font-bold">{{ ($summary['average_max_danger'] ?? null) === null ? '—' : number_format($summary['average_max_danger'], 1) . '% / ' . number_format($summary['average_chain_count'], 1) }}</td><td class="px-3 py-3 text-right font-bold">{{ ($summary['average_total_exp'] ?? null) === null ? '—' : number_format($summary['average_total_exp']) . ' / ' . number_format($summary['average_total_job_exp'], 1) }}</td></tr>
+                @empty
+                    <tr><td colspan="8" class="px-3 py-6 text-center font-bold text-slate-500">追加ダンジョンはまだありません。</td></tr>
+                @endforelse
+            </tbody></table></div>
         </section>
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div><h2 class="text-lg font-black text-slate-950">直近の潜行</h2><p class="mt-1 text-xs font-bold text-slate-500">報酬と到達地点を確認し、設定変更の判断に使えます。</p></div>
-            <div class="mt-4 overflow-x-auto">
-                <table class="min-w-full text-left text-sm">
-                    <thead class="border-b border-slate-200 text-xs text-slate-500"><tr><th class="px-3 py-2">開始</th><th class="px-3 py-2">冒険者</th><th class="px-3 py-2">ダンジョン</th><th class="px-3 py-2">結果</th><th class="px-3 py-2 text-right">最高危険度</th><th class="px-3 py-2 text-right">連戦</th><th class="px-3 py-2 text-right">EXP</th><th class="px-3 py-2 text-right">Job EXP</th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse($dungeonMetrics['run_history'] as $run)
-                            <tr><td class="whitespace-nowrap px-3 py-3 text-xs font-bold text-slate-500">{{ $run['entered_at'] }}</td><td class="px-3 py-3 font-black text-slate-900">{{ $run['character_name'] }}</td><td class="px-3 py-3 font-bold">{{ optional($dungeons->firstWhere('key', $run['dungeon_key']))->name ?? $run['dungeon_key'] }}</td><td class="px-3 py-3 font-black {{ $run['status'] === 'defeated' ? 'text-rose-600' : ($run['status'] === 'active' ? 'text-emerald-700' : 'text-slate-700') }}">{{ $run['status'] === 'defeated' ? '敗北' : ($run['status'] === 'returned' ? '帰還' : '探索中') }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['max_danger_rate']) }}%</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['max_chain_count']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['total_exp']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['total_job_exp']) }}</td></tr>
-                        @empty
-                            <tr><td colspan="8" class="px-3 py-6 text-center font-bold text-slate-500">まだ潜行記録はありません。</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            <div class="mt-4 overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b border-slate-200 text-xs text-slate-500"><tr><th class="px-3 py-2">開始</th><th class="px-3 py-2">冒険者</th><th class="px-3 py-2">ダンジョン</th><th class="px-3 py-2">結果</th><th class="px-3 py-2 text-right">最高危険度</th><th class="px-3 py-2 text-right">連戦</th><th class="px-3 py-2 text-right">EXP</th><th class="px-3 py-2 text-right">Job EXP</th></tr></thead><tbody class="divide-y divide-slate-100">
+                @forelse($dungeonMetrics['run_history'] as $run)
+                    <tr><td class="whitespace-nowrap px-3 py-3 text-xs font-bold text-slate-500">{{ $run['entered_at'] }}</td><td class="px-3 py-3 font-black text-slate-900">{{ $run['character_name'] }}</td><td class="px-3 py-3 font-bold">{{ optional($dungeons->firstWhere('key', $run['dungeon_key']))->name ?? $run['dungeon_key'] }}</td><td class="px-3 py-3 font-black {{ $run['status'] === 'defeated' ? 'text-rose-600' : ($run['status'] === 'active' ? 'text-emerald-700' : 'text-slate-700') }}">{{ $run['status'] === 'defeated' ? '敗北' : ($run['status'] === 'returned' ? '帰還' : '探索中') }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['max_danger_rate']) }}%</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['max_chain_count']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['total_exp']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($run['total_job_exp']) }}</td></tr>
+                @empty
+                    <tr><td colspan="8" class="px-3 py-6 text-center font-bold text-slate-500">まだ潜行記録はありません。</td></tr>
+                @endforelse
+            </tbody></table></div>
         </section>
     </div>
 </div>
