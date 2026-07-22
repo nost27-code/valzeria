@@ -822,7 +822,6 @@
                                         <div class="min-w-0 flex-1">
                                             <div class="mb-1 flex flex-wrap items-center gap-1.5">
                                                 <span class="rounded bg-[#003366] px-2 py-0.5 text-[10px] font-black text-white">PICKUP</span>
-                                                <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">{{ $mapInstitutePickup['ends_at_label'] }}</span>
                                             </div>
                                             <div class="text-lg font-black leading-tight text-slate-950 sm:text-xl">{{ $mapInstitutePickup['name'] }}</div>
                                             <div class="mt-1 text-xs font-bold leading-relaxed text-slate-600">{{ $mapInstitutePickup['description'] }}</div>

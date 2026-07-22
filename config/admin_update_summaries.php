@@ -6,7 +6,7 @@ return [
         'date' => '2026-07-22',
         'category' => 'changed',
         'title' => '地図院を街のPickupに表示',
-        'detail' => '7月25日 23:59まで、地図院を街の施設一覧の上部にPickupとして表示します。',
+        'detail' => '地図院を街の施設一覧の上部にPickupとして表示します。',
     ],
     [
         'id' => '2026-07-22-admin-published-map-details',

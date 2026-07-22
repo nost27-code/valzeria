@@ -669,7 +669,6 @@ class MainScreen extends Component
             'description' => '未調査の探索地図を調べ、公開地図を探索する',
             'details' => ['遠征調査', '共有探索'],
             'route' => 'exploration-maps.index',
-            'ends_at_label' => $endsAt->format('n/j H:iまで'),
         ];
     }
 

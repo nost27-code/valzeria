@@ -19,7 +19,7 @@ class MapInstitutePickupTest extends TestCase
             $this->assertNotNull($pickup);
             $this->assertSame('地図院', $pickup['name']);
             $this->assertSame('exploration-maps.index', $pickup['route']);
-            $this->assertSame('7/25 23:59まで', $pickup['ends_at_label']);
+            $this->assertArrayNotHasKey('ends_at_label', $pickup);
         } finally {
             Carbon::setTestNow();
         }
