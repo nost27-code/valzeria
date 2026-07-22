@@ -720,4 +720,9 @@ return [
     '風精の隠れ谷の秘境主' => 'images/enemy/enemy_715.webp',
     '星砂の巡礼路の秘境主' => 'images/enemy/enemy_716.webp',
     '黄金ゴブリン' => 'images/enemy/enemy_717.webp',
+    '黒鉄坑のスライム' => 'images/enemy/enemy_718.webp',
+    '坑道ゴーレム' => 'images/enemy/enemy_719.webp',
+    '炉熱のコウモリ' => 'images/enemy/enemy_720.webp',
+    '黒鉱甲虫' => 'images/enemy/enemy_721.webp',
+    '旧坑道の採掘兵' => 'images/enemy/enemy_722.webp',
 ];

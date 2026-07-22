@@ -148,4 +148,16 @@ class ExplorationMapGenerationTest extends TestCase
         $registration->updated_at = now()->subHours(7);
         $this->assertFalse($registration->isRecentlyClosed());
     }
+
+    public function test_all_map_eligible_enemies_have_a_battle_portrait(): void
+    {
+        $missing = Enemy::query()
+            ->where('map_normal_eligible', true)
+            ->pluck('name')
+            ->diff(array_keys(config('enemy_images')))
+            ->values()
+            ->all();
+
+        $this->assertSame([], $missing);
+    }
 }
