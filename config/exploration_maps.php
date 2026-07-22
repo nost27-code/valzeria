@@ -39,7 +39,11 @@ return [
     'reward_profiles' => [
         'experience' => ['label' => '経験の導き', 'modifiers' => ['exp_multiplier' => 1.20]],
         'wealth' => ['label' => '金運上昇', 'modifiers' => ['gold_multiplier' => 1.50]],
-        'training' => ['label' => '修練の導き', 'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_cap' => 6]],
+        'training' => [
+            'label' => '修練の導き',
+            'exploration_limit_multiplier' => 1 / 3,
+            'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_cap' => 6],
+        ],
         'material' => ['label' => '素材探索', 'modifiers' => ['material_drop_bonus_points' => 5]],
         'equipment' => ['label' => '装備の兆し', 'modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]]],
         'windfall' => ['label' => '落銭の気配', 'modifiers' => ['gold_drop_rate_bonus_points' => 3]],

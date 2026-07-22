@@ -70,6 +70,15 @@ class MapExplorationItemService
             ->exists();
     }
 
+    public function entryStartedAt(Character $character, int $registrationId): ?\DateTimeInterface
+    {
+        return MapExplorationItemCarry::query()
+            ->where('character_id', $character->id)
+            ->where('registration_id', $registrationId)
+            ->oldest('created_at')
+            ->first()?->created_at;
+    }
+
     public function use(Character $character, Item $item, int $registrationId): array
     {
         $config = $this->configFor($item);

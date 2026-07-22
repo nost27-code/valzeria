@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-22-map-training-limit',
+        'date' => '2026-07-22',
+        'category' => 'balance',
+        'title' => '修練地図の探索回数を調整',
+        'detail' => '修練の導きの地図は、Job EXPが2倍（最大6）になる代わりに、探索可能回数を同等級の通常地図のおよそ1/3にしました。公開期限はすべて12時間です。',
+    ],
+    [
+        'id' => '2026-07-22-map-batch-defeat-message',
+        'date' => '2026-07-22',
+        'category' => 'fixed',
+        'title' => '地図探索の敗北処理を統一',
+        'detail' => '公開地図で敗北したときも、通常探索と同じGold・戦利品・ヴァルモンの卵のロストと敗北結果を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-22-map-legacy-ancient-fragments',
         'date' => '2026-07-22',
         'category' => 'added',

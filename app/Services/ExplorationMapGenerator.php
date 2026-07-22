@@ -22,8 +22,8 @@ class ExplorationMapGenerator
         $targetMonster = $this->targetMonster($root, $grade);
         $type = $this->dungeonType($root, $targetArea);
         $level = min(255, max(1, (int) $targetMonster->level + $this->levelOffset($root, $grade, 'map:v2:map_level_offset')));
-        $limit = $this->limit($root, $grade);
         $profile = $this->seeds->weightedPick($root, 'map:v1:reward_profile', collect($this->profiles())->map(fn ($value, $key) => ['value' => $key, 'weight' => 100])->values()->all())['value'];
+        $limit = $this->limit($root, $grade, $profile);
         $effects = $this->effects($root, $type, $grade);
         $normal = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, false);
         $boss = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, true);
@@ -46,10 +46,13 @@ class ExplorationMapGenerator
     {
         return match (true) { ($roll = $this->seeds->int($root, 'map:v1:grade', 1, 10000)) <= 6000 => 'normal', $roll <= 8500 => 'rare', $roll <= 9700 => 'hero', default => 'legend' };
     }
-    private function limit(string $root, string $grade): int
+    private function limit(string $root, string $grade, string $profile): int
     {
         $range = config("exploration_maps.grade_limits.{$grade}");
-        return (int) $range['min'] + $this->seeds->int($root, 'map:v1:exploration_limit', 0, intdiv((int) $range['max'] - (int) $range['min'], 10)) * 10;
+        $limit = (int) $range['min'] + $this->seeds->int($root, 'map:v1:exploration_limit', 0, intdiv((int) $range['max'] - (int) $range['min'], 10)) * 10;
+        $multiplier = (float) config("exploration_maps.reward_profiles.{$profile}.exploration_limit_multiplier", 1);
+
+        return max(10, (int) (round(($limit * $multiplier) / 10) * 10));
     }
     private function dungeonType(string $root, Area $area): string
     {

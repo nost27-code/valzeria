@@ -27,8 +27,10 @@ class ExplorationMapGenerationTest extends TestCase
         $map = app(ExplorationMapGenerator::class)->generate($character, $area, $enemy, '00000000-0000-4000-8000-000000000001');
 
         $this->assertSame('uninvestigated', $map->status);
-        $this->assertGreaterThanOrEqual(600, $map->exploration_limit);
-        $this->assertLessThanOrEqual(2000, $map->exploration_limit);
+        $limitRange = config('exploration_maps.grade_limits.' . $map->map_grade);
+        $limitMultiplier = (float) config('exploration_maps.reward_profiles.' . $map->reward_profile . '.exploration_limit_multiplier', 1);
+        $this->assertGreaterThanOrEqual((int) (round(((int) $limitRange['min'] * $limitMultiplier) / 10) * 10), $map->exploration_limit);
+        $this->assertLessThanOrEqual((int) (round(((int) $limitRange['max'] * $limitMultiplier) / 10) * 10), $map->exploration_limit);
         $this->assertNotEmpty($map->normal_monster_variants_json);
         $this->assertSame(64, strlen($map->seed_hash));
         $levelRange = config('exploration_maps.grade_level_offsets.' . $map->map_grade);
@@ -58,7 +60,8 @@ class ExplorationMapGenerationTest extends TestCase
         $published = $publicationService->publish($character, $registration, $entryFee);
         $this->assertTrue($published->isOpen());
         $this->assertSame((int) $published->exploration_limit, (int) $published->remaining_explorations);
-        $this->assertEquals((int) config('exploration_maps.public_hours'), $published->published_at->diffInHours($published->expires_at));
+        $this->assertSame(12, (int) config('exploration_maps.public_hours'));
+        $this->assertEquals(12, $published->published_at->diffInHours($published->expires_at));
         $this->assertSame(1, TownMapRegistration::where('map_id', $map->id)->count());
 
         $visitor = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図探索者', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
@@ -113,6 +116,13 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertGreaterThan(1, $generated->pluck('source_area_id')->unique()->count());
         $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] >= 45 && (int) $variant['enemy_level'] <= 140)));
         $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] === (int) $map->map_level)));
+        $this->assertTrue($generated->filter(fn ($map) => $map->reward_profile === 'training')->every(function ($map): bool {
+            $range = config('exploration_maps.grade_limits.' . $map->map_grade);
+            $multiplier = (float) config('exploration_maps.reward_profiles.training.exploration_limit_multiplier');
+
+            return (int) $map->exploration_limit >= (int) (round(((int) $range['min'] * $multiplier) / 10) * 10)
+                && (int) $map->exploration_limit <= (int) (round(((int) $range['max'] * $multiplier) / 10) * 10);
+        }));
         $this->assertTrue($generated->every(fn ($map) => str_ends_with($map->name, 'の地図')));
     }
 

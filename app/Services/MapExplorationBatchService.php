@@ -96,6 +96,9 @@ class MapExplorationBatchService
         $rewardResult = ['level_up_count' => 0, 'details' => [], 'progression' => null];
         $mapDrop = null;
         $valmonEggFound = null;
+        $materialPenalty = ['total_lost' => 0, 'materials' => [], 'items' => []];
+        $goldLoss = null;
+        $valmonEggLost = [];
         if ($win) {
             $mapRewards = $this->rewards->rewardsFor($enemy, $map, (int) $battle->gold);
             $exp = $mapRewards['experience'];
@@ -127,6 +130,10 @@ class MapExplorationBatchService
             $valmonEggFound = app(ValmonService::class)->tryFindEgg($character, $map->sourceArea, null);
             $character->increment('wins');
         } else {
+            $defeatLoss = app(MapExplorationDefeatService::class)->apply($character, $batch);
+            $materialPenalty = $defeatLoss['material_penalty'];
+            $goldLoss = $defeatLoss['gold_loss'];
+            $valmonEggLost = $defeatLoss['valmon_egg_lost'];
             $character->increment('losses');
             $stats = app(CharacterStatusService::class)->getFinalStats($character);
             $character->update(['current_hp' => max(1, (int) floor(((int) ($stats['max_hp'] ?? $character->hp_base)) * .3))]);
@@ -156,6 +163,9 @@ class MapExplorationBatchService
             'drop_results' => [],
             'map_drop' => $mapDrop,
             'valmon_egg_found' => $valmonEggFound,
+            'material_penalty' => $materialPenalty,
+            'gold_loss' => $goldLoss,
+            'valmon_egg_lost' => $valmonEggLost,
             'exploration_stamina' => app(ExplorationStaminaService::class)->summary($character),
             'new_discoveries' => [],
         ];
@@ -206,6 +216,21 @@ class MapExplorationBatchService
     private function presentBattleResult(MapExplorationBatch $batch, array $lastResult, array $runs): array
     {
         if ((int) $batch->requested_count <= 1) {
+            if (($lastResult['result'] ?? null) === 'defeat') {
+                $lastResult['batch_explore'] = [
+                    'requested' => 1,
+                    'completed' => 1,
+                    'stop_reason' => 'defeat',
+                    'stop_text' => '戦闘に敗北したため、地図探索を終えました。HPは敗北後に最大HPの30%まで回復した状態です。',
+                    'total_exp' => (int) ($lastResult['exp_gained'] ?? 0),
+                    'total_gold' => (int) ($lastResult['gold_gained'] ?? 0),
+                    'total_job_exp' => (int) ($lastResult['job_exp_gained'] ?? 0),
+                    'total_kiseki' => 0,
+                    'defeat_loss' => $this->defeatLossSummary($lastResult),
+                    'runs' => [],
+                ];
+            }
+
             return $lastResult;
         }
 
@@ -249,6 +274,13 @@ class MapExplorationBatchService
             ? '探索可能回数が尽きたか、敗北したため途中で探索を止めました。'
             : '';
 
+        if ($stopReason === 'defeat') {
+            $summaryLines[] = sprintf(
+                '<span class="text-black font-extrabold text-xl">%sは、倒れてしまった……。</span>',
+                e((string) $batch->character->name),
+            );
+        }
+
         $lastResult['log'] = implode('<br>', $summaryLines);
         $lastResult['exp_gained'] = $totalExp;
         $lastResult['gold_gained'] = $totalGold;
@@ -267,10 +299,29 @@ class MapExplorationBatchService
             'total_gold' => $totalGold,
             'total_job_exp' => $totalJobExp,
             'total_kiseki' => 0,
+            'defeat_loss' => $stopReason === 'defeat' ? $this->defeatLossSummary($lastResult) : null,
             'runs' => [],
         ];
 
         return $lastResult;
+    }
+
+    /** @param array<string, mixed> $result */
+    private function defeatLossSummary(array $result): array
+    {
+        $materialPenalty = is_array($result['material_penalty'] ?? null) ? $result['material_penalty'] : [];
+        $goldLoss = is_array($result['gold_loss'] ?? null) ? $result['gold_loss'] : [];
+        $valmonEggLost = is_array($result['valmon_egg_lost'] ?? null) ? $result['valmon_egg_lost'] : [];
+
+        return [
+            'gold_amount' => (int) ($goldLoss['amount'] ?? 0),
+            'gold_rate_label' => (string) ($goldLoss['rate_label'] ?? ''),
+            'loss_percent' => (int) ($materialPenalty['loss_percent'] ?? 0),
+            'total_lost' => (int) ($materialPenalty['total_lost'] ?? 0),
+            'materials' => $materialPenalty['materials'] ?? [],
+            'items' => $materialPenalty['items'] ?? [],
+            'valmon_egg_lost_count' => count($valmonEggLost),
+        ];
     }
 
     /** @param array<string, mixed> $modifiers */

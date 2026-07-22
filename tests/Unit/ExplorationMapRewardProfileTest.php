@@ -14,6 +14,7 @@ class ExplorationMapRewardProfileTest extends TestCase
             'experience', 'wealth', 'training', 'material', 'equipment', 'windfall', 'vitality',
         ], array_keys($profiles));
         $this->assertSame(1.5, $profiles['wealth']['modifiers']['gold_multiplier']);
+        $this->assertSame(1 / 3, $profiles['training']['exploration_limit_multiplier']);
         $this->assertSame(2.0, $profiles['training']['modifiers']['job_exp_multiplier']);
         $this->assertSame(6, $profiles['training']['modifiers']['job_exp_cap']);
         $this->assertSame(3, $profiles['windfall']['modifiers']['gold_drop_rate_bonus_points']);
