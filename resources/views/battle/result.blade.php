@@ -1381,7 +1381,7 @@
                                 </div>
 
                                 @php
-                                    $chainLootSummary = $result['chain_loot_summary'] ?? null;
+                                    $chainLootSummary = $mapExploration['loot_summary'] ?? ($result['chain_loot_summary'] ?? null);
                                     $valmonEggFound = $result['valmon_egg_found'] ?? null;
                                     $hasChainLoot = (
                                             $chainLootSummary
@@ -1419,7 +1419,7 @@
                                             </div>
                                         </div>
 
-                                        @if(($chainLootSummary['risk_total'] ?? 0) > 0)
+                                        @if(!$isDefeatResult && ($chainLootSummary['risk_total'] ?? 0) > 0)
                                             <div class="mb-2 rounded border border-red-100 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700">
                                                 敗北すると、素材 {{ number_format($chainLootSummary['risk_material_total'] ?? 0) }} 個 / 装備 {{ number_format($chainLootSummary['risk_item_total'] ?? 0) }} 個を失います。
                                             </div>

@@ -61,6 +61,12 @@ class MapExplorationDefeatServiceTest extends TestCase
             ],
         ]);
 
+        $summary = app(MapExplorationDefeatService::class)->currentLootSummary($character, $registration->id);
+        $this->assertSame(2, $summary['material_total']);
+        $this->assertSame(2, $summary['item_total']);
+        $this->assertSame(1, $summary['risk_material_total']);
+        $this->assertSame(1, $summary['risk_item_total']);
+
         $result = app(MapExplorationDefeatService::class)->apply($character, $batch);
 
         $this->assertSame(900, (int) $character->fresh()->money);

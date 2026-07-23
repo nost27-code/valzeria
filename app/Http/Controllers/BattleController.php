@@ -231,6 +231,7 @@ class BattleController extends Controller
                     'can_continue' => $batch->registration->isOpen() && $batch->registration->remaining_explorations > 0,
                     'remaining_explorations' => (int) $batch->registration->remaining_explorations,
                     'entry_fee' => (int) $batch->fee_per_exploration,
+                    'loot_summary' => app(\App\Services\MapExplorationDefeatService::class)->currentLootSummary($character, (int) $batch->registration_id),
                 ],
             ]);
         } catch (\RuntimeException $e) {

@@ -7,12 +7,103 @@ use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\MapExplorationBatch;
 use App\Models\MapExplorationResult;
+use App\Models\Material;
 use App\Models\TownMapRegistration;
 use Illuminate\Support\Facades\DB;
 
 class MapExplorationDefeatService
 {
     private const MATERIAL_LOSS_PERCENT = 50;
+
+    /**
+     * 現在の地図入場中に得た戦利品を、通常探索の連戦表示と同じ形式で返す。
+     */
+    public function currentLootSummary(Character $character, int $registrationId): array
+    {
+        $results = $this->entryResults($character, $registrationId);
+        if ($results->isEmpty()) {
+            return $this->emptyLootSummary();
+        }
+
+        $materialDrops = [];
+        $equipmentIds = [];
+        foreach ($results as $result) {
+            foreach ((array) data_get($result->drops_json, 'materials', []) as $drop) {
+                $materialId = (int) ($drop['material_id'] ?? 0);
+                if ($materialId <= 0) {
+                    continue;
+                }
+
+                if (!isset($materialDrops[$materialId])) {
+                    $materialDrops[$materialId] = $drop;
+                    $materialDrops[$materialId]['quantity'] = 0;
+                }
+                $materialDrops[$materialId]['quantity'] += max(1, (int) ($drop['quantity'] ?? 1));
+            }
+
+            foreach ((array) data_get($result->drops_json, 'equipment', []) as $drop) {
+                $characterItemId = (int) ($drop['character_item_id'] ?? 0);
+                if ($characterItemId > 0) {
+                    $equipmentIds[] = $characterItemId;
+                }
+            }
+        }
+
+        $materialsById = Material::query()->whereIn('id', array_keys($materialDrops))->get()->keyBy('id');
+        $materials = collect($materialDrops)
+            ->map(function (array $drop, int $materialId) use ($materialsById): array {
+                $material = $materialsById->get($materialId);
+                $rarity = strtoupper((string) ($material?->rarity ?? $drop['rarity'] ?? ''));
+                $name = $material?->displayName() ?? (string) ($drop['name'] ?? '不明な素材');
+
+                return [
+                    'name' => $name,
+                    'rarity' => $rarity,
+                    'is_sr' => $rarity === 'SR',
+                    'is_sell_treasure' => (bool) $material?->isSellTreasure(),
+                    'icon_image' => $material?->iconImagePath() ?? ($drop['icon_image'] ?? Material::iconImagePathFor($drop['material_code'] ?? null, $name)),
+                    'material_code' => $material?->material_code ?? ($drop['material_code'] ?? null),
+                    'quantity' => (int) ($drop['quantity'] ?? 0),
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+
+        $itemIds = array_values(array_unique($equipmentIds));
+        $characterItems = CharacterItem::query()
+            ->with('item')
+            ->where('character_id', $character->id)
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
+        $items = collect($itemIds)
+            ->map(function (int $itemId) use ($characterItems): array {
+                $characterItem = $characterItems->get($itemId);
+                $item = $characterItem?->item;
+
+                return [
+                    'name' => $characterItem?->displayName() ?? '不明な装備',
+                    'rank' => $item?->weapon_rank ?? $item?->armor_rank ?? $item?->accessory_rank ?? $item?->rarity,
+                    'can_lose' => $characterItem && ! $characterItem->is_equipped && ! $characterItem->is_locked,
+                ];
+            })
+            ->values();
+
+        $materialTotal = (int) $materials->sum('quantity');
+        $itemTotal = $items->count();
+        $riskMaterialTotal = $this->lossCount($materialTotal);
+        $riskItemTotal = $this->lossCount($items->where('can_lose', true)->count());
+
+        return [
+            'materials' => $materials->all(),
+            'items' => $items->all(),
+            'material_total' => $materialTotal,
+            'item_total' => $itemTotal,
+            'risk_material_total' => $riskMaterialTotal,
+            'risk_item_total' => $riskItemTotal,
+            'risk_total' => $riskMaterialTotal + $riskItemTotal,
+        ];
+    }
 
     /**
      * 通常探索と同じ敗北ロストを、現在の地図入場中に得た戦利品へ適用する。
@@ -23,18 +114,7 @@ class MapExplorationDefeatService
     {
         return DB::transaction(function () use ($character, $batch): array {
             $lockedCharacter = Character::query()->lockForUpdate()->findOrFail($character->id);
-            $entryStartedAt = app(MapExplorationItemService::class)->entryStartedAt(
-                $lockedCharacter,
-                (int) $batch->registration_id,
-            ) ?? $batch->created_at ?? now();
-
-            $results = MapExplorationResult::query()
-                ->where('character_id', $lockedCharacter->id)
-                ->where('registration_id', $batch->registration_id)
-                ->where('created_at', '>=', $entryStartedAt)
-                ->where('battle_result', 'victory')
-                ->orderBy('id')
-                ->get();
+            $results = $this->entryResults($lockedCharacter, (int) $batch->registration_id, $batch->created_at ?? now());
 
             $materialDrops = [];
             $equipmentIds = [];
@@ -86,7 +166,14 @@ class MapExplorationDefeatService
         $lostItems = [];
         $materialLossRemaining = $this->lossCount(array_sum($materialDrops));
         $itemIds = array_values(array_unique($equipmentIds));
-        $itemLossRemaining = $this->lossCount(count($itemIds));
+        $itemLossRemaining = $this->lossCount(
+            CharacterItem::query()
+                ->where('character_id', $character->id)
+                ->whereIn('id', $itemIds)
+                ->where('is_equipped', false)
+                ->where('is_locked', false)
+                ->count()
+        );
 
         arsort($materialDrops);
         foreach ($materialDrops as $materialId => $droppedQuantity) {
@@ -156,5 +243,33 @@ class MapExplorationDefeatService
     private function lossCount(int $total): int
     {
         return $total <= 0 ? 0 : (int) floor($total * self::MATERIAL_LOSS_PERCENT / 100);
+    }
+
+    private function entryResults(Character $character, int $registrationId, mixed $fallbackStartedAt = null)
+    {
+        $entryStartedAt = app(MapExplorationItemService::class)->entryStartedAt($character, $registrationId)
+            ?? $fallbackStartedAt
+            ?? now();
+
+        return MapExplorationResult::query()
+            ->where('character_id', $character->id)
+            ->where('registration_id', $registrationId)
+            ->where('created_at', '>=', $entryStartedAt)
+            ->where('battle_result', 'victory')
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function emptyLootSummary(): array
+    {
+        return [
+            'materials' => [],
+            'items' => [],
+            'material_total' => 0,
+            'item_total' => 0,
+            'risk_material_total' => 0,
+            'risk_item_total' => 0,
+            'risk_total' => 0,
+        ];
     }
 }

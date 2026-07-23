@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-map-loot-total-summary',
+        'date' => '2026-07-23',
+        'category' => 'fixed',
+        'title' => '地図探索の戦利品表示を統一',
+        'detail' => '公開地図でも、入場から得た素材・装備の累計と敗北時に失う対象数を通常探索と同じ表示で確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-23-map-defeat-material-summary',
         'date' => '2026-07-23',
         'category' => 'fixed',
