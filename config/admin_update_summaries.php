@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-map-exploration-duplicate-execution-fix',
+        'date' => '2026-07-23',
+        'category' => 'fixed',
+        'title' => '公開地図探索の重複処理を修正',
+        'detail' => '通信の再送や連打時に、公開地図探索の報酬や入場料収益が重複しないように修正しました。',
+    ],
+    [
         'id' => '2026-07-23-map-enemy-portraits',
         'date' => '2026-07-23',
         'category' => 'fixed',

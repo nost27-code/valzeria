@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
+use Illuminate\Support\Collection;
 
 class ExplorationMapDisplayService
 {
@@ -12,11 +13,16 @@ class ExplorationMapDisplayService
         private readonly ExplorationMapLegacyRewardService $legacyRewards,
     ) {}
 
-    public function details(ExplorationMap $map): array
+    public function details(ExplorationMap $map, ?Collection $enemies = null): array
     {
-        $enemyLevels = $this->difficulty->enemyLevels($map);
+        $variants = $map->normal_monster_variants_json ?? [];
+        $enemies = ($enemies ?? Enemy::query()
+            ->whereIn('id', collect($variants)->pluck('base_monster_id')->filter()->all())
+            ->get())
+            ->keyBy('id');
+        $enemyLevels = $this->difficulty->enemyLevels($map, $enemies);
         $threatTier = $this->difficulty->threatTier(max($enemyLevels ?: [(int) $map->map_level]));
-        $powerRange = $this->enemyPowerRange($map);
+        $powerRange = $this->enemyPowerRange($map, $enemies);
 
         return [
             'dungeon_type' => config('exploration_maps.dungeon_type_labels.' . $map->dungeon_type, '未知の探索地'),
@@ -32,13 +38,9 @@ class ExplorationMapDisplayService
     }
 
     /** @return array{min: int, max: int} */
-    private function enemyPowerRange(ExplorationMap $map): array
+    private function enemyPowerRange(ExplorationMap $map, Collection $enemies): array
     {
         $variants = $map->normal_monster_variants_json ?? [];
-        $enemies = Enemy::query()
-            ->whereIn('id', collect($variants)->pluck('base_monster_id')->filter()->all())
-            ->get()
-            ->keyBy('id');
         $powerService = app(CharacterPowerService::class);
         $powers = [];
 

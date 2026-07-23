@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
+use Illuminate\Support\Collection;
 
 class ExplorationMapDifficultyService
 {
@@ -40,14 +41,14 @@ class ExplorationMapDifficultyService
         }
     }
 
-    public function enemyLevels(ExplorationMap $map): array
+    public function enemyLevels(ExplorationMap $map, ?Collection $enemies = null): array
     {
         $variants = $map->normal_monster_variants_json ?? [];
         if ($variants === []) {
             return [];
         }
 
-        $enemies = Enemy::whereIn('id', collect($variants)->pluck('base_monster_id')->filter()->all())->get()->keyBy('id');
+        $enemies = ($enemies ?? Enemy::whereIn('id', collect($variants)->pluck('base_monster_id')->filter()->all())->get())->keyBy('id');
 
         return collect($variants)
             ->map(function (array $variant) use ($enemies, $map): ?int {

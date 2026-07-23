@@ -88,7 +88,7 @@
                     <p class="font-black text-emerald-950">{{ $owner ? '発見者は無料（他の冒険者：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：1入場 ' . number_format($registration->entry_fee_per_exploration) . 'G' }}</p>
                     <p class="mt-1 text-xs font-bold text-emerald-800">薬草・回復薬・魔力水は、所持分から各10個まで持ち込めます。</p>
                     <div class="mt-3 grid grid-cols-2 gap-2">
-                        @foreach([1, min(10, $registration->remaining_explorations)] as $count)
+                        @foreach(array_unique([1, min(10, $registration->remaining_explorations)]) as $count)
                             <form method="POST" action="{{ route('exploration-maps.explore', $registration) }}">
                                 @csrf
                                 <input type="hidden" name="count" value="{{ $count }}">

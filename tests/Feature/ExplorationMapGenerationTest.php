@@ -149,6 +149,24 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertFalse($registration->isRecentlyClosed());
     }
 
+    public function test_processing_map_exploration_batch_cannot_be_executed_again(): void
+    {
+        $city = City::findOrFail(1);
+        $area = Area::create(['name' => '排他試験地', 'slug' => 'map-lock-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
+        $enemy = Enemy::create(['name' => '排他試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $owner = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図主', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
+        $map = app(ExplorationMapGenerator::class)->generate($owner, $area, $enemy, '00000000-0000-4000-8000-000000000002');
+        $registration = app(MapPublicationService::class)->publish($owner, app(MapSurveyService::class)->start($owner, $map, $city), 0);
+        $visitor = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図探索者', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
+        $batch = app(\App\Services\MapExplorationBatchService::class)->reserve($visitor, $registration, 1, (string) \Illuminate\Support\Str::uuid());
+        $batch->update(['status' => 'processing', 'started_at' => now()]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('この地図探索は処理中です。');
+
+        app(\App\Services\MapExplorationBatchService::class)->execute($visitor, $batch);
+    }
+
     public function test_all_map_eligible_enemies_have_a_battle_portrait(): void
     {
         $missing = Enemy::query()

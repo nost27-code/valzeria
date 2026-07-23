@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\City;
+use App\Models\Enemy;
 use App\Models\ExplorationMap;
 use App\Models\MapExplorationBatch;
 use App\Models\TownMapRegistration;
@@ -77,8 +78,14 @@ class ExplorationMapController extends Controller
             ->latest('published_at')
             ->get();
 
+        $enemyIds = $published
+            ->flatMap(fn (TownMapRegistration $registration) => collect($registration->map->normal_monster_variants_json ?? [])->pluck('base_monster_id'))
+            ->filter()
+            ->unique()
+            ->values();
+        $mapEnemies = Enemy::whereIn('id', $enemyIds)->get()->keyBy('id');
         $display = app(ExplorationMapDisplayService::class);
-        $mapDetails = $published->mapWithKeys(fn (TownMapRegistration $registration) => [$registration->id => $display->details($registration->map)])->all();
+        $mapDetails = $published->mapWithKeys(fn (TownMapRegistration $registration) => [$registration->id => $display->details($registration->map, $mapEnemies)])->all();
         $published = (match ($sort) {
             'latest_published' => $published->sortByDesc('published_at'),
             'power_asc' => $published->sortBy(fn (TownMapRegistration $registration) => $mapDetails[$registration->id]['enemy_power_min'] ?: PHP_INT_MAX),

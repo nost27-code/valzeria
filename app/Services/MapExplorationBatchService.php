@@ -36,37 +36,52 @@ class MapExplorationBatchService
 
     public function execute(Character $character, MapExplorationBatch $batch): array
     {
-        $batch->loadMissing('map.sourceArea', 'registration');
-        if ($batch->character_id !== $character->id) abort(403);
-        if ($batch->status === 'completed') {
-            return ['batch' => $batch->fresh(['map', 'registration.town']), 'battle_result' => $this->savedBattleResult($batch)];
-        }
-        $batch->update(['status' => 'processing', 'started_at' => $batch->started_at ?? now()]);
-        $map = $batch->map;
-        $root = $this->seeds->decrypt($map->seed_encrypted);
-        $battleResult = null;
-        $runResults = [];
-        for ($index = $batch->first_exploration_index; $index <= $batch->last_exploration_index; $index++) {
-            if (MapExplorationResult::where('map_id', $map->id)->where('global_exploration_index', $index)->exists()) continue;
-            $character->refresh();
-            if ($character->current_hp <= 0) break;
-            $battleResult = $this->executeOne($character, $batch, $map, $root, $index);
-            $runResults[] = $battleResult;
-            $batch->increment('executed_count');
-        }
-        $batch->refresh();
-        $unexecuted = $batch->reserved_count - $batch->executed_count;
-        if ($unexecuted > 0) $this->refundUnexecuted($character, $batch, $unexecuted);
-        $batch->refresh();
-        $summary = $this->summary($batch);
-        $batch->update(['status' => 'completed', 'completed_at' => now(), 'result_summary_json' => $summary]);
-        $this->income->settle($batch->fresh());
-        $completedBatch = $batch->fresh(['map', 'registration.town', 'results']);
+        return DB::transaction(function () use ($character, $batch): array {
+            // 同じ request_uuid の二重送信は同じバッチへ到達するため、バッチと冒険者を
+            // 実行完了までロックして報酬・入場料分配を一度だけ確定させる。
+            $batch = MapExplorationBatch::with(['map.sourceArea', 'registration'])
+                ->lockForUpdate()
+                ->findOrFail($batch->id);
+            $character = Character::lockForUpdate()->findOrFail($character->id);
 
-        return [
-            'batch' => $completedBatch,
-            'battle_result' => $this->presentBattleResult($completedBatch, $battleResult ?? $this->savedBattleResult($completedBatch), $runResults),
-        ];
+            if ($batch->character_id !== $character->id) abort(403);
+            if ($batch->status === 'completed') {
+                return ['batch' => $batch->fresh(['map', 'registration.town']), 'battle_result' => $this->savedBattleResult($batch)];
+            }
+            if ($batch->status === 'processing') {
+                throw new \RuntimeException('この地図探索は処理中です。少し待ってから結果を確認してください。');
+            }
+            if ($batch->status !== 'reserved') {
+                throw new \RuntimeException('この地図探索は実行できません。');
+            }
+
+            $batch->update(['status' => 'processing', 'started_at' => now()]);
+            $map = $batch->map;
+            $root = $this->seeds->decrypt($map->seed_encrypted);
+            $battleResult = null;
+            $runResults = [];
+            for ($index = $batch->first_exploration_index; $index <= $batch->last_exploration_index; $index++) {
+                if (MapExplorationResult::where('map_id', $map->id)->where('global_exploration_index', $index)->exists()) continue;
+                $character->refresh();
+                if ($character->current_hp <= 0) break;
+                $battleResult = $this->executeOne($character, $batch, $map, $root, $index);
+                $runResults[] = $battleResult;
+                $batch->increment('executed_count');
+            }
+            $batch->refresh();
+            $unexecuted = $batch->reserved_count - $batch->executed_count;
+            if ($unexecuted > 0) $this->refundUnexecuted($character, $batch, $unexecuted);
+            $batch->refresh();
+            $summary = $this->summary($batch);
+            $batch->update(['status' => 'completed', 'completed_at' => now(), 'result_summary_json' => $summary]);
+            $this->income->settle($batch->fresh());
+            $completedBatch = $batch->fresh(['map', 'registration.town', 'results']);
+
+            return [
+                'batch' => $completedBatch,
+                'battle_result' => $this->presentBattleResult($completedBatch, $battleResult ?? $this->savedBattleResult($completedBatch), $runResults),
+            ];
+        });
     }
 
     private function executeOne(Character $character, MapExplorationBatch $batch, ExplorationMap $map, string $root, int $index): array
