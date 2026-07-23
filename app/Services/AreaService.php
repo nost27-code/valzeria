@@ -241,6 +241,7 @@ class AreaService
                     ) {
                         $character->highest_city_id = $nextCity->id;
                         $character->save();
+                        app(PlayerLifecycleEventService::class)->recordFirstNextCityUnlocked($character, $nextCity);
                         app(PlayerLifecycleEventService::class)->recordCityReached($character, $nextCity);
                         
                         // 公開ログ（街の解放）

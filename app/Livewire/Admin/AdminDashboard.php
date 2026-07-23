@@ -219,28 +219,22 @@ class AdminDashboard extends Component
                 $lines[] = sprintf('- %s (%s登録): %s / %s人 / %s', $metric['label'], $metric['cohort_date'], number_format((int) $metric['retained']), number_format((int) $metric['registered']), $rate);
             }
 
-            $period = $data['lifecycle']['retention_action_period'];
+            $period = $data['lifecycle']['initial_analysis_period'];
             $periodLabel = $period
                 ? $period['from']->format('Y/m/d') . '〜' . $period['to']->format('Y/m/d') . '登録'
                 : '対象期間なし';
             $lines[] = '';
-            $lines[] = '## 初日行動別 D7再訪 (' . $periodLabel . ')';
-            $lines[] = '- 初日=登録から24時間以内。D7=登録日の7日後にログイン。相関であり因果を示すものではありません。';
-            foreach ($data['lifecycle']['retention_action_insights'] as $insight) {
-                $completed = $insight['completed'];
-                $notCompleted = $insight['not_completed'];
-                $completedRate = $completed['rate'] === null ? '-' : number_format((float) $completed['rate'], 1) . '%';
-                $notCompletedRate = $notCompleted['rate'] === null ? '-' : number_format((float) $notCompleted['rate'], 1) . '%';
-                $lines[] = sprintf(
-                    '- %s: 初日に達成 %s / %s人 / %s、未達 %s / %s人 / %s',
-                    $insight['label'],
-                    number_format((int) $completed['retained']),
-                    number_format((int) $completed['eligible']),
-                    $completedRate,
-                    number_format((int) $notCompleted['retained']),
-                    number_format((int) $notCompleted['eligible']),
-                    $notCompletedRate,
-                );
+            $lines[] = '## 初日進行別 D7再訪 (' . $periodLabel . ')';
+            $lines[] = '- 初日=登録から24時間以内。D7=登録日の7日後にログイン。各人は最も進んだ1段階だけに数えます。';
+            foreach ($data['lifecycle']['initial_progress_d7'] as $progress) {
+                $rate = $progress['rate'] === null ? '-' : number_format((float) $progress['rate'], 1) . '%';
+                $lines[] = sprintf('- %s: %s / %s人 / %s', $progress['label'], number_format((int) $progress['retained']), number_format((int) $progress['eligible']), $rate);
+            }
+
+            $lines[] = '';
+            $lines[] = '## 初日到達までの所要時間';
+            foreach ($data['lifecycle']['initial_milestone_times'] as $milestone) {
+                $lines[] = sprintf('- %s: 中央値 %s / 初日達成 %s人', $milestone['label'], $milestone['median_label'], number_format((int) $milestone['count']));
             }
         }
 
@@ -324,13 +318,14 @@ class AdminDashboard extends Component
                 $rows[] = ['retention', $metric['label'], $metric['retained'], $metric['registered'], $metric['rate'], $metric['cohort_date'] . '登録 / 登録日のN日後に再訪'];
             }
 
-            $period = $data['lifecycle']['retention_action_period'];
+            $period = $data['lifecycle']['initial_analysis_period'];
             $periodLabel = $period ? $period['from']->format('Y-m-d') . '〜' . $period['to']->format('Y-m-d') : '';
-            foreach ($data['lifecycle']['retention_action_insights'] as $insight) {
-                foreach (['completed' => '初日に達成', 'not_completed' => '初日に未達'] as $key => $label) {
-                    $group = $insight[$key];
-                    $rows[] = ['initial_action_d7', $insight['label'] . ' / ' . $label, $group['retained'], $group['eligible'], $group['rate'], $periodLabel . ' / 初日=登録後24時間 / D7=登録日の7日後'];
-                }
+            foreach ($data['lifecycle']['initial_progress_d7'] as $progress) {
+                $rows[] = ['initial_progress_d7', $progress['label'], $progress['retained'], $progress['eligible'], $progress['rate'], $periodLabel . ' / 初日=登録後24時間 / D7=登録日の7日後'];
+            }
+
+            foreach ($data['lifecycle']['initial_milestone_times'] as $milestone) {
+                $rows[] = ['initial_milestone_time', $milestone['label'], $milestone['median_minutes'], $milestone['count'], '', $periodLabel . ' / 初日に達成した人の所要時間中央値（分）'];
             }
         }
 

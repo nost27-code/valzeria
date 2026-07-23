@@ -60,6 +60,15 @@ class PlayerLifecycleEventService
         $this->recordForCharacter($character, 'first_boss_defeat', 'first_boss_defeat');
     }
 
+    public function recordFirstNextCityUnlocked(Character $character, City $city): void
+    {
+        $this->recordForCharacter($character, 'first_next_city_unlocked', 'first_next_city_unlocked', [
+            'city_id' => (int) $city->id,
+            'city_name' => (string) $city->name,
+            'city_order' => (int) $city->sort_order,
+        ]);
+    }
+
     public function recordCityReached(Character $character, City $city): void
     {
         $this->recordForCharacter($character, 'city_reached', "city_reached:{$city->id}", [

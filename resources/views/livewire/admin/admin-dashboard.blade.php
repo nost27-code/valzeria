@@ -111,41 +111,43 @@
             <div class="border-b border-slate-100 p-5">
                 <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                     <div>
-                        <h3 class="text-sm font-black text-slate-900">初日行動別 D7再訪</h3>
-                        <p class="mt-1 text-xs font-bold text-slate-400">初日に行動した人・していない人のD7再訪率を比べ、定着と関連が強い行動を探します。</p>
+                        <h3 class="text-sm font-black text-slate-900">初日進行別 D7再訪</h3>
+                        <p class="mt-1 text-xs font-bold text-slate-400">初日の最終到達点ごとにD7再訪率を比べ、次に改善すべき導線を探します。</p>
                     </div>
-                    @if($lifecycle['retention_action_period'])
-                        <div class="text-xs font-black text-slate-500">{{ $lifecycle['retention_action_period']['from']->format('Y/m/d') }}〜{{ $lifecycle['retention_action_period']['to']->format('Y/m/d') }}登録</div>
+                    @if($lifecycle['initial_analysis_period'])
+                        <div class="text-xs font-black text-slate-500">{{ $lifecycle['initial_analysis_period']['from']->format('Y/m/d') }}〜{{ $lifecycle['initial_analysis_period']['to']->format('Y/m/d') }}登録</div>
                     @endif
                 </div>
                 <div class="mt-3 space-y-2">
-                    @forelse($lifecycle['retention_action_insights'] as $insight)
-                        <div class="rounded-md bg-slate-50 px-3 py-3">
-                            <div class="font-black text-slate-900">{{ $insight['label'] }}</div>
-                            <div class="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                                <div class="rounded bg-white px-3 py-2">
-                                    <span class="font-bold text-slate-600">初日に達成</span>
-                                    <span class="ml-1 font-black text-emerald-700">{{ $insight['completed']['rate'] === null ? '-' : number_format($insight['completed']['rate'], 1) . '%' }}</span>
-                                    <span class="ml-1 text-xs font-bold text-slate-400">{{ number_format($insight['completed']['retained']) }} / {{ number_format($insight['completed']['eligible']) }}人</span>
-                                    @if($insight['completed']['is_small_sample'])
-                                        <span class="ml-1 text-[11px] font-black text-amber-600">参考値</span>
-                                    @endif
-                                </div>
-                                <div class="rounded bg-white px-3 py-2">
-                                    <span class="font-bold text-slate-600">初日に未達</span>
-                                    <span class="ml-1 font-black text-slate-700">{{ $insight['not_completed']['rate'] === null ? '-' : number_format($insight['not_completed']['rate'], 1) . '%' }}</span>
-                                    <span class="ml-1 text-xs font-bold text-slate-400">{{ number_format($insight['not_completed']['retained']) }} / {{ number_format($insight['not_completed']['eligible']) }}人</span>
-                                    @if($insight['not_completed']['is_small_sample'])
-                                        <span class="ml-1 text-[11px] font-black text-amber-600">参考値</span>
-                                    @endif
-                                </div>
-                            </div>
+                    @forelse($lifecycle['initial_progress_d7'] as $progress)
+                        <div class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2">
+                            <span class="font-bold text-slate-700">{{ $progress['label'] }}</span>
+                            <span class="font-black text-emerald-700">{{ $progress['rate'] === null ? '-' : number_format($progress['rate'], 1) . '%' }}</span>
+                            <span class="text-xs font-bold text-slate-400">{{ number_format($progress['retained']) }} / {{ number_format($progress['eligible']) }}人</span>
+                            @if($progress['is_small_sample'])
+                                <span class="text-[11px] font-black text-amber-600">参考値</span>
+                            @endif
                         </div>
                     @empty
                         <div class="rounded-md bg-slate-50 p-4 text-sm font-bold text-slate-500">D7の対象期間に登録した行動ログがまだありません。</div>
                     @endforelse
                 </div>
-                <p class="mt-3 text-[11px] font-bold text-slate-400">初日は登録から24時間以内、D7は登録日の7日後にログインした人です。相関の集計であり、施策の効果は変更前後で比較してください。</p>
+                <p class="mt-3 text-[11px] font-bold text-slate-400">初日は登録から24時間以内、D7は登録日の7日後にログインした人です。各人は最も進んだ1段階だけに数えます。次の街解放は今回から実績として計測します。</p>
+            </div>
+            <div class="border-b border-slate-100 p-5">
+                <h3 class="text-sm font-black text-slate-900">初日到達までの所要時間</h3>
+                <p class="mt-1 text-xs font-bold text-slate-400">初日に達成した人について、登録から到達までの中央値を表示します。</p>
+                <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    @forelse($lifecycle['initial_milestone_times'] as $milestone)
+                        <div class="rounded-md bg-slate-50 px-3 py-2">
+                            <div class="text-xs font-black text-slate-500">{{ $milestone['label'] }}</div>
+                            <div class="mt-1 text-lg font-black text-slate-900">{{ $milestone['median_label'] }}</div>
+                            <div class="text-[11px] font-bold text-slate-400">初日達成 {{ number_format($milestone['count']) }}人 @if($milestone['is_small_sample'])<span class="text-amber-600">参考値</span>@endif</div>
+                        </div>
+                    @empty
+                        <div class="rounded-md bg-slate-50 p-4 text-sm font-bold text-slate-500">初日の所要時間を集計できる行動ログがまだありません。</div>
+                    @endforelse
+                </div>
             </div>
             <p class="px-5 py-3 text-xs font-bold text-slate-400">行動ログの計測開始後に登録したユーザーが対象です。過去行動は補完せず、実測値のみを表示します。</p>
         @else

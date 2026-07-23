@@ -17,14 +17,23 @@ class PlayerLifecycleAnalyticsService
         ['key' => 'first_equipment_change', 'label' => '初回装備変更'],
         ['key' => 'first_enhancement', 'label' => '初回装備強化'],
         ['key' => 'first_boss_defeat', 'label' => '初回ボス撃破'],
-        ['key' => 'second_city_reached', 'label' => '第2都市到達'],
+        ['key' => 'first_next_city_unlocked', 'label' => '初めて次の街を解放'],
     ];
 
-    private const RETENTION_ACTION_STEPS = [
+    private const INITIAL_PROGRESS_STEPS = [
+        ['key' => 'before_first_victory', 'label' => '初回勝利前'],
+        ['key' => 'first_victory', 'label' => '初回勝利まで'],
+        ['key' => 'first_equipment_change', 'label' => '初回装備変更まで'],
+        ['key' => 'first_boss_defeat', 'label' => '初回ボス撃破まで'],
+        ['key' => 'first_next_city_unlocked', 'label' => '次の街解放まで'],
+    ];
+
+    private const INITIAL_TIME_MILESTONES = [
+        ['key' => 'character_created', 'label' => 'キャラクター作成'],
         ['key' => 'first_victory', 'label' => '初回勝利'],
         ['key' => 'first_equipment_change', 'label' => '初回装備変更'],
         ['key' => 'first_boss_defeat', 'label' => '初回ボス撃破'],
-        ['key' => 'second_city_reached', 'label' => '第2都市到達'],
+        ['key' => 'first_next_city_unlocked', 'label' => '次の街解放'],
     ];
 
     public function dashboardMetrics(): array
@@ -34,11 +43,14 @@ class PlayerLifecycleAnalyticsService
                 'ready' => false,
                 'today_funnel' => [],
                 'retention' => [],
-                'retention_action_insights' => [],
-                'retention_action_period' => null,
+                'initial_progress_d7' => [],
+                'initial_milestone_times' => [],
+                'initial_analysis_period' => null,
                 'drop_offs' => [],
             ];
         }
+
+        $initialCohort = $this->initialCohortData();
 
         return [
             'ready' => true,
@@ -48,8 +60,9 @@ class PlayerLifecycleAnalyticsService
                 $this->retentionMetric(7),
                 $this->retentionMetric(30),
             ],
-            'retention_action_insights' => $this->retentionActionInsights(),
-            'retention_action_period' => $this->retentionActionPeriod(),
+            'initial_progress_d7' => $this->initialProgressD7($initialCohort),
+            'initial_milestone_times' => $this->initialMilestoneTimes($initialCohort),
+            'initial_analysis_period' => $this->initialAnalysisPeriod(),
             'drop_offs' => $this->dropOffs(),
         ];
     }
@@ -91,12 +104,9 @@ class PlayerLifecycleAnalyticsService
         return array_map(fn (array $step): array => $step + ['rate' => $this->rate((int) $step['count'], $registered)], $steps);
     }
 
-    /**
-     * 初日行動とD7再訪の関連を、単日コホートのブレを避けるため直近4週間で集計する。
-     */
-    private function retentionActionInsights(): array
+    private function initialCohortData(): array
     {
-        $period = $this->retentionActionPeriod();
+        $period = $this->initialAnalysisPeriod();
         $registrations = PlayerLifecycleEvent::query()
             ->where('event_name', 'registered')
             ->whereBetween('occurred_at', [$period['from'], $period['to']])
@@ -104,7 +114,7 @@ class PlayerLifecycleAnalyticsService
             ->keyBy('user_id');
 
         if ($registrations->isEmpty()) {
-            return [];
+            return [$registrations, collect()];
         }
 
         $eventsByUser = PlayerLifecycleEvent::query()
@@ -113,12 +123,26 @@ class PlayerLifecycleAnalyticsService
             ->get(['user_id', 'event_name', 'metadata', 'occurred_at'])
             ->groupBy('user_id');
 
+        return [$registrations, $eventsByUser];
+    }
+
+    /**
+     * 初日の進行段階とD7再訪を、互いに重複しない段階として直近4週間で集計する。
+     */
+    private function initialProgressD7(array $initialCohort): array
+    {
+        [$registrations, $eventsByUser] = $initialCohort;
+        if ($registrations->isEmpty()) {
+            return [];
+        }
+
         $groups = [];
-        foreach (self::RETENTION_ACTION_STEPS as $step) {
+        foreach (self::INITIAL_PROGRESS_STEPS as $step) {
             $groups[$step['key']] = [
+                'key' => $step['key'],
                 'label' => $step['label'],
-                'completed' => ['eligible' => 0, 'retained' => 0],
-                'not_completed' => ['eligible' => 0, 'retained' => 0],
+                'eligible' => 0,
+                'retained' => 0,
             ];
         }
 
@@ -130,26 +154,60 @@ class PlayerLifecycleAnalyticsService
                 fn (PlayerLifecycleEvent $event): bool => $event->occurred_at->betweenIncluded($registeredAt, $registeredAt->copy()->addDay())
             );
 
-            foreach (self::RETENTION_ACTION_STEPS as $step) {
-                $groupKey = $this->hasReachedStep($initialDayEvents, $step['key']) ? 'completed' : 'not_completed';
-                $groups[$step['key']][$groupKey]['eligible']++;
-                if ($returnedOnD7) {
-                    $groups[$step['key']][$groupKey]['retained']++;
-                }
+            $groupKey = $this->initialProgressKey($initialDayEvents);
+            $groups[$groupKey]['eligible']++;
+            if ($returnedOnD7) {
+                $groups[$groupKey]['retained']++;
             }
         }
 
         return collect($groups)->map(function (array $group): array {
-            foreach (['completed', 'not_completed'] as $key) {
-                $group[$key]['rate'] = $this->rate($group[$key]['retained'], $group[$key]['eligible']);
-                $group[$key]['is_small_sample'] = $group[$key]['eligible'] < 10;
-            }
-
+            $group['rate'] = $this->rate($group['retained'], $group['eligible']);
+            $group['is_small_sample'] = $group['eligible'] < 10;
             return $group;
         })->values()->all();
     }
 
-    private function retentionActionPeriod(): array
+    private function initialMilestoneTimes(array $initialCohort): array
+    {
+        [$registrations, $eventsByUser] = $initialCohort;
+        if ($registrations->isEmpty()) {
+            return [];
+        }
+
+        $durations = collect(self::INITIAL_TIME_MILESTONES)->mapWithKeys(
+            fn (array $milestone): array => [$milestone['key'] => []]
+        )->all();
+
+        foreach ($registrations as $userId => $registration) {
+            $registeredAt = $registration->occurred_at;
+            $initialDayEvents = $eventsByUser->get($userId, collect())->filter(
+                fn (PlayerLifecycleEvent $event): bool => $event->occurred_at->betweenIncluded($registeredAt, $registeredAt->copy()->addDay())
+            );
+
+            foreach (self::INITIAL_TIME_MILESTONES as $milestone) {
+                $occurredAt = $this->firstOccurredAt($initialDayEvents, $milestone['key']);
+                if ($occurredAt) {
+                    $durations[$milestone['key']][] = $registeredAt->diffInMinutes($occurredAt);
+                }
+            }
+        }
+
+        return collect(self::INITIAL_TIME_MILESTONES)->map(function (array $milestone) use ($durations): array {
+            $values = collect($durations[$milestone['key']])->sort()->values();
+            $count = $values->count();
+
+            return [
+                'label' => $milestone['label'],
+                'count' => $count,
+                'median_minutes' => $this->medianMinutes($values),
+                'median_label' => $this->durationLabel($this->medianMinutes($values)),
+                'is_small_sample' => $count < 10,
+            ];
+        })->all();
+    }
+
+    private function initialAnalysisPeriod(): array
     {
         $to = now()->subDays(7)->endOfDay();
         $from = $to->copy()->subDays(27)->startOfDay();
@@ -159,18 +217,58 @@ class PlayerLifecycleAnalyticsService
 
     private function trackedEventNames(): array
     {
-        return ['character_created', 'first_battle', 'first_victory', 'first_equipment_change', 'first_enhancement', 'first_boss_defeat', 'city_reached'];
+        return ['character_created', 'first_battle', 'first_victory', 'first_equipment_change', 'first_enhancement', 'first_boss_defeat', 'first_next_city_unlocked'];
     }
 
     private function hasReachedStep(Collection $events, string $stepKey): bool
     {
-        if ($stepKey === 'second_city_reached') {
-            return $events->where('event_name', 'city_reached')->contains(
-                fn (PlayerLifecycleEvent $event): bool => (int) (($event->metadata ?? [])['city_order'] ?? 0) >= 2
-            );
+        return $events->contains(fn (PlayerLifecycleEvent $event): bool => $event->event_name === $stepKey);
+    }
+
+    private function initialProgressKey(Collection $events): string
+    {
+        foreach (array_reverse(self::INITIAL_PROGRESS_STEPS) as $step) {
+            if ($step['key'] !== 'before_first_victory' && $this->hasReachedStep($events, $step['key'])) {
+                return $step['key'];
+            }
         }
 
-        return $events->contains(fn (PlayerLifecycleEvent $event): bool => $event->event_name === $stepKey);
+        return 'before_first_victory';
+    }
+
+    private function firstOccurredAt(Collection $events, string $eventName)
+    {
+        return $events
+            ->where('event_name', $eventName)
+            ->sortBy(fn (PlayerLifecycleEvent $event): int => $event->occurred_at->getTimestamp())
+            ->first()?->occurred_at;
+    }
+
+    private function medianMinutes(Collection $values): ?int
+    {
+        $count = $values->count();
+        if ($count === 0) {
+            return null;
+        }
+
+        $middle = intdiv($count, 2);
+
+        return $count % 2 === 1
+            ? (int) $values[$middle]
+            : (int) round(((int) $values[$middle - 1] + (int) $values[$middle]) / 2);
+    }
+
+    private function durationLabel(?int $minutes): string
+    {
+        if ($minutes === null) {
+            return '-';
+        }
+
+        if ($minutes < 60) {
+            return $minutes . '分';
+        }
+
+        return intdiv($minutes, 60) . '時間' . ($minutes % 60) . '分';
     }
 
     private function returnedOnDay(Collection $events, $returnDay): bool
@@ -261,11 +359,11 @@ class PlayerLifecycleAnalyticsService
         if (!in_array('first_equipment_change', $names, true)) {
             return '最初の装備選択前';
         }
-        $reachedSecondCity = $events->where('event_name', 'city_reached')->contains(function (PlayerLifecycleEvent $event): bool {
-            return (int) (($event->metadata ?? [])['city_order'] ?? 0) >= 2;
-        });
+        if (!in_array('first_boss_defeat', $names, true)) {
+            return '初回ボス撃破前';
+        }
 
-        return $reachedSecondCity ? '2つ目の都市到達後' : '2つ目の都市到達前';
+        return $events->contains('event_name', 'first_next_city_unlocked') ? '次の街解放後' : '初回ボス撃破後';
     }
 
     private function rate(int $value, int $total): ?float

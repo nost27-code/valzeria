@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-newcomer-retention-metric-accuracy',
+        'date' => '2026-07-23',
+        'category' => 'internal',
+        'title' => '新人定着分析の精度を改善',
+        'detail' => '街への移動と次の街の解放を分け、初日の進行段階ごとのD7再訪率と到達までの所要時間を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-23-newcomer-retention-analysis',
         'date' => '2026-07-23',
         'category' => 'internal',
