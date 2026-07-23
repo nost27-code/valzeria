@@ -134,7 +134,8 @@
                         {{-- 装備育成への導線（敗北時のみ） --}}
                         @php
                             $showGrowthCta = !($result['special_event'] ?? null)
-                                && $isDefeatResult;
+                                && $isDefeatResult
+                                && !isset($mapExploration);
                         @endphp
                         {{-- ステータス・イベント表示 --}}
                         @if($isDepthGate)
@@ -776,6 +777,38 @@
                                             <div class="text-slate-600">失ったGold・戦利品はありません。</div>
                                         @endif
                                     </div>
+                                    @if(isset($mapExploration) && !empty($result['material_drop']))
+                                        @php
+                                            $lostMaterialsById = collect($lostMaterials)
+                                                ->groupBy(fn (array $material): int => (int) ($material['material_id'] ?? 0))
+                                                ->map(fn ($materials): int => (int) $materials->sum('quantity'));
+                                        @endphp
+                                        <div class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                                            <div class="mb-2 flex items-center gap-1 text-sm font-black text-emerald-800">
+                                                <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                                今回手に入れた素材
+                                            </div>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @foreach($result['material_drop'] as $materialDrop)
+                                                    @php
+                                                        $materialId = (int) ($materialDrop['material_id'] ?? 0);
+                                                        $lostQuantity = $materialId > 0 ? (int) ($lostMaterialsById[$materialId] ?? 0) : 0;
+                                                        $materialIcon = $materialDrop['icon_image']
+                                                            ?? \App\Models\Material::iconImagePathFor($materialDrop['material_code'] ?? null, $materialDrop['name'] ?? null);
+                                                    @endphp
+                                                    <span class="inline-flex items-center rounded border border-emerald-100 bg-white px-2 py-1 text-xs font-bold text-emerald-900">
+                                                        @if($materialIcon)
+                                                            <img src="{{ asset($materialIcon) }}" alt="" class="mr-1 h-4 w-4 shrink-0 object-contain">
+                                                        @endif
+                                                        {{ $materialDrop['name'] ?? '素材' }} ×{{ number_format((int) ($materialDrop['quantity'] ?? 1)) }}
+                                                        @if($lostQuantity > 0)
+                                                            <span class="ml-1 text-rose-600">（うち{{ number_format($lostQuantity) }}個を喪失）</span>
+                                                        @endif
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
                                 @endif
                             </div>
                         @endif

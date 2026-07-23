@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-map-defeat-material-summary',
+        'date' => '2026-07-23',
+        'category' => 'fixed',
+        'title' => '地図敗北時の素材表示を改善',
+        'detail' => '公開地図で敗北したとき、今回見つけた素材とロストした数を確認できるようにし、不要な育成案内を表示しないようにしました。',
+    ],
+    [
         'id' => '2026-07-23-map-batch-defeat-stop-fix',
         'date' => '2026-07-23',
         'category' => 'fixed',
