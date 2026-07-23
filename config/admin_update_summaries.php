@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-map-batch-defeat-stop-fix',
+        'date' => '2026-07-23',
+        'category' => 'fixed',
+        'title' => '地図の連続探索を敗北時に停止',
+        'detail' => '公開地図の×10探索で敗北した場合は、その戦闘回で探索を終了し、通常探索と同じ回数・敗北理由・結果表示を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-23-ogp-image-update',
         'date' => '2026-07-23',
         'category' => 'changed',
