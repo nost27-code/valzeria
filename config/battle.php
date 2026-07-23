@@ -13,6 +13,6 @@ return [
     */
     'pve_enemy_percentage_defense' => [
         'enabled' => env('PVE_ENEMY_PERCENTAGE_DEFENSE_ENABLED', true),
-        'defense_coefficient' => (float) env('PVE_ENEMY_DEFENSE_COEFFICIENT', 0.8),
+        'defense_coefficient' => (float) env('PVE_ENEMY_DEFENSE_COEFFICIENT', 3.5),
     ],
 ];

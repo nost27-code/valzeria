@@ -17,16 +17,16 @@ class PveEnemyPercentageDefenseTest extends TestCase
 
         config([
             'battle.pve_enemy_percentage_defense.enabled' => false,
-            'battle.pve_enemy_percentage_defense.defense_coefficient' => 0.8,
+            'battle.pve_enemy_percentage_defense.defense_coefficient' => 3.5,
         ]);
     }
 
-    public function test_default_configuration_is_enabled_and_uses_coefficient_zero_point_eight(): void
+    public function test_default_configuration_is_enabled_and_uses_coefficient_three_point_five(): void
     {
         $configFile = require base_path('config/battle.php');
 
         $this->assertTrue($configFile['pve_enemy_percentage_defense']['enabled']);
-        $this->assertSame(0.8, $configFile['pve_enemy_percentage_defense']['defense_coefficient']);
+        $this->assertSame(3.5, $configFile['pve_enemy_percentage_defense']['defense_coefficient']);
     }
 
     public function test_disabled_switch_matches_the_legacy_physical_and_magical_formulas(): void
@@ -57,8 +57,8 @@ class PveEnemyPercentageDefenseTest extends TestCase
         $enemy = $this->enemy(str: 2_217, mag: 1_234);
         $player = $this->player(def: 0, spr: 0);
 
-        $this->assertSame(2217.0, $this->percentageBaseDamage($calculator, 2217, 0.0, 0.8));
-        $this->assertSame(1234.0, $this->percentageBaseDamage($calculator, 1234, 0.0, 0.8));
+        $this->assertSame(2217.0, $this->percentageBaseDamage($calculator, 2217, 0.0, 3.5));
+        $this->assertSame(1234.0, $this->percentageBaseDamage($calculator, 1234, 0.0, 3.5));
 
         mt_srand(77);
         $physical = $calculator->calculatePhysicalDamage($enemy, $player);
@@ -76,16 +76,16 @@ class PveEnemyPercentageDefenseTest extends TestCase
         $this->enablePercentageDefense();
         $calculator = app(DamageCalculator::class);
 
-        $damage1700 = $this->percentageBaseDamage($calculator, 2217, 1700.0, 0.8);
-        $damage4370 = $this->percentageBaseDamage($calculator, 2217, 4370.0, 0.8);
-        $damage7600 = $this->percentageBaseDamage($calculator, 2217, 7600.0, 0.8);
+        $damage1700 = $this->percentageBaseDamage($calculator, 2217, 1700.0, 3.5);
+        $damage4370 = $this->percentageBaseDamage($calculator, 2217, 4370.0, 3.5);
+        $damage7600 = $this->percentageBaseDamage($calculator, 2217, 7600.0, 3.5);
 
-        $this->assertEqualsWithDelta(1374.0, $damage1700, 1.0);
-        $this->assertEqualsWithDelta(860.0, $damage4370, 1.0);
-        $this->assertEqualsWithDelta(592.0, $damage7600, 1.0);
+        $this->assertEqualsWithDelta(602.0, $damage1700, 1.0);
+        $this->assertEqualsWithDelta(281.0, $damage4370, 1.0);
+        $this->assertEqualsWithDelta(171.0, $damage7600, 1.0);
         $this->assertGreaterThan($damage4370, $damage1700);
         $this->assertGreaterThan($damage7600, $damage4370);
-        $this->assertGreaterThan(0, $this->percentageBaseDamage($calculator, 2217, 10_000_000.0, 0.8));
+        $this->assertGreaterThan(0, $this->percentageBaseDamage($calculator, 2217, 10_000_000.0, 3.5));
 
         $enemy = $this->enemy(mag: 2217);
         mt_srand(9001);
@@ -111,7 +111,7 @@ class PveEnemyPercentageDefenseTest extends TestCase
         mt_srand(12345);
         $actual = $calculator->calculatePhysicalDamage($enemy, $player, 150, true);
         mt_srand(12345);
-        $expected = (1000 * 1000) / (1000 + (0.8 * (500 / 2)));
+        $expected = (1000 * 1000) / (1000 + (3.5 * (500 / 2)));
         $expected *= 1.5;
         $expected *= 1.5;
         $expected *= rand(85, 115) / 100;
@@ -122,7 +122,7 @@ class PveEnemyPercentageDefenseTest extends TestCase
         mt_srand(12345);
         $magicalActual = $calculator->calculateMagicalDamage($enemy, $player, 150, true);
         mt_srand(12345);
-        $magicalExpected = (1000 * 1000) / (1000 + (0.8 * (500 / 2)));
+        $magicalExpected = (1000 * 1000) / (1000 + (3.5 * (500 / 2)));
         $magicalExpected *= 1.5;
         $magicalExpected *= 1.5;
         $magicalExpected *= rand(85, 115) / 100;
@@ -208,7 +208,7 @@ class PveEnemyPercentageDefenseTest extends TestCase
         $method->setAccessible(true);
         $method->invoke(app(TowerBattleService::class), $enemy, $player, $state, 100);
 
-        $expected = (int) floor(((2217 * 2217) / (2217 + (0.8 * 1700))) * 0.93);
+        $expected = (int) floor(((2217 * 2217) / (2217 + (3.5 * 1700))) * 0.93);
         $this->assertSame($expected, 10_000 - $player->hp);
     }
 
@@ -216,7 +216,7 @@ class PveEnemyPercentageDefenseTest extends TestCase
     {
         config([
             'battle.pve_enemy_percentage_defense.enabled' => true,
-            'battle.pve_enemy_percentage_defense.defense_coefficient' => 0.8,
+            'battle.pve_enemy_percentage_defense.defense_coefficient' => 3.5,
         ]);
     }
 

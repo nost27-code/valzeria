@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-pve-defense-coefficient-35',
+        'date' => '2026-07-23',
+        'category' => 'balance',
+        'title' => '敵から受けるダメージを軽減',
+        'detail' => 'PvEで敵から受ける直接攻撃は、防御・精神を伸ばすほど被ダメージをより抑えられるように調整しました。×10探索も続けやすくなります。',
+    ],
+    [
         'id' => '2026-07-23-map-loot-total-summary',
         'date' => '2026-07-23',
         'category' => 'fixed',

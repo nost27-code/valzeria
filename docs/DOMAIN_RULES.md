@@ -70,7 +70,7 @@ Purpose: canonical game rules. Keep concise.
 
 ## Balance
 
-- Enemy direct-damage defense formula: `PVE_ENEMY_PERCENTAGE_DEFENSE_ENABLED` は既定OFFとし、OFF時は現行の減算式を完全維持する。ON時の敵→プレイヤー直接攻撃は、物理基礎ダメージを `敵ATK² ÷ (敵ATK + 0.8 × プレイヤーDEF)`、魔法基礎ダメージを `敵MAG² ÷ (敵MAG + 0.8 × プレイヤーSPR)` とする。会心時は式へ入れるDEF/SPRを先に半減し、その後に既存の会心1.5倍を掛ける。通常・強敵・レア・ボス・秘境・隠しボス・星樹の塔・敵技の直接攻撃を対象とし、プレイヤー→敵、毒/火傷/出血、反射/自傷/固定/割合ダメージ、PvP・ランク戦・チャンプ戦の専用式は変更しない。
+- Enemy direct-damage defense formula: `PVE_ENEMY_PERCENTAGE_DEFENSE_ENABLED` は既定ONとし、OFF時は従来の減算式を完全維持する。ON時の敵→プレイヤー直接攻撃は、物理基礎ダメージを `敵ATK² ÷ (敵ATK + 3.5 × プレイヤーDEF)`、魔法基礎ダメージを `敵MAG² ÷ (敵MAG + 3.5 × プレイヤーSPR)` とする。会心時は式へ入れるDEF/SPRを先に半減してから既存の1.5倍補正を掛ける。通常・強敵・レア・ボス・秘境・隠しボス・星樹の塔・敵技の直接攻撃を対象とし、プレイヤー→敵、毒/火傷/出血、反射/自傷/固定/割合ダメージ、PvP・ランク戦・チャンプ戦の専用式は変更しない。
 
 - Do not change numeric balance without explicit request.
 - 序盤の7ダンジョン（はじまりの草原〜見習い訓練場）は、各ダンジョンの通常敵5体をすべて出現率20%とする。ボスは通常探索に出現させない。

@@ -456,7 +456,7 @@ class BalanceBattleLab extends Component
 
         $attack = max(1, $attack);
         $defense = max(0, $defense);
-        $coefficient = max(0.0, (float) config('battle.pve_enemy_percentage_defense.defense_coefficient', 0.8));
+        $coefficient = max(0.0, (float) config('battle.pve_enemy_percentage_defense.defense_coefficient', 3.5));
 
         return max(1, (int) floor(($attack * $attack) / ($attack + ($coefficient * $defense))));
     }

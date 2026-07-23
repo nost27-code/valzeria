@@ -339,7 +339,7 @@ class DamageCalculator
             $effectiveDefense /= 2;
         }
 
-        $coefficient = max(0.0, (float) $this->battleConfig('pve_enemy_percentage_defense.defense_coefficient', 0.8));
+        $coefficient = max(0.0, (float) $this->battleConfig('pve_enemy_percentage_defense.defense_coefficient', 3.5));
         $baseDamage = $this->calculatePveEnemyPercentageBaseDamage($attackPower, $effectiveDefense, $coefficient);
 
         $damage = $baseDamage * ($skillPower / 100);
