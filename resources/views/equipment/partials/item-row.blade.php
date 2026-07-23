@@ -7,6 +7,7 @@
     // ランクは rank-label で別表示するため、名称側には重ねない。
     $displayName = $ci->displayName(false);
     $isWeapon = $ci->item->type === 'weapon';
+    $isArmor = $ci->item->type === 'armor';
     $favoriteWeaponService = app(\App\Services\FavoriteWeaponService::class);
     $equipmentIcon = $isWeapon
         ? $favoriteWeaponService->imagePathFor($ci->item) ?? $ci->item->iconImagePath()
@@ -18,42 +19,34 @@
     $affixLines = $ci->affixEffectLines();
     $affixBonuses = $ci->affixStatBonuses();
     $isMarketListed = $ci->isMarketListed();
+    $enhancedStats = \App\Services\EquipmentEnhancementService::enhancedStatTotalsForItem(
+        $ci->item,
+        (int) ($ci->enhance_level ?? 0),
+    );
     $totalStats = [
-        'hp' => (int) ($ci->item->hp_bonus ?? 0) + (int) ($affixBonuses['hp'] ?? 0),
-        'str' => (int) ($ci->item->str_bonus ?? 0) + (int) ($affixBonuses['str'] ?? 0),
-        'def' => (int) ($ci->item->def_bonus ?? 0) + (int) ($affixBonuses['def'] ?? 0),
-        'agi' => (int) ($ci->item->agi_bonus ?? 0) + (int) ($affixBonuses['agi'] ?? 0),
-        'mag' => (int) ($ci->item->mag_bonus ?? 0) + (int) ($affixBonuses['mag'] ?? 0),
-        'spr' => (int) ($ci->item->spr_bonus ?? 0) + (int) ($affixBonuses['spr'] ?? 0),
-        'luk' => (int) ($ci->item->luk_bonus ?? 0) + (int) ($affixBonuses['luk'] ?? 0),
+        'hp' => (int) ($enhancedStats['hp'] ?? 0) + (int) ($affixBonuses['hp'] ?? 0),
+        'str' => (int) ($enhancedStats['str'] ?? 0) + (int) ($affixBonuses['str'] ?? 0),
+        'def' => (int) ($enhancedStats['def'] ?? 0) + (int) ($affixBonuses['def'] ?? 0),
+        'agi' => (int) ($enhancedStats['agi'] ?? 0) + (int) ($affixBonuses['agi'] ?? 0),
+        'mag' => (int) ($enhancedStats['mag'] ?? 0) + (int) ($affixBonuses['mag'] ?? 0),
+        'spr' => (int) ($enhancedStats['spr'] ?? 0) + (int) ($affixBonuses['spr'] ?? 0),
+        'luk' => (int) ($enhancedStats['luk'] ?? 0) + (int) ($affixBonuses['luk'] ?? 0),
     ];
 
-    // 武器のランク比例補正（固定値には含まれない見込み値）。
-    $weaponScaling = null;
-    if ($ci->item->type === 'weapon' && $currentCharacter) {
-        $preview = app(\App\Services\CharacterStatusService::class)->weaponProportionalPreview($currentCharacter, $ci->item);
-        if ($preview['rate'] > 0 && ($preview['str'] > 0 || $preview['mag'] > 0)) {
-            $ratePercent = rtrim(rtrim(number_format($preview['rate'] * 100, 1), '0'), '.');
-            $basisLabel = $preview['str'] > 0 && $preview['mag'] > 0
-                ? '装備前攻撃・魔力'
-                : ($preview['mag'] > 0 ? '装備前魔力' : '装備前攻撃');
-            $weaponScaling = [
-                'rate_percent' => $ratePercent,
-                'basis_label' => $basisLabel,
-                'str' => $preview['str'],
-                'mag' => $preview['mag'],
-            ];
-        }
-    }
-
-    // このアイテムを装備した場合の攻撃・魔力の到達値（固定値+銘+武器比例補正）。
-    // 装備中かどうかに関わらず常に算出し、他カードとの差分をJS側でも再計算できるようdata属性へ公開する。
-    $candidateStr = $isWeapon ? $totalStats['str'] + ($weaponScaling['str'] ?? 0) : 0;
-    $candidateMag = $isWeapon ? $totalStats['mag'] + ($weaponScaling['mag'] ?? 0) : 0;
+    $statusService = app(\App\Services\CharacterStatusService::class);
+    $candidateEffective = $isWeapon && $currentCharacter
+        ? $statusService->weaponEffectivePreview($currentCharacter, $ci)
+        : ($isArmor && $currentCharacter
+            ? $statusService->armorEffectivePreview($currentCharacter, $ci)
+            : ['str' => 0, 'mag' => 0, 'def' => 0, 'spr' => 0]);
+    $candidateStr = $candidateEffective['str'] ?? 0;
+    $candidateMag = $candidateEffective['mag'] ?? 0;
+    $candidateDef = $candidateEffective['def'] ?? 0;
+    $candidateSpr = $candidateEffective['spr'] ?? 0;
 
     // 現在装備中の同スロット装備と比較した場合の実際の増減（このアイテムを装備したら何が変わるか）。
     $equipDelta = null;
-    if (!$ci->is_equipped && $currentCharacter && $isWeapon) {
+    if (!$ci->is_equipped && $currentCharacter && ($isWeapon || $isArmor)) {
         $equippedSameSlot = $currentCharacter->characterItems()
             ->where('is_equipped', true)
             ->where('equipped_slot', $ci->item->type)
@@ -61,19 +54,29 @@
             ->first();
 
         if ($equippedSameSlot && $equippedSameSlot->item) {
-            $equippedAffix = $equippedSameSlot->affixStatBonuses();
-            $equippedPreview = app(\App\Services\CharacterStatusService::class)->weaponProportionalPreview($currentCharacter, $equippedSameSlot->item);
-            $equippedStr = (int) ($equippedSameSlot->item->str_bonus ?? 0) + (int) ($equippedAffix['str'] ?? 0) + $equippedPreview['str'];
-            $equippedMag = (int) ($equippedSameSlot->item->mag_bonus ?? 0) + (int) ($equippedAffix['mag'] ?? 0) + $equippedPreview['mag'];
+            $equippedPreview = $isWeapon
+                ? $statusService->weaponEffectivePreview($currentCharacter, $equippedSameSlot)
+                : $statusService->armorEffectivePreview($currentCharacter, $equippedSameSlot);
+            $equippedStr = $equippedPreview['str'] ?? 0;
+            $equippedMag = $equippedPreview['mag'] ?? 0;
+            $equippedDef = $equippedPreview['def'] ?? 0;
+            $equippedSpr = $equippedPreview['spr'] ?? 0;
         } else {
-            $equippedStr = 0;
-            $equippedMag = 0;
+            $unarmedStats = $statusService->getFinalStats($currentCharacter);
+            $equippedStr = (int) ($unarmedStats['str'] ?? 0);
+            $equippedMag = (int) ($unarmedStats['mag'] ?? 0);
+            $equippedDef = (int) ($unarmedStats['def'] ?? 0);
+            $equippedSpr = (int) ($unarmedStats['spr'] ?? 0);
         }
 
         $deltaStr = $candidateStr - $equippedStr;
         $deltaMag = $candidateMag - $equippedMag;
-        if ($deltaStr !== 0 || $deltaMag !== 0) {
+        $deltaDef = $candidateDef - $equippedDef;
+        $deltaSpr = $candidateSpr - $equippedSpr;
+        if ($isWeapon && ($deltaStr !== 0 || $deltaMag !== 0)) {
             $equipDelta = ['str' => $deltaStr, 'mag' => $deltaMag];
+        } elseif ($isArmor && ($deltaDef !== 0 || $deltaSpr !== 0)) {
+            $equipDelta = ['def' => $deltaDef, 'spr' => $deltaSpr];
         }
     }
 @endphp
@@ -160,13 +163,15 @@
         <div class="equipment-delta-slot">
             @if($equipDelta)
                 @php
-                    $deltaIsUp = ($equipDelta['str'] + $equipDelta['mag']) >= 0;
+                    $deltaIsUp = (($equipDelta['str'] ?? 0) + ($equipDelta['mag'] ?? 0) + ($equipDelta['def'] ?? 0) + ($equipDelta['spr'] ?? 0)) >= 0;
                 @endphp
                 <span class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-extrabold
                             {{ $deltaIsUp ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-rose-50 text-rose-600 border border-rose-300' }}">
                     <span>{{ $deltaIsUp ? '▲' : '▼' }}</span>
-                    @if($equipDelta['str'] !== 0)攻撃{{ $equipDelta['str'] > 0 ? '+' : '' }}{{ $equipDelta['str'] }}@endif
-                    @if($equipDelta['mag'] !== 0)&nbsp;魔力{{ $equipDelta['mag'] > 0 ? '+' : '' }}{{ $equipDelta['mag'] }}@endif
+                    @if(($equipDelta['str'] ?? 0) !== 0)攻撃{{ $equipDelta['str'] > 0 ? '+' : '' }}{{ $equipDelta['str'] }}@endif
+                    @if(($equipDelta['mag'] ?? 0) !== 0)&nbsp;魔力{{ $equipDelta['mag'] > 0 ? '+' : '' }}{{ $equipDelta['mag'] }}@endif
+                    @if(($equipDelta['def'] ?? 0) !== 0)防御{{ $equipDelta['def'] > 0 ? '+' : '' }}{{ $equipDelta['def'] }}@endif
+                    @if(($equipDelta['spr'] ?? 0) !== 0)&nbsp;精神{{ $equipDelta['spr'] > 0 ? '+' : '' }}{{ $equipDelta['spr'] }}@endif
                 </span>
             @endif
         </div>
@@ -182,12 +187,6 @@
             @if($totalStats['luk'] > 0) 運 +{{ $totalStats['luk'] }} @endif
             @if($totalStats['agi'] < 0) 敏捷 {{ $totalStats['agi'] }} @endif
         </div>
-
-        @if($weaponScaling)
-            <div class="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                ランク補正：{{ $weaponScaling['basis_label'] }}の{{ $weaponScaling['rate_percent'] }}%
-            </div>
-        @endif
 
         @if(!empty($affixLines))
             <div class="flex flex-wrap gap-1">

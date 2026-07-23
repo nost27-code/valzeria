@@ -47,6 +47,7 @@ class Item extends Model
         'weapon_category', 'weapon_hand_type', 'weapon_role',
         'external_item_id', 'weapon_family_id', 'weapon_family_name',
         'weapon_rank', 'weapon_rank_sort', 'weapon_rank_multiplier',
+        'weapon_offense_scale_version', 'armor_performance_scale_version', 'accessory_performance_scale_version',
         'evolution_stage', 'next_item_external_id',
         'is_evolution_enabled', 'is_drop_enabled', 'affix_enabled', 'is_supply_enabled', 'is_tradeable', 'max_enhance',
         'armor_category', 'armor_weight', 'armor_role',
@@ -67,6 +68,9 @@ class Item extends Model
         'is_tradeable' => 'boolean',
         'is_supply_enabled' => 'boolean',
         'max_enhance' => 'integer',
+        'weapon_offense_scale_version' => 'integer',
+        'armor_performance_scale_version' => 'integer',
+        'accessory_performance_scale_version' => 'integer',
     ];
 
     public function characterItems()

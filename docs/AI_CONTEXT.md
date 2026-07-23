@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-07-22
+Last updated: 2026-07-24
 Branch: main
 
 ## Read order
@@ -58,6 +58,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - Auth/session: Google OAuth login, guest session is linkable to Google from the shared header, character via Auth::user()->characters()->first()
 - Logging: battle_logs, player_lifecycle_events, gold_transactions, kiseki_transactions, admin_item_grant_logs, public_logs (bottom chat), admin analytics screens
 - Battle: server-side auto turn-based; PRG pattern (redirect after POST); 3s cooldown via last_battle_at
+- Player equipment performance: every fixed stat and legacy stored affix stat on weapons, armor, and accessories is migration-scaled once to version 2 (×8). Weapon STR/MAG use `round(B × (0.80 + W / 2400))`; armor DEF/SPR use `B + max(floor(W / 8), round(B × W / 2400))`, so they never fall below the pre-scale direct addition. Accessories add their fixed values directly; their enhancement result is also kept at exactly ×8. Dynamic engraving derives from the scaled base performance.
 
 ## Important invariants
 

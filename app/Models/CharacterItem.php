@@ -14,6 +14,7 @@ class CharacterItem extends Model
         'resist_species_key', 'species_damage_reduction_rate', 'affix_generated_at',
         'is_equipped', 'is_stored', 'is_locked', 'enhance_level', 'equipped_slot', 'acquired_from',
         'affix_prefix_level', 'affix_suffix_level', 'market_listing_id', 'market_relistable_at', 'is_tradeable',
+        'weapon_offense_scale_version', 'armor_performance_scale_version', 'accessory_performance_scale_version',
     ];
 
     protected $casts = [
@@ -32,6 +33,9 @@ class CharacterItem extends Model
         'affix_spr_bonus' => 'integer',
         'affix_agi_bonus' => 'integer',
         'affix_luk_bonus' => 'integer',
+        'weapon_offense_scale_version' => 'integer',
+        'armor_performance_scale_version' => 'integer',
+        'accessory_performance_scale_version' => 'integer',
         'killer_damage_rate' => 'float',
         'species_damage_reduction_rate' => 'float',
         'affix_generated_at' => 'datetime',

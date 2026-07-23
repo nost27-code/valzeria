@@ -43,15 +43,17 @@ jobs:
 
           $sshOptions = @('-i', $keyPath, '-p', $env:SSH_PORT, '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=yes')
           $remote = "$($env:SSH_USER)@$($env:SSH_HOST)"
-          $remoteCommand = "cd '$($env:DEPLOY_ROOT)/valzeria_current' && $($env:DEPLOY_PHP_BINARY) artisan tinker --execute=`"echo config('battle.pve_enemy_percentage_defense.enabled') ? 'ON' : 'OFF';`""
+          $remoteCommand = "cd '$($env:DEPLOY_ROOT)/valzeria_current' && $($env:DEPLOY_PHP_BINARY) artisan tinker --execute=`"echo (config('battle.pve_enemy_percentage_defense.enabled') ? 'ON' : 'OFF') . ' ' . config('battle.pve_enemy_percentage_defense.defense_coefficient');`""
           $output = & ssh.exe @sshOptions $remote $remoteCommand
           if ($LASTEXITCODE -ne 0) {
             throw "Production setting check failed with exit code $LASTEXITCODE."
           }
 
-          $value = ($output | Where-Object { $_ -match '^(ON|OFF)$' } | Select-Object -Last 1)
-          if ($value -notin @('ON', 'OFF')) {
+          $value = ($output | Where-Object { $_ -match '^(ON|OFF) [0-9]+(\.[0-9]+)?$' } | Select-Object -Last 1)
+          if ([string]::IsNullOrWhiteSpace($value)) {
             throw 'Production setting check returned an unexpected value.'
           }
 
-          Write-Output "PVE_ENEMY_PERCENTAGE_DEFENSE_ENABLED=$value"
+          $parts = $value -split ' '
+          Write-Output "PVE_ENEMY_PERCENTAGE_DEFENSE_ENABLED=$($parts[0])"
+          Write-Output "PVE_ENEMY_DEFENSE_COEFFICIENT=$($parts[1])"

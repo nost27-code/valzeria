@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Models\Character;
-use App\Models\Item;
+use App\Models\CharacterItem;
+use App\Services\Battle\WeaponOffenseCalculator;
 use App\Services\JobService;
 use App\Services\EquipmentEnhancementService;
 
@@ -47,15 +48,24 @@ class CharacterStatusService
 
         $markBonuses = app(MonsterMarkService::class)->permanentBonuses($character);
 
-        // ---- パス1: 装備を一切含まない主能力（武器の比例補正はこの値を基準にする） ----
-        // 職業基礎値 + マスター済み職の永続蓄積 + 現在職レベルボーナス + モンスターマーク永続ボーナス。
-        // 装備ループより前に確定させることで、装備順や装備ループ内の集計に依存しない値になる。
-        $preEquipStr = (int) $jobStats['atk'] + $job_str_bonus + (int) ($markBonuses['str'] ?? 0);
-        $preEquipMag = (int) $jobStats['mag'] + $job_mag_bonus + (int) ($markBonuses['mag'] ?? 0);
+        // ---- パス1: 装備を一切含まない能力 ----
+        // 武器を外した基礎能力との差分表示にも使うため、モンスターマークを含めてここで確定する。
+        $preEquip = [
+            'hp' => (int) $jobStats['hp'] + $job_hp_bonus + (int) ($markBonuses['hp'] ?? 0),
+            'mp' => (int) ($jobStats['mp'] ?? 0) + $job_mp_bonus + (int) ($markBonuses['mp'] ?? 0),
+            'str' => (int) $jobStats['atk'] + $job_str_bonus + (int) ($markBonuses['str'] ?? 0),
+            'def' => (int) $jobStats['def'] + $job_def_bonus + (int) ($markBonuses['def'] ?? 0),
+            'agi' => (int) $jobStats['spd'] + $job_spd_bonus + (int) ($markBonuses['agi'] ?? 0),
+            'mag' => (int) $jobStats['mag'] + $job_mag_bonus + (int) ($markBonuses['mag'] ?? 0),
+            'spr' => (int) $jobStats['spr'] + $job_spr_bonus + (int) ($markBonuses['spr'] ?? 0),
+            'luk' => (int) $jobStats['luck'] + $job_luk_bonus + (int) ($markBonuses['luk'] ?? 0),
+        ];
 
-        // ---- パス2: 装備ボーナスの集計（固定値 + 銘 + 武器の比例補正） ----
+        // ---- パス2: 武器・防具由来の主能力を分離して集計 ----
         $hp_equip = 0; $mp_equip = 0; $atk_equip = 0; $def_equip = 0;
         $spd_equip = 0; $mag_equip = 0; $spr_equip = 0; $luk_equip = 0;
+        $weaponStr = 0; $weaponMag = 0;
+        $armorDef = 0; $armorSpr = 0;
 
         $equippedItems = $character->characterItems()->where('is_equipped', true)->with(['item', 'affixPrefix'])->get();
         foreach ($equippedItems as $charItem) {
@@ -69,152 +79,164 @@ class CharacterStatusService
 
                 $hp_equip += $enhancedStats['hp'] ?? 0;
                 $mp_equip += $enhancedStats['mp'] ?? 0;
-                $atk_equip += $enhancedStats['str'] ?? 0;
-                $def_equip += $enhancedStats['def'] ?? 0;
-                $spd_equip += $enhancedStats['agi'] ?? 0;
-                $mag_equip += $enhancedStats['mag'] ?? 0;
-                $spr_equip += $enhancedStats['spr'] ?? 0;
-                $luk_equip += $enhancedStats['luk'] ?? 0;
-
-                if ((string) ($charItem->item->type ?? '') === 'weapon') {
-                    $proportional = $this->weaponProportionalBonus($charItem->item, $preEquipStr, $preEquipMag);
-                    $atk_equip += $proportional['str'];
-                    $mag_equip += $proportional['mag'];
+                $isWeapon = (string) ($charItem->item->type ?? '') === 'weapon';
+                $isArmor = (string) ($charItem->item->type ?? '') === 'armor';
+                if ($isWeapon) {
+                    $weaponStr += (int) ($enhancedStats['str'] ?? 0);
+                    $weaponMag += (int) ($enhancedStats['mag'] ?? 0);
+                } else {
+                    $atk_equip += (int) ($enhancedStats['str'] ?? 0);
+                    $mag_equip += (int) ($enhancedStats['mag'] ?? 0);
                 }
+                if ($isArmor) {
+                    $armorDef += (int) ($enhancedStats['def'] ?? 0);
+                    $armorSpr += (int) ($enhancedStats['spr'] ?? 0);
+                } else {
+                    $def_equip += (int) ($enhancedStats['def'] ?? 0);
+                    $spr_equip += (int) ($enhancedStats['spr'] ?? 0);
+                }
+                $spd_equip += $enhancedStats['agi'] ?? 0;
+                $luk_equip += $enhancedStats['luk'] ?? 0;
 
                 $affixBonuses = $charItem->affixStatBonuses();
                 $hp_equip += (int) ($affixBonuses['hp'] ?? 0);
-                $atk_equip += (int) ($affixBonuses['str'] ?? 0);
-                $def_equip += (int) ($affixBonuses['def'] ?? 0);
+                if ($isWeapon) {
+                    $weaponStr += (int) ($affixBonuses['str'] ?? 0);
+                    $weaponMag += (int) ($affixBonuses['mag'] ?? 0);
+                } else {
+                    $atk_equip += (int) ($affixBonuses['str'] ?? 0);
+                    $mag_equip += (int) ($affixBonuses['mag'] ?? 0);
+                }
+                if ($isArmor) {
+                    $armorDef += (int) ($affixBonuses['def'] ?? 0);
+                    $armorSpr += (int) ($affixBonuses['spr'] ?? 0);
+                } else {
+                    $def_equip += (int) ($affixBonuses['def'] ?? 0);
+                    $spr_equip += (int) ($affixBonuses['spr'] ?? 0);
+                }
                 $spd_equip += (int) ($affixBonuses['agi'] ?? 0);
-                $mag_equip += (int) ($affixBonuses['mag'] ?? 0);
-                $spr_equip += (int) ($affixBonuses['spr'] ?? 0);
                 $luk_equip += (int) ($affixBonuses['luk'] ?? 0);
             }
         }
 
-        $hp_equip += $markBonuses['hp'] ?? 0;
-        $mp_equip += $markBonuses['mp'] ?? 0;
-        $atk_equip += $markBonuses['str'] ?? 0;
-        $def_equip += $markBonuses['def'] ?? 0;
-        $spd_equip += $markBonuses['agi'] ?? 0;
-        $mag_equip += $markBonuses['mag'] ?? 0;
-        $spr_equip += $markBonuses['spr'] ?? 0;
-        $luk_equip += $markBonuses['luk'] ?? 0;
+        // 実効攻撃性能 = 武器を除いた基礎能力 × (0.80 + 8倍化後の武器能力 ÷ 2400)
+        $weaponBaseStr = $preEquip['str'] + $atk_equip;
+        $weaponBaseMag = $preEquip['mag'] + $mag_equip;
+        $offenseCalculator = app(WeaponOffenseCalculator::class);
+        $finalStr = $offenseCalculator->calculateEffectiveOffense($weaponBaseStr, $weaponStr);
+        $finalMag = $offenseCalculator->calculateEffectiveOffense($weaponBaseMag, $weaponMag);
 
-        // 基礎値
-        $base_hp = $jobStats['hp'];
-        $base_mp = $jobStats['mp'] ?? 0;
-        $base_atk = $jobStats['atk'];
-        $base_def = $jobStats['def'];
-        $base_spd = $jobStats['spd'];
-        $base_mag = $jobStats['mag'];
-        $base_spr = $jobStats['spr'];
-        $base_luk = $jobStats['luck'];
+        // 実効防御性能 = 防具を除いた基礎能力 + max(8倍化前相当の補正, 8倍化後の比例補正)
+        $armorBaseDef = $preEquip['def'] + $def_equip;
+        $armorBaseSpr = $preEquip['spr'] + $spr_equip;
+        $finalDef = $this->effectiveArmorStat($armorBaseDef, $armorDef, $offenseCalculator);
+        $finalSpr = $this->effectiveArmorStat($armorBaseSpr, $armorSpr, $offenseCalculator);
 
-        // 倍率補正は廃止し、レベルに応じた固定職ボーナスのみを加算
-        $job_hp_diff = $job_hp_bonus;
-        $job_mp_diff = $job_mp_bonus;
-        $job_atk_diff = $job_str_bonus;
-        $job_def_diff = $job_def_bonus;
-        $job_spd_diff = $job_spd_bonus;
-        $job_mag_diff = $job_mag_bonus;
-        $job_spr_diff = $job_spr_bonus;
-        $job_luk_diff = $job_luk_bonus;
-
-        // 最終ボーナス（職増分 + 装備ボーナス）
-        $total_hp_bonus = $job_hp_diff + $hp_equip;
-        $total_mp_bonus = $job_mp_diff + $mp_equip;
-        $total_atk_bonus = $job_atk_diff + $atk_equip;
-        $total_def_bonus = $job_def_diff + $def_equip;
-        $total_spd_bonus = $job_spd_diff + $spd_equip;
-        $total_mag_bonus = $job_mag_diff + $mag_equip;
-        $total_spr_bonus = $job_spr_diff + $spr_equip;
-        $total_luk_bonus = $job_luk_diff + $luk_equip;
+        $unarmedStr = $offenseCalculator->calculateEffectiveOffense($preEquip['str'], 0);
+        $unarmedMag = $offenseCalculator->calculateEffectiveOffense($preEquip['mag'], 0);
+        $unarmoredDef = $preEquip['def'];
+        $unarmoredSpr = $preEquip['spr'];
 
         return [
-            'max_hp' => max(1, $base_hp + $total_hp_bonus),
-            'max_mp' => max(0, $base_mp + $total_mp_bonus),
-            'str' => max(1, $base_atk + $total_atk_bonus),
-            'def' => max(0, $base_def + $total_def_bonus),
-            'agi' => max(1, $base_spd + $total_spd_bonus),
-            'mag' => max(0, $base_mag + $total_mag_bonus),
-            'spr' => max(0, $base_spr + $total_spr_bonus),
-            'luk' => max(0, $base_luk + $total_luk_bonus),
+            'max_hp' => max(1, $preEquip['hp'] + $hp_equip),
+            'max_mp' => max(0, $preEquip['mp'] + $mp_equip),
+            'str' => max(1, $finalStr),
+            'def' => max(0, $finalDef),
+            'agi' => max(1, $preEquip['agi'] + $spd_equip),
+            'mag' => max(0, $finalMag),
+            'spr' => max(0, $finalSpr),
+            'luk' => max(0, $preEquip['luk'] + $luk_equip),
             'bonuses' => [
-                'hp' => $total_hp_bonus,
-                'mp' => $total_mp_bonus,
-                'str' => $total_atk_bonus,
-                'def' => $total_def_bonus,
-                'agi' => $total_spd_bonus,
-                'mag' => $total_mag_bonus,
-                'spr' => $total_spr_bonus,
-                'luk' => $total_luk_bonus,
+                'hp' => $hp_equip,
+                'mp' => $mp_equip,
+                'str' => $finalStr - $unarmedStr,
+                'def' => $finalDef - $unarmoredDef,
+                'agi' => $spd_equip,
+                'mag' => $finalMag - $unarmedMag,
+                'spr' => $finalSpr - $unarmoredSpr,
+                'luk' => $luk_equip,
             ],
             'monster_mark_bonuses' => $markBonuses,
-            // 装備を一切含まない主能力（武器の比例補正の基準値）。装備比較表示などで再利用する。
-            'pre_equipment' => [
-                'str' => $preEquipStr,
-                'mag' => $preEquipMag,
-            ],
+            'pre_equipment' => $preEquip,
+            'weapon_base' => ['str' => $weaponBaseStr, 'mag' => $weaponBaseMag],
+            'weapon_offense' => ['str' => $weaponStr, 'mag' => $weaponMag],
+            'armor_base' => ['def' => $armorBaseDef, 'spr' => $armorBaseSpr],
+            'armor_defense' => ['def' => $armorDef, 'spr' => $armorSpr],
         ];
     }
 
-    /**
-     * 武器の比例補正（固定値には影響しない）。装備前主能力 × ランク補正率 を、
-     * 武器自身のSTR/MAG固定値比率で按分してSTR/MAGへ振り分ける。
-     * 鍛冶強化・銘は一切参照しないため、比例部分へ二重に乗ることはない。
-     *
-     * @return array{str: int, mag: int}
-     */
-    private function weaponProportionalBonus(Item $item, int $preEquipStr, int $preEquipMag): array
+    /** @return array{str: int, mag: int} */
+    public function weaponOffenseFor(CharacterItem $characterItem): array
     {
-        if (! (bool) config('equipment_scaling.weapon.proportional_enabled', true)) {
+        $item = $characterItem->item;
+        if (! $item || (string) $item->type !== 'weapon') {
             return ['str' => 0, 'mag' => 0];
         }
 
-        $rank = strtoupper((string) ($item->weapon_rank ?? ''));
-        $rate = (float) config("equipment_scaling.weapon.proportional_rate.{$rank}", 0.0);
-        if ($rate <= 0.0) {
-            return ['str' => 0, 'mag' => 0];
-        }
-
-        $strBase = max(0, (int) ($item->str_bonus ?? 0));
-        $magBase = max(0, (int) ($item->mag_bonus ?? 0));
-        $total = $strBase + $magBase;
-        if ($total <= 0) {
-            return ['str' => 0, 'mag' => 0];
-        }
+        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem($item, (int) ($characterItem->enhance_level ?? 0));
+        $affix = $characterItem->affixStatBonuses();
 
         return [
-            'str' => (int) floor(max(0, $preEquipStr) * $rate * ($strBase / $total)),
-            'mag' => (int) floor(max(0, $preEquipMag) * $rate * ($magBase / $total)),
+            'str' => (int) ($enhanced['str'] ?? 0) + (int) ($affix['str'] ?? 0),
+            'mag' => (int) ($enhanced['mag'] ?? 0) + (int) ($affix['mag'] ?? 0),
         ];
     }
 
-    /**
-     * 表示層向け: 指定の武器アイテムをキャラクターが装備した場合の比例補正内訳を返す。
-     * 装備中かどうかに関わらず、現在の装備前主能力を基準に見込み値を計算する。
-     *
-     * @return array{rate: float, str: int, mag: int}
-     */
-    public function weaponProportionalPreview(Character $character, Item $item): array
+    /** @return array{str: int, mag: int} */
+    public function weaponEffectivePreview(Character $character, CharacterItem $characterItem): array
     {
         $stats = $this->getFinalStats($character);
-        $pre = $stats['pre_equipment'] ?? ['str' => 0, 'mag' => 0];
-        $rank = strtoupper((string) ($item->weapon_rank ?? ''));
-        $rate = (float) config("equipment_scaling.weapon.proportional_rate.{$rank}", 0.0);
-        if (! (bool) config('equipment_scaling.weapon.proportional_enabled', true)) {
-            $rate = 0.0;
-        }
-
-        $bonus = $this->weaponProportionalBonus($item, (int) $pre['str'], (int) $pre['mag']);
+        $base = $stats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
+        $weapon = $this->weaponOffenseFor($characterItem);
+        $calculator = app(WeaponOffenseCalculator::class);
 
         return [
-            'rate' => $rate,
-            'str' => $bonus['str'],
-            'mag' => $bonus['mag'],
+            'str' => $calculator->calculateEffectiveOffense((int) $base['str'], $weapon['str']),
+            'mag' => $calculator->calculateEffectiveOffense((int) $base['mag'], $weapon['mag']),
         ];
+    }
+
+    /** @return array{def: int, spr: int} */
+    public function armorDefenseFor(CharacterItem $characterItem): array
+    {
+        $item = $characterItem->item;
+        if (! $item || (string) $item->type !== 'armor') {
+            return ['def' => 0, 'spr' => 0];
+        }
+
+        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem($item, (int) ($characterItem->enhance_level ?? 0));
+        $affix = $characterItem->affixStatBonuses();
+
+        return [
+            'def' => (int) ($enhanced['def'] ?? 0) + (int) ($affix['def'] ?? 0),
+            'spr' => (int) ($enhanced['spr'] ?? 0) + (int) ($affix['spr'] ?? 0),
+        ];
+    }
+
+    /** @return array{def: int, spr: int} */
+    public function armorEffectivePreview(Character $character, CharacterItem $characterItem): array
+    {
+        $stats = $this->getFinalStats($character);
+        $base = $stats['armor_base'] ?? ['def' => 0, 'spr' => 0];
+        $armor = $this->armorDefenseFor($characterItem);
+        $calculator = app(WeaponOffenseCalculator::class);
+
+        return [
+            'def' => $this->effectiveArmorStat((int) $base['def'], $armor['def'], $calculator),
+            'spr' => $this->effectiveArmorStat((int) $base['spr'], $armor['spr'], $calculator),
+        ];
+    }
+
+    private function effectiveArmorStat(int $baseStatWithoutArmor, int $armorStat, WeaponOffenseCalculator $calculator): int
+    {
+        $base = max(0, $baseStatWithoutArmor);
+        $armor = max(0, $armorStat);
+
+        // 8倍化前の防具性能を下限にする。低い基礎能力値・転職直後でも、防具装備で被ダメージが悪化しない。
+        $legacyArmorBonus = intdiv($armor, 8);
+        $scaledArmorBonus = $calculator->calculateProportionalBonus($base, $armor);
+
+        return $base + max($legacyArmorBonus, $scaledArmorBonus);
     }
 
     public static function clearRequestCache(int $characterId): void

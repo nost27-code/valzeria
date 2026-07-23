@@ -48,6 +48,32 @@ class EquipmentEnhancementServiceTest extends TestCase
         );
     }
 
+    public function test_eightfold_scaled_accessory_keeps_the_enhancement_result_at_exactly_eight_times_the_previous_value(): void
+    {
+        $scaledLowerRank = (object) [
+            'type' => 'accessory',
+            'accessory_performance_scale_version' => 2,
+            'agi_bonus' => 128,
+            'luk_bonus' => 64,
+        ];
+        $scaledHighRank = (object) [
+            'type' => 'accessory',
+            'accessory_rank' => 'SS',
+            'accessory_performance_scale_version' => 2,
+            'str_bonus' => 264,
+        ];
+
+        // 8倍化前: +4で 敏捷21 / 運11、SS単能力+30で 攻撃200。
+        $this->assertSame(
+            ['agi' => 168, 'luk' => 88],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($scaledLowerRank, 4)
+        );
+        $this->assertSame(
+            ['str' => 1600],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($scaledHighRank, 30)
+        );
+    }
+
     public function test_high_rank_accessories_reach_their_configured_targets_at_plus_thirty(): void
     {
         $ssItem = (object) [
