@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-map-and-return-destinations',
+        'date' => '2026-07-23',
+        'category' => 'changed',
+        'title' => '移動後の画面を目的に合わせて改善',
+        'detail' => 'MAPで街を移動した後は探索先を選ぶ画面を開き、戦闘から帰還した後は宿屋や銀行を利用しやすい街の施設画面を開くようにしました。',
+    ],
+    [
         'id' => '2026-07-23-pve-defense-coefficient-35',
         'date' => '2026-07-23',
         'category' => 'balance',

@@ -538,7 +538,7 @@ class BattleController extends Controller
         }
 
         session()->forget(['lastBattleData', 'active_map_exploration']);
-        session(['current_location' => 'dungeon']);
+        session(['current_location' => 'town']);
 
         $redirect = redirect()->route('home', ['skip_resume' => 1]);
         if (!empty($resolvedValmonEggs ?? [])) {
@@ -573,7 +573,7 @@ class BattleController extends Controller
         }
 
         session()->forget(['lastBattleData', 'active_map_exploration']);
-        session(['current_location' => 'dungeon']);
+        session(['current_location' => 'town']);
 
         return redirect()
             ->route('home', ['skip_resume' => 1])

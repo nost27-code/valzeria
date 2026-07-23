@@ -1866,7 +1866,8 @@
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !in_array($result['result'], ['victory', 'win'], true) && !($isSubAreaExplore && $isDefeatResult))
-                            <a href="{{ isset($mapExploration) ? route('exploration-maps.leave') : route('home') }}"
+                            @if(isset($mapExploration))
+                            <a href="{{ route('exploration-maps.leave') }}"
                                x-data="{ loading: false }"
                                @click="if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) loading = true"
                                :class="loading ? 'pointer-events-none opacity-80' : ''"
@@ -1878,6 +1879,19 @@
                                 </svg>
                                 <span>街へ戻る</span>
                             </a>
+                            @else
+                            <form action="{{ route('battle.return') }}" method="POST" x-data="{ loading: false }" @submit="loading = true">
+                                @csrf
+                                <button type="submit" :class="loading ? 'pointer-events-none opacity-80' : ''" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
+                                    <img x-show="!loading" src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="w-4 h-4 object-contain opacity-90">
+                                    <svg x-show="loading" style="display: none;" class="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                        <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                                    </svg>
+                                    <span>街へ戻る</span>
+                                </button>
+                            </form>
+                            @endif
                         @endif
 
                     </div>

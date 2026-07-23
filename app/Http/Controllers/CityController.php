@@ -63,7 +63,9 @@ class CityController extends Controller
             if ($request->boolean('from_battle_result')) {
                 session()->forget('lastBattleData');
             }
-            session(['current_location' => 'town']);
+            // MAPからの通常移動は、次の探索先を選びやすい探索画面を開く。
+            // 戦闘結果で新しい街へ進んだ場合だけは、帰還後の施設利用を優先する。
+            session(['current_location' => $request->boolean('from_battle_result') ? 'town' : 'dungeon']);
 
             $routeParams = $request->boolean('from_battle_result') ? ['skip_resume' => 1] : [];
             $redirect = redirect()->route('home', $routeParams)->with('success', "{$city->name} に移動しました。");
