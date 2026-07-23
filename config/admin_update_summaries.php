@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-ogp-image-update',
+        'date' => '2026-07-23',
+        'category' => 'changed',
+        'title' => '共有用OGP画像を更新',
+        'detail' => 'サイトをSNSなどで共有した際に表示される画像を、ヴァルゼリアの冒険者の新しい紹介画像へ更新しました。',
+    ],
+    [
         'id' => '2026-07-23-newcomer-retention-metric-accuracy',
         'date' => '2026-07-23',
         'category' => 'internal',
