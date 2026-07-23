@@ -204,6 +204,46 @@ class AdminDashboard extends Component
             $lines[] = '- ' . $card['label'] . ': ' . $card['value'] . ' (' . $card['note'] . ')';
         }
 
+        if (($data['lifecycle']['ready'] ?? false) === true) {
+            $lines[] = '';
+            $lines[] = '## 本日の新規登録からの初期導線';
+            foreach ($data['lifecycle']['today_funnel'] as $step) {
+                $rate = $step['rate'] === null ? '-' : number_format((float) $step['rate'], 1) . '%';
+                $lines[] = sprintf('- %s: %s人 / %s', $step['label'], number_format((int) $step['count']), $rate);
+            }
+
+            $lines[] = '';
+            $lines[] = '## 再訪コホート';
+            foreach ($data['lifecycle']['retention'] as $metric) {
+                $rate = $metric['rate'] === null ? '-' : number_format((float) $metric['rate'], 1) . '%';
+                $lines[] = sprintf('- %s (%s登録): %s / %s人 / %s', $metric['label'], $metric['cohort_date'], number_format((int) $metric['retained']), number_format((int) $metric['registered']), $rate);
+            }
+
+            $period = $data['lifecycle']['retention_action_period'];
+            $periodLabel = $period
+                ? $period['from']->format('Y/m/d') . '〜' . $period['to']->format('Y/m/d') . '登録'
+                : '対象期間なし';
+            $lines[] = '';
+            $lines[] = '## 初日行動別 D7再訪 (' . $periodLabel . ')';
+            $lines[] = '- 初日=登録から24時間以内。D7=登録日の7日後にログイン。相関であり因果を示すものではありません。';
+            foreach ($data['lifecycle']['retention_action_insights'] as $insight) {
+                $completed = $insight['completed'];
+                $notCompleted = $insight['not_completed'];
+                $completedRate = $completed['rate'] === null ? '-' : number_format((float) $completed['rate'], 1) . '%';
+                $notCompletedRate = $notCompleted['rate'] === null ? '-' : number_format((float) $notCompleted['rate'], 1) . '%';
+                $lines[] = sprintf(
+                    '- %s: 初日に達成 %s / %s人 / %s、未達 %s / %s人 / %s',
+                    $insight['label'],
+                    number_format((int) $completed['retained']),
+                    number_format((int) $completed['eligible']),
+                    $completedRate,
+                    number_format((int) $notCompleted['retained']),
+                    number_format((int) $notCompleted['eligible']),
+                    $notCompletedRate,
+                );
+            }
+        }
+
         $sections = [
             '到達街分布' => ['cityDistribution', fn ($row) => sprintf(
                 '- %s: %s人 / %.1f%% / 推奨%s%s',
@@ -273,6 +313,25 @@ class AdminDashboard extends Component
 
         foreach ($data['summaryCards'] as $card) {
             $rows[] = ['summary', $card['label'], $card['value'], '', '', $card['note']];
+        }
+
+        if (($data['lifecycle']['ready'] ?? false) === true) {
+            foreach ($data['lifecycle']['today_funnel'] as $step) {
+                $rows[] = ['today_funnel', $step['label'], $step['count'], $step['rate'], '', '本日の新規登録者に対する割合'];
+            }
+
+            foreach ($data['lifecycle']['retention'] as $metric) {
+                $rows[] = ['retention', $metric['label'], $metric['retained'], $metric['registered'], $metric['rate'], $metric['cohort_date'] . '登録 / 登録日のN日後に再訪'];
+            }
+
+            $period = $data['lifecycle']['retention_action_period'];
+            $periodLabel = $period ? $period['from']->format('Y-m-d') . '〜' . $period['to']->format('Y-m-d') : '';
+            foreach ($data['lifecycle']['retention_action_insights'] as $insight) {
+                foreach (['completed' => '初日に達成', 'not_completed' => '初日に未達'] as $key => $label) {
+                    $group = $insight[$key];
+                    $rows[] = ['initial_action_d7', $insight['label'] . ' / ' . $label, $group['retained'], $group['eligible'], $group['rate'], $periodLabel . ' / 初日=登録後24時間 / D7=登録日の7日後'];
+                }
+            }
         }
 
         foreach ($data['cityDistribution'] as $row) {

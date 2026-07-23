@@ -7,6 +7,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 ## Unreleased
 
 ### Changed
+- 管理画面で、新規冒険者のキャラクター作成から初回ボス撃破・第2都市到達までの進行と、初日行動ごとのD7再訪率を確認できるようにしました。
+
 
 - 探索の地図実装記念ボーナスを終了し、すべての地図ドロップ率を通常時の0.2%へ戻しました。
 

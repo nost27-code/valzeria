@@ -108,6 +108,45 @@
                     </div>
                 </div>
             </div>
+            <div class="border-b border-slate-100 p-5">
+                <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900">初日行動別 D7再訪</h3>
+                        <p class="mt-1 text-xs font-bold text-slate-400">初日に行動した人・していない人のD7再訪率を比べ、定着と関連が強い行動を探します。</p>
+                    </div>
+                    @if($lifecycle['retention_action_period'])
+                        <div class="text-xs font-black text-slate-500">{{ $lifecycle['retention_action_period']['from']->format('Y/m/d') }}〜{{ $lifecycle['retention_action_period']['to']->format('Y/m/d') }}登録</div>
+                    @endif
+                </div>
+                <div class="mt-3 space-y-2">
+                    @forelse($lifecycle['retention_action_insights'] as $insight)
+                        <div class="rounded-md bg-slate-50 px-3 py-3">
+                            <div class="font-black text-slate-900">{{ $insight['label'] }}</div>
+                            <div class="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                                <div class="rounded bg-white px-3 py-2">
+                                    <span class="font-bold text-slate-600">初日に達成</span>
+                                    <span class="ml-1 font-black text-emerald-700">{{ $insight['completed']['rate'] === null ? '-' : number_format($insight['completed']['rate'], 1) . '%' }}</span>
+                                    <span class="ml-1 text-xs font-bold text-slate-400">{{ number_format($insight['completed']['retained']) }} / {{ number_format($insight['completed']['eligible']) }}人</span>
+                                    @if($insight['completed']['is_small_sample'])
+                                        <span class="ml-1 text-[11px] font-black text-amber-600">参考値</span>
+                                    @endif
+                                </div>
+                                <div class="rounded bg-white px-3 py-2">
+                                    <span class="font-bold text-slate-600">初日に未達</span>
+                                    <span class="ml-1 font-black text-slate-700">{{ $insight['not_completed']['rate'] === null ? '-' : number_format($insight['not_completed']['rate'], 1) . '%' }}</span>
+                                    <span class="ml-1 text-xs font-bold text-slate-400">{{ number_format($insight['not_completed']['retained']) }} / {{ number_format($insight['not_completed']['eligible']) }}人</span>
+                                    @if($insight['not_completed']['is_small_sample'])
+                                        <span class="ml-1 text-[11px] font-black text-amber-600">参考値</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-md bg-slate-50 p-4 text-sm font-bold text-slate-500">D7の対象期間に登録した行動ログがまだありません。</div>
+                    @endforelse
+                </div>
+                <p class="mt-3 text-[11px] font-bold text-slate-400">初日は登録から24時間以内、D7は登録日の7日後にログインした人です。相関の集計であり、施策の効果は変更前後で比較してください。</p>
+            </div>
             <p class="px-5 py-3 text-xs font-bold text-slate-400">行動ログの計測開始後に登録したユーザーが対象です。過去行動は補完せず、実測値のみを表示します。</p>
         @else
             <p class="p-5 text-sm font-bold text-slate-500">行動ログ用テーブルを準備中です。migration反映後から計測を開始します。</p>

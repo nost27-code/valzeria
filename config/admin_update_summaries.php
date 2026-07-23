@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-23-newcomer-retention-analysis',
+        'date' => '2026-07-23',
+        'category' => 'internal',
+        'title' => '新人定着の分析指標を追加',
+        'detail' => '初日の進行状況とD7再訪率を並べて確認できるようにし、離脱しやすい導線の改善判断に使えるようにしました。',
+    ],
+    [
         'id' => '2026-07-23-map-exploration-duplicate-execution-fix',
         'date' => '2026-07-23',
         'category' => 'fixed',
