@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-market-listed-equipment-feed-protection',
+        'date' => '2026-07-25',
+        'category' => 'fixed',
+        'title' => '出品中装備のヴァルモン餌消費を防止',
+        'detail' => '装備市場へ出品中の武器はヴァルモンの餌候補に表示せず、餌として消費されないように修正しました。',
+    ],
+    [
         'id' => '2026-07-25-map-batch-stop-and-stamina-fix',
         'date' => '2026-07-25',
         'category' => 'fixed',

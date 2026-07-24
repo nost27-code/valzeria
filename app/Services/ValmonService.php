@@ -369,14 +369,23 @@ class ValmonService
             return ['success' => false, 'message' => '対象が見つかりません。'];
         }
 
-        $exp = $this->equipmentFeedExp($characterItem);
-        if ($exp <= 0) {
-            return ['success' => false, 'message' => 'この装備はヴァルモンの餌にできません。'];
-        }
+        return DB::transaction(function () use ($character, $valmon, $characterItem) {
+            $lockedItem = CharacterItem::with('item')
+                ->where('character_id', $character->id)
+                ->lockForUpdate()
+                ->find($characterItem->id);
 
-        return DB::transaction(function () use ($valmon, $characterItem, $exp) {
-            $feedId = (int) $characterItem->id;
-            $characterItem->delete();
+            if (!$lockedItem) {
+                return ['success' => false, 'message' => '対象が見つかりません。'];
+            }
+
+            $exp = $this->equipmentFeedExp($lockedItem);
+            if ($exp <= 0) {
+                return ['success' => false, 'message' => 'この装備はヴァルモンの餌にできません。'];
+            }
+
+            $feedId = (int) $lockedItem->id;
+            $lockedItem->delete();
 
             return $this->grantFeedExp($valmon, 'equipment', $feedId, 1, $exp);
         });
@@ -398,26 +407,28 @@ class ValmonService
             return ['success' => false, 'message' => '餌にする装備を選んでください。'];
         }
 
-        $items = CharacterItem::with('item')
-            ->where('character_id', $character->id)
-            ->whereIn('id', $ids->all())
-            ->get()
-            ->keyBy('id');
+        return DB::transaction(function () use ($character, $valmon, $ids) {
+            $items = CharacterItem::with('item')
+                ->where('character_id', $character->id)
+                ->whereIn('id', $ids->all())
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
 
-        if ($items->count() !== $ids->count()) {
-            return ['success' => false, 'message' => '対象外の装備が含まれています。'];
-        }
-
-        $totalExp = 0;
-        foreach ($ids as $id) {
-            $exp = $this->equipmentFeedExp($items[$id]);
-            if ($exp <= 0) {
-                return ['success' => false, 'message' => '餌にできない装備が含まれています。'];
+            if ($items->count() !== $ids->count()) {
+                return ['success' => false, 'message' => '対象外の装備が含まれています。'];
             }
-            $totalExp += $exp;
-        }
 
-        return DB::transaction(function () use ($valmon, $items, $ids, $totalExp) {
+            $totalExp = 0;
+            foreach ($ids as $id) {
+                $exp = $this->equipmentFeedExp($items[$id]);
+                if ($exp <= 0) {
+                    return ['success' => false, 'message' => '餌にできない装備が含まれています。'];
+                }
+                $totalExp += $exp;
+            }
+
             CharacterItem::where('character_id', $valmon->character_id)
                 ->whereIn('id', $ids->all())
                 ->delete();
@@ -448,7 +459,7 @@ class ValmonService
     public function equipmentFeedExp(CharacterItem $characterItem): int
     {
         $item = $characterItem->item;
-        if (!$item || $characterItem->is_equipped || $characterItem->is_locked) {
+        if (!$item || $characterItem->is_equipped || $characterItem->is_locked || $characterItem->isMarketListed()) {
             return 0;
         }
 

@@ -90,6 +90,7 @@ class ValmonController extends Controller
 
         $equipment = CharacterItem::with('item')
             ->where('character_id', $character->id)
+            ->whereNull('market_listing_id')
             ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
             ->get()
             ->map(function (CharacterItem $row) use ($service) {
