@@ -27,7 +27,7 @@ class EquipmentAffixRulesService
         ));
 
         return match ((string) $prefix->target_stat) {
-            'hp' => ['hp' => $value * 3],
+            'hp' => ['hp' => $this->scaledHpBonus($value * 3)],
             'str' => ['str' => $value],
             'def' => ['def' => $value],
             'mag' => ['mag' => $value],
@@ -35,7 +35,7 @@ class EquipmentAffixRulesService
             'agi' => ['agi' => $value],
             'luk' => ['luk' => $value],
             'all' => [
-                'hp' => (int) ceil($value * $hpMultiplier),
+                'hp' => $this->scaledHpBonus((int) ceil($value * $hpMultiplier)),
                 'str' => $value,
                 'def' => $value,
                 'mag' => $value,
@@ -138,5 +138,13 @@ class EquipmentAffixRulesService
             (int) floor(((int) ($stats['hp'] ?? 0)) / 5),
             1,
         );
+    }
+
+    private function scaledHpBonus(int $bonus): int
+    {
+        $fullScaleFactor = max(1, (int) config('equipment_scaling.full_performance_scale_factor', 8));
+        $hpScaleFactor = max(1, (int) config('equipment_scaling.hp_performance_scale_factor', 4));
+
+        return (int) ceil($bonus * $hpScaleFactor / $fullScaleFactor);
     }
 }

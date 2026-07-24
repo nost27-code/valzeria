@@ -74,6 +74,23 @@ class EquipmentEnhancementServiceTest extends TestCase
         );
     }
 
+    public function test_scaled_accessory_enhancement_keeps_hp_at_fourfold_and_other_stats_at_eightfold(): void
+    {
+        $item = (object) [
+            'type' => 'accessory',
+            'accessory_performance_scale_version' => 2,
+            // 8倍化前はHP+5 / 攻撃+10。
+            'hp_bonus' => 20,
+            'str_bonus' => 80,
+        ];
+
+        // +4後の旧値はHP+8 / 攻撃+15。HPは4倍、攻撃は8倍に戻す。
+        $this->assertSame(
+            ['hp' => 32, 'str' => 120],
+            EquipmentEnhancementService::enhancedStatTotalsForItem($item, 4)
+        );
+    }
+
     public function test_high_rank_accessories_reach_their_configured_targets_at_plus_thirty(): void
     {
         $ssItem = (object) [

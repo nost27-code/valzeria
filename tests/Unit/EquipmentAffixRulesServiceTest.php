@@ -97,7 +97,7 @@ class EquipmentAffixRulesServiceTest extends TestCase
         // +30で500 -> 737。銘Vの30%は222.1なので切り上げ222。
         $this->assertSame(['def' => 222], $service->prefixBonuses($item, $single, 5, 'normal', 30));
         $this->assertSame([
-            'hp' => 366,
+            'hp' => 183,
             'str' => 122,
             'def' => 122,
             'mag' => 122,
@@ -128,6 +128,27 @@ class EquipmentAffixRulesServiceTest extends TestCase
         $item = new Item(['type' => 'armor', 'armor_rank' => 'SS', 'def_bonus' => 500]);
         $tuning = new EquipmentAffixPrefix(['target_stat' => 'all']);
 
-        $this->assertSame(732, app(EquipmentAffixRulesService::class)->prefixBonuses($item, $tuning, 5, 'normal', 30)['hp']);
+        // HPだけは、他性能の8倍化に対して4倍性能へ抑える。
+        $this->assertSame(366, app(EquipmentAffixRulesService::class)->prefixBonuses($item, $tuning, 5, 'normal', 30)['hp']);
+    }
+
+    public function test_hp_engraving_uses_the_fourfold_hp_scale_without_reducing_other_stats(): void
+    {
+        $item = new Item(['type' => 'weapon', 'weapon_rank' => 'EPIC', 'str_bonus' => 500]);
+        $life = new EquipmentAffixPrefix(['target_stat' => 'hp']);
+        $tuning = new EquipmentAffixPrefix(['target_stat' => 'all']);
+        $service = app(EquipmentAffixRulesService::class);
+
+        // 銘Vの値150から、生命は従来のHP+450ではなく4倍性能のHP+225。
+        $this->assertSame(['hp' => 225], $service->prefixBonuses($item, $life, 5, 'normal'));
+        $this->assertSame([
+            'hp' => 125,
+            'str' => 83,
+            'def' => 83,
+            'mag' => 83,
+            'spr' => 83,
+            'agi' => 83,
+            'luk' => 83,
+        ], $service->prefixBonuses($item, $tuning, 5, 'normal'));
     }
 }

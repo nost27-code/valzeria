@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-24-equipment-hp-fourfold',
+        'date' => '2026-07-24',
+        'category' => 'balance',
+        'title' => '装備によるHP上昇を調整',
+        'detail' => '武器・防具・装飾品のHP本体、強化、銘によるHP補正を4倍性能へ調整しました。攻撃・防御・魔力・精神などは8倍のままです。',
+    ],
+    [
         'id' => '2026-07-24-equipment-dependent-performance',
         'date' => '2026-07-24',
         'category' => 'balance',

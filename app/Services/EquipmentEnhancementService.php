@@ -274,17 +274,19 @@ class EquipmentEnhancementService
     private static function accessoryStatsWithEnhancement(array $baseStats, int $enhanceLevel, ?object $item = null): array
     {
         $performanceScaleFactor = self::accessoryPerformanceScaleFactor($item);
+        $hpScaleFactor = self::accessoryHpPerformanceScaleFactor($performanceScaleFactor);
         if ($performanceScaleFactor > 1) {
-            // 8倍化後の本体値から旧来の配分計算を行い、結果全体を8倍に戻す。
-            // これにより+値を含む各能力値も8倍化前のちょうど8倍を維持する。
-            $baseStats = array_map(
-                fn (int $value): int => intdiv($value, $performanceScaleFactor),
-                $baseStats,
-            );
+            // 現在の本体値から旧来の配分計算を行う。HPは4倍、他能力は8倍として戻す。
+            $baseStats = collect($baseStats)
+                ->map(fn (int $value, string $key): int => intdiv(
+                    $value,
+                    $key === 'hp' ? $hpScaleFactor : $performanceScaleFactor,
+                ))
+                ->all();
         }
 
         if ($baseStats === [] || $enhanceLevel <= 0) {
-            return self::scaleAccessoryStats($baseStats, $performanceScaleFactor);
+            return self::scaleAccessoryStats($baseStats, $performanceScaleFactor, $hpScaleFactor);
         }
 
         $level = min(self::MAX_EQUIPMENT_ENHANCE, $enhanceLevel);
@@ -292,7 +294,7 @@ class EquipmentEnhancementService
         $totalBase = array_sum($positiveStats);
 
         if ($totalBase <= 0) {
-            return self::scaleAccessoryStats($baseStats, $performanceScaleFactor);
+            return self::scaleAccessoryStats($baseStats, $performanceScaleFactor, $hpScaleFactor);
         }
 
         $extraTotal = self::accessoryExtraTotalForItem($totalBase, $positiveStats, $level, $item);
@@ -342,7 +344,7 @@ class EquipmentEnhancementService
             $stats[$key] = ($stats[$key] ?? 0) + $extra;
         }
 
-        return self::scaleAccessoryStats($stats, $performanceScaleFactor);
+        return self::scaleAccessoryStats($stats, $performanceScaleFactor, $hpScaleFactor);
     }
 
     private static function accessoryPerformanceScaleFactor(?object $item): int
@@ -357,14 +359,25 @@ class EquipmentEnhancementService
         return max(1, (int) config('equipment_scaling.accessory_performance_scale_factor', 8));
     }
 
-    /** @param array<string, int> $stats */
-    private static function scaleAccessoryStats(array $stats, int $factor): array
+    private static function accessoryHpPerformanceScaleFactor(int $performanceScaleFactor): int
     {
-        if ($factor <= 1) {
+        if ($performanceScaleFactor <= 1) {
+            return 1;
+        }
+
+        return max(1, (int) config('equipment_scaling.hp_performance_scale_factor', 4));
+    }
+
+    /** @param array<string, int> $stats */
+    private static function scaleAccessoryStats(array $stats, int $factor, int $hpFactor): array
+    {
+        if ($factor <= 1 && $hpFactor <= 1) {
             return $stats;
         }
 
-        return array_map(fn (int $value): int => $value * $factor, $stats);
+        return collect($stats)
+            ->map(fn (int $value, string $key): int => $value * ($key === 'hp' ? $hpFactor : $factor))
+            ->all();
     }
 
     private function candidateRow(CharacterItem $characterItem, array $materials, Character $character): array
