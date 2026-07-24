@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-24-equipment-dependent-performance',
+        'date' => '2026-07-24',
+        'category' => 'balance',
+        'title' => '武器・防具・装飾品の能力値を8倍化',
+        'detail' => '武器・防具・装飾品の本体、銘、強化による能力値を8倍化しました。防具の防御・精神は、8倍化前より被ダメージが増えない計算にしています。',
+    ],
+    [
         'id' => '2026-07-23-map-and-return-destinations',
         'date' => '2026-07-23',
         'category' => 'changed',
