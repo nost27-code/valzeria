@@ -195,7 +195,7 @@ class CharacterItem extends Model
         ];
     }
 
-    public function affixEffectLines(): array
+    public function affixEffectLines(float $effectRate = 1.0): array
     {
         $labels = [
             'hp' => 'HP',
@@ -209,12 +209,13 @@ class CharacterItem extends Model
 
         $lines = [];
         foreach ($this->affixStatBonuses() as $key => $value) {
+            $value = (int) floor($value * $effectRate);
             if ($value !== 0) {
                 $lines[] = $labels[$key] . ($value > 0 ? '+' : '') . $value;
             }
         }
 
-        return array_merge($lines, $this->slayerEffectLines());
+        return array_merge($lines, $this->slayerEffectLines($effectRate));
     }
 
     /**
@@ -244,17 +245,17 @@ class CharacterItem extends Model
      * 接尾辞の種族特攻・種族耐性。
      * @return list<string>
      */
-    public function slayerEffectLines(): array
+    public function slayerEffectLines(float $effectRate = 1.0): array
     {
         $lines = [];
 
-        $killerDamageRate = $this->effectiveKillerDamageRate();
+        $killerDamageRate = $this->effectiveKillerDamageRate() * $effectRate;
         if ($this->killer_species_key && $killerDamageRate > 0) {
             $speciesLabel = $this->speciesLabel((string) $this->killer_species_key);
             $lines[] = '種族が' . $speciesLabel . 'の敵への与ダメージ +' . $this->percentageLabel($killerDamageRate) . '%';
         }
 
-        $resistRate = $this->effectiveSpeciesDamageReductionRate();
+        $resistRate = $this->effectiveSpeciesDamageReductionRate() * $effectRate;
         if ($this->resist_species_key && $resistRate > 0) {
             $speciesLabel = $this->speciesLabel((string) $this->resist_species_key);
             $lines[] = '種族が' . $speciesLabel . 'の敵からの被ダメージ -' . $this->percentageLabel($resistRate) . '%';

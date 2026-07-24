@@ -1169,6 +1169,7 @@ class BattleController extends Controller
     private function battleEquipmentSummary(Character $character, string $enemySpeciesKey): array
     {
         $slotOrder = ['weapon' => 0, 'armor' => 1, 'accessory' => 2];
+        $permissionService = app(\App\Services\EquipmentPermissionService::class);
 
         return $character->characterItems()
             ->where('is_equipped', true)
@@ -1179,13 +1180,13 @@ class BattleController extends Controller
                 $slotOrder[$characterItem->item->type] ?? 99,
                 $characterItem->id,
             ])
-            ->map(function ($characterItem) use ($enemySpeciesKey): array {
-                $killerRate = $characterItem->effectiveKillerDamageRate();
+            ->map(function ($characterItem) use ($enemySpeciesKey, $character, $permissionService): array {
+                $killerRate = $permissionService->effectiveKillerDamageRate($character, $characterItem);
                 $isKillerActive = $characterItem->killer_species_key !== null
                     && $killerRate > 0
                     && $enemySpeciesKey !== ''
                     && $characterItem->killer_species_key === $enemySpeciesKey;
-                $resistRate = $characterItem->effectiveSpeciesDamageReductionRate();
+                $resistRate = $permissionService->effectiveSpeciesDamageReductionRate($character, $characterItem);
                 $isResistActive = $characterItem->resist_species_key !== null
                     && $resistRate > 0
                     && $enemySpeciesKey !== ''

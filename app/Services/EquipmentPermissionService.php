@@ -38,6 +38,19 @@ class EquipmentPermissionService
             return true;
         }
 
+        if ($this->isNonProficientPenaltyEnabled()) {
+            return true;
+        }
+
+        return $this->hasNativeProficiency($character, $item);
+    }
+
+    public function hasNativeProficiency(Character $character, Item $item): bool
+    {
+        if (!in_array($item->type, ['weapon', 'armor'], true)) {
+            return true;
+        }
+
         $category = $this->categoryKey($item);
         if (!$category || !$character->current_job_id) {
             return true;
@@ -59,6 +72,42 @@ class EquipmentPermissionService
             ->where('job_id', $character->current_job_id)
             ->where($column, $category)
             ->exists();
+    }
+
+    public function performanceRate(Character $character, Item $item): float
+    {
+        if (!$this->isNonProficientPenaltyEnabled() || $this->hasNativeProficiency($character, $item)) {
+            return 1.0;
+        }
+
+        $fallbackRate = (float) config('equipment_proficiency.non_proficient.effect_rate', 0.65);
+        $rate = $item->type === 'weapon'
+            ? (float) config("equipment_proficiency.non_proficient.weapon_effect_rates.{$item->weapon_category}", $fallbackRate)
+            : $fallbackRate;
+
+        return max(0.0, min(1.0, $rate));
+    }
+
+    public function hasPerformancePenalty(Character $character, Item $item): bool
+    {
+        return $this->performanceRate($character, $item) < 1.0;
+    }
+
+    public function effectiveKillerDamageRate(Character $character, \App\Models\CharacterItem $characterItem): float
+    {
+        return $characterItem->effectiveKillerDamageRate()
+            * $this->performanceRate($character, $characterItem->item);
+    }
+
+    public function effectiveSpeciesDamageReductionRate(Character $character, \App\Models\CharacterItem $characterItem): float
+    {
+        return $characterItem->effectiveSpeciesDamageReductionRate()
+            * $this->performanceRate($character, $characterItem->item);
+    }
+
+    public function isNonProficientPenaltyEnabled(): bool
+    {
+        return (bool) config('equipment_proficiency.non_proficient.enabled', false);
     }
 
     public function categoryKey(Item $item): ?string

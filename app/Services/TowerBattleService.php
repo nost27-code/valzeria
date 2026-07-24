@@ -491,6 +491,7 @@ class TowerBattleService extends BattleService
         $currentJob = $character->current_job_id
             ? $character->currentJob()->with('skill')->first()
             : null;
+        $permissionService = app(EquipmentPermissionService::class);
 
         $actor = new BattleActor($character->name, true, [
             'hp' => min((int) $run->tower_current_hp, (int) ($stats['max_hp'] ?? $run->tower_max_hp)),
@@ -505,9 +506,9 @@ class TowerBattleService extends BattleService
             'luk' => (int) ($stats['luk'] ?? 0),
             'normal_attack_type' => $currentJob?->normal_attack_type,
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
+            'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
-            'armor_species_damage_reduction_rate' => $equippedArmor?->effectiveSpeciesDamageReductionRate() ?? 0.0,
+            'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
         ], clone $character);
 
         if ($currentJob) {

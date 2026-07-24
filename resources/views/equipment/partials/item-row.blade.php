@@ -3,6 +3,8 @@
     $currentCharacter = $currentCharacter ?? $character ?? Auth::user()->currentCharacter();
     $categoryLabel = $permissionService->categoryLabel($ci->item);
     $canEquipByJob = !$currentCharacter || $permissionService->canEquip($currentCharacter, $ci->item);
+    $equipmentEffectRate = $currentCharacter ? $permissionService->performanceRate($currentCharacter, $ci->item) : 1.0;
+    $hasPerformancePenalty = $currentCharacter && $permissionService->hasPerformancePenalty($currentCharacter, $ci->item);
     $restrictionJobs = $canEquipByJob ? [] : $permissionService->representativeJobNames($ci->item);
     // ランクは rank-label で別表示するため、名称側には重ねない。
     $displayName = $ci->displayName(false);
@@ -16,24 +18,12 @@
         ? $favoriteWeaponService->displayBackgroundFor($ci->item, $ci->affix_quality)
         : null;
     $sellPrice = (int) ($ci->sell_price ?? 0);
-    $affixLines = $ci->affixEffectLines();
-    $affixBonuses = $ci->affixStatBonuses();
-    $isMarketListed = $ci->isMarketListed();
-    $enhancedStats = \App\Services\EquipmentEnhancementService::enhancedStatTotalsForItem(
-        $ci->item,
-        (int) ($ci->enhance_level ?? 0),
-    );
-    $totalStats = [
-        'hp' => (int) ($enhancedStats['hp'] ?? 0) + (int) ($affixBonuses['hp'] ?? 0),
-        'str' => (int) ($enhancedStats['str'] ?? 0) + (int) ($affixBonuses['str'] ?? 0),
-        'def' => (int) ($enhancedStats['def'] ?? 0) + (int) ($affixBonuses['def'] ?? 0),
-        'agi' => (int) ($enhancedStats['agi'] ?? 0) + (int) ($affixBonuses['agi'] ?? 0),
-        'mag' => (int) ($enhancedStats['mag'] ?? 0) + (int) ($affixBonuses['mag'] ?? 0),
-        'spr' => (int) ($enhancedStats['spr'] ?? 0) + (int) ($affixBonuses['spr'] ?? 0),
-        'luk' => (int) ($enhancedStats['luk'] ?? 0) + (int) ($affixBonuses['luk'] ?? 0),
-    ];
-
     $statusService = app(\App\Services\CharacterStatusService::class);
+    $affixLines = $ci->affixEffectLines($equipmentEffectRate);
+    $isMarketListed = $ci->isMarketListed();
+    $totalStats = $currentCharacter
+        ? $statusService->equipmentStatsFor($currentCharacter, $ci)
+        : \App\Services\EquipmentEnhancementService::enhancedStatTotalsForItem($ci->item, (int) ($ci->enhance_level ?? 0));
     $candidateEffective = $isWeapon && $currentCharacter
         ? $statusService->weaponEffectivePreview($currentCharacter, $ci)
         : ($isArmor && $currentCharacter
@@ -203,6 +193,12 @@
                 @if(!empty($restrictionJobs))
                     <span class="text-slate-400 font-medium">（例：{{ implode('、', $restrictionJobs) }}）</span>
                 @endif
+            </div>
+        @endif
+
+        @if($hasPerformancePenalty)
+            <div class="text-[11px] font-bold text-amber-700 leading-snug">
+                職業適性外：装備効果 {{ (int) round($equipmentEffectRate * 100) }}%
             </div>
         @endif
 

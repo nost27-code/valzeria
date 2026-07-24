@@ -122,7 +122,7 @@ class CharacterService
                 ->where($type === 'weapon' ? 'weapon_category' : 'armor_category', $category)
                 ->get();
 
-            $item = $items->first(fn (Item $item): bool => $permissionService->canEquip($character, $item))
+            $item = $items->first(fn (Item $item): bool => $permissionService->hasNativeProficiency($character, $item))
                 ?? $items->first();
 
             if ($item) {
@@ -132,7 +132,7 @@ class CharacterService
 
         $items = $this->starterItemQuery($type)->get();
 
-        return $items->first(fn (Item $item): bool => $permissionService->canEquip($character, $item))
+        return $items->first(fn (Item $item): bool => $permissionService->hasNativeProficiency($character, $item))
             ?? $items->first();
     }
 

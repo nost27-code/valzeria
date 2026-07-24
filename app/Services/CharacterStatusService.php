@@ -74,48 +74,28 @@ class CharacterStatusService
                     continue;
                 }
 
-                $enhanceLevel = (int) ($charItem->enhance_level ?? 0);
-                $enhancedStats = EquipmentEnhancementService::enhancedStatTotalsForItem($charItem->item, $enhanceLevel);
+                $equipmentStats = $this->equipmentStatsFor($character, $charItem);
 
-                $hp_equip += $enhancedStats['hp'] ?? 0;
-                $mp_equip += $enhancedStats['mp'] ?? 0;
+                $hp_equip += $equipmentStats['hp'] ?? 0;
+                $mp_equip += $equipmentStats['mp'] ?? 0;
                 $isWeapon = (string) ($charItem->item->type ?? '') === 'weapon';
                 $isArmor = (string) ($charItem->item->type ?? '') === 'armor';
                 if ($isWeapon) {
-                    $weaponStr += (int) ($enhancedStats['str'] ?? 0);
-                    $weaponMag += (int) ($enhancedStats['mag'] ?? 0);
+                    $weaponStr += (int) ($equipmentStats['str'] ?? 0);
+                    $weaponMag += (int) ($equipmentStats['mag'] ?? 0);
                 } else {
-                    $atk_equip += (int) ($enhancedStats['str'] ?? 0);
-                    $mag_equip += (int) ($enhancedStats['mag'] ?? 0);
+                    $atk_equip += (int) ($equipmentStats['str'] ?? 0);
+                    $mag_equip += (int) ($equipmentStats['mag'] ?? 0);
                 }
                 if ($isArmor) {
-                    $armorDef += (int) ($enhancedStats['def'] ?? 0);
-                    $armorSpr += (int) ($enhancedStats['spr'] ?? 0);
+                    $armorDef += (int) ($equipmentStats['def'] ?? 0);
+                    $armorSpr += (int) ($equipmentStats['spr'] ?? 0);
                 } else {
-                    $def_equip += (int) ($enhancedStats['def'] ?? 0);
-                    $spr_equip += (int) ($enhancedStats['spr'] ?? 0);
+                    $def_equip += (int) ($equipmentStats['def'] ?? 0);
+                    $spr_equip += (int) ($equipmentStats['spr'] ?? 0);
                 }
-                $spd_equip += $enhancedStats['agi'] ?? 0;
-                $luk_equip += $enhancedStats['luk'] ?? 0;
-
-                $affixBonuses = $charItem->affixStatBonuses();
-                $hp_equip += (int) ($affixBonuses['hp'] ?? 0);
-                if ($isWeapon) {
-                    $weaponStr += (int) ($affixBonuses['str'] ?? 0);
-                    $weaponMag += (int) ($affixBonuses['mag'] ?? 0);
-                } else {
-                    $atk_equip += (int) ($affixBonuses['str'] ?? 0);
-                    $mag_equip += (int) ($affixBonuses['mag'] ?? 0);
-                }
-                if ($isArmor) {
-                    $armorDef += (int) ($affixBonuses['def'] ?? 0);
-                    $armorSpr += (int) ($affixBonuses['spr'] ?? 0);
-                } else {
-                    $def_equip += (int) ($affixBonuses['def'] ?? 0);
-                    $spr_equip += (int) ($affixBonuses['spr'] ?? 0);
-                }
-                $spd_equip += (int) ($affixBonuses['agi'] ?? 0);
-                $luk_equip += (int) ($affixBonuses['luk'] ?? 0);
+                $spd_equip += $equipmentStats['agi'] ?? 0;
+                $luk_equip += $equipmentStats['luk'] ?? 0;
             }
         }
 
@@ -166,19 +146,18 @@ class CharacterStatusService
     }
 
     /** @return array{str: int, mag: int} */
-    public function weaponOffenseFor(CharacterItem $characterItem): array
+    public function weaponOffenseFor(Character $character, CharacterItem $characterItem): array
     {
         $item = $characterItem->item;
         if (! $item || (string) $item->type !== 'weapon') {
             return ['str' => 0, 'mag' => 0];
         }
 
-        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem($item, (int) ($characterItem->enhance_level ?? 0));
-        $affix = $characterItem->affixStatBonuses();
+        $stats = $this->equipmentStatsFor($character, $characterItem);
 
         return [
-            'str' => (int) ($enhanced['str'] ?? 0) + (int) ($affix['str'] ?? 0),
-            'mag' => (int) ($enhanced['mag'] ?? 0) + (int) ($affix['mag'] ?? 0),
+            'str' => (int) ($stats['str'] ?? 0),
+            'mag' => (int) ($stats['mag'] ?? 0),
         ];
     }
 
@@ -187,7 +166,7 @@ class CharacterStatusService
     {
         $stats = $this->getFinalStats($character);
         $base = $stats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
-        $weapon = $this->weaponOffenseFor($characterItem);
+        $weapon = $this->weaponOffenseFor($character, $characterItem);
         $calculator = app(WeaponOffenseCalculator::class);
 
         return [
@@ -197,19 +176,18 @@ class CharacterStatusService
     }
 
     /** @return array{def: int, spr: int} */
-    public function armorDefenseFor(CharacterItem $characterItem): array
+    public function armorDefenseFor(Character $character, CharacterItem $characterItem): array
     {
         $item = $characterItem->item;
         if (! $item || (string) $item->type !== 'armor') {
             return ['def' => 0, 'spr' => 0];
         }
 
-        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem($item, (int) ($characterItem->enhance_level ?? 0));
-        $affix = $characterItem->affixStatBonuses();
+        $stats = $this->equipmentStatsFor($character, $characterItem);
 
         return [
-            'def' => (int) ($enhanced['def'] ?? 0) + (int) ($affix['def'] ?? 0),
-            'spr' => (int) ($enhanced['spr'] ?? 0) + (int) ($affix['spr'] ?? 0),
+            'def' => (int) ($stats['def'] ?? 0),
+            'spr' => (int) ($stats['spr'] ?? 0),
         ];
     }
 
@@ -218,7 +196,7 @@ class CharacterStatusService
     {
         $stats = $this->getFinalStats($character);
         $base = $stats['armor_base'] ?? ['def' => 0, 'spr' => 0];
-        $armor = $this->armorDefenseFor($characterItem);
+        $armor = $this->armorDefenseFor($character, $characterItem);
         $calculator = app(WeaponOffenseCalculator::class);
 
         return [
@@ -237,6 +215,37 @@ class CharacterStatusService
         $scaledArmorBonus = $calculator->calculateProportionalBonus($base, $armor);
 
         return $base + max($legacyArmorBonus, $scaledArmorBonus);
+    }
+
+    /** @return array<string, int> */
+    public function equipmentStatsFor(Character $character, CharacterItem $characterItem): array
+    {
+        $item = $characterItem->item;
+        if (! $item) {
+            return [];
+        }
+
+        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem(
+            $item,
+            (int) ($characterItem->enhance_level ?? 0),
+        );
+        $affix = $characterItem->affixStatBonuses();
+        $stats = [];
+
+        foreach (array_unique(array_merge(array_keys($enhanced), array_keys($affix))) as $key) {
+            $stats[$key] = (int) ($enhanced[$key] ?? 0) + (int) ($affix[$key] ?? 0);
+        }
+
+        $rate = app(EquipmentPermissionService::class)->performanceRate($character, $item);
+        if ($rate >= 1.0) {
+            return $stats;
+        }
+
+        foreach ($stats as $key => $value) {
+            $stats[$key] = (int) floor($value * $rate);
+        }
+
+        return $stats;
     }
 
     public static function clearRequestCache(int $characterId): void

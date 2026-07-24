@@ -59,6 +59,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - Logging: battle_logs, player_lifecycle_events, gold_transactions, kiseki_transactions, admin_item_grant_logs, public_logs (bottom chat), admin analytics screens
 - Battle: server-side auto turn-based; PRG pattern (redirect after POST); 3s cooldown via last_battle_at
 - Player equipment performance: weapon, armor, and accessory fixed stats and legacy stored affix stats are migration-scaled once to version 2 (×8), except HP is corrected to ×4. Dynamically calculated engraving HP also uses the ×4 scale (rounding up), while its other stats remain ×8. Weapon STR/MAG use `round(B × (0.80 + W / 2400))`; armor DEF/SPR use `B + max(floor(W / 8), round(B × W / 2400))`, so they never fall below the pre-scale direct addition. Accessories add their fixed values directly; their non-HP enhancement result is kept at exactly ×8.
+- Equipment proficiency penalty: `EQUIPMENT_PROFICIENCY_PENALTY_ENABLED=false` keeps the existing strict weapon/armor restrictions. When enabled, non-proficient weapons remain equippable at a category rate for base performance, + enhancement, engravings, and species killer damage (拳甲・刀85%、弓・斧・短剣75%、槍70%、剣・銃・杖・魔導具65%). Non-proficient armor uses `EQUIPMENT_NON_PROFICIENT_EFFECT_RATE` (default 65%) for base performance, + enhancement, engravings, and species resistance.
 
 ## Important invariants
 

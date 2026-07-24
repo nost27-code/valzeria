@@ -57,6 +57,7 @@ class BattleService
             ->whereHas('item', fn ($query) => $query->where('type', 'armor'))
             ->with('item')
             ->first();
+        $permissionService = app(EquipmentPermissionService::class);
         $playerActor = new BattleActor($character->name, true, [
             'hp' => $character->current_hp,
             'max_hp' => $stats['max_hp'],
@@ -70,9 +71,9 @@ class BattleService
             'luk' => $stats['luk'],
             'normal_attack_type' => $currentJob?->normal_attack_type,
             'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => $equippedWeapon?->effectiveKillerDamageRate() ?? 0.0,
+            'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
-            'armor_species_damage_reduction_rate' => $equippedArmor?->effectiveSpeciesDamageReductionRate() ?? 0.0,
+            'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
         ], clone $character);
 
         // プレイヤーの職業技をセット
