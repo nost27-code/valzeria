@@ -19,22 +19,28 @@
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 class="font-black text-slate-900">手元の探索地図</h2>
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="font-black text-slate-900">手元の探索地図</h2>
+                <p class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-900">公開枠 {{ $activePublicationCount }} / {{ $activePublicationLimit }}件</p>
+            </div>
+            <p class="mt-2 text-xs font-bold text-slate-600">公開中の地図は詳細画面から取り下げると、すぐに公開枠が空きます。</p>
             <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 @forelse($ownedMaps as $map)
                     @php
                         $dungeonTypeLabel = $dungeonTypeLabels[$map->dungeon_type] ?? $map->dungeon_type;
                         $surveyCost = $surveyCosts[$map->map_grade] ?? $surveyCosts['normal'];
                         $registration = $map->registration;
-                        $isEnded = $registration?->isPublished() && !$registration->isOpen();
-                        $status = $isEnded
-                            ? '終了'
-                            : (['uninvestigated'=>'未調査','surveying'=>'調査中','surveyed'=>'調査完了','published'=>'公開中'][$map->status] ?? $map->status);
+                        $isEnded = ($registration?->isPublished() || $registration?->isWithdrawn()) && !$registration->isOpen();
+                        $status = $registration?->isWithdrawn()
+                            ? '取り下げ済み'
+                            : ($isEnded
+                                ? '終了'
+                                : (['uninvestigated'=>'未調査','surveying'=>'調査中','surveyed'=>'調査完了','published'=>'公開中'][$map->status] ?? $map->status));
                     @endphp
                     <div class="relative overflow-hidden rounded-lg border p-3 {{ $isEnded ? 'border-slate-300 bg-slate-100 opacity-75 grayscale' : 'border-slate-200 bg-white' }}">
                         @if($isEnded)
                             <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-                                <span class="-rotate-12 rounded border-4 border-slate-500 px-4 py-1 text-2xl font-black tracking-[0.3em] text-slate-600">終了</span>
+                                <span class="-rotate-12 rounded border-4 border-slate-500 px-4 py-1 text-2xl font-black tracking-[0.2em] text-slate-600">{{ $registration?->isWithdrawn() ? '取り下げ' : '終了' }}</span>
                             </div>
                         @endif
                         <div class="flex items-center justify-between gap-3">

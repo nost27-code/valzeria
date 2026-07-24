@@ -149,6 +149,55 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertFalse($registration->isRecentlyClosed());
     }
 
+    public function test_owner_can_withdraw_a_published_map_to_free_a_publication_slot(): void
+    {
+        $city = City::findOrFail(1);
+        $area = Area::create(['name' => '公開枠試験地', 'slug' => 'map-publication-slot-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
+        $enemy = Enemy::create(['name' => '公開枠試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $owner = Character::create(['user_id' => User::factory()->create()->id, 'name' => '公開枠地図師', 'hp_base' => 100, 'current_hp' => 100, 'money' => 100000]);
+        $generator = app(ExplorationMapGenerator::class);
+        $survey = app(MapSurveyService::class);
+        $publication = app(MapPublicationService::class);
+        $registrations = [];
+
+        foreach (range(1, 3) as $index) {
+            $map = $generator->generate($owner, $area, $enemy, sprintf('00000000-0000-4000-8000-%012d', 4000 + $index));
+            $registrations[] = $publication->publish($owner, $survey->start($owner, $map, $city), 0);
+        }
+
+        $pendingMap = $generator->generate($owner, $area, $enemy, '00000000-0000-4000-8000-000000004004');
+        $pendingRegistration = $survey->start($owner, $pendingMap, $city);
+
+        try {
+            $publication->publish($owner, $pendingRegistration, 0);
+            $this->fail('公開枠の上限を超える公開は拒否される必要があります。');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('公開中の地図は3件までです。不要な地図は詳細画面から公開を取り下げられます。', $exception->getMessage());
+        }
+
+        $withdrawn = $registrations[0];
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($owner->user)
+            ->withSession(['current_character_id' => $owner->id])
+            ->post(route('exploration-maps.withdraw', $withdrawn))
+            ->assertRedirect(route('exploration-maps.show', $withdrawn));
+
+        $this->assertSame('withdrawn', $withdrawn->fresh()->status);
+        $this->assertSame('withdrawn', $withdrawn->map->fresh()->status);
+        $this->assertFalse($withdrawn->fresh()->isOpen());
+        $this->assertSame(2, $publication->activePublicationCount($owner));
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($owner->user)
+            ->withSession(['current_character_id' => $owner->id])
+            ->get(route('exploration-maps.index'))
+            ->assertOk()
+            ->assertSee('公開枠 2 / 3件');
+
+        $this->assertTrue($publication->publish($owner, $pendingRegistration, 0)->isOpen());
+        $this->assertSame(3, $publication->activePublicationCount($owner));
+    }
+
     public function test_processing_map_exploration_batch_cannot_be_executed_again(): void
     {
         $city = City::findOrFail(1);

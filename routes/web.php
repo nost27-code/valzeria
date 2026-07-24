@@ -252,6 +252,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/exploration-maps/{map}/discard', [\App\Http\Controllers\ExplorationMapController::class, 'discard'])->name('exploration-maps.discard');
         Route::post('/exploration-maps/registrations/{registration}/survey/complete', [\App\Http\Controllers\ExplorationMapController::class, 'completeSurvey'])->name('exploration-maps.survey.complete');
         Route::post('/exploration-maps/registrations/{registration}/publish', [\App\Http\Controllers\ExplorationMapController::class, 'publish'])->name('exploration-maps.publish');
+        Route::post('/exploration-maps/registrations/{registration}/withdraw', [\App\Http\Controllers\ExplorationMapController::class, 'withdraw'])->name('exploration-maps.withdraw');
         Route::post('/exploration-maps/registrations/{registration}/explore', [\App\Http\Controllers\ExplorationMapController::class, 'explore'])->name('exploration-maps.explore');
         Route::get('/map-explorations/batches/{uuid}/result', [\App\Http\Controllers\ExplorationMapController::class, 'result'])->name('exploration-maps.result');
         Route::get('/region-depth-dungeons/{dungeonKey}', [\App\Http\Controllers\RegionDepthDungeonController::class, 'show'])->name('region-depth-dungeons.show');

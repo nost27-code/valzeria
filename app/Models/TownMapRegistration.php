@@ -11,9 +11,11 @@ class TownMapRegistration extends Model
     public function map() { return $this->belongsTo(ExplorationMap::class, 'map_id'); }
     public function town() { return $this->belongsTo(City::class, 'town_id'); }
     public function isPublished(): bool { return $this->status === 'published' && $this->published_at !== null; }
+    public function isWithdrawn(): bool { return $this->status === 'withdrawn'; }
     public function isOpen(): bool { return $this->isPublished() && $this->remaining_explorations > 0 && $this->expires_at?->isFuture(); }
     public function closedAt(): mixed
     {
+        if ($this->isWithdrawn()) return $this->updated_at;
         if (!$this->isPublished() || $this->isOpen()) return null;
 
         return $this->remaining_explorations <= 0 ? $this->updated_at : $this->expires_at;

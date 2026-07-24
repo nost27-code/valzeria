@@ -13,6 +13,7 @@
                 <div>状態：{{ match ($registration->status) {
                     'surveying' => '遠征調査中',
                     'surveyed' => '調査完了（公開待ち）',
+                    'withdrawn' => '取り下げ済み',
                     default => $registration->isOpen() ? '公開中' : '終了',
                 } }}</div>
             </div>
@@ -68,6 +69,7 @@
                         <fieldset>
                             <legend class="font-black text-indigo-950">入場料を設定して公開する</legend>
                             <p class="mt-1 text-xs font-bold text-indigo-800">街から地図へ入るときの入場料を選んでください。入場中は×10探索を何度繰り返しても追加ではかかりません。街へ戻って入り直すと、もう一度入場料がかかります。公開後は変更できません。</p>
+                            <p class="mt-2 rounded-md border border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-950">公開枠：{{ $activePublicationCount }} / {{ $activePublicationLimit }}件 @if($activePublicationCount >= $activePublicationLimit) <span class="text-rose-700">（上限です。公開中の地図を取り下げると公開できます）</span> @endif</p>
                             <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                                 @foreach($feeOptions as $option)
                                     <button type="button" @click="fee = {{ $option['fee'] }}" :class="fee === {{ $option['fee'] }} ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-indigo-200 bg-white text-indigo-950'" class="rounded-lg border px-3 py-3 text-center text-sm font-black">
@@ -78,7 +80,7 @@
                             </div>
                         <p class="mt-3 text-sm font-black text-indigo-950">設定中：<span x-text="Number(fee).toLocaleString()"></span>G / 1入場</p>
                         </fieldset>
-                        <button class="mt-4 w-full rounded-lg bg-indigo-700 px-4 py-3 text-sm font-black text-white hover:bg-indigo-800">この入場料で公開する</button>
+                        <button @disabled($activePublicationCount >= $activePublicationLimit) class="mt-4 w-full rounded-lg bg-indigo-700 px-4 py-3 text-sm font-black text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-400">この入場料で公開する</button>
                     </form>
                 </section>
             @endif
@@ -98,6 +100,12 @@
                         @endforeach
                     </div>
                 </section>
+                @if($owner)
+                    <form method="POST" action="{{ route('exploration-maps.withdraw', $registration) }}" class="mt-3" onsubmit="return confirm('公開を取り下げますか？新しい入場はできなくなり、再公開もできません。すでに開始された探索と確定済みの収益履歴は残ります。');">
+                        @csrf
+                        <button type="submit" class="w-full rounded border border-rose-300 bg-white px-4 py-3 text-sm font-black text-rose-700 hover:bg-rose-50">この地図の公開を取り下げる</button>
+                    </form>
+                @endif
             @endif
         @endif
     </div>

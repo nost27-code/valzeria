@@ -31,13 +31,21 @@ class ExplorationMapController extends Controller
             ->filter(function (ExplorationMap $map): bool {
                 $registration = $map->registration;
 
-                return !$registration?->isPublished() || $registration->isOpen() || $registration->isRecentlyClosed();
+                return $registration === null || $registration->isOpen() || $registration->isRecentlyClosed() || in_array($map->status, ['uninvestigated', 'surveying', 'surveyed'], true);
             })
             ->values();
         $towns = City::whereBetween('id', [1, 10])->orderBy('id')->get();
         $surveyCosts = app(MapSurveyService::class)->costs();
+        $publicationService = app(MapPublicationService::class);
 
-        return view('exploration-maps.index', ['character' => $character, 'ownedMaps' => $ownedMaps, 'towns' => $towns, 'surveyCosts' => $surveyCosts]);
+        return view('exploration-maps.index', [
+            'character' => $character,
+            'ownedMaps' => $ownedMaps,
+            'towns' => $towns,
+            'surveyCosts' => $surveyCosts,
+            'activePublicationCount' => $publicationService->activePublicationCount($character),
+            'activePublicationLimit' => $publicationService->activePublicationLimit(),
+        ]);
     }
     public function published()
     {
@@ -116,7 +124,16 @@ class ExplorationMapController extends Controller
         abort_if($registration->map->status === 'discarded', 404);
         abort_unless($registration->isOpen() || $registration->map->owner_character_id === $this->character()->id, 404);
         $publicationService = app(MapPublicationService::class);
-        return view('exploration-maps.show', ['registration' => $registration, 'character' => $this->character(), 'recommendedFee' => $publicationService->recommendedFee($registration), 'feeOptions' => $publicationService->feeOptions($registration), 'mapDetails' => app(ExplorationMapDisplayService::class)->details($registration->map)]);
+        $character = $this->character();
+        return view('exploration-maps.show', [
+            'registration' => $registration,
+            'character' => $character,
+            'recommendedFee' => $publicationService->recommendedFee($registration),
+            'feeOptions' => $publicationService->feeOptions($registration),
+            'mapDetails' => app(ExplorationMapDisplayService::class)->details($registration->map),
+            'activePublicationCount' => $publicationService->activePublicationCount($character),
+            'activePublicationLimit' => $publicationService->activePublicationLimit(),
+        ]);
     }
     public function startSurvey(Request $request, ExplorationMap $map)
     {
@@ -144,6 +161,15 @@ class ExplorationMapController extends Controller
     {
         $request->validate(['entry_fee' => ['required', 'integer', 'min:0']]);
         try { app(MapPublicationService::class)->publish($this->character(), $registration, $request->integer('entry_fee')); return redirect()->route('exploration-maps.show', $registration)->with('message', '地図を公開した。冒険者たちへ知らせが流れた！'); }
+        catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
+    }
+    public function withdraw(TownMapRegistration $registration)
+    {
+        try {
+            app(MapPublicationService::class)->withdraw($this->character(), $registration);
+
+            return redirect()->route('exploration-maps.show', $registration)->with('message', '公開を取り下げた。新しい入場は受け付けない。');
+        }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
     }
     public function explore(Request $request, TownMapRegistration $registration)

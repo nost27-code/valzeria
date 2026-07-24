@@ -10,6 +10,21 @@ class MapPublicationService
 {
     public function __construct(private readonly ExplorationMapDifficultyService $difficulty) {}
 
+    public function activePublicationLimit(): int
+    {
+        return max(1, (int) config('exploration_maps.max_active_publications_per_owner', 3));
+    }
+
+    public function activePublicationCount(Character $character): int
+    {
+        return TownMapRegistration::query()
+            ->where('status', 'published')
+            ->where('remaining_explorations', '>', 0)
+            ->where('expires_at', '>', now())
+            ->whereHas('map', fn ($query) => $query->where('owner_character_id', $character->id))
+            ->count();
+    }
+
     public function maxFee(TownMapRegistration $registration): int
     {
         $value = max(1, (int) $registration->map->map_level) * (int) config('exploration_maps.entry_fee.expected_value_per_level');
@@ -47,21 +62,33 @@ class MapPublicationService
             if ($registration->map->owner_character_id !== $character->id || $registration->status !== 'surveyed') throw new \RuntimeException('この地図は公開できません。');
             if ($fee < 0 || $fee > $this->maxFee($registration)) throw new \RuntimeException('入場料が設定可能な上限を超えています。');
 
-            $activePublicationCount = TownMapRegistration::query()
-                ->where('status', 'published')
-                ->where('remaining_explorations', '>', 0)
-                ->where('expires_at', '>', now())
-                ->whereHas('map', fn ($query) => $query->where('owner_character_id', $character->id))
-                ->count();
-            $activePublicationLimit = max(1, (int) config('exploration_maps.max_active_publications_per_owner', 3));
+            $activePublicationCount = $this->activePublicationCount($character);
+            $activePublicationLimit = $this->activePublicationLimit();
             if ($activePublicationCount >= $activePublicationLimit) {
-                throw new \RuntimeException("公開中の地図は{$activePublicationLimit}件までです。終了を待ってから公開してください。");
+                throw new \RuntimeException("公開中の地図は{$activePublicationLimit}件までです。不要な地図は詳細画面から公開を取り下げられます。");
             }
 
             $explorationLimit = max(1, (int) $registration->exploration_limit, (int) $registration->map->exploration_limit);
             $registration->update(['entry_fee_per_exploration' => $fee, 'entry_fee_changed_at' => now(), 'published_at' => now(), 'expires_at' => now()->addHours((int) config('exploration_maps.public_hours')), 'remaining_explorations' => $explorationLimit, 'consumed_explorations' => 0, 'status' => 'published']);
             $registration->map->update(['status' => 'published']);
             app(PublicLogService::class)->addMapPublishedLog($registration->map, $registration);
+            return $registration->fresh(['map.owner', 'town']);
+        });
+    }
+
+    public function withdraw(Character $character, TownMapRegistration $registration): TownMapRegistration
+    {
+        return DB::transaction(function () use ($character, $registration) {
+            $character = Character::lockForUpdate()->findOrFail($character->id);
+            $registration = TownMapRegistration::with(['map.owner', 'town'])->lockForUpdate()->findOrFail($registration->id);
+
+            if ($registration->map->owner_character_id !== $character->id || !$registration->isOpen()) {
+                throw new \RuntimeException('この地図は公開を取り下げられません。');
+            }
+
+            $registration->update(['status' => 'withdrawn']);
+            $registration->map->update(['status' => 'withdrawn']);
+
             return $registration->fresh(['map.owner', 'town']);
         });
     }

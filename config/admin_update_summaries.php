@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-24-map-publication-withdrawal',
+        'date' => '2026-07-24',
+        'category' => 'changed',
+        'title' => '公開地図を取り下げ可能に',
+        'detail' => '地図院で自分の公開枠を確認でき、公開中の地図を取り下げて新しい地図の公開枠をすぐに空けられるようにしました。',
+    ],
+    [
         'id' => '2026-07-24-equipment-hp-fourfold',
         'date' => '2026-07-24',
         'category' => 'balance',
