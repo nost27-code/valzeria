@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-map-batch-stop-and-stamina-fix',
+        'date' => '2026-07-25',
+        'category' => 'fixed',
+        'title' => '地図10回探索の停止処理を修正',
+        'detail' => '公開地図の10回探索は、最初の敗北・時間切れ敗北で停止してロストを1回だけ適用します。探索力が10未満の場合は、残量分の探索報酬を受け取って停止するようにしました。',
+    ],
+    [
         'id' => '2026-07-24-map-publication-withdrawal',
         'date' => '2026-07-24',
         'category' => 'changed',

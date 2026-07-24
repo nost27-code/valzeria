@@ -60,14 +60,26 @@ class MapExplorationBatchService
             $root = $this->seeds->decrypt($map->seed_encrypted);
             $battleResult = null;
             $runResults = [];
+            $stopReason = null;
+            $stamina = app(ExplorationStaminaService::class);
             for ($index = $batch->first_exploration_index; $index <= $batch->last_exploration_index; $index++) {
                 if (MapExplorationResult::where('map_id', $map->id)->where('global_exploration_index', $index)->exists()) continue;
                 $character->refresh();
                 if ($character->current_hp <= 0) break;
+                if ($stamina->enabled()) {
+                    $staminaSummary = $stamina->summary($character);
+                    if ((int) ($staminaSummary['current'] ?? 0) < (int) ($staminaSummary['cost'] ?? 1)) {
+                        $stopReason = 'stamina_empty';
+                        break;
+                    }
+                }
                 $battleResult = $this->executeOne($character, $batch, $map, $root, $index);
                 $runResults[] = $battleResult;
                 $batch->increment('executed_count');
-                if (!in_array($battleResult['result'] ?? null, ['victory', 'win'], true)) break;
+                if (!in_array($battleResult['result'] ?? null, ['victory', 'win'], true)) {
+                    $stopReason = ($battleResult['result'] ?? null) === 'timeout' ? 'timeout' : 'defeat';
+                    break;
+                }
             }
             $batch->refresh();
             $unexecuted = $batch->reserved_count - $batch->executed_count;
@@ -80,7 +92,12 @@ class MapExplorationBatchService
 
             return [
                 'batch' => $completedBatch,
-                'battle_result' => $this->presentBattleResult($completedBatch, $battleResult ?? $this->savedBattleResult($completedBatch), $runResults),
+                'battle_result' => $this->presentBattleResult(
+                    $completedBatch,
+                    $battleResult ?? $this->savedBattleResult($completedBatch),
+                    $runResults,
+                    $stopReason,
+                ),
             ];
         });
     }
@@ -234,7 +251,7 @@ class MapExplorationBatchService
      * @param array<string, mixed> $lastResult
      * @return array<string, mixed>
      */
-    private function presentBattleResult(MapExplorationBatch $batch, array $lastResult, array $runs): array
+    private function presentBattleResult(MapExplorationBatch $batch, array $lastResult, array $runs, ?string $stopReason = null): array
     {
         if ((int) $batch->requested_count <= 1) {
             return $lastResult;
@@ -289,7 +306,7 @@ class MapExplorationBatchService
 
         $completed = count($runs);
         $lastOutcome = (string) ($lastResult['result'] ?? '');
-        $stopReason = in_array($lastOutcome, ['victory', 'win'], true)
+        $stopReason ??= in_array($lastOutcome, ['victory', 'win'], true)
             ? 'completed'
             : ($lastOutcome === 'timeout' ? 'timeout' : 'defeat');
         $stoppedRun = $displayRuns[array_key_last($displayRuns)] ?? [];
@@ -304,6 +321,7 @@ class MapExplorationBatchService
                 (int) ($stoppedRun['index'] ?? $completed),
                 (string) ($stoppedRun['enemy_name'] ?? '敵'),
             ),
+            'stamina_empty' => '探索力が尽きたため、途中で探索を止めました。回復後にまた探索できます。',
             default => $completed < (int) $batch->requested_count
                 ? '探索可能回数が尽きたため、途中で探索を止めました。'
                 : '',
@@ -330,7 +348,7 @@ class MapExplorationBatchService
             'total_gold' => $totalGold,
             'total_job_exp' => $totalJobExp,
             'total_kiseki' => 0,
-            'defeat_loss' => $stopReason === 'defeat' ? $this->defeatLossSummary($lastResult) : null,
+            'defeat_loss' => in_array($stopReason, ['defeat', 'timeout'], true) ? $this->defeatLossSummary($lastResult) : null,
             'runs' => $displayRuns,
         ];
 
