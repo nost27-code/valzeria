@@ -94,7 +94,12 @@
                         const searchText = this.normalizeEquipmentText(element.dataset.equipmentSearch);
 
                         return (!query || searchText.includes(query))
-                            && (this.equipmentStatus === 'all' || element.dataset.equipmentStatus === this.equipmentStatus)
+                            && (
+                                this.equipmentStatus === 'all'
+                                || (this.equipmentStatus === 'equipped' && element.dataset.equipmentEquipped === '1')
+                                || (this.equipmentStatus === 'locked' && element.dataset.equipmentLocked === '1')
+                                || (this.equipmentStatus === 'ready' && element.dataset.equipmentEquipped === '0' && element.dataset.equipmentLocked === '0')
+                            )
                             && (this.equipmentQuality === 'all' || element.dataset.equipmentQuality === this.equipmentQuality)
                             && (
                                 this.equipmentTrait === 'all'
@@ -724,15 +729,11 @@
                                                 ?? ($type === 'weapon' ? 'images/icon/icon_006.webp' : ($type === 'armor' ? 'images/icon/icon_007.webp' : 'images/icon/icon_008.webp'));
                                             $sellPrice = (int) ($characterItem->sell_price ?? 0);
                                             $canSellEquipment = (bool) ($characterItem->can_sell ?? false);
-                                            $sellDisabledTitle = $characterItem->is_equipped
-                                                ? '装備中は売却できません'
-                                                : ($characterItem->is_locked ? '保護中は売却できません' : '売却できません');
                                             $equipmentRankSort = match ($type) {
                                                 'weapon' => (int) ($item?->weapon_rank_sort ?? 0),
                                                 'armor' => (int) ($item?->armor_rank_sort ?? 0),
                                                 default => (int) ($item?->accessory_rank_sort ?? 0),
                                             };
-                                            $equipmentStatus = $characterItem->is_equipped ? 'equipped' : ($characterItem->is_locked ? 'locked' : 'ready');
                                             $equipmentQuality = (string) ($characterItem->affix_quality ?: 'normal');
                                             $equipmentQualitySort = match ($equipmentQuality) {
                                                 'excellent' => 2,
@@ -764,10 +765,20 @@
                                         @endphp
                                         <div
                                             class="bg-white border border-slate-200 rounded p-4 shadow-sm flex items-start"
+                                            x-data="equipmentWarehouseCard({
+                                                id: {{ (int) $characterItem->id }},
+                                                locked: @js((bool) $characterItem->is_locked),
+                                                equipped: @js((bool) $characterItem->is_equipped),
+                                                canSell: @js($canSellEquipment),
+                                                canToggleLock: @js(!$characterItem->isMarketListed()),
+                                                lockUrl: @js(route('equipment.lock', $characterItem)),
+                                                csrfToken: @js(csrf_token())
+                                            })"
                                             data-equipment-card
                                             data-equipment-name="{{ $characterItem->displayName() }}"
                                             data-equipment-search="{{ $equipmentSearchText }}"
-                                            data-equipment-status="{{ $equipmentStatus }}"
+                                            :data-equipment-equipped="equipped ? '1' : '0'"
+                                            :data-equipment-locked="locked ? '1' : '0'"
                                             data-equipment-quality="{{ $equipmentQuality }}"
                                             data-equipment-quality-sort="{{ $equipmentQualitySort }}"
                                             data-equipment-has-prefix="{{ $characterItem->affix_prefix_id ? 1 : 0 }}"
@@ -778,17 +789,21 @@
                                             data-equipment-rank="{{ $equipmentRankSort }}"
                                             data-equipment-price="{{ $sellPrice }}"
                                             data-equipment-created-at="{{ (int) ($characterItem->created_at?->getTimestamp() ?? 0) }}"
-                                            x-show="matchesEquipment($el)"
+                                            x-show="matchesEquipment($el, locked)"
                                             x-transition
                                         >
                                             <div class="mr-3 shrink-0">
-                                                <label class="flex h-8 w-8 items-center justify-center rounded border {{ $canSellEquipment ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-300' }}" title="{{ $canSellEquipment ? 'まとめ売りに選択' : $sellDisabledTitle }}">
+                                                <label
+                                                    class="flex h-8 w-8 items-center justify-center rounded border"
+                                                    :class="canSell ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-300'"
+                                                    :title="canSell ? 'まとめ売りに選択' : saleDisabledTitle()">
                                                     <input
                                                         type="checkbox"
+                                                        x-ref="saleCheckbox"
                                                         data-equipment-sale-checkbox
                                                         class="h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500 disabled:cursor-not-allowed"
-                                                        @disabled(!$canSellEquipment)
-                                                        @change="$store.equipSales.activeTab = @js($type); $store.equipSales.toggle({{ $characterItem->id }}, $event.target.checked, @js(route('equipment.sell', $characterItem)), {{ $sellPrice }}, @js($characterItem->displayName()))"
+                                                        :disabled="!canSell"
+                                                        @change="$store.equipSales.activeTab = @js($type); $store.equipSales.toggle({{ $characterItem->id }}, $event.target.checked, {{ $sellPrice }}, @js($characterItem->displayName()))"
                                                     >
                                                 </label>
                                             </div>
@@ -800,14 +815,9 @@
                                                 <div class="text-xs text-slate-500">
                                                     Rank {{ $rankLabel($item) }} / {{ $item?->sub_type ?? $typeMeta[$type]['title'] }}
                                                 </div>
-                                                <div class="text-xs font-bold {{ $characterItem->is_equipped ? 'text-amber-700' : 'text-emerald-700' }}">
-                                                    @if($characterItem->is_equipped)
-                                                        装備中
-                                                    @elseif($characterItem->is_locked)
-                                                        保護中
-                                                    @else
-                                                        装備変更で装備可
-                                                    @endif
+                                                <div class="flex flex-wrap items-center gap-1 text-xs font-bold">
+                                                    <span :class="equipped ? 'text-amber-700' : 'text-emerald-700'" x-text="equipped ? '装備中' : '装備変更で装備可'"></span>
+                                                    <span x-show="locked" class="rounded bg-yellow-100 px-1.5 py-0.5 text-yellow-800">★ 保護中</span>
                                                 </div>
                                                 @if($statLines->isNotEmpty())
                                                     <div class="mt-2 flex flex-wrap gap-1">
@@ -820,6 +830,16 @@
                                                 @endif
                                             </div>
                                             <div class="ml-2 shrink-0 text-right">
+                                                <button
+                                                    type="button"
+                                                    @click="toggleLock()"
+                                                    :disabled="locking || !canToggleLock"
+                                                    :aria-label="locked ? '保護を解除する' : '保護する'"
+                                                    :title="canToggleLock ? (locked ? '保護を解除する' : '売却などの誤操作から保護する') : '市場出品中は保護状態を変更できません'"
+                                                    :class="locked ? 'border-yellow-300 bg-yellow-50 text-yellow-600 hover:bg-yellow-100' : 'border-slate-200 bg-white text-slate-400 hover:border-yellow-300 hover:text-yellow-600'"
+                                                    class="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full border text-xl font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50"
+                                                    x-text="locked ? '★' : '☆'">
+                                                </button>
                                                 <div class="text-sm text-slate-500">売却額</div>
                                                 <div class="text-lg font-black text-slate-800">{{ number_format($sellPrice) }}G</div>
                                                 <form
@@ -832,10 +852,11 @@
                                                     <input type="hidden" name="return_to_inventory" value="1">
                                                     <button
                                                         type="submit"
-                                                        @disabled(!$canSellEquipment)
-                                                        title="{{ $canSellEquipment ? '装備を売却する' : $sellDisabledTitle }}"
-                                                        class="rounded px-3 py-1.5 text-xs font-extrabold shadow-sm transition active:scale-95 {{ $canSellEquipment ? 'bg-orange-600 text-white hover:bg-orange-700' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">
-                                                        {{ $canSellEquipment ? '売却する' : '売却不可' }}
+                                                        :disabled="!canSell"
+                                                        :title="canSell ? '装備を売却する' : saleDisabledTitle()"
+                                                        :class="canSell ? 'bg-orange-600 text-white hover:bg-orange-700' : 'cursor-not-allowed bg-slate-100 text-slate-400'"
+                                                        class="rounded px-3 py-1.5 text-xs font-extrabold shadow-sm transition active:scale-95"
+                                                        x-text="canSell ? '売却する' : '売却不可'">
                                                     </button>
                                                 </form>
                                             </div>
@@ -1064,7 +1085,7 @@
             </button>
             <button
                 type="button"
-                @click="bulkSellEquipment('{{ csrf_token() }}')"
+                @click="bulkSellEquipment(@js(csrf_token()), @js(route('equipment.bulk-sell')))"
                 :disabled="$store.equipSales.submitting"
                 class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-wait disabled:opacity-60">
                 <x-loading-spinner x-show="$store.equipSales.submitting" style="display: none;" />
@@ -1091,8 +1112,8 @@ document.addEventListener('alpine:init', () => {
         activeTab: 'weapon',
         confirmOpen: false,
         submitting: false,
-        toggle(id, selected, url, price, name) {
-            if (selected) this.items[id] = { url, price, name };
+        toggle(id, selected, price, name) {
+            if (selected) this.items[id] = { price, name };
             else delete this.items[id];
         },
         remove(id) { delete this.items[id]; },
@@ -1100,6 +1121,46 @@ document.addEventListener('alpine:init', () => {
         get count() { return Object.keys(this.items).length; },
         clear() { this.items = {}; }
     });
+
+    Alpine.data('equipmentWarehouseCard', (config) => ({
+        ...config,
+        locking: false,
+        saleDisabledTitle() {
+            if (this.equipped) return '装備中は売却できません';
+            if (this.locked) return '保護中は売却できません';
+            return '売却できません';
+        },
+        async toggleLock() {
+            if (this.locking || !this.canToggleLock) return;
+
+            this.locking = true;
+            const formData = new FormData();
+            formData.append('_token', this.csrfToken);
+
+            try {
+                const response = await fetch(this.lockUrl, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.success !== true) {
+                    throw new Error(data.message || '保護状態を変更できませんでした。');
+                }
+
+                this.locked = data.is_locked === true;
+                this.canSell = data.can_sell === true;
+                if (!this.canSell) {
+                    Alpine.store('equipSales').remove(this.id);
+                    if (this.$refs.saleCheckbox) this.$refs.saleCheckbox.checked = false;
+                }
+            } catch (error) {
+                alert(error.message || '通信に失敗しました。もう一度お試しください。');
+            } finally {
+                this.locking = false;
+            }
+        }
+    }));
 });
 
 async function bulkSellMaterials(csrfToken, sellUrl) {
@@ -1124,7 +1185,7 @@ async function bulkSellMaterials(csrfToken, sellUrl) {
     window.location.reload();
 }
 
-async function bulkSellEquipment(csrfToken) {
+async function bulkSellEquipment(csrfToken, sellUrl) {
     const store = Alpine.store('equipSales');
     const items = { ...store.items };
     const ids = Object.keys(items);
@@ -1133,34 +1194,32 @@ async function bulkSellEquipment(csrfToken) {
     if (store.submitting) return;
     store.submitting = true;
 
-    let failed = 0;
-    for (const id of ids) {
-        const item = items[id];
-        const fd = new FormData();
-        fd.append('_token', csrfToken);
-        fd.append('return_to_inventory', '1');
-        try {
-            const response = await fetch(item.url, {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: fd
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || data.success !== true) failed++;
-        } catch (e) {
-            failed++;
-        }
-    }
+    const formData = new FormData();
+    formData.append('_token', csrfToken);
+    ids.forEach((id) => formData.append('character_item_ids[]', id));
 
-    store.clear();
-    store.confirmOpen = false;
-    store.submitting = false;
-    sessionStorage.setItem('inventoryStorageTab', 'equipment');
-    sessionStorage.setItem('inventoryEquipmentTab', store.activeTab || 'weapon');
-    if (failed > 0) {
-        alert(`${failed}件は売却できませんでした。保護中・装備中・売却不可の装備が含まれていないか確認してください。`);
+    try {
+        const response = await fetch(sellUrl, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success !== true) {
+            throw new Error(data.message || '装備を一括売却できませんでした。');
+        }
+
+        store.clear();
+        store.confirmOpen = false;
+        sessionStorage.setItem('inventoryStorageTab', 'equipment');
+        sessionStorage.setItem('inventoryEquipmentTab', store.activeTab || 'weapon');
+        alert(data.message);
+        window.location.reload();
+    } catch (error) {
+        alert(error.message || '通信に失敗しました。もう一度お試しください。');
+    } finally {
+        store.submitting = false;
     }
-    window.location.reload();
 }
 
 function clearEquipmentSelections() {

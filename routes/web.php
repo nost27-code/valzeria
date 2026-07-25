@@ -315,6 +315,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/equipment/{characterItem}/lock', [EquipmentController::class, 'toggleLock'])->name('equipment.lock');
         Route::post('/equipment/{characterItem}/store', [EquipmentController::class, 'store'])->name('equipment.store');
         Route::post('/equipment/{characterItem}/unstore', [EquipmentController::class, 'unstore'])->name('equipment.unstore');
+        Route::post('/equipment/bulk-sell', [EquipmentController::class, 'bulkSellStored'])->name('equipment.bulk-sell');
         Route::post('/equipment/{characterItem}/sell', [EquipmentController::class, 'sellStored'])->name('equipment.sell');
         Route::post('/equipment/{characterItem}/disassemble', [EquipmentController::class, 'disassemble'])->name('equipment.disassemble');
         

@@ -162,6 +162,13 @@ class EquipmentController extends Controller
                 ->with('activeTab', $tab);
         }
         if ($characterItem->isMarketListed()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。',
+                ], 422);
+            }
+
             return redirect()->route('equipment.index')->with('error', 'この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
         }
 
@@ -355,6 +362,38 @@ class EquipmentController extends Controller
             ->with('status', $message)
             ->with('activeMode', $mode)
             ->with('activeTab', $tab);
+    }
+
+    public function bulkSellStored(Request $request, GoldService $goldService)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return response()->json([
+                'success' => false,
+                'message' => 'キャラクターが見つかりません。',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'character_item_ids' => ['required', 'array', 'min:1', 'max:300'],
+            'character_item_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+
+        try {
+            $result = $goldService->sellEquipmentBulk($character, $validated['character_item_ids']);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => number_format($result['count']) . '件の装備を一括売却し、' . number_format($result['amount']) . 'Gを得ました。',
+            'count' => $result['count'],
+            'amount' => $result['amount'],
+        ]);
     }
 
     public function disassemble(CharacterItem $characterItem, EquipmentService $equipmentService, Request $request)

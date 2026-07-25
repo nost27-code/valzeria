@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-equipment-warehouse-bulk-sale-protection',
+        'date' => '2026-07-25',
+        'category' => 'added',
+        'title' => '装備倉庫に一括売却と保護を追加',
+        'detail' => '装備倉庫で複数の装備を選んでまとめて売却できるようにし、星印で大切な装備を誤って売却しないよう保護できるようにしました。',
+    ],
+    [
         'id' => '2026-07-25-hero-legend-map-grade-rewards',
         'date' => '2026-07-25',
         'category' => 'balance',

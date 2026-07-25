@@ -8,6 +8,7 @@ use App\Models\CharacterMaterial;
 use App\Models\GoldTransaction;
 use App\Models\Item;
 use App\Models\Material;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class GoldService
@@ -126,6 +127,12 @@ class GoldService
             if ($characterItem->isMarketListed()) {
                 throw new RuntimeException('この武器は冒険者市場へ出品中です。操作するには先に出品を取り消してください。');
             }
+            if ($characterItem->is_locked) {
+                throw new RuntimeException('保護中の装備は売却できません。先に星印を解除してください。');
+            }
+            if ($characterItem->is_equipped) {
+                throw new RuntimeException('装備中の装備は売却できません。先に装備を外してください。');
+            }
             throw new RuntimeException('この装備は売却できません。');
         }
 
@@ -146,6 +153,57 @@ class GoldService
             'name' => $name,
             'amount' => $amount,
         ];
+    }
+
+    public function sellEquipmentBulk(Character $character, array $characterItemIds): array
+    {
+        $characterItemIds = collect($characterItemIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($characterItemIds->isEmpty()) {
+            throw new RuntimeException('売却する装備を選択してください。');
+        }
+
+        $result = DB::transaction(function () use ($character, $characterItemIds): array {
+            $lockedCharacter = Character::query()
+                ->whereKey($character->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $characterItems = CharacterItem::query()
+                ->where('character_id', $lockedCharacter->id)
+                ->whereIn('id', $characterItemIds)
+                ->with('item')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($characterItems->count() !== $characterItemIds->count()) {
+                throw new RuntimeException('選択した装備の状態が変わりました。倉庫を再読み込みしてください。');
+            }
+
+            $names = [];
+            $amount = 0;
+
+            foreach ($characterItemIds as $characterItemId) {
+                $sale = $this->sellEquipment($lockedCharacter, $characterItems->get($characterItemId));
+                $names[] = $sale['name'];
+                $amount += (int) $sale['amount'];
+            }
+
+            return [
+                'count' => count($names),
+                'amount' => $amount,
+                'names' => $names,
+            ];
+        });
+
+        $character->refresh();
+
+        return $result;
     }
 
     public function record(Character $character, string $type, int $amount, ?string $note = null, ?string $sourceType = null, ?int $sourceId = null, array $metadata = []): GoldTransaction
