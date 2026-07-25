@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-admin-player-chat-copy',
+        'date' => '2026-07-29',
+        'category' => 'internal',
+        'title' => '冒険者チャットの一括コピーを追加',
+        'detail' => '管理人チャット画面から、冒険者の全体チャット発言だけを最大5,000件まで古い順にまとめてコピーできるようにしました。管理用・検証用アカウントや個人チャットなどは対象外です。',
+    ],
+    [
         'id' => '2026-07-29-adventurer-card-equipment-name-wrap',
         'date' => '2026-07-29',
         'category' => 'fixed',

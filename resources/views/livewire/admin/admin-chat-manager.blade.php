@@ -13,6 +13,12 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <section class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
             <div class="border-b border-slate-200 px-4 py-3">
@@ -68,6 +74,56 @@
                 @else
                     <span class="text-[11px] font-bold text-slate-400">これ以上表示できるログはありません</span>
                 @endif
+            </div>
+
+            <div class="border-t border-slate-200 bg-white px-4 py-3"
+                 x-data="{ copied: false, copiedCount: 0, fallbackText: '' }"
+                 x-on:player-chat-extracted.window="
+                     copiedCount = $event.detail.count;
+                     navigator.clipboard.writeText($event.detail.text)
+                         .then(() => { fallbackText = ''; copied = true; setTimeout(() => copied = false, 2500); })
+                         .catch(() => { copied = false; fallbackText = $event.detail.text; });
+                 ">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900">冒険者の発言だけ抽出（AI貼り付け用）</h3>
+                        <p class="mt-0.5 text-xs font-bold text-slate-500">
+                            緑色の全体チャット発言だけを、古い順のテキストでまとめてコピーします。管理人・お知らせ・システムログ・個人チャットは含みません。
+                        </p>
+                        <p class="mt-1 text-xs font-bold text-amber-700">
+                            冒険者が入力した個人情報を含む可能性があります。外部AIなどへ貼り付ける前に内容を確認し、必要な箇所を削除してください。
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="flex items-center gap-1.5 text-xs font-black text-slate-500">
+                            <span>遡る件数</span>
+                            <select wire:model.live="extractLimit"
+                                    class="rounded-md border-slate-300 bg-white py-1.5 pl-2 pr-7 text-xs font-black text-slate-700 shadow-sm focus:border-[#1e40af] focus:ring focus:ring-[#1e40af]/30">
+                                @foreach($extractLimitOptions as $option)
+                                    <option value="{{ $option }}">{{ number_format($option) }}件</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <button type="button"
+                                wire:click="copyPlayerChat"
+                                wire:target="copyPlayerChat"
+                                wire:loading.attr="disabled"
+                                class="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60">
+                            <span wire:loading.remove wire:target="copyPlayerChat">発言をコピー</span>
+                            <span wire:loading wire:target="copyPlayerChat">抽出中…</span>
+                        </button>
+                    </div>
+                </div>
+
+                <p x-cloak x-show="copied" class="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
+                    <span x-text="copiedCount.toLocaleString()"></span>件の発言をクリップボードへコピーしました。
+                </p>
+
+                <div x-cloak x-show="fallbackText !== ''" class="mt-2">
+                    <p class="text-xs font-black text-red-600">クリップボードへ書き込めませんでした。下の内容を手動でコピーしてください。</p>
+                    <textarea readonly rows="6" x-model="fallbackText" x-on:focus="$el.select()"
+                              class="mt-1 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-700 shadow-sm"></textarea>
+                </div>
             </div>
 
             <form wire:submit="sendMessage" class="border-t border-slate-200 bg-slate-50 p-3">
