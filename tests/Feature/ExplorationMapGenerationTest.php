@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy;
+use App\Models\Material;
 use App\Models\TownMapRegistration;
 use App\Models\User;
 use App\Services\ExplorationMapGenerator;
@@ -23,6 +24,7 @@ class ExplorationMapGenerationTest extends TestCase
         $city = City::findOrFail(1);
         $area = Area::create(['name' => '試験地', 'slug' => 'map-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
         $enemy = Enemy::create(['name' => '試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $this->createAncientEligibleEnemy($area, '高位試験魔物');
         $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図師', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
         $map = app(ExplorationMapGenerator::class)->generate($character, $area, $enemy, '00000000-0000-4000-8000-000000000001');
 
@@ -110,6 +112,9 @@ class ExplorationMapGenerationTest extends TestCase
             $city = City::findOrFail($cityId);
             $area = Area::create(['name' => '試験地' . $cityId, 'slug' => 'map-target-' . $cityId, 'city_id' => $city->id, 'recommended_level_min' => $cityId * 10, 'recommended_level_max' => ($cityId * 10) + 9]);
             Enemy::create(['name' => '試験魔物' . $cityId, 'area_id' => $area->id, 'level' => $cityId * 10, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+            if ($cityId === 10) {
+                $this->createAncientEligibleEnemy($area, '高位試験魔物10');
+            }
             $areas[$cityId] = $area;
         }
         $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図師', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
@@ -120,7 +125,11 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertContains($originArea->id, $generated->pluck('generation_payload_json')->pluck('origin_area_id')->all());
         $this->assertTrue($generated->every(fn ($map) => $map->sourceArea?->city_id >= 1 && $map->sourceArea?->city_id <= 10));
         $this->assertGreaterThan(1, $generated->pluck('source_area_id')->unique()->count());
-        $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] >= 45 && (int) $variant['enemy_level'] <= 140)));
+        $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(
+            fn ($variant) => $map->reward_profile === 'ancient_fragment'
+                ? (int) $variant['enemy_level'] >= 142
+                : (int) $variant['enemy_level'] >= 45 && (int) $variant['enemy_level'] <= 140
+        )));
         $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] === (int) $map->map_level)));
         $this->assertTrue($generated->filter(fn ($map) => $map->reward_profile === 'training')->every(function ($map): bool {
             $range = config('exploration_maps.grade_limits.' . $map->map_grade);
@@ -130,6 +139,35 @@ class ExplorationMapGenerationTest extends TestCase
                 && (int) $map->exploration_limit <= (int) (round(((int) $range['max'] * $multiplier) / 10) * 10);
         }));
         $this->assertTrue($generated->every(fn ($map) => str_ends_with($map->name, 'の地図')));
+    }
+
+    public function test_ancient_fragment_profile_generates_a_high_level_map_with_one_fixed_fragment(): void
+    {
+        $city = City::findOrFail(1);
+        $area = Area::create(['name' => '古代片生成試験地', 'slug' => 'ancient-map-generation-test', 'city_id' => $city->id, 'recommended_level_min' => 142, 'recommended_level_max' => 150]);
+        $enemy = Enemy::create(['name' => '古代片生成試験魔物', 'area_id' => $area->id, 'level' => 142, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '古代片地図師', 'hp_base' => 100, 'current_hp' => 100]);
+        $originalProfiles = config('exploration_maps.reward_profiles');
+        config()->set('exploration_maps.reward_profiles', [
+            'ancient_fragment' => $originalProfiles['ancient_fragment'],
+        ]);
+
+        try {
+            $map = app(ExplorationMapGenerator::class)->generate($character, $area, $enemy, '00000000-0000-4000-8000-000000000142');
+        } finally {
+            config()->set('exploration_maps.reward_profiles', $originalProfiles);
+        }
+
+        $materialCode = data_get($map->generation_payload_json, 'ancient_fragment_material_code');
+        $fragment = Material::query()->where('material_code', $materialCode)->first();
+
+        $this->assertSame('ancient_fragment', $map->reward_profile);
+        $this->assertSame(4, (int) $map->generation_version);
+        $this->assertGreaterThanOrEqual(142, (int) $map->map_level);
+        $this->assertTrue(collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] >= 142));
+        $this->assertNotNull($fragment);
+        $this->assertStringEndsWith('_ANCIENT', (string) $fragment->material_code);
+        $this->assertSame('古代片：' . $fragment->displayName(), app(\App\Services\ExplorationMapDisplayService::class)->details($map)['reward']);
     }
 
     public function test_recently_closed_registration_is_kept_for_six_hours(): void
@@ -154,6 +192,7 @@ class ExplorationMapGenerationTest extends TestCase
         $city = City::findOrFail(1);
         $area = Area::create(['name' => '公開枠試験地', 'slug' => 'map-publication-slot-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
         $enemy = Enemy::create(['name' => '公開枠試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $this->createAncientEligibleEnemy($area, '公開枠高位試験魔物');
         $owner = Character::create(['user_id' => User::factory()->create()->id, 'name' => '公開枠地図師', 'hp_base' => 100, 'current_hp' => 100, 'money' => 100000]);
         $generator = app(ExplorationMapGenerator::class);
         $survey = app(MapSurveyService::class);
@@ -203,6 +242,7 @@ class ExplorationMapGenerationTest extends TestCase
         $city = City::findOrFail(1);
         $area = Area::create(['name' => '排他試験地', 'slug' => 'map-lock-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
         $enemy = Enemy::create(['name' => '排他試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $this->createAncientEligibleEnemy($area, '排他高位試験魔物');
         $owner = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図主', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
         $map = app(ExplorationMapGenerator::class)->generate($owner, $area, $enemy, '00000000-0000-4000-8000-000000000002');
         $registration = app(MapPublicationService::class)->publish($owner, app(MapSurveyService::class)->start($owner, $map, $city), 0);
@@ -226,5 +266,26 @@ class ExplorationMapGenerationTest extends TestCase
             ->all();
 
         $this->assertSame([], $missing);
+    }
+
+    private function createAncientEligibleEnemy(Area $area, string $name): Enemy
+    {
+        return Enemy::create([
+            'name' => $name,
+            'area_id' => $area->id,
+            'level' => 142,
+            'max_hp' => 100,
+            'str' => 20,
+            'def' => 10,
+            'agi' => 10,
+            'mag' => 10,
+            'spr' => 10,
+            'luk' => 10,
+            'exp_reward' => 20,
+            'gold_reward' => 10,
+            'job_exp_reward' => 1,
+            'appearance_weight' => 1,
+            'is_boss' => false,
+        ]);
     }
 }

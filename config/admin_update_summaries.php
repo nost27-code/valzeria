@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-ancient-fragment-map-profile',
+        'date' => '2026-07-25',
+        'category' => 'balance',
+        'title' => '探索の地図に古代片の報酬傾向を追加',
+        'detail' => '新しく見つかる探索の地図の報酬傾向を7種類から8種類へ増やしました。古代片の地図は高難度となり、地図ごとに決まった古代片を勝利時にまれに発見できます。',
+    ],
+    [
         'id' => '2026-07-25-enable-non-proficient-equipment',
         'date' => '2026-07-25',
         'category' => 'changed',

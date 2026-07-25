@@ -97,6 +97,11 @@ class ExplorationMapDisplayService
     private function rewardLabel(ExplorationMap $map): ?string
     {
         $modifiers = $map->reward_modifiers_json ?? [];
+
+        if ($ancientFragment = $this->legacyRewards->ancientFragmentFor($map)) {
+            return '古代片：' . $ancientFragment->displayName();
+        }
+
         $profile = config('exploration_maps.reward_profiles.' . $map->reward_profile, []);
         if (($profile['label'] ?? null) !== null
             && ($profile['modifiers'] ?? []) == $modifiers) {
@@ -104,10 +109,6 @@ class ExplorationMapDisplayService
         }
         if (($modifiers['exp_multiplier'] ?? 1) > 1) return '経験値が20%多い';
         if (($modifiers['gold_multiplier'] ?? 1) > 1) return 'Goldが25%多い';
-
-        if ($ancientFragment = $this->legacyRewards->ancientFragmentFor($map)) {
-            return '古代片：' . $ancientFragment->displayName();
-        }
 
         return null;
     }

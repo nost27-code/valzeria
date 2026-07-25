@@ -19,7 +19,8 @@ class ExplorationMapLegacyRewardService
 
     public function ancientFragmentFor(ExplorationMap $map): ?Material
     {
-        if (!$this->hasPlainFallbackReward($map)) {
+        $isAncientFragmentProfile = $map->reward_profile === 'ancient_fragment';
+        if (!$isAncientFragmentProfile && !$this->hasPlainFallbackReward($map)) {
             return null;
         }
 
@@ -28,12 +29,24 @@ class ExplorationMapLegacyRewardService
             return null;
         }
 
+        if ($isAncientFragmentProfile) {
+            $materialCode = (string) data_get($map->generation_payload_json, 'ancient_fragment_material_code', '');
+            if ($materialCode !== '') {
+                return $this->ancientFragments()->firstWhere('material_code', $materialCode);
+            }
+        }
+
+        return $this->ancientFragmentForSeedHash((string) $map->seed_hash);
+    }
+
+    public function ancientFragmentForSeedHash(string $seedHash): ?Material
+    {
         $fragments = $this->ancientFragments();
         if ($fragments->isEmpty()) {
             return null;
         }
 
-        $hash = hash('sha256', (string) $map->seed_hash . ':map:legacy-ancient-fragment');
+        $hash = hash('sha256', $seedHash . ':map:legacy-ancient-fragment');
         $index = hexdec(substr($hash, 0, 8)) % $fragments->count();
 
         return $fragments->values()->get($index);

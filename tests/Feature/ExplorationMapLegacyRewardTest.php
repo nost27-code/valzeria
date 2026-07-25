@@ -48,6 +48,20 @@ class ExplorationMapLegacyRewardTest extends TestCase
         $this->assertSame('修練の導き', app(ExplorationMapDisplayService::class)->details($map)['reward']);
     }
 
+    public function test_current_ancient_fragment_profile_uses_its_saved_fragment(): void
+    {
+        [, $highEnemy] = $this->createEnemies();
+        $service = app(ExplorationMapLegacyRewardService::class);
+        $fragment = $service->ancientFragmentForSeedHash(str_repeat('c', 64));
+        $this->assertNotNull($fragment);
+
+        $map = $this->legacyPlainMap($highEnemy, 142, 'ancient_fragment');
+        $map->generation_payload_json = ['ancient_fragment_material_code' => $fragment->material_code];
+
+        $this->assertSame($fragment->id, $service->ancientFragmentFor($map)?->id);
+        $this->assertSame('古代片：' . $fragment->displayName(), app(ExplorationMapDisplayService::class)->details($map)['reward']);
+    }
+
     public function test_legacy_maps_with_an_existing_reward_modifier_are_not_treated_as_plain_rewards(): void
     {
         [, $highEnemy] = $this->createEnemies();

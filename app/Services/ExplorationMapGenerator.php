@@ -11,7 +11,11 @@ use Illuminate\Support\Str;
 
 class ExplorationMapGenerator
 {
-    public function __construct(private readonly ExplorationMapSeedService $seeds, private readonly ExplorationMapDifficultyService $difficulty) {}
+    public function __construct(
+        private readonly ExplorationMapSeedService $seeds,
+        private readonly ExplorationMapDifficultyService $difficulty,
+        private readonly ExplorationMapLegacyRewardService $legacyRewards,
+    ) {}
 
     public function generate(Character $owner, Area $area, Enemy $sourceMonster, string $dropEventUuid): ExplorationMap
     {
@@ -19,10 +23,11 @@ class ExplorationMapGenerator
         $root = $this->seeds->createRootSeed($uuid, $dropEventUuid, $owner->id, $area->id, $sourceMonster->id);
         $grade = $this->grade($root);
         $targetArea = $this->targetArea($root, $area);
-        $targetMonster = $this->targetMonster($root, $grade);
-        $type = $this->dungeonType($root, $targetArea);
-        $level = min(255, max(1, (int) $targetMonster->level + $this->levelOffset($root, $grade, 'map:v2:map_level_offset')));
         $profile = $this->seeds->weightedPick($root, 'map:v1:reward_profile', collect($this->profiles())->map(fn ($value, $key) => ['value' => $key, 'weight' => 100])->values()->all())['value'];
+        $levelOffset = $this->levelOffset($root, $grade, 'map:v2:map_level_offset');
+        $targetMonster = $this->targetMonster($root, $grade, $profile, $levelOffset);
+        $type = $this->dungeonType($root, $targetArea);
+        $level = min(255, max(1, (int) $targetMonster->level + $levelOffset));
         $limit = $this->limit($root, $grade, $profile);
         $effects = $this->effects($root, $type, $grade);
         $normal = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, false);
@@ -30,14 +35,24 @@ class ExplorationMapGenerator
         $parts = $this->nameParts($root, $type, $effects, $profile);
         $name = implode('', [$parts['prefix'], $parts['proper'], $parts['place'], 'の地図']);
         $recommendedTownId = (int) ($targetArea->city_id ?? 0) ?: null;
+        $seedHash = $this->seeds->hash($root);
+        $generationPayload = ['grade' => $grade, 'dungeon_type' => $type, 'map_level' => $level, 'exploration_limit' => $limit, 'origin_area_id' => $area->id, 'origin_monster_id' => $sourceMonster->id, 'target_area_id' => $targetArea->id];
+
+        if ($profile === 'ancient_fragment') {
+            $fragment = $this->legacyRewards->ancientFragmentForSeedHash($seedHash);
+            if (!$fragment) {
+                throw new \RuntimeException('地図用の古代片素材が見つかりません。');
+            }
+            $generationPayload['ancient_fragment_material_code'] = $fragment->material_code;
+        }
 
         return ExplorationMap::create([
             'uuid' => $uuid, 'owner_character_id' => $owner->id, 'source_area_id' => $targetArea->id, 'source_monster_id' => $targetMonster->id, 'source_drop_event_uuid' => $dropEventUuid,
-            'seed_version' => 1, 'seed_encrypted' => $this->seeds->encrypt($root), 'seed_hash' => $this->seeds->hash($root), 'generation_version' => 3,
+            'seed_version' => 1, 'seed_encrypted' => $this->seeds->encrypt($root), 'seed_hash' => $seedHash, 'generation_version' => 4,
             'map_grade' => $grade, 'map_level' => $level, 'dungeon_type' => $type, 'reward_profile' => $profile, 'exploration_limit' => $limit,
             'name' => $name, 'name_parts_json' => $parts, 'normal_monster_variants_json' => $normal, 'boss_monster_variants_json' => $boss,
             'environment_effects_json' => $effects, 'reward_modifiers_json' => $this->profiles()[$profile],
-            'generation_payload_json' => ['grade' => $grade, 'dungeon_type' => $type, 'map_level' => $level, 'exploration_limit' => $limit, 'origin_area_id' => $area->id, 'origin_monster_id' => $sourceMonster->id, 'target_area_id' => $targetArea->id],
+            'generation_payload_json' => $generationPayload,
             'recommended_town_id' => $recommendedTownId, 'status' => 'uninvestigated',
         ]);
     }
@@ -89,9 +104,16 @@ class ExplorationMapGenerator
 
         return $areas[$this->seeds->int($root, 'map:v3:target_area', 0, $areas->count() - 1)];
     }
-    private function targetMonster(string $root, string $grade): Enemy
+    private function targetMonster(string $root, string $grade, string $profile, int $levelOffset): Enemy
     {
         $range = $this->baseMonsterLevelRange($grade);
+        if ($profile === 'ancient_fragment') {
+            $minimumEnemyLevel = (int) config('exploration_maps.reward_profiles.ancient_fragment.minimum_enemy_level', 142);
+            $range = [
+                'min' => max(1, $minimumEnemyLevel - $levelOffset),
+                'max' => max(1, 255 - $levelOffset),
+            ];
+        }
         $monsters = Enemy::query()
             ->where('is_boss', false)
             ->whereBetween('level', [$range['min'], $range['max']])
