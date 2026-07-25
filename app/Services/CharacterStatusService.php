@@ -230,7 +230,16 @@ class CharacterStatusService
             (int) ($characterItem->enhance_level ?? 0),
         );
         $affix = $characterItem->affixStatBonuses();
-        $stats = [];
+        $stats = [
+            'hp' => 0,
+            'mp' => 0,
+            'str' => 0,
+            'def' => 0,
+            'agi' => 0,
+            'mag' => 0,
+            'spr' => 0,
+            'luk' => 0,
+        ];
 
         foreach (array_unique(array_merge(array_keys($enhanced), array_keys($affix))) as $key) {
             $stats[$key] = (int) ($enhanced[$key] ?? 0) + (int) ($affix[$key] ?? 0);

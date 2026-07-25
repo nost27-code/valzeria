@@ -49,6 +49,10 @@ class EquipmentProficiencyPenaltyTest extends TestCase
         $this->assertFalse($permissionService->canEquip($character, $weapon->item));
         $this->assertFalse($permissionService->canEquip($character, $armor->item));
         $this->assertSame(1.0, $permissionService->performanceRate($character, $weapon->item));
+        $this->assertSame(
+            ['hp', 'mp', 'str', 'def', 'agi', 'mag', 'spr', 'luk'],
+            array_keys(app(CharacterStatusService::class)->equipmentStatsFor($character, $weapon)),
+        );
         $this->assertSame(['str' => 1120, 'mag' => 0], app(CharacterStatusService::class)->weaponOffenseFor($character, $weapon));
         $this->assertSame(['def' => 1120, 'spr' => 0], app(CharacterStatusService::class)->armorDefenseFor($character, $armor));
 

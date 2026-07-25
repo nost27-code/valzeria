@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-equipment-screen-missing-stat-fix',
+        'date' => '2026-07-25',
+        'category' => 'fixed',
+        'title' => '装備変更画面の表示エラーを修正',
+        'detail' => '一部の装備を所持していると装備変更画面を開けないことがある不具合を修正しました。',
+    ],
+    [
         'id' => '2026-07-25-admin-global-compensation',
         'date' => '2026-07-25',
         'category' => 'internal',
