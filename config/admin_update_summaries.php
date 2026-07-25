@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-exploration-map-drop-rate',
+        'date' => '2026-07-25',
+        'category' => 'balance',
+        'title' => '探索の地図の発見率を引き上げ',
+        'detail' => '通常探索・ボス戦・公開地図の勝利時に、探索の地図を発見する確率を0.2%から0.5%へ引き上げました。',
+    ],
+    [
         'id' => '2026-07-25-equipment-screen-missing-stat-fix',
         'date' => '2026-07-25',
         'category' => 'fixed',

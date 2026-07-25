@@ -16,10 +16,10 @@ class ExplorationMapDropServiceTest extends TestCase
         GameSetting::where('setting_key', 'exploration_maps.launch_bonus_enabled')->update(['value' => '1']);
         $service = app(ExplorationMapDropService::class);
 
-        $this->assertSame(20, $service->dropRateBasisPoints('normal'));
-        $this->assertSame(20, $service->dropRateBasisPoints('elite'));
-        $this->assertSame(20, $service->dropRateBasisPoints('boss'));
-        $this->assertSame(20, $service->dropRateBasisPoints('map_normal'));
-        $this->assertSame(20, $service->dropRateBasisPoints('map_elite'));
+        $this->assertSame(50, $service->dropRateBasisPoints('normal'));
+        $this->assertSame(50, $service->dropRateBasisPoints('elite'));
+        $this->assertSame(50, $service->dropRateBasisPoints('boss'));
+        $this->assertSame(50, $service->dropRateBasisPoints('map_normal'));
+        $this->assertSame(50, $service->dropRateBasisPoints('map_elite'));
     }
 }

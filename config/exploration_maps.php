@@ -55,12 +55,12 @@ return [
         'ancient_fragment_drop_rate_basis_points' => 38,
     ],
     'drop_rates_basis_points' => [
-        'normal' => 20,
-        'elite' => 20,
-        'boss' => 20,
+        'normal' => 50,
+        'elite' => 50,
+        'boss' => 50,
         'local_boss' => 700,
-        'map_normal' => 20,
-        'map_elite' => 20,
+        'map_normal' => 50,
+        'map_elite' => 50,
     ],
     'map_institute_pickup' => [
         'ends_at' => '2026-07-25 23:59:59',
