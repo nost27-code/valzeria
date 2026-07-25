@@ -20,5 +20,8 @@ class ExplorationMapRewardProfileTest extends TestCase
         $this->assertSame(3, $profiles['windfall']['modifiers']['gold_drop_rate_bonus_points']);
         $this->assertSame(142, $profiles['ancient_fragment']['minimum_enemy_level']);
         $this->assertSame([], $profiles['ancient_fragment']['modifiers']);
+        $this->assertSame(100, array_sum(array_column($profiles, 'weight')));
+        $this->assertSame([13, 13, 13, 13, 13, 13, 13], array_column(array_slice($profiles, 0, 7), 'weight'));
+        $this->assertSame(9, $profiles['ancient_fragment']['weight']);
     }
 }

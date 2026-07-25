@@ -37,18 +37,19 @@ return [
         'common_material_weight_multiplier' => 0.5,
     ],
     'reward_profiles' => [
-        'experience' => ['label' => '経験の導き', 'modifiers' => ['exp_multiplier' => 1.20]],
-        'wealth' => ['label' => '金運上昇', 'modifiers' => ['gold_multiplier' => 1.50]],
+        'experience' => ['label' => '経験の導き', 'weight' => 13, 'modifiers' => ['exp_multiplier' => 1.20]],
+        'wealth' => ['label' => '金運上昇', 'weight' => 13, 'modifiers' => ['gold_multiplier' => 1.50]],
         'training' => [
             'label' => '修練の導き',
+            'weight' => 13,
             'exploration_limit_multiplier' => 1 / 3,
             'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_cap' => 6],
         ],
-        'material' => ['label' => '素材探索', 'modifiers' => ['material_drop_bonus_points' => 5]],
-        'equipment' => ['label' => '装備の兆し', 'modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]]],
-        'windfall' => ['label' => '落銭の気配', 'modifiers' => ['gold_drop_rate_bonus_points' => 3]],
-        'vitality' => ['label' => '精気の余韻', 'modifiers' => ['victory_hp_recovery_percent' => 1.5, 'victory_sp_recovery_percent' => 0.5]],
-        'ancient_fragment' => ['label' => '古代片', 'minimum_enemy_level' => 142, 'modifiers' => []],
+        'material' => ['label' => '素材探索', 'weight' => 13, 'modifiers' => ['material_drop_bonus_points' => 5]],
+        'equipment' => ['label' => '装備の兆し', 'weight' => 13, 'modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.10, 'armor' => 0.10, 'accessory' => 0.03]]],
+        'windfall' => ['label' => '落銭の気配', 'weight' => 13, 'modifiers' => ['gold_drop_rate_bonus_points' => 3]],
+        'vitality' => ['label' => '精気の余韻', 'weight' => 13, 'modifiers' => ['victory_hp_recovery_percent' => 1.5, 'victory_sp_recovery_percent' => 0.5]],
+        'ancient_fragment' => ['label' => '古代片', 'weight' => 9, 'minimum_enemy_level' => 142, 'modifiers' => []],
     ],
     'legacy_fallback_rewards' => [
         // 古代片傾向と、現行の報酬傾向に一致しない既存地図に適用する。

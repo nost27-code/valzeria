@@ -23,7 +23,14 @@ class ExplorationMapGenerator
         $root = $this->seeds->createRootSeed($uuid, $dropEventUuid, $owner->id, $area->id, $sourceMonster->id);
         $grade = $this->grade($root);
         $targetArea = $this->targetArea($root, $area);
-        $profile = $this->seeds->weightedPick($root, 'map:v1:reward_profile', collect($this->profiles())->map(fn ($value, $key) => ['value' => $key, 'weight' => 100])->values()->all())['value'];
+        $profile = $this->seeds->weightedPick(
+            $root,
+            'map:v1:reward_profile',
+            collect(config('exploration_maps.reward_profiles', []))
+                ->map(fn (array $value, string $key) => ['value' => $key, 'weight' => (int) ($value['weight'] ?? 100)])
+                ->values()
+                ->all()
+        )['value'];
         $levelOffset = $this->levelOffset($root, $grade, 'map:v2:map_level_offset');
         $targetMonster = $this->targetMonster($root, $grade, $profile, $levelOffset);
         $type = $this->dungeonType($root, $targetArea);
