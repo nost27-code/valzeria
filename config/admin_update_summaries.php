@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-map-valmon-egg-public-location',
+        'date' => '2026-07-25',
+        'category' => 'fixed',
+        'title' => '地図探索の卵発見アナウンスを修正',
+        'detail' => '探索の地図でヴァルモンの卵を見つけた際、通常ダンジョン名ではなく「探索の地図」と案内するようにしました。',
+    ],
+    [
         'id' => '2026-07-25-adventurer-quick-link-feedback',
         'date' => '2026-07-25',
         'category' => 'changed',

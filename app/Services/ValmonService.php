@@ -119,7 +119,12 @@ class ValmonService
         return ['success' => true, 'message' => "{$valmon->displayName()}を相棒にしました。"];
     }
 
-    public function tryFindEgg(Character $character, Area $area, ?CharacterExplorationState $state): ?array
+    public function tryFindEgg(
+        Character $character,
+        Area $area,
+        ?CharacterExplorationState $state,
+        ?string $publicLocationName = null,
+    ): ?array
     {
         if ($this->foundEggToday($character)) {
             return null;
@@ -146,9 +151,10 @@ class ValmonService
             'found_at' => now(),
         ]);
 
+        $publicLocationName = filled($publicLocationName) ? $publicLocationName : $area->name;
         app(PublicLogService::class)->addLog(
             'valmon',
-            "【ヴァルモンの卵】{$character->name}さんが{$area->name}でふしぎな卵を見つけました！",
+            "【ヴァルモンの卵】{$character->name}さんが{$publicLocationName}でふしぎな卵を見つけました！",
             $character,
             2
         );

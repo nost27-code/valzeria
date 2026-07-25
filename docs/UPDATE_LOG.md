@@ -8,6 +8,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Fixed
 
+- 探索の地図でヴァルモンの卵を見つけた際、公開アナウンスの場所を通常ダンジョン名ではなく「探索の地図」と表示するように修正しました。
+
 - 装備倉庫で絞り込みを「すべて」にしても装備一覧が表示されない場合がある不具合を修正しました。
 
 ### Added

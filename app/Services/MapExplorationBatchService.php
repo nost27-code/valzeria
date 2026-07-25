@@ -179,7 +179,12 @@ class MapExplorationBatchService
             $drops['equipment'] = array_merge($drops['equipment'] ?? [], $gradeBonus['equipment']);
             $this->applyVictoryRecovery($character, $battle, $modifiers);
             $mapDrop = app(ExplorationMapDropService::class)->tryDrop($character, $map->sourceArea, $enemy, false, true);
-            $valmonEggFound = app(ValmonService::class)->tryFindEgg($character, $map->sourceArea, null);
+            $valmonEggFound = app(ValmonService::class)->tryFindEgg(
+                $character,
+                $map->sourceArea,
+                null,
+                publicLocationName: '探索の地図',
+            );
             $character->increment('wins');
         } else {
             $defeatLoss = app(MapExplorationDefeatService::class)->apply($character, $batch);
