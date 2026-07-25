@@ -48,6 +48,18 @@ class ExplorationMapLegacyRewardTest extends TestCase
         $this->assertSame('修練の導き', app(ExplorationMapDisplayService::class)->details($map)['reward']);
     }
 
+    public function test_existing_hero_map_keeps_its_reward_label_after_grade_rewards_are_strengthened(): void
+    {
+        [, $highEnemy] = $this->createEnemies();
+        $map = $this->legacyPlainMap($highEnemy, 142, 'training', [
+            'job_exp_multiplier' => 2.0,
+            'job_exp_cap' => 6,
+        ]);
+        $map->map_grade = 'hero';
+
+        $this->assertSame('修練の導き', app(ExplorationMapDisplayService::class)->details($map)['reward']);
+    }
+
     public function test_current_ancient_fragment_profile_uses_its_saved_fragment(): void
     {
         [, $highEnemy] = $this->createEnemies();

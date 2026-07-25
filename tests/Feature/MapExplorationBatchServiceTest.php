@@ -33,13 +33,7 @@ class MapExplorationBatchServiceTest extends TestCase
 
     public function test_batch_stops_at_the_defeat_run_and_returns_the_normal_batch_stop_text(): void
     {
-        $city = City::findOrFail(1);
-        $area = Area::create(['name' => '地図連続探索試験地', 'slug' => 'map-batch-stop-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
-        $enemy = Enemy::create(['name' => '地図連続探索試験魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
-        $owner = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図主', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
-        $map = app(ExplorationMapGenerator::class)->generate($owner, $area, $enemy, '00000000-0000-4000-8000-000000000003');
-        $registration = app(MapPublicationService::class)->publish($owner, app(MapSurveyService::class)->start($owner, $map, $city), 0);
-        $visitor = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図探索者', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図連続探索試験地', 'map-batch-stop-test');
         $batchService = app(MapExplorationBatchService::class);
         $remainingBefore = (int) $registration->remaining_explorations;
         $batch = $batchService->reserve($visitor, $registration, 10, (string) Str::uuid());
@@ -166,12 +160,69 @@ class MapExplorationBatchServiceTest extends TestCase
         $this->assertGreaterThan(0, (int) data_get($result, 'batch_explore.total_exp'));
     }
 
+    public function test_same_request_uuid_reserves_the_exploration_range_only_once(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図二重予約試験地', 'map-batch-idempotency-test');
+        $batchService = app(MapExplorationBatchService::class);
+        $remainingBefore = (int) $registration->remaining_explorations;
+        $requestUuid = (string) Str::uuid();
+
+        $first = $batchService->reserve($visitor, $registration, 10, $requestUuid);
+        $second = $batchService->reserve($visitor, $registration->fresh(), 10, $requestUuid);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame($remainingBefore - 10, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(10, (int) $first->reserved_count);
+    }
+
+    public function test_separate_reservations_receive_non_overlapping_global_ranges(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図探索番号試験地', 'map-batch-index-range-test');
+        $registration->update([
+            'exploration_limit' => 12,
+            'remaining_explorations' => 12,
+            'consumed_explorations' => 0,
+        ]);
+        $batchService = app(MapExplorationBatchService::class);
+
+        $first = $batchService->reserve($visitor, $registration->fresh(), 10, (string) Str::uuid());
+        $second = $batchService->reserve($visitor, $registration->fresh(), 10, (string) Str::uuid());
+
+        $this->assertSame(1, (int) $first->first_exploration_index);
+        $this->assertSame(10, (int) $first->last_exploration_index);
+        $this->assertSame(11, (int) $second->first_exploration_index);
+        $this->assertSame(12, (int) $second->last_exploration_index);
+        $this->assertSame(2, (int) $second->reserved_count);
+        $this->assertSame(0, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(12, (int) $registration->fresh()->consumed_explorations);
+    }
+
+    public function test_stale_unexecuted_reservation_is_recovered_before_the_next_reservation(): void
+    {
+        config()->set('exploration_maps.stale_batch_recovery_seconds', 60);
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図予約回収試験地', 'map-batch-stale-recovery-test');
+        $batchService = app(MapExplorationBatchService::class);
+        $remainingBefore = (int) $registration->remaining_explorations;
+
+        $stale = $batchService->reserve($visitor, $registration, 10, (string) Str::uuid());
+        $stale->update(['created_at' => now()->subMinutes(2)]);
+        $next = $batchService->reserve($visitor, $registration->fresh(), 1, (string) Str::uuid());
+
+        $this->assertSame('recovered', $stale->fresh()->status);
+        $this->assertSame(0, (int) $stale->fresh()->reserved_count);
+        $this->assertSame(1, (int) $next->reserved_count);
+        $this->assertSame($remainingBefore - 1, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(1, (int) $registration->fresh()->consumed_explorations);
+    }
+
     /** @return array{Character, \App\Models\TownMapRegistration} */
     private function createPublishedMapAndVisitor(string $areaName, string $areaSlug): array
     {
+        config()->set('exploration_maps.reward_profiles.ancient_fragment.weight', 0);
         $city = City::findOrFail(1);
         $area = Area::create(['name' => $areaName, 'slug' => $areaSlug, 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
         $enemy = Enemy::create(['name' => $areaName . '魔物', 'area_id' => $area->id, 'level' => 45, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        Enemy::create(['name' => $areaName . '古代魔物', 'area_id' => $area->id, 'level' => 160, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
         $owner = Character::create(['user_id' => User::factory()->create()->id, 'name' => $areaName . '地図主', 'hp_base' => 100, 'current_hp' => 100, 'money' => 10000]);
         $map = app(ExplorationMapGenerator::class)->generate($owner, $area, $enemy, (string) Str::uuid());
         $registration = app(MapPublicationService::class)->publish($owner, app(MapSurveyService::class)->start($owner, $map, $city), 0);

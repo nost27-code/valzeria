@@ -51,6 +51,49 @@ return [
         'vitality' => ['label' => '精気の余韻', 'weight' => 13, 'modifiers' => ['victory_hp_recovery_percent' => 1.5, 'victory_sp_recovery_percent' => 0.5]],
         'ancient_fragment' => ['label' => '古代片', 'weight' => 9, 'minimum_enemy_level' => 142, 'modifiers' => []],
     ],
+    'grade_reward_profile_overrides' => [
+        'hero' => [
+            'experience' => ['modifiers' => ['exp_multiplier' => 1.25]],
+            'wealth' => ['modifiers' => ['gold_multiplier' => 1.65]],
+            'training' => [
+                'exploration_limit_multiplier' => 2 / 7,
+                'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_flat_bonus' => 1, 'job_exp_cap' => 7],
+            ],
+            'material' => ['modifiers' => ['material_drop_bonus_points' => 8]],
+            'equipment' => ['modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.20, 'armor' => 0.20, 'accessory' => 0.08]]],
+            'windfall' => ['modifiers' => ['gold_drop_rate_bonus_points' => 5]],
+            'vitality' => ['modifiers' => ['victory_hp_recovery_percent' => 2.0, 'victory_sp_recovery_percent' => 0.75]],
+        ],
+        'legend' => [
+            'experience' => ['modifiers' => ['exp_multiplier' => 1.30]],
+            'wealth' => ['modifiers' => ['gold_multiplier' => 1.80]],
+            'training' => [
+                'exploration_limit_multiplier' => 1 / 4,
+                'modifiers' => ['job_exp_multiplier' => 2.0, 'job_exp_flat_bonus' => 2, 'job_exp_cap' => 8],
+            ],
+            'material' => ['modifiers' => ['material_drop_bonus_points' => 10]],
+            'equipment' => ['modifiers' => ['equipment_drop_bonus_points' => ['weapon' => 0.30, 'armor' => 0.30, 'accessory' => 0.12]]],
+            'windfall' => ['modifiers' => ['gold_drop_rate_bonus_points' => 7]],
+            'vitality' => ['modifiers' => ['victory_hp_recovery_percent' => 2.5, 'victory_sp_recovery_percent' => 1.0]],
+        ],
+    ],
+    'grade_bonus_drop' => [
+        'rates_basis_points' => [
+            'hero' => 15,
+            'legend' => 35,
+        ],
+        'pool_weights' => [
+            'material' => 75,
+            'equipment' => 20,
+            'ancient_fragment' => 5,
+        ],
+        'equipment_slot_weights' => [
+            'weapon' => 45,
+            'armor' => 45,
+            'accessory' => 10,
+        ],
+    ],
+    'stale_batch_recovery_seconds' => 300,
     'legacy_fallback_rewards' => [
         // 古代片傾向と、現行の報酬傾向に一致しない既存地図に適用する。
         'ancient_fragment_min_enemy_level' => 142,

@@ -10,6 +10,7 @@ use App\Models\Material;
 use App\Models\TownMapRegistration;
 use App\Models\User;
 use App\Services\ExplorationMapGenerator;
+use App\Services\ExplorationMapRewardProfileService;
 use App\Services\MapPublicationService;
 use App\Services\MapSurveyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,7 +31,8 @@ class ExplorationMapGenerationTest extends TestCase
 
         $this->assertSame('uninvestigated', $map->status);
         $limitRange = config('exploration_maps.grade_limits.' . $map->map_grade);
-        $limitMultiplier = (float) config('exploration_maps.reward_profiles.' . $map->reward_profile . '.exploration_limit_multiplier', 1);
+        $limitMultiplier = app(ExplorationMapRewardProfileService::class)
+            ->explorationLimitMultiplier((string) $map->reward_profile, (string) $map->map_grade);
         $this->assertGreaterThanOrEqual((int) (round(((int) $limitRange['min'] * $limitMultiplier) / 10) * 10), $map->exploration_limit);
         $this->assertLessThanOrEqual((int) (round(((int) $limitRange['max'] * $limitMultiplier) / 10) * 10), $map->exploration_limit);
         $this->assertNotEmpty($map->normal_monster_variants_json);
@@ -133,7 +135,8 @@ class ExplorationMapGenerationTest extends TestCase
         $this->assertTrue($generated->every(fn ($map) => collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] === (int) $map->map_level)));
         $this->assertTrue($generated->filter(fn ($map) => $map->reward_profile === 'training')->every(function ($map): bool {
             $range = config('exploration_maps.grade_limits.' . $map->map_grade);
-            $multiplier = (float) config('exploration_maps.reward_profiles.training.exploration_limit_multiplier');
+            $multiplier = app(ExplorationMapRewardProfileService::class)
+                ->explorationLimitMultiplier('training', (string) $map->map_grade);
 
             return (int) $map->exploration_limit >= (int) (round(((int) $range['min'] * $multiplier) / 10) * 10)
                 && (int) $map->exploration_limit <= (int) (round(((int) $range['max'] * $multiplier) / 10) * 10);
@@ -162,7 +165,7 @@ class ExplorationMapGenerationTest extends TestCase
         $fragment = Material::query()->where('material_code', $materialCode)->first();
 
         $this->assertSame('ancient_fragment', $map->reward_profile);
-        $this->assertSame(4, (int) $map->generation_version);
+        $this->assertSame(5, (int) $map->generation_version);
         $this->assertGreaterThanOrEqual(142, (int) $map->map_level);
         $this->assertTrue(collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] >= 142));
         $this->assertNotNull($fragment);

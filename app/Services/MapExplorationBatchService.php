@@ -18,9 +18,16 @@ class MapExplorationBatchService
     public function reserve(Character $character, TownMapRegistration $registration, int $requestedCount, string $requestUuid, bool $chargeEntryFee = true): MapExplorationBatch
     {
         $requestedCount = max(1, min(10, $requestedCount));
+        $this->recoverStaleBatches((int) $registration->id);
+
         return DB::transaction(function () use ($character, $registration, $requestedCount, $requestUuid, $chargeEntryFee) {
-            if ($existing = MapExplorationBatch::where('request_uuid', $requestUuid)->first()) return $existing;
+            if ($existing = MapExplorationBatch::where('request_uuid', $requestUuid)->first()) {
+                return $this->existingBatchForRequest($existing, $character, $registration);
+            }
             $registration = TownMapRegistration::with('map')->lockForUpdate()->findOrFail($registration->id);
+            if ($existing = MapExplorationBatch::where('request_uuid', $requestUuid)->first()) {
+                return $this->existingBatchForRequest($existing, $character, $registration);
+            }
             if (!$registration->isOpen()) throw new \RuntimeException($registration->remaining_explorations <= 0 ? '他の冒険者による探索によって、この地図の探索可能回数は終了しました。今回の探索料金と探索力は消費されていません。' : 'この地図の公開期間は終了しました。');
             $reserved = min($requestedCount, (int) $registration->remaining_explorations);
             $entryFee = $character->id === $registration->map->owner_character_id ? 0 : (int) $registration->entry_fee_per_exploration;
@@ -32,6 +39,16 @@ class MapExplorationBatchService
             $registration->increment('consumed_explorations', $reserved);
             return MapExplorationBatch::create(['uuid' => (string) Str::uuid(), 'request_uuid' => $requestUuid, 'registration_id' => $registration->id, 'map_id' => $registration->map_id, 'character_id' => $character->id, 'requested_count' => $requestedCount, 'reserved_count' => $reserved, 'first_exploration_index' => $first, 'last_exploration_index' => $first + $reserved - 1, 'fee_per_exploration' => $entryFee, 'total_fee' => $total, 'status' => 'reserved']);
         });
+    }
+
+    private function existingBatchForRequest(MapExplorationBatch $batch, Character $character, TownMapRegistration $registration): MapExplorationBatch
+    {
+        if ((int) $batch->character_id !== (int) $character->id
+            || (int) $batch->registration_id !== (int) $registration->id) {
+            throw new \RuntimeException('地図探索のリクエスト情報が一致しません。');
+        }
+
+        return $batch;
     }
 
     public function execute(Character $character, MapExplorationBatch $batch): array
@@ -137,11 +154,9 @@ class MapExplorationBatchService
             $mapRewards = $this->rewards->rewardsFor($enemy, $map, (int) $battle->gold);
             $exp = $mapRewards['experience'];
             $gold = $mapRewards['gold'];
-            $jobExpCap = max(LevelService::MAX_JOB_EXP_GAIN, (int) ($modifiers['job_exp_cap'] ?? LevelService::MAX_JOB_EXP_GAIN));
-            $jobExp = app(LevelService::class)->capJobExpGain(
-                (int) floor((int) $battle->jobExp * (float) ($modifiers['job_exp_multiplier'] ?? 1)),
-                $jobExpCap,
-            );
+            $jobExpReward = app(ExplorationMapRewardProfileService::class)->jobExpReward((int) $battle->jobExp, $modifiers);
+            $jobExp = $jobExpReward['amount'];
+            $jobExpCap = $jobExpReward['cap'];
             $rewardResult = app(LevelService::class)->addRewardAndCheckLevelUp($character, $exp, $gold, $jobExp, $jobExpCap);
             $drops = app(DropService::class)->rollBattleDrops(
                 $character,
@@ -159,6 +174,9 @@ class MapExplorationBatchService
             if ($ancientFragment = $this->legacyRewards->tryDrop($character, $map, $enemy, $rewardSeed)) {
                 $drops['materials'][] = $ancientFragment;
             }
+            $gradeBonus = app(ExplorationMapGradeRewardService::class)->tryDrop($character, $map, $enemy, $rewardSeed);
+            $drops['materials'] = array_merge($drops['materials'] ?? [], $gradeBonus['materials']);
+            $drops['equipment'] = array_merge($drops['equipment'] ?? [], $gradeBonus['equipment']);
             $this->applyVictoryRecovery($character, $battle, $modifiers);
             $mapDrop = app(ExplorationMapDropService::class)->tryDrop($character, $map->sourceArea, $enemy, false, true);
             $valmonEggFound = app(ValmonService::class)->tryFindEgg($character, $map->sourceArea, null);
@@ -415,6 +433,62 @@ class MapExplorationBatchService
             if ($refund > 0) app(GoldService::class)->add($character, $refund, 'map_entry_fee_refund', '未実行の探索地図入場料を返還', MapExplorationBatch::class, $batch->id);
             $batch->update(['reserved_count' => $batch->executed_count, 'last_exploration_index' => $batch->first_exploration_index + max(0, $batch->executed_count - 1), 'total_fee' => $batch->executed_count > 0 ? $batch->total_fee : 0]);
         });
+    }
+
+    private function recoverStaleBatches(int $registrationId): void
+    {
+        $staleSeconds = max(60, (int) config('exploration_maps.stale_batch_recovery_seconds', 300));
+        $cutoff = now()->subSeconds($staleSeconds);
+        $batchIds = MapExplorationBatch::query()
+            ->where('registration_id', $registrationId)
+            ->where(function ($query) use ($cutoff): void {
+                $query->where(function ($reserved) use ($cutoff): void {
+                    $reserved->where('status', 'reserved')->where('created_at', '<=', $cutoff);
+                })->orWhere(function ($processing) use ($cutoff): void {
+                    $processing->where('status', 'processing')->where('started_at', '<=', $cutoff);
+                });
+            })
+            ->pluck('id');
+
+        foreach ($batchIds as $batchId) {
+            DB::transaction(function () use ($batchId, $cutoff): void {
+                $batch = MapExplorationBatch::lockForUpdate()->find($batchId);
+                if (!$batch || !$this->isStaleBatch($batch, $cutoff)) {
+                    return;
+                }
+
+                $registration = TownMapRegistration::lockForUpdate()->findOrFail($batch->registration_id);
+                $unexecuted = max(0, (int) $batch->reserved_count - (int) $batch->executed_count);
+                if ($unexecuted > 0) {
+                    $registration->increment('remaining_explorations', $unexecuted);
+                    $registration->decrement('consumed_explorations', $unexecuted);
+                }
+
+                $refund = (int) $batch->executed_count === 0 ? (int) $batch->total_fee : 0;
+                if ($refund > 0) {
+                    $character = Character::lockForUpdate()->findOrFail($batch->character_id);
+                    app(GoldService::class)->add($character, $refund, 'map_entry_fee_refund', '未実行の探索地図入場料を返還', MapExplorationBatch::class, $batch->id);
+                }
+
+                $batch->update([
+                    'reserved_count' => (int) $batch->executed_count,
+                    'last_exploration_index' => (int) $batch->first_exploration_index + max(0, (int) $batch->executed_count - 1),
+                    'total_fee' => (int) $batch->executed_count > 0 ? (int) $batch->total_fee : 0,
+                    'status' => 'recovered',
+                    'completed_at' => now(),
+                ]);
+            });
+        }
+    }
+
+    private function isStaleBatch(MapExplorationBatch $batch, \DateTimeInterface $cutoff): bool
+    {
+        if ($batch->status === 'reserved') {
+            return $batch->created_at?->lte($cutoff) ?? false;
+        }
+
+        return $batch->status === 'processing'
+            && ($batch->started_at?->lte($cutoff) ?? false);
     }
 
     private function summary(MapExplorationBatch $batch): array

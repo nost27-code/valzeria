@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-hero-legend-map-grade-rewards',
+        'date' => '2026-07-25',
+        'category' => 'balance',
+        'title' => '英雄・伝説地図の等級報酬を強化',
+        'detail' => '新しく見つかる英雄・伝説地図は、等級に応じて報酬傾向が強まり、勝利時に等級限定の追加報酬も低確率で抽選されるようにしました。修練の導きは英雄がJob EXP最大7、伝説が最大8になります。',
+    ],
+    [
         'id' => '2026-07-25-equipment-warehouse-trait-sorting',
         'date' => '2026-07-25',
         'category' => 'changed',

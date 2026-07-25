@@ -52,6 +52,20 @@ class ExplorationMapLegacyRewardService
         return $fragments->values()->get($index);
     }
 
+    public function gradeBonusAncientFragmentFor(ExplorationMap $map): ?Material
+    {
+        $levels = $this->difficulty->enemyLevels($map);
+        if ($levels === [] || min($levels) < (int) config('exploration_maps.legacy_fallback_rewards.ancient_fragment_min_enemy_level', 142)) {
+            return null;
+        }
+
+        if ($map->reward_profile === 'ancient_fragment') {
+            return $this->ancientFragmentFor($map);
+        }
+
+        return $this->ancientFragmentForSeedHash((string) $map->seed_hash);
+    }
+
     public function tryDrop(Character $character, ExplorationMap $map, Enemy $enemy, string $rewardSeed): ?array
     {
         $fragment = $this->ancientFragmentFor($map);

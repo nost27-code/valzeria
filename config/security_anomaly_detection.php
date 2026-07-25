@@ -22,6 +22,7 @@ return [
         ],
         'job_exp' => [
             'max_per_reward' => 3,
+            'exploration_map_max_per_reward' => 8,
             'window_hours' => 24,
         ],
         'shared_ip' => [

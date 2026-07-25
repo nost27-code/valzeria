@@ -15,6 +15,7 @@ class ExplorationMapGenerator
         private readonly ExplorationMapSeedService $seeds,
         private readonly ExplorationMapDifficultyService $difficulty,
         private readonly ExplorationMapLegacyRewardService $legacyRewards,
+        private readonly ExplorationMapRewardProfileService $rewardProfiles,
     ) {}
 
     public function generate(Character $owner, Area $area, Enemy $sourceMonster, string $dropEventUuid): ExplorationMap
@@ -55,10 +56,10 @@ class ExplorationMapGenerator
 
         return ExplorationMap::create([
             'uuid' => $uuid, 'owner_character_id' => $owner->id, 'source_area_id' => $targetArea->id, 'source_monster_id' => $targetMonster->id, 'source_drop_event_uuid' => $dropEventUuid,
-            'seed_version' => 1, 'seed_encrypted' => $this->seeds->encrypt($root), 'seed_hash' => $seedHash, 'generation_version' => 4,
+            'seed_version' => 1, 'seed_encrypted' => $this->seeds->encrypt($root), 'seed_hash' => $seedHash, 'generation_version' => 5,
             'map_grade' => $grade, 'map_level' => $level, 'dungeon_type' => $type, 'reward_profile' => $profile, 'exploration_limit' => $limit,
             'name' => $name, 'name_parts_json' => $parts, 'normal_monster_variants_json' => $normal, 'boss_monster_variants_json' => $boss,
-            'environment_effects_json' => $effects, 'reward_modifiers_json' => $this->profiles()[$profile],
+            'environment_effects_json' => $effects, 'reward_modifiers_json' => $this->rewardProfiles->modifiers($profile, $grade),
             'generation_payload_json' => $generationPayload,
             'recommended_town_id' => $recommendedTownId, 'status' => 'uninvestigated',
         ]);
@@ -72,7 +73,7 @@ class ExplorationMapGenerator
     {
         $range = config("exploration_maps.grade_limits.{$grade}");
         $limit = (int) $range['min'] + $this->seeds->int($root, 'map:v1:exploration_limit', 0, intdiv((int) $range['max'] - (int) $range['min'], 10)) * 10;
-        $multiplier = (float) config("exploration_maps.reward_profiles.{$profile}.exploration_limit_multiplier", 1);
+        $multiplier = $this->rewardProfiles->explorationLimitMultiplier($profile, $grade);
 
         return max(10, (int) (round(($limit * $multiplier) / 10) * 10));
     }
@@ -136,12 +137,6 @@ class ExplorationMapGenerator
     }
     private function sourceBonus(Enemy $enemy): int { return $enemy->is_boss ? 5 : ((bool) ($enemy->is_elite ?? false) ? 3 : 0); }
     private function gradeBonus(string $grade): int { return ['normal' => 0, 'rare' => 5, 'hero' => 10, 'legend' => 15][$grade]; }
-    private function profiles(): array
-    {
-        return collect(config('exploration_maps.reward_profiles', []))
-            ->map(fn (array $profile) => $profile['modifiers'] ?? [])
-            ->all();
-    }
     private function effects(string $root, string $type, string $grade): array
     {
         $count = $this->seeds->int($root, 'map:v1:environment_count', 0, $grade === 'legend' ? 3 : 2);

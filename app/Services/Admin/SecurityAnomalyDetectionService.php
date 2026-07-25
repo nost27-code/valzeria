@@ -141,12 +141,12 @@ class SecurityAnomalyDetectionService
     private function detectUnexpectedJobExp(array &$result): void
     {
         $rule = config('security_anomaly_detection.rules.job_exp');
-        $max = (int) $rule['max_per_reward'];
         $since = now()->subHours((int) $rule['window_hours']);
         $sources = [
-            ['table' => 'battle_logs', 'character' => 'character_id', 'label' => '通常探索'],
-            ['table' => 'tower_run_events', 'character' => 'character_id', 'label' => '星樹の塔'],
-            ['table' => 'champ_battle_logs', 'character' => 'challenger_character_id', 'label' => 'チャンプ戦'],
+            ['table' => 'battle_logs', 'character' => 'character_id', 'label' => '通常探索', 'max' => (int) $rule['max_per_reward'], 'battle_type' => ['operator' => '!=', 'value' => 'exploration_map']],
+            ['table' => 'battle_logs', 'character' => 'character_id', 'label' => '探索地図', 'max' => (int) ($rule['exploration_map_max_per_reward'] ?? 8), 'battle_type' => ['operator' => '=', 'value' => 'exploration_map']],
+            ['table' => 'tower_run_events', 'character' => 'character_id', 'label' => '星樹の塔', 'max' => (int) $rule['max_per_reward']],
+            ['table' => 'champ_battle_logs', 'character' => 'challenger_character_id', 'label' => 'チャンプ戦', 'max' => (int) $rule['max_per_reward']],
         ];
 
         foreach ($sources as $source) {
@@ -154,11 +154,21 @@ class SecurityAnomalyDetectionService
                 continue;
             }
 
-            $rows = DB::table($source['table'])
+            $max = (int) $source['max'];
+            $query = DB::table($source['table'])
                 ->select('id', $source['character'].' as character_id', 'job_exp_gained', 'created_at')
                 ->where('created_at', '>=', $since)
-                ->where('job_exp_gained', '>', $max)
-                ->get();
+                ->where('job_exp_gained', '>', $max);
+            if (isset($source['battle_type']) && Schema::hasColumn($source['table'], 'battle_type')) {
+                if ($source['battle_type']['operator'] === '!=') {
+                    $query->where(fn ($battleType) => $battleType
+                        ->whereNull('battle_type')
+                        ->orWhere('battle_type', '!=', $source['battle_type']['value']));
+                } else {
+                    $query->where('battle_type', '=', $source['battle_type']['value']);
+                }
+            }
+            $rows = $query->get();
 
             foreach ($rows as $row) {
                 $subject = $this->subjectForCharacter((int) $row->character_id);

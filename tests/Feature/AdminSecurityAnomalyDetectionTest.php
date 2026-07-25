@@ -77,6 +77,25 @@ class AdminSecurityAnomalyDetectionTest extends TestCase
         $this->assertSame(2, SecurityAnomalyCase::query()->where('rule_key', 'unexpected_job_exp')->firstOrFail()->detection_count);
     }
 
+    public function test_exploration_map_job_exp_up_to_eight_is_not_reported_as_an_anomaly(): void
+    {
+        $character = $this->createCharacter();
+        [$areaId, $enemyId] = $this->battleMasterIds();
+
+        BattleLog::query()->create([
+            'character_id' => $character->id, 'area_id' => $areaId, 'enemy_id' => $enemyId,
+            'battle_type' => 'exploration_map', 'result' => 'win', 'exp_gained' => 1, 'gold_gained' => 1,
+            'job_exp_gained' => 8, 'level_up_count' => 0, 'log_text' => 'test', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(SecurityAnomalyDetectionService::class)->scan();
+
+        $this->assertDatabaseMissing('security_anomaly_cases', [
+            'rule_key' => 'unexpected_job_exp',
+            'character_id' => $character->id,
+        ]);
+    }
+
     public function test_scan_detects_abnormal_gold_and_shared_ip_without_storing_plain_ip(): void
     {
         config()->set('security_anomaly_detection.rules.gold_change.total_threshold', 100);

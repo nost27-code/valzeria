@@ -238,6 +238,37 @@ class DropService
         return $this->grantMaterial($character, $material, $kind, $enemy);
     }
 
+    public function grantMapGradeMaterialBonus(Character $character, Enemy $enemy): ?array
+    {
+        return $this->rollMaterialBySpec(
+            $character,
+            $enemy,
+            true,
+            (float) config('exploration_maps.material_drop.common_material_weight_multiplier', 0.5),
+        );
+    }
+
+    public function grantMapGradeEquipmentBonus(Character $character, Enemy $enemy, string $preferredSlot): ?array
+    {
+        $slots = array_values(array_unique(array_merge(
+            [$preferredSlot],
+            ['weapon', 'armor', 'accessory'],
+        )));
+
+        foreach ($slots as $slot) {
+            if (!in_array($slot, ['weapon', 'armor', 'accessory'], true)) {
+                continue;
+            }
+
+            $drop = $this->rollEquipmentBySpec($character, $enemy, $slot, 0, true);
+            if ($drop) {
+                return $drop;
+            }
+        }
+
+        return null;
+    }
+
     /** フェルディア専用: material_drops の値を重みではなく敵撃破ごとの条件付き確率として扱う。 */
     private function rollFerdiaMaterialDrops(Character $character, Enemy $enemy, bool $trackExplorationLoot = true): array
     {

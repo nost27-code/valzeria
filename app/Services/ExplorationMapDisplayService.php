@@ -11,6 +11,7 @@ class ExplorationMapDisplayService
     public function __construct(
         private readonly ExplorationMapDifficultyService $difficulty,
         private readonly ExplorationMapLegacyRewardService $legacyRewards,
+        private readonly ExplorationMapRewardProfileService $rewardProfiles,
     ) {}
 
     public function details(ExplorationMap $map, ?Collection $enemies = null): array
@@ -102,10 +103,11 @@ class ExplorationMapDisplayService
             return '古代片：' . $ancientFragment->displayName();
         }
 
-        $profile = config('exploration_maps.reward_profiles.' . $map->reward_profile, []);
-        if (($profile['label'] ?? null) !== null
-            && ($profile['modifiers'] ?? []) == $modifiers) {
-            return (string) $profile['label'];
+        $expectedModifiers = $this->rewardProfiles->modifiers((string) $map->reward_profile, (string) $map->map_grade);
+        $legacyModifiers = $this->rewardProfiles->modifiers((string) $map->reward_profile);
+        if (($label = $this->rewardProfiles->label((string) $map->reward_profile)) !== null
+            && ($expectedModifiers == $modifiers || $legacyModifiers == $modifiers)) {
+            return $label;
         }
         if (($modifiers['exp_multiplier'] ?? 1) > 1) return '経験値が20%多い';
         if (($modifiers['gold_multiplier'] ?? 1) > 1) return 'Goldが25%多い';
