@@ -50,6 +50,8 @@
                     materialSort: 'name_asc',
                     equipmentQuery: '',
                     equipmentStatus: 'all',
+                    equipmentQuality: 'all',
+                    equipmentTrait: 'all',
                     equipmentSort: 'rank_desc',
                     materialStorageTotal: {{ (int) ($storageSummary['material_storage_total'] ?? 0) }},
                     materialStorageTypes: {{ (int) ($storageSummary['material_storage_types'] ?? 0) }},
@@ -92,7 +94,14 @@
                         const searchText = this.normalizeEquipmentText(element.dataset.equipmentSearch);
 
                         return (!query || searchText.includes(query))
-                            && (this.equipmentStatus === 'all' || element.dataset.equipmentStatus === this.equipmentStatus);
+                            && (this.equipmentStatus === 'all' || element.dataset.equipmentStatus === this.equipmentStatus)
+                            && (this.equipmentQuality === 'all' || element.dataset.equipmentQuality === this.equipmentQuality)
+                            && (
+                                this.equipmentTrait === 'all'
+                                || (this.equipmentTrait === 'prefix' && element.dataset.equipmentHasPrefix === '1')
+                                || (this.equipmentTrait === 'suffix' && element.dataset.equipmentHasSuffix === '1')
+                                || (this.equipmentTrait === 'none' && element.dataset.equipmentHasPrefix === '0' && element.dataset.equipmentHasSuffix === '0')
+                            );
                     },
                     sortEquipmentCards() {
                         const compareText = (a, b) => String(a).localeCompare(String(b), 'ja');
@@ -104,6 +113,10 @@
                                 if (this.equipmentSort === 'rank_asc') return Number(a.dataset.equipmentRank) - Number(b.dataset.equipmentRank) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
                                 if (this.equipmentSort === 'price_desc') return Number(b.dataset.equipmentPrice) - Number(a.dataset.equipmentPrice) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
                                 if (this.equipmentSort === 'price_asc') return Number(a.dataset.equipmentPrice) - Number(b.dataset.equipmentPrice) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'quality_desc') return Number(b.dataset.equipmentQualitySort) - Number(a.dataset.equipmentQualitySort) || Number(b.dataset.equipmentRank) - Number(a.dataset.equipmentRank) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'prefix_desc') return Number(b.dataset.equipmentPrefixLevel) - Number(a.dataset.equipmentPrefixLevel) || Number(b.dataset.equipmentQualitySort) - Number(a.dataset.equipmentQualitySort) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'suffix_desc') return Number(b.dataset.equipmentSuffixLevel) - Number(a.dataset.equipmentSuffixLevel) || Number(b.dataset.equipmentQualitySort) - Number(a.dataset.equipmentQualitySort) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
+                                if (this.equipmentSort === 'enhance_desc') return Number(b.dataset.equipmentEnhanceLevel) - Number(a.dataset.equipmentEnhanceLevel) || Number(b.dataset.equipmentRank) - Number(a.dataset.equipmentRank) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
                                 if (this.equipmentSort === 'name_asc') return compareText(a.dataset.equipmentName, b.dataset.equipmentName);
 
                                 return Number(b.dataset.equipmentRank) - Number(a.dataset.equipmentRank) || compareText(a.dataset.equipmentName, b.dataset.equipmentName);
@@ -631,7 +644,7 @@
                         <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             <label class="sm:col-span-2">
                                 <span class="mb-1 block text-[11px] font-bold text-amber-800">装備を探す</span>
-                                <input type="search" x-model.debounce.150ms="equipmentQuery" placeholder="装備名・武器種・ランクを入力" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                <input type="search" x-model.debounce.150ms="equipmentQuery" placeholder="装備名・武器種・ランク・銘を入力" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
                             </label>
                             <label>
                                 <span class="mb-1 block text-[11px] font-bold text-amber-800">並び替え</span>
@@ -642,6 +655,10 @@
                                     <option value="rank_asc">ランクが低い順</option>
                                     <option value="price_desc">売却額が高い順</option>
                                     <option value="price_asc">売却額が低い順</option>
+                                    <option value="quality_desc">品質が高い順</option>
+                                    <option value="prefix_desc">銘段階が高い順</option>
+                                    <option value="suffix_desc">特攻・耐性段階が高い順</option>
+                                    <option value="enhance_desc">強化値が高い順</option>
                                 </select>
                             </label>
                         </div>
@@ -651,6 +668,20 @@
                             <button type="button" @click="equipmentStatus = 'equipped'" :class="equipmentStatus === 'equipped' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備中</button>
                             <button type="button" @click="equipmentStatus = 'locked'" :class="equipmentStatus === 'locked' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">保護中</button>
                             <button type="button" @click="equipmentStatus = 'ready'" :class="equipmentStatus === 'ready' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備可能</button>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span class="mr-1 text-[11px] font-bold text-amber-800">品質</span>
+                            <button type="button" @click="equipmentQuality = 'all'" :class="equipmentQuality === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                            <button type="button" @click="equipmentQuality = 'excellent'" :class="equipmentQuality === 'excellent' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">逸品</button>
+                            <button type="button" @click="equipmentQuality = 'good'" :class="equipmentQuality === 'good' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">良品</button>
+                            <button type="button" @click="equipmentQuality = 'normal'" :class="equipmentQuality === 'normal' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">通常品</button>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span class="mr-1 text-[11px] font-bold text-amber-800">特性</span>
+                            <button type="button" @click="equipmentTrait = 'all'" :class="equipmentTrait === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                            <button type="button" @click="equipmentTrait = 'prefix'" :class="equipmentTrait === 'prefix' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">銘あり</button>
+                            <button type="button" @click="equipmentTrait = 'suffix'" :class="equipmentTrait === 'suffix' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特攻・耐性あり</button>
+                            <button type="button" @click="equipmentTrait = 'none'" :class="equipmentTrait === 'none' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特性なし</button>
                         </div>
                     </div>
 
@@ -702,6 +733,14 @@
                                                 default => (int) ($item?->accessory_rank_sort ?? 0),
                                             };
                                             $equipmentStatus = $characterItem->is_equipped ? 'equipped' : ($characterItem->is_locked ? 'locked' : 'ready');
+                                            $equipmentQuality = (string) ($characterItem->affix_quality ?: 'normal');
+                                            $equipmentQualitySort = match ($equipmentQuality) {
+                                                'excellent' => 2,
+                                                'good' => 1,
+                                                default => 0,
+                                            };
+                                            $equipmentPrefixLevel = $characterItem->affix_prefix_id ? $characterItem->effectiveAffixPrefixLevel() : 0;
+                                            $equipmentSuffixLevel = $characterItem->affix_suffix_id ? $characterItem->effectiveAffixSuffixLevel() : 0;
                                             $equipmentSearchText = implode(' ', array_filter([
                                                 $characterItem->displayName(),
                                                 $typeMeta[$type]['title'],
@@ -729,6 +768,13 @@
                                             data-equipment-name="{{ $characterItem->displayName() }}"
                                             data-equipment-search="{{ $equipmentSearchText }}"
                                             data-equipment-status="{{ $equipmentStatus }}"
+                                            data-equipment-quality="{{ $equipmentQuality }}"
+                                            data-equipment-quality-sort="{{ $equipmentQualitySort }}"
+                                            data-equipment-has-prefix="{{ $characterItem->affix_prefix_id ? 1 : 0 }}"
+                                            data-equipment-has-suffix="{{ $characterItem->affix_suffix_id ? 1 : 0 }}"
+                                            data-equipment-prefix-level="{{ $equipmentPrefixLevel }}"
+                                            data-equipment-suffix-level="{{ $equipmentSuffixLevel }}"
+                                            data-equipment-enhance-level="{{ (int) ($characterItem->enhance_level ?? 0) }}"
                                             data-equipment-rank="{{ $equipmentRankSort }}"
                                             data-equipment-price="{{ $sellPrice }}"
                                             data-equipment-created-at="{{ (int) ($characterItem->created_at?->getTimestamp() ?? 0) }}"

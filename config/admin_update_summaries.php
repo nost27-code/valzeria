@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-equipment-warehouse-trait-sorting',
+        'date' => '2026-07-25',
+        'category' => 'changed',
+        'title' => '装備倉庫の品質・特性検索を改善',
+        'detail' => '装備倉庫で逸品・良品・通常品や、銘・特攻・耐性の有無を絞り込み、品質・特性段階・強化値の順に並べ替えられるようにしました。',
+    ],
+    [
         'id' => '2026-07-25-ancient-fragment-map-profile',
         'date' => '2026-07-25',
         'category' => 'balance',
