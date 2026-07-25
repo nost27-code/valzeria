@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-equipment-warehouse-list-display-fix',
+        'date' => '2026-07-25',
+        'category' => 'fixed',
+        'title' => '装備倉庫の一覧が消える不具合を修正',
+        'detail' => '装備倉庫で絞り込みを「すべて」にしても装備が表示されない場合がある不具合を修正しました。',
+    ],
+    [
         'id' => '2026-07-25-equipment-warehouse-bulk-sale-protection',
         'date' => '2026-07-25',
         'category' => 'added',

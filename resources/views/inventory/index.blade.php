@@ -38,6 +38,85 @@
             ];
         @endphp
 
+        <script>
+        (() => {
+            const registerInventoryAlpine = () => {
+                if (window.inventoryAlpineRegistered) return;
+                window.inventoryAlpineRegistered = true;
+
+                Alpine.store('matSales', {
+                    items: {},
+                    set(id, qty, price) { this.items[id] = { qty, price }; },
+                    remove(id) { delete this.items[id]; },
+                    get total() { return Object.values(this.items).reduce((s, i) => s + i.qty * i.price, 0); },
+                    get count() { return Object.keys(this.items).length; },
+                    clear() { this.items = {}; }
+                });
+
+                Alpine.store('equipSales', {
+                    items: {},
+                    activeTab: 'weapon',
+                    confirmOpen: false,
+                    submitting: false,
+                    toggle(id, selected, price, name) {
+                        if (selected) this.items[id] = { price, name };
+                        else delete this.items[id];
+                    },
+                    remove(id) { delete this.items[id]; },
+                    get total() { return Object.values(this.items).reduce((sum, item) => sum + Number(item.price || 0), 0); },
+                    get count() { return Object.keys(this.items).length; },
+                    clear() { this.items = {}; }
+                });
+
+                Alpine.data('equipmentWarehouseCard', (config) => ({
+                    ...config,
+                    locking: false,
+                    saleDisabledTitle() {
+                        if (this.equipped) return '装備中は売却できません';
+                        if (this.locked) return '保護中は売却できません';
+                        return '売却できません';
+                    },
+                    async toggleLock() {
+                        if (this.locking || !this.canToggleLock) return;
+
+                        this.locking = true;
+                        const formData = new FormData();
+                        formData.append('_token', this.csrfToken);
+
+                        try {
+                            const response = await fetch(this.lockUrl, {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                body: formData
+                            });
+                            const data = await response.json().catch(() => ({}));
+                            if (!response.ok || data.success !== true) {
+                                throw new Error(data.message || '保護状態を変更できませんでした。');
+                            }
+
+                            this.locked = data.is_locked === true;
+                            this.canSell = data.can_sell === true;
+                            if (!this.canSell) {
+                                Alpine.store('equipSales').remove(this.id);
+                                if (this.$refs.saleCheckbox) this.$refs.saleCheckbox.checked = false;
+                            }
+                        } catch (error) {
+                            alert(error.message || '通信に失敗しました。もう一度お試しください。');
+                        } finally {
+                            this.locking = false;
+                        }
+                    }
+                }));
+            };
+
+            if (window.Alpine) {
+                registerInventoryAlpine();
+            } else {
+                document.addEventListener('alpine:init', registerInventoryAlpine, { once: true });
+            }
+        })();
+        </script>
+
         <div class="w-full space-y-6">
             <div
                 class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-slate-200"
@@ -1097,72 +1176,6 @@
 </div>
 
 <script>
-document.addEventListener('alpine:init', () => {
-    Alpine.store('matSales', {
-        items: {},
-        set(id, qty, price) { this.items[id] = { qty, price }; },
-        remove(id) { delete this.items[id]; },
-        get total() { return Object.values(this.items).reduce((s, i) => s + i.qty * i.price, 0); },
-        get count() { return Object.keys(this.items).length; },
-        clear() { this.items = {}; }
-    });
-
-    Alpine.store('equipSales', {
-        items: {},
-        activeTab: 'weapon',
-        confirmOpen: false,
-        submitting: false,
-        toggle(id, selected, price, name) {
-            if (selected) this.items[id] = { price, name };
-            else delete this.items[id];
-        },
-        remove(id) { delete this.items[id]; },
-        get total() { return Object.values(this.items).reduce((sum, item) => sum + Number(item.price || 0), 0); },
-        get count() { return Object.keys(this.items).length; },
-        clear() { this.items = {}; }
-    });
-
-    Alpine.data('equipmentWarehouseCard', (config) => ({
-        ...config,
-        locking: false,
-        saleDisabledTitle() {
-            if (this.equipped) return '装備中は売却できません';
-            if (this.locked) return '保護中は売却できません';
-            return '売却できません';
-        },
-        async toggleLock() {
-            if (this.locking || !this.canToggleLock) return;
-
-            this.locking = true;
-            const formData = new FormData();
-            formData.append('_token', this.csrfToken);
-
-            try {
-                const response = await fetch(this.lockUrl, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    body: formData
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || data.success !== true) {
-                    throw new Error(data.message || '保護状態を変更できませんでした。');
-                }
-
-                this.locked = data.is_locked === true;
-                this.canSell = data.can_sell === true;
-                if (!this.canSell) {
-                    Alpine.store('equipSales').remove(this.id);
-                    if (this.$refs.saleCheckbox) this.$refs.saleCheckbox.checked = false;
-                }
-            } catch (error) {
-                alert(error.message || '通信に失敗しました。もう一度お試しください。');
-            } finally {
-                this.locking = false;
-            }
-        }
-    }));
-});
-
 async function bulkSellMaterials(csrfToken, sellUrl) {
     const items = { ...Alpine.store('matSales').items };
     const ids = Object.keys(items);

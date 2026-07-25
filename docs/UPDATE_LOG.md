@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Fixed
+
+- 装備倉庫で絞り込みを「すべて」にしても装備一覧が表示されない場合がある不具合を修正しました。
+
 ### Added
 
 - 装備倉庫で複数の装備を選んで一括売却できるようにしました。各装備の星印から保護・保護解除を切り替えられ、保護中の装備は単品売却・一括売却の対象になりません。
