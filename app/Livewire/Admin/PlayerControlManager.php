@@ -13,6 +13,7 @@ use App\Models\Item;
 use App\Models\GoldTransaction;
 use App\Models\KisekiTransaction;
 use App\Models\Material;
+use App\Services\AdminGlobalCompensationService;
 use App\Services\CharacterNotificationService;
 use App\Services\CooldownSettingService;
 use App\Services\EquipmentAffixRulesService;
@@ -21,7 +22,9 @@ use App\Services\NewcomerRegistrationCampaignService;
 use App\Services\StorageCapacityService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class PlayerControlManager extends Component
@@ -45,9 +48,16 @@ class PlayerControlManager extends Component
     public int $goldGrantAmount = 1;
     public string $goldGrantReason = '';
     public string $freezeReason = '';
+    #[Locked]
+    public string $globalCompensationRequestUuid = '';
+    public string $globalCompensationItemKey = 'explore_stamina_potion';
+    public int $globalCompensationQuantity = 1;
+    public string $globalCompensationNotificationTitle = '不具合のお詫び';
+    public string $globalCompensationNotificationBody = '不具合のお詫びとして、探索力の回復アイテムをお届けしました。';
 
     public function mount(): void
     {
+        $this->globalCompensationRequestUuid = (string) Str::uuid();
         $characterId = (int) request()->query('character_id', 0);
         if ($characterId > 0) {
             $this->selectCharacter($characterId);
@@ -318,9 +328,49 @@ class PlayerControlManager extends Component
         session()->flash('message', "7月登録キャンペーン対象211名へ探索力の薬 x5を追加送付しました（今回 {$grantedCount}名）。");
     }
 
+    public function grantGlobalCompensation(): void
+    {
+        $this->validate([
+            'globalCompensationRequestUuid' => ['required', 'uuid'],
+            'globalCompensationItemKey' => ['required', 'in:explore_stamina_small_bottle,explore_stamina_potion'],
+            'globalCompensationQuantity' => ['required', 'integer', 'min:1', 'max:9999'],
+            'globalCompensationNotificationTitle' => ['required', 'string', 'max:255'],
+            'globalCompensationNotificationBody' => ['required', 'string', 'max:2000'],
+        ], [
+            'globalCompensationItemKey.in' => '探索力の小瓶または探索力の薬を選択してください。',
+            'globalCompensationQuantity.min' => '配布個数は1個以上で指定してください。',
+            'globalCompensationNotificationTitle.required' => '通知タイトルを入力してください。',
+            'globalCompensationNotificationBody.required' => '通知メッセージを入力してください。',
+        ]);
+
+        try {
+            $result = app(AdminGlobalCompensationService::class)->grant(
+                $this->globalCompensationRequestUuid,
+                $this->globalCompensationItemKey,
+                $this->globalCompensationQuantity,
+                $this->globalCompensationNotificationTitle,
+                $this->globalCompensationNotificationBody,
+                auth()->id()
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+            session()->flash('error', '全体配布が途中で停止しました。同じ内容のまま再実行すると、配布済みの冒険者を除いて続きから処理します。');
+
+            return;
+        }
+
+        $this->globalCompensationRequestUuid = (string) Str::uuid();
+        session()->flash(
+            'message',
+            "{$result['target_count']}名へ {$result['item_name']} x{$this->globalCompensationQuantity} の全体配布を実行しました"
+                . "（今回 {$result['granted_count']}名／配布済みスキップ {$result['skipped_count']}名）。"
+        );
+    }
+
     public function render(
         StorageCapacityService $storageCapacityService,
-        NewcomerRegistrationCampaignService $newcomerRegistrationCampaignService
+        NewcomerRegistrationCampaignService $newcomerRegistrationCampaignService,
+        AdminGlobalCompensationService $adminGlobalCompensationService
     )
     {
         $characters = $this->characters();
@@ -352,6 +402,8 @@ class PlayerControlManager extends Component
             'itemGrantHistory' => $this->itemGrantHistory($selectedCharacter),
             'newcomerGiftSummary' => $newcomerRegistrationCampaignService->summary(syncPending: true),
             'newcomerBonusSummary' => $newcomerRegistrationCampaignService->bonusSummary(),
+            'globalCompensationItems' => $adminGlobalCompensationService->supportedItems(),
+            'globalCompensationTargetCount' => $adminGlobalCompensationService->targetCount(),
         ])->layout('components.layouts.admin');
     }
 

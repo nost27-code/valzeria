@@ -2,6 +2,7 @@
     @php
         $fieldClass = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-amber-400 focus:ring-2 focus:ring-amber-200';
         $labelClass = 'text-xs font-black uppercase tracking-wide text-slate-500';
+        $selectedCompensationItem = $globalCompensationItems[$globalCompensationItemKey] ?? null;
     @endphp
 
     <div class="mb-6">
@@ -15,6 +16,83 @@
             {{ session('message') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div class="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800 shadow-sm">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <section class="mb-6 overflow-hidden rounded-md border border-amber-300 bg-white shadow-sm">
+        <div class="border-b border-amber-200 bg-amber-50 px-5 py-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-black text-amber-950">全プレイヤーへのお詫びアイテム配布</h2>
+                    <p class="mt-1 text-xs font-semibold leading-relaxed text-amber-800">
+                        管理者・検証用キャラクターを除く {{ number_format($globalCompensationTargetCount) }} 名へ、探索力回復アイテムと通知を一括送付します。
+                    </p>
+                </div>
+                <span class="shrink-0 rounded bg-white px-3 py-2 text-sm font-black text-amber-900 shadow-sm ring-1 ring-amber-200">
+                    対象 {{ number_format($globalCompensationTargetCount) }} 名
+                </span>
+            </div>
+        </div>
+
+        <form wire:submit="grantGlobalCompensation" class="space-y-5 p-5">
+            <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
+                <div>
+                    <label class="{{ $labelClass }}">配布アイテム</label>
+                    <select wire:model.live="globalCompensationItemKey" class="mt-1 {{ $fieldClass }}">
+                        @foreach($globalCompensationItems as $itemKey => $item)
+                            <option value="{{ $itemKey }}">
+                                {{ $item['name'] }}（探索力+{{ number_format($item['effect_value']) }}）
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('globalCompensationItemKey') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                </div>
+                <div>
+                    <label class="{{ $labelClass }}">1人あたりの個数</label>
+                    <input type="number" min="1" max="9999" wire:model="globalCompensationQuantity" class="mt-1 {{ $fieldClass }}">
+                    @error('globalCompensationQuantity') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                </div>
+            </div>
+
+            <div>
+                <label class="{{ $labelClass }}">通知タイトル</label>
+                <input type="text" maxlength="255" wire:model="globalCompensationNotificationTitle" class="mt-1 {{ $fieldClass }}" placeholder="例: 地図探索不具合のお詫び">
+                @error('globalCompensationNotificationTitle') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+            </div>
+
+            <div>
+                <label class="{{ $labelClass }}">通知メッセージ</label>
+                <textarea rows="4" maxlength="2000" wire:model="globalCompensationNotificationBody" class="mt-1 {{ $fieldClass }}" placeholder="プレイヤーの通知欄に表示する内容を入力してください。"></textarea>
+                @error('globalCompensationNotificationBody') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+            </div>
+
+            <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div class="text-xs font-black text-slate-500">通知プレビュー</div>
+                <div class="mt-2 font-black text-slate-950">{{ $globalCompensationNotificationTitle ?: '通知タイトル未入力' }}</div>
+                <div class="mt-1 whitespace-pre-line text-sm font-semibold leading-relaxed text-slate-700">{{ $globalCompensationNotificationBody ?: '通知メッセージ未入力' }}</div>
+                <div class="mt-3 text-xs font-bold text-slate-500">通知には「倉庫を確認する」ボタンが付きます。</div>
+            </div>
+
+            <div class="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-xs font-semibold leading-relaxed text-slate-500">
+                    配布は監査ログへ記録されます。同じ配布操作が再送された場合、配布済みの冒険者には重複付与しません。
+                </p>
+                <button
+                    type="submit"
+                    wire:confirm="{{ number_format($globalCompensationTargetCount) }}名へ {{ $selectedCompensationItem['name'] ?? '選択アイテム' }} x{{ number_format($globalCompensationQuantity) }} を配布し、通知を送信します。実行しますか？"
+                    wire:loading.attr="disabled"
+                    wire:target="grantGlobalCompensation"
+                    class="shrink-0 rounded-md bg-amber-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    <span wire:loading.remove wire:target="grantGlobalCompensation">全員へ配布する</span>
+                    <span wire:loading wire:target="grantGlobalCompensation">配布処理中...</span>
+                </button>
+            </div>
+        </form>
+    </section>
 
     <section class="mb-6 rounded-md border border-sky-200 bg-white shadow-sm">
         <div class="border-b border-sky-100 bg-sky-50 px-5 py-4">
@@ -617,7 +695,7 @@
                         </div>
 
                         @if($itemGrantHistory->isNotEmpty())
-                            @php $historyTypeLabels = ['equipment' => '装備'] + $grantTypeLabels; @endphp
+                            @php $historyTypeLabels = ['equipment' => '装備', 'global_compensation' => '全体お詫び'] + $grantTypeLabels; @endphp
                             <div class="mt-4 overflow-hidden rounded-md border border-slate-200 bg-white">
                                 <div class="overflow-x-auto">
                                     <table class="min-w-full divide-y divide-slate-100 text-sm">

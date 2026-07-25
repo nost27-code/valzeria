@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-admin-global-compensation',
+        'date' => '2026-07-25',
+        'category' => 'internal',
+        'title' => '全体お詫びアイテム配布を追加',
+        'detail' => '管理画面から通常プレイヤー全員へ、探索力の小瓶または探索力の薬と作成した通知メッセージを、重複防止・監査ログ付きで一括配布できるようにしました。',
+    ],
+    [
         'id' => '2026-07-25-market-listed-equipment-feed-protection',
         'date' => '2026-07-25',
         'category' => 'fixed',
