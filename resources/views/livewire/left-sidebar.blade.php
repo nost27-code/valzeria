@@ -112,22 +112,89 @@
                 @endif
                 </div>
 
-                <div class="mt-2 grid grid-cols-4 gap-2">
-                    <a href="{{ route('inventory.index') }}" wire:navigate class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition hover:bg-slate-100">
-                        <img src="{{ asset('images/icon/icon_025.webp') }}" alt="" class="w-5 h-5 object-contain">
-                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap">倉庫</span>
+                <div
+                    class="mt-2 grid grid-cols-4 gap-2"
+                    x-data="{
+                        navigationTarget: null,
+                        navigationResetTimer: null,
+                        startNavigation(target, event) {
+                            if (this.navigationTarget !== null) {
+                                event.preventDefault();
+                                event.stopImmediatePropagation();
+                                return;
+                            }
+
+                            this.navigationTarget = target;
+                            this.navigationResetTimer = window.setTimeout(() => this.finishNavigation(), 10000);
+                        },
+                        finishNavigation() {
+                            this.navigationTarget = null;
+                            if (this.navigationResetTimer !== null) {
+                                window.clearTimeout(this.navigationResetTimer);
+                                this.navigationResetTimer = null;
+                            }
+                        }
+                    }"
+                    x-on:livewire:navigated.window="finishNavigation()">
+                    <a
+                        href="{{ route('inventory.index') }}"
+                        wire:navigate
+                        data-adventurer-quick-link="inventory"
+                        @click="startNavigation('inventory', $event)"
+                        :aria-busy="navigationTarget === 'inventory'"
+                        :aria-disabled="navigationTarget !== null"
+                        :class="{
+                            'pointer-events-none cursor-wait scale-[0.98] border-blue-300 bg-blue-50 shadow-inner': navigationTarget === 'inventory',
+                            'pointer-events-none opacity-50': navigationTarget !== null && navigationTarget !== 'inventory'
+                        }"
+                        class="flex min-h-11 select-none items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition duration-150 hover:bg-slate-100 active:scale-[0.98]">
+                        <img src="{{ asset('images/icon/icon_025.webp') }}" alt="" class="w-5 h-5 object-contain" :class="{ 'animate-pulse': navigationTarget === 'inventory' }">
+                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap" x-text="navigationTarget === 'inventory' ? '移動中…' : '倉庫'">倉庫</span>
                     </a>
-                    <a href="{{ route('equipment.index') }}" wire:navigate class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition hover:bg-slate-100">
-                        <img src="{{ asset('images/icon/icon_006.webp') }}" alt="" class="w-5 h-5 object-contain">
-                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap">装備</span>
+                    <a
+                        href="{{ route('equipment.index') }}"
+                        wire:navigate
+                        data-adventurer-quick-link="equipment"
+                        @click="startNavigation('equipment', $event)"
+                        :aria-busy="navigationTarget === 'equipment'"
+                        :aria-disabled="navigationTarget !== null"
+                        :class="{
+                            'pointer-events-none cursor-wait scale-[0.98] border-blue-300 bg-blue-50 shadow-inner': navigationTarget === 'equipment',
+                            'pointer-events-none opacity-50': navigationTarget !== null && navigationTarget !== 'equipment'
+                        }"
+                        class="flex min-h-11 select-none items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition duration-150 hover:bg-slate-100 active:scale-[0.98]">
+                        <img src="{{ asset('images/icon/icon_006.webp') }}" alt="" class="w-5 h-5 object-contain" :class="{ 'animate-pulse': navigationTarget === 'equipment' }">
+                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap" x-text="navigationTarget === 'equipment' ? '移動中…' : '装備'">装備</span>
                     </a>
-                    <a href="{{ route('monster-marks.index') }}" wire:navigate class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition hover:bg-slate-100">
-                        <img src="{{ asset('images/icon/icon_013.webp') }}" alt="" class="w-5 h-5 object-contain">
-                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap">印</span>
+                    <a
+                        href="{{ route('monster-marks.index') }}"
+                        wire:navigate
+                        data-adventurer-quick-link="marks"
+                        @click="startNavigation('marks', $event)"
+                        :aria-busy="navigationTarget === 'marks'"
+                        :aria-disabled="navigationTarget !== null"
+                        :class="{
+                            'pointer-events-none cursor-wait scale-[0.98] border-blue-300 bg-blue-50 shadow-inner': navigationTarget === 'marks',
+                            'pointer-events-none opacity-50': navigationTarget !== null && navigationTarget !== 'marks'
+                        }"
+                        class="flex min-h-11 select-none items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition duration-150 hover:bg-slate-100 active:scale-[0.98]">
+                        <img src="{{ asset('images/icon/icon_013.webp') }}" alt="" class="w-5 h-5 object-contain" :class="{ 'animate-pulse': navigationTarget === 'marks' }">
+                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap" x-text="navigationTarget === 'marks' ? '移動中…' : '印'">印</span>
                     </a>
-                    <a href="{{ route('titles.index') }}" wire:navigate class="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition hover:bg-slate-100">
-                        <img src="{{ asset('images/icon/icon_014.webp') }}" alt="" class="w-5 h-5 object-contain">
-                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap">称号</span>
+                    <a
+                        href="{{ route('titles.index') }}"
+                        wire:navigate
+                        data-adventurer-quick-link="titles"
+                        @click="startNavigation('titles', $event)"
+                        :aria-busy="navigationTarget === 'titles'"
+                        :aria-disabled="navigationTarget !== null"
+                        :class="{
+                            'pointer-events-none cursor-wait scale-[0.98] border-blue-300 bg-blue-50 shadow-inner': navigationTarget === 'titles',
+                            'pointer-events-none opacity-50': navigationTarget !== null && navigationTarget !== 'titles'
+                        }"
+                        class="flex min-h-11 select-none items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 transition duration-150 hover:bg-slate-100 active:scale-[0.98]">
+                        <img src="{{ asset('images/icon/icon_014.webp') }}" alt="" class="w-5 h-5 object-contain" :class="{ 'animate-pulse': navigationTarget === 'titles' }">
+                        <span class="text-xs font-bold text-slate-600 leading-none whitespace-nowrap" x-text="navigationTarget === 'titles' ? '移動中…' : '称号'">称号</span>
                     </a>
                 </div>
 

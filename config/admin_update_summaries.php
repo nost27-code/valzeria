@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-adventurer-quick-link-feedback',
+        'date' => '2026-07-25',
+        'category' => 'changed',
+        'title' => '冒険者メニューの連打防止を追加',
+        'detail' => '冒険者メニューの倉庫・装備・印・称号を押すと移動中の表示へ切り替わり、画面が開くまで重ねて押せないようにしました。',
+    ],
+    [
         'id' => '2026-07-25-equipment-screen-browse-controls',
         'date' => '2026-07-25',
         'category' => 'changed',
