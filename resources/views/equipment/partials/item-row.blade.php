@@ -33,6 +33,28 @@
     $candidateMag = $candidateEffective['mag'] ?? 0;
     $candidateDef = $candidateEffective['def'] ?? 0;
     $candidateSpr = $candidateEffective['spr'] ?? 0;
+    $equipmentRankText = (string) (
+        $ci->item->display_rank
+        ?? $ci->item->weapon_rank
+        ?? $ci->item->armor_rank
+        ?? $ci->item->accessory_rank
+        ?? $ci->item->rarity
+        ?? ''
+    );
+    $equipmentQuality = (string) ($ci->affix_quality ?: 'normal');
+    $equipmentQualitySort = match ($equipmentQuality) {
+        'excellent' => 2,
+        'good' => 1,
+        default => 0,
+    };
+    $equipmentPrefixLevel = $ci->affix_prefix_id ? $ci->effectiveAffixPrefixLevel() : 0;
+    $equipmentSuffixLevel = $ci->affix_suffix_id ? $ci->effectiveAffixSuffixLevel() : 0;
+    $equipmentSearchText = implode(' ', array_filter([
+        $ci->displayName(),
+        $categoryLabel,
+        (string) ($ci->item->sub_type ?? ''),
+        $equipmentRankText !== '' ? 'Rank ' . $equipmentRankText : '',
+    ]));
 
     // 現在装備中の同スロット装備と比較した場合の実際の増減（このアイテムを装備したら何が変わるか）。
     $equipDelta = null;
@@ -77,6 +99,10 @@
      data-equipped="{{ $ci->is_equipped ? '1' : '0' }}"
      data-can-equip="{{ $canEquipByJob ? '1' : '0' }}"
      data-locked="{{ $ci->is_locked ? '1' : '0' }}"
+     data-equipment-search="{{ $equipmentSearchText }}"
+     data-equipment-quality="{{ $equipmentQuality }}"
+     data-equipment-has-prefix="{{ $ci->affix_prefix_id ? 1 : 0 }}"
+     data-equipment-has-suffix="{{ $ci->affix_suffix_id ? 1 : 0 }}"
      data-can-sell="{{ ($sellPrice > 0) ? '1' : '0' }}"
      data-equip-url="{{ route('equipment.equip', $ci) }}"
      data-unequip-url="{{ route('equipment.unequip', $ci) }}"
@@ -88,6 +114,12 @@
      data-sort-agi="{{ $ci->sort_agi ?? 0 }}"
      data-sort-rank="{{ $ci->sort_rank ?? 0 }}"
      data-sort-new="{{ $ci->sort_new ?? $ci->id }}"
+     data-sort-name="{{ $displayName }}"
+     data-sort-price="{{ $sellPrice }}"
+     data-sort-quality="{{ $equipmentQualitySort }}"
+     data-sort-prefix="{{ $equipmentPrefixLevel }}"
+     data-sort-suffix="{{ $equipmentSuffixLevel }}"
+     data-sort-enhance="{{ (int) ($ci->enhance_level ?? 0) }}"
      data-weapon-candidate-str="{{ $candidateStr }}"
      data-weapon-candidate-mag="{{ $candidateMag }}">
 

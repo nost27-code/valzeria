@@ -3,12 +3,20 @@
         @php
             $sortOptions = [
                 'recommend' => 'おすすめ順',
+                'rank_desc' => 'ランクが高い順',
+                'name_asc' => '名前順',
+                'newest' => '新着順',
+                'rank_asc' => 'ランクが低い順',
+                'price_desc' => '売却額が高い順',
+                'price_asc' => '売却額が低い順',
+                'quality_desc' => '品質が高い順',
+                'prefix_desc' => '銘段階が高い順',
+                'suffix_desc' => '特攻・耐性段階が高い順',
+                'enhance_desc' => '強化値が高い順',
                 'str' => '攻撃が高い順',
                 'def' => '防御が高い順',
                 'mag' => '魔力が高い順',
                 'agi' => '敏捷が高い順',
-                'rank' => 'ランクが高い順',
-                'new' => '新しく入手した順',
             ];
 
             $typeTabs = [
@@ -48,6 +56,11 @@
                     activeTab: @js($initialTab),
                     sortBy: {},
                     visible: {},
+                    filteredCounts: {},
+                    equipmentQuery: '',
+                    equipmentStatus: 'all',
+                    equipmentQuality: 'all',
+                    equipmentTrait: 'all',
                     step: 20,
                     tabs: ['weapon', 'armor', 'accessory'],
                     allTabs: @js($availableTabs),
@@ -60,6 +73,7 @@
                             const key = this.keyOf(tab);
                             this.sortBy[key] = 'recommend';
                             this.visible[key] = 20;
+                            this.filteredCounts[key] = 0;
                         });
                         this.$nextTick(() => {
                             this.tabs.forEach((tab) => this.sortItems(tab));
@@ -72,19 +86,70 @@
                         const list = this.list(tab);
                         return list ? Array.from(list.querySelectorAll('.equipment-item')) : [];
                     },
+                    normalizeEquipmentText(value) {
+                        return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
+                    },
+                    matchesEquipment(row) {
+                        const query = this.normalizeEquipmentText(this.equipmentQuery);
+                        const searchText = this.normalizeEquipmentText(row.dataset.equipmentSearch);
+
+                        return (!query || searchText.includes(query))
+                            && (
+                                this.equipmentStatus === 'all'
+                                || (this.equipmentStatus === 'equipped' && row.dataset.equipped === '1')
+                                || (this.equipmentStatus === 'locked' && row.dataset.locked === '1')
+                                || (this.equipmentStatus === 'ready' && row.dataset.equipped === '0' && row.dataset.locked === '0')
+                            )
+                            && (this.equipmentQuality === 'all' || row.dataset.equipmentQuality === this.equipmentQuality)
+                            && (
+                                this.equipmentTrait === 'all'
+                                || (this.equipmentTrait === 'prefix' && row.dataset.equipmentHasPrefix === '1')
+                                || (this.equipmentTrait === 'suffix' && row.dataset.equipmentHasSuffix === '1')
+                                || (this.equipmentTrait === 'none' && row.dataset.equipmentHasPrefix === '0' && row.dataset.equipmentHasSuffix === '0')
+                            );
+                    },
+                    matchingRows(tab) {
+                        return this.rows(tab).filter((row) => this.matchesEquipment(row));
+                    },
+                    resetVisibleAndApply() {
+                        this.tabs.forEach((tab) => {
+                            this.visible[this.keyOf(tab)] = this.step;
+                            this.applyVisibility(tab);
+                        });
+                    },
                     sortItems(tab) {
                         const list = this.list(tab);
                         if (!list) return;
                         const stateKey = this.keyOf(tab);
                         const sortKey = this.sortBy[stateKey] || 'recommend';
+                        const compareText = (a, b) => String(a).localeCompare(String(b), 'ja');
                         this.rows(tab)
-                            .sort((a, b) => Number(b.getAttribute('data-sort-' + sortKey) || 0) - Number(a.getAttribute('data-sort-' + sortKey) || 0))
+                            .sort((a, b) => {
+                                if (sortKey === 'name_asc') return compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'rank_asc') return Number(a.dataset.sortRank) - Number(b.dataset.sortRank) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'rank_desc') return Number(b.dataset.sortRank) - Number(a.dataset.sortRank) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'newest') return Number(b.dataset.sortNew) - Number(a.dataset.sortNew) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'price_desc') return Number(b.dataset.sortPrice) - Number(a.dataset.sortPrice) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'price_asc') return Number(a.dataset.sortPrice) - Number(b.dataset.sortPrice) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'quality_desc') return Number(b.dataset.sortQuality) - Number(a.dataset.sortQuality) || Number(b.dataset.sortRank) - Number(a.dataset.sortRank) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'prefix_desc') return Number(b.dataset.sortPrefix) - Number(a.dataset.sortPrefix) || Number(b.dataset.sortQuality) - Number(a.dataset.sortQuality) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'suffix_desc') return Number(b.dataset.sortSuffix) - Number(a.dataset.sortSuffix) || Number(b.dataset.sortQuality) - Number(a.dataset.sortQuality) || compareText(a.dataset.sortName, b.dataset.sortName);
+                                if (sortKey === 'enhance_desc') return Number(b.dataset.sortEnhance) - Number(a.dataset.sortEnhance) || Number(b.dataset.sortRank) - Number(a.dataset.sortRank) || compareText(a.dataset.sortName, b.dataset.sortName);
+
+                                return Number(b.getAttribute('data-sort-' + sortKey) || 0) - Number(a.getAttribute('data-sort-' + sortKey) || 0)
+                                    || compareText(a.dataset.sortName, b.dataset.sortName);
+                            })
                             .forEach((row) => list.appendChild(row));
                         this.applyVisibility(tab);
                     },
                     applyVisibility(tab) {
                         const stateKey = this.keyOf(tab);
-                        this.rows(tab).forEach((row, index) => {
+                        const matches = this.matchingRows(tab);
+                        this.filteredCounts[stateKey] = matches.length;
+                        this.rows(tab).forEach((row) => {
+                            row.style.display = 'none';
+                        });
+                        matches.forEach((row, index) => {
                             row.style.display = index < this.visible[stateKey] ? '' : 'none';
                         });
                     },
@@ -94,9 +159,14 @@
                         this.applyVisibility(tab);
                     },
                     hasMore(tab) {
-                        return this.rows(tab).length > this.visible[this.keyOf(tab)];
+                        return this.matchingRows(tab).length > this.visible[this.keyOf(tab)];
+                    },
+                    filteredCount(tab) {
+                        return this.filteredCounts[this.keyOf(tab)] || 0;
                     }
-                 }">
+                 }"
+                 @equipment-row-state-changed.window="applyVisibility($event.detail.tab)"
+                 @equipment-list-changed.window="sortItems($event.detail.tab)">
                 <div class="mb-4 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl font-extrabold text-slate-800 tracking-wider">装備変更</h2>
@@ -146,6 +216,52 @@
                     @endif
                 </div>
 
+                <div x-show="tabs.includes(activeTab)" class="mb-4 rounded-lg border border-amber-100 bg-amber-50/60 p-3">
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <label class="sm:col-span-2">
+                            <span class="mb-1 block text-[11px] font-bold text-amber-800">装備を探す</span>
+                            <input
+                                type="search"
+                                x-model.debounce.150ms="equipmentQuery"
+                                @input.debounce.150ms="resetVisibleAndApply()"
+                                placeholder="装備名・武器種・ランク・銘を入力"
+                                class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                        </label>
+                        <label>
+                            <span class="mb-1 block text-[11px] font-bold text-amber-800">並び替え</span>
+                            <select
+                                x-model="sortBy[keyOf(activeTab)]"
+                                @change="visible[keyOf(activeTab)] = step; sortItems(activeTab)"
+                                class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                @foreach($sortOptions as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span class="mr-1 text-[11px] font-bold text-amber-800">状態</span>
+                        <button type="button" @click="equipmentStatus = 'all'; resetVisibleAndApply()" :class="equipmentStatus === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                        <button type="button" @click="equipmentStatus = 'equipped'; resetVisibleAndApply()" :class="equipmentStatus === 'equipped' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備中</button>
+                        <button type="button" @click="equipmentStatus = 'locked'; resetVisibleAndApply()" :class="equipmentStatus === 'locked' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">保護中</button>
+                        <button type="button" @click="equipmentStatus = 'ready'; resetVisibleAndApply()" :class="equipmentStatus === 'ready' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備可能</button>
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span class="mr-1 text-[11px] font-bold text-amber-800">品質</span>
+                        <button type="button" @click="equipmentQuality = 'all'; resetVisibleAndApply()" :class="equipmentQuality === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                        <button type="button" @click="equipmentQuality = 'excellent'; resetVisibleAndApply()" :class="equipmentQuality === 'excellent' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">逸品</button>
+                        <button type="button" @click="equipmentQuality = 'good'; resetVisibleAndApply()" :class="equipmentQuality === 'good' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">良品</button>
+                        <button type="button" @click="equipmentQuality = 'normal'; resetVisibleAndApply()" :class="equipmentQuality === 'normal' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">通常品</button>
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span class="mr-1 text-[11px] font-bold text-amber-800">特性</span>
+                        <button type="button" @click="equipmentTrait = 'all'; resetVisibleAndApply()" :class="equipmentTrait === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                        <button type="button" @click="equipmentTrait = 'prefix'; resetVisibleAndApply()" :class="equipmentTrait === 'prefix' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">銘あり</button>
+                        <button type="button" @click="equipmentTrait = 'suffix'; resetVisibleAndApply()" :class="equipmentTrait === 'suffix' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特攻・耐性あり</button>
+                        <button type="button" @click="equipmentTrait = 'none'; resetVisibleAndApply()" :class="equipmentTrait === 'none' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特性なし</button>
+                    </div>
+                </div>
+
                 <div class="min-h-[400px]">
                     @foreach($typeTabs as $key => $tab)
                         @php
@@ -158,20 +274,10 @@
                              x-transition:enter-start="opacity-0 translate-y-2"
                              x-transition:enter-end="opacity-100 translate-y-0"
                              style="display: none;">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                            <div class="mb-3">
                                 <div class="text-sm text-slate-500" data-equipment-count="{{ $countKey }}" data-count="{{ $items->count() }}" data-prefix="倉庫の{{ $tab['label'] }}">
                                     倉庫の{{ $tab['label'] }} {{ $items->count() }}件
                                 </div>
-                                <label class="flex items-center gap-2 text-sm font-bold text-slate-600">
-                                    ソート
-                                    <select x-model="sortBy[keyOf('{{ $key }}')]"
-                                            @change="sortItems('{{ $key }}')"
-                                            class="rounded-md border-slate-300 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500">
-                                        @foreach($sortOptions as $value => $label)
-                                            <option value="{{ $value }}">{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                </label>
                             </div>
 
                             <div class="space-y-2" x-ref="{{ $countKey }}List">
@@ -187,6 +293,13 @@
                                         <p class="text-slate-500">{{ $emptyText }}</p>
                                     </div>
                                 @endif
+                            </div>
+
+                            <div
+                                x-show="filteredCount('{{ $key }}') === 0 && {{ $items->count() }} > 0"
+                                style="display: none;"
+                                class="text-center py-10 bg-white rounded-lg border border-slate-200 border-dashed">
+                                <p class="text-slate-500">条件に一致する{{ $tab['label'] }}はありません。</p>
                             </div>
 
                             <div class="mt-4 text-center" x-show="hasMore('{{ $key }}')" style="display: none;">
@@ -259,11 +372,15 @@
                         function removeRow(row, key) {
                             if (!row) return;
                             const list = row.parentElement;
+                            const tab = row.dataset.equipmentTab;
                             row.classList.add('opacity-0', 'scale-[0.98]');
                             setTimeout(() => {
                                 row.remove();
                                 revealNextHidden(list);
                                 updateCount(key, -1);
+                                window.dispatchEvent(new CustomEvent('equipment-list-changed', {
+                                    detail: { tab },
+                                }));
                             }, 180);
                         }
 
@@ -303,6 +420,9 @@
                             }
 
                             setSellState(row);
+                            window.dispatchEvent(new CustomEvent('equipment-row-state-changed', {
+                                detail: { tab: row.dataset.equipmentTab },
+                            }));
                         }
 
                         function setSellState(row) {
@@ -347,6 +467,9 @@
                                 removeEquippedBadge(row);
                             }
                             setSellState(row);
+                            window.dispatchEvent(new CustomEvent('equipment-row-state-changed', {
+                                detail: { tab: row.dataset.equipmentTab },
+                            }));
                         }
 
                         function setRowsUnequipped(ids) {

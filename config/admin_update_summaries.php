@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-equipment-screen-browse-controls',
+        'date' => '2026-07-25',
+        'category' => 'changed',
+        'title' => '装備変更画面の検索・並び替えを拡充',
+        'detail' => '装備変更画面で、装備名検索、状態・品質・銘・特攻・耐性の絞り込みと、ランク・売却額・品質・特性段階・強化値の並び替えを利用できるようにしました。',
+    ],
+    [
         'id' => '2026-07-25-equipment-warehouse-list-display-fix',
         'date' => '2026-07-25',
         'category' => 'fixed',
