@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-25-enable-non-proficient-equipment',
+        'date' => '2026-07-25',
+        'category' => 'changed',
+        'title' => '職業適性外の武器・防具を装備可能に',
+        'detail' => '現在の職業が得意ではない武器・防具も装備できるようにしました。適性外では武器種や防具に応じて装備効果が減少し、装備画面で実効率を確認できます。',
+    ],
+    [
         'id' => '2026-07-25-exploration-map-drop-rate',
         'date' => '2026-07-25',
         'category' => 'balance',
