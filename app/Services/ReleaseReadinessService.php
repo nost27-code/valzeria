@@ -100,12 +100,17 @@ class ReleaseReadinessService
     /** @return array<int, string> */
     private function explorationSupportIssues(): array
     {
-        $issues = $this->missingTables(['player_exploration_support_effects', 'character_exploration_support_prefs', 'items']);
+        $issues = $this->missingTables([
+            'player_exploration_support_effects',
+            'player_exploration_support_item_states',
+            'character_exploration_support_prefs',
+            'items',
+        ]);
         if ($issues !== []) {
             return $issues;
         }
 
-        $expected = ['薬屋のお守り', '守りの香', '冒険者の救急包', '薬屋の特製漢方'];
+        $expected = array_column(ExplorationSupportService::ITEMS, 'name');
         $actual = DB::table('items')->whereIn('name', $expected)->where('type', 'consumable')->count();
         if ($actual !== count($expected)) {
             $issues[] = "探索補助品マスタが不足しています（期待" . count($expected) . "件、実際 {$actual}件）。";

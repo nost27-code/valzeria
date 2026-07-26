@@ -862,7 +862,7 @@ class MainScreen extends Component
             ['category' => '工房', 'name' => '合成屋', 'symbol_image' => 'facilities/facility_synthesis_300.webp', 'desc' => '装備と欠片・専用素材で武器・防具を進化させる', 'details' => ['成功率100%'], 'bg_image' => 'card_bg/shop_blacksmith.webp', 'status' => 'active', 'action' => '入る', 'route' => 'smith.index', 'is_post' => false],
             ['category' => '工房', 'name' => '素材交換所', 'symbol_image' => 'facilities/facility_material_exchange_300.webp', 'desc' => '素材精製・錬成・調合で必要素材を作る', 'details' => ['強化石・導石・秘境晶', '装飾素材・回復調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'material-exchange.index', 'is_post' => false],
             ...($explorationSupportEnabled ? [
-                ['category' => '工房', 'name' => '薬屋', 'symbol_image' => 'facilities/shop_item_symbol.webp', 'desc' => 'フェルディアの薬素材から30戦有効の探索補助品を調合する', 'details' => ['探索補助品', '薬素材調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'apothecary.index', 'is_post' => false],
+                ['category' => '工房', 'name' => '薬屋', 'symbol_image' => 'facilities/shop_item_symbol.webp', 'desc' => '素材から50戦有効の探索補助品や誘魔香を調合する', 'details' => ['探索補助品', '薬素材調合'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '入る', 'route' => 'apothecary.index', 'is_post' => false],
             ] : []),
             ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [

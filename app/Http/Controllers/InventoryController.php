@@ -350,7 +350,7 @@ class InventoryController extends Controller
                 'quantity' => (int) $row->quantity,
                 'can_use' => false,
                 'use_label' => '',
-                'use_note' => '薬屋で使用・自動継続を設定できます。1個で30戦有効です。',
+                'use_note' => '薬屋や戦闘結果で装備・自動補充を設定できます。1個で50戦有効です。',
                 'manage_url' => route('apothecary.index'),
             ])
             ->values();

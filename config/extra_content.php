@@ -21,9 +21,9 @@ return [
         'exploration_support' => [
             'name' => '探索補助品',
             'category' => '追加機能',
-            'description' => '薬屋、探索補助品、もちもの導線を公開します。OFF中は画面と直URLの両方から利用できません。',
+            'description' => '薬屋、探索補助品、もちもの導線を最初から公開します。運営上OFFにした場合は画面と直URLの両方から利用できません。',
             'route' => 'apothecary.index',
-            'default_enabled' => env('EXPLORATION_SUPPORT_ENABLED', false),
+            'default_enabled' => true,
             'setting_label' => '探索補助品 公開状態',
         ],
     ],

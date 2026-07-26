@@ -1270,26 +1270,6 @@
                                         </div>
                                     </div>
 
-                                    @if(!empty($result['exploration_support']))
-                                        @php
-                                            $support = $result['exploration_support'];
-                                        @endphp
-                                        <div style="margin:0 14px 10px;padding:8px 10px;border:1px solid {{ ($support['remaining'] ?? 0) <= 5 ? '#fbbf24' : '#a7f3d0' }};background:{{ ($support['remaining'] ?? 0) <= 5 ? '#fffbeb' : '#ecfdf5' }};border-radius:8px;">
-                                            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
-                                                <span style="font-size:10px;font-weight:800;color:#047857;letter-spacing:.05em;">探索補助</span>
-                                                <span style="font-size:10px;font-weight:800;color:#475569;">残り{{ $support['remaining'] }}/30戦</span>
-                                            </div>
-                                            <div style="margin-top:2px;font-size:11px;font-weight:800;color:#0f172a;">
-                                                {{ $support['name'] }}
-                                                @if(($support['procs_remaining'] ?? null) !== null)
-                                                    <span style="color:#64748b;">/ 発動{{ $support['procs_remaining'] }}回</span>
-                                                @endif
-                                            </div>
-                                            <div style="margin-top:1px;font-size:10px;color:#475569;">{{ $support['description'] }} / 自動継続{{ $support['auto_renew'] ? 'ON' : 'OFF' }}</div>
-                                            <a href="{{ route('apothecary.index') }}" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#047857;text-decoration:underline;">変更・解除</a>
-                                        </div>
-                                    @endif
-
                                     {{-- 回復アイテム --}}
                                     @if(!empty($recoveryItems))
                                         <div id="exploration-items-panel" style="padding:0 14px 10px;display:flex;flex-direction:column;gap:5px;">
@@ -1319,6 +1299,53 @@
                                                     @endif
                                                 </div>
                                             @endforeach
+                                        </div>
+                                    @endif
+
+                                    @if($explorationSupportEnabled ?? false)
+                                        @php
+                                            $support = $activeExplorationSupport ?? null;
+                                        @endphp
+                                        <div id="battle-support-summary" style="margin:0 14px 10px;padding:8px 10px;border:1px solid {{ $support && ($support['remaining'] ?? 0) <= 5 ? '#fbbf24' : '#a7f3d0' }};background:{{ $support && ($support['remaining'] ?? 0) <= 5 ? '#fffbeb' : '#ecfdf5' }};border-radius:8px;">
+                                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                                                <div style="min-width:0;flex:1;">
+                                                    <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">
+                                                        <span style="font-size:10px;font-weight:800;color:#047857;letter-spacing:.05em;">もちもの</span>
+                                                        <span id="battle-support-remaining" style="font-size:10px;font-weight:800;color:#475569;">
+                                                            @if($support)
+                                                                残り{{ $support['remaining'] }}/{{ $support['max_battles'] ?? 50 }}戦
+                                                            @else
+                                                                未装備
+                                                            @endif
+                                                        </span>
+                                                    </div>
+                                                    <div id="battle-support-name" style="margin-top:2px;font-size:11px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                                        {{ $support['name'] ?? '探索補助品を装備していません' }}
+                                                    </div>
+                                                    <div id="battle-support-detail" style="margin-top:1px;font-size:10px;color:#475569;">
+                                                        @if($support)
+                                                            {{ $support['description'] }} / 自動補充{{ $support['auto_renew'] ? 'ON' : 'OFF' }}
+                                                        @else
+                                                            戦闘の合間に、所持している探索補助品を選べます。
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <button id="battle-support-modal-open" type="button" style="flex-shrink:0;border:1px solid #10b981;background:#fff;color:#047857;border-radius:7px;padding:5px 10px;font-size:10px;font-weight:800;cursor:pointer;">変更</button>
+                                            </div>
+                                            <div id="battle-support-message" hidden style="margin-top:5px;font-size:10px;font-weight:800;color:#047857;"></div>
+                                        </div>
+                                    @elseif(!empty($result['exploration_support']))
+                                        @php
+                                            $support = $result['exploration_support'];
+                                        @endphp
+                                        <div style="margin:0 14px 10px;padding:8px 10px;border:1px solid {{ ($support['remaining'] ?? 0) <= 5 ? '#fbbf24' : '#a7f3d0' }};background:{{ ($support['remaining'] ?? 0) <= 5 ? '#fffbeb' : '#ecfdf5' }};border-radius:8px;">
+                                            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+                                                <span style="font-size:10px;font-weight:800;color:#047857;letter-spacing:.05em;">探索補助</span>
+                                                <span style="font-size:10px;font-weight:800;color:#475569;">残り{{ $support['remaining'] }}/{{ $support['max_battles'] ?? 50 }}戦</span>
+                                            </div>
+                                            <div style="margin-top:2px;font-size:11px;font-weight:800;color:#0f172a;">{{ $support['name'] }}</div>
+                                            <div style="margin-top:1px;font-size:10px;color:#475569;">{{ $support['description'] }} / 自動補充{{ $support['auto_renew'] ? 'ON' : 'OFF' }}</div>
+                                            <a href="{{ route('apothecary.index') }}" style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;color:#047857;text-decoration:underline;">変更する</a>
                                         </div>
                                     @endif
 
@@ -1379,6 +1406,28 @@
 
                                     <div id="exploration-item-message" class="hidden" style="padding:6px 14px 10px;font-size:11px;font-weight:700;color:#64748b;"></div>
                                 </div>
+
+                                @if($explorationSupportEnabled ?? false)
+                                    <div id="battle-support-modal" hidden style="position:fixed;inset:0;z-index:1000;">
+                                        <button id="battle-support-modal-backdrop" type="button" aria-label="もちもの画面を閉じる" style="position:absolute;inset:0;width:100%;height:100%;border:0;background:rgba(15,23,42,.55);"></button>
+                                        <section role="dialog" aria-modal="true" aria-labelledby="battle-support-modal-title" style="position:absolute;left:0;right:0;bottom:0;margin:0 auto;width:min(100%,520px);max-height:82vh;display:flex;flex-direction:column;background:#f8fafc;border-radius:16px 16px 0 0;box-shadow:0 -8px 28px rgba(15,23,42,.22);">
+                                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid #e2e8f0;background:#fff;border-radius:16px 16px 0 0;">
+                                                <div>
+                                                    <h3 id="battle-support-modal-title" style="margin:0;font-size:15px;font-weight:900;color:#0f172a;">もちもの変更</h3>
+                                                    <p style="margin:2px 0 0;font-size:10px;color:#64748b;">切り替えても、それぞれの残り戦数は保存されます。</p>
+                                                </div>
+                                                <button id="battle-support-modal-close" type="button" aria-label="閉じる" style="width:30px;height:30px;flex-shrink:0;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#475569;font-size:18px;font-weight:900;line-height:1;cursor:pointer;">×</button>
+                                            </div>
+                                            <div style="overflow-y:auto;padding:12px 14px 18px;-webkit-overflow-scrolling:touch;">
+                                                @include('apothecary.partials.belongings-list', [
+                                                    'belongings' => $explorationSupportBelongings ?? [],
+                                                    'speciesLuresEligible' => $explorationSupportSpeciesLuresEligible ?? true,
+                                                ])
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                @endif
 
                                 @php
                                     $chainLootSummary = $mapExploration['loot_summary'] ?? ($result['chain_loot_summary'] ?? null);
@@ -1994,6 +2043,56 @@
 
             function currentResultPage() {
                 return document.querySelector('[data-battle-result-page]');
+            }
+
+            let battleSupportPreviousBodyOverflow = '';
+
+            function battleSupportModal() {
+                return currentResultPage()?.querySelector('#battle-support-modal')
+                    || document.getElementById('battle-support-modal');
+            }
+
+            function openBattleSupportModal() {
+                const modal = battleSupportModal();
+                const closeButton = modal?.querySelector('#battle-support-modal-close');
+                if (!modal || !closeButton) return;
+
+                battleSupportPreviousBodyOverflow = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
+                modal.hidden = false;
+                closeButton.focus();
+            }
+
+            function closeBattleSupportModal() {
+                const modal = battleSupportModal();
+                if (!modal) return;
+
+                modal.hidden = true;
+                document.body.style.overflow = battleSupportPreviousBodyOverflow;
+                document.getElementById('battle-support-modal-open')?.focus();
+            }
+
+            function syncBattleSupportSummary(event) {
+                const active = event.detail?.active || null;
+                const remaining = document.getElementById('battle-support-remaining');
+                const name = document.getElementById('battle-support-name');
+                const detail = document.getElementById('battle-support-detail');
+                const message = document.getElementById('battle-support-message');
+
+                if (active) {
+                    if (remaining) remaining.textContent = `残り${active.remaining}/${active.max_battles || 50}戦`;
+                    if (name) name.textContent = active.name;
+                    if (detail) detail.textContent = `${active.description} / 自動補充${active.auto_renew ? 'ON' : 'OFF'}`;
+                } else {
+                    if (remaining) remaining.textContent = '未装備';
+                    if (name) name.textContent = '探索補助品を装備していません';
+                    if (detail) detail.textContent = '戦闘の合間に、所持している探索補助品を選べます。';
+                }
+
+                if (message && event.detail?.message) {
+                    message.textContent = event.detail.message;
+                    message.hidden = false;
+                }
             }
 
             function setExploreButtonReadyText(form, buttonText) {
@@ -2725,6 +2824,20 @@
             });
 
             document.addEventListener('click', function(event) {
+                const supportOpenButton = event.target.closest('#battle-support-modal-open');
+                if (supportOpenButton) {
+                    event.preventDefault();
+                    openBattleSupportModal();
+                    return;
+                }
+
+                const supportCloseButton = event.target.closest('#battle-support-modal-close, #battle-support-modal-backdrop');
+                if (supportCloseButton) {
+                    event.preventDefault();
+                    closeBattleSupportModal();
+                    return;
+                }
+
                 const closeButton = event.target.closest('[data-batch-stamina-modal-close]');
                 if (closeButton) {
                     event.preventDefault();
@@ -2749,6 +2862,15 @@
                     }
                 }
             });
+
+            document.addEventListener('keydown', function(event) {
+                const modal = battleSupportModal();
+                if (event.key === 'Escape' && modal && !modal.hidden) {
+                    closeBattleSupportModal();
+                }
+            });
+
+            window.addEventListener('exploration-support-updated', syncBattleSupportSummary);
 
             document.addEventListener('submit', function(event) {
                 const itemForm = event.target.closest('.exploration-item-form');

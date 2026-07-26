@@ -1108,6 +1108,19 @@ class BattleController extends Controller
                 ? app(\App\Services\MapExplorationItemService::class)->carriedItems($battleData['character'], $registrationId)
                 : app(ExplorationItemService::class)->carriedItems($battleData['character']);
             $battleData['supportItemCounts'] = app(\App\Services\AdventureSupportService::class)->countsFor($battleData['character']);
+            if ($registrationId <= 0) {
+                $explorationSupport = app(\App\Services\ExplorationSupportService::class);
+                $speciesLuresEligible = ($battleData['result']['special_event'] ?? null) !== 'sub_area_explore'
+                    && empty($battleData['result']['region_depth_dungeon']);
+                $battleData['explorationSupportEnabled'] = $explorationSupport->isEnabled();
+                $battleData['explorationSupportSpeciesLuresEligible'] = $speciesLuresEligible;
+                $battleData['activeExplorationSupport'] = $explorationSupport->payload($battleData['character']);
+                $battleData['explorationSupportBelongings'] = $explorationSupport->belongingsFor(
+                    $battleData['character'],
+                    (int) ($battleData['areaId'] ?? 0),
+                    $speciesLuresEligible,
+                );
+            }
         }
         if (!($battleData['isBoss'] ?? false) && isset($battleData['result']['exploration_stamina'])) {
             $battleData['result']['exploration_stamina'] = app(\App\Services\ExplorationStaminaService::class)

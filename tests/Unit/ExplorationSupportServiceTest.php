@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Character;
+use App\Models\Enemy;
 use App\Services\ExplorationSupportService;
 use PHPUnit\Framework\TestCase;
 
@@ -51,5 +52,18 @@ class ExplorationSupportServiceTest extends TestCase
 
         $this->assertNull($service->trySpecialHerbal(new Character(), $hp, 100, $snapshot));
         $this->assertSame(30, $hp);
+    }
+
+    public function test_species_lure_multiplies_only_the_target_species_weight(): void
+    {
+        $service = new ExplorationSupportService();
+        $beast = new Enemy(['appearance_weight' => 10, 'species_key' => 'beast']);
+        $undead = new Enemy(['appearance_weight' => 10, 'species_key' => 'undead']);
+        $modifier = ['species_key' => 'beast', 'multiplier' => 3];
+
+        $this->assertSame(30, $service->appearanceWeightFor($beast, $modifier, true));
+        $this->assertSame(10, $service->appearanceWeightFor($undead, $modifier, true));
+        $this->assertSame(3, $service->appearanceWeightFor($beast, $modifier, false));
+        $this->assertSame(1, $service->appearanceWeightFor($undead, $modifier, false));
     }
 }

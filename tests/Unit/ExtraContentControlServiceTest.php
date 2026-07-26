@@ -28,7 +28,6 @@ class ExtraContentControlServiceTest extends TestCase
 
         app(GameSettingService::class)->flush();
         config(['extra_content.contents.star_tree_tower.default_enabled' => false]);
-        config(['extra_content.contents.exploration_support.default_enabled' => false]);
     }
 
     protected function tearDown(): void
@@ -69,16 +68,16 @@ class ExtraContentControlServiceTest extends TestCase
         ]);
     }
 
-    public function test_exploration_support_is_disabled_by_default_and_can_be_enabled(): void
+    public function test_exploration_support_is_enabled_by_default_and_can_be_disabled(): void
     {
         $service = app(ExtraContentControlService::class);
 
         $this->assertArrayHasKey('exploration_support', $service->allStatuses());
-        $this->assertFalse($service->isActive('exploration_support'));
-
-        $service->setEnabled('exploration_support', true);
-
         $this->assertTrue($service->isActive('exploration_support'));
+
+        $service->setEnabled('exploration_support', false);
+
+        $this->assertFalse($service->isActive('exploration_support'));
     }
 
     public function test_active_only_during_configured_period(): void

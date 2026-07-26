@@ -320,7 +320,7 @@
                              x-transition:enter-end="opacity-100 translate-y-0"
                              style="display: none;">
                             <div class="text-sm text-slate-500 mb-3">
-                                探索の前に持ち込める補助品です。1回の探索で使えるのは1つだけです。「自動補充」をONにすると、30戦使い切った時に同じ品を自動で補充して使い続けます。
+                                探索の前に持ち込める補助品です。装備できるのは1つだけですが、切り替えても品目ごとの残り戦数は保存されます。「自動補充」をONにすると、50戦使い切った時に同じ品を自動で補充します。
                             </div>
 
                             @include('apothecary.partials.belongings-list', ['belongings' => $belongings])

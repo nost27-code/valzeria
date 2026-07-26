@@ -142,19 +142,23 @@ class ExplorationService
             return ['error' => 'このエリアには敵が存在しません。'];
         }
 
-        // appearance_weight に基づく抽選
-        $totalWeight = $enemies->sum('appearance_weight');
+        // appearance_weight に基づく抽選。通常探索だけ、装備中の誘魔香で対象種族の重みを増やす。
+        $supportService = app(ExplorationSupportService::class);
+        $encounterModifier = !$isBossBattle && !$isRegionDepthDungeon
+            ? $supportService->encounterModifierFor($character, $enemies)
+            : null;
+        $useMasterWeights = $enemies->sum('appearance_weight') > 0;
+        $totalWeight = $enemies->sum(
+            fn (Enemy $enemy): int => $supportService->appearanceWeightFor($enemy, $encounterModifier, $useMasterWeights)
+        );
         $targetEnemy = null;
 
-        if ($totalWeight <= 0) {
-            // マスターデータのウェイトが未設定・全0の場合は、対象から完全に均等確率で1体を抽選する
-            $targetEnemy = $enemies->random();
-        } else {
+        if ($totalWeight > 0) {
             $rand = rand(1, $totalWeight);
             $currentWeight = 0;
             
             foreach ($enemies as $enemy) {
-                $currentWeight += $enemy->appearance_weight;
+                $currentWeight += $supportService->appearanceWeightFor($enemy, $encounterModifier, $useMasterWeights);
                 if ($rand <= $currentWeight) {
                     $targetEnemy = $enemy;
                     break;
@@ -164,6 +168,9 @@ class ExplorationService
 
         if (!$targetEnemy) {
             $targetEnemy = $enemies->first();
+        }
+        if ($encounterModifier) {
+            $targetEnemy->setAttribute('exploration_support_encounter_applied', true);
         }
 
         if ($isRegionDepthDungeon) {

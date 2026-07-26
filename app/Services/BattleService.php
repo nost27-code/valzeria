@@ -138,7 +138,7 @@ class BattleService
         $result->playerHpBefore = $playerActor->hp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
-        $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character);
+        $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character, $enemy);
         
         $state->addLog("【戦闘開始】{$playerActor->name} は {$enemyActor->name} と遭遇した！");
 
