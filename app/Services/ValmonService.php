@@ -318,9 +318,18 @@ class ValmonService
                 }
                 $egg->forceFill(['is_hatched' => true, 'hatched_at' => now()])->save();
 
+                $valmonName = $egg->master?->name ?? 'ヴァルモン';
+                $rarity = (string) ($egg->master?->rarity ?? 'normal');
+                app(PublicLogService::class)->addLog(
+                    'valmon',
+                    "【ヴァルモン誕生】{$character->name}さんの卵から新しい相棒「{$valmonName}」が生まれました！",
+                    $character,
+                    in_array($rarity, ['rare', 'super_rare'], true) ? 3 : 2
+                );
+
                 $resolved[] = [
-                    'name' => $egg->master?->name ?? 'ヴァルモン',
-                    'rarity' => $egg->master?->rarity ?? 'normal',
+                    'name' => $valmonName,
+                    'rarity' => $rarity,
                     'stored' => false,
                 ];
             }
@@ -785,7 +794,7 @@ class ValmonService
             ->get()
             ->filter(fn ($spawn) => $spawn->valmonMaster && $spawn->valmonMaster->is_active);
 
-        if (! config('features.duplicate_valmon_egg_discovery_enabled', false) && $character) {
+        if ($character) {
             $knownMasterIds = PlayerValmon::query()
                 ->where('character_id', $character->id)
                 ->pluck('valmon_master_id')

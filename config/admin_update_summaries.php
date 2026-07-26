@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-26-valmon-egg-duplicate-and-hatch-log-fix',
+        'date' => '2026-07-26',
+        'category' => 'fixed',
+        'title' => 'ヴァルモン卵の重複発見と孵化通知を修正',
+        'detail' => '仲間済み・未孵化保管済みの種類と同じ卵を発見しないようにし、新しいヴァルモンが孵化した結果を全体チャットへ再び表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-26-material-category-rarity-browse',
         'date' => '2026-07-26',
         'category' => 'changed',

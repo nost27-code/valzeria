@@ -16,9 +16,4 @@ return [
         env('PLAYER_SHOPS_ENABLED', $defaultsEnabled),
         FILTER_VALIDATE_BOOL,
     ),
-
-    'duplicate_valmon_egg_discovery_enabled' => filter_var(
-        env('DUPLICATE_VALMON_EGG_DISCOVERY_ENABLED', $defaultsEnabled),
-        FILTER_VALIDATE_BOOL,
-    ),
 ];

@@ -10,8 +10,10 @@ use App\Models\PlayerValmonEgg;
 use App\Models\PublicLog;
 use App\Models\User;
 use App\Models\ValmonMaster;
+use App\Models\ValmonSpawnRegion;
 use App\Services\ValmonService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class ValmonEggStorageTest extends TestCase
@@ -68,7 +70,52 @@ class ValmonEggStorageTest extends TestCase
             'character_id' => $character->id,
             'valmon_master_id' => $master->id,
         ]);
+        $this->assertDatabaseHas('public_logs', [
+            'type' => 'valmon',
+            'character_id' => $character->id,
+            'message' => '【ヴァルモン誕生】卵保管テストさんの卵から新しい相棒「新しいヴァルモン」が生まれました！',
+            'importance' => 2,
+        ]);
         $this->assertTrue($egg->fresh()->is_hatched);
+    }
+
+    public function test_owned_and_stored_valmon_species_are_not_egg_discovery_candidates(): void
+    {
+        $character = $this->character();
+        $city = City::create(['name' => '重複卵試験街', 'description' => '', 'recommended_level_min' => 1, 'recommended_level_max' => 10, 'sort_order' => 1]);
+        $area = Area::create(['name' => '重複卵試験地', 'slug' => 'duplicate-egg-test', 'city_id' => $city->id, 'recommended_level_min' => 1, 'recommended_level_max' => 10]);
+        $ownedMaster = $this->master('egg-owned-species', '仲間済みヴァルモン');
+        $storedMaster = $this->master('egg-stored-species', '保管済みヴァルモン');
+
+        PlayerValmon::create([
+            'character_id' => $character->id,
+            'valmon_master_id' => $ownedMaster->id,
+            'is_partner' => true,
+            'obtained_at' => now(),
+        ]);
+        PlayerValmonEgg::create([
+            'character_id' => $character->id,
+            'valmon_master_id' => $storedMaster->id,
+            'found_at' => now()->subDay(),
+            'stored_at' => now()->subDay(),
+        ]);
+        ValmonSpawnRegion::create([
+            'valmon_master_id' => $ownedMaster->id,
+            'city_id' => $city->id,
+            'spawn_weight' => 1000,
+            'is_active' => true,
+        ]);
+        ValmonSpawnRegion::create([
+            'valmon_master_id' => $storedMaster->id,
+            'city_id' => $city->id,
+            'spawn_weight' => 1000,
+            'is_active' => true,
+        ]);
+
+        $method = new ReflectionMethod(ValmonService::class, 'weightedSpawnForArea');
+        $method->setAccessible(true);
+
+        $this->assertNull($method->invoke(app(ValmonService::class), $area, $character));
     }
 
     public function test_map_exploration_uses_the_same_daily_egg_limit(): void
