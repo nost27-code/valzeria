@@ -11,6 +11,7 @@ use App\Services\AdventureSupportService;
 use App\Services\ExplorationStaminaService;
 use App\Services\ExplorationSupportService;
 use App\Services\GoldService;
+use App\Services\ItemBookService;
 use App\Services\StorageCapacityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
-    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService, StorageCapacityService $storageCapacityService, ExplorationSupportService $explorationSupportService)
+    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService, StorageCapacityService $storageCapacityService, ExplorationSupportService $explorationSupportService, ItemBookService $itemBookService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -46,7 +47,12 @@ class InventoryController extends Controller
         $materials = $allMaterials
             ->reject(fn ($row) => $this->isKeyMaterial($row->material))
             ->values();
-        [$materialBrowseMetadata, $materialPurposeFilters] = $this->materialBrowseData($materials);
+        [
+            $materialBrowseMetadata,
+            $materialPurposeFilters,
+            $materialCategoryFilters,
+            $materialRarityFilters,
+        ] = $this->materialBrowseData($materials, $itemBookService);
 
         $marks = CharacterMonsterMark::query()
             ->where('character_id', $character->id)
@@ -146,6 +152,8 @@ class InventoryController extends Controller
             'materials',
             'materialBrowseMetadata',
             'materialPurposeFilters',
+            'materialCategoryFilters',
+            'materialRarityFilters',
             'marks',
             'equipmentGroups',
             'supportItems',
@@ -155,7 +163,7 @@ class InventoryController extends Controller
         ));
     }
 
-    private function materialBrowseData(Collection $materials): array
+    private function materialBrowseData(Collection $materials, ItemBookService $itemBookService): array
     {
         $definitions = [
             'crafting' => ['label' => '合成', 'keywords' => ['進化', '合成']],
@@ -166,8 +174,14 @@ class InventoryController extends Controller
             'cash' => ['label' => '換金用', 'keywords' => []],
         ];
 
-        $metadata = $materials->mapWithKeys(function (CharacterMaterial $row) use ($definitions) {
+        $metadata = $materials->mapWithKeys(function (CharacterMaterial $row) use ($definitions, $itemBookService) {
             $material = $row->material;
+            $displayMeta = $material ? $itemBookService->materialDisplayMeta($material) : [
+                'category' => '素材',
+                'category_key' => 'material',
+                'rarity' => '-',
+                'rarity_rank' => PHP_INT_MAX,
+            ];
             $usageTags = is_array($material?->usage_tags) ? $material->usage_tags : [];
             $purposeText = implode(' ', array_filter([
                 (string) ($material?->main_use ?? ''),
@@ -196,9 +210,12 @@ class InventoryController extends Controller
                 'search_text' => implode(' ', array_filter([
                     (string) ($material?->displayName() ?? ''),
                     (string) ($material?->category ?? ''),
+                    $displayMeta['category'],
+                    $displayMeta['rarity'],
                     $purposeText,
                 ])),
                 'purposes' => $purposes,
+                ...$displayMeta,
                 'created_at' => (int) ($row->updated_at?->getTimestamp() ?? $row->created_at?->getTimestamp() ?? 0),
             ]];
         })->all();
@@ -214,7 +231,28 @@ class InventoryController extends Controller
             ->values()
             ->all();
 
-        return [$metadata, $filters];
+        $categoryFilters = collect($metadata)
+            ->map(fn (array $entry): array => [
+                'key' => $entry['category_key'],
+                'label' => $entry['category'],
+            ])
+            ->unique('key')
+            ->sortBy('label')
+            ->values()
+            ->all();
+
+        $rarityFilters = collect($metadata)
+            ->map(fn (array $entry): array => [
+                'key' => $entry['rarity'],
+                'label' => $entry['rarity'],
+                'rank' => $entry['rarity_rank'],
+            ])
+            ->unique('key')
+            ->sortBy('rank')
+            ->values()
+            ->all();
+
+        return [$metadata, $filters, $categoryFilters, $rarityFilters];
     }
 
     private function buildStorageSummary(Character $character, Collection $materials, Collection $marks, array $equipmentGroups, Collection $keyItems, Collection $supportItems, StorageCapacityService $storageCapacityService): array

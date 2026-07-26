@@ -27,6 +27,10 @@
 <div class="w-full" x-data="{
     tab: @js($initialTab),
     feedKind: @js($initialFeedKind),
+    materialFeedQuery: '',
+    materialFeedCategory: 'all',
+    materialFeedRarity: 'all',
+    materialFeedSort: 'feed_exp_desc',
     selectedBackground: @js(old('profile_ranch_background', $selectedRanchBackground)),
     selectedEquipmentIds: [],
     equipmentFeedExpById: @js($equipmentFeedExpById),
@@ -39,6 +43,38 @@
     feedConfirmSubmitting: false,
     feedSubmitting: false,
     highRanks: ['S', 'SS', 'SSS', 'EPIC'],
+    normalizeMaterialFeedText(value) {
+        return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
+    },
+    matchesMaterialFeed(element) {
+        const query = this.normalizeMaterialFeedText(this.materialFeedQuery);
+        return (!query || this.normalizeMaterialFeedText(element.dataset.materialFeedName).includes(query))
+            && (this.materialFeedCategory === 'all' || element.dataset.materialFeedCategory === this.materialFeedCategory)
+            && (this.materialFeedRarity === 'all' || element.dataset.materialFeedRarity === this.materialFeedRarity);
+    },
+    matchingMaterialFeedCount() {
+        if (!this.$refs.materialFeedGrid) return 0;
+        return Array.from(this.$refs.materialFeedGrid.querySelectorAll('[data-material-feed-card]'))
+            .filter((element) => this.matchesMaterialFeed(element)).length;
+    },
+    sortMaterialFeedCards() {
+        const grid = this.$refs.materialFeedGrid;
+        if (!grid) return;
+        const compareText = (a, b) => String(a).localeCompare(String(b), 'ja');
+        const cards = Array.from(grid.querySelectorAll('[data-material-feed-card]'));
+        cards.sort((a, b) => {
+            if (this.materialFeedSort === 'name_asc') return compareText(a.dataset.materialFeedName, b.dataset.materialFeedName);
+            if (this.materialFeedSort === 'quantity_desc') return Number(b.dataset.materialFeedQuantity) - Number(a.dataset.materialFeedQuantity) || compareText(a.dataset.materialFeedName, b.dataset.materialFeedName);
+            if (this.materialFeedSort === 'category_asc') return compareText(a.dataset.materialFeedCategoryLabel, b.dataset.materialFeedCategoryLabel) || Number(b.dataset.materialFeedRarityRank) - Number(a.dataset.materialFeedRarityRank) || compareText(a.dataset.materialFeedName, b.dataset.materialFeedName);
+            if (this.materialFeedSort === 'rarity_desc') return Number(b.dataset.materialFeedRarityRank) - Number(a.dataset.materialFeedRarityRank) || compareText(a.dataset.materialFeedName, b.dataset.materialFeedName);
+            return Number(b.dataset.materialFeedExp) - Number(a.dataset.materialFeedExp) || compareText(a.dataset.materialFeedName, b.dataset.materialFeedName);
+        });
+        cards.forEach((card) => grid.appendChild(card));
+    },
+    init() {
+        this.$nextTick(() => this.sortMaterialFeedCards());
+        this.$watch('materialFeedSort', () => this.$nextTick(() => this.sortMaterialFeedCards()));
+    },
     openFeedConfirm(name, exp, formId, highRank = false) {
         if (this.feedSubmitting) return;
         this.feedConfirmName = name;
@@ -353,12 +389,70 @@
                             class="rounded-lg px-3 py-3 text-sm font-black transition"
                             :class="feedKind === 'equipment' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'">装備</button>
                     </div>
-                    <div x-show="feedKind === 'material'" class="grid gap-3 md:grid-cols-2">
+                    <div x-show="feedKind === 'material'" class="space-y-3">
+                        @if($materials->isNotEmpty())
+                            <div class="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+                                <label>
+                                    <span class="mb-1 block text-[11px] font-black text-emerald-800">素材を探す</span>
+                                    <input type="search" x-model.debounce.150ms="materialFeedQuery" placeholder="素材名を入力" class="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                </label>
+                                <div class="mt-2 grid grid-cols-2 gap-2">
+                                    <label>
+                                        <span class="mb-1 block text-[11px] font-black text-emerald-800">分類</span>
+                                        <select x-model="materialFeedCategory" class="w-full rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                            <option value="all">すべて</option>
+                                            @foreach($materialFeedCategoryFilters as $filter)
+                                                <option value="{{ $filter['key'] }}">{{ $filter['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span class="mb-1 block text-[11px] font-black text-emerald-800">レアリティ</span>
+                                        <select x-model="materialFeedRarity" class="w-full rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                            <option value="all">すべて</option>
+                                            @foreach($materialFeedRarityFilters as $filter)
+                                                <option value="{{ $filter['key'] }}">{{ $filter['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                </div>
+                                <label class="mt-2 block">
+                                    <span class="mb-1 block text-[11px] font-black text-emerald-800">並び替え</span>
+                                    <select x-model="materialFeedSort" class="w-full rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                        <option value="feed_exp_desc">獲得EXPが多い順</option>
+                                        <option value="name_asc">名前順</option>
+                                        <option value="quantity_desc">所持数が多い順</option>
+                                        <option value="category_asc">分類順</option>
+                                        <option value="rarity_desc">レアリティが高い順</option>
+                                    </select>
+                                </label>
+                            </div>
+                        @endif
+                        <div x-ref="materialFeedGrid" class="grid gap-3 md:grid-cols-2">
                         @forelse($materials as $row)
-                            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            @php
+                                $materialFeedMeta = $materialFeedMetadata[$row->id];
+                            @endphp
+                            <div
+                                class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                                data-material-feed-card
+                                data-material-feed-name="{{ $row->material?->displayName() }}"
+                                data-material-feed-category="{{ $materialFeedMeta['category_key'] }}"
+                                data-material-feed-category-label="{{ $materialFeedMeta['category'] }}"
+                                data-material-feed-rarity="{{ $materialFeedMeta['rarity'] }}"
+                                data-material-feed-rarity-rank="{{ $materialFeedMeta['rarity_rank'] }}"
+                                data-material-feed-exp="{{ $row->feed_exp }}"
+                                data-material-feed-quantity="{{ $row->quantity }}"
+                                x-show="matchesMaterialFeed($el)"
+                                x-transition
+                            >
                                 <div class="flex items-start justify-between gap-3">
-                                    <div>
+                                    <div class="min-w-0">
                                         <h3 class="text-base font-black text-slate-950">{{ $row->material?->displayName() }}</h3>
+                                        <div class="mt-1.5 flex flex-wrap gap-1">
+                                            <span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-black leading-none text-white">{{ $materialFeedMeta['category'] }}</span>
+                                            <span class="rounded border border-[#d4af37]/50 bg-[#fdf8ec] px-1.5 py-0.5 text-[10px] font-black leading-none text-[#9c7a19]">{{ $materialFeedMeta['rarity'] }}</span>
+                                        </div>
                                         <div class="mt-1 text-xs font-bold text-slate-500">所持 {{ number_format($row->quantity) }} / EXP {{ $row->feed_exp }}ずつ</div>
                                     </div>
                                     <form method="POST" action="{{ route('valmons.feed.material', [$partner, $row]) }}"
@@ -390,6 +484,12 @@
                         @empty
                             <div class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-bold text-slate-500">餌にできる素材がありません。</div>
                         @endforelse
+                        </div>
+                        @if($materials->isNotEmpty())
+                            <div x-show="matchingMaterialFeedCount() === 0" class="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm font-bold text-slate-500">
+                                条件に合う素材はありません。
+                            </div>
+                        @endif
                     </div>
                     <div x-show="feedKind === 'equipment'" class="space-y-3">
                         <form id="valmonEquipmentBulkFeedForm" method="POST" action="{{ route('valmons.feed.equipment.bulk', $partner) }}">

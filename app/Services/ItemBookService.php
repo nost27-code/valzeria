@@ -83,6 +83,7 @@ class ItemBookService
                 }
 
                 $code = (string) $material->material_code;
+                $displayMeta = $this->materialDisplayMeta($material);
                 $ownedQuantity = (int) ($owned[$code] ?? 0);
                 $craftRecipes = $craftRecipesByTarget->get($code, collect())->values();
                 $dropSources = $this->dropSourcesFor($material);
@@ -99,10 +100,7 @@ class ItemBookService
                     'anchor_id' => 'item-book-material-' . preg_replace('/[^A-Za-z0-9_-]+/', '-', $code),
                     'name' => $material->displayName(),
                     'raw_name' => (string) $material->name,
-                    'category' => $this->categoryLabel($material),
-                    'category_key' => $this->categoryKey($material),
-                    'rarity' => $this->rarityLabel($material),
-                    'rarity_rank' => $this->rarityRank($material),
+                    ...$displayMeta,
                     'group_rank' => $this->groupRank($material),
                     'order_rank' => $this->orderRank($material),
                     'city_order' => $cityOrderById[$material->city_id] ?? PHP_INT_MAX,
@@ -150,6 +148,21 @@ class ItemBookService
                 'craftable_count' => $materials->filter(fn (array $entry): bool => count($entry['craft_recipes']) > 0)->count(),
             ],
             'filters' => $this->filtersFor($materials),
+        ];
+    }
+
+    /**
+     * 図鑑・倉庫・餌選択で共通利用する、素材のプレイヤー向け分類表示。
+     *
+     * @return array{category: string, category_key: string, rarity: string, rarity_rank: int}
+     */
+    public function materialDisplayMeta(Material $material): array
+    {
+        return [
+            'category' => $this->categoryLabel($material),
+            'category_key' => $this->categoryKey($material),
+            'rarity' => $this->rarityLabel($material),
+            'rarity_rank' => $this->rarityRank($material),
         ];
     }
 

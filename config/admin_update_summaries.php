@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-26-material-category-rarity-browse',
+        'date' => '2026-07-26',
+        'category' => 'changed',
+        'title' => '素材の分類・レアリティ確認を改善',
+        'detail' => '倉庫とヴァルモンの餌選択で、素材の分類・レアリティを確認できるようにしました。分類・レアリティによる絞り込みや並び替えも利用できます。',
+    ],
+    [
         'id' => '2026-07-25-map-valmon-egg-public-location',
         'date' => '2026-07-25',
         'category' => 'fixed',

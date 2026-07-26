@@ -7,6 +7,7 @@ use App\Models\CharacterMaterial;
 use App\Models\PlayerValmon;
 use App\Models\ValmonMaster;
 use App\Services\CharacterProfileService;
+use App\Services\ItemBookService;
 use App\Services\ValmonService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,7 +47,7 @@ class ValmonController extends Controller
             ->with($result['success'] ? 'status' : 'error', $result['message']);
     }
 
-    public function index(ValmonService $service, CharacterProfileService $profileService)
+    public function index(ValmonService $service, CharacterProfileService $profileService, ItemBookService $itemBookService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -79,6 +80,7 @@ class ValmonController extends Controller
         $materials = CharacterMaterial::with('material')
             ->where('character_id', $character->id)
             ->where('quantity', '>', 0)
+            ->whereHas('material')
             ->get()
             ->map(function (CharacterMaterial $row) use ($service) {
                 $row->feed_exp = $service->materialFeedExp($row->material);
@@ -87,6 +89,27 @@ class ValmonController extends Controller
             ->filter(fn ($row) => $row->feed_exp > 0)
             ->sortByDesc('feed_exp')
             ->values();
+        $materialFeedMetadata = $materials
+            ->mapWithKeys(fn (CharacterMaterial $row): array => [
+                (int) $row->id => $itemBookService->materialDisplayMeta($row->material),
+            ])
+            ->all();
+        $materialFeedCategoryFilters = collect($materialFeedMetadata)
+            ->map(fn (array $entry): array => ['key' => $entry['category_key'], 'label' => $entry['category']])
+            ->unique('key')
+            ->sortBy('label')
+            ->values()
+            ->all();
+        $materialFeedRarityFilters = collect($materialFeedMetadata)
+            ->map(fn (array $entry): array => [
+                'key' => $entry['rarity'],
+                'label' => $entry['rarity'],
+                'rank' => $entry['rarity_rank'],
+            ])
+            ->unique('key')
+            ->sortBy('rank')
+            ->values()
+            ->all();
 
         $equipment = CharacterItem::with('item')
             ->where('character_id', $character->id)
@@ -116,6 +139,9 @@ class ValmonController extends Controller
             'dex',
             'partner',
             'materials',
+            'materialFeedMetadata',
+            'materialFeedCategoryFilters',
+            'materialFeedRarityFilters',
             'equipment',
             'activeEgg',
             'ranchBackgrounds',

@@ -126,6 +126,8 @@
                     activeEquipmentTab: 'weapon',
                     materialQuery: '',
                     materialPurpose: 'all',
+                    materialCategory: 'all',
+                    materialRarity: 'all',
                     materialSort: 'name_asc',
                     equipmentQuery: '',
                     equipmentStatus: 'all',
@@ -147,7 +149,9 @@
                         const purposes = (element.dataset.materialPurposes || '').split(',').filter(Boolean);
 
                         return (!query || searchText.includes(query))
-                            && (this.materialPurpose === 'all' || purposes.includes(this.materialPurpose));
+                            && (this.materialPurpose === 'all' || purposes.includes(this.materialPurpose))
+                            && (this.materialCategory === 'all' || element.dataset.materialCategory === this.materialCategory)
+                            && (this.materialRarity === 'all' || element.dataset.materialRarity === this.materialRarity);
                     },
                     sortMaterialCards() {
                         const grid = this.$refs.materialGrid;
@@ -159,6 +163,9 @@
                             if (this.materialSort === 'quantity_desc') return Number(b.dataset.materialQuantity) - Number(a.dataset.materialQuantity) || compareText(a.dataset.materialName, b.dataset.materialName);
                             if (this.materialSort === 'quantity_asc') return Number(a.dataset.materialQuantity) - Number(b.dataset.materialQuantity) || compareText(a.dataset.materialName, b.dataset.materialName);
                             if (this.materialSort === 'newest') return Number(b.dataset.materialCreatedAt) - Number(a.dataset.materialCreatedAt) || compareText(a.dataset.materialName, b.dataset.materialName);
+                            if (this.materialSort === 'category_asc') return compareText(a.dataset.materialCategoryLabel, b.dataset.materialCategoryLabel) || Number(b.dataset.materialRarityRank) - Number(a.dataset.materialRarityRank) || compareText(a.dataset.materialName, b.dataset.materialName);
+                            if (this.materialSort === 'rarity_desc') return Number(b.dataset.materialRarityRank) - Number(a.dataset.materialRarityRank) || compareText(a.dataset.materialName, b.dataset.materialName);
+                            if (this.materialSort === 'rarity_asc') return Number(a.dataset.materialRarityRank) - Number(b.dataset.materialRarityRank) || compareText(a.dataset.materialName, b.dataset.materialName);
 
                             return compareText(a.dataset.materialName, b.dataset.materialName);
                         });
@@ -386,6 +393,29 @@
                                             <option value="newest">新着順</option>
                                             <option value="quantity_desc">所持数が多い順</option>
                                             <option value="quantity_asc">所持数が少ない順</option>
+                                            <option value="category_asc">分類順</option>
+                                            <option value="rarity_desc">レアリティが高い順</option>
+                                            <option value="rarity_asc">レアリティが低い順</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="mt-2 grid grid-cols-2 gap-2">
+                                    <label>
+                                        <span class="mb-1 block text-[11px] font-bold text-emerald-800">分類</span>
+                                        <select x-model="materialCategory" class="w-full rounded-md border border-emerald-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                            <option value="all">すべて</option>
+                                            @foreach($materialCategoryFilters as $filter)
+                                                <option value="{{ $filter['key'] }}">{{ $filter['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span class="mb-1 block text-[11px] font-bold text-emerald-800">レアリティ</span>
+                                        <select x-model="materialRarity" class="w-full rounded-md border border-emerald-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                                            <option value="all">すべて</option>
+                                            @foreach($materialRarityFilters as $filter)
+                                                <option value="{{ $filter['key'] }}">{{ $filter['label'] }}</option>
+                                            @endforeach
                                         </select>
                                     </label>
                                 </div>
@@ -425,6 +455,10 @@
                                         data-material-name="{{ $materialBrowseMeta['name'] }}"
                                         data-material-search="{{ $materialBrowseMeta['search_text'] }}"
                                         data-material-purposes="{{ implode(',', $materialBrowseMeta['purposes']) }}"
+                                        data-material-category="{{ $materialBrowseMeta['category_key'] }}"
+                                        data-material-category-label="{{ $materialBrowseMeta['category'] }}"
+                                        data-material-rarity="{{ $materialBrowseMeta['rarity'] }}"
+                                        data-material-rarity-rank="{{ $materialBrowseMeta['rarity_rank'] }}"
                                         data-material-created-at="{{ $materialBrowseMeta['created_at'] }}"
                                         :data-material-quantity="remainingQty"
                                         x-show="remainingQty > 0 && matchesMaterial($el)"
@@ -498,14 +532,16 @@
                                             </div>
                                         </div>
 
-                                        {{-- 用途バッジ --}}
-                                        @if(!empty($matBadges))
-                                            <div class="mt-1.5 flex flex-wrap gap-1">
+                                        {{-- 図鑑と共通の分類・レアリティ + 用途バッジ --}}
+                                        <div class="mt-1.5 flex flex-wrap gap-1">
+                                            <span class="inline-block rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-black leading-none text-white">{{ $materialBrowseMeta['category'] }}</span>
+                                            <span class="inline-block rounded border border-[#d4af37]/50 bg-[#fdf8ec] px-1.5 py-0.5 text-[10px] font-black leading-none text-[#9c7a19]">{{ $materialBrowseMeta['rarity'] }}</span>
+                                            @if(!empty($matBadges))
                                                 @foreach($matBadges as $badge)
                                                     <span class="inline-block border rounded px-1.5 py-0.5 text-[10px] font-bold {{ $badge['color'] }}">{{ $badge['label'] }}</span>
                                                 @endforeach
-                                            </div>
-                                        @endif
+                                            @endif
+                                        </div>
 
                                         {{-- インラインメッセージ --}}
                                         <div x-show="inlineMessage" x-transition style="display:none;"

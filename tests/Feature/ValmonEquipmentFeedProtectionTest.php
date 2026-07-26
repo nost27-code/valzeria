@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Character;
 use App\Models\CharacterItem;
+use App\Models\CharacterMaterial;
 use App\Models\Item;
+use App\Models\Material;
 use App\Models\PlayerValmon;
 use App\Models\User;
 use App\Models\ValmonFeedLog;
@@ -16,6 +18,32 @@ use Tests\TestCase;
 class ValmonEquipmentFeedProtectionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_material_feed_candidates_show_item_book_category_and_rarity(): void
+    {
+        [$user, $character] = $this->createCharacterAndValmon();
+        $material = Material::create([
+            'material_code' => 'TEST_FEED_CITY_MATERIAL',
+            'name' => '餌表示試験素材',
+            'category' => '地域素材',
+            'material_type' => 'city_material',
+            'rarity' => 'R',
+        ]);
+        CharacterMaterial::create([
+            'character_id' => $character->id,
+            'material_id' => $material->id,
+            'quantity' => 3,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('valmons.index'))
+            ->assertOk()
+            ->assertSee('餌表示試験素材')
+            ->assertSee('都市素材')
+            ->assertSee('レアリティが高い順')
+            ->assertSee('data-material-feed-rarity="R"', false);
+    }
 
     public function test_market_listed_equipment_is_not_shown_as_a_feed_candidate(): void
     {
