@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-remove-outdated-weapon-help',
+        'date' => '2026-07-27',
+        'category' => 'fixed',
+        'title' => '装備変更画面の古い武器説明を削除',
+        'detail' => '装備変更画面から、現在の武器能力計算と一致していなかった古い説明を削除しました。',
+    ],
+    [
         'id' => '2026-07-27-submit-lock-spinner-display-fix',
         'date' => '2026-07-27',
         'category' => 'fixed',

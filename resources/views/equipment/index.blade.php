@@ -174,17 +174,6 @@
                     </div>
                 </div>
 
-                {{-- 武器の能力値仕様変更（折りたたみ） --}}
-                <details class="mb-4 rounded-lg border border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-500">
-                    <summary class="cursor-pointer select-none px-3 py-2 font-black text-slate-500">武器の能力値仕様が変わりました（詳しく見る）</summary>
-                    <div class="px-3 pb-2.5 leading-relaxed space-y-1.5">
-                        <p>A〜EPICランクの武器は、「固定の攻撃・魔力」に加えて「装備する前の自分の攻撃・魔力に応じた追加補正」が加わるようになりました。</p>
-                        <p>追加補正の割合はランクが上がるほど大きくなります（目安: A+2% → S+4% → SS+7% → SSS+11% → EPIC+16%）。育成が進んでいるキャラクターほど、上位ランクへ持ち替えたときのメリットが大きくなります。</p>
-                        <p>鍛冶強化と銘は「固定の攻撃・魔力」の部分にのみ作用し、追加補正の割合には影響しません。種族特攻はこれまでどおり与ダメージへ別枠で上乗せされます。</p>
-                        <p>各武器のカードには、今の自分がその武器を装備した場合の攻撃・魔力の増減を「▲攻撃+◯」のようなバッジで表示していますので、持ち替え前の目安としてご活用ください。</p>
-                    </div>
-                </details>
-
                 @if(session('status'))
                     <div class="equipment-flash bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded mb-4 shadow-sm">
                         {{ session('status') }}
