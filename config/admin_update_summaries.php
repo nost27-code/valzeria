@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-submit-lock-spinner-display-fix',
+        'date' => '2026-07-27',
+        'category' => 'fixed',
+        'title' => '処理中ボタンのスピナー表示を修正',
+        'detail' => '二重押下防止の対象ボタンで、処理中表示の先頭が「[」のように見える問題を全画面共通で修正しました。',
+    ],
+    [
         'id' => '2026-07-27-valmon-ranch-paging',
         'date' => '2026-07-27',
         'category' => 'fixed',
