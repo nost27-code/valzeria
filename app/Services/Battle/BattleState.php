@@ -17,6 +17,7 @@ class BattleState
     public int $materialBonusPercent = 0;
     public array $jobArtCooldowns = [];
     public array $jobArtUseCounts = [];
+    public bool $valmonAssistRolled = false;
     public bool $valmonAssistUsed = false;
     public string $battleType;
     public array $enemyActionUseTurns = [];

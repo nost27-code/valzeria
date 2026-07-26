@@ -65,6 +65,7 @@ class ValmonController extends Controller
                 $valmon->is_max_level = (int) $valmon->level >= ValmonService::MAX_LEVEL;
                 $valmon->role_label = $service->roleLabel($valmon);
                 $valmon->effect_summary = $service->effectSummary($valmon);
+                $valmon->bond_art_settings = $service->bondArtSettings($valmon);
             });
 
         $ownedMasterIds = $valmons->pluck('valmon_master_id')->unique();
@@ -193,6 +194,38 @@ class ValmonController extends Controller
         $valmon->save();
 
         return back()->with('status', $valmon->displayName() . 'に命名しました。');
+    }
+
+    public function updateBondArtSettings(Request $request, PlayerValmon $valmon, ValmonService $service)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return redirect()->route('character.select');
+        }
+
+        abort_unless((int) $valmon->character_id === (int) $character->id, 403);
+
+        $validated = $request->validateWithBag('bondSettings' . $valmon->id, [
+            'bond_style' => ['required', 'string', Rule::in($service->bondStyleKeys())],
+            'bond_phrase_style' => ['required', 'string', Rule::in($service->bondPhraseStyleKeys())],
+        ], [
+            'bond_style.required' => '発動スタイルを選んでください。',
+            'bond_style.in' => '選択できない発動スタイルです。',
+            'bond_phrase_style.required' => '掛け声を選んでください。',
+            'bond_phrase_style.in' => '選択できない掛け声です。',
+        ]);
+
+        $result = $service->updateBondArtSettings(
+            $character,
+            $valmon,
+            (string) $validated['bond_style'],
+            (string) $validated['bond_phrase_style'],
+        );
+
+        return back()
+            ->with($result['success'] ? 'status' : 'error', $result['message'])
+            ->with('valmon_active_tab', 'farm')
+            ->with('valmon_settings_id', $valmon->id);
     }
 
     public function setPartner(PlayerValmon $valmon, ValmonService $service)

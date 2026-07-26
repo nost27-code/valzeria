@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\Enemy;
 use App\Models\EnemyAction;
+use App\Models\PlayerValmon;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
@@ -499,9 +500,7 @@ class BattleService
                 $this->executeNormalAttack($attacker, $defender, $state);
             }
 
-            if (!$state->isBattleEnded()) {
-                $this->tryValmonAssistAttack($attacker, $defender, $state);
-            }
+            $this->tryValmonAssistAttack($attacker, $defender, $state);
 
             if (!$state->isBattleEnded()) {
                 $this->tickPlayerConditionsAfterAction($attacker, $state, $defender->hp < $defenderHpBeforeAction);
@@ -515,22 +514,26 @@ class BattleService
 
     private function tryValmonAssistAttack(BattleActor $attacker, BattleActor $defender, BattleState $state): void
     {
-        if ($state->battleType !== 'pve' || $state->valmonAssistUsed || !$attacker->isPlayer) {
+        if (! in_array($state->battleType, ['pve', 'boss'], true)
+            || $state->valmonAssistRolled
+            || $state->valmonAssistUsed
+            || ! $attacker->isPlayer) {
             return;
         }
 
-        if (!$attacker->originalModel instanceof Character) {
+        if (! $attacker->originalModel instanceof Character) {
             return;
         }
 
         $valmonService = app(ValmonService::class);
         $partner = $valmonService->partnerFor($attacker->originalModel);
         $spec = $partner ? $valmonService->assistAttackSpec($partner) : null;
-        if (!$partner || !$spec) {
+        if (! $partner || ! $spec) {
             return;
         }
 
         $rate = max(0, (float) ($spec['rate'] ?? 0));
+        $state->valmonAssistRolled = true;
         if ($rate <= 0 || random_int(1, 10000) > (int) round($rate * 100)) {
             return;
         }
@@ -538,12 +541,71 @@ class BattleService
         $normalDamage = $attacker->usesMagForNormalAttack()
             ? $this->damageCalculator->calculateMagicalDamage($attacker, $defender, 100, false)
             : $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, 100, false);
-        $damage = max(1, (int) floor($normalDamage * (float) ($spec['power_rate'] ?? 0.1)));
+        $baseDamage = max(1, (int) floor($normalDamage * (float) ($spec['power_rate'] ?? 0.1)));
+        $damage = $this->applyValmonAssistDamageVariance($baseDamage, $spec);
 
         $defender->takeDamage($damage);
         $state->valmonAssistUsed = true;
-        $state->addLog("<span class=\"text-teal-700 font-bold\">{$partner->displayName()}が追撃した！<br>{$defender->name}に <span class=\"text-red-600 font-extrabold\">{$damage}</span> ダメージ！</span>");
+        $state->addLog($this->valmonBondArtActivationLog($attacker, $defender, $partner, $spec, $damage));
         $this->logGutsIfTriggered($defender, $state);
+    }
+
+    private function valmonBondArtActivationLog(
+        BattleActor $attacker,
+        BattleActor $defender,
+        PlayerValmon $partner,
+        array $spec,
+        int $damage
+    ): string {
+        $styleLabel = (string) ($spec['style_label'] ?? '均衡');
+        $techniqueName = (string) ($spec['technique_name'] ?? '響き合う絆の一撃');
+        $lines = [
+            '<span class="battle-log-special-title">【絆技・' . e($styleLabel) . '】'
+                . e($techniqueName) . '――' . e($partner->displayName()) . 'による追撃！</span>',
+        ];
+
+        $phrase = trim((string) ($spec['activation_phrase'] ?? ''));
+        if ($phrase !== '') {
+            $lines[] = '<span class="battle-log-special-phrase">'
+                . e($this->formatValmonBondText($phrase, $attacker, $defender, $partner, $techniqueName))
+                . '</span>';
+        }
+
+        $description = trim((string) ($spec['activation_description'] ?? ''));
+        if ($description !== '') {
+            $lines[] = '<span class="battle-log-special-description">'
+                . e($this->formatValmonBondText($description, $attacker, $defender, $partner, $techniqueName))
+                . '</span>';
+        }
+
+        $lines[] = '<span class="text-teal-700 font-bold">' . e($defender->name)
+            . 'に <span class="text-red-600 font-extrabold">' . number_format($damage)
+            . '</span> ダメージ！</span>';
+
+        return implode('<br>', $lines);
+    }
+
+    protected function applyValmonAssistDamageVariance(int $baseDamage, array $spec): int
+    {
+        $min = max(0, (int) ($spec['damage_variance_min_percent'] ?? 70));
+        $max = max($min, (int) ($spec['damage_variance_max_percent'] ?? 130));
+
+        return max(1, (int) floor($baseDamage * random_int($min, $max) / 100));
+    }
+
+    private function formatValmonBondText(
+        string $text,
+        BattleActor $attacker,
+        BattleActor $defender,
+        PlayerValmon $partner,
+        string $techniqueName
+    ): string {
+        return strtr($text, [
+            '{user}' => $attacker->name,
+            '{valmon}' => $partner->displayName(),
+            '{target}' => $defender->name,
+            '{skill}' => $techniqueName,
+        ]);
     }
 
     private function tickJobArtCooldowns(BattleState $state): void

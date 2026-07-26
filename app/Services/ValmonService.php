@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\DB;
 class ValmonService
 {
     public const MAX_LEVEL = 100;
+    public const BOND_ART_UNLOCK_LEVEL = 40;
+    public const DEFAULT_BOND_STYLE = 'balanced';
+    public const DEFAULT_BOND_PHRASE_STYLE = 'trust';
     private const BASE_EGG_RATE = 0.02;
     private const ROLE_ATTACK = 'attack';
     private const ROLE_STANDARD = 'standard';
@@ -567,17 +570,135 @@ class ValmonService
         };
     }
 
+    public function bondStyleKeys(): array
+    {
+        return array_keys($this->configuredBondStyles());
+    }
+
+    public function bondPhraseStyleKeys(): array
+    {
+        return array_keys($this->configuredBondPhraseStyles());
+    }
+
+    public function bondArtSettings(PlayerValmon $valmon): array
+    {
+        $level = (int) $valmon->level;
+        $styleKey = $this->resolvedBondStyleKey($valmon);
+        $phraseStyleKey = $this->resolvedBondPhraseStyleKey($valmon);
+        $damageVariance = $this->bondArtDamageVariance();
+        $styles = [];
+
+        foreach ($this->configuredBondStyles() as $key => $style) {
+            $unlockLevel = max(self::BOND_ART_UNLOCK_LEVEL, (int) ($style['unlock_level'] ?? self::BOND_ART_UNLOCK_LEVEL));
+            $technique = $this->bondTechniqueSpec($valmon, (string) $key);
+            $styles[] = [
+                'key' => (string) $key,
+                'label' => (string) ($style['label'] ?? $key),
+                'unlock_level' => $unlockLevel,
+                'rate' => max(0.0, (float) ($style['rate'] ?? 0)),
+                'power_rate' => max(0.0, (float) ($style['power_rate'] ?? 0)),
+                'description' => (string) ($style['description'] ?? ''),
+                'technique_name' => $technique['name'],
+                'unlocked' => $level >= $unlockLevel,
+                'selected' => $key === $styleKey,
+            ];
+        }
+
+        $phraseStyles = [];
+        foreach ($this->configuredBondPhraseStyles() as $key => $phraseStyle) {
+            $template = (string) ($phraseStyle['template'] ?? '');
+            $phraseStyles[] = [
+                'key' => (string) $key,
+                'label' => (string) ($phraseStyle['label'] ?? $key),
+                'preview' => $this->formatBondText($template, $valmon, '敵'),
+                'selected' => $key === $phraseStyleKey,
+            ];
+        }
+
+        $selectedStyle = $this->configuredBondStyles()[$styleKey] ?? [];
+        $selectedPhraseStyle = $this->configuredBondPhraseStyles()[$phraseStyleKey] ?? [];
+        $selectedTechnique = $this->bondTechniqueSpec($valmon, $styleKey);
+
+        return [
+            'available' => $level >= self::BOND_ART_UNLOCK_LEVEL,
+            'style_key' => $styleKey,
+            'style_label' => (string) ($selectedStyle['label'] ?? '均衡'),
+            'phrase_style_key' => $phraseStyleKey,
+            'phrase_style_label' => (string) ($selectedPhraseStyle['label'] ?? '信頼'),
+            'technique_name' => $selectedTechnique['name'],
+            'phrase_preview' => $this->formatBondText((string) ($selectedPhraseStyle['template'] ?? ''), $valmon, '敵'),
+            'damage_variance_min_percent' => $damageVariance['min'],
+            'damage_variance_max_percent' => $damageVariance['max'],
+            'styles' => $styles,
+            'phrase_styles' => $phraseStyles,
+        ];
+    }
+
+    public function updateBondArtSettings(
+        Character $character,
+        PlayerValmon $valmon,
+        string $styleKey,
+        string $phraseStyleKey
+    ): array {
+        if ((int) $valmon->character_id !== (int) $character->id) {
+            return ['success' => false, 'message' => 'このヴァルモンは所持していません。'];
+        }
+
+        if ((int) $valmon->level < self::BOND_ART_UNLOCK_LEVEL) {
+            return ['success' => false, 'message' => '絆技の設定はLv40で解放されます。'];
+        }
+
+        $styles = $this->configuredBondStyles();
+        $phraseStyles = $this->configuredBondPhraseStyles();
+        if (! isset($styles[$styleKey]) || ! isset($phraseStyles[$phraseStyleKey])) {
+            return ['success' => false, 'message' => '選択できない絆技設定です。'];
+        }
+
+        $unlockLevel = max(self::BOND_ART_UNLOCK_LEVEL, (int) ($styles[$styleKey]['unlock_level'] ?? self::BOND_ART_UNLOCK_LEVEL));
+        if ((int) $valmon->level < $unlockLevel) {
+            return ['success' => false, 'message' => "このスタイルはLv{$unlockLevel}で解放されます。"];
+        }
+
+        $valmon->forceFill([
+            'bond_style' => $styleKey,
+            'bond_phrase_style' => $phraseStyleKey,
+        ])->save();
+
+        $styleLabel = (string) ($styles[$styleKey]['label'] ?? $styleKey);
+        $phraseLabel = (string) ($phraseStyles[$phraseStyleKey]['label'] ?? $phraseStyleKey);
+
+        return [
+            'success' => true,
+            'message' => "{$valmon->displayName()}の絆技を「{$styleLabel}／{$phraseLabel}」に設定しました。",
+        ];
+    }
+
     public function assistAttackSpec(PlayerValmon $valmon): ?array
     {
-        if ((int) $valmon->level < 40) {
+        if ((int) $valmon->level < self::BOND_ART_UNLOCK_LEVEL) {
             return null;
         }
 
-        return match ($this->role($valmon)) {
-            self::ROLE_ATTACK => ['rate' => 5.0, 'power_rate' => 0.20],
-            self::ROLE_STANDARD => ['rate' => 4.0, 'power_rate' => 0.15],
-            default => ['rate' => 3.0, 'power_rate' => 0.10],
-        };
+        $styleKey = $this->resolvedBondStyleKey($valmon);
+        $phraseStyleKey = $this->resolvedBondPhraseStyleKey($valmon);
+        $style = $this->configuredBondStyles()[$styleKey] ?? [];
+        $phraseStyle = $this->configuredBondPhraseStyles()[$phraseStyleKey] ?? [];
+        $technique = $this->bondTechniqueSpec($valmon, $styleKey);
+        $damageVariance = $this->bondArtDamageVariance();
+
+        return [
+            'rate' => max(0.0, (float) ($style['rate'] ?? 0)),
+            'power_rate' => max(0.0, (float) ($style['power_rate'] ?? 0)),
+            'damage_variance_min_percent' => $damageVariance['min'],
+            'damage_variance_max_percent' => $damageVariance['max'],
+            'style_key' => $styleKey,
+            'style_label' => (string) ($style['label'] ?? '均衡'),
+            'phrase_style_key' => $phraseStyleKey,
+            'phrase_style_label' => (string) ($phraseStyle['label'] ?? '信頼'),
+            'technique_name' => $technique['name'],
+            'activation_phrase' => (string) ($phraseStyle['template'] ?? ''),
+            'activation_description' => $technique['description'],
+        ];
     }
 
     public function recoverySpec(PlayerValmon $valmon): ?array
@@ -603,9 +724,10 @@ class ValmonService
         if ($level >= 30) {
             $effects[] = '得意素材補正';
         }
-        if ($level >= 40) {
+        if ($level >= self::BOND_ART_UNLOCK_LEVEL) {
             $spec = $this->assistAttackSpec($valmon);
-            $effects[] = '追撃 ' . rtrim(rtrim(number_format((float) ($spec['rate'] ?? 0), 1), '0'), '.') . '%';
+            $effects[] = '絆技 ' . ($spec['style_label'] ?? '均衡') . ' '
+                . rtrim(rtrim(number_format((float) ($spec['rate'] ?? 0), 1), '0'), '.') . '%';
         }
         if ($level >= 50) {
             $effects[] = '未発見ヒント';
@@ -618,6 +740,87 @@ class ValmonService
         }
 
         return $effects;
+    }
+
+    private function configuredBondStyles(): array
+    {
+        $styles = config('valmon_bond_arts.styles', []);
+
+        return is_array($styles) ? $styles : [];
+    }
+
+    private function configuredBondPhraseStyles(): array
+    {
+        $phraseStyles = config('valmon_bond_arts.phrase_styles', []);
+
+        return is_array($phraseStyles) ? $phraseStyles : [];
+    }
+
+    private function bondArtDamageVariance(): array
+    {
+        $variance = config('valmon_bond_arts.damage_variance_percent', []);
+        $variance = is_array($variance) ? $variance : [];
+        $min = max(0, (int) ($variance['min'] ?? 70));
+        $max = max($min, (int) ($variance['max'] ?? 130));
+
+        return ['min' => $min, 'max' => $max];
+    }
+
+    private function resolvedBondStyleKey(PlayerValmon $valmon): string
+    {
+        $styles = $this->configuredBondStyles();
+        $fallback = isset($styles[self::DEFAULT_BOND_STYLE])
+            ? self::DEFAULT_BOND_STYLE
+            : (string) (array_key_first($styles) ?? self::DEFAULT_BOND_STYLE);
+        $styleKey = (string) ($valmon->bond_style ?: $fallback);
+
+        if (! isset($styles[$styleKey])) {
+            return $fallback;
+        }
+
+        $unlockLevel = max(self::BOND_ART_UNLOCK_LEVEL, (int) ($styles[$styleKey]['unlock_level'] ?? self::BOND_ART_UNLOCK_LEVEL));
+
+        return (int) $valmon->level >= $unlockLevel ? $styleKey : $fallback;
+    }
+
+    private function resolvedBondPhraseStyleKey(PlayerValmon $valmon): string
+    {
+        $phraseStyles = $this->configuredBondPhraseStyles();
+        $fallback = isset($phraseStyles[self::DEFAULT_BOND_PHRASE_STYLE])
+            ? self::DEFAULT_BOND_PHRASE_STYLE
+            : (string) (array_key_first($phraseStyles) ?? self::DEFAULT_BOND_PHRASE_STYLE);
+        $phraseStyleKey = (string) ($valmon->bond_phrase_style ?: $fallback);
+
+        return isset($phraseStyles[$phraseStyleKey]) ? $phraseStyleKey : $fallback;
+    }
+
+    private function bondTechniqueSpec(PlayerValmon $valmon, string $styleKey): array
+    {
+        $techniques = config('valmon_bond_arts.techniques', []);
+        $fallback = config('valmon_bond_arts.fallback_technique', []);
+        $valmonKey = (string) ($valmon->master?->valmon_key ?? '');
+        $technique = is_array($techniques) && isset($techniques[$valmonKey]) && is_array($techniques[$valmonKey])
+            ? $techniques[$valmonKey]
+            : [];
+        $fallback = is_array($fallback) ? $fallback : [];
+        $names = isset($technique['names']) && is_array($technique['names']) ? $technique['names'] : [];
+        $fallbackNames = isset($fallback['names']) && is_array($fallback['names']) ? $fallback['names'] : [];
+
+        return [
+            'name' => (string) ($names[$styleKey] ?? $fallbackNames[$styleKey] ?? '響き合う絆の一撃'),
+            'description' => (string) ($technique['description']
+                ?? $fallback['description']
+                ?? '{valmon}が{target}へ駆け出し、冒険者との呼吸を重ねた！'),
+        ];
+    }
+
+    private function formatBondText(string $text, PlayerValmon $valmon, string $target): string
+    {
+        return strtr($text, [
+            '{user}' => '冒険者',
+            '{valmon}' => $valmon->displayName(),
+            '{target}' => $target,
+        ]);
     }
 
     private function grantFeedExp(PlayerValmon $valmon, string $feedType, int $feedId, int $quantity, int $gainedExp): array

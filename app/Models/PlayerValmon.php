@@ -13,6 +13,8 @@ class PlayerValmon extends Model
         'exp' => 'integer',
         'affection' => 'integer',
         'is_partner' => 'boolean',
+        'bond_style' => 'string',
+        'bond_phrase_style' => 'string',
         'obtained_at' => 'datetime',
     ];
 

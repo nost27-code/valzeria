@@ -228,6 +228,9 @@
                             @foreach(($partner->effect_summary ?? []) as $effect)
                                 <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-600">{{ $effect }}</span>
                             @endforeach
+                            @if(($partner->bond_art_settings['available'] ?? false))
+                                <span class="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-black text-violet-700">掛け声 {{ $partner->bond_art_settings['phrase_style_label'] }}</span>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -259,10 +262,25 @@
                 @forelse($valmons as $valmon)
                     @php
                         $renameErrorBag = 'renameValmon' . $valmon->id;
+                        $bondErrorBag = 'bondSettings' . $valmon->id;
+                        $bondSettings = $valmon->bond_art_settings ?? [];
+                        $bondHasErrors = $errors->getBag($bondErrorBag)->any();
+                        $bondPanelOpen = $bondHasErrors || (int) session('valmon_settings_id') === (int) $valmon->id;
+                        $selectedBondStyle = $bondHasErrors
+                            ? old('bond_style', $bondSettings['style_key'] ?? 'balanced')
+                            : ($bondSettings['style_key'] ?? 'balanced');
+                        $selectedBondPhraseStyle = $bondHasErrors
+                            ? old('bond_phrase_style', $bondSettings['phrase_style_key'] ?? 'trust')
+                            : ($bondSettings['phrase_style_key'] ?? 'trust');
                         $speciesName = $valmon->master?->name ?? 'ヴァルモン';
                     @endphp
                     <div class="rounded-xl border {{ $valmon->is_partner ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white' }} p-4 shadow-sm"
-                         x-data="{ renameOpen: @js($errors->getBag($renameErrorBag)->has('nickname')) }">
+                         x-data="{
+                             renameOpen: @js($errors->getBag($renameErrorBag)->has('nickname')),
+                             bondOpen: @js($bondPanelOpen),
+                             selectedBondStyle: @js($selectedBondStyle),
+                             selectedBondPhraseStyle: @js($selectedBondPhraseStyle)
+                         }">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex min-w-0 items-center gap-3">
                                 @if($valmon->master?->image_path)
@@ -287,6 +305,9 @@
                                         @foreach(($valmon->effect_summary ?? []) as $effect)
                                             <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-black text-slate-600">{{ $effect }}</span>
                                         @endforeach
+                                        @if(($bondSettings['available'] ?? false))
+                                            <span class="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-black text-violet-700">掛け声 {{ $bondSettings['phrase_style_label'] }}</span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -295,6 +316,93 @@
                             @endif
                         </div>
                         <p class="mt-3 text-sm font-bold leading-relaxed text-slate-500">{{ $valmon->master?->description }}</p>
+                        @if(($bondSettings['available'] ?? false))
+                            <button type="button"
+                                    @click="bondOpen = !bondOpen"
+                                    class="mt-4 flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-violet-200 bg-violet-50 px-3 text-left text-xs font-black text-violet-800 shadow-sm hover:bg-violet-100">
+                                <span>絆技の設定</span>
+                                <span class="text-[11px] text-violet-600">{{ $bondSettings['style_label'] }}／{{ $bondSettings['phrase_style_label'] }}</span>
+                            </button>
+                            <div x-show="bondOpen" x-transition class="mt-2 rounded-xl border border-violet-200 bg-white/90 p-3">
+                                <form method="POST"
+                                      action="{{ route('valmons.bond-art-settings', $valmon) }}"
+                                      data-submit-lock
+                                      data-loading-text="設定中...">
+                                    @csrf
+                                    <div>
+                                        <div class="text-sm font-black text-slate-950">発動スタイル</div>
+                                        <div class="mt-0.5 text-[11px] font-bold text-slate-500">1戦につき1回抽選。3種類とも「発動率×威力」の基礎値は同じです。</div>
+                                        <div class="mt-0.5 text-[11px] font-bold text-slate-500">表示威力を基準に、追撃ダメージは{{ $bondSettings['damage_variance_min_percent'] }}〜{{ $bondSettings['damage_variance_max_percent'] }}%で変動します。</div>
+                                    </div>
+                                    <div class="mt-2 grid gap-2 sm:grid-cols-3">
+                                        @foreach(($bondSettings['styles'] ?? []) as $style)
+                                            @php
+                                                $styleRate = rtrim(rtrim(number_format((float) $style['rate'], 1), '0'), '.');
+                                                $stylePower = (int) round((float) $style['power_rate'] * 100);
+                                            @endphp
+                                            <label class="relative rounded-lg border p-2.5 transition {{ $style['unlocked'] ? 'cursor-pointer' : 'cursor-not-allowed opacity-55' }}"
+                                                   :class="selectedBondStyle === @js($style['key'])
+                                                       ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-500/20'
+                                                       : 'border-slate-200 bg-white'">
+                                                <input type="radio"
+                                                       name="bond_style"
+                                                       value="{{ $style['key'] }}"
+                                                       class="sr-only"
+                                                       x-model="selectedBondStyle"
+                                                       @checked($selectedBondStyle === $style['key'])
+                                                       @disabled(!$style['unlocked'])>
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="text-sm font-black text-slate-950">{{ $style['label'] }}</span>
+                                                    <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">Lv{{ $style['unlock_level'] }}</span>
+                                                </div>
+                                                <div class="mt-1 text-[11px] font-black text-violet-700">発動 {{ $styleRate }}% ／ 威力 {{ $stylePower }}%</div>
+                                                <div class="mt-1 text-[11px] font-bold leading-relaxed text-slate-500">{{ $style['description'] }}</div>
+                                                <div class="mt-2 border-t border-slate-100 pt-1.5 text-[11px] font-black text-slate-700">技名：{{ $style['technique_name'] }}</div>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('bond_style', $bondErrorBag)
+                                        <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div>
+                                    @enderror
+
+                                    <div class="mt-4">
+                                        <div class="text-sm font-black text-slate-950">掛け声</div>
+                                        <div class="mt-0.5 text-[11px] font-bold text-slate-500">性能は変わりません。好みの雰囲気を選べます。</div>
+                                    </div>
+                                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                                        @foreach(($bondSettings['phrase_styles'] ?? []) as $phraseStyle)
+                                            <label class="cursor-pointer rounded-lg border p-2.5 transition"
+                                                   :class="selectedBondPhraseStyle === @js($phraseStyle['key'])
+                                                       ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-500/20'
+                                                       : 'border-slate-200 bg-white'">
+                                                <input type="radio"
+                                                       name="bond_phrase_style"
+                                                       value="{{ $phraseStyle['key'] }}"
+                                                       class="sr-only"
+                                                       x-model="selectedBondPhraseStyle"
+                                                       @checked($selectedBondPhraseStyle === $phraseStyle['key'])>
+                                                <div class="text-xs font-black text-violet-700">{{ $phraseStyle['label'] }}</div>
+                                                <div class="mt-1 text-xs font-bold leading-relaxed text-slate-700">{{ $phraseStyle['preview'] }}</div>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('bond_phrase_style', $bondErrorBag)
+                                        <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div>
+                                    @enderror
+
+                                    <div class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-slate-600">
+                                        選んだ内容はこのヴァルモンに保存され、相棒にしている間のモンスター戦で使われます。対人戦では発動しません。
+                                    </div>
+                                    <button type="submit" class="mt-3 w-full rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-black text-white hover:bg-violet-800">
+                                        絆技を設定
+                                    </button>
+                                </form>
+                            </div>
+                        @else
+                            <div class="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-500">
+                                Lv40で絆技と掛け声の設定が解放されます。
+                            </div>
+                        @endif
                         <button type="button"
                                 @click="renameOpen = !renameOpen"
                                 class="mt-4 inline-flex min-h-9 items-center justify-center rounded-md border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-700 shadow-sm hover:bg-emerald-50">

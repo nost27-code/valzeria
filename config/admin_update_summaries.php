@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-26-valmon-bond-art-customization',
+        'date' => '2026-07-26',
+        'category' => 'added',
+        'title' => 'ヴァルモンの絆技カスタマイズを追加',
+        'detail' => 'Lv40以上のヴァルモンは、牧場で絆技の発動スタイルと掛け声を選べるようになりました。モンスター戦では相棒による追撃であることを専用技名・掛け声とともに表示し、追撃ダメージは表示威力の70〜130%で変動します。',
+    ],
+    [
         'id' => '2026-07-26-p1-action-double-submit-guard',
         'date' => '2026-07-26',
         'category' => 'changed',

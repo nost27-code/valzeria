@@ -293,6 +293,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/valmons', [\App\Http\Controllers\ValmonController::class, 'index'])->name('valmons.index');
         Route::post('/valmons/background', [\App\Http\Controllers\ValmonController::class, 'updateBackground'])->name('valmons.background');
         Route::post('/valmons/{valmon}/nickname', [\App\Http\Controllers\ValmonController::class, 'updateNickname'])->name('valmons.nickname');
+        Route::post('/valmons/{valmon}/bond-art-settings', [\App\Http\Controllers\ValmonController::class, 'updateBondArtSettings'])->name('valmons.bond-art-settings');
         Route::post('/valmons/{valmon}/partner', [\App\Http\Controllers\ValmonController::class, 'setPartner'])->name('valmons.partner');
         Route::post('/valmons/{valmon}/feed/materials/{characterMaterial}', [\App\Http\Controllers\ValmonController::class, 'feedMaterial'])->name('valmons.feed.material');
         Route::post('/valmons/{valmon}/feed/equipment/{characterItem}', [\App\Http\Controllers\ValmonController::class, 'feedEquipment'])->name('valmons.feed.equipment');
