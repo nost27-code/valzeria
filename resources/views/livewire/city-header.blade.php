@@ -672,6 +672,35 @@
             line-height: 1.1;
             white-space: nowrap;
         }
+        .adventurer-card-weekly-honor {
+            display: flex;
+            width: fit-content;
+            max-width: 100%;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+            border: 1px solid rgba(217, 119, 6, .35);
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255,251,235,.96), rgba(254,243,199,.86));
+            padding: 3px 9px 3px 6px;
+            color: #92400e;
+            box-shadow: 0 3px 8px rgba(146, 64, 14, .10);
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1.1;
+        }
+        .adventurer-card-weekly-honor img {
+            width: 17px;
+            height: 17px;
+            flex: 0 0 auto;
+            object-fit: contain;
+        }
+        .adventurer-card-weekly-honor-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .adventurer-card-equipped-title {
             display: block;
             max-width: 100%;
@@ -1514,6 +1543,14 @@
                         </div>
 
                         <div class="adventurer-card-vitals">
+                            <template x-if="playerInfo.weekly_win_badge">
+                                <div class="adventurer-card-weekly-honor">
+                                    <img src="{{ asset('images/icon/icon_223.webp') }}" alt="">
+                                    <span class="adventurer-card-weekly-honor-name" x-text="playerInfo.weekly_win_badge.label"></span>
+                                    <span class="shrink-0 text-[9px] text-amber-700"
+                                          x-text="`先週 ${playerInfo.weekly_win_badge.rank}位・${playerInfo.weekly_win_badge.wins}勝`"></span>
+                                </div>
+                            </template>
                             <div class="adventurer-card-equipped-title">
                                 <span x-text="playerInfo.equipped_title"></span>
                             </div>

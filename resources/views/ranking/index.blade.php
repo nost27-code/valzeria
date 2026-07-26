@@ -103,10 +103,90 @@
                     <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">{{ $board['description'] }}</p>
                 </div>
 
+                @if($board['is_weekly'] ?? false)
+                    <div class="border-b border-amber-100 bg-amber-50/60 px-3 py-3 sm:px-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <div class="text-[10px] font-black tracking-widest text-amber-700">今週の集計期間</div>
+                                <div class="mt-0.5 text-sm font-black text-slate-900">{{ $board['period']['label'] }}</div>
+                            </div>
+                            <span class="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-black text-amber-700">
+                                月曜9:05に前週分を確定
+                            </span>
+                        </div>
+
+                        <div class="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                            @foreach($board['reward_tiers'] as $tier)
+                                <div class="rounded-md border border-amber-100 bg-white px-2 py-2">
+                                    <div class="text-[10px] font-black text-slate-500">
+                                        {{ $tier['label'] }}
+                                        @if($tier['key'] === 'participation')
+                                            ・{{ number_format($tier['minimum_wins']) }}勝以上
+                                        @endif
+                                    </div>
+                                    <div class="mt-0.5 text-sm font-black text-[#003366]">
+                                        無償輝石 {{ number_format($tier['free_kiseki']) }}個
+                                    </div>
+                                    @if($tier['badge_label'])
+                                        <div class="mt-0.5 truncate text-[10px] font-black text-amber-700">{{ $tier['badge_label'] }}</div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="mt-2 space-y-0.5 text-[10px] font-bold leading-relaxed text-slate-500">
+                            <p>同じ勝利数は同順位となり、同率50位までは全員が入賞します。参加賞は上位報酬へ加算されません。</p>
+                            <p>番付は全冒険者を表示しますが、報酬はGoogle連携またはメール登録済みの通常アカウントが対象です。</p>
+                        </div>
+                    </div>
+
+                    @if($weeklyWinStatus)
+                        <div class="border-b border-slate-100 bg-white px-3 py-3 sm:px-4">
+                            <div class="rounded-lg border border-[#003366]/15 bg-blue-50/50 px-3 py-2.5">
+                                <div class="flex flex-wrap items-end justify-between gap-2">
+                                    <div>
+                                        <div class="text-[10px] font-black tracking-widest text-[#003366]">あなたの今週</div>
+                                        <div class="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                            <span class="text-lg font-black tabular-nums text-slate-950">
+                                                {{ number_format($weeklyWinStatus['wins']) }}勝
+                                            </span>
+                                            <span class="text-sm font-black text-slate-600">
+                                                {{ $weeklyWinStatus['rank'] ? number_format($weeklyWinStatus['rank']).'位' : '順位未確定' }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    @if($weeklyWinStatus['excluded'])
+                                        <span class="rounded bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">集計対象外</span>
+                                    @elseif(!$weeklyWinStatus['is_account_eligible'])
+                                        <span class="rounded bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">表示のみ・報酬対象外</span>
+                                    @elseif($weeklyWinStatus['potential_reward_free_kiseki'] > 0)
+                                        <span class="rounded bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800">
+                                            現在の報酬 無償輝石{{ number_format($weeklyWinStatus['potential_reward_free_kiseki']) }}個
+                                        </span>
+                                    @elseif($weeklyWinStatus['participation_remaining_wins'] > 0)
+                                        <span class="rounded bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">
+                                            参加賞まであと{{ number_format($weeklyWinStatus['participation_remaining_wins']) }}勝
+                                        </span>
+                                    @endif
+                                </div>
+
+                                @if($weeklyWinStatus['excluded'])
+                                    <p class="mt-1.5 text-[10px] font-bold text-slate-500">運営・検証用の冒険者は週間番付へ掲載されません。</p>
+                                @elseif(!$weeklyWinStatus['is_account_eligible'])
+                                    <p class="mt-1.5 text-[10px] font-bold text-slate-500">報酬を受け取るには、週の確定前にGoogle連携またはメール登録を完了してください。</p>
+                                @else
+                                    <p class="mt-1.5 text-[10px] font-bold text-slate-500">報酬は月曜9:05の確定順位に応じて、自動で通知ベルと所持輝石へ届きます。</p>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                @endif
+
                 <div class="divide-y divide-slate-100">
                     @forelse($board['rows'] as $row)
                         @php
-                            $rank = $loop->iteration;
+                            $rank = (int) ($row['rank'] ?? $loop->iteration);
                             $rankClass = $rankClasses[$rank] ?? 'border-slate-200 bg-white text-slate-500';
                             $rankLayout = match ($rank) {
                                 1 => [
@@ -192,7 +272,21 @@
                                     <div class="text-[10px] font-bold text-slate-400">{{ $board['unit'] }}</div>
                                 </div>
                             </div>
-                            <div class="mt-1 text-[11px] font-bold text-slate-400 {{ $rankLayout['detail'] }}">{{ $row['detail'] }}</div>
+                            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold text-slate-400 {{ $rankLayout['detail'] }}">
+                                <span>{{ $row['detail'] }}</span>
+                                @if($board['is_weekly'] ?? false)
+                                    @if(!($row['is_account_eligible'] ?? false))
+                                        <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">表示のみ・報酬対象外</span>
+                                    @elseif(($row['reward_free_kiseki'] ?? 0) > 0)
+                                        <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
+                                            無償輝石{{ number_format($row['reward_free_kiseki']) }}個
+                                        </span>
+                                    @endif
+                                    @if($row['badge_label'] ?? null)
+                                        <span class="rounded bg-[#003366] px-1.5 py-0.5 text-[10px] font-black text-white">{{ $row['badge_label'] }}</span>
+                                    @endif
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <div class="px-4 py-10 text-center">

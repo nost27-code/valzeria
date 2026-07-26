@@ -18,6 +18,7 @@ use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
 use App\Services\SupportPassService;
+use App\Services\WeeklyWinRankingService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
 use App\Support\JobRankCatalog;
@@ -344,6 +345,7 @@ class CityHeader extends Component
             'arena_rank' => $arenaRank ? number_format($arenaRank) . '位' : '未参加',
             'arena_rank_number' => $arenaRank,
             'arena_rank_trophy' => $arenaRank && $arenaRank <= 3 ? asset('images/icon/icon_100' . $arenaRank . '.webp') : null,
+            'weekly_win_badge' => app(WeeklyWinRankingService::class)->latestBadgeFor($character),
             'guild' => '未実装',
             'state' => '滞在中',
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),

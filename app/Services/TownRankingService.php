@@ -12,12 +12,15 @@ use Illuminate\Support\Facades\Schema;
 
 class TownRankingService
 {
+    public const CACHE_KEY_PREFIX = 'town_ranking_boards_v8';
+
     private const LIMIT = 30;
+
     private const TESTER_EMAIL_PATTERN = 'tester_%@valzeria.local';
 
     public function boards(): array
     {
-        return Cache::remember('town_ranking_boards_v6', now()->addMinutes(5), function (): array {
+        return Cache::remember(self::cacheKey(), now()->addMinutes(5), function (): array {
             $definitions = $this->definitions();
 
             return collect($definitions)
@@ -31,6 +34,23 @@ class TownRankingService
         });
     }
 
+    public static function cacheKey(?Carbon $at = null): string
+    {
+        $timezone = (string) config('weekly_win_ranking.timezone', 'Asia/Tokyo');
+        $periodStartHour = max(
+            0,
+            min(23, (int) config('weekly_win_ranking.period_start_hour', 9))
+        );
+        $periodKey = ($at ?? Carbon::now($timezone))
+            ->copy()
+            ->setTimezone($timezone)
+            ->subHours($periodStartHour)
+            ->startOfWeek(Carbon::MONDAY)
+            ->format('Y-m-d');
+
+        return self::CACHE_KEY_PREFIX.':'.$periodKey;
+    }
+
     public function board(?string $key): array
     {
         $boards = $this->boards();
@@ -40,7 +60,24 @@ class TownRankingService
 
     public function definitions(): array
     {
+        $weeklyRanking = app(WeeklyWinRankingService::class);
+
         return [
+            'weekly_wins' => [
+                'title' => '週間勝利数増分番付',
+                'short_title' => '週間勝利',
+                'unit' => '勝',
+                'description' => '月曜9:00から翌月曜8:59までに、通常探索・ボス・亜域・探索の地図で積み上げた勝利数です。',
+                'badge' => '週間武勇',
+                'is_weekly' => true,
+                'period' => $weeklyRanking->currentPeriodSummary(),
+                'reward_tiers' => $weeklyRanking->rewardTiers(),
+                'ranking_limit' => max(1, (int) config('weekly_win_ranking.ranking_limit', 50)),
+                'minimum_participation_wins' => max(
+                    1,
+                    (int) config('weekly_win_ranking.minimum_participation_wins', 10)
+                ),
+            ],
             'wins' => [
                 'title' => '勝利数番付',
                 'short_title' => '勝利数',
@@ -117,6 +154,7 @@ class TownRankingService
     private function rowsFor(string $key): Collection
     {
         return match ($key) {
+            'weekly_wins' => app(WeeklyWinRankingService::class)->currentRows(),
             'wins' => $this->characterValueRows('COALESCE(characters.wins, 0)', '勝利'),
             'valmons' => $this->countRows('player_valmons', 'character_id', 'ヴァルモン'),
             'monster_marks' => $this->sumRows('character_monster_marks', 'character_id', 'quantity', '印'),
@@ -133,7 +171,7 @@ class TownRankingService
 
     private function characterValueRows(string $expression, string $detailLabel): Collection
     {
-        if (!Schema::hasTable('characters')) {
+        if (! Schema::hasTable('characters')) {
             return collect();
         }
 
@@ -144,19 +182,19 @@ class TownRankingService
                 'characters.icon_path',
                 'characters.level',
                 'characters.profile_comment',
-                DB::raw($expression . ' as score'),
+                DB::raw($expression.' as score'),
             ])
-            ->whereRaw($expression . ' > 0')
+            ->whereRaw($expression.' > 0')
             ->orderByDesc('score')
             ->orderBy('characters.id')
             ->limit(self::LIMIT)
             ->get()
-            ->map(fn ($row) => $this->formatRow($row, "{$detailLabel} " . number_format((int) $row->score)));
+            ->map(fn ($row) => $this->formatRow($row, "{$detailLabel} ".number_format((int) $row->score)));
     }
 
     private function countRows(string $table, string $characterColumn, string $detailLabel): Collection
     {
-        if (!Schema::hasTable($table) || !Schema::hasTable('characters')) {
+        if (! Schema::hasTable($table) || ! Schema::hasTable('characters')) {
             return collect();
         }
 
@@ -169,7 +207,7 @@ class TownRankingService
 
     private function sumRows(string $table, string $characterColumn, string $valueColumn, string $detailLabel): Collection
     {
-        if (!Schema::hasTable($table) || !Schema::hasColumn($table, $valueColumn) || !Schema::hasTable('characters')) {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $valueColumn) || ! Schema::hasTable('characters')) {
             return collect();
         }
 
@@ -182,7 +220,7 @@ class TownRankingService
 
     private function excellentEquipmentRows(): Collection
     {
-        if (!Schema::hasTable('character_items') || !Schema::hasColumn('character_items', 'affix_quality')) {
+        if (! Schema::hasTable('character_items') || ! Schema::hasColumn('character_items', 'affix_quality')) {
             return collect();
         }
 
@@ -211,7 +249,7 @@ class TownRankingService
 
     private function marketSalesRows(): Collection
     {
-        if (!Schema::hasTable('market_transactions')) {
+        if (! Schema::hasTable('market_transactions')) {
             return collect();
         }
 
@@ -225,7 +263,7 @@ class TownRankingService
 
     private function jobMasterRows(): Collection
     {
-        if (!Schema::hasTable('character_jobs')) {
+        if (! Schema::hasTable('character_jobs')) {
             return collect();
         }
 
@@ -238,7 +276,7 @@ class TownRankingService
 
     private function excellentAppraiserRows(): Collection
     {
-        if (!Schema::hasTable('character_items') || !Schema::hasColumn('character_items', 'affix_quality')) {
+        if (! Schema::hasTable('character_items') || ! Schema::hasColumn('character_items', 'affix_quality')) {
             return collect();
         }
 
@@ -251,7 +289,7 @@ class TownRankingService
 
     private function innProfitRow(): ?array
     {
-        if (!Schema::hasTable('gold_transactions')) {
+        if (! Schema::hasTable('gold_transactions')) {
             return null;
         }
 
@@ -279,7 +317,7 @@ class TownRankingService
             'level' => null,
             'profile_comment' => 'じいさんや、今週の帳簿を締める時間だねぇ。',
             'score' => $score,
-            'detail' => '直近7日想定利益 ' . number_format($score),
+            'detail' => '直近7日想定利益 '.number_format($score),
         ];
     }
 
@@ -287,7 +325,7 @@ class TownRankingService
     {
         return $this->publicCharacterQuery()
             ->joinSub($sub, 'rank_values', function ($join) use ($characterColumn) {
-                $join->on('rank_values.' . $characterColumn, '=', 'characters.id');
+                $join->on('rank_values.'.$characterColumn, '=', 'characters.id');
             })
             ->select([
                 'characters.id',
@@ -302,7 +340,7 @@ class TownRankingService
             ->orderBy('characters.id')
             ->limit(self::LIMIT)
             ->get()
-            ->map(fn ($row) => $this->formatRow($row, "{$detailLabel} " . number_format((int) $row->score)));
+            ->map(fn ($row) => $this->formatRow($row, "{$detailLabel} ".number_format((int) $row->score)));
     }
 
     private function publicCharacterQuery()

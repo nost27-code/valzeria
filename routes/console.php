@@ -20,3 +20,7 @@ Schedule::command('arena:npc-auto-battles --battles=2')->dailyAt('22:20')->witho
 Schedule::command('portal:send-online-count')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('note:rss-sync')->everyThirtyMinutes()->withoutOverlapping();
 Schedule::command('security:detect-anomalies')->everyFiveMinutes()->withoutOverlapping(10);
+Schedule::command('ranking:finalize-weekly-wins')
+    ->dailyAt(config('weekly_win_ranking.finalize_time', '09:05'))
+    ->timezone(config('weekly_win_ranking.timezone', 'Asia/Tokyo'))
+    ->withoutOverlapping(30);
