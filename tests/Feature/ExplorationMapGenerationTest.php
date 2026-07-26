@@ -93,6 +93,72 @@ class ExplorationMapGenerationTest extends TestCase
             ->assertSee('公開終了');
     }
 
+    public function test_single_species_map_uses_one_species_and_replaces_the_surroundings_text(): void
+    {
+        $city = City::findOrFail(1);
+        $area = Area::create(['name' => '単一種族試験地', 'slug' => 'single-species-map-test', 'city_id' => $city->id, 'recommended_level_min' => 45, 'recommended_level_max' => 50]);
+        $dragons = collect(range(1, 4))->map(fn (int $index) => Enemy::create([
+            'name' => '単一種族試験竜' . $index,
+            'area_id' => $area->id,
+            'level' => 45,
+            'max_hp' => 100,
+            'str' => 20,
+            'def' => 10,
+            'agi' => 10,
+            'mag' => 10,
+            'spr' => 10,
+            'luk' => 10,
+            'exp_reward' => 20,
+            'gold_reward' => 10,
+            'job_exp_reward' => 1,
+            'appearance_weight' => 1,
+            'is_boss' => false,
+            'family_key' => 'test_dragon',
+            'species_key' => null,
+        ]));
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '竜種地図師', 'hp_base' => 100, 'current_hp' => 100]);
+        $flavor = '岩肌には巨大な爪痕が刻まれ、竜種の気配が濃く残っている。';
+        $originalSingleSpecies = config('exploration_maps.single_species');
+        $originalProfiles = config('exploration_maps.reward_profiles');
+        config()->set('exploration_maps.single_species', [
+            'rate_basis_points' => 10000,
+            'minimum_distinct_enemies' => 4,
+            'surroundings' => ['test_dragon' => $flavor],
+        ]);
+        config()->set('exploration_maps.reward_profiles', [
+            'experience' => $originalProfiles['experience'],
+        ]);
+
+        try {
+            $map = app(ExplorationMapGenerator::class)->generate(
+                $character,
+                $area,
+                $dragons->first(),
+                '00000000-0000-4000-8000-000000000006'
+            );
+            $displayEnvironment = app(\App\Services\ExplorationMapDisplayService::class)->details($map)['environment'];
+        } finally {
+            config()->set('exploration_maps.single_species', $originalSingleSpecies);
+            config()->set('exploration_maps.reward_profiles', $originalProfiles);
+        }
+
+        $variantEnemyIds = collect($map->normal_monster_variants_json)->pluck('base_monster_id');
+        $speciesKeys = Enemy::query()
+            ->whereIn('id', $variantEnemyIds)
+            ->get()
+            ->map(fn (Enemy $enemy) => (string) ($enemy->species_key ?: $enemy->family_key ?: ''))
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->assertSame(6, (int) $map->generation_version);
+        $this->assertSame('single_species', data_get($map->generation_payload_json, 'enemy_composition.mode'));
+        $this->assertSame('test_dragon', data_get($map->generation_payload_json, 'enemy_composition.species_key'));
+        $this->assertGreaterThanOrEqual(4, $variantEnemyIds->count());
+        $this->assertSame(['test_dragon'], $speciesKeys);
+        $this->assertSame([$flavor], $displayEnvironment);
+    }
+
     public function test_generated_map_selects_each_city_theme_evenly_and_keeps_enemy_levels_in_the_middle_to_upper_band(): void
     {
         $weights = config('exploration_maps.target_city_weights');
@@ -104,6 +170,22 @@ class ExplorationMapGenerationTest extends TestCase
             'legend' => ['min' => 1200, 'max' => 1500],
         ], config('exploration_maps.grade_limits'));
         $this->assertSame(['min' => 45, 'max' => 140], config('exploration_maps.target_enemy_level_range'));
+        $this->assertSame(2500, config('exploration_maps.single_species.rate_basis_points'));
+        $this->assertSame(4, config('exploration_maps.single_species.minimum_distinct_enemies'));
+        $this->assertSame([
+            'beast',
+            'undead',
+            'dragon',
+            'demon',
+            'aquatic',
+            'flying',
+            'insect',
+            'machine',
+            'slime',
+            'soldier',
+            'mage',
+            'spirit',
+        ], array_keys(config('exploration_maps.single_species.surroundings')));
         $this->assertSame('images/chizu/map-bg-lava-cave.webp', config('exploration_maps.dungeon_card_backgrounds.mine_volcano'));
         $this->assertSame('images/chizu/map-bg-floating-sanctuary.webp', config('exploration_maps.dungeon_card_backgrounds.sky_ruins'));
         $this->assertGreaterThanOrEqual(10, count(config('exploration_maps.map_name_parts.magic.0')));
@@ -165,7 +247,7 @@ class ExplorationMapGenerationTest extends TestCase
         $fragment = Material::query()->where('material_code', $materialCode)->first();
 
         $this->assertSame('ancient_fragment', $map->reward_profile);
-        $this->assertSame(5, (int) $map->generation_version);
+        $this->assertSame(6, (int) $map->generation_version);
         $this->assertGreaterThanOrEqual(142, (int) $map->map_level);
         $this->assertTrue(collect($map->normal_monster_variants_json)->every(fn ($variant) => (int) $variant['enemy_level'] >= 142));
         $this->assertNotNull($fragment);

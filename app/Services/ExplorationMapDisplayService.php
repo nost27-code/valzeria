@@ -34,7 +34,7 @@ class ExplorationMapDisplayService
             'enemy_power_max' => $powerRange['max'],
             'threat_tier' => $threatTier['name'],
             'reward' => $this->rewardLabel($map),
-            'environment' => collect($map->environment_effects_json ?? [])->map(fn (string $effect) => $this->environmentLabel($effect))->values()->all(),
+            'environment' => $this->environment($map),
         ];
     }
 
@@ -113,6 +113,23 @@ class ExplorationMapDisplayService
         if (($modifiers['gold_multiplier'] ?? 1) > 1) return 'Goldが25%多い';
 
         return null;
+    }
+
+    private function environment(ExplorationMap $map): array
+    {
+        $composition = data_get($map->generation_payload_json, 'enemy_composition', []);
+        if (is_array($composition) && ($composition['mode'] ?? null) === 'single_species') {
+            $speciesKey = (string) ($composition['species_key'] ?? '');
+            $surroundings = config("exploration_maps.single_species.surroundings.{$speciesKey}");
+            if (is_string($surroundings) && $surroundings !== '') {
+                return [$surroundings];
+            }
+        }
+
+        return collect($map->environment_effects_json ?? [])
+            ->map(fn (string $effect) => $this->environmentLabel($effect))
+            ->values()
+            ->all();
     }
 
     private function environmentLabel(string $effect): string

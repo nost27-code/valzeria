@@ -19,6 +19,7 @@ class AdminPublishedMapManagerTest extends TestCase
 
     public function test_admin_can_review_only_currently_open_published_maps(): void
     {
+        config()->set('exploration_maps.reward_profiles.ancient_fragment.weight', 0);
         $city = City::findOrFail(1);
         $area = Area::create([
             'name' => '管理公開地図試験地',

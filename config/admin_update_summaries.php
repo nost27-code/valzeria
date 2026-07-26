@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-26-single-species-exploration-maps',
+        'date' => '2026-07-26',
+        'category' => 'added',
+        'title' => '単一種族が群れる探索地図を追加',
+        'detail' => '新しく見つかる探索の地図の約25%で、出現モンスターが特攻・耐性と同じ種族区分のいずれかに統一されるようになりました。対象地図では「周辺の様子」から、群れている種族の気配を読み取れます。',
+    ],
+    [
         'id' => '2026-07-26-valmon-egg-duplicate-and-hatch-log-fix',
         'date' => '2026-07-26',
         'category' => 'fixed',

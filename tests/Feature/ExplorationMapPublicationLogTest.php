@@ -21,6 +21,7 @@ class ExplorationMapPublicationLogTest extends TestCase
 
     public function test_only_hero_and_legend_maps_are_announced_in_public_chat(): void
     {
+        config()->set('exploration_maps.reward_profiles.ancient_fragment.weight', 0);
         $city = City::findOrFail(1);
         $area = Area::create(['name' => '公開ログ試験地', 'slug' => 'map-public-log-test', 'city_id' => $city->id, 'recommended_level_min' => 45, 'recommended_level_max' => 55]);
         $enemy = Enemy::create(['name' => '公開ログ試験魔物', 'area_id' => $area->id, 'level' => 50, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);

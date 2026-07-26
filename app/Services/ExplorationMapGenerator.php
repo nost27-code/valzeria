@@ -7,6 +7,7 @@ use App\Models\Character;
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
 use App\Models\MonsterPrefix;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ExplorationMapGenerator
@@ -33,18 +34,28 @@ class ExplorationMapGenerator
                 ->all()
         )['value'];
         $levelOffset = $this->levelOffset($root, $grade, 'map:v2:map_level_offset');
-        $targetMonster = $this->targetMonster($root, $grade, $profile, $levelOffset);
+        $targetMonsters = $this->targetMonsters($grade, $profile, $levelOffset);
+        $singleSpeciesTarget = $this->singleSpeciesTarget($root, $targetMonsters, $grade, $levelOffset);
+        $targetMonster = $singleSpeciesTarget['enemy'] ?? $this->targetMonster($root, $targetMonsters);
+        $singleSpeciesKey = $singleSpeciesTarget['species_key'] ?? null;
         $type = $this->dungeonType($root, $targetArea);
         $level = min(255, max(1, (int) $targetMonster->level + $levelOffset));
         $limit = $this->limit($root, $grade, $profile);
         $effects = $this->effects($root, $type, $grade);
-        $normal = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, false);
-        $boss = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, true);
+        $normal = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, false, $singleSpeciesKey);
+        $boss = $this->variants($root, $targetArea, $targetMonster, $type, $level, $grade, true, $singleSpeciesKey);
         $parts = $this->nameParts($root, $type, $effects, $profile);
         $name = implode('', [$parts['prefix'], $parts['proper'], $parts['place'], 'の地図']);
         $recommendedTownId = (int) ($targetArea->city_id ?? 0) ?: null;
         $seedHash = $this->seeds->hash($root);
         $generationPayload = ['grade' => $grade, 'dungeon_type' => $type, 'map_level' => $level, 'exploration_limit' => $limit, 'origin_area_id' => $area->id, 'origin_monster_id' => $sourceMonster->id, 'target_area_id' => $targetArea->id];
+
+        if ($singleSpeciesKey !== null) {
+            $generationPayload['enemy_composition'] = [
+                'mode' => 'single_species',
+                'species_key' => $singleSpeciesKey,
+            ];
+        }
 
         if ($profile === 'ancient_fragment') {
             $fragment = $this->legacyRewards->ancientFragmentForSeedHash($seedHash);
@@ -56,7 +67,7 @@ class ExplorationMapGenerator
 
         return ExplorationMap::create([
             'uuid' => $uuid, 'owner_character_id' => $owner->id, 'source_area_id' => $targetArea->id, 'source_monster_id' => $targetMonster->id, 'source_drop_event_uuid' => $dropEventUuid,
-            'seed_version' => 1, 'seed_encrypted' => $this->seeds->encrypt($root), 'seed_hash' => $seedHash, 'generation_version' => 5,
+            'seed_version' => 1, 'seed_encrypted' => $this->seeds->encrypt($root), 'seed_hash' => $seedHash, 'generation_version' => 6,
             'map_grade' => $grade, 'map_level' => $level, 'dungeon_type' => $type, 'reward_profile' => $profile, 'exploration_limit' => $limit,
             'name' => $name, 'name_parts_json' => $parts, 'normal_monster_variants_json' => $normal, 'boss_monster_variants_json' => $boss,
             'environment_effects_json' => $effects, 'reward_modifiers_json' => $this->rewardProfiles->modifiers($profile, $grade),
@@ -112,7 +123,7 @@ class ExplorationMapGenerator
 
         return $areas[$this->seeds->int($root, 'map:v3:target_area', 0, $areas->count() - 1)];
     }
-    private function targetMonster(string $root, string $grade, string $profile, int $levelOffset): Enemy
+    private function targetMonsters(string $grade, string $profile, int $levelOffset): Collection
     {
         $range = $this->baseMonsterLevelRange($grade);
         if ($profile === 'ancient_fragment') {
@@ -133,7 +144,66 @@ class ExplorationMapGenerator
             throw new \RuntimeException('地図用の通常モンスターが見つかりません。');
         }
 
+        return $monsters;
+    }
+    private function targetMonster(string $root, Collection $monsters): Enemy
+    {
         return $monsters[$this->seeds->int($root, 'map:v3:target_monster', 0, $monsters->count() - 1)];
+    }
+    /**
+     * @return array{enemy: Enemy, species_key: string}|null
+     */
+    private function singleSpeciesTarget(string $root, Collection $targetMonsters, string $grade, int $levelOffset): ?array
+    {
+        $rate = min(10000, max(0, (int) config('exploration_maps.single_species.rate_basis_points', 0)));
+        if ($rate === 0 || $this->seeds->int($root, 'map:v6:single_species:roll', 1, 10000) > $rate) {
+            return null;
+        }
+
+        $flavors = config('exploration_maps.single_species.surroundings', []);
+        $speciesKeys = array_keys(is_array($flavors) ? $flavors : []);
+        if ($speciesKeys === []) {
+            return null;
+        }
+
+        $minimumEnemies = max(1, (int) config('exploration_maps.single_species.minimum_distinct_enemies', 4));
+        $offsetRange = $this->difficulty->levelOffsetRange($grade);
+        $variantPool = Enemy::query()
+            ->where('is_boss', false)
+            ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
+            ->orderBy('id')
+            ->get(['id', 'level', 'species_key', 'family_key']);
+        $variantsBySpecies = $variantPool
+            ->filter(fn (Enemy $enemy) => in_array($this->speciesKey($enemy), $speciesKeys, true))
+            ->groupBy(fn (Enemy $enemy) => $this->speciesKey($enemy));
+        $eligibleTargets = $targetMonsters->filter(function (Enemy $target) use ($levelOffset, $minimumEnemies, $offsetRange, $variantsBySpecies): bool {
+            $speciesKey = $this->speciesKey($target);
+            $mapLevel = min(255, max(1, (int) $target->level + $levelOffset));
+            $minimumLevel = max(1, $mapLevel - (int) $offsetRange['max']);
+
+            return $variantsBySpecies
+                ->get($speciesKey, collect())
+                ->filter(fn (Enemy $enemy) => (int) $enemy->level >= $minimumLevel && (int) $enemy->level <= $mapLevel)
+                ->count() >= $minimumEnemies;
+        });
+        $targetsBySpecies = $eligibleTargets
+            ->groupBy(fn (Enemy $enemy) => $this->speciesKey($enemy))
+            ->sortKeys();
+
+        if ($targetsBySpecies->isEmpty()) {
+            return null;
+        }
+
+        $eligibleSpeciesKeys = $targetsBySpecies->keys()->values();
+        $speciesKey = (string) $eligibleSpeciesKeys[
+            $this->seeds->int($root, 'map:v6:single_species:species', 0, $eligibleSpeciesKeys->count() - 1)
+        ];
+        $speciesTargets = $targetsBySpecies->get($speciesKey)->sortBy('id')->values();
+        $enemy = $speciesTargets[
+            $this->seeds->int($root, 'map:v6:single_species:target_monster', 0, $speciesTargets->count() - 1)
+        ];
+
+        return ['enemy' => $enemy, 'species_key' => $speciesKey];
     }
     private function sourceBonus(Enemy $enemy): int { return $enemy->is_boss ? 5 : ((bool) ($enemy->is_elite ?? false) ? 3 : 0); }
     private function gradeBonus(string $grade): int { return ['normal' => 0, 'rare' => 5, 'hero' => 10, 'legend' => 15][$grade]; }
@@ -145,7 +215,7 @@ class ExplorationMapGenerator
         for ($i = 0; $i < $count; $i++) $effects[] = $pool[$this->seeds->int($root, "map:v1:environment:{$i}", 0, count($pool) - 1)];
         return array_values(array_unique($effects));
     }
-    private function variants(string $root, Area $area, Enemy $referenceEnemy, string $type, int $level, string $grade, bool $boss): array
+    private function variants(string $root, Area $area, Enemy $referenceEnemy, string $type, int $level, string $grade, bool $boss, ?string $speciesKey = null): array
     {
         $offsetRange = $this->difficulty->levelOffsetRange($grade);
         $baseLevelRange = [
@@ -156,14 +226,16 @@ class ExplorationMapGenerator
             ->where('is_boss', $boss)
             ->whereBetween('level', [$baseLevelRange['min'], $baseLevelRange['max']])
             ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]));
+        $this->applySpeciesConstraint($query, $speciesKey);
         $candidates = $query->get();
         if ($candidates->isEmpty() && $boss) return [];
         if ($candidates->isEmpty()) {
-            $candidates = Enemy::query()
+            $fallbackQuery = Enemy::query()
                 ->where('is_boss', false)
                 ->whereBetween('level', [$baseLevelRange['min'], $baseLevelRange['max']])
-                ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]))
-                ->get();
+                ->whereHas('area', fn ($query) => $query->whereBetween('city_id', [1, 10]));
+            $this->applySpeciesConstraint($fallbackQuery, $speciesKey);
+            $candidates = $fallbackQuery->get();
         }
         $candidates = $this->powerBalancedCandidates($candidates, $referenceEnemy, $level);
         $targetCount = min($candidates->count(), $boss ? min(3, max(1, $this->seeds->int($root, 'map:v1:boss_count', 1, 3))) : min(7, max(4, $this->seeds->int($root, 'map:v1:monster_count', 4, 7))));
@@ -175,6 +247,25 @@ class ExplorationMapGenerator
             $picked[$enemy->id] = $this->variant($root, $enemy, $type, $level, $boss);
         }
         return array_values($picked);
+    }
+    private function applySpeciesConstraint($query, ?string $speciesKey): void
+    {
+        if ($speciesKey === null) {
+            return;
+        }
+
+        $query->where(function ($query) use ($speciesKey): void {
+            $query->where('species_key', $speciesKey)
+                ->orWhere(function ($query) use ($speciesKey): void {
+                    $query->where(function ($query): void {
+                        $query->whereNull('species_key')->orWhere('species_key', '');
+                    })->where('family_key', $speciesKey);
+                });
+        });
+    }
+    private function speciesKey(Enemy $enemy): string
+    {
+        return (string) ($enemy->species_key ?: $enemy->family_key ?: '');
     }
     private function variant(string $root, Enemy $enemy, string $type, int $mapLevel, bool $boss): array
     {
