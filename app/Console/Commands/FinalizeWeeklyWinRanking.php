@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class FinalizeWeeklyWinRanking extends Command
 {
     protected $signature = 'ranking:finalize-weekly-wins
-        {--week-start= : 確定する週の月曜日（YYYY-MM-DD）。省略時は直前に終了した週}
+        {--week-start= : 確定する週の月曜日（YYYY-MM-DD）。省略時は終了済みの未確定週を古い順に処理}
         {--dry-run : 報酬を付与せず、対象人数と無償輝石合計だけを試算する}';
 
     protected $description = '週間勝利数番付を確定し、対象者へ無償輝石と名誉表示を付与する';
@@ -29,9 +29,9 @@ class FinalizeWeeklyWinRanking extends Command
             $dryRun = (bool) $this->option('dry-run');
             $result = match (true) {
                 $dryRun && $period !== null => $service->previewPeriod($period),
-                $dryRun => $service->previewPreviousWeek(),
+                $dryRun => $service->previewPendingPeriods(),
                 $period !== null => $service->finalizePeriod($period),
-                default => $service->finalizePreviousWeek(),
+                default => $service->finalizePendingPeriods(),
             };
         } catch (\InvalidArgumentException|\LogicException $e) {
             $this->error($e->getMessage());
@@ -39,6 +39,51 @@ class FinalizeWeeklyWinRanking extends Command
             return self::FAILURE;
         }
 
+        if ($period === null) {
+            $this->displayPendingResult($result);
+
+            return self::SUCCESS;
+        }
+
+        $this->displayPeriodResult($result, $service);
+
+        return self::SUCCESS;
+    }
+
+    /** @param array<string, mixed> $result */
+    private function displayPendingResult(array $result): void
+    {
+        if ((int) $result['processed_count'] === 0) {
+            $this->info('未確定の終了済み週はありません。');
+
+            return;
+        }
+
+        foreach ($result['period_results'] as $periodResult) {
+            if ($result['preview']) {
+                $this->warn("{$periodResult['season_key']}週を試算しました。");
+            } elseif ($periodResult['already_finalized'] ?? false) {
+                $this->warn("{$periodResult['season_key']}週は別の処理で確定済みです。報酬の再付与は行いませんでした。");
+            } else {
+                $this->info("{$periodResult['season_key']}週の週間勝利数番付を確定しました。");
+            }
+        }
+
+        if ($result['preview']) {
+            $this->warn('試算のため報酬は付与していません。');
+        }
+
+        $this->line('対象週: '.number_format((int) $result['processed_count']).'週');
+        $this->line('参加者合計: '.number_format((int) $result['participant_count']).'人');
+        $this->line('報酬対象合計: '.number_format((int) $result['rewarded_count']).'人');
+        $this->line('無償輝石合計: '.number_format((int) $result['total_free_kiseki']).'個');
+    }
+
+    /** @param array<string, mixed> $result */
+    private function displayPeriodResult(
+        array $result,
+        WeeklyWinRankingService $service
+    ): void {
         if ($result['skipped'] ?? false) {
             $firstSeasonKey = $service->availability()['first_period']['key'];
             $this->warn(
@@ -56,7 +101,5 @@ class FinalizeWeeklyWinRanking extends Command
         $this->line('参加者: '.number_format((int) $result['participant_count']).'人');
         $this->line('報酬対象: '.number_format((int) $result['rewarded_count']).'人');
         $this->line('無償輝石合計: '.number_format((int) $result['total_free_kiseki']).'個');
-
-        return self::SUCCESS;
     }
 }

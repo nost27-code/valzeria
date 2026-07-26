@@ -388,6 +388,40 @@ class WeeklyWinRankingService
     }
 
     /**
+     * 初回対象週から直前終了週までの未確定期間を、古い順に確定する。
+     *
+     * @return array{
+     *   period_results: array<int, array<string, int|string|bool>>,
+     *   processed_count: int,
+     *   participant_count: int,
+     *   rewarded_count: int,
+     *   total_free_kiseki: int,
+     *   preview: bool
+     * }
+     */
+    public function finalizePendingPeriods(?Carbon $at = null): array
+    {
+        return $this->processPendingPeriods($at, false);
+    }
+
+    /**
+     * 初回対象週から直前終了週までの未確定期間を、書き込みなしで試算する。
+     *
+     * @return array{
+     *   period_results: array<int, array<string, int|string|bool>>,
+     *   processed_count: int,
+     *   participant_count: int,
+     *   rewarded_count: int,
+     *   total_free_kiseki: int,
+     *   preview: bool
+     * }
+     */
+    public function previewPendingPeriods(?Carbon $at = null): array
+    {
+        return $this->processPendingPeriods($at, true);
+    }
+
+    /**
      * @param array{
      *   key: string,
      *   start: Carbon,
@@ -744,7 +778,12 @@ class WeeklyWinRankingService
             'end_at' => $season->week_ended_at->format('Y-m-d H:i:s'),
             'label' => '',
         ])['label'];
-        $badgeMessage = filled($record->badge_label)
+        $badgeIsVisibleThisWeek = filled($record->badge_label)
+            && $season->week_ended_at
+                ->copy()
+                ->setTimezone($this->timezone())
+                ->equalTo($this->currentPeriod()['start']);
+        $badgeMessage = $badgeIsVisibleThisWeek
             ? "名誉「{$record->badge_label}」が今週の冒険者カードに表示されます。"
             : '';
 
@@ -870,6 +909,80 @@ class WeeklyWinRankingService
             'already_finalized' => $alreadyFinalized,
             'skipped' => false,
         ];
+    }
+
+    /**
+     * @return array{
+     *   period_results: array<int, array<string, int|string|bool>>,
+     *   processed_count: int,
+     *   participant_count: int,
+     *   rewarded_count: int,
+     *   total_free_kiseki: int,
+     *   preview: bool
+     * }
+     */
+    private function processPendingPeriods(?Carbon $at, bool $preview): array
+    {
+        $periodResults = $this->pendingCompletedPeriods($at)
+            ->map(fn (array $period): array => $preview
+                ? $this->previewPeriod($period)
+                : $this->finalizePeriod($period))
+            ->values();
+
+        return [
+            'period_results' => $periodResults->all(),
+            'processed_count' => $periodResults->count(),
+            'participant_count' => (int) $periodResults->sum('participant_count'),
+            'rewarded_count' => (int) $periodResults->sum('rewarded_count'),
+            'total_free_kiseki' => (int) $periodResults->sum('total_free_kiseki'),
+            'preview' => $preview,
+        ];
+    }
+
+    /**
+     * season行がまだ存在しない週も含め、終了済みの未確定期間を古い順に返す。
+     *
+     * @return Collection<int, array{
+     *   key: string,
+     *   start: Carbon,
+     *   end: Carbon,
+     *   start_at: string,
+     *   end_at: string,
+     *   label: string
+     * }>
+     */
+    private function pendingCompletedPeriods(?Carbon $at = null): Collection
+    {
+        if (! Schema::hasTable('weekly_win_ranking_seasons')) {
+            throw new LogicException('週間勝利数番付のseasonテーブルが準備できていません。');
+        }
+
+        $latestPeriod = $this->previousCompletedPeriod($at);
+        $firstStart = $this->firstEligiblePeriodStart()
+            ?? $latestPeriod['start']->copy();
+
+        if ($firstStart->greaterThan($latestPeriod['start'])) {
+            return collect();
+        }
+
+        $periods = collect();
+        for (
+            $cursor = $firstStart->copy();
+            $cursor->lessThanOrEqualTo($latestPeriod['start']);
+            $cursor->addWeek()
+        ) {
+            $periods->push($this->periodFromStart($cursor));
+        }
+
+        $finalizedSeasonKeys = WeeklyWinRankingSeason::query()
+            ->whereIn('season_key', $periods->pluck('key')->all())
+            ->whereNotNull('finalized_at')
+            ->pluck('season_key')
+            ->flip();
+
+        return $periods
+            ->reject(fn (array $period): bool => $finalizedSeasonKeys->has($period['key']))
+            ->values();
     }
 
     /**

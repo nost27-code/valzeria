@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-weekly-win-ranking-catchup',
+        'date' => '2026-07-30',
+        'category' => 'fixed',
+        'title' => '週間番付の未確定週自動回収を追加',
+        'detail' => '一時的に週間番付の確定処理が実行できなかった場合でも、次回実行時に未確定の週を古い順に自動回収し、報酬の取りこぼしを防ぐようにしました。',
+    ],
+    [
         'id' => '2026-07-30-champ-result-transition',
         'date' => '2026-07-30',
         'category' => 'fixed',
