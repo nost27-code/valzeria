@@ -598,12 +598,20 @@ class WeeklyWinRankingService
     private function cachedRankedRowsForPeriod(array $period): Collection
     {
         $seconds = max(1, (int) config('weekly_win_ranking.live_cache_seconds', 30));
-
-        return Cache::remember(
-            "weekly_win_ranking_live_rows_v1:{$period['key']}",
+        $cacheKey = "weekly_win_ranking_live_rows_v2:{$period['key']}";
+        $cachedRows = Cache::remember(
+            $cacheKey,
             now()->addSeconds($seconds),
-            fn (): Collection => $this->rankedRowsForPeriod($period)
+            fn (): array => $this->rankedRowsForPeriod($period)->values()->all()
         );
+
+        if (! is_array($cachedRows)) {
+            Cache::forget($cacheKey);
+            $cachedRows = $this->rankedRowsForPeriod($period)->values()->all();
+            Cache::put($cacheKey, $cachedRows, now()->addSeconds($seconds));
+        }
+
+        return collect($cachedRows);
     }
 
     private function grantReward(

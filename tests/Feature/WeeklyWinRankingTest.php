@@ -112,6 +112,12 @@ class WeeklyWinRankingTest extends TestCase
 
         $service = app(WeeklyWinRankingService::class);
         $this->assertSame(1, $service->currentRows()->first()['score']);
+        $cacheKey = 'weekly_win_ranking_live_rows_v2:2026-07-27';
+        $this->assertIsArray(Cache::get($cacheKey));
+
+        Cache::put($cacheKey, collect([['score' => 999]]), now()->addMinute());
+        $this->assertSame(1, $service->currentRows()->first()['score']);
+        $this->assertIsArray(Cache::get($cacheKey));
 
         $this->addWins($character, 1, $at->copy()->addSecond(), $areaId, $enemyId);
         $this->assertSame(1, $service->currentRows()->first()['score']);

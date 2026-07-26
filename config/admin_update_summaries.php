@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-weekly-win-ranking-cache-fix',
+        'date' => '2026-07-27',
+        'category' => 'fixed',
+        'title' => '週間勝利番付の表示エラーを修正',
+        'detail' => '全タブ共通の週間勝利番付を読み込んだ際に、画面が表示できなくなる場合がある不具合を修正しました。',
+    ],
+    [
         'id' => '2026-07-26-weekly-win-ranking-nine-boundary',
         'date' => '2026-07-26',
         'category' => 'changed',
