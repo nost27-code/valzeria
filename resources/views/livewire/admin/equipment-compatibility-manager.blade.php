@@ -110,7 +110,10 @@
                                         <button
                                             type="button"
                                             wire:click="toggleWeapon({{ $job->id }}, @js($category['key']))"
-                                            class="h-9 w-16 rounded-md text-xs font-black shadow-sm transition {{ $enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-400 hover:text-slate-700' }}"
+                                            wire:loading.attr="disabled"
+                                            wire:loading.class="is-action-processing"
+                                            wire:target="toggleWeapon"
+                                            class="h-9 w-16 rounded-md text-xs font-black shadow-sm transition disabled:pointer-events-none {{ $enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-400 hover:text-slate-700' }}"
                                         >
                                             {{ $enabled ? '可' : '-' }}
                                         </button>
@@ -165,7 +168,10 @@
                                         <button
                                             type="button"
                                             wire:click="toggleArmor({{ $job->id }}, @js($category['key']))"
-                                            class="h-9 w-16 rounded-md text-xs font-black shadow-sm transition {{ $enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-400 hover:text-slate-700' }}"
+                                            wire:loading.attr="disabled"
+                                            wire:loading.class="is-action-processing"
+                                            wire:target="toggleArmor"
+                                            class="h-9 w-16 rounded-md text-xs font-black shadow-sm transition disabled:pointer-events-none {{ $enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-400 hover:text-slate-700' }}"
                                         >
                                             {{ $enabled ? '可' : '-' }}
                                         </button>

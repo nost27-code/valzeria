@@ -26,6 +26,8 @@
         <form method="POST"
               action="{{ route('profile.update') }}"
               class="space-y-4"
+              data-submit-lock
+              data-loading-text="保存中..."
               x-init="
                   if (window.location.hash === '#profile_comment') {
                       $nextTick(() => {

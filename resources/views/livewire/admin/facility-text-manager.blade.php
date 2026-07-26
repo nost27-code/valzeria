@@ -155,8 +155,11 @@
 
         <div class="mt-6 flex items-center gap-4">
             <button type="submit"
-                    class="rounded-md bg-amber-500 px-6 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400">
-                保存する
+                    wire:loading.attr="disabled"
+                    wire:target="save"
+                    class="rounded-md bg-amber-500 px-6 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60">
+                <span wire:loading.remove wire:target="save">保存する</span>
+                <span wire:loading wire:target="save">保存中...</span>
             </button>
             <p class="text-xs font-bold text-slate-500">
                 保存後、最大1時間でゲーム画面に反映されます。空欄にすると保存時にデフォルトへ戻ります。

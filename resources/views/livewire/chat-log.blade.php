@@ -56,7 +56,10 @@
                         <button
                             type="button"
                             wire:click="setAllTabVisibility('{{ $option['key'] }}', {{ $option['enabled'] ? 'false' : 'true' }})"
-                            class="relative h-6 w-11 shrink-0 rounded-full transition {{ $option['enabled'] ? 'bg-[#1e40af]' : 'bg-gray-300' }}"
+                            wire:loading.attr="disabled"
+                            wire:loading.class="is-action-processing"
+                            wire:target="setAllTabVisibility"
+                            class="relative h-6 w-11 shrink-0 rounded-full transition disabled:pointer-events-none {{ $option['enabled'] ? 'bg-[#1e40af]' : 'bg-gray-300' }}"
                             aria-label="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
                             title="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
                         >
@@ -106,7 +109,10 @@
                             <button
                                 type="button"
                                 wire:click="setAllTabVisibility('{{ $option['key'] }}', {{ $option['enabled'] ? 'false' : 'true' }})"
-                                class="relative h-6 w-11 shrink-0 rounded-full transition {{ $option['enabled'] ? 'bg-[#1e40af]' : 'bg-gray-300' }}"
+                                wire:loading.attr="disabled"
+                                wire:loading.class="is-action-processing"
+                                wire:target="setAllTabVisibility"
+                                class="relative h-6 w-11 shrink-0 rounded-full transition disabled:pointer-events-none {{ $option['enabled'] ? 'bg-[#1e40af]' : 'bg-gray-300' }}"
                                 aria-label="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
                                 title="{{ $option['label'] }}を{{ $option['enabled'] ? '非表示' : '表示' }}"
                             >
@@ -159,7 +165,13 @@
                                 maxlength="100"
                                 class="h-7 min-w-[12rem] max-w-full rounded border-gray-300 px-2 py-1 text-[11px] text-slate-800 focus:border-[#1e40af] focus:ring-[#1e40af]"
                             >
-                            <button type="submit" class="rounded bg-[#1e40af] px-2 py-1 text-[10px] font-black text-white hover:bg-[#1e3a8a]">保存</button>
+                            <button type="submit"
+                                    wire:loading.attr="disabled"
+                                    wire:target="updateMessage"
+                                    class="rounded bg-[#1e40af] px-2 py-1 text-[10px] font-black text-white hover:bg-[#1e3a8a] disabled:cursor-wait disabled:opacity-60">
+                                <span wire:loading.remove wire:target="updateMessage">保存</span>
+                                <span wire:loading wire:target="updateMessage">保存中...</span>
+                            </button>
                             <button type="button" wire:click="cancelEdit" class="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] font-black text-gray-500 hover:bg-gray-50">やめる</button>
                         </form>
                     @else
@@ -210,8 +222,14 @@
             required maxlength="100"
             class="min-w-0 basis-0 flex-1 border-gray-300 rounded focus:border-[#1e40af] focus:ring-[#1e40af] text-[11px] py-1.5 px-3">
             
-        <button type="submit" aria-label="送信" title="送信" class="w-10 h-9 shrink-0 bg-[#1e40af] text-white rounded-lg text-lg font-bold shadow hover:bg-[#1e3a8a] flex items-center justify-center">
-            <span aria-hidden="true">➤</span>
+        <button type="submit"
+                wire:loading.attr="disabled"
+                wire:target="sendMessage"
+                aria-label="送信"
+                title="送信"
+                class="w-10 h-9 shrink-0 bg-[#1e40af] text-white rounded-lg text-lg font-bold shadow hover:bg-[#1e3a8a] flex items-center justify-center disabled:cursor-wait disabled:opacity-60">
+            <span wire:loading.remove wire:target="sendMessage" aria-hidden="true">➤</span>
+            <span wire:loading wire:target="sendMessage" class="submit-lock-spinner" aria-hidden="true"></span>
         </button>
     </form>
 </div>

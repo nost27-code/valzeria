@@ -59,7 +59,12 @@
                             </a>
                         @endif
                         @foreach(['read' => '確認中にする', 'resolved' => '対応済みにする', 'archived' => '保管する'] as $nextStatus => $label)
-                            <button type="button" wire:click="markStatus({{ $selectedReport->id }}, '{{ $nextStatus }}')" class="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">{{ $label }}</button>
+                            <button type="button"
+                                    wire:click="markStatus({{ $selectedReport->id }}, '{{ $nextStatus }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:loading.class="is-action-processing"
+                                    wire:target="markStatus"
+                                    class="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:pointer-events-none">{{ $label }}</button>
                         @endforeach
                     </div>
                 </div>
@@ -89,7 +94,10 @@
                             @error('replyMessage') <p class="mt-1 text-xs font-bold text-rose-600">{{ $message }}</p> @enderror
                             <div class="mt-2 flex items-center justify-between gap-3">
                                 <span class="text-[11px] font-bold text-slate-400"><span x-data x-text="$wire.replyMessage.length"></span> / 200</span>
-                                <button type="submit" wire:loading.attr="disabled" wire:target="sendReply" class="rounded-md bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-slate-800 disabled:opacity-60">個人チャットへ送信</button>
+                                <button type="submit" wire:loading.attr="disabled" wire:target="sendReply" class="rounded-md bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60">
+                                    <span wire:loading.remove wire:target="sendReply">個人チャットへ送信</span>
+                                    <span wire:loading wire:target="sendReply">送信中...</span>
+                                </button>
                             </div>
                         </form>
                     @else

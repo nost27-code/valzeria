@@ -713,7 +713,7 @@
             </a>
             <a class="btn btn-secondary" href="{{ route('auth.email.login') }}" data-top-event="email_login_click" data-top-label="ログインする">ログインする</a>
             @if($registrationOpen)
-                <form class="guest-form" action="{{ route('auth.guest') }}" method="POST">
+                <form class="guest-form" action="{{ route('auth.guest') }}" method="POST" data-submit-lock data-loading-text="準備中...">
                     @csrf
                     <button type="submit" class="btn btn-guest" data-top-event="guest_start_click" data-top-label="アカウント連携せずにプレイ">アカウント連携せずにプレイしてみる</button>
                 </form>

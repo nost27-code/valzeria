@@ -99,8 +99,12 @@
                     <p class="text-xs font-bold text-slate-500">
                         プレイヤー側では{{ $messageType === 'notice' ? '【お知らせ】として表示されます。' : '【管理人】としてヴァルゼリアブルーで表示されます。' }}
                     </p>
-                    <button type="submit" class="rounded-md bg-[#1e40af] px-5 py-2.5 text-sm font-black text-white shadow hover:bg-[#1e3a8a]">
-                        送信する
+                    <button type="submit"
+                            wire:loading.attr="disabled"
+                            wire:target="sendMessage"
+                            class="rounded-md bg-[#1e40af] px-5 py-2.5 text-sm font-black text-white shadow hover:bg-[#1e3a8a] disabled:cursor-wait disabled:opacity-60">
+                        <span wire:loading.remove wire:target="sendMessage">送信する</span>
+                        <span wire:loading wire:target="sendMessage">送信中...</span>
                     </button>
                 </div>
             </form>

@@ -66,7 +66,7 @@
                         <button type="button" @click="selected = null" class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 hover:bg-slate-50">
                             もう少し考える
                         </button>
-                        <form method="POST" action="{{ route('valmons.starter.choose') }}">
+                        <form method="POST" action="{{ route('valmons.starter.choose') }}" data-submit-lock data-loading-text="選択中...">
                             @csrf
                             <input type="hidden" name="valmon_master_id" :value="selected?.id">
                             <button type="submit" class="w-full rounded-lg bg-emerald-700 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-800">

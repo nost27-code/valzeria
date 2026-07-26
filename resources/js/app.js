@@ -203,3 +203,77 @@ window.adventurerCardToBlob = async (node, player) => {
     }
     return canvasToBlob(canvas);
 };
+
+const submitLockButtonSelector = 'button[type="submit"], button:not([type]), input[type="submit"]';
+
+const restoreSubmitLock = (form) => {
+    form.removeAttribute('aria-busy');
+    delete form.dataset.submitLocked;
+
+    form.querySelectorAll('[data-submit-lock-active]').forEach((button) => {
+        button.disabled = button.dataset.submitLockWasDisabled === 'true';
+        button.removeAttribute('aria-busy');
+        button.removeAttribute('data-submit-lock-active');
+        button.classList.remove('is-submit-locking');
+
+        if (button instanceof HTMLInputElement) {
+            button.value = button.dataset.submitLockOriginalValue ?? button.value;
+            delete button.dataset.submitLockOriginalValue;
+        } else if (button.dataset.submitLockOriginalHtml !== undefined) {
+            button.innerHTML = button.dataset.submitLockOriginalHtml;
+            delete button.dataset.submitLockOriginalHtml;
+        }
+
+        delete button.dataset.submitLockWasDisabled;
+    });
+};
+
+const showSubmitLockFeedback = (form, button) => {
+    if (!button) return;
+
+    button.dataset.submitLockWasDisabled = button.disabled ? 'true' : 'false';
+    button.dataset.submitLockActive = '';
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.classList.add('is-submit-locking');
+
+    const loadingText = button.dataset.loadingText || form.dataset.loadingText || '処理中...';
+
+    if (button instanceof HTMLInputElement) {
+        button.dataset.submitLockOriginalValue = button.value;
+        button.value = loadingText;
+        return;
+    }
+
+    button.dataset.submitLockOriginalHtml = button.innerHTML;
+    const spinner = document.createElement('span');
+    spinner.className = 'submit-lock-spinner';
+    spinner.setAttribute('aria-hidden', 'true');
+
+    const label = document.createElement('span');
+    label.textContent = loadingText;
+    button.replaceChildren(spinner, label);
+};
+
+document.addEventListener('submit', (event) => {
+    const form = event.target instanceof HTMLFormElement ? event.target : null;
+    if (!form?.matches('form[data-submit-lock]') || event.defaultPrevented) return;
+
+    if (form.dataset.submitLocked === 'true') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+    }
+
+    form.dataset.submitLocked = 'true';
+    form.setAttribute('aria-busy', 'true');
+
+    const submitter = event.submitter instanceof HTMLElement
+        ? event.submitter
+        : form.querySelector(submitLockButtonSelector);
+    showSubmitLockFeedback(form, submitter);
+});
+
+window.addEventListener('pageshow', () => {
+    document.querySelectorAll('form[data-submit-lock]').forEach(restoreSubmitLock);
+});

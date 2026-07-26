@@ -297,6 +297,17 @@
             const targetCancelBtn = root.querySelector('[data-job-art-target-cancel]');
 
             let target = null; // { context: 'normal'|'boss', slotNo: 1|2|3 }
+            let assignmentPending = false;
+
+            const setAssignmentPending = (pending) => {
+                assignmentPending = pending;
+                root.toggleAttribute('aria-busy', pending);
+
+                root.querySelectorAll('[data-job-art-assign-btn], [data-job-art-target-btn], [data-job-art-target-unset], [data-job-art-target-cancel], [data-job-art-policy-radio]').forEach((control) => {
+                    control.disabled = pending;
+                    control.classList.toggle('is-action-processing', pending);
+                });
+            };
 
             const updateAssignButtons = () => {
                 root.querySelectorAll('[data-job-art-card]').forEach((card) => {
@@ -357,6 +368,9 @@
             window.jobArtClearTarget = clearTarget;
 
             const assignSkillToSlot = async (context, slotNo, skillId, policy, anchorSelector) => {
+                if (assignmentPending) return;
+                setAssignmentPending(true);
+
                 const formData = new FormData();
                 if (skillId) formData.append('skill_id', skillId);
                 formData.append('slot_no', String(slotNo));
@@ -382,6 +396,7 @@
                         throw new Error(payload.message || '保存できませんでした。');
                     }
                 } catch (error) {
+                    setAssignmentPending(false);
                     alert(error.message || '保存できませんでした。');
                     return;
                 }
@@ -422,6 +437,8 @@
                         window.scrollBy(0, afterTop - beforeTop);
                     }
                 }
+
+                setAssignmentPending(false);
             };
 
             root.addEventListener('click', (event) => {

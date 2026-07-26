@@ -75,7 +75,7 @@
                 </div>
 
                 <div class="pt-2">
-                    <button type="submit" class="w-full rounded-md bg-slate-950 hover:bg-slate-800 text-white font-black py-2.5 px-4 shadow transition-colors" wire:loading.attr="disabled">
+                    <button type="submit" class="w-full rounded-md bg-slate-950 hover:bg-slate-800 text-white font-black py-2.5 px-4 shadow transition-colors disabled:cursor-wait disabled:opacity-60" wire:loading.attr="disabled" wire:target="createTester">
                         <span wire:loading.remove wire:target="createTester">生成する</span>
                         <span wire:loading wire:target="createTester">生成中...</span>
                     </button>
@@ -113,7 +113,10 @@
                                     <div><span class="text-xs text-gray-500 block">SPR</span><input type="number" wire:model="editData.spirit_base" class="w-full p-1 border rounded"></div>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button wire:click="updateTester" class="flex-1 border-2 border-green-500 bg-white hover:bg-green-50 text-green-700 font-bold py-2 px-3 rounded transition shadow-sm">保存する</button>
+                                    <button wire:click="updateTester" wire:loading.attr="disabled" wire:target="updateTester" class="flex-1 border-2 border-green-500 bg-white hover:bg-green-50 text-green-700 font-bold py-2 px-3 rounded transition shadow-sm disabled:cursor-wait disabled:opacity-60">
+                                        <span wire:loading.remove wire:target="updateTester">保存する</span>
+                                        <span wire:loading wire:target="updateTester">保存中...</span>
+                                    </button>
                                     <button wire:click="cancelEdit" class="flex-1 border-2 border-gray-400 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2 px-3 rounded transition shadow-sm">キャンセル</button>
                                 </div>
                             @else

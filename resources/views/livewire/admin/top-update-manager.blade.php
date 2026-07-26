@@ -48,8 +48,9 @@
             </div>
 
             <div class="mt-5 flex gap-2">
-                <button type="submit" class="flex-1 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400">
-                    保存する
+                <button type="submit" wire:loading.attr="disabled" wire:target="save" class="flex-1 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="save">保存する</span>
+                    <span wire:loading wire:target="save">保存中...</span>
                 </button>
                 @if($editingId)
                     <button type="button" wire:click="createNew" class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50">
@@ -81,13 +82,13 @@
                                 <td class="px-4 py-3 font-bold text-slate-700">{{ $update->body }}</td>
                                 <td class="px-4 py-3 text-right font-bold text-slate-500">{{ number_format($update->sort_order) }}</td>
                                 <td class="px-4 py-3 text-center">
-                                    <button type="button" wire:click="toggleActive({{ $update->id }})" class="rounded-full px-3 py-1 text-xs font-black {{ $update->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
+                                    <button type="button" wire:click="toggleActive({{ $update->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="toggleActive" class="rounded-full px-3 py-1 text-xs font-black disabled:pointer-events-none {{ $update->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
                                         {{ $update->is_active ? '表示中' : '非表示' }}
                                     </button>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
                                     <button type="button" wire:click="edit({{ $update->id }})" class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">編集</button>
-                                    <button type="button" wire:click="delete({{ $update->id }})" wire:confirm="この更新情報を削除しますか？" class="ml-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100">削除</button>
+                                    <button type="button" wire:click="delete({{ $update->id }})" wire:confirm="この更新情報を削除しますか？" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="delete" class="ml-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:pointer-events-none">削除</button>
                                 </td>
                             </tr>
                         @empty

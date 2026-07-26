@@ -171,8 +171,9 @@
                 </div>
 
                 <div class="flex gap-2 pt-2">
-                    <button type="submit" class="flex-1 bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-bold py-2 rounded shadow">
-                        {{ $editingItemId ? '更新する' : '追加する' }}
+                    <button type="submit" wire:loading.attr="disabled" wire:target="save" class="flex-1 bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-bold py-2 rounded shadow disabled:cursor-wait disabled:opacity-60">
+                        <span wire:loading.remove wire:target="save">{{ $editingItemId ? '更新する' : '追加する' }}</span>
+                        <span wire:loading wire:target="save">保存中...</span>
                     </button>
                     <button type="button" wire:click="resetForm" class="px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded border">
                         クリア
@@ -252,7 +253,7 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">
-                                    <button wire:click="toggleActive({{ $item->id }})" class="px-2 py-1 rounded text-xs font-bold {{ $item->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600' }}">
+                                    <button wire:click="toggleActive({{ $item->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="toggleActive" class="px-2 py-1 rounded text-xs font-bold disabled:pointer-events-none {{ $item->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600' }}">
                                         {{ $item->is_active ? '公開中' : '非公開' }}
                                     </button>
                                 </td>

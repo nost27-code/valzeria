@@ -22,7 +22,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('auth.email.login.submit') }}" class="space-y-4">
+            <form method="POST" action="{{ route('auth.email.login.submit') }}" class="space-y-4" data-submit-lock data-loading-text="ログイン中...">
                 @csrf
                 <div>
                     <label for="email" class="block text-sm font-black text-slate-700">メールアドレス</label>

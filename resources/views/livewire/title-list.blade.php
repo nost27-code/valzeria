@@ -60,8 +60,11 @@
             <button
                 type="button"
                 @if($isUnlocked && ! $isEquipped) wire:click="equipTitle({{ (int) $title['id'] }})" @endif
+                wire:loading.attr="disabled"
+                wire:loading.class="is-action-processing"
+                wire:target="equipTitle"
                 @disabled(! $isUnlocked || $isEquipped)
-                class="min-h-[74px] rounded-lg border px-2.5 py-2 text-left shadow-sm transition {{ $isEquipped ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-300' : ($isUnlocked ? 'border-[#d4af37]/45 bg-white hover:bg-amber-50' : 'border-slate-100 bg-slate-50/70') }} {{ $isUnlocked && ! $isEquipped ? 'cursor-pointer' : 'cursor-default' }}"
+                class="min-h-[74px] rounded-lg border px-2.5 py-2 text-left shadow-sm transition disabled:pointer-events-none {{ $isEquipped ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-300' : ($isUnlocked ? 'border-[#d4af37]/45 bg-white hover:bg-amber-50' : 'border-slate-100 bg-slate-50/70') }} {{ $isUnlocked && ! $isEquipped ? 'cursor-pointer' : 'cursor-default' }}"
             >
                 <div class="flex items-start gap-2">
                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border {{ $isUnlocked ? 'border-amber-200 bg-white' : 'border-slate-200 bg-white/70' }}">

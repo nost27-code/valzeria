@@ -36,13 +36,13 @@
                         </div>
                     </div>
                     <div class="mt-3 flex gap-2">
-                        <button type="button" wire:click="savePreset({{ $slot }})" class="flex-1 rounded-md bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-800">
+                        <button type="button" wire:click="savePreset({{ $slot }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="savePreset" class="flex-1 rounded-md bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-800 disabled:pointer-events-none">
                             保存
                         </button>
                         <button type="button" wire:click="loadPreset({{ $slot }})" @disabled(!$preset) class="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
                             読込
                         </button>
-                        <button type="button" wire:click="clearPreset({{ $slot }})" @disabled(!$preset) class="rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40">
+                        <button type="button" wire:click="clearPreset({{ $slot }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="clearPreset" @disabled(!$preset) class="rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40">
                             削除
                         </button>
                     </div>

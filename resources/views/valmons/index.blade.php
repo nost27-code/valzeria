@@ -304,6 +304,8 @@
                               x-transition
                               method="POST"
                               action="{{ route('valmons.nickname', $valmon) }}"
+                              data-submit-lock
+                              data-loading-text="保存中..."
                               class="mt-2 rounded-lg border border-slate-200 bg-white/70 p-2">
                             @csrf
                             <label class="block text-[11px] font-black text-slate-500">ニックネーム (1〜8文字)</label>
@@ -324,7 +326,7 @@
                             @enderror
                         </form>
                         @unless($valmon->is_partner)
-                            <form method="POST" action="{{ route('valmons.partner', $valmon) }}" class="mt-4">
+                            <form method="POST" action="{{ route('valmons.partner', $valmon) }}" class="mt-4" data-submit-lock data-loading-text="変更中...">
                                 @csrf
                                 <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-700">相棒にする</button>
                             </form>
@@ -338,7 +340,7 @@
 
             {{-- 背景タブ --}}
             <div x-show="tab === 'background'" x-transition class="space-y-3">
-                <form method="POST" action="{{ route('valmons.background') }}" class="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+                <form method="POST" action="{{ route('valmons.background') }}" class="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm" data-submit-lock data-loading-text="変更中...">
                     @csrf
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>

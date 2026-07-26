@@ -79,9 +79,12 @@
                                           placeholder="{{ is_array($selectedConversation) ? '管理人へ返信...' : $selectedConversation->name . 'さんへ返信...' }}"
                                           class="min-h-[44px] flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-800 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
                                 <button type="submit"
-                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-black shadow active:scale-95"
+                                        wire:loading.attr="disabled"
+                                        wire:target="confirmMessage"
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-black shadow active:scale-95 disabled:cursor-wait disabled:opacity-60"
                                         style="background-color: {{ $privateChatTheme['own_bubble_bg'] }}; color: {{ $privateChatTheme['own_bubble_text'] }};">
-                                    ➤
+                                    <span wire:loading.remove wire:target="confirmMessage">➤</span>
+                                    <span wire:loading wire:target="confirmMessage" class="submit-lock-spinner" aria-hidden="true"></span>
                                 </button>
                             </div>
                             <div class="mt-1 flex items-center justify-between px-2">
@@ -123,9 +126,10 @@
                                                 wire:click="sendMessage"
                                                 wire:loading.attr="disabled"
                                                 wire:target="sendMessage"
-                                                class="flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-black shadow active:scale-95 disabled:opacity-60"
+                                                class="flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-black shadow active:scale-95 disabled:cursor-wait disabled:opacity-60"
                                                 style="border-color: {{ $privateChatTheme['own_bubble_bg'] }}; background-color: {{ $privateChatTheme['own_bubble_bg'] }}; color: {{ $privateChatTheme['own_bubble_text'] }};">
-                                            この内容で送る
+                                            <span wire:loading.remove wire:target="sendMessage">この内容で送る</span>
+                                            <span wire:loading wire:target="sendMessage">送信中...</span>
                                         </button>
                                     </div>
                                 </div>

@@ -38,7 +38,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('admin.login') }}">
+    <form method="POST" action="{{ route('admin.login') }}" data-submit-lock data-loading-text="ログイン中...">
         @csrf
         <div class="mb-4">
             <label for="email" class="block text-sm font-medium text-gray-700">メールアドレス (Admin ID)</label>

@@ -50,8 +50,9 @@
             </div>
 
             <div class="mt-5 flex gap-2">
-                <button type="submit" class="flex-1 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400">
-                    保存する
+                <button type="submit" wire:loading.attr="disabled" wire:target="save" class="flex-1 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="save">保存する</span>
+                    <span wire:loading wire:target="save">保存中...</span>
                 </button>
                 @if($editingId)
                     <button type="button" wire:click="createNew" class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50">
@@ -98,7 +99,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
                                     <button type="button" wire:click="edit({{ $text->id }})" class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">編集</button>
-                                    <button type="button" wire:click="delete({{ $text->id }})" wire:confirm="「{{ $text->key }}」を削除しますか？" class="ml-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100">削除</button>
+                                    <button type="button" wire:click="delete({{ $text->id }})" wire:confirm="「{{ $text->key }}」を削除しますか？" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="delete" class="ml-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:pointer-events-none">削除</button>
                                 </td>
                             </tr>
                         @empty

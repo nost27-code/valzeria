@@ -25,7 +25,7 @@
                 <div class="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">入力内容を確認してください。</div>
             @endif
 
-            <form method="POST" action="{{ route('bug-reports.store') }}" enctype="multipart/form-data" class="mt-5 space-y-5">
+            <form method="POST" action="{{ route('bug-reports.store') }}" enctype="multipart/form-data" class="mt-5 space-y-5" data-submit-lock data-loading-text="送信中...">
                 @csrf
                 <div>
                     <label for="body" class="block text-sm font-black text-slate-800">不具合の内容</label>

@@ -1,4 +1,4 @@
-<div x-data="{ isDeleteModalOpen: false, deleteCharId: null, deleteCharName: '' }" class="min-h-screen flex items-center justify-center bg-slate-50 bg-opacity-90 bg-cover bg-center" style="background-image: url('{{ asset('images/bg-town.png') }}'); background-blend-mode: overlay;">
+<div x-data="{ isDeleteModalOpen: false, deleteCharId: null, deleteCharName: '', deleting: false }" class="min-h-screen flex items-center justify-center bg-slate-50 bg-opacity-90 bg-cover bg-center" style="background-image: url('{{ asset('images/bg-town.png') }}'); background-blend-mode: overlay;">
     <div class="max-w-4xl w-full mx-auto p-6 bg-white/95 rounded-2xl shadow-2xl border border-slate-200 backdrop-blur-sm">
         
         <h1 class="text-3xl font-bold text-center text-amber-700 mb-8 title-font">キャラクター選択</h1>
@@ -6,7 +6,7 @@
         @if($characters->count() > 0)
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 @foreach($characters as $char)
-                    <div class="bg-white rounded-xl p-5 border-2 border-slate-200 hover:border-amber-400 transition-colors shadow-md cursor-pointer relative" wire:click="selectCharacter({{ $char->id }})">
+                    <div class="bg-white rounded-xl p-5 border-2 border-slate-200 hover:border-amber-400 transition-colors shadow-md cursor-pointer relative" wire:click="selectCharacter({{ $char->id }})" wire:loading.class="pointer-events-none opacity-60" wire:target="selectCharacter">
                         <!-- 削除ボタン -->
                         <button 
                             @click.stop="deleteCharId = {{ $char->id }}; deleteCharName = '{{ addslashes($char->name) }}'; isDeleteModalOpen = true" 
@@ -49,7 +49,7 @@
 
         @if($characters->count() === 0)
         <div class="flex justify-center border-t border-slate-200 pt-8">
-            <button wire:click="createNewCharacter" class="py-3 px-8 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg transform transition duration-200 hover:-translate-y-1 flex items-center">
+            <button wire:click="createNewCharacter" wire:loading.attr="disabled" wire:target="createNewCharacter" class="py-3 px-8 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg transform transition duration-200 hover:-translate-y-1 flex items-center disabled:cursor-wait disabled:opacity-60">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 新しいキャラクターを作成する
             </button>
@@ -61,7 +61,7 @@
     <!-- 削除確認モーダル -->
     <div x-show="isDeleteModalOpen" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <!-- 背景のオーバーレイ -->
-        <div class="absolute inset-0 bg-black/60" x-transition.opacity @click="isDeleteModalOpen = false"></div>
+        <div class="absolute inset-0 bg-black/60" x-transition.opacity @click="if (!deleting) isDeleteModalOpen = false"></div>
         
         <!-- モーダルコンテンツ -->
         <div class="relative bg-white border-2 border-[#d4af37] rounded-lg shadow-xl w-full max-w-md overflow-hidden" x-transition.scale.origin.center @click.stop>
@@ -81,12 +81,13 @@
             </div>
             
             <div class="bg-slate-50 border-t border-slate-200 p-4 flex justify-end gap-3">
-                <button @click="isDeleteModalOpen = false" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors shadow-sm text-sm">
+                <button @click="isDeleteModalOpen = false" :disabled="deleting" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors shadow-sm text-sm disabled:cursor-not-allowed disabled:opacity-50">
                     キャンセル
                 </button>
-                <button @click="$wire.deleteCharacter(deleteCharId); isDeleteModalOpen = false" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-colors text-sm flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    削除する
+                <button @click="if (deleting) return; deleting = true; $wire.deleteCharacter(deleteCharId).then(() => { isDeleteModalOpen = false }).finally(() => { deleting = false })" :disabled="deleting" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-colors text-sm flex items-center gap-1 disabled:cursor-wait disabled:opacity-60">
+                    <svg x-show="!deleting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <span x-show="!deleting">削除する</span>
+                    <span x-show="deleting" x-cloak>削除中...</span>
                 </button>
             </div>
         </div>

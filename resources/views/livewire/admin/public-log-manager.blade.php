@@ -84,6 +84,9 @@
         <button type="button"
                 wire:click="deleteSelected"
                 wire:confirm="選択したログを削除します。よろしいですか？"
+                wire:loading.attr="disabled"
+                wire:loading.class="is-action-processing"
+                wire:target="deleteSelected"
                 class="inline-flex items-center justify-center rounded-md bg-red-700 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
                 @disabled($selectedCount <= 0)>
             選択ログを削除
@@ -146,6 +149,9 @@
                                     <button type="button"
                                             wire:click="deleteOne({{ $log->id }})"
                                             wire:confirm="このログを削除します。よろしいですか？"
+                                            wire:loading.attr="disabled"
+                                            wire:loading.class="is-action-processing"
+                                            wire:target="deleteOne"
                                             class="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-black text-red-700 shadow-sm hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                                             @disabled(! $canDeleteThisLog)>
                                         {{ $canDeleteThisLog ? '削除' : '保護中' }}

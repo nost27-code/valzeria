@@ -138,8 +138,11 @@
                 <button type="button"
                         wire:click="grantNewcomerCampaignBonus"
                         wire:confirm="現在の対象211名へ探索力の薬5個を追加送付します。実行しますか？"
-                        class="shrink-0 rounded-md bg-sky-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-800">
-                    211名へ追加送付
+                        wire:loading.attr="disabled"
+                        wire:target="grantNewcomerCampaignBonus"
+                        class="shrink-0 rounded-md bg-sky-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="grantNewcomerCampaignBonus">211名へ追加送付</span>
+                    <span wire:loading wire:target="grantNewcomerCampaignBonus">送付中...</span>
                 </button>
             @else
                 <span class="shrink-0 rounded bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-800">追加送付済み</span>
@@ -208,8 +211,11 @@
                             </div>
                             <button type="button" wire:click="unfreezeCharacter"
                                     wire:confirm="{{ $selectedCharacter->name }} の凍結を解除しますか？"
-                                    class="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-700">
-                                凍結を解除する
+                                    wire:loading.attr="disabled"
+                                    wire:target="unfreezeCharacter"
+                                    class="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60">
+                                <span wire:loading.remove wire:target="unfreezeCharacter">凍結を解除する</span>
+                                <span wire:loading wire:target="unfreezeCharacter">解除中...</span>
                             </button>
                         @else
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -221,8 +227,11 @@
                                 </div>
                                 <button type="button" wire:click="freezeCharacter"
                                         wire:confirm="{{ $selectedCharacter->name }} を凍結しますか？この操作はいつでも解除できます。"
-                                        class="shrink-0 rounded-md bg-red-600 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-red-700">
-                                    凍結する
+                                        wire:loading.attr="disabled"
+                                        wire:target="freezeCharacter"
+                                        class="shrink-0 rounded-md bg-red-600 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-red-700 disabled:cursor-wait disabled:opacity-60">
+                                    <span wire:loading.remove wire:target="freezeCharacter">凍結する</span>
+                                    <span wire:loading wire:target="freezeCharacter">凍結中...</span>
                                 </button>
                             </div>
                         @endif
@@ -371,8 +380,9 @@
                         @endif
 
                         <div class="mt-5 flex justify-end">
-                            <button type="submit" class="rounded-md bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800">
-                                上限を保存
+                            <button type="submit" wire:loading.attr="disabled" wire:target="saveStorageLimits" class="rounded-md bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60">
+                                <span wire:loading.remove wire:target="saveStorageLimits">上限を保存</span>
+                                <span wire:loading wire:target="saveStorageLimits">保存中...</span>
                             </button>
                         </div>
                     </form>
@@ -410,8 +420,9 @@
                             </div>
                         </div>
                         <div class="mt-5 flex justify-end">
-                            <button type="button" wire:click="clearExplorationCooldown" class="rounded-md bg-amber-500 px-5 py-2.5 text-sm font-black text-slate-950 shadow-sm hover:bg-amber-400">
-                                探索待機を解除
+                            <button type="button" wire:click="clearExplorationCooldown" wire:loading.attr="disabled" wire:target="clearExplorationCooldown" class="rounded-md bg-amber-500 px-5 py-2.5 text-sm font-black text-slate-950 shadow-sm hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60">
+                                <span wire:loading.remove wire:target="clearExplorationCooldown">探索待機を解除</span>
+                                <span wire:loading wire:target="clearExplorationCooldown">解除中...</span>
                             </button>
                         </div>
                     </div>

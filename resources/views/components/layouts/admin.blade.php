@@ -195,7 +195,7 @@
                     <a href="{{ route('top') }}" class="mb-3 flex items-center justify-center rounded-md border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white">
                         サイトトップへ
                     </a>
-                    <form action="{{ route('admin.logout') }}" method="POST">
+                    <form action="{{ route('admin.logout') }}" method="POST" data-submit-lock data-loading-text="ログアウト中...">
                         @csrf
                         <button type="submit" class="w-full rounded-md bg-white px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-100">
                             ログアウト
@@ -222,7 +222,7 @@
                     <a href="{{ route('admin.dashboard') }}" class="font-black tracking-[0.18em] text-slate-950">
                         <span class="text-amber-500">VALZERIA</span> ADMIN
                     </a>
-                    <form action="{{ route('admin.logout') }}" method="POST">
+                    <form action="{{ route('admin.logout') }}" method="POST" data-submit-lock data-loading-text="ログアウト中...">
                         @csrf
                         <button type="submit" class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">
                             ログアウト
@@ -301,7 +301,7 @@
                            class="mb-3 flex items-center justify-center rounded-md border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300">
                             サイトトップへ
                         </a>
-                        <form action="{{ route('admin.logout') }}" method="POST">
+                        <form action="{{ route('admin.logout') }}" method="POST" data-submit-lock data-loading-text="ログアウト中...">
                             @csrf
                             <button type="submit" class="w-full rounded-md bg-white px-4 py-2.5 text-sm font-black text-slate-950 shadow">
                                 ログアウト

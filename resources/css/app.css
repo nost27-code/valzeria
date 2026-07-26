@@ -53,6 +53,39 @@
 }
 
 @layer components {
+    .is-submit-locking,
+    .is-action-processing {
+        cursor: wait;
+        opacity: 0.68;
+    }
+
+    .is-submit-locking {
+        gap: 0.5rem;
+        pointer-events: none;
+    }
+
+    .submit-lock-spinner {
+        width: 1em;
+        height: 1em;
+        flex: 0 0 auto;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 9999px;
+        animation: submit-lock-spin 0.7s linear infinite;
+    }
+
+    @keyframes submit-lock-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .submit-lock-spinner {
+            animation-duration: 1.4s;
+        }
+    }
+
     .town-news-marquee {
         overflow: hidden;
         white-space: nowrap;

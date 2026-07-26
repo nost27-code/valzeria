@@ -38,7 +38,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('account.destroy') }}" class="space-y-3">
+            <form method="POST" action="{{ route('account.destroy') }}" class="space-y-3" data-submit-lock data-loading-text="削除中...">
                 @csrf
                 @method('DELETE')
 

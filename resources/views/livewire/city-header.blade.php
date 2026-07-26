@@ -1277,7 +1277,10 @@
                             @if($unreadNotificationCount > 0)
                                 <button type="button"
                                         wire:click="markAllNotificationsRead"
-                                        class="rounded-md px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-50">
+                                        wire:loading.attr="disabled"
+                                        wire:loading.class="is-action-processing"
+                                        wire:target="markAllNotificationsRead"
+                                        class="rounded-md px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-50 disabled:pointer-events-none">
                                     すべて既読
                                 </button>
                             @endif
@@ -1294,6 +1297,8 @@
                                        target="_blank"
                                        rel="noopener noreferrer"
                                        wire:click="markNotificationRead({{ $notification->id }})"
+                                       wire:loading.class="pointer-events-none opacity-60"
+                                       wire:target="markNotificationRead"
                                        @click="notificationOpen = false"
                                        class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
                                         <div class="flex items-start gap-2">
@@ -1313,7 +1318,10 @@
                                 @else
                                     <button type="button"
                                             wire:click="openNotification({{ $notification->id }})"
-                                            class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
+                                            wire:loading.attr="disabled"
+                                            wire:loading.class="is-action-processing"
+                                            wire:target="openNotification"
+                                            class="block w-full border-b border-slate-100 px-3 py-2 text-left transition last:border-b-0 hover:bg-amber-50 disabled:pointer-events-none {{ $notification->read_at ? 'bg-white' : 'bg-amber-50/70' }}">
                                         <div class="flex items-start gap-2">
                                             <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-200' : 'bg-rose-500' }}"></span>
                                             <div class="min-w-0">

@@ -1401,7 +1401,7 @@
                 <div class="p-6 max-h-[70vh] overflow-y-auto">
                     <div class="flex flex-wrap gap-3 justify-center">
                         @foreach($characterIconPaths as $iconPath)
-                            <div class="relative cursor-pointer group" wire:click="updateIcon('{{ $iconPath }}')">
+                            <div class="relative cursor-pointer group" wire:click="updateIcon('{{ $iconPath }}')" wire:loading.class="pointer-events-none opacity-60" wire:target="updateIcon">
                                 <div class="w-24 h-24 md:w-32 md:h-32 rounded-lg border-2 border-transparent group-hover:border-[#d4af37] overflow-hidden shadow-sm group-hover:shadow-md transition-all p-2 bg-gray-50 flex items-center justify-center">
                                     <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($iconPath) }}" alt="キャラクターアイコン" class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300">
                                 </div>
@@ -1439,7 +1439,13 @@
                         </div>
                         <div class="flex justify-end gap-3 mt-6">
                             <button type="button" wire:click="closeNameModal" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-bold text-sm shadow-sm transition-colors">キャンセル</button>
-                            <button type="submit" class="inline-flex cursor-pointer items-center justify-center px-4 py-2 bg-[#1e40af] text-white hover:bg-[#1e3a8a] rounded text-center font-bold text-sm shadow-sm transition-colors">変更する</button>
+                            <button type="submit"
+                                    wire:loading.attr="disabled"
+                                    wire:target="updateName"
+                                    class="inline-flex cursor-pointer items-center justify-center px-4 py-2 bg-[#1e40af] text-white hover:bg-[#1e3a8a] rounded text-center font-bold text-sm shadow-sm transition-colors disabled:cursor-wait disabled:opacity-60">
+                                <span wire:loading.remove wire:target="updateName">変更する</span>
+                                <span wire:loading wire:target="updateName">変更中...</span>
+                            </button>
                         </div>
                     </form>
                 </div>

@@ -135,10 +135,10 @@
                                         @if($preview)
                                             <div>Lv {{ $preview['generated_level'] }}</div>
                                             <div class="mt-1 text-[11px] text-slate-500">{{ $preview['metadata']['family_key'] }} / {{ $preview['metadata']['variant_key'] }} / {{ $preview['metadata']['role_key'] }}</div>
-                                            <button type="button" wire:click="toggleStatLock({{ $enemy->id }})" class="mt-2 rounded border border-slate-300 px-2 py-1 text-[11px] font-black text-slate-700 hover:bg-slate-50">
+                                            <button type="button" wire:click="toggleStatLock({{ $enemy->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="toggleStatLock" class="mt-2 rounded border border-slate-300 px-2 py-1 text-[11px] font-black text-slate-700 hover:bg-slate-50 disabled:pointer-events-none">
                                                 {{ $preview['is_stat_locked'] ? 'ロック解除' : 'ロック' }}
                                             </button>
-                                            <button type="button" wire:click="applyGeneratedStats({{ $enemy->id }})" class="mt-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-black text-white hover:bg-emerald-500">
+                                            <button type="button" wire:click="applyGeneratedStats({{ $enemy->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="applyGeneratedStats" class="mt-2 rounded bg-emerald-600 px-2 py-1 text-[11px] font-black text-white hover:bg-emerald-500 disabled:pointer-events-none">
                                                 反映
                                             </button>
                                         @else
@@ -273,8 +273,9 @@
                         </div>
 
                         <div class="flex gap-2 pt-2">
-                            <button type="submit" class="flex-1 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400">
-                                {{ $editingEnemyId ? '更新する' : '追加する' }}
+                            <button type="submit" wire:loading.attr="disabled" wire:target="save" class="flex-1 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60">
+                                <span wire:loading.remove wire:target="save">{{ $editingEnemyId ? '更新する' : '追加する' }}</span>
+                                <span wire:loading wire:target="save">保存中...</span>
                             </button>
                             <button type="button" wire:click="resetForm" class="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50">
                                 クリア
@@ -305,8 +306,9 @@
                             BOSSにも適用する
                         </label>
 
-                        <button type="submit" class="w-full rounded-md bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow hover:bg-slate-800">
-                            一括倍率を適用
+                        <button type="submit" wire:loading.attr="disabled" wire:target="applyAreaScale" class="w-full rounded-md bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60">
+                            <span wire:loading.remove wire:target="applyAreaScale">一括倍率を適用</span>
+                            <span wire:loading wire:target="applyAreaScale">適用中...</span>
                         </button>
                     </form>
                 </section>

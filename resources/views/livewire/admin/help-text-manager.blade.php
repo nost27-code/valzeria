@@ -69,8 +69,9 @@
 
         <div class="sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white/95 px-4 py-4 shadow-lg backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <div class="flex flex-wrap items-center gap-4">
-                <button type="submit" class="rounded-md bg-amber-500 px-6 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400">
-                    保存する
+                <button type="submit" wire:loading.attr="disabled" wire:target="save" class="rounded-md bg-amber-500 px-6 py-2.5 text-sm font-black text-slate-950 shadow hover:bg-amber-400 disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="save">保存する</span>
+                    <span wire:loading wire:target="save">保存中...</span>
                 </button>
                 <p class="text-xs font-bold text-slate-500">
                     保存後、ヘルプページと案内所へ反映されます。

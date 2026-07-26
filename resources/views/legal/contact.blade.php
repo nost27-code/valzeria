@@ -31,7 +31,7 @@
                 入力内容を確認してください。
             </div>
         @endif
-        <form method="POST" action="{{ route('legal.contact.store') }}" enctype="multipart/form-data" class="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <form method="POST" action="{{ route('legal.contact.store') }}" enctype="multipart/form-data" class="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm" data-submit-lock data-loading-text="送信中...">
             @csrf
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>

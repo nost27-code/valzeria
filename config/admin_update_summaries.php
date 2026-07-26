@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-26-p1-action-double-submit-guard',
+        'date' => '2026-07-26',
+        'category' => 'changed',
+        'title' => '認証・送信・設定ボタンの連打防止を強化',
+        'detail' => 'ログイン、キャラクター作成、不具合報告、チャット、プロフィール・ヴァルモン設定などで、処理中表示へ切り替えて完了まで再押下できないようにしました。管理画面の保存・状態変更も同様です。',
+    ],
+    [
         'id' => '2026-07-26-beginner-gold-and-defeat-protection',
         'date' => '2026-07-26',
         'category' => 'balance',

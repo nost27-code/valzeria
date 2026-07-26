@@ -32,7 +32,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('auth.email.register.submit') }}" class="space-y-4">
+            <form method="POST" action="{{ route('auth.email.register.submit') }}" class="space-y-4" data-submit-lock data-loading-text="登録中...">
                 @csrf
                 <div>
                     <label for="email" class="block text-sm font-black text-slate-700">メールアドレス</label>

@@ -91,8 +91,11 @@
             {{-- 作成ボタン --}}
             <div class="pt-1">
                 <button type="submit"
-                        class="w-full rounded-xl bg-amber-600 py-3.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
-                    この内容でキャラクターを作成する
+                        wire:loading.attr="disabled"
+                        wire:target="create"
+                        class="w-full rounded-xl bg-amber-600 py-3.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="create">この内容でキャラクターを作成する</span>
+                    <span wire:loading wire:target="create">作成中...</span>
                 </button>
             </div>
 

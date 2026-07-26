@@ -138,10 +138,10 @@
                                     <textarea wire:model="resolutionNote" rows="4" class="mt-2 w-full rounded-md border-slate-300 text-sm" placeholder="確認したログ、問題なしの根拠、実施した措置を記録"></textarea>
                                 </label>
                                 @error('resolutionNote')<p class="mt-1 text-xs font-bold text-rose-700">{{ $message }}</p>@enderror
-                                <button type="button" wire:click="saveNote" class="mt-3 min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-xs font-black text-slate-800 hover:bg-slate-50">状態を変えずにメモを保存</button>
+                                <button type="button" wire:click="saveNote" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="saveNote" class="mt-3 min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-xs font-black text-slate-800 hover:bg-slate-50 disabled:pointer-events-none">状態を変えずにメモを保存</button>
                                 <div class="mt-3 grid grid-cols-2 gap-2">
                                     @foreach ($statusLabels as $key => $label)
-                                        <button type="button" wire:click="updateStatus('{{ $key }}')" class="min-h-10 rounded-md border text-xs font-black transition {{ $selectedCase->status === $key ? $statusClasses[$key] : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}">{{ $label }}</button>
+                                        <button type="button" wire:click="updateStatus('{{ $key }}')" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="updateStatus" class="min-h-10 rounded-md border text-xs font-black transition disabled:pointer-events-none {{ $selectedCase->status === $key ? $statusClasses[$key] : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}">{{ $label }}</button>
                                     @endforeach
                                 </div>
                             </section>
