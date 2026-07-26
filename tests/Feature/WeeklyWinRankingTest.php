@@ -97,9 +97,92 @@ class WeeklyWinRankingTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 7, 27, 9, 0, 0, 'Asia/Tokyo'));
         $atBoundary = TownRankingService::cacheKey();
 
-        $this->assertSame('town_ranking_boards_v8:2026-07-20', $beforeBoundary);
-        $this->assertSame('town_ranking_boards_v8:2026-07-27', $atBoundary);
+        $this->assertSame('town_ranking_boards_v9:2026-07-20', $beforeBoundary);
+        $this->assertSame('town_ranking_boards_v9:2026-07-27', $atBoundary);
         $this->assertNotSame($beforeBoundary, $atBoundary);
+    }
+
+    public function test_prelaunch_week_is_hidden_and_skipped_without_writes(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 7, 27, 8, 59, 59, 'Asia/Tokyo'));
+        [$areaId, $enemyId] = $this->battleMasterIds();
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, '旧週首位', 2, 3);
+        $this->addWins(
+            $character,
+            10,
+            Carbon::create(2026, 7, 20, 12, 0, 0, 'Asia/Tokyo'),
+            $areaId,
+            $enemyId
+        );
+
+        $service = app(WeeklyWinRankingService::class);
+
+        $this->assertFalse($service->availability()['is_started']);
+        $this->assertSame('2026-07-27', $service->currentPeriodSummary()['key']);
+        $this->assertTrue($service->currentRows()->isEmpty());
+        $this->assertNull($service->currentStatusFor($character));
+
+        $result = $service->finalizePeriod(
+            $service->periodForWeekStart('2026-07-20')
+        );
+        $this->assertTrue($result['skipped']);
+        $this->assertSame('2026-07-20', $result['season_key']);
+        $this->assertSame(0, $result['participant_count']);
+        $this->assertSame(0, $result['rewarded_count']);
+        $this->assertSame(0, $result['total_free_kiseki']);
+
+        $this->artisan('ranking:finalize-weekly-wins', [
+            '--week-start' => '2026-07-20',
+            '--dry-run' => true,
+        ])
+            ->expectsOutput('2026-07-20週は報酬開始前のため対象外です。初回対象は2026-07-27週です。')
+            ->expectsOutput('参加者: 0人')
+            ->expectsOutput('報酬対象: 0人')
+            ->expectsOutput('無償輝石合計: 0個')
+            ->assertSuccessful();
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id]);
+
+        Livewire::test(StarTreeTowerRankingWidget::class)
+            ->assertSee('週間番付は7月27日 9:00から始まります')
+            ->assertSee('それ以前の勝利は集計・報酬の対象外です')
+            ->assertDontSee('旧週首位')
+            ->assertDontSee('あなたの進捗');
+
+        $this->withoutMiddleware(CheckCharacterSelected::class)
+            ->get(route('ranking.index', ['board' => 'weekly_wins']))
+            ->assertOk()
+            ->assertSee('第1回集計期間')
+            ->assertSee('週間番付は7月27日 9:00から始まります')
+            ->assertSee('次シーズンの開始をお待ちください')
+            ->assertDontSee('あなたの今週');
+
+        Carbon::setTestNow(Carbon::create(2026, 7, 27, 9, 10, 0, 'Asia/Tokyo'));
+        $scheduledResult = $service->finalizePreviousWeek();
+        $this->assertTrue($scheduledResult['skipped']);
+        $this->assertSame('2026-07-20', $scheduledResult['season_key']);
+
+        $character->refresh();
+        $this->assertSame(2, $character->free_kiseki);
+        $this->assertSame(3, $character->paid_kiseki);
+        $this->assertSame(5, $character->kiseki);
+        $this->assertDatabaseCount('weekly_win_ranking_seasons', 0);
+        $this->assertDatabaseCount('weekly_win_ranking_records', 0);
+        $this->assertDatabaseMissing('kiseki_transactions', [
+            'transaction_type' => WeeklyWinRankingService::TRANSACTION_TYPE,
+        ]);
+        $this->assertDatabaseMissing('character_notifications', [
+            'type' => WeeklyWinRankingService::NOTIFICATION_TYPE,
+        ]);
+
+        Carbon::setTestNow(Carbon::create(2026, 7, 27, 9, 0, 0, 'Asia/Tokyo'));
+        Cache::flush();
+        $this->addWins($character, 1, now(), $areaId, $enemyId);
+
+        $this->assertTrue($service->availability()['is_started']);
+        $this->assertSame(1, $service->currentRows()->first()['score']);
     }
 
     public function test_live_weekly_rows_use_a_short_period_scoped_cache(): void
@@ -252,8 +335,9 @@ class WeeklyWinRankingTest extends TestCase
 
     public function test_finalization_grants_free_kiseki_ledger_notifications_and_weekly_honors_once(): void
     {
+        Carbon::setTestNow(Carbon::create(2026, 8, 3, 9, 10, 0, 'Asia/Tokyo'));
         [$areaId, $enemyId] = $this->battleMasterIds();
-        $previousWeek = Carbon::create(2026, 7, 20, 9, 0, 0, 'Asia/Tokyo');
+        $previousWeek = Carbon::create(2026, 7, 27, 9, 0, 0, 'Asia/Tokyo');
 
         $winner = $this->createCharacter(User::factory()->create(), '優勝者', 3, 5);
         $second = $this->createCharacter(User::factory()->create(), '準優勝者');
@@ -304,7 +388,7 @@ class WeeklyWinRankingTest extends TestCase
         $service = app(WeeklyWinRankingService::class);
         $result = $service->finalizePreviousWeek();
 
-        $this->assertSame('2026-07-20', $result['season_key']);
+        $this->assertSame('2026-07-27', $result['season_key']);
         $this->assertSame(4, $result['participant_count']);
         $this->assertSame(3, $result['rewarded_count']);
         $this->assertSame(43, $result['total_free_kiseki']);
@@ -316,7 +400,7 @@ class WeeklyWinRankingTest extends TestCase
         $this->assertSame(28, $winner->kiseki);
 
         $season = WeeklyWinRankingSeason::query()
-            ->where('season_key', '2026-07-20')
+            ->where('season_key', '2026-07-27')
             ->firstOrFail();
         $winnerRecord = WeeklyWinRankingRecord::query()
             ->where('season_id', $season->id)
@@ -375,27 +459,28 @@ class WeeklyWinRankingTest extends TestCase
             ->count());
         $this->assertSame(23, $winner->fresh()->free_kiseki);
 
-        Carbon::setTestNow(Carbon::create(2026, 8, 3, 9, 1, 0, 'Asia/Tokyo'));
+        Carbon::setTestNow(Carbon::create(2026, 8, 10, 9, 1, 0, 'Asia/Tokyo'));
         $this->assertNull($service->latestBadgeFor($winner));
     }
 
     public function test_dry_run_reports_rewards_without_writing_balances_or_ledgers(): void
     {
+        Carbon::setTestNow(Carbon::create(2026, 8, 3, 9, 10, 0, 'Asia/Tokyo'));
         [$areaId, $enemyId] = $this->battleMasterIds();
         $character = $this->createCharacter(User::factory()->create(), '試算確認', 2, 3);
         $this->addWins(
             $character,
             10,
-            Carbon::create(2026, 7, 20, 12, 0, 0, 'Asia/Tokyo'),
+            Carbon::create(2026, 7, 27, 12, 0, 0, 'Asia/Tokyo'),
             $areaId,
             $enemyId
         );
 
         $this->artisan('ranking:finalize-weekly-wins', [
-            '--week-start' => '2026-07-20',
+            '--week-start' => '2026-07-27',
             '--dry-run' => true,
         ])
-            ->expectsOutput('2026-07-20週の試算です。報酬は付与していません。')
+            ->expectsOutput('2026-07-27週の試算です。報酬は付与していません。')
             ->expectsOutput('参加者: 1人')
             ->expectsOutput('報酬対象: 1人')
             ->expectsOutput('無償輝石合計: 20個')
@@ -488,12 +573,13 @@ class WeeklyWinRankingTest extends TestCase
 
     public function test_reward_finalization_rolls_back_balances_and_ledgers_when_notification_fails(): void
     {
+        Carbon::setTestNow(Carbon::create(2026, 8, 3, 9, 10, 0, 'Asia/Tokyo'));
         [$areaId, $enemyId] = $this->battleMasterIds();
         $character = $this->createCharacter(User::factory()->create(), '巻き戻し確認', 2, 3);
         $this->addWins(
             $character,
             10,
-            Carbon::create(2026, 7, 20, 12, 0, 0, 'Asia/Tokyo'),
+            Carbon::create(2026, 7, 27, 12, 0, 0, 'Asia/Tokyo'),
             $areaId,
             $enemyId
         );

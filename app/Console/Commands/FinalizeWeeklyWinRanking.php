@@ -39,7 +39,13 @@ class FinalizeWeeklyWinRanking extends Command
             return self::FAILURE;
         }
 
-        if ($result['preview'] ?? false) {
+        if ($result['skipped'] ?? false) {
+            $firstSeasonKey = $service->availability()['first_period']['key'];
+            $this->warn(
+                "{$result['season_key']}週は報酬開始前のため対象外です。"
+                ."初回対象は{$firstSeasonKey}週です。"
+            );
+        } elseif ($result['preview'] ?? false) {
             $this->warn("{$result['season_key']}週の試算です。報酬は付与していません。");
         } elseif ($result['already_finalized']) {
             $this->warn("{$result['season_key']}週は確定済みです。報酬の再付与は行いませんでした。");

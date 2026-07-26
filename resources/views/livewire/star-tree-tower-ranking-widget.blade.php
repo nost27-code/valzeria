@@ -24,6 +24,19 @@
     </div>
 
     <div x-show="tab === 'weekly'">
+        @if(! ($weeklyWinData['availability']['is_started'] ?? true))
+            <div class="border-b border-amber-100 bg-amber-50 px-3 py-3 text-center">
+                <div class="text-xs font-black text-amber-800">
+                    週間番付は{{ $weeklyWinData['availability']['starts_at_label'] }}から始まります
+                </div>
+                <div class="mt-1 text-[10px] font-bold text-slate-500">
+                    {{ $weeklyWinData['period']['label'] }}
+                </div>
+                <div class="mt-1 text-[10px] font-bold text-slate-500">
+                    それ以前の勝利は集計・報酬の対象外です
+                </div>
+            </div>
+        @else
         <div class="border-b border-amber-100 bg-amber-50 px-3 py-2">
             <div class="flex min-w-0 items-center justify-between gap-2">
                 <span class="shrink-0 text-[10px] font-black text-amber-700">今週</span>
@@ -101,6 +114,7 @@
                 </div>
             @endforelse
         </div>
+        @endif
 
         <a href="{{ route('ranking.index', ['board' => 'weekly_wins']) }}"
            class="block bg-amber-50 px-3 py-1.5 text-center text-[11px] font-black text-amber-800 active:scale-[0.99]">

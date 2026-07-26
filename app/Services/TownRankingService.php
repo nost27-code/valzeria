@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class TownRankingService
 {
-    public const CACHE_KEY_PREFIX = 'town_ranking_boards_v8';
+    public const CACHE_KEY_PREFIX = 'town_ranking_boards_v9';
 
     private const LIMIT = 30;
 
@@ -70,6 +70,7 @@ class TownRankingService
                 'description' => '月曜9:00から翌月曜8:59までに、通常探索・ボス・亜域・探索の地図で積み上げた勝利数です。',
                 'badge' => '週間武勇',
                 'is_weekly' => true,
+                'availability' => $weeklyRanking->availability(),
                 'period' => $weeklyRanking->currentPeriodSummary(),
                 'reward_tiers' => $weeklyRanking->rewardTiers(),
                 'ranking_limit' => max(1, (int) config('weekly_win_ranking.ranking_limit', 50)),

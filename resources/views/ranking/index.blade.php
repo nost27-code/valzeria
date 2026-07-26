@@ -104,16 +104,28 @@
                 </div>
 
                 @if($board['is_weekly'] ?? false)
+                    @php
+                        $weeklyStarted = $board['availability']['is_started'] ?? true;
+                    @endphp
                     <div class="border-b border-amber-100 bg-amber-50/60 px-3 py-3 sm:px-4">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                                <div class="text-[10px] font-black tracking-widest text-amber-700">今週の集計期間</div>
+                                <div class="text-[10px] font-black tracking-widest text-amber-700">
+                                    {{ $weeklyStarted ? '今週の集計期間' : '第1回集計期間' }}
+                                </div>
                                 <div class="mt-0.5 text-sm font-black text-slate-900">{{ $board['period']['label'] }}</div>
                             </div>
                             <span class="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-black text-amber-700">
-                                月曜9:05に前週分を確定
+                                {{ $weeklyStarted ? '月曜9:05に前週分を確定' : $board['availability']['starts_at_label'].'開始' }}
                             </span>
                         </div>
+
+                        @if(! $weeklyStarted)
+                            <div class="mt-2 rounded-md border border-amber-200 bg-white px-3 py-2 text-[11px] font-black leading-relaxed text-amber-800">
+                                週間番付は{{ $board['availability']['starts_at_label'] }}から始まります。<br>
+                                それ以前の勝利は集計・報酬の対象外です。
+                            </div>
+                        @endif
 
                         <div class="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                             @foreach($board['reward_tiers'] as $tier)
@@ -290,8 +302,13 @@
                         </div>
                     @empty
                         <div class="px-4 py-10 text-center">
-                            <div class="text-sm font-black text-slate-500">まだ番付に載る記録がありません。</div>
-                            <p class="mt-1 text-xs font-bold text-slate-400">冒険が進むとここに名前が並びます。</p>
+                            @if(($board['is_weekly'] ?? false) && ! ($board['availability']['is_started'] ?? true))
+                                <div class="text-sm font-black text-slate-500">次シーズンの開始をお待ちください。</div>
+                                <p class="mt-1 text-xs font-bold text-slate-400">開始前の勝利は番付へ加算されません。</p>
+                            @else
+                                <div class="text-sm font-black text-slate-500">まだ番付に載る記録がありません。</div>
+                                <p class="mt-1 text-xs font-bold text-slate-400">冒険が進むとここに名前が並びます。</p>
+                            @endif
                         </div>
                     @endforelse
                 </div>

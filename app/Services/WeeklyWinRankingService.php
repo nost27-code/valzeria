@@ -95,7 +95,33 @@ class WeeklyWinRankingService
      */
     public function currentPeriodSummary(): array
     {
-        return $this->periodSummary($this->currentPeriod());
+        return $this->periodSummary($this->displayPeriod());
+    }
+
+    /**
+     * @return array{
+     *   is_started: bool,
+     *   starts_at: ?string,
+     *   starts_at_label: ?string,
+     *   first_period: array{key: string, start_at: string, end_at: string, label: string}
+     * }
+     */
+    public function availability(?Carbon $at = null): array
+    {
+        $firstStart = $this->firstEligiblePeriodStart();
+        $now = ($at ?? Carbon::now($this->timezone()))
+            ->copy()
+            ->setTimezone($this->timezone());
+        $firstPeriod = $firstStart !== null
+            ? $this->periodFromStart($firstStart)
+            : $this->currentPeriod($now);
+
+        return [
+            'is_started' => $firstStart === null || $now->greaterThanOrEqualTo($firstStart),
+            'starts_at' => $firstStart?->format('Y-m-d H:i:s'),
+            'starts_at_label' => $firstStart?->format('n月j日 G:i'),
+            'first_period' => $this->periodSummary($firstPeriod),
+        ];
     }
 
     /**
@@ -167,6 +193,10 @@ class WeeklyWinRankingService
      */
     public function currentRows(): Collection
     {
+        if (! $this->availability()['is_started']) {
+            return collect();
+        }
+
         $limit = max(1, (int) config('weekly_win_ranking.ranking_limit', 50));
         $period = $this->currentPeriod();
 
@@ -176,10 +206,14 @@ class WeeklyWinRankingService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, mixed>|null
      */
-    public function currentStatusFor(Character $character): array
+    public function currentStatusFor(Character $character): ?array
     {
+        if (! $this->availability()['is_started']) {
+            return null;
+        }
+
         $period = $this->currentPeriod();
         $rows = $this->cachedRankedRowsForPeriod($period);
 
@@ -190,6 +224,12 @@ class WeeklyWinRankingService
      * 全タブ共通ウィジェット向けに、上位行と本人進捗を同じ集計結果から返す。
      *
      * @return array{
+     *   availability: array{
+     *     is_started: bool,
+     *     starts_at: ?string,
+     *     starts_at_label: ?string,
+     *     first_period: array{key: string, start_at: string, end_at: string, label: string}
+     *   },
      *   period: array{key: string, start_at: string, end_at: string, label: string},
      *   rows: Collection<int, array<string, mixed>>,
      *   status: array<string, mixed>|null
@@ -197,17 +237,23 @@ class WeeklyWinRankingService
      */
     public function currentWidgetData(?Character $character, int $displayLimit = 5): array
     {
-        $period = $this->currentPeriod();
-        $rows = $this->cachedRankedRowsForPeriod($period);
+        $availability = $this->availability();
+        $period = $availability['is_started']
+            ? $this->currentPeriod()
+            : $this->displayPeriod();
+        $rows = $availability['is_started']
+            ? $this->cachedRankedRowsForPeriod($period)
+            : collect();
         $rankingLimit = max(1, (int) config('weekly_win_ranking.ranking_limit', 50));
 
         return [
+            'availability' => $availability,
             'period' => $this->periodSummary($period),
             'rows' => $rows
                 ->filter(fn (array $row): bool => $row['rank'] <= $rankingLimit)
                 ->take(max(1, $displayLimit))
                 ->values(),
-            'status' => $character
+            'status' => $availability['is_started'] && $character
                 ? $this->statusFromRows($character, $period, $rows)
                 : null,
         ];
@@ -288,14 +334,18 @@ class WeeklyWinRankingService
         }
 
         $current = $this->currentPeriod();
+        $firstEligibleStart = $this->firstEligiblePeriodStart();
         $record = WeeklyWinRankingRecord::query()
             ->with('season')
             ->where('character_id', $character->id)
             ->whereNotNull('badge_key')
-            ->whereHas('season', function ($query) use ($current): void {
+            ->whereHas('season', function ($query) use ($current, $firstEligibleStart): void {
                 $query
                     ->whereNotNull('finalized_at')
                     ->where('week_ended_at', $current['start_at']);
+                if ($firstEligibleStart !== null) {
+                    $query->where('week_started_at', '>=', $firstEligibleStart->format('Y-m-d H:i:s'));
+                }
             })
             ->orderByDesc('id')
             ->first();
@@ -350,6 +400,10 @@ class WeeklyWinRankingService
      */
     public function previewPeriod(array $period): array
     {
+        if (! $this->isEligiblePeriod($period)) {
+            return $this->skippedPeriodResult($period, true);
+        }
+
         $rows = $this->rankedRowsForPeriod($period);
 
         return [
@@ -366,6 +420,7 @@ class WeeklyWinRankingService
                     ->whereNotNull('finalized_at')
                     ->exists(),
             'preview' => true,
+            'skipped' => false,
         ];
     }
 
@@ -382,6 +437,10 @@ class WeeklyWinRankingService
      */
     public function finalizePeriod(array $period): array
     {
+        if (! $this->isEligiblePeriod($period)) {
+            return $this->skippedPeriodResult($period, false);
+        }
+
         if (! $this->schemaReady()) {
             throw new LogicException('週間勝利数番付のmigrationが未適用、または輝石台帳の準備ができていません。');
         }
@@ -809,7 +868,59 @@ class WeeklyWinRankingService
             'rewarded_count' => (int) $season->rewarded_count,
             'total_free_kiseki' => (int) $season->total_free_kiseki,
             'already_finalized' => $alreadyFinalized,
+            'skipped' => false,
         ];
+    }
+
+    /**
+     * @return array<string, int|string|bool>
+     */
+    private function skippedPeriodResult(array $period, bool $preview): array
+    {
+        return [
+            'season_key' => (string) $period['key'],
+            'participant_count' => 0,
+            'rewarded_count' => 0,
+            'total_free_kiseki' => 0,
+            'already_finalized' => false,
+            'preview' => $preview,
+            'skipped' => true,
+        ];
+    }
+
+    private function displayPeriod(?Carbon $at = null): array
+    {
+        $current = $this->currentPeriod($at);
+        $firstStart = $this->firstEligiblePeriodStart();
+
+        if ($firstStart !== null && $current['start']->lessThan($firstStart)) {
+            return $this->periodFromStart($firstStart);
+        }
+
+        return $current;
+    }
+
+    private function isEligiblePeriod(array $period): bool
+    {
+        $firstStart = $this->firstEligiblePeriodStart();
+
+        return $firstStart === null
+            || $period['start']->greaterThanOrEqualTo($firstStart);
+    }
+
+    private function firstEligiblePeriodStart(): ?Carbon
+    {
+        $value = trim((string) config(
+            'weekly_win_ranking.first_eligible_period_start_at',
+            ''
+        ));
+
+        if ($value === '') {
+            return null;
+        }
+
+        return Carbon::parse($value, $this->timezone())
+            ->setTimezone($this->timezone());
     }
 
     private function timezone(): string
