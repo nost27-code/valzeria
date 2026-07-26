@@ -40,7 +40,7 @@ class CharacterService
                 'icon_path' => $data['icon_path'] ?? null,
                 'level' => 1,
                 'exp' => 0,
-                'money' => 100,
+                'money' => max(0, (int) config('gold.starting_balance', 1000)),
                 'current_job_id' => $jobId,
                 'current_hp' => $hp_base,
                 'hp_base' => $hp_base,

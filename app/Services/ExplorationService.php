@@ -248,6 +248,7 @@ class ExplorationService
         $newDiscoveries = [];
         $goldLoss = null;
         $rescueSupport = null;
+        $beginnerProtection = null;
         $valmonEggFound = null;
         $valmonMaterialFind = null;
         $valmonDiscoveryHint = null;
@@ -647,17 +648,28 @@ class ExplorationService
                 }
             }
         } else {
+            $beginnerProtectionService = app(BeginnerBattleProtectionService::class);
+            $beginnerProtection = $beginnerProtectionService->forDefeat($character);
             $character->losses += 1;
 
             if (!$isBossBattle) {
                 $adventureSupportService = app(AdventureSupportService::class);
                 $preDefeatLootSummary = $explorationStateService->currentLootSummary($character, $areaId);
                 $hasLootAtRisk = (int) ($preDefeatLootSummary['risk_total'] ?? 0) > 0;
-                $emergencyRescueUsed = $hasLootAtRisk && $adventureSupportService->consumeEmergencyRescueIfAvailable($character);
-                $insuranceEnabled = !$emergencyRescueUsed && $adventureSupportService->insuranceEnabled($character);
-                $lossPercent = $emergencyRescueUsed ? 0 : ($insuranceEnabled ? 25 : 50);
+                $emergencyRescueUsed = !($beginnerProtection['active'] ?? false)
+                    && $hasLootAtRisk
+                    && $adventureSupportService->consumeEmergencyRescueIfAvailable($character);
+                $insuranceEnabled = !($beginnerProtection['active'] ?? false)
+                    && !$emergencyRescueUsed
+                    && $adventureSupportService->insuranceEnabled($character);
+                $lossPercent = ($beginnerProtection['active'] ?? false)
+                    ? 0
+                    : ($emergencyRescueUsed ? 0 : ($insuranceEnabled ? 25 : 50));
 
-                if ($emergencyRescueUsed) {
+                if ($beginnerProtection['active'] ?? false) {
+                    $rescueSupport = ['type' => 'beginner_battle_protection', 'loss_percent' => 0];
+                    $materialPenalty = $beginnerProtectionService->protectedMaterialPenalty();
+                } elseif ($emergencyRescueUsed) {
                     $rescueSupport = ['type' => 'emergency_rescue_request', 'loss_percent' => 0];
                     $materialPenalty = ['total_lost' => 0, 'materials' => [], 'items' => [], 'loss_percent' => 0];
                     $logText .= "<br><span class=\"text-sky-700 font-extrabold\">【緊急救助】冒険者協会へ緊急救助を要請しました。今回の入手品はすべて保護されました。探索は終了し、街へ帰還します。</span>";
@@ -670,7 +682,9 @@ class ExplorationService
                     $logText .= "<br><span class=\"text-emerald-700 font-extrabold\">【救助保険】救助保険証の効果により、入手品ロストが25%に抑えられました。</span>";
                 }
 
-                if ($emergencyRescueUsed) {
+                if ($beginnerProtection['active'] ?? false) {
+                    $valmonEggLost = [];
+                } elseif ($emergencyRescueUsed) {
                     $logText .= "<br><span class=\"text-sky-700 font-extrabold\">【ヴァルモンの卵】救助隊が卵を守ってくれた！ ヴァルモンの卵は無事だった。</span>";
                 } else {
                     $valmonEggLost = app(ValmonService::class)->loseActiveEggs($character);
@@ -692,25 +706,30 @@ class ExplorationService
                     $logText .= "<br><span class=\"text-red-600 font-bold\">【戦利品喪失】探索中に集めた戦利品の一部を失った……（" . implode('、', $lostTexts) . "）</span>";
                 }
 
-                $goldLoss = app(GuildService::class)->calculateDefeatGoldLoss((int) ($character->money ?? 0));
-                $goldLossAmount = (int) ($goldLoss['amount'] ?? 0);
+                if ($beginnerProtection['active'] ?? false) {
+                    $goldLoss = $beginnerProtectionService->protectedGoldLoss();
+                    $goldLossAmount = 0;
+                } else {
+                    $goldLoss = app(GuildService::class)->calculateDefeatGoldLoss((int) ($character->money ?? 0));
+                    $goldLossAmount = (int) ($goldLoss['amount'] ?? 0);
 
-                if ($goldLossAmount > 0) {
-                    app(GoldService::class)->spend(
-                        $character,
-                        $goldLossAmount,
-                        'exploration_defeat_gold_loss',
-                        '探索敗北時に荷物を荒らされて失ったGold',
-                        Area::class,
-                        $areaId,
-                        [
-                            'area_id' => $areaId,
-                            'danger_rate' => (int) ($state?->danger_rate ?? 0),
-                            'rate' => (float) ($goldLoss['rate'] ?? 0),
-                        ]
-                    );
+                    if ($goldLossAmount > 0) {
+                        app(GoldService::class)->spend(
+                            $character,
+                            $goldLossAmount,
+                            'exploration_defeat_gold_loss',
+                            '探索敗北時に荷物を荒らされて失ったGold',
+                            Area::class,
+                            $areaId,
+                            [
+                                'area_id' => $areaId,
+                                'danger_rate' => (int) ($state?->danger_rate ?? 0),
+                                'rate' => (float) ($goldLoss['rate'] ?? 0),
+                            ]
+                        );
 
-                    $logText .= "<br><span class=\"text-amber-700 font-extrabold\">【Gold喪失】倒れた隙に荷物を荒らされ、所持Goldの{$goldLoss['rate_label']}として " . number_format($goldLossAmount) . "G を失った。</span>";
+                        $logText .= "<br><span class=\"text-amber-700 font-extrabold\">【Gold喪失】倒れた隙に荷物を荒らされ、所持Goldの{$goldLoss['rate_label']}として " . number_format($goldLossAmount) . "G を失った。</span>";
+                    }
                 }
 
                 if ($isRegionDepthDungeon) {
@@ -720,6 +739,10 @@ class ExplorationService
                 if ($isRegionDepthDungeon) {
                     $regionDepthDungeonService->finalize($character, 'defeated');
                 }
+            }
+
+            if ($beginnerProtection['active'] ?? false) {
+                $logText .= '<br><span class="text-sky-700 font-extrabold">' . $beginnerProtection['message'] . '</span>';
             }
             
             // 敗北時は最大HPの30%で復活
@@ -807,6 +830,7 @@ class ExplorationService
             'gold_loss' => $goldLoss,
             'rescue_fee' => $goldLoss,
             'rescue_support' => $rescueSupport,
+            'beginner_protection' => $beginnerProtection,
             'valmon_egg_found' => $valmonEggFound,
             'valmon_material_find' => $valmonMaterialFind,
             'valmon_discovery_hint' => $valmonDiscoveryHint,
@@ -1044,6 +1068,11 @@ class ExplorationService
         $defeatLossSummary = $stopReason === 'defeat'
             ? $this->batchDefeatLossSummary($lastResult)
             : null;
+        if (data_get($lastResult, 'beginner_protection.active')) {
+            $summaryLines[] = '<span class="text-sky-700 font-extrabold">'
+                . e((string) data_get($lastResult, 'beginner_protection.message'))
+                . '</span>';
+        }
         if ($stopText !== '') {
             $summaryLines[] = '<span class="text-amber-700 font-extrabold">【停止理由】' . $stopText . '</span>';
         }
@@ -1306,6 +1335,7 @@ class ExplorationService
             ->all();
 
         $supportLabel = match ($rescueSupport['type'] ?? null) {
+            'beginner_battle_protection' => (string) data_get($result, 'beginner_protection.support_label', '不思議な加護に守られ、何も失いませんでした。'),
             'emergency_rescue_request' => '緊急救助により、今回の入手品は保護されました。',
             'rescue_insurance' => '救助保険証により、入手品ロストが25%に抑えられました。',
             default => null,

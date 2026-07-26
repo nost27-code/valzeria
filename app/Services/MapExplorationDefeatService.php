@@ -108,12 +108,23 @@ class MapExplorationDefeatService
     /**
      * 通常探索と同じ敗北ロストを、現在の地図入場中に得た戦利品へ適用する。
      *
-     * @return array{material_penalty: array<string, mixed>, gold_loss: array<string, mixed>, valmon_egg_lost: array<int, mixed>}
+     * @return array{material_penalty: array<string, mixed>, gold_loss: array<string, mixed>, valmon_egg_lost: array<int, mixed>, beginner_protection: array<string, mixed>}
      */
     public function apply(Character $character, MapExplorationBatch $batch): array
     {
         return DB::transaction(function () use ($character, $batch): array {
             $lockedCharacter = Character::query()->lockForUpdate()->findOrFail($character->id);
+            $beginnerProtectionService = app(BeginnerBattleProtectionService::class);
+            $beginnerProtection = $beginnerProtectionService->forDefeat($lockedCharacter);
+            if ($beginnerProtection['active'] ?? false) {
+                return [
+                    'material_penalty' => $beginnerProtectionService->protectedMaterialPenalty(),
+                    'gold_loss' => $beginnerProtectionService->protectedGoldLoss(),
+                    'valmon_egg_lost' => [],
+                    'beginner_protection' => $beginnerProtection,
+                ];
+            }
+
             $results = $this->entryResults($lockedCharacter, (int) $batch->registration_id, $batch->created_at ?? now());
 
             $materialDrops = [];
@@ -155,6 +166,7 @@ class MapExplorationDefeatService
                 'material_penalty' => $materialPenalty,
                 'gold_loss' => $goldLoss,
                 'valmon_egg_lost' => app(ValmonService::class)->loseActiveEggs($lockedCharacter),
+                'beginner_protection' => $beginnerProtection,
             ];
         });
     }

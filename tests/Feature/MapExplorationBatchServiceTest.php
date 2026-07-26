@@ -58,12 +58,16 @@ class MapExplorationBatchServiceTest extends TestCase
         $this->assertSame(1, $batch->fresh()->reserved_count);
         $this->assertSame(1, $batch->fresh()->results()->count());
         $this->assertSame($remainingBefore - 1, (int) $registration->fresh()->remaining_explorations);
-        $this->assertSame(9000, (int) $visitor->fresh()->money);
-        $this->assertSame(1000, (int) data_get($result, 'batch_explore.defeat_loss.gold_amount'));
+        $this->assertSame(10000, (int) $visitor->fresh()->money);
+        $this->assertSame(0, (int) data_get($result, 'batch_explore.defeat_loss.gold_amount'));
+        $this->assertSame('不思議な加護に守られ、Gold・戦利品・ヴァルモンの卵は失われなかった！', data_get($result, 'batch_explore.defeat_loss.support_label'));
+        $this->assertStringContainsString('【駆け出しの加護】不思議な加護があなたを包んだ！', (string) $result['log']);
     }
 
     public function test_batch_stops_at_timeout_and_applies_defeat_loss_only_once(): void
     {
+        config()->set('battle.beginner_defeat_protection.battle_limit', 0);
+
         [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図時間切れ試験地', 'map-batch-timeout-test');
         $batchService = app(MapExplorationBatchService::class);
         $remainingBefore = (int) $registration->remaining_explorations;
@@ -91,6 +95,8 @@ class MapExplorationBatchServiceTest extends TestCase
 
     public function test_batch_stops_after_the_sixth_run_defeat_without_repeating_the_loss(): void
     {
+        config()->set('battle.beginner_defeat_protection.battle_limit', 0);
+
         [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図連敗防止試験地', 'map-batch-repeated-loss-test');
         $batchService = app(MapExplorationBatchService::class);
         $remainingBefore = (int) $registration->remaining_explorations;

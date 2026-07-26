@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Balance
+
+- 新しく冒険を始めた時の所持Goldを1,000Gに増やしました。累計100戦目までは、通常探索・10回探索・探索の地図で敗北しても不思議な加護に守られ、Gold・戦利品・ヴァルモンの卵を失いません。
+
 ### Fixed
 
 - 仲間済み・未孵化保管済みの種類と同じヴァルモンの卵を発見しないようにし、新しいヴァルモンが孵化した結果を全体チャットへ再び表示するようにしました。

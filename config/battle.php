@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'beginner_defeat_protection' => [
+        'battle_limit' => 100,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | PvE enemy direct-damage defense formula

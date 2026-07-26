@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-26-beginner-gold-and-defeat-protection',
+        'date' => '2026-07-26',
+        'category' => 'balance',
+        'title' => '冒険開始時のGoldと敗北保護を調整',
+        'detail' => '新しく冒険を始めた時の所持Goldを1,000Gに増やしました。累計100戦目までは、敗北しても不思議な加護に守られ、Gold・戦利品・ヴァルモンの卵を失いません。',
+    ],
+    [
         'id' => '2026-07-26-single-species-exploration-maps',
         'date' => '2026-07-26',
         'category' => 'added',

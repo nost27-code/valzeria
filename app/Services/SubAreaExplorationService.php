@@ -117,6 +117,7 @@ class SubAreaExplorationService
         $materialDropResult = [];
         $monsterMarkDrop = null;
         $progress = null;
+        $beginnerProtection = null;
 
         if ($isWin) {
             $character->wins += 1;
@@ -158,8 +159,12 @@ class SubAreaExplorationService
                 $logText .= "<br><span class=\"text-sky-700 font-bold\">【探索】{$milestone['message']}</span>";
             }
         } else {
+            $beginnerProtection = app(BeginnerBattleProtectionService::class)->forDefeat($character);
             $character->losses += 1;
             $this->stateService->reset($character);
+            if ($beginnerProtection['active'] ?? false) {
+                $logText .= '<br><span class="text-sky-700 font-extrabold">' . $beginnerProtection['message'] . '</span>';
+            }
             $logText .= "<br><span class=\"text-red-700 font-bold\">【撤退】共有サブエリアの入口まで退きました。サブエリア探索は終了します。</span>";
         }
 
@@ -214,6 +219,7 @@ class SubAreaExplorationService
             'secret_realm_name' => null,
             'rescue_fee' => null,
             'rescue_support' => null,
+            'beginner_protection' => $beginnerProtection,
             'valmon_egg_found' => null,
             'valmon_material_find' => null,
             'valmon_egg_lost' => [],

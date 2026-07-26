@@ -150,6 +150,7 @@ class MapExplorationBatchService
         $materialPenalty = ['total_lost' => 0, 'materials' => [], 'items' => []];
         $goldLoss = null;
         $valmonEggLost = [];
+        $beginnerProtection = null;
         if ($win) {
             $mapRewards = $this->rewards->rewardsFor($enemy, $map, (int) $battle->gold);
             $exp = $mapRewards['experience'];
@@ -191,6 +192,7 @@ class MapExplorationBatchService
             $materialPenalty = $defeatLoss['material_penalty'];
             $goldLoss = $defeatLoss['gold_loss'];
             $valmonEggLost = $defeatLoss['valmon_egg_lost'];
+            $beginnerProtection = $defeatLoss['beginner_protection'] ?? null;
             $character->increment('losses');
             $stats = app(CharacterStatusService::class)->getFinalStats($character);
             $character->update(['current_hp' => max(1, (int) floor(((int) ($stats['max_hp'] ?? $character->hp_base)) * .3))]);
@@ -198,6 +200,9 @@ class MapExplorationBatchService
         $logText = implode('<br>', $battle->logs);
         if ($valmonEggFound) {
             $logText .= "<br><span class=\"text-pink-700 font-extrabold\">【ヴァルモンの卵】{$valmonEggFound['message']}</span>";
+        }
+        if ($beginnerProtection['active'] ?? false) {
+            $logText .= '<br><span class="text-sky-700 font-extrabold">' . $beginnerProtection['message'] . '</span>';
         }
         app(BattleLogService::class)->addLog($character, $map->source_area_id, $enemy->id, 'exploration_map', $win ? 'win' : 'lose', $exp, $gold, $jobExp, (int) ($rewardResult['level_up_count'] ?? 0), $logText);
         MapExplorationResult::create(['batch_id' => $batch->id, 'map_id' => $map->id, 'registration_id' => $batch->registration_id, 'character_id' => $character->id, 'global_exploration_index' => $index, 'encounter_seed_hash' => hash('sha256', $encounterSeed), 'reward_seed_hash' => hash('sha256', $rewardSeed), 'monster_variants_json' => $variant, 'battle_result' => $battle->result, 'experience' => $exp, 'gold' => $gold, 'drops_json' => ['materials' => $drops['materials'] ?? [], 'equipment' => $drops['equipment'] ?? []]]);
@@ -224,6 +229,7 @@ class MapExplorationBatchService
             'material_penalty' => $materialPenalty,
             'gold_loss' => $goldLoss,
             'valmon_egg_lost' => $valmonEggLost,
+            'beginner_protection' => $beginnerProtection,
             'exploration_stamina' => app(ExplorationStaminaService::class)->summary($character),
             'new_discoveries' => [],
         ];
@@ -349,6 +355,11 @@ class MapExplorationBatchService
                 ? '探索可能回数が尽きたため、途中で探索を止めました。'
                 : '',
         };
+        if (data_get($lastResult, 'beginner_protection.active')) {
+            $summaryLines[] = '<span class="text-sky-700 font-extrabold">'
+                . e((string) data_get($lastResult, 'beginner_protection.message'))
+                . '</span>';
+        }
         if ($stopText !== '') {
             $summaryLines[] = '<span class="text-amber-700 font-extrabold">【停止理由】' . e($stopText) . '</span>';
         }
@@ -384,6 +395,7 @@ class MapExplorationBatchService
         $materialPenalty = is_array($result['material_penalty'] ?? null) ? $result['material_penalty'] : [];
         $goldLoss = is_array($result['gold_loss'] ?? null) ? $result['gold_loss'] : [];
         $valmonEggLost = is_array($result['valmon_egg_lost'] ?? null) ? $result['valmon_egg_lost'] : [];
+        $beginnerProtection = is_array($result['beginner_protection'] ?? null) ? $result['beginner_protection'] : [];
 
         return [
             'gold_amount' => (int) ($goldLoss['amount'] ?? 0),
@@ -393,6 +405,9 @@ class MapExplorationBatchService
             'materials' => $materialPenalty['materials'] ?? [],
             'items' => $materialPenalty['items'] ?? [],
             'valmon_egg_lost_count' => count($valmonEggLost),
+            'support_label' => ($beginnerProtection['active'] ?? false)
+                ? (string) ($beginnerProtection['support_label'] ?? '')
+                : null,
         ];
     }
 

@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'starting_balance' => 1000,
+
     // Equipment sale runtime source of truth is items.sell_price.
     // This rank table is only a baseline for initial data/migration setup.
     'equipment_sell_prices' => [
