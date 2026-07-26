@@ -23,10 +23,29 @@
     $initialFeedKind = in_array(session('valmon_feed_kind'), ['material', 'equipment'], true)
         ? session('valmon_feed_kind')
         : 'material';
+    $fieldSlots = [
+        // [left%, bottom%, size%, z-index]  size%は画像幅に対する割合
+        [50, 5,  14, 40],  // 0: センター前列
+        [24, 4,  12, 32],  // 1: 左前列
+        [76, 4,  12, 36],  // 2: 右前列
+        [38, 13, 10, 28],  // 3: 左中列
+        [63, 12, 10, 30],  // 4: 右中列
+        [ 9, 3,  10, 22],  // 5: 左端前
+        [90, 3,  10, 24],  // 6: 右端前
+        [28, 20,  9, 18],  // 7: 左後列（フェンス際）
+        [55, 19,  9, 20],  // 8: 中後列（フェンス際）
+        [76, 21,  8, 14],  // 9: 右後列（フェンス際）
+    ];
+    $pasturePageSize = count($fieldSlots);
+    $pastureValmons = $valmons->sortByDesc('is_partner')->values();
+    $pasturePages = $pastureValmons->chunk($pasturePageSize)->values();
+    $pasturePageCount = max(1, $pasturePages->count());
 @endphp
 <div class="w-full" x-data="{
     tab: @js($initialTab),
     feedKind: @js($initialFeedKind),
+    pasturePage: 1,
+    pasturePageCount: @js($pasturePageCount),
     materialFeedQuery: '',
     materialFeedCategory: 'all',
     materialFeedRarity: 'all',
@@ -147,45 +166,66 @@
                 街へ戻る
             </a>
             <div class="ml-auto bg-black/45 backdrop-blur-sm text-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-lg">
-                <img src="{{ asset('images/icon/icon_037.webp') }}" alt="" class="w-4 h-4 object-contain"> {{ $valmons->count() }} / 10体
+                <img src="{{ asset('images/icon/icon_037.webp') }}" alt="" class="w-4 h-4 object-contain"> 仲間 {{ $valmons->count() }}体
                 @if($activeEgg)<img src="{{ asset('images/icon/icon_038.webp') }}" alt="" class="w-4 h-4 object-contain">@endif
             </div>
         </div>
 
+        @if($pasturePageCount > 1)
+            <div class="absolute left-1/2 top-2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/45 p-1 text-white shadow-lg backdrop-blur-sm"
+                 data-pasture-pagination
+                 data-pasture-page-count="{{ $pasturePageCount }}">
+                <button type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="前の{{ $pasturePageSize }}体を表示"
+                        :disabled="pasturePage <= 1"
+                        @click="if (pasturePage > 1) pasturePage--">
+                    ←
+                </button>
+                <span class="min-w-8 text-center text-[11px] font-black" aria-live="polite">
+                    <span x-text="pasturePage">1</span> / {{ $pasturePageCount }}
+                </span>
+                <button type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="次の{{ $pasturePageSize }}体を表示"
+                        :disabled="pasturePage >= pasturePageCount"
+                        @click="if (pasturePage < pasturePageCount) pasturePage++">
+                    →
+                </button>
+            </div>
+        @endif
+
         {{-- ヴァルモン配置（16:9基準 / 草地エリア: bottom 3〜22%） --}}
-        @php
-            $fieldSlots = [
-                // [left%, bottom%, size%, z-index]  size%は画像幅に対する割合
-                [50, 5,  14, 40],  // 0: センター前列（相棒）
-                [24, 4,  12, 32],  // 1: 左前列
-                [76, 4,  12, 36],  // 2: 右前列
-                [38, 13, 10, 28],  // 3: 左中列
-                [63, 12, 10, 30],  // 4: 右中列
-                [ 9, 3,  10, 22],  // 5: 左端前
-                [90, 3,  10, 24],  // 6: 右端前
-                [28, 20,  9, 18],  // 7: 左後列（フェンス際）
-                [55, 19,  9, 20],  // 8: 中後列（フェンス際）
-                [76, 21,  8, 14],  // 9: 右後列（フェンス際）
-            ];
-            $sorted = $valmons->sortByDesc('is_partner')->values();
-        @endphp
-        @foreach($sorted as $idx => $valmon)
-            @if($valmon->master?->image_path && isset($fieldSlots[$idx]))
-                @php [$lft, $btm, $sz, $zi] = $fieldSlots[$idx]; @endphp
-                <div class="absolute" style="left:{{ $lft }}%;bottom:{{ $btm }}%;transform:translateX(-50%);z-index:{{ $zi }};width:{{ $sz }}%;">
-                    <div class="{{ $valmon->is_partner ? 'animate-bounce' : '' }} relative" style="animation-duration:2.2s;">
-                        <img src="{{ $valmon->master->imageUrl() }}"
-                             alt="{{ $valmon->displayName() }}"
-                             class="w-full h-auto object-contain drop-shadow-lg">
-                        @if($valmon->is_partner)
-                            <div class="absolute whitespace-nowrap text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-md"
-                                 style="top:-16px;left:50%;transform:translateX(-50%);background:#16a34a;">
-                                {{ $valmon->nickname ?: '★ 相棒' }}
+        @foreach($pasturePages as $pageIndex => $pageValmons)
+            @php $pageNumber = $pageIndex + 1; @endphp
+            <div class="absolute inset-0 pointer-events-none"
+                 x-show="pasturePage === {{ $pageNumber }}"
+                 @if($pageNumber > 1) style="display: none;" @endif
+                 data-pasture-page="{{ $pageNumber }}">
+                @foreach($pageValmons as $valmon)
+                    @if($valmon->master?->image_path)
+                        @php
+                            [$lft, $btm, $sz, $zi] = $fieldSlots[$loop->index];
+                        @endphp
+                        <div class="absolute"
+                             style="left:{{ $lft }}%;bottom:{{ $btm }}%;transform:translateX(-50%);z-index:{{ $zi }};width:{{ $sz }}%;"
+                             data-pasture-entry
+                             data-pasture-entry-page="{{ $pageNumber }}">
+                            <div class="{{ $valmon->is_partner ? 'animate-bounce' : '' }} relative" style="animation-duration:2.2s;">
+                                <img src="{{ $valmon->master->imageUrl() }}"
+                                     alt="{{ $valmon->displayName() }}"
+                                     class="w-full h-auto object-contain drop-shadow-lg">
+                                @if($valmon->is_partner)
+                                    <div class="absolute whitespace-nowrap text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-md"
+                                         style="top:-16px;left:50%;transform:translateX(-50%);background:#16a34a;">
+                                        {{ $valmon->nickname ?: '★ 相棒' }}
+                                    </div>
+                                @endif
                             </div>
-                        @endif
-                    </div>
-                </div>
-            @endif
+                        </div>
+                    @endif
+                @endforeach
+            </div>
         @endforeach
 
         {{-- 下端フェード --}}

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-valmon-ranch-paging',
+        'date' => '2026-07-27',
+        'category' => 'fixed',
+        'title' => '牧場の所持数表示とページ切替を改善',
+        'detail' => '牧場右上の「/10体」を外し、11体以上仲間にしている場合は牧場風景を10体ずつ切り替えて全員確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-27-species-lure-single-output',
         'date' => '2026-07-27',
         'category' => 'balance',
