@@ -8,7 +8,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
-- ランキングなどから冒険者カードを開く際のデータ取得を軽量化し、表示までの待ち時間を短縮しました。
+- ランキングなどから冒険者カードを開く際のデータ取得を軽量化し、「冒険の記録」を10分単位で更新することで表示までの待ち時間を短縮しました。
 
 ### Internal
 

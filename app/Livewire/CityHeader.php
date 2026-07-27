@@ -29,6 +29,8 @@ use Livewire\Component;
 
 class CityHeader extends Component
 {
+    private const ADVENTURE_RECORDS_CACHE_MINUTES = 10;
+
     /** 本番確認用。現在の冒険者一覧だけから除外するテストアカウント */
     private const HIDDEN_ONLINE_TEST_USER_ID = 1;
 
@@ -474,6 +476,15 @@ class CityHeader extends Component
     }
 
     private function adventureRecords(Character $character): array
+    {
+        return Cache::remember(
+            "adventurer_card_adventure_records_v1:{$character->id}",
+            now()->addMinutes(self::ADVENTURE_RECORDS_CACHE_MINUTES),
+            fn (): array => $this->buildAdventureRecords($character)
+        );
+    }
+
+    private function buildAdventureRecords(Character $character): array
     {
         $battleSummary = BattleLog::query()
             ->where('character_id', $character->id)
