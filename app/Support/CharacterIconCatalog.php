@@ -8,7 +8,7 @@ class CharacterIconCatalog
 {
     public const DEFAULT_ICON = '/images/chara/chara_001.webp';
     private const ADMIN_ICON = '/images/chara/admin/chara_admin.webp';
-    private const MAX_ICON_NUMBER = 155;
+    private const MAX_ICON_NUMBER = 267;
 
     /**
      * @return array<int, string>

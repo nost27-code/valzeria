@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-character-icons-267',
+        'date' => '2026-07-27',
+        'category' => 'added',
+        'title' => '選べるキャラ画像を112種類追加',
+        'detail' => 'キャラクター作成時とアイコン変更で選べるキャラ画像を、267種類まで追加しました。',
+    ],
+    [
         'id' => '2026-07-27-unique-drop-weapon-illustrations',
         'date' => '2026-07-27',
         'category' => 'added',
