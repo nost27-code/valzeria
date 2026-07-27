@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             EnemySeeder::class,
             EnemyDropsSeeder::class,
             DropEquipmentAdditionsSeeder::class,
+            DropWeaponEvolutionSeeder::class,
             AreaDiscoveryLinkSeeder::class,
             ValmonSeeder::class,
             NpcProcurementRequestSeeder::class,

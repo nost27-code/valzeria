@@ -46,6 +46,72 @@ class FavoriteWeaponServiceTest extends TestCase
         $this->assertNull((new FavoriteWeaponService())->imagePathFor($item));
     }
 
+    public function test_enemy_specific_drop_weapon_images_cover_every_source_and_evolution_stage(): void
+    {
+        $dropMaster = json_decode(
+            (string) file_get_contents(base_path('database/data/drop_equipment_additions.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $evolutionMaster = json_decode(
+            (string) file_get_contents(base_path('database/data/drop_weapon_evolution_chains.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $sourceNames = collect($dropMaster['items'])
+            ->keyBy('external_item_id')
+            ->map(fn (array $item) => $item['name']);
+        $chains = collect($evolutionMaster['chains'])->keyBy('key');
+        $chainOrder = [
+            'GRAVE_KNIGHT_SWORD',
+            'GOBLIN_ARCHER_BOW',
+            'GHOST_SAILOR_SWORD',
+            'CAVE_TROLL_CLUB',
+            'POWDER_AXE',
+            'MERMAID_STAFF',
+            'LEAF_HUNTER_BOW',
+            'ROOT_THORN_SPEAR',
+            'SPORE_DEVICE',
+            'IRON_SHELL_FIST',
+            'FIRE_SPIRIT_STAFF',
+            'STEAM_SOLDIER_GUN',
+            'ICE_DRAGON_SPEAR',
+            'SNOW_FAIRY_STAFF',
+        ];
+        $service = new FavoriteWeaponService();
+        $imageNumber = 728;
+
+        foreach ($chainOrder as $chainKey) {
+            $chain = $chains->get($chainKey);
+            $this->assertNotNull($chain, $chainKey);
+
+            $names = [
+                $sourceNames->get($chain['source_external_item_id']),
+                ...array_values($chain['names']),
+            ];
+
+            foreach ($names as $name) {
+                $expectedPath = sprintf('images/weapon/weapon_%03d.webp', $imageNumber);
+                $actualPath = $service->imagePathFor(new Item([
+                    'name' => $name,
+                    'type' => 'weapon',
+                ]));
+                $absolutePath = public_path($expectedPath);
+
+                $this->assertSame($expectedPath, $actualPath, (string) $name);
+                $this->assertFileExists($absolutePath);
+                $header = (string) file_get_contents($absolutePath, false, null, 0, 12);
+                $this->assertSame('RIFF', substr($header, 0, 4), $expectedPath);
+                $this->assertSame('WEBP', substr($header, 8, 4), $expectedPath);
+                $imageNumber++;
+            }
+        }
+
+        $this->assertSame(842, $imageNumber);
+    }
+
     public function test_display_background_matches_the_profile_quality_presentation(): void
     {
         $service = new FavoriteWeaponService();

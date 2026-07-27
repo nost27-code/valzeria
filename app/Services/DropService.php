@@ -459,6 +459,15 @@ class DropService
             ->where('type', $type)
             ->where('is_active', true)
             ->where('is_drop_enabled', true)
+            ->when($type === 'weapon', function ($query) {
+                // Enemy-specific weapons are granted only through enemy_drops.
+                // They have a regular weapon rank for affix, market, and UI rules,
+                // but must never enter this rank-based generic pool.
+                $query->where(function ($query) {
+                    $query->whereNull('external_item_id')
+                        ->orWhere('external_item_id', 'not like', 'DROP_WPN_%');
+                });
+            })
             ->whereNotIn('rarity', self::RANKS_BLOCKED_FROM_NORMAL_DROP)
             ->where(function ($query) use ($cityTier) {
                 $query->whereNull('unlock_city_id')

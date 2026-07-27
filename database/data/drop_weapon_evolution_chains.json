@@ -1,0 +1,247 @@
+{
+  "source": "drop_equipment_additions.json",
+  "note": "Enemy-specific drop weapons evolve through one dedicated route without merging into the standard weapon families.",
+  "rank_order": ["G", "F", "E", "D", "C", "B", "A", "S", "SS", "SSS", "EPIC"],
+  "chains": [
+    {
+      "key": "GRAVE_KNIGHT_SWORD",
+      "source_external_item_id": "DROP_WPN_1_9900",
+      "source_rank": "F",
+      "template_family_id": "SWORD",
+      "path": "dark",
+      "family_name": "墓守騎士剣系",
+      "names": {
+        "E": "墓守騎士の古剣",
+        "D": "墓守騎士の重剣",
+        "C": "墓守騎士の霊剣",
+        "B": "墓守騎士の魂剣",
+        "A": "墓守王の誓剣",
+        "S": "冥墓の騎士剣",
+        "SS": "黄泉守の冥剣",
+        "SSS": "墓王の魂葬剣",
+        "EPIC": "永劫墓守剣グレイヴァル"
+      }
+    },
+    {
+      "key": "GOBLIN_ARCHER_BOW",
+      "source_external_item_id": "DROP_WPN_1_9901",
+      "source_rank": "F",
+      "template_family_id": "BOW",
+      "path": "gale",
+      "family_name": "小鬼射手弓系",
+      "names": {
+        "E": "小鬼狙撃手の強弓",
+        "D": "小鬼狙撃長の戦弓",
+        "C": "森鬼射手の剛弓",
+        "B": "森鬼狙撃王の長弓",
+        "A": "翠鬼王の必中弓",
+        "S": "風鬼の迅弓",
+        "SS": "翠嵐鬼神の天弓",
+        "SSS": "天翔鬼神の星弓",
+        "EPIC": "翠鬼神弓ヴェルガルド"
+      }
+    },
+    {
+      "key": "CAVE_TROLL_CLUB",
+      "source_external_item_id": "DROP_WPN_1_9902",
+      "source_rank": "F",
+      "template_family_id": "CLUB",
+      "path": "dark",
+      "family_name": "洞窟トロル棍系",
+      "names": {
+        "E": "洞窟トロルの岩砕棍",
+        "D": "岩窟トロルの戦棍",
+        "C": "巨岩トロルの破城棍",
+        "B": "山砕トロルの剛棍",
+        "A": "大地巨人の震棍",
+        "S": "地裂きの巨神棍",
+        "SS": "山脈砕きの神棍",
+        "SSS": "天地震撼の巨神棍",
+        "EPIC": "創世砕棍ガイアグラム"
+      }
+    },
+    {
+      "key": "GHOST_SAILOR_SWORD",
+      "source_external_item_id": "DROP_WPN_2_9904",
+      "source_rank": "E",
+      "template_family_id": "SWORD",
+      "path": "dark",
+      "family_name": "幽海船員剣系",
+      "names": {
+        "D": "幽海船員の亡魂曲刀",
+        "C": "幽霊船長の波断刀",
+        "B": "呪海船長の怨刃",
+        "A": "幽海王の冥曲刀",
+        "S": "黒潮の亡霊剣",
+        "SS": "冥海を渡る幽剣",
+        "SSS": "深海王の魂断剣",
+        "EPIC": "冥海幽剣ネクロマリス"
+      }
+    },
+    {
+      "key": "POWDER_AXE",
+      "source_external_item_id": "DROP_WPN_2_9905",
+      "source_rank": "E",
+      "template_family_id": "AXE",
+      "path": "dark",
+      "family_name": "爆裂火薬斧系",
+      "names": {
+        "D": "爆裂火薬斧",
+        "C": "炉爆の破城斧",
+        "B": "爆炎将の戦斧",
+        "A": "爆炎王の轟斧",
+        "S": "黒炎爆砕斧",
+        "SS": "獄炎の震天斧",
+        "SSS": "終焉爆炎の神斧",
+        "EPIC": "焦界爆斧イグニバルグ"
+      }
+    },
+    {
+      "key": "MERMAID_STAFF",
+      "source_external_item_id": "DROP_WPN_2_9906",
+      "source_rank": "E",
+      "template_family_id": "STAFF",
+      "path": "holy",
+      "family_name": "人魚泡杖系",
+      "names": {
+        "D": "人魚の泡沫杖",
+        "C": "海歌姫の潮杖",
+        "B": "蒼海姫の祈杖",
+        "A": "海神姫の珊瑚杖",
+        "S": "聖潮の海歌杖",
+        "SS": "星海の祝福杖",
+        "SSS": "海天女神の神杖",
+        "EPIC": "蒼海聖杖ネレイシア"
+      }
+    },
+    {
+      "key": "LEAF_HUNTER_BOW",
+      "source_external_item_id": "DROP_WPN_3_9908",
+      "source_rank": "D",
+      "template_family_id": "BOW",
+      "path": "gale",
+      "family_name": "葉隠れ狩弓系",
+      "names": {
+        "C": "樹冠狩人の長弓",
+        "B": "深緑狩人の風弓",
+        "A": "世界樹狩人の翠弓",
+        "S": "葉嵐の迅弓",
+        "SS": "森羅狩神の天弓",
+        "SSS": "天翔樹冠の神弓",
+        "EPIC": "森羅迅弓エルヴェルデ"
+      }
+    },
+    {
+      "key": "ROOT_THORN_SPEAR",
+      "source_external_item_id": "DROP_WPN_3_9909",
+      "source_rank": "D",
+      "template_family_id": "SPEAR",
+      "path": "gale",
+      "family_name": "世界樹根槍系",
+      "names": {
+        "C": "世界樹根の荊槍",
+        "B": "深根の蔓槍",
+        "A": "世界樹守の霊槍",
+        "S": "翠嵐の荊槍",
+        "SS": "森羅を穿つ樹槍",
+        "SSS": "天翔世界樹の神槍",
+        "EPIC": "神樹迅槍エルドレイン"
+      }
+    },
+    {
+      "key": "SPORE_DEVICE",
+      "source_external_item_id": "DROP_WPN_3_9910",
+      "source_rank": "D",
+      "template_family_id": "GRIMOIRE",
+      "path": "dark",
+      "family_name": "胞子魔導具系",
+      "names": {
+        "C": "深森胞子の魔導具",
+        "B": "毒茸賢者の魔導核",
+        "A": "菌森王の胞子魔導具",
+        "S": "黒瘴の菌核",
+        "SS": "冥森胞子の魔導環",
+        "SSS": "深淵菌王の魔導核",
+        "EPIC": "冥茸魔導核ミセリア"
+      }
+    },
+    {
+      "key": "IRON_SHELL_FIST",
+      "source_external_item_id": "DROP_WPN_4_9912",
+      "source_rank": "C",
+      "template_family_id": "FIST",
+      "path": "holy",
+      "family_name": "鉄殻虫拳甲系",
+      "names": {
+        "B": "黒鉄殻の拳甲",
+        "A": "鋼殻王の拳甲",
+        "S": "鉄壁虫王の聖拳甲",
+        "SS": "星鋼甲虫の神拳",
+        "SSS": "天殻覇王の拳甲",
+        "EPIC": "金剛聖拳甲カルバリオン"
+      }
+    },
+    {
+      "key": "FIRE_SPIRIT_STAFF",
+      "source_external_item_id": "DROP_WPN_4_9913",
+      "source_rank": "C",
+      "template_family_id": "STAFF",
+      "path": "dark",
+      "family_name": "炎精炉火杖系",
+      "names": {
+        "B": "炎精の熔炉杖",
+        "A": "炎王精の灼熱杖",
+        "S": "黒炎精霊の魔杖",
+        "SS": "獄炎炉心の冥杖",
+        "SSS": "終焉焔精の神杖",
+        "EPIC": "煉獄魔杖イグナセイド"
+      }
+    },
+    {
+      "key": "STEAM_SOLDIER_GUN",
+      "source_external_item_id": "DROP_WPN_4_9914",
+      "source_rank": "C",
+      "template_family_id": "GUN",
+      "path": "gale",
+      "family_name": "蒸気兵工房銃系",
+      "names": {
+        "B": "蒸気機関の工房銃",
+        "A": "蒸機将の連装銃",
+        "S": "疾風蒸機銃",
+        "SS": "嵐駆けの蒸気砲",
+        "SSS": "天翔蒸機の神銃",
+        "EPIC": "風迅蒸機砲テンペスタ"
+      }
+    },
+    {
+      "key": "ICE_DRAGON_SPEAR",
+      "source_external_item_id": "DROP_WPN_5_9916",
+      "source_rank": "B",
+      "template_family_id": "SPEAR",
+      "path": "holy",
+      "family_name": "氷竜牙槍系",
+      "names": {
+        "A": "氷竜牙の氷槍",
+        "S": "氷竜王の聖槍",
+        "SS": "星霜竜の天槍",
+        "SSS": "天氷竜神の神槍",
+        "EPIC": "永氷聖槍グラシエル"
+      }
+    },
+    {
+      "key": "SNOW_FAIRY_STAFF",
+      "source_external_item_id": "DROP_WPN_5_9917",
+      "source_rank": "B",
+      "template_family_id": "STAFF",
+      "path": "holy",
+      "family_name": "雪妖精雪灯杖系",
+      "names": {
+        "A": "雪妖精の氷灯杖",
+        "S": "白雪精霊の聖杖",
+        "SS": "星雪妖精の祝杖",
+        "SSS": "天雪女神の神杖",
+        "EPIC": "雪華聖杖ニヴェリア"
+      }
+    }
+  ]
+}
