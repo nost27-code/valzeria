@@ -93,4 +93,53 @@ class CharacterProfileServiceTest extends TestCase
             $service->selectedAdventurerAvatarFrame($character, 'images/profile/adventurer_avatar_frame91.webp')
         );
     }
+
+    public function test_card_display_resolves_all_assets_without_registering_defaults(): void
+    {
+        $service = app(CharacterProfileService::class);
+        $character = Character::query()->create(['name' => 'Card Display Tester']);
+
+        $selected = [
+            'background' => 'images/profile/adventurer_card_bg91.webp',
+            'card_frame' => 'images/profile/adventurer_card_frame91.webp',
+            'avatar_frame' => 'images/profile/adventurer_avatar_frame91.webp',
+            'valmon_case' => 'images/profile/valmon_case91.webp',
+        ];
+
+        $this->assertSame([
+            'background' => 'images/profile/adventurer_card_bg01.webp',
+            'card_frame' => 'images/profile/adventurer_card_frame01.webp',
+            'avatar_frame' => 'images/profile/adventurer_avatar_frame01.webp',
+            'valmon_case' => 'images/profile/valmon_case01.webp',
+        ], $service->selectedAdventurerCardAssets($character, $selected));
+        $this->assertDatabaseCount('character_adventurer_card_assets', 0);
+
+        DB::table('character_adventurer_card_assets')->insert([
+            [
+                'character_id' => $character->id,
+                'asset_type' => 'card_frame',
+                'asset_path' => 'images/profile/adventurer_card_frame91.webp',
+                'source' => 'adventurer_departure_set',
+                'obtained_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'character_id' => $character->id,
+                'asset_type' => 'avatar_frame',
+                'asset_path' => 'images/profile/adventurer_avatar_frame91.webp',
+                'source' => 'adventurer_departure_set',
+                'obtained_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $resolved = $service->selectedAdventurerCardAssets($character, $selected);
+
+        $this->assertSame('images/profile/adventurer_card_frame91.webp', $resolved['card_frame']);
+        $this->assertSame('images/profile/adventurer_avatar_frame91.webp', $resolved['avatar_frame']);
+        $this->assertSame('images/profile/adventurer_card_bg01.webp', $resolved['background']);
+        $this->assertSame('images/profile/valmon_case01.webp', $resolved['valmon_case']);
+    }
 }

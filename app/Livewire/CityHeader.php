@@ -47,6 +47,7 @@ class CityHeader extends Component
         $character = Character::with([
             'arenaRanking',
             'jobClass',
+            'user',
             'valmons.master',
         ])->find($characterId);
 
@@ -328,6 +329,12 @@ class CityHeader extends Component
         $favoriteWeaponService = app(FavoriteWeaponService::class);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
         $adventureRecords = $this->adventureRecords($character);
+        $cardAssets = $profileService->selectedAdventurerCardAssets($character, [
+            'background' => $character->profile_card_background,
+            'card_frame' => $character->profile_card_frame,
+            'avatar_frame' => $character->profile_avatar_frame,
+            'valmon_case' => $character->profile_valmon_case,
+        ]);
         $equippedTitle = $character->titles()
             ->where('is_equipped', true)
             ->with('title')
@@ -356,7 +363,7 @@ class CityHeader extends Component
             'max_sp' => $maxMp,
             'sp_percent' => max(0, min(100, $spPercent)),
             'profile_comment' => $character->profile_comment ?: 'よろしくお願いします',
-            'ranch_background' => asset($profileService->selectedRanchBackground($character, $character->profile_ranch_background)),
+            'ranch_background' => asset($profileService->selectedRanchBackgroundForDisplay($character, $character->profile_ranch_background)),
             'profile_frame_theme' => $profileFrameTheme,
             'profile_frame_label' => $profileService->frameThemeLabel($profileFrameTheme),
             'profile_frame_image' => asset($profileService->frameImageForTheme($profileFrameTheme)),
@@ -369,12 +376,12 @@ class CityHeader extends Component
             'favorite_weapons' => $favoriteWeaponService->enabled() ? $favoriteWeaponService->displayWeapons($character) : [],
             'job_master_badges_enabled' => (bool) config('job_master_badges.enabled', false),
             'job_master_badge_tiers' => $this->jobMasterBadgeTiers($character),
-            'adventurer_card_background' => asset($profileService->selectedAdventurerCardBackground($character, $character->profile_card_background)),
+            'adventurer_card_background' => asset($cardAssets['background']),
             'adventurer_card_frame' => $this->versionedProfileAsset(
-                $profileService->selectedAdventurerCardFrame($character, $character->profile_card_frame)
+                $cardAssets['card_frame']
             ),
-            'adventurer_avatar_frame' => asset($profileService->selectedAdventurerAvatarFrame($character, $character->profile_avatar_frame)),
-            'valmon_case' => asset($profileService->selectedValmonCase($character, $character->profile_valmon_case)),
+            'adventurer_avatar_frame' => asset($cardAssets['avatar_frame']),
+            'valmon_case' => asset($cardAssets['valmon_case']),
             'adventure_records' => $adventureRecords,
             'card_records' => $this->cardRecords($adventureRecords),
             'valmon_badges' => $this->valmonBadges($character),
@@ -468,15 +475,18 @@ class CityHeader extends Component
 
     private function adventureRecords(Character $character): array
     {
-        $battleQuery = BattleLog::query()->where('character_id', $character->id);
-        $battleCount = (clone $battleQuery)->count();
-        $winCount = (clone $battleQuery)->where('result', 'win')->count();
-        $lossCount = (clone $battleQuery)->where('result', 'lose')->count();
+        $battleSummary = BattleLog::query()
+            ->where('character_id', $character->id)
+            ->selectRaw('COUNT(*) as battle_count')
+            ->selectRaw('SUM(CASE WHEN result = ? THEN 1 ELSE 0 END) as win_count', ['win'])
+            ->selectRaw('SUM(CASE WHEN result = ? THEN 1 ELSE 0 END) as loss_count', ['lose'])
+            ->selectRaw('SUM(CASE WHEN battle_type = ? AND result = ? THEN 1 ELSE 0 END) as boss_win_count', ['boss', 'win'])
+            ->first();
+        $battleCount = (int) ($battleSummary?->battle_count ?? 0);
+        $winCount = (int) ($battleSummary?->win_count ?? 0);
+        $lossCount = (int) ($battleSummary?->loss_count ?? 0);
         $winRate = $battleCount > 0 ? (int) floor(($winCount / $battleCount) * 100) : 0;
-        $bossWinCount = (clone $battleQuery)
-            ->where('battle_type', 'boss')
-            ->where('result', 'win')
-            ->count();
+        $bossWinCount = (int) ($battleSummary?->boss_win_count ?? 0);
         $masteredJobCount = $character->jobHistories()
             ->where('is_mastered', true)
             ->count();
@@ -485,10 +495,18 @@ class CityHeader extends Component
             : 1;
         $titleCount = $character->titles()->count();
         $equipmentCount = $character->characterItems()->count();
-        $materialKindCount = $character->characterMaterials()->where('quantity', '>', 0)->count();
-        $materialTotal = (int) $character->characterMaterials()->sum('quantity');
-        $valmonCount = $character->valmons()->count();
-        $highestValmonLevel = (int) ($character->valmons()->max('level') ?? 0);
+        $materialSummary = $character->characterMaterials()
+            ->selectRaw('SUM(CASE WHEN quantity > 0 THEN 1 ELSE 0 END) as kind_count')
+            ->selectRaw('COALESCE(SUM(quantity), 0) as total_quantity')
+            ->first();
+        $materialKindCount = (int) ($materialSummary?->kind_count ?? 0);
+        $materialTotal = (int) ($materialSummary?->total_quantity ?? 0);
+        $valmonSummary = $character->valmons()
+            ->selectRaw('COUNT(*) as valmon_count')
+            ->selectRaw('COALESCE(MAX(level), 0) as highest_level')
+            ->first();
+        $valmonCount = (int) ($valmonSummary?->valmon_count ?? 0);
+        $highestValmonLevel = (int) ($valmonSummary?->highest_level ?? 0);
 
         return [
             ['label' => '戦闘回数', 'value' => number_format($battleCount), 'unit' => '回'],

@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Changed
+
+- ランキングなどから冒険者カードを開く際のデータ取得を軽量化し、表示までの待ち時間を短縮しました。
+
 ### Internal
 
 - 管理ダッシュボードで、通常プレイヤーが現在選択しているキャラ画像の利用人数・割合と未使用画像を確認できるようにしました。

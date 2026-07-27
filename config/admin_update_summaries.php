@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-adventurer-card-performance',
+        'date' => '2026-07-28',
+        'category' => 'changed',
+        'title' => '冒険者カードの表示待ち時間を短縮',
+        'detail' => 'ランキングなどから冒険者カードを開く際のデータ取得を軽量化し、表示までの待ち時間を短縮しました。',
+    ],
+    [
         'id' => '2026-07-28-weekly-ranking-adventurer-card',
         'date' => '2026-07-28',
         'category' => 'added',

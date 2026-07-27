@@ -231,6 +231,25 @@ class CharacterProfileService
             : self::DEFAULT_RANCH_BACKGROUND;
     }
 
+    /**
+     * 冒険者カードの閲覧用。表示だけで初期背景をDBへ登録しない。
+     */
+    public function selectedRanchBackgroundForDisplay(?Character $character, ?string $path): string
+    {
+        $path = $path ?: self::DEFAULT_RANCH_BACKGROUND;
+
+        if (!$character || !Schema::hasTable('character_profile_backgrounds')) {
+            return self::DEFAULT_RANCH_BACKGROUND;
+        }
+
+        return DB::table('character_profile_backgrounds')
+            ->where('character_id', $character->id)
+            ->where('background_path', $path)
+            ->exists()
+                ? $path
+                : self::DEFAULT_RANCH_BACKGROUND;
+    }
+
     public function adventurerCardBackgrounds(): array
     {
         return $this->profileAssetCatalog('adventurer_card_bg*.webp', '背景', self::DEFAULT_CARD_BACKGROUND);
@@ -289,6 +308,44 @@ class CharacterProfileService
     public function selectedValmonCase(Character $character, ?string $path): string
     {
         return $this->selectedOwnedAdventurerCardAsset($character, 'valmon_case', $path, self::DEFAULT_VALMON_CASE);
+    }
+
+    /**
+     * 冒険者カード表示用に、選択中の装飾4種をまとめて解決する。
+     * 表示時には所持品の初期登録を行わず、既存データだけを1クエリで確認する。
+     *
+     * @param array{background?: ?string, card_frame?: ?string, avatar_frame?: ?string, valmon_case?: ?string} $selectedPaths
+     * @return array{background: string, card_frame: string, avatar_frame: string, valmon_case: string}
+     */
+    public function selectedAdventurerCardAssets(Character $character, array $selectedPaths): array
+    {
+        $defaults = [
+            'background' => self::DEFAULT_CARD_BACKGROUND,
+            'card_frame' => self::DEFAULT_CARD_FRAME,
+            'avatar_frame' => self::DEFAULT_AVATAR_FRAME,
+            'valmon_case' => self::DEFAULT_VALMON_CASE,
+        ];
+
+        if (!Schema::hasTable('character_adventurer_card_assets')) {
+            return $defaults;
+        }
+
+        $ownedPathsByType = DB::table('character_adventurer_card_assets')
+            ->where('character_id', $character->id)
+            ->whereIn('asset_type', array_keys($defaults))
+            ->get(['asset_type', 'asset_path'])
+            ->groupBy('asset_type')
+            ->map(fn ($assets) => $assets->pluck('asset_path')->all());
+
+        $resolved = [];
+        foreach ($defaults as $type => $defaultPath) {
+            $selectedPath = (string) (($selectedPaths[$type] ?? null) ?: $defaultPath);
+            $resolved[$type] = in_array($selectedPath, $ownedPathsByType->get($type, []), true)
+                ? $selectedPath
+                : $defaultPath;
+        }
+
+        return $resolved;
     }
 
     private function profileAssetCatalog(string $pattern, string $labelPrefix, string $defaultPath): array

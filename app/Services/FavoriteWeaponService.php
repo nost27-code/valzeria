@@ -251,9 +251,19 @@ class FavoriteWeaponService
 
     public function displayWeapons(Character $character): array
     {
-        $weaponsById = $this->availableWeapons($character)->keyBy('id');
+        $selectedIds = $this->selectedIds($character);
+        if ($selectedIds === []) {
+            return [];
+        }
 
-        return $this->storedSelectedIds($character)->map(fn (int $id) => $weaponsById->get($id))
+        $weaponsById = $character->characterItems()
+            ->whereIn('id', $selectedIds)
+            ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
+            ->with(['item', 'affixPrefix', 'affixSuffix'])
+            ->get()
+            ->keyBy('id');
+
+        return collect($selectedIds)->map(fn (int $id) => $weaponsById->get($id))
             ->filter()->map(fn (CharacterItem $weapon) => $this->toDisplayArray($weapon))->values()->all();
     }
 
