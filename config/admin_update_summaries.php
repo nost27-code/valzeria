@@ -2,6 +2,34 @@
 
 return [
     [
+        'id' => '2026-07-27-unique-drop-weapon-illustrations',
+        'date' => '2026-07-27',
+        'category' => 'added',
+        'title' => '固有ドロップ武器に専用イラスト追加',
+        'detail' => '敵固有ドロップ武器14系統の進化元からEPICまで、全114種にそれぞれ専用イラストを追加しました。',
+    ],
+    [
+        'id' => '2026-07-27-unique-drop-weapon-balance',
+        'date' => '2026-07-27',
+        'category' => 'balance',
+        'title' => '固有ドロップ武器3系統を調整',
+        'detail' => '火薬斧・小鬼弓・葉隠れ弓の能力配分を見直し、通常の3分岐武器とは異なる役割で育てられるようにしました。',
+    ],
+    [
+        'id' => '2026-07-27-drop-weapon-rank-rules',
+        'date' => '2026-07-27',
+        'category' => 'fixed',
+        'title' => '固有ドロップ武器のランク判定を修正',
+        'detail' => '敵固有ドロップ武器に本来のランクを設定し、銘・特攻・強化・装備市場のランクルールが正しく適用されるようにしました。入手先は引き続き対応する敵だけです。',
+    ],
+    [
+        'id' => '2026-07-27-linear-drop-weapon-evolution',
+        'date' => '2026-07-27',
+        'category' => 'added',
+        'title' => '固有ドロップ武器に専用進化を追加',
+        'detail' => '敵固有ドロップの武器14種に、既存武器へ合流しないEPICまでの一本道進化を追加しました。元武器の特徴と銘・特攻・強化値を受け継ぎながら成長できます。',
+    ],
+    [
         'id' => '2026-07-27-exploration-support-empty-state-fix',
         'date' => '2026-07-27',
         'category' => 'fixed',
