@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\City;
 use App\Models\ContactMessage;
 use App\Models\User;
+use App\Services\Admin\CharacterIconUsageService;
 use App\Services\Admin\PlayerLifecycleAnalyticsService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,15 @@ use Livewire\Component;
 
 class AdminDashboard extends Component
 {
+    private const CHARACTER_ICON_USAGE_PER_PAGE = 48;
+
     public bool $showDailyNewUsers = false;
+
+    public bool $showCharacterIconUsage = false;
+
+    public string $characterIconUsageFilter = 'unused';
+
+    public int $characterIconUsagePage = 1;
 
     public string $updateDate = '';
 
@@ -28,6 +37,32 @@ class AdminDashboard extends Component
     public function toggleDailyNewUsers(): void
     {
         $this->showDailyNewUsers = ! $this->showDailyNewUsers;
+    }
+
+    public function toggleCharacterIconUsage(): void
+    {
+        $this->showCharacterIconUsage = ! $this->showCharacterIconUsage;
+    }
+
+    public function setCharacterIconUsageFilter(string $filter): void
+    {
+        if (! in_array($filter, ['unused', 'used', 'all'], true)) {
+            return;
+        }
+
+        $this->characterIconUsageFilter = $filter;
+        $this->characterIconUsagePage = 1;
+        $this->showCharacterIconUsage = true;
+    }
+
+    public function previousCharacterIconUsagePage(): void
+    {
+        $this->characterIconUsagePage = max(1, $this->characterIconUsagePage - 1);
+    }
+
+    public function nextCharacterIconUsagePage(): void
+    {
+        $this->characterIconUsagePage++;
     }
 
     public function downloadAiText()
@@ -99,8 +134,47 @@ class AdminDashboard extends Component
             'dropOffPoints' => $lifecycle['ready'] ? $lifecycle['drop_offs'] : [],
             'lifecycle' => $lifecycle,
             'dailyNewUsers' => $dailyNewUsers,
+            'characterIconUsage' => $this->characterIconUsage(),
             'adminUpdateSummaries' => $this->adminUpdateSummaries(),
             'adminUpdateDates' => $this->adminUpdateDates(),
+        ];
+    }
+
+    private function characterIconUsage(): ?array
+    {
+        if (! $this->showCharacterIconUsage) {
+            return null;
+        }
+
+        $usage = app(CharacterIconUsageService::class)->summary();
+        $rows = collect($usage['rows'])
+            ->filter(fn (array $row): bool => match ($this->characterIconUsageFilter) {
+                'used' => $row['is_used'],
+                'unused' => ! $row['is_used'],
+                default => true,
+            })
+            ->when(
+                $this->characterIconUsageFilter === 'used',
+                fn ($rows) => $rows->sortBy([
+                    ['count', 'desc'],
+                    ['number', 'asc'],
+                ]),
+                fn ($rows) => $rows->sortBy('number')
+            )
+            ->values();
+
+        $lastPage = max(1, (int) ceil($rows->count() / self::CHARACTER_ICON_USAGE_PER_PAGE));
+        $page = min(max(1, $this->characterIconUsagePage), $lastPage);
+
+        return $usage + [
+            'filter' => $this->characterIconUsageFilter,
+            'page' => $page,
+            'last_page' => $lastPage,
+            'filtered_count' => $rows->count(),
+            'visible_rows' => $rows
+                ->forPage($page, self::CHARACTER_ICON_USAGE_PER_PAGE)
+                ->values()
+                ->all(),
         ];
     }
 

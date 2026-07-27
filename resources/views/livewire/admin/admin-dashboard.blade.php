@@ -77,6 +77,118 @@
         </section>
     @endif
 
+    <section class="mt-6 overflow-hidden rounded-md border-2 border-indigo-300 bg-white shadow-sm">
+        <div class="flex flex-col gap-3 border-b border-indigo-100 bg-indigo-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-xl font-black text-slate-950">キャラ画像利用統計</h2>
+                <p class="mt-1 text-xs font-bold text-indigo-700">通常プレイヤーが現在選択している画像を集計します。管理者・検証アカウントと変更履歴は含みません。</p>
+            </div>
+            <button type="button"
+                    wire:click="toggleCharacterIconUsage"
+                    wire:loading.attr="disabled"
+                    wire:target="toggleCharacterIconUsage"
+                    class="self-start rounded-md border border-indigo-200 bg-white px-4 py-2 text-xs font-black text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-60">
+                {{ $showCharacterIconUsage ? '統計を閉じる' : '現在の統計を見る' }}
+            </button>
+        </div>
+
+        @if($characterIconUsage)
+            <div class="grid grid-cols-2 gap-3 border-b border-slate-100 p-4 sm:grid-cols-4">
+                <div class="rounded-md bg-slate-50 p-3">
+                    <div class="text-[11px] font-black text-slate-500">集計キャラクター</div>
+                    <div class="mt-1 text-xl font-black text-slate-950">{{ number_format($characterIconUsage['total_characters']) }}人</div>
+                </div>
+                <div class="rounded-md bg-slate-50 p-3">
+                    <div class="text-[11px] font-black text-slate-500">選択可能画像</div>
+                    <div class="mt-1 text-xl font-black text-slate-950">{{ number_format($characterIconUsage['selectable_icon_count']) }}種</div>
+                </div>
+                <div class="rounded-md bg-emerald-50 p-3">
+                    <div class="text-[11px] font-black text-emerald-700">利用中</div>
+                    <div class="mt-1 text-xl font-black text-emerald-800">{{ number_format($characterIconUsage['used_icon_count']) }}種</div>
+                </div>
+                <div class="rounded-md bg-rose-50 p-3">
+                    <div class="text-[11px] font-black text-rose-700">未使用</div>
+                    <div class="mt-1 text-xl font-black text-rose-800">{{ number_format($characterIconUsage['unused_icon_count']) }}種</div>
+                </div>
+            </div>
+            @if($characterIconUsage['unrecognized_character_count'] > 0)
+                <div class="border-b border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
+                    選択対象外の画像パスを持つキャラクターが{{ number_format($characterIconUsage['unrecognized_character_count']) }}人います。この人数は各画像の利用数には加えていません。
+                </div>
+            @endif
+
+            <div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-wrap gap-2">
+                    @foreach([
+                        'unused' => '未使用',
+                        'used' => '利用中',
+                        'all' => 'すべて',
+                    ] as $filter => $label)
+                        <button type="button"
+                                wire:click="setCharacterIconUsageFilter('{{ $filter }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="setCharacterIconUsageFilter"
+                                class="rounded-md border px-3 py-2 text-xs font-black transition disabled:cursor-wait disabled:opacity-60 {{ $characterIconUsage['filter'] === $filter ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+                <div class="text-xs font-black text-slate-500">
+                    {{ number_format($characterIconUsage['filtered_count']) }}種中
+                    {{ $characterIconUsage['page'] }} / {{ $characterIconUsage['last_page'] }}ページ
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 p-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12">
+                @forelse($characterIconUsage['visible_rows'] as $row)
+                    <div class="rounded-md border p-2 text-center {{ $row['is_used'] ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-200 bg-slate-50' }}">
+                        <div class="mx-auto flex aspect-square w-full max-w-24 items-center justify-center overflow-hidden rounded bg-white p-1">
+                            <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($row['path']) }}"
+                                 loading="lazy"
+                                 alt="キャラ画像 {{ str_pad((string) $row['number'], 3, '0', STR_PAD_LEFT) }}"
+                                 class="max-h-full max-w-full object-contain">
+                        </div>
+                        <div class="mt-1 text-[11px] font-black text-slate-500">#{{ str_pad((string) $row['number'], 3, '0', STR_PAD_LEFT) }}</div>
+                        <div class="text-sm font-black {{ $row['is_used'] ? 'text-emerald-700' : 'text-slate-400' }}">
+                            {{ number_format($row['count']) }}人
+                        </div>
+                        @if($row['is_used'])
+                            <div class="text-[10px] font-bold text-slate-400">{{ number_format($row['percent'], 1) }}%</div>
+                        @else
+                            <div class="text-[10px] font-bold text-rose-500">未使用</div>
+                        @endif
+                    </div>
+                @empty
+                    <div class="col-span-full rounded-md bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">該当するキャラ画像はありません。</div>
+                @endforelse
+            </div>
+
+            @if($characterIconUsage['last_page'] > 1)
+                <div class="flex items-center justify-center gap-3 border-t border-slate-100 px-4 py-3">
+                    <button type="button"
+                            wire:click="previousCharacterIconUsagePage"
+                            wire:loading.attr="disabled"
+                            wire:target="previousCharacterIconUsagePage"
+                            @disabled($characterIconUsage['page'] <= 1)
+                            class="rounded-md border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">
+                        前へ
+                    </button>
+                    <span class="text-xs font-black text-slate-500">{{ $characterIconUsage['page'] }} / {{ $characterIconUsage['last_page'] }}</span>
+                    <button type="button"
+                            wire:click="nextCharacterIconUsagePage"
+                            wire:loading.attr="disabled"
+                            wire:target="nextCharacterIconUsagePage"
+                            @disabled($characterIconUsage['page'] >= $characterIconUsage['last_page'])
+                            class="rounded-md border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">
+                        次へ
+                    </button>
+                </div>
+            @endif
+        @else
+            <p class="px-5 py-4 text-sm font-bold text-slate-500">ボタンを押した時だけ、現在選択されている画像を読み取り専用で集計します。</p>
+        @endif
+    </section>
+
     <section class="mt-6 overflow-hidden rounded-md border-2 border-emerald-300 bg-white shadow-sm">
         <div class="border-b border-emerald-100 bg-emerald-50 px-5 py-4">
             <h2 class="text-xl font-black text-slate-950">新規導線・継続率</h2>

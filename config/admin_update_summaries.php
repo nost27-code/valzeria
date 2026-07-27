@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-admin-character-icon-usage',
+        'date' => '2026-07-27',
+        'category' => 'internal',
+        'title' => '管理画面にキャラ画像利用統計を追加',
+        'detail' => '管理ダッシュボードで、通常プレイヤーが現在選択しているキャラ画像の利用人数・割合と未使用画像を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-27-character-icons-267',
         'date' => '2026-07-27',
         'category' => 'added',

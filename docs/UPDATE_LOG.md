@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Internal
+
+- 管理ダッシュボードで、通常プレイヤーが現在選択しているキャラ画像の利用人数・割合と未使用画像を確認できるようにしました。
+
 ### Balance
 
 - 敵固有ドロップ武器のうち、火薬斧・小鬼弓・葉隠れ弓の能力配分を調整しました。火薬斧は高い攻撃力と敏捷低下、小鬼弓は運、葉隠れ弓は敏捷をそれぞれ伸ばす専用系統として、通常の3分岐武器と役割を分けています。
