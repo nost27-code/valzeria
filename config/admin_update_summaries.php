@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-27-exploration-support-empty-state-fix',
+        'date' => '2026-07-27',
+        'category' => 'fixed',
+        'title' => '探索中のもちもの使い切り表示を改善',
+        'detail' => '50戦を使い切ったもちものは「使い切り」と表示し、探索中の変更画面から薬屋へ移動する導線を削除しました。',
+    ],
+    [
         'id' => '2026-07-27-remove-outdated-weapon-help',
         'date' => '2026-07-27',
         'category' => 'fixed',

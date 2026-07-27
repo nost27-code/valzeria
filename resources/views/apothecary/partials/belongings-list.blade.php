@@ -18,7 +18,9 @@
                 <div class="flex flex-wrap items-center gap-1.5">
                     <h4 class="text-sm font-bold leading-snug text-slate-900">{{ $belonging['name'] }}</h4>
                     @if($belonging['is_active'])
-                        <span class="shrink-0 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">使用中</span>
+                        <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold {{ $belonging['remaining'] > 0 ? 'bg-amber-200 text-amber-800' : 'bg-slate-200 text-slate-600' }}">
+                            {{ $belonging['remaining'] > 0 ? '使用中' : '使い切り' }}
+                        </span>
                     @endif
                     @if($belonging['is_lure'] && !$belonging['is_effective_here'])
                         <span class="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">対象外</span>
@@ -67,7 +69,6 @@
         @empty
             <div class="rounded-lg border border-dashed border-slate-200 bg-white py-10 text-center">
                 <p class="text-slate-500">所持している補助品はありません。</p>
-                <a href="{{ route('apothecary.index') }}" wire:navigate class="mt-2 inline-block text-sm text-blue-600 hover:underline">薬屋で調合する</a>
             </div>
         @endforelse
     </div>

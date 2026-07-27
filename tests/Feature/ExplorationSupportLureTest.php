@@ -174,6 +174,46 @@ class ExplorationSupportLureTest extends TestCase
         $this->assertTrue($belongings->firstWhere('item_key', 'support_lure_undead')['is_active']);
     }
 
+    public function test_exhausted_active_belonging_is_marked_as_used_up(): void
+    {
+        $character = $this->createCharacter();
+        $service = $this->enabledService();
+        $item = Item::query()->where('name', '誘魔香〈獣〉')->firstOrFail();
+        CharacterItem::query()->create(['character_id' => $character->id, 'item_id' => $item->id]);
+        $service->activate($character, 'support_lure_beast');
+        PlayerExplorationSupportItemState::query()
+            ->where('character_id', $character->id)
+            ->where('item_id', $item->id)
+            ->update(['battles_remaining' => 0]);
+        PlayerExplorationSupportEffect::query()
+            ->where('character_id', $character->id)
+            ->update(['battles_remaining' => 0]);
+        $enemy = new Enemy(['species_key' => 'beast', 'appearance_weight' => 10]);
+        $enemy->setAttribute('exploration_support_encounter_applied', true);
+
+        $html = view('apothecary.partials.belongings-list', [
+            'belongings' => $service->belongingsFor($character),
+            'speciesLuresEligible' => true,
+        ])->render();
+
+        $this->assertNull($service->beginBattle($character, $enemy));
+        $this->assertStringContainsString('使い切り', $html);
+        $this->assertStringNotContainsString('使用中', $html);
+        $this->assertStringContainsString('残り 0/50戦', $html);
+    }
+
+    public function test_empty_belongings_modal_does_not_link_to_the_apothecary(): void
+    {
+        $html = view('apothecary.partials.belongings-list', [
+            'belongings' => [],
+            'speciesLuresEligible' => true,
+        ])->render();
+
+        $this->assertStringContainsString('所持している補助品はありません。', $html);
+        $this->assertStringNotContainsString('薬屋で調合する', $html);
+        $this->assertStringNotContainsString('href="'.route('apothecary.index').'"', $html);
+    }
+
     public function test_apothecary_exposes_the_approved_species_lure_recipes_with_one_output(): void
     {
         $character = $this->createCharacter();
