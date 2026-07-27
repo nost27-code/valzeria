@@ -249,6 +249,8 @@
                             $barWidth = $topScore > 0 && (int) $row['score'] > 0
                                 ? max(6, (int) round(((int) $row['score'] / $topScore) * 100))
                                 : 0;
+                            $canOpenWeeklyProfile = ($board['is_weekly'] ?? false)
+                                && ! empty($row['character_id']);
                         @endphp
                         <div class="{{ $rankLayout['row'] }}">
                             <div class="flex items-center gap-3">
@@ -264,7 +266,18 @@
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex min-w-0 items-baseline gap-2">
-                                        <div class="truncate font-black text-slate-900 {{ $rankLayout['name'] }}">{{ $row['name'] }}</div>
+                                        @if($canOpenWeeklyProfile)
+                                            <button
+                                                type="button"
+                                                x-on:click="Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $row['character_id'] }} })"
+                                                class="truncate text-left font-black text-[#1e40af] underline-offset-2 hover:underline {{ $rankLayout['name'] }}"
+                                                aria-label="{{ $row['name'] }}の冒険者カードを見る"
+                                            >
+                                                {{ $row['name'] }}
+                                            </button>
+                                        @else
+                                            <div class="truncate font-black text-slate-900 {{ $rankLayout['name'] }}">{{ $row['name'] }}</div>
+                                        @endif
                                         @if(!is_null($row['level'] ?? null))
                                             <div class="shrink-0 font-bold text-slate-400 {{ $rankLayout['level'] }}">Lv{{ number_format($row['level']) }}</div>
                                         @endif

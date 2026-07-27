@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-weekly-ranking-adventurer-card',
+        'date' => '2026-07-28',
+        'category' => 'added',
+        'title' => '週間勝利番付から冒険者カードを表示',
+        'detail' => '週間勝利数番付の上位5名表示と詳細番付で、冒険者名を押すとその人の冒険者カードを確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-27-admin-character-icon-usage',
         'date' => '2026-07-27',
         'category' => 'internal',

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\CheckCharacterSelected;
+use App\Livewire\CityHeader;
 use App\Livewire\StarTreeTowerRankingWidget;
 use App\Models\Character;
 use App\Models\KisekiTransaction;
@@ -522,7 +523,9 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('無償輝石 20個')
             ->assertSee('あなたの今週')
             ->assertSee('4勝')
-            ->assertSee('現在の報酬 無償輝石20個');
+            ->assertSee('現在の報酬 無償輝石20個')
+            ->assertSee('画面確認者の冒険者カードを見る')
+            ->assertSee("Livewire.dispatch('open-adventurer-card'", false);
     }
 
     public function test_shared_progress_widget_shows_weekly_wins_and_current_progress(): void
@@ -546,6 +549,9 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('2位')
             ->assertSee('見込み 無償輝石15個')
             ->assertSee('週間首位')
+            ->assertSee('週間首位の冒険者カードを見る')
+            ->call('openWeeklyWinPlayerModal', $leader->id)
+            ->assertDispatchedTo(CityHeader::class, 'open-adventurer-card')
             ->assertSee('週間勝利数番付を見る');
     }
 
