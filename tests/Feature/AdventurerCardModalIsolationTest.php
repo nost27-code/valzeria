@@ -55,7 +55,7 @@ class AdventurerCardModalIsolationTest extends TestCase
             (new ReflectionMethod(AdventurerCardModal::class, 'jobBadgeTierJobs'))->getAttributes(Renderless::class)
         );
 
-        Livewire::test(AdventurerCardModal::class)
+        Livewire::test(AdventurerCardModal::class, ['includeStyles' => false])
             ->assertSet('modalOnly', true)
             ->assertDontSee('現在の冒険者')
             ->assertDontSee('<style>', false)
@@ -69,9 +69,9 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->assertSee('冒険の記録');
     }
 
-    public function test_dedicated_modal_can_include_card_styles_on_headerless_pages(): void
+    public function test_dedicated_modal_includes_card_styles_by_default_on_headerless_pages(): void
     {
-        Livewire::test(AdventurerCardModal::class, ['includeStyles' => true])
+        Livewire::test(AdventurerCardModal::class)
             ->assertSet('includeStyles', true)
             ->assertSee('<style>', false)
             ->assertSee('.adventurer-card-modal', false);

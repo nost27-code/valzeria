@@ -14,7 +14,7 @@ class AdventurerCardModal extends Component
 
     public bool $modalOnly = true;
 
-    public bool $includeStyles = false;
+    public bool $includeStyles = true;
 
     #[On('open-adventurer-card')]
     #[Renderless]
