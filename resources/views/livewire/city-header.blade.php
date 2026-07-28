@@ -76,7 +76,7 @@
       }"
       x-on:adventurer-card-loading.window="startAdventurerCardLoading()"
       x-init="$watch('playerInfo', value => { if (value) { window.clearTimeout(adventurerCardLoadingTimer); isAdventurerCardLoading = false } })">
-    @if(!$modalOnly)
+    @if(!$modalOnly || ($includeStyles ?? false))
     <style>
         .profile-frame-modal {
             position: fixed;

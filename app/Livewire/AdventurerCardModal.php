@@ -14,6 +14,8 @@ class AdventurerCardModal extends Component
 
     public bool $modalOnly = true;
 
+    public bool $includeStyles = false;
+
     #[On('open-adventurer-card')]
     #[Renderless]
     public function openPlayerModal(int $characterId): void

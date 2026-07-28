@@ -69,6 +69,14 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->assertSee('冒険の記録');
     }
 
+    public function test_dedicated_modal_can_include_card_styles_on_headerless_pages(): void
+    {
+        Livewire::test(AdventurerCardModal::class, ['includeStyles' => true])
+            ->assertSet('includeStyles', true)
+            ->assertSee('<style>', false)
+            ->assertSee('.adventurer-card-modal', false);
+    }
+
     public function test_job_badge_details_are_loaded_only_after_the_tier_is_opened(): void
     {
         config()->set('job_master_badges.enabled', true);

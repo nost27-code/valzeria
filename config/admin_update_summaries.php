@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-ranking-adventurer-card-style',
+        'date' => '2026-07-28',
+        'category' => 'fixed',
+        'title' => '番付の冒険者カード表示を修正',
+        'detail' => '番付掲示板など街ヘッダーのない画面から冒険者カードを開いた際も、カードの枠・配置・文字装飾が正しく表示されるよう修正しました。',
+    ],
+    [
         'id' => '2026-07-28-adventurer-card-performance',
         'date' => '2026-07-28',
         'category' => 'changed',

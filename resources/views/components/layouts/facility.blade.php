@@ -106,7 +106,7 @@
                 <livewire:city-header :show-city-panel="$gameHeaderShowCityPanel" />
             </div>
         @endif
-        <livewire:adventurer-card-modal />
+        <livewire:adventurer-card-modal :include-styles="!$showGameHeader" />
         @if($backgroundSymbolImage)
             <div class="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden lg:hidden" aria-hidden="true">
                 <img
