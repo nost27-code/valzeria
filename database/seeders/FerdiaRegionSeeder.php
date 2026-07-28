@@ -18,6 +18,15 @@ class FerdiaRegionSeeder extends Seeder
     private const NORMAL_MATERIAL_DROP_RATE_MULTIPLIER = 8125 / 2024;
     private const ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER = 2.0;
 
+    private const MATERIAL_MASTERS = [
+        'MAT_FERDIA_BLUE_LIFE_LEAF' => ['青命草の葉', '一般'],
+        'MAT_FERDIA_CLEARSTREAM_DROP' => ['清流の雫', '一般'],
+        'MAT_FERDIA_GUARDTREE_RESIN' => ['守樹の樹脂', 'やや希少'],
+        'MAT_FERDIA_HEMOSTATIC_MOSS' => ['止血苔', '一般'],
+        'MAT_FERDIA_DETOX_GALL' => ['毒抜きの胆', 'やや希少'],
+        'MAT_FERDIA_LIFEROOT' => ['命脈根', '希少'],
+    ];
+
     private const MATERIAL_DROP_MAP = [
         1001 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]]],
         1002 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]]],
@@ -68,6 +77,8 @@ class FerdiaRegionSeeder extends Seeder
         if (!Schema::hasTable('enemies') || !Schema::hasTable('materials') || !Schema::hasTable('material_drops')) {
             return;
         }
+
+        $this->seedMaterialMasters();
 
         $materialCodes = collect(self::MATERIAL_DROP_MAP)
             ->flatMap(fn (array $types): array => collect($types)->flatten(1)->pluck(0)->all())
@@ -137,6 +148,40 @@ class FerdiaRegionSeeder extends Seeder
                     );
                 }
             }
+        }
+    }
+
+    private function seedMaterialMasters(): void
+    {
+        $now = now();
+        foreach (self::MATERIAL_MASTERS as $materialCode => [$name, $rarity]) {
+            if (DB::table('materials')->where('material_code', $materialCode)->exists()) {
+                continue;
+            }
+
+            DB::table('materials')->insert([
+                'material_code' => $materialCode,
+                'name' => $name,
+                'category' => 'フェルディア薬素材',
+                'rarity' => $rarity,
+                'element' => null,
+                'main_use' => '薬屋の探索補助品調合',
+                'npc_sale_price' => 0,
+                'is_tradable' => true,
+                'city_id' => null,
+                'dungeon_id' => null,
+                'source_enemy_id' => null,
+                'drop_rate' => 0,
+                'drop_first_clear_only' => false,
+                'drop_timing' => null,
+                'material_type' => 'brewing',
+                'category_id' => 'ferdia_apothecary',
+                'rank_tier' => 1,
+                'is_consumable' => true,
+                'obtain_method' => 'フェルディアの探索地で入手',
+                'updated_at' => $now,
+                'created_at' => $now,
+            ]);
         }
     }
 

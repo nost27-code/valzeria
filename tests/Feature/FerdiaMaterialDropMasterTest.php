@@ -68,6 +68,26 @@ class FerdiaMaterialDropMasterTest extends TestCase
         $this->assertSame($before, $this->ferdiaDropQuery()->count());
     }
 
+    public function test_material_drop_repair_recreates_missing_apothecary_material_masters(): void
+    {
+        $materialCodes = [
+            'MAT_FERDIA_BLUE_LIFE_LEAF',
+            'MAT_FERDIA_CLEARSTREAM_DROP',
+            'MAT_FERDIA_GUARDTREE_RESIN',
+            'MAT_FERDIA_HEMOSTATIC_MOSS',
+            'MAT_FERDIA_DETOX_GALL',
+            'MAT_FERDIA_LIFEROOT',
+        ];
+        $materialIds = DB::table('materials')->whereIn('material_code', $materialCodes)->pluck('id');
+        DB::table('material_drops')->whereIn('material_id', $materialIds)->delete();
+        DB::table('materials')->whereIn('id', $materialIds)->delete();
+
+        app(FerdiaRegionSeeder::class)->seedMaterialDrops();
+
+        $this->assertSame(6, DB::table('materials')->whereIn('material_code', $materialCodes)->count());
+        $this->assertSame(68, $this->ferdiaDropQuery()->count());
+    }
+
     public function test_dungeon_validation_detects_missing_ferdia_material_drops(): void
     {
         $enemyIds = DB::table('enemies')
