@@ -11,11 +11,14 @@ class AdventurerCardModal extends Component
 
     public ?array $playerInfo = null;
 
+    public ?string $selectedJobBadgeTier = null;
+
     public bool $modalOnly = true;
 
     #[On('open-adventurer-card')]
     public function openPlayerModal(int $characterId): void
     {
+        $this->selectedJobBadgeTier = null;
         $profileBuilder = new CityHeader();
         $profileBuilder->openPlayerModal($characterId);
 
@@ -36,6 +39,24 @@ class AdventurerCardModal extends Component
     {
         $this->isPlayerModalOpen = false;
         $this->playerInfo = null;
+        $this->selectedJobBadgeTier = null;
+    }
+
+    public function selectJobBadgeTier(string $rank): void
+    {
+        if (!$this->isPlayerModalOpen || !$this->playerInfo) {
+            return;
+        }
+
+        $this->selectedJobBadgeTier = $this->selectedJobBadgeTier === $rank ? null : $rank;
+        $tiers = $this->playerInfo['job_master_badge_tiers'] ?? [];
+        foreach ($tiers as &$tier) {
+            $tier['jobs'] = $this->selectedJobBadgeTier === (string) $tier['rank']
+                ? CityHeader::expandCompactJobBadgeTier($tier)
+                : [];
+        }
+        unset($tier);
+        $this->playerInfo['job_master_badge_tiers'] = $tiers;
     }
 
     public function render()

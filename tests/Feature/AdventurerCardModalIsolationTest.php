@@ -88,7 +88,10 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->dispatch('open-adventurer-card', characterId: $target->id)
             ->assertSet('playerInfo.job_master_badge_tiers.0.jobs', [])
             ->assertSet('playerInfo.job_master_badge_tiers.0.compact_jobs.0.1', '遅延読込職')
-            ->assertSee('hydrateJobBadgeTier(tier)', false);
+            ->call('selectJobBadgeTier', 'normal')
+            ->assertSet('selectedJobBadgeTier', 'normal')
+            ->assertSet('isPlayerModalOpen', true)
+            ->assertSet('playerInfo.job_master_badge_tiers.0.jobs.0.name', '遅延読込職');
     }
 
     private function createCharacter(User $user, string $name): Character

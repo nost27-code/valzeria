@@ -38,12 +38,14 @@ class CityHeader extends Component
     // モーダル用状態
     public $isPlayerModalOpen = false;
     public $playerInfo = null;
+    public ?string $selectedJobBadgeTier = null;
     public $locationName = '';
     public bool $showCityPanel = true;
     public bool $modalOnly = false;
 
     public function openPlayerModal(int $characterId)
     {
+        $this->selectedJobBadgeTier = null;
         $character = Character::with([
             'arenaRanking',
             'jobClass',
@@ -73,6 +75,40 @@ class CityHeader extends Component
     {
         $this->isPlayerModalOpen = false;
         $this->playerInfo = null;
+        $this->selectedJobBadgeTier = null;
+    }
+
+    public function selectJobBadgeTier(string $rank): void
+    {
+        if (!$this->isPlayerModalOpen || !$this->playerInfo) {
+            return;
+        }
+
+        $this->selectedJobBadgeTier = $this->selectedJobBadgeTier === $rank ? null : $rank;
+        $tiers = $this->playerInfo['job_master_badge_tiers'] ?? [];
+        foreach ($tiers as &$tier) {
+            $tier['jobs'] = $this->selectedJobBadgeTier === (string) $tier['rank']
+                ? self::expandCompactJobBadgeTier($tier)
+                : [];
+        }
+        unset($tier);
+        $this->playerInfo['job_master_badge_tiers'] = $tiers;
+    }
+
+    public static function expandCompactJobBadgeTier(array $tier): array
+    {
+        return collect($tier['compact_jobs'] ?? [])
+            ->map(fn (array $job): array => [
+                'id' => $job[0],
+                'tier_rank' => (string) $tier['rank'],
+                'name' => $job[1],
+                'job_level' => $job[2],
+                'fill_percent' => $job[3],
+                'is_mastered' => $job[4],
+                'mastered_at' => $job[5],
+                'badge_image' => $job[6],
+            ])
+            ->all();
     }
 
     public function openNotification(int $notificationId)
