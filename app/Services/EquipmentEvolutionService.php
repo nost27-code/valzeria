@@ -264,6 +264,8 @@ class EquipmentEvolutionService
                 'market_relistable_at' => $consumedItems->max('market_relistable_at'),
             ], $inheritedAffixes));
 
+            $qualityUpgrade = $this->upgradeQualityAfterEvolution($created, $character);
+
             EquipmentEvolutionLog::create([
                 'character_id' => $character->id,
                 'recipe_type' => $recipeType,
@@ -281,10 +283,26 @@ class EquipmentEvolutionService
                     . ($equippedSlot ? ' 装備中だったため、そのまま装備しました。' : '')
                     . ($sourceWasLocked ? ' 保護状態も引き継ぎました。' : '')
                     . ($affixSource ? ' 銘も引き継ぎました。' : '')
-                    . ($sourceEnhanceLevel > 0 ? " 進化元の+{$sourceEnhanceLevel}強化値を+{$inheritedEnhanceLevel}として引き継ぎました。" : ''),
+                    . ($sourceEnhanceLevel > 0 ? " 進化元の+{$sourceEnhanceLevel}強化値を+{$inheritedEnhanceLevel}として引き継ぎました。" : '')
+                    . ($qualityUpgrade === 'good' ? ' 良品に仕上がった！' : ($qualityUpgrade === 'excellent' ? ' 逸品に仕上がった！' : '')),
                 'created_equipment_id' => $created->id,
             ];
         }, 3);
+    }
+
+    private function upgradeQualityAfterEvolution(CharacterItem $created, Character $character): ?string
+    {
+        $qualityUpgrade = app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($created);
+        if ($qualityUpgrade === 'excellent') {
+            app(PublicLogService::class)->addLog(
+                'drop',
+                "【逸品】{$character->name}さんが進化合成で「{$created->displayName()}」を逸品に仕上げました！",
+                $character,
+                3,
+            );
+        }
+
+        return $qualityUpgrade;
     }
 
     private function selectAffixInheritanceSource(Collection $consumedItems): ?CharacterItem

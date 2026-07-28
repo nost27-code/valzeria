@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-evolution-quality-upgrade',
+        'date' => '2026-07-28',
+        'category' => 'balance',
+        'title' => '進化合成でも良品・逸品化を追加',
+        'detail' => '銘または特攻付き武器を進化合成した際にも、ごくまれに良品または逸品へ仕上がるようにしました。',
+    ],
+    [
         'id' => '2026-07-28-home-adventurer-card-priority',
         'date' => '2026-07-28',
         'category' => 'fixed',

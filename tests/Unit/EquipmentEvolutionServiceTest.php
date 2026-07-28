@@ -2,13 +2,16 @@
 
 namespace Tests\Unit;
 
+use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\EquipmentAffixPrefix;
 use App\Models\EquipmentAffixSuffix;
 use App\Models\Item;
+use App\Services\EquipmentAffixService;
 use App\Services\EquipmentEvolutionService;
 use App\Services\EquipmentEnhancementService;
 use App\Services\EquipmentPermissionService;
+use App\Services\PublicLogService;
 use Illuminate\Support\Collection;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -150,6 +153,44 @@ class EquipmentEvolutionServiceTest extends TestCase
         $this->assertSame('迅刃の導石', $pathStone['name']);
         $this->assertCount(10, $ingredients);
         $this->assertSame(['迅刃の導石'], $ingredients->pluck('material_name')->unique()->values()->all());
+    }
+
+    public function test_evolution_quality_upgrade_uses_existing_forge_roll_and_logs_excellent_result(): void
+    {
+        $service = new EquipmentEvolutionService($this->createMock(EquipmentPermissionService::class));
+        $character = new Character(['name' => 'テスト冒険者']);
+        $weapon = new Item(['name' => '鋼の剣', 'type' => 'weapon', 'weapon_rank' => 'A']);
+        $prefix = new EquipmentAffixPrefix(['name' => '鋭い', 'target_stat' => 'str']);
+        $created = new CharacterItem([
+            'affix_prefix_id' => 10,
+            'affix_prefix_level' => 1,
+            'affix_quality' => 'excellent',
+        ]);
+        $created->setRelation('item', $weapon);
+        $created->setRelation('affixPrefix', $prefix);
+
+        $affixService = $this->createMock(EquipmentAffixService::class);
+        $affixService->expects($this->once())
+            ->method('upgradeQualityAfterWeaponForge')
+            ->with($created)
+            ->willReturn('excellent');
+        $this->app->instance(EquipmentAffixService::class, $affixService);
+
+        $publicLogService = $this->createMock(PublicLogService::class);
+        $publicLogService->expects($this->once())
+            ->method('addLog')
+            ->with(
+                'drop',
+                $this->callback(fn (string $message): bool => str_contains($message, '進化合成')
+                    && str_contains($message, '逸品に仕上げました')),
+                $character,
+                3,
+            );
+        $this->app->instance(PublicLogService::class, $publicLogService);
+
+        $quality = $this->invokePrivate($service, 'upgradeQualityAfterEvolution', [$created, $character]);
+
+        $this->assertSame('excellent', $quality);
     }
 
     private function invokePrivate(object $object, string $method, array $arguments = []): mixed
