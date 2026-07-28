@@ -114,6 +114,8 @@
             @else
                 <form action="{{ route('champ.challenge') }}" method="POST">
                     @csrf
+                    <input type="hidden" name="expected_champ_character_id" value="{{ $summary['champ_identity']['character_id'] }}">
+                    <input type="hidden" name="expected_champ_appointed_at" value="{{ $summary['champ_identity']['appointed_at'] }}">
                     <button type="submit" class="w-full rounded-lg bg-[#b45309] px-4 py-3 text-base font-extrabold text-white shadow border border-[#92400e] active:scale-[0.99]">
                         チャンプに挑戦する
                     </button>

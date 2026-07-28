@@ -32,6 +32,8 @@
 
     <section wire:poll.60s
              x-data="{ expanded: false }"
+             @visibilitychange.window="if (!document.hidden) { $wire.$refresh() }"
+             @pageshow.window="$wire.$refresh()"
              class="w-full overflow-hidden rounded-lg border border-[#d4af37] bg-white shadow-[0_4px_14px_rgba(126,96,28,0.12)]">
 
         <button type="button"
@@ -110,6 +112,8 @@
                 @elseif($champSummary['can_challenge'])
                     <form action="{{ route('champ.challenge') }}" method="POST" x-data="{ submitting: false }" @submit="submitting = true">
                         @csrf
+                        <input type="hidden" name="expected_champ_character_id" value="{{ $champSummary['champ_identity']['character_id'] }}">
+                        <input type="hidden" name="expected_champ_appointed_at" value="{{ $champSummary['champ_identity']['appointed_at'] }}">
                         <button type="submit"
                                 x-bind:disabled="submitting"
                                 class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#b45309] px-3 py-2 text-sm font-black text-white shadow-sm border border-[#92400e] active:scale-95 disabled:cursor-wait disabled:opacity-70 transition">

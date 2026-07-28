@@ -103,6 +103,7 @@ class ChampBattleService
 
         return [
             'champ' => $champ,
+            'champ_identity' => $this->champIdentity($champ),
             'champ_fatigue' => $this->champStreakFatigue($champ),
             'champ_effective_stats' => $this->fatiguedChampStats($champ),
             'champ_power' => $this->champPower($champ),
@@ -168,9 +169,13 @@ class ChampBattleService
         ];
     }
 
-    public function executeChallenge(Character $challenger): array
+    public function executeChallenge(
+        Character $challenger,
+        ?int $expectedChampCharacterId = null,
+        ?int $expectedChampAppointedAt = null
+    ): array
     {
-        return DB::transaction(function () use ($challenger) {
+        return DB::transaction(function () use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
             $challenger = Character::query()
                 ->with(['jobClass', 'user'])
                 ->lockForUpdate()
@@ -179,6 +184,13 @@ class ChampBattleService
 
             $champ = ChampState::query()->lockForUpdate()->first() ?? $this->createInitialChamp();
             $champ = $this->replaceAdminTesterChamp($champ);
+            if (! $this->champIdentityMatches($champ, $expectedChampCharacterId, $expectedChampAppointedAt)) {
+                return [
+                    'ok' => false,
+                    'message' => 'チャンプが交代しました。最新の情報を確認して、もう一度挑戦してください。',
+                ];
+            }
+
             $availability = $this->challengeAvailability($challenger, $champ);
             if (!$availability['can_challenge']) {
                 return [
@@ -207,8 +219,8 @@ class ChampBattleService
             $challengerActor = $this->resultActorSnapshot($challenger);
             $battle = $this->runBattle($challenger, $champ);
             $champDefeated = (bool) ($battle['champ_defeated'] ?? false);
-            $champHpAfter = $champDefeated ? 0 : max(0, (int) ($battle['champ_hp_after_battle'] ?? $champHpBefore));
-            $damage = max(0, $champHpBefore - $champHpAfter);
+            $champHpAfter = $champDefeated ? 0 : max(1, (int) ($battle['champ_hp_after_battle'] ?? $champHpBefore));
+            $damage = min($champHpBefore, max(0, (int) ($battle['damage'] ?? 0)));
 
             $baseExp = $this->baseExpReward($challenger);
             $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
@@ -287,6 +299,7 @@ class ChampBattleService
                 'champ_before_name' => $oldChamp['player_name'],
                 'champ_after_name' => ($champDefeated && ! $isAdminTester) ? $challenger->name : $champ->player_name,
                 'challenger_actor' => array_merge($challengerActor, [
+                    'current_hp' => $battle['challenger_hp_after_battle'] ?? (int) ($challengerActor['current_hp'] ?? 0),
                     'current_mp' => $battle['challenger_mp_after'] ?? (int) ($challengerActor['current_mp'] ?? 0),
                 ]),
                 'champ_actor' => array_merge($oldChamp, [
@@ -323,7 +336,8 @@ class ChampBattleService
                 $query->whereNull('champ_character_id')
                     ->orWhereHas('champCharacter', fn ($characterQuery) => $characterQuery->visibleToPublic());
             })
-            ->latest()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit($limit)
             ->get();
     }
@@ -405,6 +419,29 @@ class ChampBattleService
         return CharacterIconCatalog::normalize($champ->icon_path);
     }
 
+    private function champIdentity(ChampState $champ): array
+    {
+        return [
+            'character_id' => (int) ($champ->character_id ?? 0),
+            'appointed_at' => $champ->appointed_at?->getTimestamp() ?? 0,
+        ];
+    }
+
+    private function champIdentityMatches(
+        ChampState $champ,
+        ?int $expectedCharacterId,
+        ?int $expectedAppointedAt
+    ): bool {
+        if ($expectedCharacterId === null || $expectedAppointedAt === null) {
+            return true;
+        }
+
+        $identity = $this->champIdentity($champ);
+
+        return $identity['character_id'] === $expectedCharacterId
+            && $identity['appointed_at'] === $expectedAppointedAt;
+    }
+
     private function runBattle(Character $challenger, ChampState $champ): array
     {
         $challengerStats = $this->snapshotStats($challenger);
@@ -477,6 +514,7 @@ class ChampBattleService
         $upsetDamageUsed = false;
         $totalDamage = 0;
         $log = [];
+        $lastActionWasByChallenger = null;
         $jobArtState = new \App\Services\Battle\BattleState($attacker, $defender, 'champ');
 
         $log[] = $this->affinityLog($attacker->name, $defender->name, $affinityMultiplier);
@@ -517,6 +555,7 @@ class ChampBattleService
                     }
                 }
 
+                $targetHpBefore = $target->hp;
                 $target->takeDamage($damage);
                 if ($target->gutsJustTriggered) {
                     $target->gutsJustTriggered = false;
@@ -524,7 +563,7 @@ class ChampBattleService
                 }
 
                 if ($actor->isPlayer) {
-                    $totalDamage += $damage;
+                    $totalDamage += max(0, $targetHpBefore - $target->hp);
                 }
 
                 $log[] = $action['log'];
@@ -532,23 +571,30 @@ class ChampBattleService
                     $log[] = "<span class=\"text-fuchsia-700 font-extrabold\">【格上への一撃】レベル差を覆す渾身の一撃！ 追加で {$upsetDamage} ダメージ！</span>";
                 }
 
-                if ($target->isDead()) {
+                if ($actor->isDead() || $target->isDead()) {
+                    $lastActionWasByChallenger = $actor === $attacker;
                     break 2;
                 }
             }
         }
 
-        if ($defender->isDead()) {
+        $champDefeated = $this->isChallengerVictory($defender->isDead(), $lastActionWasByChallenger);
+
+        if ($champDefeated) {
             $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->name}は、{$defender->name}を倒した！</span>";
+        } elseif ($attacker->isDead() && $defender->isDead()) {
+            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->name}は倒れ、{$defender->name}も反動で倒れかけたため、チャンプ交代にはならなかった。</span>";
         } elseif ($attacker->isDead()) {
             $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$attacker->name}は、倒れてしまった……。</span>";
+        } elseif ($defender->isDead()) {
+            $log[] = "<br><span class=\"text-black font-extrabold text-xl\">{$defender->name}は反動で倒れかけたが、挑戦者による撃破ではないためチャンプ交代にはならなかった。</span>";
         } else {
             $log[] = "<br><span class=\"text-black font-extrabold text-xl\">双方が疲弊し、戦闘は終了した。</span>";
         }
 
         return [
             'damage' => $totalDamage,
-            'champ_defeated' => $defender->isDead(),
+            'champ_defeated' => $champDefeated,
             'champ_hp_after_battle' => max(0, (int) $defender->hp),
             'challenger_defeated' => $attacker->isDead(),
             'challenger_hp_after_battle' => max(0, (int) $attacker->hp),
@@ -560,6 +606,11 @@ class ChampBattleService
             'challenger_mp_after' => $attacker->mp,
             'champ_mp_after' => $defender->mp,
         ];
+    }
+
+    private function isChallengerVictory(bool $champIsDead, ?bool $lastActionWasByChallenger): bool
+    {
+        return $champIsDead && $lastActionWasByChallenger === true;
     }
 
     private function champSkill(ChampState $champ): ?Skill

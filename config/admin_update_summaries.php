@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-champ-battle-consistency',
+        'date' => '2026-07-29',
+        'category' => 'fixed',
+        'title' => 'チャンプ戦の対戦相手と結果表示を修正',
+        'detail' => '長時間開いた画面から挑戦した際も、表示中のチャンプと実際の対戦相手が一致するようにしました。古い戦闘結果や次回挑戦時刻の再表示、反動相打ち時の交代判定も修正しています。',
+    ],
+    [
         'id' => '2026-07-28-ferdia-material-drops-restored',
         'date' => '2026-07-28',
         'category' => 'fixed',
