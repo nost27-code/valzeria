@@ -1717,7 +1717,17 @@
                                                 class="relative overflow-hidden rounded-lg border px-1.5 py-1.5 text-left transition duration-150 active:scale-[0.98]"
                                                 :class="[selectedJobBadgeTier === tier.rank ? 'border-transparent bg-white shadow-[0_2px_6px_rgba(15,23,42,0.16)] ring-1 ring-offset-1' : 'border-slate-200 bg-white/65 hover:border-slate-300 hover:bg-white', tier.locked ? 'border-dashed' : '']"
                                                 :style="selectedJobBadgeTier === tier.rank ? `--tw-ring-color: ${tier.color}` : ''"
-                                                @click="if (selectedJobBadgeTier === tier.rank) { selectedJobBadgeTier = null; selectedJobBadge = null; } else { selectedJobBadgeTier = tier.rank; selectedJobBadge = null; }"
+                                                @click="if (selectedJobBadgeTier === tier.rank) {
+                                                    selectedJobBadgeTier = null;
+                                                    selectedJobBadge = null;
+                                                } else {
+                                                    selectedJobBadgeTier = tier.rank;
+                                                    selectedJobBadge = null;
+                                                    if (!tier.locked && !tier.jobs_loaded && !tier.jobs_loading) {
+                                                        tier.jobs_loading = true;
+                                                        $wire.loadJobMasterBadgeTier(playerInfo.id, tier.rank);
+                                                    }
+                                                }"
                                             >
                                                 <span class="absolute inset-x-0 top-0 h-0.5" :style="`background-color: ${tier.color}`"></span>
                                                 <span class="block truncate text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
@@ -1736,7 +1746,11 @@
                                                 <span x-show="tier.locked" class="text-[9px] font-black text-slate-400">？？？</span>
                                             </div>
                                             <div x-show="tier.locked" class="rounded-md border border-dashed border-slate-300 bg-slate-100/70 py-5 text-center text-sm font-black tracking-[0.35em] text-slate-400">？？？</div>
-                                            <div x-show="!tier.locked" class="grid grid-cols-7 gap-1 rounded-md border border-slate-100 bg-[radial-gradient(circle_at_50%_0%,#f8fafc_0%,#e7eef5_100%)] p-1.5 shadow-[inset_0_1px_3px_rgba(71,85,105,0.11)]">
+                                            <div x-show="!tier.locked && !tier.jobs_loaded" class="flex items-center justify-center gap-2 py-5 text-[10px] font-black text-slate-500">
+                                                <span class="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" aria-hidden="true"></span>
+                                                職業記録を読み込んでいます…
+                                            </div>
+                                            <div x-show="!tier.locked && tier.jobs_loaded" class="grid grid-cols-7 gap-1 rounded-md border border-slate-100 bg-[radial-gradient(circle_at_50%_0%,#f8fafc_0%,#e7eef5_100%)] p-1.5 shadow-[inset_0_1px_3px_rgba(71,85,105,0.11)]">
                                                 <template x-for="job in tier.jobs" :key="job.id">
                                                     <button
                                                         type="button"

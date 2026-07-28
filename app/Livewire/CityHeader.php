@@ -374,7 +374,7 @@ class CityHeader extends Component
             'favorite_weapons_enabled' => $favoriteWeaponService->enabled(),
             'favorite_weapons' => $favoriteWeaponService->enabled() ? $favoriteWeaponService->displayWeapons($character) : [],
             'job_master_badges_enabled' => (bool) config('job_master_badges.enabled', false),
-            'job_master_badge_tiers' => $this->jobMasterBadgeTiers($character),
+            'job_master_badge_tiers' => $this->jobMasterBadgeTierSummaries($character),
             'adventurer_card_background' => asset($cardAssets['background']),
             'adventurer_card_frame' => $this->versionedProfileAsset(
                 $cardAssets['card_frame']
@@ -469,6 +469,25 @@ class CityHeader extends Component
             })
             ->filter(fn (array $tier): bool => $tier['total'] > 0)
             ->values()
+            ->all();
+    }
+
+    public function jobMasterBadgeTierFor(Character $character, string $rank): ?array
+    {
+        $tier = collect($this->jobMasterBadgeTiers($character))
+            ->first(fn (array $candidate): bool => (string) ($candidate['rank'] ?? '') === $rank);
+
+        return $tier ? [...$tier, 'jobs_loaded' => true] : null;
+    }
+
+    private function jobMasterBadgeTierSummaries(Character $character): array
+    {
+        return collect($this->jobMasterBadgeTiers($character))
+            ->map(fn (array $tier): array => [
+                ...$tier,
+                'jobs' => [],
+                'jobs_loaded' => (bool) ($tier['locked'] ?? false),
+            ])
             ->all();
     }
 

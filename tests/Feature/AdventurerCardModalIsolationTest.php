@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Livewire\AdventurerCardModal;
 use App\Livewire\CityHeader;
 use App\Models\Character;
+use App\Models\JobClass;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 use Livewire\Livewire;
 use ReflectionMethod;
@@ -56,6 +58,39 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->assertSet('isPlayerModalOpen', true)
             ->assertSet('playerInfo.name', '表示対象')
             ->assertSee('冒険の記録');
+    }
+
+    public function test_job_badge_details_are_loaded_only_after_the_tier_is_opened(): void
+    {
+        config()->set('job_master_badges.enabled', true);
+
+        $job = JobClass::query()->create([
+            'key' => 'lazy_badge_job',
+            'name' => '遅延読込職',
+            'rank' => 'normal',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+        $target = $this->createCharacter(User::factory()->create(), '職業表示対象');
+        $target->update(['current_job_id' => $job->id]);
+        DB::table('character_jobs')->insert([
+            'character_id' => $target->id,
+            'job_class_id' => $job->id,
+            'job_level' => 10,
+            'job_exp' => 0,
+            'is_mastered' => true,
+            'mastered_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        Livewire::test(AdventurerCardModal::class)
+            ->dispatch('open-adventurer-card', characterId: $target->id)
+            ->assertSet('playerInfo.job_master_badge_tiers.0.jobs', [])
+            ->assertSet('playerInfo.job_master_badge_tiers.0.jobs_loaded', false)
+            ->call('loadJobMasterBadgeTier', $target->id, 'normal')
+            ->assertSet('playerInfo.job_master_badge_tiers.0.jobs_loaded', true)
+            ->assertSet('playerInfo.job_master_badge_tiers.0.jobs.0.name', '遅延読込職');
     }
 
     private function createCharacter(User $user, string $name): Character
