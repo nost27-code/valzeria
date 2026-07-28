@@ -12,15 +12,20 @@ class MainScreenShellTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_shell_renders_the_initial_panel_and_lazy_cached_panels(): void
+    public function test_shell_renders_the_initial_panel_and_preloads_cached_panels_on_request(): void
     {
         $this->actingAs(User::factory()->create());
 
         Livewire::test(MainScreenShell::class)
             ->assertSet('currentLocation', 'home')
             ->assertSet('initialLocation', 'home')
+            ->assertSet('loadedTabLocations', ['home'])
             ->assertSeeHtml('data-main-tab-panel="home"')
-            ->assertSeeHtml('data-main-tab-panel="colosseum"');
+            ->assertSeeHtml('data-main-tab-panel="colosseum"')
+            ->call('preloadCachedTab', 'town')
+            ->assertSet('loadedTabLocations', ['home', 'town'])
+            ->call('preloadCachedTab', 'unknown')
+            ->assertSet('loadedTabLocations', ['home', 'town']);
     }
 
     public function test_shell_rejects_unknown_tab_names(): void

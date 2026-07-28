@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-home-adventurer-card-priority',
+        'date' => '2026-07-28',
+        'category' => 'fixed',
+        'title' => 'ホームの冒険者カード表示を高速化',
+        'detail' => 'ホームの週間勝利番付から冒険者カードを開く際、ほかのタブの事前読込よりカード表示を優先し、余分な中継通信を行わないよう改善しました。',
+    ],
+    [
         'id' => '2026-07-28-ranking-adventurer-card-style',
         'date' => '2026-07-28',
         'category' => 'fixed',

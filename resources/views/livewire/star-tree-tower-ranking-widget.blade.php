@@ -97,8 +97,7 @@
                     <div class="min-w-0 flex-1">
                         <button
                             type="button"
-                            wire:click="openWeeklyWinPlayerModal({{ (int) $row['character_id'] }})"
-                            x-on:click="$dispatch('adventurer-card-loading')"
+                            x-on:click="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $row['character_id'] }} })"
                             class="block max-w-full truncate text-left text-xs font-black text-[#1e40af] underline-offset-2 hover:underline"
                             aria-label="{{ $row['name'] ?? '不明な冒険者' }}の冒険者カードを見る"
                         >

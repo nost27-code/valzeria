@@ -32,6 +32,9 @@ class MainScreenShell extends Component
 
     public string $initialLocation = 'home';
 
+    /** @var array<int, string> */
+    public array $loadedTabLocations = [];
+
     public $character;
 
     public function mount(): void
@@ -41,6 +44,7 @@ class MainScreenShell extends Component
         if (is_string($healthProbeLocation)) {
             $this->currentLocation = $this->normalizeLocation($healthProbeLocation);
             $this->initialLocation = $this->currentLocation;
+            $this->markCachedTabLoaded($this->initialLocation);
 
             return;
         }
@@ -63,6 +67,7 @@ class MainScreenShell extends Component
             $this->currentLocation = 'dungeon';
         }
         $this->initialLocation = $this->currentLocation;
+        $this->markCachedTabLoaded($this->initialLocation);
         session(['current_location' => $this->currentLocation]);
 
         if (!$this->character) {
@@ -111,6 +116,7 @@ class MainScreenShell extends Component
         }
 
         $this->currentLocation = $newLocation;
+        $this->markCachedTabLoaded($newLocation);
         session(['current_location' => $newLocation]);
 
         if ($this->character && $newLocation === 'guild') {
@@ -119,9 +125,24 @@ class MainScreenShell extends Component
         }
     }
 
+    public function preloadCachedTab(string $location): void
+    {
+        $this->markCachedTabLoaded($this->normalizeLocation($location));
+    }
+
     public function render()
     {
         return view('livewire.main-screen-shell');
+    }
+
+    private function markCachedTabLoaded(string $location): void
+    {
+        if (!in_array($location, $this->cachedTabLocations, true)
+            || in_array($location, $this->loadedTabLocations, true)) {
+            return;
+        }
+
+        $this->loadedTabLocations[] = $location;
     }
 
     private function normalizeLocation(?string $location): string

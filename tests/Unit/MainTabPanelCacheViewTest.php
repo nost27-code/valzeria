@@ -6,7 +6,7 @@ use Tests\TestCase;
 
 class MainTabPanelCacheViewTest extends TestCase
 {
-    public function test_main_screen_shell_keeps_lazy_tab_panels_mounted(): void
+    public function test_main_screen_shell_preloads_tab_panels_sequentially_and_keeps_them_mounted(): void
     {
         $source = file_get_contents(resource_path('views/livewire/main-screen-shell.blade.php'));
 
@@ -14,7 +14,9 @@ class MainTabPanelCacheViewTest extends TestCase
         $this->assertStringContainsString('x-show="currentLocation === @js($location)"', $source);
         $this->assertStringContainsString("style=\"{{ \$currentLocation === \$location ? '' : 'display: none;' }}\"", $source);
         $this->assertStringContainsString(':fixed-location="$location"', $source);
-        $this->assertStringContainsString('lazy="on-load"', $source);
+        $this->assertStringContainsString('await this.$wire.preloadCachedTab(location)', $source);
+        $this->assertStringContainsString('@adventurer-card-loading.window="preloadPaused = true"', $source);
+        $this->assertStringNotContainsString('lazy="on-load"', $source);
         $this->assertStringContainsString("'main-tab-panel-'.\$location", $source);
         $this->assertStringContainsString('data-main-tab-utility', $source);
     }

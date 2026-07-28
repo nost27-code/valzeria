@@ -10,6 +10,11 @@
           selectedJobBadgeJobs: [],
           isSharingAdventurerCard: false,
           adventurerCardShareMessage: '',
+          finishAdventurerCardLoading() {
+              window.clearTimeout(this.adventurerCardLoadingTimer);
+              this.isAdventurerCardLoading = false;
+              window.dispatchEvent(new CustomEvent('adventurer-card-loaded'));
+          },
           startAdventurerCardLoading() {
               window.clearTimeout(this.adventurerCardLoadingTimer);
               this.isAdventurerCardLoading = true;
@@ -17,7 +22,7 @@
               this.selectedJobBadge = null;
               this.selectedJobBadgeJobs = [];
               this.adventurerCardLoadingTimer = window.setTimeout(() => {
-                  this.isAdventurerCardLoading = false;
+                  this.finishAdventurerCardLoading();
               }, 15000);
           },
           async toggleJobBadgeTier(tier) {
@@ -75,7 +80,7 @@
           },
       }"
       x-on:adventurer-card-loading.window="startAdventurerCardLoading()"
-      x-init="$watch('playerInfo', value => { if (value) { window.clearTimeout(adventurerCardLoadingTimer); isAdventurerCardLoading = false } })">
+      x-init="$watch('playerInfo', value => { if (value) finishAdventurerCardLoading() })">
     @if(!$modalOnly || ($includeStyles ?? false))
     <style>
         .profile-frame-modal {
@@ -1513,7 +1518,7 @@
         <div aria-hidden="true" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5); pointer-events: none;"></div>
         <div class="adventurer-card-modal"
              :class="{ 'has-card-frame-91': playerInfo && playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp') }">
-            <button type="button" wire:click="closePlayerModal" @click="isAdventurerCardLoading = false; isPlayerModalOpen = false" class="adventurer-card-modal-close" aria-label="閉じる" title="閉じる">
+            <button type="button" wire:click="closePlayerModal" @click="finishAdventurerCardLoading(); isPlayerModalOpen = false" class="adventurer-card-modal-close" aria-label="閉じる" title="閉じる">
                 <span aria-hidden="true">×</span>
             </button>
             <div x-show="isAdventurerCardLoading"
