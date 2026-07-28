@@ -40,7 +40,7 @@
                                         @if($isMe)
                                             <span class="shrink-0 rounded bg-amber-600 px-2 py-0.5 text-[10px] font-black text-white shadow">あなた</span>
                                         @endif
-                                        <button type="button" wire:click="openPlayerModal({{ $player->id }})" class="break-words text-left font-extrabold leading-tight {{ $isMe ? 'text-amber-950' : 'text-[#1e40af]' }} underline-offset-2 hover:underline">
+                                        <button type="button" wire:click="openPlayerModal({{ $player->id }})" x-on:click="$dispatch('adventurer-card-loading')" class="break-words text-left font-extrabold leading-tight {{ $isMe ? 'text-amber-950' : 'text-[#1e40af]' }} underline-offset-2 hover:underline">
                                             {{ $player->name }}
                                         </button>
                                     </div>

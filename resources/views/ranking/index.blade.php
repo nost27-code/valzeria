@@ -269,7 +269,7 @@
                                         @if($canOpenWeeklyProfile)
                                             <button
                                                 type="button"
-                                                x-on:click="Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $row['character_id'] }} })"
+                                                x-on:click="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $row['character_id'] }} })"
                                                 class="truncate text-left font-black text-[#1e40af] underline-offset-2 hover:underline {{ $rankLayout['name'] }}"
                                                 aria-label="{{ $row['name'] }}の冒険者カードを見る"
                                             >

@@ -1,12 +1,23 @@
 <div x-data="{ 
           isPlayerModalOpen: @entangle('isPlayerModalOpen'), 
           playerInfo: @entangle('playerInfo'),
+          isAdventurerCardLoading: false,
+          adventurerCardLoadingTimer: null,
           playersExpanded: false,
           notificationOpen: false,
           selectedJobBadgeTier: null,
           selectedJobBadge: null,
           isSharingAdventurerCard: false,
           adventurerCardShareMessage: '',
+          startAdventurerCardLoading() {
+              window.clearTimeout(this.adventurerCardLoadingTimer);
+              this.isAdventurerCardLoading = true;
+              this.selectedJobBadgeTier = null;
+              this.selectedJobBadge = null;
+              this.adventurerCardLoadingTimer = window.setTimeout(() => {
+                  this.isAdventurerCardLoading = false;
+              }, 15000);
+          },
           async shareAdventurerCard() {
               if (this.isSharingAdventurerCard || !this.$refs.adventurerCard || !window.adventurerCardToBlob) return;
 
@@ -48,7 +59,9 @@
                   this.isSharingAdventurerCard = false;
               }
           },
-     }">
+      }"
+      x-on:adventurer-card-loading.window="startAdventurerCardLoading()"
+      x-init="$watch('playerInfo', value => { if (value) { window.clearTimeout(adventurerCardLoadingTimer); isAdventurerCardLoading = false } })">
     @if(!$modalOnly)
     <style>
         .profile-frame-modal {
@@ -1455,7 +1468,7 @@
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
                         @forelse($onlinePlayers as $player)
                             <a href="#"
-                               x-on:click.prevent="Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $player['id'] }} })"
+                               x-on:click.prevent="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $player['id'] }} })"
                                class="hover:underline hover:text-blue-800">{{ $player['name'] }}</a>
                             @if(!$loop->last)
                                 <span class="text-gray-300 mx-1">|</span>
@@ -1482,14 +1495,19 @@
 
     @if($modalOnly)
     <!-- キャラ詳細モーダル -->
-    <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
+    <div x-show="isPlayerModalOpen || isAdventurerCardLoading" style="display: none;" x-cloak>
+        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal" @click="isAdventurerCardLoading = false; isPlayerModalOpen = false"></div>
         <div class="adventurer-card-modal"
              :class="{ 'has-card-frame-91': playerInfo && playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp') }">
-            <button type="button" wire:click="closePlayerModal" @click="isPlayerModalOpen = false" class="adventurer-card-modal-close" aria-label="閉じる" title="閉じる">
+            <button type="button" wire:click="closePlayerModal" @click="isAdventurerCardLoading = false; isPlayerModalOpen = false" class="adventurer-card-modal-close" aria-label="閉じる" title="閉じる">
                 <span aria-hidden="true">×</span>
             </button>
-            <template x-if="playerInfo">
+            <div x-show="isAdventurerCardLoading"
+                 class="flex min-h-72 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+                <div class="h-9 w-9 animate-spin rounded-full border-4 border-amber-200 border-t-amber-700" aria-hidden="true"></div>
+                <div class="text-sm font-black tracking-wide text-[#6b3f08]">冒険者カードを開いています…</div>
+            </div>
+            <template x-if="playerInfo && !isAdventurerCardLoading">
                 <div x-ref="adventurerCard"
                      class="adventurer-card-inner"
                      :class="{
@@ -1635,7 +1653,7 @@
                                         <template x-for="weapon in playerInfo.favorite_weapons" :key="weapon.id">
                                             <div class="overflow-hidden rounded-lg border bg-white" :class="weapon.is_special ? 'border-[#d7bd67] shadow-[0_0_0_1px_rgba(230,211,139,0.45),0_3px_9px_rgba(15,95,61,0.3)]' : 'border-slate-200 shadow-[0_2px_6px_rgba(15,23,42,0.12)]'" :style="!weapon.is_special && weapon.quality ? `border-color: ${weapon.quality.border_color}` : ''">
                                                 <div class="relative grid aspect-square place-items-center bg-[radial-gradient(circle_at_center,#ffffff_15%,#f7f9fc_70%,#e6edf4_100%)] p-1.5" :style="weapon.display_background ? `background: ${weapon.display_background}` : ''">
-                                                    <img :src="weapon.image" :alt="weapon.name" class="h-full w-full object-contain drop-shadow-[0_3px_2px_rgba(41,31,14,0.32)]">
+                                                    <img :src="weapon.image" :alt="weapon.name" loading="lazy" decoding="async" class="h-full w-full object-contain drop-shadow-[0_3px_2px_rgba(41,31,14,0.32)]">
                                                     <template x-if="weapon.rank">
                                                         <span class="absolute left-1 top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-white/40 px-1 text-[10px] font-black leading-none text-white shadow-sm" :style="`background-color: ${weapon.rank_color}`" x-text="weapon.rank"></span>
                                                     </template>
@@ -1710,7 +1728,8 @@
                                     </div>
 
                                     <template x-for="tier in playerInfo.job_master_badge_tiers" :key="`panel-${tier.rank}`">
-                                        <div x-show="selectedJobBadgeTier === tier.rank" x-transition class="mt-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-[0_2px_7px_rgba(15,23,42,0.08)]">
+                                        <template x-if="selectedJobBadgeTier === tier.rank">
+                                        <div x-transition class="mt-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-[0_2px_7px_rgba(15,23,42,0.08)]">
                                             <div class="mb-1.5 flex items-center justify-between gap-2 rounded-md px-1.5 py-1" :style="`background-color: color-mix(in srgb, ${tier.color} 10%, white)`">
                                                 <span class="text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
                                                 <span x-show="!tier.locked" class="text-[9px] font-black text-slate-500"><span x-text="tier.total"></span>職を表示</span>
@@ -1731,7 +1750,7 @@
                                                             <div x-show="!job.is_mastered" class="absolute inset-x-0 bottom-0 z-0 bg-[linear-gradient(180deg,rgba(125,211,252,0.58),rgba(14,116,144,0.78))] transition-[height] duration-500" :style="`height: ${job.fill_percent}%`"></div>
                                                             <div x-show="!job.is_mastered" class="absolute inset-x-0 bottom-[55%] z-10 h-px bg-white/60" :style="`transform: translateY(${100 - job.fill_percent}%); opacity: ${job.fill_percent ? 1 : 0}`"></div>
                                                             <template x-if="job.is_mastered && job.badge_image">
-                                                                <img :src="job.badge_image" alt="" class="absolute inset-0 z-20 h-full w-full object-contain p-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]" aria-hidden="true">
+                                                                <img :src="job.badge_image" alt="" loading="lazy" decoding="async" class="absolute inset-0 z-20 h-full w-full object-contain p-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]" aria-hidden="true">
                                                             </template>
                                                             <span x-show="!job.is_mastered && job.job_level > 0" class="relative z-20 rounded-full border border-white/55 bg-slate-950/30 px-1 py-0.5 text-[9px] font-black tracking-tight text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]" :style="`opacity: ${0.4 + (job.fill_percent * 0.006)}`" x-text="`★${job.job_level}`"></span>
                                                         </div>
@@ -1743,6 +1762,7 @@
                                                 <div x-show="selectedJobBadge?.is_mastered && selectedJobBadge?.mastered_at" class="mt-1 text-[9px] font-black text-amber-700">MASTER <span class="ml-1 text-amber-600" x-text="`マスター日 ${selectedJobBadge?.mastered_at}`"></span></div>
                                             </div>
                                         </div>
+                                        </template>
                                     </template>
                                     <div x-show="!selectedJobBadgeTier && (playerInfo.job_master_badge_tiers || []).length" class="py-3 text-center text-[10px] font-black text-slate-500">階層を選ぶと、極めた職業を確認できます。</div>
                                     <div x-show="!(playerInfo.job_master_badge_tiers || []).length" class="py-3 text-center text-[10px] font-black text-slate-500">職業マスタを読み込めませんでした。</div>
@@ -1897,7 +1917,7 @@
                                      :class="badge.owned ? '' : 'is-empty'"
                                      :title="badge.owned ? `${badge.name} Lv${badge.level}` : '未発見'">
                                     <template x-if="badge.owned && badge.image">
-                                        <img :src="badge.image" :alt="badge.name" class="valmon-badge-image">
+                                        <img :src="badge.image" :alt="badge.name" loading="lazy" decoding="async" class="valmon-badge-image">
                                     </template>
                                     <template x-if="!badge.owned || !badge.image">
                                         <span class="valmon-badge-question">?</span>

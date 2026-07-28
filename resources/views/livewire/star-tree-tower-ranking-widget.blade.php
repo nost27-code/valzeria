@@ -98,6 +98,7 @@
                         <button
                             type="button"
                             wire:click="openWeeklyWinPlayerModal({{ (int) $row['character_id'] }})"
+                            x-on:click="$dispatch('adventurer-card-loading')"
                             class="block max-w-full truncate text-left text-xs font-black text-[#1e40af] underline-offset-2 hover:underline"
                             aria-label="{{ $row['name'] ?? '不明な冒険者' }}の冒険者カードを見る"
                         >
