@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Schema;
 
 class ValidateDungeon extends Command
 {
+    private const FERDIA_MAIN_AREA_ID_MIN = 1001;
+    private const FERDIA_MAIN_AREA_ID_MAX = 1013;
+
     protected $signature = 'dungeon:validate';
 
     protected $description = 'ダンジョン、敵、素材、発見リンクの参照整合性を検証します。';
@@ -50,6 +53,7 @@ class ValidateDungeon extends Command
                 ->leftJoin('materials', 'materials.id', '=', 'material_drops.material_id')
                 ->where(fn ($query) => $query->whereNull('enemies.id')->orWhereNull('materials.id'))
                 ->pluck('material_drops.id'));
+            $this->validateFerdiaMaterialDropCoverage($errors);
         }
         if (Schema::hasTable('area_discovery_links')) {
             foreach (DB::table('area_discovery_links')->orderBy('id')->get() as $link) {
@@ -75,6 +79,47 @@ class ValidateDungeon extends Command
         }
         $this->info('ダンジョン参照整合性チェックは通過しました。');
         return self::SUCCESS;
+    }
+
+    private function validateFerdiaMaterialDropCoverage(array &$errors): void
+    {
+        $areaIds = DB::table('areas')
+            ->whereBetween('id', [self::FERDIA_MAIN_AREA_ID_MIN, self::FERDIA_MAIN_AREA_ID_MAX])
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id);
+        if ($areaIds->isEmpty()) {
+            return;
+        }
+
+        $baseQuery = DB::table('material_drops as material_drop')
+            ->join('enemies as enemy', 'enemy.id', '=', 'material_drop.enemy_id')
+            ->join('materials as material', 'material.id', '=', 'material_drop.material_id')
+            ->whereIn('enemy.area_id', $areaIds)
+            ->where('enemy.is_boss', false)
+            ->where('material_drop.is_active', true)
+            ->where('material_drop.drop_first_clear_only', false)
+            ->where('material_drop.drop_rate', '>', 0);
+
+        $normalAreaIds = (clone $baseQuery)
+            ->where('material.name', 'not like', '%古代片%')
+            ->distinct()
+            ->pluck('enemy.area_id')
+            ->map(fn ($id): int => (int) $id);
+        $ancientAreaIds = (clone $baseQuery)
+            ->where('material.name', 'like', '%古代片%')
+            ->distinct()
+            ->pluck('enemy.area_id')
+            ->map(fn ($id): int => (int) $id);
+
+        foreach ($areaIds as $areaId) {
+            if (!$normalAreaIds->contains($areaId)) {
+                $errors[] = "ferdia material_drops normal: area #{$areaId}";
+            }
+            if (!$ancientAreaIds->contains($areaId)) {
+                $errors[] = "ferdia material_drops ancient: area #{$areaId}";
+            }
+        }
     }
 
     private function targetExists(string $type, int $id): bool

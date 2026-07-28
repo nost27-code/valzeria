@@ -14,16 +14,130 @@ use Illuminate\Support\Facades\Schema;
 
 class FerdiaRegionSeeder extends Seeder
 {
+    private const MAX_NORMAL_MATERIAL_DROP_RATE = 33.0;
+    private const NORMAL_MATERIAL_DROP_RATE_MULTIPLIER = 8125 / 2024;
+    private const ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER = 2.0;
+
+    private const MATERIAL_DROP_MAP = [
+        1001 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]]],
+        1002 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]]],
+        1003 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]]],
+        1004 => ['スライム' => [['MAT_FERDIA_CLEARSTREAM_DROP', 12]], '獣' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], 'other' => [['MAT_FERDIA_CLEARSTREAM_DROP', 12]]],
+        1005 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 6]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]]],
+        1006 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 6]], 'other' => []],
+        1007 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 6]]],
+        1008 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]]],
+        1009 => ['スライム' => [['MAT_FERDIA_CLEARSTREAM_DROP', 10]], '獣' => [['MAT_FERDIA_DETOX_GALL', 5]], 'other' => [['MAT_FERDIA_CLEARSTREAM_DROP', 10], ['MAT_FERDIA_DETOX_GALL', 3]]],
+        1010 => ['スライム' => [['MAT_FERDIA_GUARDTREE_RESIN', 10]], '獣' => [['MAT_FERDIA_DETOX_GALL', 5]], 'other' => [['MAT_FERDIA_GUARDTREE_RESIN', 10]]],
+        1011 => ['スライム' => [['MAT_FERDIA_GUARDTREE_RESIN', 12]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '巨人' => [['MAT_FERDIA_LIFEROOT', 2]], 'other' => [['MAT_FERDIA_LIFEROOT', 3]]],
+        1012 => ['スライム' => [['MAT_FERDIA_GUARDTREE_RESIN', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '巨人' => [['MAT_FERDIA_LIFEROOT', 2.5]], 'other' => [['MAT_FERDIA_LIFEROOT', 3.5]]],
+        1013 => ['スライム' => [['MAT_FERDIA_CLEARSTREAM_DROP', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 6]], '巨人' => [['MAT_FERDIA_LIFEROOT', 2.5]], 'other' => [['MAT_FERDIA_LIFEROOT', 3]]],
+    ];
+
+    private const ANCIENT_MATERIAL_BY_AREA = [
+        1001 => 'MAT_BR_ARM_TRAVELER_ANCIENT',
+        1002 => 'MAT_BR_ARM_LIGHT_ANCIENT',
+        1003 => 'MAT_BR_WPN_GALE_ANCIENT',
+        1004 => 'MAT_BR_ARM_ARCANE_ANCIENT',
+        1005 => 'MAT_BR_ARM_HEAVY_ANCIENT',
+        1006 => 'MAT_BR_WPN_HOLY_ANCIENT',
+        1007 => 'MAT_BR_ARM_HEAVY_ANCIENT',
+        1008 => 'MAT_BR_ARM_TRAVELER_ANCIENT',
+        1009 => 'MAT_BR_ARM_ARCANE_ANCIENT',
+        1010 => 'MAT_BR_ARM_LIGHT_ANCIENT',
+        1011 => 'MAT_BR_WPN_GALE_ANCIENT',
+        1012 => 'MAT_BR_WPN_HOLY_ANCIENT',
+        1013 => 'MAT_BR_WPN_DARK_ANCIENT',
+    ];
+
     public function run(): void
     {
         $this->seedCities();
         $areas = $this->seedAreas();
         $this->seedEnemies($areas);
+        $this->seedMaterialDrops();
         $this->seedBosses($areas);
         $this->seedDiscoveryLinks();
         $this->seedStoryFinalLinks();
 
         $this->command?->info('フェルディア地方の街・探索地・敵・発見リンクを登録しました。');
+    }
+
+    public function seedMaterialDrops(): void
+    {
+        if (!Schema::hasTable('enemies') || !Schema::hasTable('materials') || !Schema::hasTable('material_drops')) {
+            return;
+        }
+
+        $materialCodes = collect(self::MATERIAL_DROP_MAP)
+            ->flatMap(fn (array $types): array => collect($types)->flatten(1)->pluck(0)->all())
+            ->merge(array_values(self::ANCIENT_MATERIAL_BY_AREA))
+            ->unique()
+            ->values();
+        $materialIds = DB::table('materials')
+            ->whereIn('material_code', $materialCodes)
+            ->pluck('id', 'material_code');
+
+        if ($materialIds->count() !== $materialCodes->count()) {
+            $missing = $materialCodes->reject(fn (string $code): bool => $materialIds->has($code))->implode(', ');
+            throw new \RuntimeException("フェルディアのドロップ素材マスタが不足しています: {$missing}");
+        }
+
+        $now = now();
+        foreach (self::MATERIAL_DROP_MAP as $areaId => $types) {
+            $enemies = DB::table('enemies')
+                ->where('area_id', $areaId)
+                ->where('is_boss', false)
+                ->get();
+
+            foreach ($enemies as $enemy) {
+                $type = (string) $enemy->type_name;
+                $entries = array_key_exists($type, $types) ? $types[$type] : $types['other'];
+                if (in_array($type, ['人型', '巨人'], true)) {
+                    $entries = $types[$type] ?? [];
+                }
+
+                if ($type === '人型') {
+                    $entries[] = [
+                        self::ANCIENT_MATERIAL_BY_AREA[$areaId],
+                        0.38 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
+                        true,
+                    ];
+                } elseif ($type === '巨人') {
+                    $entries[] = [
+                        self::ANCIENT_MATERIAL_BY_AREA[$areaId],
+                        0.30 * self::ANCIENT_MATERIAL_DROP_RATE_MULTIPLIER,
+                        true,
+                    ];
+                }
+
+                foreach ($entries as $entry) {
+                    [$materialCode, $baseRate] = $entry;
+                    $isAncient = (bool) ($entry[2] ?? false);
+                    $dropRate = $isAncient
+                        ? round((float) $baseRate, 2)
+                        : min(
+                            self::MAX_NORMAL_MATERIAL_DROP_RATE,
+                            round((float) $baseRate * self::NORMAL_MATERIAL_DROP_RATE_MULTIPLIER, 2)
+                        );
+
+                    DB::table('material_drops')->updateOrInsert(
+                        [
+                            'enemy_id' => $enemy->id,
+                            'material_id' => $materialIds[$materialCode],
+                        ],
+                        [
+                            'drop_rate' => $dropRate,
+                            'drop_first_clear_only' => false,
+                            'drop_timing' => null,
+                            'is_active' => true,
+                            'updated_at' => $now,
+                            'created_at' => $now,
+                        ]
+                    );
+                }
+            }
+        }
     }
 
     public function seedStoryBranches(): void

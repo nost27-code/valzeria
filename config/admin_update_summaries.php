@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-ferdia-material-drops-restored',
+        'date' => '2026-07-28',
+        'category' => 'fixed',
+        'title' => 'フェルディアの素材ドロップを復旧',
+        'detail' => 'フェルディアの通常探索で薬素材と古代片を入手できず、輝く宝箱からも対象素材が見つからなかった不具合を修正しました。',
+    ],
+    [
         'id' => '2026-07-28-adventurer-card-comment-display',
         'date' => '2026-07-28',
         'category' => 'fixed',
