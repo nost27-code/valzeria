@@ -38,14 +38,12 @@ class CityHeader extends Component
     // モーダル用状態
     public $isPlayerModalOpen = false;
     public $playerInfo = null;
-    public ?string $selectedJobBadgeTier = null;
     public $locationName = '';
     public bool $showCityPanel = true;
     public bool $modalOnly = false;
 
     public function openPlayerModal(int $characterId)
     {
-        $this->selectedJobBadgeTier = null;
         $character = Character::with([
             'arenaRanking',
             'jobClass',
@@ -75,24 +73,21 @@ class CityHeader extends Component
     {
         $this->isPlayerModalOpen = false;
         $this->playerInfo = null;
-        $this->selectedJobBadgeTier = null;
     }
 
-    public function selectJobBadgeTier(string $rank): void
+    public function jobBadgeTierJobs(string $rank): array
     {
         if (!$this->isPlayerModalOpen || !$this->playerInfo) {
-            return;
+            return [];
         }
 
-        $this->selectedJobBadgeTier = $this->selectedJobBadgeTier === $rank ? null : $rank;
-        $tiers = $this->playerInfo['job_master_badge_tiers'] ?? [];
-        foreach ($tiers as &$tier) {
-            $tier['jobs'] = $this->selectedJobBadgeTier === (string) $tier['rank']
-                ? self::expandCompactJobBadgeTier($tier)
-                : [];
+        foreach ($this->playerInfo['job_master_badge_tiers'] ?? [] as $tier) {
+            if ((string) $tier['rank'] === $rank && !($tier['locked'] ?? false)) {
+                return self::expandCompactJobBadgeTier($tier);
+            }
         }
-        unset($tier);
-        $this->playerInfo['job_master_badge_tiers'] = $tiers;
+
+        return [];
     }
 
     public static function expandCompactJobBadgeTier(array $tier): array

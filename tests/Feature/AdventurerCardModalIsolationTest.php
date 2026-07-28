@@ -84,14 +84,18 @@ class AdventurerCardModalIsolationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        Livewire::test(AdventurerCardModal::class)
+        $component = Livewire::test(AdventurerCardModal::class)
             ->dispatch('open-adventurer-card', characterId: $target->id)
             ->assertSet('playerInfo.job_master_badge_tiers.0.jobs', [])
             ->assertSet('playerInfo.job_master_badge_tiers.0.compact_jobs.0.1', '遅延読込職')
-            ->call('selectJobBadgeTier', 'normal')
-            ->assertSet('selectedJobBadgeTier', 'normal')
-            ->assertSet('isPlayerModalOpen', true)
-            ->assertSet('playerInfo.job_master_badge_tiers.0.jobs.0.name', '遅延読込職');
+            ->assertSet('isPlayerModalOpen', true);
+
+        $jobs = $component->instance()->jobBadgeTierJobs('normal');
+        $loadedJob = collect($jobs)->firstWhere('id', $job->id);
+
+        $this->assertSame('遅延読込職', $loadedJob['name']);
+        $this->assertSame(10, $loadedJob['job_level']);
+        $this->assertTrue($loadedJob['is_mastered']);
     }
 
     private function createCharacter(User $user, string $name): Character
