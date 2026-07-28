@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Attributes\On;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
 class AdventurerCardModal extends Component
@@ -14,6 +15,7 @@ class AdventurerCardModal extends Component
     public bool $modalOnly = true;
 
     #[On('open-adventurer-card')]
+    #[Renderless]
     public function openPlayerModal(int $characterId): void
     {
         $profileBuilder = new CityHeader();
@@ -24,6 +26,7 @@ class AdventurerCardModal extends Component
     }
 
     #[On('open-current-adventurer-card-preview')]
+    #[Renderless]
     public function openCurrentCharacterPreview(): void
     {
         $character = auth()->user()?->currentCharacter();
@@ -32,12 +35,14 @@ class AdventurerCardModal extends Component
         }
     }
 
+    #[Renderless]
     public function closePlayerModal(): void
     {
         $this->isPlayerModalOpen = false;
         $this->playerInfo = null;
     }
 
+    #[Renderless]
     public function jobBadgeTierJobs(string $rank): array
     {
         if (!$this->isPlayerModalOpen || !$this->playerInfo) {

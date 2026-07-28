@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Renderless;
 use Livewire\Livewire;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -44,6 +45,14 @@ class AdventurerCardModalIsolationTest extends TestCase
         $this->assertCount(
             1,
             (new ReflectionMethod(AdventurerCardModal::class, 'openPlayerModal'))->getAttributes(On::class)
+        );
+        $this->assertCount(
+            1,
+            (new ReflectionMethod(AdventurerCardModal::class, 'openPlayerModal'))->getAttributes(Renderless::class)
+        );
+        $this->assertCount(
+            1,
+            (new ReflectionMethod(AdventurerCardModal::class, 'jobBadgeTierJobs'))->getAttributes(Renderless::class)
         );
 
         Livewire::test(AdventurerCardModal::class)
