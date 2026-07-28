@@ -37,6 +37,18 @@
                   badge_image: job[6],
               }));
           },
+          toggleJobBadgeTier(tier) {
+              if (this.selectedJobBadgeTier === tier.rank) {
+                  this.selectedJobBadgeTier = null;
+                  this.selectedJobBadge = null;
+                  this.selectedJobBadgeJobs = [];
+                  return;
+              }
+
+              this.selectedJobBadgeTier = tier.rank;
+              this.selectedJobBadge = null;
+              this.hydrateJobBadgeTier(tier);
+          },
           async shareAdventurerCard() {
               if (this.isSharingAdventurerCard || !this.$refs.adventurerCard || !window.adventurerCardToBlob) return;
 
@@ -1736,15 +1748,7 @@
                                                 class="relative overflow-hidden rounded-lg border px-1.5 py-1.5 text-left transition duration-150 active:scale-[0.98]"
                                                 :class="[selectedJobBadgeTier === tier.rank ? 'border-transparent bg-white shadow-[0_2px_6px_rgba(15,23,42,0.16)] ring-1 ring-offset-1' : 'border-slate-200 bg-white/65 hover:border-slate-300 hover:bg-white', tier.locked ? 'border-dashed' : '']"
                                                 :style="selectedJobBadgeTier === tier.rank ? `--tw-ring-color: ${tier.color}` : ''"
-                                                @click="if (selectedJobBadgeTier === tier.rank) {
-                                                    selectedJobBadgeTier = null;
-                                                    selectedJobBadge = null;
-                                                    selectedJobBadgeJobs = [];
-                                                } else {
-                                                    selectedJobBadgeTier = tier.rank;
-                                                    selectedJobBadge = null;
-                                                    hydrateJobBadgeTier(tier);
-                                                }"
+                                                @click.stop="toggleJobBadgeTier(tier)"
                                             >
                                                 <span class="absolute inset-x-0 top-0 h-0.5" :style="`background-color: ${tier.color}`"></span>
                                                 <span class="block truncate text-[10px] font-black" :style="`color: ${tier.color}`" x-text="tier.label"></span>
