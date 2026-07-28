@@ -104,6 +104,7 @@
         @if($showGameHeader)
             <div class="relative z-[60] mx-auto w-full max-w-screen-2xl px-2 pt-4 sm:px-4 sm:pt-6 lg:px-6">
                 <livewire:city-header :show-city-panel="$gameHeaderShowCityPanel" />
+                <livewire:adventurer-card-modal />
             </div>
         @endif
         @if($backgroundSymbolImage)

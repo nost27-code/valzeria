@@ -120,5 +120,4 @@
         </div>
     @endif
 
-    <livewire:city-header :show-city-panel="false" :modal-only="true" />
 </div>

@@ -50,6 +50,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 ## Architecture notes
 
 - Routing: routes/web.php; screens are Livewire components + Blade views
+- 冒険者カードは `AdventurerCardModal` の軽量Livewireインスタンスが表示イベントを受け、共通 `CityHeader` の能力値・通知・街情報を再描画せずにモーダルだけを更新する。
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)
 - State management: Livewire component state + DB; no SPA framework
 - P1の認証・送信・設定変更UIは、通常フォームでは明示した `data-submit-lock` を `resources/js/app.js` が処理し、Livewireでは対象アクションの `wire:loading` で完了まで再押下を止める。全ボタンには `resources/css/app.css` の短い押下変形があり、数量増減・タブ切替など連続操作前提の操作には送信ロックを自動適用しない。

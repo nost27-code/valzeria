@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\CheckCharacterSelected;
-use App\Livewire\CityHeader;
+use App\Livewire\AdventurerCardModal;
 use App\Livewire\StarTreeTowerRankingWidget;
 use App\Models\Character;
 use App\Models\KisekiTransaction;
@@ -551,7 +551,7 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('週間首位')
             ->assertSee('週間首位の冒険者カードを見る')
             ->call('openWeeklyWinPlayerModal', $leader->id)
-            ->assertDispatchedTo(CityHeader::class, 'open-adventurer-card')
+            ->assertDispatchedTo(AdventurerCardModal::class, 'open-adventurer-card')
             ->assertSee('週間勝利数番付を見る');
     }
 

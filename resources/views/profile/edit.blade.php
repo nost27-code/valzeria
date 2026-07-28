@@ -21,7 +21,14 @@
             </div>
         @endif
 
-        <livewire:city-header :modal-only="true" />
+        <div class="flex justify-start">
+            <button type="button"
+                    x-on:click="Livewire.dispatch('open-current-adventurer-card-preview')"
+                    class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#1e40af] bg-white px-4 text-sm font-black text-[#1e40af] shadow-sm transition hover:bg-blue-50 active:scale-[0.98]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                プレビュー
+            </button>
+        </div>
 
         <form method="POST"
               action="{{ route('profile.update') }}"

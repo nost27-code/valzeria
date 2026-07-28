@@ -49,6 +49,7 @@
               }
           },
      }">
+    @if(!$modalOnly)
     <style>
         .profile-frame-modal {
             position: fixed;
@@ -1144,15 +1145,6 @@
             }
         }
     </style>
-    @if($modalOnly)
-        <div class="flex justify-start">
-            <button type="button"
-                    wire:click="openCurrentCharacterPreview"
-                    class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#1e40af] bg-white px-4 text-sm font-black text-[#1e40af] shadow-sm transition hover:bg-blue-50 active:scale-[0.98]">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-                プレビュー
-            </button>
-        </div>
     @endif
 
     @if(!$modalOnly && !empty($topPlayer))
@@ -1463,7 +1455,7 @@
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
                         @forelse($onlinePlayers as $player)
                             <a href="#"
-                               wire:click.prevent="openPlayerModal({{ $player['id'] }})"
+                               x-on:click.prevent="Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $player['id'] }} })"
                                class="hover:underline hover:text-blue-800">{{ $player['name'] }}</a>
                             @if(!$loop->last)
                                 <span class="text-gray-300 mx-1">|</span>
@@ -1488,6 +1480,7 @@
     </div>
     @endif
 
+    @if($modalOnly)
     <!-- キャラ詳細モーダル -->
     <div x-show="isPlayerModalOpen" style="display: none;" x-cloak>
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal"></div>
@@ -1948,4 +1941,5 @@
             <p x-show="adventurerCardShareMessage" x-text="adventurerCardShareMessage" class="px-5 pb-4 text-center text-[11px] font-bold text-slate-500"></p>
         </div>
     </div>
+    @endif
 </div>

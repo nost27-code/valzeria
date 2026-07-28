@@ -34,7 +34,7 @@ class ColosseumRanking extends Component
 
         $this->selectedNpc = null;
         $this->dispatch('open-adventurer-card', characterId: (int) $character->id)
-            ->to(component: CityHeader::class);
+            ->to(component: AdventurerCardModal::class);
     }
 
     public function openNpcModal(int $rankingId): void

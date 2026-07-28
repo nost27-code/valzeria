@@ -22,7 +22,7 @@ class StarTreeTowerRankingWidget extends Component
         }
 
         $this->dispatch('open-adventurer-card', characterId: (int) $character->id)
-            ->to(component: CityHeader::class);
+            ->to(component: AdventurerCardModal::class);
     }
 
     public function render(

@@ -24,7 +24,6 @@ use App\Support\CityVisualCatalog;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
-use Livewire\Attributes\On;
 use Livewire\Component;
 
 class CityHeader extends Component
@@ -43,7 +42,6 @@ class CityHeader extends Component
     public bool $showCityPanel = true;
     public bool $modalOnly = false;
 
-    #[On('open-adventurer-card')]
     public function openPlayerModal(int $characterId)
     {
         $character = Character::with([
@@ -63,7 +61,6 @@ class CityHeader extends Component
         $this->isPlayerModalOpen = true;
     }
 
-    #[On('open-current-adventurer-card-preview')]
     public function openCurrentCharacterPreview(): void
     {
         $character = auth()->user()?->currentCharacter();
