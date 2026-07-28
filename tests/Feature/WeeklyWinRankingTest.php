@@ -525,7 +525,8 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('4勝')
             ->assertSee('現在の報酬 無償輝石20個')
             ->assertSee('画面確認者の冒険者カードを見る')
-            ->assertSee("Livewire.dispatch('open-adventurer-card'", false);
+            ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
+            ->assertSee('&quot;name&quot;:&quot;adventurer-card-modal&quot;', false);
     }
 
     public function test_shared_progress_widget_shows_weekly_wins_and_current_progress(): void
