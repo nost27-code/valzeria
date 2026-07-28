@@ -472,22 +472,29 @@ class CityHeader extends Component
             ->all();
     }
 
-    public function jobMasterBadgeTierFor(Character $character, string $rank): ?array
-    {
-        $tier = collect($this->jobMasterBadgeTiers($character))
-            ->first(fn (array $candidate): bool => (string) ($candidate['rank'] ?? '') === $rank);
-
-        return $tier ? [...$tier, 'jobs_loaded' => true] : null;
-    }
-
     private function jobMasterBadgeTierSummaries(Character $character): array
     {
         return collect($this->jobMasterBadgeTiers($character))
-            ->map(fn (array $tier): array => [
-                ...$tier,
-                'jobs' => [],
-                'jobs_loaded' => (bool) ($tier['locked'] ?? false),
-            ])
+            ->map(function (array $tier): array {
+                $compactJobs = collect($tier['jobs'] ?? [])
+                    ->map(fn (array $job): array => [
+                        $job['id'],
+                        $job['name'],
+                        $job['job_level'],
+                        $job['fill_percent'],
+                        $job['is_mastered'],
+                        $job['mastered_at'],
+                        $job['badge_image'] ? parse_url($job['badge_image'], PHP_URL_PATH) : null,
+                    ])
+                    ->all();
+
+                return [
+                    ...$tier,
+                    'jobs' => [],
+                    'compact_jobs' => $compactJobs,
+                    'jobs_loaded' => (bool) ($tier['locked'] ?? false),
+                ];
+            })
             ->all();
     }
 

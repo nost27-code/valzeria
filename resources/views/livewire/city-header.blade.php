@@ -18,6 +18,22 @@
                   this.isAdventurerCardLoading = false;
               }, 15000);
           },
+          hydrateJobBadgeTier(tier) {
+              if (tier.locked || tier.jobs_loaded) return;
+
+              tier.jobs = (tier.compact_jobs || []).map(job => ({
+                  id: job[0],
+                  tier_rank: tier.rank,
+                  name: job[1],
+                  job_level: job[2],
+                  fill_percent: job[3],
+                  is_mastered: job[4],
+                  mastered_at: job[5],
+                  badge_image: job[6],
+              }));
+              tier.compact_jobs = [];
+              tier.jobs_loaded = true;
+          },
           async shareAdventurerCard() {
               if (this.isSharingAdventurerCard || !this.$refs.adventurerCard || !window.adventurerCardToBlob) return;
 
@@ -1723,10 +1739,7 @@
                                                 } else {
                                                     selectedJobBadgeTier = tier.rank;
                                                     selectedJobBadge = null;
-                                                    if (!tier.locked && !tier.jobs_loaded && !tier.jobs_loading) {
-                                                        tier.jobs_loading = true;
-                                                        $wire.loadJobMasterBadgeTier(playerInfo.id, tier.rank);
-                                                    }
+                                                    hydrateJobBadgeTier(tier);
                                                 }"
                                             >
                                                 <span class="absolute inset-x-0 top-0 h-0.5" :style="`background-color: ${tier.color}`"></span>
@@ -1746,10 +1759,6 @@
                                                 <span x-show="tier.locked" class="text-[9px] font-black text-slate-400">？？？</span>
                                             </div>
                                             <div x-show="tier.locked" class="rounded-md border border-dashed border-slate-300 bg-slate-100/70 py-5 text-center text-sm font-black tracking-[0.35em] text-slate-400">？？？</div>
-                                            <div x-show="!tier.locked && !tier.jobs_loaded" class="flex items-center justify-center gap-2 py-5 text-[10px] font-black text-slate-500">
-                                                <span class="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" aria-hidden="true"></span>
-                                                職業記録を読み込んでいます…
-                                            </div>
                                             <div x-show="!tier.locked && tier.jobs_loaded" class="grid grid-cols-7 gap-1 rounded-md border border-slate-100 bg-[radial-gradient(circle_at_50%_0%,#f8fafc_0%,#e7eef5_100%)] p-1.5 shadow-[inset_0_1px_3px_rgba(71,85,105,0.11)]">
                                                 <template x-for="job in tier.jobs" :key="job.id">
                                                     <button
