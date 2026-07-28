@@ -492,7 +492,6 @@ class CityHeader extends Component
                     ...$tier,
                     'jobs' => [],
                     'compact_jobs' => $compactJobs,
-                    'jobs_loaded' => (bool) ($tier['locked'] ?? false),
                 ];
             })
             ->all();
