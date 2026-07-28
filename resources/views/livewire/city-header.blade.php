@@ -849,8 +849,6 @@
         }
         .adventurer-card-comment-text {
             margin-top: 5px;
-            max-height: 38px;
-            overflow: hidden;
             color: #1e293b;
             font-size: 12px;
             font-weight: 700;
@@ -1602,39 +1600,30 @@
 
                         <div class="adventurer-card-badges">
                             <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="adventurer-card-badge-icon">
                                 <div class="min-w-0">
-                                    <div class="text-[10px] font-black text-[#8a5a0d]">所属</div>
+                                    <div class="text-[9px] font-black text-[#8a5a0d]">所属</div>
                                     <div class="truncate text-xs font-black leading-tight text-slate-800" x-text="playerInfo.guild"></div>
                                 </div>
                             </div>
                             <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <template x-if="playerInfo.arena_rank_trophy">
-                                    <img :src="playerInfo.arena_rank_trophy" alt="" class="adventurer-card-badge-icon">
-                                </template>
-                                <template x-if="!playerInfo.arena_rank_trophy">
-                                    <img src="{{ asset('images/icon/icon_002.webp') }}" alt="" class="adventurer-card-badge-icon">
-                                </template>
                                 <div class="min-w-0">
-                                    <div class="text-[10px] font-black text-[#8a5a0d]">闘技場順位</div>
-                                    <div class="truncate text-sm font-black leading-tight text-slate-800" x-text="playerInfo.arena_rank"></div>
+                                    <div class="text-[9px] font-black text-[#8a5a0d]">闘技場順位</div>
+                                    <div class="truncate text-xs font-black leading-tight text-slate-800" x-text="playerInfo.arena_rank"></div>
                                 </div>
                             </div>
                             <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="adventurer-card-badge-icon">
                                 <div class="min-w-0">
-                                    <div class="text-[10px] font-black text-[#8a5a0d]">冒険回数</div>
-                                    <div class="truncate text-sm font-black leading-tight text-slate-800">
-                                        <span x-text="playerInfo.card_records.battles.value"></span><span class="text-[10px] text-orange-700" x-text="playerInfo.card_records.battles.unit"></span>
+                                    <div class="text-[9px] font-black text-[#8a5a0d]">冒険回数</div>
+                                    <div class="truncate text-xs font-black leading-tight text-slate-800">
+                                        <span x-text="playerInfo.card_records.battles.value"></span><span class="text-[9px] text-orange-700" x-text="playerInfo.card_records.battles.unit"></span>
                                     </div>
                                 </div>
                             </div>
                             <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <img src="{{ asset('images/icon/icon_052.webp') }}" alt="" class="adventurer-card-badge-icon">
                                 <div class="min-w-0">
-                                    <div class="text-[10px] font-black text-[#8a5a0d]">冒険日数</div>
-                                    <div class="truncate text-sm font-black leading-tight text-slate-800">
-                                        <span x-text="playerInfo.card_records.days.value"></span><span class="text-[10px] text-orange-700" x-text="playerInfo.card_records.days.unit"></span>
+                                    <div class="text-[9px] font-black text-[#8a5a0d]">冒険日数</div>
+                                    <div class="truncate text-xs font-black leading-tight text-slate-800">
+                                        <span x-text="playerInfo.card_records.days.value"></span><span class="text-[9px] text-orange-700" x-text="playerInfo.card_records.days.unit"></span>
                                     </div>
                                 </div>
                             </div>

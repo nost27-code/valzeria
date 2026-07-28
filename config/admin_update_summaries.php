@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-28-adventurer-card-comment-display',
+        'date' => '2026-07-28',
+        'category' => 'fixed',
+        'title' => '冒険者カードのコメント表示を修正',
+        'detail' => '冒険者カードの一言コメントが途中で切れないようにし、所属・闘技場順位・冒険回数・冒険日数をすっきり見やすくしました。',
+    ],
+    [
         'id' => '2026-07-28-evolution-quality-upgrade',
         'date' => '2026-07-28',
         'category' => 'balance',
