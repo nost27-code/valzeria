@@ -1527,7 +1527,7 @@
     @if($modalOnly)
     <!-- キャラ詳細モーダル -->
     <div x-show="isPlayerModalOpen || isAdventurerCardLoading" style="display: none;" x-cloak>
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5);" wire:click="closePlayerModal" @click="isAdventurerCardLoading = false; isPlayerModalOpen = false"></div>
+        <div aria-hidden="true" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-color: rgba(0,0,0,0.5); pointer-events: none;"></div>
         <div class="adventurer-card-modal"
              :class="{ 'has-card-frame-91': playerInfo && playerInfo.adventurer_card_frame.includes('adventurer_card_frame91.webp') }">
             <button type="button" wire:click="closePlayerModal" @click="isAdventurerCardLoading = false; isPlayerModalOpen = false" class="adventurer-card-modal-close" aria-label="閉じる" title="閉じる">
