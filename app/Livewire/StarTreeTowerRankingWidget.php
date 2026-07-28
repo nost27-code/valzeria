@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\Character;
 use App\Services\ArenaNpcRankingService;
 use App\Services\StarTreeTowerService;
 use App\Services\TowerRankingService;
@@ -11,6 +12,22 @@ use Livewire\Component;
 class StarTreeTowerRankingWidget extends Component
 {
     private const DISPLAY_LIMIT = 5;
+
+    /**
+     * デプロイ前から開かれている画面の旧wire:clickを安全に受ける互換処理。
+     * 新規表示ではBladeからAdventurerCardModalへ直接dispatchする。
+     */
+    public function openWeeklyWinPlayerModal(int $characterId): void
+    {
+        $character = Character::visibleToPublic()->find($characterId);
+
+        if (! $character) {
+            return;
+        }
+
+        $this->dispatch('open-adventurer-card', characterId: (int) $character->id)
+            ->to(component: AdventurerCardModal::class);
+    }
 
     public function render(
         StarTreeTowerService $towerService,

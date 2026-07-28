@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\CheckCharacterSelected;
+use App\Livewire\AdventurerCardModal;
 use App\Livewire\StarTreeTowerRankingWidget;
 use App\Models\Character;
 use App\Models\KisekiTransaction;
@@ -553,6 +554,20 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
             ->assertDontSee('wire:click="openWeeklyWinPlayerModal', false)
             ->assertSee('週間勝利数番付を見る');
+    }
+
+    public function test_shared_progress_widget_accepts_the_pre_deploy_card_click_action(): void
+    {
+        $viewer = User::factory()->create();
+        $viewerCharacter = $this->createCharacter($viewer, '互換確認者');
+        $target = $this->createCharacter(User::factory()->create(), '旧画面表示対象');
+
+        $this->actingAs($viewer)
+            ->withSession(['current_character_id' => $viewerCharacter->id]);
+
+        Livewire::test(StarTreeTowerRankingWidget::class)
+            ->call('openWeeklyWinPlayerModal', $target->id)
+            ->assertDispatchedTo(AdventurerCardModal::class, 'open-adventurer-card');
     }
 
     public function test_shared_progress_widget_shows_guest_and_empty_week_states(): void
