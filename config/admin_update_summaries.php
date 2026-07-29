@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-shop-mobile-weapon-filter',
+        'date' => '2026-07-29',
+        'category' => 'fixed',
+        'title' => 'スマホの装備屋で武器種選択を修正',
+        'detail' => 'スマホで装備屋を開いた際も、武器種を選んで販売装備を絞り込めるようにしました。',
+    ],
+    [
         'id' => '2026-07-29-admin-player-chat-copy',
         'date' => '2026-07-29',
         'category' => 'internal',

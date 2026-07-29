@@ -32,6 +32,7 @@
                     buyQuantity: 1,
                     buyMaxQuantity: 1,
                     buyIsConsumable: false,
+                    selectedSubtype: 'all',
                     isStarterSupply: @js($isStarterSupply ?? false),
                     equipPromptModal: @js((bool) $equipPrompt),
                     openBuyModal(name, formId, isConsumable = false, maxQuantity = 1) {
@@ -219,9 +220,23 @@
                 
                 @if($subTypes->count() > 0)
                     <div class="flex flex-wrap gap-2 mb-6" id="shop-tabs">
-                        <button type="button" data-filter="all" class="subtype-tab-btn px-4 py-2 rounded-full text-sm font-bold bg-amber-600 text-white shadow-sm transition">すべて</button>
+                        <button type="button"
+                                data-filter="all"
+                                x-on:click="selectedSubtype = $el.dataset.filter"
+                                x-bind:aria-pressed="selectedSubtype === $el.dataset.filter"
+                                x-bind:class="selectedSubtype === $el.dataset.filter ? 'bg-amber-600 text-white shadow-sm hover:bg-amber-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                class="subtype-tab-btn px-4 py-2 rounded-full text-sm font-bold transition">
+                            すべて
+                        </button>
                         @foreach($subTypes as $subType)
-                            <button type="button" data-filter="{{ $subType }}" class="subtype-tab-btn px-4 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">{{ $subType }}</button>
+                            <button type="button"
+                                    data-filter="{{ $subType }}"
+                                    x-on:click="selectedSubtype = $el.dataset.filter"
+                                    x-bind:aria-pressed="selectedSubtype === $el.dataset.filter"
+                                    x-bind:class="selectedSubtype === $el.dataset.filter ? 'bg-amber-600 text-white shadow-sm hover:bg-amber-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                    class="subtype-tab-btn px-4 py-2 rounded-full text-sm font-bold transition">
+                                {{ $subType }}
+                            </button>
                         @endforeach
                     </div>
                 @endif
@@ -251,6 +266,7 @@
                                 && $categoryLabel !== (string) $item->sub_type;
                         @endphp
                         <div
+                            x-show="selectedSubtype === 'all' || selectedSubtype === $el.dataset.subtype"
                             class="item-card rounded-lg border p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center transition-colors {{ ($equipmentGuide['native_proficiency'] ?? false) ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300' : 'border-[#d4af37]/50 bg-white hover:border-[#d4af37]' }}"
                             data-subtype="{{ $item->sub_type }}"
                         >
@@ -419,42 +435,6 @@
                     @endforelse
                 </div>
                 
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const tabBtns = document.querySelectorAll('.subtype-tab-btn');
-                        const itemCards = document.querySelectorAll('.item-card');
-                        
-                        if(tabBtns.length === 0) return;
-                        
-                        tabBtns.forEach(btn => {
-                            btn.addEventListener('click', function() {
-                                // アクティブなタブのスタイル更新
-                                tabBtns.forEach(b => {
-                                    b.classList.remove('bg-amber-600', 'text-white', 'shadow-sm', 'hover:bg-amber-700');
-                                    b.classList.add('bg-slate-100', 'text-slate-700', 'hover:bg-slate-200');
-                                });
-                                this.classList.remove('bg-slate-100', 'text-slate-700', 'hover:bg-slate-200');
-                                this.classList.add('bg-amber-600', 'text-white', 'shadow-sm', 'hover:bg-amber-700');
-                                
-                                const filter = this.getAttribute('data-filter');
-                                
-                                // アイテムの表示・非表示切り替え
-                                itemCards.forEach(card => {
-                                    if (filter === 'all') {
-                                        card.style.display = 'flex';
-                                    } else {
-                                        if (card.getAttribute('data-subtype') === filter) {
-                                            card.style.display = 'flex';
-                                        } else {
-                                            card.style.display = 'none';
-                                        }
-                                    }
-                                });
-                            });
-                        });
-                    });
-                </script>
-
                 <div x-show="buyModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div x-show="buyModal"
                          x-transition:enter="transition ease-out duration-200"
