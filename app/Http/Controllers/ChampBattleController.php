@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ChampBattleResultStore;
 use App\Services\ChampBattleService;
 use App\Services\StorageCapacityService;
 use Illuminate\Http\RedirectResponse;
@@ -59,14 +60,29 @@ class ChampBattleController extends Controller
                 ->with('message', $result['message'] ?? '今はチャンプに挑戦できません。');
         }
 
+        $resultToken = null;
+        try {
+            $resultToken = app(ChampBattleResultStore::class)->store((int) $character->id, $result);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
         return redirect()
-            ->route('champ.result')
+            ->route('champ.result', array_filter(['result_token' => $resultToken]))
             ->with('champ_battle_result', $result);
     }
 
     public function result(): View|RedirectResponse
     {
-        $result = session('champ_battle_result');
+        $character = Auth::user()?->currentCharacter();
+        $resultToken = request()->query('result_token');
+        $result = $character
+            ? app(ChampBattleResultStore::class)->retrieve(
+                (int) $character->id,
+                is_string($resultToken) ? $resultToken : null,
+            )
+            : null;
+        $result ??= session('champ_battle_result');
         if (! $result) {
             $result = session('lastChampBattleResult');
             $nextAvailableAt = is_array($result) ? ($result['next_available_at'] ?? null) : null;

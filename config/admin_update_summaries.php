@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-champ-result-transition',
+        'date' => '2026-07-30',
+        'category' => 'fixed',
+        'title' => 'チャンプ戦結果画面の遷移抜けを修正',
+        'detail' => 'ホームからチャンプへ挑んだ際、戦闘は完了しているのに結果画面を表示せずホームへ戻ることがある問題を修正しました。',
+    ],
+    [
         'id' => '2026-07-30-shop-equipment-trait-rank',
         'date' => '2026-07-30',
         'category' => 'fixed',
