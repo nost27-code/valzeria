@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-shop-equipment-trait-rank',
+        'date' => '2026-07-30',
+        'category' => 'fixed',
+        'title' => '店売り装備の銘合成ランクを修正',
+        'detail' => '店売りの武器・防具を銘合成に使う際、装備屋と同じランクで表示・判定されるようにしました。',
+    ],
+    [
         'id' => '2026-07-29-shop-mobile-weapon-filter',
         'date' => '2026-07-29',
         'category' => 'fixed',

@@ -33,6 +33,19 @@ class WeaponTraitTransferServiceTest extends TestCase
         $this->assertNotEmpty($payload['slayer_effect_lines']);
     }
 
+    public function test_shop_weapon_candidate_uses_rarity_as_rank_and_rank_cap(): void
+    {
+        $character = $this->createCharacter(100_000);
+        [$power, , $dragon] = $this->affixes();
+        $weapon = $this->weapon($character, 'E', 'dagger', $power, 1, $dragon, 1, shopRankOnly: true);
+
+        $candidates = app(WeaponTraitTransferService::class)->candidates($character);
+        $payload = collect($candidates['engraving_transfer']['base_options'])->firstWhere('id', $weapon->id);
+
+        $this->assertSame('E', $payload['rank']);
+        $this->assertSame(2, $payload['maximum_level']);
+    }
+
     public function test_engraving_transfer_allows_different_weapon_categories_and_preserves_base_state(): void
     {
         $character = $this->createCharacter(300_000);
@@ -175,14 +188,16 @@ class WeaponTraitTransferServiceTest extends TestCase
         bool $locked = false,
         int $enhanceLevel = 0,
         string $quality = 'normal',
+        bool $shopRankOnly = false,
     ): CharacterItem {
         $item = Item::query()->create([
             'name' => "移し用{$rank}{$category}",
             'type' => 'weapon',
             'rarity' => $rank,
             'weapon_category' => $category,
-            'weapon_rank' => $rank,
+            'weapon_rank' => $shopRankOnly ? null : $rank,
             'str_bonus' => 100,
+            'is_shop_item' => $shopRankOnly,
             'is_active' => true,
         ]);
 

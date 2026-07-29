@@ -62,6 +62,29 @@ class WeaponTraitForgeServiceTest extends TestCase
         $this->assertSame(20_000, $character->fresh()->money);
     }
 
+    public function test_shop_weapon_uses_rarity_as_rank_for_engraving_forge(): void
+    {
+        $character = $this->createCharacter(100_000);
+        [$prefix, $suffix] = $this->affixes();
+        $base = $this->weapon($character, 'E', 'dagger', $prefix, 1, $suffix, 1, shopRankOnly: true);
+        $material = $this->weapon($character, 'E', 'dagger', $prefix, 1, $suffix, 1, shopRankOnly: true);
+        $service = app(WeaponTraitForgeService::class);
+
+        $pair = collect($service->candidates($character)['engraving_forge'])
+            ->first(fn (array $candidate): bool => $candidate['base']['id'] === $base->id
+                && $candidate['material']['id'] === $material->id);
+
+        $this->assertNotNull($pair);
+        $this->assertSame('E', $pair['base']['rank']);
+        $this->assertSame('E', $pair['material']['rank']);
+
+        $service->forge($character, 'engraving_forge', $base->id, $material->id);
+
+        $this->assertDatabaseHas('character_items', ['id' => $base->id, 'affix_prefix_level' => 2]);
+        $this->assertDatabaseMissing('character_items', ['id' => $material->id]);
+        $this->assertSame(80_000, $character->fresh()->money);
+    }
+
     public function test_dual_forge_can_raise_different_matching_levels_together(): void
     {
         $character = $this->createCharacter(500_000);
@@ -161,14 +184,16 @@ class WeaponTraitForgeServiceTest extends TestCase
         bool $locked = false,
         int $enhanceLevel = 0,
         string $quality = 'normal',
+        bool $shopRankOnly = false,
     ): CharacterItem {
         $item = Item::query()->create([
             'name' => "鍛錬用{$rank}剣",
             'type' => 'weapon',
             'rarity' => $rank,
             'weapon_category' => $category,
-            'weapon_rank' => $rank,
+            'weapon_rank' => $shopRankOnly ? null : $rank,
             'str_bonus' => 100,
+            'is_shop_item' => $shopRankOnly,
             'is_active' => true,
         ]);
 

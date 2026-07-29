@@ -465,7 +465,7 @@ class WeaponTraitTransferService
 
     private function equipmentRank(CharacterItem $characterItem): string
     {
-        $rank = $characterItem->item?->weapon_rank ?: $characterItem->item?->armor_rank;
+        $rank = $this->rules->equipmentRank($characterItem->item);
 
         return strtoupper((string) ($rank ?: '-'));
     }

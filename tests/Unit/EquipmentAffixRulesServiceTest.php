@@ -65,6 +65,20 @@ class EquipmentAffixRulesServiceTest extends TestCase
         $this->assertSame(5, $service->clampLevel(new Item(['weapon_rank' => 'SS']), 5));
     }
 
+    public function test_shop_equipment_uses_rarity_when_the_specific_rank_is_missing(): void
+    {
+        $service = app(EquipmentAffixRulesService::class);
+        $shopWeapon = new Item(['type' => 'weapon', 'rarity' => 'E', 'is_shop_item' => true]);
+        $shopArmor = new Item(['type' => 'armor', 'rarity' => 'F', 'is_shop_item' => true]);
+        $nonShopWeapon = new Item(['type' => 'weapon', 'rarity' => 'E', 'is_shop_item' => false]);
+
+        $this->assertSame('E', $service->equipmentRank($shopWeapon));
+        $this->assertSame(2, $service->maxLevelForItem($shopWeapon));
+        $this->assertSame('F', $service->equipmentRank($shopArmor));
+        $this->assertSame(2, $service->maxLevelForItem($shopArmor));
+        $this->assertSame('', $service->equipmentRank($nonShopWeapon));
+    }
+
     public function test_character_item_uses_the_current_rules_for_saved_affixes(): void
     {
         $item = new Item(['type' => 'weapon', 'weapon_rank' => 'A', 'str_bonus' => 100]);

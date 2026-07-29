@@ -119,9 +119,19 @@ class EquipmentAffixRulesService
         return min((int) config('equipment_affix.maximum_level', 5), max(1, $level));
     }
 
-    private function equipmentRank(?Item $item): string
+    public function equipmentRank(?Item $item): string
     {
-        return strtoupper((string) ($item?->weapon_rank ?: $item?->armor_rank ?: ''));
+        $rank = $item?->weapon_rank ?: $item?->armor_rank;
+
+        if (
+            !$rank
+            && $item?->is_shop_item
+            && in_array($item?->type, ['weapon', 'armor'], true)
+        ) {
+            $rank = $item?->rarity;
+        }
+
+        return strtoupper((string) ($rank ?: ''));
     }
 
     private function engravingBasePower(Item $item, int $enhanceLevel): int
