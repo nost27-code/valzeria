@@ -26,6 +26,26 @@ class EquipmentPermissionService
         'katana' => '刀',
     ];
 
+    private const WEAPON_PROFICIENCY_GROUP_LABELS = [
+        'sword' => '剣',
+        'axe' => '重量武器',
+        'dagger' => '短剣',
+        'bow' => '弓',
+        'staff' => '杖',
+        'magic_device' => '魔法具',
+        'gun' => '銃器',
+        'spear' => '槍',
+        'fist' => '格闘武器',
+        'katana' => '刀',
+    ];
+
+    private const WEAPON_ROLE_LABELS = [
+        '斧' => '一撃型',
+        '棍棒' => '堅守型',
+        '銃' => '先手型',
+        '機工銃' => '物魔両用型',
+    ];
+
     private const ARMOR_LABELS = [
         'clothes' => '服・旅装',
         'robe' => 'ローブ・法衣',
@@ -133,6 +153,26 @@ class EquipmentPermissionService
             'armor' => self::ARMOR_LABELS[$category] ?? $category,
             default => null,
         };
+    }
+
+    public function proficiencyGroupLabel(Item $item): ?string
+    {
+        if ($item->type !== 'weapon' || !$item->weapon_category) {
+            return null;
+        }
+
+        return self::WEAPON_PROFICIENCY_GROUP_LABELS[$item->weapon_category]
+            ?? self::WEAPON_LABELS[$item->weapon_category]
+            ?? $item->weapon_category;
+    }
+
+    public function weaponRoleLabel(Item $item): ?string
+    {
+        if ($item->type !== 'weapon') {
+            return null;
+        }
+
+        return self::WEAPON_ROLE_LABELS[(string) $item->sub_type] ?? null;
     }
 
     /**

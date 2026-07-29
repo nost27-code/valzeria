@@ -42,8 +42,8 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSee('杖')
             ->assertSee('銃')
             ->assertSee('おすすめ順（適正優先）')
-            ->assertSee('適正')
-            ->assertSee('適性外 65%')
+            ->assertSee('短剣適正')
+            ->assertSee('剣適性外 65%')
             ->assertSee('bg-emerald-50/40', false)
             ->assertSeeInOrder(['店売りの短剣', '店売りの剣']);
     }
@@ -62,7 +62,7 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSee('現在は適正武器のみ装備できます。')
             ->assertSee('現在の職業では装備できません')
             ->assertSee('武器性能')
-            ->assertDontSee('適性外 65%');
+            ->assertDontSee('剣適性外 65%');
     }
 
     public function test_weapon_shop_separates_equipped_ability_from_effective_and_raw_weapon_performance(): void
@@ -90,6 +90,7 @@ class JobCombatGuideDisplayTest extends TestCase
 
         $candidateWeapon = $this->shopWeapon('熱砂の戦斧', 'axe');
         $candidateWeapon->forceFill([
+            'sub_type' => '斧',
             'str_bonus' => 568,
             'agi_bonus' => -80,
         ])->save();
@@ -111,6 +112,8 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSee('武器性能：')
             ->assertSee('攻撃 +543')
             ->assertSee('魔力 +164')
+            ->assertSee('一撃型')
+            ->assertSee('重量武器適性外 75%')
             ->assertSee('装備後の能力')
             ->assertSee('適性反映後の武器性能')
             ->assertSee('data-shop-effective-stat="str"', false)

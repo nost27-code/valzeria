@@ -239,12 +239,16 @@
                             $equipmentGuide = $equipmentGuides[(int) $item->id] ?? null;
                             $equipmentPreview = $equipmentGuide['preview'] ?? null;
                             $categoryLabel = $permissionService->categoryLabel($item);
+                            $proficiencyGroupLabel = $permissionService->proficiencyGroupLabel($item);
+                            $weaponRoleLabel = $permissionService->weaponRoleLabel($item);
                             $canEquipByJob = $equipmentGuide['can_equip'] ?? true;
                             $restrictionJobs = $equipmentGuide['restriction_jobs'] ?? [];
                             $displayPrice = $character ? $shopService->priceFor($character, $item) : (int) $item->price;
                             $ownedCount = $ownedItemCounts[$item->id] ?? 0;
                             $equipmentIcon = $type !== 'consumable' ? $item->iconImagePath() : null;
-                            $showCategoryLabel = $categoryLabel && $categoryLabel !== (string) $item->sub_type;
+                            $showCategoryLabel = $item->type !== 'weapon'
+                                && $categoryLabel
+                                && $categoryLabel !== (string) $item->sub_type;
                         @endphp
                         <div
                             class="item-card rounded-lg border p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center transition-colors {{ ($equipmentGuide['native_proficiency'] ?? false) ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300' : 'border-[#d4af37]/50 bg-white hover:border-[#d4af37]' }}"
@@ -260,6 +264,7 @@
                                     @endif
                                     <span>{{ $item->name }}</span>
                                     @if($item->sub_type) <span class="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded ml-2">{{ $item->sub_type }}</span> @endif
+                                    @if($weaponRoleLabel) <span class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded ml-1">{{ $weaponRoleLabel }}</span> @endif
                                     @if($item->element) <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded ml-1">{{ $item->element }}属性</span> @endif
                                     @if($showCategoryLabel) <span class="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded ml-1">{{ $categoryLabel }}</span> @endif
                                 </h3>
@@ -268,11 +273,11 @@
                                     <div class="mt-2">
                                         @if($equipmentGuide['native_proficiency'])
                                             <span class="inline-flex rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-emerald-700" title="装備効果100%">
-                                                適正
+                                                {{ $proficiencyGroupLabel ? $proficiencyGroupLabel . '適正' : '適正' }}
                                             </span>
                                         @else
                                             <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-extrabold text-amber-700">
-                                                適性外 {{ $equipmentGuide['performance_percent'] }}%
+                                                {{ $proficiencyGroupLabel ? $proficiencyGroupLabel . '適性外' : '適性外' }} {{ $equipmentGuide['performance_percent'] }}%
                                             </span>
                                         @endif
                                     </div>

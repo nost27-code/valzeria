@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-shop-weapon-role-labels',
+        'date' => '2026-07-29',
+        'category' => 'changed',
+        'title' => '装備屋の武器種と役割表示を分かりやすく改善',
+        'detail' => '装備屋で、武器名横の重複していた分類表示を整理し、斧・棍棒・銃・機工銃に一撃型・堅守型・先手型・物魔両用型の役割を表示しました。説明文と適性表示も各武器の特徴に合わせています。',
+    ],
+    [
         'id' => '2026-07-29-shop-proficiency-card-polish',
         'date' => '2026-07-29',
         'category' => 'changed',
