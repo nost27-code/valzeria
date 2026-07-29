@@ -669,7 +669,9 @@ class EquipmentEvolutionService
             $this->affixInheritancePayload($source),
             ['enhance_level' => min((int) ($source->enhance_level ?? 0), app(EquipmentEnhancementService::class)->maxEnhanceFor($toItem))]
         ));
-        $preview->setRelation('item', new Item(['name' => $toDisplayName ?: $toItem->name]));
+        $previewItem = $toItem->replicate();
+        $previewItem->name = $toDisplayName ?: $toItem->name;
+        $preview->setRelation('item', $previewItem);
 
         if ($source->relationLoaded('affixPrefix')) {
             $preview->setRelation('affixPrefix', $source->affixPrefix);
@@ -679,7 +681,7 @@ class EquipmentEvolutionService
             $preview->setRelation('affixSuffix', $source->affixSuffix);
         }
 
-        return $preview->displayName();
+        return $preview->displayName(false);
     }
 
     private function rankSort(string $rank): int

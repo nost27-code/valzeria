@@ -135,6 +135,30 @@ class EquipmentEvolutionServiceTest extends TestCase
         $this->assertSame('鋭いI未鑑定の剣・竜断I【逸品】 +2', $maskedPayloads[0]['evolved_display_name']);
     }
 
+    public function test_evolution_preview_keeps_affix_level_allowed_by_destination_rank(): void
+    {
+        $service = new EquipmentEvolutionService($this->createMock(EquipmentPermissionService::class));
+        $sourceItem = new Item(['name' => '魔導具', 'type' => 'weapon', 'weapon_rank' => 'B']);
+        $toItem = new Item(['name' => '上位魔導具', 'type' => 'weapon', 'weapon_rank' => 'A']);
+        $prefix = new EquipmentAffixPrefix(['name' => '魔導', 'target_stat' => 'mag']);
+        $source = new CharacterItem([
+            'affix_prefix_id' => 10,
+            'affix_prefix_level' => 2,
+        ]);
+        $source->setRelation('item', $sourceItem);
+        $source->setRelation('affixPrefix', $prefix);
+
+        $this->assertSame('[B] 魔導II魔導具', $source->displayName());
+        $this->assertSame(
+            '魔導II上位魔導具',
+            $this->invokePrivate($service, 'evolvedSourceDisplayName', [$source, $toItem])
+        );
+        $this->assertSame(
+            '魔導II未鑑定の魔導具',
+            $this->invokePrivate($service, 'evolvedSourceDisplayName', [$source, $toItem, '未鑑定の魔導具'])
+        );
+    }
+
     public function test_gale_weapon_branch_uses_rapid_blade_path_stone_name(): void
     {
         $master = json_decode(

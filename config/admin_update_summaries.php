@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-evolution-affix-preview',
+        'date' => '2026-07-29',
+        'category' => 'fixed',
+        'title' => '進化後の銘段階プレビューを修正',
+        'detail' => '進化合成の確認画面で、引き継がれる銘・特攻・耐性の段階がⅠと誤表示される問題を修正しました。',
+    ],
+    [
         'id' => '2026-07-29-champ-battle-consistency',
         'date' => '2026-07-29',
         'category' => 'fixed',
