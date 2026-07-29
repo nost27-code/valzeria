@@ -8,6 +8,7 @@ use App\Models\JobClass;
 use App\Models\CharacterJob;
 use App\Services\JobService;
 use App\Services\CharacterJobChangeService;
+use App\Services\JobCombatGuideService;
 use App\Services\PublicLogService;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +33,7 @@ class JobChange extends Component
     public $detailJob = null;
     public array $detailJobGrowthStats = [];
     public array $detailJobMasterBonusChips = [];
+    public array $detailJobCombatGuide = [];
     public bool $detailJobCanChange = false;
     public bool $hasCrownProof = false;
     public int $bonusPointBlockedJobCount = 0;
@@ -206,6 +208,7 @@ class JobChange extends Component
         $this->detailJobCanChange = (bool) $canChange;
         $this->detailJobGrowthStats = $this->buildGrowthStats($job);
         $this->detailJobMasterBonusChips = $this->buildMasterBonusChips($job);
+        $this->detailJobCombatGuide = app(JobCombatGuideService::class)->detailFor($job);
         $this->showingJobDetail = true;
     }
 
@@ -216,6 +219,7 @@ class JobChange extends Component
         $this->detailJob = null;
         $this->detailJobGrowthStats = [];
         $this->detailJobMasterBonusChips = [];
+        $this->detailJobCombatGuide = [];
         $this->detailJobCanChange = false;
     }
 

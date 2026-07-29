@@ -86,6 +86,41 @@ class EquipmentProficiencyPenaltyTest extends TestCase
         $this->assertTrue((bool) $armor->fresh()->is_equipped);
     }
 
+    public function test_native_weapon_category_labels_are_returned_in_display_order(): void
+    {
+        $job = JobClass::query()->create([
+            'key' => 'merchant_display_test',
+            'name' => '商人',
+            'rank' => 'normal',
+            'is_active' => true,
+        ]);
+        DB::table('job_weapon_permissions')->insert([
+            [
+                'job_id' => $job->id,
+                'weapon_category' => 'staff',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'job_id' => $job->id,
+                'weapon_category' => 'dagger',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'job_id' => $job->id,
+                'weapon_category' => 'gun',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->assertSame(
+            ['短剣', '杖', '銃'],
+            app(EquipmentPermissionService::class)->nativeWeaponCategoryLabels((int) $job->id),
+        );
+    }
+
     /** @return array{Character, CharacterItem, CharacterItem} */
     private function nonProficientLoadout(): array
     {

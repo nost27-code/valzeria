@@ -8,11 +8,16 @@ use App\Services\ShopService;
 use App\Services\DailySupplyService;
 use App\Services\EquipmentService;
 use App\Services\EquipmentPermissionService;
+use App\Services\JobCombatGuideService;
 use Illuminate\Support\Facades\Auth;
 
 class ShopController extends Controller
 {
-    public function equipment(Request $request)
+    public function equipment(
+        Request $request,
+        EquipmentPermissionService $permissionService,
+        JobCombatGuideService $jobCombatGuideService,
+    )
     {
         $character = Auth::user()->currentCharacter();
         $cityId = $character ? $character->current_city_id : null;
@@ -38,6 +43,21 @@ class ShopController extends Controller
                 ->map(fn ($count) => (int) $count)
                 ->all()
             : [];
+        $equipmentGuides = [];
+
+        if ($character) {
+            foreach ($items as $item) {
+                $canEquip = $permissionService->canEquip($character, $item);
+                $equipmentGuides[(int) $item->id] = [
+                    'can_equip' => $canEquip,
+                    'native_proficiency' => $permissionService->hasNativeProficiency($character, $item),
+                    'performance_percent' => (int) round($permissionService->performanceRate($character, $item) * 100),
+                    'restriction_jobs' => $canEquip ? [] : $permissionService->representativeJobNames($item),
+                ];
+            }
+        }
+
+        $currentJob = $character?->currentJob()->first();
 
         return view('shop.list', [
             'categoryName' => '装備屋',
@@ -48,6 +68,8 @@ class ShopController extends Controller
             'cityName' => $character?->currentCity?->name,
             'equippedItems' => $equippedItems,
             'ownedItemCounts' => $ownedItemCounts,
+            'equipmentGuides' => $equipmentGuides,
+            'jobCombatGuide' => $currentJob ? $jobCombatGuideService->summaryFor($currentJob) : null,
             'isStarterSupply' => false,
         ]);
     }

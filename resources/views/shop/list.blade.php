@@ -78,6 +78,37 @@
                     </div>
                 @endif
 
+                @if($type === 'weapon' && !empty($jobCombatGuide))
+                    <div class="mb-5 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 sm:p-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-sm font-extrabold text-slate-900">
+                                現在職：{{ $jobCombatGuide['job_name'] }}
+                            </span>
+                            <span class="rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-xs font-extrabold text-indigo-700">
+                                通常攻撃：{{ $jobCombatGuide['normal_attack_reference'] }}
+                            </span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                            <span class="font-extrabold text-slate-700">適正武器：</span>
+                            @forelse($jobCombatGuide['weapon_labels'] as $weaponLabel)
+                                <span class="rounded-full border border-emerald-200 bg-white px-2.5 py-1 font-extrabold text-emerald-700">
+                                    {{ $weaponLabel }}
+                                </span>
+                            @empty
+                                <span class="font-bold text-slate-500">未設定</span>
+                            @endforelse
+                        </div>
+                        <p class="mt-2 text-[11px] font-bold leading-relaxed text-slate-600">
+                            @if($jobCombatGuide['non_proficient_enabled'])
+                                適正武器は装備効果100%。適性外は武器種ごとに効果が下がります。
+                            @else
+                                現在は適正武器のみ装備できます。
+                            @endif
+                            必殺技・奥義の参照先は職業詳細で個別に確認できます。
+                        </p>
+                    </div>
+                @endif
+
                 {{-- 現在の装備表示 (スクロール追従・コンパクト版) --}}
                 @if($type !== 'consumable' && isset($equippedItems) && is_array($equippedItems))
                     <div class="sticky top-2 z-30 mb-6 p-2 sm:p-3 bg-amber-50/95 backdrop-blur-sm border border-amber-200 rounded-lg shadow-md shadow-amber-200/50">
@@ -236,14 +267,16 @@
                     @php
                         $character = $character ?? Auth::user()->currentCharacter();
                         $ownedItemCounts = $ownedItemCounts ?? [];
+                        $equipmentGuides = $equipmentGuides ?? [];
                         $permissionService = app(\App\Services\EquipmentPermissionService::class);
                         $shopService = app(\App\Services\ShopService::class);
                     @endphp
                     @forelse($items as $item)
                         @php
+                            $equipmentGuide = $equipmentGuides[(int) $item->id] ?? null;
                             $categoryLabel = $permissionService->categoryLabel($item);
-                            $canEquipByJob = !$character || $permissionService->canEquip($character, $item);
-                            $restrictionJobs = $canEquipByJob ? [] : $permissionService->representativeJobNames($item);
+                            $canEquipByJob = $equipmentGuide['can_equip'] ?? true;
+                            $restrictionJobs = $equipmentGuide['restriction_jobs'] ?? [];
                             $displayPrice = $character ? $shopService->priceFor($character, $item) : (int) $item->price;
                             $ownedCount = $ownedItemCounts[$item->id] ?? 0;
                             $equipmentIcon = $type !== 'consumable' ? $item->iconImagePath() : null;
@@ -264,6 +297,19 @@
                                     @if($showCategoryLabel) <span class="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded ml-1">{{ $categoryLabel }}</span> @endif
                                 </h3>
                                 <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">{{ $item->description }}</p>
+                                @if($equipmentGuide && $canEquipByJob)
+                                    <div class="mt-2">
+                                        @if($equipmentGuide['native_proficiency'])
+                                            <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-700">
+                                                {{ $item->type === 'weapon' ? '適正武器' : '適正防具' }}・装備効果100%
+                                            </span>
+                                        @else
+                                            <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-extrabold text-amber-700">
+                                                適性外・装備効果{{ $equipmentGuide['performance_percent'] }}%
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
                                 <div class="text-sm text-slate-500 mt-2">
                                     <span class="mr-3">
                                         <strong class="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">

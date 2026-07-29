@@ -565,10 +565,56 @@
                         </div>
                     </section>
 
+                    @if(!empty($detailJobCombatGuide))
+                        <section>
+                            <h4 class="text-sm font-extrabold text-slate-900">戦い方と適正武器</h4>
+                            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                    <div class="text-[10px] font-extrabold tracking-wide text-slate-500">通常攻撃</div>
+                                    <div class="mt-1 text-sm font-extrabold text-slate-900">
+                                        {{ $detailJobCombatGuide['normal_attack_reference'] }}
+                                    </div>
+                                </div>
+                                @if($detailJobCombatGuide['special_skill'])
+                                    <div class="rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2.5">
+                                        <div class="text-[10px] font-extrabold tracking-wide text-blue-500">必殺技</div>
+                                        <div class="mt-1 text-sm font-extrabold text-slate-900">
+                                            {{ $detailJobCombatGuide['special_skill']['name'] }}
+                                        </div>
+                                        <div class="mt-0.5 text-xs font-bold text-blue-700">
+                                            {{ $detailJobCombatGuide['special_skill']['damage_reference'] ?? '直接ダメージなし' }}
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="mt-3 flex flex-wrap items-center gap-1.5">
+                                <span class="text-xs font-extrabold text-slate-700">適正武器：</span>
+                                @forelse($detailJobCombatGuide['weapon_labels'] as $weaponLabel)
+                                    <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">
+                                        {{ $weaponLabel }}
+                                    </span>
+                                @empty
+                                    <span class="text-xs font-bold text-slate-400">未設定</span>
+                                @endforelse
+                            </div>
+                            <p class="mt-2 text-[11px] font-bold leading-relaxed text-slate-500">
+                                @if($detailJobCombatGuide['non_proficient_enabled'])
+                                    適正武器は装備効果100%。適性外は武器種ごとに効果が下がります。
+                                @else
+                                    現在は適正武器のみ装備できます。
+                                @endif
+                                必殺技・奥義は、それぞれ表示された能力を参照します。
+                            </p>
+                        </section>
+                    @endif
+
                     <section>
                         <h4 class="text-sm font-extrabold text-slate-900">覚える奥義</h4>
                         <div class="mt-2 space-y-2">
                             @forelse($detailJob->jobArts->sortBy('learn_rank') as $art)
+                                @php
+                                    $artDamageReference = $detailJobCombatGuide['job_art_damage_references'][(int) $art->id] ?? null;
+                                @endphp
                                 <div class="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
@@ -582,6 +628,11 @@
                                             <span class="rounded border border-slate-100 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
                                                 Cost {{ (int) $art->art_cost }}
                                             </span>
+                                            @if($artDamageReference)
+                                                <span class="rounded border border-fuchsia-100 bg-white px-2 py-0.5 text-[10px] font-bold text-fuchsia-700">
+                                                    {{ $artDamageReference }}
+                                                </span>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="mt-2 text-xs font-medium leading-relaxed text-slate-600">
