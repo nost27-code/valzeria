@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-adventurer-card-equipment-name-wrap',
+        'date' => '2026-07-29',
+        'category' => 'fixed',
+        'title' => '冒険者カードの装備名表示を修正',
+        'detail' => 'スマホの冒険者カードで装備欄をコンパクトにし、長い装備名でも逸品表示や強化値まで確認しやすくしました。',
+    ],
+    [
         'id' => '2026-07-29-ferdia-apothecary-material-balance',
         'date' => '2026-07-29',
         'category' => 'balance',

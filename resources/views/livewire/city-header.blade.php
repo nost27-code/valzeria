@@ -1869,37 +1869,37 @@
                     </div>
 
                     <!-- 現在の装備 -->
-                    <div class="adventurer-card-section px-4 py-3">
+                    <div class="adventurer-card-section px-3 py-3">
                         <div class="mb-2 text-lg font-black text-[#6b3f08]">現在の装備</div>
-                        <div class="space-y-1.5 text-sm">
-                            <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
-                                <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-amber-200 bg-amber-50 text-xs font-black text-[#8a5a0d]">武</div>
+                        <div class="space-y-0.5 text-xs">
+                            <div class="flex min-h-7 items-center gap-1 px-1 py-1">
+                                <div class="grid h-5 w-5 shrink-0 place-items-center rounded-sm border border-amber-200 bg-amber-50 text-[10px] font-black text-[#8a5a0d]">武</div>
                                 <template x-if="playerInfo.equipment.weapon.rank">
-                                    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                    <span class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-sm px-1 text-[9px] font-black leading-none text-white"
                                           :style="`background-color: ${playerInfo.equipment.weapon.rank_color}`"
                                           x-text="playerInfo.equipment.weapon.rank"></span>
                                 </template>
-                                <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.weapon.name"></span>
+                                <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-bold leading-tight text-slate-800" x-text="playerInfo.equipment.weapon.name"></span>
                                 <template x-if="playerInfo.equipment.weapon.bonus_text"><span class="shrink-0 text-[10px] font-black text-violet-700" x-text="playerInfo.equipment.weapon.bonus_text"></span></template>
                             </div>
-                            <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
-                                <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-sky-200 bg-sky-50 text-xs font-black text-sky-700">防</div>
+                            <div class="flex min-h-7 items-center gap-1 px-1 py-1">
+                                <div class="grid h-5 w-5 shrink-0 place-items-center rounded-sm border border-sky-200 bg-sky-50 text-[10px] font-black text-sky-700">防</div>
                                 <template x-if="playerInfo.equipment.armor.rank">
-                                    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                    <span class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-sm px-1 text-[9px] font-black leading-none text-white"
                                           :style="`background-color: ${playerInfo.equipment.armor.rank_color}`"
                                           x-text="playerInfo.equipment.armor.rank"></span>
                                 </template>
-                                <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.armor.name"></span>
+                                <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-bold leading-tight text-slate-800" x-text="playerInfo.equipment.armor.name"></span>
                                 <template x-if="playerInfo.equipment.armor.bonus_text"><span class="shrink-0 text-[10px] font-black text-violet-700" x-text="playerInfo.equipment.armor.bonus_text"></span></template>
                             </div>
-                            <div class="flex min-h-9 items-center gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
-                                <div class="grid h-7 w-7 shrink-0 place-items-center rounded border border-violet-200 bg-violet-50 text-xs font-black text-violet-700">飾</div>
+                            <div class="flex min-h-7 items-center gap-1 px-1 py-1">
+                                <div class="grid h-5 w-5 shrink-0 place-items-center rounded-sm border border-violet-200 bg-violet-50 text-[10px] font-black text-violet-700">飾</div>
                                 <template x-if="playerInfo.equipment.accessory.rank">
-                                    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-black leading-none text-white shadow-sm"
+                                    <span class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-sm px-1 text-[9px] font-black leading-none text-white"
                                           :style="`background-color: ${playerInfo.equipment.accessory.rank_color}`"
                                           x-text="playerInfo.equipment.accessory.rank"></span>
                                 </template>
-                                <span class="min-w-0 truncate font-bold text-slate-800" x-text="playerInfo.equipment.accessory.name"></span>
+                                <span class="min-w-0 flex-1 [overflow-wrap:anywhere] font-bold leading-tight text-slate-800" x-text="playerInfo.equipment.accessory.name"></span>
                             </div>
                         </div>
                     </div>
