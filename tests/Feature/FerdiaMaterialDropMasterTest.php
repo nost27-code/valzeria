@@ -2,9 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Area;
+use App\Models\Enemy;
+use App\Services\ExplorationService;
 use Database\Seeders\FerdiaRegionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class FerdiaMaterialDropMasterTest extends TestCase
@@ -17,7 +21,7 @@ class FerdiaMaterialDropMasterTest extends TestCase
             ->whereBetween('area_id', [1001, 1013])
             ->where('is_boss', false)
             ->count());
-        $this->assertSame(68, $this->ferdiaDropQuery()->count());
+        $this->assertSame(69, $this->ferdiaDropQuery()->count());
 
         foreach (range(1001, 1013) as $areaId) {
             $this->assertTrue(
@@ -56,6 +60,36 @@ class FerdiaMaterialDropMasterTest extends TestCase
             $this->dropRate(1011, '巨人', 'MAT_BR_WPN_GALE_ANCIENT'),
             0.001
         );
+        $this->assertEqualsWithDelta(
+            12.04,
+            $this->dropRate(1005, '昆虫', 'MAT_FERDIA_DETOX_GALL'),
+            0.001
+        );
+        $this->assertEqualsWithDelta(
+            33.0,
+            $this->dropRate(1008, '昆虫', 'MAT_FERDIA_GUARDTREE_RESIN'),
+            0.001
+        );
+        $this->assertFalse($this->hasDrop(1008, '昆虫', 'MAT_FERDIA_BLUE_LIFE_LEAF'));
+    }
+
+    public function test_ferdia_treasure_keeps_one_slot_for_the_area_representative_material(): void
+    {
+        $area = Area::query()->findOrFail(1005);
+        $baseEnemy = Enemy::query()
+            ->where('area_id', $area->id)
+            ->where('is_boss', false)
+            ->firstOrFail();
+        $method = new ReflectionMethod(ExplorationService::class, 'treasureRewardMaterials');
+        $method->setAccessible(true);
+
+        $materials = $method->invoke(app(ExplorationService::class), $area, $baseEnemy, 4);
+
+        $this->assertCount(4, $materials);
+        $this->assertSame('止血苔', $materials[0]->name);
+        $this->assertFalse(collect($materials)->contains(
+            fn ($material): bool => str_contains((string) $material->name, '古代片')
+        ));
     }
 
     public function test_material_drop_repair_is_idempotent(): void
@@ -85,7 +119,7 @@ class FerdiaMaterialDropMasterTest extends TestCase
         app(FerdiaRegionSeeder::class)->seedMaterialDrops();
 
         $this->assertSame(6, DB::table('materials')->whereIn('material_code', $materialCodes)->count());
-        $this->assertSame(68, $this->ferdiaDropQuery()->count());
+        $this->assertSame(69, $this->ferdiaDropQuery()->count());
     }
 
     public function test_dungeon_validation_detects_missing_ferdia_material_drops(): void
@@ -122,5 +156,14 @@ class FerdiaMaterialDropMasterTest extends TestCase
             ->where('enemy.type_name', $enemyType)
             ->where('material.material_code', $materialCode)
             ->value('material_drop.drop_rate');
+    }
+
+    private function hasDrop(int $areaId, string $enemyType, string $materialCode): bool
+    {
+        return (clone $this->ferdiaDropQuery())
+            ->where('enemy.area_id', $areaId)
+            ->where('enemy.type_name', $enemyType)
+            ->where('material.material_code', $materialCode)
+            ->exists();
     }
 }

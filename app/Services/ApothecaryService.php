@@ -17,12 +17,12 @@ use RuntimeException;
 class ApothecaryService
 {
     private const RECIPES = [
-        'apothecary_charm' => ['item' => '薬屋のお守り', 'unlock_area_id' => 1001, 'fee_rate' => .08, 'materials' => ['王都の織布' => 1, '精霊樹の繊維' => 2, '青命草の葉' => 3]],
-        'guard_incense' => ['item' => '守りの香', 'unlock_area_id' => 1006, 'fee_rate' => .10, 'materials' => ['精霊樹の繊維' => 2, '黒鉄の装甲片' => 1, '守樹の樹脂' => 3]],
-        'first_aid_kit' => ['item' => '冒険者の救急包', 'unlock_area_id' => 1004, 'fee_rate' => .10, 'materials' => ['潮風の布片' => 2, '王都の織布' => 1, '止血苔' => 3, '毒抜きの胆' => 1]],
-        'special_herbal_clearstream' => ['item' => '薬屋の特製漢方', 'family' => 'special_herbal', 'unlock_area_id' => 1011, 'fee_rate' => .12, 'materials' => ['青命草の葉' => 4, '命脈根' => 1, '清流の雫' => 2]],
+        'apothecary_charm' => ['item' => '薬屋のお守り', 'unlock_area_id' => 1001, 'output_quantity' => 1, 'fee_rate' => .08, 'materials' => ['王都の織布' => 1, '精霊樹の繊維' => 2, '青命草の葉' => 3]],
+        'guard_incense' => ['item' => '守りの香', 'unlock_area_id' => 1006, 'output_quantity' => 1, 'fee_rate' => .10, 'materials' => ['精霊樹の繊維' => 2, '黒鉄の装甲片' => 1, '守樹の樹脂' => 3]],
+        'first_aid_kit' => ['item' => '冒険者の救急包', 'unlock_area_id' => 1004, 'output_quantity' => 1, 'fee_rate' => .10, 'materials' => ['潮風の布片' => 2, '王都の織布' => 1, '止血苔' => 3, '毒抜きの胆' => 1]],
+        'special_herbal_clearstream' => ['item' => '薬屋の特製漢方', 'family' => 'special_herbal', 'unlock_area_id' => 1011, 'output_quantity' => 1, 'fee_rate' => .12, 'materials' => ['青命草の葉' => 4, '命脈根' => 1, '清流の雫' => 2]],
         // 現行マスタに「世界樹の雫」はなく、既存の世界樹由来素材「世界樹の葉片」を再利用する。
-        'special_herbal_worldtree' => ['item' => '薬屋の特製漢方', 'family' => 'special_herbal', 'unlock_area_id' => 1011, 'fee_rate' => .12, 'materials' => ['青命草の葉' => 4, '命脈根' => 1, '世界樹の葉片' => 6]],
+        'special_herbal_worldtree' => ['item' => '薬屋の特製漢方', 'family' => 'special_herbal', 'unlock_area_id' => 1011, 'output_quantity' => 1, 'fee_rate' => .12, 'materials' => ['青命草の葉' => 4, '命脈根' => 1, '世界樹の葉片' => 6]],
         'lure_beast' => ['item' => '誘魔香〈獣〉', 'unlock_area_id' => 1001, 'available_from_start' => true, 'output_quantity' => 1, 'fee_rate' => .08, 'materials' => ['魔物の欠片' => 2, '獣牙' => 3]],
         'lure_undead' => ['item' => '誘魔香〈不死〉', 'unlock_area_id' => 1001, 'available_from_start' => true, 'output_quantity' => 1, 'fee_rate' => .08, 'materials' => ['魔物の欠片' => 2, '古びた骨片' => 3]],
         'lure_dragon' => ['item' => '誘魔香〈竜〉', 'unlock_area_id' => 1001, 'available_from_start' => true, 'output_quantity' => 1, 'fee_rate' => .08, 'materials' => ['魔物の欠片' => 2, '魔物の外殻' => 3]],

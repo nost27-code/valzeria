@@ -32,10 +32,10 @@ class FerdiaRegionSeeder extends Seeder
         1002 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]]],
         1003 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]]],
         1004 => ['スライム' => [['MAT_FERDIA_CLEARSTREAM_DROP', 12]], '獣' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], 'other' => [['MAT_FERDIA_CLEARSTREAM_DROP', 12]]],
-        1005 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 6]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]]],
+        1005 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 6]], '昆虫' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8], ['MAT_FERDIA_DETOX_GALL', 3]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]]],
         1006 => ['スライム' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 6]], 'other' => []],
         1007 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], 'other' => [['MAT_FERDIA_HEMOSTATIC_MOSS', 6]]],
-        1008 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]]],
+        1008 => ['スライム' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 12]], '昆虫' => [['MAT_FERDIA_GUARDTREE_RESIN', 10]], 'other' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 10]]],
         1009 => ['スライム' => [['MAT_FERDIA_CLEARSTREAM_DROP', 10]], '獣' => [['MAT_FERDIA_DETOX_GALL', 5]], 'other' => [['MAT_FERDIA_CLEARSTREAM_DROP', 10], ['MAT_FERDIA_DETOX_GALL', 3]]],
         1010 => ['スライム' => [['MAT_FERDIA_GUARDTREE_RESIN', 10]], '獣' => [['MAT_FERDIA_DETOX_GALL', 5]], 'other' => [['MAT_FERDIA_GUARDTREE_RESIN', 10]]],
         1011 => ['スライム' => [['MAT_FERDIA_GUARDTREE_RESIN', 12]], '獣' => [['MAT_FERDIA_BLUE_LIFE_LEAF', 8]], '巨人' => [['MAT_FERDIA_LIFEROOT', 2]], 'other' => [['MAT_FERDIA_LIFEROOT', 3]]],
@@ -95,6 +95,22 @@ class FerdiaRegionSeeder extends Seeder
         }
 
         $now = now();
+        $ferdiaEnemyIds = DB::table('enemies')
+            ->whereBetween('area_id', [min(array_keys(self::MATERIAL_DROP_MAP)), max(array_keys(self::MATERIAL_DROP_MAP))])
+            ->where('is_boss', false)
+            ->pluck('id');
+        $apothecaryMaterialIds = $materialIds
+            ->only(array_keys(self::MATERIAL_MASTERS))
+            ->values();
+
+        DB::table('material_drops')
+            ->whereIn('enemy_id', $ferdiaEnemyIds)
+            ->whereIn('material_id', $apothecaryMaterialIds)
+            ->update([
+                'is_active' => false,
+                'updated_at' => $now,
+            ]);
+
         foreach (self::MATERIAL_DROP_MAP as $areaId => $types) {
             $enemies = DB::table('enemies')
                 ->where('area_id', $areaId)

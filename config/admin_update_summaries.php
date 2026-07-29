@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-ferdia-apothecary-material-balance',
+        'date' => '2026-07-29',
+        'category' => 'balance',
+        'title' => 'フェルディアの薬素材循環を調整',
+        'detail' => '薬屋の探索補助品を1回1個の調合にそろえ、必要素材を解放後の地域から狙えるようにしました。輝く宝箱では、その地域を代表する通常素材が1個見つかります。',
+    ],
+    [
         'id' => '2026-07-29-admin-private-reply-alert',
         'date' => '2026-07-29',
         'category' => 'internal',

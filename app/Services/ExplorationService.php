@@ -1572,12 +1572,7 @@ class ExplorationService
         }
 
         $quantity = rand(2, 4);
-        for ($i = 0; $i < $quantity; $i++) {
-            $material = $this->treasureMaterial($area, $baseEnemy);
-            if (!$material) {
-                continue;
-            }
-
+        foreach ($this->treasureRewardMaterials($area, $baseEnemy, $quantity) as $material) {
             $drop = $this->dropService->grantMaterialReward($character, $material, 'treasure', $baseEnemy);
             $result->drops[] = $drop;
             $drops[] = $drop['name'];
@@ -1705,9 +1700,88 @@ class ExplorationService
         return $materials->isNotEmpty() ? $materials->random() : null;
     }
 
+    /**
+     * フェルディアの輝く宝箱は、通常素材の総数を変えずに地域の代表素材を1枠だけ確定する。
+     *
+     * @return list<Material>
+     */
+    private function treasureRewardMaterials(Area $area, Enemy $baseEnemy, int $quantity): array
+    {
+        $remaining = max(0, $quantity);
+        $materials = [];
+
+        if ($remaining > 0 && $this->isMainFerdiaArea($area)) {
+            $representative = $this->treasureRepresentativeMaterial($area);
+            if ($representative) {
+                $materials[] = $representative;
+                $remaining--;
+            }
+        }
+
+        for ($i = 0; $i < $remaining; $i++) {
+            $material = $this->treasureMaterial($area, $baseEnemy);
+            if ($material) {
+                $materials[] = $material;
+            }
+        }
+
+        return $materials;
+    }
+
+    private function treasureRepresentativeMaterial(Area $area): ?Material
+    {
+        $scored = MaterialDrop::whereHas('enemy', fn ($query) => $query->where('area_id', $area->id))
+            ->where('is_active', true)
+            ->where('drop_first_clear_only', false)
+            ->where('drop_rate', '>', 0)
+            ->with(['enemy', 'material'])
+            ->get()
+            ->map(function (MaterialDrop $drop): ?array {
+                $material = $drop->material
+                    ? $this->normalizeTreasureMaterial($drop->material)
+                    : null;
+                if (!$material
+                    || (string) ($material->material_type ?? '') === 'sell_treasure'
+                    || $this->isAncientMaterial($material)) {
+                    return null;
+                }
+
+                return [
+                    'material' => $material,
+                    'score' => (float) $drop->drop_rate * max(1, (int) ($drop->enemy?->appearance_weight ?? 0)),
+                ];
+            })
+            ->filter()
+            ->groupBy(fn (array $row): int => (int) $row['material']->id)
+            ->map(function ($rows): array {
+                $first = $rows->first();
+
+                return [
+                    'material' => $first['material'],
+                    'score' => $rows->sum('score'),
+                ];
+            })
+            ->sort(function (array $left, array $right): int {
+                $byScore = $right['score'] <=> $left['score'];
+
+                return $byScore !== 0
+                    ? $byScore
+                    : ((int) $left['material']->id <=> (int) $right['material']->id);
+            })
+            ->values();
+
+        return $scored->first()['material'] ?? null;
+    }
+
+    private function isMainFerdiaArea(Area $area): bool
+    {
+        return (int) $area->id >= self::FERDIA_AREA_ID_MIN
+            && (int) $area->id <= self::FERDIA_AREA_ID_MAX;
+    }
+
     private function treasureAncientMaterial(Area $area): ?Material
     {
-        if ((int) $area->id < self::FERDIA_AREA_ID_MIN || (int) $area->id > self::FERDIA_AREA_ID_MAX) {
+        if (!$this->isMainFerdiaArea($area)) {
             return null;
         }
 

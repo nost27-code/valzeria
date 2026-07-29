@@ -242,7 +242,15 @@ class ExplorationSupportLureTest extends TestCase
         }
 
         $this->assertFalse($recipes->get('apothecary_charm')['unlocked']);
-        $this->assertSame(3, $recipes->get('apothecary_charm')['output_quantity']);
+        foreach ([
+            'apothecary_charm',
+            'guard_incense',
+            'first_aid_kit',
+            'special_herbal_clearstream',
+            'special_herbal_worldtree',
+        ] as $recipeCode) {
+            $this->assertSame(1, $recipes->get($recipeCode)['output_quantity']);
+        }
     }
 
     public function test_initial_character_can_craft_a_species_lure_when_materials_are_owned(): void
