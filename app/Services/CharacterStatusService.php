@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\CharacterItem;
+use App\Models\Item;
 use App\Services\Battle\WeaponOffenseCalculator;
 use App\Services\JobService;
 use App\Services\EquipmentEnhancementService;
@@ -225,11 +226,25 @@ class CharacterStatusService
             return [];
         }
 
-        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem(
+        return $this->equipmentStatsForItem(
+            $character,
             $item,
             (int) ($characterItem->enhance_level ?? 0),
+            $characterItem->affixStatBonuses(),
         );
-        $affix = $characterItem->affixStatBonuses();
+    }
+
+    /**
+     * @param  array<string, int>  $affixStats
+     * @return array<string, int>
+     */
+    public function equipmentStatsForItem(
+        Character $character,
+        Item $item,
+        int $enhanceLevel = 0,
+        array $affixStats = [],
+    ): array {
+        $enhanced = EquipmentEnhancementService::enhancedStatTotalsForItem($item, $enhanceLevel);
         $stats = [
             'hp' => 0,
             'mp' => 0,
@@ -241,8 +256,8 @@ class CharacterStatusService
             'luk' => 0,
         ];
 
-        foreach (array_unique(array_merge(array_keys($enhanced), array_keys($affix))) as $key) {
-            $stats[$key] = (int) ($enhanced[$key] ?? 0) + (int) ($affix[$key] ?? 0);
+        foreach (array_unique(array_merge(array_keys($enhanced), array_keys($affixStats))) as $key) {
+            $stats[$key] = (int) ($enhanced[$key] ?? 0) + (int) ($affixStats[$key] ?? 0);
         }
 
         $rate = app(EquipmentPermissionService::class)->performanceRate($character, $item);
@@ -255,6 +270,145 @@ class CharacterStatusService
         }
 
         return $stats;
+    }
+
+    /**
+     * 装備屋の商品を現在装備と入れ替えた場合の能力を、実際の装備計算式で算出する。
+     *
+     * @return array{
+     *     raw_stats: array<string, int>,
+     *     effective_stats: array<string, int>,
+     *     after_stats: array<string, int>,
+     *     deltas: array<string, int>,
+     *     visible_stats: array<int, string>
+     * }
+     */
+    public function equipmentSwapPreviewForItem(
+        Character $character,
+        Item $item,
+        ?CharacterItem $currentEquipment = null,
+    ): array {
+        $emptyStats = [
+            'hp' => 0,
+            'mp' => 0,
+            'str' => 0,
+            'def' => 0,
+            'agi' => 0,
+            'mag' => 0,
+            'spr' => 0,
+            'luk' => 0,
+        ];
+        $rawStats = array_replace(
+            $emptyStats,
+            EquipmentEnhancementService::enhancedStatTotalsForItem($item, 0),
+        );
+        $effectiveStats = $this->equipmentStatsForItem($character, $item);
+        $currentEquipmentStats = $currentEquipment
+            ? array_replace($emptyStats, $this->equipmentStatsFor($character, $currentEquipment))
+            : $emptyStats;
+        $currentStats = $this->getFinalStats($character);
+        $finalKeys = [
+            'hp' => 'max_hp',
+            'mp' => 'max_mp',
+            'str' => 'str',
+            'def' => 'def',
+            'agi' => 'agi',
+            'mag' => 'mag',
+            'spr' => 'spr',
+            'luk' => 'luk',
+        ];
+        $minimums = [
+            'hp' => 1,
+            'mp' => 0,
+            'str' => 1,
+            'def' => 0,
+            'agi' => 1,
+            'mag' => 0,
+            'spr' => 0,
+            'luk' => 0,
+        ];
+        $afterStats = [];
+
+        foreach ($finalKeys as $key => $finalKey) {
+            $afterStats[$key] = max(
+                $minimums[$key],
+                (int) ($currentStats[$finalKey] ?? 0)
+                    - (int) $currentEquipmentStats[$key]
+                    + (int) $effectiveStats[$key],
+            );
+        }
+
+        $calculator = app(WeaponOffenseCalculator::class);
+        $type = (string) ($item->type ?? '');
+
+        if ($type === 'weapon') {
+            $weaponBase = $currentStats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
+            $afterStats['str'] = max(1, $calculator->calculateEffectiveOffense(
+                (int) ($weaponBase['str'] ?? 0),
+                (int) $effectiveStats['str'],
+            ));
+            $afterStats['mag'] = max(0, $calculator->calculateEffectiveOffense(
+                (int) ($weaponBase['mag'] ?? 0),
+                (int) $effectiveStats['mag'],
+            ));
+
+            $armorBase = $currentStats['armor_base'] ?? ['def' => 0, 'spr' => 0];
+            $armorDefense = $currentStats['armor_defense'] ?? ['def' => 0, 'spr' => 0];
+            $afterStats['def'] = max(0, $this->effectiveArmorStat(
+                (int) ($armorBase['def'] ?? 0) - (int) $currentEquipmentStats['def'] + (int) $effectiveStats['def'],
+                (int) ($armorDefense['def'] ?? 0),
+                $calculator,
+            ));
+            $afterStats['spr'] = max(0, $this->effectiveArmorStat(
+                (int) ($armorBase['spr'] ?? 0) - (int) $currentEquipmentStats['spr'] + (int) $effectiveStats['spr'],
+                (int) ($armorDefense['spr'] ?? 0),
+                $calculator,
+            ));
+        } elseif ($type === 'armor') {
+            $armorBase = $currentStats['armor_base'] ?? ['def' => 0, 'spr' => 0];
+            $afterStats['def'] = max(0, $this->effectiveArmorStat(
+                (int) ($armorBase['def'] ?? 0),
+                (int) $effectiveStats['def'],
+                $calculator,
+            ));
+            $afterStats['spr'] = max(0, $this->effectiveArmorStat(
+                (int) ($armorBase['spr'] ?? 0),
+                (int) $effectiveStats['spr'],
+                $calculator,
+            ));
+
+            $weaponBase = $currentStats['weapon_base'] ?? ['str' => 0, 'mag' => 0];
+            $weaponOffense = $currentStats['weapon_offense'] ?? ['str' => 0, 'mag' => 0];
+            $afterStats['str'] = max(1, $calculator->calculateEffectiveOffense(
+                (int) ($weaponBase['str'] ?? 0) - (int) $currentEquipmentStats['str'] + (int) $effectiveStats['str'],
+                (int) ($weaponOffense['str'] ?? 0),
+            ));
+            $afterStats['mag'] = max(0, $calculator->calculateEffectiveOffense(
+                (int) ($weaponBase['mag'] ?? 0) - (int) $currentEquipmentStats['mag'] + (int) $effectiveStats['mag'],
+                (int) ($weaponOffense['mag'] ?? 0),
+            ));
+        }
+
+        $deltas = [];
+        $visibleStats = [];
+        foreach ($finalKeys as $key => $finalKey) {
+            $deltas[$key] = (int) $afterStats[$key] - (int) ($currentStats[$finalKey] ?? 0);
+            if (
+                (int) $rawStats[$key] !== 0
+                || (int) $effectiveStats[$key] !== 0
+                || (int) $currentEquipmentStats[$key] !== 0
+            ) {
+                $visibleStats[] = $key;
+            }
+        }
+
+        return [
+            'raw_stats' => $rawStats,
+            'effective_stats' => $effectiveStats,
+            'after_stats' => $afterStats,
+            'deltas' => $deltas,
+            'visible_stats' => $visibleStats,
+        ];
     }
 
     public static function clearRequestCache(int $characterId): void

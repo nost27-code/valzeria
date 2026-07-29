@@ -121,11 +121,22 @@
                                 if ($type === 'weapon') $displaySlots = ['weapon'];
                                 elseif ($type === 'armor') $displaySlots = ['armor'];
                                 elseif ($type === 'accessory') $displaySlots = ['accessory'];
+                                $shopStatLabels = [
+                                    'hp' => 'HP',
+                                    'mp' => 'SP',
+                                    'str' => '攻撃',
+                                    'def' => '防御',
+                                    'agi' => '敏捷',
+                                    'mag' => '魔力',
+                                    'spr' => '精神',
+                                    'luk' => '運',
+                                ];
                             @endphp
 
                             @foreach($displaySlots as $slot)
                                 @php 
                                     $equip = $equippedItems[$slot] ?? null;
+                                    $currentPerformance = $equippedPerformanceStats[$slot] ?? [];
                                     $slotName = '';
                                     if ($slot === 'weapon') $slotName = '武器';
                                     elseif ($slot === 'armor') $slotName = '防具';
@@ -140,17 +151,17 @@
                                             <span>{{ $equip->displayName(false) }}</span>
                                             @if($equip->item->element) <span class="text-[10px] bg-purple-100 text-purple-600 px-1 py-0.5 rounded ml-1 font-normal">{{ $equip->item->element }}属性</span> @endif
                                         </div>
-                                        <div class="text-[10px] sm:text-xs text-amber-600 font-semibold leading-tight mt-0.5 flex flex-wrap gap-x-2">
-                                            @if($equip->item->hp_bonus > 0) <span>HP+{{ $equip->item->hp_bonus }}</span> @endif
-                                            @if($equip->item->mp_bonus > 0) <span>SP+{{ $equip->item->mp_bonus }}</span> @endif
-                                            @if($equip->item->str_bonus > 0) <span>攻+{{ $equip->item->str_bonus }}</span> @endif
-                                            @if($equip->item->def_bonus > 0) <span>防+{{ $equip->item->def_bonus }}</span> @endif
-                                            @if($equip->item->agi_bonus > 0) <span>敏+{{ $equip->item->agi_bonus }}</span> @endif
-                                            @if($equip->item->mag_bonus > 0) <span>魔+{{ $equip->item->mag_bonus }}</span> @endif
-                                            @if($equip->item->spr_bonus > 0) <span>精+{{ $equip->item->spr_bonus }}</span> @endif
-                                            @if($equip->item->luk_bonus > 0) <span>運+{{ $equip->item->luk_bonus }}</span> @endif
-                                            @if($equip->item->agi_bonus < 0) <span>敏{{ $equip->item->agi_bonus }}</span> @endif
-                                        </div>
+                                        @if(collect($currentPerformance)->contains(fn ($value) => (int) $value !== 0))
+                                            <div class="mt-1 flex flex-wrap items-center gap-x-2 text-[10px] font-semibold leading-tight text-amber-700 sm:text-xs">
+                                                <span class="text-amber-900">{{ $slotName }}性能：</span>
+                                                @foreach($shopStatLabels as $statKey => $statLabel)
+                                                    @php $performanceValue = (int) ($currentPerformance[$statKey] ?? 0); @endphp
+                                                    @if($performanceValue !== 0)
+                                                        <span>{{ $statLabel }} {{ $performanceValue > 0 ? '+' : '' }}{{ number_format($performanceValue) }}</span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     @else
                                         <div class="font-bold text-slate-400 text-xs">
                                             {{ $slotName }}：装備なし
@@ -215,54 +226,6 @@
                     </div>
                 @endif
 
-                @php
-                    $compareItem = null;
-                    if (isset($equippedItems) && is_array($equippedItems)) {
-                        if ($type === 'weapon' && isset($equippedItems['weapon'])) {
-                            $compareItem = $equippedItems['weapon']->item;
-                        } elseif ($type === 'armor' && isset($equippedItems['armor'])) {
-                            $compareItem = $equippedItems['armor']->item;
-                        }
-                        // 装飾品は比較対象が3つあり曖昧なため比較差分を表示しない
-                    }
-
-                    $getDiffHtml = function($statName, $itemValue, $compareItem, $propName) use ($type) {
-                        if ($itemValue == 0 && (!$compareItem || $compareItem->$propName == 0)) {
-                            return ''; // 両方0なら表示しない
-                        }
-                        
-                        $itemValueStr = $itemValue > 0 ? '+' . $itemValue : $itemValue;
-                        
-                        // 装飾品の場合は比較差分を非表示にする
-                        if ($type === 'accessory') {
-                            return '
-                            <div class="flex items-center text-xs sm:text-sm bg-slate-50 p-1 sm:p-1.5 rounded border border-slate-200">
-                                <span class="text-slate-500 font-medium w-8 sm:w-10 shrink-0">' . $statName . '</span>
-                                <span class="font-bold text-slate-800 ml-0.5 sm:ml-1">' . $itemValueStr . '</span>
-                            </div>';
-                        }
-
-                        $compareValue = $compareItem ? $compareItem->$propName : 0;
-                        $diff = $itemValue - $compareValue;
-                        
-                        $diffHtml = '';
-                        if ($diff > 0) {
-                            $diffHtml = '<span class="text-[10px] sm:text-xs text-emerald-600 font-bold ml-auto bg-emerald-100 px-1 py-0.5 rounded whitespace-nowrap">▲' . $diff . '</span>';
-                        } elseif ($diff < 0) {
-                            $diffHtml = '<span class="text-[10px] sm:text-xs text-rose-600 font-bold ml-auto bg-rose-100 px-1 py-0.5 rounded whitespace-nowrap">▼' . abs($diff) . '</span>';
-                        } else {
-                            $diffHtml = '<span class="text-[10px] sm:text-xs text-slate-400 font-medium ml-auto px-1 py-0.5">—</span>';
-                        }
-                        
-                        return '
-                        <div class="flex items-center text-xs sm:text-sm bg-slate-50 p-1 sm:p-1.5 rounded border border-slate-200">
-                            <span class="text-slate-500 font-medium w-8 sm:w-10 shrink-0">' . $statName . '</span>
-                            <span class="font-bold text-slate-800 ml-0.5 sm:ml-1">' . $itemValueStr . '</span>
-                            ' . $diffHtml . '
-                        </div>';
-                    };
-                @endphp
-
                 <div class="space-y-4" id="item-list">
                     @php
                         $character = $character ?? Auth::user()->currentCharacter();
@@ -274,6 +237,7 @@
                     @forelse($items as $item)
                         @php
                             $equipmentGuide = $equipmentGuides[(int) $item->id] ?? null;
+                            $equipmentPreview = $equipmentGuide['preview'] ?? null;
                             $categoryLabel = $permissionService->categoryLabel($item);
                             $canEquipByJob = $equipmentGuide['can_equip'] ?? true;
                             $restrictionJobs = $equipmentGuide['restriction_jobs'] ?? [];
@@ -339,16 +303,69 @@
                                             <span class="bg-slate-50 text-slate-600 border border-slate-200 rounded px-2 py-1">所持数: {{ $ownedCount }}</span>
                                         </div>
                                     @else
-                                        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 mt-3">
-                                            {!! $getDiffHtml('HP', $item->hp_bonus, $compareItem, 'hp_bonus') !!}
-                                            {!! $getDiffHtml('SP', $item->mp_bonus, $compareItem, 'mp_bonus') !!}
-                                            {!! $getDiffHtml('攻撃', $item->str_bonus, $compareItem, 'str_bonus') !!}
-                                            {!! $getDiffHtml('防御', $item->def_bonus, $compareItem, 'def_bonus') !!}
-                                            {!! $getDiffHtml('敏捷', $item->agi_bonus, $compareItem, 'agi_bonus') !!}
-                                            {!! $getDiffHtml('魔力', $item->mag_bonus, $compareItem, 'mag_bonus') !!}
-                                            {!! $getDiffHtml('精神', $item->spr_bonus, $compareItem, 'spr_bonus') !!}
-                                            {!! $getDiffHtml('運', $item->luk_bonus, $compareItem, 'luk_bonus') !!}
-                                        </div>
+                                        @if($equipmentPreview)
+                                            @if($canEquipByJob)
+                                                <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
+                                                    <div class="flex flex-wrap items-baseline justify-between gap-1">
+                                                        <p class="text-xs font-extrabold text-slate-700">装備後の能力</p>
+                                                        <p class="text-[10px] font-semibold text-slate-500">現在装備から交換した場合</p>
+                                                    </div>
+                                                    <div class="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-4">
+                                                        @foreach($equipmentPreview['visible_stats'] as $statKey)
+                                                            @php
+                                                                $statLabel = $shopStatLabels[$statKey];
+                                                                $afterValue = (int) $equipmentPreview['after_stats'][$statKey];
+                                                                $delta = (int) $equipmentPreview['deltas'][$statKey];
+                                                                $deltaClass = $delta > 0
+                                                                    ? 'text-emerald-700 bg-emerald-100'
+                                                                    : ($delta < 0 ? 'text-rose-700 bg-rose-100' : 'text-slate-500 bg-slate-100');
+                                                                $deltaText = $delta > 0
+                                                                    ? number_format($delta) . '上昇'
+                                                                    : ($delta < 0 ? number_format(abs($delta)) . '低下' : '変化なし');
+                                                            @endphp
+                                                            <div class="rounded border border-slate-200 bg-white p-1.5" data-shop-after-stat="{{ $statKey }}">
+                                                                <div class="text-[11px] font-semibold text-slate-500">{{ $statLabel }}</div>
+                                                                <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                                                    <span class="text-sm font-extrabold text-slate-800">{{ number_format($afterValue) }}</span>
+                                                                    <span class="rounded px-1 py-0.5 text-[10px] font-bold {{ $deltaClass }}">{{ $deltaText }}</span>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5">
+                                                <div class="flex flex-wrap items-baseline justify-between gap-1">
+                                                    <p class="text-xs font-extrabold text-amber-800">
+                                                        {{ $item->type === 'weapon' ? '武器性能' : '防具性能' }}
+                                                    </p>
+                                                    <p class="text-[10px] font-semibold text-amber-700">
+                                                        {{ $canEquipByJob ? '現在職で実際に反映される値' : '強化前の基本値' }}
+                                                    </p>
+                                                </div>
+                                                <div class="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-4">
+                                                    @foreach($equipmentPreview['visible_stats'] as $statKey)
+                                                        @php
+                                                            $statLabel = $shopStatLabels[$statKey];
+                                                            $effectiveValue = (int) $equipmentPreview['effective_stats'][$statKey];
+                                                            $rawValue = (int) $equipmentPreview['raw_stats'][$statKey];
+                                                        @endphp
+                                                        <div class="rounded border border-amber-200 bg-white px-2 py-1.5" data-shop-effective-stat="{{ $statKey }}">
+                                                            <div class="flex items-baseline justify-between gap-1">
+                                                                <span class="text-[11px] font-semibold text-slate-500">{{ $statLabel }}</span>
+                                                                <span class="text-sm font-extrabold text-slate-800">{{ $effectiveValue > 0 ? '+' : '' }}{{ number_format($effectiveValue) }}</span>
+                                                            </div>
+                                                            @if($rawValue !== $effectiveValue)
+                                                                <div class="mt-0.5 text-right text-[10px] font-semibold text-amber-700">
+                                                                    補正前 {{ $rawValue > 0 ? '+' : '' }}{{ number_format($rawValue) }}
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
                                         @if(!$canEquipByJob)
                                             <div class="mt-3 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded px-2 py-1">
                                                 現在の職業では装備できません

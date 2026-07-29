@@ -4,12 +4,14 @@ namespace Tests\Feature;
 
 use App\Livewire\JobChange;
 use App\Models\Character;
+use App\Models\CharacterItem;
 use App\Models\Item;
 use App\Models\JobClass;
 use App\Models\PlayerValmon;
 use App\Models\Skill;
 use App\Models\User;
 use App\Models\ValmonMaster;
+use App\Services\CharacterStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -54,7 +56,57 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertOk()
             ->assertSee('現在は適正武器のみ装備できます。')
             ->assertSee('現在の職業では装備できません')
+            ->assertSee('強化前の基本値')
             ->assertDontSee('適性外・装備効果65%');
+    }
+
+    public function test_weapon_shop_separates_equipped_ability_from_effective_and_raw_weapon_performance(): void
+    {
+        config(['equipment_proficiency.non_proficient.enabled' => true]);
+        [$user, $character] = $this->merchantPlayer();
+        $character->forceFill([
+            'attack_base' => 1200,
+            'magic_base' => 800,
+            'speed_base' => 300,
+        ])->save();
+
+        $currentWeapon = $this->shopWeapon('影炎の短剣', 'dagger');
+        $currentWeapon->forceFill([
+            'str_bonus' => 528,
+            'mag_bonus' => 160,
+        ])->save();
+        CharacterItem::query()->create([
+            'character_id' => $character->id,
+            'item_id' => $currentWeapon->id,
+            'is_equipped' => true,
+            'equipped_slot' => 'weapon',
+            'enhance_level' => 1,
+        ]);
+
+        $candidateWeapon = $this->shopWeapon('熱砂の戦斧', 'axe');
+        $candidateWeapon->forceFill([
+            'str_bonus' => 568,
+            'agi_bonus' => -80,
+        ])->save();
+        CharacterStatusService::clearRequestCache($character->id);
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('shop.equipment', ['type' => 'weapon']))
+            ->assertOk()
+            ->assertSee('武器性能：')
+            ->assertSee('攻撃 +543')
+            ->assertSee('魔力 +164')
+            ->assertSee('装備後の能力')
+            ->assertSee('現在装備から交換した場合')
+            ->assertSee('武器性能')
+            ->assertSee('現在職で実際に反映される値')
+            ->assertSee('data-shop-effective-stat="str"', false)
+            ->assertSee('+426')
+            ->assertSee('補正前 +568')
+            ->assertSee('-60')
+            ->assertSee('補正前 -80')
+            ->assertSee('低下');
     }
 
     public function test_job_detail_shows_special_skill_and_job_art_damage_references(): void

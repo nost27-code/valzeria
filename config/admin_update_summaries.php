@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-shop-effective-equipment-preview',
+        'date' => '2026-07-29',
+        'category' => 'fixed',
+        'title' => '装備屋の能力比較表示を実効値へ修正',
+        'detail' => '装備屋で、適性補正と現在装備の強化・銘を含む装備後の能力、商品の装備性能を分けて表示し、適性補正がある商品では補正前の性能も確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-29-job-weapon-combat-guide',
         'date' => '2026-07-29',
         'category' => 'changed',

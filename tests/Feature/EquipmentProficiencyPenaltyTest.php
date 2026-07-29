@@ -77,6 +77,15 @@ class EquipmentProficiencyPenaltyTest extends TestCase
         $this->assertTrue($permissionService->hasPerformancePenalty($character, $weapon->item));
         $this->assertSame(['str' => 952, 'mag' => 0], $statusService->weaponOffenseFor($character, $weapon));
         $this->assertSame(['def' => 728, 'spr' => 0], $statusService->armorDefenseFor($character, $armor));
+        $this->assertSame(
+            952,
+            $statusService->equipmentStatsForItem(
+                $character,
+                $weapon->item,
+                5,
+                ['str' => 200],
+            )['str'],
+        );
         $this->assertEqualsWithDelta(0.17, $permissionService->effectiveKillerDamageRate($character, $weapon), 0.00001);
         $this->assertEqualsWithDelta(0.13, $permissionService->effectiveSpeciesDamageReductionRate($character, $armor), 0.00001);
 
@@ -119,6 +128,87 @@ class EquipmentProficiencyPenaltyTest extends TestCase
             ['短剣', '杖', '銃'],
             app(EquipmentPermissionService::class)->nativeWeaponCategoryLabels((int) $job->id),
         );
+    }
+
+    public function test_shop_swap_preview_matches_the_actual_final_stats_after_equipping(): void
+    {
+        [$character, $currentWeapon, $currentArmor] = $this->nonProficientLoadout();
+        config(['equipment_proficiency.non_proficient.enabled' => true]);
+        $statusService = app(CharacterStatusService::class);
+        $finalKeys = [
+            'hp' => 'max_hp',
+            'mp' => 'max_mp',
+            'str' => 'str',
+            'def' => 'def',
+            'agi' => 'agi',
+            'mag' => 'mag',
+            'spr' => 'spr',
+            'luk' => 'luk',
+        ];
+
+        $candidateWeaponItem = Item::query()->create([
+            'name' => '交換候補の刀',
+            'type' => 'weapon',
+            'weapon_category' => 'katana',
+            'weapon_rank' => 'EPIC',
+            'hp_bonus' => 40,
+            'str_bonus' => 600,
+            'def_bonus' => 120,
+            'agi_bonus' => -30,
+            'mag_bonus' => 200,
+            'spr_bonus' => 80,
+            'is_active' => true,
+        ]);
+        $weaponPreview = $statusService->equipmentSwapPreviewForItem(
+            $character,
+            $candidateWeaponItem,
+            $currentWeapon,
+        );
+        $currentWeapon->update(['is_equipped' => false, 'equipped_slot' => null]);
+        CharacterItem::query()->create([
+            'character_id' => $character->id,
+            'item_id' => $candidateWeaponItem->id,
+            'is_equipped' => true,
+            'equipped_slot' => 'weapon',
+        ]);
+        CharacterStatusService::clearRequestCache($character->id);
+        $actualAfterWeapon = $statusService->getFinalStats($character);
+
+        foreach ($finalKeys as $key => $finalKey) {
+            $this->assertSame($actualAfterWeapon[$finalKey], $weaponPreview['after_stats'][$key], $key);
+        }
+
+        $candidateArmorItem = Item::query()->create([
+            'name' => '交換候補の重鎧',
+            'type' => 'armor',
+            'armor_category' => 'heavy_armor',
+            'armor_rank' => 'EPIC',
+            'mp_bonus' => 50,
+            'str_bonus' => 90,
+            'def_bonus' => 700,
+            'agi_bonus' => -20,
+            'mag_bonus' => 70,
+            'spr_bonus' => 300,
+            'is_active' => true,
+        ]);
+        $armorPreview = $statusService->equipmentSwapPreviewForItem(
+            $character,
+            $candidateArmorItem,
+            $currentArmor,
+        );
+        $currentArmor->update(['is_equipped' => false, 'equipped_slot' => null]);
+        CharacterItem::query()->create([
+            'character_id' => $character->id,
+            'item_id' => $candidateArmorItem->id,
+            'is_equipped' => true,
+            'equipped_slot' => 'armor',
+        ]);
+        CharacterStatusService::clearRequestCache($character->id);
+        $actualAfterArmor = $statusService->getFinalStats($character);
+
+        foreach ($finalKeys as $key => $finalKey) {
+            $this->assertSame($actualAfterArmor[$finalKey], $armorPreview['after_stats'][$key], $key);
+        }
     }
 
     /** @return array{Character, CharacterItem, CharacterItem} */

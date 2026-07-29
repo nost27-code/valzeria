@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Item;
 use App\Services\ShopService;
 use App\Services\DailySupplyService;
+use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
 use App\Services\EquipmentPermissionService;
 use App\Services\JobCombatGuideService;
@@ -15,6 +16,7 @@ class ShopController extends Controller
 {
     public function equipment(
         Request $request,
+        CharacterStatusService $characterStatusService,
         EquipmentPermissionService $permissionService,
         JobCombatGuideService $jobCombatGuideService,
     )
@@ -44,8 +46,18 @@ class ShopController extends Controller
                 ->all()
             : [];
         $equipmentGuides = [];
+        $equippedPerformanceStats = [];
 
         if ($character) {
+            foreach ($equippedItems as $slot => $equippedItem) {
+                if ($equippedItem?->item) {
+                    $equippedPerformanceStats[$slot] = $characterStatusService->equipmentStatsFor(
+                        $character,
+                        $equippedItem,
+                    );
+                }
+            }
+
             foreach ($items as $item) {
                 $canEquip = $permissionService->canEquip($character, $item);
                 $equipmentGuides[(int) $item->id] = [
@@ -53,6 +65,13 @@ class ShopController extends Controller
                     'native_proficiency' => $permissionService->hasNativeProficiency($character, $item),
                     'performance_percent' => (int) round($permissionService->performanceRate($character, $item) * 100),
                     'restriction_jobs' => $canEquip ? [] : $permissionService->representativeJobNames($item),
+                    'preview' => in_array((string) $item->type, ['weapon', 'armor'], true)
+                        ? $characterStatusService->equipmentSwapPreviewForItem(
+                            $character,
+                            $item,
+                            $equippedItems[(string) $item->type] ?? null,
+                        )
+                        : null,
                 ];
             }
         }
@@ -67,6 +86,7 @@ class ShopController extends Controller
             'character' => $character,
             'cityName' => $character?->currentCity?->name,
             'equippedItems' => $equippedItems,
+            'equippedPerformanceStats' => $equippedPerformanceStats,
             'ownedItemCounts' => $ownedItemCounts,
             'equipmentGuides' => $equipmentGuides,
             'jobCombatGuide' => $currentJob ? $jobCombatGuideService->summaryFor($currentJob) : null,
