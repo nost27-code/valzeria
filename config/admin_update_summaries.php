@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-admin-direct-message',
+        'date' => '2026-07-29',
+        'category' => 'added',
+        'title' => 'ユーザー調査からの個別連絡を追加',
+        'detail' => '管理画面のユーザー個別調査から、選択した冒険者へ管理人名義でメッセージを送り、返信履歴をその場で確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-29-evolution-affix-preview',
         'date' => '2026-07-29',
         'category' => 'fixed',

@@ -55,6 +55,7 @@ class BugReportAdminReplyTest extends TestCase
         $this->assertDatabaseHas('character_notifications', [
             'character_id' => $reporter->id,
             'type' => 'admin_private_message',
+            'body' => '不具合フォームへの返答: ご報告ありがとうございます。調査します。',
         ]);
 
         PublicLog::query()->create([

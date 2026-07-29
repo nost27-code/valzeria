@@ -65,7 +65,11 @@ class PublicLogService
     /**
      * 不具合報告などへの運営からの個別連絡を記録する。
      */
-    public function addAdminPrivateMessage(string $message, Character $receiver): void
+    public function addAdminPrivateMessage(
+        string $message,
+        Character $receiver,
+        string $notificationContext = '不具合フォームへの返答',
+    ): void
     {
         $log = PublicLog::create([
             'type' => 'admin_private',
@@ -80,7 +84,7 @@ class PublicLogService
             category: 'message',
             type: 'admin_private_message',
             title: '管理人からメッセージが届きました',
-            body: '不具合フォームへの返答: ' . Str::limit($message, 70),
+            body: $notificationContext . ': ' . Str::limit($message, 70),
             actionLabel: '会話へ',
             actionUrl: route('message.index'),
             payload: [

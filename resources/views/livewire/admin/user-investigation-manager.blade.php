@@ -147,6 +147,7 @@
         @if($character)
             <nav aria-label="調査項目" class="mb-6 flex flex-wrap gap-2 rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
                 @foreach([
+                    '#investigation-message' => '個別連絡',
                     '#investigation-overview' => '現在の状態',
                     '#investigation-assets' => '所持・育成',
                     '#investigation-progress' => '進行・行動',
@@ -197,6 +198,59 @@
                     ['label' => '装飾', 'item' => $equippedBySlot->get('accessory') ?? $equippedItems->first(fn ($row) => ($row->item?->type ?? null) === 'accessory')],
                 ];
             @endphp
+
+            <section id="investigation-message" class="mb-6 scroll-mt-6 rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-black text-slate-950">管理人個別メッセージ</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-500">
+                            {{ $character->name }}さんの個人チャットに「管理人」名義で届きます。返信もこの画面で確認できます。
+                        </p>
+                    </div>
+                    <span class="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-800">
+                        送信先：{{ $character->name }}
+                    </span>
+                </div>
+
+                @if(session('status'))
+                    <p class="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">{{ session('status') }}</p>
+                @endif
+
+                <div class="mt-4 max-h-72 space-y-2 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-3">
+                    @forelse($adminConversation as $message)
+                        @php
+                            $isAdminMessage = $message->type === 'admin_private';
+                        @endphp
+                        <div class="rounded-md px-3 py-2 text-xs font-semibold leading-relaxed {{ $isAdminMessage ? 'bg-white text-slate-700' : 'bg-sky-50 text-sky-900' }}">
+                            <div class="mb-1 font-black {{ $isAdminMessage ? 'text-slate-900' : 'text-sky-800' }}">
+                                {{ $isAdminMessage ? '管理人' : ($message->character?->name ?? '冒険者') }}
+                                <span class="ml-1 text-[10px] font-bold text-slate-400">{{ $message->created_at?->format('m/d H:i') }}</span>
+                            </div>
+                            <div class="whitespace-pre-wrap break-words">{{ $message->message }}</div>
+                        </div>
+                    @empty
+                        <p class="py-5 text-center text-xs font-bold text-slate-400">管理人との会話はまだありません。ここから個別連絡を開始できます。</p>
+                    @endforelse
+                </div>
+
+                <form wire:submit.prevent="sendAdminMessage" class="mt-4">
+                    <textarea wire:model="adminMessage" rows="4" maxlength="200" placeholder="管理人からの個別メッセージを入力" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold leading-relaxed text-slate-800 focus:border-blue-400 focus:ring focus:ring-blue-200"></textarea>
+                    @error('adminMessage')
+                        <p class="mt-1 text-xs font-bold text-rose-600">{{ $message }}</p>
+                    @enderror
+                    <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-[11px] font-bold text-slate-500">送信すると通知ベルにも「管理人からメッセージが届きました」と表示されます。</p>
+                        <button type="submit"
+                                wire:confirm="{{ $character->name }}さんへ管理人メッセージを送信しますか？"
+                                wire:loading.attr="disabled"
+                                wire:target="sendAdminMessage"
+                                class="rounded-md bg-blue-800 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-blue-900 disabled:cursor-wait disabled:opacity-60">
+                            <span wire:loading.remove wire:target="sendAdminMessage">個人チャットへ送信</span>
+                            <span wire:loading wire:target="sendAdminMessage">送信中...</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
 
             <div id="investigation-overview" class="mb-6 scroll-mt-6 rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.72fr)]">

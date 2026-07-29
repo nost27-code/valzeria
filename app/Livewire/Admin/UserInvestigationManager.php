@@ -6,6 +6,7 @@ use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\Enemy;
 use App\Models\KisekiTransaction;
+use App\Models\PublicLog;
 use App\Models\StripeOrder;
 use App\Models\User;
 use App\Models\WeaponTraitOperationLog;
@@ -14,6 +15,7 @@ use App\Services\CharacterStatusService;
 use App\Services\ExplorationStaminaService;
 use App\Services\JobService;
 use App\Services\LevelService;
+use App\Services\PublicLogService;
 use App\Services\ValmonService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +28,7 @@ class UserInvestigationManager extends Component
     public ?int $selectedUserId = null;
     public ?int $selectedCharacterId = null;
     public string $enemySearch = '';
+    public string $adminMessage = '';
 
     public function mount(): void
     {
@@ -40,6 +43,8 @@ class UserInvestigationManager extends Component
         $userId = (int) trim($this->userIdInput);
         $this->selectedUserId = $userId > 0 ? $userId : null;
         $this->selectedCharacterId = null;
+        $this->adminMessage = '';
+        $this->resetValidation('adminMessage');
 
         $user = $this->selectedUserId ? User::with('characters')->find($this->selectedUserId) : null;
         if ($user && $user->characters->isNotEmpty()) {
@@ -56,6 +61,39 @@ class UserInvestigationManager extends Component
     public function selectCharacter(int $characterId): void
     {
         $this->selectedCharacterId = $characterId;
+        $this->adminMessage = '';
+        $this->resetValidation('adminMessage');
+    }
+
+    public function sendAdminMessage(PublicLogService $logService): void
+    {
+        $this->adminMessage = trim($this->adminMessage);
+        $this->validate([
+            'adminMessage' => ['required', 'string', 'max:200'],
+        ]);
+
+        $character = $this->selectedUserId && $this->selectedCharacterId
+            ? Character::query()
+                ->whereKey($this->selectedCharacterId)
+                ->where('user_id', $this->selectedUserId)
+                ->first()
+            : null;
+
+        if (! $character) {
+            $this->addError('adminMessage', '送信先の冒険者が見つかりません。対象を選び直してください。');
+
+            return;
+        }
+
+        $logService->addAdminPrivateMessage(
+            $this->adminMessage,
+            $character,
+            '管理人からの個別連絡'
+        );
+
+        $this->adminMessage = '';
+        $this->resetValidation('adminMessage');
+        session()->flash('status', $character->name . 'さんへ管理人メッセージを送信しました。');
     }
 
     public function render()
@@ -120,6 +158,18 @@ class UserInvestigationManager extends Component
         $notifications = $character
             ? app(CharacterNotificationService::class)->latestForAdmin($character, 50)
             : collect();
+        $adminConversation = $character
+            ? PublicLog::query()
+                ->with('character')
+                ->whereIn('type', ['admin_private', 'admin_private_reply'])
+                ->where('receiver_id', $character->id)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->limit(120)
+                ->get()
+                ->reverse()
+                ->values()
+            : collect();
         $loginLogs = $this->loginLogs($user);
         $errorLogs = $this->errorLogs($user, $character);
         $enemyCandidates = $this->enemyCandidates();
@@ -177,6 +227,7 @@ class UserInvestigationManager extends Component
             'paymentLogs' => $paymentLogs,
             'weaponTraitLogs' => $weaponTraitLogs,
             'notifications' => $notifications,
+            'adminConversation' => $adminConversation,
             'loginLogs' => $loginLogs,
             'errorLogs' => $errorLogs,
             'enemyCandidates' => $enemyCandidates,
