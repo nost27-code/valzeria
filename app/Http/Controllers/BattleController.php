@@ -1194,11 +1194,12 @@ class BattleController extends Controller
                 $characterItem->id,
             ])
             ->map(function ($characterItem) use ($enemySpeciesKey, $character, $permissionService): array {
-                $killerRate = $permissionService->effectiveKillerDamageRate($character, $characterItem);
-                $isKillerActive = $characterItem->killer_species_key !== null
-                    && $killerRate > 0
-                    && $enemySpeciesKey !== ''
-                    && $characterItem->killer_species_key === $enemySpeciesKey;
+                $killerRate = $permissionService->effectiveKillerDamageRateForSpecies(
+                    $character,
+                    $characterItem,
+                    $enemySpeciesKey,
+                );
+                $isKillerActive = $killerRate > 0;
                 $resistRate = $permissionService->effectiveSpeciesDamageReductionRate($character, $characterItem);
                 $isResistActive = $characterItem->resist_species_key !== null
                     && $resistRate > 0

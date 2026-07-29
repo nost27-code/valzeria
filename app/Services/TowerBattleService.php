@@ -505,8 +505,9 @@ class TowerBattleService extends BattleService
             'spr' => (int) ($stats['spr'] ?? 0),
             'luk' => (int) ($stats['luk'] ?? 0),
             'normal_attack_type' => $currentJob?->normal_attack_type,
-            'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
+            'weapon_killer_effects' => $equippedWeapon
+                ? $permissionService->effectiveKillerEffects($character, $equippedWeapon)
+                : [],
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
             'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
         ], clone $character);

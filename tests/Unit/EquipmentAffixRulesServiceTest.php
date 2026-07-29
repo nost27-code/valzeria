@@ -87,6 +87,30 @@ class EquipmentAffixRulesServiceTest extends TestCase
         $this->assertContains('種族が竜の敵への与ダメージ +20.7%', $characterItem->slayerEffectLines());
     }
 
+    public function test_innate_killer_is_displayed_separately_from_an_additional_affix_killer(): void
+    {
+        $item = new Item([
+            'type' => 'weapon',
+            'weapon_rank' => 'S',
+            'innate_killer_species_key' => 'dragon',
+            'innate_killer_damage_rate' => 0.12,
+        ]);
+        $characterItem = new CharacterItem([
+            'affix_suffix_id' => 2,
+            'affix_suffix_level' => 2,
+            'affix_quality' => 'normal',
+            'killer_species_key' => 'machine',
+        ]);
+        $characterItem->setRelation('item', $item);
+
+        $this->assertTrue($characterItem->hasInnateKiller());
+        $this->assertTrue($characterItem->hasMarketableWeaponTrait());
+        $this->assertSame([
+            '固有効果：種族が竜の敵への与ダメージ +12%',
+            '追加特攻：種族が機械の敵への与ダメージ +12%',
+        ], $characterItem->slayerEffectLines());
+    }
+
     public function test_engraving_uses_the_enhanced_base_stat_and_tuning_uses_55_percent(): void
     {
         $item = new Item(['type' => 'weapon', 'weapon_rank' => 'EPIC', 'str_bonus' => 500]);

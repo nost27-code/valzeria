@@ -73,7 +73,12 @@ class PlayerShopController extends Controller
         $weapons = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])
             ->where('character_id', $character->id)->whereNull('market_listing_id')->where('is_equipped', false)->where('is_locked', false)
             ->whereHas('item', fn ($q) => $q->where('type', 'weapon')->where('is_tradeable', true))
-            ->where(fn ($q) => $q->whereNotNull('affix_prefix_id')->orWhereNotNull('affix_suffix_id'))
+            ->where(fn ($q) => $q
+                ->whereNotNull('affix_prefix_id')
+                ->orWhereNotNull('affix_suffix_id')
+                ->orWhereHas('item', fn ($itemQuery) => $itemQuery
+                    ->whereNotNull('innate_killer_species_key')
+                    ->where('innate_killer_damage_rate', '>', 0)))
             ->where('is_tradeable', true)->where(fn ($q) => $q->whereNull('market_relistable_at')->orWhere('market_relistable_at', '<=', now()))
             ->latest('id')->get()->map(function (CharacterItem $item) {
                 try { $item->market_appraisal = $this->appraisalService->appraisal($item); } catch (RuntimeException) { $item->market_appraisal = null; }

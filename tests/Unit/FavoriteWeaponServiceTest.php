@@ -112,6 +112,45 @@ class FavoriteWeaponServiceTest extends TestCase
         $this->assertSame(842, $imageNumber);
     }
 
+    public function test_ferdia_unique_weapon_images_follow_evolution_order(): void
+    {
+        $names = [
+            '旅標の羽弓',
+            '蒼路の巡礼弓',
+            '天路の導星弓',
+            '天路導弓フェルディア',
+            '遺跡歯車の機銃',
+            '古王機銃アーデル',
+            '王城守護機グランヴァルト',
+            '古王護機砲グランヴァルト',
+            '光霊の祓輪',
+            '聖城の竜祓輪',
+            '天冠の竜封聖環',
+            '竜封聖環エルヴァリス',
+            '氷魔の封刃',
+            '霊峰の魔狩双刃',
+            '凍界の深淵封刃',
+            '氷獄魔封刃ヴェイルノクス',
+        ];
+        $service = new FavoriteWeaponService();
+
+        foreach ($names as $offset => $name) {
+            $imageNumber = 191 + $offset;
+            $expectedPath = sprintf('images/weapon/weapon_%03d.webp', $imageNumber);
+            $actualPath = $service->imagePathFor(new Item([
+                'name' => $name,
+                'type' => 'weapon',
+            ]));
+            $absolutePath = public_path($expectedPath);
+
+            $this->assertSame($expectedPath, $actualPath, $name);
+            $this->assertFileExists($absolutePath);
+            $header = (string) file_get_contents($absolutePath, false, null, 0, 12);
+            $this->assertSame('RIFF', substr($header, 0, 4), $expectedPath);
+            $this->assertSame('WEBP', substr($header, 8, 4), $expectedPath);
+        }
+    }
+
     public function test_display_background_matches_the_profile_quality_presentation(): void
     {
         $service = new FavoriteWeaponService();

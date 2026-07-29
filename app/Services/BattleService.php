@@ -71,8 +71,9 @@ class BattleService
             'spr' => $stats['spr'],
             'luk' => $stats['luk'],
             'normal_attack_type' => $currentJob?->normal_attack_type,
-            'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
+            'weapon_killer_effects' => $equippedWeapon
+                ? $permissionService->effectiveKillerEffects($character, $equippedWeapon)
+                : [],
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
             'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
         ], clone $character);
@@ -1709,10 +1710,18 @@ class BattleService
         }
 
         if ($attacker->isPlayer && !$defender->isPlayer) {
-            $killerSpecies = (string) ($attacker->weaponKillerSpeciesKey ?? '');
             $defenderSpecies = (string) ($defender->speciesKey ?? '');
-            $rate = (float) ($attacker->weaponKillerDamageRate ?? 0);
-            if ($killerSpecies !== '' && $defenderSpecies !== '' && $rate > 0 && $killerSpecies === $defenderSpecies) {
+            $rate = array_sum(array_map(
+                static fn (array $effect): float => $effect['species_key'] === $defenderSpecies
+                    ? (float) $effect['damage_rate']
+                    : 0.0,
+                $attacker->weaponKillerEffects,
+            ));
+            $rate = min(
+                (float) config('equipment_affix.weapon_killer_damage_rate_cap', 0.55),
+                $rate,
+            );
+            if ($defenderSpecies !== '' && $rate > 0) {
                 $damage = max(1, (int) floor($damage * (1 + $rate)));
             }
         }

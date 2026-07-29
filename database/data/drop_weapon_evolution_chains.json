@@ -242,6 +242,58 @@
         "SSS": "天雪女神の神杖",
         "EPIC": "雪華聖杖ニヴェリア"
       }
+    },
+    {
+      "key": "FERDIA_HILL_HAWK_BOW",
+      "source_external_item_id": "DROP_WPN_RARE_FERDIA_HILL_HAWK_BOW",
+      "source_rank": "S",
+      "template_family_id": "BOW",
+      "path": "gale",
+      "family_name": "旅標羽弓系",
+      "names": {
+        "SS": "蒼路の巡礼弓",
+        "SSS": "天路の導星弓",
+        "EPIC": "天路導弓フェルディア"
+      }
+    },
+    {
+      "key": "FERDIA_RUIN_GEAR_GUN",
+      "source_external_item_id": "DROP_WPN_RARE_FERDIA_RUIN_GEAR_GUN",
+      "source_rank": "S",
+      "template_family_id": "GUN",
+      "path": "holy",
+      "family_name": "遺跡歯車機銃系",
+      "names": {
+        "SS": "古王機銃アーデル",
+        "SSS": "王城守護機グランヴァルト",
+        "EPIC": "古王護機砲グランヴァルト"
+      }
+    },
+    {
+      "key": "FERDIA_LIGHT_SPIRIT_DEVICE",
+      "source_external_item_id": "DROP_WPN_RARE_FERDIA_LIGHT_SPIRIT_DEVICE",
+      "source_rank": "S",
+      "template_family_id": "GRIMOIRE",
+      "path": "holy",
+      "family_name": "光霊祓輪系",
+      "names": {
+        "SS": "聖城の竜祓輪",
+        "SSS": "天冠の竜封聖環",
+        "EPIC": "竜封聖環エルヴァリス"
+      }
+    },
+    {
+      "key": "FERDIA_SNOW_IMP_DAGGER",
+      "source_external_item_id": "DROP_WPN_RARE_FERDIA_SNOW_IMP_DAGGER",
+      "source_rank": "S",
+      "template_family_id": "DAGGER",
+      "path": "dark",
+      "family_name": "氷魔封刃系",
+      "names": {
+        "SS": "霊峰の魔狩双刃",
+        "SSS": "凍界の深淵封刃",
+        "EPIC": "氷獄魔封刃ヴェイルノクス"
+      }
     }
   ]
 }

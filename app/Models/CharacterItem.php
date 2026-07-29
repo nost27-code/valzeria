@@ -145,6 +145,48 @@ class CharacterItem extends Model
         return max(0.0, (float) ($this->killer_damage_rate ?? 0));
     }
 
+    public function hasInnateKiller(): bool
+    {
+        return $this->item?->type === 'weapon'
+            && filled($this->item->innate_killer_species_key)
+            && (float) ($this->item->innate_killer_damage_rate ?? 0) > 0;
+    }
+
+    /**
+     * @return list<array{source: string, species_key: string, damage_rate: float}>
+     */
+    public function killerEffects(): array
+    {
+        $effects = [];
+
+        if ($this->hasInnateKiller()) {
+            $effects[] = [
+                'source' => 'innate',
+                'species_key' => (string) $this->item->innate_killer_species_key,
+                'damage_rate' => max(0.0, (float) $this->item->innate_killer_damage_rate),
+            ];
+        }
+
+        $affixRate = $this->effectiveKillerDamageRate();
+        if ($this->killer_species_key && $affixRate > 0) {
+            $effects[] = [
+                'source' => 'affix',
+                'species_key' => (string) $this->killer_species_key,
+                'damage_rate' => $affixRate,
+            ];
+        }
+
+        return $effects;
+    }
+
+    public function hasMarketableWeaponTrait(): bool
+    {
+        return $this->item?->type === 'weapon'
+            && ($this->affix_prefix_id !== null
+                || $this->affix_suffix_id !== null
+                || $this->hasInnateKiller());
+    }
+
     /**
      * 段階制移行前に生成された個体（良品5%/逸品6%固定）が下がらないよう、保存値と動的算出の高い方を使う。
      */
@@ -242,17 +284,26 @@ class CharacterItem extends Model
     }
 
     /**
-     * 接尾辞の種族特攻・種族耐性。
+     * 武器固有効果、接尾辞の種族特攻・種族耐性。
      * @return list<string>
      */
     public function slayerEffectLines(float $effectRate = 1.0): array
     {
         $lines = [];
 
+        if ($this->hasInnateKiller()) {
+            $speciesLabel = $this->speciesLabel((string) $this->item->innate_killer_species_key);
+            $innateRate = max(0.0, (float) $this->item->innate_killer_damage_rate) * $effectRate;
+            $lines[] = '固有効果：種族が' . $speciesLabel . 'の敵への与ダメージ +'
+                . $this->percentageLabel($innateRate) . '%';
+        }
+
         $killerDamageRate = $this->effectiveKillerDamageRate() * $effectRate;
         if ($this->killer_species_key && $killerDamageRate > 0) {
             $speciesLabel = $this->speciesLabel((string) $this->killer_species_key);
-            $lines[] = '種族が' . $speciesLabel . 'の敵への与ダメージ +' . $this->percentageLabel($killerDamageRate) . '%';
+            $prefix = $this->hasInnateKiller() ? '追加特攻：' : '';
+            $lines[] = $prefix . '種族が' . $speciesLabel . 'の敵への与ダメージ +'
+                . $this->percentageLabel($killerDamageRate) . '%';
         }
 
         $resistRate = $this->effectiveSpeciesDamageReductionRate() * $effectRate;

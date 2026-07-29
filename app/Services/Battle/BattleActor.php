@@ -42,6 +42,8 @@ class BattleActor
     public ?string $speciesKey = null;
     public ?string $weaponKillerSpeciesKey = null;
     public float $weaponKillerDamageRate = 0.0;
+    /** @var list<array{source: string, species_key: string, damage_rate: float}> */
+    public array $weaponKillerEffects = [];
     public ?string $armorResistSpeciesKey = null;
     public float $armorSpeciesDamageReductionRate = 0.0;
 
@@ -96,6 +98,33 @@ class BattleActor
         $this->speciesKey = isset($stats['species_key']) ? (string) $stats['species_key'] : null;
         $this->weaponKillerSpeciesKey = isset($stats['weapon_killer_species_key']) ? (string) $stats['weapon_killer_species_key'] : null;
         $this->weaponKillerDamageRate = max(0.0, (float) ($stats['weapon_killer_damage_rate'] ?? 0.0));
+        foreach ((array) ($stats['weapon_killer_effects'] ?? []) as $effect) {
+            $speciesKey = trim((string) ($effect['species_key'] ?? ''));
+            $damageRate = max(0.0, (float) ($effect['damage_rate'] ?? 0.0));
+            if ($speciesKey === '' || $damageRate <= 0) {
+                continue;
+            }
+
+            $this->weaponKillerEffects[] = [
+                'source' => (string) ($effect['source'] ?? 'affix'),
+                'species_key' => $speciesKey,
+                'damage_rate' => $damageRate,
+            ];
+        }
+        if ($this->weaponKillerEffects === [] && $this->weaponKillerSpeciesKey && $this->weaponKillerDamageRate > 0) {
+            $this->weaponKillerEffects[] = [
+                'source' => 'affix',
+                'species_key' => $this->weaponKillerSpeciesKey,
+                'damage_rate' => $this->weaponKillerDamageRate,
+            ];
+        }
+        if ($this->weaponKillerEffects !== [] && $this->weaponKillerSpeciesKey === null) {
+            $legacyEffect = collect($this->weaponKillerEffects)
+                ->firstWhere('source', 'affix')
+                ?? $this->weaponKillerEffects[0];
+            $this->weaponKillerSpeciesKey = $legacyEffect['species_key'];
+            $this->weaponKillerDamageRate = $legacyEffect['damage_rate'];
+        }
         $this->armorResistSpeciesKey = isset($stats['armor_resist_species_key']) ? (string) $stats['armor_resist_species_key'] : null;
         $this->armorSpeciesDamageReductionRate = max(0.0, (float) ($stats['armor_species_damage_reduction_rate'] ?? 0.0));
 

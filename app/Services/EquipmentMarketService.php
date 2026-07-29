@@ -150,7 +150,7 @@ class EquipmentMarketService
     private function assertMarketListable(CharacterItem $item): void
     {
         if (($item->item?->type ?? null) !== 'weapon') throw new RuntimeException('武器のみ出品できます。');
-        if (! $item->affix_prefix_id && ! $item->affix_suffix_id) throw new RuntimeException('銘または特攻が付いた武器のみ出品できます。');
+        if (! $item->hasMarketableWeaponTrait()) throw new RuntimeException('銘・特攻・固有効果のいずれかがある武器のみ出品できます。');
         if ($item->is_equipped) throw new RuntimeException('装備中の武器は出品できません。');
         if ($item->is_locked) throw new RuntimeException('保護中の武器は出品できません。');
         if ($item->isMarketListed()) throw new RuntimeException('この武器はすでに出品中です。');

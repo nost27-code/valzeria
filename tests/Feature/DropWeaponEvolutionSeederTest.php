@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use Database\Seeders\DropEquipmentAdditionsSeeder;
 use Database\Seeders\DropWeaponEvolutionSeeder;
+use Database\Seeders\FerdiaRegionSeeder;
 use App\Models\Enemy;
+use App\Models\EnemyDrop;
 use App\Services\DropService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -32,13 +34,13 @@ class DropWeaponEvolutionSeederTest extends TestCase
             JSON_THROW_ON_ERROR
         );
 
-        $this->assertCount(14, $master['chains']);
+        $this->assertCount(18, $master['chains']);
         $this->assertSame(
-            100,
+            112,
             DB::table('items')->where('source_type', 'drop_weapon_evolution')->count()
         );
         $this->assertSame(
-            100,
+            112,
             DB::table('weapon_evolution_recipes')
                 ->where('recipe_id', 'like', 'DROP_EVO_%')
                 ->where('is_active', true)
@@ -133,6 +135,72 @@ class DropWeaponEvolutionSeederTest extends TestCase
         );
     }
 
+    public function test_ferdia_rare_weapons_drop_at_point_zero_three_percent_and_keep_innate_killers_through_epic(): void
+    {
+        $this->seed(FerdiaRegionSeeder::class);
+        $this->seed(DropEquipmentAdditionsSeeder::class);
+        $this->seed(DropWeaponEvolutionSeeder::class);
+
+        foreach ([
+            [
+                '見晴らしの丘道', 'ヒル・ホーク',
+                'DROP_WPN_RARE_FERDIA_HILL_HAWK_BOW', 'DROP_EVO_FERDIA_HILL_HAWK_BOW_EPIC',
+                'flying',
+                ['mp_bonus' => 400, 'str_bonus' => 488, 'spr_bonus' => 200],
+                ['mp_bonus' => 984, 'str_bonus' => 1200, 'spr_bonus' => 496],
+            ],
+            [
+                'アーデル遺跡', 'ルイン・ギア',
+                'DROP_WPN_RARE_FERDIA_RUIN_GEAR_GUN', 'DROP_EVO_FERDIA_RUIN_GEAR_GUN_EPIC',
+                'machine',
+                ['hp_bonus' => 320, 'str_bonus' => 424, 'def_bonus' => 80, 'mag_bonus' => 424, 'spr_bonus' => 120],
+                ['hp_bonus' => 788, 'str_bonus' => 1040, 'def_bonus' => 200, 'mag_bonus' => 1040, 'spr_bonus' => 296],
+            ],
+            [
+                '大樹の聖城外縁', '聖城の光霊',
+                'DROP_WPN_RARE_FERDIA_LIGHT_SPIRIT_DEVICE', 'DROP_EVO_FERDIA_LIGHT_SPIRIT_DEVICE_EPIC',
+                'dragon',
+                ['mp_bonus' => 984, 'mag_bonus' => 704, 'spr_bonus' => 320],
+                ['mp_bonus' => 2424, 'mag_bonus' => 1736, 'spr_bonus' => 784],
+            ],
+            [
+                '北境の霊峰エルヴァン', 'スノー・インプ',
+                'DROP_WPN_RARE_FERDIA_SNOW_IMP_DAGGER', 'DROP_EVO_FERDIA_SNOW_IMP_DAGGER_EPIC',
+                'demon',
+                ['hp_bonus' => 480, 'str_bonus' => 432, 'spr_bonus' => 200],
+                ['hp_bonus' => 1180, 'str_bonus' => 1064, 'spr_bonus' => 496],
+            ],
+        ] as [$areaName, $enemyName, $sourceExternalId, $epicExternalId, $speciesKey, $sourceStats, $epicStats]) {
+            $enemy = Enemy::query()
+                ->where('name', $enemyName)
+                ->whereHas('area', fn ($query) => $query->where('name', $areaName))
+                ->first();
+            $source = DB::table('items')->where('external_item_id', $sourceExternalId)->first();
+            $epic = DB::table('items')->where('external_item_id', $epicExternalId)->first();
+
+            $this->assertNotNull($enemy, "missing {$areaName} {$enemyName}");
+            $this->assertNotNull($source, "missing {$sourceExternalId}");
+            $this->assertNotNull($epic, "missing {$epicExternalId}");
+            $this->assertSame(0.03, (float) EnemyDrop::query()
+                ->where('enemy_id', $enemy->id)
+                ->where('item_id', $source->id)
+                ->value('drop_rate'));
+            $this->assertTrue((bool) $source->affix_enabled);
+            $this->assertTrue((bool) $epic->affix_enabled);
+            $this->assertSame($speciesKey, $source->innate_killer_species_key);
+            $this->assertSame($speciesKey, $epic->innate_killer_species_key);
+            $this->assertSame(0.12, (float) $source->innate_killer_damage_rate);
+            $this->assertSame(0.12, (float) $epic->innate_killer_damage_rate);
+
+            foreach ($sourceStats as $column => $expected) {
+                $this->assertSame($expected, (int) $source->{$column}, "{$sourceExternalId} {$column}");
+            }
+            foreach ($epicStats as $column => $expected) {
+                $this->assertSame($expected, (int) $epic->{$column}, "{$epicExternalId} {$column}");
+            }
+        }
+    }
+
     public function test_rebalanced_unique_paths_keep_a_distinct_role_without_a_clear_branch_upgrade(): void
     {
         $this->seed(DropEquipmentAdditionsSeeder::class);
@@ -176,8 +244,11 @@ class DropWeaponEvolutionSeederTest extends TestCase
             }
 
             foreach (['S', 'SS', 'SSS', 'EPIC'] as $rank) {
+                $uniqueExternalId = $rank === $chain['source_rank']
+                    ? $chain['source_external_item_id']
+                    : "DROP_EVO_{$chain['key']}_{$rank}";
                 $unique = DB::table('items')
-                    ->where('external_item_id', "DROP_EVO_{$chain['key']}_{$rank}")
+                    ->where('external_item_id', $uniqueExternalId)
                     ->first();
                 $standardBranches = DB::table('items')
                     ->where('weapon_rank', $rank)

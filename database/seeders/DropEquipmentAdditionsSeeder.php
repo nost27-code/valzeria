@@ -7,6 +7,7 @@ use App\Models\EnemyDrop;
 use App\Models\Item;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DropEquipmentAdditionsSeeder extends Seeder
 {
@@ -113,6 +114,7 @@ class DropEquipmentAdditionsSeeder extends Seeder
             'weapon_rank', 'weapon_rank_sort', 'weapon_rank_multiplier',
             'evolution_stage', 'next_item_external_id',
             'is_evolution_enabled', 'is_drop_enabled', 'is_supply_enabled', 'max_enhance',
+            'innate_killer_species_key', 'innate_killer_damage_rate',
             'armor_category', 'armor_weight', 'armor_role',
             'armor_family_id', 'armor_family_name', 'armor_category_id', 'armor_category_name',
             'armor_rank', 'armor_rank_sort', 'armor_rank_multiplier',
@@ -142,10 +144,20 @@ class DropEquipmentAdditionsSeeder extends Seeder
             }
         }
 
-        foreach (['weapon_rank_multiplier', 'armor_rank_multiplier', 'accessory_rank_multiplier'] as $key) {
+        foreach ([
+            'weapon_rank_multiplier', 'armor_rank_multiplier', 'accessory_rank_multiplier',
+            'innate_killer_damage_rate',
+        ] as $key) {
             if (array_key_exists($key, $payload) && $payload[$key] !== null) {
                 $payload[$key] = (float) $payload[$key];
             }
+        }
+
+        if (!Schema::hasColumn('items', 'innate_killer_species_key')) {
+            unset(
+                $payload['innate_killer_species_key'],
+                $payload['innate_killer_damage_rate'],
+            );
         }
 
         return $payload;

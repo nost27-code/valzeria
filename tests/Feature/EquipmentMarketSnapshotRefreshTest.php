@@ -188,6 +188,42 @@ class EquipmentMarketSnapshotRefreshTest extends TestCase
         $this->assertSame($appraisal['maximum_price'], $listing->maximum_price);
     }
 
+    public function test_innate_killer_weapon_can_be_listed_without_a_random_affix(): void
+    {
+        $character = $this->createCharacter(100_000);
+        $item = Item::query()->create([
+            'name' => '固有特攻試験剣',
+            'type' => 'weapon',
+            'weapon_category' => 'sword',
+            'weapon_rank' => 'S',
+            'str_bonus' => 100,
+            'is_active' => true,
+            'is_tradeable' => true,
+            'innate_killer_species_key' => 'dragon',
+            'innate_killer_damage_rate' => 0.12,
+        ]);
+        $characterItem = CharacterItem::query()->create([
+            'character_id' => $character->id,
+            'item_id' => $item->id,
+            'is_equipped' => false,
+            'is_locked' => false,
+            'is_tradeable' => true,
+        ]);
+
+        $appraisal = app(EquipmentMarketAppraisalService::class)->appraisal($characterItem);
+        $listing = app(EquipmentMarketService::class)->listWeapon(
+            $character,
+            $characterItem,
+            $appraisal['appraisal_price'],
+        );
+
+        $this->assertSame(0, $listing->trait_appraisal_price);
+        $this->assertContains(
+            '固有効果：種族が竜の敵への与ダメージ +12%',
+            $listing->item_snapshot['slayer_effect_lines'],
+        );
+    }
+
     private function createCharacter(int $money): Character
     {
         $user = User::factory()->create();

@@ -61,9 +61,11 @@ class DropWeaponEvolutionSeeder extends Seeder
         }
 
         $sourceExternalIds = array_column($chains, 'source_external_item_id');
-        $existingSourceCount = DB::table('items')
+        $existingSourceExternalIds = DB::table('items')
             ->whereIn('external_item_id', $sourceExternalIds)
-            ->count();
+            ->pluck('external_item_id')
+            ->all();
+        $existingSourceCount = count($existingSourceExternalIds);
 
         // Fresh migrate runs before DatabaseSeeder. The dedicated seeder runs again
         // immediately after DropEquipmentAdditionsSeeder, when all source items exist.
@@ -73,7 +75,18 @@ class DropWeaponEvolutionSeeder extends Seeder
         }
 
         if ($existingSourceCount !== count($sourceExternalIds)) {
-            throw new RuntimeException('固有ドロップ元武器が一部だけ存在します。進化系統の部分投入を中止しました。');
+            $this->command?->warn(
+                '固有ドロップ元武器が一部未投入のため、存在する'
+                . $existingSourceCount . '系統だけを更新し、残りは後続Seederへ委ねました。'
+            );
+            $chains = array_values(array_filter(
+                $chains,
+                static fn (array $chain): bool => in_array(
+                    (string) ($chain['source_external_item_id'] ?? ''),
+                    $existingSourceExternalIds,
+                    true,
+                ),
+            ));
         }
 
         $rankRows = DB::table('weapon_ranks')
@@ -93,7 +106,7 @@ class DropWeaponEvolutionSeeder extends Seeder
             }
         });
 
-        $this->command?->info('固有ドロップ武器14系統の一本道進化を更新しました。');
+        $this->command?->info('固有ドロップ武器' . count($chains) . '系統の一本道進化を更新しました。');
     }
 
     private function loadMaster(): array
@@ -281,6 +294,7 @@ class DropWeaponEvolutionSeeder extends Seeder
             'evolution_stage' => 0,
             'next_item_external_id' => $nextExternalId,
             'is_evolution_enabled' => true,
+            'affix_enabled' => true,
             'max_enhance' => self::ENHANCE_CAPS[$sourceRank],
             'updated_at' => now(),
         ];
@@ -373,6 +387,10 @@ class DropWeaponEvolutionSeeder extends Seeder
         }
         if (Schema::hasColumn('items', 'is_tradeable')) {
             $payload['is_tradeable'] = (bool) ($source->is_tradeable ?? true);
+        }
+        if (Schema::hasColumn('items', 'innate_killer_species_key')) {
+            $payload['innate_killer_species_key'] = $source->innate_killer_species_key;
+            $payload['innate_killer_damage_rate'] = (float) ($source->innate_killer_damage_rate ?? 0);
         }
 
         $existing = DB::table('items')->where('external_item_id', $externalId)->first();

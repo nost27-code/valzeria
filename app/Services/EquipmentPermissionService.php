@@ -121,6 +121,44 @@ class EquipmentPermissionService
             * $this->performanceRate($character, $characterItem->item);
     }
 
+    /**
+     * @return list<array{source: string, species_key: string, damage_rate: float}>
+     */
+    public function effectiveKillerEffects(Character $character, \App\Models\CharacterItem $characterItem): array
+    {
+        $performanceRate = $this->performanceRate($character, $characterItem->item);
+
+        return array_map(
+            static fn (array $effect): array => [
+                ...$effect,
+                'damage_rate' => max(0.0, (float) $effect['damage_rate'] * $performanceRate),
+            ],
+            $characterItem->killerEffects(),
+        );
+    }
+
+    public function effectiveKillerDamageRateForSpecies(
+        Character $character,
+        \App\Models\CharacterItem $characterItem,
+        string $speciesKey
+    ): float {
+        if ($speciesKey === '') {
+            return 0.0;
+        }
+
+        $rate = array_sum(array_map(
+            static fn (array $effect): float => $effect['species_key'] === $speciesKey
+                ? (float) $effect['damage_rate']
+                : 0.0,
+            $this->effectiveKillerEffects($character, $characterItem),
+        ));
+
+        return min(
+            (float) config('equipment_affix.weapon_killer_damage_rate_cap', 0.55),
+            $rate,
+        );
+    }
+
     public function effectiveSpeciesDamageReductionRate(Character $character, \App\Models\CharacterItem $characterItem): float
     {
         return $characterItem->effectiveSpeciesDamageReductionRate()

@@ -88,6 +88,8 @@ class TowerBattleServiceTest extends TestCase
             $table->string('name');
             $table->string('type', 50);
             $table->boolean('is_active')->default(true);
+            $table->string('innate_killer_species_key', 32)->nullable();
+            $table->decimal('innate_killer_damage_rate', 5, 4)->default(0);
             $table->timestamps();
         });
 
@@ -404,6 +406,8 @@ class TowerBattleServiceTest extends TestCase
             'name' => '妖精斬りの剣',
             'type' => 'weapon',
             'is_active' => true,
+            'innate_killer_species_key' => 'dragon',
+            'innate_killer_damage_rate' => 0.12,
         ]);
         $armor = Item::query()->create([
             'name' => '妖精護りの鎧',
@@ -434,6 +438,10 @@ class TowerBattleServiceTest extends TestCase
 
         $this->assertSame('妖精', $actor->weaponKillerSpeciesKey);
         $this->assertSame(0.08, $actor->weaponKillerDamageRate);
+        $this->assertSame([
+            ['source' => 'innate', 'species_key' => 'dragon', 'damage_rate' => 0.12],
+            ['source' => 'affix', 'species_key' => '妖精', 'damage_rate' => 0.08],
+        ], $actor->weaponKillerEffects);
         $this->assertSame('妖精', $actor->armorResistSpeciesKey);
         $this->assertSame(0.05, $actor->armorSpeciesDamageReductionRate);
     }
