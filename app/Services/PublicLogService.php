@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\PublicLog;
 use App\Models\Character;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class PublicLogService
@@ -111,6 +113,28 @@ class PublicLogService
     }
 
     /**
+     * 管理人からの最終送信後に冒険者が返信したままのスレッド数。
+     */
+    public function pendingAdminReplyCount(): int
+    {
+        return $this->pendingAdminReplyQuery()->count();
+    }
+
+    /**
+     * 管理人の返答待ちになっている冒険者返信を新しい順で取得する。
+     *
+     * @return Collection<int, PublicLog>
+     */
+    public function pendingAdminReplies(int $limit = 20): Collection
+    {
+        return $this->pendingAdminReplyQuery()
+            ->with('character.user')
+            ->orderByDesc('id')
+            ->limit(max(1, $limit))
+            ->get();
+    }
+
+    /**
      * 最新の公開ログを取得する
      */
     public function getRecentLogs(int $limit = 20, ?int $currentCharacterId = null)
@@ -139,5 +163,19 @@ class PublicLogService
         });
 
         return $query->limit($limit)->get();
+    }
+
+    private function pendingAdminReplyQuery(): Builder
+    {
+        return PublicLog::query()
+            ->where('type', 'admin_private_reply')
+            ->whereNotNull('receiver_id')
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('public_logs as later_admin_thread_logs')
+                    ->whereColumn('later_admin_thread_logs.receiver_id', 'public_logs.receiver_id')
+                    ->whereIn('later_admin_thread_logs.type', ['admin_private', 'admin_private_reply'])
+                    ->whereColumn('later_admin_thread_logs.id', '>', 'public_logs.id');
+            });
     }
 }

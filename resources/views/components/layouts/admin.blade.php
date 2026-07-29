@@ -183,6 +183,9 @@
                                         <a href="{{ route($item['route']) }}" class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">
                                             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $active ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200 group-hover:bg-white/15' }}">{{ $item['abbr'] }}</span>
                                             <span class="truncate">{{ $item['label'] }}</span>
+                                            @if($item['route'] === 'admin.user-investigation')
+                                                <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
+                                            @endif
                                         </a>
                                     @endforeach
                                 </div>
@@ -219,15 +222,27 @@
                             <span class="h-0.5 rounded-full bg-current"></span>
                         </span>
                     </button>
-                    <a href="{{ route('admin.dashboard') }}" class="font-black tracking-[0.18em] text-slate-950">
+                    <a href="{{ route('admin.dashboard') }}" class="text-sm font-black tracking-[0.14em] text-slate-950 sm:text-base sm:tracking-[0.18em]">
                         <span class="text-amber-500">VALZERIA</span> ADMIN
                     </a>
-                    <form action="{{ route('admin.logout') }}" method="POST" data-submit-lock data-loading-text="ログアウト中...">
-                        @csrf
-                        <button type="submit" class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">
-                            ログアウト
-                        </button>
-                    </form>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <a id="admin-private-reply-bell"
+                           href="{{ route('admin.user-investigation') }}"
+                           class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                           aria-label="管理人個別メッセージの返信を確認"
+                           title="管理人個別メッセージの返信を確認">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" class="h-5 w-5" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17H9.143m9.286 0H5.57c1.286-1.286 1.715-3.214 1.715-5.143 0-2.947 2.111-5.357 4.715-5.357s4.714 2.41 4.714 5.357c0 1.929.429 3.857 1.715 5.143ZM13.714 19.143a1.714 1.714 0 0 1-3.428 0" />
+                            </svg>
+                            <span data-admin-reply-badge hidden class="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black leading-none text-white ring-2 ring-white"></span>
+                        </a>
+                        <form action="{{ route('admin.logout') }}" method="POST" data-submit-lock data-loading-text="ログアウト中...">
+                            @csrf
+                            <button type="submit" class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">
+                                ログアウト
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </header>
 
@@ -287,6 +302,9 @@
                                                class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300' }}">
                                                 <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $active ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200' }}">{{ $item['abbr'] }}</span>
                                                 <span class="truncate">{{ $item['label'] }}</span>
+                                                @if($item['route'] === 'admin.user-investigation')
+                                                    <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
+                                                @endif
                                             </a>
                                         @endforeach
                                     </div>
@@ -333,12 +351,16 @@
         })();
 
         (() => {
-            const badgeUrl = @js(route('admin.contact-messages.badge-count'));
+            const mailBadgeUrl = @js(route('admin.contact-messages.badge-count'));
+            const privateReplyStatusUrl = @js(route('admin.private-replies.status'));
             const baseTitle = document.title;
             const baseIconHref = @js(asset('images/favicon.webp') . '?v=2');
-            const pollIntervalMs = 5 * 60 * 1000;
+            const mailPollIntervalMs = 5 * 60 * 1000;
+            const privateReplyPollIntervalMs = 60 * 1000;
             let faviconLink = document.getElementById('admin-favicon');
             let objectUrl = null;
+            let mailCount = 0;
+            let privateReplyCount = 0;
 
             const ensureFaviconLink = () => {
                 if (faviconLink) {
@@ -422,9 +444,42 @@
                 }, 'image/png');
             };
 
+            const refreshOverallBadge = async () => {
+                await drawBadge(mailCount + privateReplyCount);
+            };
+
+            const updatePrivateReplyIndicators = (payload) => {
+                privateReplyCount = Math.max(0, Number.parseInt(payload.pending_count, 10) || 0);
+                const countLabel = privateReplyCount > 99 ? '99+' : String(privateReplyCount);
+
+                document.querySelectorAll('[data-admin-reply-badge]').forEach((badge) => {
+                    badge.hidden = privateReplyCount <= 0;
+                    badge.textContent = privateReplyCount > 0 ? countLabel : '';
+                });
+
+                const bell = document.getElementById('admin-private-reply-bell');
+                if (!bell) {
+                    return;
+                }
+
+                if (privateReplyCount <= 0) {
+                    bell.href = @js(route('admin.user-investigation'));
+                    bell.setAttribute('aria-label', '管理人個別メッセージの返信を確認（未対応なし）');
+                    bell.title = '管理人個別メッセージの返信を確認（未対応なし）';
+                    return;
+                }
+
+                const latestReply = payload.latest_reply || {};
+                const characterName = latestReply.character_name || '冒険者';
+                const label = `${characterName}さんから返信があります（未対応${privateReplyCount}件）`;
+                bell.href = latestReply.url || @js(route('admin.user-investigation'));
+                bell.setAttribute('aria-label', label);
+                bell.title = label;
+            };
+
             const pollMailBadge = async () => {
                 try {
-                    const response = await fetch(badgeUrl, {
+                    const response = await fetch(mailBadgeUrl, {
                         method: 'GET',
                         credentials: 'same-origin',
                         cache: 'no-store',
@@ -439,15 +494,45 @@
                     }
 
                     const payload = await response.json();
-                    await drawBadge(payload.new_count || 0);
+                    mailCount = Math.max(0, Number.parseInt(payload.new_count, 10) || 0);
+                    await refreshOverallBadge();
+                } catch (e) {
+                    // 管理画面の操作を妨げないため、ポーリング失敗は黙って次回へ回す。
+                }
+            };
+
+            const pollPrivateReplyStatus = async () => {
+                try {
+                    const response = await fetch(privateReplyStatusUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    updatePrivateReplyIndicators(payload);
+                    await refreshOverallBadge();
                 } catch (e) {
                     // 管理画面の操作を妨げないため、ポーリング失敗は黙って次回へ回す。
                 }
             };
 
             pollMailBadge();
-            window.setInterval(pollMailBadge, pollIntervalMs);
-            window.addEventListener('focus', pollMailBadge);
+            pollPrivateReplyStatus();
+            window.setInterval(pollMailBadge, mailPollIntervalMs);
+            window.setInterval(pollPrivateReplyStatus, privateReplyPollIntervalMs);
+            window.addEventListener('focus', () => {
+                pollMailBadge();
+                pollPrivateReplyStatus();
+            });
         })();
     </script>
 </body>

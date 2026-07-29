@@ -8,6 +8,7 @@ use App\Models\ContactMessage;
 use App\Models\User;
 use App\Services\Admin\CharacterIconUsageService;
 use App\Services\Admin\PlayerLifecycleAnalyticsService;
+use App\Services\PublicLogService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -109,6 +110,13 @@ class AdminDashboard extends Component
         $newContactMessages = Schema::hasTable('contact_messages')
             ? ContactMessage::where('status', 'new')->count()
             : 0;
+        $publicLogService = app(PublicLogService::class);
+        $pendingAdminReplies = $publicLogService->pendingAdminReplyCount();
+        $latestPendingAdminReply = $publicLogService->pendingAdminReplies(1)->first();
+        $latestPendingAdminReplyUserId = $latestPendingAdminReply?->character?->user_id;
+        $pendingAdminReplyUrl = $latestPendingAdminReplyUserId
+            ? route('admin.user-investigation', ['user_id' => $latestPendingAdminReplyUserId]) . '#investigation-message'
+            : route('admin.user-investigation');
         $changedJobCharacters = $this->changedJobCharacters();
         $retention = $this->retention($sevenDaysAgo);
         $lifecycle = app(PlayerLifecycleAnalyticsService::class)->dashboardMetrics();
@@ -121,6 +129,7 @@ class AdminDashboard extends Component
                 ['label' => '継続率', 'value' => $retention['rate_label'], 'note' => $retention['note']],
                 ['label' => '同時接続数', 'value' => number_format($onlineCharacters), 'note' => "直近{$onlineWindowMinutes}分の活動キャラ"],
                 ['label' => '新規受信メール', 'value' => number_format($newContactMessages), 'note' => '未読の問い合わせ', 'url' => route('admin.contact-messages')],
+                ['label' => '管理人メッセージ返信', 'value' => number_format($pendingAdminReplies), 'note' => '冒険者からの未対応返信', 'url' => $pendingAdminReplyUrl],
                 ['label' => 'ログイン数', 'value' => number_format($todayLoginUsers), 'note' => '今日ログインしたユーザー'],
                 ['label' => '7日以内ログイン', 'value' => number_format($weeklyLoginUsers), 'note' => '直近7日で活動あり'],
                 ['label' => '平均レベル', 'value' => number_format($averageLevel, 1), 'note' => 'characters 平均'],

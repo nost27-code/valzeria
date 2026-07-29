@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-admin-private-reply-alert',
+        'date' => '2026-07-29',
+        'category' => 'internal',
+        'title' => '管理人個別メッセージの返信通知を追加',
+        'detail' => '冒険者から管理人スレッドへ返信が届いた際、管理画面右上の通知ベル、ユーザー調査の件数表示、ダッシュボードから確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-29-ferdia-unique-weapons',
         'date' => '2026-07-29',
         'category' => 'added',

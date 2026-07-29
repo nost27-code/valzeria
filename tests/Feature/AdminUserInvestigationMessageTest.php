@@ -6,6 +6,7 @@ use App\Livewire\Admin\UserInvestigationManager;
 use App\Models\Character;
 use App\Models\PublicLog;
 use App\Models\User;
+use App\Services\PublicLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -98,5 +99,59 @@ class AdminUserInvestigationMessageTest extends TestCase
             'character_id' => $otherCharacter->id,
             'type' => 'admin_private_message',
         ]);
+    }
+
+    public function test_admin_is_notified_while_the_latest_thread_message_is_a_player_reply(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $targetUser = User::factory()->create();
+        $character = Character::query()->create([
+            'user_id' => $targetUser->id,
+            'name' => '返信通知対象',
+            'explore_stamina' => 0,
+        ]);
+        $logService = app(PublicLogService::class);
+
+        $logService->addAdminPrivateMessage('状況を教えてください。', $character);
+        $logService->addAdminPrivateReply('確認して返信しました。', $character);
+        $logService->addAdminPrivateReply('追加情報もあります。', $character);
+
+        $this->assertSame(1, $logService->pendingAdminReplyCount());
+        $this->assertSame('追加情報もあります。', $logService->pendingAdminReplies(1)->first()?->message);
+
+        $statusResponse = $this->actingAs($admin)
+            ->getJson(route('admin.private-replies.status'))
+            ->assertOk()
+            ->assertJsonPath('pending_count', 1)
+            ->assertJsonPath('latest_reply.character_name', '返信通知対象')
+            ->assertJsonPath(
+                'latest_reply.url',
+                route('admin.user-investigation', ['user_id' => $targetUser->id]) . '#investigation-message'
+            );
+        $this->assertArrayNotHasKey(
+            'message',
+            $statusResponse->json()['latest_reply']
+        );
+
+        $this->get(route('admin.user-investigation', ['user_id' => $targetUser->id]))
+            ->assertOk()
+            ->assertSee('admin-private-reply-bell', false)
+            ->assertSee('管理人個別メッセージの返信を確認')
+            ->assertSee('data-admin-reply-badge', false);
+
+        $logService->addAdminPrivateMessage('追加情報を確認しました。', $character);
+
+        $this->assertSame(0, $logService->pendingAdminReplyCount());
+        $this->getJson(route('admin.private-replies.status'))
+            ->assertOk()
+            ->assertJsonPath('pending_count', 0)
+            ->assertJsonPath('latest_reply', null);
+    }
+
+    public function test_private_reply_status_is_admin_only(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('admin.private-replies.status'))
+            ->assertRedirect('/admin/login');
     }
 }

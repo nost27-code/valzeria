@@ -24,6 +24,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Internal
 
+- 冒険者から管理人スレッドへ返信が届いた際、管理画面右上の通知ベル、ユーザー個別調査のメニュー、ダッシュボードへ未対応件数を表示するようにしました。
+
 - 管理ダッシュボードで、通常プレイヤーが現在選択しているキャラ画像の利用人数・割合と未使用画像を確認できるようにしました。
 
 ### Balance

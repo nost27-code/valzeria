@@ -503,6 +503,23 @@ Route::middleware(['auth', 'admin'])->group(function () {
             'checked_at' => now()->toIso8601String(),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     })->name('admin.contact-messages.badge-count');
+    Route::get('/admin/private-replies/status', function () {
+        $logService = app(\App\Services\PublicLogService::class);
+        $pendingCount = $logService->pendingAdminReplyCount();
+        $latestReply = $logService->pendingAdminReplies(1)->first();
+        $targetUserId = $latestReply?->character?->user_id;
+
+        return response()->json([
+            'pending_count' => $pendingCount,
+            'latest_reply' => $latestReply ? [
+                'character_name' => $latestReply->character?->name ?? '冒険者',
+                'url' => $targetUserId
+                    ? route('admin.user-investigation', ['user_id' => $targetUserId]) . '#investigation-message'
+                    : route('admin.private-chat-logs'),
+            ] : null,
+            'checked_at' => now()->toIso8601String(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    })->name('admin.private-replies.status');
     Route::get('/admin/world-metrics', \App\Livewire\Admin\WorldMetricsManager::class)->name('admin.world-metrics');
     Route::get('/admin/world-activity-map', \App\Livewire\Admin\WorldActivityMapManager::class)->name('admin.world-activity-map');
     Route::get('/admin/inn-analytics', \App\Livewire\Admin\InnAnalyticsManager::class)->name('admin.inn-analytics');
