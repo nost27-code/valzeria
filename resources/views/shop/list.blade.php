@@ -180,7 +180,7 @@
                             'armor' => ['label' => '防具', 'icon_image' => 'images/icon/icon_007.webp'],
                         ];
                         $sortOptions = [
-                            'recommended' => 'おすすめ順',
+                            'recommended' => 'おすすめ順（適正優先）',
                             'attack_desc' => '攻撃が高い順',
                             'defense_desc' => '防御が高い順',
                             'magic_desc' => '魔力が高い順',
@@ -246,7 +246,10 @@
                             $equipmentIcon = $type !== 'consumable' ? $item->iconImagePath() : null;
                             $showCategoryLabel = $categoryLabel && $categoryLabel !== (string) $item->sub_type;
                         @endphp
-                        <div class="item-card border border-[#d4af37]/50 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:border-[#d4af37] transition-colors" data-subtype="{{ $item->sub_type }}">
+                        <div
+                            class="item-card rounded-lg border p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center transition-colors {{ ($equipmentGuide['native_proficiency'] ?? false) ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300' : 'border-[#d4af37]/50 bg-white hover:border-[#d4af37]' }}"
+                            data-subtype="{{ $item->sub_type }}"
+                        >
                             <div class="mb-4 sm:mb-0">
                                 <h3 class="flex flex-wrap items-center gap-1.5 font-bold text-lg text-slate-800">
                                     @if($equipmentIcon)
@@ -264,12 +267,12 @@
                                 @if($equipmentGuide && $canEquipByJob)
                                     <div class="mt-2">
                                         @if($equipmentGuide['native_proficiency'])
-                                            <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-700">
-                                                {{ $item->type === 'weapon' ? '適正武器' : '適正防具' }}・装備効果100%
+                                            <span class="inline-flex rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-extrabold text-emerald-700" title="装備効果100%">
+                                                適正
                                             </span>
                                         @else
                                             <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-extrabold text-amber-700">
-                                                適性外・装備効果{{ $equipmentGuide['performance_percent'] }}%
+                                                適性外 {{ $equipmentGuide['performance_percent'] }}%
                                             </span>
                                         @endif
                                     </div>
@@ -306,10 +309,7 @@
                                         @if($equipmentPreview)
                                             @if($canEquipByJob)
                                                 <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
-                                                    <div class="flex flex-wrap items-baseline justify-between gap-1">
-                                                        <p class="text-xs font-extrabold text-slate-700">装備後の能力</p>
-                                                        <p class="text-[10px] font-semibold text-slate-500">現在装備から交換した場合</p>
-                                                    </div>
+                                                    <p class="text-xs font-extrabold text-slate-700">装備後の能力</p>
                                                     <div class="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-4">
                                                         @foreach($equipmentPreview['visible_stats'] as $statKey)
                                                             @php
@@ -320,6 +320,9 @@
                                                                     ? 'text-emerald-700 bg-emerald-100'
                                                                     : ($delta < 0 ? 'text-rose-700 bg-rose-100' : 'text-slate-500 bg-slate-100');
                                                                 $deltaText = $delta > 0
+                                                                    ? '↑' . number_format($delta)
+                                                                    : ($delta < 0 ? '↓' . number_format(abs($delta)) : '―');
+                                                                $deltaAriaLabel = $delta > 0
                                                                     ? number_format($delta) . '上昇'
                                                                     : ($delta < 0 ? number_format(abs($delta)) . '低下' : '変化なし');
                                                             @endphp
@@ -327,7 +330,7 @@
                                                                 <div class="text-[11px] font-semibold text-slate-500">{{ $statLabel }}</div>
                                                                 <div class="mt-0.5 flex flex-wrap items-center gap-1">
                                                                     <span class="text-sm font-extrabold text-slate-800">{{ number_format($afterValue) }}</span>
-                                                                    <span class="rounded px-1 py-0.5 text-[10px] font-bold {{ $deltaClass }}">{{ $deltaText }}</span>
+                                                                    <span class="rounded px-1 py-0.5 text-[10px] font-bold {{ $deltaClass }}" aria-label="{{ $deltaAriaLabel }}" title="{{ $deltaAriaLabel }}">{{ $deltaText }}</span>
                                                                 </div>
                                                             </div>
                                                         @endforeach
@@ -335,36 +338,35 @@
                                                 </div>
                                             @endif
 
-                                            <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5">
-                                                <div class="flex flex-wrap items-baseline justify-between gap-1">
+                                            @if(!empty($equipmentPreview['performance_visible_stats']))
+                                                <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5">
                                                     <p class="text-xs font-extrabold text-amber-800">
-                                                        {{ $item->type === 'weapon' ? '武器性能' : '防具性能' }}
+                                                        @if($canEquipByJob)
+                                                            適性反映後の{{ $item->type === 'weapon' ? '武器性能' : '防具性能' }}
+                                                        @else
+                                                            {{ $item->type === 'weapon' ? '武器性能' : '防具性能' }}
+                                                        @endif
                                                     </p>
-                                                    <p class="text-[10px] font-semibold text-amber-700">
-                                                        {{ $canEquipByJob ? '現在職で実際に反映される値' : '強化前の基本値' }}
-                                                    </p>
-                                                </div>
-                                                <div class="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-4">
-                                                    @foreach($equipmentPreview['visible_stats'] as $statKey)
-                                                        @php
-                                                            $statLabel = $shopStatLabels[$statKey];
-                                                            $effectiveValue = (int) $equipmentPreview['effective_stats'][$statKey];
-                                                            $rawValue = (int) $equipmentPreview['raw_stats'][$statKey];
-                                                        @endphp
-                                                        <div class="rounded border border-amber-200 bg-white px-2 py-1.5" data-shop-effective-stat="{{ $statKey }}">
-                                                            <div class="flex items-baseline justify-between gap-1">
+                                                    <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5">
+                                                        @foreach($equipmentPreview['performance_visible_stats'] as $statKey)
+                                                            @php
+                                                                $statLabel = $shopStatLabels[$statKey];
+                                                                $effectiveValue = (int) $equipmentPreview['effective_stats'][$statKey];
+                                                                $rawValue = (int) $equipmentPreview['raw_stats'][$statKey];
+                                                            @endphp
+                                                            <div class="inline-flex flex-wrap items-baseline gap-1 whitespace-nowrap" data-shop-effective-stat="{{ $statKey }}">
                                                                 <span class="text-[11px] font-semibold text-slate-500">{{ $statLabel }}</span>
                                                                 <span class="text-sm font-extrabold text-slate-800">{{ $effectiveValue > 0 ? '+' : '' }}{{ number_format($effectiveValue) }}</span>
+                                                                @if($rawValue !== $effectiveValue)
+                                                                    <span class="text-[10px] font-semibold text-amber-700">
+                                                                        （補正前 {{ $rawValue > 0 ? '+' : '' }}{{ number_format($rawValue) }}）
+                                                                    </span>
+                                                                @endif
                                                             </div>
-                                                            @if($rawValue !== $effectiveValue)
-                                                                <div class="mt-0.5 text-right text-[10px] font-semibold text-amber-700">
-                                                                    補正前 {{ $rawValue > 0 ? '+' : '' }}{{ number_format($rawValue) }}
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                    @endforeach
+                                                        @endforeach
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            @endif
                                         @endif
                                         @if(!$canEquipByJob)
                                             <div class="mt-3 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded px-2 py-1">

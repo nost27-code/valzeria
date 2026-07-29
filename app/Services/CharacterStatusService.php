@@ -280,7 +280,8 @@ class CharacterStatusService
      *     effective_stats: array<string, int>,
      *     after_stats: array<string, int>,
      *     deltas: array<string, int>,
-     *     visible_stats: array<int, string>
+     *     visible_stats: array<int, string>,
+     *     performance_visible_stats: array<int, string>
      * }
      */
     public function equipmentSwapPreviewForItem(
@@ -391,6 +392,7 @@ class CharacterStatusService
 
         $deltas = [];
         $visibleStats = [];
+        $performanceVisibleStats = [];
         foreach ($finalKeys as $key => $finalKey) {
             $deltas[$key] = (int) $afterStats[$key] - (int) ($currentStats[$finalKey] ?? 0);
             if (
@@ -400,6 +402,9 @@ class CharacterStatusService
             ) {
                 $visibleStats[] = $key;
             }
+            if ((int) $rawStats[$key] !== 0 || (int) $effectiveStats[$key] !== 0) {
+                $performanceVisibleStats[] = $key;
+            }
         }
 
         return [
@@ -408,6 +413,7 @@ class CharacterStatusService
             'after_stats' => $afterStats,
             'deltas' => $deltas,
             'visible_stats' => $visibleStats,
+            'performance_visible_stats' => $performanceVisibleStats,
         ];
     }
 

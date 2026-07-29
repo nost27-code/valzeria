@@ -31,7 +31,10 @@ class ShopController extends Controller
             ->where('is_shop_item', true)
             ->where('unlock_city_id', $cityId);
 
-        $this->applySort($query, $type, $sort);
+        $nativeCategories = $character
+            ? $permissionService->nativeCategoryKeys((int) $character->current_job_id, $type)
+            : [];
+        $this->applySort($query, $type, $sort, $nativeCategories);
         $items = $query->get();
 
         $equipmentService = app(EquipmentService::class);
@@ -199,7 +202,10 @@ class ShopController extends Controller
         ], true) ? $sort : 'recommended';
     }
 
-    private function applySort($query, string $type, string $sort): void
+    /**
+     * @param  list<string>  $nativeCategories
+     */
+    private function applySort($query, string $type, string $sort, array $nativeCategories = []): void
     {
         match ($sort) {
             'price_asc' => $query->orderBy('price')->orderBy('required_level'),
@@ -232,12 +238,24 @@ class ShopController extends Controller
                     ELSE 99
                 END
             ")->orderBy('required_level'),
-            default => $this->applyRecommendedSort($query, $type),
+            default => $this->applyRecommendedSort($query, $type, $nativeCategories),
         };
     }
 
-    private function applyRecommendedSort($query, string $type): void
+    /**
+     * @param  list<string>  $nativeCategories
+     */
+    private function applyRecommendedSort($query, string $type, array $nativeCategories = []): void
     {
+        if ($nativeCategories !== []) {
+            $categoryColumn = $type === 'weapon' ? 'weapon_category' : 'armor_category';
+            $placeholders = implode(', ', array_fill(0, count($nativeCategories), '?'));
+            $query->orderByRaw(
+                "CASE WHEN {$categoryColumn} IN ({$placeholders}) THEN 0 ELSE 1 END",
+                $nativeCategories,
+            );
+        }
+
         if ($type === 'weapon') {
             $query->orderByRaw('(str_bonus + mag_bonus * 0.8 + agi_bonus * 0.3 + luk_bonus * 0.2) DESC');
         } elseif ($type === 'armor') {

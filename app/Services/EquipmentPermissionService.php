@@ -11,6 +11,7 @@ class EquipmentPermissionService
     private array $canEquipCache = [];
     private array $representativeJobNamesCache = [];
     private array $nativeWeaponCategoryLabelsCache = [];
+    private array $nativeCategoryKeysCache = [];
 
     private const WEAPON_LABELS = [
         'sword' => '剣',
@@ -137,6 +138,32 @@ class EquipmentPermissionService
     /**
      * @return list<string>
      */
+    public function nativeCategoryKeys(?int $jobId, string $type): array
+    {
+        if (!$jobId || !in_array($type, ['weapon', 'armor'], true)) {
+            return [];
+        }
+
+        $cacheKey = "{$jobId}:{$type}";
+        if (array_key_exists($cacheKey, $this->nativeCategoryKeysCache)) {
+            return $this->nativeCategoryKeysCache[$cacheKey];
+        }
+
+        $table = $type === 'weapon' ? 'job_weapon_permissions' : 'job_armor_permissions';
+        $column = $type === 'weapon' ? 'weapon_category' : 'armor_category';
+
+        return $this->nativeCategoryKeysCache[$cacheKey] = DB::table($table)
+            ->where('job_id', $jobId)
+            ->pluck($column)
+            ->map(fn ($category) => (string) $category)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
     public function nativeWeaponCategoryLabels(?int $jobId): array
     {
         if (!$jobId) {
@@ -147,13 +174,7 @@ class EquipmentPermissionService
             return $this->nativeWeaponCategoryLabelsCache[$jobId];
         }
 
-        $categories = DB::table('job_weapon_permissions')
-            ->where('job_id', $jobId)
-            ->pluck('weapon_category')
-            ->map(fn ($category) => (string) $category)
-            ->unique()
-            ->values()
-            ->all();
+        $categories = $this->nativeCategoryKeys($jobId, 'weapon');
 
         $categorySet = array_fill_keys($categories, true);
         $orderedCategories = array_values(array_filter(

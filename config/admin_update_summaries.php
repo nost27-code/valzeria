@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-29-shop-proficiency-card-polish',
+        'date' => '2026-07-29',
+        'category' => 'changed',
+        'title' => '装備屋の適正装備と能力比較を見やすく改善',
+        'detail' => '装備屋のおすすめ順で適正装備を先に表示し、薄い背景色で見分けやすくしました。装備後の能力差は矢印表示、装備性能は必要な項目だけに整理しています。',
+    ],
+    [
         'id' => '2026-07-29-shop-effective-equipment-preview',
         'date' => '2026-07-29',
         'category' => 'fixed',

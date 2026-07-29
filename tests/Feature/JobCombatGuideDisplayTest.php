@@ -26,8 +26,10 @@ class JobCombatGuideDisplayTest extends TestCase
         config(['equipment_proficiency.non_proficient.enabled' => true]);
         [$user, $character, $merchant] = $this->merchantPlayer();
 
-        $this->shopWeapon('店売りの短剣', 'dagger');
-        $this->shopWeapon('店売りの剣', 'sword');
+        $nativeWeapon = $this->shopWeapon('店売りの短剣', 'dagger');
+        $nativeWeapon->forceFill(['str_bonus' => 10])->save();
+        $nonNativeWeapon = $this->shopWeapon('店売りの剣', 'sword');
+        $nonNativeWeapon->forceFill(['str_bonus' => 500])->save();
 
         $this->actingAs($user)
             ->withSession(['current_character_id' => $character->id])
@@ -39,8 +41,11 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSee('短剣')
             ->assertSee('杖')
             ->assertSee('銃')
-            ->assertSee('適正武器・装備効果100%')
-            ->assertSee('適性外・装備効果65%');
+            ->assertSee('おすすめ順（適正優先）')
+            ->assertSee('適正')
+            ->assertSee('適性外 65%')
+            ->assertSee('bg-emerald-50/40', false)
+            ->assertSeeInOrder(['店売りの短剣', '店売りの剣']);
     }
 
     public function test_weapon_shop_keeps_the_strict_restriction_message_when_penalties_are_disabled(): void
@@ -56,8 +61,8 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertOk()
             ->assertSee('現在は適正武器のみ装備できます。')
             ->assertSee('現在の職業では装備できません')
-            ->assertSee('強化前の基本値')
-            ->assertDontSee('適性外・装備効果65%');
+            ->assertSee('武器性能')
+            ->assertDontSee('適性外 65%');
     }
 
     public function test_weapon_shop_separates_equipped_ability_from_effective_and_raw_weapon_performance(): void
@@ -89,6 +94,15 @@ class JobCombatGuideDisplayTest extends TestCase
             'agi_bonus' => -80,
         ])->save();
         CharacterStatusService::clearRequestCache($character->id);
+        $preview = app(CharacterStatusService::class)->equipmentSwapPreviewForItem(
+            $character,
+            $candidateWeapon,
+            CharacterItem::query()
+                ->where('character_id', $character->id)
+                ->where('equipped_slot', 'weapon')
+                ->first(),
+        );
+        $this->assertSame(['str', 'agi'], $preview['performance_visible_stats']);
 
         $this->actingAs($user)
             ->withSession(['current_character_id' => $character->id])
@@ -98,15 +112,54 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSee('攻撃 +543')
             ->assertSee('魔力 +164')
             ->assertSee('装備後の能力')
-            ->assertSee('現在装備から交換した場合')
-            ->assertSee('武器性能')
-            ->assertSee('現在職で実際に反映される値')
+            ->assertSee('適性反映後の武器性能')
             ->assertSee('data-shop-effective-stat="str"', false)
             ->assertSee('+426')
             ->assertSee('補正前 +568')
             ->assertSee('-60')
             ->assertSee('補正前 -80')
-            ->assertSee('低下');
+            ->assertSee('↑')
+            ->assertSee('↓');
+    }
+
+    public function test_explicit_attack_sort_keeps_attack_order_instead_of_native_priority(): void
+    {
+        config(['equipment_proficiency.non_proficient.enabled' => true]);
+        [$user, $character] = $this->merchantPlayer();
+
+        $nativeWeapon = $this->shopWeapon('攻撃順の短剣', 'dagger');
+        $nativeWeapon->forceFill(['str_bonus' => 10])->save();
+        $nonNativeWeapon = $this->shopWeapon('攻撃順の剣', 'sword');
+        $nonNativeWeapon->forceFill(['str_bonus' => 500])->save();
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('shop.equipment', ['type' => 'weapon', 'sort' => 'attack_desc']))
+            ->assertOk()
+            ->assertSeeInOrder(['攻撃順の剣', '攻撃順の短剣']);
+    }
+
+    public function test_recommended_armor_sort_also_puts_native_armor_first(): void
+    {
+        config(['equipment_proficiency.non_proficient.enabled' => true]);
+        [$user, $character, $merchant] = $this->merchantPlayer();
+        DB::table('job_armor_permissions')->insert([
+            'job_id' => $merchant->id,
+            'armor_category' => 'robe',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $nativeArmor = $this->shopArmor('おすすめ順のローブ', 'robe');
+        $nativeArmor->forceFill(['def_bonus' => 10])->save();
+        $nonNativeArmor = $this->shopArmor('おすすめ順の重鎧', 'heavy_armor');
+        $nonNativeArmor->forceFill(['def_bonus' => 500])->save();
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('shop.equipment', ['type' => 'armor']))
+            ->assertOk()
+            ->assertSeeInOrder(['おすすめ順のローブ', 'おすすめ順の重鎧']);
     }
 
     public function test_job_detail_shows_special_skill_and_job_art_damage_references(): void
@@ -213,6 +266,21 @@ class JobCombatGuideDisplayTest extends TestCase
             'is_shop_item' => true,
             'is_active' => true,
             'str_bonus' => 10,
+        ]);
+    }
+
+    private function shopArmor(string $name, string $armorCategory): Item
+    {
+        return Item::query()->create([
+            'name' => $name,
+            'type' => 'armor',
+            'armor_category' => $armorCategory,
+            'armor_rank' => 'G',
+            'price' => 100,
+            'unlock_city_id' => 1,
+            'is_shop_item' => true,
+            'is_active' => true,
+            'def_bonus' => 10,
         ]);
     }
 }

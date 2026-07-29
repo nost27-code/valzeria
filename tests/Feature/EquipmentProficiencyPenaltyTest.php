@@ -124,6 +124,10 @@ class EquipmentProficiencyPenaltyTest extends TestCase
             ],
         ]);
 
+        $this->assertEqualsCanonicalizing(
+            ['staff', 'dagger', 'gun'],
+            app(EquipmentPermissionService::class)->nativeCategoryKeys((int) $job->id, 'weapon'),
+        );
         $this->assertSame(
             ['短剣', '杖', '銃'],
             app(EquipmentPermissionService::class)->nativeWeaponCategoryLabels((int) $job->id),
