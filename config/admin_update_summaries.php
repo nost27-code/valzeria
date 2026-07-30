@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-admin-reply-resolve-game-modal',
+        'date' => '2026-07-30',
+        'category' => 'internal',
+        'title' => '返信通知の確認をゲーム内モーダル化',
+        'detail' => '返信通知を対応済みにする前の確認を、ブラウザ標準表示から管理画面内の確認画面へ変更しました。',
+    ],
+    [
         'id' => '2026-07-30-home-chat-default-history',
         'date' => '2026-07-30',
         'category' => 'changed',

@@ -372,6 +372,58 @@
         </div>
     </div>
 
+    <div data-admin-reply-resolve-modal
+         hidden
+         class="fixed inset-0 z-[100] hidden items-center justify-center px-4 py-6"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="admin-reply-resolve-modal-title"
+         aria-describedby="admin-reply-resolve-modal-description">
+        <button type="button"
+                data-admin-reply-resolve-modal-dismiss
+                class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+                aria-label="対応済み確認を閉じる"></button>
+        <section class="relative w-full max-w-sm overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-2xl">
+            <div class="border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6" />
+                        </svg>
+                    </span>
+                    <div>
+                        <h2 id="admin-reply-resolve-modal-title" class="text-base font-black text-slate-950">返信を対応済みにしますか？</h2>
+                        <p data-admin-reply-resolve-character class="mt-0.5 text-xs font-bold text-emerald-800"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="px-5 py-4">
+                <p id="admin-reply-resolve-modal-description" class="text-sm font-semibold leading-6 text-slate-700">
+                    未対応の通知から外します。会話履歴は削除されません。
+                </p>
+                <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-600">
+                    このあと冒険者から新しい返信が届いた場合は、再び通知されます。
+                </div>
+                <p data-admin-reply-resolve-modal-status
+                   hidden
+                   aria-live="polite"
+                   class="mt-3 rounded-md px-3 py-2 text-xs font-bold"></p>
+                <div class="mt-5 grid grid-cols-2 gap-3">
+                    <button type="button"
+                            data-admin-reply-resolve-modal-cancel
+                            class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+                        キャンセル
+                    </button>
+                    <button type="button"
+                            data-admin-reply-resolve-modal-confirm
+                            class="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60">
+                        対応済みにする
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
     @livewireScripts
     <script>
         (() => {
@@ -580,6 +632,7 @@
                     resolveButton.type = 'button';
                     resolveButton.dataset.adminReplyResolve = '';
                     resolveButton.dataset.resolveUrl = reply.resolve_url || '';
+                    resolveButton.dataset.characterName = reply.character_name || '冒険者';
                     resolveButton.className = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60';
                     resolveButton.textContent = '対応済みにする';
                     resolveButton.disabled = !reply.resolve_url;
@@ -639,23 +692,105 @@
             };
 
             const privateReplyList = document.querySelector('[data-admin-reply-list]');
-            privateReplyList?.addEventListener('click', async (event) => {
+            const privateReplyResolveModal = document.querySelector('[data-admin-reply-resolve-modal]');
+            const privateReplyResolveCharacter = document.querySelector('[data-admin-reply-resolve-character]');
+            const privateReplyResolveStatus = document.querySelector('[data-admin-reply-resolve-modal-status]');
+            const privateReplyResolveCancel = document.querySelector('[data-admin-reply-resolve-modal-cancel]');
+            const privateReplyResolveConfirm = document.querySelector('[data-admin-reply-resolve-modal-confirm]');
+            let pendingPrivateReplyResolution = null;
+            let privateReplyResolutionSubmitting = false;
+
+            const showPrivateReplyResolveStatus = (message, isError = false) => {
+                if (!privateReplyResolveStatus) {
+                    return;
+                }
+
+                privateReplyResolveStatus.hidden = !message;
+                privateReplyResolveStatus.textContent = message || '';
+                privateReplyResolveStatus.classList.toggle('bg-rose-50', isError);
+                privateReplyResolveStatus.classList.toggle('text-rose-700', isError);
+                privateReplyResolveStatus.classList.toggle('bg-emerald-50', !isError && Boolean(message));
+                privateReplyResolveStatus.classList.toggle('text-emerald-700', !isError && Boolean(message));
+            };
+
+            const closePrivateReplyResolveModal = (restoreFocus = true) => {
+                if (!privateReplyResolveModal || privateReplyResolutionSubmitting) {
+                    return;
+                }
+
+                const sourceButton = pendingPrivateReplyResolution?.sourceButton;
+                privateReplyResolveModal.hidden = true;
+                privateReplyResolveModal.classList.add('hidden');
+                privateReplyResolveModal.classList.remove('flex');
+                pendingPrivateReplyResolution = null;
+                showPrivateReplyResolveStatus('');
+
+                if (restoreFocus && sourceButton?.isConnected) {
+                    sourceButton.focus();
+                }
+            };
+
+            const openPrivateReplyResolveModal = (sourceButton) => {
+                if (!privateReplyResolveModal) {
+                    return;
+                }
+
+                pendingPrivateReplyResolution = {
+                    sourceButton,
+                    resolveUrl: sourceButton.dataset.resolveUrl || '',
+                    characterName: sourceButton.dataset.characterName || '冒険者',
+                };
+
+                if (privateReplyResolveCharacter) {
+                    privateReplyResolveCharacter.textContent = `${pendingPrivateReplyResolution.characterName}さんからの返信`;
+                }
+
+                showPrivateReplyResolveStatus('');
+                privateReplyResolveModal.hidden = false;
+                privateReplyResolveModal.classList.remove('hidden');
+                privateReplyResolveModal.classList.add('flex');
+                window.requestAnimationFrame(() => privateReplyResolveCancel?.focus());
+            };
+
+            privateReplyList?.addEventListener('click', (event) => {
                 const resolveButton = event.target.closest('[data-admin-reply-resolve]');
                 if (!resolveButton || !privateReplyList.contains(resolveButton)) {
                     return;
                 }
 
                 const resolveUrl = resolveButton.dataset.resolveUrl || '';
-                if (!resolveUrl || !window.confirm('この返信を対応済みにしますか？ 会話履歴は削除されません。')) {
+                if (!resolveUrl) {
                     return;
                 }
 
-                resolveButton.disabled = true;
-                resolveButton.textContent = '処理中...';
-                showPrivateReplyFeedback('対応済みにしています...');
+                openPrivateReplyResolveModal(resolveButton);
+            });
+
+            document.querySelectorAll('[data-admin-reply-resolve-modal-dismiss], [data-admin-reply-resolve-modal-cancel]')
+                .forEach((button) => button.addEventListener('click', () => closePrivateReplyResolveModal()));
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && privateReplyResolveModal && !privateReplyResolveModal.hidden) {
+                    closePrivateReplyResolveModal();
+                }
+            });
+
+            privateReplyResolveConfirm?.addEventListener('click', async () => {
+                const resolution = pendingPrivateReplyResolution;
+                if (!resolution?.resolveUrl || privateReplyResolutionSubmitting) {
+                    return;
+                }
+
+                privateReplyResolutionSubmitting = true;
+                resolution.sourceButton.disabled = true;
+                resolution.sourceButton.textContent = '処理中...';
+                privateReplyResolveCancel.disabled = true;
+                privateReplyResolveConfirm.disabled = true;
+                privateReplyResolveConfirm.textContent = '処理中...';
+                showPrivateReplyResolveStatus('対応済みにしています...');
 
                 try {
-                    const response = await fetch(resolveUrl, {
+                    const response = await fetch(resolution.resolveUrl, {
                         method: 'POST',
                         credentials: 'same-origin',
                         cache: 'no-store',
@@ -672,14 +807,21 @@
                     }
 
                     await pollPrivateReplyStatus();
+                    privateReplyResolutionSubmitting = false;
+                    closePrivateReplyResolveModal(false);
                     showPrivateReplyFeedback(payload.message || '通知を対応済みにしました。');
                 } catch (error) {
-                    if (resolveButton.isConnected) {
-                        resolveButton.disabled = false;
-                        resolveButton.textContent = '対応済みにする';
+                    if (resolution.sourceButton.isConnected) {
+                        resolution.sourceButton.disabled = false;
+                        resolution.sourceButton.textContent = '対応済みにする';
                     }
-                    showPrivateReplyFeedback(error.message || '対応済みにできませんでした。', true);
+                    showPrivateReplyResolveStatus(error.message || '対応済みにできませんでした。', true);
                     await pollPrivateReplyStatus();
+                } finally {
+                    privateReplyResolutionSubmitting = false;
+                    privateReplyResolveCancel.disabled = false;
+                    privateReplyResolveConfirm.disabled = false;
+                    privateReplyResolveConfirm.textContent = '対応済みにする';
                 }
             });
 
