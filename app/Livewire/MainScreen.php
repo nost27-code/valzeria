@@ -770,6 +770,8 @@ class MainScreen extends Component
 
     private function homeMenuItems(): array
     {
+        $characterIconDesignItem = $this->characterIconDesignMenuItem();
+
         return [
             ['group' => '育成', 'name' => '能力割振り', 'icon_image' => 'menu/menu_bonus_points.webp', 'icon' => '✦', 'desc' => '未使用BPを使って能力を伸ばす', 'route' => 'bonus-points.index', 'status' => 'active'],
             ['group' => '育成', 'name' => '奥義', 'icon_image' => 'icon/icon_041.webp', 'icon' => '✦', 'desc' => '習得した奥義を最大3つまでセットする', 'route' => 'job-arts.index', 'status' => 'active'],
@@ -782,17 +784,35 @@ class MainScreen extends Component
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'menu/menu_messages.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージをやり取りする', 'tab' => 'message', 'status' => 'active'],
             ['group' => '案内', 'name' => 'ヘルプ', 'icon_image' => 'menu/menu_help.webp', 'icon' => '📘', 'desc' => '遊び方や施設の説明を確認する', 'route' => 'town.guide', 'status' => 'active'],
             ['group' => '案内', 'name' => '不具合報告', 'icon_image' => 'icon/icon_033.webp', 'icon' => '!', 'desc' => '不具合や表示崩れを管理人へ報告する', 'route' => 'bug-reports.create', 'status' => 'active'],
-            ...(app(CharacterIconDesignService::class)->isEnabled() ? [[
-                'group' => '案内',
-                'name' => 'キャラアイコン制作',
-                'icon_image' => 'icon/icon_021.webp',
-                'icon' => '✦',
-                'desc' => 'ヒアリングシートと管理人との専用チャットを開く',
-                'route' => 'character-icon-design.show',
-                'status' => 'active',
-            ]] : []),
+            ...($characterIconDesignItem ? [$characterIconDesignItem] : []),
             ['group' => '設定', 'name' => '設定', 'icon_image' => 'menu/menu_settings.webp', 'icon' => '⚙️', 'desc' => '名前やアイコンなどを変更する', 'tab' => 'settings', 'status' => 'active'],
         ];
+    }
+
+    private function characterIconDesignMenuItem(): ?array
+    {
+        $service = app(CharacterIconDesignService::class);
+        if (! $service->isEnabled()) {
+            return null;
+        }
+
+        $item = [
+            'group' => '案内',
+            'name' => 'キャラアイコン作成',
+            'icon_image' => 'icon/icon_021.webp',
+            'icon' => '✦',
+            'desc' => 'オリジナルのキャラアイコンを依頼する',
+            'status' => 'active',
+        ];
+
+        if ($service->canAccess($this->character)) {
+            $item['route'] = 'character-icon-design.show';
+        } else {
+            $item['modal_title'] = $service->preparingTitle();
+            $item['modal_message'] = $service->preparingMessage();
+        }
+
+        return $item;
     }
 
     private function applyFacilityOverrides(array $items, string $section): array

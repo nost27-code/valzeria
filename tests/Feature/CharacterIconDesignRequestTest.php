@@ -27,6 +27,10 @@ class CharacterIconDesignRequestTest extends TestCase
     {
         parent::setUp();
 
+        config([
+            'character_icon_design.public_access_enabled' => true,
+            'character_icon_design.preview_character_ids' => [],
+        ]);
         app(ExtraContentControlService::class)->setEnabled(CharacterIconDesignService::CONTENT_KEY, true);
     }
 
@@ -38,7 +42,7 @@ class CharacterIconDesignRequestTest extends TestCase
         $menuMethod = new ReflectionMethod(MainScreen::class, 'homeMenuItems');
         $menuItems = $menuMethod->invoke(new MainScreen);
 
-        $this->assertNotContains('キャラアイコン制作', array_column($menuItems, 'name'));
+        $this->assertNotContains('キャラアイコン作成', array_column($menuItems, 'name'));
 
         $this->actingAs($player)
             ->get(route('character-icon-design.show'))
@@ -64,6 +68,59 @@ class CharacterIconDesignRequestTest extends TestCase
             ->get(route('admin.character-icon-design.show', $designRequest))
             ->assertOk()
             ->assertSee('公開前利用者');
+    }
+
+    public function test_enabled_feature_shows_preparing_modal_and_blocks_player_routes(): void
+    {
+        config([
+            'character_icon_design.public_access_enabled' => false,
+            'character_icon_design.preview_character_ids' => [],
+        ]);
+        [$player, $character] = $this->createPlayer('準備中確認者', 40, 0);
+
+        $screen = new MainScreen;
+        $screen->character = $character;
+        $menuMethod = new ReflectionMethod(MainScreen::class, 'homeMenuItems');
+        $menuItems = $menuMethod->invoke($screen);
+        $menuItem = collect($menuItems)->firstWhere('name', 'キャラアイコン作成');
+
+        $this->assertIsArray($menuItem);
+        $this->assertSame('案内', $menuItem['group']);
+        $this->assertSame('キャラアイコン作成', $menuItem['modal_title']);
+        $this->assertSame('現在準備中です。もうしばらくお待ちください。', $menuItem['modal_message']);
+        $this->assertArrayNotHasKey('route', $menuItem);
+        $this->assertStringContainsString(
+            '@click="openModal(@js($menuItem[\'modal_title\'] ?? $menuItem[\'name\']), @js($menuItem[\'modal_message\']))"',
+            file_get_contents(resource_path('views/livewire/main-screen.blade.php'))
+        );
+
+        $this->actingAs($player)
+            ->get(route('character-icon-design.show'))
+            ->assertNotFound();
+        $this->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])->assertNotFound();
+
+        $this->assertDatabaseCount('character_icon_design_requests', 0);
+        $this->assertDatabaseCount('kiseki_transactions', 0);
+    }
+
+    public function test_preview_character_can_access_while_other_players_see_preparing_state(): void
+    {
+        config(['character_icon_design.public_access_enabled' => false]);
+        [$previewPlayer, $previewCharacter] = $this->createPlayer('先行確認者', 40, 0);
+        [$otherPlayer] = $this->createPlayer('一般利用者', 40, 0);
+        config(['character_icon_design.preview_character_ids' => [$previewCharacter->id]]);
+
+        $this->actingAs($previewPlayer)
+            ->get(route('character-icon-design.show'))
+            ->assertOk()
+            ->assertSee('ヒアリングシート');
+
+        $this->actingAs($otherPlayer)
+            ->get(route('character-icon-design.show'))
+            ->assertNotFound();
     }
 
     public function test_admin_can_enable_the_feature_from_extra_content_management(): void

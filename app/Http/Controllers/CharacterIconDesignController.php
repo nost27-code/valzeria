@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Character;
 use App\Models\CharacterIconDesignMessageAttachment;
 use App\Models\CharacterIconDesignRequest;
 use App\Services\CharacterIconDesignService;
@@ -25,9 +26,7 @@ class CharacterIconDesignController extends Controller
 
     public function show(Request $request, CharacterIconDesignService $service)
     {
-        abort_unless($service->isEnabled(), 404);
-
-        $character = Auth::user()->currentCharacter();
+        $character = $this->authorizedCharacter($service);
         $draftRequest = $service->draftFor($character);
         $submittedRequests = $service->submittedRequestsFor($character);
         $selectedRequestId = $request->integer('request');
@@ -69,9 +68,7 @@ class CharacterIconDesignController extends Controller
 
     public function saveForm(Request $request, CharacterIconDesignService $service)
     {
-        abort_unless($service->isEnabled(), 404);
-
-        $character = Auth::user()->currentCharacter();
+        $character = $this->authorizedCharacter($service);
 
         if (! $request->filled('intent')) {
             $request->merge(['intent' => 'draft']);
@@ -108,9 +105,7 @@ class CharacterIconDesignController extends Controller
 
     public function confirm(CharacterIconDesignService $service)
     {
-        abort_unless($service->isEnabled(), 404);
-
-        $character = Auth::user()->currentCharacter();
+        $character = $this->authorizedCharacter($service);
         $designRequest = $service->draftFor($character);
 
         if (
@@ -133,9 +128,7 @@ class CharacterIconDesignController extends Controller
 
     public function submit(CharacterIconDesignService $service)
     {
-        abort_unless($service->isEnabled(), 404);
-
-        $character = Auth::user()->currentCharacter();
+        $character = $this->authorizedCharacter($service);
         $designRequest = $service->draftFor($character);
 
         if (! $designRequest || ! in_array($designRequest->status, ['eligible', 'draft'], true)) {
@@ -179,9 +172,7 @@ class CharacterIconDesignController extends Controller
         CharacterIconDesignRequest $designRequest,
         CharacterIconDesignService $service,
     ) {
-        abort_unless($service->isEnabled(), 404);
-
-        $character = Auth::user()->currentCharacter();
+        $character = $this->authorizedCharacter($service);
         abort_unless((int) $designRequest->character_id === (int) $character->id, 404);
 
         $validated = $request->validate($this->messageRules(), $this->messageValidationMessages());
@@ -201,10 +192,8 @@ class CharacterIconDesignController extends Controller
         CharacterIconDesignMessageAttachment $attachment,
         CharacterIconDesignService $service,
     ) {
-        abort_unless($service->isEnabled(), 404);
-
+        $character = $this->authorizedCharacter($service);
         $attachment->load('message.designRequest');
-        $character = Auth::user()->currentCharacter();
 
         abort_unless(
             (int) $attachment->message?->designRequest?->character_id === (int) $character->id,
@@ -217,6 +206,14 @@ class CharacterIconDesignController extends Controller
             $attachment->original_name,
             ['Content-Type' => $attachment->mime_type ?: 'application/octet-stream']
         );
+    }
+
+    private function authorizedCharacter(CharacterIconDesignService $service): Character
+    {
+        $character = Auth::user()->currentCharacter();
+        abort_unless($service->canAccess($character), 404);
+
+        return $character;
     }
 
     private function formRules(bool $submit, array $input = []): array

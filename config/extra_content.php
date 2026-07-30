@@ -29,9 +29,9 @@ return [
         'character_icon_design' => [
             'name' => 'キャラアイコン制作',
             'category' => '追加機能',
-            'description' => 'ヒアリングシートの記入・提出と管理人との専用チャットを公開します。OFF中は冒険者メニューと直URLの両方から利用できません。',
+            'description' => '冒険者メニューへ案内を公開します。制作受付は別のアクセス設定で管理し、準備中は案内モーダルだけを表示します。',
             'route' => 'character-icon-design.show',
-            'default_enabled' => env('CHARACTER_ICON_DESIGN_ENABLED', false),
+            'default_enabled' => env('CHARACTER_ICON_DESIGN_ENABLED', true),
             'setting_label' => 'キャラアイコン制作 公開状態',
         ],
     ],

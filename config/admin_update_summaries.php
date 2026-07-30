@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-character-icon-design-preparing-notice',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => 'キャラアイコン制作の準備中案内を公開',
+        'detail' => '冒険者メニューの「案内」に「キャラアイコン作成」を表示しました。現在は準備中の案内のみで、ヒアリングシートの受付開始までは制作画面へ入れません。',
+    ],
+    [
         'id' => '2026-07-31-enemy-species-standard-fix',
         'date' => '2026-07-31',
         'category' => 'fixed',

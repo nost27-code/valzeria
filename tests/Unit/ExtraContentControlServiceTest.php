@@ -80,13 +80,13 @@ class ExtraContentControlServiceTest extends TestCase
         $this->assertFalse($service->isActive('exploration_support'));
     }
 
-    public function test_character_icon_design_is_disabled_by_default(): void
+    public function test_character_icon_design_entry_is_enabled_by_default(): void
     {
         $service = app(ExtraContentControlService::class);
 
         $this->assertArrayHasKey('character_icon_design', $service->allStatuses());
-        $this->assertFalse($service->isEnabled('character_icon_design'));
-        $this->assertFalse($service->isActive('character_icon_design'));
+        $this->assertTrue($service->isEnabled('character_icon_design'));
+        $this->assertTrue($service->isActive('character_icon_design'));
     }
 
     public function test_active_only_during_configured_period(): void

@@ -291,7 +291,18 @@
                                                 : '<span class="text-xl leading-none">' . ($menuItem['icon'] ?? '•') . '</span>';
                                         @endphp
 
-                                        @if(!$menuIsInactive && isset($menuItem['route']))
+                                        @if(!$menuIsInactive && !empty($menuItem['modal_message']))
+                                            <button type="button"
+                                                    @click="openModal(@js($menuItem['modal_title'] ?? $menuItem['name']), @js($menuItem['modal_message']))"
+                                                    class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
+                                                <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 p-1">{!! $menuIconHtml !!}</div>
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="text-sm font-bold leading-tight text-slate-800">{{ $menuItem['name'] }}</div>
+                                                    <div class="mt-0.5 truncate text-[11px] text-slate-500">{{ $menuItem['desc'] }}</div>
+                                                </div>
+                                                <svg class="h-4 w-4 shrink-0 text-slate-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg>
+                                            </button>
+                                        @elseif(!$menuIsInactive && isset($menuItem['route']))
                                             <a href="{{ route($menuItem['route']) }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 active:bg-slate-100 {{ $menuBorder }}">
                                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 p-1">{!! $menuIconHtml !!}</div>
                                                 <div class="min-w-0 flex-1">

@@ -22,6 +22,37 @@ class CharacterIconDesignService
         return app(ExtraContentControlService::class)->isActive(self::CONTENT_KEY);
     }
 
+    public function canAccess(?Character $character): bool
+    {
+        if (! $this->isEnabled() || ! $character) {
+            return false;
+        }
+
+        if ((bool) config('character_icon_design.public_access_enabled', false)) {
+            return true;
+        }
+
+        $previewCharacterIds = array_map(
+            'intval',
+            (array) config('character_icon_design.preview_character_ids', [])
+        );
+
+        return in_array((int) $character->id, $previewCharacterIds, true);
+    }
+
+    public function preparingTitle(): string
+    {
+        return (string) config('character_icon_design.preparing_title', 'キャラアイコン作成');
+    }
+
+    public function preparingMessage(): string
+    {
+        return (string) config(
+            'character_icon_design.preparing_message',
+            '現在準備中です。もうしばらくお待ちください。'
+        );
+    }
+
     public function draftFor(?Character $character): ?CharacterIconDesignRequest
     {
         if (! $character) {
