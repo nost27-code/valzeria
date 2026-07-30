@@ -132,8 +132,8 @@ class BugReportAdminReplyTest extends TestCase
         );
 
         $this->assertTrue($service->getRecentLogs(50, $recipient->id)
-            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply', 'admin_private_resolved'], true)));
+            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply', 'admin_reply_resolved'], true)));
         $this->assertTrue($service->getRecentLogs(50, $otherCharacter->id)
-            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply', 'admin_private_resolved'], true)));
+            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply', 'admin_reply_resolved'], true)));
     }
 }

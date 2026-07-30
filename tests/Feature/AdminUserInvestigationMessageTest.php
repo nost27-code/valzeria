@@ -217,11 +217,16 @@ class AdminUserInvestigationMessageTest extends TestCase
             'message' => '確認をお願いします。',
         ]);
         $this->assertDatabaseHas('public_logs', [
-            'type' => 'admin_private_resolved',
+            'type' => 'admin_reply_resolved',
             'character_id' => null,
             'receiver_id' => $character->id,
             'message' => "返信通知 #{$reply->id} を管理画面で対応済みにしました。",
         ]);
+        $this->assertLessThanOrEqual(
+            20,
+            strlen((string) PublicLog::query()->where('type', 'admin_reply_resolved')->value('type')),
+            'public_logs.type の20文字制限を超えています。'
+        );
         $this->assertDatabaseCount('character_notifications', 0);
 
         $logService->addAdminPrivateReply('追加で確認したいことがあります。', $character);
@@ -253,7 +258,7 @@ class AdminUserInvestigationMessageTest extends TestCase
         $this->assertSame(
             1,
             PublicLog::query()
-                ->where('type', 'admin_private_resolved')
+                ->where('type', 'admin_reply_resolved')
                 ->where('receiver_id', $character->id)
                 ->count()
         );
@@ -274,7 +279,7 @@ class AdminUserInvestigationMessageTest extends TestCase
             ->assertRedirect('/admin/login');
 
         $this->assertDatabaseMissing('public_logs', [
-            'type' => 'admin_private_resolved',
+            'type' => 'admin_reply_resolved',
             'receiver_id' => $character->id,
         ]);
     }
@@ -291,14 +296,14 @@ class AdminUserInvestigationMessageTest extends TestCase
         $logService->resolvePendingAdminReply(
             PublicLog::query()->where('type', 'admin_private_reply')->sole()
         );
-        $auditLog = PublicLog::query()->where('type', 'admin_private_resolved')->sole();
+        $auditLog = PublicLog::query()->where('type', 'admin_reply_resolved')->sole();
 
         Livewire::test(PublicLogManager::class)
             ->call('deleteOne', $auditLog->id);
 
         $this->assertDatabaseHas('public_logs', [
             'id' => $auditLog->id,
-            'type' => 'admin_private_resolved',
+            'type' => 'admin_reply_resolved',
         ]);
     }
 }

@@ -26,7 +26,7 @@ class PublicLogManager extends Component
     public array $selected = [];
 
     /** @var list<string> */
-    private array $protectedTypes = ['admin', 'admin_private_resolved'];
+    private array $protectedTypes = ['admin', 'admin_reply_resolved'];
 
     public function mount(): void
     {

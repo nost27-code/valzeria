@@ -156,7 +156,7 @@ class PublicLogService
 
             $hasLaterThreadLog = PublicLog::query()
                 ->where('receiver_id', $receiverId)
-                ->whereIn('type', ['admin_private', 'admin_private_reply', 'admin_private_resolved'])
+                ->whereIn('type', ['admin_private', 'admin_private_reply', 'admin_reply_resolved'])
                 ->where('id', '>', $lockedReply->id)
                 ->exists();
 
@@ -165,7 +165,7 @@ class PublicLogService
             }
 
             PublicLog::query()->create([
-                'type' => 'admin_private_resolved',
+                'type' => 'admin_reply_resolved',
                 'message' => "返信通知 #{$lockedReply->id} を管理画面で対応済みにしました。",
                 'character_id' => null,
                 'receiver_id' => $receiverId,
@@ -214,7 +214,7 @@ class PublicLogService
 
         // 個人チャットと管理人スレッドは下部チャットに出さない
         $query->where(function ($q) use ($currentCharacterId) {
-            $q->whereNotIn('type', ['private', 'admin_private', 'admin_private_reply', 'admin_private_resolved']);
+            $q->whereNotIn('type', ['private', 'admin_private', 'admin_private_reply', 'admin_reply_resolved']);
             if ($currentCharacterId) {
                 $q->orWhere(function ($q2) use ($currentCharacterId) {
                     $q2->where('type', 'private')
@@ -238,7 +238,7 @@ class PublicLogService
                 $query->selectRaw('1')
                     ->from('public_logs as later_admin_thread_logs')
                     ->whereColumn('later_admin_thread_logs.receiver_id', 'public_logs.receiver_id')
-                    ->whereIn('later_admin_thread_logs.type', ['admin_private', 'admin_private_reply', 'admin_private_resolved'])
+                    ->whereIn('later_admin_thread_logs.type', ['admin_private', 'admin_private_reply', 'admin_reply_resolved'])
                     ->whereColumn('later_admin_thread_logs.id', '>', 'public_logs.id');
             });
     }

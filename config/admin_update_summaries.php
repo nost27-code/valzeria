@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-admin-reply-resolve-type-limit',
+        'date' => '2026-07-30',
+        'category' => 'fixed',
+        'title' => '返信通知の対応済みエラーを修正',
+        'detail' => '管理画面の返信通知で「対応済みにする」を押した際、通知を更新できない問題を修正しました。',
+    ],
+    [
         'id' => '2026-07-30-admin-reply-manual-resolve',
         'date' => '2026-07-30',
         'category' => 'internal',
