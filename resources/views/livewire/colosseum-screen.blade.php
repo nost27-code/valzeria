@@ -93,7 +93,7 @@
                             </div>
                             <div class="flex min-w-0 flex-1 items-center gap-3.5">
                                 @if(!empty($top['image_path']))
-                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-amber-100 bg-slate-50">
+                                    <div class="flex h-14 w-14 shrink-0 items-center justify-center">
                                         <img src="{{ asset($top['image_path']) }}" alt="" class="h-full w-full object-contain">
                                     </div>
                                 @endif
@@ -123,7 +123,7 @@
                                 </div>
                             </div>
                             <div class="flex min-w-0 flex-1 items-center gap-3 px-3 py-3">
-                                <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded border border-amber-200 bg-slate-50">
+                                <div class="flex h-16 w-16 shrink-0 items-center justify-center">
                                     @if(!empty($character?->icon_path))
                                         <img src="{{ asset($character->icon_path) }}" alt="" class="h-full w-full object-contain">
                                     @else

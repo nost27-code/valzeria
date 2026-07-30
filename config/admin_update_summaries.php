@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-colosseum-ranker-character-display',
+        'date' => '2026-07-30',
+        'category' => 'changed',
+        'title' => '闘技場ランカーのキャラ表示を改善',
+        'detail' => '闘技場タブのトップランカーと自分の順位で、キャラ画像の枠を外し、これまでより大きく表示するようにしました。',
+    ],
+    [
         'id' => '2026-07-30-admin-reply-resolve-game-modal',
         'date' => '2026-07-30',
         'category' => 'internal',
