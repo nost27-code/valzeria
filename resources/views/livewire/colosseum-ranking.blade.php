@@ -48,11 +48,11 @@
                                                 aria-label="闘技場の表示ポーズを変更。現在：{{ $ranking['showcase_label'] }}"
                                                 title="クリックで表示ポーズを変更（現在：{{ $ranking['showcase_label'] }}）"
                                             >
-                                                <img src="{{ asset($ranking['image_path']) }}" alt="{{ $player->name }}の{{ $ranking['showcase_label'] }}ポーズ" class="h-full w-full object-contain">
+                                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="{{ $player->name }}の{{ $ranking['showcase_label'] }}ポーズ" class="h-full w-full object-contain">
                                             </button>
                                         @else
                                             <span class="flex h-11 w-11 items-center justify-center rounded border border-slate-200 bg-slate-50">
-                                                <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
+                                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
                                             </span>
                                         @endif
                                         @if(!empty($ranking['has_showcase_choices']))

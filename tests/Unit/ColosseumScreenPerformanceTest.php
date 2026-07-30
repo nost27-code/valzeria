@@ -43,4 +43,25 @@ class ColosseumScreenPerformanceTest extends TestCase
         $this->assertStringContainsString("Lv{{ \$top['level'] }}｜{{ \$top['job'] }}", $viewSource);
         $this->assertStringNotContainsString('absolute -bottom-1 -left-1', $viewSource);
     }
+
+    public function test_colosseum_player_icons_use_versioned_assets(): void
+    {
+        $screenViewSource = file_get_contents(resource_path('views/livewire/colosseum-screen.blade.php'));
+        $rankingViewSource = file_get_contents(resource_path('views/livewire/colosseum-ranking.blade.php'));
+
+        $this->assertIsString($screenViewSource);
+        $this->assertIsString($rankingViewSource);
+        $this->assertStringContainsString(
+            'CharacterIconCatalog::versionedAsset($top[\'image_path\'] ?? null)',
+            $screenViewSource
+        );
+        $this->assertStringContainsString(
+            'CharacterIconCatalog::versionedAsset($myArenaShowcase[\'path\'])',
+            $screenViewSource
+        );
+        $this->assertStringContainsString(
+            'CharacterIconCatalog::versionedAsset($ranking[\'image_path\'])',
+            $rankingViewSource
+        );
+    }
 }

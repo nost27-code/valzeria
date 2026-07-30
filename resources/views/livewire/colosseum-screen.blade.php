@@ -90,6 +90,9 @@
                     @foreach($topRankings as $top)
                         @php
                             $rank = (int) $top['rank'];
+                            $topImageUrl = ($top['type'] ?? null) === 'player'
+                                ? \App\Support\CharacterIconCatalog::versionedAsset($top['image_path'] ?? null)
+                                : asset($top['image_path'] ?? '');
                             $isMyTopRanking = ($top['type'] ?? null) === 'player'
                                 && (int) ($top['character']?->id ?? 0) === (int) ($character?->id ?? 0);
                             $canCycleTopShowcase = $isMyTopRanking && !empty($top['has_showcase_choices']);
@@ -141,11 +144,11 @@
                                             aria-label="闘技場の表示ポーズを変更。現在：{{ $top['showcase_label'] }}"
                                             title="クリックで表示ポーズを変更（現在：{{ $top['showcase_label'] }}）"
                                         >
-                                            <img src="{{ asset($top['image_path']) }}" alt="{{ $top['name'] }}の{{ $top['showcase_label'] }}ポーズ" class="h-full w-full object-contain drop-shadow-md">
+                                            <img src="{{ $topImageUrl }}" alt="{{ $top['name'] }}の{{ $top['showcase_label'] }}ポーズ" class="h-full w-full object-contain drop-shadow-md">
                                         </button>
                                     @else
                                         <div class="{{ $portraitClasses }} flex items-center justify-center">
-                                            <img src="{{ asset($top['image_path']) }}" alt="" class="h-full w-full object-contain drop-shadow-md">
+                                            <img src="{{ $topImageUrl }}" alt="" class="h-full w-full object-contain drop-shadow-md">
                                         </div>
                                     @endif
                                 @endif
@@ -191,10 +194,10 @@
                                                 aria-label="闘技場の表示ポーズを変更。現在：{{ $myArenaShowcase['label'] }}"
                                                 title="クリックで表示ポーズを変更（現在：{{ $myArenaShowcase['label'] }}）"
                                             >
-                                                <img src="{{ asset($myArenaShowcase['path']) }}" alt="{{ $character?->name }}の{{ $myArenaShowcase['label'] }}ポーズ" class="h-full w-full object-contain">
+                                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($myArenaShowcase['path']) }}" alt="{{ $character?->name }}の{{ $myArenaShowcase['label'] }}ポーズ" class="h-full w-full object-contain">
                                             </button>
                                         @else
-                                            <img src="{{ asset($myArenaShowcase['path']) }}" alt="" class="h-16 w-16 object-contain">
+                                            <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($myArenaShowcase['path']) }}" alt="" class="h-16 w-16 object-contain">
                                         @endif
                                     @else
                                         <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="h-16 w-16 object-contain">

@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'asset_sizes' => [
+        'supported' => [96, 128],
+        'recommended' => 128,
+    ],
+
     'sets' => [
         'exclusive_000' => [
             'label' => '限定キャラアイコン #000',
