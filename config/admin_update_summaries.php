@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-home-chat-default-history',
+        'date' => '2026-07-30',
+        'category' => 'changed',
+        'title' => 'ホームチャットの初期表示を50件に拡張',
+        'detail' => 'ホーム画面下部のチャットを、最初から最新50件まで遡って確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-30-admin-reply-resolve-type-limit',
         'date' => '2026-07-30',
         'category' => 'fixed',

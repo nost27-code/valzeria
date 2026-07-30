@@ -13,7 +13,7 @@ class ChatLog extends Component
 {
     public string $activeTab = 'all';
     public bool $isExpanded = false;
-    public int $logLimit = 15;
+    public int $logLimit = 50;
     public array $allTabVisibility = [];
 
     const LOG_STEP = 50;
