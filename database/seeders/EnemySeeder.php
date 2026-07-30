@@ -31,6 +31,9 @@ class EnemySeeder extends Seeder
                 && Schema::hasColumn('enemies', 'variant_key')
                 && Schema::hasColumn('enemies', 'role_key')
                 && Schema::hasColumn('enemies', 'is_stat_locked');
+            $hasSpeciesKey = Schema::hasColumn('enemies', 'species_key');
+            $speciesAssignments = config('enemy_species.assignments', []);
+            $speciesLabels = config('enemy_species.labels', []);
 
             foreach ($lines as $line) {
                 if ($header) {
@@ -83,6 +86,19 @@ class EnemySeeder extends Seeder
                         'generated_at' => null,
                         'manual_adjustment_note' => $metadata['manual_adjustment_note'],
                     ];
+
+                    if ($hasSpeciesKey) {
+                        $assignment = $speciesAssignments[(int) $id] ?? null;
+                        if (
+                            is_array($assignment)
+                            && ($assignment['name'] ?? null) === $values['name']
+                            && isset($speciesLabels[$assignment['species_key'] ?? null])
+                        ) {
+                            $values['species_key'] = $assignment['species_key'];
+                        } elseif (isset($speciesLabels[$metadata['family_key']])) {
+                            $values['species_key'] = $metadata['family_key'];
+                        }
+                    }
                 }
 
                 Enemy::updateOrCreate(

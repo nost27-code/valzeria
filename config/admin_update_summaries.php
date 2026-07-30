@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-enemy-species-standard-fix',
+        'date' => '2026-07-31',
+        'category' => 'fixed',
+        'title' => '敵の種族表示と特攻・耐性判定を修正',
+        'detail' => '敵の種族が「通常」と表示されていた箇所を修正し、世界樹中層を含む該当モンスターへ、特攻・耐性・誘魔香にも使われる正しい種族を割り当てました。',
+    ],
+    [
         'id' => '2026-07-31-colosseum-top-six-podium',
         'date' => '2026-07-31',
         'category' => 'changed',

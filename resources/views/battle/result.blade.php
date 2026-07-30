@@ -84,25 +84,22 @@
                             $enemyTypeText = $isHiddenGate
                                 ? '秘境入口'
                                 : ($isSubAreaGate ? '共有サブエリア入口' : ($isSubAreaExplore ? '共有サブエリア' : ($isDepthGate ? '探索深度入口' : ($isSecretRealmLord ? '秘境主' : ($isDungeonLord ? '【ダンジョン主】' : ($isBoss ? '【BOSS】' : '通常モンスター'))))));
-                            $enemyFamilyLabels = [
-                                'standard' => '通常',
-                                'slime' => 'スライム',
-                                'beast' => '獣',
+                            $enemySpeciesLabels = config('enemy_species.labels', []);
+                            $legacyEnemySpeciesLabels = [
                                 'goblin' => '小鬼',
-                                'soldier' => '人型',
-                                'mage' => '魔術師',
-                                'spirit' => '精霊',
-                                'undead' => 'アンデッド',
                                 'giant' => '巨人',
-                                'insect' => '虫',
-                                'flying' => '飛行',
-                                'aquatic' => '水棲',
-                                'dragon' => '竜',
-                                'demon' => '悪魔',
-                                'machine' => '機械',
+                                'plant' => '植物',
                             ];
-                            $enemyFamilyKey = (string) ($result['enemy']->family_key ?? '');
-                            $enemyFamilyText = $enemyFamilyLabels[$enemyFamilyKey] ?? ($enemyFamilyKey !== '' ? $enemyFamilyKey : $enemyTypeText);
+                            $enemySpeciesKey = (string) ($result['enemy']->species_key ?? '');
+                            if ($enemySpeciesKey === '' || $enemySpeciesKey === 'standard') {
+                                $familyKey = (string) ($result['enemy']->family_key ?? '');
+                                $enemySpeciesKey = isset($enemySpeciesLabels[$familyKey]) || isset($legacyEnemySpeciesLabels[$familyKey])
+                                    ? $familyKey
+                                    : '';
+                            }
+                            $enemySpeciesText = $enemySpeciesLabels[$enemySpeciesKey]
+                                ?? $legacyEnemySpeciesLabels[$enemySpeciesKey]
+                                ?? '種族不明';
                             $enemyImagePath = $result['enemy_image_path'] ?? config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
                             $characterIconSetService = app(\App\Services\CharacterIconSetService::class);
                             $characterImagePath = $characterIconSetService->pathFor($character, 'battle');
@@ -370,7 +367,7 @@
                                             </tr>
                                             <tr>
                                                 <th class="{{ $enemyThClass }} py-1">種族</th>
-                                                <td colspan="3" class="{{ $enemyTdClass ?: 'text-slate-600' }}">{{ $enemyFamilyText }}@if($enemyDangerRate > 0) <span class="ml-1 font-bold text-orange-700">危険度{{ number_format($enemyDangerRate) }}%</span>@endif</td>
+                                                <td colspan="3" class="{{ $enemyTdClass ?: 'text-slate-600' }}">{{ $enemySpeciesText }}@if($enemyDangerRate > 0) <span class="ml-1 font-bold text-orange-700">危険度{{ number_format($enemyDangerRate) }}%</span>@endif</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -490,7 +487,7 @@
                                                 <tr>
                                                     <th class="{{ $enemyThClass }} py-1">種族</th>
                                                     <td colspan="3" class="{{ $enemyTdClass ?: 'text-slate-600' }}">
-                                                        {{ $enemyFamilyText }}
+                                                        {{ $enemySpeciesText }}
                                                         @if($enemyDangerRate > 0)
                                                             <span class="ml-1 text-orange-700 font-bold">危険度{{ number_format($enemyDangerRate) }}%</span>
                                                         @endif
