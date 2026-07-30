@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Admin\PublicLogManager;
 use App\Livewire\Admin\UserInvestigationManager;
 use App\Models\Character;
 use App\Models\PublicLog;
@@ -127,6 +128,10 @@ class AdminUserInvestigationMessageTest extends TestCase
             ->assertJsonPath('latest_reply.message', '追加情報もあります。')
             ->assertJsonPath('replies.0.message', '追加情報もあります。')
             ->assertJsonPath(
+                'latest_reply.resolve_url',
+                route('admin.private-replies.resolve', ['reply' => $logService->pendingAdminReplies(1)->first()])
+            )
+            ->assertJsonPath(
                 'latest_reply.url',
                 route('admin.user-investigation', ['user_id' => $targetUser->id]) . '#investigation-message'
             );
@@ -137,6 +142,7 @@ class AdminUserInvestigationMessageTest extends TestCase
             ->assertSee('管理人個別メッセージの返信を確認')
             ->assertSee('data-admin-reply-popover', false)
             ->assertSee('ユーザー調査ですべて確認')
+            ->assertSee('対応済みにする')
             ->assertSee('data-admin-reply-badge', false);
 
         $logService->addAdminPrivateMessage('追加情報を確認しました。', $character);
@@ -181,5 +187,118 @@ class AdminUserInvestigationMessageTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->getJson(route('admin.private-replies.status'))
             ->assertRedirect('/admin/login');
+    }
+
+    public function test_admin_can_resolve_a_pending_reply_without_deleting_the_conversation(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '対応済み対象',
+            'explore_stamina' => 0,
+        ]);
+        $logService = app(PublicLogService::class);
+        $logService->addAdminPrivateReply('確認をお願いします。', $character);
+        $reply = PublicLog::query()->where('type', 'admin_private_reply')->sole();
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.private-replies.resolve', ['reply' => $reply]))
+            ->assertOk()
+            ->assertJson([
+                'resolved' => true,
+                'message' => '通知を対応済みにしました。会話履歴は残っています。',
+            ]);
+
+        $this->assertSame(0, $logService->pendingAdminReplyCount());
+        $this->assertDatabaseHas('public_logs', [
+            'id' => $reply->id,
+            'type' => 'admin_private_reply',
+            'receiver_id' => $character->id,
+            'message' => '確認をお願いします。',
+        ]);
+        $this->assertDatabaseHas('public_logs', [
+            'type' => 'admin_private_resolved',
+            'character_id' => null,
+            'receiver_id' => $character->id,
+            'message' => "返信通知 #{$reply->id} を管理画面で対応済みにしました。",
+        ]);
+        $this->assertDatabaseCount('character_notifications', 0);
+
+        $logService->addAdminPrivateReply('追加で確認したいことがあります。', $character);
+
+        $this->assertSame(1, $logService->pendingAdminReplyCount());
+        $this->assertSame('追加で確認したいことがあります。', $logService->pendingAdminReplies(1)->first()?->message);
+    }
+
+    public function test_resolving_the_same_reply_twice_is_rejected_without_duplicate_audit_logs(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '二重操作対象',
+            'explore_stamina' => 0,
+        ]);
+        $logService = app(PublicLogService::class);
+        $logService->addAdminPrivateReply('一度だけ対応済みにする返信', $character);
+        $reply = PublicLog::query()->where('type', 'admin_private_reply')->sole();
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.private-replies.resolve', ['reply' => $reply]))
+            ->assertOk();
+
+        $this->postJson(route('admin.private-replies.resolve', ['reply' => $reply]))
+            ->assertStatus(409)
+            ->assertJsonPath('resolved', false);
+
+        $this->assertSame(
+            1,
+            PublicLog::query()
+                ->where('type', 'admin_private_resolved')
+                ->where('receiver_id', $character->id)
+                ->count()
+        );
+    }
+
+    public function test_resolve_private_reply_is_admin_only(): void
+    {
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '権限確認対象',
+            'explore_stamina' => 0,
+        ]);
+        app(PublicLogService::class)->addAdminPrivateReply('権限確認用の返信', $character);
+        $reply = PublicLog::query()->where('type', 'admin_private_reply')->sole();
+
+        $this->actingAs(User::factory()->create())
+            ->postJson(route('admin.private-replies.resolve', ['reply' => $reply]))
+            ->assertRedirect('/admin/login');
+
+        $this->assertDatabaseMissing('public_logs', [
+            'type' => 'admin_private_resolved',
+            'receiver_id' => $character->id,
+        ]);
+    }
+
+    public function test_resolution_audit_log_is_protected_from_regular_public_log_deletion(): void
+    {
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '監査ログ保護対象',
+            'explore_stamina' => 0,
+        ]);
+        $logService = app(PublicLogService::class);
+        $logService->addAdminPrivateReply('監査ログ保護用の返信', $character);
+        $logService->resolvePendingAdminReply(
+            PublicLog::query()->where('type', 'admin_private_reply')->sole()
+        );
+        $auditLog = PublicLog::query()->where('type', 'admin_private_resolved')->sole();
+
+        Livewire::test(PublicLogManager::class)
+            ->call('deleteOne', $auditLog->id);
+
+        $this->assertDatabaseHas('public_logs', [
+            'id' => $auditLog->id,
+            'type' => 'admin_private_resolved',
+        ]);
     }
 }

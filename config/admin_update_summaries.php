@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-admin-reply-manual-resolve',
+        'date' => '2026-07-30',
+        'category' => 'internal',
+        'title' => '返信通知に対応済み操作を追加',
+        'detail' => '管理画面の返信通知から、会話履歴を残したまま未対応表示だけを対応済みにできるようにしました。',
+    ],
+    [
         'id' => '2026-07-30-admin-reply-bell-popover',
         'date' => '2026-07-30',
         'category' => 'internal',

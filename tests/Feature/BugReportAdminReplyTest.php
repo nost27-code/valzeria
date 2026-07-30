@@ -127,10 +127,13 @@ class BugReportAdminReplyTest extends TestCase
         $service = app(PublicLogService::class);
         $service->addAdminPrivateMessage('非公開の管理人メッセージ', $recipient);
         $service->addAdminPrivateReply('非公開の冒険者返信', $recipient);
+        $service->resolvePendingAdminReply(
+            PublicLog::query()->where('type', 'admin_private_reply')->latest('id')->firstOrFail()
+        );
 
         $this->assertTrue($service->getRecentLogs(50, $recipient->id)
-            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply'], true)));
+            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply', 'admin_private_resolved'], true)));
         $this->assertTrue($service->getRecentLogs(50, $otherCharacter->id)
-            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply'], true)));
+            ->every(fn (PublicLog $log) => ! in_array($log->type, ['admin_private', 'admin_private_reply', 'admin_private_resolved'], true)));
     }
 }

@@ -29,6 +29,7 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Valzeria - 管理者ダッシュボード</title>
     @include('partials.ogp', ['ogTitle' => 'Valzeria - 管理者ダッシュボード'])
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -263,6 +264,10 @@
                             <div data-admin-reply-list class="max-h-[min(60vh,28rem)] overflow-y-auto p-2">
                                 <p class="px-3 py-5 text-center text-sm font-bold text-slate-500">通知を確認中...</p>
                             </div>
+                            <p data-admin-reply-feedback
+                               hidden
+                               aria-live="polite"
+                               class="border-t border-slate-200 bg-slate-50 px-4 py-2 text-center text-xs font-bold text-slate-600"></p>
                             <a href="{{ route('admin.user-investigation') }}"
                                class="block border-t border-slate-200 px-4 py-3 text-center text-xs font-black text-slate-700 hover:bg-slate-50 hover:text-slate-950">
                                 ユーザー調査ですべて確認
@@ -385,6 +390,7 @@
         (() => {
             const mailBadgeUrl = @js(route('admin.contact-messages.badge-count'));
             const privateReplyStatusUrl = @js(route('admin.private-replies.status'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const baseTitle = document.title;
             const baseIconHref = @js(asset('images/favicon.webp') . '?v=2');
             const mailPollIntervalMs = 5 * 60 * 1000;
@@ -480,6 +486,19 @@
                 await drawBadge(mailCount + privateReplyCount);
             };
 
+            const showPrivateReplyFeedback = (message, isError = false) => {
+                const feedback = document.querySelector('[data-admin-reply-feedback]');
+                if (!feedback) {
+                    return;
+                }
+
+                feedback.hidden = !message;
+                feedback.textContent = message || '';
+                feedback.classList.toggle('text-rose-700', isError);
+                feedback.classList.toggle('text-emerald-700', !isError && Boolean(message));
+                feedback.classList.toggle('text-slate-600', !message);
+            };
+
             const updatePrivateReplyIndicators = (payload) => {
                 privateReplyCount = Math.max(0, Number.parseInt(payload.pending_count, 10) || 0);
                 const countLabel = privateReplyCount > 99 ? '99+' : String(privateReplyCount);
@@ -529,9 +548,12 @@
                 }
 
                 replies.forEach((reply) => {
+                    const item = document.createElement('article');
+                    item.className = 'rounded-md border border-transparent transition hover:border-rose-100 hover:bg-rose-50';
+
                     const link = document.createElement('a');
                     link.href = reply.url || @js(route('admin.user-investigation'));
-                    link.className = 'block rounded-md px-3 py-3 transition hover:bg-rose-50 focus:bg-rose-50 focus:outline-none';
+                    link.className = 'block rounded-t-md px-3 pb-2 pt-3 focus:bg-rose-50 focus:outline-none';
 
                     const header = document.createElement('div');
                     header.className = 'flex items-start justify-between gap-3';
@@ -550,7 +572,21 @@
 
                     header.append(name, repliedAt);
                     link.append(header, message);
-                    list.appendChild(link);
+
+                    const actions = document.createElement('div');
+                    actions.className = 'flex items-center justify-end px-3 pb-2';
+
+                    const resolveButton = document.createElement('button');
+                    resolveButton.type = 'button';
+                    resolveButton.dataset.adminReplyResolve = '';
+                    resolveButton.dataset.resolveUrl = reply.resolve_url || '';
+                    resolveButton.className = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60';
+                    resolveButton.textContent = '対応済みにする';
+                    resolveButton.disabled = !reply.resolve_url;
+
+                    actions.appendChild(resolveButton);
+                    item.append(link, actions);
+                    list.appendChild(item);
                 });
             };
 
@@ -601,6 +637,51 @@
                     // 管理画面の操作を妨げないため、ポーリング失敗は黙って次回へ回す。
                 }
             };
+
+            const privateReplyList = document.querySelector('[data-admin-reply-list]');
+            privateReplyList?.addEventListener('click', async (event) => {
+                const resolveButton = event.target.closest('[data-admin-reply-resolve]');
+                if (!resolveButton || !privateReplyList.contains(resolveButton)) {
+                    return;
+                }
+
+                const resolveUrl = resolveButton.dataset.resolveUrl || '';
+                if (!resolveUrl || !window.confirm('この返信を対応済みにしますか？ 会話履歴は削除されません。')) {
+                    return;
+                }
+
+                resolveButton.disabled = true;
+                resolveButton.textContent = '処理中...';
+                showPrivateReplyFeedback('対応済みにしています...');
+
+                try {
+                    const response = await fetch(resolveUrl, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                    });
+                    const payload = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || '対応済みにできませんでした。');
+                    }
+
+                    await pollPrivateReplyStatus();
+                    showPrivateReplyFeedback(payload.message || '通知を対応済みにしました。');
+                } catch (error) {
+                    if (resolveButton.isConnected) {
+                        resolveButton.disabled = false;
+                        resolveButton.textContent = '対応済みにする';
+                    }
+                    showPrivateReplyFeedback(error.message || '対応済みにできませんでした。', true);
+                    await pollPrivateReplyStatus();
+                }
+            });
 
             pollMailBadge();
             pollPrivateReplyStatus();

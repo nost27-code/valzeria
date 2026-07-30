@@ -6,6 +6,7 @@ use App\Models\PublicLog;
 use App\Models\Character;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PublicLogService
@@ -103,13 +104,76 @@ class PublicLogService
      */
     public function addAdminPrivateReply(string $message, Character $character): void
     {
-        PublicLog::create([
-            'type' => 'admin_private_reply',
-            'message' => $message,
-            'character_id' => $character->id,
-            'receiver_id' => $character->id,
-            'importance' => 1,
-        ]);
+        DB::transaction(function () use ($message, $character): void {
+            Character::query()
+                ->whereKey($character->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            PublicLog::create([
+                'type' => 'admin_private_reply',
+                'message' => $message,
+                'character_id' => $character->id,
+                'receiver_id' => $character->id,
+                'importance' => 1,
+            ]);
+        });
+    }
+
+    /**
+     * 冒険者返信の会話履歴を残したまま、管理画面の未対応通知だけを解除する。
+     */
+    public function resolvePendingAdminReply(PublicLog $reply): bool
+    {
+        if ($reply->type !== 'admin_private_reply' || !$reply->receiver_id) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($reply): bool {
+            $receiverId = (int) $reply->receiver_id;
+
+            $receiver = Character::query()
+                ->whereKey($receiverId)
+                ->lockForUpdate()
+                ->first(['id']);
+
+            if (!$receiver) {
+                return false;
+            }
+
+            $lockedReply = PublicLog::query()
+                ->whereKey($reply->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                !$lockedReply
+                || $lockedReply->type !== 'admin_private_reply'
+                || (int) $lockedReply->receiver_id !== $receiverId
+            ) {
+                return false;
+            }
+
+            $hasLaterThreadLog = PublicLog::query()
+                ->where('receiver_id', $receiverId)
+                ->whereIn('type', ['admin_private', 'admin_private_reply', 'admin_private_resolved'])
+                ->where('id', '>', $lockedReply->id)
+                ->exists();
+
+            if ($hasLaterThreadLog) {
+                return false;
+            }
+
+            PublicLog::query()->create([
+                'type' => 'admin_private_resolved',
+                'message' => "返信通知 #{$lockedReply->id} を管理画面で対応済みにしました。",
+                'character_id' => null,
+                'receiver_id' => $receiverId,
+                'importance' => 0,
+            ]);
+
+            return true;
+        });
     }
 
     /**
@@ -150,7 +214,7 @@ class PublicLogService
 
         // 個人チャットと管理人スレッドは下部チャットに出さない
         $query->where(function ($q) use ($currentCharacterId) {
-            $q->whereNotIn('type', ['private', 'admin_private', 'admin_private_reply']);
+            $q->whereNotIn('type', ['private', 'admin_private', 'admin_private_reply', 'admin_private_resolved']);
             if ($currentCharacterId) {
                 $q->orWhere(function ($q2) use ($currentCharacterId) {
                     $q2->where('type', 'private')
@@ -174,7 +238,7 @@ class PublicLogService
                 $query->selectRaw('1')
                     ->from('public_logs as later_admin_thread_logs')
                     ->whereColumn('later_admin_thread_logs.receiver_id', 'public_logs.receiver_id')
-                    ->whereIn('later_admin_thread_logs.type', ['admin_private', 'admin_private_reply'])
+                    ->whereIn('later_admin_thread_logs.type', ['admin_private', 'admin_private_reply', 'admin_private_resolved'])
                     ->whereColumn('later_admin_thread_logs.id', '>', 'public_logs.id');
             });
     }
