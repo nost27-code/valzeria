@@ -169,7 +169,8 @@ class CharacterIconSetTest extends TestCase
         Livewire::actingAs($owner->user)
             ->test(ColosseumRanking::class)
             ->call('cycleMyArenaShowcase')
-            ->assertSet('arenaShowcaseMessage', '闘技場の表示を「戦闘」に変更しました。')
+            ->assertSet('arenaShowcaseMessage', null)
+            ->assertDontSee('闘技場の表示を「戦闘」に変更しました。')
             ->assertSee('03_battle.webp', escape: false);
 
         Livewire::actingAs($viewer->user)

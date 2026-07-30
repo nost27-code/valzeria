@@ -50,7 +50,7 @@ class ColosseumScreen extends Component
         $this->myRanking->refresh();
         $this->rankBattleCooldownRemaining = $this->rankBattleCooldownRemaining();
 
-        $entries = $rankingService->screenEntries($this->myRanking, 5, 3);
+        $entries = $rankingService->screenEntries($this->myRanking, 6, 3);
         $this->topRankings = $entries['top']->all();
         $this->targetRankings = $entries['targets']->all();
         $this->character->loadMissing('iconEntitlements');
@@ -62,14 +62,13 @@ class ColosseumScreen extends Component
         $this->arenaShowcaseMessage = null;
 
         try {
-            $showcase = app(CharacterIconSetService::class)->cycleArenaShowcase($this->character);
+            app(CharacterIconSetService::class)->cycleArenaShowcase($this->character);
         } catch (\RuntimeException $e) {
             $this->arenaShowcaseMessage = $e->getMessage();
 
             return;
         }
 
-        $this->arenaShowcaseMessage = "闘技場の表示を「{$showcase['label']}」に変更しました。";
         $this->loadRankings();
     }
 

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-colosseum-top-six-podium',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => '闘技場トップ6を表彰台型に刷新',
+        'detail' => '闘技場タブのトップランカーを6人表示に広げ、1位／2〜3位／4〜6位の3段配置に変更しました。順位表示をキャラ画像の上へ移し、武器や足元が隠れないようにしました。',
+    ],
+    [
         'id' => '2026-07-30-character-icon-design-off-release',
         'date' => '2026-07-30',
         'category' => 'internal',

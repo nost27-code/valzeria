@@ -82,14 +82,13 @@ class ColosseumRanking extends Component
         }
 
         try {
-            $showcase = app(CharacterIconSetService::class)->cycleArenaShowcase($character);
+            app(CharacterIconSetService::class)->cycleArenaShowcase($character);
         } catch (\RuntimeException $e) {
             $this->arenaShowcaseMessage = $e->getMessage();
 
             return;
         }
 
-        $this->arenaShowcaseMessage = "闘技場の表示を「{$showcase['label']}」に変更しました。";
     }
 
     public function render()

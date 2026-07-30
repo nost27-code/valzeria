@@ -86,56 +86,75 @@
                         {{ $arenaShowcaseMessage }}
                     </div>
                 @endif
-                <div class="p-0">
+                <div class="grid grid-cols-6 gap-y-5 px-2 py-5 sm:px-4" role="list" aria-label="闘技場上位6名">
                     @foreach($topRankings as $top)
                         @php
+                            $rank = (int) $top['rank'];
                             $isMyTopRanking = ($top['type'] ?? null) === 'player'
                                 && (int) ($top['character']?->id ?? 0) === (int) ($character?->id ?? 0);
                             $canCycleTopShowcase = $isMyTopRanking && !empty($top['has_showcase_choices']);
+                            $placementClasses = match ($rank) {
+                                1 => 'col-span-2 col-start-3 row-start-1',
+                                2 => 'col-span-2 col-start-2 row-start-2',
+                                3 => 'col-span-2 col-start-4 row-start-2',
+                                4 => 'col-span-2 col-start-1 row-start-3',
+                                5 => 'col-span-2 col-start-3 row-start-3',
+                                6 => 'col-span-2 col-start-5 row-start-3',
+                                default => 'col-span-2',
+                            };
+                            $portraitClasses = match (true) {
+                                $rank === 1 => 'h-24 w-24 sm:h-28 sm:w-28',
+                                in_array($rank, [2, 3], true) => 'h-20 w-20 sm:h-24 sm:w-24',
+                                default => 'h-16 w-16 sm:h-20 sm:w-20',
+                            };
                         @endphp
-                        <div class="flex items-center gap-4 px-4 py-3.5 border-b border-slate-100 last:border-0 sm:py-4">
-                            <div class="w-10 shrink-0 text-center text-2xl font-black {{ $top['rank'] === 1 ? 'text-amber-500' : ($top['rank'] === 2 ? 'text-slate-400' : 'text-amber-700') }}">
-                                @if(in_array((int) $top['rank'], [1, 2, 3], true))
-                                    <img src="{{ asset('images/icon/icon_100' . (int) $top['rank'] . '.webp') }}" alt="{{ $top['rank'] }}位" class="mx-auto h-9 w-9 object-contain">
+                        <div class="{{ $placementClasses }} flex min-w-0 flex-col items-center text-center" role="listitem">
+                            <div class="mb-1 flex h-10 items-center justify-center" aria-label="{{ $rank }}位">
+                                @if(in_array($rank, [1, 2, 3], true))
+                                    <img
+                                        src="{{ asset('images/icon/icon_100' . $rank . '.webp') }}"
+                                        alt="{{ $rank }}位"
+                                        class="{{ $rank === 1 ? 'h-10 w-10' : 'h-9 w-9' }} object-contain drop-shadow"
+                                    >
                                 @else
-                                    {{ $top['rank'] }}
+                                    <span class="flex h-7 min-w-7 items-center justify-center rounded-full bg-amber-700 px-1 text-[11px] font-black text-white shadow">
+                                        {{ $rank }}位
+                                    </span>
                                 @endif
                             </div>
-                            <div class="flex min-w-0 flex-1 items-center gap-3.5">
+
+                            <div>
                                 @if(!empty($top['image_path']))
-                                    <div class="flex w-14 shrink-0 flex-col items-center gap-1">
-                                        @if($canCycleTopShowcase)
-                                            <button
-                                                type="button"
-                                                wire:click="cycleMyArenaShowcase"
-                                                wire:loading.attr="disabled"
-                                                wire:target="cycleMyArenaShowcase"
-                                                class="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg transition hover:bg-violet-50 active:scale-95 disabled:cursor-wait disabled:opacity-60"
-                                                aria-label="闘技場の表示ポーズを変更。現在：{{ $top['showcase_label'] }}"
-                                                title="クリックで表示ポーズを変更（現在：{{ $top['showcase_label'] }}）"
-                                            >
-                                                <img src="{{ asset($top['image_path']) }}" alt="{{ $top['name'] }}の{{ $top['showcase_label'] }}ポーズ" class="h-full w-full object-contain">
-                                            </button>
-                                        @else
-                                            <div class="flex h-14 w-14 items-center justify-center">
-                                                <img src="{{ asset($top['image_path']) }}" alt="" class="h-full w-full object-contain">
-                                            </div>
-                                        @endif
-                                        @if(!empty($top['has_showcase_choices']))
-                                            <span class="whitespace-nowrap rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-black leading-none text-white shadow">
-                                                {{ $top['showcase_label'] }}
-                                            </span>
-                                        @endif
-                                    </div>
+                                    @if($canCycleTopShowcase)
+                                        <button
+                                            type="button"
+                                            wire:click="cycleMyArenaShowcase"
+                                            wire:loading.attr="disabled"
+                                            wire:target="cycleMyArenaShowcase"
+                                            class="{{ $portraitClasses }} flex cursor-pointer items-center justify-center rounded-lg transition hover:bg-violet-50 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                                            aria-label="闘技場の表示ポーズを変更。現在：{{ $top['showcase_label'] }}"
+                                            title="クリックで表示ポーズを変更（現在：{{ $top['showcase_label'] }}）"
+                                        >
+                                            <img src="{{ asset($top['image_path']) }}" alt="{{ $top['name'] }}の{{ $top['showcase_label'] }}ポーズ" class="h-full w-full object-contain drop-shadow-md">
+                                        </button>
+                                    @else
+                                        <div class="{{ $portraitClasses }} flex items-center justify-center">
+                                            <img src="{{ asset($top['image_path']) }}" alt="" class="h-full w-full object-contain drop-shadow-md">
+                                        </div>
+                                    @endif
                                 @endif
-                                <div class="min-w-0">
-                                    <div class="truncate text-base font-black text-slate-800">{{ $top['name'] }}</div>
-                                    <div class="mt-0.5 text-xs font-bold text-slate-500">
-                                        Lv.{{ $top['level'] }} / {{ $top['job'] }}
-                                    </div>
-                                </div>
                             </div>
-                            <div class="w-20 shrink-0 whitespace-nowrap text-right text-xs font-black text-amber-700 sm:w-24 sm:text-base">
+
+                            <div
+                                class="{{ $rank === 1 ? 'mt-2 text-sm sm:text-base' : 'mt-1.5 text-xs sm:text-sm' }} w-full truncate px-1 font-black text-slate-800"
+                                title="{{ $top['name'] }}"
+                            >
+                                {{ $top['name'] }}
+                            </div>
+                            <div class="mt-0.5 w-full truncate px-1 text-[10px] font-bold text-slate-500 sm:text-xs">
+                                Lv.{{ $top['level'] }} / {{ $top['job'] }}
+                            </div>
+                            <div class="{{ $rank === 1 ? 'text-xs' : 'text-[10px] sm:text-xs' }} mt-1 whitespace-nowrap font-black text-amber-700">
                                 戦力 {{ isset($top['power']) ? number_format((int) $top['power']) : '？？？' }}
                             </div>
                         </div>
@@ -173,11 +192,6 @@
                                         @endif
                                     @else
                                         <img src="{{ asset('images/icon/icon_001.webp') }}" alt="" class="h-16 w-16 object-contain">
-                                    @endif
-                                    @if(!empty($myArenaShowcase['has_choices']))
-                                        <span class="whitespace-nowrap rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-black leading-none text-white shadow">
-                                            {{ $myArenaShowcase['label'] }}
-                                        </span>
                                     @endif
                                 </div>
                                 <div class="min-w-0">

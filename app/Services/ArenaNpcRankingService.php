@@ -142,7 +142,7 @@ class ArenaNpcRankingService
     /**
      * @return array{top: Collection, targets: Collection}
      */
-    public function screenEntries(ArenaRanking $myRanking, int $topLimit = 5, int $targetRange = 3): array
+    public function screenEntries(ArenaRanking $myRanking, int $topLimit = 6, int $targetRange = 3): array
     {
         $this->ensureRankings();
         $hasNpcRankings = Schema::hasTable('arena_npc_rankings');
