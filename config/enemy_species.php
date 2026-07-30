@@ -144,4 +144,60 @@ return [
         422 => ['name' => '錬成炉守護者オルディオン', 'species_key' => 'machine'],
         424 => ['name' => '次元回廊の支配者クロノアーク', 'species_key' => 'mage'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 旧マスタ由来の残存敵
+    |--------------------------------------------------------------------------
+    |
+    | 本番DBに残る旧IDの敵と、街道Seeder由来の敵を対象にします。
+    | 現行EnemySeederへ混ぜず、追加データ移行でID・敵名を照合します。
+    |
+    */
+    'legacy_assignments' => [
+        505 => ['name' => '呪城の主', 'species_key' => 'undead'],
+        506 => ['name' => '呪城伯爵ヴラド', 'species_key' => 'undead'],
+        509 => ['name' => '魂の群れ', 'species_key' => 'undead'],
+        514 => ['name' => '封印の守護者', 'species_key' => 'demon'],
+        517 => ['name' => '神殿の主', 'species_key' => 'demon'],
+        523 => ['name' => '要塞司令', 'species_key' => 'soldier'],
+        527 => ['name' => '谷の死霊', 'species_key' => 'undead'],
+        529 => ['name' => '瘴気の主', 'species_key' => 'demon'],
+        531 => ['name' => '奈落の影', 'species_key' => 'demon'],
+        534 => ['name' => '階段の番人', 'species_key' => 'machine'],
+        544 => ['name' => '時空の影', 'species_key' => 'mage'],
+        546 => ['name' => '空間裂け目', 'species_key' => 'mage'],
+        547 => ['name' => '回廊の主', 'species_key' => 'mage'],
+        550 => ['name' => '封印の守護者', 'species_key' => 'machine'],
+        553 => ['name' => '神殿の主', 'species_key' => 'mage'],
+        558 => ['name' => '呪文壁', 'species_key' => 'machine'],
+        559 => ['name' => '遺跡の守護者', 'species_key' => 'machine'],
+        563 => ['name' => '光る蝶', 'species_key' => 'insect'],
+        565 => ['name' => '庭園の番人', 'species_key' => 'spirit'],
+        566 => ['name' => '庭園の癒天使ラファエラ', 'species_key' => 'spirit'],
+        571 => ['name' => '塔の守護者', 'species_key' => 'soldier'],
+        574 => ['name' => '祭壇の天使', 'species_key' => 'spirit'],
+        575 => ['name' => '星の守護者', 'species_key' => 'spirit'],
+        576 => ['name' => '古代神官', 'species_key' => 'mage'],
+        577 => ['name' => '雷神ヴォルト', 'species_key' => 'spirit'],
+        578 => ['name' => '神々の代行者プロヴィデンス', 'species_key' => 'spirit'],
+        581 => ['name' => '外郭ガーゴイル', 'species_key' => 'demon'],
+        582 => ['name' => '魔城の番犬', 'species_key' => 'beast'],
+        586 => ['name' => '時空の影', 'species_key' => 'demon'],
+        588 => ['name' => '空間裂け目', 'species_key' => 'demon'],
+        589 => ['name' => '回廊の主', 'species_key' => 'demon'],
+        590 => ['name' => '絶望の幻影ディスペア', 'species_key' => 'demon'],
+        601 => ['name' => '牢獄の主', 'species_key' => 'demon'],
+        602 => ['name' => '深淵の獄卒タルタロス', 'species_key' => 'demon'],
+        607 => ['name' => '黒き玉座の主', 'species_key' => 'demon'],
+        610 => ['name' => '中枢守護機', 'species_key' => 'machine'],
+        613 => ['name' => '中枢の守護者', 'species_key' => 'machine'],
+        616 => ['name' => '祭壇の天使', 'species_key' => 'spirit'],
+        617 => ['name' => '星の守護者', 'species_key' => 'spirit'],
+        618 => ['name' => '古代神官', 'species_key' => 'mage'],
+        619 => ['name' => '雷神ヴォルト', 'species_key' => 'spirit'],
+        622 => ['name' => '錬成炉守護者オルディオン', 'species_key' => 'machine'],
+        624 => ['name' => '次元回廊の支配者クロノアーク', 'species_key' => 'mage'],
+        9176 => ['name' => '森道の絡み蔦', 'species_key' => 'spirit'],
+    ],
 ];

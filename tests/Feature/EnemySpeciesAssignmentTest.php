@@ -6,6 +6,7 @@ use App\Models\Enemy;
 use Database\Seeders\AllDungeonsSeeder;
 use Database\Seeders\CitySeeder;
 use Database\Seeders\EnemySeeder;
+use Database\Seeders\RouteAreaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -41,6 +42,29 @@ class EnemySpeciesAssignmentTest extends TestCase
         $this->assertSame('spirit', Enemy::query()->findOrFail(103)->species_key);
         $this->assertSame('flying', Enemy::query()->findOrFail(105)->species_key);
         $this->assertSame('spirit', Enemy::query()->findOrFail(107)->species_key);
+    }
+
+    public function test_legacy_assignments_and_route_enemy_use_supported_species(): void
+    {
+        $labels = config('enemy_species.labels');
+        $assignments = config('enemy_species.legacy_assignments');
+
+        $this->assertCount(44, $assignments);
+        $this->assertSame(
+            [],
+            array_values(array_diff(array_column($assignments, 'species_key'), array_keys($labels)))
+        );
+        $this->assertCount(44, array_unique(array_keys($assignments)));
+
+        $this->seed(CitySeeder::class);
+        $this->seed(RouteAreaSeeder::class);
+
+        $this->assertDatabaseHas('enemies', [
+            'id' => 9176,
+            'name' => '森道の絡み蔦',
+            'family_key' => 'standard',
+            'species_key' => 'spirit',
+        ]);
     }
 
     public function test_data_migration_updates_only_matching_standard_enemy_rows_and_can_be_rolled_back(): void
@@ -86,6 +110,36 @@ class EnemySpeciesAssignmentTest extends TestCase
         $this->assertDatabaseHas('enemies', [
             'id' => 103,
             'family_key' => $familyKeysBefore[103],
+            'species_key' => 'standard',
+        ]);
+    }
+
+    public function test_follow_up_migration_updates_matching_legacy_rows_and_can_be_rolled_back(): void
+    {
+        $this->seed(CitySeeder::class);
+        $this->seed(AllDungeonsSeeder::class);
+        $this->seed(EnemySeeder::class);
+
+        $legacyEnemy = Enemy::query()->findOrFail(305)->replicate();
+        $legacyEnemy->id = 505;
+        $legacyEnemy->name = '呪城の主';
+        $legacyEnemy->species_key = 'standard';
+        $legacyEnemy->save();
+
+        $migration = require database_path('migrations/2026_07_31_123000_assign_remaining_standard_enemies_to_species.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('enemies', [
+            'id' => 505,
+            'name' => '呪城の主',
+            'species_key' => 'undead',
+        ]);
+
+        $migration->down();
+
+        $this->assertDatabaseHas('enemies', [
+            'id' => 505,
+            'name' => '呪城の主',
             'species_key' => 'standard',
         ]);
     }

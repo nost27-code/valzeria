@@ -87,7 +87,7 @@ class RouteAreaSeeder extends Seeder
             ],
             76 => [
                 ['name' => '潮風ラット', 'family_key' => 'beast', 'variant_key' => 'water', 'role_key' => 'normal_weak', 'role' => '森道の小魔物', 'type_name' => '獣', 'element' => '水', 'weight' => 42, 'level_offset' => 0],
-                ['name' => '森道の絡み蔦', 'family_key' => 'standard', 'variant_key' => 'forest', 'role_key' => 'normal', 'role' => '森道の魔物', 'type_name' => '植物', 'element' => '森', 'weight' => 30, 'level_offset' => 0],
+                ['name' => '森道の絡み蔦', 'family_key' => 'standard', 'species_key' => 'spirit', 'variant_key' => 'forest', 'role_key' => 'normal', 'role' => '森道の魔物', 'type_name' => '植物', 'element' => '森', 'weight' => 30, 'level_offset' => 0],
                 ['name' => '海風の斥候', 'family_key' => 'soldier', 'variant_key' => 'water', 'role_key' => 'normal', 'role' => '街道の賊', 'type_name' => '人型', 'element' => '水', 'weight' => 22, 'level_offset' => 1],
                 ['name' => '森道の大牙獣', 'family_key' => 'beast', 'variant_key' => 'forest', 'role_key' => 'strong', 'role' => '森道の強敵', 'type_name' => '獣', 'element' => '森', 'weight' => 6, 'level_offset' => 1],
             ],
@@ -199,6 +199,12 @@ class RouteAreaSeeder extends Seeder
                 'is_stat_locked' => true,
                 'manual_adjustment_note' => 'Route area transition enemy. Tuned between previous city final area and next city first area.',
             ];
+        }
+        if (Schema::hasColumn('enemies', 'species_key')) {
+            $speciesKey = (string) ($definition['species_key'] ?? $generated['family_key']);
+            if (isset(config('enemy_species.labels', [])[$speciesKey])) {
+                $values['species_key'] = $speciesKey;
+            }
         }
 
         return $values;
