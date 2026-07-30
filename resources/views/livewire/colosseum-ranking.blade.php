@@ -9,6 +9,12 @@
         </a>
     </div>
 
+    @if($arenaShowcaseMessage)
+        <div class="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800" role="status">
+            {{ $arenaShowcaseMessage }}
+        </div>
+    @endif
+
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div class="grid gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500" style="grid-template-columns: 64px minmax(0, 1fr) 82px;">
             <div>順位</div>
@@ -31,9 +37,30 @@
                         @if($player)
                             <div class="flex min-w-0 items-center gap-3">
                                 @if(!empty($ranking['image_path']))
-                                    <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-200 bg-slate-50">
-                                        <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
-                                    </span>
+                                    <div class="flex w-11 shrink-0 flex-col items-center gap-1">
+                                        @if($isMe && !empty($ranking['has_showcase_choices']))
+                                            <button
+                                                type="button"
+                                                wire:click="cycleMyArenaShowcase"
+                                                wire:loading.attr="disabled"
+                                                wire:target="cycleMyArenaShowcase"
+                                                class="flex h-11 w-11 cursor-pointer items-center justify-center rounded border border-violet-300 bg-violet-50 transition hover:border-violet-500 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                                                aria-label="闘技場の表示ポーズを変更。現在：{{ $ranking['showcase_label'] }}"
+                                                title="クリックで表示ポーズを変更（現在：{{ $ranking['showcase_label'] }}）"
+                                            >
+                                                <img src="{{ asset($ranking['image_path']) }}" alt="{{ $player->name }}の{{ $ranking['showcase_label'] }}ポーズ" class="h-full w-full object-contain">
+                                            </button>
+                                        @else
+                                            <span class="flex h-11 w-11 items-center justify-center rounded border border-slate-200 bg-slate-50">
+                                                <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
+                                            </span>
+                                        @endif
+                                        @if(!empty($ranking['has_showcase_choices']))
+                                            <span class="whitespace-nowrap rounded-full bg-violet-600 px-1 py-0.5 text-[8px] font-black leading-none text-white shadow">
+                                                {{ $ranking['showcase_label'] }}
+                                            </span>
+                                        @endif
+                                    </div>
                                 @endif
                                 <div class="min-w-0">
                                     <div class="flex min-w-0 flex-wrap items-center gap-1.5">

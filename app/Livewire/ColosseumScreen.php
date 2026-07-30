@@ -9,6 +9,7 @@ use App\Models\ArenaLog;
 use App\Models\ArenaNpcAutoLog;
 use App\Models\ArenaNpcLog;
 use App\Services\ArenaNpcRankingService;
+use App\Services\CharacterIconSetService;
 use App\Services\PvPBattleService;
 use App\Services\StorageCapacityService;
 use App\Services\CooldownSettingService;
@@ -21,6 +22,8 @@ class ColosseumScreen extends Component
     public $myRanking;
     public $topRankings = [];
     public $targetRankings = [];
+    public array $myArenaShowcase = [];
+    public ?string $arenaShowcaseMessage = null;
     public int $rankBattleCooldownRemaining = 0;
 
     public function mount()
@@ -50,6 +53,24 @@ class ColosseumScreen extends Component
         $entries = $rankingService->screenEntries($this->myRanking, 5, 3);
         $this->topRankings = $entries['top']->all();
         $this->targetRankings = $entries['targets']->all();
+        $this->character->loadMissing('iconEntitlements');
+        $this->myArenaShowcase = app(CharacterIconSetService::class)->arenaShowcase($this->character);
+    }
+
+    public function cycleMyArenaShowcase(): void
+    {
+        $this->arenaShowcaseMessage = null;
+
+        try {
+            $showcase = app(CharacterIconSetService::class)->cycleArenaShowcase($this->character);
+        } catch (\RuntimeException $e) {
+            $this->arenaShowcaseMessage = $e->getMessage();
+
+            return;
+        }
+
+        $this->arenaShowcaseMessage = "闘技場の表示を「{$showcase['label']}」に変更しました。";
+        $this->loadRankings();
     }
 
     public function render(StorageCapacityService $storageCapacityService)

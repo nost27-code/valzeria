@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\File;
 class CharacterIconCatalog
 {
     public const DEFAULT_ICON = '/images/chara/chara_001.webp';
+    public const SCENES = ['normal', 'battle', 'victory', 'defeat'];
+
     private const ADMIN_ICON = '/images/chara/admin/chara_admin.webp';
     private const MAX_ICON_NUMBER = 267;
 
@@ -39,6 +41,10 @@ class CharacterIconCatalog
         }
 
         $path = '/' . ltrim($path, '/');
+        if (self::setKeyForPath($path) !== null) {
+            return $path;
+        }
+
         if (preg_match('/\A\/images\/chara\/chara_(\d{1,3})\.webp\z/', $path, $matches) === 1) {
             $number = (int) $matches[1];
             if ($number < 1 || $number > self::MAX_ICON_NUMBER) {
@@ -71,6 +77,55 @@ class CharacterIconCatalog
         $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
 
         return asset(self::ADMIN_ICON) . '?v=' . $version;
+    }
+
+    /**
+     * @return array{normal: string, battle: string, victory: string, defeat: string}|null
+     */
+    public static function pathsForSet(string $setKey): ?array
+    {
+        $paths = config("character_icon_sets.sets.{$setKey}.paths");
+        if (!is_array($paths)) {
+            return null;
+        }
+
+        $normalized = [];
+        foreach (self::SCENES as $scene) {
+            $path = '/' . ltrim((string) ($paths[$scene] ?? ''), '/');
+            if (preg_match('/\A\/images\/chara\/exclusive\/[a-z0-9_-]+\/[a-z0-9_-]+\.webp\z/', $path) !== 1) {
+                return null;
+            }
+            $normalized[$scene] = $path;
+        }
+
+        return $normalized;
+    }
+
+    public static function pathForSet(string $setKey, string $scene): ?string
+    {
+        if (!in_array($scene, self::SCENES, true)) {
+            return null;
+        }
+
+        return self::pathsForSet($setKey)[$scene] ?? null;
+    }
+
+    public static function setKeyForPath(?string $path): ?string
+    {
+        $path = '/' . ltrim(trim((string) $path), '/');
+        foreach (array_keys((array) config('character_icon_sets.sets', [])) as $setKey) {
+            $paths = self::pathsForSet((string) $setKey);
+            if ($paths !== null && in_array($path, $paths, true)) {
+                return (string) $setKey;
+            }
+        }
+
+        return null;
+    }
+
+    public static function isExclusive(?string $path): bool
+    {
+        return self::setKeyForPath($path) !== null;
     }
 
     private static function numberFromPath(string $path): int

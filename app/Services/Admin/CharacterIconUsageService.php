@@ -15,6 +15,7 @@ class CharacterIconUsageService
         $selectablePaths = array_fill_keys($paths, true);
         $counts = array_fill_keys($paths, 0);
         $totalCharacters = 0;
+        $exclusiveCharacters = 0;
         $unrecognizedCharacters = 0;
 
         $groupedCounts = Character::query()
@@ -32,6 +33,12 @@ class CharacterIconUsageService
         foreach ($groupedCounts as $groupedCount) {
             $usageCount = (int) $groupedCount->usage_count;
             $totalCharacters += $usageCount;
+            if (CharacterIconCatalog::isExclusive($groupedCount->icon_path)) {
+                $exclusiveCharacters += $usageCount;
+
+                continue;
+            }
+
             $path = $this->selectablePath($groupedCount->icon_path, $selectablePaths);
             if ($path === null) {
                 $unrecognizedCharacters += $usageCount;
@@ -66,6 +73,7 @@ class CharacterIconUsageService
             'selectable_icon_count' => count($rows),
             'used_icon_count' => $usedIconCount,
             'unused_icon_count' => count($rows) - $usedIconCount,
+            'exclusive_character_count' => $exclusiveCharacters,
             'unrecognized_character_count' => $unrecognizedCharacters,
             'rows' => $rows,
         ];

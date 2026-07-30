@@ -6,6 +6,8 @@ use Livewire\Component;
 use App\Services\AreaService;
 use App\Services\PublicLogService;
 use App\Services\CharacterGoalService;
+use App\Services\CharacterIconDesignService;
+use App\Services\CharacterIconSetService;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
@@ -59,7 +61,7 @@ class MainScreen extends Component
     public function updateIcon($iconPath)
     {
         if ($this->character) {
-            if (CharacterIconCatalog::isSelectable($iconPath)) {
+            if (app(CharacterIconSetService::class)->canSelect($this->character, $iconPath)) {
                 $this->character->update(['icon_path' => CharacterIconCatalog::normalize($iconPath)]);
                 $this->closeIconModal();
                 $this->dispatch('character-updated');
@@ -609,7 +611,9 @@ class MainScreen extends Component
             'targetAreaId' => $targetAreaId,
             'targetAreaPurpose' => $targetAreaPurpose,
             'additionalDungeons' => $additionalDungeons,
-            'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen) ? CharacterIconCatalog::paths() : [],
+            'characterIconPaths' => ($this->currentLocation === 'settings' || $this->isIconModalOpen)
+                ? app(CharacterIconSetService::class)->selectablePaths($this->character)
+                : [],
             'rankingSpotlightLeader' => $rankingSpotlightLeader,
             'mapInstitutePickup' => $mapInstitutePickup,
         ]);
@@ -778,6 +782,15 @@ class MainScreen extends Component
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'menu/menu_messages.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージをやり取りする', 'tab' => 'message', 'status' => 'active'],
             ['group' => '案内', 'name' => 'ヘルプ', 'icon_image' => 'menu/menu_help.webp', 'icon' => '📘', 'desc' => '遊び方や施設の説明を確認する', 'route' => 'town.guide', 'status' => 'active'],
             ['group' => '案内', 'name' => '不具合報告', 'icon_image' => 'icon/icon_033.webp', 'icon' => '!', 'desc' => '不具合や表示崩れを管理人へ報告する', 'route' => 'bug-reports.create', 'status' => 'active'],
+            ...(app(CharacterIconDesignService::class)->isEnabled() ? [[
+                'group' => '案内',
+                'name' => 'キャラアイコン制作',
+                'icon_image' => 'icon/icon_021.webp',
+                'icon' => '✦',
+                'desc' => 'ヒアリングシートと管理人との専用チャットを開く',
+                'route' => 'character-icon-design.show',
+                'status' => 'active',
+            ]] : []),
             ['group' => '設定', 'name' => '設定', 'icon_image' => 'menu/menu_settings.webp', 'icon' => '⚙️', 'desc' => '名前やアイコンなどを変更する', 'tab' => 'settings', 'status' => 'active'],
         ];
     }

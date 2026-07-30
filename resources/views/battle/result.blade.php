@@ -104,7 +104,10 @@
                             $enemyFamilyKey = (string) ($result['enemy']->family_key ?? '');
                             $enemyFamilyText = $enemyFamilyLabels[$enemyFamilyKey] ?? ($enemyFamilyKey !== '' ? $enemyFamilyKey : $enemyTypeText);
                             $enemyImagePath = $result['enemy_image_path'] ?? config('enemy_images')[(string) ($result['enemy']->name ?? '')] ?? null;
-                            $characterImagePath = $character->icon_path ?: \App\Support\CharacterIconCatalog::DEFAULT_ICON;
+                            $characterIconSetService = app(\App\Services\CharacterIconSetService::class);
+                            $characterImagePath = $characterIconSetService->pathFor($character, 'battle');
+                            $characterVictoryImagePath = $characterIconSetService->pathFor($character, 'victory');
+                            $characterDefeatImagePath = $characterIconSetService->pathFor($character, 'defeat');
                             $isStrongEnemy = in_array((string) ($result['enemy']->role_key ?? ''), ['strong', 'rare'], true);
                             $characterBattleImageClass = 'h-20 w-20';
                             $enemyBattleImageClass = ($isBoss || $isDungeonLord || $isSecretRealmLord || $isStrongEnemy)
@@ -557,9 +560,12 @@
 
                         @if($showGrowthCta)
                             <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
-                                <p class="text-sm font-bold text-amber-800">
-                                    レベルや職業を育てる、武器を進化させる、鍛冶・銘・種族特攻・持ち物を見直すことで攻略しやすくなります。
-                                </p>
+                                <div class="flex items-start gap-3">
+                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterDefeatImagePath) }}" alt="{{ $character->name }}の敗北時アイコン" class="h-14 w-14 shrink-0 object-contain">
+                                    <p class="text-sm font-bold text-amber-800">
+                                        レベルや職業を育てる、武器を進化させる、鍛冶・銘・種族特攻・持ち物を見直すことで攻略しやすくなります。
+                                    </p>
+                                </div>
                                 <div class="mt-2 flex flex-wrap gap-2">
                                     <a href="{{ route('smith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">装備を進化させる</a>
                                     <a href="{{ route('blacksmith.index') }}" class="rounded bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700">鍛冶で強化する</a>
@@ -816,9 +822,14 @@
                         {{-- 報酬・レベルアップ情報 --}}
                         @if(!$isDepthRetreat && ($result['result'] === 'victory' || $result['result'] === 'win'))
                             <div class="bg-amber-50 p-4 rounded-lg mb-6 border border-amber-200 shadow-sm -mx-3">
-                                <h3 class="text-lg font-bold text-amber-800 mb-2 flex items-center gap-1">
-                                    <img src="{{ asset($isTreasure ? 'images/icon/icon_012.webp' : 'images/icon/icon_010.webp') }}" alt="" class="w-5 h-5 object-contain"> {{ $isTreasure ? '宝箱の中身' : '獲得報酬' }}
-                                </h3>
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <h3 class="flex items-center gap-1 text-lg font-bold text-amber-800">
+                                        <img src="{{ asset($isTreasure ? 'images/icon/icon_012.webp' : 'images/icon/icon_010.webp') }}" alt="" class="w-5 h-5 object-contain"> {{ $isTreasure ? '宝箱の中身' : '獲得報酬' }}
+                                    </h3>
+                                    @unless($isTreasure)
+                                        <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($characterVictoryImagePath) }}" alt="{{ $character->name }}の勝利時アイコン" class="h-14 w-14 shrink-0 object-contain">
+                                    @endunless
+                                </div>
                                 @unless($isTreasure)
                                     @php
                                         $levelProgress = $result['progression']['level'] ?? null;

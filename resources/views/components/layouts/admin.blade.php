@@ -93,6 +93,7 @@
                     ['route' => 'admin.security-anomalies', 'label' => '異常検知・不正調査', 'abbr' => 'P1'],
                     ['route' => 'admin.players', 'label' => 'プレイヤー一覧', 'abbr' => 'P'],
                     ['route' => 'admin.bug-reports', 'label' => '不具合フォーム', 'abbr' => '!'],
+                    ['route' => 'admin.character-icon-design.index', 'active' => 'admin.character-icon-design.*', 'label' => 'キャラアイコン制作', 'abbr' => 'CI'],
                     ['route' => 'admin.user-investigation', 'label' => 'ユーザー調査', 'abbr' => 'U'],
                     ['route' => 'admin.player-controls', 'label' => '輝石付与・プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
@@ -139,8 +140,21 @@
         ];
 
         $activeGroupKey = collect($navGroups)
-            ->first(fn ($group) => collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route'])))['key'] ?? 'overview';
+            ->first(fn ($group) => collect($group['items'])->contains(
+                fn ($item) => request()->routeIs($item['active'] ?? $item['route'])
+            ))['key'] ?? 'overview';
         $mailNavActive = request()->routeIs($mailNavItem['route']);
+        $iconDesignUnreadCount = \Illuminate\Support\Facades\Schema::hasTable('character_icon_design_requests')
+            && \Illuminate\Support\Facades\Schema::hasTable('character_icon_design_messages')
+            ? \App\Models\CharacterIconDesignRequest::query()
+                ->where(function ($query) {
+                    $query->where('status', 'submitted')
+                        ->orWhereHas('messages', fn ($messageQuery) => $messageQuery
+                            ->where('sender_type', 'player')
+                            ->whereNull('read_by_admin_at'));
+                })
+                ->count()
+            : 0;
     @endphp
 
     <div class="admin-layout min-h-screen lg:flex"
@@ -169,7 +183,9 @@
                         </a>
                         @foreach($navGroups as $group)
                             @php
-                                $groupActive = collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route']));
+                                $groupActive = collect($group['items'])->contains(
+                                    fn ($item) => request()->routeIs($item['active'] ?? $item['route'])
+                                );
                             @endphp
                             <section class="rounded-md border {{ $groupActive ? 'border-amber-300/40 bg-amber-300/10' : 'border-white/10 bg-white/[0.03]' }}">
                                 <button type="button"
@@ -180,12 +196,14 @@
                                 </button>
                                 <div x-show="openGroup === @js($group['key'])" class="space-y-1 px-2 pb-2">
                                     @foreach($group['items'] as $item)
-                                        @php $active = request()->routeIs($item['route']); @endphp
+                                        @php $active = request()->routeIs($item['active'] ?? $item['route']); @endphp
                                         <a href="{{ route($item['route']) }}" class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">
                                             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $active ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200 group-hover:bg-white/15' }}">{{ $item['abbr'] }}</span>
                                             <span class="truncate">{{ $item['label'] }}</span>
                                             @if($item['route'] === 'admin.user-investigation')
                                                 <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
+                                            @elseif($item['route'] === 'admin.character-icon-design.index' && $iconDesignUnreadCount > 0)
+                                                <span class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $iconDesignUnreadCount > 99 ? '99+' : $iconDesignUnreadCount }}</span>
                                             @endif
                                         </a>
                                     @endforeach
@@ -322,7 +340,9 @@
                             </a>
                             @foreach($navGroups as $group)
                                 @php
-                                    $groupActive = collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route']));
+                                    $groupActive = collect($group['items'])->contains(
+                                        fn ($item) => request()->routeIs($item['active'] ?? $item['route'])
+                                    );
                                 @endphp
                                 <section class="rounded-md border {{ $groupActive ? 'border-amber-300/40 bg-amber-300/10' : 'border-white/10 bg-white/[0.03]' }}">
                                     <button type="button"
@@ -333,7 +353,7 @@
                                     </button>
                                     <div x-show="mobileOpenGroup === @js($group['key'])" class="space-y-1 px-2 pb-2">
                                         @foreach($group['items'] as $item)
-                                            @php $active = request()->routeIs($item['route']); @endphp
+                                            @php $active = request()->routeIs($item['active'] ?? $item['route']); @endphp
                                             <a href="{{ route($item['route']) }}"
                                                @click="mobileNavOpen = false"
                                                class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300' }}">
@@ -341,6 +361,8 @@
                                                 <span class="truncate">{{ $item['label'] }}</span>
                                                 @if($item['route'] === 'admin.user-investigation')
                                                     <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
+                                                @elseif($item['route'] === 'admin.character-icon-design.index' && $iconDesignUnreadCount > 0)
+                                                    <span class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $iconDesignUnreadCount > 99 ? '99+' : $iconDesignUnreadCount }}</span>
                                                 @endif
                                             </a>
                                         @endforeach

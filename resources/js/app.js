@@ -255,6 +255,273 @@ const showSubmitLockFeedback = (form, button) => {
     button.replaceChildren(spinner, label);
 };
 
+const initializeMultiImagePickers = () => {
+    document.querySelectorAll('[data-multi-image-picker]').forEach((picker) => {
+        if (picker.dataset.multiImagePickerReady === 'true') return;
+
+        const input = picker.querySelector('[data-multi-image-input]');
+        const buttonLabel = picker.querySelector('[data-multi-image-button-label]');
+        const feedback = picker.querySelector('[data-multi-image-feedback]');
+        const list = picker.querySelector('[data-multi-image-list]');
+        const maxFiles = Math.max(1, Number.parseInt(picker.dataset.maxFiles || '4', 10));
+
+        if (!(input instanceof HTMLInputElement) || !feedback || !list) return;
+
+        picker.dataset.multiImagePickerReady = 'true';
+        let selectedFiles = Array.from(input.files ?? []).slice(0, maxFiles);
+
+        const fileKey = (file) => [
+            file.name,
+            file.size,
+            file.type,
+            file.lastModified,
+        ].join(':');
+
+        const syncInputFiles = () => {
+            if (typeof DataTransfer !== 'function') return false;
+
+            const transfer = new DataTransfer();
+            selectedFiles.forEach((file) => transfer.items.add(file));
+            input.files = transfer.files;
+
+            return true;
+        };
+
+        const formatFileSize = (size) => {
+            if (size < 1024 * 1024) {
+                return `${Math.max(1, Math.round(size / 1024))}KB`;
+            }
+
+            return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+        };
+
+        const render = (message = null, failed = false) => {
+            list.replaceChildren();
+            list.classList.toggle('hidden', selectedFiles.length === 0);
+
+            selectedFiles.forEach((file, index) => {
+                const item = document.createElement('li');
+                item.className = 'flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2';
+
+                const summary = document.createElement('div');
+                summary.className = 'min-w-0';
+
+                const name = document.createElement('div');
+                name.className = 'truncate text-xs font-black text-slate-700';
+                name.textContent = file.name;
+
+                const size = document.createElement('div');
+                size.className = 'mt-0.5 text-[11px] font-bold text-slate-400';
+                size.textContent = formatFileSize(file.size);
+
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-600 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 active:scale-95';
+                removeButton.textContent = '外す';
+                removeButton.setAttribute('aria-label', `${file.name}を選択から外す`);
+                removeButton.addEventListener('click', () => {
+                    selectedFiles.splice(index, 1);
+                    syncInputFiles();
+                    render(`${file.name}を選択から外しました。`);
+                });
+
+                summary.append(name, size);
+                item.append(summary, removeButton);
+                list.append(item);
+            });
+
+            if (buttonLabel) {
+                buttonLabel.textContent = selectedFiles.length === 0 ? '画像を選択' : '画像を追加';
+            }
+
+            feedback.classList.toggle('text-rose-700', failed);
+            feedback.classList.toggle('text-slate-500', !failed);
+            feedback.textContent = message
+                ? `${message} 選択中 ${selectedFiles.length} / ${maxFiles}枚`
+                : selectedFiles.length === 0
+                    ? `画像は1枚ずつ追加できます。選択中 0 / ${maxFiles}枚`
+                    : `続けて画像を追加できます。選択中 ${selectedFiles.length} / ${maxFiles}枚`;
+        };
+
+        input.addEventListener('change', () => {
+            const incomingFiles = Array.from(input.files ?? []);
+
+            if (typeof DataTransfer !== 'function') {
+                selectedFiles = incomingFiles.slice(0, maxFiles);
+                render(
+                    incomingFiles.length > maxFiles ? `最大${maxFiles}枚です。超過分は追加できませんでした。` : null,
+                    incomingFiles.length > maxFiles
+                );
+                return;
+            }
+
+            const selectedKeys = new Set(selectedFiles.map(fileKey));
+            let duplicateCount = 0;
+            let overflowCount = 0;
+
+            incomingFiles.forEach((file) => {
+                const key = fileKey(file);
+
+                if (selectedKeys.has(key)) {
+                    duplicateCount += 1;
+                    return;
+                }
+
+                if (selectedFiles.length >= maxFiles) {
+                    overflowCount += 1;
+                    return;
+                }
+
+                selectedFiles.push(file);
+                selectedKeys.add(key);
+            });
+
+            syncInputFiles();
+
+            if (overflowCount > 0) {
+                render(`最大${maxFiles}枚です。${overflowCount}枚は追加できませんでした。`, true);
+            } else if (duplicateCount > 0) {
+                render('同じ画像は追加済みです。');
+            } else {
+                render();
+            }
+        });
+
+        input.form?.addEventListener('reset', () => {
+            window.setTimeout(() => {
+                selectedFiles = [];
+                render();
+            }, 0);
+        });
+
+        syncInputFiles();
+        render();
+    });
+};
+
+const initializeCharacterIconDesignAutosave = () => {
+    document.querySelectorAll('form[data-character-icon-autosave]').forEach((form) => {
+        if (form.dataset.characterIconAutosaveReady === 'true') return;
+
+        form.dataset.characterIconAutosaveReady = 'true';
+
+        const status = form.querySelector('[data-character-icon-autosave-status]');
+        const intentField = form.querySelector('[data-character-icon-intent]');
+        let timer = null;
+        let saving = false;
+        let queued = false;
+        let pendingSubmitter = null;
+
+        const rememberSubmitIntent = (submitter) => {
+            if (
+                !intentField
+                || !(submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement)
+                || submitter.name !== 'intent'
+                || !['draft', 'confirm'].includes(submitter.value)
+            ) {
+                return;
+            }
+
+            intentField.value = submitter.value;
+        };
+
+        const updateStatus = (message, failed = false) => {
+            if (!status) return;
+
+            status.textContent = message;
+            status.classList.toggle('text-rose-700', failed);
+            status.classList.toggle('text-slate-500', !failed);
+        };
+
+        const saveDraft = async () => {
+            if (saving) {
+                queued = true;
+                return;
+            }
+
+            saving = true;
+            queued = false;
+            updateStatus('下書きを保存中...');
+
+            const payload = new FormData(form);
+            payload.set('intent', 'draft');
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: payload,
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok || result.success === false) {
+                    throw new Error(result.message || '自動保存できませんでした。');
+                }
+
+                updateStatus('下書き保存済み');
+            } catch (error) {
+                updateStatus(
+                    error instanceof Error
+                        ? `${error.message}「下書きを保存」を押してください。`
+                        : '自動保存できませんでした。「下書きを保存」を押してください。',
+                    true
+                );
+            } finally {
+                saving = false;
+
+                if (pendingSubmitter !== null) {
+                    const submitter = pendingSubmitter;
+                    pendingSubmitter = null;
+
+                    if (submitter instanceof HTMLElement) {
+                        form.requestSubmit(submitter);
+                    } else {
+                        form.requestSubmit();
+                    }
+                    return;
+                }
+
+                if (queued) {
+                    void saveDraft();
+                }
+            }
+        };
+
+        const queueSave = (delay) => {
+            window.clearTimeout(timer);
+            queued = true;
+            updateStatus('変更内容を自動保存します...');
+            timer = window.setTimeout(() => {
+                queued = false;
+                void saveDraft();
+            }, delay);
+        };
+
+        form.addEventListener('input', () => queueSave(800));
+        form.addEventListener('change', () => queueSave(150));
+        form.addEventListener('click', (event) => {
+            const submitter = event.target instanceof Element
+                ? event.target.closest('[name="intent"]')
+                : null;
+            rememberSubmitIntent(submitter);
+        });
+        form.addEventListener('submit', (event) => {
+            rememberSubmitIntent(event.submitter);
+            window.clearTimeout(timer);
+            queued = false;
+
+            if (!saving) return;
+
+            event.preventDefault();
+            pendingSubmitter = event.submitter ?? false;
+            updateStatus('下書き保存の完了後に進みます...');
+        });
+    });
+};
+
 document.addEventListener('submit', (event) => {
     const form = event.target instanceof HTMLFormElement ? event.target : null;
     if (!form?.matches('form[data-submit-lock]') || event.defaultPrevented) return;
@@ -276,4 +543,15 @@ document.addEventListener('submit', (event) => {
 
 window.addEventListener('pageshow', () => {
     document.querySelectorAll('form[data-submit-lock]').forEach(restoreSubmitLock);
+    initializeMultiImagePickers();
+    initializeCharacterIconDesignAutosave();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    initializeMultiImagePickers();
+    initializeCharacterIconDesignAutosave();
+});
+document.addEventListener('livewire:navigated', () => {
+    initializeMultiImagePickers();
+    initializeCharacterIconDesignAutosave();
 });

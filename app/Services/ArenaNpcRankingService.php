@@ -147,7 +147,7 @@ class ArenaNpcRankingService
         $this->ensureRankings();
         $hasNpcRankings = Schema::hasTable('arena_npc_rankings');
 
-        $topPlayers = ArenaRanking::with(['character.jobClass'])
+        $topPlayers = ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
             ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->where('rank', '<=', $topLimit)
             ->orderBy('rank')
@@ -169,7 +169,7 @@ class ArenaNpcRankingService
             return ['top' => $top, 'targets' => collect()];
         }
 
-        $targetPlayers = ArenaRanking::with(['character.jobClass'])
+        $targetPlayers = ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
             ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->where('rank', '<', (int) $myRanking->rank)
             ->orderByDesc('rank')
@@ -395,7 +395,7 @@ class ArenaNpcRankingService
     {
         $this->ensureRankings();
 
-        $players = $this->mapPlayerEntries(ArenaRanking::with(['character.jobClass'])
+        $players = $this->mapPlayerEntries(ArenaRanking::with(['character.jobClass', 'character.iconEntitlements'])
             ->whereHas('character', fn ($query) => $query->visibleToPublic())
             ->get());
 
@@ -413,9 +413,18 @@ class ArenaNpcRankingService
         return $rankings->map(function (ArenaRanking $ranking): array {
             $character = $ranking->character;
             $profileService = app(CharacterProfileService::class);
+            $iconSetService = app(CharacterIconSetService::class);
             $profileFrameTheme = $character
                 ? $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme)
                 : 'standard';
+            $arenaShowcase = $character
+                ? $iconSetService->arenaShowcase($character)
+                : [
+                    'path' => CharacterIconCatalog::DEFAULT_ICON,
+                    'scene' => 'normal',
+                    'label' => '通常',
+                    'has_choices' => false,
+                ];
 
             return [
                 'type' => 'player',
@@ -427,7 +436,10 @@ class ArenaNpcRankingService
                 'power' => $this->playerPower($character),
                 'character' => $character,
                 'ranking' => $ranking,
-                'image_path' => CharacterIconCatalog::normalize($character?->icon_path),
+                'image_path' => $arenaShowcase['path'],
+                'showcase_scene' => $arenaShowcase['scene'],
+                'showcase_label' => $arenaShowcase['label'],
+                'has_showcase_choices' => $arenaShowcase['has_choices'],
                 'frame_image_path' => $profileService->frameImageForTheme($profileFrameTheme),
             ];
         });

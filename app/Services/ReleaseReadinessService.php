@@ -30,6 +30,7 @@ class ReleaseReadinessService
             'star_tree_tower' => $this->starTreeTowerIssues(),
             'ferdia_unlocked' => $this->ferdiaIssues(),
             'exploration_support' => $this->explorationSupportIssues(),
+            'character_icon_design' => $this->characterIconDesignIssues(),
             default => ["未対応の追加コンテンツです: {$contentKey}"],
         };
     }
@@ -117,6 +118,17 @@ class ReleaseReadinessService
         }
 
         return $issues;
+    }
+
+    /** @return array<int, string> */
+    private function characterIconDesignIssues(): array
+    {
+        return $this->missingTables([
+            'character_icon_design_requests',
+            'character_icon_design_messages',
+            'character_icon_design_message_attachments',
+            'character_icon_entitlements',
+        ]);
     }
 
     /** @param array<int, string> $tables

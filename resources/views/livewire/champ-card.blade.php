@@ -31,7 +31,11 @@
     @endphp
 
     <section wire:poll.60s
-             x-data="{ expanded: false }"
+             x-data="{
+                 expanded: false,
+                 champPoseIndex: 0,
+                 champPosePaths: @js($champIconPaths),
+             }"
              @visibilitychange.window="if (!document.hidden) { $wire.$refresh() }"
              @pageshow.window="$wire.$refresh()"
              class="w-full overflow-hidden rounded-lg border border-[#d4af37] bg-white shadow-[0_4px_14px_rgba(126,96,28,0.12)]">
@@ -53,9 +57,21 @@
         <div class="relative overflow-hidden bg-white px-3 py-2">
             <div class="relative flex items-center gap-3">
                 <div class="flex w-20 shrink-0 items-end justify-center">
-                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($champ->icon_path ?? '/images/chara/chara_001.webp') }}"
-                         alt="{{ $champ->player_name }}"
-                         class="h-20 w-16 object-contain drop-shadow-[0_2px_3px_rgba(15,23,42,0.25)]">
+                    @if($champHasPoseChoices)
+                        <button type="button"
+                                @click.stop="champPoseIndex = (champPoseIndex + 1) % champPosePaths.length"
+                                aria-label="チャンプ画像のポーズを切り替える"
+                                class="flex h-20 w-16 shrink-0 cursor-pointer items-center justify-center transition active:scale-95">
+                            <img src="{{ $champIconPaths[0] }}"
+                                 x-bind:src="champPosePaths[champPoseIndex]"
+                                 alt="{{ $champ->player_name }}"
+                                 class="h-full w-full object-contain drop-shadow-[0_2px_3px_rgba(15,23,42,0.25)]">
+                        </button>
+                    @else
+                        <img src="{{ $champIconPaths[0] }}"
+                             alt="{{ $champ->player_name }}"
+                             class="h-20 w-16 object-contain drop-shadow-[0_2px_3px_rgba(15,23,42,0.25)]">
+                    @endif
                     @if($valmonImagePath)
                         <img src="{{ $valmonImagePath }}"
                              alt="{{ $valmonName }}"

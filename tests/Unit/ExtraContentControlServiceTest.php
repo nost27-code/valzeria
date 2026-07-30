@@ -80,6 +80,15 @@ class ExtraContentControlServiceTest extends TestCase
         $this->assertFalse($service->isActive('exploration_support'));
     }
 
+    public function test_character_icon_design_is_disabled_by_default(): void
+    {
+        $service = app(ExtraContentControlService::class);
+
+        $this->assertArrayHasKey('character_icon_design', $service->allStatuses());
+        $this->assertFalse($service->isEnabled('character_icon_design'));
+        $this->assertFalse($service->isActive('character_icon_design'));
+    }
+
     public function test_active_only_during_configured_period(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-07-07 12:00:00', 'Asia/Tokyo'));

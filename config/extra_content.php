@@ -26,5 +26,13 @@ return [
             'default_enabled' => true,
             'setting_label' => '探索補助品 公開状態',
         ],
+        'character_icon_design' => [
+            'name' => 'キャラアイコン制作',
+            'category' => '追加機能',
+            'description' => 'ヒアリングシートの記入・提出と管理人との専用チャットを公開します。OFF中は冒険者メニューと直URLの両方から利用できません。',
+            'route' => 'character-icon-design.show',
+            'default_enabled' => env('CHARACTER_ICON_DESIGN_ENABLED', false),
+            'setting_label' => 'キャラアイコン制作 公開状態',
+        ],
     ],
 ];

@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\ArenaNpcRanking;
 use App\Models\Character;
 use App\Services\ArenaNpcRankingService;
+use App\Services\CharacterIconSetService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -17,6 +18,7 @@ use Livewire\Component;
 class ColosseumRanking extends Component
 {
     public ?array $selectedNpc = null;
+    public ?string $arenaShowcaseMessage = null;
 
     public function mount(): void
     {
@@ -69,6 +71,25 @@ class ColosseumRanking extends Component
     public function closeNpcModal(): void
     {
         $this->selectedNpc = null;
+    }
+
+    public function cycleMyArenaShowcase(): void
+    {
+        $this->arenaShowcaseMessage = null;
+        $character = Auth::user()->currentCharacter();
+        if ($character === null) {
+            return;
+        }
+
+        try {
+            $showcase = app(CharacterIconSetService::class)->cycleArenaShowcase($character);
+        } catch (\RuntimeException $e) {
+            $this->arenaShowcaseMessage = $e->getMessage();
+
+            return;
+        }
+
+        $this->arenaShowcaseMessage = "闘技場の表示を「{$showcase['label']}」に変更しました。";
     }
 
     public function render()

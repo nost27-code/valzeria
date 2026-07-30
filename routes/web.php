@@ -237,6 +237,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware(\App\Http\Middleware\CheckCharacterSelected::class)->group(function () {
         Route::get('/bug-reports/create', [\App\Http\Controllers\BugReportController::class, 'create'])->name('bug-reports.create');
         Route::post('/bug-reports', [\App\Http\Controllers\BugReportController::class, 'store'])->name('bug-reports.store');
+        Route::get('/character-icon-design', [\App\Http\Controllers\CharacterIconDesignController::class, 'show'])->name('character-icon-design.show');
+        Route::post('/character-icon-design/form', [\App\Http\Controllers\CharacterIconDesignController::class, 'saveForm'])->name('character-icon-design.form.save');
+        Route::get('/character-icon-design/confirm', [\App\Http\Controllers\CharacterIconDesignController::class, 'confirm'])->name('character-icon-design.form.confirm');
+        Route::post('/character-icon-design/submit', [\App\Http\Controllers\CharacterIconDesignController::class, 'submit'])->name('character-icon-design.form.submit');
+        Route::post('/character-icon-design/{designRequest}/messages', [\App\Http\Controllers\CharacterIconDesignController::class, 'sendMessage'])->name('character-icon-design.messages.store');
+        Route::get('/character-icon-design/attachments/{attachment}', [\App\Http\Controllers\CharacterIconDesignController::class, 'attachment'])->name('character-icon-design.attachments.show');
         Route::get('/battle/result', [BattleController::class, 'showResult'])->name('battle.result');
         Route::get('/battle/pvp-result', [BattleController::class, 'showPvpResult'])->name('battle.pvp_result');
         
@@ -556,6 +562,11 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/contact-messages', \App\Livewire\Admin\ContactMessageManager::class)->name('admin.contact-messages');
     Route::get('/admin/bug-reports', \App\Livewire\Admin\BugReportManager::class)->name('admin.bug-reports');
     Route::get('/admin/bug-reports/attachments/{attachment}', [\App\Http\Controllers\BugReportController::class, 'attachment'])->name('admin.bug-reports.attachments.show');
+    Route::get('/admin/character-icon-design', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'index'])->name('admin.character-icon-design.index');
+    Route::get('/admin/character-icon-design/{designRequest}', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'show'])->name('admin.character-icon-design.show');
+    Route::patch('/admin/character-icon-design/{designRequest}/status', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'updateStatus'])->name('admin.character-icon-design.status.update');
+    Route::post('/admin/character-icon-design/{designRequest}/messages', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'sendMessage'])->name('admin.character-icon-design.messages.store');
+    Route::get('/admin/character-icon-design/attachments/{attachment}', [\App\Http\Controllers\Admin\CharacterIconDesignController::class, 'attachment'])->name('admin.character-icon-design.attachments.show');
     Route::get('/admin/npc-market-analytics', \App\Livewire\Admin\NpcMarketAnalyticsManager::class)->name('admin.npc-market-analytics');
     Route::get('/admin/equipment-market', [\App\Http\Controllers\Admin\EquipmentMarketAdminController::class, 'index'])->name('admin.equipment-market.index');
     Route::post('/admin/equipment-market/{listing}/cancel', [\App\Http\Controllers\Admin\EquipmentMarketAdminController::class, 'cancel'])->name('admin.equipment-market.cancel');

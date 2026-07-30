@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-character-icon-design-off-release',
+        'date' => '2026-07-30',
+        'category' => 'internal',
+        'title' => 'キャラアイコン制作機能を既定OFFで追加',
+        'detail' => '40輝石で提出するヒアリングシート、管理人との専用チャット、限定4ポーズアイコンの付与・表示機能を追加しました。プレイヤー公開は既定OFFで、追加コンテンツ管理からONにするまで冒険者メニューと直URLを閉じています。',
+    ],
+    [
         'id' => '2026-07-30-weapon-trait-picker-filters',
         'date' => '2026-07-30',
         'category' => 'changed',

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Admin\AdminDashboard;
 use App\Models\Character;
+use App\Models\CharacterIconEntitlement;
 use App\Models\User;
 use App\Services\Admin\CharacterIconUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +21,7 @@ class CharacterIconUsageAnalyticsTest extends TestCase
         $secondUser = User::factory()->create(['role' => 'user']);
         $thirdUser = User::factory()->create(['role' => 'user']);
         $unknownIconUser = User::factory()->create(['role' => 'user']);
+        $exclusiveIconUser = User::factory()->create(['role' => 'user']);
         $adminUser = User::factory()->create(['role' => 'admin']);
         $testerUser = User::factory()->create([
             'role' => 'user',
@@ -30,16 +32,26 @@ class CharacterIconUsageAnalyticsTest extends TestCase
         $this->createCharacter($secondUser, '/images/chara/chara_002.webp');
         $this->createCharacter($thirdUser, null);
         $this->createCharacter($unknownIconUser, '/images/chara/chara_999.webp');
+        $exclusiveCharacter = $this->createCharacter(
+            $exclusiveIconUser,
+            '/images/chara/exclusive/exclusive_000/01_normal.webp'
+        );
+        CharacterIconEntitlement::query()->create([
+            'character_id' => $exclusiveCharacter->id,
+            'icon_set_key' => 'exclusive_000',
+            'granted_at' => now(),
+        ]);
         $this->createCharacter($adminUser, '/images/chara/chara_003.webp');
         $this->createCharacter($testerUser, '/images/chara/chara_004.webp');
 
         $summary = app(CharacterIconUsageService::class)->summary();
         $rows = collect($summary['rows'])->keyBy('number');
 
-        $this->assertSame(4, $summary['total_characters']);
+        $this->assertSame(5, $summary['total_characters']);
         $this->assertSame(267, $summary['selectable_icon_count']);
         $this->assertSame(2, $summary['used_icon_count']);
         $this->assertSame(265, $summary['unused_icon_count']);
+        $this->assertSame(1, $summary['exclusive_character_count']);
         $this->assertSame(1, $summary['unrecognized_character_count']);
         $this->assertSame(1, $rows[1]['count']);
         $this->assertSame(2, $rows[2]['count']);

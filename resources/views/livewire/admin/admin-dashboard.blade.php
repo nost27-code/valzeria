@@ -93,7 +93,7 @@
         </div>
 
         @if($characterIconUsage)
-            <div class="grid grid-cols-2 gap-3 border-b border-slate-100 p-4 sm:grid-cols-4">
+            <div class="grid grid-cols-2 gap-3 border-b border-slate-100 p-4 sm:grid-cols-5">
                 <div class="rounded-md bg-slate-50 p-3">
                     <div class="text-[11px] font-black text-slate-500">集計キャラクター</div>
                     <div class="mt-1 text-xl font-black text-slate-950">{{ number_format($characterIconUsage['total_characters']) }}人</div>
@@ -109,6 +109,10 @@
                 <div class="rounded-md bg-rose-50 p-3">
                     <div class="text-[11px] font-black text-rose-700">未使用</div>
                     <div class="mt-1 text-xl font-black text-rose-800">{{ number_format($characterIconUsage['unused_icon_count']) }}種</div>
+                </div>
+                <div class="rounded-md bg-violet-50 p-3">
+                    <div class="text-[11px] font-black text-violet-700">限定利用中</div>
+                    <div class="mt-1 text-xl font-black text-violet-800">{{ number_format($characterIconUsage['exclusive_character_count'] ?? 0) }}人</div>
                 </div>
             </div>
             @if($characterIconUsage['unrecognized_character_count'] > 0)

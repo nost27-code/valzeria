@@ -5,7 +5,9 @@ namespace App\Livewire;
 use App\Models\PlayerValmon;
 use App\Models\Character;
 use App\Services\ChampBattleService;
+use App\Services\CharacterIconSetService;
 use App\Services\StorageCapacityService;
+use App\Support\CharacterIconCatalog;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -17,8 +19,11 @@ class ChampCard extends Component
     {
     }
 
-    public function render(ChampBattleService $champBattleService, StorageCapacityService $storageCapacityService)
-    {
+    public function render(
+        ChampBattleService $champBattleService,
+        StorageCapacityService $storageCapacityService,
+        CharacterIconSetService $characterIconSetService,
+    ) {
         $character = Auth::check() ? Auth::user()->currentCharacter() : null;
         $champSummary = $character ? $champBattleService->summary($character) : null;
         $storageSummary = $character ? $storageCapacityService->summary($character) : null;
@@ -31,22 +36,37 @@ class ChampCard extends Component
 
         $champValmon = null;
         $champComment = null;
+        $champIconPaths = [
+            CharacterIconCatalog::versionedAsset(
+                $champSummary['champ']->icon_path ?? CharacterIconCatalog::DEFAULT_ICON
+            ),
+        ];
         $champCharacterId = $champSummary['champ']->character_id ?? null;
         if ($champCharacterId) {
             $champValmon = PlayerValmon::where('character_id', $champCharacterId)
                 ->where('is_partner', true)
                 ->with('master')
                 ->first();
-            $champComment = Character::query()
-                ->whereKey($champCharacterId)
-                ->value('profile_comment');
-            $champComment = trim((string) $champComment) !== '' ? trim((string) $champComment) : null;
+            $champCharacter = Character::query()
+                ->with('iconEntitlements')
+                ->find($champCharacterId);
+            if ($champCharacter) {
+                $champComment = trim((string) $champCharacter->profile_comment);
+                $champComment = $champComment !== '' ? $champComment : null;
+                $resolvedPaths = $characterIconSetService->resolvedPaths($champCharacter);
+                $champIconPaths = array_map(
+                    fn (string $path): string => CharacterIconCatalog::versionedAsset($path),
+                    array_values($resolvedPaths),
+                );
+            }
         }
 
         return view('livewire.champ-card', [
             'champSummary' => $champSummary,
             'champValmon'  => $champValmon,
             'champComment' => $champComment,
+            'champIconPaths' => $champIconPaths,
+            'champHasPoseChoices' => count(array_unique($champIconPaths)) > 1,
             'storageIsFull' => $storageIsFull,
             'storageFullMessage' => $storageFullMessage,
         ]);
