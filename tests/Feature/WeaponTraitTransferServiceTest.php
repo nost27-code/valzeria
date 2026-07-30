@@ -17,7 +17,7 @@ class WeaponTraitTransferServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_candidates_include_the_item_name_protection_action_url_and_effect_lines(): void
+    public function test_candidates_include_the_item_name_sort_values_protection_action_url_and_effect_lines(): void
     {
         $character = $this->createCharacter(100_000);
         [$power, , $dragon] = $this->affixes();
@@ -27,6 +27,8 @@ class WeaponTraitTransferServiceTest extends TestCase
         $payload = collect($candidates['engraving_transfer']['base_options'])->firstWhere('id', $weapon->id);
 
         $this->assertSame($weapon->item->name, $payload['item_name']);
+        $this->assertSame((int) $weapon->item->weapon_rank_sort, $payload['rank_sort']);
+        $this->assertSame($weapon->created_at->getTimestamp(), $payload['created_at_timestamp']);
         $this->assertSame(route('equipment.lock', $weapon), $payload['lock_url']);
         $this->assertContains('攻撃 +100', $payload['base_performance_lines']);
         $this->assertNotEmpty($payload['engraving_effect_lines']);

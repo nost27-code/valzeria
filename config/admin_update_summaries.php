@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-weapon-trait-picker-filters',
+        'date' => '2026-07-30',
+        'category' => 'changed',
+        'title' => '銘・特攻の装備選択を探しやすく改善',
+        'detail' => '銘・特攻・耐性を鍛える装備選択で、装備名の検索、種類・状態・品質・特性による絞り込み、ランクや銘段階などの並び替えができるようになりました。',
+    ],
+    [
         'id' => '2026-07-30-colosseum-ranker-character-display',
         'date' => '2026-07-30',
         'category' => 'changed',

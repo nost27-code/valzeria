@@ -307,11 +307,17 @@ class WeaponTraitTransferService
             'display_name_without_rank' => $characterItem->displayName(false),
             'lock_url' => route('equipment.lock', $characterItem),
             'rank' => $this->equipmentRank($characterItem),
+            'rank_sort' => match ($characterItem->item?->type) {
+                'weapon' => (int) ($characterItem->item?->weapon_rank_sort ?? 0),
+                'armor' => (int) ($characterItem->item?->armor_rank_sort ?? 0),
+                default => 0,
+            },
             'weapon_category' => $characterItem->item
                 ? (app(EquipmentPermissionService::class)->categoryLabel($characterItem->item) ?? '不明')
                 : '不明',
             'quality' => (string) ($characterItem->affix_quality ?: 'normal'),
             'enhance_level' => (int) $characterItem->enhance_level,
+            'created_at_timestamp' => (int) ($characterItem->created_at?->getTimestamp() ?? $characterItem->id),
             'base_performance_lines' => $characterItem->basePerformanceLines(),
             'engraving_effect_lines' => $characterItem->engravingEffectLines(),
             'slayer_effect_lines' => $characterItem->slayerEffectLines(),

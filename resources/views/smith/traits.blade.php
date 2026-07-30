@@ -201,8 +201,65 @@
                                 <button type="button" @click="picker = null" class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-slate-200" aria-label="装備選択を閉じる">×</button>
                             </header>
                             <div class="max-h-[calc(100vh-10rem)] space-y-2 overflow-y-auto p-4 sm:p-5">
+                                <div class="rounded-lg border border-amber-100 bg-amber-50/60 p-3">
+                                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                        <label class="sm:col-span-2">
+                                            <span class="mb-1 block text-[11px] font-bold text-amber-800">装備を探す</span>
+                                            <input
+                                                type="search"
+                                                x-model.debounce.150ms="pickerQuery"
+                                                placeholder="装備名・装備種・ランク・銘・特攻を入力"
+                                                class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                        </label>
+                                        <label>
+                                            <span class="mb-1 block text-[11px] font-bold text-amber-800">並び替え</span>
+                                            <select x-model="pickerSort" class="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100">
+                                                <option value="default">おすすめ順</option>
+                                                <option value="rank_desc">ランクが高い順</option>
+                                                <option value="name_asc">名前順</option>
+                                                <option value="newest">新着順</option>
+                                                <option value="rank_asc">ランクが低い順</option>
+                                                <option value="quality_desc">品質が高い順</option>
+                                                <option value="prefix_desc">銘段階が高い順</option>
+                                                <option value="suffix_desc">特攻・耐性段階が高い順</option>
+                                                <option value="enhance_desc">強化値が高い順</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <span class="mr-1 text-[11px] font-bold text-amber-800">種類</span>
+                                        <button type="button" @click="pickerType = 'all'" :class="pickerType === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                                        <button type="button" @click="pickerType = 'weapon'" :class="pickerType === 'weapon' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">武器</button>
+                                        <button type="button" @click="pickerType = 'armor'" :class="pickerType === 'armor' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">防具</button>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <span class="mr-1 text-[11px] font-bold text-amber-800">状態</span>
+                                        <button type="button" @click="pickerStatus = 'all'" :class="pickerStatus === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                                        <button type="button" @click="pickerStatus = 'equipped'" :class="pickerStatus === 'equipped' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">装備中</button>
+                                        <button type="button" @click="pickerStatus = 'locked'" :class="pickerStatus === 'locked' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">保護中</button>
+                                        <button type="button" @click="pickerStatus = 'ready'" :class="pickerStatus === 'ready' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold" x-text="picker === 'material' ? '素材に使える' : '未装備・未保護'"></button>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <span class="mr-1 text-[11px] font-bold text-amber-800">品質</span>
+                                        <button type="button" @click="pickerQuality = 'all'" :class="pickerQuality === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                                        <button type="button" @click="pickerQuality = 'excellent'" :class="pickerQuality === 'excellent' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">逸品</button>
+                                        <button type="button" @click="pickerQuality = 'good'" :class="pickerQuality === 'good' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">良品</button>
+                                        <button type="button" @click="pickerQuality = 'normal'" :class="pickerQuality === 'normal' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">通常品</button>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <span class="mr-1 text-[11px] font-bold text-amber-800">特性</span>
+                                        <button type="button" @click="pickerTrait = 'all'" :class="pickerTrait === 'all' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">すべて</button>
+                                        <button type="button" @click="pickerTrait = 'prefix'" :class="pickerTrait === 'prefix' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">銘あり</button>
+                                        <button type="button" @click="pickerTrait = 'suffix'" :class="pickerTrait === 'suffix' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特攻・耐性あり</button>
+                                        <button type="button" @click="pickerTrait = 'none'" :class="pickerTrait === 'none' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-white text-amber-800 hover:bg-amber-100'" class="rounded-full border px-2.5 py-1 text-[11px] font-bold">特性なし</button>
+                                    </div>
+                                    <div class="mt-3 flex items-center justify-between gap-3 border-t border-amber-100 pt-2">
+                                        <p class="text-xs font-bold text-amber-900">候補 <span x-text="pickerItems().length"></span>件</p>
+                                        <button x-show="pickerHasActiveFilters()" type="button" @click="resetPickerControls()" class="rounded border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100">条件をリセット</button>
+                                    </div>
+                                </div>
                                 <template x-if="pickerItems().length === 0">
-                                    <p class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">選べる装備がありません。</p>
+                                    <p class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500" x-text="pickerHasActiveFilters() ? '条件に合う装備がありません。' : '選べる装備がありません。'"></p>
                                 </template>
                                 <template x-for="item in pickerItems()" :key="item.id">
                                     <button type="button" @click="selectPickerItem(item)" :class="isPickerSelected(item) ? 'border-slate-900 bg-slate-100 ring-1 ring-slate-900' : (picker === 'material' ? 'border-orange-200 bg-orange-50/50 hover:border-orange-400' : 'border-slate-200 bg-white hover:border-slate-400')" class="w-full rounded-lg border p-3 text-left transition">
@@ -328,6 +385,12 @@
                 forgingAnimation: false,
                 forgingStep: 0,
                 picker: null,
+                pickerQuery: '',
+                pickerType: 'all',
+                pickerStatus: 'all',
+                pickerQuality: 'all',
+                pickerTrait: 'all',
+                pickerSort: 'default',
                 get activeData() {
                     return this.candidates[this.kind];
                 },
@@ -335,10 +398,87 @@
                     this.kind = kind;
                     this.materialId = '';
                     this.picker = null;
+                    this.resetPickerControls();
                     this.confirmation = null;
                 },
                 openPicker(target) {
+                    this.resetPickerControls();
                     this.picker = target;
+                },
+                resetPickerControls() {
+                    this.pickerQuery = '';
+                    this.pickerType = 'all';
+                    this.pickerStatus = 'all';
+                    this.pickerQuality = 'all';
+                    this.pickerTrait = 'all';
+                    this.pickerSort = 'default';
+                },
+                pickerHasActiveFilters() {
+                    return this.pickerQuery !== ''
+                        || this.pickerType !== 'all'
+                        || this.pickerStatus !== 'all'
+                        || this.pickerQuality !== 'all'
+                        || this.pickerTrait !== 'all'
+                        || this.pickerSort !== 'default';
+                },
+                normalizePickerText(value) {
+                    return String(value || '').toLocaleLowerCase('ja-JP').replace(/[\s　]+/g, '');
+                },
+                pickerSearchText(item) {
+                    return [
+                        item.display_name,
+                        item.display_name_without_rank,
+                        item.item_name,
+                        item.equipment_label,
+                        item.weapon_category,
+                        item.rank ? `${item.rank}ランク Rank ${item.rank}` : '',
+                        item.engraving?.label,
+                        item.slayer?.label,
+                        item.suffix_trait_label,
+                    ].filter(Boolean).join(' ');
+                },
+                matchesPickerItem(item) {
+                    const query = this.normalizePickerText(this.pickerQuery);
+                    const searchText = this.normalizePickerText(this.pickerSearchText(item));
+                    const hasPrefix = Number(item.engraving?.id || 0) > 0;
+                    const hasSuffix = Number(item.slayer?.id || 0) > 0;
+
+                    return (!query || searchText.includes(query))
+                        && (this.pickerType === 'all' || item.item_type === this.pickerType)
+                        && (
+                            this.pickerStatus === 'all'
+                            || (this.pickerStatus === 'equipped' && item.is_equipped)
+                            || (this.pickerStatus === 'locked' && item.is_locked)
+                            || (this.pickerStatus === 'ready' && !item.is_equipped && !item.is_locked && !item.is_market_listed)
+                        )
+                        && (this.pickerQuality === 'all' || item.quality === this.pickerQuality)
+                        && (
+                            this.pickerTrait === 'all'
+                            || (this.pickerTrait === 'prefix' && hasPrefix)
+                            || (this.pickerTrait === 'suffix' && hasSuffix)
+                            || (this.pickerTrait === 'none' && !hasPrefix && !hasSuffix)
+                        );
+                },
+                pickerQualitySort(item) {
+                    return { excellent: 2, good: 1, normal: 0 }[item.quality] || 0;
+                },
+                sortPickerItems(items) {
+                    if (this.pickerSort === 'default') return items;
+
+                    const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), 'ja');
+                    return items.sort((a, b) => {
+                        const nameCompare = compareText(a.display_name_without_rank || a.display_name, b.display_name_without_rank || b.display_name);
+                        if (this.pickerSort === 'name_asc') return nameCompare;
+                        if (this.pickerSort === 'newest') return Number(b.created_at_timestamp || b.id) - Number(a.created_at_timestamp || a.id) || nameCompare;
+                        if (this.pickerSort === 'rank_asc') return Number(a.rank_sort || 0) - Number(b.rank_sort || 0) || nameCompare;
+                        if (this.pickerSort === 'rank_desc') return Number(b.rank_sort || 0) - Number(a.rank_sort || 0) || nameCompare;
+                        if (this.pickerSort === 'quality_desc') return this.pickerQualitySort(b) - this.pickerQualitySort(a) || Number(b.rank_sort || 0) - Number(a.rank_sort || 0) || nameCompare;
+                        if (this.pickerSort === 'prefix_desc') return Number(b.engraving?.level || 0) - Number(a.engraving?.level || 0) || this.pickerQualitySort(b) - this.pickerQualitySort(a) || nameCompare;
+                        if (this.pickerSort === 'suffix_desc') return Number(b.slayer?.level || 0) - Number(a.slayer?.level || 0) || this.pickerQualitySort(b) - this.pickerQualitySort(a) || nameCompare;
+                        if (this.pickerSort === 'enhance_desc') return Number(b.enhance_level || 0) - Number(a.enhance_level || 0) || Number(b.rank_sort || 0) - Number(a.rank_sort || 0) || nameCompare;
+
+                        return 0;
+                    });
                 },
                 pickerItems() {
                     const options = this.picker === 'base'
@@ -346,7 +486,11 @@
                         : this.activeData.material_options;
                     const otherId = this.picker === 'base' ? this.materialId : this.baseId;
 
-                    return options.filter((item) => Number(item.id) !== Number(otherId));
+                    const matches = options
+                        .filter((item) => Number(item.id) !== Number(otherId))
+                        .filter((item) => this.matchesPickerItem(item));
+
+                    return this.sortPickerItems(matches);
                 },
                 pickerTitle() {
                     return this.picker === 'base' ? '残したいベース装備を選ぶ' : '消費する素材装備を選ぶ';
