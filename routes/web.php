@@ -506,17 +506,24 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/private-replies/status', function () {
         $logService = app(\App\Services\PublicLogService::class);
         $pendingCount = $logService->pendingAdminReplyCount();
-        $latestReply = $logService->pendingAdminReplies(1)->first();
-        $targetUserId = $latestReply?->character?->user_id;
+        $pendingReplies = $logService->pendingAdminReplies(3);
+        $replies = $pendingReplies->map(function ($reply): array {
+            $targetUserId = $reply->character?->user_id;
 
-        return response()->json([
-            'pending_count' => $pendingCount,
-            'latest_reply' => $latestReply ? [
-                'character_name' => $latestReply->character?->name ?? '冒険者',
+            return [
+                'character_name' => $reply->character?->name ?? '冒険者',
+                'message' => \Illuminate\Support\Str::limit((string) $reply->message, 90),
+                'replied_at' => $reply->created_at?->format('Y/m/d H:i') ?? '',
                 'url' => $targetUserId
                     ? route('admin.user-investigation', ['user_id' => $targetUserId]) . '#investigation-message'
                     : route('admin.private-chat-logs'),
-            ] : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'pending_count' => $pendingCount,
+            'latest_reply' => $replies->first(),
+            'replies' => $replies,
             'checked_at' => now()->toIso8601String(),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     })->name('admin.private-replies.status');

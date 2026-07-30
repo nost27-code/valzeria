@@ -143,9 +143,9 @@
     @endphp
 
     <div class="admin-layout min-h-screen lg:flex"
-         x-data="{ mobileNavOpen: false, mobileOpenGroup: @js($activeGroupKey) }"
+         x-data="{ mobileNavOpen: false, mobileOpenGroup: @js($activeGroupKey), replyPopoverOpen: false }"
          x-init="document.documentElement.style.removeProperty('overflow'); document.body.style.removeProperty('overflow')"
-         @keydown.window.escape="mobileNavOpen = false">
+         @keydown.window.escape="mobileNavOpen = false; replyPopoverOpen = false">
         <aside class="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 lg:flex-col bg-slate-950 text-white shadow-2xl">
             <div class="flex h-full flex-col">
                 <div class="px-7 pt-7 pb-4">
@@ -225,17 +225,49 @@
                     <a href="{{ route('admin.dashboard') }}" class="text-sm font-black tracking-[0.14em] text-slate-950 sm:text-base sm:tracking-[0.18em]">
                         <span class="text-amber-500">VALZERIA</span> ADMIN
                     </a>
-                    <div class="flex shrink-0 items-center gap-2">
-                        <a id="admin-private-reply-bell"
-                           href="{{ route('admin.user-investigation') }}"
-                           class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
-                           aria-label="管理人個別メッセージの返信を確認"
-                           title="管理人個別メッセージの返信を確認">
+                    <div class="relative flex shrink-0 items-center gap-2">
+                        <button id="admin-private-reply-bell"
+                                type="button"
+                                @click="replyPopoverOpen = !replyPopoverOpen"
+                                :aria-expanded="replyPopoverOpen.toString()"
+                                aria-controls="admin-private-reply-popover"
+                                class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                                aria-label="管理人個別メッセージの返信を確認"
+                                title="管理人個別メッセージの返信を確認">
                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" class="h-5 w-5" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17H9.143m9.286 0H5.57c1.286-1.286 1.715-3.214 1.715-5.143 0-2.947 2.111-5.357 4.715-5.357s4.714 2.41 4.714 5.357c0 1.929.429 3.857 1.715 5.143ZM13.714 19.143a1.714 1.714 0 0 1-3.428 0" />
                             </svg>
                             <span data-admin-reply-badge hidden class="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black leading-none text-white ring-2 ring-white"></span>
-                        </a>
+                        </button>
+                        <section id="admin-private-reply-popover"
+                                 data-admin-reply-popover
+                                 x-show="replyPopoverOpen"
+                                 x-cloak
+                                 x-transition.origin.top.right
+                                 @click.outside="replyPopoverOpen = false"
+                                 role="dialog"
+                                 aria-labelledby="admin-private-reply-heading"
+                                 class="absolute right-0 top-12 z-50 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white text-left shadow-2xl">
+                            <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                                <div>
+                                    <h2 id="admin-private-reply-heading" class="text-sm font-black text-slate-950">未対応の返信</h2>
+                                    <p data-admin-reply-summary class="mt-0.5 text-[11px] font-bold text-slate-500">通知を確認中...</p>
+                                </div>
+                                <button type="button"
+                                        @click="replyPopoverOpen = false"
+                                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xl text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+                                        aria-label="通知一覧を閉じる">
+                                    ×
+                                </button>
+                            </div>
+                            <div data-admin-reply-list class="max-h-[min(60vh,28rem)] overflow-y-auto p-2">
+                                <p class="px-3 py-5 text-center text-sm font-bold text-slate-500">通知を確認中...</p>
+                            </div>
+                            <a href="{{ route('admin.user-investigation') }}"
+                               class="block border-t border-slate-200 px-4 py-3 text-center text-xs font-black text-slate-700 hover:bg-slate-50 hover:text-slate-950">
+                                ユーザー調査ですべて確認
+                            </a>
+                        </section>
                         <form action="{{ route('admin.logout') }}" method="POST" data-submit-lock data-loading-text="ログアウト中...">
                             @csrf
                             <button type="submit" class="rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700">
@@ -463,18 +495,63 @@
                 }
 
                 if (privateReplyCount <= 0) {
-                    bell.href = @js(route('admin.user-investigation'));
                     bell.setAttribute('aria-label', '管理人個別メッセージの返信を確認（未対応なし）');
                     bell.title = '管理人個別メッセージの返信を確認（未対応なし）';
+                } else {
+                    const latestReply = payload.latest_reply || {};
+                    const characterName = latestReply.character_name || '冒険者';
+                    const label = `${characterName}さんから返信があります（未対応${privateReplyCount}件）`;
+                    bell.setAttribute('aria-label', label);
+                    bell.title = label;
+                }
+
+                const summary = document.querySelector('[data-admin-reply-summary]');
+                if (summary) {
+                    summary.textContent = privateReplyCount > 0
+                        ? `新しい順に3件まで表示（全${privateReplyCount}件）`
+                        : '現在、未対応の返信はありません';
+                }
+
+                const list = document.querySelector('[data-admin-reply-list]');
+                if (!list) {
                     return;
                 }
 
-                const latestReply = payload.latest_reply || {};
-                const characterName = latestReply.character_name || '冒険者';
-                const label = `${characterName}さんから返信があります（未対応${privateReplyCount}件）`;
-                bell.href = latestReply.url || @js(route('admin.user-investigation'));
-                bell.setAttribute('aria-label', label);
-                bell.title = label;
+                list.replaceChildren();
+
+                const replies = Array.isArray(payload.replies) ? payload.replies : [];
+                if (replies.length === 0) {
+                    const empty = document.createElement('p');
+                    empty.className = 'px-3 py-5 text-center text-sm font-bold text-slate-500';
+                    empty.textContent = '未対応の返信はありません';
+                    list.appendChild(empty);
+                    return;
+                }
+
+                replies.forEach((reply) => {
+                    const link = document.createElement('a');
+                    link.href = reply.url || @js(route('admin.user-investigation'));
+                    link.className = 'block rounded-md px-3 py-3 transition hover:bg-rose-50 focus:bg-rose-50 focus:outline-none';
+
+                    const header = document.createElement('div');
+                    header.className = 'flex items-start justify-between gap-3';
+
+                    const name = document.createElement('span');
+                    name.className = 'min-w-0 truncate text-sm font-black text-slate-950';
+                    name.textContent = reply.character_name || '冒険者';
+
+                    const repliedAt = document.createElement('time');
+                    repliedAt.className = 'shrink-0 text-[10px] font-bold text-slate-500';
+                    repliedAt.textContent = reply.replied_at || '';
+
+                    const message = document.createElement('p');
+                    message.className = 'mt-1 line-clamp-2 break-words text-xs font-semibold leading-5 text-slate-600';
+                    message.textContent = reply.message || '';
+
+                    header.append(name, repliedAt);
+                    link.append(header, message);
+                    list.appendChild(link);
+                });
             };
 
             const pollMailBadge = async () => {

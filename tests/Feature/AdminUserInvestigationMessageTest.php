@@ -119,24 +119,24 @@ class AdminUserInvestigationMessageTest extends TestCase
         $this->assertSame(1, $logService->pendingAdminReplyCount());
         $this->assertSame('追加情報もあります。', $logService->pendingAdminReplies(1)->first()?->message);
 
-        $statusResponse = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->getJson(route('admin.private-replies.status'))
             ->assertOk()
             ->assertJsonPath('pending_count', 1)
             ->assertJsonPath('latest_reply.character_name', '返信通知対象')
+            ->assertJsonPath('latest_reply.message', '追加情報もあります。')
+            ->assertJsonPath('replies.0.message', '追加情報もあります。')
             ->assertJsonPath(
                 'latest_reply.url',
                 route('admin.user-investigation', ['user_id' => $targetUser->id]) . '#investigation-message'
             );
-        $this->assertArrayNotHasKey(
-            'message',
-            $statusResponse->json()['latest_reply']
-        );
 
         $this->get(route('admin.user-investigation', ['user_id' => $targetUser->id]))
             ->assertOk()
             ->assertSee('admin-private-reply-bell', false)
             ->assertSee('管理人個別メッセージの返信を確認')
+            ->assertSee('data-admin-reply-popover', false)
+            ->assertSee('ユーザー調査ですべて確認')
             ->assertSee('data-admin-reply-badge', false);
 
         $logService->addAdminPrivateMessage('追加情報を確認しました。', $character);
@@ -145,7 +145,35 @@ class AdminUserInvestigationMessageTest extends TestCase
         $this->getJson(route('admin.private-replies.status'))
             ->assertOk()
             ->assertJsonPath('pending_count', 0)
-            ->assertJsonPath('latest_reply', null);
+            ->assertJsonPath('latest_reply', null)
+            ->assertJsonCount(0, 'replies');
+    }
+
+    public function test_private_reply_status_returns_the_latest_three_pending_threads(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $logService = app(PublicLogService::class);
+
+        foreach (range(1, 4) as $index) {
+            $user = User::factory()->create();
+            $character = Character::query()->create([
+                'user_id' => $user->id,
+                'name' => "返信対象{$index}",
+                'explore_stamina' => 0,
+            ]);
+            $logService->addAdminPrivateReply("未対応返信{$index}", $character);
+        }
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.private-replies.status'))
+            ->assertOk()
+            ->assertJsonPath('pending_count', 4)
+            ->assertJsonCount(3, 'replies')
+            ->assertJsonPath('replies.0.character_name', '返信対象4')
+            ->assertJsonPath('replies.0.message', '未対応返信4')
+            ->assertJsonPath('replies.1.character_name', '返信対象3')
+            ->assertJsonPath('replies.2.character_name', '返信対象2')
+            ->assertJsonMissing(['character_name' => '返信対象1']);
     }
 
     public function test_private_reply_status_is_admin_only(): void

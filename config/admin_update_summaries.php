@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-30-admin-reply-bell-popover',
+        'date' => '2026-07-30',
+        'category' => 'internal',
+        'title' => '返信通知ベルで内容を一覧確認',
+        'detail' => '管理画面右上の通知ベルを押すと、未対応の冒険者返信を新しい順に3件まで確認し、そのまま個別調査を開けるようにしました。',
+    ],
+    [
         'id' => '2026-07-30-weekly-win-ranking-catchup',
         'date' => '2026-07-30',
         'category' => 'fixed',
