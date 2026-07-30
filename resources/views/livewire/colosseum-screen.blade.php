@@ -94,7 +94,7 @@
                                 && (int) ($top['character']?->id ?? 0) === (int) ($character?->id ?? 0);
                             $canCycleTopShowcase = $isMyTopRanking && !empty($top['has_showcase_choices']);
                             $placementClasses = match ($rank) {
-                                1 => 'col-span-2 col-start-3 row-start-1',
+                                1 => 'col-span-4 col-start-2 row-start-1',
                                 2 => 'col-span-2 col-start-2 row-start-2',
                                 3 => 'col-span-2 col-start-4 row-start-2',
                                 4 => 'col-span-2 col-start-1 row-start-3',
@@ -103,23 +103,29 @@
                                 default => 'col-span-2',
                             };
                             $portraitClasses = match (true) {
-                                $rank === 1 => 'h-24 w-24 sm:h-28 sm:w-28',
+                                $rank === 1 => 'h-28 w-28 sm:h-32 sm:w-32',
                                 in_array($rank, [2, 3], true) => 'h-20 w-20 sm:h-24 sm:w-24',
                                 default => 'h-16 w-16 sm:h-20 sm:w-20',
                             };
                         @endphp
                         <div class="{{ $placementClasses }} flex min-w-0 flex-col items-center text-center" role="listitem">
-                            <div class="mb-1 flex h-10 items-center justify-center" aria-label="{{ $rank }}位">
+                            <div class="{{ $rank >= 4 ? 'mb-1 h-8' : 'mb-1 h-10' }} flex w-full items-center justify-center" aria-label="{{ $rank }}位">
+                                @if($rank === 1)
+                                    <span aria-hidden="true" class="h-px w-8 bg-gradient-to-r from-transparent to-amber-400 sm:w-12"></span>
+                                @endif
                                 @if(in_array($rank, [1, 2, 3], true))
                                     <img
                                         src="{{ asset('images/icon/icon_100' . $rank . '.webp') }}"
                                         alt="{{ $rank }}位"
-                                        class="{{ $rank === 1 ? 'h-10 w-10' : 'h-9 w-9' }} object-contain drop-shadow"
+                                        class="{{ $rank === 1 ? 'mx-2 h-10 w-10' : 'h-9 w-9' }} object-contain drop-shadow"
                                     >
                                 @else
                                     <span class="flex h-7 min-w-7 items-center justify-center rounded-full bg-amber-700 px-1 text-[11px] font-black text-white shadow">
                                         {{ $rank }}位
                                     </span>
+                                @endif
+                                @if($rank === 1)
+                                    <span aria-hidden="true" class="h-px w-8 bg-gradient-to-l from-transparent to-amber-400 sm:w-12"></span>
                                 @endif
                             </div>
 
@@ -152,7 +158,7 @@
                                 {{ $top['name'] }}
                             </div>
                             <div class="mt-0.5 w-full truncate px-1 text-[10px] font-bold text-slate-500 sm:text-xs">
-                                Lv.{{ $top['level'] }} / {{ $top['job'] }}
+                                Lv{{ $top['level'] }}｜{{ $top['job'] }}
                             </div>
                             <div class="{{ $rank === 1 ? 'text-xs' : 'text-[10px] sm:text-xs' }} mt-1 whitespace-nowrap font-black text-amber-700">
                                 戦力 {{ isset($top['power']) ? number_format((int) $top['power']) : '？？？' }}

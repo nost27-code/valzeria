@@ -33,12 +33,14 @@ class ColosseumScreenPerformanceTest extends TestCase
 
         $this->assertIsString($viewSource);
         $this->assertStringContainsString('aria-label="闘技場上位6名"', $viewSource);
-        $this->assertStringContainsString("1 => 'col-span-2 col-start-3 row-start-1'", $viewSource);
+        $this->assertStringContainsString("1 => 'col-span-4 col-start-2 row-start-1'", $viewSource);
         $this->assertStringContainsString("2 => 'col-span-2 col-start-2 row-start-2'", $viewSource);
         $this->assertStringContainsString("3 => 'col-span-2 col-start-4 row-start-2'", $viewSource);
         $this->assertStringContainsString("6 => 'col-span-2 col-start-5 row-start-3'", $viewSource);
-        $this->assertStringContainsString("'h-24 w-24 sm:h-28 sm:w-28'", $viewSource);
-        $this->assertStringContainsString('class="mb-1 flex h-10 items-center justify-center" aria-label="{{ $rank }}位"', $viewSource);
+        $this->assertStringContainsString("'h-28 w-28 sm:h-32 sm:w-32'", $viewSource);
+        $this->assertStringContainsString("'mb-1 h-8' : 'mb-1 h-10'", $viewSource);
+        $this->assertStringContainsString('bg-gradient-to-r from-transparent to-amber-400', $viewSource);
+        $this->assertStringContainsString("Lv{{ \$top['level'] }}｜{{ \$top['job'] }}", $viewSource);
         $this->assertStringNotContainsString('absolute -bottom-1 -left-1', $viewSource);
     }
 }
