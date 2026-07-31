@@ -199,7 +199,12 @@
                                         @php $active = request()->routeIs($item['active'] ?? $item['route']); @endphp
                                         <a href="{{ route($item['route']) }}" class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">
                                             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $active ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200 group-hover:bg-white/15' }}">{{ $item['abbr'] }}</span>
-                                            <span class="truncate">{{ $item['label'] }}</span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="block truncate">{{ $item['label'] }}</span>
+                                                @if($item['route'] === 'admin.user-investigation')
+                                                    <span data-admin-reply-senders hidden class="mt-0.5 block truncate text-[10px] font-bold leading-tight {{ $active ? 'text-slate-700' : 'text-rose-300' }}"></span>
+                                                @endif
+                                            </span>
                                             @if($item['route'] === 'admin.user-investigation')
                                                 <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
                                             @elseif($item['route'] === 'admin.character-icon-design.index' && $iconDesignUnreadCount > 0)
@@ -358,7 +363,12 @@
                                                @click="mobileNavOpen = false"
                                                class="group flex items-center gap-3 rounded-md px-2.5 py-2.5 text-sm font-bold transition {{ $active ? 'bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'text-slate-300' }}">
                                                 <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $active ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200' }}">{{ $item['abbr'] }}</span>
-                                                <span class="truncate">{{ $item['label'] }}</span>
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="block truncate">{{ $item['label'] }}</span>
+                                                    @if($item['route'] === 'admin.user-investigation')
+                                                        <span data-admin-reply-senders hidden class="mt-0.5 block truncate text-[10px] font-bold leading-tight {{ $active ? 'text-slate-700' : 'text-rose-300' }}"></span>
+                                                    @endif
+                                                </span>
                                                 @if($item['route'] === 'admin.user-investigation')
                                                     <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
                                                 @elseif($item['route'] === 'admin.character-icon-design.index' && $iconDesignUnreadCount > 0)
@@ -576,10 +586,24 @@
             const updatePrivateReplyIndicators = (payload) => {
                 privateReplyCount = Math.max(0, Number.parseInt(payload.pending_count, 10) || 0);
                 const countLabel = privateReplyCount > 99 ? '99+' : String(privateReplyCount);
+                const replies = Array.isArray(payload.replies) ? payload.replies : [];
+                const senderNames = [...new Set(
+                    replies.map((reply) => reply.character_name || '冒険者')
+                )];
+                const remainingSenderCount = Math.max(0, privateReplyCount - senderNames.length);
+                const senderLabel = senderNames.length > 0
+                    ? `${senderNames.join('・')}${remainingSenderCount > 0 ? ` ほか${remainingSenderCount}名` : ''}`
+                    : '';
 
                 document.querySelectorAll('[data-admin-reply-badge]').forEach((badge) => {
                     badge.hidden = privateReplyCount <= 0;
                     badge.textContent = privateReplyCount > 0 ? countLabel : '';
+                });
+
+                document.querySelectorAll('[data-admin-reply-senders]').forEach((senders) => {
+                    senders.hidden = privateReplyCount <= 0 || senderLabel === '';
+                    senders.textContent = senderLabel === '' ? '' : `返信: ${senderLabel}`;
+                    senders.title = senderLabel;
                 });
 
                 const bell = document.getElementById('admin-private-reply-bell');
@@ -612,7 +636,6 @@
 
                 list.replaceChildren();
 
-                const replies = Array.isArray(payload.replies) ? payload.replies : [];
                 if (replies.length === 0) {
                     const empty = document.createElement('p');
                     empty.className = 'px-3 py-5 text-center text-sm font-bold text-slate-500';

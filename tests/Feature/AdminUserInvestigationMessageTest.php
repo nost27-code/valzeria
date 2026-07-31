@@ -146,6 +146,7 @@ class AdminUserInvestigationMessageTest extends TestCase
             ->assertSee('data-admin-reply-resolve-modal', false)
             ->assertSee('返信を対応済みにしますか？')
             ->assertDontSee('window.confirm', false)
+            ->assertSee('data-admin-reply-senders', false)
             ->assertSee('data-admin-reply-badge', false);
 
         $logService->addAdminPrivateMessage('追加情報を確認しました。', $character);

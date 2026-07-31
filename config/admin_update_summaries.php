@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-admin-reply-sender-names',
+        'date' => '2026-08-01',
+        'category' => 'internal',
+        'title' => 'ユーザー調査メニューに返信者名を表示',
+        'detail' => '管理人への未対応返信がある場合、ユーザー調査メニューで件数と返信した冒険者名を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-01-exclusive-character-icon-006-image-refresh',
         'date' => '2026-08-01',
         'category' => 'internal',
