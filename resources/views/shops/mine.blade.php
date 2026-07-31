@@ -95,11 +95,11 @@
 
                 <div class="overflow-hidden rounded-xl border-2 border-slate-200">
                     <button type="button" @click="openSection = openSection === 'weapons' ? null : 'weapons'" :aria-expanded="openSection === 'weapons'" class="flex w-full items-center justify-between gap-3 bg-slate-50 px-4 py-4 text-left">
-                        <span><span class="block text-base font-black text-slate-900">武器から選ぶ</span><span class="mt-1 block text-xs font-bold text-slate-500">出品可能な武器 {{ number_format($weapons->count()) }}本</span></span>
+                        <span><span class="block text-base font-black text-slate-900">装備から選ぶ</span><span class="mt-1 block text-xs font-bold text-slate-500">出品可能な装備 {{ number_format($weapons->count()) }}個</span></span>
                         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg font-black text-slate-600" x-text="openSection === 'weapons' ? '−' : '＋'">＋</span>
                     </button>
                     <div x-show="openSection === 'weapons'" x-cloak style="display: none;" class="border-t-2 border-slate-200 p-3">
-                        <p class="mb-3 text-xs font-bold text-slate-500">出品可能な銘・特攻付き武器だけが表示されます。</p>
+                        <p class="mb-3 text-xs font-bold text-slate-500">出品可能な銘・特攻付き武器と、銘・耐性付き防具だけが表示されます。</p>
                         <div class="space-y-3">
                         @forelse($weapons as $weapon)
                             @php($appraisal = $weapon->market_appraisal)
@@ -110,13 +110,13 @@
                                 @if($appraisal)
                                     <div class="mt-1 text-xs font-bold text-slate-500">査定範囲 {{ number_format($appraisal['minimum_price']) }}〜{{ number_format($appraisal['maximum_price']) }}G</div>
                                     <label class="mt-3 block rounded-lg bg-white p-2"><span class="text-xs font-black text-slate-700">販売価格（G）</span><input name="listing_price" type="number" min="{{ $appraisal['minimum_price'] }}" max="{{ $appraisal['maximum_price'] }}" value="{{ $appraisal['minimum_price'] }}" class="{{ $inputClass }}"></label>
-                                    <button class="mt-3 w-full rounded-lg bg-slate-800 px-3 py-3 text-sm font-black text-white">この武器を出品する</button>
+                                    <button class="mt-3 w-full rounded-lg bg-slate-800 px-3 py-3 text-sm font-black text-white">この装備を出品する</button>
                                 @else
-                                    <div class="mt-1 text-xs font-bold text-red-600">この武器は査定できません。</div>
+                                    <div class="mt-1 text-xs font-bold text-red-600">この装備は査定できません。</div>
                                 @endif
                             </form>
                         @empty
-                            <p class="rounded-lg border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500">出品できる武器はありません。</p>
+                            <p class="rounded-lg border border-dashed border-slate-200 p-3 text-sm font-bold text-slate-500">出品できる装備はありません。</p>
                         @endforelse
                         </div>
                     </div>

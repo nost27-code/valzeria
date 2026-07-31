@@ -12,9 +12,9 @@ class EquipmentMarketAppraisalService
     public function appraisal(CharacterItem $characterItem): array
     {
         $item = $characterItem->item;
-        $rank = strtoupper((string) ($item?->weapon_rank ?? ''));
+        $rank = strtoupper((string) ($item?->weapon_rank ?: $item?->armor_rank ?: ''));
         $rankValue = (int) config("equipment_market.weapon_rank_values.{$rank}", 0);
-        if ($rankValue <= 0) throw new RuntimeException('この武器は市場査定できません。');
+        if ($rankValue <= 0) throw new RuntimeException('この装備は市場査定できません。');
 
         $quality = (string) ($characterItem->affix_quality ?: 'normal');
         $qualityBps = (int) config("equipment_market.quality_multipliers_bps.{$quality}", 10000);
@@ -63,8 +63,8 @@ class EquipmentMarketAppraisalService
         }
         if ($characterItem->affix_suffix_id) {
             $traits[] = [
-                'key' => 'slayer',
-                'label' => '特攻',
+                'key' => $characterItem->item?->type === 'armor' ? 'resistance' : 'slayer',
+                'label' => $characterItem->item?->type === 'armor' ? '耐性' : '特攻',
                 'value' => $this->traitAppraisalValue($characterItem->effectiveAffixSuffixLevel()),
             ];
         }

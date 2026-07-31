@@ -181,10 +181,19 @@ class CharacterItem extends Model
 
     public function hasMarketableWeaponTrait(): bool
     {
-        return $this->item?->type === 'weapon'
-            && ($this->affix_prefix_id !== null
+        return $this->item?->type === 'weapon' && $this->hasMarketableEquipmentTrait();
+    }
+
+    public function hasMarketableEquipmentTrait(): bool
+    {
+        return match ($this->item?->type) {
+            'weapon' => $this->affix_prefix_id !== null
                 || $this->affix_suffix_id !== null
-                || $this->hasInnateKiller());
+                || $this->hasInnateKiller(),
+            'armor' => $this->affix_prefix_id !== null
+                || $this->affix_suffix_id !== null,
+            default => false,
+        };
     }
 
     /**

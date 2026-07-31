@@ -57,7 +57,7 @@ class EquipmentMarketController extends Controller
         $slayerOptions = EquipmentMarketListing::query()->active()->whereNotNull('slayer_type_id')
             ->select('slayer_type_id', 'item_snapshot')->get()
             ->unique('slayer_type_id')
-            ->map(fn ($l) => ['id' => $l->slayer_type_id, 'name' => $l->item_snapshot['slayer_name'] ?? "特攻#{$l->slayer_type_id}"])
+            ->map(fn ($l) => ['id' => $l->slayer_type_id, 'name' => $l->item_snapshot['slayer_name'] ?? "特攻・耐性#{$l->slayer_type_id}"])
             ->sortBy('name')->values();
         $categoryOptions = EquipmentMarketListing::query()->active()->whereNotNull('weapon_category')
             ->distinct()->orderBy('weapon_category')->pluck('weapon_category');
@@ -65,7 +65,7 @@ class EquipmentMarketController extends Controller
         $sellable = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])
             ->where('character_id', $character->id)->whereNull('market_listing_id')
             ->where('is_equipped', false)->where('is_locked', false)
-            ->whereHas('item', fn ($q) => $q->where('type', 'weapon')->where('is_tradeable', true))
+            ->whereHas('item', fn ($q) => $q->whereIn('type', ['weapon', 'armor'])->where('is_tradeable', true))
             ->where(fn ($q) => $q
                 ->whereNotNull('affix_prefix_id')
                 ->orWhereNotNull('affix_suffix_id')
@@ -106,7 +106,7 @@ class EquipmentMarketController extends Controller
         $data = $request->validate(['character_item_id' => ['required', 'integer', 'exists:character_items,id'], 'listing_price' => ['required', 'integer', 'min:1', 'max:999999999']]);
         $item = CharacterItem::findOrFail($data['character_item_id']);
         try {
-            $listing = $this->service->listWeapon($character, $item, (int) $data['listing_price']);
+            $listing = $this->service->listEquipment($character, $item, (int) $data['listing_price']);
         } catch (ValidationException $e) {
             throw $e;
         } catch (RuntimeException $e) {
@@ -125,11 +125,11 @@ class EquipmentMarketController extends Controller
         $character = Auth::user()->currentCharacter();
         if (! $character) return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         try {
-            $this->service->buyWeapon($character, $listing);
+            $this->service->buyEquipment($character, $listing);
         } catch (RuntimeException $e) {
             return redirect()->route('equipment-market.show', $listing)->with('error', $e->getMessage());
         }
-        return redirect()->route('equipment-market.index', ['tab' => 'history'])->with('status', '武器を購入しました。72時間は再出品できません。');
+        return redirect()->route('equipment-market.index', ['tab' => 'history'])->with('status', '装備を購入しました。72時間は再出品できません。');
     }
 
     public function cancel(EquipmentMarketListing $listing)

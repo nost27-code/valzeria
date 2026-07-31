@@ -72,7 +72,7 @@ class PlayerShopController extends Controller
             ->with('material')->whereHas('material', fn ($q) => $q->marketable())->get()->sortBy(fn ($row) => $row->material?->displayName())->values();
         $weapons = CharacterItem::query()->with(['item', 'affixPrefix', 'affixSuffix'])
             ->where('character_id', $character->id)->whereNull('market_listing_id')->where('is_equipped', false)->where('is_locked', false)
-            ->whereHas('item', fn ($q) => $q->where('type', 'weapon')->where('is_tradeable', true))
+            ->whereHas('item', fn ($q) => $q->whereIn('type', ['weapon', 'armor'])->where('is_tradeable', true))
             ->where(fn ($q) => $q
                 ->whereNotNull('affix_prefix_id')
                 ->orWhereNotNull('affix_suffix_id')
@@ -146,7 +146,7 @@ class PlayerShopController extends Controller
         ]);
         try {
             $item = CharacterItem::findOrFail($data['character_item_id']);
-            $this->equipmentMarketService->listWeapon($character, $item, (int) $data['listing_price']);
+            $this->equipmentMarketService->listEquipment($character, $item, (int) $data['listing_price']);
         } catch (RuntimeException $e) {
             return redirect()->route('shops.mine')->with('error', $e->getMessage());
         }

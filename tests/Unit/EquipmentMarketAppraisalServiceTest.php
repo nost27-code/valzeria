@@ -82,6 +82,22 @@ class EquipmentMarketAppraisalServiceTest extends TestCase
         $this->assertSame(900, $service->sellerProceeds(999));
     }
 
+    public function test_armor_uses_armor_rank_and_labels_the_suffix_as_resistance(): void
+    {
+        $item = new Item(['type' => 'armor', 'armor_rank' => 'SS', 'armor_category' => 'heavy_armor']);
+        $characterItem = new CharacterItem([
+            'affix_quality' => 'normal',
+            'affix_suffix_id' => 2,
+            'affix_suffix_level' => 3,
+        ]);
+        $characterItem->setRelation('item', $item);
+
+        $appraisal = (new EquipmentMarketAppraisalService())->appraisal($characterItem);
+
+        $this->assertSame(750000, $appraisal['appraisal_price']);
+        $this->assertSame('耐性', $appraisal['trait_breakdown'][0]['label']);
+    }
+
     private function appraisal(
         string $rank,
         ?int $prefixLevel = null,

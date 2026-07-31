@@ -987,7 +987,7 @@ class MainScreen extends Component
                 'news_title' => '市場掲示板',
                 'news' => [
                     '素材市場で素材の売買が始まりました',
-                    '装備市場で銘・特攻付き武器を売買できます',
+                    '装備市場で銘・特攻付き武器や銘・耐性付き防具を売買できます',
                     '調達依頼で素材を納品できるようになりました'
                 ],
                 'facilities' => [
@@ -995,7 +995,7 @@ class MainScreen extends Component
                         ['name' => '個人商店街', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '🏪', 'desc' => '冒険者の店を巡り、素材・装備・ヴァルモンの卵を探す', 'details' => ['自分の商店も管理できる'], 'status' => 'active', 'action' => '歩く', 'route' => 'shopping-street.index', 'is_post' => false],
                     ] : []),
                     ['name' => '素材市場', 'symbol_image' => 'facilities/facility_adventurer_market.webp', 'icon' => '⚖️', 'desc' => '通常素材・地域素材を売買する', 'details' => ['成立手数料5%', '48時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'market.index', 'is_post' => false],
-                    ['name' => '装備市場', 'symbol_image' => 'facilities/facility_market_300.webp', 'icon' => '⚔️', 'desc' => '銘・特攻付き武器を売買する', 'details' => ['成立手数料10%', '72時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'equipment-market.index', 'is_post' => false],
+                    ['name' => '装備市場', 'symbol_image' => 'facilities/facility_market_300.webp', 'icon' => '⚔️', 'desc' => '銘・特攻付き武器や銘・耐性付き防具を売買する', 'details' => ['成立手数料10%', '72時間出品'], 'status' => 'active', 'action' => '開く', 'route' => 'equipment-market.index', 'is_post' => false],
                     ['name' => '調達依頼', 'symbol_image' => 'facilities/facility_request_board.webp', 'icon' => '📋', 'desc' => '街や組織が必要としている素材を納品する', 'details' => ['NPC依頼', '即時報酬'], 'status' => 'active', 'action' => '開く', 'route' => 'market.npc-requests.index', 'is_post' => false],
                 ]
             ],

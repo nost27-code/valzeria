@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\EquipmentAffixPrefix;
+use App\Models\EquipmentAffixSuffix;
 use App\Models\Item;
 use App\Models\User;
 use App\Services\EquipmentMarketAppraisalService;
@@ -222,6 +223,84 @@ class EquipmentMarketSnapshotRefreshTest extends TestCase
             '固有効果：種族が竜の敵への与ダメージ +12%',
             $listing->item_snapshot['slayer_effect_lines'],
         );
+    }
+
+    public function test_affixed_armor_can_be_listed_and_bought_with_the_weapon_market_rules(): void
+    {
+        $seller = $this->createCharacter(100_000);
+        $buyer = $this->createCharacter(2_000_000);
+        $prefix = EquipmentAffixPrefix::query()->where('affix_key', 'guard')->first()
+            ?? EquipmentAffixPrefix::query()->firstOrFail();
+        $suffix = EquipmentAffixSuffix::query()->where('item_type', 'armor')->firstOrFail();
+        $item = Item::query()->create([
+            'name' => '市場試験重鎧',
+            'type' => 'armor',
+            'armor_category' => 'heavy_armor',
+            'armor_rank' => 'S',
+            'def_bonus' => 180,
+            'is_active' => true,
+            'is_tradeable' => true,
+        ]);
+        $characterItem = CharacterItem::query()->create([
+            'character_id' => $seller->id,
+            'item_id' => $item->id,
+            'affix_prefix_id' => $prefix->id,
+            'affix_prefix_level' => 3,
+            'affix_suffix_id' => $suffix->id,
+            'affix_suffix_level' => 2,
+            'resist_species_key' => 'dragon',
+            'is_equipped' => false,
+            'is_locked' => false,
+            'is_tradeable' => true,
+        ]);
+
+        $service = app(EquipmentMarketService::class);
+        $appraisal = app(EquipmentMarketAppraisalService::class)->appraisal($characterItem);
+
+        $this->assertContains('耐性', array_column($appraisal['trait_breakdown'], 'label'));
+
+        $listing = $service->listEquipment($seller, $characterItem, $appraisal['appraisal_price']);
+
+        $this->assertSame('armor', $listing->item_snapshot['item_type']);
+        $this->assertSame('heavy_armor', $listing->weapon_category);
+        $this->assertSame('S', $listing->weapon_rank);
+        $this->assertSame('images/icon/icon_233.webp', $listing->item_snapshot['icon_path']);
+        $this->assertNotEmpty($listing->item_snapshot['engraving_effect_lines']);
+        $this->assertNotEmpty($listing->item_snapshot['slayer_effect_lines']);
+
+        $transaction = $service->buyEquipment($buyer, $listing);
+        $expectedFee = $appraisal['appraisal_price'] / 10;
+
+        $this->assertSame((int) $expectedFee, $transaction->fee_amount);
+        $this->assertSame($buyer->id, $characterItem->refresh()->character_id);
+        $this->assertNotNull($characterItem->market_relistable_at);
+        $this->assertSame('sold', $listing->refresh()->status);
+    }
+
+    public function test_plain_armor_cannot_be_listed(): void
+    {
+        $seller = $this->createCharacter(100_000);
+        $item = Item::query()->create([
+            'name' => '通常の市場試験鎧',
+            'type' => 'armor',
+            'armor_category' => 'heavy_armor',
+            'armor_rank' => 'S',
+            'def_bonus' => 180,
+            'is_active' => true,
+            'is_tradeable' => true,
+        ]);
+        $characterItem = CharacterItem::query()->create([
+            'character_id' => $seller->id,
+            'item_id' => $item->id,
+            'is_equipped' => false,
+            'is_locked' => false,
+            'is_tradeable' => true,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('銘・特攻・耐性・固有効果のいずれかがある装備のみ出品できます。');
+
+        app(EquipmentMarketService::class)->listEquipment($seller, $characterItem, 100_000);
     }
 
     private function createCharacter(int $money): Character

@@ -9,7 +9,7 @@
             <div>
                 <p class="text-xs font-black tracking-[0.24em] text-amber-600">EQUIPMENT MARKET</p>
                 <h1 class="mt-2 text-3xl font-black text-slate-950">装備市場管理</h1>
-                <p class="mt-2 text-sm font-bold text-slate-500">銘・特攻付き武器の販売中の内容と、成立した売買を確認します。</p>
+                <p class="mt-2 text-sm font-bold text-slate-500">銘・特攻付き武器と、銘・耐性付き防具の販売中の内容・成立した売買を確認します。</p>
             </div>
             <div class="flex gap-2">
                 @foreach($tabLabels as $value => $label)
@@ -40,7 +40,7 @@
 
         @if($tab === 'listings')
             <div class="mb-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
-                現在販売中の武器です。出品時点のスナップショットを表示しています。
+                現在販売中の装備です。出品時点のスナップショットを表示しています。
             </div>
             <div class="space-y-3">
                 @forelse($listings as $listing)
@@ -53,7 +53,7 @@
                                     <span class="rounded bg-emerald-100 px-2 py-1 text-[11px] font-black text-emerald-800">{{ $statusLabels[$listing->status] ?? $listing->status }}</span>
                                 </div>
                                 <div class="mt-1 text-xs font-bold text-slate-500">
-                                    {{ strtoupper((string) ($snapshot['weapon_rank'] ?? $listing->weapon_rank ?? '-')) }} ・ {{ $snapshot['weapon_category'] ?? $listing->weapon_category ?? '-' }} ・ 強化 +{{ $snapshot['enhance_level'] ?? $listing->enhance_level }} ・ 個体 #{{ $listing->character_item_id }}
+                                    {{ strtoupper((string) ($snapshot['equipment_rank'] ?? $snapshot['weapon_rank'] ?? $listing->weapon_rank ?? '-')) }} ・ {{ $snapshot['equipment_category'] ?? $snapshot['weapon_category'] ?? $listing->weapon_category ?? '-' }} ・ 強化 +{{ $snapshot['enhance_level'] ?? $listing->enhance_level }} ・ 個体 #{{ $listing->character_item_id }}
                                 </div>
                                 @include('equipment-market.partials.effect-badges', ['base' => $snapshot['base_performance_lines'] ?? [], 'engraving' => $snapshot['engraving_effect_lines'] ?? [], 'slayer' => $snapshot['slayer_effect_lines'] ?? []])
                             </div>
@@ -75,7 +75,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-md border border-dashed border-slate-300 bg-white px-4 py-12 text-center text-sm font-black text-slate-500">現在販売中の武器はありません。</div>
+                    <div class="rounded-md border border-dashed border-slate-300 bg-white px-4 py-12 text-center text-sm font-black text-slate-500">現在販売中の装備はありません。</div>
                 @endforelse
             </div>
         @else
@@ -95,9 +95,9 @@
                     <div class="rounded-md bg-white p-4 shadow-sm ring-1 ring-slate-200">
                         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div class="min-w-0">
-                                <h2 class="text-base font-black text-slate-950">{{ $snapshot['display_name'] ?? $transaction->listing?->display_name_snapshot ?? '不明な武器' }}</h2>
+                                <h2 class="text-base font-black text-slate-950">{{ $snapshot['display_name'] ?? $transaction->listing?->display_name_snapshot ?? '不明な装備' }}</h2>
                                 <div class="mt-1 text-xs font-bold text-slate-500">
-                                    {{ strtoupper((string) ($snapshot['weapon_rank'] ?? '-')) }} ・ {{ $snapshot['weapon_category'] ?? '-' }} ・ 強化 +{{ $snapshot['enhance_level'] ?? 0 }} ・ 個体 #{{ $transaction->character_item_id }}
+                                    {{ strtoupper((string) ($snapshot['equipment_rank'] ?? $snapshot['weapon_rank'] ?? '-')) }} ・ {{ $snapshot['equipment_category'] ?? $snapshot['weapon_category'] ?? '-' }} ・ 強化 +{{ $snapshot['enhance_level'] ?? 0 }} ・ 個体 #{{ $transaction->character_item_id }}
                                 </div>
                                 @include('equipment-market.partials.effect-badges', ['base' => $snapshot['base_performance_lines'] ?? [], 'engraving' => $snapshot['engraving_effect_lines'] ?? [], 'slayer' => $snapshot['slayer_effect_lines'] ?? []])
                             </div>

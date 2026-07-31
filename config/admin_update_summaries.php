@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-armor-equipment-market',
+        'date' => '2026-07-31',
+        'category' => 'added',
+        'title' => '装備市場で銘・耐性付き防具を売買可能に',
+        'detail' => '装備市場で、銘または耐性が付いた防具も武器と同じ条件で出品・購入できるようにしました。成立時手数料は10%、出品期限と購入後の再出品待機は72時間です。',
+    ],
+    [
         'id' => '2026-07-31-character-icon-request-attachments',
         'date' => '2026-07-31',
         'category' => 'added',
