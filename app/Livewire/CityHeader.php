@@ -18,6 +18,7 @@ use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
 use App\Services\SupportPassService;
+use App\Services\TownUpdateService;
 use App\Services\WeeklyWinRankingService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
@@ -207,18 +208,29 @@ class CityHeader extends Component
         if ($this->modalOnly) {
             return view('livewire.city-header', [
                 'topPlayer' => null,
+                'townUpdates' => collect(),
                 'isGuestUser' => app(\App\Services\AuthService::class)->isGuestUser(auth()->user()),
             ]);
         }
 
-        // ヘッダー用ダミーデータ
+        $townUpdates = app(TownUpdateService::class)->published();
+        $headlineUpdates = $townUpdates->take(3)->values();
+        $headlineCount = $headlineUpdates->count();
+
         $headerInfo = [
             'online_count' => rand(15, 30),
             'duel_count' => rand(100, 300),
             'current_king' => 'アスナ',
-            'news' => [
-                '「ヴァルゼリアの冒険者」β版稼働中！'
-            ]
+            'news' => $headlineCount > 0
+                ? $headlineUpdates
+                    ->map(fn ($update, int $index): string => sprintf(
+                        '[%d/%d] %s',
+                        $index + 1,
+                        $headlineCount,
+                        $update->body
+                    ))
+                    ->all()
+                : ['「ヴァルゼリアの冒険者」β版稼働中！'],
         ];
 
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
@@ -247,6 +259,7 @@ class CityHeader extends Component
 
         return view('livewire.city-header', [
             'headerInfo' => $headerInfo,
+            'townUpdates' => $townUpdates,
             'onlinePlayers' => $onlinePlayers,
             'locationName' => $this->locationName,
             'cityName' => $cityName,

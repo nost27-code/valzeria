@@ -5,11 +5,22 @@
           adventurerCardLoadingTimer: null,
           playersExpanded: false,
           notificationOpen: false,
+          townUpdateModalOpen: false,
+          townUpdateBodyOverflow: '',
           selectedJobBadgeTier: null,
           selectedJobBadge: null,
           selectedJobBadgeJobs: [],
           isSharingAdventurerCard: false,
           adventurerCardShareMessage: '',
+          openTownUpdateModal() {
+              this.townUpdateBodyOverflow = document.body.style.overflow;
+              document.body.style.overflow = 'hidden';
+              this.townUpdateModalOpen = true;
+          },
+          closeTownUpdateModal() {
+              this.townUpdateModalOpen = false;
+              document.body.style.overflow = this.townUpdateBodyOverflow;
+          },
           finishAdventurerCardLoading() {
               window.clearTimeout(this.adventurerCardLoadingTimer);
               this.isAdventurerCardLoading = false;
@@ -80,6 +91,7 @@
           },
       }"
       x-on:adventurer-card-loading.window="startAdventurerCardLoading()"
+      @keydown.escape.window="if (townUpdateModalOpen) closeTownUpdateModal()"
       x-init="$watch('playerInfo', value => { if (value) finishAdventurerCardLoading() })">
     @if(!$modalOnly || ($includeStyles ?? false))
     <style>
@@ -1467,6 +1479,13 @@
                         <div class="town-news-marquee min-w-0 flex-1" aria-label="{{ implode('　｜　', $headerInfo['news']) }}">
                             <span>{{ implode('　｜　', $headerInfo['news']) }}</span>
                         </div>
+                        @if($townUpdates->isNotEmpty())
+                            <button type="button"
+                                    @click="openTownUpdateModal()"
+                                    class="shrink-0 rounded border border-[#d4af37]/60 bg-white/80 px-1.5 py-0.5 text-[10px] font-black text-[#8a5a0d] shadow-sm transition hover:bg-amber-50 active:scale-95 sm:text-[11px]">
+                                一覧
+                            </button>
+                        @endif
                     </div>
                 </div>
                 <button type="button"
@@ -1508,6 +1527,56 @@
             @endif
         </div>
     </div>
+    @endif
+
+    @if(!$modalOnly && $townUpdates->isNotEmpty())
+        <div x-show="townUpdateModalOpen"
+             x-cloak
+             style="display: none;"
+             class="fixed inset-0 z-[10020] flex items-center justify-center px-3 py-6"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="town-update-modal-title">
+            <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px]" @click="closeTownUpdateModal()"></div>
+            <section class="relative z-10 flex max-h-[86vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border-2 border-[#d4af37] bg-[#fffdf7] shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between border-b border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-3">
+                    <div>
+                        <p class="text-[10px] font-black tracking-[0.18em] text-amber-700">TOWN NEWS</p>
+                        <h2 id="town-update-modal-title" class="text-lg font-black text-slate-900">街の更新履歴</h2>
+                    </div>
+                    <button type="button"
+                            @click="closeTownUpdateModal()"
+                            class="grid h-9 w-9 place-items-center rounded-full border border-slate-300 bg-white text-2xl font-black leading-none text-slate-600 shadow-sm transition hover:bg-slate-100 active:scale-95"
+                            aria-label="更新履歴を閉じる">
+                        ×
+                    </button>
+                </header>
+
+                <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3" @touchmove.stop>
+                    <div class="space-y-3">
+                        @foreach($townUpdates as $update)
+                            <article class="rounded-lg border border-amber-200/80 bg-white px-3.5 py-3 shadow-sm">
+                                <time class="text-[11px] font-black text-amber-700" datetime="{{ $update->published_on?->format('Y-m-d') }}">
+                                    {{ $update->published_on?->format('Y/m/d') }}
+                                </time>
+                                <h3 class="mt-1 text-sm font-black leading-relaxed text-slate-900">{{ $update->body }}</h3>
+                                @if(filled($update->detail))
+                                    <p class="mt-1.5 whitespace-pre-line text-xs font-bold leading-relaxed text-slate-600">{{ $update->detail }}</p>
+                                @endif
+                            </article>
+                        @endforeach
+                    </div>
+                </div>
+
+                <footer class="shrink-0 border-t border-amber-100 bg-amber-50/70 px-4 py-3">
+                    <button type="button"
+                            @click="closeTownUpdateModal()"
+                            class="w-full rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-black text-white shadow transition hover:bg-slate-700 active:scale-[0.99]">
+                        閉じる
+                    </button>
+                </footer>
+            </section>
+        </div>
     @endif
 
     @if($modalOnly)

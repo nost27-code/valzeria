@@ -11,6 +11,7 @@ class TopUpdate extends Model
     protected $casts = [
         'published_on' => 'date',
         'is_active' => 'boolean',
+        'is_dismissed' => 'boolean',
         'sort_order' => 'integer',
     ];
 }

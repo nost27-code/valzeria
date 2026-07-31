@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-town-update-history',
+        'date' => '2026-07-31',
+        'category' => 'added',
+        'title' => '街のお知らせに更新履歴を追加',
+        'detail' => '街のお知らせで最新3件の更新を確認し、一覧からゲーム内の更新履歴を読めるようにしました。掲載内容は管理画面で編集できます。',
+    ],
+    [
         'id' => '2026-07-31-map-exploration-start-rollback',
         'date' => '2026-07-31',
         'category' => 'fixed',

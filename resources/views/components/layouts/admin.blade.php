@@ -106,7 +106,7 @@
                     ['route' => 'admin.reward-settings', 'label' => '運営・報酬設定', 'abbr' => 'R'],
                     ['route' => 'admin.adventure-support-items', 'label' => '補給商会ON/OFF', 'abbr' => 'S'],
                     ['route' => 'admin.extra-contents', 'label' => '追加コンテンツON/OFF', 'abbr' => 'X'],
-                    ['route' => 'admin.top-updates', 'label' => 'TOP更新情報', 'abbr' => 'N'],
+                    ['route' => 'admin.top-updates', 'label' => '街の更新履歴', 'abbr' => 'N'],
                     ['route' => 'admin.game-texts', 'label' => '画面文言管理', 'abbr' => 'T'],
                     ['route' => 'admin.help-texts', 'label' => 'ヘルプ文言管理', 'abbr' => 'H'],
                     ['route' => 'admin.facility-texts', 'label' => '施設テキスト管理', 'abbr' => 'F'],
