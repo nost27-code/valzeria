@@ -332,6 +332,8 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertDontSee('使用したい場面')
             ->assertDontSee('ゲーム内アバター')
             ->assertSee('40輝石を支払って提出')
+            ->assertSee('提出後も制作完了前であれば、提出済み画面からヒアリング内容を修正できます。')
+            ->assertDontSee('提出後はヒアリング内容を変更できません。')
             ->assertSee('入力内容を修正');
     }
 

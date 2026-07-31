@@ -74,7 +74,7 @@
                 </section>
 
                 <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black leading-6 text-rose-800">
-                    提出後はヒアリング内容を変更できません。修正が必要な場合は「入力内容を修正」から戻ってください。
+                    提出後も制作完了前であれば、提出済み画面からヒアリング内容を修正できます。提出前に見直す場合は「入力内容を修正」から戻ってください。
                 </div>
 
                 <div class="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
