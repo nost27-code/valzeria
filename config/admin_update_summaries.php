@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-exclusive-character-icon-004-image-fix',
+        'date' => '2026-07-31',
+        'category' => 'internal',
+        'title' => '限定キャラアイコンの戦闘・勝利画像を修正',
+        'detail' => '制作内容の修正に合わせて、対象冒険者専用の戦闘・勝利アイコン画像を差し替えました。',
+    ],
+    [
         'id' => '2026-07-31-exclusive-character-icon-004',
         'date' => '2026-07-31',
         'category' => 'internal',
