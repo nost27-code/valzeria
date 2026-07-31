@@ -54,6 +54,10 @@ class AdventurerCardModalIsolationTest extends TestCase
             1,
             (new ReflectionMethod(AdventurerCardModal::class, 'jobBadgeTierJobs'))->getAttributes(Renderless::class)
         );
+        $this->assertCount(
+            1,
+            (new ReflectionMethod(AdventurerCardModal::class, 'loadAdventureRecords'))->getAttributes(Renderless::class)
+        );
 
         Livewire::test(AdventurerCardModal::class, ['includeStyles' => false])
             ->assertSet('modalOnly', true)
@@ -66,7 +70,41 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->dispatch('open-adventurer-card', characterId: $target->id)
             ->assertSet('isPlayerModalOpen', true)
             ->assertSet('playerInfo.name', '表示対象')
+            ->assertSet('playerInfo.adventure_records_loaded', false)
+            ->assertSet('playerInfo.adventure_records', [])
             ->assertSee('冒険の記録');
+    }
+
+    public function test_adventure_records_are_loaded_only_after_the_accordion_is_opened(): void
+    {
+        $target = $this->createCharacter(User::factory()->create(), '記録表示対象');
+        $battleQueries = [];
+        DB::listen(function ($query) use (&$battleQueries): void {
+            if (str_contains(strtolower($query->sql), 'battle_logs')) {
+                $battleQueries[] = $query->sql;
+            }
+        });
+
+        $component = Livewire::test(AdventurerCardModal::class)
+            ->dispatch('open-adventurer-card', characterId: $target->id)
+            ->assertSet('playerInfo.adventure_records_loaded', false)
+            ->assertSet('playerInfo.adventure_records', [])
+            ->assertSet('playerInfo.card_records.battles.value', '—');
+
+        $this->assertSame([], $battleQueries);
+
+        $component
+            ->call('loadAdventureRecords')
+            ->assertSet('playerInfo.adventure_records_loaded', true)
+            ->assertSet('playerInfo.adventure_records.0.label', '戦闘回数')
+            ->assertSet('playerInfo.adventure_records.0.value', '0');
+
+        $this->assertCount(1, $battleQueries);
+
+        $battleQueries = [];
+        $component->call('loadAdventureRecords');
+
+        $this->assertSame([], $battleQueries);
     }
 
     public function test_dedicated_modal_includes_card_styles_by_default_on_headerless_pages(): void

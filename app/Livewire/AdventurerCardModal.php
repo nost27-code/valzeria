@@ -45,6 +45,35 @@ class AdventurerCardModal extends Component
     }
 
     #[Renderless]
+    public function loadAdventureRecords(): void
+    {
+        if (
+            !$this->isPlayerModalOpen
+            || !$this->playerInfo
+            || ($this->playerInfo['adventure_records_loaded'] ?? false)
+        ) {
+            return;
+        }
+
+        $characterId = (int) ($this->playerInfo['id'] ?? 0);
+        $payload = $characterId > 0
+            ? (new CityHeader())->adventureRecordPayload($characterId)
+            : null;
+
+        if (
+            !$payload
+            || !$this->playerInfo
+            || (int) ($this->playerInfo['id'] ?? 0) !== $characterId
+        ) {
+            return;
+        }
+
+        $this->playerInfo['adventure_records'] = $payload['adventure_records'];
+        $this->playerInfo['card_records'] = $payload['card_records'];
+        $this->playerInfo['adventure_records_loaded'] = true;
+    }
+
+    #[Renderless]
     public function jobBadgeTierJobs(string $rank): array
     {
         if (!$this->isPlayerModalOpen || !$this->playerInfo) {

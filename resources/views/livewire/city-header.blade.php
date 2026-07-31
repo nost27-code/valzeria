@@ -10,6 +10,8 @@
           selectedJobBadgeTier: null,
           selectedJobBadge: null,
           selectedJobBadgeJobs: [],
+          adventureRecordsExpanded: false,
+          isAdventureRecordsLoading: false,
           isSharingAdventurerCard: false,
           adventurerCardShareMessage: '',
           openTownUpdateModal() {
@@ -32,9 +34,27 @@
               this.selectedJobBadgeTier = null;
               this.selectedJobBadge = null;
               this.selectedJobBadgeJobs = [];
+              this.adventureRecordsExpanded = false;
+              this.isAdventureRecordsLoading = false;
               this.adventurerCardLoadingTimer = window.setTimeout(() => {
                   this.finishAdventurerCardLoading();
               }, 15000);
+          },
+          async toggleAdventureRecords() {
+              if (this.adventureRecordsExpanded) {
+                  this.adventureRecordsExpanded = false;
+                  return;
+              }
+
+              this.adventureRecordsExpanded = true;
+              if (this.playerInfo?.adventure_records_loaded || this.isAdventureRecordsLoading) return;
+
+              this.isAdventureRecordsLoading = true;
+              try {
+                  await this.$wire.loadAdventureRecords();
+              } finally {
+                  this.isAdventureRecordsLoading = false;
+              }
           },
           async toggleJobBadgeTier(tier) {
               if (this.selectedJobBadgeTier === tier.rank) {
@@ -1852,25 +1872,50 @@
                     </template>
 
                     <!-- 冒険の記録 -->
-                    <div class="adventurer-card-section px-4 py-3">
-                        <div class="mb-2 text-lg font-black text-[#6b3f08]">冒険の記録</div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <template x-for="record in playerInfo.adventure_records" :key="record.label">
-                                <div class="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
-                                    <div class="min-w-0 truncate text-xs font-bold text-slate-500" x-text="record.label"></div>
+                    <div class="adventurer-card-section overflow-hidden">
+                        <button type="button"
+                                class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                                :aria-expanded="adventureRecordsExpanded"
+                                @click.prevent.stop="toggleAdventureRecords()">
+                            <span class="text-lg font-black text-[#6b3f08]">冒険の記録</span>
+                            <span class="flex items-center gap-2 text-xs font-black text-[#8a5a0d]">
+                                <span x-text="adventureRecordsExpanded ? '閉じる' : '開く'"></span>
+                                <span class="text-base transition-transform duration-200"
+                                      :class="adventureRecordsExpanded ? 'rotate-180' : ''"
+                                      aria-hidden="true">▼</span>
+                            </span>
+                        </button>
+                        <div x-show="adventureRecordsExpanded"
+                             x-transition.opacity.duration.150ms
+                             class="border-t border-amber-100 px-4 pb-3 pt-3">
+                            <div x-show="isAdventureRecordsLoading"
+                                 class="flex items-center justify-center gap-2 py-6 text-sm font-black text-[#8a5a0d]">
+                                <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-amber-200 border-t-amber-700"></span>
+                                記録を読み込んでいます
+                            </div>
+                            <div x-show="!isAdventureRecordsLoading && playerInfo.adventure_records_loaded"
+                                 class="grid grid-cols-2 gap-2">
+                                <template x-for="record in playerInfo.adventure_records" :key="record.label">
+                                    <div class="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white/85 px-3 py-2 shadow-sm">
+                                        <div class="min-w-0 truncate text-xs font-bold text-slate-500" x-text="record.label"></div>
+                                        <div class="flex shrink-0 items-baseline gap-0.5">
+                                            <span class="text-base font-black leading-none text-slate-800" x-text="record.value"></span>
+                                            <span class="text-xs font-black text-orange-700" x-text="record.unit"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="playerInfo.support_pass && playerInfo.support_pass.active"
+                                     class="adventurer-card-pass-record flex min-h-10 items-center justify-between gap-2 rounded-lg border px-3 py-2 shadow-sm">
+                                    <div class="min-w-0 truncate text-xs font-bold text-amber-700">支援パス</div>
                                     <div class="flex shrink-0 items-baseline gap-0.5">
-                                        <span class="text-base font-black leading-none text-slate-800" x-text="record.value"></span>
-                                        <span class="text-xs font-black text-orange-700" x-text="record.unit"></span>
+                                        <span class="text-base font-black leading-none text-amber-900">あと<span x-text="playerInfo.support_pass.remaining_days"></span></span>
+                                        <span class="text-xs font-black text-orange-700">日</span>
                                     </div>
                                 </div>
-                            </template>
-                            <div x-show="playerInfo.support_pass && playerInfo.support_pass.active"
-                                 class="adventurer-card-pass-record flex min-h-10 items-center justify-between gap-2 rounded-lg border px-3 py-2 shadow-sm">
-                                <div class="min-w-0 truncate text-xs font-bold text-amber-700">支援パス</div>
-                                <div class="flex shrink-0 items-baseline gap-0.5">
-                                    <span class="text-base font-black leading-none text-amber-900">あと<span x-text="playerInfo.support_pass.remaining_days"></span></span>
-                                    <span class="text-xs font-black text-orange-700">日</span>
-                                </div>
+                            </div>
+                            <div x-show="!isAdventureRecordsLoading && !playerInfo.adventure_records_loaded"
+                                 class="py-5 text-center text-xs font-black text-slate-500">
+                                記録を読み込めませんでした。閉じてからもう一度お試しください。
                             </div>
                         </div>
                     </div>

@@ -76,6 +76,22 @@ class CityHeader extends Component
         $this->playerInfo = null;
     }
 
+    /** @return array{adventure_records: array<int, array{label: string, value: string, unit: string}>, card_records: array<string, array{value: string, unit: string}>}|null */
+    public function adventureRecordPayload(int $characterId): ?array
+    {
+        $character = Character::query()->find($characterId);
+        if (!$character) {
+            return null;
+        }
+
+        $adventureRecords = $this->adventureRecords($character);
+
+        return [
+            'adventure_records' => $adventureRecords,
+            'card_records' => $this->cardRecords($adventureRecords),
+        ];
+    }
+
     public function jobBadgeTierJobs(string $rank): array
     {
         if (!$this->isPlayerModalOpen || !$this->playerInfo) {
@@ -371,7 +387,6 @@ class CityHeader extends Component
         $supportPassStatus = $supportPassService->statusForCharacter($character);
         $favoriteWeaponService = app(FavoriteWeaponService::class);
         $profileFrameTheme = $profileService->selectedFrameThemeFor($character, $character->profile_frame_theme);
-        $adventureRecords = $this->adventureRecords($character);
         $cardAssets = $profileService->selectedAdventurerCardAssets($character, [
             'background' => $character->profile_card_background,
             'card_frame' => $character->profile_card_frame,
@@ -425,8 +440,9 @@ class CityHeader extends Component
             ),
             'adventurer_avatar_frame' => asset($cardAssets['avatar_frame']),
             'valmon_case' => asset($cardAssets['valmon_case']),
-            'adventure_records' => $adventureRecords,
-            'card_records' => $this->cardRecords($adventureRecords),
+            'adventure_records_loaded' => false,
+            'adventure_records' => [],
+            'card_records' => $this->emptyCardRecords(),
             'valmon_badges' => $this->valmonBadges($character),
             'stats' => [
                 'str' => $this->statBreakdown($stats, 'str'),
@@ -649,6 +665,14 @@ class CityHeader extends Component
         return [
             'battles' => $byLabel->get('戦闘回数', ['value' => '0', 'unit' => '回']),
             'days' => $byLabel->get('冒険日数', ['value' => '0', 'unit' => '日']),
+        ];
+    }
+
+    private function emptyCardRecords(): array
+    {
+        return [
+            'battles' => ['value' => '—', 'unit' => ''],
+            'days' => ['value' => '—', 'unit' => ''],
         ];
     }
 

@@ -20,6 +20,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 冒険者カードの「冒険の記録」を開閉式にし、必要な時だけ記録を読み込むことで、カードがこれまでより早く開くようにしました。
+
 - 街のお知らせをゆっくり繰り返し表示し、街ヘッダ下部の余白を詰めました。
 
 - 街のお知らせを街ヘッダへまとめ、スマホでも読みやすい横長表示にしました。

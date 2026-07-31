@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-adventurer-card-lazy-records',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => '冒険者カードの表示速度を改善',
+        'detail' => '冒険の記録を開閉式にし、必要な時だけ記録を読み込むことで、冒険者カードがこれまでより早く開くようにしました。',
+    ],
+    [
         'id' => '2026-07-31-atomic-build-assets',
         'date' => '2026-07-31',
         'category' => 'internal',
