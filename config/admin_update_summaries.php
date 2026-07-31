@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-champ-pose-owner-only',
+        'date' => '2026-08-01',
+        'category' => 'fixed',
+        'title' => 'チャンプ画像のポーズ変更を本人限定に修正',
+        'detail' => 'チャンプカードの限定アイコンは、チャンプ本人だけが画像を押してポーズ変更できるようにしました。',
+    ],
+    [
         'id' => '2026-07-31-exclusive-character-icon-004-image-fix',
         'date' => '2026-07-31',
         'category' => 'internal',

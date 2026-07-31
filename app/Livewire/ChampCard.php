@@ -54,10 +54,13 @@ class ChampCard extends Component
                 $champComment = trim((string) $champCharacter->profile_comment);
                 $champComment = $champComment !== '' ? $champComment : null;
                 $resolvedPaths = $characterIconSetService->resolvedPaths($champCharacter);
-                $champIconPaths = array_map(
+                $resolvedIconPaths = array_map(
                     fn (string $path): string => CharacterIconCatalog::versionedAsset($path),
                     array_values($resolvedPaths),
                 );
+                $champIconPaths = ! empty($champSummary['is_self'])
+                    ? $resolvedIconPaths
+                    : [$resolvedIconPaths[0]];
             }
         }
 

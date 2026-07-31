@@ -118,7 +118,7 @@ class CharacterIconSetTest extends TestCase
         $service->cycleArenaShowcase($character);
     }
 
-    public function test_current_champ_exclusive_icon_can_cycle_without_visible_guidance(): void
+    public function test_only_current_champ_can_cycle_exclusive_icon_on_champ_card(): void
     {
         $champion = $this->createCharacter('限定チャンプ');
         $viewer = $this->createCharacter('観戦者');
@@ -127,6 +127,14 @@ class CharacterIconSetTest extends TestCase
         $this->appointChamp($champion);
 
         Livewire::actingAs($viewer->user)
+            ->test(ChampCard::class)
+            ->assertDontSee('チャンプ画像のポーズを切り替える', escape: false)
+            ->assertSee('01_normal.webp', escape: false)
+            ->assertDontSee('03_battle.webp', escape: false)
+            ->assertDontSee('02_victory.webp', escape: false)
+            ->assertDontSee('04_defeat.webp', escape: false);
+
+        Livewire::actingAs($champion->user)
             ->test(ChampCard::class)
             ->assertSee('チャンプ画像のポーズを切り替える', escape: false)
             ->assertSee('01_normal.webp', escape: false)

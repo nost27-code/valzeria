@@ -8,6 +8,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Fixed
 
+- チャンプカードの限定アイコンを、チャンプ本人だけがポーズ変更できるように修正しました。
+
 - 街のお知らせ更新後、一部の画面を開けなくなる不具合を修正しました。
 
 ### Added
