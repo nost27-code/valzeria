@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-character-icon-design-public-submission',
+        'date' => '2026-07-31',
+        'category' => 'added',
+        'title' => 'キャラアイコン制作の申請受付を開始',
+        'detail' => '全冒険者がキャラアイコン制作のヒアリング内容を確認し、40輝石で制作申請できるようにしました。',
+    ],
+    [
         'id' => '2026-07-31-character-icon-submitted-form-revision',
         'date' => '2026-07-31',
         'category' => 'changed',

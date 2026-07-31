@@ -4,7 +4,7 @@ return [
     'submission_price_kiseki' => 40,
     'max_message_attachments' => 4,
     'max_attachment_kilobytes' => 5120,
-    'public_access_enabled' => env('CHARACTER_ICON_DESIGN_PUBLIC_ACCESS_ENABLED', false),
+    'public_access_enabled' => true,
     'preview_character_ids' => array_values(array_filter(
         array_map('intval', explode(',', (string) env('CHARACTER_ICON_DESIGN_PREVIEW_CHARACTER_IDS', ''))),
         fn (int $characterId): bool => $characterId > 0
