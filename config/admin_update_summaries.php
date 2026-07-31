@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-exclusive-character-icon-006-image-refresh',
+        'date' => '2026-08-01',
+        'category' => 'internal',
+        'title' => '限定キャラアイコン4ポーズを差し替え',
+        'detail' => '制作内容の修正に合わせて、対象冒険者専用の4ポーズ画像を差し替えました。',
+    ],
+    [
         'id' => '2026-08-01-exclusive-character-icon-006',
         'date' => '2026-08-01',
         'category' => 'internal',
