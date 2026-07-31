@@ -40,6 +40,7 @@ RELEASES_DIR="$DEPLOY_ROOT/${DEPLOY_PREFIX}_releases"
 SHARED_DIR="$DEPLOY_ROOT/${DEPLOY_PREFIX}_shared"
 CURRENT_LINK="$DEPLOY_ROOT/${DEPLOY_PREFIX}_current"
 SHARED_STORAGE="$SHARED_DIR/storage"
+SHARED_BUILD="$SHARED_DIR/public-build"
 SHARED_ENV="$SHARED_DIR/.env"
 
 case "$DEPLOY_ARCHIVE" in
@@ -59,7 +60,7 @@ if [[ ! -f "$SHARED_ENV" ]]; then
     exit 66
 fi
 
-mkdir -p "$RELEASES_DIR" "$SHARED_STORAGE/app/public" "$SHARED_STORAGE/framework/cache/data" \
+mkdir -p "$RELEASES_DIR" "$SHARED_BUILD" "$SHARED_STORAGE/app/public" "$SHARED_STORAGE/framework/cache/data" \
     "$SHARED_STORAGE/framework/sessions" "$SHARED_STORAGE/framework/views" "$SHARED_STORAGE/logs"
 
 release_id="$(date -u +%Y%m%d_%H%M%S)_$RANDOM$RANDOM"
@@ -89,7 +90,7 @@ rm -rf "$release_dir/storage" "$release_dir/.env"
 ln -s "$SHARED_STORAGE" "$release_dir/storage"
 ln -s "$SHARED_ENV" "$release_dir/.env"
 
-for required in artisan vendor/autoload.php bootstrap/app.php public/index.php public/.htaccess; do
+for required in artisan vendor/autoload.php bootstrap/app.php public/index.php public/.htaccess public/build/manifest.json; do
     if [[ ! -f "$release_dir/$required" ]]; then
         echo "Required release file is missing: $required" >&2
         exit 65
@@ -125,6 +126,21 @@ fi
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" config:cache --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" event:cache --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" view:cache --no-interaction
+
+if [[ -e "$PUBLIC_DIR/build" && ! -L "$PUBLIC_DIR/build" ]]; then
+    echo "Refusing to replace non-link public directory: $PUBLIC_DIR/build" >&2
+    exit 74
+fi
+if [[ -L "$PUBLIC_DIR/build" ]]; then
+    existing_public_build="$(readlink -f "$PUBLIC_DIR/build" || true)"
+    if [[ -n "$existing_public_build" && -d "$existing_public_build" && "$existing_public_build" != "$SHARED_BUILD" ]]; then
+        cp -a "$existing_public_build/." "$SHARED_BUILD/"
+    fi
+fi
+cp -a "$release_dir/public/build/." "$SHARED_BUILD/"
+rm -f "$PUBLIC_DIR/build.next"
+ln -s "$SHARED_BUILD" "$PUBLIC_DIR/build.next"
+mv -Tf "$PUBLIC_DIR/build.next" "$PUBLIC_DIR/build"
 
 if [[ -L "$CURRENT_LINK" ]]; then
     previous_release="$(readlink -f "$CURRENT_LINK")"
@@ -169,7 +185,7 @@ link_public_directory() {
     mv -Tf "$destination.next" "$destination"
 }
 
-for directory in build images tools contact_images; do
+for directory in images tools contact_images; do
     link_public_directory "$directory"
 done
 

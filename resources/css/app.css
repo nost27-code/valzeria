@@ -97,10 +97,15 @@
         mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
     }
 
-    .town-news-marquee span {
-        display: inline-block;
-        min-width: max-content;
-        animation: town-news-marquee 18s linear infinite;
+    .town-news-marquee-track {
+        display: flex;
+        width: max-content;
+        animation: town-news-marquee 32s linear infinite;
+    }
+
+    .town-news-marquee-copy {
+        flex: none;
+        padding-right: 3rem;
     }
 
     @keyframes town-news-marquee {
@@ -109,7 +114,17 @@
         }
 
         to {
-            transform: translateX(-100%);
+            transform: translateX(-50%);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .town-news-marquee-track {
+            animation: none;
+        }
+
+        .town-news-marquee-copy[aria-hidden="true"] {
+            display: none;
         }
     }
 }

@@ -1465,7 +1465,10 @@
                     <span class="shrink-0 text-base leading-none text-[#c0265a]" aria-hidden="true">📢</span>
                     <div class="town-news-marquee min-w-0 flex-1 text-xs font-black text-[#4a3415] sm:text-sm"
                          aria-label="{{ implode('　｜　', $headerInfo['news']) }}">
-                        <span>{{ implode('　｜　', $headerInfo['news']) }}</span>
+                        <div class="town-news-marquee-track">
+                            <span class="town-news-marquee-copy">{{ implode('　｜　', $headerInfo['news']) }}</span>
+                            <span class="town-news-marquee-copy" aria-hidden="true">{{ implode('　｜　', $headerInfo['news']) }}</span>
+                        </div>
                     </div>
                     @if($townUpdates->isNotEmpty())
                         <button type="button"
@@ -1502,8 +1505,8 @@
 
             <div class="relative mt-0.5 w-full min-w-0 px-2.5 pb-2 text-[10px] font-bold leading-4 sm:px-3 sm:pb-2.5 sm:text-[11px]">
                 <div class="text-gray-700">現在の冒険者：（{{ count($onlinePlayers) }}人）</div>
-                <div class="min-w-0 pr-10 sm:pr-12">
-                    <div class="flex flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
+                <div class="flex min-w-0 items-start gap-1.5">
+                    <div class="flex min-w-0 flex-1 flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
                         @forelse($onlinePlayers as $player)
                             <a href="#"
@@ -1516,18 +1519,15 @@
                             <span class="text-gray-500">周辺を巡回中</span>
                         @endforelse
                     </div>
+                    @if(count($onlinePlayers) > 4)
+                        <button type="button"
+                                @click="playersExpanded = !playersExpanded"
+                                class="shrink-0 rounded border border-[#d4af37]/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-black leading-none text-[#9a6b00] md:hidden">
+                            <span x-text="playersExpanded ? '閉じる' : '表示'"></span>
+                        </button>
+                    @endif
                 </div>
             </div>
-
-            @if(count($onlinePlayers) > 4)
-                <div class="relative mt-0.5 flex w-full justify-end px-2.5 pb-2 sm:px-3 sm:pb-2.5 md:hidden">
-                    <button type="button"
-                            @click="playersExpanded = !playersExpanded"
-                            class="rounded border border-[#d4af37]/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-black text-[#9a6b00]">
-                        <span x-text="playersExpanded ? '閉じる' : '表示'"></span>
-                    </button>
-                </div>
-            @endif
         </div>
     </div>
     @endif

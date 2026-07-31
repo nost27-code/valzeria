@@ -20,6 +20,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 街のお知らせをゆっくり繰り返し表示し、街ヘッダ下部の余白を詰めました。
+
 - 街のお知らせを街ヘッダへまとめ、スマホでも読みやすい横長表示にしました。
 
 - 探索の地図で戦った後、残り地図探索回数を戦闘結果から確認できるようにしました。

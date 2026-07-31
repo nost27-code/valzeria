@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-31-atomic-build-assets',
+        'date' => '2026-07-31',
+        'category' => 'internal',
+        'title' => '本番公開時のCSS切替を安定化',
+        'detail' => '本番公開直後にCSSが一時的に読み込めなくなる状態を防ぐよう、公開資産の切替手順を改善しました。',
+    ],
+    [
+        'id' => '2026-07-31-town-update-marquee-spacing',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => '街のお知らせの流れ方と余白を調整',
+        'detail' => '街のお知らせをゆっくり繰り返し表示し、街ヘッダ下部の余白を詰めました。',
+    ],
+    [
         'id' => '2026-07-31-town-update-wide-banner',
         'date' => '2026-07-31',
         'category' => 'changed',
