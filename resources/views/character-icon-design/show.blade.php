@@ -71,11 +71,14 @@
                 </a>
             </nav>
 
-            @if($viewMode === 'new')
-                <form method="POST" action="{{ route('character-icon-design.form.save') }}" class="space-y-4 p-3 sm:p-6" data-submit-lock data-character-icon-autosave data-loading-text="保存中..." x-data="{ exampleModalOpen: false }">
+            @if(in_array($viewMode, ['new', 'edit'], true))
+                <form method="POST" action="{{ route('character-icon-design.form.save') }}" class="space-y-4 p-3 sm:p-6" data-submit-lock @if($viewMode === 'new') data-character-icon-autosave @endif data-loading-text="保存中..." x-data="{ exampleModalOpen: false }">
                     @csrf
                     <input type="hidden" name="usage_scenes[]" value="game_avatar">
-                    <input type="hidden" name="intent" value="draft" data-character-icon-intent>
+                    <input type="hidden" name="intent" value="{{ $viewMode === 'edit' ? 'confirm' : 'draft' }}" @if($viewMode === 'new') data-character-icon-intent @endif>
+                    @if($viewMode === 'edit')
+                        <input type="hidden" name="design_request_id" value="{{ $designRequest->id }}">
+                    @endif
 
                     @if($errors->any())
                         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -95,24 +98,33 @@
                         <div class="mt-1 text-lg font-black text-slate-950">{{ $character->name }}</div>
                     </div>
 
-                    <div class="rounded-xl border border-amber-300 bg-amber-50 p-4">
-                        <div class="text-sm font-black text-amber-950">記入と下書き保存は無料です</div>
-                        @if($submissionAvailable)
-                            <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
-                                提出時に{{ number_format($price) }}輝石を支払います。輝石は無償分から優先して消費します。
-                                現在の所持輝石は{{ number_format($totalKiseki) }}輝石です。
+                    @if($viewMode === 'edit')
+                        <div class="rounded-xl border border-indigo-300 bg-indigo-50 p-4">
+                            <div class="text-sm font-black text-indigo-950">提出済みのヒアリング内容を修正</div>
+                            <p class="mt-1 text-sm font-bold leading-6 text-indigo-900">
+                                修正による輝石の追加消費はありません。保存すると管理人へ回答更新のお知らせが届きます。
                             </p>
-                            @if($totalKiseki < $price)
-                                <a href="{{ route('kiseki.shop') }}" class="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-700 px-4 text-sm font-black text-white hover:bg-amber-800">
-                                    輝石ショップを見る
-                                </a>
+                        </div>
+                    @else
+                        <div class="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                            <div class="text-sm font-black text-amber-950">記入と下書き保存は無料です</div>
+                            @if($submissionAvailable)
+                                <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
+                                    提出時に{{ number_format($price) }}輝石を支払います。輝石は無償分から優先して消費します。
+                                    現在の所持輝石は{{ number_format($totalKiseki) }}輝石です。
+                                </p>
+                                @if($totalKiseki < $price)
+                                    <a href="{{ route('kiseki.shop') }}" class="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-700 px-4 text-sm font-black text-white hover:bg-amber-800">
+                                        輝石ショップを見る
+                                    </a>
+                                @endif
+                            @else
+                                <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
+                                    現在は下書き保存まで利用できます。提出受付の開始後、確認画面から{{ number_format($price) }}輝石を支払って提出できます。
+                                </p>
                             @endif
-                        @else
-                            <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
-                                現在は下書き保存まで利用できます。提出受付の開始後、確認画面から{{ number_format($price) }}輝石を支払って提出できます。
-                            </p>
-                        @endif
-                    </div>
+                        </div>
+                    @endif
 
                     <details open class="rounded-xl border border-violet-200 bg-white">
                         <summary class="cursor-pointer list-none px-4 py-4 text-base font-black text-violet-950">ヒアリングシート</summary>
@@ -310,15 +322,24 @@
                     </details>
 
                     <div class="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row sm:items-center sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-                        <p class="text-center text-xs font-bold text-slate-500 sm:mr-auto sm:text-left" data-character-icon-autosave-status role="status" aria-live="polite">
-                            変更内容は自動で下書き保存されます
-                        </p>
-                        <button type="submit" name="intent" value="draft" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50">
-                            下書きを保存
-                        </button>
-                        <button type="submit" name="intent" value="confirm" data-loading-text="確認中..." class="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-700 px-5 text-sm font-black text-white shadow hover:bg-violet-800">
-                            確認
-                        </button>
+                        @if($viewMode === 'edit')
+                            <a href="{{ route('character-icon-design.show', ['request' => $designRequest->id]) }}" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50">
+                                修正をやめる
+                            </a>
+                            <button type="submit" name="intent" value="confirm" data-loading-text="保存中..." class="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-700 px-5 text-sm font-black text-white shadow hover:bg-violet-800">
+                                修正内容を保存
+                            </button>
+                        @else
+                            <p class="text-center text-xs font-bold text-slate-500 sm:mr-auto sm:text-left" data-character-icon-autosave-status role="status" aria-live="polite">
+                                変更内容は自動で下書き保存されます
+                            </p>
+                            <button type="submit" name="intent" value="draft" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50">
+                                下書きを保存
+                            </button>
+                            <button type="submit" name="intent" value="confirm" data-loading-text="確認中..." class="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-700 px-5 text-sm font-black text-white shadow hover:bg-violet-800">
+                                確認
+                            </button>
+                        @endif
                     </div>
                 </form>
             @elseif($designRequest)
@@ -378,6 +399,12 @@
                             @endforeach
                         </dl>
                     </details>
+
+                    @if($designRequest->status !== 'completed')
+                        <a href="{{ route('character-icon-design.show', ['request' => $designRequest->id, 'edit' => 1]) }}" class="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-violet-300 bg-white px-5 text-sm font-black text-violet-800 hover:bg-violet-50 sm:w-auto">
+                            ヒアリング内容を修正
+                        </a>
+                    @endif
 
                     <section id="design-chat" class="rounded-xl border border-indigo-200 bg-slate-50 p-3 sm:p-5">
                         <div class="flex items-center justify-between gap-3">

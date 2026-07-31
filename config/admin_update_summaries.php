@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-character-icon-submitted-form-revision',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => '提出後のキャラアイコン回答修正に対応',
+        'detail' => 'キャラアイコン制作で、制作完了前なら提出済みのヒアリング内容を追加料金なしで修正できるようにしました。修正時は管理画面へ回答更新を表示します。',
+    ],
+    [
         'id' => '2026-07-31-character-icon-optional-fields',
         'date' => '2026-07-31',
         'category' => 'changed',

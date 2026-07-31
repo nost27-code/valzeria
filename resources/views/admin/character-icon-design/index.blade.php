@@ -34,8 +34,11 @@
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="text-base font-black text-slate-950">{{ $designRequest->character?->name ?? '削除済み冒険者' }}</span>
                                     <span class="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-black text-violet-700">{{ $designRequest->statusLabel() }}</span>
-                                    @if($designRequest->unread_player_messages_count > 0)
-                                        <span class="rounded-full bg-rose-600 px-2 py-1 text-[11px] font-black text-white">未読返信 {{ number_format($designRequest->unread_player_messages_count) }}</span>
+                                    @if($designRequest->unread_form_updates_count > 0)
+                                        <span class="rounded-full bg-amber-500 px-2 py-1 text-[11px] font-black text-white">回答更新あり</span>
+                                    @endif
+                                    @if($designRequest->unread_player_messages_count - $designRequest->unread_form_updates_count > 0)
+                                        <span class="rounded-full bg-rose-600 px-2 py-1 text-[11px] font-black text-white">未読返信 {{ number_format($designRequest->unread_player_messages_count - $designRequest->unread_form_updates_count) }}</span>
                                     @endif
                                 </div>
                                 <div class="mt-2 text-xs font-bold text-slate-500">

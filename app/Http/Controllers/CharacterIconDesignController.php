@@ -30,6 +30,7 @@ class CharacterIconDesignController extends Controller
         $draftRequest = $service->draftFor($character);
         $submittedRequests = $service->submittedRequestsFor($character);
         $selectedRequestId = $request->integer('request');
+        $editingSubmittedRequest = $selectedRequestId > 0 && $request->boolean('edit');
         $requestedView = (string) $request->query('view', '');
         $viewMode = match (true) {
             $selectedRequestId > 0 => 'submitted',
@@ -46,6 +47,11 @@ class CharacterIconDesignController extends Controller
 
         if ($selectedRequestId > 0 && ! $designRequest) {
             abort(404);
+        }
+
+        if ($editingSubmittedRequest) {
+            abort_if($designRequest->status === 'completed', 404);
+            $viewMode = 'edit';
         }
 
         if ($viewMode === 'submitted' && $designRequest?->isChatOpen()) {
@@ -70,9 +76,19 @@ class CharacterIconDesignController extends Controller
     public function saveForm(Request $request, CharacterIconDesignService $service)
     {
         $character = $this->authorizedCharacter($service);
+        $submittedRequestId = $request->integer('design_request_id');
+        $submittedRequest = null;
+
+        if ($submittedRequestId > 0) {
+            $submittedRequest = CharacterIconDesignRequest::query()
+                ->whereKey($submittedRequestId)
+                ->where('character_id', $character->id)
+                ->whereNotNull('submitted_at')
+                ->firstOrFail();
+        }
 
         if (! $request->filled('intent')) {
-            $request->merge(['intent' => 'draft']);
+            $request->merge(['intent' => $submittedRequest ? 'confirm' : 'draft']);
         }
 
         $intent = $request->validate([
@@ -83,13 +99,23 @@ class CharacterIconDesignController extends Controller
             'intent.in' => '保存方法の指定を確認してください。',
         ])['intent'];
         $requestedConfirm = $intent === 'confirm';
-        $confirm = $requestedConfirm && $service->canSubmit($character);
+        $confirm = $submittedRequest !== null
+            || ($requestedConfirm && $service->canSubmit($character));
         $validated = $request->validate(
             $this->formRules($confirm, $request->all()),
             $this->formMessages(),
             $this->formAttributes()
         );
         $formData = $this->formData($validated);
+
+        if ($submittedRequest) {
+            $result = $service->reviseSubmittedForm($character, $submittedRequest, $formData);
+
+            return redirect()
+                ->route('character-icon-design.show', ['request' => $submittedRequest->id])
+                ->with($result['success'] ? 'status' : 'error', $result['message']);
+        }
+
         $result = $service->saveForm($character, $formData, false);
 
         if ($request->expectsJson()) {

@@ -28,6 +28,10 @@ class CharacterIconDesignController extends Controller
                 'messages as unread_player_messages_count' => fn ($query) => $query
                     ->where('sender_type', 'player')
                     ->whereNull('read_by_admin_at'),
+                'messages as unread_form_updates_count' => fn ($query) => $query
+                    ->where('sender_type', 'player')
+                    ->whereNull('read_by_admin_at')
+                    ->where('body', CharacterIconDesignService::FORM_UPDATED_MESSAGE),
             ])
             ->orderByDesc('submitted_at')
             ->orderByDesc('updated_at')

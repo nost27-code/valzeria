@@ -505,6 +505,121 @@ class CharacterIconDesignRequestTest extends TestCase
         $this->actingAs($otherPlayer)
             ->get(route('character-icon-design.show', ['request' => $firstRequest->id]))
             ->assertNotFound();
+        $this->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'design_request_id' => $firstRequest->id,
+            'intent' => 'confirm',
+        ])->assertNotFound();
+    }
+
+    public function test_player_can_revise_a_submitted_sheet_without_another_charge_and_admin_sees_update(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        [$player, $character] = $this->createPlayer('提出後修正者', 40, 0);
+
+        $this->actingAs($player)
+            ->post(route('character-icon-design.form.save'), [
+                ...$this->validFormPayload(),
+                'intent' => 'confirm',
+            ])
+            ->assertRedirect(route('character-icon-design.form.confirm'));
+        $designRequest = CharacterIconDesignRequest::query()
+            ->where('character_id', $character->id)
+            ->firstOrFail();
+        $this->post(route('character-icon-design.form.submit'))
+            ->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]));
+
+        $designRequest->refresh();
+        $submittedAt = $designRequest->submitted_at?->toISOString();
+
+        $this->get(route('character-icon-design.show', [
+            'request' => $designRequest->id,
+            'edit' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('提出済みのヒアリング内容を修正')
+            ->assertSee('修正による輝石の追加消費はありません')
+            ->assertSee('優しい雰囲気の星読み司書')
+            ->assertSee('name="design_request_id"', false)
+            ->assertSee('修正内容を保存')
+            ->assertDontSee('data-character-icon-autosave', false);
+
+        $revisedPayload = $this->validFormPayload();
+        $revisedPayload['one_line'] = '静かな森を守る星読み司書';
+        $revisedPayload['must_have'] = '月形の髪飾り';
+
+        $this->post(route('character-icon-design.form.save'), [
+            ...$revisedPayload,
+            'design_request_id' => $designRequest->id,
+            'intent' => 'confirm',
+        ])
+            ->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]))
+            ->assertSessionHas('status', 'ヒアリング内容を修正しました。管理人にも更新をお知らせしました。');
+
+        $designRequest->refresh();
+        $this->assertSame('submitted', $designRequest->status);
+        $this->assertSame($submittedAt, $designRequest->submitted_at?->toISOString());
+        $this->assertSame('静かな森を守る星読み司書', $designRequest->form_data['one_line']);
+        $this->assertSame('月形の髪飾り', $designRequest->form_data['must_have']);
+        $this->assertSame(0, (int) $character->fresh()->kiseki);
+        $this->assertDatabaseCount('kiseki_transactions', 1);
+        $this->assertDatabaseHas('character_icon_design_messages', [
+            'character_icon_design_request_id' => $designRequest->id,
+            'sender_type' => 'player',
+            'body' => CharacterIconDesignService::FORM_UPDATED_MESSAGE,
+            'read_by_admin_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.character-icon-design.index'))
+            ->assertOk()
+            ->assertSee('回答更新あり');
+        $this->get(route('admin.character-icon-design.show', $designRequest))
+            ->assertOk()
+            ->assertSee('静かな森を守る星読み司書')
+            ->assertSee('月形の髪飾り')
+            ->assertSee(CharacterIconDesignService::FORM_UPDATED_MESSAGE);
+        $this->get(route('admin.character-icon-design.index'))
+            ->assertOk()
+            ->assertDontSee('回答更新あり');
+    }
+
+    public function test_completed_sheet_cannot_be_revised(): void
+    {
+        [$player, $character] = $this->createPlayer('制作完了者');
+        $designRequest = CharacterIconDesignRequest::query()->create([
+            'character_id' => $character->id,
+            'status' => 'completed',
+            'price_kiseki' => 40,
+            'form_data' => $this->validFormPayload(),
+            'purchased_at' => now(),
+            'submitted_at' => now(),
+            'completed_at' => now(),
+        ]);
+        $revisedPayload = $this->validFormPayload();
+        $revisedPayload['one_line'] = '変更されてはいけないキャラ';
+
+        $this->actingAs($player)
+            ->get(route('character-icon-design.show', [
+                'request' => $designRequest->id,
+                'edit' => 1,
+            ]))
+            ->assertNotFound();
+
+        $this->post(route('character-icon-design.form.save'), [
+            ...$revisedPayload,
+            'design_request_id' => $designRequest->id,
+            'intent' => 'confirm',
+        ])
+            ->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]))
+            ->assertSessionHas('error', '制作完了後のヒアリング内容は修正できません。');
+
+        $this->assertSame(
+            '優しい雰囲気の星読み司書',
+            $designRequest->fresh()->form_data['one_line']
+        );
+        $this->assertDatabaseCount('character_icon_design_messages', 0);
+        $this->assertDatabaseCount('kiseki_transactions', 0);
     }
 
     public function test_insufficient_kiseki_saves_the_draft_without_submitting_or_charging(): void

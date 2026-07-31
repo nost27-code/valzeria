@@ -17,6 +17,8 @@ class CharacterIconDesignService
 {
     public const CONTENT_KEY = 'character_icon_design';
 
+    public const FORM_UPDATED_MESSAGE = 'ヒアリング内容を修正しました。回答内容を再確認してください。';
+
     public function isEnabled(): bool
     {
         return app(ExtraContentControlService::class)->isActive(self::CONTENT_KEY);
@@ -198,6 +200,48 @@ class CharacterIconDesignService
                 'message' => $submit
                     ? 'ヒアリングシートを提出しました。管理人との専用チャットが開きました。'
                     : '下書きを保存しました。',
+            ];
+        });
+    }
+
+    /**
+     * @return array{success: bool, message: string}
+     */
+    public function reviseSubmittedForm(
+        Character $character,
+        CharacterIconDesignRequest $designRequest,
+        array $formData,
+    ): array {
+        return DB::transaction(function () use ($character, $designRequest, $formData): array {
+            $lockedRequest = CharacterIconDesignRequest::query()
+                ->whereKey($designRequest->id)
+                ->where('character_id', $character->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedRequest->submitted_at) {
+                return ['success' => false, 'message' => '提出前のヒアリングシートはこの画面から修正できません。'];
+            }
+
+            if ($lockedRequest->status === 'completed') {
+                return ['success' => false, 'message' => '制作完了後のヒアリング内容は修正できません。'];
+            }
+
+            if ((array) $lockedRequest->form_data === $formData) {
+                return ['success' => true, 'message' => 'ヒアリング内容に変更はありませんでした。'];
+            }
+
+            $lockedRequest->forceFill(['form_data' => $formData])->save();
+            $lockedRequest->messages()->create([
+                'sender_type' => 'player',
+                'body' => self::FORM_UPDATED_MESSAGE,
+                'read_by_player_at' => now(),
+                'read_by_admin_at' => null,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'ヒアリング内容を修正しました。管理人にも更新をお知らせしました。',
             ];
         });
     }
