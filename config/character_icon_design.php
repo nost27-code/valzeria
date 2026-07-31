@@ -10,7 +10,7 @@ return [
         fn (int $characterId): bool => $characterId > 0
     )),
     'preparing_title' => 'キャラアイコン作成',
-    'preparing_message' => '現在準備中です。もうしばらくお待ちください。',
+    'preparing_message' => '現在準備中です。もうしばらくお待ちください。下書き保存しました。',
 
     'statuses' => [
         'eligible' => '下書き',

@@ -70,7 +70,7 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertSee('公開前利用者');
     }
 
-    public function test_enabled_feature_shows_preparing_modal_and_blocks_player_routes(): void
+    public function test_enabled_feature_allows_drafts_but_blocks_confirmation_and_submission(): void
     {
         config([
             'character_icon_design.public_access_enabled' => false,
@@ -86,41 +86,90 @@ class CharacterIconDesignRequestTest extends TestCase
 
         $this->assertIsArray($menuItem);
         $this->assertSame('案内', $menuItem['group']);
-        $this->assertSame('キャラアイコン作成', $menuItem['modal_title']);
-        $this->assertSame('現在準備中です。もうしばらくお待ちください。', $menuItem['modal_message']);
-        $this->assertArrayNotHasKey('route', $menuItem);
-        $this->assertStringContainsString(
-            '@click="openModal(@js($menuItem[\'modal_title\'] ?? $menuItem[\'name\']), @js($menuItem[\'modal_message\']))"',
-            file_get_contents(resource_path('views/livewire/main-screen.blade.php'))
-        );
+        $this->assertSame('character-icon-design.show', $menuItem['route']);
+        $this->assertArrayNotHasKey('modal_message', $menuItem);
 
         $this->actingAs($player)
             ->get(route('character-icon-design.show'))
-            ->assertNotFound();
-        $this->post(route('character-icon-design.form.save'), [
-            ...$this->validFormPayload(),
-            'intent' => 'confirm',
-        ])->assertNotFound();
+            ->assertOk()
+            ->assertSee('現在は下書き保存まで利用できます。')
+            ->assertSee('確認');
 
-        $this->assertDatabaseCount('character_icon_design_requests', 0);
+        $this->post(route('character-icon-design.form.save'), [
+            'one_line' => '準備中に保存する冒険者',
+            'intent' => 'confirm',
+        ])
+            ->assertRedirect(route('character-icon-design.show', ['view' => 'new']))
+            ->assertSessionHas(
+                'character_icon_design_preparing_message',
+                '現在準備中です。もうしばらくお待ちください。下書き保存しました。'
+            );
+
+        $this->get(route('character-icon-design.show', ['view' => 'new']))
+            ->assertOk()
+            ->assertSee('現在準備中です。もうしばらくお待ちください。下書き保存しました。')
+            ->assertSee('準備中に保存する冒険者');
+
+        $this->get(route('character-icon-design.form.confirm'))
+            ->assertRedirect(route('character-icon-design.show', ['view' => 'new']))
+            ->assertSessionHas('character_icon_design_preparing_message');
+
+        $this->post(route('character-icon-design.form.submit'))
+            ->assertRedirect(route('character-icon-design.show', ['view' => 'new']))
+            ->assertSessionHas('character_icon_design_preparing_message');
+
+        $serviceResult = app(CharacterIconDesignService::class)->saveForm(
+            $character->fresh(),
+            $this->validFormPayload(),
+            true,
+        );
+        $this->assertFalse($serviceResult['success']);
+        $this->assertSame(
+            '現在準備中です。もうしばらくお待ちください。下書き保存しました。',
+            $serviceResult['message']
+        );
+
+        $this->assertDatabaseHas('character_icon_design_requests', [
+            'character_id' => $character->id,
+            'status' => 'draft',
+            'purchased_at' => null,
+            'submitted_at' => null,
+        ]);
+        $this->assertSame(40, (int) $character->fresh()->kiseki);
         $this->assertDatabaseCount('kiseki_transactions', 0);
     }
 
-    public function test_preview_character_can_access_while_other_players_see_preparing_state(): void
+    public function test_preview_character_can_submit_while_other_players_are_limited_to_drafts(): void
     {
         config(['character_icon_design.public_access_enabled' => false]);
         [$previewPlayer, $previewCharacter] = $this->createPlayer('先行確認者', 40, 0);
-        [$otherPlayer] = $this->createPlayer('一般利用者', 40, 0);
+        [$otherPlayer, $otherCharacter] = $this->createPlayer('一般利用者', 40, 0);
         config(['character_icon_design.preview_character_ids' => [$previewCharacter->id]]);
 
         $this->actingAs($previewPlayer)
             ->get(route('character-icon-design.show'))
             ->assertOk()
             ->assertSee('ヒアリングシート');
+        $this->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])->assertRedirect(route('character-icon-design.form.confirm'));
 
         $this->actingAs($otherPlayer)
             ->get(route('character-icon-design.show'))
-            ->assertNotFound();
+            ->assertOk()
+            ->assertSee('現在は下書き保存まで利用できます。');
+
+        $this->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])
+            ->assertRedirect(route('character-icon-design.show', ['view' => 'new']))
+            ->assertSessionHas('character_icon_design_preparing_message');
+
+        $this->assertSame(40, (int) $previewCharacter->fresh()->kiseki);
+        $this->assertSame(40, (int) $otherCharacter->fresh()->kiseki);
+        $this->assertDatabaseCount('kiseki_transactions', 0);
     }
 
     public function test_admin_can_enable_the_feature_from_extra_content_management(): void

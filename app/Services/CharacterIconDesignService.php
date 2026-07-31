@@ -24,7 +24,12 @@ class CharacterIconDesignService
 
     public function canAccess(?Character $character): bool
     {
-        if (! $this->isEnabled() || ! $character) {
+        return $this->isEnabled() && $character !== null;
+    }
+
+    public function canSubmit(?Character $character): bool
+    {
+        if (! $this->canAccess($character)) {
             return false;
         }
 
@@ -49,7 +54,7 @@ class CharacterIconDesignService
     {
         return (string) config(
             'character_icon_design.preparing_message',
-            '現在準備中です。もうしばらくお待ちください。'
+            '現在準備中です。もうしばらくお待ちください。下書き保存しました。'
         );
     }
 
@@ -92,6 +97,13 @@ class CharacterIconDesignService
         bool $submit,
         ?int $designRequestId = null,
     ): array {
+        if ($submit && ! $this->canSubmit($character)) {
+            return [
+                'success' => false,
+                'message' => $this->preparingMessage(),
+            ];
+        }
+
         return DB::transaction(function () use (
             $character,
             $formData,

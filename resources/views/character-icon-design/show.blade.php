@@ -19,6 +19,27 @@
                 {{ session('error') }}
             </div>
         @endif
+        @if(session('character_icon_design_preparing_message'))
+            <div x-data="{ open: true }">
+                <template x-teleport="body">
+                    <div x-cloak x-show="open" @keydown.escape.window="open = false" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4" role="presentation">
+                        <section @click.outside="open = false" role="dialog" aria-modal="true" aria-labelledby="character-icon-preparing-title" class="w-full max-w-md overflow-hidden rounded-2xl border-2 border-[#d4af37] bg-white shadow-2xl">
+                            <header class="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-950 px-5 py-4 text-white">
+                                <h2 id="character-icon-preparing-title" class="text-lg font-black">キャラアイコン作成</h2>
+                            </header>
+                            <div class="px-5 py-6">
+                                <p class="text-sm font-bold leading-7 text-slate-700">{{ session('character_icon_design_preparing_message') }}</p>
+                            </div>
+                            <footer class="border-t border-slate-200 bg-slate-50 px-5 py-3 text-right">
+                                <button type="button" @click="open = false" class="inline-flex min-h-11 items-center justify-center rounded-lg bg-violet-700 px-5 text-sm font-black text-white hover:bg-violet-800">
+                                    閉じる
+                                </button>
+                            </footer>
+                        </section>
+                    </div>
+                </template>
+            </div>
+        @endif
 
         <section class="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
             <div class="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-950 px-4 py-5 text-white sm:px-6">
@@ -76,14 +97,20 @@
 
                     <div class="rounded-xl border border-amber-300 bg-amber-50 p-4">
                         <div class="text-sm font-black text-amber-950">記入と下書き保存は無料です</div>
-                        <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
-                            提出時に{{ number_format($price) }}輝石を支払います。輝石は無償分から優先して消費します。
-                            現在の所持輝石は{{ number_format($totalKiseki) }}輝石です。
-                        </p>
-                        @if($totalKiseki < $price)
-                            <a href="{{ route('kiseki.shop') }}" class="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-700 px-4 text-sm font-black text-white hover:bg-amber-800">
-                                輝石ショップを見る
-                            </a>
+                        @if($submissionAvailable)
+                            <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
+                                提出時に{{ number_format($price) }}輝石を支払います。輝石は無償分から優先して消費します。
+                                現在の所持輝石は{{ number_format($totalKiseki) }}輝石です。
+                            </p>
+                            @if($totalKiseki < $price)
+                                <a href="{{ route('kiseki.shop') }}" class="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-700 px-4 text-sm font-black text-white hover:bg-amber-800">
+                                    輝石ショップを見る
+                                </a>
+                            @endif
+                        @else
+                            <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
+                                現在は下書き保存まで利用できます。提出受付の開始後、確認画面から{{ number_format($price) }}輝石を支払って提出できます。
+                            </p>
                         @endif
                     </div>
 

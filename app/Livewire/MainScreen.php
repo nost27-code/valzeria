@@ -802,15 +802,9 @@ class MainScreen extends Component
             'icon_image' => 'icon/icon_021.webp',
             'icon' => '✦',
             'desc' => 'オリジナルのキャラアイコンを依頼する',
+            'route' => 'character-icon-design.show',
             'status' => 'active',
         ];
-
-        if ($service->canAccess($this->character)) {
-            $item['route'] = 'character-icon-design.show';
-        } else {
-            $item['modal_title'] = $service->preparingTitle();
-            $item['modal_message'] = $service->preparingMessage();
-        }
 
         return $item;
     }

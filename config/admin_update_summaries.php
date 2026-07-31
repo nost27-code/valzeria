@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-character-icon-design-draft-preview',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => 'キャラアイコン制作の下書きを開放',
+        'detail' => '冒険者メニューからヒアリングシートを開き、入力内容を無料で自動下書き保存できるようにしました。提出受付は準備中のため、「確認」を押すと下書きを保存して案内を表示し、輝石は消費しません。',
+    ],
+    [
         'id' => '2026-07-31-character-icon-design-preparing-notice',
         'date' => '2026-07-31',
         'category' => 'changed',

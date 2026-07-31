@@ -61,6 +61,7 @@ class CharacterIconDesignController extends Controller
             'draftRequest' => $draftRequest,
             'submittedRequests' => $submittedRequests,
             'viewMode' => $viewMode,
+            'submissionAvailable' => $service->canSubmit($character),
             'totalKiseki' => (int) ($character->free_kiseki ?? 0)
                 + (int) ($character->paid_kiseki ?? 0),
         ]);
@@ -81,7 +82,8 @@ class CharacterIconDesignController extends Controller
             'intent.string' => '保存方法の指定を確認してください。',
             'intent.in' => '保存方法の指定を確認してください。',
         ])['intent'];
-        $confirm = $intent === 'confirm';
+        $requestedConfirm = $intent === 'confirm';
+        $confirm = $requestedConfirm && $service->canSubmit($character);
         $validated = $request->validate(
             $this->formRules($confirm, $request->all()),
             $this->formMessages(),
@@ -92,6 +94,10 @@ class CharacterIconDesignController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json($result, $result['success'] ? 200 : 422);
+        }
+
+        if ($requestedConfirm && ! $confirm && $result['success']) {
+            return $this->preparingRedirect($service);
         }
 
         if ($confirm && $result['success']) {
@@ -106,6 +112,10 @@ class CharacterIconDesignController extends Controller
     public function confirm(CharacterIconDesignService $service)
     {
         $character = $this->authorizedCharacter($service);
+        if (! $service->canSubmit($character)) {
+            return $this->preparingRedirect($service);
+        }
+
         $designRequest = $service->draftFor($character);
 
         if (
@@ -129,6 +139,10 @@ class CharacterIconDesignController extends Controller
     public function submit(CharacterIconDesignService $service)
     {
         $character = $this->authorizedCharacter($service);
+        if (! $service->canSubmit($character)) {
+            return $this->preparingRedirect($service);
+        }
+
         $designRequest = $service->draftFor($character);
 
         if (! $designRequest || ! in_array($designRequest->status, ['eligible', 'draft'], true)) {
@@ -214,6 +228,13 @@ class CharacterIconDesignController extends Controller
         abort_unless($service->canAccess($character), 404);
 
         return $character;
+    }
+
+    private function preparingRedirect(CharacterIconDesignService $service)
+    {
+        return redirect()
+            ->route('character-icon-design.show', ['view' => 'new'])
+            ->with('character_icon_design_preparing_message', $service->preparingMessage());
     }
 
     private function formRules(bool $submit, array $input = []): array
