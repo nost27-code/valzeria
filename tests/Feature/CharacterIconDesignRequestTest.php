@@ -837,6 +837,40 @@ class CharacterIconDesignRequestTest extends TestCase
             ->get(route('admin.character-icon-design.index'))
             ->assertOk()
             ->assertSee('未読返信 1');
+
+        $this->patch(route('admin.character-icon-design.status.update', $designRequest), [
+            'status' => 'completed',
+        ])->assertRedirect(route('admin.character-icon-design.show', $designRequest));
+
+        $this->get(route('admin.character-icon-design.show', $designRequest))
+            ->assertOk()
+            ->assertSee('制作完了後も、このチャットで冒険者と連絡できます。')
+            ->assertSee('冒険者へのメッセージ');
+
+        $this->post(route('admin.character-icon-design.messages.store', $designRequest), [
+            'body' => '公開後の連絡です。',
+        ])->assertRedirect(route('admin.character-icon-design.show', $designRequest));
+
+        $this->actingAs($player)
+            ->get(route('character-icon-design.show', ['request' => $designRequest->id]))
+            ->assertOk()
+            ->assertSee('必要な連絡は引き続きこのチャットで行えます。')
+            ->assertSee('管理人へのメッセージ');
+
+        $this->post(route('character-icon-design.messages.store', $designRequest), [
+            'body' => '確認しました。',
+        ])->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]));
+
+        $this->assertDatabaseHas('character_icon_design_messages', [
+            'character_icon_design_request_id' => $designRequest->id,
+            'sender_type' => 'admin',
+            'body' => '公開後の連絡です。',
+        ]);
+        $this->assertDatabaseHas('character_icon_design_messages', [
+            'character_icon_design_request_id' => $designRequest->id,
+            'sender_type' => 'player',
+            'body' => '確認しました。',
+        ]);
     }
 
     public function test_private_candidate_images_cannot_be_read_by_another_player(): void

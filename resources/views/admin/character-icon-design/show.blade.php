@@ -130,22 +130,21 @@
                             @endforelse
                         </div>
 
-                        @if($designRequest->status !== 'completed')
-                            <form method="POST" action="{{ route('admin.character-icon-design.messages.store', $designRequest) }}" enctype="multipart/form-data" class="mt-5 space-y-3 rounded-xl border border-slate-200 bg-white p-4" data-submit-lock data-loading-text="送信中...">
-                                @csrf
-                                <label class="block">
-                                    <span class="text-sm font-black text-slate-800">冒険者へのメッセージ</span>
-                                    <textarea name="body" rows="5" maxlength="3000" placeholder="例：まず4案を用意しました。残したい髪型や衣装、色合いを教えてください。" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold leading-6">{{ old('body') }}</textarea>
-                                    @error('body')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
-                                </label>
-                                <x-multi-image-picker label="候補画像" />
-                                @error('attachments')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
-                                @error('attachments.*')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
-                                <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-indigo-700 px-5 text-sm font-black text-white hover:bg-indigo-800 sm:w-auto">専用チャットへ送信</button>
-                            </form>
-                        @else
-                            <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">制作完了のため、チャットは履歴確認用です。</div>
+                        @if($designRequest->status === 'completed')
+                            <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">制作完了後も、このチャットで冒険者と連絡できます。</div>
                         @endif
+                        <form method="POST" action="{{ route('admin.character-icon-design.messages.store', $designRequest) }}" enctype="multipart/form-data" class="mt-5 space-y-3 rounded-xl border border-slate-200 bg-white p-4" data-submit-lock data-loading-text="送信中...">
+                            @csrf
+                            <label class="block">
+                                <span class="text-sm font-black text-slate-800">冒険者へのメッセージ</span>
+                                <textarea name="body" rows="5" maxlength="3000" placeholder="例：まず4案を用意しました。残したい髪型や衣装、色合いを教えてください。" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold leading-6">{{ old('body') }}</textarea>
+                                @error('body')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
+                            </label>
+                            <x-multi-image-picker label="候補画像" />
+                            @error('attachments')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
+                            @error('attachments.*')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
+                            <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-indigo-700 px-5 text-sm font-black text-white hover:bg-indigo-800 sm:w-auto">専用チャットへ送信</button>
+                        </form>
                     </section>
                 @endif
             </main>

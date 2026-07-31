@@ -325,7 +325,7 @@ class CharacterIconDesignService
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if (! $lockedRequest->isChatOpen() || $lockedRequest->status === 'completed') {
+                if (! $lockedRequest->isChatOpen()) {
                     throw new \DomainException('この専用チャットは現在送信できません。');
                 }
 
