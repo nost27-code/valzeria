@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-exclusive-character-icon-001-size-update',
+        'date' => '2026-08-01',
+        'category' => 'internal',
+        'title' => '限定キャラアイコンの画像サイズを更新',
+        'detail' => '制作内容の調整に合わせて、対象冒険者専用の4ポーズ画像を128px版へ差し替えました。',
+    ],
+    [
         'id' => '2026-08-01-champ-pose-owner-only',
         'date' => '2026-08-01',
         'category' => 'fixed',
