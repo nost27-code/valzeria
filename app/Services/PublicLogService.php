@@ -201,11 +201,15 @@ class PublicLogService
     /**
      * 最新の公開ログを取得する
      */
-    public function getRecentLogs(int $limit = 20, ?int $currentCharacterId = null)
+    public function getRecentLogs(int $limit = 20, ?int $currentCharacterId = null, ?array $types = null)
     {
         $query = PublicLog::with(['character', 'receiver'])
             ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc');
+
+        if ($types !== null) {
+            $query->whereIn('type', $types);
+        }
 
         $query->where(function ($q): void {
             $q->whereNull('character_id')

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-rare-drop-tab-latest-fifty',
+        'date' => '2026-07-31',
+        'category' => 'fixed',
+        'title' => 'レアドロップ履歴を最新50件に修正',
+        'detail' => 'ホーム画面下部のレアドロップタブで、他のチャット件数に影響されず、レアドロップだけの最新50件を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-31-character-icon-design-draft-preview',
         'date' => '2026-07-31',
         'category' => 'changed',

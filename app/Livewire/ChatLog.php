@@ -240,7 +240,9 @@ class ChatLog extends Component
         $characterId = auth()->check() && auth()->user()->currentCharacter() ? auth()->user()->currentCharacter()->id : null;
         $displayLimit = $this->logLimit;
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
-        $publicLogs = $logService->getRecentLogs($fetchLimit, $characterId);
+        $publicLogs = $this->activeTab === 'drop'
+            ? $logService->getRecentLogs($displayLimit, $characterId, ['drop'])
+            : $logService->getRecentLogs($fetchLimit, $characterId);
         $systemLogs = [];
         $count = 0;
 

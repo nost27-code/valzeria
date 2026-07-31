@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Character;
+use App\Models\PublicLog;
 use App\Models\User;
 use App\Services\PublicLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,6 +29,33 @@ class PublicLogServiceVisibilityTest extends TestCase
             'type' => 'area',
             'character_id' => $character->id,
         ]);
+    }
+
+    public function test_recent_logs_can_fetch_the_latest_fifty_rare_drops_without_other_types_consuming_the_limit(): void
+    {
+        foreach (range(1, 60) as $number) {
+            PublicLog::query()->create([
+                'type' => 'drop',
+                'message' => "レアドロップ{$number}",
+                'importance' => 1,
+                'created_at' => now()->addSeconds($number),
+                'updated_at' => now()->addSeconds($number),
+            ]);
+            PublicLog::query()->create([
+                'type' => 'chat',
+                'message' => "チャット{$number}",
+                'importance' => 1,
+                'created_at' => now()->addSeconds($number),
+                'updated_at' => now()->addSeconds($number),
+            ]);
+        }
+
+        $logs = app(PublicLogService::class)->getRecentLogs(50, null, ['drop']);
+
+        $this->assertCount(50, $logs);
+        $this->assertTrue($logs->every(fn (PublicLog $log): bool => $log->type === 'drop'));
+        $this->assertSame('レアドロップ60', $logs->first()->message);
+        $this->assertSame('レアドロップ11', $logs->last()->message);
     }
 
     private function adminCharacter(): Character
