@@ -284,9 +284,24 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertSee('「確認」に進むには、次の項目を入力・選択してください。')
             ->assertSee('イメージ優先度を入力または選択してください。')
             ->assertSee('性別イメージを入力または選択してください。')
-            ->assertSee('避けてほしい要素（NG）を入力または選択してください。')
-            ->assertSee('一言で表すキャラクター像を入力または選択してください。')
+            ->assertDontSee('避けてほしい要素（NG）を入力または選択してください。')
+            ->assertDontSee('一言で表すキャラクター像を入力または選択してください。')
             ->assertSee('下書き保存は、未入力の項目があっても利用できます。');
+    }
+
+    public function test_confirmation_allows_ng_elements_and_one_line_to_be_blank(): void
+    {
+        [$player] = $this->createPlayer('任意項目確認者');
+        $payload = $this->validFormPayload();
+        unset($payload['ng_elements'], $payload['one_line']);
+
+        $this->actingAs($player)
+            ->post(route('character-icon-design.form.save'), [
+                ...$payload,
+                'intent' => 'confirm',
+            ])
+            ->assertRedirect(route('character-icon-design.form.confirm'))
+            ->assertSessionHasNoErrors();
     }
 
     public function test_confirmation_step_saves_the_completed_form_without_spending_kiseki(): void

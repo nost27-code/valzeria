@@ -190,15 +190,15 @@
                             </label>
 
                             <label class="block">
-                                <span class="text-sm font-black text-slate-800">避けてほしい要素（NG） <span class="text-rose-600">*</span></span>
-                                <textarea name="ng_elements" rows="3" maxlength="2000" placeholder="ない場合は「特になし」と入力してください。例：重装、可愛すぎる雰囲気、黒髪" class="mt-1.5 w-full rounded-lg border border-rose-200 bg-rose-50/40 px-3 py-2 text-sm font-semibold leading-6">{{ $formValue('ng_elements') }}</textarea>
+                                <span class="text-sm font-black text-slate-800">避けてほしい要素（NG）</span>
+                                <textarea name="ng_elements" rows="3" maxlength="2000" placeholder="例：重装、可愛すぎる雰囲気、黒髪" class="mt-1.5 w-full rounded-lg border border-rose-200 bg-rose-50/40 px-3 py-2 text-sm font-semibold leading-6">{{ $formValue('ng_elements') }}</textarea>
                                 <p class="mt-1 text-xs font-bold text-slate-500">満足度に直結するため、苦手なものを先に教えてください。</p>
                                 @error('ng_elements')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
                             </label>
 
                             <div class="block">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <label for="character-icon-one-line" class="text-sm font-black text-slate-800">一言で表すとどんなキャラ？ <span class="text-rose-600">*</span></label>
+                                    <label for="character-icon-one-line" class="text-sm font-black text-slate-800">一言で表すとどんなキャラ？</label>
                                     <button type="button" @click="exampleModalOpen = true" class="text-sm font-black text-violet-700 underline decoration-violet-300 underline-offset-4 hover:text-violet-900">
                                         サンプルを見る
                                     </button>

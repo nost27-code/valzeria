@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-character-icon-optional-fields',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => 'キャラアイコン制作の入力負担を軽減',
+        'detail' => 'キャラアイコン制作の「避けてほしい要素」と「一言で表すキャラ」を任意入力に変更しました。',
+    ],
+    [
         'id' => '2026-07-31-adventurer-card-lazy-records',
         'date' => '2026-07-31',
         'category' => 'changed',

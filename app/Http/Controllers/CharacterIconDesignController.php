@@ -286,9 +286,9 @@ class CharacterIconDesignController extends Controller
             'personalities' => ['nullable', 'array', 'max:5'],
             'personalities.*' => [Rule::in(array_keys($options['personalities'] ?? []))],
             'must_have' => ['nullable', 'string', 'max:2000'],
-            'ng_elements' => [...$required, 'string', 'max:2000'],
+            'ng_elements' => ['nullable', 'string', 'max:2000'],
             'reference_mood' => ['nullable', 'string', 'max:2000'],
-            'one_line' => [...$required, 'string', 'max:300'],
+            'one_line' => ['nullable', 'string', 'max:300'],
         ];
     }
 
