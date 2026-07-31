@@ -1453,14 +1453,31 @@
     <!-- 1. 全幅ヘッダーエリア -->
     <div class="bg-white rounded-lg shadow-[0_5px_16px_rgba(126,96,28,0.14)] border border-[#d4af37] flex-shrink-0 overflow-hidden w-full font-sans text-xs sm:text-sm">
         <!-- 街ヘッダー -->
-        <div class="px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col md:flex-row justify-between items-center relative bg-cover bg-right"
+        <div class="relative bg-cover bg-right"
              style="background-image: url('{{ asset('images/' . ($cityBackground ?: 'bg-castle.webp')) }}');">
             <!-- 背景を薄くするためのオーバーレイ（お城が見えるように薄く調整） -->
             <div class="absolute inset-0 bg-white/45"></div>
             <!-- 文字の後ろだけ少し白くするためのグラデーション -->
             <div class="absolute inset-0 bg-gradient-to-r from-white/95 via-white/82 to-white/25"></div>
-            
-            <div class="relative flex min-w-0 w-full items-center gap-2.5">
+            <section class="relative px-2.5 pt-2 sm:px-3 sm:pt-2.5"
+                     aria-label="街のお知らせ">
+                <div class="flex min-w-0 items-center gap-2">
+                    <span class="shrink-0 text-base leading-none text-[#c0265a]" aria-hidden="true">📢</span>
+                    <div class="town-news-marquee min-w-0 flex-1 text-xs font-black text-[#4a3415] sm:text-sm"
+                         aria-label="{{ implode('　｜　', $headerInfo['news']) }}">
+                        <span>{{ implode('　｜　', $headerInfo['news']) }}</span>
+                    </div>
+                    @if($townUpdates->isNotEmpty())
+                        <button type="button"
+                                @click="openTownUpdateModal()"
+                                class="shrink-0 rounded-md border border-[#d4af37]/70 bg-white/80 px-2.5 py-1 text-[11px] font-black text-[#8a5a0d] shadow-sm transition hover:bg-amber-50 active:scale-95 sm:text-xs">
+                            一覧
+                        </button>
+                    @endif
+                </div>
+            </section>
+
+            <div class="relative flex min-w-0 w-full items-center gap-2.5 px-2.5 py-2 sm:px-3 sm:py-2.5">
                 <!-- エンブレム画像 -->
                 <div class="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center -my-1.5 drop-shadow-md shrink-0">
                     <img src="{{ asset('images/' . $cityIcon) }}" alt="エンブレム" class="w-full h-full object-contain">
@@ -1473,20 +1490,6 @@
                             <span class="text-[0.7em] text-gray-700 tracking-normal ml-1">- {{ $locationName }}</span>
                         @endif
                     </h1>
-                    <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-slate-600 sm:text-xs">
-                        <span class="shrink-0 text-[#c0265a]">📢</span>
-                        <span class="shrink-0 font-bold text-[#1e293b]">街のお知らせ</span>
-                        <div class="town-news-marquee min-w-0 flex-1" aria-label="{{ implode('　｜　', $headerInfo['news']) }}">
-                            <span>{{ implode('　｜　', $headerInfo['news']) }}</span>
-                        </div>
-                        @if($townUpdates->isNotEmpty())
-                            <button type="button"
-                                    @click="openTownUpdateModal()"
-                                    class="shrink-0 rounded border border-[#d4af37]/60 bg-white/80 px-1.5 py-0.5 text-[10px] font-black text-[#8a5a0d] shadow-sm transition hover:bg-amber-50 active:scale-95 sm:text-[11px]">
-                                一覧
-                            </button>
-                        @endif
-                    </div>
                 </div>
                 <button type="button"
                         @click="window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: 'move' } })); $dispatch('changeTab', { newLocation: 'move' })"
@@ -1497,7 +1500,7 @@
                 </button>
             </div>
 
-            <div class="relative mt-0.5 w-full min-w-0 text-[10px] font-bold leading-4 sm:text-[11px]">
+            <div class="relative mt-0.5 w-full min-w-0 px-2.5 pb-2 text-[10px] font-bold leading-4 sm:px-3 sm:pb-2.5 sm:text-[11px]">
                 <div class="text-gray-700">現在の冒険者：（{{ count($onlinePlayers) }}人）</div>
                 <div class="min-w-0 pr-10 sm:pr-12">
                     <div class="flex flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
@@ -1517,7 +1520,7 @@
             </div>
 
             @if(count($onlinePlayers) > 4)
-                <div class="relative mt-0.5 flex w-full justify-end md:hidden">
+                <div class="relative mt-0.5 flex w-full justify-end px-2.5 pb-2 sm:px-3 sm:pb-2.5 md:hidden">
                     <button type="button"
                             @click="playersExpanded = !playersExpanded"
                             class="rounded border border-[#d4af37]/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-black text-[#9a6b00]">

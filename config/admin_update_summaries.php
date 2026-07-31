@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-town-update-wide-banner',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => '街のお知らせを見やすく変更',
+        'detail' => '街のお知らせを街ヘッダへまとめ、スマホでも読みやすい横長表示にしました。',
+    ],
+    [
         'id' => '2026-07-31-town-update-cache-error',
         'date' => '2026-07-31',
         'category' => 'fixed',
