@@ -65,20 +65,20 @@ class TownUpdateService
             return collect();
         }
 
-        return Cache::remember(self::PUBLIC_CACHE_KEY, now()->addMinute(), function (): Collection {
-            $query = TopUpdate::query()
-                ->where('is_active', true)
-                ->whereDate('published_on', '<=', today('Asia/Tokyo'))
-                ->orderByDesc('published_on')
-                ->orderBy('sort_order')
-                ->orderByDesc('id');
+        $query = TopUpdate::query()
+            ->where('is_active', true)
+            ->whereDate('published_on', '<=', today('Asia/Tokyo'))
+            ->orderByDesc('published_on')
+            ->orderBy('sort_order')
+            ->orderByDesc('id');
 
-            if (Schema::hasColumn('top_updates', 'is_dismissed')) {
-                $query->where('is_dismissed', false);
-            }
+        if (Schema::hasColumn('top_updates', 'is_dismissed')) {
+            $query->where('is_dismissed', false);
+        }
 
-            return $query->limit(20)->get();
-        })->take(max(1, $limit))->values();
+        // Eloquent Collectionを共有キャッシュへ保存すると、デプロイを跨いだ
+        // unserialize時に__PHP_Incomplete_Classとなるため、DBから直接取得する。
+        return $query->limit(max(1, min(20, $limit)))->get();
     }
 
     public function forgetPublishedCache(): void

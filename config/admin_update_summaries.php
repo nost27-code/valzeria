@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-town-update-cache-error',
+        'date' => '2026-07-31',
+        'category' => 'fixed',
+        'title' => '街画面を開けない不具合を修正',
+        'detail' => '街のお知らせ更新後、一部の画面を開けなくなる不具合を修正しました。',
+    ],
+    [
         'id' => '2026-07-31-town-update-history',
         'date' => '2026-07-31',
         'category' => 'added',

@@ -7,6 +7,7 @@ use App\Models\TopUpdate;
 use App\Services\TownUpdateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -124,6 +125,21 @@ class TownUpdateServiceTest extends TestCase
         $updates = app(TownUpdateService::class)->published(3);
 
         $this->assertSame(['1件目', '2件目'], $updates->pluck('body')->all());
+    }
+
+    public function test_published_updates_do_not_restore_an_eloquent_collection_from_shared_cache(): void
+    {
+        Cache::put('town_updates:published', 'stale-serialized-value');
+        TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => 'DBから取得するお知らせ',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        $updates = app(TownUpdateService::class)->published();
+
+        $this->assertSame(['DBから取得するお知らせ'], $updates->pluck('body')->all());
     }
 
     public function test_imported_candidate_can_be_dismissed_without_deletion_and_restored_as_draft(): void
