@@ -55,11 +55,6 @@
                                                 <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
                                             </span>
                                         @endif
-                                        @if(!empty($ranking['has_showcase_choices']))
-                                            <span class="whitespace-nowrap rounded-full bg-violet-600 px-1 py-0.5 text-[8px] font-black leading-none text-white shadow">
-                                                {{ $ranking['showcase_label'] }}
-                                            </span>
-                                        @endif
                                     </div>
                                 @endif
                                 <div class="min-w-0">

@@ -171,6 +171,8 @@ class CharacterIconSetTest extends TestCase
             ->call('cycleMyArenaShowcase')
             ->assertSet('arenaShowcaseMessage', null)
             ->assertDontSee('闘技場の表示を「戦闘」に変更しました。')
+            ->assertDontSee('bg-violet-600', escape: false)
+            ->assertSee('aria-label="闘技場の表示ポーズを変更。現在：戦闘"', escape: false)
             ->assertSee('03_battle.webp', escape: false);
 
         Livewire::actingAs($viewer->user)
