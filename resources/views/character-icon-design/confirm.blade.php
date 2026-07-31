@@ -82,6 +82,7 @@
                     <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
                         <x-multi-image-picker label="申請時の参考画像" />
                         <p class="mt-2 text-xs font-bold leading-5 text-indigo-700">キャラクターの雰囲気・衣装・色合いなど、制作時に参考にしてほしい画像があれば添付してください。</p>
+                        <p class="mt-2 rounded-lg bg-white/80 px-3 py-2 text-xs font-black leading-5 text-indigo-900">※参考画像を添付した場合、添付画像を優先し、ヒアリングシートの回答内容は参考程度として扱います。</p>
                         @error('attachments')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
                         @error('attachments.*')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
                     </section>

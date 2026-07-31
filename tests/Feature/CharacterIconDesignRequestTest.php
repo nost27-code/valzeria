@@ -333,6 +333,7 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertDontSee('ゲーム内アバター')
             ->assertSee('40輝石を支払って提出')
             ->assertSee('申請時の参考画像')
+            ->assertSee('添付画像を優先し、ヒアリングシートの回答内容は参考程度として扱います。')
             ->assertSee('data-multi-image-picker', false)
             ->assertSee('data-multi-image-input', false)
             ->assertSee('enctype="multipart/form-data"', false)
