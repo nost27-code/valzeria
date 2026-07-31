@@ -13,8 +13,10 @@ use App\Services\ExplorationMapDisplayService;
 use App\Services\MapPublicationService;
 use App\Services\MapExplorationItemService;
 use App\Services\MapSurveyService;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ExplorationMapController extends Controller
@@ -181,13 +183,16 @@ class ExplorationMapController extends Controller
             $activeMap = session('active_map_exploration');
             $alreadyEntered = is_array($activeMap)
                 && (int) ($activeMap['registration_id'] ?? 0) === (int) $registration->id;
-            $batch = $service->reserve($character, $registration, $request->integer('count'), $request->input('request_uuid') ?: (string) Str::uuid(), !$alreadyEntered);
-            $itemService = app(MapExplorationItemService::class);
-            if ((!$alreadyEntered && $batch->wasRecentlyCreated)
-                || ($alreadyEntered && !$itemService->hasEntry($character, (int) $registration->id))) {
-                $itemService->begin($character, $registration);
-            }
-            $execution = $service->execute($character, $batch);
+            $execution = DB::transaction(function () use ($character, $registration, $request, $service, $alreadyEntered): array {
+                $batch = $service->reserve($character, $registration, $request->integer('count'), $request->input('request_uuid') ?: (string) Str::uuid(), !$alreadyEntered);
+                $itemService = app(MapExplorationItemService::class);
+                if ((!$alreadyEntered && $batch->wasRecentlyCreated)
+                    || ($alreadyEntered && !$itemService->hasEntry($character, (int) $registration->id))) {
+                    $itemService->begin($character, $registration);
+                }
+
+                return $service->execute($character, $batch);
+            });
             $batch = $execution['batch'];
             $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
             session(['active_map_exploration' => [
@@ -209,6 +214,11 @@ class ExplorationMapController extends Controller
                     'loot_summary' => app(\App\Services\MapExplorationDefeatService::class)->currentLootSummary($character, (int) $batch->registration_id),
                 ],
             ]);
+        }
+        catch (DecryptException $e) {
+            report($e);
+
+            return back()->with('error', 'この地図の探索情報を読み込めませんでした。探索回数・料金・探索力は消費されていません。別の地図を選んでください。');
         }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
     }

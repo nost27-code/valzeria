@@ -1792,6 +1792,12 @@
                                 探索力 <span id="battle-stamina-current-text" x-text="current.toLocaleString()">{{ number_format((int) ($stamina['current'] ?? 0)) }}</span>/<span id="battle-stamina-max-text">{{ number_format((int) ($stamina['max'] ?? 0)) }}</span>
                             </span>
                         @endif
+                        @if(isset($mapExploration))
+                            <p class="w-full text-center text-sm font-bold text-indigo-700" role="status">
+                                残り地図探索回数
+                                <span class="ml-1 text-lg font-black text-indigo-950">{{ number_format((int) ($mapExploration['remaining_explorations'] ?? 0)) }}回</span>
+                            </p>
+                        @endif
                         @if(!isset($result['error']) && !$isBoss && $isDepthGate)
                             @php
                                 $depthGate = $result['depth_gate'] ?? $batchDepthGate ?? [];

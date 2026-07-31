@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-07-31-map-exploration-start-rollback',
+        'date' => '2026-07-31',
+        'category' => 'fixed',
+        'title' => '地図探索の開始失敗時の回数消費を修正',
+        'detail' => '探索の地図を開始できなかった場合に、残り探索回数や料金などが消費されないよう修正し、失敗理由を画面に表示するようにしました。',
+    ],
+    [
+        'id' => '2026-07-31-map-exploration-remaining-count',
+        'date' => '2026-07-31',
+        'category' => 'changed',
+        'title' => '地図探索中に残り探索回数を表示',
+        'detail' => '探索の地図で戦った後、残り地図探索回数を戦闘結果から確認できるようにしました。',
+    ],
+    [
         'id' => '2026-07-31-rare-drop-tab-latest-fifty',
         'date' => '2026-07-31',
         'category' => 'fixed',

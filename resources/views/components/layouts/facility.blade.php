@@ -189,6 +189,17 @@
                 </button>
             </div>
         @endif
+        @if (session('error'))
+            <div x-data="{ show: true }" x-show="show" class="bg-red-600 text-white px-4 py-3 shadow-md w-full relative z-50 flex justify-between items-center">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l5.58 9.92c.75 1.334-.214 2.981-1.742 2.981H4.42c-1.528 0-2.492-1.647-1.742-2.981l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a1 1 0 00-1 1v3a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                    <span class="font-bold text-sm">{{ session('error') }}</span>
+                </div>
+                <button @click="show = false" class="text-red-200 hover:text-white" aria-label="閉じる">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        @endif
 
         <!-- メインコンテンツ -->
         <div class="relative z-10 flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $isBattleResult ? 'py-2' : 'py-8' }} w-full">

@@ -7,6 +7,7 @@ use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
+use App\Models\MapExplorationBatch;
 use App\Models\TownMapRegistration;
 use App\Models\User;
 use App\Services\ExplorationMapDiscardService;
@@ -118,6 +119,33 @@ class ExplorationMapLifecycleTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('公開中または処理中の地図は破棄できません。');
         app(ExplorationMapDiscardService::class)->discard($character, $map);
+    }
+
+    public function test_invalid_map_seed_does_not_consume_exploration_count(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $map = $this->generateMap($character, $area, $enemy, 41);
+        $registration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $map, $city),
+            0,
+        );
+        $map->update(['seed_encrypted' => 'invalid-encrypted-seed']);
+        $remainingBefore = (int) $registration->remaining_explorations;
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('exploration-maps.explore', $registration), [
+                'count' => 10,
+                'request_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'この地図の探索情報を読み込めませんでした。探索回数・料金・探索力は消費されていません。別の地図を選んでください。');
+
+        $this->assertSame($remainingBefore, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(0, (int) $registration->fresh()->consumed_explorations);
+        $this->assertSame(0, MapExplorationBatch::count());
     }
 
     /** @return array{Character, City, Area, Enemy} */
