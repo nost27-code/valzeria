@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-exclusive-character-icon-002',
+        'date' => '2026-07-31',
+        'category' => 'internal',
+        'title' => '制作完了した限定キャラアイコンを追加',
+        'detail' => '制作依頼に対応した4ポーズの限定キャラアイコンセットを追加し、対象の冒険者だけへ付与できるようにしました。',
+    ],
+    [
         'id' => '2026-07-31-armor-equipment-market',
         'date' => '2026-07-31',
         'category' => 'added',
