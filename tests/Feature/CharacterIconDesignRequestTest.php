@@ -332,6 +332,10 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertDontSee('使用したい場面')
             ->assertDontSee('ゲーム内アバター')
             ->assertSee('40輝石を支払って提出')
+            ->assertSee('申請時の参考画像')
+            ->assertSee('data-multi-image-picker', false)
+            ->assertSee('data-multi-image-input', false)
+            ->assertSee('enctype="multipart/form-data"', false)
             ->assertSee('提出後も制作完了前であれば、提出済み画面からヒアリング内容を修正できます。')
             ->assertDontSee('提出後はヒアリング内容を変更できません。')
             ->assertSee('入力内容を修正');
@@ -436,6 +440,85 @@ class CharacterIconDesignRequestTest extends TestCase
         $this->assertSame('ヒアリングシートは提出済みです。', $retryResult['message']);
         $this->assertSame(10, (int) $character->fresh()->kiseki);
         $this->assertDatabaseCount('kiseki_transactions', 1);
+    }
+
+    public function test_sheet_submission_can_attach_reference_images_for_the_admin(): void
+    {
+        Storage::fake('local');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        [$player, $character] = $this->createPlayer('参考画像申請者', 40, 0);
+
+        $this->actingAs($player)->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])->assertRedirect(route('character-icon-design.form.confirm'));
+        $designRequest = CharacterIconDesignRequest::query()
+            ->where('character_id', $character->id)
+            ->firstOrFail();
+
+        $this->post(route('character-icon-design.form.submit'), [
+            'attachments' => [
+                $this->fakePng('reference-1.png'),
+                $this->fakePng('reference-2.png'),
+            ],
+        ])->assertRedirect(route('character-icon-design.show', ['request' => $designRequest->id]))
+            ->assertSessionHas('status', fn (string $message): bool => str_contains($message, '参考画像も添付しました。'));
+
+        $this->assertSame(0, (int) $character->fresh()->kiseki);
+        $this->assertDatabaseCount('kiseki_transactions', 1);
+        $this->assertDatabaseHas('character_icon_design_messages', [
+            'character_icon_design_request_id' => $designRequest->id,
+            'sender_type' => 'player',
+            'body' => '申請時の参考画像を添付しました。',
+            'read_by_admin_at' => null,
+        ]);
+        $this->assertDatabaseCount('character_icon_design_message_attachments', 2);
+
+        $attachments = CharacterIconDesignMessageAttachment::query()
+            ->orderBy('position')
+            ->get();
+        $this->assertSame(['reference-1.png', 'reference-2.png'], $attachments->pluck('original_name')->all());
+        foreach ($attachments as $attachment) {
+            Storage::disk('local')->assertExists($attachment->path);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.character-icon-design.index'))
+            ->assertOk()
+            ->assertSee('未読返信 1');
+        $this->get(route('admin.character-icon-design.show', $designRequest))
+            ->assertOk()
+            ->assertSee('申請時の参考画像を添付しました。')
+            ->assertSee('reference-1.png')
+            ->assertSee('reference-2.png');
+    }
+
+    public function test_invalid_submission_attachment_does_not_charge_kiseki(): void
+    {
+        Storage::fake('local');
+
+        [$player, $character] = $this->createPlayer('不正画像申請者', 40, 0);
+
+        $this->actingAs($player)->post(route('character-icon-design.form.save'), [
+            ...$this->validFormPayload(),
+            'intent' => 'confirm',
+        ])->assertRedirect(route('character-icon-design.form.confirm'));
+        $designRequest = CharacterIconDesignRequest::query()
+            ->where('character_id', $character->id)
+            ->firstOrFail();
+
+        $this->post(route('character-icon-design.form.submit'), [
+            'attachments' => [UploadedFile::fake()->create('not-image.txt', 10, 'text/plain')],
+        ])->assertSessionHasErrors('attachments.0');
+
+        $this->assertSame(40, (int) $character->fresh()->kiseki);
+        $this->assertSame('draft', $designRequest->fresh()->status);
+        $this->assertNull($designRequest->fresh()->purchased_at);
+        $this->assertNull($designRequest->fresh()->submitted_at);
+        $this->assertDatabaseCount('kiseki_transactions', 0);
+        $this->assertDatabaseCount('character_icon_design_messages', 0);
+        $this->assertDatabaseCount('character_icon_design_message_attachments', 0);
     }
 
     public function test_player_can_create_another_request_without_overwriting_submitted_requests(): void

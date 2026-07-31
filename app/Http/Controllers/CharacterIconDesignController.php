@@ -162,7 +162,7 @@ class CharacterIconDesignController extends Controller
         ]);
     }
 
-    public function submit(CharacterIconDesignService $service)
+    public function submit(Request $request, CharacterIconDesignService $service)
     {
         $character = $this->authorizedCharacter($service);
         if (! $service->canSubmit($character)) {
@@ -192,12 +192,38 @@ class CharacterIconDesignController extends Controller
                 ->withInput($formData);
         }
 
+        $request->validate(
+            $this->attachmentRules(),
+            $this->attachmentValidationMessages(),
+        );
+
         $result = $service->saveForm(
             $character,
             $this->formData($validator->validated()),
             true,
             $designRequest->id,
         );
+
+        if ($result['success'] && $request->hasFile('attachments')) {
+            try {
+                $attachmentResult = $service->addMessage(
+                    $designRequest,
+                    'player',
+                    '申請時の参考画像を添付しました。',
+                    $request->file('attachments', []),
+                );
+
+                if ($attachmentResult['success']) {
+                    $result['message'] .= ' 参考画像も添付しました。';
+                } else {
+                    $result['message'] = 'ヒアリングシートは提出しましたが、参考画像を添付できませんでした。専用チャットから再度添付してください。';
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+                $result['message'] = 'ヒアリングシートは提出しましたが、参考画像を添付できませんでした。専用チャットから再度添付してください。';
+            }
+        }
+
         $routeParameters = $result['success']
             ? ['request' => $designRequest->id]
             : ['view' => 'new'];
@@ -365,11 +391,18 @@ class CharacterIconDesignController extends Controller
 
     private function messageRules(): array
     {
+        return [
+            'body' => ['nullable', 'string', 'max:3000', 'required_without:attachments'],
+            ...$this->attachmentRules(),
+        ];
+    }
+
+    private function attachmentRules(): array
+    {
         $maxFiles = (int) config('character_icon_design.max_message_attachments', 4);
         $maxKilobytes = (int) config('character_icon_design.max_attachment_kilobytes', 5120);
 
         return [
-            'body' => ['nullable', 'string', 'max:3000', 'required_without:attachments'],
             'attachments' => ['nullable', 'array', 'max:'.$maxFiles],
             'attachments.*' => [
                 'file',
@@ -384,6 +417,13 @@ class CharacterIconDesignController extends Controller
     {
         return [
             'body.required_without' => 'メッセージまたは画像を追加してください。',
+            ...$this->attachmentValidationMessages(),
+        ];
+    }
+
+    private function attachmentValidationMessages(): array
+    {
+        return [
             'attachments.max' => '画像は4枚まで添付できます。',
             'attachments.*.image' => '画像ファイルのみ添付できます。',
             'attachments.*.max' => '画像1枚の容量は5MBまでです。',

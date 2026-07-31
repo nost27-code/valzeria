@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-07-31-character-icon-request-attachments',
+        'date' => '2026-07-31',
+        'category' => 'added',
+        'title' => 'キャラアイコン申請時の画像添付に対応',
+        'detail' => 'キャラアイコン制作の申請時に、制作の参考画像を最大4枚まで添付できるようにしました。画像は提出後の専用チャットで管理人と確認できます。',
+    ],
+    [
         'id' => '2026-07-31-character-icon-design-public-submission',
         'date' => '2026-07-31',
         'category' => 'added',

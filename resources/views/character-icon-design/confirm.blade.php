@@ -77,17 +77,24 @@
                     提出後も制作完了前であれば、提出済み画面からヒアリング内容を修正できます。提出前に見直す場合は「入力内容を修正」から戻ってください。
                 </div>
 
-                <div class="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-                    <a href="{{ route('character-icon-design.show') }}" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50">
-                        入力内容を修正
-                    </a>
-                    <form method="POST" action="{{ route('character-icon-design.form.submit') }}" data-submit-lock data-loading-text="提出中...">
-                        @csrf
+                <form method="POST" action="{{ route('character-icon-design.form.submit') }}" enctype="multipart/form-data" class="space-y-4" data-submit-lock data-loading-text="提出中...">
+                    @csrf
+                    <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                        <x-multi-image-picker label="申請時の参考画像" />
+                        <p class="mt-2 text-xs font-bold leading-5 text-indigo-700">キャラクターの雰囲気・衣装・色合いなど、制作時に参考にしてほしい画像があれば添付してください。</p>
+                        @error('attachments')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
+                        @error('attachments.*')<span class="mt-1 block text-xs font-bold text-rose-600">{{ $message }}</span>@enderror
+                    </section>
+
+                    <div class="sticky bottom-2 z-10 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+                        <a href="{{ route('character-icon-design.show') }}" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50">
+                            入力内容を修正
+                        </a>
                         <button type="submit" @disabled($totalKiseki < $price) class="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-violet-700 px-5 text-sm font-black text-white shadow hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
                             {{ number_format($price) }}輝石を支払って提出
                         </button>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
         </section>
     </div>
