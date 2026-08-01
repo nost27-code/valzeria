@@ -80,9 +80,9 @@
             <div class="border-b border-slate-200 px-4 py-3">
                 <h2 class="text-lg font-black text-slate-950">更新候補・公開履歴</h2>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-slate-700">
+            <div class="xl:overflow-x-auto">
+                <table class="block min-w-0 text-sm xl:table xl:min-w-full xl:divide-y xl:divide-slate-200">
+                    <thead class="hidden bg-slate-50 text-slate-700 xl:table-header-group">
                         <tr>
                             <th class="px-4 py-3 text-left font-bold">公開日</th>
                             <th class="px-4 py-3 text-left font-bold">表示内容</th>
@@ -91,11 +91,14 @@
                             <th class="px-4 py-3 text-right font-bold">操作</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="block space-y-3 bg-slate-50 p-3 xl:table-row-group xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:bg-white xl:p-0">
                         @forelse($updates as $update)
-                            <tr class="{{ $editingId === $update->id ? 'bg-amber-50' : ($update->is_dismissed ? 'bg-slate-50 opacity-65' : 'hover:bg-slate-50') }}">
-                                <td class="whitespace-nowrap px-4 py-3 font-black text-slate-900">{{ $update->published_on?->format('Y/m/d') }}</td>
-                                <td class="px-4 py-3">
+                            <tr class="grid grid-cols-2 gap-x-3 gap-y-4 rounded-md border border-slate-200 p-4 shadow-sm xl:table-row xl:rounded-none xl:border-0 xl:p-0 xl:shadow-none {{ $editingId === $update->id ? 'bg-amber-50' : ($update->is_dismissed ? 'bg-slate-100 opacity-65' : 'bg-white xl:hover:bg-slate-50') }}">
+                                <td class="whitespace-nowrap font-black text-slate-900 xl:px-4 xl:py-3">
+                                    <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">公開日</span>
+                                    {{ $update->published_on?->format('Y/m/d') }}
+                                </td>
+                                <td class="col-span-2 min-w-0 border-t border-slate-100 pt-3 xl:table-cell xl:border-0 xl:px-4 xl:py-3">
                                     <div class="flex flex-wrap items-center gap-1.5">
                                         @if($update->source_key)
                                             <span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">自動生成</span>
@@ -106,13 +109,17 @@
                                             <span class="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">掲載除外</span>
                                         @endif
                                     </div>
-                                    <div class="mt-1 font-black text-slate-800">{{ $update->body }}</div>
+                                    <div class="mt-2 break-words font-black leading-relaxed text-slate-800 xl:mt-1">{{ $update->body }}</div>
                                     @if(filled($update->detail))
-                                        <div class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-slate-500">{{ $update->detail }}</div>
+                                        <div class="mt-1 line-clamp-3 break-words text-xs font-bold leading-relaxed text-slate-500 xl:line-clamp-2">{{ $update->detail }}</div>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right font-bold text-slate-500">{{ number_format($update->sort_order) }}</td>
-                                <td class="px-4 py-3 text-center">
+                                <td class="font-bold text-slate-500 xl:px-4 xl:py-3 xl:text-right">
+                                    <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">表示順</span>
+                                    {{ number_format($update->sort_order) }}
+                                </td>
+                                <td class="text-right xl:px-4 xl:py-3 xl:text-center">
+                                    <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">状態</span>
                                     @if($update->is_dismissed)
                                         <span class="text-xs font-black text-slate-400">除外中</span>
                                     @else
@@ -121,7 +128,7 @@
                                         </button>
                                     @endif
                                 </td>
-                                <td class="whitespace-nowrap px-4 py-3 text-right">
+                                <td class="col-span-2 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 xl:table-cell xl:whitespace-nowrap xl:border-0 xl:px-4 xl:py-3 xl:text-right">
                                     @if($update->is_dismissed)
                                         <button type="button" wire:click="restore({{ $update->id }})" wire:loading.attr="disabled" wire:target="restore" class="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100 disabled:opacity-60">下書きへ戻す</button>
                                     @else
@@ -132,15 +139,15 @@
                                                 wire:loading.attr="disabled"
                                                 wire:loading.class="is-action-processing"
                                                 wire:target="delete"
-                                                class="ml-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:pointer-events-none">
+                                                class="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:pointer-events-none xl:ml-1">
                                             {{ $update->source_key ? '掲載から除外' : '削除' }}
                                         </button>
                                     @endif
                                 </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-sm font-bold text-slate-500">更新情報がありません。</td>
+                            <tr class="block rounded-md bg-white xl:table-row">
+                                <td colspan="5" class="block px-4 py-8 text-center text-sm font-bold text-slate-500 xl:table-cell">更新情報がありません。</td>
                             </tr>
                         @endforelse
                     </tbody>
