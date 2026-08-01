@@ -58,6 +58,37 @@ class CharacterIconSetTest extends TestCase
         ], $service->resolvedPaths($character));
     }
 
+    public function test_new_exclusive_icon_sets_have_complete_four_pose_assets(): void
+    {
+        $setKeys = [
+            'exclusive_003',
+            'exclusive_005',
+            'exclusive_007',
+            'exclusive_008',
+            'exclusive_009',
+            'exclusive_010',
+            'exclusive_011',
+            'exclusive_012',
+            'exclusive_013',
+        ];
+
+        foreach ($setKeys as $setKey) {
+            $basePath = "/images/chara/exclusive/{$setKey}";
+            $paths = CharacterIconCatalog::pathsForSet($setKey);
+
+            $this->assertSame([
+                'normal' => "{$basePath}/01_normal.webp",
+                'battle' => "{$basePath}/03_battle.webp",
+                'victory' => "{$basePath}/02_victory.webp",
+                'defeat' => "{$basePath}/04_defeat.webp",
+            ], $paths);
+            foreach ($paths as $path) {
+                $this->assertFileExists(public_path(ltrim($path, '/')));
+            }
+            $this->assertNotContains($paths['normal'], CharacterIconCatalog::paths());
+        }
+    }
+
     public function test_owner_can_cycle_arena_showcase_and_every_ranking_view_uses_saved_pose(): void
     {
         $character = $this->createCharacter('展示ポーズ確認');

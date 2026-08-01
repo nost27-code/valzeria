@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-exclusive-character-icons-003-013',
+        'date' => '2026-08-01',
+        'category' => 'internal',
+        'title' => '制作完了した限定キャラアイコン9名分を追加',
+        'detail' => '制作依頼に対応した9名分の4ポーズ限定キャラアイコンセットを追加し、それぞれ対象の冒険者だけへ付与できるようにしました。',
+    ],
+    [
         'id' => '2026-08-01-town-update-candidate-delete',
         'date' => '2026-08-01',
         'category' => 'internal',
