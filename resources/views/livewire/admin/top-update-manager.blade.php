@@ -18,7 +18,7 @@
 
     <div class="mb-5 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold leading-relaxed text-blue-800">
         管理ダッシュボード用の更新サマリから、プレイヤー向け候補を非公開の下書きとして自動作成します。
-        文言を整えて「表示する」をONにした項目だけが街へ公開されます。不要な候補は「掲載から除外」を選んでください。
+        文言を整えて「表示する」をONにした項目だけが街へ公開されます。不要な候補は「削除」を選んでください。
     </div>
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -93,7 +93,7 @@
                     </thead>
                     <tbody class="block space-y-3 bg-slate-50 p-3 xl:table-row-group xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:bg-white xl:p-0">
                         @forelse($updates as $update)
-                            <tr class="grid grid-cols-2 gap-x-3 gap-y-4 rounded-md border border-slate-200 p-4 shadow-sm xl:table-row xl:rounded-none xl:border-0 xl:p-0 xl:shadow-none {{ $editingId === $update->id ? 'bg-amber-50' : ($update->is_dismissed ? 'bg-slate-100 opacity-65' : 'bg-white xl:hover:bg-slate-50') }}">
+                            <tr class="grid grid-cols-2 gap-x-3 gap-y-4 rounded-md border border-slate-200 p-4 shadow-sm xl:table-row xl:rounded-none xl:border-0 xl:p-0 xl:shadow-none {{ $editingId === $update->id ? 'bg-amber-50' : 'bg-white xl:hover:bg-slate-50' }}">
                                 <td class="whitespace-nowrap font-black text-slate-900 xl:px-4 xl:py-3">
                                     <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">公開日</span>
                                     {{ $update->published_on?->format('Y/m/d') }}
@@ -104,9 +104,6 @@
                                             <span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">自動生成</span>
                                         @else
                                             <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-black text-slate-600">手動作成</span>
-                                        @endif
-                                        @if($update->is_dismissed)
-                                            <span class="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700">掲載除外</span>
                                         @endif
                                     </div>
                                     <div class="mt-2 break-words font-black leading-relaxed text-slate-800 xl:mt-1">{{ $update->body }}</div>
@@ -120,29 +117,21 @@
                                 </td>
                                 <td class="text-right xl:px-4 xl:py-3 xl:text-center">
                                     <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">状態</span>
-                                    @if($update->is_dismissed)
-                                        <span class="text-xs font-black text-slate-400">除外中</span>
-                                    @else
-                                        <button type="button" wire:click="toggleActive({{ $update->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="toggleActive" class="rounded-full px-3 py-1 text-xs font-black disabled:pointer-events-none {{ $update->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
-                                            {{ $update->is_active ? '表示中' : '下書き' }}
-                                        </button>
-                                    @endif
+                                    <button type="button" wire:click="toggleActive({{ $update->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="toggleActive" class="rounded-full px-3 py-1 text-xs font-black disabled:pointer-events-none {{ $update->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
+                                        {{ $update->is_active ? '表示中' : '下書き' }}
+                                    </button>
                                 </td>
                                 <td class="col-span-2 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 xl:table-cell xl:whitespace-nowrap xl:border-0 xl:px-4 xl:py-3 xl:text-right">
-                                    @if($update->is_dismissed)
-                                        <button type="button" wire:click="restore({{ $update->id }})" wire:loading.attr="disabled" wire:target="restore" class="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100 disabled:opacity-60">下書きへ戻す</button>
-                                    @else
-                                        <button type="button" wire:click="edit({{ $update->id }})" class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">編集</button>
-                                        <button type="button"
-                                                wire:click="delete({{ $update->id }})"
-                                                wire:confirm="{{ $update->source_key ? 'この更新候補を掲載対象から除外しますか？' : 'この更新情報を削除しますか？' }}"
-                                                wire:loading.attr="disabled"
-                                                wire:loading.class="is-action-processing"
-                                                wire:target="delete"
-                                                class="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:pointer-events-none xl:ml-1">
-                                            {{ $update->source_key ? '掲載から除外' : '削除' }}
-                                        </button>
-                                    @endif
+                                    <button type="button" wire:click="edit({{ $update->id }})" class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">編集</button>
+                                    <button type="button"
+                                            wire:click="delete({{ $update->id }})"
+                                            wire:confirm="{{ $update->source_key ? 'この更新候補を削除しますか？削除後は再生成されません。' : 'この更新情報を削除しますか？' }}"
+                                            wire:loading.attr="disabled"
+                                            wire:loading.class="is-action-processing"
+                                            wire:target="delete"
+                                            class="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:pointer-events-none xl:ml-1">
+                                        削除
+                                    </button>
                                 </td>
                             </tr>
                         @empty

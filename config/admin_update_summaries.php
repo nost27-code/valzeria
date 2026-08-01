@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-town-update-candidate-delete',
+        'date' => '2026-08-01',
+        'category' => 'internal',
+        'title' => '町の更新候補を完全削除できるよう改善',
+        'detail' => '町の更新履歴管理で、不要な自動生成候補を完全に削除し、同じ候補が再生成されないようにしました。',
+    ],
+    [
         'id' => '2026-08-01-admin-reply-sender-names',
         'date' => '2026-08-01',
         'category' => 'internal',

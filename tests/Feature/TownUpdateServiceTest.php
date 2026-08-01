@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Admin\TopUpdateManager;
+use App\Models\GameSetting;
 use App\Models\TopUpdate;
 use App\Services\TownUpdateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,6 +22,7 @@ class TownUpdateServiceTest extends TestCase
 
         Carbon::setTestNow(Carbon::parse('2026-07-31 12:00:00', 'Asia/Tokyo'));
         TopUpdate::query()->delete();
+        GameSetting::query()->where('setting_key', 'like', 'town_updates.deleted.%')->delete();
         app(TownUpdateService::class)->forgetPublishedCache();
     }
 
@@ -65,7 +67,7 @@ class TownUpdateServiceTest extends TestCase
         ]);
     }
 
-    public function test_sync_does_not_overwrite_an_edited_or_dismissed_draft(): void
+    public function test_sync_does_not_overwrite_an_edited_draft(): void
     {
         config()->set('admin_update_summaries', [[
             'id' => 'editable-update',
@@ -82,7 +84,6 @@ class TownUpdateServiceTest extends TestCase
             ->where('source_key', 'editable-update')
             ->update([
                 'body' => '管理者が整えた文言',
-                'is_dismissed' => true,
             ]);
 
         $this->assertSame(0, $service->syncDraftsFromAdminSummaries());
@@ -90,7 +91,6 @@ class TownUpdateServiceTest extends TestCase
         $this->assertDatabaseHas('top_updates', [
             'source_key' => 'editable-update',
             'body' => '管理者が整えた文言',
-            'is_dismissed' => true,
         ]);
     }
 
@@ -142,36 +142,91 @@ class TownUpdateServiceTest extends TestCase
         $this->assertSame(['DBから取得するお知らせ'], $updates->pluck('body')->all());
     }
 
-    public function test_imported_candidate_can_be_dismissed_without_deletion_and_restored_as_draft(): void
+    public function test_imported_candidate_is_deleted_and_is_not_recreated(): void
     {
-        config()->set('admin_update_summaries', []);
+        config()->set('admin_update_summaries', [[
+            'id' => 'deletable-update',
+            'date' => '2026-07-31',
+            'category' => 'changed',
+            'title' => '削除対象の更新候補',
+            'detail' => '削除対象の更新候補です。',
+        ]]);
+
+        app(TownUpdateService::class)->syncDraftsFromAdminSummaries();
         $update = TopUpdate::query()->create([
-            'published_on' => '2026-07-31',
-            'body' => '掲載候補',
-            'source_key' => 'dismissible-update',
-            'source_category' => 'changed',
-            'sort_order' => 10,
-            'is_active' => true,
+            'published_on' => '2026-07-30',
+            'body' => '手動作成項目',
+            'sort_order' => 20,
+            'is_active' => false,
         ]);
+        $imported = TopUpdate::query()->where('source_key', 'deletable-update')->firstOrFail();
 
         Livewire::test(TopUpdateManager::class)
-            ->call('delete', $update->id)
+            ->assertSee('削除')
+            ->assertDontSee('掲載から除外')
+            ->assertDontSee('下書きへ戻す')
+            ->call('delete', $imported->id)
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('top_updates', [
-            'id' => $update->id,
+        $this->assertDatabaseMissing('top_updates', [
+            'id' => $imported->id,
+        ]);
+        $this->assertDatabaseHas('game_settings', [
+            'setting_key' => 'town_updates.deleted.' . sha1('deletable-update'),
+            'value' => '1',
+        ]);
+        $this->assertSame(0, app(TownUpdateService::class)->syncDraftsFromAdminSummaries());
+        $this->assertDatabaseMissing('top_updates', ['source_key' => 'deletable-update']);
+        $this->assertDatabaseHas('top_updates', ['id' => $update->id]);
+    }
+
+    public function test_legacy_dismissed_candidate_is_deleted_and_registered_on_sync(): void
+    {
+        config()->set('admin_update_summaries', [[
+            'id' => 'legacy-dismissed-update',
+            'date' => '2026-07-31',
+            'category' => 'fixed',
+            'title' => '旧掲載除外候補',
+        ]]);
+
+        $update = TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => '旧掲載除外候補',
+            'source_key' => 'legacy-dismissed-update',
+            'source_category' => 'fixed',
+            'sort_order' => 10,
             'is_active' => false,
             'is_dismissed' => true,
         ]);
 
-        Livewire::test(TopUpdateManager::class)
-            ->call('restore', $update->id)
-            ->assertHasNoErrors();
+        $this->assertSame(0, app(TownUpdateService::class)->syncDraftsFromAdminSummaries());
 
-        $this->assertDatabaseHas('top_updates', [
+        $this->assertDatabaseMissing('top_updates', [
             'id' => $update->id,
-            'is_active' => false,
-            'is_dismissed' => false,
         ]);
+        $this->assertDatabaseHas('game_settings', [
+            'setting_key' => 'town_updates.deleted.' . sha1('legacy-dismissed-update'),
+        ]);
+    }
+
+    public function test_deleted_source_registry_is_capped_at_auto_import_limit(): void
+    {
+        config()->set('admin_update_summaries', []);
+
+        foreach (range(1, 55) as $index) {
+            GameSetting::query()->create([
+                'setting_key' => 'town_updates.deleted.' . sha1('deleted-update-' . $index),
+                'label' => '削除済み更新候補',
+                'description' => null,
+                'value' => '1',
+                'value_type' => 'boolean',
+            ]);
+        }
+
+        app(TownUpdateService::class)->syncDraftsFromAdminSummaries();
+
+        $this->assertSame(50, GameSetting::query()
+            ->where('setting_key', 'like', 'town_updates.deleted.%')
+            ->count());
     }
 }

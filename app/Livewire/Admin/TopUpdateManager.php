@@ -90,36 +90,13 @@ class TopUpdateManager extends Component
     public function delete(int $id): void
     {
         $update = TopUpdate::findOrFail($id);
-        if ($update->source_key) {
-            $update->forceFill([
-                'is_active' => false,
-                'is_dismissed' => true,
-            ])->save();
-            $message = '自動生成された更新候補を掲載対象から除外しました。';
-        } else {
-            $update->delete();
-            $message = '更新情報を削除しました。';
-        }
+        app(TownUpdateService::class)->deleteUpdate($update->id);
 
         if ($this->editingId === $id) {
             $this->resetForm();
         }
 
-        app(TownUpdateService::class)->forgetPublishedCache();
-        session()->flash('status', $message);
-    }
-
-    public function restore(int $id): void
-    {
-        TopUpdate::query()
-            ->whereKey($id)
-            ->whereNotNull('source_key')
-            ->update([
-                'is_active' => false,
-                'is_dismissed' => false,
-            ]);
-
-        session()->flash('status', '更新候補を下書きへ戻しました。');
+        session()->flash('status', '更新情報を削除しました。');
     }
 
     private function resetForm(): void
