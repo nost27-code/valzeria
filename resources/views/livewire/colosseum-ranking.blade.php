@@ -37,21 +37,21 @@
                         @if($player)
                             <div class="flex min-w-0 items-center gap-3">
                                 @if(!empty($ranking['image_path']))
-                                    <div class="flex w-11 shrink-0 flex-col items-center gap-1">
+                                    <div class="flex w-12 shrink-0 flex-col items-center gap-1">
                                         @if($isMe && !empty($ranking['has_showcase_choices']))
                                             <button
                                                 type="button"
                                                 wire:click="cycleMyArenaShowcase"
                                                 wire:loading.attr="disabled"
                                                 wire:target="cycleMyArenaShowcase"
-                                                class="flex h-11 w-11 cursor-pointer items-center justify-center rounded border border-violet-300 bg-violet-50 transition hover:border-violet-500 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                                                class="flex h-12 w-12 cursor-pointer items-center justify-center transition active:scale-95 disabled:cursor-wait disabled:opacity-60"
                                                 aria-label="闘技場の表示ポーズを変更。現在：{{ $ranking['showcase_label'] }}"
                                                 title="クリックで表示ポーズを変更（現在：{{ $ranking['showcase_label'] }}）"
                                             >
                                                 <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="{{ $player->name }}の{{ $ranking['showcase_label'] }}ポーズ" class="h-full w-full object-contain">
                                             </button>
                                         @else
-                                            <span class="flex h-11 w-11 items-center justify-center rounded border border-slate-200 bg-slate-50">
+                                            <span class="flex h-12 w-12 items-center justify-center">
                                                 <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
                                             </span>
                                         @endif
@@ -72,7 +72,7 @@
                         @elseif($isNpc)
                             <div class="flex min-w-0 items-center gap-2">
                                 @if(!empty($ranking['image_path']))
-                                    <span class="h-9 w-9 shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-50">
+                                    <span class="h-12 w-12 shrink-0">
                                         <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
                                     </span>
                                 @endif

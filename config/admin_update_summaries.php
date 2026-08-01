@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-01-colosseum-ranking-icon-display',
+        'date' => '2026-08-01',
+        'category' => 'changed',
+        'title' => '闘技場ランキングのキャラ画像表示を調整',
+        'detail' => '闘技場ランキングでキャラ画像の枠を外し、これまでより少し大きく表示するようにしました。',
+    ],
+    [
         'id' => '2026-08-01-exclusive-character-icons-003-013',
         'date' => '2026-08-01',
         'category' => 'internal',
