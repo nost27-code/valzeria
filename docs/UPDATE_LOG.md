@@ -8,6 +8,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 地図院の手元一覧で、調査済み地図の報酬傾向・古代片名・目安戦力を確認できるようにしました。未調査・調査済み地図は複数選択し、ゲーム内の確認画面からまとめて破棄できます。
+
 - 新規登録時に届く登録キャンペーン通知を継続型にし、「8月登録キャンペーン」のように配布時点の月を表示するようにしました。
 
 ### Fixed

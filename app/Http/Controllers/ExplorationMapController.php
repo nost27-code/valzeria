@@ -39,6 +39,17 @@ class ExplorationMapController extends Controller
         $towns = City::whereBetween('id', [1, 10])->orderBy('id')->get();
         $surveyCosts = app(MapSurveyService::class)->costs();
         $publicationService = app(MapPublicationService::class);
+        $surveyedMaps = $ownedMaps->where('status', 'surveyed');
+        $enemyIds = $surveyedMaps
+            ->flatMap(fn (ExplorationMap $map) => collect($map->normal_monster_variants_json ?? [])->pluck('base_monster_id'))
+            ->filter()
+            ->unique()
+            ->values();
+        $mapEnemies = Enemy::whereIn('id', $enemyIds)->get()->keyBy('id');
+        $display = app(ExplorationMapDisplayService::class);
+        $mapDetails = $surveyedMaps
+            ->mapWithKeys(fn (ExplorationMap $map) => [$map->id => $display->details($map, $mapEnemies)])
+            ->all();
 
         return view('exploration-maps.index', [
             'character' => $character,
@@ -47,6 +58,7 @@ class ExplorationMapController extends Controller
             'surveyCosts' => $surveyCosts,
             'activePublicationCount' => $publicationService->activePublicationCount($character),
             'activePublicationLimit' => $publicationService->activePublicationLimit(),
+            'mapDetails' => $mapDetails,
         ]);
     }
     public function published()
@@ -154,6 +166,22 @@ class ExplorationMapController extends Controller
             app(ExplorationMapDiscardService::class)->discard($this->character(), $map);
 
             return redirect()->route('exploration-maps.index')->with('message', '探索地図を破棄した。');
+        }
+        catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+    public function bulkDiscard(Request $request)
+    {
+        $validated = $request->validate([
+            'map_ids' => ['required', 'array', 'min:1'],
+            'map_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+
+        try {
+            $count = app(ExplorationMapDiscardService::class)->discardMany($this->character(), $validated['map_ids']);
+
+            return redirect()->route('exploration-maps.index')->with('message', "選択した{$count}件の探索地図を破棄した。");
         }
         catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());

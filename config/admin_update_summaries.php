@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-owned-map-summary-bulk-discard',
+        'date' => '2026-08-02',
+        'category' => 'changed',
+        'title' => '手元の探索地図を見やすく整理',
+        'detail' => '地図院の手元一覧で、調査済み地図の報酬傾向・古代片名・目安戦力を確認できるようにしました。未調査・調査済み地図は複数選択してまとめて破棄できます。',
+    ],
+    [
         'id' => '2026-08-02-exclusive-character-icon-014',
         'date' => '2026-08-02',
         'category' => 'internal',

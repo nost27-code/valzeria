@@ -18,12 +18,34 @@
             </details>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section
+            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            x-data="{
+                selected: [],
+                discardable: @js($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed'])->pluck('id')->map(fn ($id) => (string) $id)->values()),
+                confirmBulkDiscard: false,
+                submittingBulkDiscard: false,
+                toggleAll() {
+                    this.selected = this.selected.length === this.discardable.length ? [] : [...this.discardable];
+                },
+            }"
+            @keydown.escape.window="confirmBulkDiscard = false"
+        >
             <div class="flex items-center justify-between gap-3">
                 <h2 class="font-black text-slate-900">手元の探索地図</h2>
                 <p class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-900">公開枠 {{ $activePublicationCount }} / {{ $activePublicationLimit }}件</p>
             </div>
             <p class="mt-2 text-xs font-bold text-slate-600">公開中の地図は詳細画面から取り下げると、すぐに公開枠が空きます。</p>
+            @if($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed'])->isNotEmpty())
+                <div class="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <button type="button" @click="toggleAll()" class="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100">
+                        <span x-text="selected.length === discardable.length ? '選択を解除' : '破棄可能な地図をすべて選択'">破棄可能な地図をすべて選択</span>
+                    </button>
+                    <button type="button" @click="confirmBulkDiscard = true" :disabled="selected.length === 0" class="rounded bg-rose-600 px-4 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+                        選択した地図を破棄（<span x-text="selected.length">0</span>件）
+                    </button>
+                </div>
+            @endif
             <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 @forelse($ownedMaps as $map)
                     @php
@@ -36,6 +58,10 @@
                             : ($isEnded
                                 ? '終了'
                                 : (['uninvestigated'=>'未調査','surveying'=>'調査中','surveyed'=>'調査完了','published'=>'公開中'][$map->status] ?? $map->status));
+                        $details = $mapDetails[$map->id] ?? null;
+                        $ancientFragmentName = $details && str_starts_with((string) ($details['reward'] ?? ''), '古代片：')
+                            ? \Illuminate\Support\Str::after((string) $details['reward'], '古代片：')
+                            : null;
                     @endphp
                     <div class="relative overflow-hidden rounded-lg border p-3 {{ $isEnded ? 'border-slate-300 bg-slate-100 opacity-75 grayscale' : 'border-slate-200 bg-white' }}">
                         @if($isEnded)
@@ -43,15 +69,33 @@
                                 <span class="-rotate-12 rounded border-4 border-slate-500 px-4 py-1 text-2xl font-black tracking-[0.2em] text-slate-600">{{ $registration?->isWithdrawn() ? '取り下げ' : '終了' }}</span>
                             </div>
                         @endif
-                        <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="font-black">{{ $map->status === 'uninvestigated' ? '未調査の探索地図' : $map->name }}</p>
                                 <p class="mt-1 text-xs font-bold text-slate-500">等級：{{ ['normal'=>'通常','rare'=>'希少','hero'=>'英雄','legend'=>'伝説'][$map->map_grade] ?? $map->map_grade }}　状態：{{ $status }}</p>
                             </div>
-                            @if($map->registration)
-                                <a href="{{ route('exploration-maps.show', $map->registration) }}" class="rounded bg-indigo-700 px-3 py-2 text-xs font-black text-white">詳細へ</a>
-                            @endif
+                            <div class="flex shrink-0 flex-col items-end gap-2">
+                                @if(in_array($map->status, ['uninvestigated', 'surveyed'], true))
+                                    <label class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700">
+                                        <input type="checkbox" value="{{ $map->id }}" x-model="selected" class="rounded border-rose-300 text-rose-600 focus:ring-rose-500">
+                                        破棄対象
+                                    </label>
+                                @endif
+                                @if($map->registration)
+                                    <a href="{{ route('exploration-maps.show', $map->registration) }}" class="rounded bg-indigo-700 px-3 py-2 text-xs font-black text-white">詳細へ</a>
+                                @endif
+                            </div>
                         </div>
+
+                        @if($map->status === 'surveyed' && $details)
+                            <div class="mt-3 flex flex-wrap gap-1.5 text-[11px] font-bold">
+                                <span class="rounded border border-violet-100 bg-violet-50 px-2 py-1 text-violet-800">報酬傾向：{{ $ancientFragmentName ? '古代片' : ($details['reward'] ?? '不明') }}</span>
+                                @if($ancientFragmentName)
+                                    <span class="rounded border border-amber-100 bg-amber-50 px-2 py-1 text-amber-800">古代片：{{ $ancientFragmentName }}</span>
+                                @endif
+                                <span class="rounded border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-800">目安戦力：{{ $details['enemy_power_range'] }}</span>
+                            </div>
+                        @endif
 
                         @if($map->status === 'uninvestigated')
                             <form method="POST" action="{{ route('exploration-maps.survey.start', $map) }}" class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3" x-data="{ townId: '' }">
@@ -71,17 +115,39 @@
                                 </div>
                             </form>
                         @endif
-
-                        @if(in_array($map->status, ['uninvestigated', 'surveyed'], true))
-                            <form method="POST" action="{{ route('exploration-maps.discard', $map) }}" class="mt-3" onsubmit="return confirm('この地図を破棄しますか？調査済みの場合、遠征調査費は戻りません。');">
-                                @csrf
-                                <button type="submit" class="w-full rounded border border-rose-200 bg-white px-4 py-2 text-xs font-black text-rose-700 hover:bg-rose-50">この地図を破棄する</button>
-                            </form>
-                        @endif
                     </div>
                 @empty
                     <p class="py-4 text-sm font-bold text-slate-500">まだ未調査の地図はない。通常探索や討伐で見つけよう。</p>
                 @endforelse
+            </div>
+
+            <div x-cloak x-show="confirmBulkDiscard" class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog" aria-labelledby="bulk-map-discard-title">
+                <div x-show="confirmBulkDiscard" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="confirmBulkDiscard = false"></div>
+                <div x-show="confirmBulkDiscard" x-transition.scale.origin.center class="relative w-full max-w-md overflow-hidden rounded-xl border-2 border-rose-300 bg-white shadow-2xl" @click.stop>
+                    <div class="bg-rose-600 px-4 py-3">
+                        <h3 id="bulk-map-discard-title" class="text-sm font-black text-white">探索地図の一括破棄</h3>
+                    </div>
+                    <form method="POST" action="{{ route('exploration-maps.bulk-discard') }}" class="p-4" @submit="submittingBulkDiscard = true">
+                        @csrf
+                        <template x-for="mapId in selected" :key="mapId">
+                            <input type="hidden" name="map_ids[]" :value="mapId">
+                        </template>
+                        <p class="text-sm font-bold text-slate-800">選択した<span class="font-black text-rose-700" x-text="selected.length"></span>件の地図を破棄します。</p>
+                        <ul class="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs font-bold text-slate-700">
+                            @foreach($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed']) as $discardableMap)
+                                <li x-show="selected.includes('{{ $discardableMap->id }}')">・{{ $discardableMap->status === 'uninvestigated' ? '未調査の探索地図' : $discardableMap->name }}</li>
+                            @endforeach
+                        </ul>
+                        <p class="mt-2 text-xs font-bold text-rose-700">破棄した地図は元に戻せません。調査済みの場合、遠征調査費は戻りません。</p>
+                        <div class="mt-4 grid grid-cols-2 gap-2">
+                            <button type="button" @click="confirmBulkDiscard = false" :disabled="submittingBulkDiscard" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60">キャンセル</button>
+                            <button type="submit" :disabled="submittingBulkDiscard || selected.length === 0" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-black text-white hover:bg-rose-700 disabled:opacity-60">
+                                <span x-show="!submittingBulkDiscard">破棄する</span>
+                                <span x-cloak x-show="submittingBulkDiscard">処理中...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </section>
 

@@ -94,6 +94,109 @@ class ExplorationMapLifecycleTest extends TestCase
         $this->assertSame('discarded', $registration->fresh()->survey_status);
     }
 
+    public function test_owner_can_bulk_discard_uninvestigated_and_surveyed_maps(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $uninvestigated = $this->generateMap($character, $area, $enemy, 22);
+        $surveyed = $this->generateMap($character, $area, $enemy, 23);
+        $registration = app(MapSurveyService::class)->start($character, $surveyed, $city);
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('exploration-maps.bulk-discard'), [
+                'map_ids' => [$uninvestigated->id, $surveyed->id],
+            ])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('message', '選択した2件の探索地図を破棄した。');
+
+        $this->assertSame('discarded', $uninvestigated->fresh()->status);
+        $this->assertSame('discarded', $surveyed->fresh()->status);
+        $this->assertSame('discarded', $registration->fresh()->status);
+    }
+
+    public function test_bulk_discard_rejects_the_whole_selection_when_it_contains_a_published_map(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $uninvestigated = $this->generateMap($character, $area, $enemy, 24);
+        $published = $this->generateMap($character, $area, $enemy, 25);
+        app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $published, $city),
+            0,
+        );
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('exploration-maps.index'))
+            ->post(route('exploration-maps.bulk-discard'), [
+                'map_ids' => [$uninvestigated->id, $published->id],
+            ])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('error', '公開中または処理中の地図は破棄できません。');
+
+        $this->assertSame('uninvestigated', $uninvestigated->fresh()->status);
+        $this->assertSame('published', $published->fresh()->status);
+    }
+
+    public function test_bulk_discard_cannot_include_another_characters_map(): void
+    {
+        [$character, , $area, $enemy] = $this->mapContext();
+        $owned = $this->generateMap($character, $area, $enemy, 28);
+        $otherCharacter = Character::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '別の地図所有者',
+            'hp_base' => 100,
+            'current_hp' => 100,
+        ]);
+        $otherMap = $this->generateMap($otherCharacter, $area, $enemy, 29);
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('exploration-maps.index'))
+            ->post(route('exploration-maps.bulk-discard'), [
+                'map_ids' => [$owned->id, $otherMap->id],
+            ])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('error', 'この地図は破棄できません。');
+
+        $this->assertSame('uninvestigated', $owned->fresh()->status);
+        $this->assertSame('uninvestigated', $otherMap->fresh()->status);
+    }
+
+    public function test_surveyed_map_summary_is_shown_only_after_survey(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $uninvestigated = $this->generateMap($character, $area, $enemy, 26);
+        $surveyed = $this->generateMap($character, $area, $enemy, 27);
+        $uninvestigated->update([
+            'reward_profile' => 'experience',
+            'reward_modifiers_json' => app(\App\Services\ExplorationMapRewardProfileService::class)
+                ->modifiers('experience', (string) $uninvestigated->map_grade),
+        ]);
+        $surveyed->update([
+            'reward_profile' => 'training',
+            'reward_modifiers_json' => app(\App\Services\ExplorationMapRewardProfileService::class)
+                ->modifiers('training', (string) $surveyed->map_grade),
+        ]);
+        app(MapSurveyService::class)->start($character, $surveyed->fresh(), $city);
+
+        $response = $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('exploration-maps.index'));
+
+        $response->assertOk()
+            ->assertSee('報酬傾向：修練の導き')
+            ->assertSee('目安戦力：')
+            ->assertSee('未調査の探索地図')
+            ->assertDontSee('経験の導き')
+            ->assertSee('name="map_ids[]"', false);
+        $this->assertSame('uninvestigated', $uninvestigated->fresh()->status);
+    }
+
     public function test_surveyed_map_is_shown_as_waiting_for_publication(): void
     {
         [$character, $city, $area, $enemy] = $this->mapContext();
