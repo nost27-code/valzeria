@@ -16,6 +16,7 @@ class NewcomerRegistrationCampaignService
     public const ITEM_KEY = 'explore_stamina_small_bottle';
     public const QUANTITY = 10;
     public const NOTIFICATION_TYPE = 'newcomer_stamina_bottle_gift';
+    public const CAMPAIGN_KEY = 'newcomer_registration_campaign';
     public const CAMPAIGN_START_DATE = '2026-06-30 00:00:00';
     public const BONUS_ITEM_KEY = 'explore_stamina_potion';
     public const BONUS_QUANTITY = 5;
@@ -54,14 +55,14 @@ class NewcomerRegistrationCampaignService
                 $lockedCharacter,
                 'system',
                 self::NOTIFICATION_TYPE,
-                '7月登録キャンペーンを受け取りました',
+                $this->registrationCampaignTitle(),
                 "{$itemName}を" . self::QUANTITY . '個お届けしました。探索力が足りない時は、倉庫の所持品欄から使用できます。',
                 '倉庫を確認する',
                 route('inventory.index'),
                 [
                     'item_key' => self::ITEM_KEY,
                     'quantity' => self::QUANTITY,
-                    'campaign_key' => '2026_july_registration_campaign',
+                    'campaign_key' => self::CAMPAIGN_KEY,
                     'campaign_start' => $this->campaignStart()->toDateTimeString(),
                     'granted_by' => 'auto_registration_campaign',
                 ],
@@ -227,6 +228,11 @@ class NewcomerRegistrationCampaignService
     private function itemName(string $itemKey = self::ITEM_KEY): string
     {
         return (string) config('adventure_support.items.' . $itemKey . '.name', '探索力の小瓶');
+    }
+
+    private function registrationCampaignTitle(): string
+    {
+        return now('Asia/Tokyo')->format('n月') . '登録キャンペーンを受け取りました';
     }
 
     private function notificationTableExists(): bool

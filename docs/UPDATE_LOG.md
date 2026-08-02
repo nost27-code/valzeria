@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Changed
+
+- 新規登録時に届く登録キャンペーン通知を継続型にし、「8月登録キャンペーン」のように配布時点の月を表示するようにしました。
+
 ### Fixed
 
 - チャンプカードの限定アイコンを、チャンプ本人だけがポーズ変更できるように修正しました。

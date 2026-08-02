@@ -7,11 +7,39 @@ use App\Models\CharacterNotification;
 use App\Models\User;
 use App\Services\NewcomerRegistrationCampaignService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class NewcomerRegistrationCampaignBonusTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_registration_gift_uses_the_current_japan_month_in_its_notification_title(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-02 12:00:00', 'Asia/Tokyo'));
+
+        try {
+            $user = User::factory()->create();
+            $character = Character::create([
+                'user_id' => $user->id,
+                'name' => '8月登録テスト',
+            ]);
+
+            $this->assertTrue(app(NewcomerRegistrationCampaignService::class)->grantIfEligible($character));
+            $this->assertDatabaseHas('character_notifications', [
+                'character_id' => $character->id,
+                'type' => NewcomerRegistrationCampaignService::NOTIFICATION_TYPE,
+                'title' => '8月登録キャンペーンを受け取りました',
+            ]);
+            $this->assertDatabaseHas('character_consumable_items', [
+                'character_id' => $character->id,
+                'item_key' => NewcomerRegistrationCampaignService::ITEM_KEY,
+                'quantity' => NewcomerRegistrationCampaignService::QUANTITY,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
 
     public function test_bonus_is_granted_once_to_original_campaign_recipients(): void
     {

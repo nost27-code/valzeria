@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-registration-campaign-current-month',
+        'date' => '2026-08-02',
+        'category' => 'changed',
+        'title' => '新規登録キャンペーンを毎月継続',
+        'detail' => '新しく冒険を始めた方への探索力の小瓶10個プレゼントを今後も継続し、通知には登録した月を表示するようにしました。',
+    ],
+    [
         'id' => '2026-08-02-main-tabs-load-on-selection',
         'date' => '2026-08-02',
         'category' => 'fixed',
