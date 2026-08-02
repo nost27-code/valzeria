@@ -106,6 +106,96 @@ class TownUpdateService
     }
 
     /**
+     * 公開状態を切り替える。新しく表示する項目は表示中一覧の末尾へ追加する。
+     */
+    public function toggleActive(int $id): void
+    {
+        DB::transaction(function () use ($id): void {
+            $update = TopUpdate::query()->lockForUpdate()->findOrFail($id);
+            if ($update->is_dismissed) {
+                return;
+            }
+
+            if ($update->is_active) {
+                $update->forceFill(['is_active' => false])->save();
+
+                return;
+            }
+
+            $lastActiveUpdate = TopUpdate::query()
+                ->where('is_active', true)
+                ->where('is_dismissed', false)
+                ->orderByDesc('sort_order')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first(['sort_order']);
+
+            $update->forceFill([
+                'is_active' => true,
+                'sort_order' => ((int) ($lastActiveUpdate?->sort_order ?? 0)) + 10,
+            ])->save();
+        });
+
+        $this->forgetPublishedCache();
+    }
+
+    /**
+     * 表示中のお知らせを1件ずつ上下へ移動する。
+     */
+    public function moveActive(int $id, string $direction): void
+    {
+        if (! in_array($direction, ['up', 'down'], true)) {
+            return;
+        }
+
+        DB::transaction(function () use ($id, $direction): void {
+            $updates = TopUpdate::query()
+                ->where('is_active', true)
+                ->where('is_dismissed', false)
+                ->orderBy('sort_order')
+                ->orderByDesc('published_on')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+
+            $currentIndex = $updates->search(fn (TopUpdate $update): bool => $update->id === $id);
+            if ($currentIndex === false) {
+                return;
+            }
+
+            $targetIndex = $direction === 'up' ? $currentIndex - 1 : $currentIndex + 1;
+            if ($targetIndex < 0 || $targetIndex >= $updates->count()) {
+                return;
+            }
+
+            $ids = $updates->pluck('id')->all();
+            [$ids[$currentIndex], $ids[$targetIndex]] = [$ids[$targetIndex], $ids[$currentIndex]];
+
+            foreach ($ids as $index => $updateId) {
+                TopUpdate::query()->whereKey($updateId)->update([
+                    'sort_order' => ($index + 1) * 10,
+                ]);
+            }
+        });
+
+        $this->forgetPublishedCache();
+    }
+
+    /**
+     * 管理画面の表示中一覧。
+     */
+    public function activeForAdmin(): Collection
+    {
+        return TopUpdate::query()
+            ->where('is_active', true)
+            ->where('is_dismissed', false)
+            ->orderBy('sort_order')
+            ->orderByDesc('published_on')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
      * 街ヘッダと更新履歴モーダルへ出す公開済み更新。
      */
     public function published(int $limit = 20): Collection
@@ -117,8 +207,8 @@ class TownUpdateService
         $query = TopUpdate::query()
             ->where('is_active', true)
             ->whereDate('published_on', '<=', today('Asia/Tokyo'))
-            ->orderByDesc('published_on')
             ->orderBy('sort_order')
+            ->orderByDesc('published_on')
             ->orderByDesc('id');
 
         if (Schema::hasColumn('top_updates', 'is_dismissed')) {

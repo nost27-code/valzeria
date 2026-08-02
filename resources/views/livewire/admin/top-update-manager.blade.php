@@ -18,8 +18,70 @@
 
     <div class="mb-5 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold leading-relaxed text-blue-800">
         管理ダッシュボード用の更新サマリから、プレイヤー向け候補を非公開の下書きとして自動作成します。
-        文言を整えて「表示する」をONにした項目だけが街へ公開されます。不要な候補は「削除」を選んでください。
+        文言を整えて「表示する」ボタンを押した項目だけが街へ公開されます。不要な候補は「削除」を選んでください。
     </div>
+
+    <section class="mb-6 overflow-hidden rounded-md bg-white shadow-sm ring-2 ring-amber-300">
+        <div class="flex flex-col gap-1 border-b border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-lg font-black text-slate-950">街に表示中</h2>
+                <p class="mt-0.5 text-xs font-bold text-amber-800">上から順に街のお知らせへ表示されます。▲▼で1件ずつ移動できます。</p>
+            </div>
+            <span class="text-xs font-black text-amber-700">{{ $activeUpdates->count() }}件</span>
+        </div>
+
+        <div class="divide-y divide-slate-100">
+            @forelse($activeUpdates as $update)
+                <article class="grid gap-3 px-4 py-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center {{ $editingId === $update->id ? 'bg-amber-50' : 'bg-white' }}">
+                    <div class="flex items-center gap-2">
+                        <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-100 text-xs font-black text-amber-800">{{ $loop->iteration }}</span>
+                        <div class="flex gap-1">
+                            <button type="button"
+                                    wire:click="moveActive({{ $update->id }}, 'up')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="moveActive"
+                                    @disabled($loop->first)
+                                    class="grid h-8 w-8 place-items-center rounded-md border border-slate-300 bg-white text-sm font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                                    aria-label="{{ $update->body }}を上へ移動">▲</button>
+                            <button type="button"
+                                    wire:click="moveActive({{ $update->id }}, 'down')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="moveActive"
+                                    @disabled($loop->last)
+                                    class="grid h-8 w-8 place-items-center rounded-md border border-slate-300 bg-white text-sm font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                                    aria-label="{{ $update->body }}を下へ移動">▼</button>
+                        </div>
+                    </div>
+
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <time class="text-[11px] font-black text-slate-500">{{ $update->published_on?->format('Y/m/d') }}</time>
+                            @if($update->source_key)
+                                <span class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">自動生成</span>
+                            @endif
+                        </div>
+                        <div class="mt-1 break-words text-sm font-black leading-relaxed text-slate-900">{{ $update->body }}</div>
+                        @if(filled($update->detail))
+                            <div class="mt-1 line-clamp-2 break-words text-xs font-bold leading-relaxed text-slate-500">{{ $update->detail }}</div>
+                        @endif
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2">
+                        <button type="button" wire:click="edit({{ $update->id }})" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">編集</button>
+                        <button type="button"
+                                wire:click="toggleActive({{ $update->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="toggleActive"
+                                class="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-200 disabled:opacity-50">
+                            表示をやめる
+                        </button>
+                    </div>
+                </article>
+            @empty
+                <div class="px-4 py-8 text-center text-sm font-bold text-slate-500">現在、街に表示している更新情報はありません。</div>
+            @endforelse
+        </div>
+    </section>
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <form wire:submit="save" class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -49,17 +111,8 @@
                     @error('form.detail') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="mb-1 block text-xs font-black text-slate-500">表示順</label>
-                        <input type="number" min="0" max="9999" wire:model="form.sort_order" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold shadow-sm focus:border-[#d4af37] focus:ring focus:ring-[#d4af37]/30">
-                        @error('form.sort_order') <div class="mt-1 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
-                    </div>
-
-                    <label class="flex items-end gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
-                        <input type="checkbox" wire:model="form.is_active" class="rounded border-slate-300 text-amber-600 focus:ring-amber-500">
-                        街に表示する
-                    </label>
+                <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold leading-relaxed text-slate-600">
+                    新規追加した項目は下書きとして保存されます。表示・非表示と並び順は「街に表示中」から変更できます。
                 </div>
             </div>
 
@@ -78,7 +131,7 @@
 
         <div class="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
             <div class="border-b border-slate-200 px-4 py-3">
-                <h2 class="text-lg font-black text-slate-950">更新候補・公開履歴</h2>
+                <h2 class="text-lg font-black text-slate-950">更新候補・下書き</h2>
             </div>
             <div class="xl:overflow-x-auto">
                 <table class="block min-w-0 text-sm xl:table xl:min-w-full xl:divide-y xl:divide-slate-200">
@@ -86,13 +139,12 @@
                         <tr>
                             <th class="px-4 py-3 text-left font-bold">公開日</th>
                             <th class="px-4 py-3 text-left font-bold">表示内容</th>
-                            <th class="px-4 py-3 text-right font-bold">順</th>
                             <th class="px-4 py-3 text-center font-bold">状態</th>
                             <th class="px-4 py-3 text-right font-bold">操作</th>
                         </tr>
                     </thead>
                     <tbody class="block space-y-3 bg-slate-50 p-3 xl:table-row-group xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:bg-white xl:p-0">
-                        @forelse($updates as $update)
+                        @forelse($draftUpdates as $update)
                             <tr class="grid grid-cols-2 gap-x-3 gap-y-4 rounded-md border border-slate-200 p-4 shadow-sm xl:table-row xl:rounded-none xl:border-0 xl:p-0 xl:shadow-none {{ $editingId === $update->id ? 'bg-amber-50' : 'bg-white xl:hover:bg-slate-50' }}">
                                 <td class="whitespace-nowrap font-black text-slate-900 xl:px-4 xl:py-3">
                                     <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">公開日</span>
@@ -111,17 +163,18 @@
                                         <div class="mt-1 line-clamp-3 break-words text-xs font-bold leading-relaxed text-slate-500 xl:line-clamp-2">{{ $update->detail }}</div>
                                     @endif
                                 </td>
-                                <td class="font-bold text-slate-500 xl:px-4 xl:py-3 xl:text-right">
-                                    <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">表示順</span>
-                                    {{ number_format($update->sort_order) }}
-                                </td>
                                 <td class="text-right xl:px-4 xl:py-3 xl:text-center">
                                     <span class="mb-1 block text-[10px] font-black text-slate-400 xl:hidden">状態</span>
-                                    <button type="button" wire:click="toggleActive({{ $update->id }})" wire:loading.attr="disabled" wire:loading.class="is-action-processing" wire:target="toggleActive" class="rounded-full px-3 py-1 text-xs font-black disabled:pointer-events-none {{ $update->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
-                                        {{ $update->is_active ? '表示中' : '下書き' }}
-                                    </button>
+                                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">下書き</span>
                                 </td>
                                 <td class="col-span-2 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 xl:table-cell xl:whitespace-nowrap xl:border-0 xl:px-4 xl:py-3 xl:text-right">
+                                    <button type="button"
+                                            wire:click="toggleActive({{ $update->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="toggleActive"
+                                            class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
+                                        表示する
+                                    </button>
                                     <button type="button" wire:click="edit({{ $update->id }})" class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50">編集</button>
                                     <button type="button"
                                             wire:click="delete({{ $update->id }})"
@@ -136,7 +189,7 @@
                             </tr>
                         @empty
                             <tr class="block rounded-md bg-white xl:table-row">
-                                <td colspan="5" class="block px-4 py-8 text-center text-sm font-bold text-slate-500 xl:table-cell">更新情報がありません。</td>
+                                <td colspan="4" class="block px-4 py-8 text-center text-sm font-bold text-slate-500 xl:table-cell">下書きはありません。</td>
                             </tr>
                         @endforelse
                     </tbody>

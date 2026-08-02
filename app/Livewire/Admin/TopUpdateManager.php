@@ -14,8 +14,6 @@ class TopUpdateManager extends Component
         'published_on' => '',
         'body' => '',
         'detail' => '',
-        'sort_order' => 0,
-        'is_active' => true,
     ];
 
     public function mount(): void
@@ -41,8 +39,6 @@ class TopUpdateManager extends Component
             'published_on' => optional($update->published_on)->format('Y-m-d') ?: today('Asia/Tokyo')->toDateString(),
             'body' => $update->body,
             'detail' => (string) ($update->detail ?? ''),
-            'sort_order' => (int) $update->sort_order,
-            'is_active' => (bool) $update->is_active,
         ];
     }
 
@@ -52,23 +48,22 @@ class TopUpdateManager extends Component
             'form.published_on' => ['required', 'date'],
             'form.body' => ['required', 'string', 'max:255'],
             'form.detail' => ['nullable', 'string', 'max:2000'],
-            'form.sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
-            'form.is_active' => ['boolean'],
         ])['form'];
 
         $payload = [
             'published_on' => $validated['published_on'],
             'body' => $validated['body'],
             'detail' => trim((string) ($validated['detail'] ?? '')) ?: null,
-            'sort_order' => (int) $validated['sort_order'],
-            'is_active' => (bool) $validated['is_active'],
             'is_dismissed' => false,
         ];
 
         if ($this->editingId) {
             TopUpdate::findOrFail($this->editingId)->update($payload);
         } else {
-            TopUpdate::create($payload);
+            TopUpdate::create($payload + [
+                'sort_order' => ((int) TopUpdate::max('sort_order')) + 10,
+                'is_active' => false,
+            ]);
         }
 
         app(TownUpdateService::class)->forgetPublishedCache();
@@ -78,13 +73,12 @@ class TopUpdateManager extends Component
 
     public function toggleActive(int $id): void
     {
-        $update = TopUpdate::findOrFail($id);
-        if ($update->is_dismissed) {
-            return;
-        }
+        app(TownUpdateService::class)->toggleActive($id);
+    }
 
-        $update->forceFill(['is_active' => !$update->is_active])->save();
-        app(TownUpdateService::class)->forgetPublishedCache();
+    public function moveActive(int $id, string $direction): void
+    {
+        app(TownUpdateService::class)->moveActive($id, $direction);
     }
 
     public function delete(int $id): void
@@ -106,21 +100,21 @@ class TopUpdateManager extends Component
             'published_on' => today('Asia/Tokyo')->toDateString(),
             'body' => '',
             'detail' => '',
-            'sort_order' => ((int) TopUpdate::max('sort_order')) + 10,
-            'is_active' => false,
         ];
     }
 
     public function render()
     {
-        $updates = TopUpdate::query()
+        $draftUpdates = TopUpdate::query()
+            ->where('is_active', false)
+            ->where('is_dismissed', false)
             ->orderByDesc('published_on')
-            ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get();
 
         return view('livewire.admin.top-update-manager', [
-            'updates' => $updates,
+            'activeUpdates' => app(TownUpdateService::class)->activeForAdmin(),
+            'draftUpdates' => $draftUpdates,
         ])->layout('components.layouts.admin');
     }
 }

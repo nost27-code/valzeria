@@ -103,7 +103,7 @@ class TownUpdateServiceTest extends TestCase
             'is_active' => true,
         ]);
         TopUpdate::query()->create([
-            'published_on' => '2026-07-31',
+            'published_on' => '2026-07-29',
             'body' => '1件目',
             'sort_order' => 10,
             'is_active' => true,
@@ -125,6 +125,55 @@ class TownUpdateServiceTest extends TestCase
         $updates = app(TownUpdateService::class)->published(3);
 
         $this->assertSame(['1件目', '2件目'], $updates->pluck('body')->all());
+    }
+
+    public function test_admin_can_reorder_active_updates_independently_from_publication_date(): void
+    {
+        config()->set('admin_update_summaries', []);
+
+        $first = TopUpdate::query()->create([
+            'published_on' => '2026-07-29',
+            'body' => '先頭のお知らせ',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+        $second = TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => '2番目のお知らせ',
+            'sort_order' => 20,
+            'is_active' => true,
+        ]);
+        $draft = TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => '下書きのお知らせ',
+            'sort_order' => 1,
+            'is_active' => false,
+        ]);
+
+        Livewire::test(TopUpdateManager::class)
+            ->assertViewHas('activeUpdates', fn ($updates): bool => $updates->pluck('id')->all() === [$first->id, $second->id])
+            ->assertViewHas('draftUpdates', fn ($updates): bool => $updates->pluck('id')->all() === [$draft->id])
+            ->assertSee('街に表示中')
+            ->assertDontSee('表示順')
+            ->call('moveActive', $second->id, 'up')
+            ->assertHasNoErrors();
+
+        $this->assertSame(
+            [$second->id, $first->id],
+            app(TownUpdateService::class)->published()->pluck('id')->all()
+        );
+        $this->assertDatabaseHas('top_updates', ['id' => $second->id, 'sort_order' => 10]);
+        $this->assertDatabaseHas('top_updates', ['id' => $first->id, 'sort_order' => 20]);
+
+        Livewire::test(TopUpdateManager::class)
+            ->call('toggleActive', $draft->id)
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('top_updates', [
+            'id' => $draft->id,
+            'is_active' => true,
+            'sort_order' => 30,
+        ]);
     }
 
     public function test_published_updates_do_not_restore_an_eloquent_collection_from_shared_cache(): void

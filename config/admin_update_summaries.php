@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-town-update-active-order-controls',
+        'date' => '2026-08-02',
+        'category' => 'internal',
+        'title' => '街のお知らせ公開順を操作しやすく改善',
+        'detail' => '表示中のお知らせを下書きと分けて確認し、上下ボタンで公開順を1件ずつ変更できるようにしました。',
+    ],
+    [
         'id' => '2026-08-02-area-seven-boss-candidate-mark-drop',
         'date' => '2026-08-02',
         'category' => 'fixed',
