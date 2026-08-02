@@ -125,11 +125,6 @@ class MainScreenShell extends Component
         }
     }
 
-    public function preloadCachedTab(string $location): void
-    {
-        $this->markCachedTabLoaded($this->normalizeLocation($location));
-    }
-
     public function render()
     {
         return view('livewire.main-screen-shell');

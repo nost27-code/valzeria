@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-main-tabs-load-on-selection',
+        'date' => '2026-08-02',
+        'category' => 'fixed',
+        'title' => 'ホーム画面の読み込み負荷を軽減',
+        'detail' => 'ホーム表示時に他のタブを自動で読み込まず、街・探索・市場・闘技場を初めて開いた時だけ読み込むようにしました。一度開いたタブは保持され、2回目以降はすぐに切り替わります。',
+    ],
+    [
         'id' => '2026-08-01-colosseum-ranking-icon-display',
         'date' => '2026-08-01',
         'category' => 'changed',
