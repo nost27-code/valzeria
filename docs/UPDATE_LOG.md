@@ -22,6 +22,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Internal
 
+- 管理ツール集の背景透過ツールを、消したい背景をクリックして精密に選べる方式へ更新しました。色の許容範囲、つながる部分だけの保護、白フチ軽減、消去・復元ブラシ、Undo/Redo、背景色を変えた確認、PNG/WebP保存に対応しています。
+
 - エリア7の印ドロップ不具合に対し、対象者と補填数を事前確認し、二重付与防止・監査記録・差分ロールバックを行える補填処理を追加しました。
 
 ### Added

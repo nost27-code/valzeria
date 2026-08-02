@@ -25,9 +25,9 @@ class ToolCollection extends Component
                     'openLabel' => '開く',
                 ],
                 [
-                    'name' => '背景除去・リサイズツール',
-                    'description' => '画像の背景除去、リサイズ、形式変換をブラウザ上で行います。',
-                    'href' => url('admin/tools/remover.html'),
+                    'name' => 'アイコン背景透過ツール',
+                    'description' => '消したい背景をクリックし、許容範囲や境界を調整しながらきれいに透過します。',
+                    'href' => route('admin.tools.remover'),
                     'badge' => 'PUBLIC',
                     'openLabel' => '開く',
                 ],

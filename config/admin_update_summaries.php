@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-icon-background-transparency-tool',
+        'date' => '2026-08-02',
+        'category' => 'internal',
+        'title' => 'キャラアイコンの背景透過ツールを改善',
+        'detail' => '背景をクリックしてつながる色だけを透明化し、許容範囲・白フチ軽減・消去と復元・戻ると進む・背景色確認・PNG/WebP保存をブラウザ内で行えるようにしました。',
+    ],
+    [
         'id' => '2026-08-02-area-seven-mark-compensation-operation',
         'date' => '2026-08-02',
         'category' => 'internal',
