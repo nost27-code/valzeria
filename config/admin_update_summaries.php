@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-icon-transparency-file-save-and-pan',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => '背景透過ツールの保存と移動操作を改善',
+        'detail' => '対応ブラウザでは、ファイル選択で開いた画像を元と同じ場所・ファイル名を初期値にして保存できるようにし、左クリックで背景選択、右ドラッグでキャンバス移動を行えるようにしました。',
+    ],
+    [
         'id' => '2026-08-02-icon-background-transparency-tool',
         'date' => '2026-08-02',
         'category' => 'internal',

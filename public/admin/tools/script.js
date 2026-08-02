@@ -21,11 +21,11 @@
     tool: 'wand', zoom: 1, offsetX: 0, offsetY: 0,
     undo: [], redo: [], isDrawing: false, isPanning: false,
     startPointer: null, strokeBefore: null, strokeBounds: null, lastBrushPoint: null,
-    spacePressed: false, processing: false, toastTimer: null
+    spacePressed: false, processing: false, toastTimer: null, sourceFileHandle: null
   };
 
   const toolHelp = {
-    wand: '透明にしたい背景をクリックしてください。何度でも追加できます。',
+    wand: '左クリックで背景を選択します。右ドラッグで画像を移動できます。',
     erase: '残った背景をなぞって透明にします。',
     restore: '消しすぎた部分をなぞって元に戻します。',
     pan: 'ドラッグして表示位置を移動します。'
@@ -43,7 +43,31 @@
     dom.busy.hidden = !isBusy;
   }
 
-  function openPicker() { if (!state.processing) dom.fileInput.click(); }
+  async function openPicker() {
+    if (state.processing) return;
+    if (typeof window.showOpenFilePicker !== 'function') {
+      dom.fileInput.click();
+      return;
+    }
+    try {
+      const [fileHandle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{
+          description: '画像ファイル',
+          accept: {
+            'image/png': ['.png'],
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/webp': ['.webp'],
+            'image/gif': ['.gif']
+          }
+        }]
+      });
+      const file = await fileHandle.getFile();
+      await loadFile(file, fileHandle);
+    } catch (error) {
+      if (error.name !== 'AbortError') dom.fileInput.click();
+    }
+  }
   dom.dropZone.addEventListener('click', openPicker);
   dom.dropZone.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPicker(); }
@@ -51,7 +75,7 @@
   dom.newImageButton.addEventListener('click', openPicker);
   dom.fileInput.addEventListener('change', () => {
     const file = dom.fileInput.files && dom.fileInput.files[0];
-    if (file) loadFile(file);
+    if (file) loadFile(file, null);
     dom.fileInput.value = '';
   });
   ['dragenter', 'dragover'].forEach((name) => dom.dropZone.addEventListener(name, (event) => {
@@ -62,15 +86,15 @@
   }));
   dom.dropZone.addEventListener('drop', (event) => {
     const file = Array.from(event.dataTransfer.files || []).find((item) => item.type.startsWith('image/'));
-    if (file) loadFile(file);
+    if (file) loadFile(file, null);
   });
   document.addEventListener('paste', (event) => {
     const item = Array.from(event.clipboardData?.items || []).find((entry) => entry.type.startsWith('image/'));
     const file = item?.getAsFile();
-    if (file) loadFile(file);
+    if (file) loadFile(file, null);
   });
 
-  async function loadFile(file) {
+  async function loadFile(file, fileHandle = null) {
     if (!file.type.startsWith('image/')) { toast('画像ファイルを選択してください。'); return; }
     const objectUrl = URL.createObjectURL(file);
     const image = new Image();
@@ -89,6 +113,7 @@
       ctx.drawImage(image, 0, 0);
       const loaded = ctx.getImageData(0, 0, width, height);
       state.file = file;
+      state.sourceFileHandle = fileHandle;
       state.width = width;
       state.height = height;
       state.original = new ImageData(new Uint8ClampedArray(loaded.data), width, height);
@@ -186,10 +211,12 @@
   }
   dom.stage.addEventListener('pointermove', updateCursor);
   dom.stage.addEventListener('pointerleave', () => { dom.cursorRing.hidden = true; });
+  dom.stage.addEventListener('contextmenu', (event) => event.preventDefault());
 
   dom.stage.addEventListener('pointerdown', (event) => {
-    if (!state.pixels || state.processing || event.button > 1) return;
-    const panMode = state.tool === 'pan' || state.spacePressed || event.button === 1;
+    if (!state.pixels || state.processing || event.button > 2) return;
+    const panMode = state.tool === 'pan' || state.spacePressed || event.button === 1 || event.button === 2;
+    if (event.button === 2) event.preventDefault();
     dom.stage.setPointerCapture(event.pointerId);
     state.startPointer = { clientX: event.clientX, clientY: event.clientY, offsetX: state.offsetX, offsetY: state.offsetY };
     if (panMode) {
@@ -473,13 +500,36 @@
     outputCtx.drawImage(source, 0, 0, width, height);
     const format = dom.exportFormat.value;
     const mime = format === 'webp' ? 'image/webp' : 'image/png';
-    output.toBlob((blob) => {
+    output.toBlob(async (blob) => {
       if (!blob) { toast('保存用画像を作成できませんでした。'); return; }
+      const originalName = (state.file?.name || 'icon').replace(/\.[^.]+$/, '');
+      const suggestedName = `${originalName}.${format}`;
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          const pickerOptions = {
+            suggestedName,
+            types: [{
+              description: format === 'webp' ? 'WebP画像' : 'PNG画像',
+              accept: { [mime]: [`.${format}`] }
+            }]
+          };
+          if (state.sourceFileHandle) pickerOptions.startIn = state.sourceFileHandle;
+          const saveHandle = await window.showSaveFilePicker(pickerOptions);
+          const writable = await saveHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          state.sourceFileHandle = saveHandle;
+          toast('透過画像を保存しました。');
+          return;
+        } catch (error) {
+          if (error.name === 'AbortError') return;
+          toast('同じ場所へ保存できないため、ダウンロードに切り替えます。');
+        }
+      }
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
-      const originalName = (state.file?.name || 'icon').replace(/\.[^.]+$/, '');
       anchor.href = url;
-      anchor.download = `${originalName}_transparent.${format}`;
+      anchor.download = suggestedName;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast('透過画像を保存しました。');

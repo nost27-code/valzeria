@@ -35,7 +35,7 @@
             <button class="tool-button" data-tool="restore" type="button"><b>↺</b><span>復元</span></button>
             <button class="tool-button" data-tool="pan" type="button"><b>✥</b><span>画像移動</span></button>
           </div>
-          <p id="toolHelp" class="help">透明にしたい背景をクリックしてください。</p>
+          <p id="toolHelp" class="help">左クリック：背景を選択 ／ 右ドラッグ：画像を移動</p>
         </div>
 
         <div class="panel-section">
@@ -81,7 +81,7 @@
             <label>高さ<input id="exportHeight" type="number" min="1" max="8192"></label>
           </div>
           <button id="downloadButton" class="button button-primary" type="button">透過画像を保存</button>
-          <p class="hint">透明を保つには PNG または WebP で保存してください。</p>
+          <p class="hint">対応ブラウザでは、元画像と同じ場所・同じ名前を初期値にして保存します。透明を保つには PNG または WebP を使用してください。</p>
         </div>
       </aside>
 
@@ -114,6 +114,6 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="script.js?v=20260802"></script>
+  <script src="script.js?v=20260803"></script>
 </body>
 </html>
