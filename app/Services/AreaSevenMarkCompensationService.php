@@ -21,6 +21,18 @@ class AreaSevenMarkCompensationService
     public const NOTIFICATION_TYPE = 'area7_monster_mark_compensation';
 
     private const AREA_IDS = [7, 14, 21, 28, 35, 42, 49, 56, 63, 70];
+    private const CANDIDATE_ENEMY_IDS = [
+        7 => 41,
+        14 => 83,
+        21 => 125,
+        28 => 167,
+        35 => 209,
+        42 => 251,
+        49 => 293,
+        56 => 335,
+        63 => 377,
+        70 => 419,
+    ];
 
     /** @return array<string, mixed> */
     public function preview(): array
@@ -319,7 +331,11 @@ class AreaSevenMarkCompensationService
     {
         $areas = Area::query()
             ->whereIn('id', self::AREA_IDS)
-            ->with(['enemies' => fn ($query) => $query->where('is_boss', false)])
+            ->with(['enemies' => fn ($query) => $query
+                ->where('is_boss', false)
+                ->whereIn('id', collect(self::CANDIDATE_ENEMY_IDS)
+                    ->flatMap(fn (int $candidateId): array => range($candidateId - 4, $candidateId))
+                    ->all())])
             ->get()
             ->keyBy('id');
         $definitions = [];
@@ -331,12 +347,11 @@ class AreaSevenMarkCompensationService
                 throw new \LogicException("Area {$areaId} の街・表示順マスタが想定と一致しません。");
             }
 
-            $candidateEnemies = $area->enemies
-                ->filter(fn ($enemy): bool => str_contains((string) $enemy->role, 'ボス候補'));
-            if ($candidateEnemies->count() !== 1) {
-                throw new \LogicException("Area {$areaId} のボス候補が1体ではありません。");
+            $candidateEnemyId = self::CANDIDATE_ENEMY_IDS[$areaId];
+            $candidateEnemy = $area->enemies->firstWhere('id', $candidateEnemyId);
+            if (! $candidateEnemy || ! str_contains((string) $candidateEnemy->role, 'ボス候補')) {
+                throw new \LogicException("Area {$areaId} の補填対象ボス候補が想定と一致しません。");
             }
-            $candidateEnemy = $candidateEnemies->first();
             $peerEnemies = $area->enemies
                 ->reject(fn ($enemy): bool => (int) $enemy->id === (int) $candidateEnemy->id)
                 ->reject(fn ($enemy): bool => str_contains((string) $enemy->role, 'ダンジョン主'));

@@ -191,16 +191,16 @@ class AreaSevenMarkCompensationTest extends TestCase
             $peers = [];
             for ($index = 1; $index <= 5; $index++) {
                 $candidate = $index === 5;
-                $enemy = Enemy::query()->create([
-                    'id' => ($cityId * 100) + $index,
+                $candidateEnemyId = ($cityId * 42) - 1;
+                $enemyId = ($candidateEnemyId - 5) + $index;
+                $enemy = Enemy::query()->updateOrCreate(['id' => $enemyId], [
                     'area_id' => $areaId,
                     'name' => $candidate ? "候補{$cityId}" : "通常{$cityId}-{$index}",
                     'is_boss' => false,
                     'role' => $candidate ? 'ボス候補' : '通常',
                     'sort_order' => $index,
                 ]);
-                $mark = MonsterMark::query()->create([
-                    'enemy_id' => $enemy->id,
+                $mark = MonsterMark::query()->updateOrCreate(['enemy_id' => $enemy->id], [
                     'mark_name' => $enemy->name.'の印',
                     'bonus_stat' => 'str',
                     'bonus_per_level' => 1,
@@ -216,6 +216,27 @@ class AreaSevenMarkCompensationTest extends TestCase
                 }
             }
             $this->marksByCity[$cityId]['peers'] = $peers;
+        }
+
+        for ($index = 1; $index <= 5; $index++) {
+            $candidate = $index === 5;
+            $enemyId = 530 + $index;
+            $enemy = Enemy::query()->updateOrCreate(['id' => $enemyId], [
+                'area_id' => 56,
+                'name' => $candidate ? '旧系統の魔将軍' : "旧系統の通常敵{$index}",
+                'is_boss' => false,
+                'role' => $candidate ? 'ボス候補' : '通常',
+                'sort_order' => $index,
+            ]);
+            MonsterMark::query()->updateOrCreate(['enemy_id' => $enemy->id], [
+                'mark_name' => $enemy->name.'の印',
+                'bonus_stat' => 'str',
+                'bonus_per_level' => 1,
+                'required_per_level' => 10,
+                'max_level' => 4,
+                'drop_rate' => 8,
+                'is_active' => true,
+            ]);
         }
     }
 
