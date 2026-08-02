@@ -115,6 +115,11 @@ class DropService
         if ($this->isBossEnemy($enemy)) {
             $result['materials'] = $this->rollFirstClearMaterials($character, $enemy);
             $result['by_slot']['material'] = $result['materials'];
+            if ($rollMonsterMark && $this->isNonBossBossCandidate($enemy)) {
+                $monsterMark = app(MonsterMarkService::class)->rollAndGrant($character, $enemy);
+                $result['monster_mark'] = $monsterMark;
+                $result['by_slot']['monster_mark'] = $monsterMark;
+            }
             return $result;
         }
 
@@ -956,6 +961,12 @@ class DropService
         $role = (string) ($enemy->role ?? '');
 
         return (bool) $enemy->is_boss || str_contains($role, 'ボス');
+    }
+
+    private function isNonBossBossCandidate(Enemy $enemy): bool
+    {
+        return ! (bool) $enemy->is_boss
+            && str_contains((string) ($enemy->role ?? ''), 'ボス候補');
     }
 
     private function weightedKey(array $weights): ?string

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-area-seven-boss-candidate-mark-drop',
+        'date' => '2026-08-02',
+        'category' => 'fixed',
+        'title' => 'エリア7のボス候補の印ドロップを修正',
+        'detail' => '各街のエリア7に出現するボス候補を倒した際、ほかの通常モンスターと同じように対応する印を発見できるよう修正しました。',
+    ],
+    [
         'id' => '2026-08-02-exclusive-character-icon-015',
         'date' => '2026-08-02',
         'category' => 'internal',
