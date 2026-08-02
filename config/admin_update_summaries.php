@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-icon-transparency-persistent-settings',
+        'date' => '2026-08-03',
+        'category' => 'internal',
+        'title' => '背景透過ツールの調整設定を保持',
+        'detail' => '許容範囲・境界のなじませ・ブラシサイズ・確認背景・保存形式などをページ更新後も維持し、別の画像を開く際は直前に開いた場所を初期表示するようにしました。',
+    ],
+    [
         'id' => '2026-08-03-icon-transparency-file-save-and-pan',
         'date' => '2026-08-03',
         'category' => 'changed',

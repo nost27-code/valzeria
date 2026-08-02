@@ -21,7 +21,7 @@
     tool: 'wand', zoom: 1, offsetX: 0, offsetY: 0,
     undo: [], redo: [], isDrawing: false, isPanning: false,
     startPointer: null, strokeBefore: null, strokeBounds: null, lastBrushPoint: null,
-    spacePressed: false, processing: false, toastTimer: null, sourceFileHandle: null
+    spacePressed: false, processing: false, toastTimer: null, sourceFileHandle: null, lastOpenFileHandle: null
   };
 
   const toolHelp = {
@@ -30,6 +30,71 @@
     restore: '消しすぎた部分をなぞって元に戻します。',
     pan: 'ドラッグして表示位置を移動します。'
   };
+
+  const settingsStorageKey = 'valzeria.icon-transparency.settings.v1';
+  const allowedTools = ['wand', 'erase', 'restore', 'pan'];
+  const allowedBackgrounds = ['checker', 'light', 'dark', 'green'];
+  const allowedExportFormats = ['png', 'webp'];
+  const allowedExportScales = ['1', '0.5', '0.25', 'custom'];
+
+  function restoreRange(input, value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return;
+    input.value = Math.min(Number(input.max), Math.max(Number(input.min), number));
+  }
+
+  function restoreSettings() {
+    let settings;
+    try {
+      settings = JSON.parse(localStorage.getItem(settingsStorageKey) || 'null');
+    } catch (_) {
+      return;
+    }
+    if (!settings || typeof settings !== 'object') return;
+
+    restoreRange(dom.tolerance, settings.tolerance);
+    restoreRange(dom.feather, settings.feather);
+    restoreRange(dom.brushSize, settings.brushSize);
+    if (typeof settings.contiguous === 'boolean') dom.contiguous.checked = settings.contiguous;
+    if (typeof settings.decontaminate === 'boolean') dom.decontaminate.checked = settings.decontaminate;
+    if (allowedExportFormats.includes(settings.exportFormat)) dom.exportFormat.value = settings.exportFormat;
+    if (allowedExportScales.includes(settings.exportScale)) dom.exportScale.value = settings.exportScale;
+
+    if (allowedTools.includes(settings.tool)) state.tool = settings.tool;
+    document.querySelectorAll('[data-tool]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.tool === state.tool);
+    });
+    dom.toolHelp.textContent = toolHelp[state.tool];
+
+    const background = allowedBackgrounds.includes(settings.background) ? settings.background : 'checker';
+    document.querySelectorAll('[data-background]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.background === background);
+    });
+    dom.stage.classList.remove(...allowedBackgrounds);
+    dom.stage.classList.add(background);
+    dom.customSizeRow.hidden = dom.exportScale.value !== 'custom';
+  }
+
+  function saveSettings() {
+    const background = document.querySelector('[data-background].is-active')?.dataset.background || 'checker';
+    try {
+      localStorage.setItem(settingsStorageKey, JSON.stringify({
+        tolerance: dom.tolerance.value,
+        feather: dom.feather.value,
+        brushSize: dom.brushSize.value,
+        contiguous: dom.contiguous.checked,
+        decontaminate: dom.decontaminate.checked,
+        tool: state.tool,
+        background,
+        exportFormat: dom.exportFormat.value,
+        exportScale: dom.exportScale.value
+      }));
+    } catch (_) {
+      // Storage can be unavailable in private browsing or restricted environments.
+    }
+  }
+
+  restoreSettings();
 
   function toast(message) {
     clearTimeout(state.toastTimer);
@@ -50,7 +115,8 @@
       return;
     }
     try {
-      const [fileHandle] = await window.showOpenFilePicker({
+      const pickerOptions = {
+        id: 'icon-transparency-source',
         multiple: false,
         types: [{
           description: '画像ファイル',
@@ -61,7 +127,9 @@
             'image/gif': ['.gif']
           }
         }]
-      });
+      };
+      if (state.lastOpenFileHandle) pickerOptions.startIn = state.lastOpenFileHandle;
+      const [fileHandle] = await window.showOpenFilePicker(pickerOptions);
       const file = await fileHandle.getFile();
       await loadFile(file, fileHandle);
     } catch (error) {
@@ -114,6 +182,7 @@
       const loaded = ctx.getImageData(0, 0, width, height);
       state.file = file;
       state.sourceFileHandle = fileHandle;
+      if (fileHandle) state.lastOpenFileHandle = fileHandle;
       state.width = width;
       state.height = height;
       state.original = new ImageData(new Uint8ClampedArray(loaded.data), width, height);
@@ -194,6 +263,7 @@
     document.querySelectorAll('[data-tool]').forEach((entry) => entry.classList.toggle('is-active', entry === button));
     dom.toolHelp.textContent = toolHelp[state.tool];
     updateCursor();
+    saveSettings();
   }));
 
   function updateCursor(event) {
@@ -458,20 +528,26 @@
   }
 
   function bindRange(input, output, formatter) {
-    const update = () => { output.textContent = formatter(input.value); updateCursor(); };
+    const update = () => { output.textContent = formatter(input.value); updateCursor(); saveSettings(); };
     input.addEventListener('input', update); update();
   }
   bindRange(dom.tolerance, dom.toleranceValue, (value) => value);
   bindRange(dom.feather, dom.featherValue, (value) => `${value} px`);
   bindRange(dom.brushSize, dom.brushSizeValue, (value) => `${value} px`);
+  [dom.contiguous, dom.decontaminate].forEach((input) => input.addEventListener('change', saveSettings));
   dom.compareOriginal.addEventListener('change', render);
   document.querySelectorAll('[data-background]').forEach((button) => button.addEventListener('click', () => {
     document.querySelectorAll('[data-background]').forEach((entry) => entry.classList.toggle('is-active', entry === button));
     dom.stage.classList.remove('checker', 'light', 'dark', 'green');
     dom.stage.classList.add(button.dataset.background);
+    saveSettings();
   }));
 
-  dom.exportScale.addEventListener('change', () => { dom.customSizeRow.hidden = dom.exportScale.value !== 'custom'; });
+  dom.exportFormat.addEventListener('change', saveSettings);
+  dom.exportScale.addEventListener('change', () => {
+    dom.customSizeRow.hidden = dom.exportScale.value !== 'custom';
+    saveSettings();
+  });
   dom.exportWidth.addEventListener('input', () => {
     if (document.activeElement === dom.exportWidth && state.width) dom.exportHeight.value = Math.max(1, Math.round(Number(dom.exportWidth.value) * state.height / state.width));
   });
