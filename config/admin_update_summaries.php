@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-02-area-seven-mark-compensation-operation',
+        'date' => '2026-08-02',
+        'category' => 'internal',
+        'title' => 'エリア7の印補填処理を安全化',
+        'detail' => '対象者と補填数を事前確認し、二重付与防止、監査記録、差分ロールバックを行える補填処理を追加しました。',
+    ],
+    [
         'id' => '2026-08-02-town-update-active-order-controls',
         'date' => '2026-08-02',
         'category' => 'internal',

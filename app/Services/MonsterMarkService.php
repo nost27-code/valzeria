@@ -354,7 +354,7 @@ class MonsterMarkService
         );
     }
 
-    private function unlockedLevel(int $quantity, MonsterMark $mark): int
+    public function unlockedLevel(int $quantity, MonsterMark $mark): int
     {
         $max = $this->maxUnlockLevel($mark);
         $level = 0;
