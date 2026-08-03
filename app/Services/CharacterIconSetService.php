@@ -68,24 +68,21 @@ class CharacterIconSetService
 
         $normalPath = CharacterIconCatalog::normalize($character->icon_path);
         $setKey = CharacterIconCatalog::setKeyForPath($normalPath);
-        if ($setKey === null || ! $this->ownsSet($character, $setKey)) {
-            return $this->resolvedPathCache[$cacheKey] = [
-                'normal' => $normalPath,
-                'battle' => $normalPath,
-                'victory' => $normalPath,
-                'defeat' => $normalPath,
-            ];
+        if ($setKey === null) {
+            return $this->resolvedPathCache[$cacheKey] = $this->resolveExistingScenePaths(
+                $normalPath,
+                CharacterIconCatalog::pathsForStandardIcon($normalPath),
+            );
         }
 
-        $paths = [];
-        foreach (CharacterIconCatalog::SCENES as $scene) {
-            $path = CharacterIconCatalog::pathForSet($setKey, $scene);
-            $paths[$scene] = $path !== null && is_file(public_path(ltrim($path, '/')))
-                ? $path
-                : $normalPath;
+        if (! $this->ownsSet($character, $setKey)) {
+            return $this->resolvedPathCache[$cacheKey] = $this->resolveExistingScenePaths($normalPath);
         }
 
-        return $this->resolvedPathCache[$cacheKey] = $paths;
+        return $this->resolvedPathCache[$cacheKey] = $this->resolveExistingScenePaths(
+            $normalPath,
+            CharacterIconCatalog::pathsForSet($setKey),
+        );
     }
 
     public function pathFor(Character $character, string $scene): string
@@ -259,5 +256,27 @@ class CharacterIconSetService
             'label' => self::SCENE_LABELS['normal'],
             'has_choices' => false,
         ];
+    }
+
+    /**
+     * @param  array{normal: string, battle: string, victory: string, defeat: string}|null  $candidatePaths
+     * @return array{normal: string, battle: string, victory: string, defeat: string}
+     */
+    private function resolveExistingScenePaths(string $fallbackPath, ?array $candidatePaths = null): array
+    {
+        $normalCandidate = $candidatePaths['normal'] ?? null;
+        $normalPath = $normalCandidate !== null && is_file(public_path(ltrim($normalCandidate, '/')))
+            ? $normalCandidate
+            : $fallbackPath;
+
+        $paths = [];
+        foreach (CharacterIconCatalog::SCENES as $scene) {
+            $candidate = $candidatePaths[$scene] ?? null;
+            $paths[$scene] = $candidate !== null && is_file(public_path(ltrim($candidate, '/')))
+                ? $candidate
+                : $normalPath;
+        }
+
+        return $paths;
     }
 }

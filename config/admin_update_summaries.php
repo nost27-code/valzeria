@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-standard-character-icon-four-poses',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => '既存キャラ画像の4ポーズ表示に対応',
+        'detail' => '既存のキャラ画像も、対応画像が登録されている場合は通常・戦闘・勝利・敗北の場面に合わせてポーズが切り替わるようにしました。未登録の場面では通常画像を表示します。',
+    ],
+    [
         'id' => '2026-08-03-home-chat-immediate-render',
         'date' => '2026-08-03',
         'category' => 'changed',

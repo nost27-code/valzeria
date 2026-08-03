@@ -64,7 +64,18 @@ class CharacterIconCatalog
 
     public static function versionedAsset(?string $path): string
     {
-        $normalized = self::normalize($path);
+        $requestedPath = '/'.ltrim(trim((string) $path), '/');
+        $normalized = self::isStandardPosePath($requestedPath)
+            ? $requestedPath
+            : self::normalize($requestedPath);
+
+        if (preg_match('/\A\/images\/chara\/chara_\d{3}\.webp\z/', $normalized) === 1) {
+            $normalPosePath = self::pathsForStandardIcon($normalized)['normal'] ?? null;
+            if ($normalPosePath !== null && is_file(public_path(ltrim($normalPosePath, '/')))) {
+                $normalized = $normalPosePath;
+            }
+        }
+
         $absolutePath = public_path(ltrim($normalized, '/'));
         $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
 
@@ -77,6 +88,32 @@ class CharacterIconCatalog
         $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
 
         return asset(self::ADMIN_ICON) . '?v=' . $version;
+    }
+
+    /**
+     * @return array{normal: string, battle: string, victory: string, defeat: string}|null
+     */
+    public static function pathsForStandardIcon(?string $path): ?array
+    {
+        $path = '/'.ltrim(trim((string) $path), '/');
+        if (preg_match('/\A\/images\/chara\/chara_(\d{1,3})\.webp\z/', $path, $matches) !== 1) {
+            return null;
+        }
+
+        $number = (int) $matches[1];
+        if ($number < 1 || $number > self::MAX_ICON_NUMBER) {
+            return null;
+        }
+
+        $iconKey = sprintf('chara_%03d', $number);
+        $directory = '/images/chara/poses/'.$iconKey;
+
+        return [
+            'normal' => $directory.'/01_normal.webp',
+            'battle' => $directory.'/03_battle.webp',
+            'victory' => $directory.'/02_victory.webp',
+            'defeat' => $directory.'/04_defeat.webp',
+        ];
     }
 
     /**
@@ -135,5 +172,20 @@ class CharacterIconCatalog
         }
 
         return (int) $matches[1];
+    }
+
+    private static function isStandardPosePath(string $path): bool
+    {
+        if (preg_match(
+            '/\A\/images\/chara\/poses\/chara_(\d{3})\/(?:01_normal|02_victory|03_battle|04_defeat)\.webp\z/',
+            $path,
+            $matches,
+        ) !== 1) {
+            return false;
+        }
+
+        $number = (int) $matches[1];
+
+        return $number >= 1 && $number <= self::MAX_ICON_NUMBER;
     }
 }
