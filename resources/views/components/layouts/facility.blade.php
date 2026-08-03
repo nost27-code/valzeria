@@ -261,7 +261,7 @@
 
             @if($showBattleChatLog)
                 <div class="mt-6 w-full">
-                    <livewire:chat-log lazy.bundle="on-load" />
+                    <livewire:chat-log lazy="on-load" />
                 </div>
             @endif
         </div>

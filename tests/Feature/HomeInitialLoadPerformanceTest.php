@@ -3,12 +3,18 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\CheckCharacterSelected;
+use App\Livewire\ChatLog;
+use App\Models\Character;
+use App\Models\ChampState;
 use App\Models\User;
+use App\Services\ChampBattleService;
 use App\Services\GameSettingService;
 use App\Services\SchemaStateService;
+use App\Services\StorageCapacityService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class HomeInitialLoadPerformanceTest extends TestCase
@@ -27,14 +33,20 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertIsString($mainTabs);
         $this->assertIsString($rankingPlaceholder);
 
-        foreach (['home-action-panel', 'left-sidebar', 'champ-card', 'chat-log'] as $component) {
+        foreach (['home-action-panel', 'left-sidebar'] as $component) {
             $this->assertStringContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
+        }
+
+        foreach (['champ-card', 'chat-log'] as $component) {
+            $this->assertStringContainsString("<livewire:{$component} lazy=\"on-load\" />", $appLayout);
+            $this->assertStringNotContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
         }
 
         $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget />', $appLayout);
         $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy=', $appLayout);
         $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy.bundle="on-load" />', $appLayout);
-        $this->assertStringContainsString('<livewire:chat-log lazy.bundle="on-load" />', $facilityLayout);
+        $this->assertStringContainsString('<livewire:chat-log lazy="on-load" />', $facilityLayout);
+        $this->assertStringNotContainsString('<livewire:chat-log lazy.bundle="on-load" />', $facilityLayout);
         $this->assertStringNotContainsString('lazy=', $mainTabs);
         $this->assertStringContainsString('週間勝利', $rankingPlaceholder);
         $this->assertStringContainsString('闘技場', $rankingPlaceholder);
@@ -131,5 +143,86 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $response->assertSee('チャットを読み込み中');
         $response->assertDontSee('週間番付を読み込み中');
         $this->assertLessThan(100, $queries);
+    }
+
+    public function test_storage_summary_counts_city_clear_bonus_only_once(): void
+    {
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '倉庫集計性能テスト',
+            'current_city_id' => DB::table('cities')->value('id'),
+            'highest_city_id' => DB::table('cities')->value('id'),
+            'current_job_id' => DB::table('job_classes')->value('id'),
+        ]);
+
+        $cityClearQueries = 0;
+        DB::listen(function ($query) use (&$cityClearQueries): void {
+            if (str_contains($query->sql, 'character_titles')) {
+                $cityClearQueries++;
+            }
+        });
+
+        app(StorageCapacityService::class)->summary($character);
+
+        $this->assertSame(1, $cityClearQueries);
+    }
+
+    public function test_chat_reuses_the_character_resolved_during_mount(): void
+    {
+        $user = User::factory()->create();
+        $character = Character::query()->create([
+            'user_id' => $user->id,
+            'name' => 'チャット集計性能テスト',
+            'current_city_id' => DB::table('cities')->value('id'),
+            'highest_city_id' => DB::table('cities')->value('id'),
+            'current_job_id' => DB::table('job_classes')->value('id'),
+        ]);
+        $this->actingAs($user);
+        $this->app['session']->start();
+        session(['current_character_id' => $character->id]);
+
+        $currentCharacterQueries = 0;
+        DB::listen(function ($query) use (&$currentCharacterQueries): void {
+            if ((str_starts_with($query->sql, 'select * from "characters"')
+                    || str_starts_with($query->sql, 'select * from `characters`'))
+                && str_contains($query->sql, 'user_id')) {
+                $currentCharacterQueries++;
+            }
+        });
+
+        Livewire::test(ChatLog::class)
+            ->assertSet('currentCharacterId', $character->id);
+
+        $this->assertSame(1, $currentCharacterQueries);
+    }
+
+    public function test_champ_summary_reuses_the_loaded_champ_character_for_its_icon(): void
+    {
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'チャンプ集計性能テスト',
+            'icon_path' => '/images/chara/chara_002.webp',
+            'current_city_id' => DB::table('cities')->value('id'),
+            'highest_city_id' => DB::table('cities')->value('id'),
+            'current_job_id' => DB::table('job_classes')->value('id'),
+        ]);
+        ChampState::query()->firstOrFail()->forceFill([
+            'character_id' => $character->id,
+            'player_name' => $character->name,
+            'icon_path' => '/images/chara/chara_001.webp',
+        ])->save();
+
+        $champCharacterQueries = 0;
+        DB::listen(function ($query) use (&$champCharacterQueries): void {
+            if (preg_match('/^select (?:\*|[`"]icon_path[`"]) from [`"]characters[`"] /i', $query->sql) === 1) {
+                $champCharacterQueries++;
+            }
+        });
+
+        $summary = app(ChampBattleService::class)->summary($character);
+
+        $this->assertTrue($summary['champ']->relationLoaded('character'));
+        $this->assertSame('/images/chara/chara_002.webp', $summary['champ']->icon_path);
+        $this->assertSame(1, $champCharacterQueries);
     }
 }

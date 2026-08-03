@@ -344,7 +344,9 @@ class ChampBattleService
 
     public function ensureChamp(): ChampState
     {
-        $champ = ChampState::query()->first() ?? $this->createInitialChamp();
+        $champ = ChampState::query()
+            ->with('character.user')
+            ->first() ?? $this->createInitialChamp();
 
         return $this->replaceAdminTesterChamp($champ);
     }
@@ -360,9 +362,9 @@ class ChampBattleService
             return $champ;
         }
 
-        $character = Character::query()
-            ->with('user')
-            ->find((int) $champ->character_id);
+        $character = $champ->relationLoaded('character')
+            ? $champ->character
+            : Character::query()->with('user')->find((int) $champ->character_id);
 
         if (! $character?->isAdminTester()) {
             return $champ;
@@ -407,9 +409,10 @@ class ChampBattleService
     private function currentChampIconPath(ChampState $champ): string
     {
         if ($champ->character_id) {
-            $currentIconPath = Character::query()
-                ->whereKey($champ->character_id)
-                ->value('icon_path');
+            $character = $champ->relationLoaded('character')
+                ? $champ->character
+                : Character::query()->find((int) $champ->character_id);
+            $currentIconPath = $character?->icon_path;
 
             if ($currentIconPath) {
                 return CharacterIconCatalog::normalize($currentIconPath);

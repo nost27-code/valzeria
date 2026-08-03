@@ -33,8 +33,9 @@ class StorageCapacityService
             ->reject(fn (CharacterItem $row) => $this->isKeyItem($row))
             ->count();
 
-        $materialLimit = $this->materialLimit($character);
-        $equipmentLimit = $this->equipmentLimit($character);
+        $cityClearBonusCount = $this->cityClearStorageBonusCount($character);
+        $materialLimit = $this->materialLimitForBonusCount($character, $cityClearBonusCount);
+        $equipmentLimit = $this->equipmentLimitForBonusCount($character, $cityClearBonusCount);
 
         return [
             'material_total' => (int) $materialTotal,
@@ -88,16 +89,12 @@ class StorageCapacityService
 
     public function materialLimit(Character $character): int
     {
-        $baseLimit = max(500, (int) ($character->material_storage_limit ?? 500));
-
-        return $baseLimit + ($this->cityClearStorageBonusCount($character) * self::CITY_CLEAR_MATERIAL_STORAGE_BONUS);
+        return $this->materialLimitForBonusCount($character, $this->cityClearStorageBonusCount($character));
     }
 
     public function equipmentLimit(Character $character): int
     {
-        $baseLimit = max(300, (int) ($character->equipment_storage_limit ?? 300));
-
-        return $baseLimit + ($this->cityClearStorageBonusCount($character) * self::CITY_CLEAR_EQUIPMENT_STORAGE_BONUS);
+        return $this->equipmentLimitForBonusCount($character, $this->cityClearStorageBonusCount($character));
     }
 
     /**
@@ -105,8 +102,9 @@ class StorageCapacityService
      */
     public function nextCityClearStorageReward(Character $character): array
     {
-        $materialBefore = $this->materialLimit($character);
-        $equipmentBefore = $this->equipmentLimit($character);
+        $cityClearBonusCount = $this->cityClearStorageBonusCount($character);
+        $materialBefore = $this->materialLimitForBonusCount($character, $cityClearBonusCount);
+        $equipmentBefore = $this->equipmentLimitForBonusCount($character, $cityClearBonusCount);
 
         return [
             'material_bonus' => self::CITY_CLEAR_MATERIAL_STORAGE_BONUS,
@@ -127,6 +125,20 @@ class StorageCapacityService
             ->whereIn('titles.target_id', array_map('strval', self::CITY_FINAL_NORMAL_AREA_IDS))
             ->distinct('titles.id')
             ->count('titles.id');
+    }
+
+    private function materialLimitForBonusCount(Character $character, int $cityClearBonusCount): int
+    {
+        $baseLimit = max(500, (int) ($character->material_storage_limit ?? 500));
+
+        return $baseLimit + ($cityClearBonusCount * self::CITY_CLEAR_MATERIAL_STORAGE_BONUS);
+    }
+
+    private function equipmentLimitForBonusCount(Character $character, int $cityClearBonusCount): int
+    {
+        $baseLimit = max(300, (int) ($character->equipment_storage_limit ?? 300));
+
+        return $baseLimit + ($cityClearBonusCount * self::CITY_CLEAR_EQUIPMENT_STORAGE_BONUS);
     }
 
     private function isKeyMaterial(?object $material): bool

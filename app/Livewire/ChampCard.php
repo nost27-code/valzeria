@@ -2,8 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Models\PlayerValmon;
-use App\Models\Character;
 use App\Services\ChampBattleService;
 use App\Services\CharacterIconSetService;
 use App\Services\StorageCapacityService;
@@ -43,14 +41,10 @@ class ChampCard extends Component
         ];
         $champCharacterId = $champSummary['champ']->character_id ?? null;
         if ($champCharacterId) {
-            $champValmon = PlayerValmon::where('character_id', $champCharacterId)
-                ->where('is_partner', true)
-                ->with('master')
-                ->first();
-            $champCharacter = Character::query()
-                ->with('iconEntitlements')
-                ->find($champCharacterId);
+            $champCharacter = $champSummary['champ']->character;
             if ($champCharacter) {
+                $champCharacter->loadMissing(['iconEntitlements', 'partnerValmon.master']);
+                $champValmon = $champCharacter->partnerValmon;
                 $champComment = trim((string) $champCharacter->profile_comment);
                 $champComment = $champComment !== '' ? $champComment : null;
                 $resolvedPaths = $characterIconSetService->resolvedPaths($champCharacter);

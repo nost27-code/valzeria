@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\PublicLog;
 use App\Services\PublicLogService;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -15,6 +16,8 @@ class ChatLog extends Component
     public bool $isExpanded = false;
     public int $logLimit = 50;
     public array $allTabVisibility = [];
+    #[Locked]
+    public ?int $currentCharacterId = null;
 
     const LOG_STEP = 50;
     const LOG_MAX  = 500;
@@ -91,9 +94,11 @@ class ChatLog extends Component
     public ?int $editingLogId = null;
     public string $editingMessage = '';
 
-    public function mount()
+    public function mount(): void
     {
-        $this->allTabVisibility = $this->storedAllTabVisibility();
+        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        $this->currentCharacterId = $character?->id;
+        $this->allTabVisibility = $this->storedAllTabVisibility($character);
     }
 
     public function setTab($tab)
@@ -237,8 +242,7 @@ class ChatLog extends Component
     public function render(PublicLogService $logService)
     {
         // フィルタリングのために少し多めに取得（自分のIDを渡す）
-        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
-        $characterId = $character?->id;
+        $characterId = auth()->check() ? $this->currentCharacterId : null;
         $displayLimit = $this->logLimit;
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
         $publicLogs = $this->activeTab === 'drop'
@@ -411,9 +415,8 @@ class ChatLog extends Component
             ->all();
     }
 
-    private function storedAllTabVisibility(): array
+    private function storedAllTabVisibility(?Character $character): array
     {
-        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
         if (! $character || ! $this->canPersistAllTabVisibility()) {
             return $this->defaultAllTabVisibility();
         }

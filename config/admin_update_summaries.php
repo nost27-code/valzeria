@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-champ-chat-independent-loading',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => 'チャンプとチャットの表示を高速化',
+        'detail' => 'ホームのチャンプ情報とチャットを別々に読み込み、他のホーム情報を待たずに表示できるよう改善しました。重複していたデータ取得も整理しています。',
+    ],
+    [
         'id' => '2026-08-03-weekly-ranking-refresh-release-compatibility',
         'date' => '2026-08-03',
         'category' => 'fixed',
