@@ -59,7 +59,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - P1の認証・送信・設定変更UIは、通常フォームでは明示した `data-submit-lock` を `resources/js/app.js` が処理し、Livewireでは対象アクションの `wire:loading` で完了まで再押下を止める。全ボタンには `resources/css/app.css` の短い押下変形があり、数量増減・タブ切替など連続操作前提の操作には送信ロックを自動適用しない。
 - メイン画面内のタブ導線は、`MainScreenShell` が現在タブと探索退出処理を管理する。街・探索・冒険者・市場・闘技場の重い `MainScreen` は初回選択時にだけ読み込み、その後はDOMへ保持してAlpineで即時切替する。MAP・設定・メッセージも必要時だけ読み込む。保持中のパネルは60秒経過後の再表示時にバックグラウンド更新し、探索退出時は探索パネルを即時無効化する。
 - ホームの週間番付は新規表示では`AdventurerCardModal`へ直接イベントを送り、公開前から開かれている旧画面の`wire:click`だけは`StarTreeTowerRankingWidget::openWeeklyWinPlayerModal()`が互換処理として受ける。
-- 闘技場タブは `ArenaNpcRankingService::screenEntries()` でTOP6と挑戦候補3件だけを取得し、上位6名を1位／2〜3位／4〜6位の3段配置でキャラ画像中心に表示する。画面表示時に全ランキングの戦力を組み立てず、同一リクエスト内の順位整合性確認と倉庫集計も各1回にまとめる。
+- 闘技場タブは `ArenaNpcRankingService::screenEntries()` でTOP6と挑戦候補3件だけを取得し、上位6名を1位／2〜3位／4〜6位の3段配置でキャラ画像中心に表示する。画面表示時に全ランキングの戦力を組み立てず、同一リクエスト内の順位整合性確認と倉庫集計も各1回にまとめる。独立したTOP100番付は `lightweightRankingEntries()` で順位・画像・名前・Lvだけを取得し、職業・装備・印を使う戦力計算は行わない。プレイヤーの詳細は名前を押した後に既存の冒険者カード、NPCの詳細はNPCモーダルで取得する。
 - DB access: Eloquent models (snake_case columns); DTO/BattleActor use camelCase
 - Auth/session: Google OAuth login, guest session is linkable to Google from the shared header, character via Auth::user()->characters()->first()
 - Logging: battle_logs, player_lifecycle_events, gold_transactions, kiseki_transactions, admin_item_grant_logs, public_logs (bottom chat), admin analytics screens

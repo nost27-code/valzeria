@@ -201,6 +201,46 @@ class ArenaNpcRankingService
             ->values();
     }
 
+    /**
+     * 詳細能力を計算せず、番付一覧に必要な情報だけを取得する。
+     */
+    public function lightweightRankingEntries(int $limit = 100): Collection
+    {
+        $this->ensureRankings();
+        $limit = max(1, $limit);
+
+        $players = ArenaRanking::with([
+            'character' => fn ($query) => $query->select(['id', 'name', 'level', 'icon_path']),
+            'character.iconEntitlements' => fn ($query) => $query->select([
+                'id',
+                'character_id',
+                'icon_set_key',
+                'arena_showcase_scene',
+                'revoked_at',
+            ]),
+        ])
+            ->whereHas('character', fn ($query) => $query->visibleToPublic())
+            ->orderBy('rank')
+            ->limit($limit)
+            ->get(['id', 'character_id', 'rank']);
+
+        $npcs = Schema::hasTable('arena_npc_rankings')
+            ? ArenaNpcRanking::with([
+                'npc' => fn ($query) => $query->select(['npc_id', 'npc_name', 'image_path']),
+            ])
+                ->where('is_active', true)
+                ->orderBy('rank')
+                ->limit($limit)
+                ->get(['id', 'npc_id', 'rank', 'level'])
+            : collect();
+
+        return $this->mapLightweightPlayerEntries($players)
+            ->concat($this->mapLightweightNpcEntries($npcs))
+            ->sortBy('rank')
+            ->take($limit)
+            ->values();
+    }
+
     private function compactVisibleRanksIfNeeded(): void
     {
         if ($this->rankIntegrityChecked) {
@@ -445,6 +485,37 @@ class ArenaNpcRankingService
         });
     }
 
+    private function mapLightweightPlayerEntries(Collection $rankings): Collection
+    {
+        $iconSetService = app(CharacterIconSetService::class);
+
+        return $rankings->map(function (ArenaRanking $ranking) use ($iconSetService): array {
+            $character = $ranking->character;
+            $arenaShowcase = $character
+                ? $iconSetService->arenaShowcase($character)
+                : [
+                    'path' => CharacterIconCatalog::DEFAULT_ICON,
+                    'scene' => 'normal',
+                    'label' => '通常',
+                    'has_choices' => false,
+                ];
+
+            return [
+                'type' => 'player',
+                'id' => (int) $ranking->id,
+                'rank' => (int) $ranking->rank,
+                'name' => $character?->name ?? '不明',
+                'level' => $character ? (int) $character->level : null,
+                'character' => $character,
+                'ranking' => $ranking,
+                'image_path' => $arenaShowcase['path'],
+                'showcase_scene' => $arenaShowcase['scene'],
+                'showcase_label' => $arenaShowcase['label'],
+                'has_showcase_choices' => $arenaShowcase['has_choices'],
+            ];
+        });
+    }
+
     private function mapNpcEntries(Collection $rankings): Collection
     {
         return $rankings->map(function (ArenaNpcRanking $ranking): array {
@@ -459,6 +530,25 @@ class ArenaNpcRankingService
                 'level' => (int) $ranking->level,
                 'job' => $this->npcJobLabel($npc),
                 'power' => $this->npcPower($ranking),
+                'npc' => $npc,
+                'ranking' => $ranking,
+                'image_path' => $npc?->image_path,
+            ];
+        });
+    }
+
+    private function mapLightweightNpcEntries(Collection $rankings): Collection
+    {
+        return $rankings->map(function (ArenaNpcRanking $ranking): array {
+            $npc = $ranking->npc;
+
+            return [
+                'type' => 'npc',
+                'id' => (int) $ranking->id,
+                'rank' => (int) $ranking->rank,
+                'name' => $this->npcDisplayName($npc),
+                'full_name' => $npc?->npc_name ?? ('放浪冒険者 #' . $ranking->npc_id),
+                'level' => (int) $ranking->level,
                 'npc' => $npc,
                 'ranking' => $ranking,
                 'image_path' => $npc?->image_path,

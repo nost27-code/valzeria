@@ -13,6 +13,7 @@ use App\Services\ArenaNpcRankingService;
 use App\Services\CharacterIconSetService;
 use App\Support\CharacterIconCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use RuntimeException;
 use Tests\TestCase;
@@ -219,6 +220,40 @@ class CharacterIconSetTest extends TestCase
         Livewire::actingAs($viewer->user)
             ->test(ColosseumRanking::class)
             ->assertSee('03_battle.webp', escape: false);
+    }
+
+    public function test_lightweight_ranking_does_not_load_character_detail_tables(): void
+    {
+        $character = $this->createCharacter('軽量番付の冒険者');
+        ArenaRanking::query()->create([
+            'character_id' => $character->id,
+            'rank' => 1,
+            'wins' => 0,
+            'losses' => 0,
+        ]);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $entry = app(ArenaNpcRankingService::class)
+            ->lightweightRankingEntries(100)
+            ->firstWhere('character.id', $character->id);
+
+        $this->assertNotNull($entry);
+        $this->assertSame('軽量番付の冒険者', $entry['name']);
+        $this->assertSame(
+            ['id', 'name', 'level', 'icon_path'],
+            array_keys($entry['character']->getAttributes())
+        );
+        $this->assertArrayNotHasKey('job', $entry);
+        $this->assertArrayNotHasKey('power', $entry);
+
+        $sql = implode("\n", $queries);
+        $this->assertStringNotContainsString('character_items', $sql);
+        $this->assertStringNotContainsString('character_jobs', $sql);
+        $this->assertStringNotContainsString('character_monster_marks', $sql);
     }
 
     public function test_exclusive_icon_set_cannot_be_granted_to_a_second_character(): void

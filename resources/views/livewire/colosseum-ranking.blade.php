@@ -2,7 +2,7 @@
     <div class="mb-5 flex flex-col gap-3 border-b border-[#d4af37]/50 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-black tracking-widest text-[#1e293b]">闘技場ランキング</h2>
-            <p class="mt-1 text-sm font-bold text-slate-500">TOP100まで表示します。名前を押すと冒険者カードを確認できます。</p>
+            <p class="mt-1 text-sm font-bold text-slate-500">TOP100まで表示します。名前を押すと職業・装備・戦力を冒険者カードで確認できます。</p>
         </div>
         <a href="{{ route('home') }}" class="inline-flex items-center justify-center rounded bg-slate-800 px-4 py-2 text-sm font-bold text-white shadow transition hover:bg-slate-700">
             闘技場へ戻る
@@ -16,10 +16,9 @@
     @endif
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div class="grid gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500" style="grid-template-columns: 64px minmax(0, 1fr) 82px;">
+        <div class="grid gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500" style="grid-template-columns: 64px minmax(0, 1fr);">
             <div>順位</div>
             <div>冒険者</div>
-            <div class="text-right">戦力</div>
         </div>
 
         <div class="divide-y divide-slate-100">
@@ -29,7 +28,7 @@
                     $isNpc = ($ranking['type'] ?? null) === 'npc';
                     $isMe = $player && (int) $player->id === (int) $myCharacterId;
                 @endphp
-                <div class="grid items-center gap-2 px-3 py-3.5 text-sm {{ $isMe ? 'relative bg-amber-100 ring-2 ring-inset ring-amber-500 shadow-[inset_4px_0_0_#d97706]' : 'bg-white' }}" style="grid-template-columns: 64px minmax(0, 1fr) 82px;">
+                <div class="grid items-center gap-2 px-3 py-3.5 text-sm {{ $isMe ? 'relative bg-amber-100 ring-2 ring-inset ring-amber-500 shadow-[inset_4px_0_0_#d97706]' : 'bg-white' }}" style="grid-template-columns: 64px minmax(0, 1fr);">
                     <div class="font-black {{ $ranking['rank'] === 1 ? 'text-amber-500' : ($ranking['rank'] === 2 ? 'text-slate-400' : ($ranking['rank'] === 3 ? 'text-amber-700' : 'text-slate-600')) }}">
                         {{ $ranking['rank'] }}位
                     </div>
@@ -66,7 +65,7 @@
                                             {{ $player->name }}
                                         </button>
                                     </div>
-                                    <div class="mt-0.5 text-xs font-bold text-slate-500">{{ $player->jobClass?->name ?? '冒険者' }} / Lv.{{ $player->level }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-slate-500">Lv.{{ $player->level }}</div>
                                 </div>
                             </div>
                         @elseif($isNpc)
@@ -80,15 +79,12 @@
                                     <button type="button" wire:click="openNpcModal({{ $ranking['id'] }})" class="break-words text-left font-extrabold leading-tight text-[#1e40af] underline-offset-2 hover:underline">
                                         {{ $ranking['name'] }}
                                     </button>
-                                    <div class="mt-0.5 text-xs font-bold text-slate-500">{{ $ranking['job'] }} / Lv.{{ $ranking['level'] }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-slate-500">Lv.{{ $ranking['level'] }}</div>
                                 </div>
                             </div>
                         @else
                             <span class="font-bold text-slate-400">不明</span>
                         @endif
-                    </div>
-                    <div class="whitespace-nowrap text-right text-sm font-black text-amber-700">
-                        {{ isset($ranking['power']) ? number_format((int) $ranking['power']) : '？？？' }}
                     </div>
                 </div>
             @empty

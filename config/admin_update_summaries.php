@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-colosseum-ranking-lightweight-list',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => '闘技場TOP100番付の表示を高速化',
+        'detail' => '闘技場ランキングでは順位・画像・名前・Lvを先に表示し、職業・装備・戦力は名前を押した後の冒険者カードで確認する形にして、読み込みを軽くしました。',
+    ],
+    [
         'id' => '2026-08-03-standard-character-099-four-poses',
         'date' => '2026-08-03',
         'category' => 'changed',

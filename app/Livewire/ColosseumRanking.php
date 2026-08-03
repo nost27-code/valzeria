@@ -96,7 +96,7 @@ class ColosseumRanking extends Component
         $myCharacter = Auth::user()->currentCharacter();
 
         return view('livewire.colosseum-ranking', [
-            'rankings' => app(ArenaNpcRankingService::class)->rankingEntries(100),
+            'rankings' => app(ArenaNpcRankingService::class)->lightweightRankingEntries(100),
             'myCharacterId' => $myCharacter?->id,
         ]);
     }

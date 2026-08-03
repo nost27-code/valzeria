@@ -64,4 +64,20 @@ class ColosseumScreenPerformanceTest extends TestCase
             $rankingViewSource
         );
     }
+
+    public function test_full_ranking_uses_lightweight_rows_and_defers_details_to_the_card(): void
+    {
+        $componentSource = file_get_contents(app_path('Livewire/ColosseumRanking.php'));
+        $serviceSource = file_get_contents(app_path('Services/ArenaNpcRankingService.php'));
+        $viewSource = file_get_contents(resource_path('views/livewire/colosseum-ranking.blade.php'));
+
+        $this->assertIsString($componentSource);
+        $this->assertIsString($serviceSource);
+        $this->assertIsString($viewSource);
+        $this->assertStringContainsString('lightweightRankingEntries(100)', $componentSource);
+        $this->assertStringContainsString('public function lightweightRankingEntries(', $serviceSource);
+        $this->assertStringContainsString("->limit(\$limit)", $serviceSource);
+        $this->assertStringNotContainsString("{{ isset(\$ranking['power'])", $viewSource);
+        $this->assertStringContainsString('職業・装備・戦力を冒険者カードで確認できます', $viewSource);
+    }
 }
