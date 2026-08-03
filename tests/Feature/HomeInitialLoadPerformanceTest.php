@@ -46,6 +46,8 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertIsString($rankingWidget);
         $this->assertStringContainsString('wire:init="loadArenaEntries"', $rankingWidget);
         $this->assertStringContainsString('集計 {{ $weeklyWinData[\'updated_at_label\'] }}時点', $rankingWidget);
+        $this->assertStringContainsString('wire:click="refreshWeeklyRanking"', $rankingWidget);
+        $this->assertStringContainsString('週間番付を最新の集計に更新する', $rankingWidget);
 
         $champPosition = strpos($appLayout, '<livewire:champ-card');
         $rankingPosition = strpos($appLayout, '<livewire:star-tree-tower-ranking-widget');

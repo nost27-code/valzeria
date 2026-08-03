@@ -7,15 +7,28 @@ use App\Services\ArenaNpcRankingService;
 use App\Services\StarTreeTowerService;
 use App\Services\TowerRankingService;
 use App\Services\WeeklyWinRankingService;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
 class StarTreeTowerRankingWidget extends Component
 {
     private const DISPLAY_LIMIT = 5;
 
+    private const WEEKLY_REFRESH_COOLDOWN_SECONDS = 10;
+
     public array $arenaEntries = [];
 
     public bool $arenaEntriesLoaded = false;
+
+    public function refreshWeeklyRanking(WeeklyWinRankingService $weeklyWinRankingService): void
+    {
+        RateLimiter::attempt(
+            'weekly-win-ranking-widget:manual-refresh',
+            1,
+            fn (): int => $weeklyWinRankingService->warmCurrentWidgetRowsCache(),
+            self::WEEKLY_REFRESH_COOLDOWN_SECONDS
+        );
+    }
 
     public function loadArenaEntries(ArenaNpcRankingService $arenaRankingService): void
     {

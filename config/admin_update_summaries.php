@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-weekly-ranking-manual-refresh',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => '週間番付に更新ボタンを追加',
+        'detail' => 'ホームの週間番付右上に更新ボタンを追加し、30分の自動更新を待たずに最新の集計を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-03-weekly-ranking-snapshot-time',
         'date' => '2026-08-03',
         'category' => 'fixed',

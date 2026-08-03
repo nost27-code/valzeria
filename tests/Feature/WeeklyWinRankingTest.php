@@ -776,6 +776,35 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('週間勝利数番付を見る');
     }
 
+    public function test_shared_progress_widget_can_refresh_the_weekly_snapshot_with_a_short_global_cooldown(): void
+    {
+        [$areaId, $enemyId] = $this->battleMasterIds();
+        $viewer = User::factory()->create();
+        $viewerCharacter = $this->createCharacter($viewer, '手動更新確認者');
+        $at = Carbon::create(2026, 7, 27, 9, 10, 0, 'Asia/Tokyo');
+        $this->addWins($viewerCharacter, 1, $at, $areaId, $enemyId);
+
+        $this->actingAs($viewer)
+            ->withSession(['current_character_id' => $viewerCharacter->id]);
+
+        $component = Livewire::test(StarTreeTowerRankingWidget::class)
+            ->assertSee('1勝')
+            ->assertSee('週間番付を最新の集計に更新する');
+
+        $this->addWins($viewerCharacter, 1, $at->copy()->addMinute(), $areaId, $enemyId);
+        Carbon::setTestNow($at->copy()->addMinutes(2));
+
+        $component->call('refreshWeeklyRanking')
+            ->assertSee('2勝')
+            ->assertSee('集計 7/27 09:12時点');
+
+        $this->addWins($viewerCharacter, 1, $at->copy()->addMinutes(2)->addSecond(), $areaId, $enemyId);
+        Carbon::setTestNow($at->copy()->addMinutes(2)->addSeconds(2));
+
+        $component->call('refreshWeeklyRanking')
+            ->assertSee('2勝');
+    }
+
     public function test_shared_progress_widget_accepts_the_pre_deploy_card_click_action(): void
     {
         $viewer = User::factory()->create();
