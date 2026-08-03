@@ -47,4 +47,12 @@ class HomeActionPanel extends Component
             'homeActions' => $character ? $homeActionService->getActions($character, 5) : [],
         ]);
     }
+
+    public function placeholder()
+    {
+        return view('livewire.home-loading-placeholder', [
+            'label' => '次やること',
+            'minHeight' => '7rem',
+        ]);
+    }
 }

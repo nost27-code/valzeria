@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\GameSetting;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 
 class GameSettingService
 {
@@ -55,7 +54,7 @@ class GameSettingService
 
     public function all(): array
     {
-        if (!Schema::hasTable('game_settings')) {
+        if (! app(SchemaStateService::class)->hasTable('game_settings')) {
             return [];
         }
 

@@ -44,6 +44,7 @@
         @livewireStyles
         @php
             $cityId = null;
+            $character = null;
             if (auth()->check()) {
                 $character = auth()->user()->currentCharacter();
                 if ($character && $character->currentCity) {
@@ -54,14 +55,11 @@
             $bgColor = app(\App\Services\CityThemeService::class)->backgroundColorForCityId($cityId);
             $currentLocation = session('current_location', 'home');
             $currentLocation = $currentLocation === 'job' ? 'town' : $currentLocation;
-            if (auth()->check()) {
-                $character = auth()->user()->currentCharacter();
-                if ($character
-                    && $currentLocation === 'home'
-                    && app(\App\Services\ExplorationStateService::class)->hasActiveExploration($character)) {
-                    $currentLocation = 'dungeon';
-                    session(['current_location' => 'dungeon']);
-                }
+            if ($character
+                && $currentLocation === 'home'
+                && app(\App\Services\ExplorationStateService::class)->hasActiveExploration($character)) {
+                $currentLocation = 'dungeon';
+                session(['current_location' => 'dungeon']);
             }
         @endphp
     </head>
@@ -121,7 +119,7 @@
 
             <div x-show="currentLocation === 'home'"
                  style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}">
-                <livewire:home-action-panel />
+                <livewire:home-action-panel lazy.bundle="on-load" />
             </div>
 
             <div class="flex flex-col lg:flex-row gap-6 flex-grow">
@@ -129,13 +127,13 @@
                 <div x-show="currentLocation === 'home'"
                      style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}"
                      class="w-full lg:w-[28rem] xl:w-[30rem] flex-shrink-0">
-                    <livewire:left-sidebar />
+                    <livewire:left-sidebar lazy.bundle="on-load" />
                 </div>
 
                 <!-- 右カラム: チャンプ戦カード + メインコンテンツ -->
                 <div class="flex-1 min-w-0 flex flex-col gap-4">
-                    <livewire:champ-card />
-                    <livewire:star-tree-tower-ranking-widget />
+                    <livewire:champ-card lazy.bundle="on-load" />
+                    <livewire:star-tree-tower-ranking-widget lazy.bundle="on-load" />
 
                     <div class="min-w-0 flex flex-col gap-0 rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)]" data-main-content>
                         <div class="bg-white border border-[#d4af37] rounded-xl p-0 flex-grow min-h-0 overflow-hidden">
@@ -146,7 +144,7 @@
             </div>
 
             <!-- 全幅チャット -->
-            <livewire:chat-log />
+            <livewire:chat-log lazy.bundle="on-load" />
         </div>
         </div>
 

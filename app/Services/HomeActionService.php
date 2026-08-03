@@ -9,7 +9,6 @@ use App\Models\JobClass;
 use App\Models\NpcProcurementRequest;
 use App\Models\NpcProcurementRequestMaterial;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 class HomeActionService
 {
@@ -66,9 +65,10 @@ class HomeActionService
 
     public function deliverableNpcRequestCount(Character $character): int
     {
-        if (! Schema::hasTable('npc_procurement_request_materials')
-            || ! Schema::hasTable('npc_procurement_requests')
-            || ! Schema::hasTable('character_materials')) {
+        $schema = app(SchemaStateService::class);
+        if (! $schema->hasTable('npc_procurement_request_materials')
+            || ! $schema->hasTable('npc_procurement_requests')
+            || ! $schema->hasTable('character_materials')) {
             return 0;
         }
 
@@ -174,7 +174,7 @@ class HomeActionService
 
     private function appendDailySupplyAction(Collection $actions, Character $character): void
     {
-        if (! Schema::hasTable('character_item_daily_supplies')) {
+        if (! app(SchemaStateService::class)->hasTable('character_item_daily_supplies')) {
             return;
         }
 
@@ -207,9 +207,10 @@ class HomeActionService
 
     private function appendEquipmentEvolutionAction(Collection $actions, Character $character): void
     {
-        if (! Schema::hasTable('weapon_evolution_recipes')
-            || ! Schema::hasTable('armor_evolution_recipes')
-            || ! Schema::hasTable('character_items')) {
+        $schema = app(SchemaStateService::class);
+        if (! $schema->hasTable('weapon_evolution_recipes')
+            || ! $schema->hasTable('armor_evolution_recipes')
+            || ! $schema->hasTable('character_items')) {
             return;
         }
 
@@ -270,7 +271,8 @@ class HomeActionService
 
     private function appendJobArtSetupAction(Collection $actions, Character $character): void
     {
-        if (! Schema::hasTable('character_job_art_slots') || ! Schema::hasTable('skills')) {
+        $schema = app(SchemaStateService::class);
+        if (! $schema->hasTable('character_job_art_slots') || ! $schema->hasTable('skills')) {
             return;
         }
 
@@ -330,7 +332,7 @@ class HomeActionService
             return;
         }
 
-        if (! Schema::hasTable('character_jobs')) {
+        if (! app(SchemaStateService::class)->hasTable('character_jobs')) {
             return;
         }
 
@@ -526,7 +528,7 @@ class HomeActionService
 
     private function appendExplorationBagAction(Collection $actions, Character $character): void
     {
-        if (! Schema::hasTable('character_exploration_states')) {
+        if (! app(SchemaStateService::class)->hasTable('character_exploration_states')) {
             return;
         }
 

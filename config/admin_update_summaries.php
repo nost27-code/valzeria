@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-home-initial-load-deferred-components',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => 'ホーム初期表示を段階読み込み化',
+        'detail' => 'ホーム本体を先に表示し、次やること・冒険者情報・チャンプ・週間番付・チャットを直後にまとめて読み込むよう改善しました。重複していたDB構造確認もリクエスト内で再利用します。',
+    ],
+    [
         'id' => '2026-08-03-home-action-equipment-evolution-performance',
         'date' => '2026-08-03',
         'category' => 'fixed',

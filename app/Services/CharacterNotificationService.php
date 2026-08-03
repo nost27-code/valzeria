@@ -6,7 +6,6 @@ use App\Models\Character;
 use App\Models\CharacterNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 class CharacterNotificationService
 {
@@ -22,7 +21,7 @@ class CharacterNotificationService
         int $priority = 0,
         ?Carbon $expiresAt = null
     ): ?CharacterNotification {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return null;
         }
 
@@ -35,16 +34,16 @@ class CharacterNotificationService
             'data' => $payload,
         ];
 
-        if (Schema::hasColumn('character_notifications', 'category')) {
+        if (app(SchemaStateService::class)->hasColumn('character_notifications', 'category')) {
             $attributes['category'] = $category;
         }
-        if (Schema::hasColumn('character_notifications', 'action_label')) {
+        if (app(SchemaStateService::class)->hasColumn('character_notifications', 'action_label')) {
             $attributes['action_label'] = $actionLabel;
         }
-        if (Schema::hasColumn('character_notifications', 'priority')) {
+        if (app(SchemaStateService::class)->hasColumn('character_notifications', 'priority')) {
             $attributes['priority'] = $priority;
         }
-        if (Schema::hasColumn('character_notifications', 'expires_at')) {
+        if (app(SchemaStateService::class)->hasColumn('character_notifications', 'expires_at')) {
             $attributes['expires_at'] = $expiresAt;
         }
 
@@ -53,7 +52,7 @@ class CharacterNotificationService
 
     public function unreadCount(Character $character): int
     {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return 0;
         }
 
@@ -66,7 +65,7 @@ class CharacterNotificationService
 
     public function unreadCountByCategory(Character $character, string $category): int
     {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return 0;
         }
 
@@ -75,7 +74,7 @@ class CharacterNotificationService
             ->active()
             ->unread();
 
-        if (Schema::hasColumn('character_notifications', 'category')) {
+        if (app(SchemaStateService::class)->hasColumn('character_notifications', 'category')) {
             $query->where('category', $category);
         } elseif ($category === 'market') {
             $query->whereIn('type', ['market_sale', 'market_material_sold', 'market_listing_expired']);
@@ -86,7 +85,7 @@ class CharacterNotificationService
 
     public function latest(Character $character, int $limit = 5): Collection
     {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return collect();
         }
 
@@ -103,7 +102,7 @@ class CharacterNotificationService
      */
     public function latestForAdmin(Character $character, int $limit = 50): Collection
     {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return collect();
         }
 
@@ -116,7 +115,7 @@ class CharacterNotificationService
 
     public function markAllAsRead(Character $character): int
     {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return 0;
         }
 
@@ -128,7 +127,7 @@ class CharacterNotificationService
 
     public function markCategoryAsRead(Character $character, string $category): int
     {
-        if (! Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return 0;
         }
 
@@ -136,7 +135,7 @@ class CharacterNotificationService
             ->where('character_id', $character->id)
             ->whereNull('read_at');
 
-        if (Schema::hasColumn('character_notifications', 'category')) {
+        if (app(SchemaStateService::class)->hasColumn('character_notifications', 'category')) {
             $query->where('category', $category);
         } else {
             $query->where('type', $category);

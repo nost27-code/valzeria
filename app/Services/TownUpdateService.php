@@ -7,7 +7,6 @@ use App\Models\TopUpdate;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use LogicException;
 
 class TownUpdateService
@@ -200,7 +199,7 @@ class TownUpdateService
      */
     public function published(int $limit = 20): Collection
     {
-        if (! Schema::hasTable('top_updates')) {
+        if (! app(SchemaStateService::class)->hasTable('top_updates')) {
             return collect();
         }
 
@@ -211,7 +210,7 @@ class TownUpdateService
             ->orderByDesc('published_on')
             ->orderByDesc('id');
 
-        if (Schema::hasColumn('top_updates', 'is_dismissed')) {
+        if (app(SchemaStateService::class)->hasColumn('top_updates', 'is_dismissed')) {
             $query->where('is_dismissed', false);
         }
 
@@ -227,8 +226,7 @@ class TownUpdateService
 
     private function supportsPublicationFields(): bool
     {
-        return Schema::hasTable('top_updates')
-            && Schema::hasColumns('top_updates', [
+        return app(SchemaStateService::class)->hasColumns('top_updates', [
                 'detail',
                 'source_key',
                 'source_category',
@@ -238,7 +236,7 @@ class TownUpdateService
 
     private function supportsDeletionRegistry(): bool
     {
-        return Schema::hasTable('game_settings');
+        return app(SchemaStateService::class)->hasTable('game_settings');
     }
 
     private function deleteLegacyDismissedCandidates(): void

@@ -237,7 +237,8 @@ class ChatLog extends Component
     public function render(PublicLogService $logService)
     {
         // フィルタリングのために少し多めに取得（自分のIDを渡す）
-        $characterId = auth()->check() && auth()->user()->currentCharacter() ? auth()->user()->currentCharacter()->id : null;
+        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        $characterId = $character?->id;
         $displayLimit = $this->logLimit;
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
         $publicLogs = $this->activeTab === 'drop'
@@ -354,6 +355,14 @@ class ChatLog extends Component
             'systemLogs' => $systemLogs,
             'availableReceivers' => $availableReceivers,
             'allTabFilterOptions' => $this->allTabFilterOptions(),
+        ]);
+    }
+
+    public function placeholder()
+    {
+        return view('livewire.home-loading-placeholder', [
+            'label' => 'チャット',
+            'minHeight' => '16rem',
         ]);
     }
 

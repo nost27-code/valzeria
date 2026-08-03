@@ -112,7 +112,7 @@ class EquipmentEvolutionService
             $candidates[] = $this->buildArmorCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
         }
 
-        if (DB::getSchemaBuilder()->hasTable('accessory_evolution_recipes')) {
+        if (app(SchemaStateService::class)->hasTable('accessory_evolution_recipes')) {
             $accessoryRecipes = DB::table('accessory_evolution_recipes')
                 ->where('is_active', true)
                 ->orderBy('id')
@@ -184,7 +184,7 @@ class EquipmentEvolutionService
         }
 
         $accessorySourceIds = $sourceIdsByType->get('accessory', []);
-        if ($accessorySourceIds !== [] && DB::getSchemaBuilder()->hasTable('accessory_evolution_recipes')) {
+        if ($accessorySourceIds !== [] && app(SchemaStateService::class)->hasTable('accessory_evolution_recipes')) {
             $accessoryRecipes = DB::table('accessory_evolution_recipes')
                 ->where('is_active', true)
                 ->whereIn('from_accessory_id', $accessorySourceIds)

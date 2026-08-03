@@ -17,6 +17,7 @@ use App\Services\ExplorationStaminaService;
 use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
+use App\Services\SchemaStateService;
 use App\Services\SupportPassService;
 use App\Services\TownUpdateService;
 use App\Services\WeeklyWinRankingService;
@@ -24,7 +25,6 @@ use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class CityHeader extends Component
@@ -125,7 +125,7 @@ class CityHeader extends Component
 
     public function openNotification(int $notificationId)
     {
-        if (!Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return null;
         }
 
@@ -153,7 +153,7 @@ class CityHeader extends Component
 
     public function markNotificationRead(int $notificationId): void
     {
-        if (!Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return;
         }
 
@@ -171,7 +171,7 @@ class CityHeader extends Component
 
     public function markAllNotificationsRead(): void
     {
-        if (!Schema::hasTable('character_notifications')) {
+        if (! app(SchemaStateService::class)->hasTable('character_notifications')) {
             return;
         }
 
@@ -264,7 +264,7 @@ class CityHeader extends Component
 
         $onlinePlayers = $this->onlinePlayers();
 
-        if ($character && Schema::hasTable('character_notifications')) {
+        if ($character && app(SchemaStateService::class)->hasTable('character_notifications')) {
             $notificationService = app(CharacterNotificationService::class);
             $notifications = $notificationService->latest($character, 6);
             $unreadNotificationCount = $notificationService->unreadCount($character);
@@ -470,7 +470,7 @@ class CityHeader extends Component
 
     private function jobMasterBadgeTiers(Character $character): array
     {
-        if (! config('job_master_badges.enabled', false) || ! Schema::hasTable('job_classes')) {
+        if (! config('job_master_badges.enabled', false) || ! app(SchemaStateService::class)->hasTable('job_classes')) {
             return [];
         }
 

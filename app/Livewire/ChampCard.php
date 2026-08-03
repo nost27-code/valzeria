@@ -74,4 +74,12 @@ class ChampCard extends Component
             'storageFullMessage' => $storageFullMessage,
         ]);
     }
+
+    public function placeholder()
+    {
+        return view('livewire.home-loading-placeholder', [
+            'label' => 'チャンプ情報',
+            'minHeight' => '10rem',
+        ]);
+    }
 }

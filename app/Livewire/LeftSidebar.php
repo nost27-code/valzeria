@@ -31,8 +31,7 @@ class LeftSidebar extends Component
         if (Auth::check()) {
             $baseCharacter = Auth::user()->currentCharacter();
             if ($baseCharacter) {
-                // リレーションをロードした状態の同じキャラクターを取得
-                $baseCharacter->refresh();
+                // currentCharacter() が取得した最新行へ表示用リレーションをまとめてロードする
                 $character = $baseCharacter->load(['jobClass', 'jobHistories', 'characterItems.item', 'partnerValmon.master']);
                 
                 $finalStats = $statusService->getFinalStats($character);
@@ -71,6 +70,14 @@ class LeftSidebar extends Component
             'valmonNextLevelRemaining' => $valmonNextLevelRemaining,
             'valmonIsMaxLevel' => $valmonIsMaxLevel,
             'valmonExpPercent' => $valmonExpPercent,
+        ]);
+    }
+
+    public function placeholder()
+    {
+        return view('livewire.home-loading-placeholder', [
+            'label' => '冒険者情報',
+            'minHeight' => '24rem',
         ]);
     }
 }
