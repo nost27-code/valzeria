@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-04-sprite-splitter-quality-export',
+        'date' => '2026-08-04',
+        'category' => 'internal',
+        'title' => 'スプライト分割の高画質保存に対応',
+        'detail' => 'スプライト分割ツールで、高精細画像向けの高品質補間と、画質を落とさないロスレスWebP保存を選べるようにしました。',
+    ],
+    [
         'id' => '2026-08-03-fuka-exclusive-icon-second-version',
         'date' => '2026-08-03',
         'category' => 'internal',

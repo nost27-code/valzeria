@@ -451,6 +451,22 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
           <label><input type="radio" name="scale-up" value="yes"> 拡大あり</label>
         </div>
       </div>
+      <div class="field">
+        <label>縮小方式</label>
+        <div class="radio-row">
+          <label><input type="radio" name="resize-mode" value="high-quality" checked onchange="refreshNormalizedOutput()"> 高品質補間（推奨）</label>
+          <label><input type="radio" name="resize-mode" value="pixel-art" onchange="refreshNormalizedOutput()"> 補間なし（ドット絵向け）</label>
+        </div>
+        <span style="font-size:0.68rem;color:#5a5a8a">高解像度画像を128pxなどへ縮小する場合は「高品質補間」を使用します</span>
+      </div>
+      <div class="field">
+        <label>WebP保存方式</label>
+        <div class="radio-row">
+          <label><input type="radio" name="webp-mode" value="lossless" checked> ロスレスWebP（推奨）</label>
+          <label><input type="radio" name="webp-mode" value="standard"> 通常WebP（軽量・非可逆）</label>
+        </div>
+        <span style="font-size:0.68rem;color:#5a5a8a">ロスレスは画質を落とさず保存します。初回保存時のみエンコーダーを読み込みます</span>
+      </div>
 
       <hr class="divider">
 
@@ -574,6 +590,7 @@ let characterDirHandles = [];
 let characterRestoreRequested = new Set();
 let separatorMode = false;
 let separatorStrokeDraft = null;
+let losslessWebpEncoderPromise = null;
 
 const LS_KEY = 'valzeria-sprite-splitter-settings';
 const IDB_NAME = 'valzeria-sprite-splitter';
@@ -611,6 +628,8 @@ function settings() {
     baseline: +document.getElementById('s-baseline').value,
     alphaMode: document.querySelector('input[name="alpha-mode"]:checked').value,
     scaleUp:  document.querySelector('input[name="scale-up"]:checked').value === 'yes',
+    resizeMode: document.querySelector('input[name="resize-mode"]:checked').value,
+    webpMode: document.querySelector('input[name="webp-mode"]:checked').value,
     cols:     document.getElementById('s-cols').value,
     startNum: +document.getElementById('s-startnum').value,
     filename: document.getElementById('s-filename').value.trim() || 'sprite',
@@ -651,6 +670,14 @@ function loadPersistedSettings() {
   }
   if (saved.scaleUp !== undefined) {
     const r = document.querySelector(`input[name="scale-up"][value="${saved.scaleUp ? 'yes' : 'no'}"]`);
+    if (r) r.checked = true;
+  }
+  if (saved.resizeMode) {
+    const r = document.querySelector(`input[name="resize-mode"][value="${saved.resizeMode}"]`);
+    if (r) r.checked = true;
+  }
+  if (saved.webpMode) {
+    const r = document.querySelector(`input[name="webp-mode"][value="${saved.webpMode}"]`);
     if (r) r.checked = true;
   }
   if (saved.cols) document.getElementById('s-cols').value = saved.cols;
@@ -1382,7 +1409,9 @@ function normalizeSprite(srcCanvas, rect, cfg, mask = null) {
   const out = document.createElement('canvas');
   out.width = outSize; out.height = outSize;
   const octx = out.getContext('2d');
-  octx.imageSmoothingEnabled = false;
+  const useHighQualityResize = cfg.resizeMode === 'high-quality' && (dstW !== cW || dstH !== cH);
+  octx.imageSmoothingEnabled = useHighQualityResize;
+  if (useHighQualityResize) octx.imageSmoothingQuality = 'high';
   octx.clearRect(0, 0, outSize, outSize);
 
   const dstX = Math.floor((outSize-dstW)/2);
@@ -1512,7 +1541,8 @@ function renderAllSpritePreviews() {
       const cv = document.createElement('canvas');
       cv.width=display; cv.height=display;
       const dctx=cv.getContext('2d');
-      dctx.imageSmoothingEnabled=false;
+      dctx.imageSmoothingEnabled=settings().resizeMode === 'high-quality';
+      if (dctx.imageSmoothingEnabled) dctx.imageSmoothingQuality='high';
       dctx.clearRect(0,0,display,display);
       dctx.drawImage(nc,0,0,nc.width,nc.height,0,0,display,display);
       cv.style.display='block';
@@ -1617,7 +1647,11 @@ function updateExportButtons() {
 }
 
 function updateSize() {
-  if (allNormalized().length) renderAllSpritePreviews();
+  refreshNormalizedOutput();
+}
+
+function refreshNormalizedOutput() {
+  if (imageSlots.some(slot => slot.rects.length)) runPreviewAll();
 }
 
 /* =============================================================
@@ -1970,8 +2004,45 @@ async function downloadSheet() {
   toast('スプライトシートをダウンロードしました！');
 }
 
-function canvasToBlob(canvas, mime='image/webp') {
-  return new Promise(resolve => canvas.toBlob(resolve, mime));
+async function canvasToBlob(canvas, mime='image/webp') {
+  if (mime !== 'image/webp' || settings().webpMode !== 'lossless') {
+    return new Promise((resolve, reject) => canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('画像の保存データを生成できませんでした。')),
+      mime,
+    ));
+  }
+
+  try {
+    toast('ロスレスWebPを生成中...', 60000);
+    if (!losslessWebpEncoderPromise) {
+      losslessWebpEncoderPromise = import('./vendor/jsquash-webp/encode.js')
+        .then(module => module.default);
+    }
+    const encodeWebp = await losslessWebpEncoderPromise;
+    const context = canvas.getContext('2d');
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const encoded = await encodeWebp(imageData, {
+      lossless: 1,
+      quality: 100,
+      method: 6,
+      exact: 1,
+    });
+    const blob = new Blob([encoded], { type: 'image/webp' });
+    if (!await isLosslessWebp(blob)) {
+      throw new Error('ロスレスWebPとして生成できませんでした。');
+    }
+    return blob;
+  } catch (error) {
+    console.error(error);
+    toast('ロスレスWebPの生成に失敗しました。通常WebPへ切り替えて再度お試しください。', 6000);
+    throw error;
+  }
+}
+
+async function isLosslessWebp(blob) {
+  const bytes = new Uint8Array(await blob.slice(0, 64).arrayBuffer());
+  const signature = new TextDecoder('ascii').decode(bytes);
+  return signature.startsWith('RIFF') && signature.includes('WEBP') && signature.includes('VP8L');
 }
 
 function saveBlob(blob, filename) {
@@ -2011,6 +2082,8 @@ function resetAll() {
   document.getElementById('s-filename').value='chara';
   document.getElementById('s-startnum').value=1;
   document.getElementById('s-character-mode').checked=false;
+  document.querySelector('input[name="resize-mode"][value="high-quality"]').checked=true;
+  document.querySelector('input[name="webp-mode"][value="lossless"]').checked=true;
   characterDirHandles = [];
   characterRestoreRequested.clear();
   updateStartPreview();
