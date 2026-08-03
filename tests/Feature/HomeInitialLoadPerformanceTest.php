@@ -27,11 +27,13 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $facilityLayout = file_get_contents(resource_path('views/components/layouts/facility.blade.php'));
         $mainTabs = file_get_contents(resource_path('views/livewire/main-screen-shell.blade.php'));
         $rankingPlaceholder = file_get_contents(resource_path('views/livewire/ranking-widget-placeholder.blade.php'));
+        $chatLog = file_get_contents(resource_path('views/livewire/chat-log.blade.php'));
 
         $this->assertIsString($appLayout);
         $this->assertIsString($facilityLayout);
         $this->assertIsString($mainTabs);
         $this->assertIsString($rankingPlaceholder);
+        $this->assertIsString($chatLog);
 
         foreach (['home-action-panel', 'left-sidebar', 'champ-card'] as $component) {
             $this->assertStringContainsString("<livewire:{$component} />", $appLayout);
@@ -41,6 +43,8 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertStringContainsString('<livewire:chat-log />', $appLayout);
         $this->assertStringNotContainsString('<livewire:chat-log lazy=', $appLayout);
         $this->assertStringNotContainsString('<livewire:chat-log lazy.bundle="on-load" />', $appLayout);
+        $this->assertStringContainsString('wire:poll.60s.keep-alive', $chatLog);
+        $this->assertStringContainsString('@visibilitychange.window="if (!document.hidden) { $wire.$refresh() }"', $chatLog);
 
         $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget />', $appLayout);
         $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy=', $appLayout);

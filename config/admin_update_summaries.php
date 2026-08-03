@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-chat-background-60-second-refresh',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => 'チャットの自動更新を60秒間隔に安定化',
+        'detail' => 'ホームや施設を開いたままにした際、別のタブを表示していてもチャットを60秒間隔で更新するよう改善しました。',
+    ],
+    [
         'id' => '2026-08-03-standard-character-icon-four-poses',
         'date' => '2026-08-03',
         'category' => 'changed',
