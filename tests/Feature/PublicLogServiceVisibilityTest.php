@@ -108,6 +108,49 @@ class PublicLogServiceVisibilityTest extends TestCase
         $this->assertTrue($logs->every(fn (PublicLog $log): bool => $log->type !== 'private'));
     }
 
+    public function test_recent_logs_version_changes_when_a_visible_message_is_created_edited_or_deleted(): void
+    {
+        $service = app(PublicLogService::class);
+        $emptyVersion = $service->getRecentLogsVersion(50);
+
+        $log = PublicLog::query()->create([
+            'type' => 'chat',
+            'message' => '更新前',
+            'importance' => 1,
+        ]);
+        $createdVersion = $service->getRecentLogsVersion(50);
+
+        $log->forceFill(['message' => '更新後'])->save();
+        $editedVersion = $service->getRecentLogsVersion(50);
+
+        $log->delete();
+        $deletedVersion = $service->getRecentLogsVersion(50);
+
+        $this->assertNotSame($emptyVersion, $createdVersion);
+        $this->assertNotSame($createdVersion, $editedVersion);
+        $this->assertSame($emptyVersion, $deletedVersion);
+    }
+
+    public function test_recent_logs_version_ignores_private_messages_for_unrelated_characters(): void
+    {
+        $viewer = $this->regularCharacter('閲覧者');
+        $sender = $this->regularCharacter('送信者');
+        $receiver = $this->regularCharacter('受信者');
+        $service = app(PublicLogService::class);
+        $before = $service->getRecentLogsVersion(50, $viewer->id);
+
+        PublicLog::query()->create([
+            'type' => 'private',
+            'character_id' => $sender->id,
+            'receiver_id' => $receiver->id,
+            'message' => '閲覧対象外の手紙',
+            'importance' => 1,
+        ]);
+
+        $this->assertSame($before, $service->getRecentLogsVersion(50, $viewer->id));
+        $this->assertNotSame($before, $service->getRecentLogsVersion(50, $receiver->id));
+    }
+
     private function adminCharacter(): Character
     {
         $user = User::factory()->create(['role' => 'admin']);

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-chat-unchanged-render-skip',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => 'チャット自動更新時の表示負荷を軽減',
+        'detail' => 'チャットの60秒ごとの更新で、新しい発言や修正がない場合は一覧の再読み込みを省略し、画面と通信の負荷を抑えるよう改善しました。',
+    ],
+    [
         'id' => '2026-08-03-sprite-splitter-character-mode',
         'date' => '2026-08-03',
         'category' => 'internal',

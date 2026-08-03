@@ -209,7 +209,59 @@ class PublicLogService
         ?bool $newcomersVisible = null,
     )
     {
-        $query = PublicLog::with(['character', 'receiver'])
+        return $this->recentLogsQuery(
+            $currentCharacterId,
+            $types,
+            $excludedTypes,
+            $newcomersVisible,
+        )
+            ->with(['character', 'receiver'])
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * 表示対象ログのID・更新日時・本文だけから、軽量な変更判定値を作る。
+     */
+    public function getRecentLogsVersion(
+        int $limit = 20,
+        ?int $currentCharacterId = null,
+        ?array $types = null,
+        array $excludedTypes = [],
+        ?bool $newcomersVisible = null,
+    ): string
+    {
+        $rows = $this->recentLogsQuery(
+            $currentCharacterId,
+            $types,
+            $excludedTypes,
+            $newcomersVisible,
+        )
+            ->limit($limit)
+            ->get(['id', 'updated_at', 'message']);
+
+        return $this->logsVersion($rows);
+    }
+
+    public function logsVersion(iterable $logs): string
+    {
+        return hash('sha256', collect($logs)
+            ->map(fn (PublicLog $log): string => implode(':', [
+                $log->id,
+                $log->updated_at?->format('Y-m-d H:i:s.u') ?? '',
+                hash('sha256', (string) $log->message),
+            ]))
+            ->implode('|'));
+    }
+
+    private function recentLogsQuery(
+        ?int $currentCharacterId,
+        ?array $types,
+        array $excludedTypes,
+        ?bool $newcomersVisible,
+    ): Builder
+    {
+        $query = PublicLog::query()
             ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc');
 
@@ -261,7 +313,7 @@ class PublicLogService
                 });
         }
 
-        return $query->limit($limit)->get();
+        return $query;
     }
 
     private function pendingAdminReplyQuery(): Builder

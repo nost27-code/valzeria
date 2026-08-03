@@ -1,11 +1,11 @@
 <!-- 3. 下部：全幅チャットログエリア -->
 <div
-    wire:poll.60s.keep-alive
+    wire:poll.60s.keep-alive="pollForUpdates"
     x-data="{
         settingsOpen: false,
         settingsModalOpen: false
     }"
-    @visibilitychange.window="if (!document.hidden) { $wire.$refresh() }"
+    @visibilitychange.window="if (!document.hidden) { $wire.pollForUpdates() }"
     @open-chat-settings-modal.window="settingsModalOpen = true"
     class="relative w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans"
 >

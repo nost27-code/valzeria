@@ -18,6 +18,8 @@ class ChatLog extends Component
     public array $allTabVisibility = [];
     #[Locked]
     public ?int $currentCharacterId = null;
+    #[Locked]
+    public ?string $logsVersion = null;
 
     const LOG_STEP = 50;
     const LOG_MAX  = 500;
@@ -119,6 +121,23 @@ class ChatLog extends Component
     {
         $this->logLimit = min(self::LOG_MAX, $this->logLimit + self::LOG_STEP);
         $this->isExpanded = true;
+    }
+
+    public function pollForUpdates(PublicLogService $logService): void
+    {
+        // 個人タブは受信者候補も更新対象なので、従来どおり全体を再描画する。
+        if ($this->shouldLoadReceivers()) {
+            return;
+        }
+
+        $version = $this->currentLogsVersion($logService);
+        if ($this->logsVersion === $version) {
+            $this->skipRender();
+
+            return;
+        }
+
+        $this->logsVersion = $version;
     }
 
     public function setAllTabVisibility(string $key, bool $enabled): void
@@ -246,15 +265,7 @@ class ChatLog extends Component
         $displayLimit = $this->logLimit;
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
         if ($this->activeTab === 'all') {
-            $excludedTypes = collect(self::ALL_TAB_FILTERS)
-                ->except('newcomer')
-                ->filter(fn (array $option, string $key): bool => ! (bool) ($this->allTabVisibility[$key] ?? $option['default']))
-                ->flatMap(fn (array $option): array => $option['types'])
-                ->concat(['private', 'admin_private', 'admin_private_reply', 'admin_reply_resolved'])
-                ->unique()
-                ->values()
-                ->all();
-            $newcomersVisible = (bool) ($this->allTabVisibility['newcomer'] ?? self::ALL_TAB_FILTERS['newcomer']['default']);
+            [$excludedTypes, $newcomersVisible] = $this->allTabQueryFilters();
             $publicLogs = $logService->getRecentLogs(
                 $displayLimit,
                 $characterId,
@@ -267,6 +278,7 @@ class ChatLog extends Component
         } else {
             $publicLogs = $logService->getRecentLogs($fetchLimit, $characterId);
         }
+        $this->logsVersion = $logService->logsVersion($publicLogs);
         $systemLogs = [];
         $count = 0;
 
@@ -393,6 +405,47 @@ class ChatLog extends Component
     {
         return $this->chatTarget === 'private'
             || $this->activeTab === 'private';
+    }
+
+    private function currentLogsVersion(PublicLogService $logService): string
+    {
+        $characterId = auth()->check() ? $this->currentCharacterId : null;
+        $displayLimit = $this->logLimit;
+
+        if ($this->activeTab === 'all') {
+            [$excludedTypes, $newcomersVisible] = $this->allTabQueryFilters();
+
+            return $logService->getRecentLogsVersion(
+                $displayLimit,
+                $characterId,
+                null,
+                $excludedTypes,
+                $newcomersVisible,
+            );
+        }
+
+        if ($this->activeTab === 'drop') {
+            return $logService->getRecentLogsVersion($displayLimit, $characterId, ['drop']);
+        }
+
+        $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
+
+        return $logService->getRecentLogsVersion($fetchLimit, $characterId);
+    }
+
+    private function allTabQueryFilters(): array
+    {
+        $excludedTypes = collect(self::ALL_TAB_FILTERS)
+            ->except('newcomer')
+            ->filter(fn (array $option, string $key): bool => ! (bool) ($this->allTabVisibility[$key] ?? $option['default']))
+            ->flatMap(fn (array $option): array => $option['types'])
+            ->concat(['private', 'admin_private', 'admin_private_reply', 'admin_reply_resolved'])
+            ->unique()
+            ->values()
+            ->all();
+        $newcomersVisible = (bool) ($this->allTabVisibility['newcomer'] ?? self::ALL_TAB_FILTERS['newcomer']['default']);
+
+        return [$excludedTypes, $newcomersVisible];
     }
 
     private function isNewcomerLog(PublicLog $log): bool

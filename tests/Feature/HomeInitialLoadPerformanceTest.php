@@ -43,8 +43,8 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertStringContainsString('<livewire:chat-log />', $appLayout);
         $this->assertStringNotContainsString('<livewire:chat-log lazy=', $appLayout);
         $this->assertStringNotContainsString('<livewire:chat-log lazy.bundle="on-load" />', $appLayout);
-        $this->assertStringContainsString('wire:poll.60s.keep-alive', $chatLog);
-        $this->assertStringContainsString('@visibilitychange.window="if (!document.hidden) { $wire.$refresh() }"', $chatLog);
+        $this->assertStringContainsString('wire:poll.60s.keep-alive="pollForUpdates"', $chatLog);
+        $this->assertStringContainsString('@visibilitychange.window="if (!document.hidden) { $wire.pollForUpdates() }"', $chatLog);
 
         $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget />', $appLayout);
         $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy=', $appLayout);
