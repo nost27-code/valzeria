@@ -226,7 +226,7 @@ class ArenaNpcRankingService
 
         $npcs = Schema::hasTable('arena_npc_rankings')
             ? ArenaNpcRanking::with([
-                'npc' => fn ($query) => $query->select(['npc_id', 'npc_name', 'image_path']),
+                'npc' => fn ($query) => $query->select(['npc_id', 'npc_name', 'npc_rank']),
             ])
                 ->where('is_active', true)
                 ->orderBy('rank')

@@ -77,6 +77,8 @@ class ColosseumScreenPerformanceTest extends TestCase
         $this->assertStringContainsString('lightweightRankingEntries(100)', $componentSource);
         $this->assertStringContainsString('public function lightweightRankingEntries(', $serviceSource);
         $this->assertStringContainsString("->limit(\$limit)", $serviceSource);
+        $this->assertStringContainsString("->select(['npc_id', 'npc_name', 'npc_rank'])", $serviceSource);
+        $this->assertStringNotContainsString("->select(['npc_id', 'npc_name', 'image_path'])", $serviceSource);
         $this->assertStringNotContainsString("{{ isset(\$ranking['power'])", $viewSource);
         $this->assertStringContainsString('職業・装備・戦力を冒険者カードで確認できます', $viewSource);
     }
