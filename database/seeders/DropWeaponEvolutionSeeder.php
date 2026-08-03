@@ -454,12 +454,17 @@ class DropWeaponEvolutionSeeder extends Seeder
         }
 
         foreach ($ingredients as $ingredient) {
+            $quantity = (int) $ingredient->quantity;
+            if ($fromRank === 'SS' && $toRank === 'SSS' && str_starts_with((string) $ingredient->ingredient_id, 'MAT_BR_WPN_')) {
+                $quantity = 20;
+            }
+
             DB::table('weapon_evolution_recipe_ingredients')->insert([
                 'recipe_id' => $recipeId,
                 'ingredient_type' => $ingredient->ingredient_type,
                 'ingredient_id' => $ingredient->ingredient_id,
                 'ingredient_name' => $ingredient->ingredient_name,
-                'quantity' => (int) $ingredient->quantity,
+                'quantity' => $quantity,
                 'resolve_rule' => $ingredient->resolve_rule,
                 'is_consumed' => (bool) $ingredient->is_consumed,
                 'created_at' => $now,

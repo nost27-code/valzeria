@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-07-31
+Last updated: 2026-08-03
 Branch: main
 
 ## Read order
@@ -80,6 +80,8 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - 転職条件は2026-07-02裁定済み: 正仕様は「Lv30以上+要求職のマスター」（現実装どおり）。valzeria_specの「Lv100」は未採用案であり、コードへ反映しない
 
 ## Recent implementation state
+
+- 武器種「刀」はG〜Aの基本7段階から、聖剣・魔剣・迅刃の3系統へS〜EPICまで分岐する19武器として実装済み。王家の呪霊・星見天文ゴーレム・黒騎士・魔神の化身には各0.03%のS固有武器を追加し、それぞれ専用一本道でEPICまで進化する。刀19種と追加固有武器16種には専用画像がある。
 
 詳細は docs/AI_CONTEXT_ARCHIVE.md（2026-07-02移設・全50項目）。恒久ルールは docs/DOMAIN_RULES.md が正。
 該当機能に触るタスクではアーカイブの該当項目を検索して読むこと。ここには「隠し/停止中フラグ」と「最近の要点」だけを残す。

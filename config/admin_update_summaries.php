@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-katana-rare-s-weapon-release',
+        'date' => '2026-08-03',
+        'category' => 'added',
+        'title' => '新武器種「刀」と激レア武器4系統を追加',
+        'detail' => '木刀から3系統へ進化する刀19種を追加しました。王家の呪霊、星見天文ゴーレム、黒騎士、魔神の化身からは、専用進化を持つS武器が各0.03%でドロップします。全35武器に専用イラストを追加しています。',
+    ],
+    [
         'id' => '2026-08-03-icon-transparency-persistent-settings',
         'date' => '2026-08-03',
         'category' => 'internal',

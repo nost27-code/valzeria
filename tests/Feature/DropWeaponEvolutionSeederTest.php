@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use Database\Seeders\DropEquipmentAdditionsSeeder;
 use Database\Seeders\DropWeaponEvolutionSeeder;
+use Database\Seeders\AllDungeonsSeeder;
+use Database\Seeders\CitySeeder;
+use Database\Seeders\EnemySeeder;
 use Database\Seeders\FerdiaRegionSeeder;
 use App\Models\Enemy;
 use App\Models\EnemyDrop;
@@ -34,13 +37,13 @@ class DropWeaponEvolutionSeederTest extends TestCase
             JSON_THROW_ON_ERROR
         );
 
-        $this->assertCount(18, $master['chains']);
+        $this->assertCount(22, $master['chains']);
         $this->assertSame(
-            112,
+            124,
             DB::table('items')->where('source_type', 'drop_weapon_evolution')->count()
         );
         $this->assertSame(
-            112,
+            124,
             DB::table('weapon_evolution_recipes')
                 ->where('recipe_id', 'like', 'DROP_EVO_%')
                 ->where('is_active', true)
@@ -116,6 +119,16 @@ class DropWeaponEvolutionSeederTest extends TestCase
             'ingredient_id' => 'MAT_BR_WPN_DARK_CREST',
             'quantity' => 1,
         ]);
+        $this->assertSame(
+            0,
+            DB::table('weapon_evolution_recipe_ingredients as ingredient')
+                ->join('weapon_evolution_recipes as recipe', 'recipe.recipe_id', '=', 'ingredient.recipe_id')
+                ->where('recipe.from_rank', 'SS')
+                ->where('recipe.to_rank', 'SSS')
+                ->where('ingredient.ingredient_id', 'like', 'MAT_BR_WPN_%_SECRET')
+                ->where('ingredient.quantity', '!=', 20)
+                ->count()
+        );
     }
 
     public function test_ranked_enemy_specific_weapons_stay_out_of_the_generic_drop_pool(): void
@@ -133,6 +146,36 @@ class DropWeaponEvolutionSeederTest extends TestCase
                 fn ($item) => str_starts_with((string) $item->external_item_id, 'DROP_WPN_')
             )
         );
+    }
+
+    public function test_rare_s_weapons_are_assigned_to_their_named_enemy_at_point_zero_three_percent(): void
+    {
+        $this->seed(CitySeeder::class);
+        $this->seed(AllDungeonsSeeder::class);
+        $this->seed(EnemySeeder::class);
+        $this->seed(DropEquipmentAdditionsSeeder::class);
+
+        foreach ([
+            ['王家の墓', '王家の呪霊', 'DROP_WPN_RARE_ROYAL_WRAITH_GRIMOIRE'],
+            ['星見の塔', '星見天文ゴーレム', 'DROP_WPN_RARE_ASTRAL_GOLEM_GUN'],
+            ['魔王軍要塞', '黒騎士', 'DROP_WPN_RARE_BLACK_KNIGHT_SWORD'],
+            ['魔神の間', '魔神の化身', 'DROP_WPN_RARE_ABYSS_AVATAR_FIST'],
+        ] as [$areaName, $enemyName, $externalItemId]) {
+            $enemy = Enemy::query()->where('name', $enemyName)->first();
+            $item = DB::table('items')->where('external_item_id', $externalItemId)->first();
+
+            $this->assertNotNull($enemy, "missing {$areaName} {$enemyName}");
+            $this->assertSame($areaName, $enemy->area?->name);
+            $this->assertNotNull($item, "missing {$externalItemId}");
+
+            $drop = EnemyDrop::query()
+                ->where('enemy_id', $enemy->id)
+                ->where('item_id', $item->id)
+                ->first();
+
+            $this->assertNotNull($drop, "missing drop {$enemyName} {$externalItemId}");
+            $this->assertSame(0.03, (float) $drop->drop_rate);
+        }
     }
 
     public function test_ferdia_rare_weapons_drop_at_point_zero_three_percent_and_keep_innate_killers_through_epic(): void

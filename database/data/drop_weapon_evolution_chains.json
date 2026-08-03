@@ -257,6 +257,58 @@
       }
     },
     {
+      "key": "ROYAL_WRAITH_GRIMOIRE",
+      "source_external_item_id": "DROP_WPN_RARE_ROYAL_WRAITH_GRIMOIRE",
+      "source_rank": "S",
+      "template_family_id": "GRIMOIRE",
+      "path": "dark",
+      "family_name": "王墓呪詛書系",
+      "names": {
+        "SS": "王家怨霊の冥典",
+        "SSS": "冥王葬典アヌビス",
+        "EPIC": "冥王魔導典アメンティ"
+      }
+    },
+    {
+      "key": "ASTRAL_GOLEM_GUN",
+      "source_external_item_id": "DROP_WPN_RARE_ASTRAL_GOLEM_GUN",
+      "source_rank": "S",
+      "template_family_id": "GUN",
+      "path": "gale",
+      "family_name": "星環機銃系",
+      "names": {
+        "SS": "天球連装銃",
+        "SSS": "星辰機神砲",
+        "EPIC": "天星機神砲アストラリウス"
+      }
+    },
+    {
+      "key": "BLACK_KNIGHT_SWORD",
+      "source_external_item_id": "DROP_WPN_RARE_BLACK_KNIGHT_SWORD",
+      "source_rank": "S",
+      "template_family_id": "SWORD",
+      "path": "dark",
+      "family_name": "黒騎将征剣系",
+      "names": {
+        "SS": "黒騎王の魔征剣",
+        "SSS": "奈落騎神の覇剣",
+        "EPIC": "魔城覇剣ノクスヴァル"
+      }
+    },
+    {
+      "key": "ABYSS_AVATAR_FIST",
+      "source_external_item_id": "DROP_WPN_RARE_ABYSS_AVATAR_FIST",
+      "source_rank": "S",
+      "template_family_id": "FIST",
+      "path": "dark",
+      "family_name": "深淵神拳系",
+      "names": {
+        "SS": "深淵魔神の剛拳",
+        "SSS": "終焉魔神拳",
+        "EPIC": "終極神拳アポカリス"
+      }
+    },
+    {
       "key": "FERDIA_RUIN_GEAR_GUN",
       "source_external_item_id": "DROP_WPN_RARE_FERDIA_RUIN_GEAR_GUN",
       "source_rank": "S",

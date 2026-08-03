@@ -151,6 +151,79 @@ class FavoriteWeaponServiceTest extends TestCase
         }
     }
 
+    public function test_katana_weapon_images_follow_master_order(): void
+    {
+        $master = json_decode(
+            (string) file_get_contents(base_path('database/data/katana_weapon_evolution_master.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $service = new FavoriteWeaponService();
+
+        foreach ($master['items'] as $offset => $item) {
+            $imageNumber = 207 + $offset;
+            $expectedPath = sprintf('images/weapon/weapon_%03d.webp', $imageNumber);
+            $actualPath = $service->imagePathFor(new Item([
+                'name' => $item['name'],
+                'type' => 'weapon',
+            ]));
+
+            $this->assertWeaponImage($expectedPath, $actualPath, $item['name']);
+        }
+
+        $this->assertCount(19, $master['items']);
+    }
+
+    public function test_additional_rare_s_weapon_images_follow_evolution_order(): void
+    {
+        $dropMaster = json_decode(
+            (string) file_get_contents(base_path('database/data/drop_equipment_additions.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $evolutionMaster = json_decode(
+            (string) file_get_contents(base_path('database/data/drop_weapon_evolution_chains.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $sourceNames = collect($dropMaster['items'])
+            ->keyBy('external_item_id')
+            ->map(fn (array $item) => $item['name']);
+        $chains = collect($evolutionMaster['chains'])->keyBy('key');
+        $chainOrder = [
+            'ROYAL_WRAITH_GRIMOIRE',
+            'ASTRAL_GOLEM_GUN',
+            'BLACK_KNIGHT_SWORD',
+            'ABYSS_AVATAR_FIST',
+        ];
+        $service = new FavoriteWeaponService();
+        $imageNumber = 842;
+
+        foreach ($chainOrder as $chainKey) {
+            $chain = $chains->get($chainKey);
+            $this->assertNotNull($chain, $chainKey);
+
+            foreach ([
+                $sourceNames->get($chain['source_external_item_id']),
+                ...array_values($chain['names']),
+            ] as $name) {
+                $expectedPath = sprintf('images/weapon/weapon_%03d.webp', $imageNumber);
+                $actualPath = $service->imagePathFor(new Item([
+                    'name' => $name,
+                    'type' => 'weapon',
+                ]));
+
+                $this->assertWeaponImage($expectedPath, $actualPath, (string) $name);
+                $imageNumber++;
+            }
+        }
+
+        $this->assertSame(858, $imageNumber);
+    }
+
     public function test_display_background_matches_the_profile_quality_presentation(): void
     {
         $service = new FavoriteWeaponService();
@@ -225,6 +298,16 @@ class FavoriteWeaponServiceTest extends TestCase
         $this->expectExceptionMessage('所持していない武器はお気に入りに設定できません。');
 
         $service->saveSelection($character, [102, 999]);
+    }
+
+    private function assertWeaponImage(string $expectedPath, ?string $actualPath, string $name): void
+    {
+        $this->assertSame($expectedPath, $actualPath, $name);
+        $absolutePath = public_path($expectedPath);
+        $this->assertFileExists($absolutePath);
+        $header = (string) file_get_contents($absolutePath, false, null, 0, 12);
+        $this->assertSame('RIFF', substr($header, 0, 4), $expectedPath);
+        $this->assertSame('WEBP', substr($header, 8, 4), $expectedPath);
     }
 
     private function serviceWithAvailableWeaponIds(array $ids): FavoriteWeaponService
