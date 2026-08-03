@@ -1,4 +1,5 @@
 <section x-data="{ tab: 'weekly' }"
+         wire:init="loadArenaEntries"
          class="w-full overflow-hidden rounded-lg border border-[#d4af37] bg-white shadow-[0_4px_14px_rgba(126,96,28,0.12)]">
     <div class="flex bg-[#0a1628]">
         <button type="button"
@@ -40,9 +41,16 @@
         <div class="border-b border-amber-100 bg-amber-50 px-3 py-2">
             <div class="flex min-w-0 items-center justify-between gap-2">
                 <span class="shrink-0 text-[10px] font-black text-amber-700">今週</span>
-                <span class="min-w-0 truncate text-right text-[10px] font-bold text-slate-500">
-                    {{ $weeklyWinData['period']['label'] }}
-                </span>
+                <div class="min-w-0 text-right">
+                    <div class="truncate text-[10px] font-bold text-slate-500">
+                        {{ $weeklyWinData['period']['label'] }}
+                    </div>
+                    @if($weeklyWinData['updated_at_label'])
+                        <div class="mt-0.5 text-[9px] font-bold text-slate-400">
+                            集計 {{ $weeklyWinData['updated_at_label'] }}時点
+                        </div>
+                    @endif
+                </div>
             </div>
 
             @if($weeklyWinData['status'])

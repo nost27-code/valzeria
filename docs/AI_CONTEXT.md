@@ -50,7 +50,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 ## Architecture notes
 
 - ホームの「次やること」にある装備進化案内は、装備中アイテムに一致する進化レシピだけを候補化する。合成屋の全候補一覧は従来どおり全レシピを対象とし、ホーム初期表示では全レシピ走査を行わない。
-- ホーム初期表示では `HomeActionPanel`・`LeftSidebar`・`ChampCard`・`ChatLog` をon-loadの同一Livewireリクエストへ遅延する。週間番付はチャンプとの待ち合わせを避けるため独立して遅延し、30分ごとに先回り更新する完成済みキャッシュを表示する。期限超過時も最大6時間は直前表示を返しながらレスポンス後に更新する。各カードの配置順は維持する。`SchemaStateService` は同一リクエスト内のテーブル・カラム存在確認だけをメモ化し、探索・戦闘可否などのプレイヤー状態はキャッシュしない。
+- ホーム初期表示では `HomeActionPanel`・`LeftSidebar`・`ChampCard`・`ChatLog` をon-loadの同一Livewireリクエストへ遅延する。週間番付は30分ごとに先回り更新する取得時刻付きキャッシュを初期HTMLへ直接描画し、闘技場番付だけを表示後に取得する。期限超過時も最大6時間は直前表示を返しながらレスポンス後に更新する。各カードの配置順は維持する。`SchemaStateService` は同一リクエスト内のテーブル・カラム存在確認だけをメモ化し、探索・戦闘可否などのプレイヤー状態はキャッシュしない。
 - Routing: routes/web.php; screens are Livewire components + Blade views
 - 冒険者カードは `AdventurerCardModal` の軽量Livewireインスタンスが表示イベントを受け、共通 `CityHeader` の能力値・通知・街情報を再描画しない。カードの表示・閉じる・職業階層取得は renderless action とし、既にある巨大なカードHTMLを応答ごとに再送・再描画せず、状態データだけを同期する。クリック直後はクライアント側で読み込み表示を開き、職業バッジは圧縮した配列で受け取り、選択された階層だけ小さなLivewire更新で詳細データ・DOM・画像へ展開する。
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)

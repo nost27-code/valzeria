@@ -226,14 +226,20 @@ class WeeklyWinRankingTest extends TestCase
         $this->addWins($character, 1, $at, $areaId, $enemyId);
 
         $service = app(WeeklyWinRankingService::class);
-        $this->assertSame(1, $service->currentWidgetData($character)['rows']->first()['score']);
+        $initialData = $service->currentWidgetData($character);
+        $this->assertSame(1, $initialData['rows']->first()['score']);
+        $this->assertSame('7/27 09:10', $initialData['updated_at_label']);
 
         $this->addWins($character, 1, $at->copy()->addSecond(), $areaId, $enemyId);
-        Carbon::setTestNow($at->copy()->addSeconds(31));
-        $this->assertSame(1, $service->currentWidgetData($character)['rows']->first()['score']);
+        Carbon::setTestNow($at->copy()->addSeconds(61));
+        $staleData = $service->currentWidgetData($character);
+        $this->assertSame(1, $staleData['rows']->first()['score']);
+        $this->assertSame('7/27 09:10', $staleData['updated_at_label']);
 
         $this->assertSame(1, $service->warmCurrentWidgetRowsCache());
-        $this->assertSame(2, $service->currentWidgetData($character)['rows']->first()['score']);
+        $warmedData = $service->currentWidgetData($character);
+        $this->assertSame(2, $warmedData['rows']->first()['score']);
+        $this->assertSame('7/27 09:11', $warmedData['updated_at_label']);
     }
 
     public function test_weekly_rows_cache_can_be_warmed_by_the_scheduled_command(): void
@@ -246,7 +252,31 @@ class WeeklyWinRankingTest extends TestCase
             ->expectsOutput('週間勝利数番付キャッシュを更新しました（1件）')
             ->assertSuccessful();
 
-        $this->assertIsArray(Cache::get('weekly_win_ranking_widget_rows_v1:2026-07-27'));
+        $snapshot = Cache::get('weekly_win_ranking_widget_rows_v1:2026-07-27');
+        $this->assertIsArray($snapshot);
+        $this->assertCount(1, $snapshot['rows']);
+        $this->assertSame('2026-07-27T09:10:00+09:00', $snapshot['updated_at']);
+    }
+
+    public function test_home_widget_reuses_the_legacy_rows_cache_without_recalculating(): void
+    {
+        $cacheKey = 'weekly_win_ranking_widget_rows_v1:2026-07-27';
+        $createdAt = Carbon::create(2026, 7, 27, 9, 0, 0, 'Asia/Tokyo');
+        Cache::put($cacheKey, [[
+            'character_id' => 999,
+            'rank' => 1,
+            'score' => 123,
+        ]], now()->addHour());
+        Cache::put(
+            "illuminate:cache:flexible:created:{$cacheKey}",
+            $createdAt->getTimestamp(),
+            now()->addHour()
+        );
+
+        $data = app(WeeklyWinRankingService::class)->currentWidgetData(null);
+
+        $this->assertSame(123, $data['rows']->first()['score']);
+        $this->assertSame('7/27 09:00', $data['updated_at_label']);
     }
 
     public function test_scheduled_finalization_recovers_all_missing_periods_in_oldest_first_order(): void
@@ -734,6 +764,7 @@ class WeeklyWinRankingTest extends TestCase
 
         Livewire::test(StarTreeTowerRankingWidget::class)
             ->assertSee('週間勝利')
+            ->assertSee('集計 7/27 09:10時点')
             ->assertSee('あなたの進捗')
             ->assertSee('4勝')
             ->assertSee('2位')

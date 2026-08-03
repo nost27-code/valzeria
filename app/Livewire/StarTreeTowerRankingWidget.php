@@ -13,6 +13,23 @@ class StarTreeTowerRankingWidget extends Component
 {
     private const DISPLAY_LIMIT = 5;
 
+    public array $arenaEntries = [];
+
+    public bool $arenaEntriesLoaded = false;
+
+    public function loadArenaEntries(ArenaNpcRankingService $arenaRankingService): void
+    {
+        if ($this->arenaEntriesLoaded) {
+            return;
+        }
+
+        $this->arenaEntries = $arenaRankingService
+            ->rankingEntries(self::DISPLAY_LIMIT)
+            ->values()
+            ->all();
+        $this->arenaEntriesLoaded = true;
+    }
+
     /**
      * デプロイ前から開かれている画面の旧wire:clickを安全に受ける互換処理。
      * 新規表示ではBladeからAdventurerCardModalへ直接dispatchする。
@@ -32,7 +49,6 @@ class StarTreeTowerRankingWidget extends Component
     public function render(
         StarTreeTowerService $towerService,
         TowerRankingService $rankingService,
-        ArenaNpcRankingService $arenaRankingService,
         WeeklyWinRankingService $weeklyWinRankingService,
     ) {
         $towerEnabled = $towerService->isEnabled();
@@ -40,7 +56,6 @@ class StarTreeTowerRankingWidget extends Component
             ? $rankingService->allTimeRanking($towerService->towerKey(), self::DISPLAY_LIMIT)
             : collect();
 
-        $arenaEntries = $arenaRankingService->rankingEntries(self::DISPLAY_LIMIT);
         $weeklyWinData = $weeklyWinRankingService->currentWidgetData(
             auth()->user()?->currentCharacter(),
             self::DISPLAY_LIMIT
@@ -49,7 +64,7 @@ class StarTreeTowerRankingWidget extends Component
         return view('livewire.star-tree-tower-ranking-widget', [
             'towerEnabled' => $towerEnabled,
             'towerRecords' => $towerRecords,
-            'arenaEntries' => $arenaEntries,
+            'arenaEntries' => collect($this->arenaEntries),
             'weeklyWinData' => $weeklyWinData,
         ]);
     }

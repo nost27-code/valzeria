@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-weekly-ranking-snapshot-time',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => '週間番付の集計時刻と即時表示',
+        'detail' => 'ホームの週間番付に集計時刻を表示し、一度取得した番付は30分間そのまま初期画面へ表示することで、再表示時の待ち時間をなくしました。',
+    ],
+    [
         'id' => '2026-08-03-weekly-ranking-placeholder-fix',
         'date' => '2026-08-03',
         'category' => 'fixed',

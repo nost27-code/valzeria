@@ -133,7 +133,7 @@
                 <!-- 右カラム: チャンプ戦カード + メインコンテンツ -->
                 <div class="flex-1 min-w-0 flex flex-col gap-4">
                     <livewire:champ-card lazy.bundle="on-load" />
-                    <livewire:star-tree-tower-ranking-widget lazy="on-load" />
+                    <livewire:star-tree-tower-ranking-widget />
 
                     <div class="min-w-0 flex flex-col gap-0 rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)]" data-main-content>
                         <div class="bg-white border border-[#d4af37] rounded-xl p-0 flex-grow min-h-0 overflow-hidden">

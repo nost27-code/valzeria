@@ -232,6 +232,7 @@ class WeeklyWinRankingService
      *   },
      *   period: array{key: string, start_at: string, end_at: string, label: string},
      *   rows: Collection<int, array<string, mixed>>,
+     *   updated_at_label: ?string,
      *   status: array<string, mixed>|null
      * }
      */
@@ -241,9 +242,10 @@ class WeeklyWinRankingService
         $period = $availability['is_started']
             ? $this->currentPeriod()
             : $this->displayPeriod();
-        $rows = $availability['is_started']
-            ? $this->cachedWidgetRowsForPeriod($period)
-            : collect();
+        $snapshot = $availability['is_started']
+            ? $this->cachedWidgetSnapshotForPeriod($period)
+            : ['rows' => collect(), 'updated_at' => null];
+        $rows = $snapshot['rows'];
         $rankingLimit = max(1, (int) config('weekly_win_ranking.ranking_limit', 50));
 
         return [
@@ -253,6 +255,9 @@ class WeeklyWinRankingService
                 ->filter(fn (array $row): bool => $row['rank'] <= $rankingLimit)
                 ->take(max(1, $displayLimit))
                 ->values(),
+            'updated_at_label' => $snapshot['updated_at']
+                ? Carbon::parse($snapshot['updated_at'])->setTimezone($this->timezone())->format('n/j H:i')
+                : null,
             'status' => $availability['is_started'] && $character
                 ? $this->statusFromRows($character, $period, $rows)
                 : null,
@@ -270,11 +275,11 @@ class WeeklyWinRankingService
 
         $period = $this->currentPeriod();
         $cacheKey = $this->widgetRowsCacheKey($period);
-        $rows = $this->rankedRowsForPeriod($period)->values()->all();
+        $snapshot = $this->widgetSnapshotForPeriod($period);
 
-        $this->putWidgetRowsCache($cacheKey, $rows);
+        $this->putWidgetRowsCache($cacheKey, $snapshot);
 
-        return count($rows);
+        return count($snapshot['rows']);
     }
 
     /**
@@ -741,9 +746,9 @@ class WeeklyWinRankingService
      *   end_at: string,
      *   label: string
      * } $period
-     * @return Collection<int, array<string, mixed>>
+     * @return array{rows: Collection<int, array<string, mixed>>, updated_at: ?string}
      */
-    private function cachedWidgetRowsForPeriod(array $period): Collection
+    private function cachedWidgetSnapshotForPeriod(array $period): array
     {
         $freshSeconds = max(1, (int) config('weekly_win_ranking.widget_cache_seconds', 1800));
         $staleSeconds = max(
@@ -751,19 +756,46 @@ class WeeklyWinRankingService
             (int) config('weekly_win_ranking.widget_stale_cache_seconds', 21600)
         );
         $cacheKey = $this->widgetRowsCacheKey($period);
-        $cachedRows = Cache::flexible(
+        $snapshot = Cache::flexible(
             $cacheKey,
             [$freshSeconds, $staleSeconds],
-            fn (): array => $this->rankedRowsForPeriod($period)->values()->all(),
+            fn (): array => $this->widgetSnapshotForPeriod($period),
             lock: ['seconds' => 30]
         );
 
-        if (! is_array($cachedRows)) {
-            $cachedRows = $this->rankedRowsForPeriod($period)->values()->all();
-            $this->putWidgetRowsCache($cacheKey, $cachedRows, $staleSeconds);
+        // 取得時刻を持たない旧形式の30分キャッシュも、再集計せずそのまま引き継ぐ。
+        if (is_array($snapshot) && array_is_list($snapshot)) {
+            $createdAt = Cache::get("illuminate:cache:flexible:created:{$cacheKey}");
+
+            return [
+                'rows' => collect($snapshot),
+                'updated_at' => is_numeric($createdAt)
+                    ? Carbon::createFromTimestamp((int) $createdAt, $this->timezone())->toIso8601String()
+                    : null,
+            ];
         }
 
-        return collect($cachedRows);
+        if (! is_array($snapshot) || ! isset($snapshot['rows']) || ! is_array($snapshot['rows'])) {
+            $snapshot = $this->widgetSnapshotForPeriod($period);
+            $this->putWidgetRowsCache($cacheKey, $snapshot, $staleSeconds);
+        }
+
+        return [
+            'rows' => collect($snapshot['rows']),
+            'updated_at' => is_string($snapshot['updated_at'] ?? null) ? $snapshot['updated_at'] : null,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $period
+     * @return array{rows: array<int, array<string, mixed>>, updated_at: string}
+     */
+    private function widgetSnapshotForPeriod(array $period): array
+    {
+        return [
+            'rows' => $this->rankedRowsForPeriod($period)->values()->all(),
+            'updated_at' => Carbon::now($this->timezone())->toIso8601String(),
+        ];
     }
 
     /**
@@ -775,9 +807,9 @@ class WeeklyWinRankingService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param array{rows: array<int, array<string, mixed>>, updated_at: string} $snapshot
      */
-    private function putWidgetRowsCache(string $cacheKey, array $rows, ?int $staleSeconds = null): void
+    private function putWidgetRowsCache(string $cacheKey, array $snapshot, ?int $staleSeconds = null): void
     {
         $staleSeconds ??= max(
             (int) config('weekly_win_ranking.widget_cache_seconds', 1800) + 1,
@@ -785,7 +817,7 @@ class WeeklyWinRankingService
         );
 
         Cache::putMany([
-            $cacheKey => $rows,
+            $cacheKey => $snapshot,
             "illuminate:cache:flexible:created:{$cacheKey}" => now()->getTimestamp(),
         ], now()->addSeconds($staleSeconds));
     }

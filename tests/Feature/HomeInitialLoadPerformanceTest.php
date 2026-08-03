@@ -15,7 +15,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_home_defers_noncritical_components_in_one_on_load_bundle(): void
+    public function test_home_defers_noncritical_components_but_renders_cached_weekly_ranking_immediately(): void
     {
         $appLayout = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
         $facilityLayout = file_get_contents(resource_path('views/components/layouts/facility.blade.php'));
@@ -31,7 +31,8 @@ class HomeInitialLoadPerformanceTest extends TestCase
             $this->assertStringContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
         }
 
-        $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget lazy="on-load" />', $appLayout);
+        $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget />', $appLayout);
+        $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy=', $appLayout);
         $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy.bundle="on-load" />', $appLayout);
         $this->assertStringContainsString('<livewire:chat-log lazy.bundle="on-load" />', $facilityLayout);
         $this->assertStringNotContainsString('lazy=', $mainTabs);
@@ -40,6 +41,11 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertStringNotContainsString('星樹の塔', $rankingPlaceholder);
         $this->assertStringNotContainsString('読み込み中', $rankingPlaceholder);
         $this->assertStringNotContainsString('animate-pulse', $rankingPlaceholder);
+
+        $rankingWidget = file_get_contents(resource_path('views/livewire/star-tree-tower-ranking-widget.blade.php'));
+        $this->assertIsString($rankingWidget);
+        $this->assertStringContainsString('wire:init="loadArenaEntries"', $rankingWidget);
+        $this->assertStringContainsString('集計 {{ $weeklyWinData[\'updated_at_label\'] }}時点', $rankingWidget);
 
         $champPosition = strpos($appLayout, '<livewire:champ-card');
         $rankingPosition = strpos($appLayout, '<livewire:star-tree-tower-ranking-widget');
