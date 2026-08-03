@@ -21,7 +21,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_home_renders_status_champ_actions_and_cached_weekly_ranking_immediately_while_deferring_chat(): void
+    public function test_home_renders_status_champ_actions_cached_weekly_ranking_and_chat_immediately(): void
     {
         $appLayout = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
         $facilityLayout = file_get_contents(resource_path('views/components/layouts/facility.blade.php'));
@@ -38,7 +38,8 @@ class HomeInitialLoadPerformanceTest extends TestCase
             $this->assertStringNotContainsString("<livewire:{$component} lazy=", $appLayout);
         }
 
-        $this->assertStringContainsString('<livewire:chat-log lazy="on-load" />', $appLayout);
+        $this->assertStringContainsString('<livewire:chat-log />', $appLayout);
+        $this->assertStringNotContainsString('<livewire:chat-log lazy=', $appLayout);
         $this->assertStringNotContainsString('<livewire:chat-log lazy.bundle="on-load" />', $appLayout);
 
         $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget />', $appLayout);
@@ -111,7 +112,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertSame($firstLookupQueries, $schemaQueries);
     }
 
-    public function test_home_initial_response_renders_status_actions_and_champ_while_deferring_chat(): void
+    public function test_home_initial_response_renders_status_actions_champ_and_chat(): void
     {
         $user = User::factory()->create();
         $cityId = DB::table('cities')->value('id');
@@ -139,7 +140,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $response->assertOk();
         $response->assertDontSee('次やることを読み込み中');
         $response->assertDontSee('冒険者情報を読み込み中');
-        $response->assertSee('チャットを読み込み中');
+        $response->assertDontSee('チャットを読み込み中');
         $response->assertDontSee('チャンプ情報を読み込み中');
         $response->assertSee('Champion');
         $response->assertDontSee('週間番付を読み込み中');

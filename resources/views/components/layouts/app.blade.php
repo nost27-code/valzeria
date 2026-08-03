@@ -144,7 +144,7 @@
             </div>
 
             <!-- 全幅チャット -->
-            <livewire:chat-log lazy="on-load" />
+            <livewire:chat-log />
         </div>
         </div>
 

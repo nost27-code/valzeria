@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-home-chat-immediate-render',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => 'ホームのチャットを即時表示',
+        'detail' => 'ホームのチャットを初期画面に直接表示し、別の読み込み処理を待たずに確認できるよう改善しました。',
+    ],
+    [
         'id' => '2026-08-03-home-status-actions-immediate-render',
         'date' => '2026-08-03',
         'category' => 'changed',
