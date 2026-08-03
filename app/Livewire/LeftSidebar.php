@@ -32,9 +32,17 @@ class LeftSidebar extends Component
             $baseCharacter = Auth::user()->currentCharacter();
             if ($baseCharacter) {
                 // currentCharacter() が取得した最新行へ表示用リレーションをまとめてロードする
-                $character = $baseCharacter->load(['jobClass', 'jobHistories', 'characterItems.item', 'partnerValmon.master']);
+                $character = $baseCharacter->load([
+                    'jobClass',
+                    'jobHistories.jobClass',
+                    'characterItems' => fn ($query) => $query->where('is_equipped', true),
+                    'characterItems.item',
+                    'characterItems.affixPrefix',
+                    'partnerValmon.master',
+                    'arenaRanking',
+                ]);
                 
-                $finalStats = $statusService->getFinalStats($character);
+                $finalStats = $statusService->getFinalStatsUsingLoadedRelations($character);
                 $nextExp = $levelService->getRequiredExp($character->level);
 
                 $partnerValmon = $character->partnerValmon;

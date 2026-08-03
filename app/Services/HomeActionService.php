@@ -278,7 +278,7 @@ class HomeActionService
 
         try {
             $availableArts = $this->jobArtService->availableArts($character, 'pve');
-            $selectedSlots = $this->jobArtService->selectedSlots($character, 'pve');
+            $selectedSlots = $this->jobArtService->selectedSlots($character, 'pve', 'normal', $availableArts);
         } catch (\Throwable $exception) {
             report($exception);
             return;

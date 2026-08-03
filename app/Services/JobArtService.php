@@ -78,10 +78,15 @@ class JobArtService
             ->values();
     }
 
-    public function selectedSlots(Character $character, string $context = 'pve', string $slotContext = 'normal'): Collection
+    public function selectedSlots(
+        Character $character,
+        string $context = 'pve',
+        string $slotContext = 'normal',
+        ?Collection $availableArts = null,
+    ): Collection
     {
         $slotContext = $this->normalizeSlotContext($slotContext);
-        $availableIds = $this->availableArts($character, $context)->pluck('id')->all();
+        $availableIds = ($availableArts ?? $this->availableArts($character, $context))->pluck('id')->all();
 
         return $character->jobArtSlots()
             ->with('skill.jobClass')

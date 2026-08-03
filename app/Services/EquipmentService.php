@@ -135,12 +135,19 @@ class EquipmentService
     /**
      * 現在装備中のアイテム一覧を取得する（スロットキー）
      */
-    public function getEquippedItems(Character $character): array
+    public function getEquippedItems(Character $character, bool $reuseLoadedRelations = false): array
     {
-        $equipped = $character->characterItems()
-            ->where('is_equipped', true)
-            ->with('item')
-            ->get();
+        if ($reuseLoadedRelations && $character->relationLoaded('characterItems')) {
+            $equipped = $character->characterItems
+                ->where('is_equipped', true)
+                ->values();
+            $equipped->loadMissing('item');
+        } else {
+            $equipped = $character->characterItems()
+                ->where('is_equipped', true)
+                ->with('item')
+                ->get();
+        }
 
         $result = [
             'weapon' => null,

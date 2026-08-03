@@ -58,6 +58,56 @@ class PublicLogServiceVisibilityTest extends TestCase
         $this->assertSame('レアドロップ11', $logs->last()->message);
     }
 
+    public function test_recent_logs_apply_all_tab_filters_before_the_fifty_log_limit(): void
+    {
+        foreach (range(1, 60) as $number) {
+            PublicLog::query()->create([
+                'type' => 'chat',
+                'message' => "表示チャット{$number}",
+                'importance' => 1,
+                'created_at' => now()->addSeconds($number * 2),
+                'updated_at' => now()->addSeconds($number * 2),
+            ]);
+            PublicLog::query()->create([
+                'type' => 'newcomer',
+                'message' => "新しい冒険者テスト{$number}がヴァルゼリアの地に降り立ちました。",
+                'importance' => 1,
+                'created_at' => now()->addSeconds(($number * 2) + 1),
+                'updated_at' => now()->addSeconds(($number * 2) + 1),
+            ]);
+        }
+
+        $logs = app(PublicLogService::class)->getRecentLogs(50, null, null, [], false);
+
+        $this->assertCount(50, $logs);
+        $this->assertTrue($logs->every(fn (PublicLog $log): bool => $log->type === 'chat'));
+        $this->assertSame('表示チャット60', $logs->first()->message);
+        $this->assertSame('表示チャット11', $logs->last()->message);
+    }
+
+    public function test_newcomer_exception_does_not_restore_private_logs_to_the_all_tab_query(): void
+    {
+        $sender = $this->regularCharacter('送信者');
+        $receiver = $this->regularCharacter('受信者');
+        PublicLog::query()->create([
+            'type' => 'private',
+            'character_id' => $sender->id,
+            'receiver_id' => $receiver->id,
+            'message' => '新しい冒険者を装った文がヴァルゼリアの地に降り立ちました。',
+            'importance' => 1,
+        ]);
+
+        $logs = app(PublicLogService::class)->getRecentLogs(
+            50,
+            $sender->id,
+            null,
+            ['private', 'admin_private', 'admin_private_reply', 'admin_reply_resolved'],
+            true,
+        );
+
+        $this->assertTrue($logs->every(fn (PublicLog $log): bool => $log->type !== 'private'));
+    }
+
     private function adminCharacter(): Character
     {
         $user = User::factory()->create(['role' => 'admin']);
@@ -65,6 +115,24 @@ class PublicLogServiceVisibilityTest extends TestCase
         return Character::query()->create([
             'user_id' => $user->id,
             'name' => '記録テスト',
+            'hp_base' => 100,
+            'mp_base' => 10,
+            'attack_base' => 10,
+            'defense_base' => 10,
+            'speed_base' => 10,
+            'magic_base' => 10,
+            'spirit_base' => 10,
+            'luck_base' => 10,
+            'current_hp' => 100,
+            'current_mp' => 10,
+        ]);
+    }
+
+    private function regularCharacter(string $name): Character
+    {
+        return Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => $name,
             'hp_base' => 100,
             'mp_base' => 10,
             'attack_base' => 10,

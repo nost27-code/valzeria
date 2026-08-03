@@ -249,7 +249,19 @@ class CityHeader extends Component
                 : ['「ヴァルゼリアの冒険者」β版稼働中！'],
         ];
 
-        $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+        $user = auth()->user();
+        $character = $user?->currentCharacter();
+        if ($character) {
+            $character->setRelation('user', $user);
+            $character->loadMissing([
+                'currentCity',
+                'jobClass',
+                'jobHistories.jobClass',
+                'characterItems' => fn ($query) => $query->where('is_equipped', true),
+                'characterItems.item',
+                'characterItems.affixPrefix',
+            ]);
+        }
         $topPlayer = $character ? $this->topPlayerBar($character) : null;
         $currentCity = $character ? $character->currentCity : null;
         $cityName = $currentCity ? $currentCity->name : '冒険都市ヴァルゼリア';
@@ -326,7 +338,7 @@ class CityHeader extends Component
     private function topPlayerBar(Character $character): array
     {
         $character->loadMissing('jobClass');
-        $stats = app(CharacterStatusService::class)->getFinalStats($character);
+        $stats = app(CharacterStatusService::class)->getFinalStatsUsingLoadedRelations($character);
         $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base ?? 1));
         $maxSp = max(1, (int) ($stats['max_mp'] ?? $character->mp_base ?? 1));
         $currentHp = max(0, min((int) ($character->current_hp ?? 0), $maxHp));

@@ -241,13 +241,32 @@ class ChatLog extends Component
 
     public function render(PublicLogService $logService)
     {
-        // フィルタリングのために少し多めに取得（自分のIDを渡す）
+        // 初期表示の「すべて」は表示条件をSQLへ渡し、必要な件数だけ取得する。
         $characterId = auth()->check() ? $this->currentCharacterId : null;
         $displayLimit = $this->logLimit;
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
-        $publicLogs = $this->activeTab === 'drop'
-            ? $logService->getRecentLogs($displayLimit, $characterId, ['drop'])
-            : $logService->getRecentLogs($fetchLimit, $characterId);
+        if ($this->activeTab === 'all') {
+            $excludedTypes = collect(self::ALL_TAB_FILTERS)
+                ->except('newcomer')
+                ->filter(fn (array $option, string $key): bool => ! (bool) ($this->allTabVisibility[$key] ?? $option['default']))
+                ->flatMap(fn (array $option): array => $option['types'])
+                ->concat(['private', 'admin_private', 'admin_private_reply', 'admin_reply_resolved'])
+                ->unique()
+                ->values()
+                ->all();
+            $newcomersVisible = (bool) ($this->allTabVisibility['newcomer'] ?? self::ALL_TAB_FILTERS['newcomer']['default']);
+            $publicLogs = $logService->getRecentLogs(
+                $displayLimit,
+                $characterId,
+                null,
+                $excludedTypes,
+                $newcomersVisible,
+            );
+        } elseif ($this->activeTab === 'drop') {
+            $publicLogs = $logService->getRecentLogs($displayLimit, $characterId, ['drop']);
+        } else {
+            $publicLogs = $logService->getRecentLogs($fetchLimit, $characterId);
+        }
         $systemLogs = [];
         $count = 0;
 

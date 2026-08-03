@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Character;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class ExplorationStaminaService
 {
@@ -297,9 +296,13 @@ class ExplorationStaminaService
 
     private function schemaReady(): bool
     {
-        return $this->schemaReadyCache ??= Schema::hasTable('characters')
-            && Schema::hasColumn('characters', 'explore_stamina')
-            && Schema::hasColumn('characters', 'explore_stamina_max')
-            && Schema::hasColumn('characters', 'explore_stamina_updated_at');
+        $schema = app(SchemaStateService::class);
+
+        return $this->schemaReadyCache ??= $schema->hasTable('characters')
+            && $schema->hasColumns('characters', [
+                'explore_stamina',
+                'explore_stamina_max',
+                'explore_stamina_updated_at',
+            ]);
     }
 }

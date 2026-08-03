@@ -308,7 +308,7 @@ class JobService
     /**
      * 最終ステータス（現在職補正 ＋ マスターボーナス）を計算
      */
-    public function calculateFinalStats(Character $character): array
+    public function calculateFinalStats(Character $character, bool $reuseLoadedRelations = false): array
     {
         $baseStats = [
             'hp' => $character->hp_base,
@@ -326,13 +326,25 @@ class JobService
         //   現在職の bonus_* は CharacterStatusService で「職業Lvボーナス (bonus_* × jobLevel × 0.5)」として加算されるため、
         //   ここで加算すると二重カウントになる。
         $currentJobId = $character->current_job_id;
-        $masteredJobIds = $character->jobHistories()
-            ->where('is_mastered', true)
-            ->when($currentJobId, fn($q) => $q->where('job_class_id', '!=', $currentJobId))
-            ->pluck('job_class_id');
-        
-        if ($masteredJobIds->isNotEmpty()) {
-            $masteredJobs = JobClass::whereIn('id', $masteredJobIds)->get();
+        if ($reuseLoadedRelations && $character->relationLoaded('jobHistories')) {
+            $masteredJobs = $character->jobHistories
+                ->filter(fn ($history): bool => (bool) $history->is_mastered
+                    && (! $currentJobId || (int) $history->job_class_id !== (int) $currentJobId))
+                ->map(fn ($history) => $history->relationLoaded('jobClass')
+                    ? $history->jobClass
+                    : $history->jobClass()->first())
+                ->filter();
+        } else {
+            $masteredJobIds = $character->jobHistories()
+                ->where('is_mastered', true)
+                ->when($currentJobId, fn($q) => $q->where('job_class_id', '!=', $currentJobId))
+                ->pluck('job_class_id');
+            $masteredJobs = $masteredJobIds->isEmpty()
+                ? collect()
+                : JobClass::whereIn('id', $masteredJobIds)->get();
+        }
+
+        if ($masteredJobs->isNotEmpty()) {
             foreach ($masteredJobs as $job) {
                 $baseStats['hp'] += $job->bonus_hp ?? 0;
                 $baseStats['mp'] += $job->bonus_mp ?? 0;

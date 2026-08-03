@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\SchemaStateService;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 
 class CharacterNotification extends Model
 {
@@ -28,7 +28,7 @@ class CharacterNotification extends Model
 
     public function scopeActive($query)
     {
-        if (! Schema::hasColumn('character_notifications', 'expires_at')) {
+        if (! app(SchemaStateService::class)->hasColumn('character_notifications', 'expires_at')) {
             return $query;
         }
 

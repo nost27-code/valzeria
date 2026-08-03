@@ -30,19 +30,50 @@ class DailySupplyService
     {
         $today = now()->toDateString();
 
+        $itemsByName = Item::query()
+            ->where('type', 'consumable')
+            ->whereIn('name', array_keys($this->supplyItems()))
+            ->get()
+            ->keyBy('name');
+        $itemIds = $itemsByName->pluck('id')->map(fn ($id): int => (int) $id)->values();
+
+        $ownedCounts = $itemIds->isEmpty()
+            ? collect()
+            : CharacterItem::query()
+                ->where('character_id', $character->id)
+                ->whereIn('item_id', $itemIds)
+                ->where('is_equipped', false)
+                ->selectRaw('item_id, COUNT(*) AS aggregate')
+                ->groupBy('item_id')
+                ->pluck('aggregate', 'item_id');
+
+        $supplyTotals = $itemIds->isEmpty()
+            ? collect()
+            : CharacterItemDailySupply::query()
+                ->where('character_id', $character->id)
+                ->whereIn('item_id', $itemIds)
+                ->select('item_id')
+                ->selectRaw('SUM(stocked_count) AS stocked_count')
+                ->selectRaw('MAX(CASE WHEN DATE(claimed_on) = ? THEN supplied_count END) AS supplied_today', [$today])
+                ->selectRaw('MAX(CASE WHEN DATE(claimed_on) = ? THEN stocked_count END) AS stocked_today', [$today])
+                ->groupBy('item_id')
+                ->get()
+                ->keyBy('item_id');
+
         return collect($this->supplyItems())
-            ->map(function (array $config, string $name) use ($character, $today) {
-                $item = Item::where('type', 'consumable')->where('name', $name)->first();
-                $ownedCount = $item ? $this->ownedCount($character, $item) : 0;
-                $todaySupply = $item
-                    ? CharacterItemDailySupply::where('character_id', $character->id)
-                        ->where('item_id', $item->id)
-                        ->whereDate('claimed_on', $today)
-                        ->first()
-                    : null;
-                $stockedCount = $item ? $this->stockedCount($character, $item) : 0;
-                $dailyRemaining = $item ? $this->dailyRemaining($todaySupply) : 0;
-                $stockedToday = (int) ($todaySupply?->stocked_count ?? 0);
+            ->map(function (array $config, string $name) use ($itemsByName, $ownedCounts, $supplyTotals) {
+                $item = $itemsByName->get($name);
+                $supplyTotal = $item ? $supplyTotals->get($item->id) : null;
+                $ownedCount = $item ? (int) ($ownedCounts->get($item->id) ?? 0) : 0;
+                $stockedCount = $item ? (int) ($supplyTotal?->stocked_count ?? 0) : 0;
+                $suppliedToday = $item ? $supplyTotal?->supplied_today : null;
+                $stockedTodayValue = $item ? $supplyTotal?->stocked_today : null;
+                $stockedToday = (int) ($stockedTodayValue ?? 0);
+                $dailyRemaining = $item
+                    ? ($suppliedToday === null
+                        ? self::DAILY_TARGET
+                        : max(0, self::DAILY_TARGET - (int) $suppliedToday - $stockedToday))
+                    : 0;
                 $spaceCount = max(0, self::DAILY_TARGET - $ownedCount);
                 $claimableCount = min($spaceCount, $stockedCount + $dailyRemaining);
                 $depotCount = $stockedCount + $dailyRemaining;
@@ -61,8 +92,8 @@ class DailySupplyService
                     'depot_count' => $depotCount,
                     'carried_stock_count' => $carriedStockCount,
                     'daily_remaining' => $dailyRemaining,
-                    'claimed_today' => (bool) $todaySupply && $dailyRemaining <= 0,
-                    'supplied_count' => (int) ($todaySupply?->supplied_count ?? 0),
+                    'claimed_today' => $suppliedToday !== null && $dailyRemaining <= 0,
+                    'supplied_count' => (int) ($suppliedToday ?? 0),
                     'stocked_today' => $stockedToday,
                     'can_claim' => $canClaim,
                     'sort' => $config['sort'],

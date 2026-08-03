@@ -8,7 +8,7 @@
             $expPercent = $nextExp > 0 ? min(100, max(0, ($character->exp / $nextExp) * 100)) : 0;
             $combatPower = app(\App\Services\CharacterPowerService::class)->fromFinalStats($finalStats ?? []);
 
-            $equippedItems = app(\App\Services\EquipmentService::class)->getEquippedItems($character);
+            $equippedItems = app(\App\Services\EquipmentService::class)->getEquippedItems($character, true);
             $weapon = $equippedItems['weapon'] ?? null;
             $armor = $equippedItems['armor'] ?? null;
             $accessory = $equippedItems['accessory'] ?? null;

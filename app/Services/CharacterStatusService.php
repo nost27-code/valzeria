@@ -15,21 +15,35 @@ class CharacterStatusService
 
     public function getFinalStats(Character $character): array
     {
+        return $this->finalStats($character, false);
+    }
+
+    public function getFinalStatsUsingLoadedRelations(Character $character): array
+    {
+        return $this->finalStats($character, true);
+    }
+
+    private function finalStats(Character $character, bool $reuseLoadedRelations): array
+    {
         if (isset(self::$requestCache[$character->id])) {
             return self::$requestCache[$character->id];
         }
-        return self::$requestCache[$character->id] = $this->computeFinalStats($character);
+        return self::$requestCache[$character->id] = $this->computeFinalStats($character, $reuseLoadedRelations);
     }
 
-    private function computeFinalStats(Character $character): array
+    private function computeFinalStats(Character $character, bool $reuseLoadedRelations): array
     {
         $jobService = new JobService();
-        $jobStats = $jobService->calculateFinalStats($character); // [hp, atk, def, mag, spd, luck] (基礎値 + マスターボーナス)
+        $jobStats = $jobService->calculateFinalStats($character, $reuseLoadedRelations); // [hp, atk, def, mag, spd, luck] (基礎値 + マスターボーナス)
 
         $jobLevel = 1;
-        $jobClass = $character->jobClass()->first(); // 確実に最新のDB状態を取得
+        $jobClass = $reuseLoadedRelations && $character->relationLoaded('jobClass')
+            ? $character->jobClass
+            : $character->jobClass()->first();
         if ($character->current_job_id) {
-            $history = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
+            $history = $reuseLoadedRelations && $character->relationLoaded('jobHistories')
+                ? $character->jobHistories->firstWhere('job_class_id', $character->current_job_id)
+                : $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
             if ($history) {
                 $jobLevel = $history->job_level;
             }
@@ -68,7 +82,17 @@ class CharacterStatusService
         $weaponStr = 0; $weaponMag = 0;
         $armorDef = 0; $armorSpr = 0;
 
-        $equippedItems = $character->characterItems()->where('is_equipped', true)->with(['item', 'affixPrefix'])->get();
+        if ($reuseLoadedRelations && $character->relationLoaded('characterItems')) {
+            $equippedItems = $character->characterItems
+                ->where('is_equipped', true)
+                ->values();
+            $equippedItems->loadMissing(['item', 'affixPrefix']);
+        } else {
+            $equippedItems = $character->characterItems()
+                ->where('is_equipped', true)
+                ->with(['item', 'affixPrefix'])
+                ->get();
+        }
         foreach ($equippedItems as $charItem) {
             if ($charItem->item) {
                 if ($this->isLegacyMarkItem($charItem->item)) {

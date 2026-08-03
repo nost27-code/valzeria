@@ -201,7 +201,13 @@ class PublicLogService
     /**
      * 最新の公開ログを取得する
      */
-    public function getRecentLogs(int $limit = 20, ?int $currentCharacterId = null, ?array $types = null)
+    public function getRecentLogs(
+        int $limit = 20,
+        ?int $currentCharacterId = null,
+        ?array $types = null,
+        array $excludedTypes = [],
+        ?bool $newcomersVisible = null,
+    )
     {
         $query = PublicLog::with(['character', 'receiver'])
             ->orderBy('created_at', 'desc')
@@ -229,6 +235,31 @@ class PublicLogService
                 });
             }
         });
+
+        if ($excludedTypes !== []) {
+            $query->where(function ($filterQuery) use ($excludedTypes, $newcomersVisible): void {
+                $filterQuery->whereNotIn('type', $excludedTypes);
+
+                if ($newcomersVisible === true) {
+                    $filterQuery->orWhere(function ($newcomerQuery): void {
+                        $newcomerQuery
+                            ->whereNotIn('type', ['private', 'admin_private', 'admin_private_reply', 'admin_reply_resolved'])
+                            ->where(function ($messageQuery): void {
+                                $messageQuery->where('type', 'newcomer')
+                                    ->orWhere('message', 'like', '新しい冒険者%ヴァルゼリアの地に降り立ちました。%');
+                            });
+                    });
+                }
+            });
+        }
+
+        if ($newcomersVisible === false) {
+            $query->where('type', '!=', 'newcomer')
+                ->where(function ($newcomerQuery): void {
+                    $newcomerQuery->whereNull('message')
+                        ->orWhere('message', 'not like', '新しい冒険者%ヴァルゼリアの地に降り立ちました。%');
+                });
+        }
 
         return $query->limit($limit)->get();
     }

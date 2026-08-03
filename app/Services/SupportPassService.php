@@ -7,7 +7,6 @@ use App\Models\GameSetting;
 use App\Models\PassPurchaseLog;
 use App\Models\User;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\Schema;
 
 class SupportPassService
 {
@@ -301,8 +300,9 @@ class SupportPassService
 
     private function schemaReady(): bool
     {
-        return $this->schemaReadyCache ??= Schema::hasTable('users')
-            && Schema::hasColumn('users', 'support_pass_expires_at')
-            && Schema::hasColumn('users', 'selected_card_skin');
+        $schema = app(SchemaStateService::class);
+
+        return $this->schemaReadyCache ??= $schema->hasTable('users')
+            && $schema->hasColumns('users', ['support_pass_expires_at', 'selected_card_skin']);
     }
 }

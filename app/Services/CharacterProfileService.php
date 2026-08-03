@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Character;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class CharacterProfileService
 {
@@ -238,7 +237,7 @@ class CharacterProfileService
     {
         $path = $path ?: self::DEFAULT_RANCH_BACKGROUND;
 
-        if (!$character || !Schema::hasTable('character_profile_backgrounds')) {
+        if (!$character || !app(SchemaStateService::class)->hasTable('character_profile_backgrounds')) {
             return self::DEFAULT_RANCH_BACKGROUND;
         }
 
@@ -326,7 +325,7 @@ class CharacterProfileService
             'valmon_case' => self::DEFAULT_VALMON_CASE,
         ];
 
-        if (!Schema::hasTable('character_adventurer_card_assets')) {
+        if (!app(SchemaStateService::class)->hasTable('character_adventurer_card_assets')) {
             return $defaults;
         }
 
@@ -376,7 +375,7 @@ class CharacterProfileService
 
     private function ownedAdventurerCardAssets(Character $character, string $type, array $catalog, string $defaultPath): array
     {
-        if (!Schema::hasTable('character_adventurer_card_assets')) {
+        if (!app(SchemaStateService::class)->hasTable('character_adventurer_card_assets')) {
             return collect($catalog)
                 ->filter(fn (array $asset) => $asset['path'] === $defaultPath)
                 ->values()
@@ -406,7 +405,7 @@ class CharacterProfileService
     {
         $path = $path ?: $defaultPath;
 
-        if (!Schema::hasTable('character_adventurer_card_assets')) {
+        if (!app(SchemaStateService::class)->hasTable('character_adventurer_card_assets')) {
             return $defaultPath;
         }
 
@@ -423,7 +422,7 @@ class CharacterProfileService
 
     private function ensureDefaultAdventurerCardAsset(Character $character, string $type, string $path): void
     {
-        if (!Schema::hasTable('character_adventurer_card_assets')) {
+        if (!app(SchemaStateService::class)->hasTable('character_adventurer_card_assets')) {
             return;
         }
 
