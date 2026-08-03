@@ -47,8 +47,19 @@ class StarTreeTowerRankingWidget extends Component
      * デプロイ前から開かれている画面の旧wire:clickを安全に受ける互換処理。
      * 新規表示ではBladeからAdventurerCardModalへ直接dispatchする。
      */
-    public function openWeeklyWinPlayerModal(int $characterId): void
+    public function openWeeklyWinPlayerModal(
+        int $characterId,
+        WeeklyWinRankingService $weeklyWinRankingService,
+    ): void
     {
+        // 旧リリースにも存在するメソッドを、更新ボタンのリリース跨ぎ互換入口として使う。
+        // 旧コードではID 0が見つからず安全にreturnし、新コードでは最新集計へ更新する。
+        if ($characterId === 0) {
+            $this->refreshWeeklyRanking($weeklyWinRankingService);
+
+            return;
+        }
+
         $character = Character::visibleToPublic()->find($characterId);
 
         if (! $character) {

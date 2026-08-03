@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-weekly-ranking-refresh-release-compatibility',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => '週間番付の更新エラーを修正',
+        'detail' => 'デプロイ切替直後に週間番付の更新ボタンを押すと、旧画面との組み合わせによってエラーになることがある問題を修正しました。',
+    ],
+    [
         'id' => '2026-08-03-weekly-ranking-manual-refresh',
         'date' => '2026-08-03',
         'category' => 'changed',

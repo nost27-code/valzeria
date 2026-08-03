@@ -772,7 +772,7 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('週間首位')
             ->assertSee('週間首位の冒険者カードを見る')
             ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
-            ->assertDontSee('wire:click="openWeeklyWinPlayerModal', false)
+            ->assertDontSee('wire:click="openWeeklyWinPlayerModal('.$leader->id.')"', false)
             ->assertSee('週間勝利数番付を見る');
     }
 
@@ -794,14 +794,14 @@ class WeeklyWinRankingTest extends TestCase
         $this->addWins($viewerCharacter, 1, $at->copy()->addMinute(), $areaId, $enemyId);
         Carbon::setTestNow($at->copy()->addMinutes(2));
 
-        $component->call('refreshWeeklyRanking')
+        $component->call('openWeeklyWinPlayerModal', 0)
             ->assertSee('2勝')
             ->assertSee('集計 7/27 09:12時点');
 
         $this->addWins($viewerCharacter, 1, $at->copy()->addMinutes(2)->addSecond(), $areaId, $enemyId);
         Carbon::setTestNow($at->copy()->addMinutes(2)->addSeconds(2));
 
-        $component->call('refreshWeeklyRanking')
+        $component->call('openWeeklyWinPlayerModal', 0)
             ->assertSee('2勝');
     }
 

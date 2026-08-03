@@ -54,14 +54,14 @@
                     </div>
                     <button
                         type="button"
-                        wire:click="refreshWeeklyRanking"
+                        wire:click="openWeeklyWinPlayerModal(0)"
                         wire:loading.attr="disabled"
-                        wire:target="refreshWeeklyRanking"
+                        wire:target="openWeeklyWinPlayerModal(0)"
                         class="inline-flex shrink-0 items-center gap-1 rounded border border-amber-300 bg-white px-2 py-1 text-[10px] font-black text-amber-800 shadow-sm transition hover:bg-amber-100 disabled:cursor-wait disabled:opacity-60"
                         aria-label="週間番付を最新の集計に更新する"
                     >
                         <svg wire:loading.class="animate-spin"
-                             wire:target="refreshWeeklyRanking"
+                             wire:target="openWeeklyWinPlayerModal(0)"
                              class="h-3 w-3"
                              viewBox="0 0 24 24"
                              fill="none"
@@ -70,8 +70,8 @@
                              aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" />
                         </svg>
-                        <span wire:loading.remove wire:target="refreshWeeklyRanking">更新</span>
-                        <span wire:loading wire:target="refreshWeeklyRanking">更新中</span>
+                        <span wire:loading.remove wire:target="openWeeklyWinPlayerModal(0)">更新</span>
+                        <span wire:loading wire:target="openWeeklyWinPlayerModal(0)">更新中</span>
                     </button>
                 </div>
             </div>
