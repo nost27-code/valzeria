@@ -21,7 +21,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_home_defers_noncritical_components_but_renders_cached_weekly_ranking_immediately(): void
+    public function test_home_renders_champ_and_cached_weekly_ranking_immediately_while_deferring_noncritical_components(): void
     {
         $appLayout = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
         $facilityLayout = file_get_contents(resource_path('views/components/layouts/facility.blade.php'));
@@ -37,10 +37,10 @@ class HomeInitialLoadPerformanceTest extends TestCase
             $this->assertStringContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
         }
 
-        foreach (['champ-card', 'chat-log'] as $component) {
-            $this->assertStringContainsString("<livewire:{$component} lazy=\"on-load\" />", $appLayout);
-            $this->assertStringNotContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
-        }
+        $this->assertStringContainsString('<livewire:champ-card />', $appLayout);
+        $this->assertStringNotContainsString('<livewire:champ-card lazy=', $appLayout);
+        $this->assertStringContainsString('<livewire:chat-log lazy="on-load" />', $appLayout);
+        $this->assertStringNotContainsString('<livewire:chat-log lazy.bundle="on-load" />', $appLayout);
 
         $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget />', $appLayout);
         $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy=', $appLayout);
@@ -141,6 +141,8 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $response->assertSee('次やることを読み込み中');
         $response->assertSee('冒険者情報を読み込み中');
         $response->assertSee('チャットを読み込み中');
+        $response->assertDontSee('チャンプ情報を読み込み中');
+        $response->assertSee('Champion');
         $response->assertDontSee('週間番付を読み込み中');
         $this->assertLessThan(100, $queries);
     }

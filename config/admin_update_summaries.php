@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-champ-card-immediate-render',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => 'ホームのチャンプ情報を即時表示',
+        'detail' => 'ホームのチャンプ情報を初期画面に直接表示し、他の情報の読み込みを待たずに確認できるよう改善しました。60秒ごとの自動更新は引き続き行われます。',
+    ],
+    [
         'id' => '2026-08-03-champ-chat-independent-loading',
         'date' => '2026-08-03',
         'category' => 'fixed',
