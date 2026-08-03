@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-fuka-exclusive-icon-second-version',
+        'date' => '2026-08-03',
+        'category' => 'internal',
+        'title' => 'ふーか専用アイコンの4ポーズを更新',
+        'detail' => 'ふーかさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の新しい4ポーズ画像へ更新しました。',
+    ],
+    [
         'id' => '2026-08-03-hero-trial-crown-job-benchmark',
         'date' => '2026-08-03',
         'category' => 'internal',
