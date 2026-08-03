@@ -242,7 +242,7 @@ class WeeklyWinRankingService
             ? $this->currentPeriod()
             : $this->displayPeriod();
         $rows = $availability['is_started']
-            ? $this->cachedRankedRowsForPeriod($period)
+            ? $this->cachedWidgetRowsForPeriod($period)
             : collect();
         $rankingLimit = max(1, (int) config('weekly_win_ranking.ranking_limit', 50));
 
@@ -257,6 +257,24 @@ class WeeklyWinRankingService
                 ? $this->statusFromRows($character, $period, $rows)
                 : null,
         ];
+    }
+
+    /**
+     * 定期処理から現在週の表示用キャッシュを先回り更新する。
+     */
+    public function warmCurrentWidgetRowsCache(): int
+    {
+        if (! $this->availability()['is_started']) {
+            return 0;
+        }
+
+        $period = $this->currentPeriod();
+        $cacheKey = $this->widgetRowsCacheKey($period);
+        $rows = $this->rankedRowsForPeriod($period)->values()->all();
+
+        $this->putWidgetRowsCache($cacheKey, $rows);
+
+        return count($rows);
     }
 
     /**
@@ -691,7 +709,7 @@ class WeeklyWinRankingService
     private function cachedRankedRowsForPeriod(array $period): Collection
     {
         $seconds = max(1, (int) config('weekly_win_ranking.live_cache_seconds', 30));
-        $cacheKey = "weekly_win_ranking_live_rows_v2:{$period['key']}";
+        $cacheKey = $this->liveRowsCacheKey($period);
         $cachedRows = Cache::remember(
             $cacheKey,
             now()->addSeconds($seconds),
@@ -699,12 +717,77 @@ class WeeklyWinRankingService
         );
 
         if (! is_array($cachedRows)) {
-            Cache::forget($cacheKey);
             $cachedRows = $this->rankedRowsForPeriod($period)->values()->all();
             Cache::put($cacheKey, $cachedRows, now()->addSeconds($seconds));
         }
 
         return collect($cachedRows);
+    }
+
+    /**
+     * @param array{key: string} $period
+     */
+    private function liveRowsCacheKey(array $period): string
+    {
+        return "weekly_win_ranking_live_rows_v2:{$period['key']}";
+    }
+
+    /**
+     * @param array{
+     *   key: string,
+     *   start: Carbon,
+     *   end: Carbon,
+     *   start_at: string,
+     *   end_at: string,
+     *   label: string
+     * } $period
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function cachedWidgetRowsForPeriod(array $period): Collection
+    {
+        $freshSeconds = max(1, (int) config('weekly_win_ranking.widget_cache_seconds', 1800));
+        $staleSeconds = max(
+            $freshSeconds + 1,
+            (int) config('weekly_win_ranking.widget_stale_cache_seconds', 21600)
+        );
+        $cacheKey = $this->widgetRowsCacheKey($period);
+        $cachedRows = Cache::flexible(
+            $cacheKey,
+            [$freshSeconds, $staleSeconds],
+            fn (): array => $this->rankedRowsForPeriod($period)->values()->all(),
+            lock: ['seconds' => 30]
+        );
+
+        if (! is_array($cachedRows)) {
+            $cachedRows = $this->rankedRowsForPeriod($period)->values()->all();
+            $this->putWidgetRowsCache($cacheKey, $cachedRows, $staleSeconds);
+        }
+
+        return collect($cachedRows);
+    }
+
+    /**
+     * @param array{key: string} $period
+     */
+    private function widgetRowsCacheKey(array $period): string
+    {
+        return "weekly_win_ranking_widget_rows_v1:{$period['key']}";
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     */
+    private function putWidgetRowsCache(string $cacheKey, array $rows, ?int $staleSeconds = null): void
+    {
+        $staleSeconds ??= max(
+            (int) config('weekly_win_ranking.widget_cache_seconds', 1800) + 1,
+            (int) config('weekly_win_ranking.widget_stale_cache_seconds', 21600)
+        );
+
+        Cache::putMany([
+            $cacheKey => $rows,
+            "illuminate:cache:flexible:created:{$cacheKey}" => now()->getTimestamp(),
+        ], now()->addSeconds($staleSeconds));
     }
 
     private function grantReward(

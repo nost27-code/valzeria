@@ -20,17 +20,33 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $appLayout = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
         $facilityLayout = file_get_contents(resource_path('views/components/layouts/facility.blade.php'));
         $mainTabs = file_get_contents(resource_path('views/livewire/main-screen-shell.blade.php'));
+        $rankingPlaceholder = file_get_contents(resource_path('views/livewire/ranking-widget-placeholder.blade.php'));
 
         $this->assertIsString($appLayout);
         $this->assertIsString($facilityLayout);
         $this->assertIsString($mainTabs);
+        $this->assertIsString($rankingPlaceholder);
 
-        foreach (['home-action-panel', 'left-sidebar', 'champ-card', 'star-tree-tower-ranking-widget', 'chat-log'] as $component) {
+        foreach (['home-action-panel', 'left-sidebar', 'champ-card', 'chat-log'] as $component) {
             $this->assertStringContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
         }
 
+        $this->assertStringContainsString('<livewire:star-tree-tower-ranking-widget lazy="on-load" />', $appLayout);
+        $this->assertStringNotContainsString('<livewire:star-tree-tower-ranking-widget lazy.bundle="on-load" />', $appLayout);
         $this->assertStringContainsString('<livewire:chat-log lazy.bundle="on-load" />', $facilityLayout);
         $this->assertStringNotContainsString('lazy=', $mainTabs);
+        $this->assertStringContainsString('週間勝利', $rankingPlaceholder);
+        $this->assertStringNotContainsString('読み込み中', $rankingPlaceholder);
+
+        $champPosition = strpos($appLayout, '<livewire:champ-card');
+        $rankingPosition = strpos($appLayout, '<livewire:star-tree-tower-ranking-widget');
+        $facilityPosition = strpos($appLayout, 'data-main-content');
+
+        $this->assertIsInt($champPosition);
+        $this->assertIsInt($rankingPosition);
+        $this->assertIsInt($facilityPosition);
+        $this->assertLessThan($rankingPosition, $champPosition);
+        $this->assertLessThan($facilityPosition, $rankingPosition);
     }
 
     public function test_schema_checks_are_reused_within_the_same_request(): void
@@ -101,6 +117,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $response->assertSee('次やることを読み込み中');
         $response->assertSee('冒険者情報を読み込み中');
         $response->assertSee('チャットを読み込み中');
+        $response->assertDontSee('週間番付を読み込み中');
         $this->assertLessThan(100, $queries);
     }
 }

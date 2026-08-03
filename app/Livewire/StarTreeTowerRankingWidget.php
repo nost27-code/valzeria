@@ -56,9 +56,6 @@ class StarTreeTowerRankingWidget extends Component
 
     public function placeholder()
     {
-        return view('livewire.home-loading-placeholder', [
-            'label' => '週間番付',
-            'minHeight' => '12rem',
-        ]);
+        return view('livewire.ranking-widget-placeholder');
     }
 }

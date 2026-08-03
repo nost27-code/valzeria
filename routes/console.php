@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\WeeklyWinRankingService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -7,6 +8,12 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('ranking:warm-weekly-win-cache', function (WeeklyWinRankingService $service) {
+    $rowCount = $service->warmCurrentWidgetRowsCache();
+
+    $this->info("週間勝利数番付キャッシュを更新しました（{$rowCount}件）");
+})->purpose('週間勝利数番付のホーム表示用キャッシュを先回り更新する');
 
 Schedule::command('market:expire-listings')->hourly();
 Schedule::command('equipment-market:expire')->everyFiveMinutes()->withoutOverlapping();
@@ -24,3 +31,7 @@ Schedule::command('ranking:finalize-weekly-wins')
     ->dailyAt(config('weekly_win_ranking.finalize_time', '09:05'))
     ->timezone(config('weekly_win_ranking.timezone', 'Asia/Tokyo'))
     ->withoutOverlapping(30);
+Schedule::command('ranking:warm-weekly-win-cache')
+    ->everyThirtyMinutes()
+    ->timezone(config('weekly_win_ranking.timezone', 'Asia/Tokyo'))
+    ->withoutOverlapping(10);

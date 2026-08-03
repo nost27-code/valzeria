@@ -216,6 +216,39 @@ class WeeklyWinRankingTest extends TestCase
         $this->assertSame(2, $service->currentRows()->first()['score']);
     }
 
+    public function test_home_widget_serves_stale_data_until_the_scheduled_warmup_replaces_it(): void
+    {
+        config()->set('weekly_win_ranking.widget_cache_seconds', 30);
+        config()->set('weekly_win_ranking.widget_stale_cache_seconds', 120);
+        [$areaId, $enemyId] = $this->battleMasterIds();
+        $character = $this->createCharacter(User::factory()->create(), 'ホームキャッシュ');
+        $at = Carbon::create(2026, 7, 27, 9, 10, 0, 'Asia/Tokyo');
+        $this->addWins($character, 1, $at, $areaId, $enemyId);
+
+        $service = app(WeeklyWinRankingService::class);
+        $this->assertSame(1, $service->currentWidgetData($character)['rows']->first()['score']);
+
+        $this->addWins($character, 1, $at->copy()->addSecond(), $areaId, $enemyId);
+        Carbon::setTestNow($at->copy()->addSeconds(31));
+        $this->assertSame(1, $service->currentWidgetData($character)['rows']->first()['score']);
+
+        $this->assertSame(1, $service->warmCurrentWidgetRowsCache());
+        $this->assertSame(2, $service->currentWidgetData($character)['rows']->first()['score']);
+    }
+
+    public function test_weekly_rows_cache_can_be_warmed_by_the_scheduled_command(): void
+    {
+        [$areaId, $enemyId] = $this->battleMasterIds();
+        $character = $this->createCharacter(User::factory()->create(), '定期更新確認');
+        $this->addWins($character, 1, now(), $areaId, $enemyId);
+
+        $this->artisan('ranking:warm-weekly-win-cache')
+            ->expectsOutput('週間勝利数番付キャッシュを更新しました（1件）')
+            ->assertSuccessful();
+
+        $this->assertIsArray(Cache::get('weekly_win_ranking_widget_rows_v1:2026-07-27'));
+    }
+
     public function test_scheduled_finalization_recovers_all_missing_periods_in_oldest_first_order(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 8, 17, 9, 10, 0, 'Asia/Tokyo'));

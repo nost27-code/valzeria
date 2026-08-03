@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-weekly-ranking-prewarmed-cache',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => 'ホームの週間番付表示を高速化',
+        'detail' => '週間番付を30分ごとに先回り更新し、集計中も直前の番付を表示するよう改善しました。チャンプ情報とは別に読み込むため、ホーム上の配置を変えずに待ち時間を短縮します。',
+    ],
+    [
         'id' => '2026-08-03-home-initial-load-deferred-components',
         'date' => '2026-08-03',
         'category' => 'fixed',
