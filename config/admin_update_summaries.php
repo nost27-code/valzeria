@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-home-status-actions-immediate-render',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => '冒険者情報と次やることを即時表示',
+        'detail' => 'ホームの冒険者情報と次やることを初期画面に直接表示し、別の読み込み処理を待たずに確認できるよう改善しました。',
+    ],
+    [
         'id' => '2026-08-03-champ-card-immediate-render',
         'date' => '2026-08-03',
         'category' => 'changed',

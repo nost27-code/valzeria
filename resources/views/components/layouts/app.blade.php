@@ -119,7 +119,7 @@
 
             <div x-show="currentLocation === 'home'"
                  style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}">
-                <livewire:home-action-panel lazy.bundle="on-load" />
+                <livewire:home-action-panel />
             </div>
 
             <div class="flex flex-col lg:flex-row gap-6 flex-grow">
@@ -127,7 +127,7 @@
                 <div x-show="currentLocation === 'home'"
                      style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}"
                      class="w-full lg:w-[28rem] xl:w-[30rem] flex-shrink-0">
-                    <livewire:left-sidebar lazy.bundle="on-load" />
+                    <livewire:left-sidebar />
                 </div>
 
                 <!-- 右カラム: チャンプ戦カード + メインコンテンツ -->

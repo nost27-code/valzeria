@@ -21,7 +21,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_home_renders_champ_and_cached_weekly_ranking_immediately_while_deferring_noncritical_components(): void
+    public function test_home_renders_status_champ_actions_and_cached_weekly_ranking_immediately_while_deferring_chat(): void
     {
         $appLayout = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
         $facilityLayout = file_get_contents(resource_path('views/components/layouts/facility.blade.php'));
@@ -33,12 +33,11 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertIsString($mainTabs);
         $this->assertIsString($rankingPlaceholder);
 
-        foreach (['home-action-panel', 'left-sidebar'] as $component) {
-            $this->assertStringContainsString("<livewire:{$component} lazy.bundle=\"on-load\" />", $appLayout);
+        foreach (['home-action-panel', 'left-sidebar', 'champ-card'] as $component) {
+            $this->assertStringContainsString("<livewire:{$component} />", $appLayout);
+            $this->assertStringNotContainsString("<livewire:{$component} lazy=", $appLayout);
         }
 
-        $this->assertStringContainsString('<livewire:champ-card />', $appLayout);
-        $this->assertStringNotContainsString('<livewire:champ-card lazy=', $appLayout);
         $this->assertStringContainsString('<livewire:chat-log lazy="on-load" />', $appLayout);
         $this->assertStringNotContainsString('<livewire:chat-log lazy.bundle="on-load" />', $appLayout);
 
@@ -112,7 +111,7 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertSame($firstLookupQueries, $schemaQueries);
     }
 
-    public function test_home_initial_response_skips_deferred_component_queries(): void
+    public function test_home_initial_response_renders_status_actions_and_champ_while_deferring_chat(): void
     {
         $user = User::factory()->create();
         $cityId = DB::table('cities')->value('id');
@@ -138,13 +137,13 @@ class HomeInitialLoadPerformanceTest extends TestCase
             ->get('/home?skip_resume=1');
 
         $response->assertOk();
-        $response->assertSee('次やることを読み込み中');
-        $response->assertSee('冒険者情報を読み込み中');
+        $response->assertDontSee('次やることを読み込み中');
+        $response->assertDontSee('冒険者情報を読み込み中');
         $response->assertSee('チャットを読み込み中');
         $response->assertDontSee('チャンプ情報を読み込み中');
         $response->assertSee('Champion');
         $response->assertDontSee('週間番付を読み込み中');
-        $this->assertLessThan(100, $queries);
+        $this->assertLessThan(220, $queries);
     }
 
     public function test_storage_summary_counts_city_clear_bonus_only_once(): void
