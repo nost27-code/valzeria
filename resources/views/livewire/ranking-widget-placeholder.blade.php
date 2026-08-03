@@ -5,11 +5,10 @@
 >
     <div class="flex bg-[#0a1628]">
         <div class="flex-1 bg-[#1b2c47] px-2 py-1.5 text-center text-[11px] font-black tracking-wider text-[#d4af37]">週間勝利</div>
-        <div class="flex-1 px-2 py-1.5 text-center text-[11px] font-black tracking-wider text-amber-100/50">星樹の塔</div>
         <div class="flex-1 px-2 py-1.5 text-center text-[11px] font-black tracking-wider text-amber-100/50">闘技場</div>
     </div>
 
-    <div class="animate-pulse">
+    <div>
         <div class="border-b border-amber-100 bg-amber-50 px-3 py-2">
             <div class="h-2.5 w-2/3 rounded-full bg-amber-200/60"></div>
             <div class="mt-2 h-3 w-1/2 rounded-full bg-slate-200"></div>

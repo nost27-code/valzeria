@@ -36,7 +36,10 @@ class HomeInitialLoadPerformanceTest extends TestCase
         $this->assertStringContainsString('<livewire:chat-log lazy.bundle="on-load" />', $facilityLayout);
         $this->assertStringNotContainsString('lazy=', $mainTabs);
         $this->assertStringContainsString('週間勝利', $rankingPlaceholder);
+        $this->assertStringContainsString('闘技場', $rankingPlaceholder);
+        $this->assertStringNotContainsString('星樹の塔', $rankingPlaceholder);
         $this->assertStringNotContainsString('読み込み中', $rankingPlaceholder);
+        $this->assertStringNotContainsString('animate-pulse', $rankingPlaceholder);
 
         $champPosition = strpos($appLayout, '<livewire:champ-card');
         $rankingPosition = strpos($appLayout, '<livewire:star-tree-tower-ranking-widget');

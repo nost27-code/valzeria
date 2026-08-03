@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-weekly-ranking-placeholder-fix',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => '週間番付の待機表示を修正',
+        'detail' => 'ホームの週間番付を準備している間、停止中の星樹の塔が表示され、待機カードが白く明滅していた問題を修正しました。',
+    ],
+    [
         'id' => '2026-08-03-weekly-ranking-prewarmed-cache',
         'date' => '2026-08-03',
         'category' => 'fixed',
