@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-standard-character-099-four-poses',
+        'date' => '2026-08-03',
+        'category' => 'changed',
+        'title' => '既存キャラに新しい4ポーズ画像を追加',
+        'detail' => 'ペスト医師風の既存キャラクターに、通常・勝利・戦闘・敗北の場面別画像を追加しました。',
+    ],
+    [
         'id' => '2026-08-03-chat-unchanged-render-skip',
         'date' => '2026-08-03',
         'category' => 'changed',
