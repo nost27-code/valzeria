@@ -118,6 +118,38 @@ class HomeActionPerformanceTest extends TestCase
         app(HomeActionService::class)->getActions($character, 5);
 
         $this->assertLessThan(200, count($queries));
+        $repeatMaterialDropQueries = collect($queries)
+            ->filter(fn (string $sql): bool => str_contains($sql, 'from "material_drops" inner join "materials"'));
+
+        $this->assertLessThanOrEqual(1, $repeatMaterialDropQueries->count());
+    }
+
+    public function test_repeat_material_drop_weights_are_loaded_once_for_multiple_enemies(): void
+    {
+        $enemyIds = DB::table('material_drops')
+            ->where('is_active', true)
+            ->where('drop_first_clear_only', false)
+            ->where('drop_rate', '>', 0)
+            ->distinct()
+            ->limit(2)
+            ->pluck('enemy_id');
+        $this->assertCount(2, $enemyIds);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $service = app(EquipmentEvolutionService::class);
+        $method = new \ReflectionMethod($service, 'sameKindMaterialDropWeight');
+        foreach ($enemyIds as $enemyId) {
+            $method->invoke($service, (int) $enemyId, 'generic', 'early');
+        }
+
+        $repeatMaterialDropQueries = collect($queries)
+            ->filter(fn (string $sql): bool => str_contains($sql, 'from "material_drops" inner join "materials"'));
+
+        $this->assertCount(1, $repeatMaterialDropQueries);
     }
 
     private function createCharacterWithEquippedItem(Item $item, string $slot = 'weapon'): Character

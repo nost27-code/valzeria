@@ -71,6 +71,9 @@ class EquipmentEvolutionService
 
     private array $materialSourceCache = [];
 
+    /** @var Collection<int, Collection<int, object>>|null */
+    private ?Collection $repeatMaterialDropsByEnemy = null;
+
     private const EVOLUTION_STONE_QUANTITIES = [
         'G' => 1,
         'F' => 2,
@@ -993,13 +996,13 @@ class EquipmentEvolutionService
 
     private function sameKindMaterialDropWeight(int $enemyId, string $kind, string $band): float
     {
-        return DB::table('material_drops')
+        $drops = $this->repeatMaterialDropsByEnemy ??= DB::table('material_drops')
             ->join('materials', 'material_drops.material_id', '=', 'materials.id')
-            ->where('material_drops.enemy_id', $enemyId)
             ->where('material_drops.is_active', true)
             ->where('material_drops.drop_first_clear_only', false)
             ->where('material_drops.drop_rate', '>', 0)
             ->select(
+                'material_drops.enemy_id',
                 'materials.material_code',
                 'materials.name',
                 'materials.material_type',
@@ -1008,6 +1011,10 @@ class EquipmentEvolutionService
                 'material_drops.drop_rate'
             )
             ->get()
+            ->groupBy('enemy_id');
+
+        return $drops
+            ->get($enemyId, collect())
             ->filter(fn ($drop): bool => $this->sourceMaterialKindFromRow($drop, $band) === $kind)
             ->sum(fn ($drop): float => max(0.01, (float) $drop->drop_rate));
     }
