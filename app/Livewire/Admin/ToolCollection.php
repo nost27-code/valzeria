@@ -19,7 +19,7 @@ class ToolCollection extends Component
                 ],
                 [
                     'name' => 'スプライト分割ツール',
-                    'description' => 'キャラクターや素材画像のスプライトを分割して確認します。',
+                    'description' => 'キャラクターや素材画像を分割し、キャラ4差分を固定名で同じフォルダへ保存できます。',
                     'href' => asset('tools/sprite-splitter.html'),
                     'badge' => 'PUBLIC',
                     'openLabel' => '開く',

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-sprite-splitter-character-mode',
+        'date' => '2026-08-03',
+        'category' => 'internal',
+        'title' => 'スプライト分割にキャラ4差分保存を追加',
+        'detail' => 'スプライト分割ツールで、4枚の分割結果を通常・勝利・戦闘・敗北の固定WebP名に割り当て、選択した同じフォルダへまとめて保存できるようにしました。',
+    ],
+    [
         'id' => '2026-08-03-chat-background-60-second-refresh',
         'date' => '2026-08-03',
         'category' => 'fixed',
