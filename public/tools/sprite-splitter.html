@@ -204,6 +204,15 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 }
 .sprite-label { font-size: 0.62rem; color: #6060a0; text-align: center; }
 .sprite-label.character-mode { color: #c4b5fd; font-size: 0.68rem; white-space: nowrap; }
+.character-dir-list { display: flex; flex-direction: column; gap: 6px; }
+.character-dir-row {
+  display: grid; grid-template-columns: minmax(105px, auto) 1fr auto;
+  gap: 6px; align-items: center;
+  padding: 6px; border: 1px solid #353568; border-radius: 5px;
+  background: #18183a;
+}
+.character-dir-name { font-size: 0.7rem; color: #c4b5fd; font-weight: 700; }
+.character-dir-status { font-size: 0.68rem; color: #6060a0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sprite-del-btn {
   position: absolute; top: -5px; right: -5px;
   width: 15px; height: 15px;
@@ -477,9 +486,14 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
 
       <div class="field">
         <label id="savedir-label">保存先フォルダ（重複時は番号を自動でずらして連番保存）</label>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost" style="font-size:0.72rem" onclick="pickSaveDirectory()">📂 フォルダを選択</button>
-          <span id="savedir-status" style="font-size:0.72rem;color:#6060a0">未選択（開始番号から欠番なく連番保存）</span>
+        <div id="standard-savedir-controls">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-ghost" style="font-size:0.72rem" onclick="pickSaveDirectory()">📂 フォルダを選択</button>
+            <span id="savedir-status" style="font-size:0.72rem;color:#6060a0">未選択（開始番号から欠番なく連番保存）</span>
+          </div>
+        </div>
+        <div id="character-savedir-controls" style="display:none">
+          <div id="character-savedir-list" class="character-dir-list"></div>
         </div>
         <span id="savedir-help" style="font-size:0.65rem;color:#4a4a7a">※ Chrome/Edge対応。フォルダ内の既存ファイル名を確認し、重複しない次の番号で保存します</span>
       </div>
@@ -519,7 +533,7 @@ h2 { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; text-transform: upper
       </ol>
       <p class="how-to" style="color:#5a5a8a;margin-top:6px">
         ※ 画像サムネイルをクリックで切り替え表示<br>
-        ※ キャラクターモードのフォルダ保存は、保存先を一度選ぶと4枚とも同じ場所へ保存します
+        ※ キャラクターモードは4枚ごとに同じ名前を割り当て、キャラごとに別の保存先を選べます
       </p>
     </div>
 
@@ -556,6 +570,8 @@ let activeIdx   = -1;
 let bgMode      = 'checker';
 let zoomLevel   = 1;
 let saveDirHandle = null;
+let characterDirHandles = [];
+let characterRestoreRequested = new Set();
 let separatorMode = false;
 let separatorStrokeDraft = null;
 
@@ -656,6 +672,22 @@ function spriteFileName(index, startNum, prefix) {
   return `${prefix || 'sprite'}_${String(startNum + index).padStart(3, '0')}.webp`;
 }
 
+function characterGroupCount(count = allNormalized().length) {
+  return Math.ceil(count / CHARACTER_FILENAMES.length);
+}
+
+function characterModeReady(count = allNormalized().length) {
+  return count > 0 && count % CHARACTER_FILENAMES.length === 0;
+}
+
+function characterOutputName(index) {
+  return CHARACTER_FILENAMES[index % CHARACTER_FILENAMES.length];
+}
+
+function characterZipFolder(groupIndex) {
+  return `character_${String(groupIndex + 1).padStart(2, '0')}`;
+}
+
 function updateStartPreview() {
   const prefix = document.getElementById('s-filename').value.trim() || 'sprite';
   const n = Math.max(0, +document.getElementById('s-startnum').value || 0);
@@ -668,14 +700,17 @@ function updateCharacterMode(shouldPersist = true) {
   document.getElementById('s-filename').disabled = enabled;
   document.getElementById('s-startnum').disabled = enabled;
   document.getElementById('btn-savedir').textContent = enabled
-    ? '📁 キャラ4枚保存'
+    ? '📁 キャラ別フォルダへ保存'
     : '📁 フォルダへ連番保存';
   document.getElementById('savedir-label').textContent = enabled
-    ? 'キャラ4差分の保存先フォルダ'
+    ? 'キャラごとの保存先フォルダ'
     : '保存先フォルダ（重複時は番号を自動でずらして連番保存）';
+  document.getElementById('standard-savedir-controls').style.display = enabled ? 'none' : '';
+  document.getElementById('character-savedir-controls').style.display = enabled ? 'block' : 'none';
   document.getElementById('savedir-help').textContent = enabled
-    ? '※ Chrome/Edge対応。4枚を固定ファイル名で同じフォルダへ保存します。同名ファイルがある場合は上書き前に確認します'
+    ? '※ Chrome/Edge対応。4枚ごとに別フォルダを選択します。同名ファイルがある場合は上書き前に確認します'
     : '※ Chrome/Edge対応。フォルダ内の既存ファイル名を確認し、重複しない次の番号で保存します';
+  updateCharacterDirectoryControls();
   renderAllSpritePreviews();
   updateExportButtons();
   if (shouldPersist) persistSettings();
@@ -1492,8 +1527,8 @@ function renderAllSpritePreviews() {
       const lbl = document.createElement('div');
       const characterMode = document.getElementById('s-character-mode').checked;
       lbl.className=`sprite-label${characterMode ? ' character-mode' : ''}`;
-      lbl.textContent=characterMode && CHARACTER_FILENAMES[globalIdx]
-        ? CHARACTER_FILENAMES[globalIdx]
+      lbl.textContent=characterMode
+        ? characterOutputName(globalIdx)
         : `#${String(globalIdx+1).padStart(3,'0')}`;
       card.appendChild(lbl);
       container.appendChild(card);
@@ -1553,21 +1588,30 @@ function updateExportButtons() {
   const count = allNormalized().length;
   const hasAny = count > 0;
   const characterMode = document.getElementById('s-character-mode').checked;
-  const characterReady = !characterMode || count === CHARACTER_FILENAMES.length;
+  const characterReady = !characterMode || characterModeReady(count);
+  const groupCount = characterGroupCount(count);
+  const directoriesReady = !characterMode || (
+    characterReady && characterDirHandles.slice(0, groupCount).filter(Boolean).length === groupCount
+  );
   document.getElementById('btn-zip').disabled   = !hasAny || !characterReady;
-  document.getElementById('btn-indiv').disabled = !hasAny || !characterReady;
+  document.getElementById('btn-indiv').disabled = !hasAny || !characterReady || (characterMode && groupCount > 1);
+  document.getElementById('btn-indiv').title = characterMode && groupCount > 1
+    ? '同名ファイルが重複するため、ZIPまたはキャラ別フォルダ保存を使用してください'
+    : '';
   document.getElementById('btn-sheet').disabled = !hasAny;
-  document.getElementById('btn-savedir').disabled = !hasAny || !characterReady;
+  document.getElementById('btn-savedir').disabled = !hasAny || !directoriesReady;
+  updateCharacterDirectoryControls();
 
   const status = document.getElementById('character-mode-status');
   if (!characterMode) {
     status.textContent = 'OFF';
     status.style.color = '#7c7c9e';
-  } else if (count === CHARACTER_FILENAMES.length) {
-    status.textContent = '4枚準備完了';
+  } else if (characterModeReady(count)) {
+    status.textContent = `${groupCount}キャラ・${count}枚準備完了`;
     status.style.color = '#34d399';
   } else {
-    status.textContent = `4枚必要（現在 ${count}枚）`;
+    const missing = count ? CHARACTER_FILENAMES.length - (count % CHARACTER_FILENAMES.length) : CHARACTER_FILENAMES.length;
+    status.textContent = `4枚単位が必要（現在 ${count}枚・残り${missing}枚）`;
     status.style.color = '#fbbf24';
   }
 }
@@ -1588,21 +1632,21 @@ function idbOpen() {
   });
 }
 
-async function idbSetHandle(handle) {
+async function idbSetHandle(handle, key = 'saveDir') {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(handle, 'saveDir');
+    tx.objectStore(IDB_STORE).put(handle, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function idbGetHandle() {
+async function idbGetHandle(key = 'saveDir') {
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(IDB_STORE, 'readonly');
-    const req = tx.objectStore(IDB_STORE).get('saveDir');
+    const req = tx.objectStore(IDB_STORE).get(key);
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => reject(req.error);
   });
@@ -1610,6 +1654,97 @@ async function idbGetHandle() {
 
 function setSaveDirStatus(msg) {
   document.getElementById('savedir-status').textContent = msg;
+}
+
+function updateCharacterDirectoryControls() {
+  const list = document.getElementById('character-savedir-list');
+  if (!list || !document.getElementById('s-character-mode').checked) return;
+
+  const count = allNormalized().length;
+  const groups = characterGroupCount(count);
+  list.innerHTML = '';
+  if (!groups) {
+    list.innerHTML = '<span style="font-size:0.68rem;color:#6060a0">分割プレビュー生成後、キャラごとの保存先を選択できます</span>';
+    return;
+  }
+
+  for (let groupIndex = 0; groupIndex < groups; groupIndex++) {
+    const start = groupIndex * CHARACTER_FILENAMES.length + 1;
+    const end = Math.min(start + CHARACTER_FILENAMES.length - 1, count);
+    const row = document.createElement('div');
+    row.className = 'character-dir-row';
+
+    const name = document.createElement('span');
+    name.className = 'character-dir-name';
+    name.textContent = `キャラ${groupIndex + 1}（#${String(start).padStart(3, '0')}〜#${String(end).padStart(3, '0')}）`;
+
+    const status = document.createElement('span');
+    status.className = 'character-dir-status';
+    status.textContent = characterDirHandles[groupIndex]
+      ? `選択中: ${characterDirHandles[groupIndex].name}`
+      : '保存先未選択';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-ghost';
+    button.style.fontSize = '0.68rem';
+    button.textContent = '📂 選択';
+    button.onclick = () => pickCharacterDirectory(groupIndex);
+
+    row.append(name, status, button);
+    list.appendChild(row);
+    tryRestoreCharacterDirectory(groupIndex);
+  }
+}
+
+async function pickCharacterDirectory(groupIndex) {
+  if (!window.showDirectoryPicker) {
+    toast('このブラウザはフォルダ保存に対応していません（Chrome/Edge推奨）');
+    return null;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({
+      id: `sprite-character-${groupIndex + 1}`,
+      mode: 'readwrite',
+    });
+    for (let index = 0; index < characterDirHandles.length; index++) {
+      if (index !== groupIndex && characterDirHandles[index] && await handle.isSameEntry(characterDirHandles[index])) {
+        toast(`キャラ${index + 1}と同じフォルダは選択できません`);
+        return null;
+      }
+    }
+    characterDirHandles[groupIndex] = handle;
+    characterRestoreRequested.add(groupIndex);
+    await idbSetHandle(handle, `characterDir:${groupIndex}`);
+    updateCharacterDirectoryControls();
+    updateExportButtons();
+    toast(`キャラ${groupIndex + 1}の保存先を設定しました`);
+    return handle;
+  } catch (e) {
+    if (e.name !== 'AbortError') toast('フォルダ選択に失敗しました');
+    return null;
+  }
+}
+
+async function tryRestoreCharacterDirectory(groupIndex) {
+  if (!window.showDirectoryPicker || characterRestoreRequested.has(groupIndex) || characterDirHandles[groupIndex]) return;
+  characterRestoreRequested.add(groupIndex);
+  try {
+    const handle = await idbGetHandle(`characterDir:${groupIndex}`);
+    if (!handle) return;
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      characterDirHandles[groupIndex] = handle;
+      updateCharacterDirectoryControls();
+      updateExportButtons();
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function ensureDirectoryPermission(handle) {
+  const permission = await handle.queryPermission({ mode: 'readwrite' });
+  if (permission === 'granted') return true;
+  return await handle.requestPermission({ mode: 'readwrite' }) === 'granted';
 }
 
 async function pickSaveDirectory() {
@@ -1665,44 +1800,71 @@ async function saveToDirectory() {
   const all = allNormalized();
   if (!all.length) return;
   const characterMode = document.getElementById('s-character-mode').checked;
-  if (characterMode && all.length !== CHARACTER_FILENAMES.length) {
-    toast(`キャラクターモードは4枚必要です（現在 ${all.length}枚）`);
-    return;
-  }
-  if (!saveDirHandle && !await pickSaveDirectory()) return;
-
-  const perm = await saveDirHandle.queryPermission({ mode: 'readwrite' });
-  if (perm !== 'granted') {
-    const req = await saveDirHandle.requestPermission({ mode: 'readwrite' });
-    if (req !== 'granted') { toast('フォルダへの書き込み許可がありません'); return; }
-  }
 
   if (characterMode) {
-    const existing = [];
-    for (const name of CHARACTER_FILENAMES) {
-      try {
-        await saveDirHandle.getFileHandle(name);
-        existing.push(name);
-      } catch (e) {
-        if (e.name !== 'NotFoundError') throw e;
+    if (!characterModeReady(all.length)) {
+      toast(`キャラクターモードは4枚単位で必要です（現在 ${all.length}枚）`);
+      return;
+    }
+    const groups = characterGroupCount(all.length);
+    const missingGroup = Array.from({ length: groups }, (_, index) => index)
+      .find(index => !characterDirHandles[index]);
+    if (missingGroup !== undefined) {
+      toast(`キャラ${missingGroup + 1}の保存先を選択してください`);
+      return;
+    }
+    for (let left = 0; left < groups; left++) {
+      for (let right = left + 1; right < groups; right++) {
+        if (await characterDirHandles[left].isSameEntry(characterDirHandles[right])) {
+          toast(`キャラ${left + 1}とキャラ${right + 1}は別の保存先を選択してください`);
+          return;
+        }
       }
     }
-    if (existing.length && !window.confirm(`${existing.length}個の同名ファイルがあります。上書きして保存しますか？`)) {
+
+    const existingByGroup = [];
+    for (let groupIndex = 0; groupIndex < groups; groupIndex++) {
+      const handle = characterDirHandles[groupIndex];
+      if (!await ensureDirectoryPermission(handle)) {
+        toast(`キャラ${groupIndex + 1}のフォルダ書き込み許可がありません`);
+        return;
+      }
+      const existing = [];
+      for (const name of CHARACTER_FILENAMES) {
+        try {
+          await handle.getFileHandle(name);
+          existing.push(name);
+        } catch (e) {
+          if (e.name !== 'NotFoundError') throw e;
+        }
+      }
+      existingByGroup.push(existing);
+    }
+
+    const overwriteCount = existingByGroup.reduce((sum, names) => sum + names.length, 0);
+    if (overwriteCount && !window.confirm(`${overwriteCount}個の同名ファイルがあります。各フォルダで上書きして保存しますか？`)) {
       toast('保存をキャンセルしました');
       return;
     }
 
-    toast('キャラ4差分を保存中... (0/4)', 60000);
-    for (let i = 0; i < CHARACTER_FILENAMES.length; i++) {
-      const name = CHARACTER_FILENAMES[i];
+    toast(`キャラ${groups}組・${all.length}枚を保存中... (0/${all.length})`, 60000);
+    for (let i = 0; i < all.length; i++) {
+      const groupIndex = Math.floor(i / CHARACTER_FILENAMES.length);
+      const name = characterOutputName(i);
       const blob = await canvasToBlob(all[i], 'image/webp');
-      const fileHandle = await saveDirHandle.getFileHandle(name, { create: true });
+      const fileHandle = await characterDirHandles[groupIndex].getFileHandle(name, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
-      toast(`キャラ4差分を保存中... (${i + 1}/4)`, 60000);
+      toast(`キャラ${groups}組・${all.length}枚を保存中... (${i + 1}/${all.length})`, 60000);
     }
-    toast('キャラ4差分を同じフォルダへ保存しました');
+    toast(`キャラ${groups}組をそれぞれのフォルダへ保存しました`);
+    return;
+  }
+
+  if (!saveDirHandle && !await pickSaveDirectory()) return;
+  if (!await ensureDirectoryPermission(saveDirHandle)) {
+    toast('フォルダへの書き込み許可がありません');
     return;
   }
 
@@ -1731,8 +1893,8 @@ async function downloadZip() {
   const all = allNormalized();
   if (!all.length) return;
   const characterMode = document.getElementById('s-character-mode').checked;
-  if (characterMode && all.length !== CHARACTER_FILENAMES.length) {
-    toast(`キャラクターモードは4枚必要です（現在 ${all.length}枚）`);
+  if (characterMode && !characterModeReady(all.length)) {
+    toast(`キャラクターモードは4枚単位で必要です（現在 ${all.length}枚）`);
     return;
   }
   toast('ZIPを生成中...', 4000);
@@ -1741,10 +1903,15 @@ async function downloadZip() {
   const folder = zip.folder('sprites');
   for (let i=0;i<all.length;i++) {
     const blob = await canvasToBlob(all[i],'image/webp');
-    const outputName = characterMode
-      ? CHARACTER_FILENAMES[i]
-      : spriteFileName(i, startNum, filename);
-    folder.file(outputName, blob);
+    if (characterMode && all.length > CHARACTER_FILENAMES.length) {
+      const groupFolder = folder.folder(characterZipFolder(Math.floor(i / CHARACTER_FILENAMES.length)));
+      groupFolder.file(characterOutputName(i), blob);
+    } else {
+      const outputName = characterMode
+        ? characterOutputName(i)
+        : spriteFileName(i, startNum, filename);
+      folder.file(outputName, blob);
+    }
   }
   const content = await zip.generateAsync({type:'blob'});
   saveBlob(content, 'valzeria_sprites.zip');
@@ -1758,15 +1925,19 @@ async function downloadIndividual() {
   const all = allNormalized();
   if (!all.length) return;
   const characterMode = document.getElementById('s-character-mode').checked;
-  if (characterMode && all.length !== CHARACTER_FILENAMES.length) {
-    toast(`キャラクターモードは4枚必要です（現在 ${all.length}枚）`);
+  if (characterMode && !characterModeReady(all.length)) {
+    toast(`キャラクターモードは4枚単位で必要です（現在 ${all.length}枚）`);
+    return;
+  }
+  if (characterMode && all.length > CHARACTER_FILENAMES.length) {
+    toast('複数キャラはZIPまたはキャラ別フォルダ保存を使用してください');
     return;
   }
   const { startNum, filename } = settings();
   for (let i=0;i<all.length;i++) {
     const blob = await canvasToBlob(all[i],'image/webp');
     const outputName = characterMode
-      ? CHARACTER_FILENAMES[i]
+      ? characterOutputName(i)
       : spriteFileName(i, startNum, filename);
     saveBlob(blob, outputName);
     await new Promise(r=>setTimeout(r,150));
@@ -1840,6 +2011,8 @@ function resetAll() {
   document.getElementById('s-filename').value='chara';
   document.getElementById('s-startnum').value=1;
   document.getElementById('s-character-mode').checked=false;
+  characterDirHandles = [];
+  characterRestoreRequested.clear();
   updateStartPreview();
   updateCharacterMode(false);
   zoomReset();

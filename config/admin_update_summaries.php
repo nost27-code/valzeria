@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-sprite-splitter-multi-character-folders',
+        'date' => '2026-08-03',
+        'category' => 'internal',
+        'title' => '複数キャラの4差分をフォルダ別保存',
+        'detail' => 'スプライト分割ツールで、複数キャラの4差分へ固定WebP名を繰り返し割り当て、キャラごとに別の保存先を選んで一括保存できるようにしました。',
+    ],
+    [
         'id' => '2026-08-03-colosseum-ranking-lightweight-list',
         'date' => '2026-08-03',
         'category' => 'changed',
