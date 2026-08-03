@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-hero-trial-crown-job-benchmark',
+        'date' => '2026-08-03',
+        'category' => 'internal',
+        'title' => '英雄試練向け仮想冠位職シミュレーション',
+        'detail' => '管理画面の戦闘シミュレーションで、選択した冒険者の現在能力と装備を維持したまま、マスター済み冠位職へ職業効果だけを仮想切替して検証できるようにしました。実データの職業や戦闘結果は保存しません。',
+    ],
+    [
         'id' => '2026-08-03-sprite-splitter-multi-character-folders',
         'date' => '2026-08-03',
         'category' => 'internal',

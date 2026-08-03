@@ -4,10 +4,10 @@ namespace App\Livewire\Admin;
 
 use App\Models\Character;
 use App\Models\Enemy;
-use App\Services\BattleService;
-use App\Services\CharacterStatusService;
+use App\Services\HeroTrialBenchmarkService;
+use DomainException;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class BattleSimulator extends Component
@@ -16,6 +16,7 @@ class BattleSimulator extends Component
     public string $enemySearch = '';
     public ?int $selectedCharacterId = null;
     public ?int $selectedEnemyId = null;
+    public ?int $virtualJobId = null;
     public int $simulationCount = 20;
     public bool $startWithFullHp = true;
 
@@ -26,17 +27,19 @@ class BattleSimulator extends Component
     public function selectCharacter(int $characterId): void
     {
         $this->selectedCharacterId = $characterId;
-        $this->summary = [];
-        $this->runs = [];
-        $this->sampleLogs = [];
+        $this->virtualJobId = null;
+        $this->resetResults();
     }
 
     public function selectEnemy(int $enemyId): void
     {
         $this->selectedEnemyId = $enemyId;
-        $this->summary = [];
-        $this->runs = [];
-        $this->sampleLogs = [];
+        $this->resetResults();
+    }
+
+    public function updatedVirtualJobId(): void
+    {
+        $this->resetResults();
     }
 
     public function runSimulation(): void
@@ -47,11 +50,22 @@ class BattleSimulator extends Component
             'simulationCount' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
+        $character = Character::query()->findOrFail($this->selectedCharacterId);
+        $benchmarkService = app(HeroTrialBenchmarkService::class);
+
+        try {
+            $benchmarkService->previewFinalStats($character, $this->virtualJobId);
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages([
+                'virtualJobId' => $exception->getMessage(),
+            ]);
+        }
+
         $runs = [];
         $sampleLogs = [];
 
         for ($i = 1; $i <= $this->simulationCount; $i++) {
-            $result = $this->simulateOnce();
+            $result = $this->simulateOnce($benchmarkService);
             $runs[] = [
                 'index' => $i,
                 'result' => $result->result,
@@ -75,7 +89,7 @@ class BattleSimulator extends Component
 
     public function render()
     {
-        $statusService = app(CharacterStatusService::class);
+        $benchmarkService = app(HeroTrialBenchmarkService::class);
 
         $character = $this->selectedCharacterId
             ? Character::with(['user', 'currentJob', 'currentCity', 'characterItems.item'])->find($this->selectedCharacterId)
@@ -84,38 +98,37 @@ class BattleSimulator extends Component
             ? Enemy::with('area.city')->find($this->selectedEnemyId)
             : null;
 
+        $virtualJobCandidates = $character
+            ? $benchmarkService->masteredCrownJobs($character)
+            : collect();
+        $selectedVirtualJob = $this->virtualJobId
+            ? $virtualJobCandidates->firstWhere('id', $this->virtualJobId)
+            : null;
+
         return view('livewire.admin.battle-simulator', [
             'characterCandidates' => $this->characterCandidates(),
             'enemyCandidates' => $this->enemyCandidates(),
             'selectedCharacter' => $character,
             'selectedEnemy' => $enemy,
-            'selectedCharacterStats' => $character ? $statusService->getFinalStats($character) : null,
+            'virtualJobCandidates' => $virtualJobCandidates,
+            'selectedVirtualJob' => $selectedVirtualJob,
+            'selectedCharacterStats' => $character
+                ? $benchmarkService->previewFinalStats($character, $selectedVirtualJob?->id)
+                : null,
         ])->layout('components.layouts.admin');
     }
 
-    private function simulateOnce()
+    private function simulateOnce(HeroTrialBenchmarkService $benchmarkService)
     {
-        DB::beginTransaction();
+        $character = Character::query()->findOrFail($this->selectedCharacterId);
+        $enemy = Enemy::with('area')->findOrFail($this->selectedEnemyId);
 
-        try {
-            $character = Character::with(['currentJob.skill', 'jobHistories', 'characterItems.item'])
-                ->lockForUpdate()
-                ->findOrFail($this->selectedCharacterId);
-            $enemy = Enemy::with('area')->findOrFail($this->selectedEnemyId);
-
-            if ($this->startWithFullHp) {
-                $stats = app(CharacterStatusService::class)->getFinalStats($character);
-                $character->current_hp = $stats['max_hp'] ?? $character->current_hp;
-                $character->current_mp = $stats['max_mp'] ?? $character->current_mp;
-                $character->save();
-            }
-
-            $result = app(BattleService::class)->executeBattle($character, $enemy);
-        } finally {
-            DB::rollBack();
-        }
-
-        return $result;
+        return $benchmarkService->simulate(
+            $character,
+            $enemy,
+            $this->virtualJobId,
+            $this->startWithFullHp,
+        );
     }
 
     private function characterCandidates(): Collection
@@ -202,5 +215,12 @@ class BattleSimulator extends Component
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function resetResults(): void
+    {
+        $this->summary = [];
+        $this->runs = [];
+        $this->sampleLogs = [];
     }
 }

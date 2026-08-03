@@ -3,7 +3,7 @@
         <div>
             <p class="text-xs font-black tracking-[0.24em] text-amber-600">BATTLE SIMULATOR</p>
             <h1 class="mt-2 text-3xl font-black text-slate-950">戦闘シミュレーション</h1>
-            <p class="mt-2 text-sm font-bold text-slate-500">実プレイヤーのキャラデータを使って、敵との勝率や残HPを確認します。</p>
+            <p class="mt-2 text-sm font-bold text-slate-500">実プレイヤーのキャラデータを使って、敵との勝率や残HPを確認します。英雄試練の調整用に、マスター済み冠位職への仮想切替もできます。</p>
         </div>
         <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-800">
             実行結果はDBへ保存されません
@@ -69,7 +69,10 @@
                 <h2 class="text-lg font-black text-slate-950">選択中キャラ</h2>
                 @if($selectedCharacter)
                     <div class="mt-3 rounded bg-slate-50 p-4 text-sm">
-                        <div class="font-black text-slate-950">{{ $selectedCharacter->name }} / Lv {{ $selectedCharacter->level }} / {{ $selectedCharacter->currentJob?->name ?? '-' }}</div>
+                        <div class="font-black text-slate-950">{{ $selectedCharacter->name }} / Lv {{ $selectedCharacter->level }} / {{ $selectedVirtualJob?->name ?? $selectedCharacter->currentJob?->name ?? '-' }}</div>
+                        @if($selectedVirtualJob)
+                            <div class="mt-1 text-xs font-bold text-cyan-700">実職業: {{ $selectedCharacter->currentJob?->name ?? '-' }} / 仮想職業: {{ $selectedVirtualJob->name }}</div>
+                        @endif
                         <div class="mt-2 grid grid-cols-4 gap-2 text-xs font-black text-slate-600">
                             <span>HP {{ $selectedCharacterStats['max_hp'] ?? '-' }}</span>
                             <span>ATK {{ $selectedCharacterStats['str'] ?? '-' }}</span>
@@ -78,7 +81,7 @@
                             <span>MAG {{ $selectedCharacterStats['mag'] ?? '-' }}</span>
                             <span>SPR {{ $selectedCharacterStats['spr'] ?? '-' }}</span>
                             <span>LUK {{ $selectedCharacterStats['luk'] ?? '-' }}</span>
-                            <span>MP {{ $selectedCharacterStats['max_mp'] ?? '-' }}</span>
+                            <span>SP {{ $selectedCharacterStats['max_mp'] ?? '-' }}</span>
                         </div>
                     </div>
                 @else
@@ -106,7 +109,19 @@
                 @endif
             </div>
             <div>
-                <label class="block text-sm font-black text-slate-700">試行回数</label>
+                <label class="block text-sm font-black text-slate-700">仮想職業</label>
+                <select wire:model.live="virtualJobId" @disabled(!$selectedCharacter) class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400">
+                    <option value="">現在職を使用</option>
+                    @foreach($virtualJobCandidates as $job)
+                        <option value="{{ $job->id }}">{{ $job->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-2 text-[11px] font-bold leading-relaxed text-slate-500">現在のLv・基礎能力・装備を維持し、職業効果だけを仮想切替します。実転職時のLv1化・基礎能力圧縮は適用しません。</p>
+                @if($selectedCharacter && $virtualJobCandidates->isEmpty())
+                    <p class="mt-2 text-xs font-bold text-amber-700">マスター済みの冠位職がありません。</p>
+                @endif
+                @error('virtualJobId') <div class="mt-2 text-xs font-bold text-red-600">{{ $message }}</div> @enderror
+                <label class="mt-4 block text-sm font-black text-slate-700">試行回数</label>
                 <input type="number" min="1" max="100" wire:model="simulationCount" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
                 <label class="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600">
                     <input type="checkbox" wire:model="startWithFullHp" class="rounded border-slate-300 text-amber-600 focus:ring-amber-500">
