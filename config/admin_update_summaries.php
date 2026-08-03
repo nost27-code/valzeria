@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-home-action-equipment-evolution-performance',
+        'date' => '2026-08-03',
+        'category' => 'fixed',
+        'title' => '別画面からホームへの表示速度を改善',
+        'detail' => 'ホームの「次やること」で装備進化案内を作る際、不要な全レシピ確認が重複していた処理を見直し、別画面からホームへ戻る待ち時間を短縮しました。',
+    ],
+    [
         'id' => '2026-08-03-remove-legacy-app-boot-repairs',
         'date' => '2026-08-03',
         'category' => 'internal',

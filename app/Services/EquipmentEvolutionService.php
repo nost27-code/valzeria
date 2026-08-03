@@ -123,9 +123,90 @@ class EquipmentEvolutionService
             }
         }
 
+        return $this->finalizeCandidates($candidates);
+    }
+
+    /**
+     * 「次やること」表示向けに、現在装備している進化元だけを候補化する。
+     * 合成屋の全候補取得とは分け、未所持レシピの構築を避ける。
+     */
+    public function equippedCandidates(Character $character): array
+    {
+        $sourceIdsByType = DB::table('character_items')
+            ->join('items', 'items.id', '=', 'character_items.item_id')
+            ->where('character_items.character_id', $character->id)
+            ->where('character_items.is_equipped', true)
+            ->where('items.is_active', true)
+            ->whereIn('items.type', ['weapon', 'armor', 'accessory'])
+            ->whereNotNull('items.external_item_id')
+            ->get(['items.type', 'items.external_item_id'])
+            ->groupBy('type')
+            ->map(fn (Collection $items): array => $items
+                ->pluck('external_item_id')
+                ->map(fn ($externalId): string => (string) $externalId)
+                ->filter(fn (string $externalId): bool => $externalId !== '')
+                ->unique()
+                ->values()
+                ->all());
+
+        if ($sourceIdsByType->flatten()->isEmpty()) {
+            return [];
+        }
+
+        $ownedMaterials = $this->ownedMaterialMap($character);
+        $discoveredItemIds = $this->discoveredItemIds($character);
+        $candidates = [];
+
+        $weaponSourceIds = $sourceIdsByType->get('weapon', []);
+        if ($weaponSourceIds !== []) {
+            $weaponRecipes = DB::table('weapon_evolution_recipes')
+                ->where('is_active', true)
+                ->whereIn('from_weapon_id', $weaponSourceIds)
+                ->orderBy('id')
+                ->get();
+
+            foreach ($weaponRecipes as $recipe) {
+                $candidates[] = $this->buildWeaponCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
+            }
+        }
+
+        $armorSourceIds = $sourceIdsByType->get('armor', []);
+        if ($armorSourceIds !== []) {
+            $armorRecipes = DB::table('armor_evolution_recipes')
+                ->where('is_active', true)
+                ->whereIn('source_armor_id', $armorSourceIds)
+                ->orderBy('id')
+                ->get();
+
+            foreach ($armorRecipes as $recipe) {
+                $candidates[] = $this->buildArmorCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
+            }
+        }
+
+        $accessorySourceIds = $sourceIdsByType->get('accessory', []);
+        if ($accessorySourceIds !== [] && DB::getSchemaBuilder()->hasTable('accessory_evolution_recipes')) {
+            $accessoryRecipes = DB::table('accessory_evolution_recipes')
+                ->where('is_active', true)
+                ->whereIn('from_accessory_id', $accessorySourceIds)
+                ->orderBy('id')
+                ->get();
+
+            foreach ($accessoryRecipes as $recipe) {
+                $candidates[] = $this->buildAccessoryCandidate($character, $recipe, $ownedMaterials, $discoveredItemIds);
+            }
+        }
+
+        return $this->finalizeCandidates($candidates, true);
+    }
+
+    /** @param array<int, array<string, mixed>> $candidates
+     *  @return array<int, array<string, mixed>> */
+    private function finalizeCandidates(array $candidates, bool $equippedOnly = false): array
+    {
         $candidates = array_values(array_filter(
             $candidates,
-            fn (array $candidate) => $candidate['owned_source_count'] > 0
+            fn (array $candidate): bool => $candidate['owned_source_count'] > 0
+                && (!$equippedOnly || $candidate['has_equipped_source'])
         ));
 
         usort($candidates, function (array $a, array $b): int {

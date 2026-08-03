@@ -214,9 +214,7 @@ class HomeActionService
         }
 
         try {
-            $equippedCandidates = collect($this->equipmentEvolutionService->candidates($character))
-                ->filter(fn (array $candidate) => (bool) ($candidate['has_equipped_source'] ?? false))
-                ->values();
+            $equippedCandidates = collect($this->equipmentEvolutionService->equippedCandidates($character));
         } catch (\Throwable $exception) {
             report($exception);
             return;

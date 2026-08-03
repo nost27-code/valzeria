@@ -600,9 +600,6 @@ class MainScreen extends Component
             'equippedItems' => $equippedItems,
             'homeDisplayMode' => $this->character?->home_display_mode ?: 'normal',
             'homeMenuItems' => $isHomeTab ? $this->applyFacilityOverrides($this->homeMenuItems(), 'home') : [],
-            'homeActions' => ($this->character && $isHomeTab)
-                ? Cache::remember("home_actions_{$this->character->id}", 30, fn() => $homeActionService->getActions($this->character, 4, $finalStats))
-                : [],
             'simpleFacilities' => $isHomeTab ? $this->applyFacilityOverrides($this->simpleFacilities($locationData), 'simple') : [],
             'storageIsFull' => $storageIsFull,
             'storageFullMessage' => $storageFullMessage,
@@ -628,7 +625,6 @@ class MainScreen extends Component
     {
         Cache::forget("home_stats_{$characterId}");
         Cache::forget("home_equip_{$characterId}");
-        Cache::forget("home_actions_{$characterId}");
     }
 
     private function rankingSpotlightLeader(): ?array
