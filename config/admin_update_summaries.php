@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-03-remove-legacy-app-boot-repairs',
+        'date' => '2026-08-03',
+        'category' => 'internal',
+        'title' => '起動時の旧自動修復・削除処理を撤去',
+        'detail' => 'アプリ起動時に行っていたDB確認・自動修復・指定名キャラクター削除・公開リンク変更を撤去し、必要な整合性確認をデプロイ前の安全確認へ移しました。',
+    ],
+    [
         'id' => '2026-08-03-katana-rare-s-weapon-release',
         'date' => '2026-08-03',
         'category' => 'added',

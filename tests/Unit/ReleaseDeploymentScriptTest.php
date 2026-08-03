@@ -6,6 +6,18 @@ use Tests\TestCase;
 
 class ReleaseDeploymentScriptTest extends TestCase
 {
+    public function test_app_boot_does_not_run_database_or_public_file_repairs(): void
+    {
+        $source = file_get_contents(base_path('app/Providers/AppServiceProvider.php'));
+
+        $this->assertNotFalse($source);
+        $this->assertStringNotContainsString('Schema::', $source);
+        $this->assertStringNotContainsString('Artisan::call', $source);
+        $this->assertStringNotContainsString('CharacterJob::', $source);
+        $this->assertStringNotContainsString('rename(', $source);
+        $this->assertStringNotContainsString('symlink(', $source);
+    }
+
     public function test_empty_database_title_migration_creates_its_foreign_key_target(): void
     {
         $source = file_get_contents(base_path('database/migrations/2026_06_07_164108_create_character_titles_table.php'));

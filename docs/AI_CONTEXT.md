@@ -53,6 +53,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - 冒険者カードは `AdventurerCardModal` の軽量Livewireインスタンスが表示イベントを受け、共通 `CityHeader` の能力値・通知・街情報を再描画しない。カードの表示・閉じる・職業階層取得は renderless action とし、既にある巨大なカードHTMLを応答ごとに再送・再描画せず、状態データだけを同期する。クリック直後はクライアント側で読み込み表示を開き、職業バッジは圧縮した配列で受け取り、選択された階層だけ小さなLivewire更新で詳細データ・DOM・画像へ展開する。
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)
 - State management: Livewire component state + DB; no SPA framework
+- アプリ起動時にはmigration・Seeder・プレイヤーデータ修復・公開リンク変更を行わない。街／職業EXPマスタ、職業履歴の整合性、必須カラムはリリース準備チェックで検証し、異常時はデプロイを停止する。
 - P1の認証・送信・設定変更UIは、通常フォームでは明示した `data-submit-lock` を `resources/js/app.js` が処理し、Livewireでは対象アクションの `wire:loading` で完了まで再押下を止める。全ボタンには `resources/css/app.css` の短い押下変形があり、数量増減・タブ切替など連続操作前提の操作には送信ロックを自動適用しない。
 - メイン画面内のタブ導線は、`MainScreenShell` が現在タブと探索退出処理を管理する。街・探索・冒険者・市場・闘技場の重い `MainScreen` は初回選択時にだけ読み込み、その後はDOMへ保持してAlpineで即時切替する。MAP・設定・メッセージも必要時だけ読み込む。保持中のパネルは60秒経過後の再表示時にバックグラウンド更新し、探索退出時は探索パネルを即時無効化する。
 - ホームの週間番付は新規表示では`AdventurerCardModal`へ直接イベントを送り、公開前から開かれている旧画面の`wire:click`だけは`StarTreeTowerRankingWidget::openWeeklyWinPlayerModal()`が互換処理として受ける。

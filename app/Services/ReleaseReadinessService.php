@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Schema;
 
 class ReleaseReadinessService
 {
+    /** @var array<int, int> */
+    private const REQUIRED_JOB_EXP_LEVELS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+
     /** @return array<int, string> */
     public function issues(bool $includeDisabled = false): array
     {
@@ -38,7 +41,7 @@ class ReleaseReadinessService
     /** @return array<int, string> */
     private function databaseReferenceIssues(): array
     {
-        $issues = [];
+        $issues = $this->coreGameDataIssues();
 
         if (Schema::hasTable('items') && Schema::hasTable('cities') && Schema::hasColumn('items', 'unlock_city_id')) {
             $invalid = DB::table('items')
@@ -49,6 +52,63 @@ class ReleaseReadinessService
             if ($invalid > 0) {
                 $issues[] = "items.unlock_city_id に存在しない都市参照が {$invalid} 件あります。";
             }
+        }
+
+        return $issues;
+    }
+
+    /** @return array<int, string> */
+    private function coreGameDataIssues(): array
+    {
+        $issues = $this->missingTables(['cities', 'job_exp_tables', 'job_classes', 'character_jobs']);
+        if ($issues !== []) {
+            return $issues;
+        }
+
+        if (DB::table('cities')->count() === 0) {
+            $issues[] = '都市マスタがありません。';
+        }
+
+        $availableJobExpLevels = DB::table('job_exp_tables')
+            ->whereIn('job_level', self::REQUIRED_JOB_EXP_LEVELS)
+            ->pluck('job_level')
+            ->map(fn ($level): int => (int) $level)
+            ->all();
+        $missingJobExpLevels = array_values(array_diff(self::REQUIRED_JOB_EXP_LEVELS, $availableJobExpLevels));
+        if ($missingJobExpLevels !== []) {
+            $issues[] = '職業経験値マスタが不足しています（不足ランク: '
+                . implode(', ', $missingJobExpLevels)
+                . '）。';
+        }
+
+        $missingColumns = collect(['is_mastered', 'mastered_at'])
+            ->reject(fn (string $column): bool => Schema::hasColumn('character_jobs', $column))
+            ->values()
+            ->all();
+        if ($missingColumns !== []) {
+            $issues[] = 'character_jobs の必須カラムがありません（'
+                . implode(', ', $missingColumns)
+                . '）。';
+
+            return $issues;
+        }
+
+        $invalidMastered = DB::table('character_jobs as character_jobs')
+            ->join('job_classes as job_classes', 'job_classes.id', '=', 'character_jobs.job_class_id')
+            ->where('character_jobs.is_mastered', true)
+            ->whereColumn('character_jobs.job_level', '<', 'job_classes.max_job_level')
+            ->count();
+        if ($invalidMastered > 0) {
+            $issues[] = "職業ランク未達のマスター済み履歴が {$invalidMastered} 件あります。";
+        }
+
+        $missingMastered = DB::table('character_jobs as character_jobs')
+            ->join('job_classes as job_classes', 'job_classes.id', '=', 'character_jobs.job_class_id')
+            ->where('character_jobs.is_mastered', false)
+            ->whereColumn('character_jobs.job_level', '>=', 'job_classes.max_job_level')
+            ->count();
+        if ($missingMastered > 0) {
+            $issues[] = "職業ランク到達済みの未マスター履歴が {$missingMastered} 件あります。";
         }
 
         return $issues;
