@@ -34,6 +34,7 @@ class ReleaseReadinessService
             'ferdia_unlocked' => $this->ferdiaIssues(),
             'exploration_support' => $this->explorationSupportIssues(),
             'character_icon_design' => $this->characterIconDesignIssues(),
+            'hero_trials' => $this->heroTrialIssues(),
             default => ["未対応の追加コンテンツです: {$contentKey}"],
         };
     }
@@ -189,6 +190,41 @@ class ReleaseReadinessService
             'character_icon_design_message_attachments',
             'character_icon_entitlements',
         ]);
+    }
+
+    /** @return array<int, string> */
+    private function heroTrialIssues(): array
+    {
+        $issues = $this->missingTables(['areas', 'job_classes', 'job_requirements']);
+        if ($issues !== []) {
+            return $issues;
+        }
+
+        foreach (config('hero_trials.released_trials', []) as $trialKey => $trial) {
+            $areaId = (int) ($trial['area_id'] ?? 0);
+            if ($areaId <= 0 || !DB::table('areas')->where('id', $areaId)->exists()) {
+                $issues[] = "英雄試練 {$trialKey} の試練場マスタがありません。";
+            }
+
+            $heroJobId = DB::table('job_classes')->where('key', $trial['hero_job_key'] ?? '')->value('id');
+            $requiredJobId = DB::table('job_classes')->where('key', $trial['required_job_key'] ?? '')->value('id');
+            if (!$heroJobId || !$requiredJobId) {
+                $issues[] = "英雄試練 {$trialKey} の職業マスタが不足しています。";
+
+                continue;
+            }
+
+            $hasRequirement = DB::table('job_requirements')
+                ->where('job_id', $heroJobId)
+                ->where('requirement_type', 'master_job')
+                ->where('required_job_id', $requiredJobId)
+                ->exists();
+            if (!$hasRequirement) {
+                $issues[] = "英雄試練 {$trialKey} の必須職マスター条件がありません。";
+            }
+        }
+
+        return $issues;
     }
 
     /** @param array<int, string> $tables

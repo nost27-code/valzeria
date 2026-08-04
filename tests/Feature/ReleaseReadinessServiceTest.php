@@ -51,4 +51,18 @@ class ReleaseReadinessServiceTest extends TestCase
         $this->assertContains('職業ランク未達のマスター済み履歴が 1 件あります。', $issues);
         $this->assertTrue((bool) DB::table('character_jobs')->where('id', $historyId)->value('is_mastered'));
     }
+
+    public function test_hero_trial_release_readiness_passes_with_released_trial_masters(): void
+    {
+        $this->assertSame([], app(ReleaseReadinessService::class)->contentIssues('hero_trials'));
+    }
+
+    public function test_hero_trial_release_readiness_reports_a_missing_trial_area(): void
+    {
+        DB::table('areas')->where('id', 84)->delete();
+
+        $issues = app(ReleaseReadinessService::class)->contentIssues('hero_trials');
+
+        $this->assertContains('英雄試練 dawn_hero の試練場マスタがありません。', $issues);
+    }
 }
