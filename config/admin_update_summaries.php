@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-05-hero-trial-hidden-ui',
+        'date' => '2026-08-05',
+        'category' => 'internal',
+        'title' => '英雄試練の非公開UIを拡張',
+        'detail' => '既定OFFの英雄試練に、10試練を並べる英雄試練殿と英雄職10職の専用転職画面・立ち絵を追加しました。公開設定は変更していません。',
+    ],
+    [
         'id' => '2026-08-04-saku-exclusive-icon-020',
         'date' => '2026-08-04',
         'category' => 'internal',

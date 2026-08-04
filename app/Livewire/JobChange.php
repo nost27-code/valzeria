@@ -29,9 +29,11 @@ class JobChange extends Component
     public $selectedJob = null;
     public $statPreview = [];
     public bool $showingJobDetail = false;
+    public bool $showingHeroJobDetail = false;
     public ?int $detailJobId = null;
     public $detailJob = null;
     public array $detailJobGrowthStats = [];
+    public array $detailHeroJobGrowthStats = [];
     public array $detailJobMasterBonusChips = [];
     public array $detailJobCombatGuide = [];
     public bool $detailJobCanChange = false;
@@ -207,17 +209,21 @@ class JobChange extends Component
         $this->detailJob = $job;
         $this->detailJobCanChange = (bool) $canChange;
         $this->detailJobGrowthStats = $this->buildGrowthStats($job);
+        $this->detailHeroJobGrowthStats = $this->buildHeroGrowthStats($job);
         $this->detailJobMasterBonusChips = $this->buildMasterBonusChips($job);
         $this->detailJobCombatGuide = app(JobCombatGuideService::class)->detailFor($job);
-        $this->showingJobDetail = true;
+        $this->showingHeroJobDetail = JobRankCatalog::normalize($job->rank) === JobRankCatalog::HERO;
+        $this->showingJobDetail = ! $this->showingHeroJobDetail;
     }
 
     public function closeJobDetail(): void
     {
         $this->showingJobDetail = false;
+        $this->showingHeroJobDetail = false;
         $this->detailJobId = null;
         $this->detailJob = null;
         $this->detailJobGrowthStats = [];
+        $this->detailHeroJobGrowthStats = [];
         $this->detailJobMasterBonusChips = [];
         $this->detailJobCombatGuide = [];
         $this->detailJobCanChange = false;
@@ -254,6 +260,32 @@ class JobChange extends Component
             ->take(3)
             ->values()
             ->toArray();
+    }
+
+    /**
+     * @return list<array{label:string, rate:int, segments:int}>
+     */
+    private function buildHeroGrowthStats(JobClass $job): array
+    {
+        $stats = [
+            ['label' => 'HP', 'rate' => (int) ($job->hp_rate ?? 100)],
+            ['label' => 'SP', 'rate' => (int) ($job->mp_rate ?? 100)],
+            ['label' => 'ATK', 'rate' => (int) ($job->atk_rate ?? 100)],
+            ['label' => 'DEF', 'rate' => (int) ($job->def_rate ?? 100)],
+            ['label' => 'MAG', 'rate' => (int) ($job->mag_rate ?? 100)],
+            ['label' => 'SPR', 'rate' => (int) ($job->spr_rate ?? 100)],
+            ['label' => 'SPD', 'rate' => (int) ($job->spd_rate ?? 100)],
+            ['label' => 'LUK', 'rate' => (int) ($job->luck_rate ?? 100)],
+        ];
+        $maxRate = max(1, ...array_column($stats, 'rate'));
+
+        return collect($stats)
+            ->map(fn (array $stat): array => [
+                ...$stat,
+                'segments' => max(1, min(5, (int) round(($stat['rate'] / $maxRate) * 5))),
+            ])
+            ->values()
+            ->all();
     }
 
     private function buildMasterBonusChips(JobClass $job): array

@@ -16,6 +16,29 @@ class HeroTrialController extends Controller
 {
     private const REQUEST_DELAY_SECONDS = 3;
 
+    public function index(HeroTrialService $trialService): View|RedirectResponse
+    {
+        if (! $trialService->isEnabled()) {
+            return redirect()->route('home')->with('error', '英雄試練は現在公開されていません。');
+        }
+
+        $character = Auth::user()?->currentCharacter();
+        if (! $character) {
+            return redirect()->route('home');
+        }
+
+        $trials = $trialService->trialFacilitiesFor($character, (int) $character->current_city_id);
+        if ($trials === []) {
+            return redirect()->route('home')->with('error', '現在挑戦できる英雄試練はありません。');
+        }
+
+        session(['current_location' => 'dungeon']);
+
+        return view('hero-trials.index', [
+            'trials' => $trialService->hallFacilitiesFor($character, (int) $character->current_city_id),
+        ]);
+    }
+
     public function challenge(string $trialKey, HeroTrialService $trialService): RedirectResponse
     {
         $character = Auth::user()?->currentCharacter();

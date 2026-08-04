@@ -113,10 +113,10 @@ class BlackMoonHeroTrialTest extends TestCase
             $statusService,
         );
 
-        $facility = $service->facilityFor($character, 10);
+        $facility = $service->trialFacilitiesFor($character, 10)[0];
         $this->assertSame('月蝕の試練場', $facility['name']);
         $this->assertSame('月蝕の試練に挑む', $facility['action']);
-        $this->assertContains('試練主の種族: 獣 / 悪魔', $facility['details']);
+        $this->assertArrayNotHasKey('details', $facility);
 
         $outcome = $service->challenge($character, 'black_moon_executor');
 
@@ -130,7 +130,7 @@ class BlackMoonHeroTrialTest extends TestCase
         ]);
     }
 
-    public function test_both_unlocked_trials_are_returned_as_separate_facilities(): void
+    public function test_both_unlocked_trials_are_grouped_under_one_hall_facility(): void
     {
         $this->ensureAppearanceAreaExists();
 
@@ -166,10 +166,33 @@ class BlackMoonHeroTrialTest extends TestCase
             $statusService,
         );
 
+        $hallFacility = $service->facilitiesFor($character, 10)[0];
+        $this->assertSame('英雄試練殿', $hallFacility['name']);
+        $this->assertSame('symbol/hero_trial_hall.webp', $hallFacility['symbol_image']);
         $this->assertSame(
             ['暁の試練場', '月蝕の試練場'],
-            collect($service->facilitiesFor($character, 10))->pluck('name')->all(),
+            collect($service->trialFacilitiesFor($character, 10))->pluck('name')->all(),
         );
+        $hallFacilities = $service->hallFacilitiesFor($character, 10);
+        $this->assertCount(10, $hallFacilities);
+        $this->assertSame('白銀の試練場', $hallFacilities[9]['name']);
+        $this->assertSame('試練に挑む', $hallFacilities[0]['action']);
+        $this->assertSame('試練に挑む', $hallFacilities[1]['action']);
+        $this->assertSame('準備中', $hallFacilities[2]['action']);
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('hero-trials.index'))
+            ->assertOk()
+            ->assertSee('images/symbol/hero_trial_hall.webp', false)
+            ->assertSeeText('英雄試練殿')
+            ->assertSeeText('暁の試練場')
+            ->assertSeeText('月蝕の試練場')
+            ->assertSeeText('白銀の試練場')
+            ->assertDontSeeText('挑戦職: すべての職業')
+            ->assertDontSeeText('試練主の種族')
+            ->assertDontSeeText('剣相から術相へHP/SPを引き継いで連戦');
     }
 
     public function test_deepening_eclipse_is_locked_until_turn_six(): void

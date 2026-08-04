@@ -54,6 +54,29 @@ class HeroTrialService
      */
     public function facilitiesFor(Character $character, ?int $cityId): array
     {
+        $trials = $this->trialFacilitiesFor($character, $cityId);
+        if ($trials === []) {
+            return [];
+        }
+
+        return [[
+            'name' => '英雄試練殿',
+            'symbol_image' => 'symbol/hero_trial_hall.webp',
+            'desc' => '冠位を極めた者だけが辿り着く、英雄への試練を選ぶ殿堂。',
+            'bg_image' => 'card_bg/dungeon_10_07.webp',
+            'status' => 'active',
+            'action' => '試練を選ぶ',
+            'route' => 'hero-trials.index',
+            'is_post' => false,
+            'badge' => '英雄試練',
+        ]];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function trialFacilitiesFor(Character $character, ?int $cityId): array
+    {
         if (! $this->isEnabled()) {
             return [];
         }
@@ -73,6 +96,40 @@ class HeroTrialService
         }
 
         return $facilities;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function hallFacilitiesFor(Character $character, ?int $cityId): array
+    {
+        if (! $this->isEnabled() || (int) $cityId !== 10) {
+            return [];
+        }
+
+        $releasedTrials = (array) config('hero_trials.released_trials', []);
+
+        return collect((array) config('hero_trials.hall_cards', []))
+            ->map(function (array $card, string $trialKey) use ($character, $releasedTrials): array {
+                $trial = $releasedTrials[$trialKey] ?? null;
+                if (is_array($trial) && $this->appearanceRequirementsMet($character, $trial)) {
+                    $this->ensureProgress($character, $trial);
+
+                    return $this->buildFacility($character, $trialKey, $trial, $card);
+                }
+
+                return [
+                    'name' => (string) ($card['label'] ?? '名もなき試練場'),
+                    'symbol_image' => (string) ($card['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
+                    'desc' => (string) ($card['facility_desc'] ?? '扉は固く閉ざされている。'),
+                    'bg_image' => 'card_bg/dungeon_10_07.webp',
+                    'status' => is_array($trial) ? 'locked' : 'coming_soon',
+                    'action' => is_array($trial) ? '道は閉ざされている' : '準備中',
+                    'badge' => is_array($trial) ? null : '未実装',
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -246,46 +303,35 @@ class HeroTrialService
      * @param  array<string, mixed>  $trial
      * @return array<string, mixed>
      */
-    private function buildFacility(Character $character, string $trialKey, array $trial): array
+    private function buildFacility(Character $character, string $trialKey, array $trial, array $hallCard = []): array
     {
         $cleared = $this->hasClearedArea($character, (int) $trial['area_id']);
         $isFull = $this->isHpSpFull($character);
-        $speciesLabels = $this->profileService->speciesLabels((string) ($trial['profile_key'] ?? ''));
-        $details = [
-            '挑戦職: すべての職業',
-            '試練主の種族: '.implode(' / ', $speciesLabels),
-        ];
-        array_push($details, ...(array) ($trial['mechanic_details'] ?? []));
+        $isHallCard = $hallCard !== [];
 
         if ($cleared) {
-            $details[] = '試練達成済み';
-
             return [
-                'name' => (string) $trial['label'],
-                'symbol_image' => (string) ($trial['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
-                'desc' => (string) ($trial['cleared_desc'] ?? '試練を越えた者に、英雄の道が開かれる。'),
-                'details' => $details,
+                'name' => (string) ($hallCard['label'] ?? $trial['label']),
+                'symbol_image' => (string) ($hallCard['symbol_image'] ?? $trial['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
+                'desc' => (string) ($hallCard['facility_desc'] ?? $trial['cleared_desc'] ?? '試練を越えた者に、英雄の道が開かれる。'),
                 'bg_image' => (string) ($trial['bg_image'] ?? 'card_bg/dungeon_10_07.webp'),
                 'status' => 'active',
-                'action' => (string) $trial['hero_job_name'].'を確認',
+                'action' => $isHallCard ? '試練の記録を確認' : (string) $trial['hero_job_name'].'を確認',
                 'route' => 'jobs.index',
                 'is_post' => false,
-                'badge' => '達成済み',
+                'badge' => $isHallCard ? '英雄試練' : '達成済み',
             ];
         }
 
-        if (! $isFull) {
-            $details[] = 'HP/SPを全快にすると挑戦可能';
-        }
-
         return [
-            'name' => (string) $trial['label'],
-            'symbol_image' => (string) ($trial['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
-            'desc' => (string) ($trial['facility_desc'] ?? '試練主が挑戦者を待つ。'),
-            'details' => $details,
+            'name' => (string) ($hallCard['label'] ?? $trial['label']),
+            'symbol_image' => (string) ($hallCard['symbol_image'] ?? $trial['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
+            'desc' => (string) ($hallCard['facility_desc'] ?? $trial['facility_desc'] ?? '試練主が挑戦者を待つ。'),
             'bg_image' => (string) ($trial['bg_image'] ?? 'card_bg/dungeon_10_07.webp'),
             'status' => 'active',
-            'action' => $isFull ? (string) ($trial['challenge_action'] ?? '英雄試練に挑む') : '挑戦条件を確認',
+            'action' => $isFull
+                ? ($isHallCard ? '試練に挑む' : (string) ($trial['challenge_action'] ?? '英雄試練に挑む'))
+                : '挑戦条件を確認',
             'route' => 'hero-trials.challenge',
             'params' => ['trialKey' => $trialKey],
             'is_post' => true,

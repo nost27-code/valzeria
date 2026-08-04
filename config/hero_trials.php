@@ -51,6 +51,58 @@ return [
             'species_keys' => ['machine', 'spirit'],
         ],
     ],
+    'hall_cards' => [
+        'dawn_hero' => [
+            'label' => '暁の試練場',
+            'symbol_image' => 'symbol/hero_trial_070.webp',
+            'facility_desc' => '夜明けを告げる光が、静かに挑戦者を待っている。',
+        ],
+        'black_moon_executor' => [
+            'label' => '月蝕の試練場',
+            'symbol_image' => 'symbol/hero_trial_071.webp',
+            'facility_desc' => '欠けた月の影が、音もなく殿内へ伸びている。',
+        ],
+        'star_heaven_sage' => [
+            'label' => '星天の試練場',
+            'symbol_image' => 'symbol/hero_trial_072.webp',
+            'facility_desc' => '遥かな星々の光が、一つの扉へ集まっている。',
+        ],
+        'azure_dragon_warrior_king' => [
+            'label' => '蒼竜の試練場',
+            'symbol_image' => 'symbol/hero_trial_073.webp',
+            'facility_desc' => '蒼穹の彼方から、天地を揺らす気配が響く。',
+        ],
+        'heavenly_machina_chancellor' => [
+            'label' => '天機の試練場',
+            'symbol_image' => 'symbol/hero_trial_074.webp',
+            'facility_desc' => '閉ざされた機構が、訪れる者を測るように脈動する。',
+        ],
+        'sanctuary_judge' => [
+            'label' => '聖域の試練場',
+            'symbol_image' => 'symbol/hero_trial_075.webp',
+            'facility_desc' => '穢れなき静寂の奥で、厳かな光が揺れている。',
+        ],
+        'phantom_funeral_demon_king' => [
+            'label' => '幻葬の試練場',
+            'symbol_image' => 'symbol/hero_trial_076.webp',
+            'facility_desc' => '遠い鐘の音とともに、淡い魂火が漂っている。',
+        ],
+        'time_reader_traveler' => [
+            'label' => '時環の試練場',
+            'symbol_image' => 'symbol/hero_trial_077.webp',
+            'facility_desc' => '止まったはずの刻が、扉の向こうで巡り続ける。',
+        ],
+        'storm_overlord' => [
+            'label' => '荒天の試練場',
+            'symbol_image' => 'symbol/hero_trial_078.webp',
+            'facility_desc' => '黒雲の奥で雷光が走り、殿堂の空気を震わせる。',
+        ],
+        'silver_guardian_king' => [
+            'label' => '白銀の試練場',
+            'symbol_image' => 'symbol/hero_trial_079.webp',
+            'facility_desc' => '白銀に輝く門が、微動だにせず行く手を阻んでいる。',
+        ],
+    ],
     'released_trials' => [
         'dawn_hero' => [
             'label' => '暁の試練場',

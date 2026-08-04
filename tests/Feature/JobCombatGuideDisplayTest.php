@@ -206,6 +206,57 @@ class JobCombatGuideDisplayTest extends TestCase
             );
     }
 
+    public function test_hero_job_detail_uses_the_dedicated_full_screen_showcase(): void
+    {
+        [$user, $character] = $this->merchantPlayer();
+        $hero = JobClass::query()->findOrFail(70);
+        $hero->forceFill([
+            'name' => '暁の勇者',
+            'description' => '暁の光を掲げ、仲間を勝利へ導く英雄職。',
+            'rank' => 'hero',
+            'normal_attack_type' => 'physical',
+            'hp_rate' => 225,
+            'mp_rate' => 195,
+            'atk_rate' => 235,
+            'def_rate' => 215,
+            'mag_rate' => 205,
+            'spr_rate' => 215,
+            'spd_rate' => 170,
+            'luck_rate' => 150,
+            'is_hidden' => false,
+            'is_active' => true,
+        ])->save();
+
+        session(['current_character_id' => $character->id]);
+        Livewire::actingAs($user)
+            ->test(JobChange::class)
+            ->call('showJobDetail', $hero->id)
+            ->assertSet('showingJobDetail', false)
+            ->assertSet('showingHeroJobDetail', true)
+            ->assertSee('英雄職の間')
+            ->assertSee('暁の勇者')
+            ->assertSee('成長する能力')
+            ->assertSee('覚える奥義')
+            ->assertSee('マスター恩恵')
+            ->assertSee('images/jobbadge/jobbadge_070.webp', false)
+            ->assertSee('images/symbol/hero_trial_070.webp', false)
+            ->assertSee('images/job_portrait/hero_trial_070.webp', false)
+            ->assertSee('data-hero-job-portrait="70"', false)
+            ->assertSee('data-hero-job-topbar', false)
+            ->assertDontSee('この職業を極めると、転職後も恩恵が残ります。');
+    }
+
+    public function test_all_hero_job_showcases_have_badge_trial_symbol_and_portrait_assets(): void
+    {
+        foreach (range(70, 79) as $jobId) {
+            $number = str_pad((string) $jobId, 3, '0', STR_PAD_LEFT);
+
+            $this->assertFileExists(public_path("images/jobbadge/jobbadge_{$number}.webp"));
+            $this->assertFileExists(public_path("images/symbol/hero_trial_{$number}.webp"));
+            $this->assertFileExists(public_path("images/job_portrait/hero_trial_{$number}.webp"));
+        }
+    }
+
     /**
      * @return array{User, Character, JobClass}
      */

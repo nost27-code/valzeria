@@ -180,8 +180,12 @@
 @endphp
 
 <div class="max-w-7xl mx-auto p-4 flex flex-col gap-4 text-sm font-sans text-[#1e293b]"
-     x-data="{ confirming: @entangle('confirmingJobChange'), showingDetail: @entangle('showingJobDetail') }"
-     @keydown.escape.window="if (showingDetail) $wire.closeJobDetail()">
+     x-data="{ confirming: @entangle('confirmingJobChange'), showingDetail: @entangle('showingJobDetail'), showingHeroDetail: @entangle('showingHeroJobDetail') }"
+     @keydown.escape.window="if (showingHeroDetail || showingDetail) $wire.closeJobDetail()">
+
+    @if($showingHeroJobDetail && $detailJob)
+        @include('livewire.partials.hero-job-detail')
+    @endif
 
     @if (session()->has('message'))
         <div class="bg-[#f0f9ff] border border-[#bae6fd] text-[#0369a1] px-4 py-3 rounded relative shadow-sm font-medium" role="alert">
@@ -358,16 +362,24 @@
                                                 </div>
                                                 <div class="relative z-10 text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{{ $job->description ?? '説明なし' }}</div>
                                                 <div class="relative z-10 mt-3 flex gap-2">
-                                                    <button type="button"
-                                                            wire:click="showJobDetail({{ $job->id }})"
-                                                            class="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-600 shadow-sm hover:bg-slate-50">
-                                                        詳細
-                                                    </button>
-                                                    <button type="button"
-                                                            wire:click="confirmJobChange({{ $job->id }})"
-                                                            class="flex-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-amber-600">
-                                                        転職する
-                                                    </button>
+                                                    @if(App\Support\JobRankCatalog::normalize($job->rank) === App\Support\JobRankCatalog::HERO)
+                                                        <button type="button"
+                                                                wire:click="showJobDetail({{ $job->id }})"
+                                                                class="flex-1 rounded-md border border-cyan-700 bg-gradient-to-r from-cyan-800 to-blue-900 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm hover:from-cyan-700 hover:to-blue-800">
+                                                            英雄職の間へ
+                                                        </button>
+                                                    @else
+                                                        <button type="button"
+                                                                wire:click="showJobDetail({{ $job->id }})"
+                                                                class="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-600 shadow-sm hover:bg-slate-50">
+                                                            詳細
+                                                        </button>
+                                                        <button type="button"
+                                                                wire:click="confirmJobChange({{ $job->id }})"
+                                                                class="flex-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-amber-600">
+                                                            転職する
+                                                        </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                         @endforeach
@@ -477,8 +489,8 @@
                                     <div class="mt-3">
                                         <button type="button"
                                                 wire:click="showJobDetail({{ $job->id }})"
-                                                class="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-500 shadow-sm hover:bg-slate-50">
-                                            詳細
+                                                class="w-full rounded-md border px-3 py-1.5 text-xs font-extrabold shadow-sm {{ \App\Support\JobRankCatalog::normalize($job->rank) === \App\Support\JobRankCatalog::HERO ? 'border-cyan-700 bg-gradient-to-r from-cyan-800 to-blue-900 text-white hover:from-cyan-700 hover:to-blue-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50' }}">
+                                            {{ \App\Support\JobRankCatalog::normalize($job->rank) === \App\Support\JobRankCatalog::HERO ? '英雄職の間へ' : '詳細' }}
                                         </button>
                                     </div>
                                 @endif

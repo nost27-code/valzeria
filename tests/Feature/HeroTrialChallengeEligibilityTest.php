@@ -79,11 +79,6 @@ class HeroTrialChallengeEligibilityTest extends TestCase
             ->once()
             ->with('dawn_hero_balanced')
             ->andReturn(collect([new Enemy(['name' => '双極天騎アウローラ'])]));
-        $profileService->shouldReceive('speciesLabels')
-            ->once()
-            ->with('dawn_hero_balanced')
-            ->andReturn(['精霊', '人型']);
-
         $battleResult = new BattleResult;
         $battleResult->result = 'defeat';
         $battleService = Mockery::mock(BattleService::class);
@@ -100,10 +95,9 @@ class HeroTrialChallengeEligibilityTest extends TestCase
         $service = new HeroTrialService($profileService, $battleService, $statusService);
         $facility = $service->facilityFor($character, 10);
 
-        $this->assertSame('二形態試練に挑む', $facility['action']);
-        $this->assertContains('挑戦職: すべての職業', $facility['details']);
-        $this->assertContains('試練主の種族: 精霊 / 人型', $facility['details']);
-        $this->assertNotContains('剣冠騎士へ転職すると挑戦可能', $facility['details']);
+        $this->assertSame('試練を選ぶ', $facility['action']);
+        $this->assertSame('hero-trials.index', $facility['route']);
+        $this->assertArrayNotHasKey('details', $facility);
 
         $outcome = $service->challenge($character, 'dawn_hero');
 
