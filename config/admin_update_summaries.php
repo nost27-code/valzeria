@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-04-hero-trials-off-release',
+        'date' => '2026-08-04',
+        'category' => 'internal',
+        'title' => '英雄試練を非公開状態で先行配置',
+        'detail' => '暁・月蝕の試練場と対応英雄職の解放基盤を追加しました。追加コンテンツ管理では既定OFFとし、ONかつ期間内に設定するまで探索一覧・直URL・神殿表示を閉じています。',
+    ],
+    [
         'id' => '2026-08-04-sprite-splitter-quality-export',
         'date' => '2026-08-04',
         'category' => 'internal',

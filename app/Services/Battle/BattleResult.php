@@ -30,6 +30,7 @@ class BattleResult
     // 戦闘ログ観測用のテレメトリ（log_textの解析なしで集計できるようにする）。
     public int $turnCount = 0;
     public int $playerHpBefore = 0;
+    public int $playerMpBefore = 0;
     public int $damageDealt = 0; // プレイヤーが敵に与えた合計ダメージ
     public int $damageTaken = 0; // プレイヤーが受けた合計ダメージ
     public array $enemyDurability = []; // ['hp'=>float,'def_spr'=>float,'atk_mag'=>float,'tier'=>string]

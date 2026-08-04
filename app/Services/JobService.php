@@ -40,7 +40,10 @@ class JobService
         $rank = JobRankCatalog::normalize($job->rank);
 
         return $rank === JobRankCatalog::SUPER
-            || ($rank === JobRankCatalog::CROWN && $character && $this->hasCrownProof($character));
+            || ($rank === JobRankCatalog::CROWN && $character && $this->hasCrownProof($character))
+            || ($rank === JobRankCatalog::HERO
+                && $character
+                && app(HeroTrialService::class)->hasClearedForJob($character, $job));
     }
 
     public function hasCrownProof(Character $character): bool

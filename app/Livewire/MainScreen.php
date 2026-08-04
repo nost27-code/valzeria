@@ -439,6 +439,12 @@ class MainScreen extends Component
                     $dungeons[] = $facility;
                 }
 
+                $heroTrialFacilities = app(\App\Services\HeroTrialService::class)
+                    ->facilitiesFor($this->character, $currentCity?->id);
+                foreach ($heroTrialFacilities as $heroTrialFacility) {
+                    $dungeons[] = $heroTrialFacility;
+                }
+
                 $publishedMapCount = \App\Models\TownMapRegistration::query()
                     ->where('status', 'published')
                     ->where('remaining_explorations', '>', 0)

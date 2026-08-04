@@ -34,5 +34,13 @@ return [
             'default_enabled' => env('CHARACTER_ICON_DESIGN_ENABLED', true),
             'setting_label' => 'キャラアイコン制作 公開状態',
         ],
+        'hero_trials' => [
+            'name' => '英雄試練',
+            'category' => '高難度コンテンツ',
+            'description' => '暁の試練場・月蝕の試練場と、対応する英雄職の解放導線を公開します。OFF中は探索一覧・直URL・神殿の英雄職表示を閉じます。',
+            'route' => 'home',
+            'default_enabled' => env('HERO_TRIALS_ENABLED', false),
+            'setting_label' => '英雄試練 公開状態',
+        ],
     ],
 ];

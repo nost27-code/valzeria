@@ -40,6 +40,8 @@ class BattleActor
     public array $battleTypeWeights = ['physical' => 1.0, 'speed' => 0.0, 'magical' => 0.0];
     public ?string $normalAttackType = null;
     public ?string $speciesKey = null;
+    /** @var list<string> */
+    public array $speciesKeys = [];
     public ?string $weaponKillerSpeciesKey = null;
     public float $weaponKillerDamageRate = 0.0;
     /** @var list<array{source: string, species_key: string, damage_rate: float}> */
@@ -95,7 +97,15 @@ class BattleActor
         $this->jobKey = isset($stats['job_key']) ? (string) $stats['job_key'] : null;
         $this->battleTypeWeights = BattleTypeAffinity::normalize($stats['battle_type_weights'] ?? []);
         $this->normalAttackType = $this->normalizeNormalAttackType($stats['normal_attack_type'] ?? null);
-        $this->speciesKey = isset($stats['species_key']) ? (string) $stats['species_key'] : null;
+        $speciesKey = trim((string) ($stats['species_key'] ?? ''));
+        $this->speciesKeys = array_values(array_unique(array_filter(array_map(
+            static fn ($candidate): string => trim((string) $candidate),
+            (array) ($stats['species_keys'] ?? [])
+        ))));
+        if ($speciesKey !== '' && ! in_array($speciesKey, $this->speciesKeys, true)) {
+            array_unshift($this->speciesKeys, $speciesKey);
+        }
+        $this->speciesKey = $this->speciesKeys[0] ?? null;
         $this->weaponKillerSpeciesKey = isset($stats['weapon_killer_species_key']) ? (string) $stats['weapon_killer_species_key'] : null;
         $this->weaponKillerDamageRate = max(0.0, (float) ($stats['weapon_killer_damage_rate'] ?? 0.0));
         foreach ((array) ($stats['weapon_killer_effects'] ?? []) as $effect) {

@@ -10,6 +10,31 @@ class JobArtSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->seedJobIds();
+    }
+
+    /**
+     * @param  list<int>  $jobIds
+     */
+    public function runForJobIds(array $jobIds): void
+    {
+        $allowedJobIds = array_fill_keys(
+            array_values(array_unique(array_filter(array_map('intval', $jobIds), fn (int $jobId): bool => $jobId > 0))),
+            true,
+        );
+
+        if ($allowedJobIds === []) {
+            return;
+        }
+
+        $this->seedJobIds($allowedJobIds);
+    }
+
+    /**
+     * @param  array<int, true>|null  $allowedJobIds
+     */
+    private function seedJobIds(?array $allowedJobIds = null): void
+    {
         $path = base_path('database/data/job_arts.json');
         if (!is_file($path)) {
             return;
@@ -25,6 +50,9 @@ class JobArtSeeder extends Seeder
             $learnRank = (int) ($row['learn_rank'] ?? 0);
             $name = trim((string) ($row['name'] ?? ''));
             if ($jobId <= 0 || $learnRank <= 0 || $name === '') {
+                continue;
+            }
+            if ($allowedJobIds !== null && !isset($allowedJobIds[$jobId])) {
                 continue;
             }
 

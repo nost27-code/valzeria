@@ -36,9 +36,17 @@ class BattleService
      * 
      * @return BattleResult
      */
-    public function executeBattle(Character $character, Enemy $enemy, int $goldDropRateBonusPoints = 0): BattleResult
+    public function executeBattle(
+        Character $character,
+        Enemy $enemy,
+        int $goldDropRateBonusPoints = 0,
+        array $options = []
+    ): BattleResult
     {
         $result = new BattleResult();
+        $persistCharacterState = (bool) ($options['persist_character_state'] ?? true);
+        $rewardsEnabled = (bool) ($options['rewards_enabled'] ?? true);
+        $explorationSupportEnabled = (bool) ($options['exploration_support_enabled'] ?? true);
         $enemy->loadMissing('actions');
         app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
         $character->refresh();
@@ -60,9 +68,9 @@ class BattleService
             ->first();
         $permissionService = app(EquipmentPermissionService::class);
         $playerActor = new BattleActor($character->name, true, [
-            'hp' => $character->current_hp,
+            'hp' => max(1, (int) ($options['starting_hp'] ?? $character->current_hp)),
             'max_hp' => $stats['max_hp'],
-            'mp' => $character->current_mp ?? 0,
+            'mp' => max(0, (int) ($options['starting_mp'] ?? ($character->current_mp ?? 0))),
             'max_mp' => $stats['max_mp'] ?? 0,
             'str' => $stats['str'],
             'def' => $stats['def'],
@@ -87,6 +95,14 @@ class BattleService
 
         // 敵アクターの生成
         $enemyStats = $this->enemyBattleStats($character, $enemy);
+        $enemySpeciesKey = trim((string) ($enemy->species_key ?: $enemy->family_key ?: ''));
+        $enemySpeciesKeys = array_values(array_unique(array_filter(array_map(
+            static fn ($speciesKey): string => trim((string) $speciesKey),
+            (array) ($enemy->species_keys ?? [])
+        ))));
+        if ($enemySpeciesKey !== '' && ! in_array($enemySpeciesKey, $enemySpeciesKeys, true)) {
+            array_unshift($enemySpeciesKeys, $enemySpeciesKey);
+        }
         $enemyActor = new BattleActor($enemy->name, false, [
             'hp' => $enemyStats['max_hp'],
             'max_hp' => $enemyStats['max_hp'],
@@ -98,7 +114,11 @@ class BattleService
             'mag' => $enemyStats['mag'],
             'spr' => $enemyStats['spr'],
             'luk' => $enemyStats['luk'],
-            'species_key' => (string) ($enemy->species_key ?: $enemy->family_key ?: ''),
+            'normal_attack_type' => $enemy->getAttribute('hero_trial_phase_key')
+                ? $enemy->normal_attack_type
+                : null,
+            'species_key' => $enemySpeciesKey,
+            'species_keys' => $enemySpeciesKeys,
         ], clone $enemy);
 
         $battleContext = $enemy->is_boss ? 'boss' : 'pve';
@@ -137,9 +157,12 @@ class BattleService
         ];
         $result->enemyDurability = $result->enemyStatDisplay['durability'];
         $result->playerHpBefore = $playerActor->hp;
+        $result->playerMpBefore = $playerActor->mp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
-        $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character, $enemy);
+        if ($explorationSupportEnabled) {
+            $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character, $enemy);
+        }
         
         $state->addLog("【戦闘開始】{$playerActor->name} は {$enemyActor->name} と遭遇した！");
 
@@ -181,38 +204,40 @@ class BattleService
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">{$playerActor->name}は、{$enemyActor->name}を倒した！</span>");
             $result->result = 'victory';
             
-            // 報酬の付与
-            $exp = $enemy->exp_reward;
-            $gold = $this->rollGoldReward($enemy, $state->goldBonusPercent, $goldDropRateBonusPoints);
-            
-            $result->exp = $exp;
-            $result->gold = $gold;
-            if ($gold > 0) {
-                $state->addLog("<br><span class=\"text-amber-700 font-bold\">【Gold獲得】{$enemyActor->name} が持っていた <span class=\"text-amber-600 font-extrabold\">{$gold}G</span> を手に入れた！</span>");
-            }
-            
-            // 職業経験値（J-EXP）の算出ロジック
-            if ($enemy->job_exp_reward > 0) {
-                $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $enemy->job_exp_reward);
-            } else {
-                $levelDiff = $enemy->level - $character->level;
-                $jobExp = 0;
+            if ($rewardsEnabled) {
+                // 報酬の付与
+                $exp = $enemy->exp_reward;
+                $gold = $this->rollGoldReward($enemy, $state->goldBonusPercent, $goldDropRateBonusPoints);
 
-                if ($levelDiff <= -3) {
-                    $jobExp = 0;
-                } elseif ($levelDiff <= -1) {
-                    $jobExp = rand(0, 1);
-                } elseif ($levelDiff <= 2) {
-                    $jobExp = rand(1, 2);
+                $result->exp = $exp;
+                $result->gold = $gold;
+                if ($gold > 0) {
+                    $state->addLog("<br><span class=\"text-amber-700 font-bold\">【Gold獲得】{$enemyActor->name} が持っていた <span class=\"text-amber-600 font-extrabold\">{$gold}G</span> を手に入れた！</span>");
+                }
+
+                // 職業経験値（J-EXP）の算出ロジック
+                if ($enemy->job_exp_reward > 0) {
+                    $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $enemy->job_exp_reward);
                 } else {
-                    $jobExp = rand(1, 3);
-                }
+                    $levelDiff = $enemy->level - $character->level;
+                    $jobExp = 0;
 
-                if ($enemy->is_boss) {
-                    $jobExp += rand(1, 2);
-                }
+                    if ($levelDiff <= -3) {
+                        $jobExp = 0;
+                    } elseif ($levelDiff <= -1) {
+                        $jobExp = rand(0, 1);
+                    } elseif ($levelDiff <= 2) {
+                        $jobExp = rand(1, 2);
+                    } else {
+                        $jobExp = rand(1, 3);
+                    }
 
-                $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $jobExp);
+                    if ($enemy->is_boss) {
+                        $jobExp += rand(1, 2);
+                    }
+
+                    $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $jobExp);
+                }
             }
         } else {
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">双方が疲弊し、戦闘は終了した。</span>");
@@ -229,12 +254,16 @@ class BattleService
         $result->damageDealt = $enemyActor->totalDamageTaken;
         $result->damageTaken = $playerActor->totalDamageTaken;
 
-        app(ExplorationSupportService::class)->persistBattleProcs($character, $state->explorationSupportSnapshot);
+        if ($explorationSupportEnabled) {
+            app(ExplorationSupportService::class)->persistBattleProcs($character, $state->explorationSupportSnapshot);
+        }
 
-        // キャラクターのHP/SPを更新
-        $character->current_hp = $playerActor->hp;
-        $character->current_mp = $playerActor->mp;
-        $character->save();
+        if ($persistCharacterState) {
+            // キャラクターのHP/SPを更新
+            $character->current_hp = $playerActor->hp;
+            $character->current_mp = $playerActor->mp;
+            $character->save();
+        }
 
         return $result;
     }
@@ -776,7 +805,9 @@ class BattleService
 
         switch ($typeName) {
             case '魔法型':
-                if ($rand <= 70) {
+                if ($attacker->usesMagForNormalAttack()) {
+                    $this->executeMagicalAttack($attacker, $defender, $state);
+                } elseif ($rand <= 70) {
                     $this->executeMagicalAttack($attacker, $defender, $state);
                 } else {
                     $this->executePhysicalAttack($attacker, $defender, $state);
@@ -917,6 +948,7 @@ class BattleService
 
         return match ((string) $action->trigger_key) {
             'enemy_hp_below' => $attacker->hp * 100 <= $attacker->maxHp * (int) $action->trigger_value,
+            'turn_at_least' => $state->turnCount >= (int) $action->trigger_value,
             default => true,
         };
     }
@@ -1710,9 +1742,9 @@ class BattleService
         }
 
         if ($attacker->isPlayer && !$defender->isPlayer) {
-            $defenderSpecies = (string) ($defender->speciesKey ?? '');
+            $defenderSpeciesKeys = $defender->speciesKeys;
             $rate = array_sum(array_map(
-                static fn (array $effect): float => $effect['species_key'] === $defenderSpecies
+                static fn (array $effect): float => in_array($effect['species_key'], $defenderSpeciesKeys, true)
                     ? (float) $effect['damage_rate']
                     : 0.0,
                 $attacker->weaponKillerEffects,
@@ -1721,19 +1753,19 @@ class BattleService
                 (float) config('equipment_affix.weapon_killer_damage_rate_cap', 0.55),
                 $rate,
             );
-            if ($defenderSpecies !== '' && $rate > 0) {
+            if ($defenderSpeciesKeys !== [] && $rate > 0) {
                 $damage = max(1, (int) floor($damage * (1 + $rate)));
             }
         }
 
         if (!$attacker->isPlayer && $defender->isPlayer) {
-            $attackerSpecies = (string) ($attacker->speciesKey ?? '');
+            $attackerSpeciesKeys = $attacker->speciesKeys;
             $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
             $rate = min(
                 app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
                 (float) ($defender->armorSpeciesDamageReductionRate ?? 0)
             );
-            if ($attackerSpecies !== '' && $resistSpecies !== '' && $rate > 0 && $attackerSpecies === $resistSpecies) {
+            if ($resistSpecies !== '' && $rate > 0 && in_array($resistSpecies, $attackerSpeciesKeys, true)) {
                 $damage = max(1, (int) floor($damage * (1 - $rate)));
             }
         }

@@ -24,6 +24,10 @@ class EnemyDurabilityService
 
         $roleKey = (string) ($enemy->role_key ?? 'normal');
 
+        if ((bool) $enemy->getAttribute('skip_durability_bonus')) {
+            return [...self::NEUTRAL, 'tier' => 'explicitly_skipped', 'role' => $roleKey];
+        }
+
         if (in_array((int) $enemy->id, (array) config('enemy_durability.safe_enemy_ids', []), true)) {
             return [...self::NEUTRAL, 'tier' => 'safe_enemy', 'role' => $roleKey];
         }
