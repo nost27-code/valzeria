@@ -10,6 +10,17 @@ use Tests\TestCase;
 
 class AdventureSupportServiceTest extends TestCase
 {
+    public function test_storage_expansion_purchase_limits_match_current_balance(): void
+    {
+        $items = config('adventure_support.items');
+
+        $this->assertSame(30, $items['material_storage_expand']['purchase_limit']);
+        $this->assertSame(50, $items['material_storage_expand']['price']);
+        $this->assertSame(500, $items['material_storage_expand']['effect_value']);
+        $this->assertSame(10, $items['material_storage_gold_expand']['purchase_limit']);
+        $this->assertSame(20, $items['equipment_storage_expand']['purchase_limit']);
+    }
+
     public function test_support_pass_disabled_label_uses_purchase_unavailable_for_kiseki_shortage(): void
     {
         $label = $this->supportPassPurchaseLabel([

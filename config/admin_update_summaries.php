@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-04-material-storage-purchase-limit-30',
+        'date' => '2026-08-04',
+        'category' => 'balance',
+        'title' => '素材倉庫拡張の購入上限を30回に増加',
+        'detail' => '素材倉庫拡張を最大30回まで購入できるようにしました。価格は50輝石、1回あたりの保管枠は+500のままです。',
+    ],
+    [
         'id' => '2026-08-04-exclusive-icons-016-019-and-fuka-revision',
         'date' => '2026-08-04',
         'category' => 'internal',

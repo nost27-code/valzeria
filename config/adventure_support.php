@@ -92,7 +92,7 @@ return [
             'price' => 50,
             'description' => '素材の保管枠を+500します。進化素材や秘境素材を多く保管したい冒険者向けです。',
             'effect_value' => 500,
-            'purchase_limit' => 20,
+            'purchase_limit' => 30,
         ],
         'material_storage_gold_expand' => [
             'name' => '素材倉庫Gold拡張',

@@ -282,6 +282,32 @@ class AdventurerDepartureSetTest extends TestCase
         ]);
     }
 
+    public function test_material_storage_expansion_allows_purchase_after_twenty_and_stops_at_thirty(): void
+    {
+        [, $character] = $this->createCharacterWithKiseki(100, 0);
+        $limit = CharacterShopLimit::create([
+            'character_id' => $character->id,
+            'shop_item_key' => 'material_storage_expand',
+            'limit_date' => null,
+            'purchased_count' => 20,
+            'used_count' => 0,
+        ]);
+
+        $allowedResult = app(AdventureSupportService::class)->purchase($character, 'material_storage_expand');
+
+        $this->assertTrue($allowedResult['success']);
+        $this->assertSame(21, (int) $limit->fresh()->purchased_count);
+        $this->assertSame(1000, (int) $character->fresh()->material_storage_limit);
+
+        $limit->update(['purchased_count' => 30]);
+        $blockedResult = app(AdventureSupportService::class)->purchase($character->fresh(), 'material_storage_expand');
+
+        $this->assertFalse($blockedResult['success']);
+        $this->assertSame('素材倉庫拡張はこれ以上購入できません。', $blockedResult['message']);
+        $this->assertSame(30, (int) $limit->fresh()->purchased_count);
+        $this->assertSame(1000, (int) $character->fresh()->material_storage_limit);
+    }
+
     /**
      * @return array{User, Character}
      */
