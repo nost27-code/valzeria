@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-04-saku-exclusive-icon-020',
+        'date' => '2026-08-04',
+        'category' => 'internal',
+        'title' => 'さく専用の限定キャラアイコンを追加',
+        'detail' => 'さくさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-04-material-storage-purchase-limit-30',
         'date' => '2026-08-04',
         'category' => 'balance',
