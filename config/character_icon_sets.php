@@ -151,5 +151,41 @@ return [
                 'defeat' => '/images/chara/exclusive/exclusive_015/04_defeat.webp',
             ],
         ],
+        'exclusive_016' => [
+            'label' => '限定キャラアイコン #016',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_016/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_016/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_016/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_016/04_defeat.webp',
+            ],
+        ],
+        'exclusive_017' => [
+            'label' => '限定キャラアイコン #017',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_017/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_017/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_017/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_017/04_defeat.webp',
+            ],
+        ],
+        'exclusive_018' => [
+            'label' => '限定キャラアイコン #018',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_018/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_018/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_018/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_018/04_defeat.webp',
+            ],
+        ],
+        'exclusive_019' => [
+            'label' => '限定キャラアイコン #019',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_019/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_019/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_019/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_019/04_defeat.webp',
+            ],
+        ],
     ],
 ];

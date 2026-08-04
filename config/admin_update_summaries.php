@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-04-exclusive-icons-016-019-and-fuka-revision',
+        'date' => '2026-08-04',
+        'category' => 'internal',
+        'title' => '5名の限定キャラアイコンを追加・更新',
+        'detail' => '瞬舞・ハヤキ・グレイスベル・木焦の限定キャラアイコン4ポーズを追加し、ふーかの4ポーズを修正版へ更新しました。',
+    ],
+    [
         'id' => '2026-08-04-hero-trials-off-release',
         'date' => '2026-08-04',
         'category' => 'internal',
