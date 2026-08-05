@@ -45,7 +45,7 @@ class TavernNpcServiceTest extends TestCase
             $table->unique(['character_id', 'tavern_date', 'slot_no']);
         });
 
-        foreach ([1, 2, 3, 16] as $npcId) {
+        foreach ([1, 2, 3, 16, 17] as $npcId) {
             NpcMaster::create([
                 'npc_id' => $npcId,
                 'npc_name' => $npcId === 16 ? '砂読みのサーラ' : "冒険者{$npcId}",
@@ -89,12 +89,13 @@ class TavernNpcServiceTest extends TestCase
         $this->dailyNpc($character, $date, 1, 16);
         $this->dailyNpc($character, $date, 2, 1);
         $this->dailyNpc($character, $date, 3, 2);
-        $this->dailyNpc($character, $date, 4, 16);
+        $this->dailyNpc($character, $date, 4, 3);
+        $this->dailyNpc($character, $date, 5, 16);
 
         $npcs = app(TavernNpcService::class)->dailyNpcs($character);
 
-        $this->assertSame([16, 1, 2], $npcs->pluck('npc_id')->all());
-        $this->assertFalse($this->dailyNpcExists($character, $date, 4, 16));
+        $this->assertSame([16, 1, 2, 3], $npcs->pluck('npc_id')->all());
+        $this->assertFalse($this->dailyNpcExists($character, $date, 5, 16));
     }
 
     public function test_reunion_npc_is_added_when_not_already_in_today_tavern_slots(): void
@@ -109,6 +110,26 @@ class TavernNpcServiceTest extends TestCase
         app(TavernNpcService::class)->addTodayReunionNpc($character, NpcMaster::findOrFail(16));
 
         $this->assertTrue($this->dailyNpcExists($character, $date, 4, 16));
+    }
+
+    public function test_multiple_field_encounters_are_kept_in_reunion_slots(): void
+    {
+        $character = $this->character();
+        $date = now()->toDateString();
+        $service = app(TavernNpcService::class);
+
+        $this->dailyNpc($character, $date, 1, 1);
+        $this->dailyNpc($character, $date, 2, 2);
+        $this->dailyNpc($character, $date, 3, 3);
+        $service->addTodayReunionNpc($character, NpcMaster::findOrFail(16));
+        $service->addTodayReunionNpc($character, NpcMaster::findOrFail(17));
+
+        $npcs = $service->dailyNpcs($character);
+
+        $this->assertSame([16, 17], $npcs->slice(3)->pluck('npc_id')->all());
+        $this->assertTrue($this->dailyNpcExists($character, $date, 4, 16));
+        $this->assertTrue($this->dailyNpcExists($character, $date, 5, 17));
+        $this->assertTrue($service->isTodayReunionNpc($character, NpcMaster::findOrFail(17)));
     }
 
     private function character(): Character

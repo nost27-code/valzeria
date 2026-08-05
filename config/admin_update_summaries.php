@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-06-tavern-multiple-reunion-npcs',
+        'date' => '2026-08-06',
+        'category' => 'fixed',
+        'title' => '探索で出会った複数NPCの酒場再会を修正',
+        'detail' => '同じ日の探索で複数のNPCと出会った場合も、先に出会った相手が後の出会いで消えず、帰還後の酒場でそれぞれに話しかけられるよう修正しました。',
+    ],
+    [
         'id' => '2026-08-05-akatsuki-exclusive-icon-021',
         'date' => '2026-08-05',
         'category' => 'internal',

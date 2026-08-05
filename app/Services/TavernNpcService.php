@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 class TavernNpcService
 {
+    private const NORMAL_SLOT_MAX = 3;
+
+    private const FIRST_REUNION_SLOT = 4;
+
     public function visit(Character $character): PlayerTavernVisit
     {
         return DB::transaction(function () use ($character) {
@@ -40,8 +44,8 @@ class TavernNpcService
             ->orderBy('slot_no')
             ->get();
 
-        $normalSaved = $saved->filter(fn (PlayerTavernDailyNpc $dailyNpc): bool => (int) $dailyNpc->slot_no <= 3);
-        if ($normalSaved->count() >= 3) {
+        $normalSaved = $saved->filter(fn (PlayerTavernDailyNpc $dailyNpc): bool => (int) $dailyNpc->slot_no <= self::NORMAL_SLOT_MAX);
+        if ($normalSaved->count() >= self::NORMAL_SLOT_MAX) {
             return $saved->pluck('npc')->filter()->values();
         }
 
@@ -79,35 +83,52 @@ class TavernNpcService
         $date = now()->toDateString();
         $npcId = (int) $npc->npc_id;
 
-        $alreadyInTavern = PlayerTavernDailyNpc::where('character_id', $character->id)
-            ->whereDate('tavern_date', $date)
-            ->where('npc_id', $npcId)
-            ->exists();
-
-        if ($alreadyInTavern) {
-            PlayerTavernDailyNpc::where('character_id', $character->id)
+        DB::transaction(function () use ($character, $date, $npcId): void {
+            $saved = PlayerTavernDailyNpc::where('character_id', $character->id)
                 ->whereDate('tavern_date', $date)
-                ->where('slot_no', 4)
-                ->where('npc_id', $npcId)
-                ->delete();
-            return;
-        }
+                ->lockForUpdate()
+                ->orderBy('slot_no')
+                ->get();
 
-        PlayerTavernDailyNpc::updateOrCreate(
-            [
+            $normalContainsNpc = $saved->contains(
+                fn (PlayerTavernDailyNpc $dailyNpc): bool => (int) $dailyNpc->slot_no <= self::NORMAL_SLOT_MAX
+                    && (int) $dailyNpc->npc_id === $npcId
+            );
+
+            if ($normalContainsNpc) {
+                PlayerTavernDailyNpc::where('character_id', $character->id)
+                    ->whereDate('tavern_date', $date)
+                    ->where('slot_no', '>=', self::FIRST_REUNION_SLOT)
+                    ->where('npc_id', $npcId)
+                    ->delete();
+
+                return;
+            }
+
+            if ($saved->contains(fn (PlayerTavernDailyNpc $dailyNpc): bool => (int) $dailyNpc->npc_id === $npcId)) {
+                return;
+            }
+
+            $usedSlots = $saved->pluck('slot_no')->map(fn ($slotNo): int => (int) $slotNo)->all();
+            $reunionSlot = self::FIRST_REUNION_SLOT;
+            while (in_array($reunionSlot, $usedSlots, true)) {
+                $reunionSlot++;
+            }
+
+            PlayerTavernDailyNpc::create([
                 'character_id' => $character->id,
                 'tavern_date' => $date,
-                'slot_no' => 4,
-            ],
-            ['npc_id' => $npcId]
-        );
+                'slot_no' => $reunionSlot,
+                'npc_id' => $npcId,
+            ]);
+        });
     }
 
     public function isTodayReunionNpc(Character $character, NpcMaster $npc): bool
     {
         return PlayerTavernDailyNpc::where('character_id', $character->id)
             ->whereDate('tavern_date', now()->toDateString())
-            ->where('slot_no', 4)
+            ->where('slot_no', '>=', self::FIRST_REUNION_SLOT)
             ->where('npc_id', $npc->npc_id)
             ->exists();
     }
@@ -215,7 +236,7 @@ class TavernNpcService
     {
         $normalNpcIds = PlayerTavernDailyNpc::where('character_id', $character->id)
             ->whereDate('tavern_date', $date)
-            ->where('slot_no', '<=', 3)
+            ->where('slot_no', '<=', self::NORMAL_SLOT_MAX)
             ->pluck('npc_id')
             ->map(fn ($npcId): int => (int) $npcId)
             ->all();
@@ -226,7 +247,7 @@ class TavernNpcService
 
         PlayerTavernDailyNpc::where('character_id', $character->id)
             ->whereDate('tavern_date', $date)
-            ->where('slot_no', 4)
+            ->where('slot_no', '>=', self::FIRST_REUNION_SLOT)
             ->whereIn('npc_id', $normalNpcIds)
             ->delete();
     }
