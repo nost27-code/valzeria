@@ -35,6 +35,26 @@ class CheckCharacterSelected
             return redirect()->route('valmons.starter');
         }
 
+        $activeMapRegistration = app(\App\Services\MapExplorationItemService::class)
+            ->restoreActiveSession($character);
+        $allowedDuringMapExploration = [
+            'exploration-maps.explore',
+            'exploration.items.use',
+            'inventory.support-items.use',
+            'bug-reports.store',
+        ];
+        $isMapContinuation = $routeName === 'battle.explore'
+            && $request->boolean('continue_chain')
+            && (int) $request->route('area') === (int) ($activeMapRegistration?->map?->source_area_id ?? 0);
+        if ($activeMapRegistration
+            && !in_array($request->method(), ['GET', 'HEAD'], true)
+            && !$isMapContinuation
+            && !in_array($routeName, $allowedDuringMapExploration, true)) {
+            return redirect()
+                ->route('exploration-maps.published')
+                ->with('error', '探索中の地図を切り上げてから行ってください。');
+        }
+
         // オンライン状態を更新（1分以上経過していれば更新してDBへの書き込み頻度を抑える）
         if (!$character->last_seen_at || $character->last_seen_at->diffInSeconds(now()) >= 60) {
             $character->timestamps = false;

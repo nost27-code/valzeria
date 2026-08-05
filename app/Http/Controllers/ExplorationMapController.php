@@ -64,6 +64,7 @@ class ExplorationMapController extends Controller
     public function published()
     {
         $character = $this->character();
+        $activeRegistration = app(MapExplorationItemService::class)->restoreActiveSession($character);
         $sort = request()->string('sort')->toString();
         $sortOptions = [
             'recently_entered' => '最近探索した順',
@@ -100,6 +101,10 @@ class ExplorationMapController extends Controller
             ->latest('published_at')
             ->get();
 
+        if ($activeRegistration && !$published->contains('id', $activeRegistration->id)) {
+            $published->push($activeRegistration->loadMissing(['map.owner', 'town']));
+        }
+
         $enemyIds = $published
             ->flatMap(fn (TownMapRegistration $registration) => collect($registration->map->normal_monster_variants_json ?? [])->pluck('base_monster_id'))
             ->filter()
@@ -120,7 +125,7 @@ class ExplorationMapController extends Controller
             'character' => $character,
             'published' => $published,
             'mapDetails' => $mapDetails,
-            'activeRegistrationId' => (int) data_get(session('active_map_exploration'), 'registration_id', 0),
+            'activeRegistrationId' => (int) ($activeRegistration?->id ?? 0),
             'sort' => $sort,
             'sortOptions' => $sortOptions,
         ]);
@@ -208,12 +213,14 @@ class ExplorationMapController extends Controller
         try {
             $character = $this->character();
             $service = app(MapExplorationBatchService::class);
-            $activeMap = session('active_map_exploration');
-            $alreadyEntered = is_array($activeMap)
-                && (int) ($activeMap['registration_id'] ?? 0) === (int) $registration->id;
-            $execution = DB::transaction(function () use ($character, $registration, $request, $service, $alreadyEntered): array {
+            $itemService = app(MapExplorationItemService::class);
+            $activeRegistration = $itemService->restoreActiveSession($character);
+            if ($activeRegistration && (int) $activeRegistration->id !== (int) $registration->id) {
+                throw new \RuntimeException('別の地図を探索中です。現在の地図探索を切り上げてから入場してください。');
+            }
+            $alreadyEntered = (int) ($activeRegistration?->id ?? 0) === (int) $registration->id;
+            $execution = DB::transaction(function () use ($character, $registration, $request, $service, $itemService, $alreadyEntered): array {
                 $batch = $service->reserve($character, $registration, $request->integer('count'), $request->input('request_uuid') ?: (string) Str::uuid(), !$alreadyEntered);
-                $itemService = app(MapExplorationItemService::class);
                 if ((!$alreadyEntered && $batch->wasRecentlyCreated)
                     || ($alreadyEntered && !$itemService->hasEntry($character, (int) $registration->id))) {
                     $itemService->begin($character, $registration);

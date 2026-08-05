@@ -4,17 +4,23 @@ namespace Tests\Feature;
 
 use App\Models\Area;
 use App\Models\Character;
+use App\Models\CharacterMaterial;
 use App\Models\City;
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
 use App\Models\MapExplorationBatch;
+use App\Models\Material;
+use App\Models\PlayerValmon;
 use App\Models\TownMapRegistration;
 use App\Models\User;
+use App\Models\ValmonMaster;
 use App\Services\ExplorationMapDiscardService;
 use App\Services\ExplorationMapGenerator;
+use App\Services\MapExplorationItemService;
 use App\Services\MapPublicationService;
 use App\Services\MapSurveyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ExplorationMapLifecycleTest extends TestCase
@@ -224,6 +230,125 @@ class ExplorationMapLifecycleTest extends TestCase
         app(ExplorationMapDiscardService::class)->discard($character, $map);
     }
 
+    public function test_home_restores_an_active_map_entry_from_the_database(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $this->grantStarterValmon($character);
+        $map = $this->generateMap($character, $area, $enemy, 35);
+        $registration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $map, $city),
+            0,
+        );
+        app(MapExplorationItemService::class)->begin($character, $registration);
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('home'))
+            ->assertRedirect(route('exploration-maps.published'))
+            ->assertSessionHas('message', '探索中の地図へ戻りました。')
+            ->assertSessionHas('active_map_exploration.registration_id', $registration->id);
+
+        $this->get(route('exploration-maps.published'))
+            ->assertOk()
+            ->assertSee('この地図を探索中です')
+            ->assertSee('地図探索を切り上げる');
+    }
+
+    public function test_active_map_entry_blocks_inventory_mutations_until_returning(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $this->grantStarterValmon($character);
+        $map = $this->generateMap($character, $area, $enemy, 36);
+        $registration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $map, $city),
+            0,
+        );
+        app(MapExplorationItemService::class)->begin($character, $registration);
+        $material = Material::query()->firstOrFail();
+        $owned = CharacterMaterial::query()->create([
+            'character_id' => $character->id,
+            'material_id' => $material->id,
+            'quantity' => 3,
+        ]);
+        $moneyBefore = (int) $character->fresh()->money;
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('inventory.sell'), [
+                'character_material_id' => $owned->id,
+                'quantity' => 1,
+            ])
+            ->assertRedirect(route('exploration-maps.published'))
+            ->assertSessionHas('error', '探索中の地図を切り上げてから行ってください。');
+
+        $this->assertSame(3, (int) $owned->fresh()->quantity);
+        $this->assertSame($moneyBefore, (int) $character->fresh()->money);
+
+        $this->post(route('battle.explore', $area))
+            ->assertRedirect(route('exploration-maps.published'))
+            ->assertSessionHas('error', '探索中の地図を切り上げてから行ってください。');
+
+        $this->assertTrue(app(MapExplorationItemService::class)->hasEntry($character, $registration->id));
+    }
+
+    public function test_active_map_entry_cannot_be_replaced_by_another_map(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $this->grantStarterValmon($character);
+        $firstMap = $this->generateMap($character, $area, $enemy, 37);
+        $secondMap = $this->generateMap($character, $area, $enemy, 38);
+        $firstRegistration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $firstMap, $city),
+            0,
+        );
+        $secondRegistration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $secondMap, $city),
+            0,
+        );
+        app(MapExplorationItemService::class)->begin($character, $firstRegistration);
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('exploration-maps.published'))
+            ->post(route('exploration-maps.explore', $secondRegistration), [
+                'count' => 1,
+                'request_uuid' => (string) Str::uuid(),
+            ])
+            ->assertRedirect(route('exploration-maps.published'))
+            ->assertSessionHas('error', '別の地図を探索中です。現在の地図探索を切り上げてから入場してください。');
+
+        $this->assertTrue(app(MapExplorationItemService::class)->hasEntry($character, $firstRegistration->id));
+        $this->assertFalse(app(MapExplorationItemService::class)->hasEntry($character, $secondRegistration->id));
+        $this->assertSame(0, MapExplorationBatch::query()->count());
+    }
+
+    public function test_active_map_entry_can_continue_through_the_battle_route(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $this->grantStarterValmon($character);
+        $map = $this->generateMap($character, $area, $enemy, 39);
+        $registration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $map, $city),
+            0,
+        );
+        app(MapExplorationItemService::class)->begin($character, $registration);
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('battle.explore', $area), [
+                'continue_chain' => true,
+                'batch_count' => 1,
+            ])
+            ->assertRedirect(route('battle.result'));
+
+        $this->assertTrue(app(MapExplorationItemService::class)->hasEntry($character, $registration->id));
+    }
+
     public function test_invalid_map_seed_does_not_consume_exploration_count(): void
     {
         [$character, $city, $area, $enemy] = $this->mapContext();
@@ -266,5 +391,21 @@ class ExplorationMapLifecycleTest extends TestCase
     private function generateMap(Character $character, Area $area, Enemy $enemy, int $sequence): ExplorationMap
     {
         return app(ExplorationMapGenerator::class)->generate($character, $area, $enemy, sprintf('00000000-0000-4000-8000-%012d', $sequence));
+    }
+
+    private function grantStarterValmon(Character $character): void
+    {
+        $master = ValmonMaster::query()->create([
+            'valmon_key' => 'map-lifecycle-' . $character->id,
+            'name' => '地図試験ヴァルモン',
+            'rarity' => 'normal',
+            'is_active' => true,
+        ]);
+        PlayerValmon::query()->create([
+            'character_id' => $character->id,
+            'valmon_master_id' => $master->id,
+            'is_partner' => true,
+            'obtained_at' => now(),
+        ]);
     }
 }

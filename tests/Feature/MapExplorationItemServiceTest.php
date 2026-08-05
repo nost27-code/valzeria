@@ -40,9 +40,15 @@ class MapExplorationItemServiceTest extends TestCase
         $service->begin($character, $registration);
         $herbCarry = collect($service->carriedItems($character, $registration->id))->firstWhere('name', '薬草');
 
+        session()->forget('active_map_exploration');
+        $restoredRegistration = $service->restoreActiveSession($character);
+
         $this->assertSame(10, $herbCarry['carried_count']);
         $this->assertSame(10, $herbCarry['available_count']);
         $this->assertSame(12, CharacterItem::where('character_id', $character->id)->where('item_id', $herb->id)->count());
+        $this->assertSame($registration->id, $restoredRegistration?->id);
+        $this->assertSame($registration->id, (int) session('active_map_exploration.registration_id'));
+        $this->assertSame($area->id, (int) session('active_map_exploration.area_id'));
 
         $maxHp = (int) app(\App\Services\CharacterStatusService::class)->getFinalStats($character)['max_hp'];
         $result = $service->use($character, $herb, $registration->id);

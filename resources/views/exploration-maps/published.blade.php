@@ -1,4 +1,4 @@
-<x-layouts.facility title="公開地図" headerIcon="🗺️" :showGameHeader="true" :exitUrl="route('home')" exitLabel="探索へ戻る">
+<x-layouts.facility title="公開地図" headerIcon="🗺️" :showGameHeader="true" :exitUrl="$activeRegistrationId > 0 ? route('exploration-maps.leave') : route('home')" :exitLabel="$activeRegistrationId > 0 ? '地図探索を切り上げる' : '探索へ戻る'">
     <div class="mx-auto max-w-6xl space-y-5">
         <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
             <h2 class="font-black text-indigo-950">地図院で公開された地図</h2>

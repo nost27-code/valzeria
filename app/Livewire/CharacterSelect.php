@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Character;
 use App\Services\ExplorationStateService;
+use App\Services\MapExplorationItemService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -50,13 +51,18 @@ class CharacterSelect extends Component
 
     private function initialLocationFor(Character $character): string
     {
-        return app(ExplorationStateService::class)->hasActiveExploration($character)
+        return app(MapExplorationItemService::class)->activeRegistration($character)
+            || app(ExplorationStateService::class)->hasActiveExploration($character)
             ? 'dungeon'
             : 'home';
     }
 
     private function initialRouteFor(Character $character): string
     {
+        if (app(MapExplorationItemService::class)->restoreActiveSession($character)) {
+            return 'exploration-maps.published';
+        }
+
         return app(ExplorationStateService::class)->hasActiveExploration($character)
             ? 'battle.resume'
             : 'home';

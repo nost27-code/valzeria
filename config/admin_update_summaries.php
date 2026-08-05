@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-05-map-exploration-resume-loot-guard',
+        'date' => '2026-08-05',
+        'category' => 'fixed',
+        'title' => '公開地図の中断復帰と戦利品保護を修正',
+        'detail' => '公開地図の探索中にブラウザを閉じても、次回は地図院へ戻って追加料金なしで再開できるようにしました。探索を切り上げるまでは、探索中に得た素材・装備を売却や餌などへ使用できません。',
+    ],
+    [
         'id' => '2026-08-05-equipment-book-release',
         'date' => '2026-08-05',
         'category' => 'added',

@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Services\ExplorationStateService;
 use App\Services\HomeActionService;
+use App\Services\MapExplorationItemService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -49,9 +50,21 @@ class MainScreenShell extends Component
             return;
         }
 
+        $activeMapRegistration = $this->character
+            ? app(MapExplorationItemService::class)->restoreActiveSession($this->character)
+            : null;
+        if ($activeMapRegistration
+            && request()->routeIs('home')
+            && !request()->hasHeader('X-Livewire')) {
+            session()->flash('message', '探索中の地図へ戻りました。');
+            $this->redirectRoute('exploration-maps.published', navigate: false);
+
+            return;
+        }
+
         $hasActiveExploration = $this->character
             && app(ExplorationStateService::class)->hasActiveExploration($this->character);
-        $defaultLocation = $hasActiveExploration ? 'dungeon' : 'home';
+        $defaultLocation = ($activeMapRegistration || $hasActiveExploration) ? 'dungeon' : 'home';
 
         if ($hasActiveExploration
             && request()->routeIs('home')
@@ -63,7 +76,7 @@ class MainScreenShell extends Component
         }
 
         $this->currentLocation = $this->normalizeLocation(session('current_location', $defaultLocation));
-        if ($hasActiveExploration && $this->currentLocation === 'home') {
+        if (($activeMapRegistration || $hasActiveExploration) && $this->currentLocation === 'home') {
             $this->currentLocation = 'dungeon';
         }
         $this->initialLocation = $this->currentLocation;

@@ -70,6 +70,40 @@ class MapExplorationItemService
             ->exists();
     }
 
+    /**
+     * ブラウザセッションが失われても復帰できるよう、DBに残る持ち込み記録から
+     * 現在入場中の公開地図を取得する。
+     */
+    public function activeRegistration(Character $character): ?TownMapRegistration
+    {
+        return MapExplorationItemCarry::query()
+            ->with('registration.map')
+            ->where('character_id', $character->id)
+            ->latest('id')
+            ->first()
+            ?->registration;
+    }
+
+    /**
+     * DB上の入場状態を、継続探索で使うセッションへ復元する。
+     */
+    public function restoreActiveSession(Character $character): ?TownMapRegistration
+    {
+        $registration = $this->activeRegistration($character);
+        if (!$registration?->map) {
+            session()->forget('active_map_exploration');
+
+            return null;
+        }
+
+        session(['active_map_exploration' => [
+            'registration_id' => (int) $registration->id,
+            'area_id' => (int) $registration->map->source_area_id,
+        ]]);
+
+        return $registration;
+    }
+
     public function entryStartedAt(Character $character, int $registrationId): ?\DateTimeInterface
     {
         return MapExplorationItemCarry::query()
