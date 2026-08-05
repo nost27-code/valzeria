@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-06-namaenai-exclusive-icon-022',
+        'date' => '2026-08-06',
+        'category' => 'internal',
+        'title' => '名ぇ無ナイ専用の限定キャラアイコンを追加',
+        'detail' => '名ぇ無ナイさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-06-tavern-multiple-reunion-npcs',
         'date' => '2026-08-06',
         'category' => 'fixed',
