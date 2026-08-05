@@ -33,6 +33,7 @@ class ReleaseReadinessService
             'star_tree_tower' => $this->starTreeTowerIssues(),
             'ferdia_unlocked' => $this->ferdiaIssues(),
             'exploration_support' => $this->explorationSupportIssues(),
+            'equipment_book' => $this->equipmentBookIssues(),
             'character_icon_design' => $this->characterIconDesignIssues(),
             'hero_trials' => $this->heroTrialIssues(),
             default => ["未対応の追加コンテンツです: {$contentKey}"],
@@ -189,6 +190,16 @@ class ReleaseReadinessService
             'character_icon_design_messages',
             'character_icon_design_message_attachments',
             'character_icon_entitlements',
+        ]);
+    }
+
+    /** @return array<int, string> */
+    private function equipmentBookIssues(): array
+    {
+        return $this->missingTables([
+            'character_equipment_discoveries',
+            'items',
+            'weapon_evolution_recipes',
         ]);
     }
 

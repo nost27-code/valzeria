@@ -57,6 +57,11 @@ class ReleaseReadinessServiceTest extends TestCase
         $this->assertSame([], app(ReleaseReadinessService::class)->contentIssues('hero_trials'));
     }
 
+    public function test_equipment_book_release_readiness_passes_with_required_tables(): void
+    {
+        $this->assertSame([], app(ReleaseReadinessService::class)->contentIssues('equipment_book'));
+    }
+
     public function test_hero_trial_release_readiness_reports_a_missing_trial_area(): void
     {
         DB::table('areas')->where('id', 84)->delete();
