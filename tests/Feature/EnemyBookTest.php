@@ -12,8 +12,10 @@ use App\Models\PlayerValmon;
 use App\Models\User;
 use App\Models\ValmonMaster;
 use App\Services\BattleLogService;
+use App\Services\EnemyBookService;
 use App\Services\EnemyDiscoveryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class EnemyBookTest extends TestCase
@@ -66,6 +68,8 @@ class EnemyBookTest extends TestCase
             ->assertSee('grid grid-cols-2', false)
             ->assertSee('h-[47%]', false)
             ->assertSee('absolute left-0 top-0', false)
+            ->assertSee('returning = true', false)
+            ->assertSee(':aria-busy="returning"', false)
             ->assertSee('px-14 text-center', false)
             ->assertSee('h-dvh overflow-hidden', false)
             ->assertSee('grid grid-cols-7 gap-1', false)
@@ -199,6 +203,69 @@ class EnemyBookTest extends TestCase
             'character_id' => $character->id,
             'enemy_id' => $specialEventSource->id,
         ]);
+    }
+
+    public function test_same_area_and_name_enemy_rows_share_one_book_entry_and_defeat_history(): void
+    {
+        [, $character] = $this->player();
+        $area = $this->area();
+        $canonical = $this->enemy($area, '重複ボス');
+        $canonical->update(['is_boss' => true]);
+        $legacy = $canonical->replicate();
+        $legacy->save();
+
+        CharacterEnemyDiscovery::query()->create([
+            'character_id' => $character->id,
+            'enemy_id' => $canonical->id,
+            'first_encountered_at' => now()->subDays(2),
+            'defeat_count' => 0,
+        ]);
+        CharacterEnemyDiscovery::query()->create([
+            'character_id' => $character->id,
+            'enemy_id' => $legacy->id,
+            'first_encountered_at' => now()->subDay(),
+            'first_defeated_at' => now()->subHour(),
+            'last_defeated_at' => now()->subHour(),
+            'defeat_count' => 2,
+        ]);
+
+        $service = app(EnemyBookService::class);
+        $book = $service->bookFor($character);
+        $entries = collect($book['entries'])->where('name', '重複ボス')->values();
+        $entry = $entries->sole();
+
+        $this->assertCount(1, $entries);
+        $this->assertSame('defeated', $entry['state']);
+        $this->assertSame($canonical->id, $entry['id']);
+        $this->assertSame('defeated', $service->detailFor($character, $canonical)['state']);
+        $this->assertSame(2, $service->detailFor($character, $canonical)['defeat_count']);
+    }
+
+    public function test_cleared_area_marks_boss_defeated_when_old_battle_log_is_missing(): void
+    {
+        [, $character] = $this->player();
+        $area = $this->area();
+        $boss = $this->enemy($area, '攻略記録だけが残るボス');
+        $boss->update(['is_boss' => true]);
+
+        DB::table('character_area_progresses')->insert([
+            'character_id' => $character->id,
+            'area_id' => $area->id,
+            'is_unlocked' => true,
+            'boss_defeated' => true,
+            'boss_defeated_at' => now()->subMonth(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(EnemyBookService::class);
+        $book = $service->bookFor($character);
+        $detail = $service->detailFor($character, $boss);
+
+        $this->assertSame('defeated', collect($book['entries'])->firstWhere('name', '攻略記録だけが残るボス')['state']);
+        $this->assertSame('defeated', $detail['state']);
+        $this->assertSame(1, $detail['defeat_count']);
+        $this->assertTrue($detail['details_unlocked']);
     }
 
     public function test_discovery_service_keeps_first_encounter_and_increments_defeats(): void

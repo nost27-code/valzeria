@@ -17,6 +17,7 @@ class EnemyBookService
     public function bookFor(Character $character): array
     {
         $discoveries = $this->discoveriesFor($character);
+        $bossClearedAreaIds = $this->bossClearedAreaIds($character);
         $enemies = Enemy::query()
             ->join('areas', 'areas.id', '=', 'enemies.area_id')
             ->where('areas.is_published', true)
@@ -29,9 +30,14 @@ class EnemyBookService
             ->orderBy('enemies.id')
             ->get();
 
-        $entries = $enemies->values()->map(function (Enemy $enemy, int $index) use ($discoveries): array {
-            $discovery = $discoveries->get((int) $enemy->id);
-            $state = $this->stateFor($discovery);
+        $enemyGroups = $enemies
+            ->groupBy(fn (Enemy $enemy): string => $this->enemySignature($enemy))
+            ->values();
+
+        $entries = $enemyGroups->map(function (Collection $enemyGroup, int $index) use ($discoveries, $bossClearedAreaIds): array {
+            /** @var Enemy $enemy */
+            $enemy = $enemyGroup->first();
+            $state = $this->stateForGroup($enemyGroup, $discoveries, $bossClearedAreaIds);
             $imagePath = $state !== 'undiscovered' ? $this->imagePathFor($enemy) : null;
 
             return [
@@ -67,21 +73,29 @@ class EnemyBookService
 
     public function detailFor(Character $character, Enemy $enemy): array
     {
-        $discovery = Schema::hasTable(EnemyDiscoveryService::TABLE)
-            ? CharacterEnemyDiscovery::query()
-                ->where('character_id', $character->id)
-                ->where('enemy_id', $enemy->id)
-                ->first()
-            : null;
-        $state = $this->stateFor($discovery);
+        $enemyAliases = Enemy::query()
+            ->where('area_id', $enemy->area_id)
+            ->where('name', $enemy->name)
+            ->where('is_boss', (bool) $enemy->is_boss)
+            ->orderBy('id')
+            ->get();
+        $discoveries = $this->discoveriesFor($character);
+        $bossClearedAreaIds = $this->bossClearedAreaIds($character);
+        $state = $this->stateForGroup($enemyAliases, $discoveries, $bossClearedAreaIds);
         $imagePath = $state !== 'undiscovered' ? $this->imagePathFor($enemy) : null;
+        $defeatCount = $enemyAliases->sum(
+            fn (Enemy $alias): int => (int) ($discoveries->get((int) $alias->id)?->defeat_count ?? 0)
+        );
+        if ($state === 'defeated' && (bool) $enemy->is_boss) {
+            $defeatCount = max(1, $defeatCount);
+        }
 
         $base = [
             'id' => (int) $enemy->id,
             'state' => $state,
             'name' => $state === 'undiscovered' ? '？？？' : (string) $enemy->name,
             'image_url' => $imagePath ? asset($imagePath) : null,
-            'defeat_count' => (int) ($discovery?->defeat_count ?? 0),
+            'defeat_count' => $defeatCount,
         ];
 
         if ($state === 'undiscovered') {
@@ -140,13 +154,47 @@ class EnemyBookService
             ->keyBy(fn (CharacterEnemyDiscovery $discovery): int => (int) $discovery->enemy_id);
     }
 
-    private function stateFor(?CharacterEnemyDiscovery $discovery): string
+    private function bossClearedAreaIds(Character $character): Collection
     {
-        if ($discovery?->first_defeated_at !== null) {
+        if (! Schema::hasTable('character_area_progresses')) {
+            return collect();
+        }
+
+        return DB::table('character_area_progresses')
+            ->where('character_id', $character->id)
+            ->where('boss_defeated', true)
+            ->pluck('area_id')
+            ->map(fn ($areaId): int => (int) $areaId);
+    }
+
+    private function stateForGroup(Collection $enemies, Collection $discoveries, Collection $bossClearedAreaIds): string
+    {
+        $groupDiscoveries = $enemies
+            ->map(fn (Enemy $enemy) => $discoveries->get((int) $enemy->id))
+            ->filter();
+        /** @var Enemy|null $enemy */
+        $enemy = $enemies->first();
+
+        if ($groupDiscoveries->contains(
+            fn (CharacterEnemyDiscovery $discovery): bool => $discovery->first_defeated_at !== null
+        )) {
             return 'defeated';
         }
 
-        return $discovery ? 'encountered' : 'undiscovered';
+        if ($enemy && (bool) $enemy->is_boss && $bossClearedAreaIds->contains((int) $enemy->area_id)) {
+            return 'defeated';
+        }
+
+        return $groupDiscoveries->isNotEmpty() ? 'encountered' : 'undiscovered';
+    }
+
+    private function enemySignature(Enemy $enemy): string
+    {
+        return implode(':', [
+            (int) $enemy->area_id,
+            (bool) $enemy->is_boss ? 'boss' : 'normal',
+            trim((string) $enemy->name),
+        ]);
     }
 
     private function imagePathFor(Enemy $enemy): ?string

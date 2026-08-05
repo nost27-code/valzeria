@@ -21,6 +21,7 @@
             search: '',
             selected: @js($initialDetail),
             loading: false,
+            returning: false,
             detailBaseUrl: @js(url('/enemy-book')),
             applyFilters() {
                 const query = this.search.trim().toLocaleLowerCase();
@@ -70,7 +71,20 @@
         <div class="flex h-[47%] min-h-0 shrink-0 flex-col gap-2">
             <section class="shrink-0 rounded-xl border border-[#d8a928]/55 bg-white px-3 py-2 shadow-sm sm:px-4">
                 <div class="relative border-b border-[#d8a928]/20 pb-1.5">
-                    <a href="{{ route('home') }}" class="absolute left-0 top-0 text-xs font-black text-slate-500 hover:text-amber-700">← 戻る</a>
+                    <a
+                        href="{{ route('home') }}"
+                        @click="if (!$event.defaultPrevented && !$event.metaKey && !$event.ctrlKey && !$event.shiftKey && $event.button === 0) returning = true"
+                        :class="returning ? 'pointer-events-none bg-amber-100 text-amber-800' : ''"
+                        :aria-busy="returning"
+                        class="absolute left-0 top-0 inline-flex min-h-7 items-center gap-1 rounded-md px-2 text-xs font-black text-slate-500 transition duration-150 hover:bg-amber-50 hover:text-amber-700 active:scale-95 active:bg-amber-100 active:text-amber-800"
+                    >
+                        <span x-show="!returning">←</span>
+                        <svg x-show="returning" style="display: none;" class="h-3 w-3 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                        </svg>
+                        <span>戻る</span>
+                    </a>
                     <div class="mx-auto min-w-0 px-14 text-center">
                         <p class="text-[7px] font-black tracking-[0.24em] text-[#b78316]">ENEMY ARCHIVE</p>
                         <h2 class="truncate text-lg font-black leading-tight text-slate-950">エネミー図鑑</h2>
