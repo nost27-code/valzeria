@@ -18,6 +18,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\JobArtController;
 use App\Http\Controllers\MarketController;
 use App\Http\Controllers\EquipmentMarketController;
+use App\Http\Controllers\EnemyBookController;
 use App\Http\Controllers\PlayerShopController;
 use App\Http\Controllers\NpcProcurementRequestController;
 use App\Http\Controllers\ProfileController;
@@ -344,6 +345,8 @@ Route::middleware('auth')->group(function () {
         // 印図鑑
         Route::get('/monster-marks', [\App\Http\Controllers\MonsterMarkController::class, 'index'])->name('monster-marks.index');
         Route::get('/item-book', [\App\Http\Controllers\ItemBookController::class, 'index'])->name('item-book.index');
+        Route::get('/enemy-book', [EnemyBookController::class, 'index'])->name('enemy-book.index');
+        Route::get('/enemy-book/{enemy}', [EnemyBookController::class, 'show'])->name('enemy-book.show');
 
         // 能力割振り
         Route::get('/bonus-points', [\App\Http\Controllers\BonusPointController::class, 'index'])->name('bonus-points.index');

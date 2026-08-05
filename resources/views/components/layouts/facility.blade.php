@@ -21,6 +21,9 @@
     'pageBgOverlay' => 'bg-black/50',
     'showGameHeader' => false,
     'gameHeaderShowCityPanel' => true,
+    'showFacilityHeader' => true,
+    'mainContentClass' => null,
+    'lockViewport' => false,
 ])
 
 <!DOCTYPE html>
@@ -73,7 +76,7 @@
     @php
         $bodyStyle = $pageBackgroundStyle ?? '';
     @endphp
-    <body class="relative font-sans antialiased {{ $pageBgImage ? '' : $pageBackgroundClass }} text-slate-800 min-h-screen flex flex-col overflow-x-hidden" @if($bodyStyle) style="{{ $bodyStyle }}" @endif>
+    <body class="relative flex flex-col font-sans antialiased {{ $pageBgImage ? '' : $pageBackgroundClass }} text-slate-800 {{ $lockViewport ? 'h-dvh overflow-hidden' : 'min-h-screen overflow-x-hidden' }}" @if($bodyStyle) style="{{ $bodyStyle }}" @endif>
         @if($pageBgImage)
             <img
                 src="{{ asset($pageBgImage) }}"
@@ -128,7 +131,8 @@
                 >
             </div>
         @endif
-        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $isBattleResult ? 'pt-4' : 'pt-6' }} w-full">
+        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $showFacilityHeader ? ($isBattleResult ? 'pt-4' : 'pt-6') : '' }} w-full">
+            @if($showFacilityHeader)
             <!-- 施設ヘッダーブロック -->
             <div class="relative bg-white rounded-lg shadow-md border-t-4 {{ $headerBorderClass ?? ($isBattleResult ? 'border-red-600' : 'border-[#003366]') }} overflow-hidden {{ $isBattleResult ? 'mb-1' : 'mb-2' }}" @if($headerShellStyle) style="{{ $headerShellStyle }}" @endif>
                 @php
@@ -175,6 +179,7 @@
                     
                 </div>
             </div>
+            @endif
         </div>
 
         <!-- フラッシュメッセージ -->
@@ -202,7 +207,7 @@
         @endif
 
         <!-- メインコンテンツ -->
-        <div class="relative z-10 flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 {{ $isBattleResult ? 'py-2' : 'py-8' }} w-full">
+        <div class="relative z-10 mx-auto w-full max-w-7xl flex-grow px-4 sm:px-6 lg:px-8 {{ $mainContentClass ?? ($isBattleResult ? 'py-2' : 'py-8') }}">
             @if($showExit && !$isBattleResult)
                 <!-- 退出リンク (左上) -->
                 <div class="mb-4">

@@ -732,6 +732,7 @@ class MainScreen extends Component
             ['group' => '装備', 'name' => '装備変更', 'icon_image' => 'icon/icon_006.webp', 'icon' => '🗡️', 'desc' => '装備・保護・倉庫・売却を行う', 'action' => '開く', 'route' => 'equipment.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '育成', 'name' => '神殿', 'icon_image' => 'facilities/facility_temple.webp', 'icon' => '⛪', 'desc' => '職業変更と職業ランクを確認する', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '記録', 'name' => 'アイテム図鑑', 'icon_image' => 'icon/icon_241.webp', 'icon' => '📖', 'desc' => '素材の入手方法・作り方・用途を確認する', 'action' => '見る', 'route' => 'item-book.index', 'is_post' => false, 'status' => 'active'],
+            ['group' => '記録', 'name' => 'エネミー図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '発見・討伐した敵の姿と記録を確認する', 'action' => '見る', 'route' => 'enemy-book.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '記録', 'name' => '印図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'action' => '見る', 'route' => 'monster-marks.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '育成', 'name' => 'ヴァルモン牧場', 'icon_image' => 'icon/icon_038.webp', 'icon' => '🥚', 'desc' => '相棒ヴァルモンを確認・育成する', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false, 'status' => 'active'],
             ['group' => '記録', 'name' => '番付掲示板', 'icon_image' => 'icon/icon_223.webp', 'icon' => '📊', 'desc' => '冒険者たちの各種番付を確認する', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false, 'status' => 'active'],
@@ -778,6 +779,7 @@ class MainScreen extends Component
             ['group' => '育成', 'name' => '能力割振り', 'icon_image' => 'menu/menu_bonus_points.webp', 'icon' => '✦', 'desc' => '未使用BPを使って能力を伸ばす', 'route' => 'bonus-points.index', 'status' => 'active'],
             ['group' => '育成', 'name' => '奥義', 'icon_image' => 'icon/icon_041.webp', 'icon' => '✦', 'desc' => '習得した奥義を最大3つまでセットする', 'route' => 'job-arts.index', 'status' => 'active'],
             ['group' => '記録', 'name' => 'アイテム図鑑', 'icon_image' => 'icon/icon_241.webp', 'icon' => '📖', 'desc' => '素材の入手方法・作り方・用途を確認する', 'route' => 'item-book.index', 'status' => 'active'],
+            ['group' => '記録', 'name' => 'エネミー図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '発見・討伐した敵の姿と記録を確認する', 'route' => 'enemy-book.index', 'status' => 'active'],
             ['group' => '記録', 'name' => '印図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'route' => 'monster-marks.index', 'status' => 'active'],
             ['group' => '記録', 'name' => '称号', 'icon_image' => 'icon/icon_242.webp', 'icon' => '🏷️', 'desc' => '獲得した称号を確認する', 'route' => 'titles.index', 'status' => 'active'],
             ['group' => '育成', 'name' => 'ヴァルモン', 'icon_image' => 'menu/menu_valmon.webp', 'icon' => '🥚', 'desc' => '相棒ヴァルモンの確認・育成を行う', 'route' => 'valmons.index', 'status' => 'active'],
@@ -896,6 +898,7 @@ class MainScreen extends Component
             ['category' => '育成', 'name' => 'ヴァルモン牧場', 'symbol_image' => 'facilities/facility_valmon_farm_300.webp', 'desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'details' => ['探索補助', '図鑑'], 'bg_image' => 'facilities/valfarm.webp', 'status' => 'active', 'action' => '見る', 'route' => 'valmons.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [
                 ['category' => '記録', 'name' => 'アイテム図鑑', 'symbol_image' => 'icon/icon_241.webp', 'desc' => '素材の入手方法・作り方・用途を確認する', 'details' => ['未所持も表示', '作り方確認'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '見る', 'route' => 'item-book.index', 'is_post' => false],
+                ['category' => '記録', 'name' => 'エネミー図鑑', 'symbol_image' => 'icon/icon_240.webp', 'desc' => '発見・討伐した敵の姿と記録を確認する', 'details' => ['発見記録', '討伐情報'], 'bg_image' => 'facilities/item.webp', 'status' => 'active', 'action' => '見る', 'route' => 'enemy-book.index', 'is_post' => false],
             ] : []),
             ['category' => '育成', 'name' => '神殿', 'symbol_image' => 'facilities/facility_temple.webp', 'desc' => '職業変更と職業ランクを確認する', 'details' => ['転職', '職業ランク'], 'bg_image' => 'facilities/01_転職所.webp', 'status' => 'active', 'action' => '入る', 'route' => 'jobs.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [

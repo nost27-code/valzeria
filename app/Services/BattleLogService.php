@@ -14,7 +14,7 @@ class BattleLogService
      *                                            weapon_rank, pre_equipment_main_stat, has_engraving, has_slayer,
      *                                            enemy_hp_multiplier, enemy_def_spr_multiplier, enemy_atk_mag_multiplier
      */
-    public function addLog(Character $character, int $areaId, int $enemyId, string $battleType, string $result, int $expGained, int $goldGained, int $jobExpGained, int $levelUpCount, string $logText, ?int $droppedItemId = null, ?int $droppedCharacterItemId = null, int $goldLost = 0, array $telemetry = []): BattleLog
+    public function addLog(Character $character, int $areaId, int $enemyId, string $battleType, string $result, int $expGained, int $goldGained, int $jobExpGained, int $levelUpCount, string $logText, ?int $droppedItemId = null, ?int $droppedCharacterItemId = null, int $goldLost = 0, array $telemetry = [], bool $recordEnemyDiscovery = true): BattleLog
     {
         $allowedTelemetryKeys = [
             'turn_count', 'damage_dealt', 'damage_taken', 'start_hp', 'end_hp',
@@ -40,6 +40,14 @@ class BattleLogService
         ]);
 
         app(PlayerLifecycleEventService::class)->recordFirstBattle($character, $result);
+
+        if ($recordEnemyDiscovery) {
+            try {
+                app(EnemyDiscoveryService::class)->recordBattle((int) $character->id, $enemyId, $result);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return $log;
     }

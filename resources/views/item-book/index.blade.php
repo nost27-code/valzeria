@@ -11,6 +11,13 @@
             category: 'all',
             ownership: 'all',
             search: '',
+            init() {
+                const anchorId = window.location.hash.replace(/^#/, '');
+
+                if (anchorId.startsWith('item-book-material-')) {
+                    this.jumpToMaterial(anchorId);
+                }
+            },
             jumpToMaterial(anchorId) {
                 this.category = 'all';
                 this.ownership = 'all';

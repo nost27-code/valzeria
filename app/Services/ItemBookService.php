@@ -24,6 +24,15 @@ class ItemBookService
         'WEV0032',
     ];
 
+    public static function materialAnchorId(?string $materialCode): ?string
+    {
+        $materialCode = trim((string) $materialCode);
+
+        return $materialCode === ''
+            ? null
+            : 'item-book-material-' . preg_replace('/[^A-Za-z0-9_-]+/', '-', $materialCode);
+    }
+
     private const PLANNED_CITY_RECONSTRUCTION_USE = '街の復興に使う予定です（復興機能は未実装）。';
 
     private const HIDDEN_MATERIAL_TYPES = [
@@ -97,7 +106,7 @@ class ItemBookService
 
                 return [
                     'code' => $code,
-                    'anchor_id' => 'item-book-material-' . preg_replace('/[^A-Za-z0-9_-]+/', '-', $code),
+                    'anchor_id' => self::materialAnchorId($code),
                     'name' => $material->displayName(),
                     'raw_name' => (string) $material->name,
                     ...$displayMeta,
@@ -420,9 +429,7 @@ class ItemBookService
                 'required' => (int) ($source['required'] ?? 0),
                 'owned' => (int) ($source['owned'] ?? 0),
                 'icon_image' => $source['icon_image'] ?? null,
-                'anchor_id' => ! empty($source['material_code'])
-                    ? 'item-book-material-' . preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) $source['material_code'])
-                    : null,
+                'anchor_id' => self::materialAnchorId($source['material_code'] ?? null),
             ])->all(),
         ];
     }
