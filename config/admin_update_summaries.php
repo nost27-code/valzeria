@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-05-equipment-book-release',
+        'date' => '2026-08-05',
+        'category' => 'added',
+        'title' => '武器の進化系譜を見られる装備図鑑を公開',
+        'detail' => '冒険者タブの「記録」に装備図鑑を追加しました。入手した武器と進化先を系譜で確認でき、武器を押すと大きな画像と性能を表示します。防具図鑑は専用画像が揃うまで準備中です。',
+    ],
+    [
         'id' => '2026-08-05-enemy-book-duplicate-history-fix',
         'date' => '2026-08-05',
         'category' => 'fixed',

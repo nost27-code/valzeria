@@ -26,6 +26,14 @@ return [
             'default_enabled' => true,
             'setting_label' => '探索補助品 公開状態',
         ],
+        'equipment_book' => [
+            'name' => '装備図鑑',
+            'category' => '追加機能',
+            'description' => '武器の発見記録と進化系譜を公開します。防具図鑑は準備中です。OFF中は街の導線と直URLの両方から利用できません。',
+            'route' => 'equipment-book.index',
+            'default_enabled' => true,
+            'setting_label' => '装備図鑑 公開状態',
+        ],
         'character_icon_design' => [
             'name' => 'キャラアイコン制作',
             'category' => '追加機能',

@@ -345,6 +345,7 @@ Route::middleware('auth')->group(function () {
         // 印図鑑
         Route::get('/monster-marks', [\App\Http\Controllers\MonsterMarkController::class, 'index'])->name('monster-marks.index');
         Route::get('/item-book', [\App\Http\Controllers\ItemBookController::class, 'index'])->name('item-book.index');
+        Route::get('/equipment-book', [\App\Http\Controllers\EquipmentBookController::class, 'index'])->name('equipment-book.index');
         Route::get('/enemy-book', [EnemyBookController::class, 'index'])->name('enemy-book.index');
         Route::get('/enemy-book/{enemy}', [EnemyBookController::class, 'show'])->name('enemy-book.show');
 

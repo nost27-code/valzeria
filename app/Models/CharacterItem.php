@@ -6,6 +6,27 @@ use Illuminate\Database\Eloquent\Model;
 
 class CharacterItem extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (CharacterItem $characterItem): void {
+            app(\App\Services\EquipmentDiscoveryService::class)->record(
+                (int) $characterItem->character_id,
+                (int) $characterItem->item_id,
+            );
+        });
+
+        static::updated(function (CharacterItem $characterItem): void {
+            if (!$characterItem->wasChanged('character_id')) {
+                return;
+            }
+
+            app(\App\Services\EquipmentDiscoveryService::class)->record(
+                (int) $characterItem->character_id,
+                (int) $characterItem->item_id,
+            );
+        });
+    }
+
     protected $fillable = [
         'character_id', 'item_id', 'affix_prefix_id', 'affix_suffix_id', 'affix_quality',
         'affix_hp_bonus', 'affix_str_bonus', 'affix_def_bonus', 'affix_mag_bonus',

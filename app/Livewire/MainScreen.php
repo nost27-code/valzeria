@@ -780,6 +780,9 @@ class MainScreen extends Component
             ['group' => '育成', 'name' => '奥義', 'icon_image' => 'icon/icon_041.webp', 'icon' => '✦', 'desc' => '習得した奥義を最大3つまでセットする', 'route' => 'job-arts.index', 'status' => 'active'],
             ['group' => '記録', 'name' => 'アイテム図鑑', 'icon_image' => 'icon/icon_241.webp', 'icon' => '📖', 'desc' => '素材の入手方法・作り方・用途を確認する', 'route' => 'item-book.index', 'status' => 'active'],
             ['group' => '記録', 'name' => 'エネミー図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '発見・討伐した敵の姿と記録を確認する', 'route' => 'enemy-book.index', 'status' => 'active'],
+            ...(app(\App\Services\ExtraContentControlService::class)->isActive('equipment_book') ? [[
+                'group' => '記録', 'name' => '装備図鑑', 'icon_image' => 'icon/icon_277.webp', 'icon' => '📖', 'desc' => '武器の発見記録と進化系譜を見る（防具は準備中）', 'route' => 'equipment-book.index', 'status' => 'active',
+            ]] : []),
             ['group' => '記録', 'name' => '印図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '集めた印の永続効果を確認する', 'route' => 'monster-marks.index', 'status' => 'active'],
             ['group' => '記録', 'name' => '称号', 'icon_image' => 'icon/icon_242.webp', 'icon' => '🏷️', 'desc' => '獲得した称号を確認する', 'route' => 'titles.index', 'status' => 'active'],
             ['group' => '育成', 'name' => 'ヴァルモン', 'icon_image' => 'menu/menu_valmon.webp', 'icon' => '🥚', 'desc' => '相棒ヴァルモンの確認・育成を行う', 'route' => 'valmons.index', 'status' => 'active'],
