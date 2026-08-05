@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-05-akatsuki-exclusive-icon-021',
+        'date' => '2026-08-05',
+        'category' => 'internal',
+        'title' => 'Akatsuki専用の限定キャラアイコンを追加',
+        'detail' => 'Akatsukiさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-05-map-exploration-resume-loot-guard',
         'date' => '2026-08-05',
         'category' => 'fixed',
