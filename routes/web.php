@@ -505,9 +505,13 @@ Route::middleware(['auth', 'admin'])->group(function () {
         $newCount = \Illuminate\Support\Facades\Schema::hasTable('contact_messages')
             ? \App\Models\ContactMessage::where('status', 'new')->count()
             : 0;
+        $newBugReportCount = \Illuminate\Support\Facades\Schema::hasTable('bug_reports')
+            ? \App\Models\BugReport::where('status', 'new')->count()
+            : 0;
 
         return response()->json([
             'new_count' => $newCount,
+            'bug_report_new_count' => $newBugReportCount,
             'imported' => $imported,
             'import_error' => $importError,
             'checked_at' => now()->toIso8601String(),

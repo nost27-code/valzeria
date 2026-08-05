@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-05-admin-sidebar-new-item-badges',
+        'date' => '2026-08-05',
+        'category' => 'internal',
+        'title' => '管理サイドバーに新着件数バッジを追加',
+        'detail' => '管理画面の「メール」と「不具合フォーム」に、未読の新着件数を赤い数字バッジで表示するようにしました。PC・スマホの両方で確認できます。',
+    ],
+    [
         'id' => '2026-08-05-town-update-publish-first',
         'date' => '2026-08-05',
         'category' => 'internal',

@@ -144,6 +144,12 @@
                 fn ($item) => request()->routeIs($item['active'] ?? $item['route'])
             ))['key'] ?? 'overview';
         $mailNavActive = request()->routeIs($mailNavItem['route']);
+        $mailUnreadCount = \Illuminate\Support\Facades\Schema::hasTable('contact_messages')
+            ? \App\Models\ContactMessage::query()->where('status', 'new')->count()
+            : 0;
+        $bugReportUnreadCount = \Illuminate\Support\Facades\Schema::hasTable('bug_reports')
+            ? \App\Models\BugReport::query()->where('status', 'new')->count()
+            : 0;
         $iconDesignUnreadCount = \Illuminate\Support\Facades\Schema::hasTable('character_icon_design_requests')
             && \Illuminate\Support\Facades\Schema::hasTable('character_icon_design_messages')
             ? \App\Models\CharacterIconDesignRequest::query()
@@ -180,6 +186,7 @@
                            class="group flex items-center gap-3 rounded-md border px-3 py-3 text-sm font-bold transition {{ $mailNavActive ? 'border-amber-300 bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:bg-white/10 hover:text-white' }}">
                             <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $mailNavActive ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200 group-hover:bg-white/15' }}">{{ $mailNavItem['abbr'] }}</span>
                             <span class="truncate">{{ $mailNavItem['label'] }}</span>
+                            <span data-admin-mail-badge @if($mailUnreadCount <= 0) hidden @endif class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $mailUnreadCount > 99 ? '99+' : ($mailUnreadCount ?: '') }}</span>
                         </a>
                         @foreach($navGroups as $group)
                             @php
@@ -207,6 +214,8 @@
                                             </span>
                                             @if($item['route'] === 'admin.user-investigation')
                                                 <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
+                                            @elseif($item['route'] === 'admin.bug-reports')
+                                                <span data-admin-bug-report-badge @if($bugReportUnreadCount <= 0) hidden @endif class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $bugReportUnreadCount > 99 ? '99+' : ($bugReportUnreadCount ?: '') }}</span>
                                             @elseif($item['route'] === 'admin.character-icon-design.index' && $iconDesignUnreadCount > 0)
                                                 <span class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $iconDesignUnreadCount > 99 ? '99+' : $iconDesignUnreadCount }}</span>
                                             @endif
@@ -342,6 +351,7 @@
                                class="group flex items-center gap-3 rounded-md border px-3 py-3 text-sm font-bold transition {{ $mailNavActive ? 'border-amber-300 bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20' : 'border-white/10 bg-white/[0.03] text-slate-200' }}">
                                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[11px] font-black {{ $mailNavActive ? 'bg-slate-950 text-amber-200' : 'bg-white/10 text-slate-200' }}">{{ $mailNavItem['abbr'] }}</span>
                                 <span class="truncate">{{ $mailNavItem['label'] }}</span>
+                                <span data-admin-mail-badge @if($mailUnreadCount <= 0) hidden @endif class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $mailUnreadCount > 99 ? '99+' : ($mailUnreadCount ?: '') }}</span>
                             </a>
                             @foreach($navGroups as $group)
                                 @php
@@ -371,6 +381,8 @@
                                                 </span>
                                                 @if($item['route'] === 'admin.user-investigation')
                                                     <span data-admin-reply-badge hidden class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white"></span>
+                                                @elseif($item['route'] === 'admin.bug-reports')
+                                                    <span data-admin-bug-report-badge @if($bugReportUnreadCount <= 0) hidden @endif class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $bugReportUnreadCount > 99 ? '99+' : ($bugReportUnreadCount ?: '') }}</span>
                                                 @elseif($item['route'] === 'admin.character-icon-design.index' && $iconDesignUnreadCount > 0)
                                                     <span class="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{{ $iconDesignUnreadCount > 99 ? '99+' : $iconDesignUnreadCount }}</span>
                                                 @endif
@@ -482,6 +494,7 @@
             let faviconLink = document.getElementById('admin-favicon');
             let objectUrl = null;
             let mailCount = 0;
+            let bugReportCount = 0;
             let privateReplyCount = 0;
 
             const ensureFaviconLink = () => {
@@ -568,6 +581,15 @@
 
             const refreshOverallBadge = async () => {
                 await drawBadge(mailCount + privateReplyCount);
+            };
+
+            const updateSidebarBadge = (selector, count) => {
+                const countLabel = count > 99 ? '99+' : String(count);
+
+                document.querySelectorAll(selector).forEach((badge) => {
+                    badge.hidden = count <= 0;
+                    badge.textContent = count > 0 ? countLabel : '';
+                });
             };
 
             const showPrivateReplyFeedback = (message, isError = false) => {
@@ -706,6 +728,9 @@
 
                     const payload = await response.json();
                     mailCount = Math.max(0, Number.parseInt(payload.new_count, 10) || 0);
+                    bugReportCount = Math.max(0, Number.parseInt(payload.bug_report_new_count, 10) || 0);
+                    updateSidebarBadge('[data-admin-mail-badge]', mailCount);
+                    updateSidebarBadge('[data-admin-bug-report-badge]', bugReportCount);
                     await refreshOverallBadge();
                 } catch (e) {
                     // 管理画面の操作を妨げないため、ポーリング失敗は黙って次回へ回す。
