@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-05-town-update-publish-first',
+        'date' => '2026-08-05',
+        'category' => 'internal',
+        'title' => '街のお知らせ公開順を最新優先に修正',
+        'detail' => '街の更新候補を「表示する」にした時、新しく公開した項目が表示中一覧の先頭へ追加されるよう修正しました。',
+    ],
+    [
         'id' => '2026-08-05-hero-trial-hidden-ui',
         'date' => '2026-08-05',
         'category' => 'internal',

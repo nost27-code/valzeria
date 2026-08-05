@@ -172,8 +172,14 @@ class TownUpdateServiceTest extends TestCase
         $this->assertDatabaseHas('top_updates', [
             'id' => $draft->id,
             'is_active' => true,
-            'sort_order' => 30,
+            'sort_order' => 10,
         ]);
+        $this->assertDatabaseHas('top_updates', ['id' => $second->id, 'sort_order' => 20]);
+        $this->assertDatabaseHas('top_updates', ['id' => $first->id, 'sort_order' => 30]);
+        $this->assertSame(
+            [$draft->id, $second->id, $first->id],
+            app(TownUpdateService::class)->published()->pluck('id')->all()
+        );
     }
 
     public function test_published_updates_do_not_restore_an_eloquent_collection_from_shared_cache(): void

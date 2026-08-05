@@ -105,7 +105,7 @@ class TownUpdateService
     }
 
     /**
-     * 公開状態を切り替える。新しく表示する項目は表示中一覧の末尾へ追加する。
+     * 公開状態を切り替える。新しく表示する項目は表示中一覧の先頭へ追加する。
      */
     public function toggleActive(int $id): void
     {
@@ -121,18 +121,24 @@ class TownUpdateService
                 return;
             }
 
-            $lastActiveUpdate = TopUpdate::query()
+            $activeUpdateIds = TopUpdate::query()
                 ->where('is_active', true)
                 ->where('is_dismissed', false)
-                ->orderByDesc('sort_order')
+                ->orderBy('sort_order')
+                ->orderByDesc('published_on')
                 ->orderByDesc('id')
                 ->lockForUpdate()
-                ->first(['sort_order']);
+                ->pluck('id')
+                ->all();
 
-            $update->forceFill([
-                'is_active' => true,
-                'sort_order' => ((int) ($lastActiveUpdate?->sort_order ?? 0)) + 10,
-            ])->save();
+            array_unshift($activeUpdateIds, $update->id);
+
+            foreach ($activeUpdateIds as $index => $updateId) {
+                TopUpdate::query()->whereKey($updateId)->update([
+                    'is_active' => true,
+                    'sort_order' => ($index + 1) * 10,
+                ]);
+            }
         });
 
         $this->forgetPublishedCache();
