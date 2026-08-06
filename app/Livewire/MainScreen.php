@@ -910,7 +910,7 @@ class MainScreen extends Component
             ['category' => 'その他', 'name' => '銀行', 'symbol_image' => 'facilities/facility_bank.webp', 'desc' => 'Goldを預けて探索中の喪失から守る', 'details' => ['預ける', '引き出す'], 'bg_image' => 'facilities/bank.webp', 'status' => 'active', 'action' => '入る', 'route' => 'bank.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [
             ['category' => 'その他', 'name' => '酒場', 'symbol_image' => 'facilities/facility_tavern_300.webp', 'desc' => '冒険者たちの噂話や名簿を確認する', 'details' => ['NPC出現中'], 'bg_image' => 'facilities/tavern.webp', 'status' => 'active', 'action' => '入る', 'route' => 'tavern.index', 'is_post' => false],
-            ['category' => 'その他', 'name' => '地図院', 'icon' => '🗺️', 'desc' => '未調査の探索地図を調べ、公開地図を探索する', 'details' => ['遠征調査', '共有探索'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '入る', 'route' => 'exploration-maps.index', 'is_post' => false],
+            ['category' => 'その他', 'name' => '地図院', 'symbol_image' => 'icon/icon_278.webp', 'desc' => '未調査の探索地図を調べ、公開地図を探索する', 'details' => ['遠征調査', '共有探索'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '入る', 'route' => 'exploration-maps.index', 'is_post' => false],
             ] : []),
             ['category' => 'その他', 'name' => '番付掲示板', 'symbol_image' => 'icon/icon_223.webp', 'desc' => '戦績・収集・商いなど冒険者たちの各種番付を見る', 'details' => ['勝利数', '収集', '市場売上'], 'bg_image' => 'facilities/guide.webp', 'status' => 'active', 'action' => '見る', 'route' => 'ranking.index', 'is_post' => false],
             ...(!$isFerdiaSimpleBase ? [
