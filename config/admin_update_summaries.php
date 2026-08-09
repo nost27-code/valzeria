@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-09-region-depth-enemy-portrait-fix',
+        'date' => '2026-08-09',
+        'category' => 'fixed',
+        'title' => '黒炉深坑の敵画像と名称表示を修正',
+        'detail' => '黒炉深坑で危険度が上がった後も敵画像を表示し、敵名へ同じ危険度表現が重複して付く問題を修正しました。単発探索と10回探索の両方に反映されます。',
+    ],
+    [
         'id' => '2026-08-06-namaenai-exclusive-icon-022',
         'date' => '2026-08-06',
         'category' => 'internal',

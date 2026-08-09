@@ -173,13 +173,6 @@ class ExplorationService
             $targetEnemy->setAttribute('exploration_support_encounter_applied', true);
         }
 
-        if ($isRegionDepthDungeon) {
-            $targetEnemy = clone $targetEnemy;
-            $targetEnemy->name = $regionDepthDungeonService->enemyPrefix($currentDanger) . $targetEnemy->name;
-            $targetEnemy->setAttribute('region_depth_dungeon_key', $regionDungeonKey);
-            $targetEnemy->setAttribute('region_depth_danger_rate', $currentDanger);
-        }
-
         if ($consumesStamina) {
             $consumeResult = $staminaService->consumeForExplore($character);
             $staminaSummary = $consumeResult['stamina'] ?? $staminaService->summary($character);
@@ -209,11 +202,14 @@ class ExplorationService
             }
         }
 
+        $enemyImagePath = null;
         if ($isRegionDepthDungeon) {
-            $targetEnemy = clone $targetEnemy;
-            $targetEnemy->name = $regionDepthDungeonService->enemyPrefix($currentDanger) . $targetEnemy->name;
-            $targetEnemy->setAttribute('region_depth_dungeon_key', $regionDungeonKey);
-            $targetEnemy->setAttribute('region_depth_danger_rate', $currentDanger);
+            [$targetEnemy, $enemyImagePath] = $this->prepareRegionDepthEnemy(
+                $targetEnemy,
+                $regionDepthDungeonService,
+                $currentDanger,
+                $regionDungeonKey,
+            );
         }
 
         // 3. バトル実行
@@ -808,6 +804,7 @@ class ExplorationService
             'turn_count' => $battleResult->turnCount,
             'log' => $logText,
             'enemy' => $targetEnemy,
+            'enemy_image_path' => $enemyImagePath,
             'exp_gained' => $expGained,
             'gold_gained' => $goldGained,
             'job_exp_gained' => $jobExpGained,
@@ -855,6 +852,24 @@ class ExplorationService
             'sub_area_discovery_id' => $battleResult->eventData['sub_area_discovery_id'] ?? null,
             'region_depth_dungeon' => $isRegionDepthDungeon ? $regionDepthDungeonService->payload($character, $regionDungeonKey) : null,
         ];
+    }
+
+    /**
+     * @return array{0: Enemy, 1: ?string}
+     */
+    private function prepareRegionDepthEnemy(
+        Enemy $enemy,
+        RegionDepthDungeonService $regionDepthDungeonService,
+        int $dangerRate,
+        string $dungeonKey,
+    ): array {
+        $enemyImagePath = config('enemy_images')[(string) $enemy->name] ?? null;
+        $enemy = clone $enemy;
+        $enemy->name = $regionDepthDungeonService->enemyPrefix($dangerRate) . $enemy->name;
+        $enemy->setAttribute('region_depth_dungeon_key', $dungeonKey);
+        $enemy->setAttribute('region_depth_danger_rate', $dangerRate);
+
+        return [$enemy, $enemyImagePath];
     }
 
     public function exploreRepeated(Character $character, int $areaId, int $requestedCount = 10): array
