@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\KisekiTransaction;
 use App\Models\StripeOrder;
 use App\Models\StripePaymentAudit;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
@@ -14,6 +15,15 @@ use Livewire\WithPagination;
 class KisekiPurchaseManager extends Component
 {
     use WithPagination;
+
+    private const REVENUE_DAYS = 30;
+
+    private const EXCLUDED_REVENUE_PACK_KEYS = ['kiseki_test'];
+
+    public function boot(): void
+    {
+        abort_unless(Auth::check() && Auth::user()->role === 'admin', 403);
+    }
 
     public string $searchQuery = '';
     public string $displayMode = 'all';
@@ -141,6 +151,8 @@ class KisekiPurchaseManager extends Component
                 ->get()
             : collect();
 
+        $dailyRevenueSummary = $this->dailyRevenueSummary();
+
         $totals = [
             'purchase_count' => (int) StripeOrder::where('status', 'fulfilled')->count(),
             'purchased_kiseki' => (int) StripeOrder::where('status', 'fulfilled')->sum('kiseki_amount'),
@@ -183,7 +195,79 @@ class KisekiPurchaseManager extends Component
             'manualGrantLogs' => $manualGrantLogs,
             'hasAuditTable' => $hasAuditTable,
             'packs' => config('kiseki.packs', []),
+            'dailyRevenueSummary' => $dailyRevenueSummary,
         ])->layout('components.layouts.admin');
+    }
+
+    private function dailyRevenueSummary(): array
+    {
+        $today = now()->startOfDay();
+        $periodStart = $today->copy()->subDays(self::REVENUE_DAYS - 1);
+        $periodEnd = $today->copy()->endOfDay();
+        $dateColumn = 'COALESCE(fulfilled_at, created_at)';
+        $dateExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "date({$dateColumn})"
+            : "DATE({$dateColumn})";
+
+        $rows = StripeOrder::query()
+            ->where('status', 'fulfilled')
+            ->whereNotIn('pack_key', self::EXCLUDED_REVENUE_PACK_KEYS)
+            ->whereBetween(DB::raw($dateColumn), [$periodStart, $periodEnd])
+            ->selectRaw("{$dateExpression} as sales_date")
+            ->selectRaw('SUM(price_jpy) as revenue_jpy')
+            ->selectRaw('SUM(kiseki_amount) as kiseki_amount')
+            ->selectRaw('COUNT(*) as purchase_count')
+            ->selectRaw('COUNT(DISTINCT character_id) as buyer_count')
+            ->groupBy('sales_date')
+            ->get()
+            ->keyBy('sales_date');
+
+        $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        $days = [];
+
+        for ($day = $periodStart->copy(); $day->lte($today); $day->addDay()) {
+            $date = $day->toDateString();
+            $row = $rows->get($date);
+
+            $days[] = [
+                'date' => $date,
+                'label' => $day->format('n/j') . '（' . $weekdays[$day->dayOfWeek] . '）',
+                'is_today' => $day->isSameDay($today),
+                'revenue_jpy' => (int) ($row->revenue_jpy ?? 0),
+                'kiseki_amount' => (int) ($row->kiseki_amount ?? 0),
+                'purchase_count' => (int) ($row->purchase_count ?? 0),
+                'buyer_count' => (int) ($row->buyer_count ?? 0),
+            ];
+        }
+
+        $maxDailyRevenue = max(array_column($days, 'revenue_jpy'));
+        $days = array_map(function (array $day) use ($maxDailyRevenue): array {
+            $day['bar_percent'] = $day['revenue_jpy'] > 0 && $maxDailyRevenue > 0
+                ? max(4, (int) round(($day['revenue_jpy'] / $maxDailyRevenue) * 100))
+                : 0;
+
+            return $day;
+        }, $days);
+
+        $latestFirst = array_reverse($days);
+
+        return [
+            'period_days' => self::REVENUE_DAYS,
+            'today' => $latestFirst[0],
+            'yesterday' => $latestFirst[1],
+            'last_7_days' => $this->sumRevenueDays(array_slice($latestFirst, 0, 7)),
+            'last_30_days' => $this->sumRevenueDays($latestFirst),
+            'daily' => $latestFirst,
+        ];
+    }
+
+    private function sumRevenueDays(array $days): array
+    {
+        return [
+            'revenue_jpy' => array_sum(array_column($days, 'revenue_jpy')),
+            'kiseki_amount' => array_sum(array_column($days, 'kiseki_amount')),
+            'purchase_count' => array_sum(array_column($days, 'purchase_count')),
+        ];
     }
 
     private function auditQuery()

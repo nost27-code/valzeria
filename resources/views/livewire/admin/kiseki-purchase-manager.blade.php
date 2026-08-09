@@ -32,6 +32,112 @@
         </div>
     </div>
 
+    <section class="mb-6 overflow-hidden rounded-md bg-white/95 shadow-sm ring-1 ring-slate-200">
+        <div class="border-b border-slate-200 px-4 py-4 sm:px-5">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-black text-slate-950">日別売上（直近{{ $dailyRevenueSummary['period_days'] }}日）</h2>
+                    <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">
+                        輝石付与が完了した購入注文を日本時間の日付ごとに集計しています。金額はStripe手数料・返金の反映前で、検証用パックは除外しています。
+                    </p>
+                </div>
+                <div class="text-xs font-black text-slate-400">毎日0:00区切り</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 border-b border-slate-200 bg-slate-50/70 p-4 lg:grid-cols-4 sm:p-5">
+            <div class="rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
+                <div class="text-xs font-black text-slate-500">今日</div>
+                <div class="mt-2 text-xl font-black text-amber-700">{{ number_format($dailyRevenueSummary['today']['revenue_jpy']) }}円</div>
+                <div class="mt-1 text-[11px] font-bold text-slate-500">
+                    {{ number_format($dailyRevenueSummary['today']['purchase_count']) }}件 / {{ number_format($dailyRevenueSummary['today']['buyer_count']) }}人
+                </div>
+            </div>
+            <div class="rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
+                <div class="text-xs font-black text-slate-500">昨日</div>
+                <div class="mt-2 text-xl font-black text-slate-900">{{ number_format($dailyRevenueSummary['yesterday']['revenue_jpy']) }}円</div>
+                <div class="mt-1 text-[11px] font-bold text-slate-500">
+                    {{ number_format($dailyRevenueSummary['yesterday']['purchase_count']) }}件 / {{ number_format($dailyRevenueSummary['yesterday']['buyer_count']) }}人
+                </div>
+            </div>
+            <div class="rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
+                <div class="text-xs font-black text-slate-500">直近7日売上</div>
+                <div class="mt-2 text-xl font-black text-slate-900">{{ number_format($dailyRevenueSummary['last_7_days']['revenue_jpy']) }}円</div>
+                <div class="mt-1 text-[11px] font-bold text-slate-500">
+                    {{ number_format($dailyRevenueSummary['last_7_days']['purchase_count']) }}件 / {{ number_format($dailyRevenueSummary['last_7_days']['kiseki_amount']) }}輝石
+                </div>
+            </div>
+            <div class="rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
+                <div class="text-xs font-black text-slate-500">直近{{ $dailyRevenueSummary['period_days'] }}日売上</div>
+                <div class="mt-2 text-xl font-black text-slate-900">{{ number_format($dailyRevenueSummary['last_30_days']['revenue_jpy']) }}円</div>
+                <div class="mt-1 text-[11px] font-bold text-slate-500">
+                    {{ number_format($dailyRevenueSummary['last_30_days']['purchase_count']) }}件 / {{ number_format($dailyRevenueSummary['last_30_days']['kiseki_amount']) }}輝石
+                </div>
+            </div>
+        </div>
+
+        <div class="max-h-[32rem] space-y-2 overflow-y-auto p-3 md:hidden">
+            @foreach($dailyRevenueSummary['daily'] as $day)
+                <div class="rounded-md border border-slate-200 bg-white p-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm font-black text-slate-900">
+                                <span>{{ $day['label'] }}</span>
+                                @if($day['is_today'])
+                                    <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">今日</span>
+                                @endif
+                            </div>
+                            <div class="mt-1 text-[11px] font-bold text-slate-500">
+                                {{ number_format($day['purchase_count']) }}件 / {{ number_format($day['buyer_count']) }}人 / {{ number_format($day['kiseki_amount']) }}輝石
+                            </div>
+                        </div>
+                        <div class="whitespace-nowrap text-lg font-black {{ $day['revenue_jpy'] > 0 ? 'text-amber-700' : 'text-slate-400' }}">
+                            {{ number_format($day['revenue_jpy']) }}円
+                        </div>
+                    </div>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div class="h-full rounded-full bg-amber-500" style="width: {{ $day['bar_percent'] }}%"></div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        <div class="hidden max-h-[32rem] overflow-y-auto md:block">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="sticky top-0 z-10 bg-slate-50 text-slate-700 shadow-sm">
+                    <tr>
+                        <th class="px-5 py-3 text-left font-bold">日付</th>
+                        <th class="px-5 py-3 text-right font-bold">売上</th>
+                        <th class="px-5 py-3 text-right font-bold">購入件数</th>
+                        <th class="px-5 py-3 text-right font-bold">購入者</th>
+                        <th class="px-5 py-3 text-right font-bold">販売輝石</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    @foreach($dailyRevenueSummary['daily'] as $day)
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-5 py-3 font-black text-slate-900">
+                                {{ $day['label'] }}
+                                @if($day['is_today'])
+                                    <span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">今日</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3 text-right">
+                                <div class="font-black {{ $day['revenue_jpy'] > 0 ? 'text-amber-700' : 'text-slate-400' }}">{{ number_format($day['revenue_jpy']) }}円</div>
+                                <div class="ml-auto mt-1.5 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-full rounded-full bg-amber-500" style="width: {{ $day['bar_percent'] }}%"></div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3 text-right font-bold text-slate-700">{{ number_format($day['purchase_count']) }}件</td>
+                            <td class="px-5 py-3 text-right font-bold text-slate-700">{{ number_format($day['buyer_count']) }}人</td>
+                            <td class="px-5 py-3 text-right font-bold text-sky-700">{{ number_format($day['kiseki_amount']) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8 mb-6">
         <div class="rounded-md bg-white/95 p-4 shadow-sm ring-1 ring-slate-200">
             <div class="text-xs font-black text-slate-500">Webhook受信中</div>

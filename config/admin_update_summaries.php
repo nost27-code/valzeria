@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-09-kiseki-daily-revenue-summary',
+        'date' => '2026-08-09',
+        'category' => 'internal',
+        'title' => '課金監査に日別売上サマリーを追加',
+        'detail' => '課金監査画面で、今日・昨日・直近7日・直近30日の売上と、日ごとの購入件数・購入者数・販売輝石を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-09-yukinoshita-exclusive-icon-023',
         'date' => '2026-08-09',
         'category' => 'internal',
