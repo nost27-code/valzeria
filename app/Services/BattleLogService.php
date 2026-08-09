@@ -16,6 +16,7 @@ class BattleLogService
      */
     public function addLog(Character $character, int $areaId, int $enemyId, string $battleType, string $result, int $expGained, int $goldGained, int $jobExpGained, int $levelUpCount, string $logText, ?int $droppedItemId = null, ?int $droppedCharacterItemId = null, int $goldLost = 0, array $telemetry = [], bool $recordEnemyDiscovery = true): BattleLog
     {
+        $normalizedResult = BattleLog::normalizeResult($result);
         $allowedTelemetryKeys = [
             'turn_count', 'damage_dealt', 'damage_taken', 'start_hp', 'end_hp',
             'weapon_rank', 'pre_equipment_main_stat', 'has_engraving', 'has_slayer',
@@ -27,7 +28,7 @@ class BattleLogService
             'area_id' => $areaId,
             'enemy_id' => $enemyId,
             'battle_type' => $battleType,
-            'result' => $result,
+            'result' => $normalizedResult,
             'exp_gained' => $expGained,
             'gold_gained' => $goldGained,
             'job_exp_gained' => max(0, $jobExpGained),
@@ -39,11 +40,13 @@ class BattleLogService
             ...array_intersect_key($telemetry, array_flip($allowedTelemetryKeys)),
         ]);
 
-        app(PlayerLifecycleEventService::class)->recordFirstBattle($character, $result);
+        if (BattleLog::isBattleResult($normalizedResult)) {
+            app(PlayerLifecycleEventService::class)->recordFirstBattle($character, $normalizedResult);
+        }
 
-        if ($recordEnemyDiscovery) {
+        if ($recordEnemyDiscovery && BattleLog::isBattleResult($normalizedResult)) {
             try {
-                app(EnemyDiscoveryService::class)->recordBattle((int) $character->id, $enemyId, $result);
+                app(EnemyDiscoveryService::class)->recordBattle((int) $character->id, $enemyId, $normalizedResult);
             } catch (\Throwable $e) {
                 report($e);
             }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\KisekiTransaction;
 use App\Models\WeeklyWinRankingRecord;
@@ -619,7 +620,7 @@ class WeeklyWinRankingService
             ->join('characters', 'characters.id', '=', 'battle_logs.character_id')
             ->join('users as ranking_users', 'ranking_users.id', '=', 'characters.user_id')
             // 通常探索系は win、亜域の既存ログは victory を保存している。
-            ->whereIn('battle_logs.result', ['win', 'victory'])
+            ->whereIn('battle_logs.result', BattleLog::WIN_RESULTS)
             // 探索イベントと時間切れも既存処理では win 保存されるため、EXPが発生した実戦だけを数える。
             ->where('battle_logs.exp_gained', '>', 0)
             ->whereIn('battle_logs.battle_type', [

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-battle-record-consistency',
+        'date' => '2026-08-10',
+        'category' => 'fixed',
+        'title' => '冒険者カードの戦闘記録集計を修正',
+        'detail' => '通常探索・ボス・亜域で異なっていた勝敗記録の扱いを統一し、冒険者カードの戦闘回数が勝利数と敗北数の合計に一致するよう修正しました。宝箱などの非戦闘イベントは累計勝利数・戦績・週間勝利数に含めません。',
+    ],
+    [
         'id' => '2026-08-10-kiseki-revenue-period-filter',
         'date' => '2026-08-10',
         'category' => 'internal',

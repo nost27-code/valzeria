@@ -572,7 +572,7 @@ class CityHeader extends Component
     private function adventureRecords(Character $character): array
     {
         return Cache::remember(
-            "adventurer_card_adventure_records_v1:{$character->id}",
+            "adventurer_card_adventure_records_v2:{$character->id}",
             now()->addMinutes(self::ADVENTURE_RECORDS_CACHE_MINUTES),
             fn (): array => $this->buildAdventureRecords($character)
         );
@@ -582,14 +582,17 @@ class CityHeader extends Component
     {
         $battleSummary = BattleLog::query()
             ->where('character_id', $character->id)
-            ->selectRaw('COUNT(*) as battle_count')
-            ->selectRaw('SUM(CASE WHEN result = ? THEN 1 ELSE 0 END) as win_count', ['win'])
-            ->selectRaw('SUM(CASE WHEN result = ? THEN 1 ELSE 0 END) as loss_count', ['lose'])
-            ->selectRaw('SUM(CASE WHEN battle_type = ? AND result = ? THEN 1 ELSE 0 END) as boss_win_count', ['boss', 'win'])
+            ->actualBattles()
+            ->selectRaw('SUM(CASE WHEN result IN (?, ?) THEN 1 ELSE 0 END) as win_count', BattleLog::WIN_RESULTS)
+            ->selectRaw('SUM(CASE WHEN result IN (?, ?, ?) THEN 1 ELSE 0 END) as loss_count', BattleLog::LOSS_RESULTS)
+            ->selectRaw('SUM(CASE WHEN battle_type = ? AND result IN (?, ?) THEN 1 ELSE 0 END) as boss_win_count', [
+                'boss',
+                ...BattleLog::WIN_RESULTS,
+            ])
             ->first();
-        $battleCount = (int) ($battleSummary?->battle_count ?? 0);
         $winCount = (int) ($battleSummary?->win_count ?? 0);
         $lossCount = (int) ($battleSummary?->loss_count ?? 0);
+        $battleCount = $winCount + $lossCount;
         $winRate = $battleCount > 0 ? (int) floor(($winCount / $battleCount) * 100) : 0;
         $bossWinCount = (int) ($battleSummary?->boss_win_count ?? 0);
         $masteredJobCount = $character->jobHistories()

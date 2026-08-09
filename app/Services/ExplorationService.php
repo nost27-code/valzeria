@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Area;
+use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
@@ -213,7 +214,9 @@ class ExplorationService
         }
 
         // 3. バトル実行
-        $battleResult = in_array(($specialEvent['type'] ?? null), ['treasure', 'hidden_area_gate', 'dungeon_lord_encounter', 'sub_area_gate'], true)
+        $nonCombatEventTypes = ['treasure', 'hidden_area_gate', 'dungeon_lord_encounter', 'sub_area_gate'];
+        $isNonCombatEvent = in_array(($specialEvent['type'] ?? null), $nonCombatEventTypes, true);
+        $battleResult = $isNonCombatEvent
             ? $this->resolveNonCombatEvent($character, $area, $specialEvent['source_enemy'] ?? $targetEnemy, $specialEvent['type'], $specialEvent)
             : $this->battleService->executeBattle($character, $targetEnemy);
         $isWin = $battleResult->result === 'victory';
@@ -267,9 +270,11 @@ class ExplorationService
                 $chainLootSummary = $explorationStateService->currentLootSummary($character, $areaId);
             }
         } elseif ($isWin) {
-            $staminaMaxBefore = $staminaService->maxForCharacter($character);
-            $character->wins += 1;
-            $staminaMaxUp = $staminaService->maxForCharacter($character) - $staminaMaxBefore;
+            if (!$isNonCombatEvent) {
+                $staminaMaxBefore = $staminaService->maxForCharacter($character);
+                $character->wins += 1;
+                $staminaMaxUp = $staminaService->maxForCharacter($character) - $staminaMaxBefore;
+            }
             $expGained = $battleResult->exp;
             $goldGained = $battleResult->gold;
             $jobExpGained = $battleResult->jobExp;
@@ -770,7 +775,7 @@ class ExplorationService
             $areaId,
             $targetEnemy->id,
             $battleType,
-            $battleResult->result === 'defeat' ? 'lose' : 'win',
+            $isNonCombatEvent ? BattleLog::RESULT_EVENT : $battleResult->result,
             $expGained,
             $goldGained,
             $jobExpGained,
@@ -1442,7 +1447,7 @@ class ExplorationService
         ];
     }
 
-    private function rollSpecialEvent(Character $character, Area $area, Enemy $baseEnemy, $state): ?array
+    protected function rollSpecialEvent(Character $character, Area $area, Enemy $baseEnemy, $state): ?array
     {
         $point = (int) ($state->exploration_point ?? 0);
         $secretRealmService = app(SecretRealmService::class);
