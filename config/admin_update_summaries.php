@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-kiseki-revenue-period-filter',
+        'date' => '2026-08-10',
+        'category' => 'internal',
+        'title' => '課金監査にカレンダー期間集計を追加',
+        'detail' => '課金監査画面で開始日と終了日を選び、指定期間の売上合計・購入件数・購入者数・販売輝石・平均単価を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-09-kiseki-daily-revenue-summary',
         'date' => '2026-08-09',
         'category' => 'internal',

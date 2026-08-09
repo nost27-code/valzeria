@@ -45,6 +45,60 @@
             </div>
         </div>
 
+        <div class="border-b border-slate-200 bg-amber-50/40 p-4 sm:p-5">
+            <form wire:submit="applyRevenuePeriod" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                <label class="block">
+                    <span class="text-xs font-black text-slate-600">開始日</span>
+                    <input
+                        type="date"
+                        wire:model="revenueStartDate"
+                        class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold shadow-sm focus:border-[#d4af37] focus:ring focus:ring-[#d4af37]/30"
+                    >
+                </label>
+                <label class="block">
+                    <span class="text-xs font-black text-slate-600">終了日</span>
+                    <input
+                        type="date"
+                        wire:model="revenueEndDate"
+                        class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold shadow-sm focus:border-[#d4af37] focus:ring focus:ring-[#d4af37]/30"
+                    >
+                </label>
+                <button
+                    type="submit"
+                    wire:loading.attr="disabled"
+                    wire:target="applyRevenuePeriod"
+                    class="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-amber-600 px-5 py-2 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
+                >
+                    <span wire:loading.remove wire:target="applyRevenuePeriod">期間集計</span>
+                    <span wire:loading wire:target="applyRevenuePeriod">集計中...</span>
+                </button>
+            </form>
+
+            @error('revenueStartDate')
+                <p class="mt-2 text-xs font-bold text-red-700">{{ $message }}</p>
+            @enderror
+            @error('revenueEndDate')
+                <p class="mt-2 text-xs font-bold text-red-700">{{ $message }}</p>
+            @enderror
+
+            <div class="mt-4 rounded-md bg-white p-4 shadow-sm ring-1 ring-amber-200">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <div class="text-xs font-black text-slate-500">
+                            指定期間売上（{{ $periodRevenueSummary['start_label'] }}〜{{ $periodRevenueSummary['end_label'] }}・{{ number_format($periodRevenueSummary['period_days']) }}日間）
+                        </div>
+                        <div class="mt-1 text-2xl font-black text-amber-700">{{ number_format($periodRevenueSummary['revenue_jpy']) }}円</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-bold text-slate-600 sm:grid-cols-4">
+                        <div><span class="block text-slate-400">購入件数</span>{{ number_format($periodRevenueSummary['purchase_count']) }}件</div>
+                        <div><span class="block text-slate-400">購入者</span>{{ number_format($periodRevenueSummary['buyer_count']) }}人</div>
+                        <div><span class="block text-slate-400">販売輝石</span>{{ number_format($periodRevenueSummary['kiseki_amount']) }}</div>
+                        <div><span class="block text-slate-400">平均単価</span>{{ number_format($periodRevenueSummary['average_order_jpy']) }}円</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="grid grid-cols-2 gap-3 border-b border-slate-200 bg-slate-50/70 p-4 lg:grid-cols-4 sm:p-5">
             <div class="rounded-md bg-white p-3 shadow-sm ring-1 ring-slate-200">
                 <div class="text-xs font-black text-slate-500">今日</div>
