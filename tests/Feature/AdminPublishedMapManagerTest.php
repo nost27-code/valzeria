@@ -5,17 +5,17 @@ namespace Tests\Feature;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\City;
-use App\Models\Enemy;
 use App\Models\User;
 use App\Services\ExplorationMapGenerator;
 use App\Services\MapPublicationService;
 use App\Services\MapSurveyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesExplorationMapEnemyFixtures;
 use Tests\TestCase;
 
 class AdminPublishedMapManagerTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesExplorationMapEnemyFixtures, RefreshDatabase;
 
     public function test_admin_can_review_only_currently_open_published_maps(): void
     {
@@ -28,10 +28,7 @@ class AdminPublishedMapManagerTest extends TestCase
             'recommended_level_min' => 45,
             'recommended_level_max' => 55,
         ]);
-        $enemy = Enemy::create([
-            'name' => '管理確認魔物',
-            'area_id' => $area->id,
-            'level' => 50,
+        $enemy = $this->createExplorationMapEnemyFixtures($area, '管理確認魔物', 50, [
             'max_hp' => 200,
             'str' => 40,
             'def' => 20,
@@ -41,10 +38,7 @@ class AdminPublishedMapManagerTest extends TestCase
             'luk' => 20,
             'exp_reward' => 50,
             'gold_reward' => 30,
-            'job_exp_reward' => 1,
-            'appearance_weight' => 1,
-            'is_boss' => false,
-        ]);
+        ])['normal'];
         $owner = Character::create([
             'user_id' => User::factory()->create()->id,
             'name' => '公開地図の発見者',

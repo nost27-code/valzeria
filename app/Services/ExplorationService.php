@@ -808,6 +808,7 @@ class ExplorationService
             'result' => $battleResult->result,
             'turn_count' => $battleResult->turnCount,
             'log' => $logText,
+            'job_art_v2_hud' => $battleResult->jobArtV2Hud,
             'enemy' => $targetEnemy,
             'enemy_image_path' => $enemyImagePath,
             'exp_gained' => $expGained,

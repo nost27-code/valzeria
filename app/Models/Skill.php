@@ -161,14 +161,14 @@ class Skill extends Model
     /**
      * @return array<int, string>
      */
-    public function jobArtNumericEffectLabels(): array
+    public function jobArtNumericEffectLabels(?int $displayPower = null, ?string $displayEffectTemplate = null): array
     {
         if (! $this->isJobArt()) {
             return [];
         }
 
-        $template = (string) $this->effect_template;
-        $power = max(0, (int) ($this->power ?: 0));
+        $template = $displayEffectTemplate ?? (string) $this->effect_template;
+        $power = max(0, $displayPower ?? (int) ($this->power ?: 0));
         $labels = [];
 
         if (JobArtEffectCatalog::dealsDamage($template)) {

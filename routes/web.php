@@ -16,6 +16,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ChampBattleController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\JobArtController;
+use App\Http\Controllers\JobArtPresetController;
 use App\Http\Controllers\MarketController;
 use App\Http\Controllers\EquipmentMarketController;
 use App\Http\Controllers\EnemyBookController;
@@ -370,6 +371,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/job-arts/assign', [JobArtController::class, 'assign'])->name('job-arts.assign');
         Route::post('/job-arts/slot', [JobArtController::class, 'slotSet'])->name('job-arts.slot-set');
         Route::post('/job-arts/policy', [JobArtController::class, 'policy'])->name('job-arts.policy');
+        Route::post('/job-arts/presets', [JobArtPresetController::class, 'store'])->name('job-arts.presets.store');
+        Route::post('/job-arts/presets/{preset}/apply', [JobArtPresetController::class, 'apply'])->name('job-arts.presets.apply');
+        Route::patch('/job-arts/presets/{preset}', [JobArtPresetController::class, 'update'])->name('job-arts.presets.update');
+        Route::delete('/job-arts/presets/{preset}', [JobArtPresetController::class, 'destroy'])->name('job-arts.presets.destroy');
 
         // 鍛冶屋・合成屋
         Route::get('/blacksmith', [\App\Http\Controllers\SmithController::class, 'enhanceIndex'])->name('blacksmith.index');

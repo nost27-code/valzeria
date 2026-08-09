@@ -154,6 +154,11 @@ class Character extends Model
         return $this->hasMany(CharacterJobArtSlot::class);
     }
 
+    public function jobArtPresets()
+    {
+        return $this->hasMany(JobArtPreset::class);
+    }
+
     /**
      * エリア進行状況とのリレーション
      */

@@ -32,4 +32,17 @@ class SkillNumericEffectLabelsTest extends TestCase
 
         $this->assertSame(['被ダメージ -18%'], $skill->jobArtNumericEffectLabels());
     }
+
+    public function test_damage_label_can_use_a_display_power_without_mutating_the_master(): void
+    {
+        $skill = new Skill([
+            'skill_type' => 'job_art',
+            'effect_template' => 'MAGICAL_DAMAGE',
+            'power' => 320,
+        ]);
+
+        $this->assertSame(['威力 410%'], $skill->jobArtNumericEffectLabels(410));
+        $this->assertSame(320, (int) $skill->power);
+        $this->assertSame(['威力 320%'], $skill->jobArtNumericEffectLabels());
+    }
 }

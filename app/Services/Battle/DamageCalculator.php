@@ -36,9 +36,34 @@ class DamageCalculator
         int $skillAccuracy = 100,
         float $agiFactor = 0.5,
         int $minHitRate = 70,
-        int $maxHitRate = 98
+        int $maxHitRate = 98,
+        float $accuracyDelta = 0.0,
     ): bool
     {
+        $hitChance = $this->calculateHitChance(
+            $attacker,
+            $defender,
+            $skillAccuracy,
+            $agiFactor,
+            $minHitRate,
+            $maxHitRate,
+        );
+        $hitChance = max($minHitRate, min($maxHitRate, $hitChance + $accuracyDelta));
+
+        return rand(1, 100) <= $hitChance;
+    }
+
+    /**
+     * 既存の命中式だけを計算し、乱数や戦闘状態を変更しない。
+     */
+    public function calculateHitChance(
+        BattleActor $attacker,
+        BattleActor $defender,
+        int $skillAccuracy = 100,
+        float $agiFactor = 0.5,
+        int $minHitRate = 70,
+        int $maxHitRate = 98
+    ): float {
         $baseHitRate = 90;
         $baseHitRate = $baseHitRate * ($skillAccuracy / 100);
 
@@ -48,7 +73,7 @@ class DamageCalculator
         if ($hitRate < $minHitRate) $hitRate = $minHitRate;
         if ($hitRate > $maxHitRate) $hitRate = $maxHitRate;
 
-        return rand(1, 100) <= $hitRate;
+        return $hitRate;
     }
 
     /**

@@ -505,6 +505,9 @@
                             $shouldShowBattleLog = (!$isDepthGate && !$isDepthRetreat)
                                 || ($isDepthGate && !empty($result['batch_explore']));
                         @endphp
+                        @if($shouldShowBattleLog)
+                            @include('battle.partials.job-art-v2-hud', ['jobArtV2Hud' => $result['job_art_v2_hud'] ?? null])
+                        @endif
                         @if($shouldShowBattleLog && !empty($result['log']))
                             <style>
                                 .battle-log-entry { letter-spacing: .01em; }

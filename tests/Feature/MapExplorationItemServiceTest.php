@@ -6,25 +6,25 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\City;
-use App\Models\Enemy;
 use App\Models\Item;
 use App\Models\User;
 use App\Services\ExplorationMapGenerator;
 use App\Services\MapExplorationItemService;
 use App\Services\MapSurveyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesExplorationMapEnemyFixtures;
 use Tests\TestCase;
 
 class MapExplorationItemServiceTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesExplorationMapEnemyFixtures, RefreshDatabase;
 
     public function test_map_entry_carries_up_to_ten_recovery_items_and_consumes_only_on_use(): void
     {
         config()->set('exploration_maps.reward_profiles.ancient_fragment.weight', 0);
         $city = City::findOrFail(1);
         $area = Area::create(['name' => '試験地', 'slug' => 'map-item-test', 'city_id' => $city->id, 'recommended_level_min' => 20, 'recommended_level_max' => 30]);
-        $enemy = Enemy::create(['name' => '試験魔物', 'area_id' => $area->id, 'level' => 50, 'max_hp' => 100, 'str' => 20, 'def' => 10, 'agi' => 10, 'mag' => 10, 'spr' => 10, 'luk' => 10, 'exp_reward' => 20, 'gold_reward' => 10, 'job_exp_reward' => 1, 'appearance_weight' => 1, 'is_boss' => false]);
+        $enemy = $this->createExplorationMapEnemyFixtures($area, '試験魔物', 50)['normal'];
         $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => '地図探索者', 'hp_base' => 100, 'current_hp' => 40, 'money' => 10000]);
         $herb = Item::where('type', 'consumable')->where('name', '薬草')->firstOrFail();
         Item::where('type', 'consumable')->where('name', '回復薬')->firstOrFail();

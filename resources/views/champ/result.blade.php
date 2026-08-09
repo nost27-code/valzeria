@@ -162,6 +162,7 @@
 
         <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-sm font-extrabold text-slate-800">戦闘ログ</div>
+            @include('battle.partials.job-art-v2-hud', ['jobArtV2Hud' => $result['job_art_v2_hud'] ?? null])
             <div class="mt-2 rounded-lg border border-slate-300 bg-white p-4 font-mono text-sm leading-loose text-slate-800 shadow-inner">
                 @foreach($result['battle_log'] as $line)
                     {!! $line !!}

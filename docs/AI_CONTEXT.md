@@ -5,6 +5,43 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-13
 Branch: main
 
+## PR27 job-art v2 release candidate
+
+- 既定OFFのcurrent-job v2対応は40職。PR26までの39職に63星冠導師を追加し、全94職のうち54職はcurrent-job v2をfail closedする。上級・超級28職のeffect inventoryは、凍結済み個別効果を持つ4職がfull、残る24職がresource-v2 + master-effect fallbackのままである
+- 9種類のslot条件は`character_job_art_slots.condition_key`を正本として通常/ボス/PvPごとに保存する。`job_art_preset_slots.condition_key`にも同じ値を保存し、preset適用後も維持する。未知値は読込時だけ`always`へfail closedし、DB値を自動更新しない。旧cache専用storeは廃止した
+- current job 63の信頼済みRank1は`star_light -> melody -> sanctuary -> silence -> observation`の固定順で次の場を展開し、実際に既存場を上書きした時だけ基礎+4に追加+2を得る。Rank5は上書きされた自分の旧場を1ラウンドだけechoとして保持する。echoは既存の場補正とHUD snapshotを再利用し、追加の主場/overlay枠を作らない
+- current job 63 Rank9は行動開始時snapshotに主場がある場合だけ、本人が実際に発生させた`field_overwritten`回数0/1〜2/3〜4/5以上に応じて基礎powerを1.00/1.05/1.10/1.15倍する。生成・更新・延長・消滅・副場は数えず最大+15%。同系譜継承Rank9は星印12ptを共有できるがこのcurrent-job固有分岐は持ち込まない。最終blocker解消後のrelease candidate判定は`READY`
+- `BATTLE_JOB_ART_PVP_SET`、`PRESETS`、`LOADOUT_V2`、`DYNAMIC_SINGLE`、`NORMALIZED_SP`、`HIT_RESOLUTION`、`DAMAGE_APPLICATION`、`RESOURCES`、`FIELDS`、`PENETRATION`、`PENETRATION_STANCE`はすべて既定OFFを維持する。公開手順・rollback・監視可能性は`docs/JOB_ART_V2_RELEASE_CHECKLIST.md`を正本とする
+
+## PR26 tactical mixed and inherited job-art v2 loadouts (historical boundary)
+
+- PR26時点の既定OFF current-job v2対応は39職。既存12職を維持し、上級18職と超級10職を追加した。当時はcurrent job 63と英雄・伝説・神話の未実装職がlineageだけを解決し、current-job v2をfail closedしていた
+- `JobArtLineageCatalog`は人間裁定と凍結資料のjob IDを正本に全94職を10系譜へmappingする。上級/超級28職のうち、凍結済み個別効果が揃う4職はfull v2 effect、残る24職は共通resource/activation/SPとmaster effect fallbackで動作する
+- 戦闘中のresource barは現在職の主系譜1本だけ。同主系譜の継承Rank1/5/9は同じ0〜12pt resourceを生成・消費でき、現在職Rank9が使用不能な場合だけ同主系譜継承Rank9を優先候補にする。異系譜継承はforeign resource・finisher優先・current-job限定特殊効果を持ち込まない
+- v2 loadout内のactive戦技は現在職/継承ともRank1/5/9=35/38/50%とnormalized SPを使う。現在職だけ0.8補正、継承は補正なし。必要flag不成立時はmaster activation/SPとlegacy RNG経路を維持する
+- PR26時点では各slotの9種類のdeterministic条件を共有cacheへ保持していた。PR27で通常slotとpreset slotのDB列へ移行し、前方条件不成立時だけ後方へ進む選択規則と1回だけの発動抽選は変更していない
+- DEF/SPR低下、場の正式なowner補正、変成後SP、guard/parryなどglobal battle stateは継承戦技にも作用する一方、61魔法化、62貫通、65命中/SP圧力、68崩し付与、60構え、66加護/浄化、67変成などcurrent-job限定効果はportable化しない
+
+## PR24 job-art v2 horizontal expansion (historical boundary)
+
+- PR24時点では、既定OFFの既存v2依存flagと一元化されたcatalogを維持したままcurrent job 60剣冠騎士（反撃）と66聖冠守護者（守護）をproduction対応へ追加した。当時の対応jobは24/53/60/61/62/64/65/66/67/68/69/85で、current job 63はfail closedだった
+- 60は剣勢0〜12pt。信頼済みRank1発動+4、通常攻撃HIT+1、direct physicalの基礎HIT受領+1、2ラウンド構え中の20%受け流し成功+1。受領と受け流しは同一source actionでも別eventとして両方成立し、多段でも受け流し抽選と各resource eventはaction単位1回。Rank5/9は4/12消費し、Rank9実効powerは実戦比較により455
+- 66は聖護0〜12pt。信頼済みRank1発動+4、通常攻撃HIT+1、one-charge加護で実際に1以上軽減+1、Rank5で明示6状態を1件以上浄化+1。Rank1/5は次のdirect damageを20%、Rank9は25%軽減し、強い値を維持する。v2現在職R1/5/9だけlegacy汎用buffを抑止して既存magical damageを維持し、Rank9 powerはmaster 355を維持する
+- `DirectAttackResolution`、`ParryResult`、`DamageTrace`、`CleanseResult`を6戦闘経路の構造化正本として共通HP適用へ接続した。DoT・自傷・変換cost・反動・未分類追撃はdirect防御対象外。HUD・戦技セット・おすすめ戦型・プリセットは共通metadata/resultを再利用し、継承・flag不足・対象外職はlegacyへfail closedする
+
+## PR23 job-art v2 horizontal expansion
+
+- 既定OFFの既存v2依存flagと共通基盤を維持したまま、production対応current jobへ67金冠錬師（変成）と68雷冠拳聖（崩し）を追加した。現在の対応jobは24/53/61/62/64/65/67/68/69/85。60反撃と66守護はPR24までprototype catalogへ登録せずfail closedする
+- 67は触媒0〜12pt。信頼済みRank1の正式SP消費後に最大HP5%を非致死で支払い、最大SP5%を実回復できた時だけ変換成功として触媒+4、通常攻撃HITで+1。変換HP消費はdamage/self-damageへ通知しない。Rank5/9は4/12消費し、既存の魔法ダメージと報酬効果を維持する
+- 68は崩し0〜12pt。信頼済みRank1の奥義単位HITで+4、通常攻撃HITで+1。Rank5/9は4/12消費し、その攻撃の解決後から対象DEF/SPRを10%・2ラウンド／15%・3ラウンド低下させる。非stackで強い値を優先し、同値だけrefresh、弱い値は既存状態を更新しない。ボスは既存規則どおり効果率半減。v2 R5/9だけlegacy自己buffを抑止する
+- `ConversionResult`と`JobArtV2BreakDebuffResult`を表示用の構造化正本とし、HUD・おすすめ戦型・プリセットは既存共通経路へ接続する。67/68のRank9 powerは追加効果込みの120,096戦比較によりマスタ355を維持し、power overrideを追加しない
+
+## PR22 job-art v2 horizontal expansion
+
+- 既定OFFの既存v2依存flagと一元化された`JobArtV2PrototypeCatalog`を維持したまま、production対応current jobへ65鋼冠機導師（照準）と69戦冠司令（指揮）を追加した。照準は上限12で、信頼済みRank1発動+4、通常攻撃HIT+1/MISS+2、Rank5/9は4/12消費・その行動だけ命中+5/+8pt・HIT時に対象の現在SPへ最大SPの3%/5%圧力（同一相手へ一戦15%上限）。指揮点は上限12で、Rank1発動自体では増えず、通常攻撃HIT+4と最終行動が通常攻撃または現在職技だった非奥義手番+1を別eventとして得るため、通常攻撃HITは合計+5。Rank5/9は4/12消費する
+- `NormalAttackResolution`は既存の通常攻撃HIT/MISS結果を再抽選せず構造化し、`BattleActionResult`は1 actor actionにつき最終行動をJOB_ART/CURRENT_JOB_SKILL/NORMAL_ATTACK/NO_ACTIONのいずれかへ一度だけ確定する。job_art不発後のfallbackは実際の現在職技/通常攻撃として扱い、job_art自体のMISS/EVADEはJOB_ARTのまま。65 Rank9実効powerは570、69 Rank9は455。master・`job_arts.json`・継承・対象外職・依存flag不成立はlegacyへfail closedし、PR22時点のproduction対応jobは24/53/61/62/64/65/69/85の8職
+- 67変成と68崩しはPR23、60反撃と66守護はPR24でproduction接続済み。場術は53/85のvertical sliceを正本とし、current job 63は未展開
+
 ## Read order
 
 For implementation planning:
@@ -141,3 +178,15 @@ Recent key points:
 - 2026-08-13運営裁定により、定期実行の自動配布は2026-08-10 9:00開始週以降だけを回収する。2026-07-27・2026-08-03開始週は未確定のまま自動対象外とし、明示的な手動確定経路だけを残す
 - ランク戦・チャンプ戦は挑戦者がボス戦セット奥義+職業固有必殺技を使用可（PvPは防衛側も）
 - チャンプ戦は、画面表示時のチャンプIDと就任時刻を戦闘開始直前に再照合し、交代済みなら戦闘せず最新表示へ戻す。ホームのチャンプカードはタブ復帰時にも更新する。戦闘結果はキャラクター別の一時トークンでも保持し、ホームのLivewire更新と重なってセッション結果が失われても結果画面へ遷移する。撃破判定は挑戦者の行動でチャンプHPが0になった場合だけ成立し、挑戦者側の反動相打ちは撃破、チャンプ側の反動死は交代なしでHP1を維持する。
+- 奥義v2試作はfeature flag既定OFF。`BATTLE_JOB_ART_DYNAMIC_SINGLE=true`でも`JobArtV2PrototypeCatalog`対応40職だけが1ターン1候補・不発後再抽選なしの選択方式を使い、対象外職とflag OFFは既存の複数抽選経路をそのまま使う。9種類のdeterministic slot条件は前方条件不成立時だけ後方slotを評価し、追加RNGを消費しない。さらに`BATTLE_JOB_ART_NORMALIZED_SP=true`の両flag ON時だけ、activeな現在職・継承Rank1/5/9へ発動率35/38/50%、温存40%、共通分母2000の上限制Hybrid SP式（Rank1: `min(最大SP×50, 4000+最大SP×40)`、Rank5: `min(最大SP×80, 6000+最大SP×65)`、Rank9: `min(最大SP×110, 8000+最大SP×90)`、継承は2000・本職だけ2500で除して切上げ、最低1SP）を戦闘と戦技画面で共通使用する
+- `BATTLE_JOB_ART_HIT_RESOLUTION=true` はdynamic-singleとの両flag ONかつ現在職がprototype対応40職の時だけ、信頼済み分類のダメージ奥義を共通`ActionResolver`でHIT/MISS/EVADEへ解決する。既定OFFで、非ダメージ・分類不能奥義、対象外職、通常攻撃、現在職固有必殺技はlegacy経路を維持する。accuracy未指定の既存奥義はPvE・ボス・塔でlegacyの1Hit命中率、対人3経路でlegacyの基礎必中を再利用し、奥義全体を1回だけ抽選する。65の信頼済み現在職Rank5/9だけは同じ1回の抽選前に+5/+8ptを加えて既存clampを適用する。能動回避providerの本番既定値は0%
+- `BATTLE_JOB_ART_DAMAGE_APPLICATION=true` はdynamic-single・hit-resolutionとの3flag ONかつ戦闘参加者にprototype対応40職が含まれる時だけ、通常攻撃・現在職必殺技・奥義・継続/反動ダメージなどの最終HP減算を共通`DamageApplicationService`へ委譲する。既定OFFで、既存`BattleActor::takeDamage()`のHP・不屈・死亡判定をそのまま再利用し、要求ダメージ、実HP減少、超過ダメージ、致死、発生源、HIT結果、Hit位置を追加の乱数やログなしで返す。MISS/EVADE、非ダメージ奥義、0ダメージは委譲しない
+- `BATTLE_JOB_ART_RESOURCES=true` はdynamic-single・hit-resolution・damage-applicationとの4flag ONかつ行動者の現在職がprototype対応40職の時だけ、現在職主系譜の戦闘内0〜12ptリソースを1本だけ有効にする。Rank5は4、Rank9は12消費して戦闘外へ保存しない。同主系譜継承Rank1/5/9はこのresourceへproducer/consumer/finisherとして参加し、現在職Rank9が使用不能な時だけ同主系譜継承Rank9を優先候補化する。異系譜継承はforeign resource、finisher優先、current-job限定特殊効果を持ち込まない。60/61/63/65/66/67/68/69の系譜固有獲得eventは既存正本を維持し、現在職85 Rank5はFIELDS依存不成立または主場なしなら候補外にする
+- `BATTLE_JOB_ART_FIELDS=true` はdynamic-single・hit-resolution・damage-application・resourcesとの全flag ONかつ参加者に対応済み場術職が含まれる時だけ有効。`BattleState` にDB非永続の主場1つ・副場1つとactor別の1ラウンドechoを保持し、主場は基本3ラウンド・最大5・1インスタンス1回だけ延長でき、生成/更新ラウンドは減算しない。信頼済み5種は星光（所有者の魔法ダメージ+10%）、旋律（所有者の奥義発動率+3pt）、聖域（所有者のHP回復+10%）、静寂（相手の資源獲得-1pt）、天測（所有者の命中+5pt・資源獲得+1pt）。本番生成は24 Rank1の聖域、46 Rank1の旋律、53/85 Rank1の星光、63 Rank1の固定5種cycle、現在職85 Rank9の1ラウンド旋律副場。53 Rank5は主場を+1、63 Rank5は上書きされた自分の旧場を1ラウンドecho、85 Rank5は主場がある時だけ星印4ptを消費して2ラウンド上書き不可にする。行動開始時スナップショットにより新しい場は同一行動へ自己適用しない
+- `BATTLE_JOB_ART_PENETRATION=true` はdynamic-single・hit-resolution・damage-application・resourcesとの全flag ONかつ正式metadataを持つ貫通系現在職32/45/52/62が自職由来の信頼済みRank5/9を使う時だけ有効。既定OFFで、物理DEF低減率は32=30%/50%、45=25%/40%、52=35%/50%、62=35%/50%。HIT後の既存ダメージ計算入力へ適用し、既存値と加算せず最大値だけを採用して絶対上限50%とする。SPR、Actorの永続DEF、障壁・軽減、PvPのminimum/floor/capは変更しない。構えは次項の追加flagで62だけに接続し、Rank5使用済みによるRank9追加威力はv2で採用しない
+- `BATTLE_JOB_ART_PENETRATION_STANCE=true` は上記penetrationまでの全依存flag ONかつ現在職62の時だけ有効。既定OFFで、`BattleActor` にDB非永続・非スタック・期限なしの1チャージ構えを保持する。自職Rank1は発動時に付与し、自職Rank5は開始時snapshotに構えがあれば35%貫通へ使用した後、HIT/MISS/EVADEを問わず行動後に再付与する。自職Rank9は開始時snapshotに構えがあれば50%貫通へ使用し、結果を問わず再付与しない。構えなしでもRank5/9は使用できるがv2貫通はなく、構え単独の倍率・命中補正はない。Rank5は既存CT2・回数制限なしの反復可能consumer、Rank9は一戦一度で、過去のRank5使用有無による追加倍率は設けない
+- 代表4職（24/53/62/85）の縦切りE2Eを維持しつつ、現在はprototype対応40職が同じ通常/ボス/PvPセット、5枠/Cost9、dynamic-single、normalized SP、HIT解決、共通HP適用、系譜resourceを使う。loadout-v2とdynamic-singleの両flag ONかつ現在職がprototype対応職の場合、現在職自身の登録済みRank1/5/9同士だけはlegacy restriction groupの競合を無視して同じセットへ保存できる。継承・未登録・対象外職・依存flag OFFはlegacy制約を維持する。全flagは既定OFF
+- `BATTLE_JOB_ART_LOADOUT_V2=true`かつprototype対応40職では、既存の奥義セット画面をプレイヤー向けに「戦技セット」と表示する。信頼済みmetadataだけを使い、Rank1 producer=`始動`、Rank5 consumer=`展開`、Rank9 finisher=`奥義`、現在職/継承と同系譜/系譜外badge、共通計算済みCost/SP/発動率/power、現在職主系譜resourceと固有効果を5枠へ表示する。9種類のslot条件は折りたたみ設定に保存し、異系譜継承へforeign resourceを表示しない。内部の`JobArt`名・route・DB・マスタは変更せず、flag OFFは従来の「奥義セット」3枠/Cost5を維持する
+- `BATTLE_JOB_ART_PRESETS` は既定OFF。LOADOUT_V2もONかつprototype対応40職の場合だけ「マイ戦技プリセット」を表示・操作できる。1キャラクター無料3件で、保存時の現在職と同じ職でのみ通常/ボス/PvPの現在タブへ適用可能。保存する正本は5枠の戦技ID・順番・発動方針・slot条件で、適用時に現行Cost・習得・restrictionを再検証する。戦闘はpreset tableを直接参照しない。冒険者パス・課金枠拡張は未実装
+- v2の12pt経済校正では、既存Rank5を維持し、必要な現在職の信頼済みRank9だけを `JobArtV2PowerResolver` で実行時補正する。53=410、60=455、61=585、62=470、64=460、65=570、69=455。66/67/68は固有効果込み比較でmaster 355を維持しoverrideを追加しない。63はmaster powerを維持し、行動開始時の主場と本人の実上書き回数に基づく最大1.15倍だけを実行時に一度適用する。戦技セットの固定威力表示と実行時powerは同じResolverを使い、継承・対象外職・依存flag不成立時は既存マスタpowerへfail closedする。24/85とlegacy masterは変更せず、新しいpower専用flagは追加しない
+- 全v2戦闘依存flagが成立したprototype対応40職では、通常・ボス・塔・PvP・チャンプ・NPC闘技場の戦闘結果に表示専用の「戦技の流れ」を出す。サーバーで戦闘全体を解決した後の最終HUDと折りたたみ履歴で、現在職主系譜resource 0〜12、奥義までの残量、場/echo/構え/HIT/MISS/EVADE/貫通/SP変化を表示する。resource barは常に1本で、同系譜継承の増減も同じbarへ反映し、異系譜resourceは生成しない。日本語ログは解析せず、表示値を戦闘判定へ戻さない。flag OFF・対象外職はHUDを出さず、RNGと勝敗結果を変更しない

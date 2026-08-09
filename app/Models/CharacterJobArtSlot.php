@@ -12,11 +12,13 @@ class CharacterJobArtSlot extends Model
         'slot_no',
         'skill_id',
         'activation_policy',
+        'condition_key',
     ];
 
     protected $casts = [
         'slot_no' => 'integer',
         'activation_policy' => 'string',
+        'condition_key' => 'string',
     ];
 
     public function character()

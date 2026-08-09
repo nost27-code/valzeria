@@ -11,7 +11,13 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleResult;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleTypeAffinity;
+use App\Services\Battle\DamageApplicationRequest;
+use App\Services\Battle\DamageApplicationResult;
+use App\Services\Battle\DamageApplicationService;
 use App\Services\Battle\DamageCalculator;
+use App\Services\Battle\DamageSourceType;
+use App\Services\Battle\DirectAttackResolution;
+use App\Services\Battle\HitResult;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
@@ -29,8 +35,63 @@ class ArenaNpcBattleService
         private readonly CharacterStatusService $statusService,
         private readonly DamageCalculator $damageCalculator,
         private readonly ArenaNpcRankingService $rankingService,
-        private readonly JobArtBattleSupportService $jobArtBattleSupport
+        private readonly JobArtBattleSupportService $jobArtBattleSupport,
+        private readonly ?DamageApplicationService $configuredDamageApplicationService = null,
     ) {
+    }
+
+    private function applyResolvedDamage(
+        ?BattleActor $source,
+        BattleActor $target,
+        BattleState $state,
+        int $damage,
+        DamageSourceType $sourceType,
+        int|string|null $sourceId = null,
+        ?HitResult $hitResult = null,
+        int $hitIndex = 1,
+        int $hitCount = 1,
+        bool $isDirect = false,
+        ?string $damageCategory = null,
+    ): ?DamageApplicationResult {
+        if ($damage <= 0) {
+            $target->takeDamage($damage);
+
+            return null;
+        }
+
+        if (!$this->jobArtBattleSupport->usesDamageApplication($source, $target)) {
+            $target->takeDamage($damage);
+
+            return null;
+        }
+
+        $service = $this->configuredDamageApplicationService ?? app(DamageApplicationService::class);
+
+        return $service->apply(new DamageApplicationRequest(
+            sourceActor: $source,
+            targetActor: $target,
+            resolvedDamage: $damage,
+            sourceType: $sourceType,
+            sourceId: $sourceId,
+            battleType: $state->battleType,
+            hitResult: $hitResult,
+            hitIndex: $hitIndex,
+            hitCount: $hitCount,
+            battleState: $state,
+            directAttackResolution: $isDirect
+                && $source !== null
+                && $state->currentSourceActionId() !== null
+                ? DirectAttackResolution::fromDamageSource(
+                    sourceActionId: $state->currentSourceActionId(),
+                    attacker: $source,
+                    target: $target,
+                    hitResult: $hitResult,
+                    damageCategory: (string) $damageCategory,
+                    direct: true,
+                    sourceType: $sourceType,
+                )
+                : null,
+        ));
     }
 
     public function executeBattle(Character $attacker, ArenaNpcRanking $npcRanking): BattleResult
@@ -56,16 +117,19 @@ class ArenaNpcBattleService
             if ($attackerSpeed >= $npcSpeed) {
                 $this->executeAction($attackerActor, $npcActor, $state);
                 if ($state->isBattleEnded()) {
+                    $this->jobArtBattleSupport->endRound($state);
                     break;
                 }
                 $this->executeAction($npcActor, $attackerActor, $state);
             } else {
                 $this->executeAction($npcActor, $attackerActor, $state);
                 if ($state->isBattleEnded()) {
+                    $this->jobArtBattleSupport->endRound($state);
                     break;
                 }
                 $this->executeAction($attackerActor, $npcActor, $state);
             }
+            $this->jobArtBattleSupport->endRound($state);
         }
 
         $isAttackerWin = false;
@@ -85,6 +149,7 @@ class ArenaNpcBattleService
         $result->logs = $state->logs;
         $result->playerHpAfter = $attackerActor->hp;
         $result->playerMpAfter = $attackerActor->mp;
+        $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
 
         DB::transaction(function () use ($attacker, $npcRanking, $isAttackerWin): void {
             $attackerRanking = ArenaRanking::where('character_id', $attacker->id)->lockForUpdate()->firstOrFail();
@@ -222,22 +287,30 @@ class ArenaNpcBattleService
 
     private function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
     {
+        $this->jobArtBattleSupport->beginAction($attacker, $state);
+
+        try {
         $attacker->isDefending = false;
         $attacker->damageReductionRate = 0;
 
         if ($attacker->isPlayer) {
             $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
             $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
-            if ($jobArt) {
-                $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $state, $jobArt);
+            if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $state, $jobArt)) {
                 $state->addLog($this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt));
+                $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $jobArt, $state->battleType, $state);
+                if ($hitResult !== null && !$hitResult->landed()) {
+                    $state->addLog($this->jobArtBattleSupport->resolutionFailureLog($jobArt, $hitResult));
+                }
                 $this->executeSkillAction(
                     $attacker,
                     $defender,
                     $state,
-                    $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt),
-                    false
+                    $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $state),
+                    false,
+                    $hitResult,
                 );
+                $this->jobArtBattleSupport->completeJobArtCast($attacker, $state, $jobArt, $hitResult, $defender);
                 return;
             }
 
@@ -245,6 +318,7 @@ class ArenaNpcBattleService
                 $spCost = $attacker->skill->specialSkillSpCostForMaxSp($attacker->maxMp);
                 if ($attacker->mp >= $spCost) {
                     $attacker->mp -= $spCost;
+                    $this->jobArtBattleSupport->markSkillAction($attacker, $state, $attacker->skill);
                     $this->executeSkillAction($attacker, $defender, $state, $attacker->skill);
                     return;
                 }
@@ -252,6 +326,9 @@ class ArenaNpcBattleService
         }
 
         $this->executeNormalAttack($attacker, $defender, $state);
+        } finally {
+            $this->jobArtBattleSupport->finishAction($attacker, $state);
+        }
     }
 
     private function executeSkillAction(
@@ -259,35 +336,37 @@ class ArenaNpcBattleService
         BattleActor $defender,
         BattleState $state,
         Skill $skill,
-        bool $addOpeningLog = true
+        bool $addOpeningLog = true,
+        ?HitResult $jobArtHitResult = null,
     ): void {
+        $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
         if ($addOpeningLog) {
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
+        }
+        if ($this->jobArtBattleSupport->isFieldOnlyArt($attacker, $state, $skill)) {
+            return;
         }
 
         $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
             ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
             : (string) $skill->damage_type;
+        $applyTargetEffects = $jobArtHitResult === null || $jobArtHitResult->landed();
         $hitCount = max(1, (int) $skill->hit_count);
         if ((int) $skill->hit_count === 0 && in_array($damageType, ['heal', 'support'], true)) {
             $hitCount = 1;
         }
-        if ((int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
+        if ($applyTargetEffects && (int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
             $hitCount++;
         }
 
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
         $totalDamage = 0;
-        for ($i = 0; $i < $hitCount; $i++) {
+        for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
             $damage = 0;
             $power = max(0, (int) round((float) $skill->power_multiplier * 100));
-            $overrideDef = null;
-            $overrideSpr = null;
-
-            if ((int) $skill->def_ignore_percent > 0) {
-                $overrideDef = (int) floor($defender->def * (1 - ((int) $skill->def_ignore_percent / 100)));
-                $overrideSpr = (int) floor($defender->spr * (1 - ((int) $skill->def_ignore_percent / 100)));
-            }
+            $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
+            $overrideDef = $overrides['def'];
+            $overrideSpr = $overrides['spr'];
 
             if ((float) $skill->luk_power_rate > 0) {
                 $power += (int) floor($attacker->luk * (float) $skill->luk_power_rate);
@@ -343,8 +422,27 @@ class ArenaNpcBattleService
             }
 
             if ($damage > 0) {
+                $damage = $this->jobArtBattleSupport->modifyFieldDamage(
+                    $attacker,
+                    $state,
+                    $damage,
+                    $skill->isJobArt() ? DamageSourceType::JOB_ART : DamageSourceType::JOB_SKILL,
+                );
+                $damageResult = $this->applyResolvedDamage(
+                    $attacker,
+                    $defender,
+                    $state,
+                    $damage,
+                    $skill->isJobArt() ? DamageSourceType::JOB_ART : DamageSourceType::JOB_SKILL,
+                    (int) $skill->id,
+                    $jobArtHitResult,
+                    $i + 1,
+                    $hitCount,
+                    true,
+                    $skill->damage_type === 'magical' ? 'magical' : 'physical',
+                );
+                $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
-                $defender->takeDamage($damage);
                 $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
@@ -355,11 +453,12 @@ class ArenaNpcBattleService
         }
 
         if ($skill->isJobArt()) {
-            $this->applyJobArtTemplateEffects($attacker, $defender, $state, $skill, $totalDamage);
+            $this->applyJobArtTemplateEffects($attacker, $defender, $state, $skill, $totalDamage, $applyTargetEffects);
         }
 
         if ((int) $skill->heal_percent > 0) {
             $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
+            $healAmount = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $healAmount);
             $attacker->healHp($healAmount);
             $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$healAmount} 回復した！</span>");
         }
@@ -372,12 +471,22 @@ class ArenaNpcBattleService
 
         if ((int) $skill->self_damage_percent > 0) {
             $selfDamage = (int) floor($attacker->maxHp * ((int) $skill->self_damage_percent / 100));
-            $attacker->takeDamage($selfDamage);
+            $this->applyResolvedDamage(
+                $attacker,
+                $attacker,
+                $state,
+                $selfDamage,
+                DamageSourceType::RECOIL,
+                (int) $skill->id,
+            );
             $state->addLog("<span class=\"text-purple-600 font-bold\">反動により、{$attacker->name} は {$selfDamage} のダメージを受けた！</span>");
+            $this->jobArtBattleSupport->recordSelfDamage($attacker, $state, $selfDamage);
             $this->logGutsIfTriggered($attacker, $state);
         }
 
-        $this->applyStructuredDebuffs($defender, $state, $skill);
+        if ($applyTargetEffects) {
+            $this->applyStructuredDebuffs($defender, $state, $skill);
+        }
 
         if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
             $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
@@ -397,19 +506,22 @@ class ArenaNpcBattleService
         BattleActor $defender,
         BattleState $state,
         Skill $skill,
-        int $totalDamage
+        int $totalDamage,
+        bool $applyTargetEffects = true,
     ): void {
         $template = (string) $skill->effect_template;
         $power = max(1, (int) ($skill->power ?: 100));
 
         if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
             $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
+            $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
             $attacker->healHp($heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>");
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
             $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
+            $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
             $attacker->healHp($heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>");
         }
@@ -434,7 +546,7 @@ class ArenaNpcBattleService
             $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
         }
 
-        if (in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
+        if ($applyTargetEffects && in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
             $beforeDef = $defender->def;
             $beforeSpr = $defender->spr;
             $defender->def = max(1, $defender->def - max(1, (int) floor($defender->baseDef * 0.10)));
@@ -442,7 +554,7 @@ class ArenaNpcBattleService
             $this->logStatChange($state, $defender->name, 'DEF', $beforeDef, $defender->def, 'SPR', $beforeSpr, $defender->spr, false);
         }
 
-        if ($template === 'TIME_CONTROL_CURRENT_ONLY' && !$this->hasStructuredDebuff($skill)) {
+        if ($applyTargetEffects && $template === 'TIME_CONTROL_CURRENT_ONLY' && !$this->hasStructuredDebuff($skill)) {
             $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
             $before = $defender->agi;
             $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
@@ -527,11 +639,15 @@ class ArenaNpcBattleService
             100,
             self::HIT_AGI_FACTOR,
             self::MIN_HIT_RATE,
-            self::MAX_HIT_RATE
+            self::MAX_HIT_RATE,
+            $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
+            $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS);
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
             return;
         }
+
+        $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT);
 
         $attackType = $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
         $isCritical = $this->damageCalculator->isRankBattleCritical($attacker, $defender);
@@ -544,8 +660,22 @@ class ArenaNpcBattleService
             $isCritical,
             $affinityMultiplier
         );
+        $damage = $this->jobArtBattleSupport->modifyFieldDamage($attacker, $state, $damage, DamageSourceType::NORMAL_ATTACK);
 
-        $defender->takeDamage($damage);
+        $damageResult = $this->applyResolvedDamage(
+            $attacker,
+            $defender,
+            $state,
+            $damage,
+            DamageSourceType::NORMAL_ATTACK,
+            null,
+            HitResult::HIT,
+            1,
+            1,
+            true,
+            $attackType,
+        );
+        $damage = $damageResult?->requestedDamage ?? $damage;
 
         $critText = $isCritical ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : '';
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';

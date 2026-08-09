@@ -35,7 +35,9 @@ class BattleActor
     public array $jobArtRates = [];
     public array $jobArtOrigins = [];
     public array $jobArtPolicies = [];
+    public array $jobArtConditions = [];
     public string $jobArtActivationPolicy = 'normal';
+    public ?int $currentJobId = null;
     public ?string $jobKey = null;
     public array $battleTypeWeights = ['physical' => 1.0, 'speed' => 0.0, 'magical' => 0.0];
     public ?string $normalAttackType = null;
@@ -53,6 +55,24 @@ class BattleActor
     public int $damageReductionRate = 0;
     public bool $gutsReady = false;
     public bool $gutsJustTriggered = false;
+
+    /** @var array<string, int> 戦闘終了時に破棄する奥義v2試作用リソース。 */
+    private array $resources = [];
+
+    /** @var array<string, int> */
+    private array $resourceCaps = [];
+
+    /** 戦闘終了時に破棄する、竜冠槍将の貫通用1チャージ構え。 */
+    private bool $piercingStance = false;
+
+    /** 戦闘終了時に破棄する、崩し系譜のDEF/SPR一時低下。 */
+    private ?\App\Services\JobArtV2BreakDebuffState $breakDebuffState = null;
+
+    /** 戦闘終了時に破棄する、反撃系譜の2ラウンド構え。 */
+    private ?\App\Services\JobArtV2CounterStanceState $counterStanceState = null;
+
+    /** 戦闘終了時に破棄する、守護系譜の次回直接ダメージ軽減。 */
+    private ?\App\Services\JobArtV2GuardState $jobArtV2GuardState = null;
 
     /** このアクターが受けたダメージの累計（DOT・追撃含む全経路）。戦闘ログ集計に使う。 */
     public int $totalDamageTaken = 0;
@@ -95,6 +115,7 @@ class BattleActor
         $this->spr = $this->baseSpr = $stats['spr'] ?? 10;
         $this->luk = $this->baseLuk = $stats['luk'] ?? 10;
         $this->jobKey = isset($stats['job_key']) ? (string) $stats['job_key'] : null;
+        $this->currentJobId = isset($stats['current_job_id']) ? (int) $stats['current_job_id'] : null;
         $this->battleTypeWeights = BattleTypeAffinity::normalize($stats['battle_type_weights'] ?? []);
         $this->normalAttackType = $this->normalizeNormalAttackType($stats['normal_attack_type'] ?? null);
         $speciesKey = trim((string) ($stats['species_key'] ?? ''));
@@ -183,6 +204,94 @@ class BattleActor
         return false;
     }
 
+    public function configureResource(string $resourceKey, int $cap): void
+    {
+        $cap = max(0, $cap);
+        $this->resourceCaps[$resourceKey] = $cap;
+        if (array_key_exists($resourceKey, $this->resources)) {
+            $this->resources[$resourceKey] = max(0, min($cap, $this->resources[$resourceKey]));
+        }
+    }
+
+    public function getResource(string $resourceKey): int
+    {
+        return (int) ($this->resources[$resourceKey] ?? 0);
+    }
+
+    public function setResource(string $resourceKey, int $points): int
+    {
+        $cap = $this->resourceCap($resourceKey);
+        $this->resources[$resourceKey] = max(0, min($cap, $points));
+
+        return $this->resources[$resourceKey];
+    }
+
+    public function addResource(string $resourceKey, int $points): int
+    {
+        return $this->setResource($resourceKey, $this->getResource($resourceKey) + max(0, $points));
+    }
+
+    public function canSpendResource(string $resourceKey, int $points): bool
+    {
+        return $points >= 0 && $this->getResource($resourceKey) >= $points;
+    }
+
+    public function spendResource(string $resourceKey, int $points): bool
+    {
+        if (!$this->canSpendResource($resourceKey, $points)) {
+            return false;
+        }
+
+        $this->setResource($resourceKey, $this->getResource($resourceKey) - $points);
+
+        return true;
+    }
+
+    public function resourceCap(string $resourceKey): int
+    {
+        return (int) ($this->resourceCaps[$resourceKey] ?? 0);
+    }
+
+    public function hasPiercingStance(): bool
+    {
+        return $this->piercingStance;
+    }
+
+    public function setPiercingStance(bool $active): void
+    {
+        $this->piercingStance = $active;
+    }
+
+    public function breakDebuffState(): ?\App\Services\JobArtV2BreakDebuffState
+    {
+        return $this->breakDebuffState;
+    }
+
+    public function replaceBreakDebuffState(?\App\Services\JobArtV2BreakDebuffState $state): void
+    {
+        $this->breakDebuffState = $state;
+    }
+
+    public function counterStanceState(): ?\App\Services\JobArtV2CounterStanceState
+    {
+        return $this->counterStanceState;
+    }
+
+    public function replaceCounterStanceState(?\App\Services\JobArtV2CounterStanceState $state): void
+    {
+        $this->counterStanceState = $state;
+    }
+
+    public function jobArtV2GuardState(): ?\App\Services\JobArtV2GuardState
+    {
+        return $this->jobArtV2GuardState;
+    }
+
+    public function replaceJobArtV2GuardState(?\App\Services\JobArtV2GuardState $state): void
+    {
+        $this->jobArtV2GuardState = $state;
+    }
+
     public function usesMagForNormalAttack(): bool
     {
         if ($this->normalAttackType === 'adaptive') {
@@ -203,7 +312,7 @@ class BattleActor
 
     public function effectiveDef(): int
     {
-        return $this->effectiveStat($this->def, 'def_down');
+        return $this->effectiveStatWithBreak($this->def, 'def_down');
     }
 
     public function effectiveAgi(): int
@@ -218,7 +327,7 @@ class BattleActor
 
     public function effectiveSpr(): int
     {
-        return $this->effectiveStat($this->spr, 'spr_down');
+        return $this->effectiveStatWithBreak($this->spr, 'spr_down');
     }
 
     public function conditionRate(string $key): float
@@ -231,6 +340,14 @@ class BattleActor
     private function effectiveStat(int $value, string $conditionKey): int
     {
         return max(1, (int) floor($value * (1 - $this->conditionRate($conditionKey))));
+    }
+
+    private function effectiveStatWithBreak(int $value, string $conditionKey): int
+    {
+        $effective = $this->effectiveStat($value, $conditionKey);
+        $breakRate = max(0.0, min(1.0, $this->breakDebuffState?->rate ?? 0.0));
+
+        return max(1, (int) floor($effective * (1 - $breakRate)));
     }
 
     private function normalizeNormalAttackType(?string $value): ?string

@@ -297,8 +297,8 @@ class HomeActionService
 
         $isComplete = $availableCount <= 2
             ? $selectedCount >= $availableCount
-            : $selectedCount >= JobArtService::MAX_SLOTS
-                || $totalCost >= JobArtService::MAX_COST
+            : $selectedCount >= $this->jobArtService->maxSlots()
+                || $totalCost >= $this->jobArtService->maxCost()
                 || ($selectedCount >= 2 && hash_equals($signature, $seenSignature));
 
         if ($isComplete) {

@@ -948,6 +948,7 @@ class BattleController extends Controller
                 'result' => [
                     'result' => $result->result,
                     'logs' => $result->logs,
+                    'job_art_v2_hud' => $result->jobArtV2Hud,
                 ],
                 'attacker' => $attacker,
                 'defender' => [
@@ -982,6 +983,7 @@ class BattleController extends Controller
             'result' => [
                 'result' => $result->result,
                 'logs' => $result->logs,
+                'job_art_v2_hud' => $result->jobArtV2Hud,
             ],
             'attacker' => $attacker,
             'defender' => $defender,
@@ -1068,6 +1070,7 @@ class BattleController extends Controller
             'result' => [
                 'result' => $result->result,
                 'logs' => $result->logs,
+                'job_art_v2_hud' => $result->jobArtV2Hud,
             ],
             'attacker' => $attacker,
             'defender' => $defender,

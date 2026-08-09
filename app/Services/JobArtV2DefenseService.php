@@ -1,0 +1,288 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Skill;
+use App\Services\Battle\BattleActor;
+use App\Services\Battle\BattleState;
+use App\Services\Battle\CleanseResult;
+use App\Services\Battle\DamageTrace;
+use App\Services\Battle\DirectAttackResolution;
+use App\Services\Battle\HitResult;
+use App\Services\Battle\ParryResult;
+
+final class JobArtV2DefenseService
+{
+    public const COUNTER_JOB_ID = 60;
+    public const GUARD_JOB_ID = 66;
+
+    public const COUNTER_EVENT_APPLIED = 'applied';
+    public const COUNTER_EVENT_REFRESHED = 'refreshed';
+    public const COUNTER_EVENT_EXPIRED = 'expired';
+
+    /** @var list<string> */
+    public const CLEANSABLE_STATES = [
+        'burn',
+        'poison',
+        'bleed',
+        'def_down',
+        'slow',
+        'recovery_block',
+    ];
+
+    public function __construct(
+        private readonly JobArtV2FeatureGate $featureGate,
+        private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
+        private readonly JobArtV2ResourceService $resourceService,
+        private readonly JobArtV2ParryRandomSource $randomSource,
+    ) {}
+
+    public function applyJobArtCast(BattleActor $actor, BattleState $state, Skill $skill): void
+    {
+        $metadata = $this->trustedMetadata($actor, $skill);
+        $sourceActionId = $state->currentSourceActionId();
+        if ($metadata === null || $sourceActionId === null) {
+            return;
+        }
+
+        if ($actor->currentJobId === self::COUNTER_JOB_ID
+            && (int) $skill->learn_rank === 1
+            && isset($metadata['counter_stance_rounds'], $metadata['parry_rate'])
+        ) {
+            $event = $actor->counterStanceState() === null
+                ? self::COUNTER_EVENT_APPLIED
+                : self::COUNTER_EVENT_REFRESHED;
+            $actor->replaceCounterStanceState(new JobArtV2CounterStanceState(
+                remainingRounds: max(1, (int) $metadata['counter_stance_rounds']),
+                appliedRound: $state->turnCount,
+                parryRate: max(0.0, min(1.0, (float) $metadata['parry_rate'])),
+            ));
+            $state->recordCounterStanceEvent(
+                actor: $actor,
+                event: $event,
+                remainingRounds: $actor->counterStanceState()?->remainingRounds ?? 0,
+                sourceActionId: $sourceActionId,
+            );
+            $state->addLog('<span class="text-cyan-700 font-bold">'.e($actor->name).' は剣冠の構えを取った！（2ラウンド）</span>');
+        }
+
+        if ($actor->currentJobId !== self::GUARD_JOB_ID || ! isset($metadata['guard_rate'])) {
+            return;
+        }
+
+        if (! empty($metadata['cleanse_harmful_states'])) {
+            $result = $this->cleanse($actor, $state, $sourceActionId);
+            if ($result->success) {
+                $this->resourceService->recordCleanseSuccess($actor, $state);
+                $state->addLog('<span class="text-emerald-700 font-bold">'.e($actor->name).' の有害状態を浄化した！（'.e(implode(' / ', $result->removedStates)).'）</span>');
+            }
+        }
+
+        $this->applyGuard($actor, $state, max(0.0, min(1.0, (float) $metadata['guard_rate'])));
+    }
+
+    public function resolveDamage(
+        BattleState $state,
+        DirectAttackResolution $resolution,
+        int $damage,
+    ): int {
+        $damage = max(0, $damage);
+        if (! $resolution->direct
+            || $resolution->hitResult !== HitResult::HIT
+            || $damage <= 0
+            || ! $this->featureGate->usesResources($resolution->target)
+        ) {
+            return $damage;
+        }
+
+        $this->markIncomingHudAction($state, $resolution);
+
+        $targetResource = $this->prototypeCatalog->jobResourceMetadata($resolution->target->currentJobId);
+        if ($resolution->damageCategory === 'physical'
+            && ($targetResource['lineage_key'] ?? null) === 'counter'
+        ) {
+            $this->resourceService->recordPhysicalAttackReceived($resolution->target, $state);
+        }
+
+        if ($resolution->damageCategory === 'physical') {
+            $parriedDamage = $this->resolveParry($state, $resolution, $damage);
+            if ($parriedDamage === 0) {
+                return 0;
+            }
+            $damage = $parriedDamage;
+        }
+
+        return $this->resolveGuard($state, $resolution, $damage);
+    }
+
+    /** @return list<array<string, bool|float|int|string>> */
+    public function endRound(BattleState $state): array
+    {
+        $events = [];
+        foreach ([$state->player, $state->enemy] as $actor) {
+            $stance = $actor->counterStanceState();
+            if ($stance === null || ! $stance->advanceAtRoundEnd($state->turnCount)) {
+                continue;
+            }
+
+            if ($stance->isExpired()) {
+                $actor->replaceCounterStanceState(null);
+                $state->recordCounterStanceEvent(
+                    actor: $actor,
+                    event: self::COUNTER_EVENT_EXPIRED,
+                    remainingRounds: 0,
+                    sourceActionId: 'round:'.$state->turnCount.':counter:'.$state->actorKey($actor),
+                );
+                $state->addLog('<span class="text-slate-600 font-bold">'.e($actor->name).' の剣冠の構えが解けた。</span>');
+            }
+
+            $events[] = [
+                'actor_key' => $state->actorKey($actor),
+                'event' => $stance->isExpired() ? self::COUNTER_EVENT_EXPIRED : 'advanced',
+                'remaining_rounds' => $actor->counterStanceState()?->remainingRounds ?? 0,
+                'source_action_id' => 'round:'.$state->turnCount.':counter:'.$state->actorKey($actor),
+            ];
+        }
+
+        return $events;
+    }
+
+    private function resolveParry(
+        BattleState $state,
+        DirectAttackResolution $resolution,
+        int $damage,
+    ): int {
+        $result = $state->parryResult($resolution->target, $resolution->sourceActionId);
+        if ($result === null) {
+            $stance = $resolution->target->counterStanceState();
+            $eligible = $stance !== null;
+            $rate = $stance?->parryRate ?? 0.0;
+            $success = $eligible && $this->randomSource->percentRoll() <= (int) round($rate * 100);
+            $result = new ParryResult(
+                sourceActionId: $resolution->sourceActionId,
+                attackerKey: $state->actorKey($resolution->attacker),
+                targetKey: $state->actorKey($resolution->target),
+                eligible: $eligible,
+                rolled: $eligible,
+                success: $success,
+                rate: $rate,
+            );
+            $state->recordParryResult($resolution->target, $result);
+            if ($success) {
+                $this->resourceService->recordParrySuccess($resolution->target, $state);
+                $state->addLog('<span class="text-cyan-700 font-extrabold">'.e($resolution->target->name).' は剣冠の構えで攻撃を受け流した！</span>');
+            }
+        }
+
+        $after = $result->success ? 0 : $damage;
+        $result->recordHit($damage, $after);
+
+        return $after;
+    }
+
+    private function resolveGuard(
+        BattleState $state,
+        DirectAttackResolution $resolution,
+        int $damage,
+    ): int {
+        $trace = $state->damageTrace($resolution->target, $resolution->sourceActionId);
+        if ($trace === null) {
+            $guard = $resolution->target->jobArtV2GuardState();
+            if ($guard === null || $guard->charges < 1) {
+                return $damage;
+            }
+
+            $resolution->target->replaceJobArtV2GuardState(null);
+            $trace = new DamageTrace(
+                sourceActionId: $resolution->sourceActionId,
+                attackerKey: $state->actorKey($resolution->attacker),
+                targetKey: $state->actorKey($resolution->target),
+                guardRate: $guard->rate,
+                guardConsumed: true,
+            );
+            $state->recordDamageTrace($resolution->target, $trace);
+        }
+
+        // Existing direct-damage reduction uses integer truncation and retains
+        // the one-point floor. Do not re-run DamageCalculator or its RNG.
+        $after = max(1, (int) ($damage * (1 - $trace->guardRate)));
+        $trace->recordHit($damage, $after);
+        if ($trace->preventedDamage >= 1) {
+            $this->resourceService->recordDamageMitigated($resolution->target, $state);
+        }
+
+        return $after;
+    }
+
+    private function applyGuard(BattleActor $actor, BattleState $state, float $rate): void
+    {
+        $previous = $actor->jobArtV2GuardState();
+        if ($previous === null || $rate >= $previous->rate) {
+            $actor->replaceJobArtV2GuardState(new JobArtV2GuardState($rate));
+        }
+
+        $active = $actor->jobArtV2GuardState();
+        $state->addLog(sprintf(
+            '<span class="text-blue-700 font-bold">%s は次の直接ダメージを %d%% 軽減する加護を得た！</span>',
+            e($actor->name),
+            (int) round(($active?->rate ?? 0.0) * 100),
+        ));
+    }
+
+    private function cleanse(BattleActor $actor, BattleState $state, int $sourceActionId): CleanseResult
+    {
+        $removed = [];
+        foreach (self::CLEANSABLE_STATES as $conditionKey) {
+            if (! array_key_exists($conditionKey, $actor->conditions)) {
+                continue;
+            }
+
+            unset($actor->conditions[$conditionKey]);
+            $removed[] = $conditionKey;
+        }
+
+        $result = new CleanseResult(
+            sourceActionId: $sourceActionId,
+            actorKey: $state->actorKey($actor),
+            candidateStates: self::CLEANSABLE_STATES,
+            removedStates: $removed,
+            removedCount: count($removed),
+            success: $removed !== [],
+        );
+        $state->recordCleanseResult($result);
+
+        return $result;
+    }
+
+    /** @return array<string, int|float|string|bool>|null */
+    private function trustedMetadata(BattleActor $actor, Skill $skill): ?array
+    {
+        if (! $this->featureGate->usesResources($actor)
+            || ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') !== 'current'
+            || ! $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill)
+        ) {
+            return null;
+        }
+
+        return $this->prototypeCatalog->artResourceMetadata($skill);
+    }
+
+    private function markIncomingHudAction(BattleState $state, DirectAttackResolution $resolution): void
+    {
+        $action = $state->jobArtV2HudAction($resolution->sourceActionId);
+        if ($action === null) {
+            return;
+        }
+
+        $attributes = ['hit_result' => $resolution->hitResult->value];
+        if (($action['action_kind'] ?? null) === null) {
+            $attributes['action_kind'] = 'incoming_attack';
+            $attributes['action_name'] = match ($resolution->actionType) {
+                \App\Services\Battle\BattleActionType::JOB_ART => '奥義',
+                \App\Services\Battle\BattleActionType::CURRENT_JOB_SKILL => '必殺技',
+                default => '通常攻撃',
+            };
+        }
+        $state->updateJobArtV2HudAction($resolution->sourceActionId, $attributes);
+    }
+}

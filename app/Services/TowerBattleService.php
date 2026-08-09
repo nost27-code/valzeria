@@ -23,6 +23,9 @@ class TowerBattleService extends BattleService
         CharacterStatusService $statusService,
         DamageCalculator $damageCalculator,
         JobArtService $jobArtService,
+        JobArtV2FeatureGate $jobArtV2FeatureGate,
+        JobArtV2SelectionService $jobArtV2SelectionService,
+        JobArtV2SpCostCalculator $jobArtV2SpCostCalculator,
         private readonly TowerEnemyScalingService $enemyScalingService,
         private readonly StarTreeTowerService $towerService,
         private readonly ExplorationStaminaService $staminaService,
@@ -31,7 +34,14 @@ class TowerBattleService extends BattleService
         private readonly StarTreeTowerRewardService $rewardService,
         private readonly LevelService $levelService,
     ) {
-        parent::__construct($statusService, $damageCalculator, $jobArtService);
+        parent::__construct(
+            $statusService,
+            $damageCalculator,
+            $jobArtService,
+            $jobArtV2FeatureGate,
+            $jobArtV2SelectionService,
+            $jobArtV2SpCostCalculator,
+        );
     }
 
     public function requestGuardSeconds(): int
@@ -323,6 +333,7 @@ class TowerBattleService extends BattleService
             'message' => $this->battleMessage($result, $floorMaster),
             'metadata' => [
                 'logs' => $battle['logs'],
+                'job_art_v2_hud' => $battle['job_art_v2_hud'] ?? null,
                 'enemy_stats' => $battle['enemy_stats'],
                 'enemy_base_stats' => $battle['enemy_base_stats'],
                 'player_start_stats' => $battle['player_start_stats'],
@@ -421,16 +432,19 @@ class TowerBattleService extends BattleService
             if ($playerSpeed >= $enemySpeed) {
                 $this->executeAction($player, $enemy, $state);
                 if ($state->isBattleEnded()) {
+                    $this->endJobArtV2Round($state);
                     break;
                 }
                 $this->executeAction($enemy, $player, $state);
             } else {
                 $this->executeAction($enemy, $player, $state);
                 if ($state->isBattleEnded()) {
+                    $this->endJobArtV2Round($state);
                     break;
                 }
                 $this->executeAction($player, $enemy, $state);
             }
+            $this->endJobArtV2Round($state);
         }
 
         $result = match (true) {
@@ -445,6 +459,7 @@ class TowerBattleService extends BattleService
             'turn_count' => $state->turnCount,
             'player_hp_after' => max(0, $player->hp),
             'player_mp_after' => max(0, $player->mp),
+            'job_art_v2_hud' => $this->jobArtV2BattleHudService->present($state),
             'enemy_stats' => $enemyStats,
             'enemy_base_stats' => $enemyBaseStats,
             'player_start_stats' => [
@@ -505,9 +520,12 @@ class TowerBattleService extends BattleService
             'spr' => (int) ($stats['spr'] ?? 0),
             'luk' => (int) ($stats['luk'] ?? 0),
             'normal_attack_type' => $currentJob?->normal_attack_type,
+            'current_job_id' => $character->current_job_id,
             'weapon_killer_effects' => $equippedWeapon
                 ? $permissionService->effectiveKillerEffects($character, $equippedWeapon)
                 : [],
+            'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
+            'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
             'armor_resist_species_key' => $equippedArmor?->resist_species_key,
             'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
         ], clone $character);
@@ -526,6 +544,7 @@ class TowerBattleService extends BattleService
             $actor->jobArtRates[(int) $art->id] = (float) $art->getAttribute('job_art_rate');
             $actor->jobArtOrigins[(int) $art->id] = (string) $art->getAttribute('job_art_origin');
             $actor->jobArtPolicies[(int) $art->id] = (string) ($art->getAttribute('job_art_activation_policy') ?: $actor->jobArtActivationPolicy);
+            $actor->jobArtConditions[(int) $art->id] = (string) ($art->getAttribute('job_art_slot_condition') ?: JobArtV2SlotConditionCatalog::ALWAYS);
         }
 
         return $actor;

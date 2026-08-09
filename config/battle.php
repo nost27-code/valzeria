@@ -7,6 +7,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Job art v2 prototype switches
+    |--------------------------------------------------------------------------
+    */
+    'job_art_v2' => [
+        'presets' => env('BATTLE_JOB_ART_PRESETS', false),
+        'preset_free_limit' => 3,
+        'pvp_set' => env('BATTLE_JOB_ART_PVP_SET', false),
+        'loadout_v2' => env('BATTLE_JOB_ART_LOADOUT_V2', false),
+        'dynamic_single' => env('BATTLE_JOB_ART_DYNAMIC_SINGLE', false),
+        'normalized_sp' => env('BATTLE_JOB_ART_NORMALIZED_SP', false),
+        'hit_resolution' => env('BATTLE_JOB_ART_HIT_RESOLUTION', false),
+        'damage_application' => env('BATTLE_JOB_ART_DAMAGE_APPLICATION', false),
+        'resources' => env('BATTLE_JOB_ART_RESOURCES', false),
+        'fields' => env('BATTLE_JOB_ART_FIELDS', false),
+        'penetration' => env('BATTLE_JOB_ART_PENETRATION', false),
+        'penetration_stance' => env('BATTLE_JOB_ART_PENETRATION_STANCE', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | PvE enemy direct-damage defense formula
     |--------------------------------------------------------------------------
     |
