@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-09-kuma-ranger-exclusive-icon-024',
+        'date' => '2026-08-09',
+        'category' => 'internal',
+        'title' => 'くまレンジャー専用の限定キャラアイコンを追加',
+        'detail' => 'くまレンジャーさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-09-region-depth-enemy-portrait-fix',
         'date' => '2026-08-09',
         'category' => 'fixed',
