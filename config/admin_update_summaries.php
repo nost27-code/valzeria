@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-09-yukinoshita-exclusive-icon-023',
+        'date' => '2026-08-09',
+        'category' => 'internal',
+        'title' => 'ユキノシタ専用の限定キャラアイコンを追加',
+        'detail' => 'ユキノシタさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-09-kuma-ranger-exclusive-icon-024',
         'date' => '2026-08-09',
         'category' => 'internal',
