@@ -348,7 +348,82 @@ final class JobArtV2BattleHudService
                     'remaining_rounds' => $actor->breakDebuffState()->remainingRounds,
                 ]
                 : null,
+            'progression' => $this->presentProgression($actor, $state),
         ];
+    }
+
+    /** @return list<string> */
+    private function presentProgression(BattleActor $actor, BattleState $state): array
+    {
+        $target = $actor === $state->player ? $state->enemy : $state->player;
+        $actorState = $actor->existingJobArtV2ProgressionState();
+        $targetState = $target->existingJobArtV2ProgressionState();
+        $ownerKey = 'actor:'.spl_object_id($actor);
+        $labels = [];
+
+        foreach ($actor->jobArtV2PreparedEffects() as $prepared) {
+            if ($prepared->isExpired()) {
+                continue;
+            }
+            $name = match ($prepared->key) {
+                'magic_aim_prep' => '魔矢装填',
+                'break_focus' => '崩し集中',
+                'split_pierce' => '分割貫通',
+                default => null,
+            };
+            if ($name === null) {
+                continue;
+            }
+            $parts = ["{$name}：残り{$prepared->charges}回"];
+            if ($prepared->remainingActionOpportunities !== null) {
+                $parts[] = "期限{$prepared->remainingActionOpportunities}行動";
+            }
+            $labels[] = implode(' / ', $parts);
+        }
+
+        if ($actorState?->hasRoundState('super_pierce_stance')) {
+            $remaining = (int) ($actorState->roundStates['super_pierce_stance']['remaining'] ?? 0);
+            $labels[] = "蒼天構え：残り{$remaining}R";
+        }
+
+        $huntMarks = (int) ($targetState?->huntingMarks[$ownerKey] ?? 0);
+        if ($huntMarks > 0) {
+            $labels[] = "狩猟印：{$huntMarks}/3";
+        }
+        $seal = $targetState?->sealReservations[$ownerKey] ?? null;
+        if (is_array($seal)) {
+            $labels[] = '封技予約：'.(string) ($seal['category'] ?? '行動')
+                .' / 残り'.(int) ($seal['remaining_rounds'] ?? 0).'R';
+        }
+
+        $breakMarks = (int) ($targetState?->breakMarks[$ownerKey] ?? 0);
+        if ($breakMarks > 0) {
+            $labels[] = "崩し印：{$breakMarks}/3";
+        }
+        if ($actorState?->zanshinAvailable) {
+            $labels[] = '残心：再接続可能';
+        }
+
+        $suppression = $targetState?->resourceSuppressions[$ownerKey] ?? null;
+        if (is_array($suppression)) {
+            $label = '獲得抑制：残り'.(int) ($suppression['remaining_gains'] ?? 0).'回';
+            if (! empty($suppression['compensation_armed'])) {
+                $label .= ' / 補償判定まで'.(int) ($suppression['compensation_actions'] ?? 0).'行動';
+            }
+            $labels[] = $label;
+        }
+
+        if ($actorState?->initiativeRerollNextRound) {
+            $labels[] = '次ラウンド：後攻時のみ先後を再抽選';
+        }
+        if ($actorState?->initiativeForceFirstNextRound) {
+            $labels[] = '次ラウンド：先行確定';
+        }
+        if (($actorState?->commandRankOneCooldownUntilRound ?? 0) > $state->turnCount) {
+            $labels[] = '遅滞指令：'.$actorState->commandRankOneCooldownUntilRound.'Rから再使用可';
+        }
+
+        return $labels;
     }
 
     /** @return array<string, mixed> */

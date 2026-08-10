@@ -185,8 +185,18 @@ class PvPBattleService
                 + rand(0, self::PVP_TURN_SPEED_RANDOM);
             $defenderSpeed = ($usesRoleSpeed ? $defenderActor->effectiveAgi() : $defenderActor->agi)
                 + rand(0, self::PVP_TURN_SPEED_RANDOM);
-            
-            if ($attackerSpeed >= $defenderSpeed) {
+            $attackerFirst = $attackerSpeed >= $defenderSpeed;
+            if ($usesRoleSpeed) {
+                $attackerFirst = $this->jobArtBattleSupport->adjustInitiative(
+                    $attackerActor,
+                    $defenderActor,
+                    $attackerFirst,
+                    static fn (): bool => ($attackerActor->effectiveAgi() + rand(0, self::PVP_TURN_SPEED_RANDOM))
+                        >= ($defenderActor->effectiveAgi() + rand(0, self::PVP_TURN_SPEED_RANDOM)),
+                );
+            }
+
+            if ($attackerFirst) {
                 $this->executeAction($attackerActor, $defenderActor, $state);
                 if ($state->isBattleEnded()) {
                     $this->jobArtBattleSupport->endRound($state);

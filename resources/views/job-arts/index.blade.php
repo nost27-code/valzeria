@@ -248,6 +248,7 @@
                         $numericEffectLabels = $art->jobArtNumericEffectLabels(
                             $v2Display['effective_power'] ?? null,
                             $v2Display['effect_template'] ?? null,
+                            $v2Display['effective_hit_count'] ?? null,
                         );
                         $isCurrentJobArt = $currentJobId !== null && (int) $art->job_id === (int) $currentJobId;
                         $originDisplayLabel = $jobArtV2UiEnabled

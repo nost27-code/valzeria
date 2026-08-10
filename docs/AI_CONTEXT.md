@@ -5,6 +5,12 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-13
 Branch: main
 
+## Job-art v2 progression / FIX_NOW pass
+
+- 公開戦技237件の監査から、人間裁定済み22件だけを完全一致 `(job_id, learn_rank, name)` で補正する。`JobArtV2ProgressionCatalog`が対象identityと表示文言、`JobArtV2ProgressionService`が通常PvE・boss・tower・PvP・champ・NPC arenaの実効効果、`JobArtV2ProgressionState`がbattle-memory-onlyの準備・印・封技・残心・指揮・軽減ラッチを一元管理する。master、DB、Cost、SP、発動率は変更しない
+- 上級・超級・冠位の同系譜内で、照準準備、貫通構え、狩猟印、崩し印、resource抑制、行動カテゴリ観測などを段階的に接続する。現在職または同系譜継承だけが系譜固有mechanicsを使い、異系譜継承は明示portable効果以外を持ち込まず、foreign resourceを生成しない。flag不足・未登録技・unsupported current jobはlegacyへfail closedする
+- 白銀王盾はcurrent/same guard lineageではdamageにDEF/SPR +15%（2ラウンド・継承減衰あり）を付与する。cross-lineageではbuff/resourceを持ち込まず、前回の自分の行動以降にdirect damageを実際に1以上軽減した時だけ次の自分の行動機会まで使用できる。実行時はHIT/MISS/EVADEを問わずラッチを消費し、発動抽選不発では保持する。3-arm因果監査ではcross-lineage donor改善0/9、対象22件のdead-art/universal-donor/adjacent-tier/power-only blockerはいずれも0
+
 ## Job-art v2 role diversity pass
 
 - 公開済みmasterとv2 resource規則を変えず、同期後監査TOP20の13 engine gapと7 role-design gapだけを対象にした。正本は`JobArtV2RoleEffectCatalog`の完全一致 `(job_id, learn_rank, name)` metadataで、`JobArtV2RoleEffectService`がbattle-memory-onlyのTimedEffect/PreparedEffect、支援、報酬、場、適応damage routeを6戦闘経路へ接続する。対象外戦技・flag不足・unsupported current jobは既存効果とRNG経路を維持する

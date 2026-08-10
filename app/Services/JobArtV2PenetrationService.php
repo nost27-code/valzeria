@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
+use App\Services\Battle\BattleState;
 
 class JobArtV2PenetrationService
 {
@@ -12,6 +13,7 @@ class JobArtV2PenetrationService
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $catalog,
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
     ) {}
 
     public function enabledFor(BattleActor $actor): bool
@@ -42,6 +44,14 @@ class JobArtV2PenetrationService
     /** @return array{def: ?int, spr: ?int, penetration_rate: ?float} */
     public function defenseOverrides(BattleActor $attacker, BattleActor $defender, Skill $skill): array
     {
+        $superRate = ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+            ->superPierceRateFor($attacker, $skill);
+        if ($superRate !== null) {
+            return $superRate > 0.0
+                ? ['def' => (int) floor($defender->effectiveDef() * (1 - $superRate)), 'spr' => null, 'penetration_rate' => $superRate]
+                : ['def' => null, 'spr' => null, 'penetration_rate' => null];
+        }
+
         $trustedRate = $this->trustedRateFor($attacker, $skill);
         if ($trustedRate !== null) {
             $existingRate = max(0.0, (int) $skill->def_ignore_percent / 100);

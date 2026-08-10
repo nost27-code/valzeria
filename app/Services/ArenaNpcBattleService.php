@@ -118,8 +118,18 @@ class ArenaNpcBattleService
                 + random_int(0, self::TURN_SPEED_RANDOM);
             $npcSpeed = ($usesRoleSpeed ? $npcActor->effectiveAgi() : $npcActor->agi)
                 + random_int(0, self::TURN_SPEED_RANDOM);
+            $attackerFirst = $attackerSpeed >= $npcSpeed;
+            if ($usesRoleSpeed) {
+                $attackerFirst = $this->jobArtBattleSupport->adjustInitiative(
+                    $attackerActor,
+                    $npcActor,
+                    $attackerFirst,
+                    static fn (): bool => ($attackerActor->effectiveAgi() + random_int(0, self::TURN_SPEED_RANDOM))
+                        >= ($npcActor->effectiveAgi() + random_int(0, self::TURN_SPEED_RANDOM)),
+                );
+            }
 
-            if ($attackerSpeed >= $npcSpeed) {
+            if ($attackerFirst) {
                 $this->executeAction($attackerActor, $npcActor, $state);
                 if ($state->isBattleEnded()) {
                     $this->jobArtBattleSupport->endRound($state);

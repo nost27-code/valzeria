@@ -12,6 +12,7 @@ class JobArtV2PowerResolver
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
         private readonly JobArtV2PowerCatalog $powerCatalog,
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
     ) {
     }
 
@@ -24,6 +25,16 @@ class JobArtV2PowerResolver
             $this->featureGate->usesResources($actor),
             $this->featureGate->usesPenetration($actor),
         );
+        if ($state !== null
+            && $actor->currentJobId === 62
+            && (int) $skill->job_id === 62
+            && (int) $skill->learn_rank === 9
+            && (string) ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current'
+            && ! ($this->progressionService ?? app(JobArtV2ProgressionService::class))->crownPierceRankFiveUsed($actor)
+        ) {
+            $power = max(0, (int) $skill->power);
+        }
+
         $branch = $this->fieldOverwriteBranchForExecution($actor, $skill, $state);
 
         return $branch === null

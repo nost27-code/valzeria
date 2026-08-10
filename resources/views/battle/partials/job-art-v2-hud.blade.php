@@ -76,6 +76,12 @@
                                 <dd><span class="rounded bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">{{ $debuff['name'] ?? '崩し' }} DEF/SPR -{{ rtrim(rtrim(number_format((float) ($debuff['rate_percent'] ?? 0), 1), '0'), '.') }}%・残り{{ (int) ($debuff['remaining_rounds'] ?? 0) }}R</span></dd>
                             </div>
                         @endif
+                        @foreach(($actor['progression'] ?? []) as $progressionLabel)
+                            <div class="flex min-w-0 items-start gap-2">
+                                <dt class="w-14 shrink-0 text-slate-500">系譜</dt>
+                                <dd class="min-w-0 break-words"><span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900">{{ $progressionLabel }}</span></dd>
+                            </div>
+                        @endforeach
                     </dl>
                 </article>
             @endforeach

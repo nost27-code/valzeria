@@ -8,6 +8,7 @@ use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2HitRandomSource;
 use App\Services\JobArtV2FieldService;
 use App\Services\JobArtV2PrototypeCatalog;
+use App\Services\JobArtV2ProgressionService;
 use App\Services\JobArtV2RoleEffectCatalog;
 use App\Support\JobArtEffectCatalog;
 
@@ -23,6 +24,7 @@ class ActionResolver
         private readonly ?JobArtV2FieldService $fieldService = null,
         private readonly ?JobArtV2PrototypeCatalog $prototypeCatalog = null,
         private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
     ) {
     }
 
@@ -116,6 +118,12 @@ class ActionResolver
         $roleMetadata = $roleCatalog->forArt($skill);
         if ($roleCatalog->isPortable($skill) && is_numeric($roleMetadata['accuracy_delta_points'] ?? null)) {
             return max(0.0, (float) $roleMetadata['accuracy_delta_points']);
+        }
+
+        $progressionDelta = ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+            ->accuracyDeltaPoints($attacker, $skill);
+        if ($progressionDelta > 0.0) {
+            return $progressionDelta;
         }
 
         if ($attacker->currentJobId !== 65

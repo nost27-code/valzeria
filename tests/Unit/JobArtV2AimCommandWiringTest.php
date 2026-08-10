@@ -47,7 +47,7 @@ class JobArtV2AimCommandWiringTest extends TestCase
         $this->assertStringContainsString('累計15%', implode('|', $aimNine['effect_texts']));
 
         $this->assertNull($commandOne['resource_text']);
-        $this->assertStringNotContainsString('指揮点 +4', json_encode($commandOne, JSON_UNESCAPED_UNICODE));
+        $this->assertStringNotContainsString('指揮点 +', json_encode($commandOne, JSON_UNESCAPED_UNICODE));
         $this->assertStringContainsString('通常攻撃HIT：指揮点+4', implode('|', $commandOne['effect_texts']));
         $this->assertStringContainsString('合計+5', implode('|', $commandOne['effect_texts']));
 

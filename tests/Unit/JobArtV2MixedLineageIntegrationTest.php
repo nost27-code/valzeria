@@ -131,39 +131,34 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         $this->assertSame('star_light', $state->primaryField()?->key);
     }
 
-    public function test_conversion_recovery_can_pay_a_later_inherited_art_without_porting_conversion(): void
+    public function test_crown_transmute_suppression_does_not_port_to_an_unrelated_inherited_art(): void
     {
-        [$actor, , $state] = $this->battle(67, 68, hp: 1_000, maxHp: 1_000, mp: 21, maxMp: 1_000);
+        [$actor, $target, $state] = $this->battle(67, 68, hp: 1_000, maxHp: 1_000, mp: 500, maxMp: 1_000);
         $currentProducer = $this->art(67, 1, 'MAGICAL_DAMAGE_REWARD', 225);
+        $currentProducer->name = '金冠錬符';
         $inheritedFinisher = $this->art(65, 9, 'PHYSICAL_DAMAGE', 570);
         $this->attachCurrent($actor, $currentProducer);
         $this->attachInherited($actor, $inheritedFinisher);
-        $actor->jobArtPolicies[(int) $inheritedFinisher->id] = 'aggressive';
-
-        $selection = app(JobArtV2SelectionService::class);
-        $this->assertSame(
-            'blocked_by_sp_or_policy',
-            $selection->eligibilityFailureReason($actor, $state, $inheritedFinisher, (int) $inheritedFinisher->id),
-        );
+        $actor->configureResource('catalyst', 12);
+        $actor->setResource('catalyst', 4);
 
         $resources = app(JobArtV2ResourceService::class);
-        $resources->beginAction($actor, $state);
-        $actor->mp -= app(JobArtV2SpCostCalculator::class)->forActor($actor, $currentProducer);
+        $support = app(JobArtBattleSupportService::class);
+        $this->assertNotNull($support->beginAction($actor, $state));
         $resources->applyJobArtCast($actor, $state, $currentProducer);
+        $support->consumeAndMarkUse($actor, $state, $currentProducer);
+        $support->completeJobArtCast($actor, $state, $currentProducer, HitResult::HIT, $target);
 
-        $this->assertGreaterThanOrEqual(
-            app(JobArtV2SpCostCalculator::class)->forActor($actor, $inheritedFinisher),
-            $actor->mp,
-        );
-        $this->assertNull(
-            $selection->eligibilityFailureReason($actor, $state, $inheritedFinisher, (int) $inheritedFinisher->id),
-        );
+        $this->assertSame(0, $actor->getResource('catalyst'));
+        $this->assertCount(1, $target->jobArtV2ProgressionState()->resourceSuppressions);
+        $suppressionBefore = $target->jobArtV2ProgressionState()->resourceSuppressions;
 
         $resources->finishAction($actor, $state);
         $resources->beginAction($actor, $state);
-        $before = [$actor->hp, $actor->mp, $actor->getResource('catalyst')];
+        $before = [$actor->hp, $actor->mp, $actor->getResource('catalyst'), $target->getResource('break')];
         $resources->applyJobArtCast($actor, $state, $inheritedFinisher);
-        $this->assertSame($before, [$actor->hp, $actor->mp, $actor->getResource('catalyst')]);
+        $this->assertSame($before, [$actor->hp, $actor->mp, $actor->getResource('catalyst'), $target->getResource('break')]);
+        $this->assertSame($suppressionBefore, $target->jobArtV2ProgressionState()->resourceSuppressions);
     }
 
     public function test_guard_and_parry_states_remain_effective_with_offensive_inherited_loadouts(): void

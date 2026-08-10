@@ -430,8 +430,14 @@ class TowerBattleService extends BattleService
                 || $this->jobArtV2RoleEffectService->enabledFor($enemy);
             $playerSpeed = ($usesRoleSpeed ? $player->effectiveAgi() : $player->agi) + random_int(0, 5);
             $enemySpeed = ($usesRoleSpeed ? $enemy->effectiveAgi() : $enemy->agi) + random_int(0, 5);
+            $playerFirst = $this->jobArtV2ProgressionService->adjustInitiative(
+                $player,
+                $enemy,
+                $playerSpeed >= $enemySpeed,
+                static fn (): bool => ($player->effectiveAgi() + random_int(0, 5)) >= ($enemy->effectiveAgi() + random_int(0, 5)),
+            );
 
-            if ($playerSpeed >= $enemySpeed) {
+            if ($playerFirst) {
                 $this->executeAction($player, $enemy, $state);
                 if ($state->isBattleEnded()) {
                     $this->endJobArtV2Round($state);

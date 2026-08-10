@@ -48,6 +48,7 @@ class BattleService
     protected JobArtV2EffectSemanticsResolver $jobArtV2EffectSemanticsResolver;
     protected JobArtV2DefenseService $jobArtV2DefenseService;
     protected JobArtV2RoleEffectService $jobArtV2RoleEffectService;
+    protected JobArtV2ProgressionService $jobArtV2ProgressionService;
 
     public function __construct(
         CharacterStatusService $statusService,
@@ -70,6 +71,7 @@ class BattleService
         ?JobArtV2EffectSemanticsResolver $jobArtV2EffectSemanticsResolver = null,
         ?JobArtV2DefenseService $jobArtV2DefenseService = null,
         ?JobArtV2RoleEffectService $jobArtV2RoleEffectService = null,
+        ?JobArtV2ProgressionService $jobArtV2ProgressionService = null,
     ) {
         $this->statusService = $statusService;
         $this->damageCalculator = $damageCalculator;
@@ -91,6 +93,7 @@ class BattleService
         $this->jobArtV2EffectSemanticsResolver = $jobArtV2EffectSemanticsResolver ?? app(JobArtV2EffectSemanticsResolver::class);
         $this->jobArtV2DefenseService = $jobArtV2DefenseService ?? app(JobArtV2DefenseService::class);
         $this->jobArtV2RoleEffectService = $jobArtV2RoleEffectService ?? app(JobArtV2RoleEffectService::class);
+        $this->jobArtV2ProgressionService = $jobArtV2ProgressionService ?? app(JobArtV2ProgressionService::class);
     }
 
     protected function applyResolvedDamage(
@@ -292,8 +295,14 @@ class BattleService
             // 先攻後攻判定（AGI比較＋乱数）
             $playerSpeed = $playerActor->effectiveAgi() + rand(0, 5);
             $enemySpeed = $enemyActor->effectiveAgi() + rand(0, 5);
+            $playerFirst = $this->jobArtV2ProgressionService->adjustInitiative(
+                $playerActor,
+                $enemyActor,
+                $playerSpeed >= $enemySpeed,
+                static fn (): bool => ($playerActor->effectiveAgi() + rand(0, 5)) >= ($enemyActor->effectiveAgi() + rand(0, 5)),
+            );
             
-            if ($playerSpeed >= $enemySpeed) {
+            if ($playerFirst) {
                 $this->executeAction($playerActor, $enemyActor, $state);
                 if ($state->isBattleEnded()) {
                     $this->endJobArtV2Round($state);

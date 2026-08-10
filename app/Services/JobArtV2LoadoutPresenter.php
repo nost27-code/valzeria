@@ -17,6 +17,7 @@ final class JobArtV2LoadoutPresenter
         private readonly JobArtV2DamageSemanticsResolver $damageSemanticsResolver,
         private readonly JobArtV2EffectSemanticsResolver $effectSemanticsResolver,
         private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
+        private readonly ?JobArtV2ProgressionCatalog $progressionCatalog = null,
     ) {}
 
     public function enabledForCurrentJob(?int $currentJobId): bool
@@ -147,6 +148,7 @@ final class JobArtV2LoadoutPresenter
      *     priority_text: ?string,
      *     is_ultimate: bool,
      *     effective_power: int,
+     *     effective_hit_count: int,
      *     damage_category: ?string,
      *     effect_template: string,
      *     effect_label: string,
@@ -177,7 +179,10 @@ final class JobArtV2LoadoutPresenter
         $sourceLineage = $this->lineageCatalog->forArt($skill);
         $sourceLineageName = $sourceLineage['lineage_name'] ?? null;
         $role = $this->roleForDisplay($skill, $primaryResourceMetadata ?? $metadata);
-        $displayEffectTemplate = $this->effectSemanticsResolver->replacementEffectTemplateForDisplay($currentJobId, $skill)
+        $progressionCatalog = $this->progressionCatalog ?? app(JobArtV2ProgressionCatalog::class);
+        $progressionMechanicsAllowed = $isTrustedCurrentOrigin || $isSameLineageInherited;
+        $displayEffectTemplate = $progressionCatalog->replacementTemplateForDisplay($skill, $progressionMechanicsAllowed)
+            ?? $this->effectSemanticsResolver->replacementEffectTemplateForDisplay($currentJobId, $skill)
             ?? (string) $skill->effect_template;
         $legacyEffectCopySuppressed = $displayEffectTemplate !== (string) $skill->effect_template;
         $effectTexts = $resourcesEnabled && $isTrustedCurrentOrigin
@@ -191,6 +196,10 @@ final class JobArtV2LoadoutPresenter
                     ...$roleCatalog->effectTexts($skill),
                 ]));
             }
+            $effectTexts = array_values(array_unique([
+                ...$effectTexts,
+                ...$progressionCatalog->effectTextsForDisplay($skill, $progressionMechanicsAllowed),
+            ]));
         }
 
         return [
@@ -226,6 +235,7 @@ final class JobArtV2LoadoutPresenter
                 : null,
             'is_ultimate' => $role === ResourceRole::FINISHER,
             'effective_power' => $this->powerResolver->forDisplay($currentJobId, $skill),
+            'effective_hit_count' => $progressionCatalog->hitCountForDisplay($skill, $progressionMechanicsAllowed),
             'damage_category' => $this->damageSemanticsResolver->forDisplay($currentJobId, $skill)['damage_category'] ?? null,
             'effect_template' => $displayEffectTemplate,
             'effect_label' => JobArtEffectCatalog::label($displayEffectTemplate) ?? $skill->jobArtEffectLabel(),
@@ -364,8 +374,8 @@ final class JobArtV2LoadoutPresenter
 
         if ($currentJobId === 67) {
             return $style === 'finisher'
-                ? "HPをSPへ変換して{$resourceName}を作り、{$finisherMinimum}ptを温存して{$rankNineName}を狙います。"
-                : "変換と通常攻撃で{$resourceName}を補充し、{$consumerMinimum}ptごとに{$rankFiveName}を使います。";
+                ? "通常攻撃などで{$resourceName}を蓄積し、対象のresource獲得を複数回妨害する{$rankNineName}を狙います。"
+                : "対象のresource獲得を妨害し、獲得がなかった時は{$rankFiveName}で一部補償を受ける戦型です。";
         }
 
         return match ([$currentJobId, $style]) {
@@ -449,23 +459,18 @@ final class JobArtV2LoadoutPresenter
 
         if ($currentJobId === 67 && $rank === 1) {
             return [
-                '最大HPの5%を非致死で消費し、最大SPの5%を回復',
-                '実変換成立時：触媒+4',
+                '触媒4消費',
+                '対象の次回resource実獲得を半減',
                 '通常攻撃HIT：触媒+1',
             ];
         }
 
         if ($currentJobId === 68) {
             if ($rank === 1) {
-                return ['この戦技のHIT時：崩し+4', '通常攻撃HIT：崩し+1'];
+                return ['この戦技のHIT時：崩し+4・対象へ崩し印+1', '通常攻撃HIT：崩し+1'];
             }
 
-            $rate = (int) round(max(0.0, (float) ($metadata['break_rate'] ?? 0.0)) * 100);
-            $rounds = max(0, (int) ($metadata['break_rounds'] ?? 0));
-
-            return $rate > 0 && $rounds > 0
-                ? ["HIT後：対象のDEF/SPRを{$rate}%低下（{$rounds}ラウンド）", '低下はこの攻撃の次から有効']
-                : [];
+            return ['浄化された冠位由来の崩し印を残心として1戦1回保持', '残心があれば次のHITで崩し印へ再接続'];
         }
 
         return [];

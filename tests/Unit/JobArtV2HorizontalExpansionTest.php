@@ -72,7 +72,16 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $transmute['resource_max_points'],
             $transmute['normal_attack_hit_gain_points'],
         ]);
-        $this->assertSame('hp_sp_conversion_success', $catalog->artResourceMetadataForJobRank(67, 1)['resource_gain_event']);
+        $this->assertSame(['consumer', 4, 4], [
+            $catalog->artResourceMetadataForJobRank(67, 1)['resource_role'],
+            $catalog->artResourceMetadataForJobRank(67, 1)['resource_cost_points'],
+            $catalog->artResourceMetadataForJobRank(67, 1)['minimum_resource_points'],
+        ]);
+        $this->assertSame('job_art_cast', $catalog->artResourceMetadataForJobRank(67, 1)['resource_gain_event']);
+        $this->assertSame([8, 8], [
+            $catalog->artResourceMetadataForJobRank(67, 9)['resource_cost_points'],
+            $catalog->artResourceMetadataForJobRank(67, 9)['minimum_resource_points'],
+        ]);
 
         $break = $catalog->jobResourceMetadata(68);
         $this->assertSame(['break', '崩し', 12, 1], [
@@ -82,14 +91,8 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $break['normal_attack_hit_gain_points'],
         ]);
         $this->assertSame('job_art_hit', $catalog->artResourceMetadataForJobRank(68, 1)['resource_gain_event']);
-        $this->assertSame([0.10, 2], [
-            $catalog->artResourceMetadataForJobRank(68, 5)['break_rate'],
-            $catalog->artResourceMetadataForJobRank(68, 5)['break_rounds'],
-        ]);
-        $this->assertSame([0.15, 3], [
-            $catalog->artResourceMetadataForJobRank(68, 9)['break_rate'],
-            $catalog->artResourceMetadataForJobRank(68, 9)['break_rounds'],
-        ]);
+        $this->assertArrayNotHasKey('break_rate', $catalog->artResourceMetadataForJobRank(68, 5));
+        $this->assertArrayNotHasKey('break_rounds', $catalog->artResourceMetadataForJobRank(68, 9));
     }
 
     public function test_fourth_wave_metadata_matches_the_frozen_counter_and_guard_rules(): void

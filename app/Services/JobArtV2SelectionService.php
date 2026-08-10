@@ -16,6 +16,7 @@ class JobArtV2SelectionService
     private readonly JobArtV2CleanseService $cleanseService;
     private readonly JobArtV2RoleEffectCatalog $roleEffectCatalog;
     private readonly JobArtV2RoleEffectService $roleEffectService;
+    private readonly JobArtV2ProgressionService $progressionService;
 
     public function __construct(
         private readonly JobArtV2RandomSource $random,
@@ -29,6 +30,7 @@ class JobArtV2SelectionService
         ?JobArtV2CleanseService $cleanseService = null,
         ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
         ?JobArtV2RoleEffectService $roleEffectService = null,
+        ?JobArtV2ProgressionService $progressionService = null,
     ) {
         $this->resourceService = $resourceService ?? app(JobArtV2ResourceService::class);
         $this->fieldService = $fieldService ?? app(JobArtV2FieldService::class);
@@ -37,6 +39,7 @@ class JobArtV2SelectionService
         $this->cleanseService = $cleanseService ?? app(JobArtV2CleanseService::class);
         $this->roleEffectCatalog = $roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
         $this->roleEffectService = $roleEffectService ?? app(JobArtV2RoleEffectService::class);
+        $this->progressionService = $progressionService ?? app(JobArtV2ProgressionService::class);
     }
 
     public function selectForTurn(
@@ -55,8 +58,12 @@ class JobArtV2SelectionService
                 $blockedReasons[(int) $skill->id] = $blockedReason;
                 continue;
             }
+            if ($this->progressionService->consumeSealIfBlocked($actor, $state, $skill)) {
+                $blockedReasons[(int) $skill->id] = 'blocked_by_seal';
+                continue;
+            }
 
-            $activationRate = $this->fieldService->activationRate(
+            $activationRate = $this->progressionService->activationRate($actor, $skill, $this->fieldService->activationRate(
                 $actor,
                 $state,
                 $this->battleRules->activationRateFor(
@@ -64,8 +71,9 @@ class JobArtV2SelectionService
                     $actor->currentJobId,
                     $this->originFor($actor, $skill),
                 ),
-            );
+            ));
             $activated = $this->random->percentRoll() <= $activationRate;
+            $this->progressionService->finishActivationAttempt($actor, $skill);
 
             return new JobArtV2SelectionResult(
                 skill: $activated ? $skill : null,
@@ -128,7 +136,8 @@ class JobArtV2SelectionService
             return 'blocked_by_support_condition';
         }
 
-        return $this->resourceService->eligibilityBlockReason($actor, $skill, $state);
+        return $this->progressionService->eligibilityBlockReason($actor, $state, $skill)
+            ?? $this->resourceService->eligibilityBlockReason($actor, $skill, $state);
     }
 
     /** @return array{0: array<int, Skill>, 1: bool} */
@@ -142,6 +151,7 @@ class JobArtV2SelectionService
             $actor->jobArts,
             static fn ($skill): bool => $skill instanceof Skill,
         ));
+        $candidates = $this->progressionService->orderCandidates($actor, $candidates);
 
         if (!$this->resourceService->enabledFor($actor)) {
             return [$candidates, false];

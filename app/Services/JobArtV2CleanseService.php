@@ -11,6 +11,10 @@ use App\Services\Battle\CleanseResult;
  */
 final class JobArtV2CleanseService
 {
+    public function __construct(
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
+    ) {}
+
     /** @var list<string> */
     public const HARMFUL_STATES = [
         'burn',
@@ -29,7 +33,7 @@ final class JobArtV2CleanseService
             }
         }
 
-        return false;
+        return ($this->progressionService ?? app(JobArtV2ProgressionService::class))->hasBreakMarks($actor);
     }
 
     public function cleanse(
@@ -51,10 +55,17 @@ final class JobArtV2CleanseService
             }
         }
 
+        if ($removeAll || $removed === []) {
+            $removed = array_merge(
+                $removed,
+                ($this->progressionService ?? app(JobArtV2ProgressionService::class))->purgeBreakMarks($actor),
+            );
+        }
+
         $result = new CleanseResult(
             sourceActionId: $sourceActionId,
             actorKey: $state->actorKey($actor),
-            candidateStates: self::HARMFUL_STATES,
+            candidateStates: [...self::HARMFUL_STATES, 'break_mark'],
             removedStates: $removed,
             removedCount: count($removed),
             success: $removed !== [],

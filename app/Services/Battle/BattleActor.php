@@ -3,6 +3,7 @@
 namespace App\Services\Battle;
 
 use App\Services\JobArtV2PreparedEffectState;
+use App\Services\JobArtV2ProgressionState;
 use App\Services\JobArtV2TimedEffectState;
 
 class BattleActor
@@ -82,6 +83,9 @@ class BattleActor
 
     /** @var array<string, JobArtV2PreparedEffectState> 戦闘終了時に破棄する準備効果。 */
     private array $jobArtV2PreparedEffects = [];
+
+    /** FIX_NOWの系譜進行状態。戦闘終了時に破棄する。 */
+    private ?JobArtV2ProgressionState $jobArtV2ProgressionState = null;
 
     /** 直前の自分の行動終了後から、直接物理攻撃を受領したか。 */
     private bool $physicalAttackReceivedSinceOwnAction = false;
@@ -353,6 +357,16 @@ class BattleActor
     public function jobArtV2PreparedEffects(): array
     {
         return array_values($this->jobArtV2PreparedEffects);
+    }
+
+    public function jobArtV2ProgressionState(): JobArtV2ProgressionState
+    {
+        return $this->jobArtV2ProgressionState ??= new JobArtV2ProgressionState();
+    }
+
+    public function existingJobArtV2ProgressionState(): ?JobArtV2ProgressionState
+    {
+        return $this->jobArtV2ProgressionState;
     }
 
     public function markPhysicalAttackReceivedSinceOwnAction(): void

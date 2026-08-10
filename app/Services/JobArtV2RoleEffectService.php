@@ -28,6 +28,7 @@ final class JobArtV2RoleEffectService
         private readonly JobArtV2DefenseService $defenseService,
         private readonly JobArtV2CleanseService $cleanseService,
         private readonly JobArtV2ResourceService $resourceService,
+        private readonly JobArtV2ProgressionService $progressionService,
     ) {}
 
     public function enabledFor(BattleActor $actor): bool
@@ -51,6 +52,7 @@ final class JobArtV2RoleEffectService
             'prepared_effect_keys' => [],
             'conditional_multiplier_applied' => false,
         ]);
+        $this->progressionService->beginAction($actor, $state, $sourceActionId);
     }
 
     public function recordPhysicalAttackReceived(BattleActor $actor): void
@@ -127,10 +129,14 @@ final class JobArtV2RoleEffectService
             'prepared_effect_keys' => $preparedKeys,
             'conditional_multiplier_applied' => $conditionalApplied,
         ]);
+        $this->progressionService->beginJobArtCast($actor, $state, $skill);
     }
 
     public function markNonJobArtAction(BattleActor $actor, ?BattleState $state = null): void
     {
+        if ($state !== null) {
+            $this->progressionService->markNonJobArtAction($actor, $state);
+        }
         if (! $this->enabledFor($actor)) {
             return;
         }
@@ -173,6 +179,7 @@ final class JobArtV2RoleEffectService
         Skill $sourceSkill,
         Skill $executionSkill,
     ): void {
+        $this->progressionService->applyForExecution($actor, $target, $state, $sourceSkill, $executionSkill);
         $metadata = $this->portableMetadata($actor, $sourceSkill);
         if ($metadata === null) {
             return;
@@ -206,6 +213,7 @@ final class JobArtV2RoleEffectService
         Skill $skill,
         ?HitResult $hitResult,
     ): void {
+        $this->progressionService->completeJobArtCast($actor, $target, $state, $skill, $hitResult);
         $metadata = $this->portableMetadata($actor, $skill);
         $sourceActionId = $state->currentSourceActionId();
         if ($metadata === null
@@ -244,7 +252,12 @@ final class JobArtV2RoleEffectService
 
         $multiplier = max(0.0, (float) ($context['role_damage_multiplier'] ?? 1.0));
 
-        return max(0, (int) floor($damage * $multiplier));
+        return $this->progressionService->modifyJobArtDamage(
+            $actor,
+            $state,
+            $skill,
+            max(0, (int) floor($damage * $multiplier)),
+        );
     }
 
     public function criticalBonusPoints(BattleActor $actor, Skill $skill): float
@@ -303,6 +316,8 @@ final class JobArtV2RoleEffectService
                 ];
             }
         }
+
+        array_push($events, ...$this->progressionService->endRound($state));
 
         return $events;
     }

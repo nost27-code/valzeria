@@ -24,6 +24,7 @@ class JobArtV2ResourceService
         private readonly JobArtV2FieldService $fieldService,
         private readonly JobArtV2BattleHudService $battleHud,
         private readonly JobArtV2ConversionService $conversionService,
+        private readonly JobArtV2ProgressionService $progressionService,
     ) {
     }
 
@@ -101,8 +102,17 @@ class JobArtV2ResourceService
             return self::BLOCKED_BY_CAP;
         }
 
+        $baseCost = max(0, (int) $art['resource_cost_points']);
+        $cost = max(0, $this->progressionService->resourceCost(
+            $actor,
+            $state,
+            $skill,
+            $baseCost,
+        ));
         $minimum = max(0, (int) $art['minimum_resource_points']);
-        $cost = max(0, (int) $art['resource_cost_points']);
+        if ($cost < $baseCost) {
+            $minimum = min($minimum, $cost);
+        }
         if ($points < $minimum || $points < $cost) {
             return self::BLOCKED_BY_RESOURCE;
         }
@@ -202,7 +212,12 @@ class JobArtV2ResourceService
                             : 0),
                 )
                 : 0,
-            ResourceRole::CONSUMER, ResourceRole::FINISHER => -max(0, (int) $art['resource_cost_points']),
+            ResourceRole::CONSUMER, ResourceRole::FINISHER => -max(0, $this->progressionService->resourceCost(
+                $actor,
+                $state,
+                $skill,
+                (int) $art['resource_cost_points'],
+            )),
             ResourceRole::NEUTRAL => 0,
         };
 
@@ -210,7 +225,10 @@ class JobArtV2ResourceService
             return ResourceChangeResult::unchanged(self::BLOCKED_BY_RESOURCE);
         }
         if ($configuredDelta > 0) {
-            $actor->addResource($resourceKey, $configuredDelta);
+            $actor->addResource(
+                $resourceKey,
+                $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $configuredDelta),
+            );
         }
 
         $after = $actor->getResource($resourceKey);
@@ -258,10 +276,8 @@ class JobArtV2ResourceService
         }
 
         $before = $actor->getResource($resourceKey);
-        $actor->addResource(
-            $resourceKey,
-            $this->fieldService->modifyResourceGain($actor, $state, max(0, (int) $art['resource_gain_points'])),
-        );
+        $gain = $this->fieldService->modifyResourceGain($actor, $state, max(0, (int) $art['resource_gain_points']));
+        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain));
         $after = $actor->getResource($resourceKey);
         $result = new ResourceChangeResult(
             applied: $before !== $after,
@@ -303,10 +319,8 @@ class JobArtV2ResourceService
         }
 
         $before = $actor->getResource($resourceKey);
-        $actor->addResource(
-            $resourceKey,
-            $this->fieldService->modifyResourceGain($actor, $state, $gain),
-        );
+        $gain = $this->fieldService->modifyResourceGain($actor, $state, $gain);
+        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain));
         $after = $actor->getResource($resourceKey);
         $result = new ResourceChangeResult(
             applied: $before !== $after,
@@ -363,6 +377,8 @@ class JobArtV2ResourceService
 
     public function recordDamageMitigated(BattleActor $actor, BattleState $state): ResourceChangeResult
     {
+        $this->progressionService->recordQualifyingDamageMitigated($actor, $state);
+
         return $this->recordConfiguredGain(
             $actor,
             $state,
@@ -465,6 +481,7 @@ class JobArtV2ResourceService
             }
         }
 
+        $this->progressionService->finishAction($actor, $state);
         $this->battleHud->finishAction($actor, $state);
     }
 
@@ -489,7 +506,8 @@ class JobArtV2ResourceService
         }
 
         $before = $actor->getResource($resourceKey);
-        $actor->addResource($resourceKey, $this->fieldService->modifyResourceGain($actor, $state, $gain));
+        $gain = $this->fieldService->modifyResourceGain($actor, $state, $gain);
+        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain));
         $after = $actor->getResource($resourceKey);
         $result = new ResourceChangeResult(
             applied: $before !== $after,

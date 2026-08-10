@@ -161,7 +161,11 @@ class Skill extends Model
     /**
      * @return array<int, string>
      */
-    public function jobArtNumericEffectLabels(?int $displayPower = null, ?string $displayEffectTemplate = null): array
+    public function jobArtNumericEffectLabels(
+        ?int $displayPower = null,
+        ?string $displayEffectTemplate = null,
+        ?int $displayHitCount = null,
+    ): array
     {
         if (! $this->isJobArt()) {
             return [];
@@ -173,7 +177,7 @@ class Skill extends Model
 
         if (JobArtEffectCatalog::dealsDamage($template)) {
             $labels[] = "威力 {$power}%";
-            $hitCount = max(1, (int) $this->hit_count);
+            $hitCount = max(1, $displayHitCount ?? (int) $this->hit_count);
             if ($hitCount > 1) {
                 $labels[] = "{$hitCount}Hit";
             }

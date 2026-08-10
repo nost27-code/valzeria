@@ -83,6 +83,9 @@ class JobArtV2PrototypeCatalog
             5 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.30],
             9 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.50],
         ],
+        33 => [
+            1 => ['resource_gain_event' => 'job_art_cast'],
+        ],
         45 => [
             5 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.25],
             9 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.40],
@@ -140,12 +143,24 @@ class JobArtV2PrototypeCatalog
             9 => ['guard_rate' => 0.25],
         ],
         67 => [
-            1 => ['resource_gain_event' => 'hp_sp_conversion_success'],
+            1 => [
+                'resource_role' => 'consumer',
+                'resource_gain_points' => 0,
+                'resource_cost_points' => 4,
+                'minimum_resource_points' => 4,
+                'resource_gain_event' => 'job_art_cast',
+            ],
+            9 => ['resource_cost_points' => 8, 'minimum_resource_points' => 8],
         ],
         68 => [
             1 => ['resource_gain_event' => 'job_art_hit'],
-            5 => ['break_rate' => 0.10, 'break_rounds' => 2],
-            9 => ['break_rate' => 0.15, 'break_rounds' => 3],
+        ],
+        55 => [
+            5 => ['accuracy_delta_points' => 5, 'minimum_resource_points' => 8],
+            9 => ['sure_hit' => true, 'sp_pressure_rate' => 0.05],
+        ],
+        59 => [
+            1 => ['resource_gain_points' => 4],
         ],
         69 => [
             1 => ['resource_gain_points' => 0],
@@ -158,7 +173,7 @@ class JobArtV2PrototypeCatalog
     ];
 
     /** @var list<int> */
-    private const FULL_EFFECT_CURRENT_JOBS = [24, 32, 45, 52, 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 85];
+    private const FULL_EFFECT_CURRENT_JOBS = [24, 32, 45, 52, 53, 54, 55, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 85];
 
     private readonly JobArtLineageCatalog $lineageCatalog;
 

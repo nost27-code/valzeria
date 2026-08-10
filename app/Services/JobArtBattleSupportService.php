@@ -24,6 +24,7 @@ class JobArtBattleSupportService
     private readonly JobArtV2EffectSemanticsResolver $jobArtV2EffectSemanticsResolver;
     private readonly JobArtV2DefenseService $jobArtV2DefenseService;
     private readonly JobArtV2RoleEffectService $jobArtV2RoleEffectService;
+    private readonly JobArtV2ProgressionService $jobArtV2ProgressionService;
 
     public function __construct(
         private readonly JobArtService $jobArtService,
@@ -43,6 +44,7 @@ class JobArtBattleSupportService
         ?JobArtV2EffectSemanticsResolver $jobArtV2EffectSemanticsResolver = null,
         ?JobArtV2DefenseService $jobArtV2DefenseService = null,
         ?JobArtV2RoleEffectService $jobArtV2RoleEffectService = null,
+        ?JobArtV2ProgressionService $jobArtV2ProgressionService = null,
     ) {
         $this->jobArtActionResolver = $jobArtActionResolver ?? app(ActionResolver::class);
         $this->jobArtV2ResourceService = $jobArtV2ResourceService ?? app(JobArtV2ResourceService::class);
@@ -57,6 +59,7 @@ class JobArtBattleSupportService
         $this->jobArtV2EffectSemanticsResolver = $jobArtV2EffectSemanticsResolver ?? app(JobArtV2EffectSemanticsResolver::class);
         $this->jobArtV2DefenseService = $jobArtV2DefenseService ?? app(JobArtV2DefenseService::class);
         $this->jobArtV2RoleEffectService = $jobArtV2RoleEffectService ?? app(JobArtV2RoleEffectService::class);
+        $this->jobArtV2ProgressionService = $jobArtV2ProgressionService ?? app(JobArtV2ProgressionService::class);
     }
 
     public function attachBossSet(BattleActor $actor, Character $character, string $context = 'champ'): void
@@ -99,6 +102,20 @@ class JobArtBattleSupportService
     public function usesRoleEffects(BattleActor $actor): bool
     {
         return $this->jobArtV2RoleEffectService->enabledFor($actor);
+    }
+
+    public function adjustInitiative(
+        BattleActor $firstCandidate,
+        BattleActor $secondCandidate,
+        bool $firstCandidateWon,
+        \Closure $reroll,
+    ): bool {
+        return $this->jobArtV2ProgressionService->adjustInitiative(
+            $firstCandidate,
+            $secondCandidate,
+            $firstCandidateWon,
+            $reroll,
+        );
     }
 
     public function beginAction(BattleActor $actor, BattleState $state): ?int

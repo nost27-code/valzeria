@@ -538,18 +538,22 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
                 $rankOne = $this->art($jobId, 1);
                 [$actor, $target, $state] = $this->battle($jobId, [$rankOne], $battleType);
                 $actor->hp = $actor->maxHp;
+                if ($jobId === 67) {
+                    $actor->configureResource('catalyst', 12);
+                    $actor->setResource('catalyst', 4);
+                }
                 [$service] = $this->battleService([1], [1]);
                 mt_srand(230_000 + ($jobId * 10));
 
                 $service->actForTest($actor, $target, $state);
 
                 $this->assertSame(1, $state->jobArtUseCounts[(int) $rankOne->id] ?? 0, "{$battleType}/{$jobId}");
-                $this->assertSame(4, $actor->getResource($resourceKey), "{$battleType}/{$jobId}");
                 if ($jobId === 67) {
-                    $this->assertCount(1, $state->conversionResults(), $battleType);
-                    $this->assertTrue($state->conversionResults()[0]->success, $battleType);
-                    $this->assertSame(400, $actor->mp, $battleType);
+                    $this->assertSame(0, $actor->getResource($resourceKey), $battleType);
+                    $this->assertCount(0, $state->conversionResults(), $battleType);
+                    $this->assertSame(392, $actor->mp, $battleType);
                 } else {
+                    $this->assertSame(4, $actor->getResource($resourceKey), $battleType);
                     $this->assertSame(392, $actor->mp, $battleType);
                 }
             }

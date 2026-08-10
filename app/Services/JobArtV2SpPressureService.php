@@ -13,6 +13,7 @@ final class JobArtV2SpPressureService
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
         private readonly JobArtV2BattleHudService $battleHud,
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
     ) {
     }
 
@@ -23,17 +24,21 @@ final class JobArtV2SpPressureService
         Skill $skill,
         ?HitResult $hitResult,
     ): JobArtV2SpPressureResult {
-        if ($hitResult !== HitResult::HIT
-            || ! $this->featureGate->usesResources($attacker)
-            || $attacker->currentJobId !== 65
-            || ! $this->prototypeCatalog->isTrustedCurrentJobArt(65, $skill)
-            || ($attacker->jobArtOrigins[(int) $skill->id] ?? 'current') !== 'current'
-        ) {
+        if ($hitResult !== HitResult::HIT || ! $this->featureGate->usesResources($attacker)) {
             return JobArtV2SpPressureResult::unchanged();
         }
 
-        $metadata = $this->prototypeCatalog->artResourceMetadata($skill);
-        $rate = max(0.0, (float) ($metadata['sp_pressure_rate'] ?? 0.0));
+        $progression = $this->progressionService ?? app(JobArtV2ProgressionService::class);
+        $super = $progression->superAimSpPressure($attacker, $skill);
+        $crown = $attacker->currentJobId === 65
+            && $this->prototypeCatalog->isTrustedCurrentJobArt(65, $skill)
+            && ($attacker->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current';
+        if ($super === null && ! $crown) {
+            return JobArtV2SpPressureResult::unchanged();
+        }
+
+        $metadata = $this->prototypeCatalog->artResourceMetadata($skill) ?? [];
+        $rate = max(0.0, (float) ($super['rate'] ?? $metadata['sp_pressure_rate'] ?? 0.0));
         if ($rate <= 0.0) {
             return JobArtV2SpPressureResult::unchanged();
         }
@@ -67,6 +72,9 @@ final class JobArtV2SpPressureService
         );
         $state->recordSpPressureResult($result);
         $this->battleHud->recordSpPressure($attacker, $state, $result);
+        if ($super !== null) {
+            $progression->markSuperAimSpPressureUsed($attacker);
+        }
 
         return $result;
     }

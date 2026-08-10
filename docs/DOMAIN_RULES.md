@@ -10,6 +10,7 @@ Purpose: canonical game rules. Keep concise.
 - 装備適性ペナルティ: 本番では `EQUIPMENT_PROFICIENCY_PENALTY_ENABLED=true` とし、全職業で武器・防具を装備できる。職業適性内は100%で反映する。職業適性外の武器は、本体・通常強化・銘・特攻を武器種別に反映する（拳甲・刀85%、弓・斧・短剣75%、槍70%、剣・銃・杖・魔導具65%）。職業適性外の防具は、本体・通常強化・銘・耐性を `EQUIPMENT_NON_PROFICIENT_EFFECT_RATE`（65%）で反映する。
 - 戦技v2の役割差: 同Rank・同Cost・同resource操作でも、短期tempo、長期持続、次手準備、多段、命中、既存会心補正、防御、回復、浄化、報酬など異なる用途を持たせる。指定されたportable効果は継承して使用できるが、異系譜resourceを生成・消費しない。役割差のためにmaster power・hit_count・発動率35/38/50・normalized SP・Costの値を変更せず、戦闘中状態はDBへ永続化しない。Job Art masterのpowerは1Hit値ではなく1行動全体の総powerであり、多段は全Hit入力の合計がその総powerと一致するよう分配する。HIT/MISS/EVADE・resource・parry・guardはaction単位、会心とGUTSを含むdamage applicationはHit単位を維持する。flag OFFでは役割効果と追加RNGを入れず、既存選択経路を維持する。
 - 反撃系Role Diversity: 納刀はATK+5%/2Rの短期tempo、闘争本能はATK+25%・DEF+20%/5Rの長期強化、剣気集中は次の反撃Rank5/9を各×1.20する2 charge・最大6 own-action-opportunityの決着準備とする。反撃Rank5/9が実行された時はHIT/MISS/EVADEにかかわらず1 chargeを消費し、発動抽選不発では消費しない。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と優先有害状態最大1件の浄化、王者の秘薬はHP/SP残存割合が低い側の今回回復量×1.50（同率HP）で浄化しない。
+- 戦技v2 progression補正: 公開戦技のうち人間裁定済み22件だけを `(job_id, learn_rank, name)` の完全一致で補正し、master、Cost、SP、35/38/50%発動率は変更しない。現在職または同系譜継承だけが照準準備・貫通構え・狩猟印・崩し印・resource抑制・行動カテゴリ観測等の固有mechanicsを使用し、異系譜は明示portable効果以外を持ち込まずforeign resourceを生成しない。白銀王盾はcurrent/same guard lineageではdamageとDEF/SPR +15%（2ラウンド・継承減衰あり）を維持する。cross-lineageではbuff/resourceなしで、前回の自分の行動以降にdirect damageを実際に1以上軽減した時だけ次のown-action-opportunityまで使用可能とする。実行時はHIT/MISS/EVADEを問わず準備を消費し、発動抽選不発では保持し、別行動を終えたら失効する。DoT・自傷・反射・場damageの軽減では準備しない。
 
 ## Notifications
 

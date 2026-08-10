@@ -101,8 +101,8 @@ class JobArtV2Pr26ExpansionTest extends TestCase
 
         $coverage = collect(array_unique([...self::ADVANCED, ...self::SUPER]))
             ->countBy(fn (int $jobId): string => (string) $catalog->effectCoverageForCurrentJob($jobId));
-        $this->assertSame(4, $coverage->get('full_v2_effect'));
-        $this->assertSame(24, $coverage->get('resource_v2_master_effect_fallback'));
+        $this->assertSame(9, $coverage->get('full_v2_effect'));
+        $this->assertSame(19, $coverage->get('resource_v2_master_effect_fallback'));
     }
 
     public function test_same_lineage_inherited_producer_consumer_and_finisher_share_one_current_resource(): void

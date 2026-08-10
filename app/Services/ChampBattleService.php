@@ -606,10 +606,23 @@ class ChampBattleService
             $log[] = "<br><span class=\"text-rose-600 font-bold\">【先制】チャンプが先手を取った！</span>";
         }
 
+        $usesRoleInitiative = (bool) config('battle.job_art_v2.resources', false)
+            && ($this->jobArtBattleSupport->usesRoleEffects($attacker)
+                || $this->jobArtBattleSupport->usesRoleEffects($defender));
+
         for ($turn = 1; $turn <= self::MAX_TURNS; $turn++) {
             $jobArtState->turnCount = $turn;
             $log[] = "<br><br>--- ターン {$turn} ---";
-            $actors = $challengerFirst
+            $turnChallengerFirst = $challengerFirst;
+            if ($usesRoleInitiative) {
+                $turnChallengerFirst = $this->jobArtBattleSupport->adjustInitiative(
+                    $attacker,
+                    $defender,
+                    $turnChallengerFirst,
+                    static fn (): bool => (bool) random_int(0, 1),
+                );
+            }
+            $actors = $turnChallengerFirst
                 ? [[$attacker, $defender], [$defender, $attacker]]
                 : [[$defender, $attacker], [$attacker, $defender]];
 

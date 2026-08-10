@@ -7,8 +7,13 @@ use App\Services\Battle\BattleActor;
 
 class JobArtV2ActiveEvasionProvider
 {
+    public function __construct(
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
+    ) {}
+
     public function rate(BattleActor $attacker, BattleActor $defender, Skill $skill, string $battleType): float
     {
-        return 0.0;
+        return ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+            ->activeEvasionRate($attacker, $defender) * 100;
     }
 }
