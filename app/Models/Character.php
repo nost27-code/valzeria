@@ -200,6 +200,11 @@ class Character extends Model
         return $this->hasMany(CharacterNotification::class);
     }
 
+    public function webPushPreference()
+    {
+        return $this->hasOne(CharacterWebPushPreference::class);
+    }
+
     public function iconEntitlements()
     {
         return $this->hasMany(CharacterIconEntitlement::class);

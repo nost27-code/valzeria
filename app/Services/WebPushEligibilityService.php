@@ -14,15 +14,19 @@ class WebPushEligibilityService
 
     public function isAllowed(Character $character): bool
     {
-        if ($this->mode() !== 'allowlist') {
-            return false;
+        if ($this->mode() === 'all') {
+            return true;
         }
 
-        return in_array(
-            (int) $character->getKey(),
-            array_map('intval', (array) config('web_push.allowed_character_ids', [])),
-            true
-        );
+        if ($this->mode() === 'allowlist') {
+            return in_array(
+                (int) $character->getKey(),
+                array_map('intval', (array) config('web_push.allowed_character_ids', [])),
+                true
+            );
+        }
+
+        return false;
     }
 
     public function isConfigured(): bool

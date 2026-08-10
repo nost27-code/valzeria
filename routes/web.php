@@ -303,6 +303,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/profile/edit', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/frame/compress', [ProfileController::class, 'compressFrameMaterial'])->name('profile.frame.compress');
         Route::post('/profile/frame/unlock', [ProfileController::class, 'unlockFrame'])->name('profile.frame.unlock');
+        Route::get('/settings/smartphone-notifications', [\App\Http\Controllers\SmartphoneNotificationController::class, 'edit'])
+            ->name('smartphone-notifications.edit');
+        Route::patch('/settings/smartphone-notifications', [\App\Http\Controllers\SmartphoneNotificationController::class, 'update'])
+            ->name('smartphone-notifications.update');
 
         // ヴァルモン
         Route::get('/valmons/starter', [\App\Http\Controllers\ValmonController::class, 'starter'])->name('valmons.starter');

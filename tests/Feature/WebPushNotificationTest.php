@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\WebPushSubscription;
 use App\Services\WebPushDispatchService;
 use App\Services\WebPushEligibilityService;
+use App\Services\WebPushPreferenceService;
 use App\Services\WebPushSender;
 use App\Services\WebPushSubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,7 +22,7 @@ class WebPushNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_subscription_route_is_hidden_unless_allowlist_mode_is_enabled(): void
+    public function test_subscription_route_is_hidden_while_off_and_available_in_all_mode(): void
     {
         $user = User::factory()->create();
         $character = $this->createCharacter($user, '検証対象');
@@ -36,9 +37,9 @@ class WebPushNotificationTest extends TestCase
         $this->actingAs($user)
             ->withSession(['current_character_id' => $character->id])
             ->postJson(route('web-push.subscription.store'), $this->subscriptionPayload())
-            ->assertNotFound();
+            ->assertCreated();
 
-        $this->assertDatabaseCount('web_push_subscriptions', 0);
+        $this->assertDatabaseCount('web_push_subscriptions', 1);
     }
 
     public function test_only_allowlisted_character_can_manage_an_encrypted_subscription(): void
@@ -174,6 +175,7 @@ class WebPushNotificationTest extends TestCase
 
         $dispatcher = new WebPushDispatchService(
             app(WebPushEligibilityService::class),
+            app(WebPushPreferenceService::class),
             $sender
         );
         $result = $dispatcher->dispatch();
@@ -218,6 +220,7 @@ class WebPushNotificationTest extends TestCase
 
         $result = (new WebPushDispatchService(
             app(WebPushEligibilityService::class),
+            app(WebPushPreferenceService::class),
             $sender
         ))->dispatch();
 
@@ -265,6 +268,7 @@ class WebPushNotificationTest extends TestCase
 
         $result = (new WebPushDispatchService(
             app(WebPushEligibilityService::class),
+            app(WebPushPreferenceService::class),
             $sender
         ))->dispatch();
 
@@ -273,13 +277,64 @@ class WebPushNotificationTest extends TestCase
         $this->assertSame($notification->id, $subscription->fresh()->last_notification_id);
     }
 
+    public function test_dispatch_sends_only_selected_types_and_advances_past_disabled_notifications(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, '種類選択者');
+        $this->configureWebPush('all', []);
+
+        $subscription = app(WebPushSubscriptionService::class)->subscribe(
+            $character,
+            'https://push.example.test/type-filter',
+            'typeFilterPublicKey',
+            'typeFilterAuthToken'
+        );
+        app(WebPushPreferenceService::class)->save($character, ['arena_rank_down']);
+
+        $enabledNotification = CharacterNotification::query()->create([
+            'character_id' => $character->id,
+            'category' => 'arena',
+            'type' => 'arena_rank_down',
+            'title' => 'ランク戦順位が低下しました',
+        ]);
+        $disabledNotification = CharacterNotification::query()->create([
+            'character_id' => $character->id,
+            'category' => 'market',
+            'type' => 'market_material_sold',
+            'title' => '市場で素材が売れました',
+        ]);
+
+        $sender = Mockery::mock(WebPushSender::class);
+        $sender->shouldReceive('send')
+            ->once()
+            ->with(
+                Mockery::on(fn (WebPushSubscription $stored): bool => $stored->is($subscription)),
+                Mockery::on(fn (array $payload): bool => $payload['data']['notificationId'] === $enabledNotification->id)
+            )
+            ->andReturn(['success' => true, 'expired' => false]);
+
+        $dispatcher = new WebPushDispatchService(
+            app(WebPushEligibilityService::class),
+            app(WebPushPreferenceService::class),
+            $sender
+        );
+        $firstResult = $dispatcher->dispatch();
+        $secondResult = $dispatcher->dispatch();
+
+        $this->assertSame(1, $firstResult['sent']);
+        $this->assertSame(0, $secondResult['sent']);
+        $this->assertSame($disabledNotification->id, $subscription->fresh()->last_notification_id);
+        $this->assertDatabaseHas('character_notifications', ['id' => $enabledNotification->id]);
+        $this->assertDatabaseHas('character_notifications', ['id' => $disabledNotification->id]);
+    }
+
     private function configureWebPush(string $mode, array $characterIds): void
     {
         config()->set('web_push.mode', $mode);
         config()->set('web_push.allowed_character_ids', $characterIds);
         config()->set('web_push.preview_mode', 'generic');
         config()->set('web_push.vapid.subject', 'mailto:test@example.test');
-        config()->set('web_push.vapid.public_key', $this->base64Url("\x04" . str_repeat('P', 64)));
+        config()->set('web_push.vapid.public_key', $this->base64Url("\x04".str_repeat('P', 64)));
         config()->set('web_push.vapid.private_key', $this->base64Url(str_repeat('K', 32)));
     }
 

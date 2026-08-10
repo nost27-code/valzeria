@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-smartphone-notification-settings',
+        'date' => '2026-08-10',
+        'category' => 'added',
+        'title' => 'スマホ通知の案内と種類別設定を追加',
+        'detail' => '冒険者タブの設定から、PWAの導入手順と端末通知の状態を確認し、探索力MAX・闘技場順位低下・市場成立・個別メッセージ・運営配布などを種類別に選べるようにしました。OFFにした種類もゲーム内の通知ベルには残ります。',
+    ],
+    [
         'id' => '2026-08-10-pwa-web-push-title-preview',
         'date' => '2026-08-10',
         'category' => 'internal',

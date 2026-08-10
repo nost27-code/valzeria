@@ -13,6 +13,7 @@ class WebPushDispatchService
 {
     public function __construct(
         private readonly WebPushEligibilityService $eligibility,
+        private readonly WebPushPreferenceService $preferences,
         private readonly WebPushSender $sender
     ) {}
 
@@ -34,8 +35,12 @@ class WebPushDispatchService
             return $result;
         }
 
+        $characterRelation = Schema::hasTable('character_web_push_preferences')
+            ? 'character.webPushPreference'
+            : 'character';
+
         WebPushSubscription::query()
-            ->with('character')
+            ->with($characterRelation)
             ->orderBy('id')
             ->chunkById((int) config('web_push.batch_size', 20), function ($subscriptions) use (&$result): void {
                 foreach ($subscriptions as $subscription) {
@@ -45,29 +50,36 @@ class WebPushDispatchService
                     if (! $character instanceof Character) {
                         $subscription->delete();
                         $result['expired']++;
+
                         continue;
                     }
 
                     if (! $this->eligibility->isAllowed($character)) {
                         $this->advanceToLatest($subscription, $character);
                         $result['skipped']++;
+
                         continue;
                     }
 
                     if (! $this->eligibility->isConfigured()) {
                         $result['misconfigured']++;
+
                         continue;
                     }
 
-                    $notification = CharacterNotification::query()
+                    $latestId = $this->latestNotificationId($character);
+                    $notificationQuery = CharacterNotification::query()
                         ->where('character_id', $character->getKey())
                         ->where('id', '>', $subscription->last_notification_id)
-                        ->active()
+                        ->active();
+                    $notification = $this->preferences
+                        ->applyNotificationFilter($notificationQuery, $character)
                         ->latest('id')
                         ->first(['id', 'title']);
 
                     if ($notification === null) {
-                        $this->advanceToLatest($subscription, $character);
+                        $this->advanceToLatest($subscription, $latestId);
+
                         continue;
                     }
 
@@ -88,22 +100,25 @@ class WebPushDispatchService
                             'exception' => $exception::class,
                         ]);
                         $result['failed']++;
+
                         continue;
                     }
 
                     if ($delivery['expired']) {
                         $subscription->delete();
                         $result['expired']++;
+
                         continue;
                     }
 
                     if (! $delivery['success']) {
                         $result['failed']++;
+
                         continue;
                     }
 
                     $subscription->forceFill([
-                        'last_notification_id' => (int) $notification->id,
+                        'last_notification_id' => max($latestId, (int) $notification->id),
                     ])->save();
                     $result['sent']++;
                 }
@@ -137,11 +152,18 @@ class WebPushDispatchService
             : Str::substr($title, 0, 59).'…';
     }
 
-    private function advanceToLatest(WebPushSubscription $subscription, Character $character): void
+    private function latestNotificationId(Character $character): int
     {
-        $latestId = (int) (CharacterNotification::query()
+        return (int) (CharacterNotification::query()
             ->where('character_id', $character->getKey())
             ->max('id') ?? 0);
+    }
+
+    private function advanceToLatest(WebPushSubscription $subscription, Character|int $characterOrLatestId): void
+    {
+        $latestId = $characterOrLatestId instanceof Character
+            ? $this->latestNotificationId($characterOrLatestId)
+            : $characterOrLatestId;
 
         if ($latestId > $subscription->last_notification_id) {
             $subscription->forceFill(['last_notification_id' => $latestId])->save();

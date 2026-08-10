@@ -1,28 +1,52 @@
 <div wire:ignore
      data-web-push-control
+     data-eligible="{{ $eligible ? '1' : '0' }}"
+     data-character-id="{{ $characterId }}"
+     data-sync-key="valzeria_web_push_synced_{{ $characterId }}"
+     data-unavailable-message="{{ $unavailableMessage }}"
      data-vapid-public-key="{{ $vapidPublicKey }}"
      data-store-url="{{ route('web-push.subscription.store') }}"
      data-destroy-url="{{ route('web-push.subscription.destroy') }}"
      data-csrf-token="{{ csrf_token() }}"
-     class="border-b border-slate-100 bg-sky-50/70 px-3 py-2">
+     @class([
+         'border-sky-200 bg-sky-50/70',
+         'rounded-xl border px-4 py-4' => $detailed,
+         'border-b px-3 py-2' => ! $detailed,
+     ])>
     <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
-            <div class="text-[11px] font-black text-slate-700">スマホ通知</div>
-            <div data-web-push-status class="mt-0.5 text-[10px] font-bold leading-snug text-slate-500">設定を確認しています…</div>
+            <div @class(['font-black text-slate-700', 'text-sm' => $detailed, 'text-[11px]' => ! $detailed])>この端末の通知</div>
+            <div data-web-push-status
+                 @class(['mt-0.5 font-bold leading-snug text-slate-500', 'text-xs' => $detailed, 'text-[10px]' => ! $detailed])>
+                {{ $eligible ? '設定を確認しています…' : $unavailableMessage }}
+            </div>
         </div>
         <button type="button"
                 data-web-push-enable
                 hidden
-                class="shrink-0 rounded-md bg-sky-600 px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm transition active:scale-95 disabled:opacity-60">
-            有効にする
+                @class([
+                    'shrink-0 rounded-md bg-sky-600 font-black text-white shadow-sm transition active:scale-95 disabled:opacity-60',
+                    'min-h-10 px-4 py-2 text-xs' => $detailed,
+                    'px-2.5 py-1.5 text-[10px]' => ! $detailed,
+                ])>
+            通知をON
         </button>
         <button type="button"
                 data-web-push-disable
                 hidden
-                class="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-600 transition active:scale-95 disabled:opacity-60">
-            解除
+                @class([
+                    'shrink-0 rounded-md border border-slate-300 bg-white font-black text-slate-600 transition active:scale-95 disabled:opacity-60',
+                    'min-h-10 px-4 py-2 text-xs' => $detailed,
+                    'px-2.5 py-1.5 text-[10px]' => ! $detailed,
+                ])>
+            通知をOFF
         </button>
     </div>
+    @unless($detailed)
+        <a href="{{ route('smartphone-notifications.edit') }}" class="mt-1 inline-flex text-[10px] font-bold text-sky-700 underline decoration-sky-300 underline-offset-2">
+            説明・通知の種類を設定
+        </a>
+    @endunless
 </div>
 
 @once
@@ -53,7 +77,7 @@
 
             const postSubscription = async (root, subscription) => {
                 const fingerprint = subscriptionFingerprint(subscription.endpoint);
-                if (window.sessionStorage.getItem('valzeria_web_push_synced') === fingerprint) {
+                if (window.sessionStorage.getItem(root.dataset.syncKey) === fingerprint) {
                     return;
                 }
 
@@ -75,7 +99,7 @@
                     throw new Error('subscription_store_failed');
                 }
 
-                window.sessionStorage.setItem('valzeria_web_push_synced', fingerprint);
+                window.sessionStorage.setItem(root.dataset.syncKey, fingerprint);
             };
 
             const initialize = async (root) => {
@@ -93,6 +117,11 @@
                     enableButton.hidden = state !== 'off';
                     disableButton.hidden = state !== 'on';
                 };
+
+                if (root.dataset.eligible !== '1') {
+                    show(root.dataset.unavailableMessage || '現在、スマホ通知は準備中です。', 'unavailable');
+                    return;
+                }
 
                 if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
                     show('この端末はスマホ通知に対応していません。', 'unavailable');
@@ -187,7 +216,7 @@
                             currentSubscription = null;
                         }
 
-                        window.sessionStorage.removeItem('valzeria_web_push_synced');
+                        window.sessionStorage.removeItem(root.dataset.syncKey);
                         show('スマホ通知はオフです。', 'off');
                     } catch (error) {
                         show('通知を解除できませんでした。もう一度お試しください。', 'on');
@@ -197,7 +226,10 @@
                 });
             };
 
-            document.querySelectorAll(selector).forEach((root) => initialize(root));
+            const initializeAll = () => document.querySelectorAll(selector).forEach((root) => initialize(root));
+
+            initializeAll();
+            document.addEventListener('livewire:navigated', initializeAll);
         })();
     </script>
 @endonce

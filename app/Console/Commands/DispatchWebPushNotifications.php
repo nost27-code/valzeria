@@ -3,20 +3,23 @@
 namespace App\Console\Commands;
 
 use App\Services\WebPushDispatchService;
+use App\Services\WebPushEventService;
 use Illuminate\Console\Command;
 
 class DispatchWebPushNotifications extends Command
 {
     protected $signature = 'web-push:dispatch';
 
-    protected $description = 'Send a generic PWA push notification for new character bell entries.';
+    protected $description = 'Generate timed notifications and send selected character bell entries by PWA push.';
 
-    public function handle(WebPushDispatchService $dispatcher): int
+    public function handle(WebPushEventService $events, WebPushDispatchService $dispatcher): int
     {
+        $generated = $events->generate();
         $result = $dispatcher->dispatch();
 
         $this->line(sprintf(
-            'scanned=%d sent=%d expired=%d failed=%d skipped=%d misconfigured=%d',
+            'generated=%d scanned=%d sent=%d expired=%d failed=%d skipped=%d misconfigured=%d',
+            $generated,
             $result['scanned'],
             $result['sent'],
             $result['expired'],

@@ -55,7 +55,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - Routing: routes/web.php; screens are Livewire components + Blade views
 - 冒険者カードは `AdventurerCardModal` の軽量Livewireインスタンスが表示イベントを受け、共通 `CityHeader` の能力値・通知・街情報を再描画しない。カードの表示・閉じる・職業階層取得は renderless action とし、既にある巨大なカードHTMLを応答ごとに再送・再描画せず、状態データだけを同期する。クリック直後はクライアント側で読み込み表示を開き、職業バッジは圧縮した配列で受け取り、選択された階層だけ小さなLivewire更新で詳細データ・DOM・画像へ展開する。
 - Server pattern: thin Controllers, logic in app/Services/* (BattleService, ExplorationService, etc.)
-- PWA Web Pushは限定検証基盤を実装済み。コード上は `WEB_PUSH_MODE=off` が既定で、`allowlist` と `WEB_PUSH_ALLOWED_CHARACTER_IDS`、完全なVAPID鍵が揃った時だけ対象キャラクターのベル内に設定UIと購読APIを開く。端末情報は `web_push_subscriptions` へ暗号化保存し、毎分の `web-push:dispatch` が新しい有効なベル通知をまとめて検知する。端末文面は `WEB_PUSH_PREVIEW_MODE=generic` を既定とし、`title` の時だけHTMLと余分な空白を除いた通知ベルのタイトルを最大60文字で表示する。通知ベル本文は端末へ送らない。許可対象外ではUI・API・送信を閉じる
+- PWA Web Pushは、冒険者タブの設定から専用「スマホ通知」画面を開き、PWA導入手順・端末状態・通知種類を確認できる。種類はキャラクター単位、購読ON/OFFは端末単位で保存し、種類をOFFにしてもゲーム内の通知ベルは消さない。毎分の `web-push:dispatch` は時間経過で探索力がMAXになった対象者へ重複しないベル通知を作り、選択済みの新着だけを端末へ送る。端末情報は `web_push_subscriptions` へ暗号化保存する。`WEB_PUSH_MODE=off` が既定で、`allowlist` または `all` と完全なVAPID鍵が揃った時だけ購読APIと送信を開く。端末文面は `WEB_PUSH_PREVIEW_MODE=generic` が既定で、`title` の時だけHTMLと余分な空白を除いた通知ベルのタイトルを最大60文字で表示し、通知ベル本文は送らない
 - State management: Livewire component state + DB; no SPA framework
 - アプリ起動時にはmigration・Seeder・プレイヤーデータ修復・公開リンク変更を行わない。街／職業EXPマスタ、職業履歴の整合性、必須カラムはリリース準備チェックで検証し、異常時はデプロイを停止する。
 - P1の認証・送信・設定変更UIは、通常フォームでは明示した `data-submit-lock` を `resources/js/app.js` が処理し、Livewireでは対象アクションの `wire:loading` で完了まで再押下を止める。全ボタンには `resources/css/app.css` の短い押下変形があり、数量増減・タブ切替など連続操作前提の操作には送信ロックを自動適用しない。
