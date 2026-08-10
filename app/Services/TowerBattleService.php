@@ -426,8 +426,10 @@ class TowerBattleService extends BattleService
             $state->turnCount++;
             $state->addLog("<br><br>--- ターン {$state->turnCount} ---");
 
-            $playerSpeed = $player->agi + random_int(0, 5);
-            $enemySpeed = $enemy->agi + random_int(0, 5);
+            $usesRoleSpeed = $this->jobArtV2RoleEffectService->enabledFor($player)
+                || $this->jobArtV2RoleEffectService->enabledFor($enemy);
+            $playerSpeed = ($usesRoleSpeed ? $player->effectiveAgi() : $player->agi) + random_int(0, 5);
+            $enemySpeed = ($usesRoleSpeed ? $enemy->effectiveAgi() : $enemy->agi) + random_int(0, 5);
 
             if ($playerSpeed >= $enemySpeed) {
                 $this->executeAction($player, $enemy, $state);

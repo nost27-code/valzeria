@@ -58,6 +58,21 @@ class JobArtV2PrototypeCatalog
      * @var array<int, array<int, array<string, int|float|string|bool>>>
      */
     private const ART_OVERRIDES = [
+        6 => [
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light'],
+        ],
+        23 => [
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'melody'],
+            5 => [
+                'resource_role' => 'neutral',
+                'resource_gain_points' => 0,
+                'resource_cost_points' => 0,
+                'minimum_resource_points' => 0,
+                'requires_trusted_field' => true,
+                'field_operation' => 'extend',
+                'field_extend_rounds' => 2,
+            ],
+        ],
         24 => [
             1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'sanctuary'],
             5 => ['field_operation' => 'none'],

@@ -65,6 +65,13 @@ class JobArtV2ResourceService
             return null;
         }
 
+        if ($state !== null) {
+            $fieldBlock = $this->fieldService->eligibilityBlockReason($actor, $state, $skill);
+            if ($fieldBlock !== null) {
+                return $fieldBlock;
+            }
+        }
+
         $art = $this->catalog->forActorArt($actor, $skill);
         if ($art === null) {
             // 異系譜継承はforeign resourceを生成・要求しない。
@@ -81,9 +88,7 @@ class JobArtV2ResourceService
         }
 
         if ((bool) ($art['requires_trusted_field'] ?? false)) {
-            return $state === null
-                ? self::BLOCKED_BY_FEATURE_DEPENDENCY
-                : $this->fieldService->eligibilityBlockReason($actor, $state, $skill);
+            return $state === null ? self::BLOCKED_BY_FEATURE_DEPENDENCY : null;
         }
 
         $resourceKey = (string) $art['resource_key'];
@@ -147,6 +152,8 @@ class JobArtV2ResourceService
 
         $art = $this->catalog->forActorArt($actor, $skill);
         if ($art === null || !$this->catalog->usesPrimaryResource($actor, $skill)) {
+            $this->fieldService->applyJobArtCast($actor, $state, $skill);
+
             return ResourceChangeResult::unchanged();
         }
 

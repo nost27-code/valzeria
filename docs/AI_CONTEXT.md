@@ -5,6 +5,12 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-13
 Branch: main
 
+## Job-art v2 role diversity pass
+
+- 公開済みmasterとv2 resource規則を変えず、同期後監査TOP20の13 engine gapと7 role-design gapだけを対象にした。正本は`JobArtV2RoleEffectCatalog`の完全一致 `(job_id, learn_rank, name)` metadataで、`JobArtV2RoleEffectService`がbattle-memory-onlyのTimedEffect/PreparedEffect、支援、報酬、場、適応damage routeを6戦闘経路へ接続する。対象外戦技・flag不足・unsupported current jobは既存効果とRNG経路を維持する
+- portable指定された役割効果は同系譜/異系譜継承でも使用できるが、現在職のresource barは1本のままでforeign resourceを生成しない。source `power` / `hit_count` の値、Cost、35・38・50%発動、normalized SPは変更しない。Job Artの`power`は1行動全体の総量で、`hit_count > 1`は`JobArtHitPower`が整数余りを前方Hitへ配り、全Hit入力の合計を総powerと一致させる。通常PvE/bossとそれを継承するtower、PvP/champ/NPC arenaで同じ分割を使う
+- 反撃は納刀=短期tempo（ATK+5%/2R）、闘争本能=長期強化（ATK+25%・DEF+20%/5R）、剣気集中=決着準備（反撃Rank5/9を各×1.20、2回、最大6回の自分の行動機会）へ分離した。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と有害状態の優先1件浄化、王者の秘薬は残存割合が低いHP/SP側の今回回復量を×1.50（同率HP、浄化なし）とする。照準は高命中・既存会心補正・乱数なしの物理/魔法期待値選択、場術は星光/旋律生成と場延長、貫通はstrict/flexible準備、変成/守護は長期buff・能力選択・回復/加護・Gold/Drop/鑑定/浄化/収奪へ分離した
+
 ## PR27 job-art v2 release candidate
 
 - 既定OFFのcurrent-job v2対応は40職。PR26までの39職に63星冠導師を追加し、全94職のうち54職はcurrent-job v2をfail closedする。上級・超級28職のeffect inventoryは、凍結済み個別効果を持つ4職がfull、残る24職がresource-v2 + master-effect fallbackのままである

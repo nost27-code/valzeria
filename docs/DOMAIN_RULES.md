@@ -8,6 +8,8 @@ Purpose: canonical game rules. Keep concise.
 
 - Player equipment performance: 武器・防具・装飾品の固定能力値、および保存済み銘補正は原則としてデータ上で8倍化する。ただしHPだけは8倍化後の値を半減し、8倍化前の4倍性能とする。動的に算出する銘のHPも同じ4倍性能（小数切上げ）とし、HP以外の能力は8倍のままにする。装飾品は割合式を使わず、固定能力を直接加算する。武器以外の攻撃または魔力を `B`、8倍化後の武器攻撃または魔力を `W` として、武器の攻撃・魔力は `round(B × (0.80 + W / 2400))` で算出する。防具以外の防御または精神を `B`、8倍化後の防具DEFまたは精神を `W` として、防具の防御・精神は `B + max(floor(W / 8), round(B × W / 2400))` で算出する。これにより、防具を装備したときの防御・精神は8倍化前の固定加算を下回らない。技倍率・属性・会心・乱数・PvP補正は従来どおり実効値の後に適用する。武器を持たないモンスターはこの補正を使わず、既存の攻撃・魔力をそのまま使う。
 - 装備適性ペナルティ: 本番では `EQUIPMENT_PROFICIENCY_PENALTY_ENABLED=true` とし、全職業で武器・防具を装備できる。職業適性内は100%で反映する。職業適性外の武器は、本体・通常強化・銘・特攻を武器種別に反映する（拳甲・刀85%、弓・斧・短剣75%、槍70%、剣・銃・杖・魔導具65%）。職業適性外の防具は、本体・通常強化・銘・耐性を `EQUIPMENT_NON_PROFICIENT_EFFECT_RATE`（65%）で反映する。
+- 戦技v2の役割差: 同Rank・同Cost・同resource操作でも、短期tempo、長期持続、次手準備、多段、命中、既存会心補正、防御、回復、浄化、報酬など異なる用途を持たせる。指定されたportable効果は継承して使用できるが、異系譜resourceを生成・消費しない。役割差のためにmaster power・hit_count・発動率35/38/50・normalized SP・Costの値を変更せず、戦闘中状態はDBへ永続化しない。Job Art masterのpowerは1Hit値ではなく1行動全体の総powerであり、多段は全Hit入力の合計がその総powerと一致するよう分配する。HIT/MISS/EVADE・resource・parry・guardはaction単位、会心とGUTSを含むdamage applicationはHit単位を維持する。flag OFFでは役割効果と追加RNGを入れず、既存選択経路を維持する。
+- 反撃系Role Diversity: 納刀はATK+5%/2Rの短期tempo、闘争本能はATK+25%・DEF+20%/5Rの長期強化、剣気集中は次の反撃Rank5/9を各×1.20する2 charge・最大6 own-action-opportunityの決着準備とする。反撃Rank5/9が実行された時はHIT/MISS/EVADEにかかわらず1 chargeを消費し、発動抽選不発では消費しない。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と優先有害状態最大1件の浄化、王者の秘薬はHP/SP残存割合が低い側の今回回復量×1.50（同率HP）で浄化しない。
 
 ## Notifications
 

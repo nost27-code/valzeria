@@ -43,6 +43,12 @@ class BattleState
     private int $sourceActionSequence = 0;
     private ?int $currentSourceActionId = null;
 
+    /** @var array<int, array<string, mixed>> source_action_id単位の役割効果スナップショット。 */
+    private array $jobArtV2RoleActionContexts = [];
+
+    /** @var array<string, true> */
+    private array $claimedRoleEffectEvents = [];
+
     /** @var array<string, true> */
     private array $claimedResourceEvents = [];
 
@@ -142,6 +148,46 @@ class BattleState
     public function currentSourceActionId(): ?int
     {
         return $this->currentSourceActionId;
+    }
+
+    /** @param array<string, mixed> $context */
+    public function beginJobArtV2RoleAction(int $sourceActionId, array $context): void
+    {
+        $this->jobArtV2RoleActionContexts[$sourceActionId] = $context;
+    }
+
+    /** @param array<string, mixed> $attributes */
+    public function updateJobArtV2RoleAction(int $sourceActionId, array $attributes): void
+    {
+        $this->jobArtV2RoleActionContexts[$sourceActionId] = array_replace(
+            $this->jobArtV2RoleActionContexts[$sourceActionId] ?? [],
+            $attributes,
+        );
+    }
+
+    /** @return array<string, mixed> */
+    public function jobArtV2RoleAction(?int $sourceActionId = null): array
+    {
+        $sourceActionId ??= $this->currentSourceActionId;
+
+        return $sourceActionId !== null
+            ? ($this->jobArtV2RoleActionContexts[$sourceActionId] ?? [])
+            : [];
+    }
+
+    public function claimJobArtV2RoleEffect(
+        BattleActor $actor,
+        string $effectKey,
+        int $sourceActionId,
+    ): bool {
+        $key = implode(':', [$this->actorKey($actor), $effectKey, $sourceActionId]);
+        if (isset($this->claimedRoleEffectEvents[$key])) {
+            return false;
+        }
+
+        $this->claimedRoleEffectEvents[$key] = true;
+
+        return true;
     }
 
     public function claimResourceEvent(

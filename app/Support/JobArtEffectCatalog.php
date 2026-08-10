@@ -29,6 +29,8 @@ class JobArtEffectCatalog
         'PHYSICAL_DAMAGE_REWARD' => ['label' => '攻撃+報酬', 'damage_type' => 'physical', 'deals_damage' => true, 'gold_bonus' => true, 'drop_bonus' => true],
         'MAGICAL_DAMAGE_REWARD' => ['label' => '魔法+報酬', 'damage_type' => 'magical', 'deals_damage' => true, 'gold_bonus' => true, 'drop_bonus' => true],
         'TIME_CONTROL_CURRENT_ONLY' => ['label' => '時空', 'damage_type' => 'support'],
+        // Runtime-only: the explicit v2 role service owns every side effect.
+        'V2_ROLE_EFFECT_ONLY' => ['label' => '特殊', 'damage_type' => 'support'],
     ];
 
     public static function templates(): array

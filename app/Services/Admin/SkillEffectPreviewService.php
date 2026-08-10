@@ -6,6 +6,7 @@ use App\Models\Enemy;
 use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
+use App\Services\Battle\JobArtHitPower;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Collection;
 
@@ -175,12 +176,18 @@ class SkillEffectPreviewService
             ];
         }
 
-        $hitPower = $skill->isJobArt()
-            ? max(60, (int) round($power / max(1, $baseHitCount)))
-            : $power;
-
-        $damagePerHit = $this->skillDamagePerHit($attacker, $defender, $skill, $damageType, $hitPower);
-        $damage = max(0, (int) floor($damagePerHit * $expectedHitCount));
+        $hitPowers = $skill->isJobArt()
+            ? JobArtHitPower::split($power, $baseHitCount)
+            : array_fill(0, $baseHitCount, $power);
+        $baseDamage = array_sum(array_map(
+            fn (int $hitPower): int => $this->skillDamagePerHit($attacker, $defender, $skill, $damageType, $hitPower),
+            $hitPowers,
+        ));
+        $extraHitRate = max(0.0, $expectedHitCount - $baseHitCount);
+        $extraHitDamage = $extraHitRate > 0
+            ? (array_sum($hitPowers) > 0 ? ($baseDamage / $baseHitCount) * $extraHitRate : 0)
+            : 0;
+        $damage = max(0, (int) floor($baseDamage + $extraHitDamage));
 
         return [
             'damage' => $damage,

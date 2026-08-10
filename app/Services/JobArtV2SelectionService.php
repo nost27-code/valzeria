@@ -13,6 +13,9 @@ class JobArtV2SelectionService
     private readonly JobArtV2FieldService $fieldService;
     private readonly JobArtV2SlotConditionCatalog $slotConditions;
     private readonly JobArtV2ResourceCatalog $resourceCatalog;
+    private readonly JobArtV2CleanseService $cleanseService;
+    private readonly JobArtV2RoleEffectCatalog $roleEffectCatalog;
+    private readonly JobArtV2RoleEffectService $roleEffectService;
 
     public function __construct(
         private readonly JobArtV2RandomSource $random,
@@ -23,11 +26,17 @@ class JobArtV2SelectionService
         ?JobArtV2FieldService $fieldService = null,
         ?JobArtV2SlotConditionCatalog $slotConditions = null,
         ?JobArtV2ResourceCatalog $resourceCatalog = null,
+        ?JobArtV2CleanseService $cleanseService = null,
+        ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
+        ?JobArtV2RoleEffectService $roleEffectService = null,
     ) {
         $this->resourceService = $resourceService ?? app(JobArtV2ResourceService::class);
         $this->fieldService = $fieldService ?? app(JobArtV2FieldService::class);
         $this->slotConditions = $slotConditions ?? app(JobArtV2SlotConditionCatalog::class);
         $this->resourceCatalog = $resourceCatalog ?? app(JobArtV2ResourceCatalog::class);
+        $this->cleanseService = $cleanseService ?? app(JobArtV2CleanseService::class);
+        $this->roleEffectCatalog = $roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        $this->roleEffectService = $roleEffectService ?? app(JobArtV2RoleEffectService::class);
     }
 
     public function selectForTurn(
@@ -181,6 +190,27 @@ class JobArtV2SelectionService
     private function canActivateRecoveryArt(BattleActor $actor, Skill $skill): bool
     {
         if ($this->resourceService->supportEffectCanBeMeaningful($actor, $skill)) {
+            return true;
+        }
+
+        if ($this->roleEffectService->enabledFor($actor)) {
+            $roleMetadata = $this->roleEffectCatalog->forArt($skill);
+            if ($this->roleEffectCatalog->isPortable($skill)) {
+                if ($this->roleEffectService->supportEffectCanBeMeaningful($actor, $skill)) {
+                    return true;
+                }
+                if (is_array($roleMetadata['heal'] ?? null)
+                    || is_array($roleMetadata['cleanse'] ?? null)
+                    || is_array($roleMetadata['support_eligibility'] ?? null)
+                ) {
+                    return false;
+                }
+            }
+        }
+
+        if ((string) $skill->effect_template === 'HEAL_CLEANSE'
+            && $this->cleanseService->canCleanse($actor)
+        ) {
             return true;
         }
 

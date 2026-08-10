@@ -16,6 +16,7 @@ final class JobArtV2LoadoutPresenter
         private readonly JobArtV2PowerResolver $powerResolver,
         private readonly JobArtV2DamageSemanticsResolver $damageSemanticsResolver,
         private readonly JobArtV2EffectSemanticsResolver $effectSemanticsResolver,
+        private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
     ) {}
 
     public function enabledForCurrentJob(?int $currentJobId): bool
@@ -171,14 +172,26 @@ final class JobArtV2LoadoutPresenter
             ? $this->resourceCatalog->forCurrentJobArt($currentJobId, $skill, $normalizedOrigin)
             : null;
         $isSameLineageInherited = $originKey === 'inherited' && $primaryResourceMetadata !== null;
-        $isPortableFieldOrigin = $isSameLineageInherited
-            && $this->fieldCatalog->isPortableJob63FieldArt($currentJobId, $skill);
+        $isPortableFieldOrigin = $originKey === 'inherited'
+            && $this->fieldCatalog->isPortableFieldArt($currentJobId, $skill);
         $sourceLineage = $this->lineageCatalog->forArt($skill);
         $sourceLineageName = $sourceLineage['lineage_name'] ?? null;
         $role = $this->roleForDisplay($skill, $primaryResourceMetadata ?? $metadata);
         $displayEffectTemplate = $this->effectSemanticsResolver->replacementEffectTemplateForDisplay($currentJobId, $skill)
             ?? (string) $skill->effect_template;
         $legacyEffectCopySuppressed = $displayEffectTemplate !== (string) $skill->effect_template;
+        $effectTexts = $resourcesEnabled && $isTrustedCurrentOrigin
+            ? $this->effectTexts($currentJobId, $skill, $metadata ?? [])
+            : [];
+        if ($resourcesEnabled) {
+            $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+            if ($roleCatalog->isPortable($skill)) {
+                $effectTexts = array_values(array_unique([
+                    ...$effectTexts,
+                    ...$roleCatalog->effectTexts($skill),
+                ]));
+            }
+        }
 
         return [
             'role_key' => $role->value,
@@ -199,9 +212,7 @@ final class JobArtV2LoadoutPresenter
             'resource_text' => $primaryResourceMetadata !== null
                 ? $this->resourceText($role, $primaryResourceMetadata)
                 : null,
-            'effect_texts' => $resourcesEnabled && $isTrustedCurrentOrigin
-                ? $this->effectTexts($currentJobId, $skill, $metadata ?? [])
-                : [],
+            'effect_texts' => $effectTexts,
             'field_texts' => ($isTrustedCurrentOrigin || $isPortableFieldOrigin) && $metadata !== null
                 ? $this->fieldTexts($currentJobId, $skill, $metadata)
                 : [],

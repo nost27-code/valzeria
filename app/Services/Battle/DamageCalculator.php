@@ -79,21 +79,25 @@ class DamageCalculator
     /**
      * クリティカル判定
      */
-    public function isCritical(BattleActor $attacker, BattleActor $defender): bool
+    public function isCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        $baseCrit = 5;
-        $lukDiff = $attacker->luk - $defender->luk;
-        $critRate = $baseCrit + ($lukDiff * 0.2);
+        return rand(1, 100) <= $this->criticalChance($attacker, $defender, $bonusRate);
+    }
 
-        if ($critRate < 1) $critRate = 1;
-        if ($critRate > 30) $critRate = 30; // 上限30%
+    /**
+     * PvEの正式会心率を乱数消費なしで返す。
+     */
+    public function criticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
+    {
+        $critRate = 5 + $bonusRate
+            + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.2);
 
-        return rand(1, 100) <= $critRate;
+        return max(1.0, min(30.0, $critRate));
     }
 
     public function isDuelCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        $critRate = 5.0 + $bonusRate + (($attacker->luk - $defender->luk) * 0.05);
+        $critRate = 5.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.05);
         $critRate = max(3.0, min(20.0, $critRate));
 
         return rand(1, 100) <= $critRate;
@@ -101,7 +105,7 @@ class DamageCalculator
 
     public function isRankBattleCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        $critRate = 3.0 + $bonusRate + (($attacker->luk - $defender->luk) * 0.03);
+        $critRate = 3.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.03);
         $critRate = max(2.0, min(12.0, $critRate));
 
         return rand(1, 100) <= $critRate;
@@ -209,6 +213,123 @@ class DamageCalculator
         }
 
         return min($damage, $this->rankBattleDamageCap($defender, $isSkill, $isCritical, $hitCount));
+    }
+
+    /**
+     * 既存の正式ダメージ式から乱数だけを除いた比較値。
+     * 実ダメージを確定する用途ではなく、同一行動内の物理／魔法経路選択にのみ使う。
+     */
+    public function estimateJobArtDamage(
+        BattleActor $attacker,
+        BattleActor $defender,
+        string $attackType,
+        string $battleType,
+        int $skillPower,
+        int $hitCount = 1,
+        bool $isCritical = false,
+    ): int {
+        $total = 0;
+        foreach (JobArtHitPower::split($skillPower, $hitCount) as $hitPower) {
+            $total += $this->estimateJobArtHitDamage(
+                $attacker,
+                $defender,
+                $attackType,
+                $battleType,
+                $hitPower,
+                max(1, $hitCount),
+                $isCritical,
+            );
+        }
+
+        return $total;
+    }
+
+    private function estimateJobArtHitDamage(
+        BattleActor $attacker,
+        BattleActor $defender,
+        string $attackType,
+        string $battleType,
+        int $skillPower,
+        int $hitCount,
+        bool $isCritical,
+    ): int {
+        $attackType = $attackType === 'magical' ? 'magical' : 'physical';
+        if ($battleType === 'champ') {
+            $attackPower = $attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr();
+            $def = $defender->effectiveDef();
+            $spr = $defender->effectiveSpr();
+            $effectiveDefense = $attackType === 'magical'
+                ? ($spr * 0.7) + ($def * 0.3)
+                : ($def * 0.7) + ($spr * 0.3);
+            $rawPower = $attackPower * ($skillPower / 100);
+            $damage = max(
+                1,
+                $rawPower * self::DUEL_MIN_DAMAGE_RATE,
+                $rawPower - ($effectiveDefense * self::DUEL_DEFENSE_RATE),
+            );
+            if ($isCritical) {
+                $damage *= self::DUEL_CRITICAL_MULTIPLIER;
+            }
+            if ($defender->isDefending) {
+                $damage *= 0.5;
+            }
+            if ($defender->damageReductionRate > 0) {
+                $damage *= (1 - ($defender->damageReductionRate / 100));
+            }
+
+            return max(1, (int) floor($damage));
+        }
+
+        if (in_array($battleType, ['pvp', 'arena_npc'], true)) {
+            $attackPower = $attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr();
+            $def = $defender->effectiveDef();
+            $spr = $defender->effectiveSpr();
+            $effectiveDefense = $attackType === 'magical'
+                ? ($spr * 0.72) + ($def * 0.28)
+                : ($def * 0.72) + ($spr * 0.28);
+            $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
+                - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
+            $pressureDamage = max(0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE;
+            $minimumDamage = max(
+                1,
+                $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
+                $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
+            );
+            $damage = max($minimumDamage, $statDamage + $pressureDamage)
+                * $this->rankBattlePowerMultiplier($skillPower);
+            if ($isCritical) {
+                $damage *= self::RANK_BATTLE_CRITICAL_MULTIPLIER;
+            }
+            if ($defender->isDefending) {
+                $damage *= 0.5;
+            }
+            if ($defender->damageReductionRate > 0) {
+                $damage *= (1 - ($defender->damageReductionRate / 100));
+            }
+
+            $resolved = max(1, (int) floor($damage));
+            $resolved = max($resolved, $this->rankBattleSkillDamageFloor($defender, $hitCount));
+
+            return min($resolved, $this->rankBattleDamageCap($defender, true, $isCritical, $hitCount));
+        }
+
+        $attackPower = $attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr();
+        $defense = $attackType === 'magical' ? $defender->effectiveSpr() : $defender->effectiveDef();
+        if ($isCritical) {
+            $defense = (int) ($defense * 0.5);
+        }
+        $damage = max(1, $attackPower - ($defense / 2)) * ($skillPower / 100);
+        if ($isCritical) {
+            $damage *= 1.5;
+        }
+        if ($defender->isDefending) {
+            $damage *= 0.5;
+        }
+        if ($defender->damageReductionRate > 0) {
+            $damage *= (1 - ($defender->damageReductionRate / 100));
+        }
+
+        return max(1, (int) floor($damage));
     }
 
     private function rankBattlePowerMultiplier(int $skillPower): float
@@ -349,11 +470,9 @@ class DamageCalculator
 
     private function effectivePercentageDefense(BattleActor $defender, string $attackType): float
     {
-        $stat = $attackType === 'magical' ? $defender->spr : $defender->def;
-        $condition = $attackType === 'magical' ? 'spr_down' : 'def_down';
-
-        // 新式では防御0をそのまま扱い、基礎ダメージを攻撃力と一致させる。
-        return max(0.0, floor($stat * (1 - $defender->conditionRate($condition))));
+        return $attackType === 'magical'
+            ? $defender->effectivePercentageSpr()
+            : $defender->effectivePercentageDef();
     }
 
     private function calculatePveEnemyPercentageDamage(int $attackPower, float $defense, BattleActor $defender, int $skillPower, bool $isCritical): int

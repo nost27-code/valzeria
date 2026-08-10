@@ -8,6 +8,7 @@ use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2HitRandomSource;
 use App\Services\JobArtV2FieldService;
 use App\Services\JobArtV2PrototypeCatalog;
+use App\Services\JobArtV2RoleEffectCatalog;
 use App\Support\JobArtEffectCatalog;
 
 class ActionResolver
@@ -21,6 +22,7 @@ class ActionResolver
         private readonly JobArtV2ActiveEvasionProvider $activeEvasion,
         private readonly ?JobArtV2FieldService $fieldService = null,
         private readonly ?JobArtV2PrototypeCatalog $prototypeCatalog = null,
+        private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
     ) {
     }
 
@@ -68,7 +70,11 @@ class ActionResolver
         ?BattleState $state,
     ): float {
         $explicitAccuracy = $this->explicitAccuracy($skill);
-        if ($explicitAccuracy === null && in_array($battleType, ['pvp', 'champ', 'arena_npc'], true)) {
+        $roleAccuracyDelta = $this->actionLocalAccuracyDelta($attacker, $skill);
+        if ($explicitAccuracy === null
+            && $roleAccuracyDelta <= 0.0
+            && in_array($battleType, ['pvp', 'champ', 'arena_npc'], true)
+        ) {
             // These legacy job-art paths do not perform a base hit roll.
             return 100.0;
         }
@@ -86,15 +92,33 @@ class ActionResolver
         $delta = $state !== null
             ? ($this->fieldService ?? app(JobArtV2FieldService::class))->accuracyDelta($attacker, $state)
             : 0.0;
-        $delta += $this->actionLocalAccuracyDelta($attacker, $skill);
+        $delta += $roleAccuracyDelta;
 
-        return max($rules['min_rate'], min($rules['max_rate'], $hitRate + $delta));
+        $maximum = (float) $rules['max_rate'];
+        if ($this->featureGate->usesResources($attacker)) {
+            $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+            $roleMetadata = $roleCatalog->forArt($skill);
+            if ($roleCatalog->isPortable($skill) && is_numeric($roleMetadata['accuracy_max_percent'] ?? null)) {
+                $maximum = min($maximum, (float) $roleMetadata['accuracy_max_percent']);
+            }
+        }
+
+        return max((float) $rules['min_rate'], min($maximum, $hitRate + $delta));
     }
 
     private function actionLocalAccuracyDelta(BattleActor $attacker, Skill $skill): float
     {
-        if (! $this->featureGate->usesResources($attacker)
-            || $attacker->currentJobId !== 65
+        if (! $this->featureGate->usesResources($attacker)) {
+            return 0.0;
+        }
+
+        $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        $roleMetadata = $roleCatalog->forArt($skill);
+        if ($roleCatalog->isPortable($skill) && is_numeric($roleMetadata['accuracy_delta_points'] ?? null)) {
+            return max(0.0, (float) $roleMetadata['accuracy_delta_points']);
+        }
+
+        if ($attacker->currentJobId !== 65
             || ($attacker->jobArtOrigins[(int) $skill->id] ?? 'current') !== 'current'
         ) {
             return 0.0;

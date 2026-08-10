@@ -33,7 +33,7 @@ class JobArtV2FieldServiceTest extends TestCase
         }
 
         $this->enableFields();
-        [, , $unsupported] = $this->battle(62, 10);
+        [, , $unsupported] = $this->battle(10, 20);
         $this->assertFalse($this->service()->enabledFor($unsupported));
         $this->assertTrue($this->service()->enabledFor($state));
     }

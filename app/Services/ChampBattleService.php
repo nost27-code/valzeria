@@ -20,6 +20,7 @@ use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\JobArtHitPower;
 use App\Support\CharacterIconCatalog;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
@@ -579,6 +580,14 @@ class ChampBattleService
         $champAttackMultiplier = BattleTypeAffinity::multiplier($champAffinity, $challengerAffinity);
         $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
         $upsetDamageUsed = false;
+        $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
+        if ((float) $skill->luk_power_rate > 0) {
+            $totalPower += (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
+        }
+        $hitPowers = $skill->isJobArt()
+            ? JobArtHitPower::split($totalPower, $hitCount)
+            : array_fill(0, $hitCount, $totalPower);
+
         $totalDamage = 0;
         $log = [];
         $lastActionWasByChallenger = null;
@@ -729,7 +738,8 @@ class ChampBattleService
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $jobArtState);
         if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $jobArtState, $jobArt)) {
             $openingLog = $this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt);
-            $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $jobArt, 'champ', $jobArtState);
+            $executionSkill = $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $jobArtState, $defender);
+            $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $executionSkill, 'champ', $jobArtState);
             if ($hitResult !== null && !$hitResult->landed()) {
                 $openingLog .= '<br>' . $this->jobArtBattleSupport->resolutionFailureLog($jobArt, $hitResult);
             }
@@ -737,7 +747,7 @@ class ChampBattleService
             $result = $this->skillAttack(
                 $attacker,
                 $defender,
-                $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $jobArtState),
+                $executionSkill,
                 $jobArtState,
                 $openingLog,
                 $hitResult,
@@ -841,17 +851,12 @@ class ChampBattleService
         $totalDamage = 0;
         $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
-
         for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
             $damage = 0;
-            $skillPowerInt = max(0, (int) round((float) $skill->power_multiplier * 100));
+            $skillPowerInt = $hitPowers[$i];
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
             $overrideDef = $overrides['def'];
             $overrideSpr = $overrides['spr'];
-
-            if ((float) $skill->luk_power_rate > 0) {
-                $skillPowerInt += (int) floor($attacker->luk * (float) $skill->luk_power_rate);
-            }
 
             if ((float) $skill->power_multiplier > 0) {
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
@@ -883,9 +888,10 @@ class ChampBattleService
                         $hitCount
                     );
                 } elseif ($damageType === 'hybrid') {
-                    $hybridAtk = (string) $skill->hybrid_scaling === 'max'
-                        ? max($attacker->str, $attacker->mag)
-                        : (int) floor(($attacker->str + $attacker->mag) / 2);
+                    $hybridAtk = $attacker->hybridAttackPower(
+                        (string) $skill->hybrid_scaling,
+                        $this->jobArtBattleSupport->usesRoleEffects($attacker),
+                    );
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -909,6 +915,9 @@ class ChampBattleService
                     $damage,
                     $skill->isJobArt() ? DamageSourceType::JOB_ART : DamageSourceType::JOB_SKILL,
                 );
+                if ($skill->isJobArt()) {
+                    $damage = $this->jobArtBattleSupport->modifyJobArtDamage($attacker, $state, $skill, $damage);
+                }
                 $totalDamage += $damage;
                 $logs[] = "{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！";
             }
@@ -990,7 +999,10 @@ class ChampBattleService
         $power = max(1, (int) ($skill->power ?: 100));
 
         if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
-            $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
+            $healingSpr = $this->jobArtBattleSupport->usesRoleEffects($attacker)
+                ? $attacker->effectiveSpr()
+                : $attacker->spr;
+            $heal = max(1, (int) floor($healingSpr * ($power / 100)));
             $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
             $attacker->healHp($heal);
             $logs[] = "<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>";

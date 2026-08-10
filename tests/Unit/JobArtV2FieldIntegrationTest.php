@@ -52,7 +52,7 @@ class JobArtV2FieldIntegrationTest extends TestCase
         }
 
         $this->enableFields();
-        [$dragon, , $dragonOnly] = $this->battle(62, 10);
+        [$dragon, , $dragonOnly] = $this->battle(10, 20);
         $this->assertFalse($this->fields()->enabledFor($dragonOnly));
         $this->assertNull($dragonOnly->primaryField());
         $this->assertFalse($this->fields()->deployPrimary($dragon, $dragonOnly, 'star_light', 531, 1)->applied);
@@ -183,7 +183,7 @@ class JobArtV2FieldIntegrationTest extends TestCase
         }
     }
 
-    public function test_dragon_job_can_receive_an_opponent_field_modifier_but_cannot_enable_fields_alone(): void
+    public function test_supported_non_field_job_can_receive_fields_and_enable_portable_field_runtime(): void
     {
         [$dragon, $fieldOwner, $state] = $this->battle(62, 53);
         $state->replacePrimaryField(new FieldState('silence', 'enemy', 3, 1, 1, 1));
@@ -194,7 +194,7 @@ class JobArtV2FieldIntegrationTest extends TestCase
         $this->assertSame(4, $this->fields()->modifyResourceGain($fieldOwner, $state, 4));
 
         [, , $dragonOnly] = $this->battle(62, 10);
-        $this->assertFalse($this->fields()->enabledFor($dragonOnly));
+        $this->assertTrue($this->fields()->enabledFor($dragonOnly));
     }
 
     public function test_six_battle_paths_share_action_snapshot_and_round_end_wiring(): void

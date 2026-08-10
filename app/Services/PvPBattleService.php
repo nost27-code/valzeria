@@ -18,6 +18,7 @@ use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\BattleResult;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\JobArtHitPower;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
@@ -178,8 +179,12 @@ class PvPBattleService
             $state->turnCount++;
             $state->addLog("<br><br>--- ターン {$state->turnCount} ---");
             
-            $attackerSpeed = $attackerActor->agi + rand(0, self::PVP_TURN_SPEED_RANDOM);
-            $defenderSpeed = $defenderActor->agi + rand(0, self::PVP_TURN_SPEED_RANDOM);
+            $usesRoleSpeed = $this->jobArtBattleSupport->usesRoleEffects($attackerActor)
+                || $this->jobArtBattleSupport->usesRoleEffects($defenderActor);
+            $attackerSpeed = ($usesRoleSpeed ? $attackerActor->effectiveAgi() : $attackerActor->agi)
+                + rand(0, self::PVP_TURN_SPEED_RANDOM);
+            $defenderSpeed = ($usesRoleSpeed ? $defenderActor->effectiveAgi() : $defenderActor->agi)
+                + rand(0, self::PVP_TURN_SPEED_RANDOM);
             
             if ($attackerSpeed >= $defenderSpeed) {
                 $this->executeAction($attackerActor, $defenderActor, $state);
@@ -361,7 +366,8 @@ class PvPBattleService
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
         if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $state, $jobArt)) {
             $state->addLog($this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt));
-            $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $jobArt, $state->battleType, $state);
+            $executionSkill = $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $state, $defender);
+            $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $executionSkill, $state->battleType, $state);
             if ($hitResult !== null && !$hitResult->landed()) {
                 $state->addLog($this->jobArtBattleSupport->resolutionFailureLog($jobArt, $hitResult));
             }
@@ -369,7 +375,7 @@ class PvPBattleService
                 $attacker,
                 $defender,
                 $state,
-                $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $state),
+                $executionSkill,
                 false,
                 $hitResult,
             );
@@ -533,19 +539,25 @@ class PvPBattleService
             $hitCount++;
         }
 
+        $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
+        if ((float) $skill->luk_power_rate > 0) {
+            $totalPower += (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
+        }
+        $hitPowers = $skill->isJobArt()
+            ? JobArtHitPower::split($totalPower, $hitCount)
+            : array_fill(0, $hitCount, $totalPower);
+
         $totalDamage = 0;
         for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
             $damage = 0;
+            // This route has no existing Job Art critical roll. Role-diversity
+            // bonuses may adjust an existing roll, but must not add RNG here.
             $isCrit = false;
-            $skillPowerInt = max(0, (int) round((float) $skill->power_multiplier * 100));
+            $skillPowerInt = $hitPowers[$i];
 
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
             $overrideDef = $overrides['def'];
             $overrideSpr = $overrides['spr'];
-
-            if ((float) $skill->luk_power_rate > 0) {
-                $skillPowerInt += (int) floor($attacker->luk * (float) $skill->luk_power_rate);
-            }
 
             if ((float) $skill->power_multiplier > 0) {
                 $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
@@ -578,9 +590,10 @@ class PvPBattleService
                         $hitCount
                     );
                 } elseif ($damageType === 'hybrid') {
-                    $hybridAtk = (string) $skill->hybrid_scaling === 'max'
-                        ? max($attacker->str, $attacker->mag)
-                        : (int) floor(($attacker->str + $attacker->mag) / 2);
+                    $hybridAtk = $attacker->hybridAttackPower(
+                        (string) $skill->hybrid_scaling,
+                        $this->jobArtBattleSupport->usesRoleEffects($attacker),
+                    );
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -604,6 +617,9 @@ class PvPBattleService
                     $damage,
                     $skill->isJobArt() ? DamageSourceType::JOB_ART : DamageSourceType::JOB_SKILL,
                 );
+                if ($skill->isJobArt()) {
+                    $damage = $this->jobArtBattleSupport->modifyJobArtDamage($attacker, $state, $skill, $damage);
+                }
                 $damageResult = $this->applyResolvedDamage(
                     $attacker,
                     $defender,
@@ -688,7 +704,10 @@ class PvPBattleService
         $power = max(1, (int) ($skill->power ?: 100));
 
         if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
-            $heal = max(1, (int) floor($attacker->spr * ($power / 100)));
+            $healingSpr = $this->jobArtBattleSupport->usesRoleEffects($attacker)
+                ? $attacker->effectiveSpr()
+                : $attacker->spr;
+            $heal = max(1, (int) floor($healingSpr * ($power / 100)));
             $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
             $attacker->healHp($heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>");

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
+use App\Support\JobArtEffectCatalog;
 
 /** Runtime-only replacement for legacy template side effects. */
 final class JobArtV2EffectSemanticsResolver
@@ -11,10 +12,19 @@ final class JobArtV2EffectSemanticsResolver
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
+        private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
     ) {}
 
     public function suppressesLegacySelfBuff(BattleActor $actor, Skill $skill): bool
     {
+        $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        if ($this->featureGate->usesResources($actor)
+            && $roleCatalog->isPortable($skill)
+            && $roleCatalog->suppressesLegacyEffect($skill)
+        ) {
+            return true;
+        }
+
         return $this->featureGate->usesResources($actor)
             && $this->suppressesForJobAndRank($actor->currentJobId, (int) $skill->learn_rank)
             && ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current'
@@ -24,6 +34,15 @@ final class JobArtV2EffectSemanticsResolver
     public function replacementEffectTemplateForDisplay(?int $currentJobId, Skill $skill): ?string
     {
         $origin = (string) $skill->getAttribute('job_art_origin');
+        $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+
+        if ($this->featureGate->usesResourcesForCurrentJob($currentJobId)
+            && in_array($origin, ['', 'current', 'inherited'], true)
+            && $roleCatalog->isPortable($skill)
+            && $roleCatalog->suppressesLegacyEffect($skill)
+        ) {
+            return $roleCatalog->replacementTemplate($skill) ?? 'V2_ROLE_EFFECT_ONLY';
+        }
 
         if (! $this->featureGate->usesResourcesForCurrentJob($currentJobId)
             || ! $this->suppressesForJobAndRank($currentJobId, (int) $skill->learn_rank)
@@ -39,6 +58,15 @@ final class JobArtV2EffectSemanticsResolver
     public function applyForExecution(BattleActor $actor, Skill $sourceSkill, Skill $executionSkill): void
     {
         if (! $this->suppressesLegacySelfBuff($actor, $sourceSkill)) {
+            return;
+        }
+
+        $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        if ($roleCatalog->isPortable($sourceSkill) && $roleCatalog->suppressesLegacyEffect($sourceSkill)) {
+            $template = $roleCatalog->replacementTemplate($sourceSkill) ?? 'V2_ROLE_EFFECT_ONLY';
+            $executionSkill->effect_template = $template;
+            $executionSkill->damage_type = JobArtEffectCatalog::damageType($template);
+
             return;
         }
 

@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin;
 
+use App\Services\Battle\JobArtHitPower;
+
 use App\Models\City;
 use App\Models\Enemy;
 use App\Models\JobClass;
@@ -259,7 +261,8 @@ class SkillEffectLab extends Component
             $power = (int) ($skill->power ?? 0);
             $this->addEffectRow($rows, '総威力', $power > 0 ? $power : null);
             $this->addEffectRow($rows, 'Hit数', $hitCount);
-            $this->addEffectRow($rows, '1Hit威力目安', $power > 0 ? max(60, (int) round($power / max(1, $hitCount))) : null);
+            $hitPowers = $power > 0 ? JobArtHitPower::split($power, $hitCount) : [];
+            $this->addEffectRow($rows, 'Hit別威力', $hitPowers !== [] ? implode(' / ', $hitPowers) : null);
         } else {
             $this->addEffectRow($rows, '威力', $skill->power_multiplier !== null ? number_format((float) $skill->power_multiplier, 2) . '倍' : null);
             $this->addEffectRow($rows, 'Hit数', $skill->hit_count !== null ? (string) $skill->hit_count : null);

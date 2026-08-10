@@ -21,20 +21,14 @@ final class JobArtV2DefenseService
     public const COUNTER_EVENT_EXPIRED = 'expired';
 
     /** @var list<string> */
-    public const CLEANSABLE_STATES = [
-        'burn',
-        'poison',
-        'bleed',
-        'def_down',
-        'slow',
-        'recovery_block',
-    ];
+    public const CLEANSABLE_STATES = JobArtV2CleanseService::HARMFUL_STATES;
 
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
         private readonly JobArtV2ResourceService $resourceService,
         private readonly JobArtV2ParryRandomSource $randomSource,
+        private readonly ?JobArtV2CleanseService $cleanseService = null,
     ) {}
 
     public function applyJobArtCast(BattleActor $actor, BattleState $state, Skill $skill): void
@@ -71,7 +65,8 @@ final class JobArtV2DefenseService
         }
 
         if (! empty($metadata['cleanse_harmful_states'])) {
-            $result = $this->cleanse($actor, $state, $sourceActionId);
+            $result = ($this->cleanseService ?? app(JobArtV2CleanseService::class))
+                ->cleanse($actor, $state, $sourceActionId);
             if ($result->success) {
                 $this->resourceService->recordCleanseSuccess($actor, $state);
                 $state->addLog('<span class="text-emerald-700 font-bold">'.e($actor->name).' の有害状態を浄化した！（'.e(implode(' / ', $result->removedStates)).'）</span>');
@@ -98,10 +93,14 @@ final class JobArtV2DefenseService
         $this->markIncomingHudAction($state, $resolution);
 
         $targetResource = $this->prototypeCatalog->jobResourceMetadata($resolution->target->currentJobId);
-        if ($resolution->damageCategory === 'physical'
-            && ($targetResource['lineage_key'] ?? null) === 'counter'
-        ) {
-            $this->resourceService->recordPhysicalAttackReceived($resolution->target, $state);
+        if ($resolution->damageCategory === 'physical') {
+            // Role-diversity effects (for example Colosseum Break) need the
+            // received-physical window even when the art is inherited. The
+            // lineage resource event remains restricted to counter actors.
+            $resolution->target->markPhysicalAttackReceivedSinceOwnAction();
+            if (($targetResource['lineage_key'] ?? null) === 'counter') {
+                $this->resourceService->recordPhysicalAttackReceived($resolution->target, $state);
+            }
         }
 
         if ($resolution->damageCategory === 'physical') {
@@ -214,7 +213,7 @@ final class JobArtV2DefenseService
         return $after;
     }
 
-    private function applyGuard(BattleActor $actor, BattleState $state, float $rate): void
+    public function applyGuard(BattleActor $actor, BattleState $state, float $rate): void
     {
         $previous = $actor->jobArtV2GuardState();
         if ($previous === null || $rate >= $previous->rate) {
@@ -227,31 +226,6 @@ final class JobArtV2DefenseService
             e($actor->name),
             (int) round(($active?->rate ?? 0.0) * 100),
         ));
-    }
-
-    private function cleanse(BattleActor $actor, BattleState $state, int $sourceActionId): CleanseResult
-    {
-        $removed = [];
-        foreach (self::CLEANSABLE_STATES as $conditionKey) {
-            if (! array_key_exists($conditionKey, $actor->conditions)) {
-                continue;
-            }
-
-            unset($actor->conditions[$conditionKey]);
-            $removed[] = $conditionKey;
-        }
-
-        $result = new CleanseResult(
-            sourceActionId: $sourceActionId,
-            actorKey: $state->actorKey($actor),
-            candidateStates: self::CLEANSABLE_STATES,
-            removedStates: $removed,
-            removedCount: count($removed),
-            success: $removed !== [],
-        );
-        $state->recordCleanseResult($result);
-
-        return $result;
     }
 
     /** @return array<string, int|float|string|bool>|null */

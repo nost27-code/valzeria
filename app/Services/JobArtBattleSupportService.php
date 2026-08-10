@@ -23,6 +23,7 @@ class JobArtBattleSupportService
     private readonly JobArtV2BreakDebuffService $jobArtV2BreakDebuffService;
     private readonly JobArtV2EffectSemanticsResolver $jobArtV2EffectSemanticsResolver;
     private readonly JobArtV2DefenseService $jobArtV2DefenseService;
+    private readonly JobArtV2RoleEffectService $jobArtV2RoleEffectService;
 
     public function __construct(
         private readonly JobArtService $jobArtService,
@@ -41,6 +42,7 @@ class JobArtBattleSupportService
         ?JobArtV2BreakDebuffService $jobArtV2BreakDebuffService = null,
         ?JobArtV2EffectSemanticsResolver $jobArtV2EffectSemanticsResolver = null,
         ?JobArtV2DefenseService $jobArtV2DefenseService = null,
+        ?JobArtV2RoleEffectService $jobArtV2RoleEffectService = null,
     ) {
         $this->jobArtActionResolver = $jobArtActionResolver ?? app(ActionResolver::class);
         $this->jobArtV2ResourceService = $jobArtV2ResourceService ?? app(JobArtV2ResourceService::class);
@@ -54,6 +56,7 @@ class JobArtBattleSupportService
         $this->jobArtV2BreakDebuffService = $jobArtV2BreakDebuffService ?? app(JobArtV2BreakDebuffService::class);
         $this->jobArtV2EffectSemanticsResolver = $jobArtV2EffectSemanticsResolver ?? app(JobArtV2EffectSemanticsResolver::class);
         $this->jobArtV2DefenseService = $jobArtV2DefenseService ?? app(JobArtV2DefenseService::class);
+        $this->jobArtV2RoleEffectService = $jobArtV2RoleEffectService ?? app(JobArtV2RoleEffectService::class);
     }
 
     public function attachBossSet(BattleActor $actor, Character $character, string $context = 'champ'): void
@@ -93,13 +96,25 @@ class JobArtBattleSupportService
         return $this->jobArtV2FeatureGate->usesDamageApplication($source, $target);
     }
 
+    public function usesRoleEffects(BattleActor $actor): bool
+    {
+        return $this->jobArtV2RoleEffectService->enabledFor($actor);
+    }
+
     public function beginAction(BattleActor $actor, BattleState $state): ?int
     {
-        return $this->jobArtV2ResourceService->beginAction($actor, $state);
+        $sourceActionId = $this->jobArtV2ResourceService->beginAction($actor, $state);
+        if ($sourceActionId !== null) {
+            $this->jobArtV2RoleEffectService->beginAction($actor, $state, $sourceActionId);
+        }
+
+        return $sourceActionId;
     }
 
     public function recordNormalAttackHit(BattleActor $actor, BattleState $state): ResourceChangeResult
     {
+        $this->jobArtV2RoleEffectService->markNonJobArtAction($actor, $state);
+
         return $this->jobArtV2ResourceService->recordNormalAttackHit($actor, $state);
     }
 
@@ -109,6 +124,8 @@ class JobArtBattleSupportService
         BattleState $state,
         HitResult $hitResult,
     ): ResourceChangeResult {
+        $this->jobArtV2RoleEffectService->markNonJobArtAction($actor, $state);
+
         return $this->jobArtV2ResourceService->recordNormalAttackResolution($actor, $target, $state, $hitResult);
     }
 
@@ -119,6 +136,9 @@ class JobArtBattleSupportService
 
     public function markSkillAction(BattleActor $actor, BattleState $state, Skill $skill): void
     {
+        if (!$skill->isJobArt()) {
+            $this->jobArtV2RoleEffectService->markNonJobArtAction($actor, $state);
+        }
         $this->jobArtV2ResourceService->markCurrentJobSkillAction($actor, $state, $skill);
         $this->jobArtV2FieldService->markSkillAction($actor, $state, $skill);
     }
@@ -129,6 +149,7 @@ class JobArtBattleSupportService
             $this->jobArtV2FieldService->endRound($state),
             $this->jobArtV2BreakDebuffService->endRound($state),
             $this->jobArtV2DefenseService->endRound($state),
+            $this->jobArtV2RoleEffectService->endRound($state),
         );
     }
 
@@ -226,6 +247,7 @@ class JobArtBattleSupportService
         $this->jobArtV2ResourceService->applyJobArtCast($actor, $state, $skill);
         $this->jobArtV2PenetrationStanceService->beginCast($actor, $state, $skill);
         $this->jobArtV2DefenseService->applyJobArtCast($actor, $state, $skill);
+        $this->jobArtV2RoleEffectService->beginJobArtCast($actor, $state, $skill);
 
         return true;
     }
@@ -246,9 +268,17 @@ class JobArtBattleSupportService
             $this->jobArtV2BreakDebuffService->applyOnHit($actor, $target, $state, $skill, $hitResult);
         }
         $this->jobArtV2PenetrationStanceService->completeCast($actor, $state, $skill);
+        if ($target !== null) {
+            $this->jobArtV2RoleEffectService->completeJobArtCast($actor, $target, $state, $skill, $hitResult);
+        }
     }
 
-    public function skillForExecution(BattleActor $actor, Skill $skill, ?BattleState $state = null): Skill
+    public function skillForExecution(
+        BattleActor $actor,
+        Skill $skill,
+        ?BattleState $state = null,
+        ?BattleActor $defender = null,
+    ): Skill
     {
         $rate = (float) ($actor->jobArtRates[(int) $skill->id] ?? 1.0);
         $executionSkill = clone $skill;
@@ -267,8 +297,30 @@ class JobArtBattleSupportService
         $power = max(0, (int) round(($basePower ?: 100) * $rate));
         $executionSkill->power = $power;
         $executionSkill->power_multiplier = max(0, $power / 100);
+        if ($state !== null && $defender !== null) {
+            $this->jobArtV2RoleEffectService->applyForExecution($actor, $defender, $state, $skill, $executionSkill);
+            $this->jobArtV2FieldService->markSkillAction($actor, $state, $executionSkill);
+            if ((string) $executionSkill->effect_template === 'V2_ROLE_EFFECT_ONLY') {
+                $executionSkill->power = 0;
+                $executionSkill->power_multiplier = 0;
+                $executionSkill->hit_count = 0;
+                $executionSkill->damage_type = 'support';
+                $executionSkill->setAttribute('extra_hit_chance_percent', 0);
+                $executionSkill->setAttribute('luk_power_rate', 0.0);
+            }
+        }
 
         return $executionSkill;
+    }
+
+    public function modifyJobArtDamage(BattleActor $actor, BattleState $state, Skill $skill, int $damage): int
+    {
+        return $this->jobArtV2RoleEffectService->modifyJobArtDamage($actor, $state, $skill, $damage);
+    }
+
+    public function criticalBonusPoints(BattleActor $actor, Skill $skill): float
+    {
+        return $this->jobArtV2RoleEffectService->criticalBonusPoints($actor, $skill);
     }
 
     public function isFieldOnlyArt(BattleActor $actor, BattleState $state, Skill $skill): bool
@@ -346,6 +398,21 @@ class JobArtBattleSupportService
 
     private function canActivateRecoveryArt(BattleActor $actor, Skill $skill): bool
     {
+        if ($this->jobArtV2RoleEffectService->supportEffectCanBeMeaningful($actor, $skill)) {
+            return true;
+        }
+
+        if ($this->jobArtV2RoleEffectService->enabledFor($actor)
+            && $this->jobArtV2EffectSemanticsResolver->suppressesLegacySelfBuff($actor, $skill)
+            && in_array(
+                $this->jobArtV2EffectSemanticsResolver->replacementEffectTemplateForDisplay($actor->currentJobId, $skill),
+                ['V2_ROLE_EFFECT_ONLY', 'HEAL', 'HEAL_CLEANSE', 'GUARD_BARRIER', 'SELF_BUFF'],
+                true,
+            )
+        ) {
+            return false;
+        }
+
         $needsHp = $skill->isHealArt()
             || in_array((string) $skill->effect_template, ['HEAL', 'HEAL_CLEANSE'], true)
             || ((string) $skill->effect_template === 'DRAIN' && (float) $skill->drain_hp_rate > 0)

@@ -2,6 +2,12 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
+## Job-art v2 role diversity pass
+
+`JobArtV2RoleEffectCatalog` is the exact `(job_id, learn_rank, name)` authority for the 34 explicitly ruled arts; it never owns master power or hit count. `JobArtV2RoleEffectService` applies their execution-time replacement semantics and owns battle-only timed/prepared lifecycle. `JobArtV2TimedEffectState` and `JobArtV2PreparedEffectState` live on `BattleActor`; `BattleState` holds the source-action role context. `JobArtV2CleanseService` is the shared structured cleanse boundary, while existing `JobArtV2DefenseService`, `JobArtV2FieldService`, `JobArtV2ResourceService`, and `DamageApplicationService` remain the guard, field, resource, and HP-application authorities.
+
+`JobArtHitPower` is the single Job Art action-total power splitter used by normal PvE/boss in `BattleService`, tower through `TowerBattleService` inheritance, and PvP/champ/NPC arena in their dedicated services. `DamageCalculator` exposes RNG-free formal estimates for Element Arrow route selection and keeps actual RNG in the existing route. `JobArtBattleSupportService` wires the shared role lifecycle into PvP/champ/NPC arena. `JobArtV2LoadoutPresenter` consumes catalog effect text; portable role effects never create foreign lineage resources. Contracts live in `JobArtHitPowerTest`, `ReleasedJobArtMasterSyncMigrationTest`, `JobArtV2TimedEffectStateTest`, `JobArtV2RoleEffectCatalogTest`, `JobArtV2RoleEffectServiceTest`, `JobArtV2EffectiveStatIntegrationTest`, `JobArtV2RoleDiversityPresentationTest`, and `JobArtV2RoleDiversityWiringTest`.
+
 ## PR27 job-art v2 release candidate
 
 `JobArtV2PrototypeCatalog` now gates 40 current jobs and adds trusted current-job 63 metadata without widening any unsupported job. `JobArtV2FieldCatalog` owns the fixed five-field cycle and same-lineage portability; `JobArtV2FieldService`, `BattleState`, `FieldSnapshot`, and `JobArtV2FieldModifierResolver` add actual-overwrite accounting and one-round field echoes while retaining one primary field and one overlay. `JobArtV2ResourceService` resolves the field result before granting job 63 Rank1's conditional +2 so no self-application or duplicate field action occurs. `JobArtV2PowerResolver` applies current-job 63 Rank9's action-start primary-field requirement and actual-overwrite 0/1-2/3-4/5+ power branch once; inherited Rank9 remains at master power.

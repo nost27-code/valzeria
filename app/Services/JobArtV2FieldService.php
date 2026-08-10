@@ -105,7 +105,13 @@ final class JobArtV2FieldService
 
         return match ((string) ($metadata['field_operation'] ?? 'none')) {
             'deploy' => $this->deployFromMetadata($actor, $state, $skill, $metadata, $sourceActionId),
-            'extend' => $this->extendPrimary($actor, $state, (int) $skill->id, $sourceActionId),
+            'extend' => $this->extendPrimary(
+                $actor,
+                $state,
+                (int) $skill->id,
+                $sourceActionId,
+                max(1, (int) ($metadata['field_extend_rounds'] ?? 1)),
+            ),
             'lock' => $this->lockPrimary($actor, $state, (int) $skill->id, $sourceActionId),
             'echo_previous_overwritten' => $this->holdPreviousOverwrittenField($actor, $state, (int) $skill->id, $sourceActionId),
             'overlay' => $actor->currentJobId === 85
@@ -171,6 +177,7 @@ final class JobArtV2FieldService
         BattleState $state,
         int $sourceSkillId,
         int $sourceActionId,
+        int $rounds = 1,
     ): FieldOperationResult {
         if (!$this->enabledFor($state)) {
             return FieldOperationResult::unchanged();
@@ -183,7 +190,7 @@ final class JobArtV2FieldService
         $next = new FieldState(
             $current->key,
             $current->ownerActorKey,
-            min(self::MAX_DURATION, $current->remainingRounds + 1),
+            min(self::MAX_DURATION, $current->remainingRounds + max(1, $rounds)),
             $current->sourceSkillId,
             $current->sourceActionId,
             $current->createdRound,
@@ -332,11 +339,17 @@ final class JobArtV2FieldService
         return $this->modifier($actor, $state, 'accuracy_delta');
     }
 
-    public function modifyDamage(BattleActor $actor, BattleState $state, int $damage, DamageSourceType $sourceType): int
+    public function modifyDamage(
+        BattleActor $actor,
+        BattleState $state,
+        int $damage,
+        DamageSourceType $sourceType,
+        ?string $damageScope = null,
+    ): int
     {
         if (!in_array($sourceType, [DamageSourceType::NORMAL_ATTACK, DamageSourceType::JOB_SKILL, DamageSourceType::JOB_ART], true)
             || !$this->isCurrentActionActor($actor, $state)
-            || $state->currentActionDamageScope() !== 'magical'
+            || ($damageScope ?? $state->currentActionDamageScope()) !== 'magical'
         ) {
             return $damage;
         }
@@ -399,7 +412,7 @@ final class JobArtV2FieldService
             ?? ((int) $skill->job_id === (int) $actor->currentJobId ? 'current' : 'inherited'));
 
         return $origin === 'inherited'
-            && $this->catalog->isPortableJob63FieldArt($actor->currentJobId, $skill);
+            && $this->catalog->isPortableFieldArt($actor->currentJobId, $skill);
     }
 
     /** @param array<string, mixed> $metadata */

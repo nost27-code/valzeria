@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use App\Services\Battle\JobArtHitPower;
 use Tests\TestCase;
 
 class ReleasedJobArtMasterSyncMigrationTest extends TestCase
@@ -113,6 +114,22 @@ class ReleasedJobArtMasterSyncMigrationTest extends TestCase
         $this->migration()->down();
 
         $this->assertSame($before, $this->releasedSemanticRows());
+    }
+
+    public function test_every_released_multi_hit_job_art_keeps_its_action_total_power(): void
+    {
+        $multiHitArts = $this->releasedArts()
+            ->filter(static fn (object $row): bool => (int) $row->hit_count > 1)
+            ->values();
+
+        $this->assertSame(21, $multiHitArts->count());
+        foreach ($multiHitArts as $art) {
+            $powers = JobArtHitPower::split((int) $art->power, (int) $art->hit_count);
+            $message = sprintf('job_id=%d rank=%d %s', $art->job_id, $art->learn_rank, $art->name);
+
+            $this->assertCount((int) $art->hit_count, $powers, $message);
+            $this->assertSame((int) $art->power, array_sum($powers), $message);
+        }
     }
 
     private function insertExcludedSentinel(): int

@@ -2,6 +2,9 @@
 
 namespace App\Services\Battle;
 
+use App\Services\JobArtV2PreparedEffectState;
+use App\Services\JobArtV2TimedEffectState;
+
 class BattleActor
 {
     public string $name;
@@ -73,6 +76,18 @@ class BattleActor
 
     /** 戦闘終了時に破棄する、守護系譜の次回直接ダメージ軽減。 */
     private ?\App\Services\JobArtV2GuardState $jobArtV2GuardState = null;
+
+    /** @var array<string, JobArtV2TimedEffectState> 戦闘終了時に破棄する時間制効果。 */
+    private array $jobArtV2TimedEffects = [];
+
+    /** @var array<string, JobArtV2PreparedEffectState> 戦闘終了時に破棄する準備効果。 */
+    private array $jobArtV2PreparedEffects = [];
+
+    /** 直前の自分の行動終了後から、直接物理攻撃を受領したか。 */
+    private bool $physicalAttackReceivedSinceOwnAction = false;
+
+    /** 黄金鑑定による、戦闘終了時に破棄する鑑定済みマーカー。 */
+    private bool $jobArtV2Appraised = false;
 
     /** このアクターが受けたダメージの累計（DOT・追撃含む全経路）。戦闘ログ集計に使う。 */
     public int $totalDamageTaken = 0;
@@ -292,6 +307,77 @@ class BattleActor
         $this->jobArtV2GuardState = $state;
     }
 
+    public function jobArtV2TimedEffect(string $key): ?JobArtV2TimedEffectState
+    {
+        return $this->jobArtV2TimedEffects[$key] ?? null;
+    }
+
+    public function replaceJobArtV2TimedEffect(JobArtV2TimedEffectState $state): void
+    {
+        $this->jobArtV2TimedEffects[$state->key] = $state;
+    }
+
+    public function removeJobArtV2TimedEffect(string $key): ?JobArtV2TimedEffectState
+    {
+        $state = $this->jobArtV2TimedEffects[$key] ?? null;
+        unset($this->jobArtV2TimedEffects[$key]);
+
+        return $state;
+    }
+
+    /** @return list<JobArtV2TimedEffectState> */
+    public function jobArtV2TimedEffects(): array
+    {
+        return array_values($this->jobArtV2TimedEffects);
+    }
+
+    public function jobArtV2PreparedEffect(string $key): ?JobArtV2PreparedEffectState
+    {
+        return $this->jobArtV2PreparedEffects[$key] ?? null;
+    }
+
+    public function replaceJobArtV2PreparedEffect(JobArtV2PreparedEffectState $state): void
+    {
+        $this->jobArtV2PreparedEffects[$state->key] = $state;
+    }
+
+    public function removeJobArtV2PreparedEffect(string $key): ?JobArtV2PreparedEffectState
+    {
+        $state = $this->jobArtV2PreparedEffects[$key] ?? null;
+        unset($this->jobArtV2PreparedEffects[$key]);
+
+        return $state;
+    }
+
+    /** @return list<JobArtV2PreparedEffectState> */
+    public function jobArtV2PreparedEffects(): array
+    {
+        return array_values($this->jobArtV2PreparedEffects);
+    }
+
+    public function markPhysicalAttackReceivedSinceOwnAction(): void
+    {
+        $this->physicalAttackReceivedSinceOwnAction = true;
+    }
+
+    public function consumePhysicalAttackReceivedSinceOwnActionSnapshot(): bool
+    {
+        $received = $this->physicalAttackReceivedSinceOwnAction;
+        $this->physicalAttackReceivedSinceOwnAction = false;
+
+        return $received;
+    }
+
+    public function markJobArtV2Appraised(): void
+    {
+        $this->jobArtV2Appraised = true;
+    }
+
+    public function isJobArtV2Appraised(): bool
+    {
+        return $this->jobArtV2Appraised;
+    }
+
     public function usesMagForNormalAttack(): bool
     {
         if ($this->normalAttackType === 'adaptive') {
@@ -307,27 +393,67 @@ class BattleActor
 
     public function effectiveStr(): int
     {
-        return $this->effectiveStat($this->str, 'atk_down');
+        return $this->applyJobArtV2TimedStatModifier(
+            $this->effectiveStat($this->str, 'atk_down'),
+            'str',
+        );
     }
 
     public function effectiveDef(): int
     {
-        return $this->effectiveStatWithBreak($this->def, 'def_down');
+        return $this->applyJobArtV2TimedStatModifier(
+            $this->effectiveStatWithBreak($this->def, 'def_down'),
+            'def',
+        );
+    }
+
+    public function effectivePercentageDef(): float
+    {
+        return $this->effectivePercentageDefenseStat($this->def, 'def_down', 'def');
     }
 
     public function effectiveAgi(): int
     {
-        return $this->effectiveStat($this->agi, 'slow');
+        return $this->applyJobArtV2TimedStatModifier(
+            $this->effectiveStat($this->agi, 'slow'),
+            'agi',
+        );
     }
 
     public function effectiveMag(): int
     {
-        return $this->effectiveStat($this->mag, 'mag_down');
+        return $this->applyJobArtV2TimedStatModifier(
+            $this->effectiveStat($this->mag, 'mag_down'),
+            'mag',
+        );
     }
 
     public function effectiveSpr(): int
     {
-        return $this->effectiveStatWithBreak($this->spr, 'spr_down');
+        return $this->applyJobArtV2TimedStatModifier(
+            $this->effectiveStatWithBreak($this->spr, 'spr_down'),
+            'spr',
+        );
+    }
+
+    public function effectivePercentageSpr(): float
+    {
+        return $this->effectivePercentageDefenseStat($this->spr, 'spr_down', 'spr');
+    }
+
+    public function hybridAttackPower(string $scaling, bool $useEffectiveStats): int
+    {
+        $str = $useEffectiveStats ? $this->effectiveStr() : $this->str;
+        $mag = $useEffectiveStats ? $this->effectiveMag() : $this->mag;
+
+        return $scaling === 'max'
+            ? max($str, $mag)
+            : (int) floor(($str + $mag) / 2);
+    }
+
+    public function effectiveLuk(): int
+    {
+        return $this->applyJobArtV2TimedStatModifier($this->luk, 'luk');
     }
 
     public function conditionRate(string $key): float
@@ -348,6 +474,39 @@ class BattleActor
         $breakRate = max(0.0, min(1.0, $this->breakDebuffState?->rate ?? 0.0));
 
         return max(1, (int) floor($effective * (1 - $breakRate)));
+    }
+
+    private function effectivePercentageDefenseStat(int $value, string $conditionKey, string $stat): float
+    {
+        // The percentage-defense formula intentionally permits zero defense.
+        // Apply each debuff layer in the same order as effectiveDef/effectiveSpr,
+        // but retain zero instead of the legacy minimum-stat clamp of one.
+        $effective = max(0, (int) floor($value * (1 - $this->conditionRate($conditionKey))));
+        $breakRate = max(0.0, min(1.0, $this->breakDebuffState?->rate ?? 0.0));
+        $effective = max(0, (int) floor($effective * (1 - $breakRate)));
+
+        return (float) $this->applyJobArtV2TimedStatModifier($effective, $stat, 0);
+    }
+
+    private function applyJobArtV2TimedStatModifier(int $value, string $stat, int $minimum = 1): int
+    {
+        $modifier = 0.0;
+        foreach ($this->jobArtV2TimedEffects as $effect) {
+            if ($effect->isExpired()) {
+                continue;
+            }
+
+            $modifier += (float) ($effect->statModifiers[$stat] ?? 0.0);
+        }
+
+        if (abs($modifier) < 0.0000001) {
+            return $value;
+        }
+
+        // Decimal rates such as 15% can be represented as 1.149999... in
+        // binary floating point. Keep the specified floor rule without losing
+        // a whole stat point at exact integer boundaries.
+        return max($minimum, (int) floor(($value * (1 + $modifier)) + 1.0e-9));
     }
 
     private function normalizeNormalAttackType(?string $value): ?string

@@ -87,8 +87,8 @@ class JobArtV2FeatureGate
             && (bool) config('battle.job_art_v2.damage_application', false)
             && (bool) config('battle.job_art_v2.resources', false)
             && (bool) config('battle.job_art_v2.fields', false)
-            && ($this->catalog->supportsLineageCapability($state->player->currentJobId, 'field')
-                || $this->catalog->supportsLineageCapability($state->enemy->currentJobId, 'field'));
+            && ($this->catalog->supportsCurrentJob($state->player->currentJobId)
+                || $this->catalog->supportsCurrentJob($state->enemy->currentJobId));
     }
 
     public function usesResourcesForCurrentJob(?int $jobId): bool
@@ -103,8 +103,7 @@ class JobArtV2FeatureGate
     public function usesFieldsForCurrentJob(?int $jobId): bool
     {
         return $this->usesResourcesForCurrentJob($jobId)
-            && (bool) config('battle.job_art_v2.fields', false)
-            && $this->catalog->supportsLineageCapability($jobId, 'field');
+            && (bool) config('battle.job_art_v2.fields', false);
     }
 
     public function usesPenetration(BattleActor $actor): bool

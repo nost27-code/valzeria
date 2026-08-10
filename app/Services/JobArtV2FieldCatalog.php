@@ -44,6 +44,7 @@ final class JobArtV2FieldCatalog
 
     public function __construct(
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
+        private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
     ) {
     }
 
@@ -66,6 +67,20 @@ final class JobArtV2FieldCatalog
             && $this->prototypeCatalog->supportsCurrentJob($currentJobId)
             && $this->prototypeCatalog->isTrustedArtProfile($skill)
             && $this->prototypeCatalog->isSamePrimaryLineage($currentJobId, $skill);
+    }
+
+    public function isPortableFieldArt(?int $currentJobId, Skill $skill): bool
+    {
+        if ($this->isPortableJob63FieldArt($currentJobId, $skill)) {
+            return true;
+        }
+
+        $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        $metadata = $roleCatalog->forArt($skill);
+
+        return $this->prototypeCatalog->supportsCurrentJob($currentJobId)
+            && $roleCatalog->isPortable($skill)
+            && is_array($metadata['field'] ?? null);
     }
 
     /** @return list<string> */
