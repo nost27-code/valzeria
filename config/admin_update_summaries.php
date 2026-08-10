@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-published-map-detail-fix',
+        'date' => '2026-08-10',
+        'category' => 'fixed',
+        'title' => '自分の公開地図の詳細表示を修正',
+        'detail' => '地図院の手元一覧から、自分が公開した探索地図の詳細を正常に開けるよう修正しました。公開地図一覧からの探索には影響ありません。',
+    ],
+    [
         'id' => '2026-08-10-smartphone-notifications-all-players',
         'date' => '2026-08-10',
         'category' => 'changed',

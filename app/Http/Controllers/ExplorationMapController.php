@@ -146,6 +146,7 @@ class ExplorationMapController extends Controller
         abort_unless($registration->isOpen() || $registration->map->owner_character_id === $this->character()->id, 404);
         $publicationService = app(MapPublicationService::class);
         $character = $this->character();
+        $isActiveMapEntry = app(MapExplorationItemService::class)->hasEntry($character, (int) $registration->id);
         return view('exploration-maps.show', [
             'registration' => $registration,
             'character' => $character,
@@ -155,6 +156,7 @@ class ExplorationMapController extends Controller
             'activePublicationCount' => $publicationService->activePublicationCount($character),
             'activePublicationLimit' => $publicationService->activePublicationLimit(),
             'bankSummary' => app(\App\Services\BankService::class)->summary($character),
+            'isActiveMapEntry' => $isActiveMapEntry,
         ]);
     }
     public function startSurvey(Request $request, ExplorationMap $map)

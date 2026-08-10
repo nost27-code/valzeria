@@ -218,6 +218,25 @@ class ExplorationMapLifecycleTest extends TestCase
             ->assertDontSee('状態：終了');
     }
 
+    public function test_owner_can_open_published_map_detail_without_active_entry(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $map = $this->generateMap($character, $area, $enemy, 26);
+        $registration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $map, $city),
+            0,
+        );
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('exploration-maps.show', $registration))
+            ->assertOk()
+            ->assertSee('発見者は無料')
+            ->assertSee('この地図の公開を取り下げる');
+    }
+
     public function test_published_map_cannot_be_discarded(): void
     {
         [$character, $city, $area, $enemy] = $this->mapContext();
