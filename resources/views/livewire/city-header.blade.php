@@ -1368,6 +1368,7 @@
                                 </button>
                             @endif
                         </div>
+                        <x-web-push-control />
                         <div class="max-h-80 overflow-y-auto">
                             @forelse($notifications as $notification)
                                 @php

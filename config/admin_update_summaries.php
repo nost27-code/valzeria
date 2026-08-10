@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-pwa-web-push-canary',
+        'date' => '2026-08-10',
+        'category' => 'internal',
+        'title' => 'PWA新着通知の限定検証基盤を追加',
+        'detail' => '指定した検証対象だけが通知ベルからスマホ通知を有効化できる基盤を追加しました。対象外には設定を表示せず、端末には新着内容を伏せた共通文面だけを通知します。機能は既定OFFです。',
+    ],
+    [
         'id' => '2026-08-10-facility-bank-gold-payments',
         'date' => '2026-08-10',
         'category' => 'changed',

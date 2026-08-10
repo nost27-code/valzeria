@@ -233,6 +233,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/character/create', CharacterCreate::class)->name('character.create');
     Route::get('/account/delete', [AccountController::class, 'deleteConfirm'])->name('account.delete');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
+    Route::post('/web-push/subscription', [\App\Http\Controllers\WebPushSubscriptionController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('web-push.subscription.store');
+    Route::delete('/web-push/subscription', [\App\Http\Controllers\WebPushSubscriptionController::class, 'destroy'])
+        ->middleware('throttle:20,1')
+        ->name('web-push.subscription.destroy');
 
     // キャラクターの選択が必須なルート
     Route::middleware(\App\Http\Middleware\CheckCharacterSelected::class)->group(function () {

@@ -11,6 +11,7 @@
         "laravel/socialite": "^5.27",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.3",
+        "minishlink/web-push": "^11.0",
         "stripe/stripe-php": "^20.2"
     },
     "require-dev": {

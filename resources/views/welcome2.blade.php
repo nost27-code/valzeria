@@ -8,7 +8,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js?v=3').then(r => {}).catch(e => {});
+                navigator.serviceWorker.register('/sw.js?v=4').then(r => {}).catch(e => {});
             });
         }
     </script>
