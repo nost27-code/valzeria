@@ -13,6 +13,7 @@ use App\Services\WebPushSubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
 
@@ -224,10 +225,59 @@ class WebPushNotificationTest extends TestCase
         $this->assertDatabaseCount('web_push_subscriptions', 0);
     }
 
+    public function test_title_preview_sends_only_sanitized_truncated_bell_title(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, '検証対象');
+        $this->configureWebPush('allowlist', [$character->id]);
+        config()->set('web_push.preview_mode', 'title');
+
+        $subscription = app(WebPushSubscriptionService::class)->subscribe(
+            $character,
+            'https://push.example.test/title-preview',
+            'titlePreviewPublicKey',
+            'titlePreviewAuthToken'
+        );
+        $notification = CharacterNotification::query()->create([
+            'character_id' => $character->id,
+            'category' => 'general',
+            'type' => 'test',
+            'title' => '  <b>装備市場</b>  '.str_repeat('売', 70).'  ',
+            'body' => '落札額など詳しい情報は端末へ出さない',
+        ]);
+
+        $sender = Mockery::mock(WebPushSender::class);
+        $sender->shouldReceive('send')
+            ->once()
+            ->with(
+                Mockery::on(fn (WebPushSubscription $stored): bool => $stored->is($subscription)),
+                Mockery::on(function (array $payload) use ($notification): bool {
+                    return $payload['title'] === 'ヴァルゼリアの冒険者'
+                        && $payload['data']['notificationId'] === $notification->id
+                        && str_starts_with($payload['body'], '装備市場 ')
+                        && str_ends_with($payload['body'], '…')
+                        && Str::length($payload['body']) === 60
+                        && ! str_contains($payload['body'], '<b>')
+                        && ! str_contains($payload['body'], '落札額');
+                })
+            )
+            ->andReturn(['success' => true, 'expired' => false]);
+
+        $result = (new WebPushDispatchService(
+            app(WebPushEligibilityService::class),
+            $sender
+        ))->dispatch();
+
+        $this->assertSame(1, $result['sent']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertSame($notification->id, $subscription->fresh()->last_notification_id);
+    }
+
     private function configureWebPush(string $mode, array $characterIds): void
     {
         config()->set('web_push.mode', $mode);
         config()->set('web_push.allowed_character_ids', $characterIds);
+        config()->set('web_push.preview_mode', 'generic');
         config()->set('web_push.vapid.subject', 'mailto:test@example.test');
         config()->set('web_push.vapid.public_key', $this->base64Url("\x04" . str_repeat('P', 64)));
         config()->set('web_push.vapid.private_key', $this->base64Url(str_repeat('K', 32)));

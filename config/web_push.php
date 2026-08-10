@@ -15,6 +15,7 @@ $allowedCharacterIds = array_values(array_unique(array_filter(
 return [
     'mode' => strtolower(trim((string) env('WEB_PUSH_MODE', 'off'))),
     'allowed_character_ids' => $allowedCharacterIds,
+    'preview_mode' => strtolower(trim((string) env('WEB_PUSH_PREVIEW_MODE', 'generic'))),
 
     'vapid' => [
         'subject' => trim((string) env('WEB_PUSH_VAPID_SUBJECT', env('APP_URL', ''))),

@@ -7,6 +7,7 @@ use App\Models\CharacterNotification;
 use App\Models\WebPushSubscription;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class WebPushDispatchService
 {
@@ -63,7 +64,7 @@ class WebPushDispatchService
                         ->where('id', '>', $subscription->last_notification_id)
                         ->active()
                         ->latest('id')
-                        ->first(['id']);
+                        ->first(['id', 'title']);
 
                     if ($notification === null) {
                         $this->advanceToLatest($subscription, $character);
@@ -73,7 +74,7 @@ class WebPushDispatchService
                     try {
                         $delivery = $this->sender->send($subscription, [
                             'title' => 'ヴァルゼリアの冒険者',
-                            'body' => '通知ベルに新着があります。',
+                            'body' => $this->notificationBody($notification),
                             'tag' => 'valzeria-bell',
                             'data' => [
                                 'url' => '/home',
@@ -109,6 +110,31 @@ class WebPushDispatchService
             });
 
         return $result;
+    }
+
+    private function notificationBody(CharacterNotification $notification): string
+    {
+        $genericBody = '通知ベルに新着があります。';
+
+        if ((string) config('web_push.preview_mode', 'generic') !== 'title') {
+            return $genericBody;
+        }
+
+        $plainTitle = html_entity_decode(
+            strip_tags((string) $notification->title),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+        $normalizedTitle = preg_replace('/\s+/u', ' ', $plainTitle);
+        $title = trim(is_string($normalizedTitle) ? $normalizedTitle : '');
+
+        if ($title === '') {
+            return $genericBody;
+        }
+
+        return Str::length($title) <= 60
+            ? $title
+            : Str::substr($title, 0, 59).'…';
     }
 
     private function advanceToLatest(WebPushSubscription $subscription, Character $character): void

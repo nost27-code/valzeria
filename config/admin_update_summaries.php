@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-pwa-web-push-title-preview',
+        'date' => '2026-08-10',
+        'category' => 'internal',
+        'title' => 'PWA通知に新着タイトルの簡易表示を追加',
+        'detail' => '指定した検証対象のスマホ通知に、通知ベルのタイトルだけを最大60文字で表示できるようにしました。詳しい本文は端末へ送らず、既定では従来の共通文面を維持します。',
+    ],
+    [
         'id' => '2026-08-10-pwa-web-push-canary',
         'date' => '2026-08-10',
         'category' => 'internal',
