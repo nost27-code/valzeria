@@ -79,10 +79,6 @@
                 'items' => [
                     ['route' => 'admin.dashboard', 'label' => '分析ダッシュボード', 'abbr' => 'A'],
                     ['route' => 'admin.world-metrics', 'label' => '世界指標', 'abbr' => 'W'],
-                    ['route' => 'admin.world-activity-map', 'label' => '冒険者分布マップ', 'abbr' => 'MAP'],
-                    ['route' => 'admin.inn-analytics', 'label' => '宿屋売上分析', 'abbr' => 'IN'],
-                    ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
-                    ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
                     ['route' => 'admin.top-analytics', 'label' => 'TOPアクセス解析', 'abbr' => 'V'],
                 ],
             ],
@@ -135,6 +131,16 @@
                     ['route' => 'admin.skill-effect-lab', 'label' => '技効果検証', 'abbr' => 'K'],
                     ['route' => 'admin.route-health', 'label' => '正常性チェック', 'abbr' => 'H'],
                     ['route' => 'admin.testers', 'label' => 'テストキャラ管理', 'abbr' => 'T'],
+                ],
+            ],
+            [
+                'key' => 'other',
+                'label' => 'その他',
+                'items' => [
+                    ['route' => 'admin.inn-analytics', 'label' => '宿屋売上分析', 'abbr' => 'IN'],
+                    ['route' => 'admin.world-activity-map', 'label' => '冒険者分布マップ', 'abbr' => 'MAP'],
+                    ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
+                    ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
                 ],
             ],
         ];

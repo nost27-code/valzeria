@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-08-10-admin-sidebar-other-analytics',
+        'date' => '2026-08-10',
+        'category' => 'internal',
+        'title' => '管理メニューの未使用分析項目を整理',
+        'detail' => '宿屋売上分析、冒険者分布マップ、運営分析、統計分析を管理メニューの「その他」へまとめました。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-08-10-malibu-exclusive-icon-025',
         'date' => '2026-08-10',
         'category' => 'internal',
