@@ -59,6 +59,73 @@ class BankService
         ];
     }
 
+    public function paymentSummary(Character $character, int $amount): array
+    {
+        $amount = max(0, $amount);
+        $balances = $this->summary($character);
+        $handGoldUsed = min($balances['hand_gold'], $amount);
+        $bankGoldUsed = max(0, $amount - $handGoldUsed);
+
+        return [
+            ...$balances,
+            'amount' => $amount,
+            'hand_gold_used' => $handGoldUsed,
+            'bank_gold_used' => $bankGoldUsed,
+            'requires_bank' => $bankGoldUsed > 0,
+            'can_pay' => $balances['total_gold'] >= $amount,
+        ];
+    }
+
+    /**
+     * The caller must hold a row lock for the supplied character.
+     */
+    public function spendForPayment(
+        Character $character,
+        int $amount,
+        bool $bankConfirmed,
+        string $type,
+        ?string $note = null,
+        ?string $sourceType = null,
+        ?int $sourceId = null,
+        array $metadata = []
+    ): array {
+        $amount = $this->normalizeAmount($amount);
+        $payment = $this->paymentSummary($character, $amount);
+
+        if (!$payment['can_pay']) {
+            throw new RuntimeException('Goldが不足しています。');
+        }
+
+        if ($payment['requires_bank'] && !$bankConfirmed) {
+            throw new RuntimeException('銀行預金を使う確認が必要です。');
+        }
+
+        $character->money = $payment['hand_gold'] - $payment['hand_gold_used'];
+        $character->bank_gold = $payment['bank_gold'] - $payment['bank_gold_used'];
+        $character->save();
+
+        $this->goldService->record(
+            $character,
+            $type,
+            -$amount,
+            $note,
+            $sourceType,
+            $sourceId,
+            [
+                ...$metadata,
+                'payment_hand_gold' => $payment['hand_gold_used'],
+                'payment_bank_gold' => $payment['bank_gold_used'],
+                'bank_balance_after' => (int) $character->bank_gold,
+            ]
+        );
+
+        return [
+            ...$payment,
+            'hand_gold_after' => (int) $character->money,
+            'bank_gold_after' => (int) $character->bank_gold,
+        ];
+    }
+
     private function normalizeAmount(int $amount): int
     {
         if ($amount <= 0) {

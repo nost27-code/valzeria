@@ -159,7 +159,16 @@ class ShopController extends Controller
             ? max(1, min(99, (int) $request->input('quantity', 1)))
             : 1;
 
-        $result = $shopService->buy($character, $item, $quantity);
+        $validated = $request->validate([
+            'use_bank' => 'nullable|boolean',
+        ]);
+
+        $result = $shopService->buy(
+            $character,
+            $item,
+            $quantity,
+            (bool) ($validated['use_bank'] ?? false)
+        );
 
         if ($result['success']) {
             $redirect = redirect()->back()->with('status', $result['message']);

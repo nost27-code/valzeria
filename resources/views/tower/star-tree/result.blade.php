@@ -250,6 +250,7 @@
                     @endif
 
                     @if($battleLogs->isNotEmpty())
+                        @include('battle.partials.job-art-v2-hud', ['jobArtV2Hud' => $event->metadata['job_art_v2_hud'] ?? null])
                         <div class="px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
                             @foreach($battleLogs as $log)
                                 <div>{!! $log !!}</div>
@@ -370,6 +371,9 @@
                             <div class="grid gap-2 p-4 md:grid-cols-2">
                                 @foreach($merchantProducts as $product)
                                     @php($isPurchased = (bool) ($product['purchased'] ?? false))
+                                    @php($payment = (array) ($product['payment'] ?? []))
+                                    @php($requiresBank = (bool) ($payment['requires_bank'] ?? false))
+                                    @php($canPay = (bool) ($payment['can_pay'] ?? true))
                                     <form
                                         method="POST"
                                         action="{{ route('tower.star-tree.merchant.buy') }}"
@@ -377,20 +381,26 @@
                                         data-tower-submit-form
                                         data-tower-merchant-buy-form
                                         data-tower-product-key="{{ $product['key'] }}"
+                                        data-tower-requires-bank="{{ $requiresBank ? '1' : '0' }}"
+                                        data-tower-bank-confirm-message="手持ち{{ number_format((int) ($payment['hand_gold_used'] ?? 0)) }}Gと銀行{{ number_format((int) ($payment['bank_gold_used'] ?? 0)) }}Gで支払います。よろしいですか？"
                                         data-loading-text="購入中..."
                                     >
                                         @csrf
                                         <input type="hidden" name="item_key" value="{{ $product['key'] }}">
+                                        <input type="hidden" name="use_bank" value="{{ $requiresBank ? '1' : '0' }}" data-tower-use-bank>
                                         <div class="flex items-start justify-between gap-3">
                                             <div>
                                                 <div class="font-black text-slate-950">{{ $product['name'] }}</div>
                                                 <div class="mt-1 text-xs font-bold text-slate-600">{{ $product['description'] }}</div>
                                                 <div class="mt-1 text-xs font-black text-amber-700">{{ number_format((int) $product['price']) }}G</div>
+                                                <div class="mt-1 text-[11px] font-bold text-slate-500 {{ $requiresBank ? '' : 'hidden' }}" data-tower-payment-breakdown>
+                                                    手持ち{{ number_format((int) ($payment['hand_gold_used'] ?? 0)) }}G・銀行{{ number_format((int) ($payment['bank_gold_used'] ?? 0)) }}G
+                                                </div>
                                             </div>
-                                            <button type="submit" @disabled($isPurchased) class="shrink-0 rounded-lg {{ $isPurchased ? 'bg-slate-300 text-slate-600' : 'bg-amber-600 text-white hover:bg-amber-700' }} px-4 py-2 text-xs font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-80" data-tower-submit-button>
+                                            <button type="submit" @disabled($isPurchased || !$canPay) class="shrink-0 rounded-lg {{ ($isPurchased || !$canPay) ? 'bg-slate-300 text-slate-600' : 'bg-amber-600 text-white hover:bg-amber-700' }} px-4 py-2 text-xs font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-80" data-tower-submit-button>
                                                 <span class="inline-flex items-center gap-1.5">
                                                     <x-loading-spinner class="hidden" data-tower-submit-spinner size="h-3.5 w-3.5" />
-                                                <span data-tower-submit-text>{{ $isPurchased ? '購入済み' : '購入' }}</span>
+                                                <span data-tower-submit-text>{{ $isPurchased ? '購入済み' : ($canPay ? '購入' : 'Gold不足') }}</span>
                                                 </span>
                                             </button>
                                         </div>
@@ -1013,19 +1023,41 @@
                 document.querySelectorAll('[data-tower-merchant-buy-form]').forEach(function(form) {
                     const key = form.dataset.towerProductKey;
                     const product = data.products[key];
-                    if (!product || !product.purchased) return;
+                    if (!product) return;
 
-                    form.dataset.towerPurchased = '1';
+                    const payment = product.payment || {};
+                    const purchased = Boolean(product.purchased);
+                    const canPay = payment.can_pay !== false;
+                    const requiresBank = Boolean(payment.requires_bank);
+                    const handGoldUsed = Number(payment.hand_gold_used || 0);
+                    const bankGoldUsed = Number(payment.bank_gold_used || 0);
+                    form.dataset.towerPurchased = purchased ? '1' : '0';
+                    form.dataset.towerRequiresBank = requiresBank ? '1' : '0';
+                    form.dataset.towerBankConfirmMessage = '手持ち' + towerNumber(handGoldUsed) + 'Gと銀行' + towerNumber(bankGoldUsed) + 'Gで支払います。よろしいですか？';
+
+                    const useBank = form.querySelector('[data-tower-use-bank]');
+                    if (useBank) {
+                        useBank.value = requiresBank ? '1' : '0';
+                    }
+                    const breakdown = form.querySelector('[data-tower-payment-breakdown]');
+                    if (breakdown) {
+                        breakdown.textContent = '手持ち' + towerNumber(handGoldUsed) + 'G・銀行' + towerNumber(bankGoldUsed) + 'G';
+                        breakdown.classList.toggle('hidden', !requiresBank);
+                    }
+
                     const button = form.querySelector('[data-tower-submit-button]');
                     const text = form.querySelector('[data-tower-submit-text]');
                     if (button) {
-                        button.disabled = true;
+                        button.disabled = purchased || !canPay;
                         button.classList.remove('bg-amber-600', 'text-white', 'hover:bg-amber-700', 'scale-95', 'opacity-80');
-                        button.classList.add('bg-slate-300', 'text-slate-600');
+                        button.classList.remove('bg-slate-300', 'text-slate-600');
+                        button.classList.add(...((purchased || !canPay)
+                            ? ['bg-slate-300', 'text-slate-600']
+                            : ['bg-amber-600', 'text-white', 'hover:bg-amber-700']));
                     }
                     if (text) {
-                        text.textContent = '購入済み';
-                        text.dataset.originalText = '購入済み';
+                        text.textContent = purchased ? '購入済み' : (canPay ? '購入' : 'Gold不足');
+                        text.dataset.originalText = text.textContent;
                     }
                 });
 
@@ -1263,6 +1295,11 @@
 
                 if (form.matches('[data-tower-item-form], [data-tower-merchant-buy-form]')) {
                     event.preventDefault();
+                    if (form.matches('[data-tower-merchant-buy-form]') && form.dataset.towerRequiresBank === '1') {
+                        if (!window.confirm(form.dataset.towerBankConfirmMessage || '銀行預金を使って支払います。よろしいですか？')) {
+                            return;
+                        }
+                    }
                     form.dataset.submitted = '1';
                     setTowerFormLoading(form, true);
                     const errorMessage = form.matches('[data-tower-merchant-buy-form]')

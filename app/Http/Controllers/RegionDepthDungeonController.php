@@ -32,9 +32,10 @@ class RegionDepthDungeonController extends Controller
     {
         $character = Auth::user()?->currentCharacter();
         abort_unless($character, 404);
+        $request->validate(['use_bank' => ['nullable', 'boolean']]);
         $service = app(RegionDepthDungeonService::class);
         try {
-            $service->enter($character, $dungeonKey);
+            $service->enter($character, $dungeonKey, $request->boolean('use_bank'));
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
         }

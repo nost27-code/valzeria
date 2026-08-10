@@ -69,7 +69,13 @@ class WeaponTraitTransferService
     /**
      * @return array{message: string, base_character_item_id: int, gold_cost: int}
      */
-    public function transfer(Character $character, string $operation, int $baseCharacterItemId, int $materialCharacterItemId): array
+    public function transfer(
+        Character $character,
+        string $operation,
+        int $baseCharacterItemId,
+        int $materialCharacterItemId,
+        bool $useBank = false
+    ): array
     {
         $this->assertOperation($operation);
 
@@ -77,7 +83,7 @@ class WeaponTraitTransferService
             throw new RuntimeException('ベース装備と素材装備に同じ装備を選択できません。');
         }
 
-        return DB::transaction(function () use ($character, $operation, $baseCharacterItemId, $materialCharacterItemId) {
+        return DB::transaction(function () use ($character, $operation, $baseCharacterItemId, $materialCharacterItemId, $useBank) {
             $lockedCharacter = Character::query()->lockForUpdate()->find($character->id);
             if (!$lockedCharacter) {
                 throw new RuntimeException('冒険者情報が見つかりません。');
@@ -117,9 +123,10 @@ class WeaponTraitTransferService
             $beforeTrait = $this->traitMetadata($base, $kind);
             $afterTrait = $this->traitMetadata($material, $kind);
 
-            $this->goldService->spend(
+            $payment = app(BankService::class)->spendForPayment(
                 $lockedCharacter,
                 $goldCost,
+                $useBank,
                 $operation === 'engraving_transfer' ? 'weapon_engraving_transfer' : 'weapon_slayer_transfer',
                 $this->equipmentLabel($base) . 'の' . $this->operationLabel($operation, $base),
                 WeaponTraitOperationLog::class,
@@ -157,7 +164,10 @@ class WeaponTraitTransferService
                 'message' => $this->operationLabel($operation, $base) . 'が完了しました。 '
                     . $beforeSnapshot['display_name'] . ' → ' . $afterSnapshot['display_name'] . '。 '
                     . $materialSnapshot['display_name'] . 'を素材として消費し、'
-                    . number_format($goldCost) . 'Gを支払った。',
+                    . number_format($goldCost) . 'Gを支払った。'
+                    . ($payment['bank_gold_used'] > 0
+                        ? '（手持ち' . number_format($payment['hand_gold_used']) . 'G・銀行' . number_format($payment['bank_gold_used']) . 'G）'
+                        : ''),
                 'base_character_item_id' => (int) $base->id,
                 'gold_cost' => $goldCost,
             ];

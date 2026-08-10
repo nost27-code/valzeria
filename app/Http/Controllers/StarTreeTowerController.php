@@ -49,7 +49,7 @@ class StarTreeTowerController extends Controller
         $recentEvent = $this->recentEvent($character->id);
         $merchantService = app(TowerMerchantService::class);
         $merchantProducts = $activeRun && $activeRun->pending_event === TowerMerchantService::PENDING_EVENT
-            ? $merchantService->products($activeRun)
+            ? $merchantService->products($activeRun, $character)
             : [];
         $towerRecoveryItems = $activeRun
             ? $merchantService->availableRecoveryItems($activeRun)
@@ -312,6 +312,7 @@ class StarTreeTowerController extends Controller
 
         $validated = request()->validate([
             'item_key' => 'required|string|max:100',
+            'use_bank' => 'nullable|boolean',
         ]);
         $character = Auth::user()->currentCharacter();
         $run = $towerService->getActiveRun($character);
@@ -328,7 +329,7 @@ class StarTreeTowerController extends Controller
         }
 
         try {
-            $event = $merchantService->buy($character, $run, (string) $validated['item_key']);
+            $event = $merchantService->buy($character, $run, (string) $validated['item_key'], request()->boolean('use_bank'));
         } catch (RuntimeException | InvalidArgumentException $e) {
             if (request()->expectsJson() || request()->ajax()) {
                 return response()->json([
@@ -343,7 +344,7 @@ class StarTreeTowerController extends Controller
         if (request()->expectsJson() || request()->ajax()) {
             $run->refresh();
 
-            return response()->json($this->towerRecoveryItemPayload($merchantService, $run, $event));
+            return response()->json($this->towerRecoveryItemPayload($merchantService, $character, $run, $event));
         }
 
         return $this->redirectToResult($event);
@@ -438,7 +439,7 @@ class StarTreeTowerController extends Controller
         if (request()->expectsJson() || request()->ajax()) {
             $run->refresh();
 
-            return response()->json($this->towerRecoveryItemPayload($merchantService, $run, $event));
+            return response()->json($this->towerRecoveryItemPayload($merchantService, $character, $run, $event));
         }
 
         return $this->redirectToResult($event);
@@ -587,7 +588,7 @@ class StarTreeTowerController extends Controller
 
         $merchantService = app(TowerMerchantService::class);
         $merchantProducts = $run && $run->pending_event === TowerMerchantService::PENDING_EVENT
-            ? $merchantService->products($run)
+            ? $merchantService->products($run, $character)
             : [];
         $towerRecoveryItems = $run
             ? $merchantService->availableRecoveryItems($run)
@@ -641,9 +642,11 @@ class StarTreeTowerController extends Controller
      */
     private function towerRecoveryItemPayload(
         TowerMerchantService $merchantService,
+        $character,
         $run,
         TowerRunEvent $event,
     ): array {
+        $character = $character->fresh() ?? $character;
         $hpMax = max(1, (int) ($run->tower_max_hp ?? 0));
         $spMax = max(1, (int) ($run->tower_max_mp ?? 0));
         $items = [];
@@ -662,9 +665,10 @@ class StarTreeTowerController extends Controller
         }
         $products = [];
 
-        foreach ($merchantService->products($run) as $product) {
+        foreach ($merchantService->products($run, $character) as $product) {
             $products[(string) $product['key']] = [
                 'purchased' => (bool) ($product['purchased'] ?? false),
+                'payment' => $product['payment'] ?? null,
             ];
         }
 

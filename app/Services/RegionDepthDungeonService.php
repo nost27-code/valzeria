@@ -169,7 +169,28 @@ class RegionDepthDungeonService
 
         $gold = (int) ($definition['entry']['gold'] ?? 0);
 
-        return ['materials' => $materials, 'gold' => $gold, 'gold_owned' => (int) $character->money, 'gold_shortage' => max(0, $gold - (int) $character->money)];
+        $payment = $gold > 0
+            ? app(BankService::class)->paymentSummary($character, $gold)
+            : [
+                ...app(BankService::class)->summary($character),
+                'amount' => 0,
+                'hand_gold_used' => 0,
+                'bank_gold_used' => 0,
+                'requires_bank' => false,
+                'can_pay' => true,
+            ];
+
+        return [
+            'materials' => $materials,
+            'gold' => $gold,
+            'gold_owned' => $payment['total_gold'],
+            'hand_gold' => $payment['hand_gold'],
+            'bank_gold' => $payment['bank_gold'],
+            'hand_gold_used' => $payment['hand_gold_used'],
+            'bank_gold_used' => $payment['bank_gold_used'],
+            'requires_bank' => $payment['requires_bank'],
+            'gold_shortage' => $payment['can_pay'] ? 0 : max(0, $gold - $payment['total_gold']),
+        ];
     }
 
     public function canEnter(Character $character, string $dungeonKey): array
@@ -186,9 +207,9 @@ class RegionDepthDungeonService
         return ['ok' => true, 'area' => $area, 'entry' => $entry];
     }
 
-    public function enter(Character $character, string $dungeonKey): CharacterRegionDungeonRun
+    public function enter(Character $character, string $dungeonKey, bool $bankConfirmed = false): CharacterRegionDungeonRun
     {
-        return DB::transaction(function () use ($character, $dungeonKey) {
+        return DB::transaction(function () use ($character, $dungeonKey, $bankConfirmed) {
             $lockedCharacter = Character::lockForUpdate()->findOrFail($character->id);
             $check = $this->canEnter($lockedCharacter, $dungeonKey);
             if (!($check['ok'] ?? false)) throw new \RuntimeException((string) ($check['error'] ?? '入場できません。'));
@@ -200,7 +221,10 @@ class RegionDepthDungeonService
                 if ((int) $owned->quantity < $quantity) throw new \RuntimeException('入場料の素材が足りません。');
                 $owned->decrement('quantity', $quantity);
             }
-            app(GoldService::class)->spend($lockedCharacter, (int) ($this->definition($dungeonKey)['entry']['gold'] ?? 0), 'region_depth_entry', ($this->definition($dungeonKey)['name'] ?? '追加ダンジョン') . 'の入場料', Area::class, $area->id, ['dungeon_key' => $dungeonKey]);
+            $gold = (int) ($this->definition($dungeonKey)['entry']['gold'] ?? 0);
+            if ($gold > 0) {
+                app(BankService::class)->spendForPayment($lockedCharacter, $gold, $bankConfirmed, 'region_depth_entry', ($this->definition($dungeonKey)['name'] ?? '追加ダンジョン') . 'の入場料', Area::class, $area->id, ['dungeon_key' => $dungeonKey]);
+            }
             app(ExplorationStateService::class)->reset($lockedCharacter, $area->id);
 
             return CharacterRegionDungeonRun::create(['character_id' => $lockedCharacter->id, 'dungeon_key' => $dungeonKey, 'area_id' => $area->id, 'status' => 'active', 'entered_at' => now()]);

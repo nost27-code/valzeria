@@ -96,7 +96,8 @@ class EquipmentMarketController extends Controller
         if ($listing->status === 'active' && $listing->expires_at->isPast()) $this->service->expireListings();
         $listing->refresh();
         $listing->load('seller');
-        return view('equipment-market.show', compact('character', 'listing'));
+        $paymentSummary = app(\App\Services\BankService::class)->paymentSummary($character, (int) $listing->listing_price);
+        return view('equipment-market.show', compact('character', 'listing', 'paymentSummary'));
     }
 
     public function store(Request $request)
@@ -120,12 +121,13 @@ class EquipmentMarketController extends Controller
         return redirect()->route('equipment-market.index', ['tab' => 'listings'])->with('status', "{$listing->display_name_snapshot}を" . number_format($listing->listing_price) . 'Gで出品しました。');
     }
 
-    public function buy(EquipmentMarketListing $listing)
+    public function buy(Request $request, EquipmentMarketListing $listing)
     {
         $character = Auth::user()->currentCharacter();
         if (! $character) return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
+        $request->validate(['use_bank' => ['nullable', 'boolean']]);
         try {
-            $this->service->buyEquipment($character, $listing);
+            $this->service->buyEquipment($character, $listing, $request->boolean('use_bank'));
         } catch (RuntimeException $e) {
             return redirect()->route('equipment-market.show', $listing)->with('error', $e->getMessage());
         }

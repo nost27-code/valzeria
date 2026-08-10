@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-08-10-facility-bank-gold-payments',
+        'date' => '2026-08-10',
+        'category' => 'changed',
+        'title' => '各施設で銀行預金からのGold支払いに対応',
+        'detail' => '装備屋、素材交換所、鍛冶・合成、素材・装備市場、素材倉庫Gold拡張、薬屋、地図院、探索地図、追加ダンジョン、星灯の行商人で、手持ちGoldの不足分だけを確認付きで銀行預金から支払えるようにしました。',
+    ],
+    [
+        'id' => '2026-08-10-beta-data-handover-policy',
+        'date' => '2026-08-10',
+        'category' => 'changed',
+        'title' => 'β版データの正式版引き継ぎ方針を明記',
+        'detail' => 'トップページに、β版での冒険データを正式版へ引き継ぐ方針を明記しました。',
+    ],
+    [
         'id' => '2026-08-10-battle-record-consistency',
         'date' => '2026-08-10',
         'category' => 'fixed',

@@ -15,6 +15,8 @@
             @js($initialKind),
             @js(old('base_character_item_id')),
             @js(old('material_character_item_id')),
+            @js((int) ($goldSummary['hand_gold'] ?? 0)),
+            @js((int) ($goldSummary['bank_gold'] ?? 0)),
             @js(csrf_token()),
         )"
     >
@@ -33,7 +35,9 @@
                         <span class="text-sm leading-none">?</span> 解説
                     </a>
                     <div class="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 sm:text-sm">
-                        所持Gold <span class="text-slate-900">{{ number_format((int) ($character->money ?? 0)) }}G</span>
+                        手持ち <span class="text-slate-900">{{ number_format((int) ($goldSummary['hand_gold'] ?? 0)) }}G</span>
+                        <span class="mx-1 text-slate-300">/</span>
+                        銀行 <span class="text-slate-900">{{ number_format((int) ($goldSummary['bank_gold'] ?? 0)) }}G</span>
                     </div>
                 </div>
             </div>
@@ -82,6 +86,7 @@
                 <input type="hidden" name="trait_kind" :value="kind">
                 <input type="hidden" name="base_character_item_id" :value="baseId">
                 <input type="hidden" name="material_character_item_id" :value="materialId">
+                <input type="hidden" name="use_bank" x-ref="useBankInput" value="0">
 
                 <div>
                     <p class="mb-1.5 text-sm font-black text-slate-800">1. 残したいベース装備 <span class="text-xs font-bold text-slate-500">（完成後に残る装備）</span></p>
@@ -315,6 +320,11 @@
                                     <p class="mt-1 font-black text-emerald-950" x-text="confirmation.completed_name"></p>
                                 </div>
                                 <p class="text-center text-base font-black text-amber-800">必要Gold: <span x-text="formatGold(confirmation.gold_cost)"></span></p>
+                                <div x-show="confirmation.bank_gold_used > 0" class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
+                                    <p>手持ちから <span x-text="formatGold(confirmation.hand_gold_used)"></span></p>
+                                    <p>銀行預金から <span x-text="formatGold(confirmation.bank_gold_used)"></span></p>
+                                    <p class="mt-1 text-xs">不足分だけ銀行預金を使用します。</p>
+                                </div>
                             </div>
                             <footer class="flex gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-5">
                                 <button type="button" @click="confirmation = null" :disabled="submittingTransfer" class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">キャンセル</button>
@@ -367,7 +377,7 @@
     </style>
 
     <script>
-        function weaponTraitWorkshop(candidates, forgeGoldCosts, dualDiscountRate, initialKind, oldBaseId, oldMaterialId, csrfToken) {
+        function weaponTraitWorkshop(candidates, forgeGoldCosts, dualDiscountRate, initialKind, oldBaseId, oldMaterialId, handGold, bankGold, csrfToken) {
             return {
                 candidates,
                 forgeGoldCosts,
@@ -375,6 +385,8 @@
                 kind: candidates[initialKind] ? initialKind : 'engraving',
                 baseId: oldBaseId || '',
                 materialId: oldMaterialId || '',
+                handGold: Number(handGold || 0),
+                bankGold: Number(bankGold || 0),
                 csrfToken,
                 helpOpen: false,
                 lockingItemId: null,
@@ -555,6 +567,20 @@
                 formatGold(amount) {
                     return `${new Intl.NumberFormat('ja-JP').format(amount)}G`;
                 },
+                handPaymentFor(amount) {
+                    return Math.min(this.handGold, Number(amount || 0));
+                },
+                bankPaymentFor(amount) {
+                    return Math.max(0, Number(amount || 0) - this.handPaymentFor(amount));
+                },
+                bankConfirmationText(amount) {
+                    return [
+                        `手持ちから ${this.formatGold(this.handPaymentFor(amount))}`,
+                        `銀行預金から ${this.formatGold(this.bankPaymentFor(amount))}`,
+                        '',
+                        '不足分だけ銀行預金を使用します。よろしいですか？',
+                    ].join('\n');
+                },
                 lockButtonLabel(item) {
                     return item.is_locked ? '★ 保護を解除' : '☆ 保護する';
                 },
@@ -595,7 +621,17 @@
                 },
                 confirmTransferBeforeSubmit(event) {
                     const action = event.submitter?.value || this.preview?.action;
-                    if (action !== 'transfer') return;
+                    const paymentPreview = action === 'dual' ? this.dualPreview : this.preview;
+                    const goldCost = Number(paymentPreview?.gold_cost || 0);
+                    const bankGoldUsed = this.bankPaymentFor(goldCost);
+                    this.$refs.useBankInput.value = bankGoldUsed > 0 ? '1' : '0';
+
+                    if (action !== 'transfer') {
+                        if (bankGoldUsed > 0 && !window.confirm(this.bankConfirmationText(goldCost))) {
+                            event.preventDefault();
+                        }
+                        return;
+                    }
 
                     event.preventDefault();
                     const base = this.selectedBase();
@@ -609,6 +645,8 @@
                         material_name: material.display_name,
                         completed_name: preview.completed_name,
                         gold_cost: preview.gold_cost,
+                        hand_gold_used: this.handPaymentFor(preview.gold_cost),
+                        bank_gold_used: this.bankPaymentFor(preview.gold_cost),
                     };
                 },
                 confirmTransfer() {

@@ -2,6 +2,10 @@
     @php
         $map = $registration->map;
         $owner = $map->owner_character_id === $character->id;
+        $entryFee = (!$owner && !$isActiveMapEntry) ? (int) $registration->entry_fee_per_exploration : 0;
+        $entryHandUsed = min((int) $bankSummary['hand_gold'], $entryFee);
+        $entryBankUsed = max(0, $entryFee - $entryHandUsed);
+        $entryCanPay = (int) $bankSummary['total_gold'] >= $entryFee;
     @endphp
 
     <div class="mx-auto max-w-2xl space-y-4">
@@ -17,6 +21,7 @@
                     default => $registration->isOpen() ? '公開中' : '終了',
                 } }}</div>
             </div>
+            <p class="mt-3 border-t border-slate-100 pt-3 text-xs font-black text-amber-700">手持ち {{ number_format((int) $bankSummary['hand_gold']) }}G ／ 銀行 {{ number_format((int) $bankSummary['bank_gold']) }}G</p>
         </section>
 
         @if($registration->status === 'surveying')
@@ -87,15 +92,19 @@
 
             @if($registration->isOpen())
                 <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p class="font-black text-emerald-950">{{ $owner ? '発見者は無料（他の冒険者：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：1入場 ' . number_format($registration->entry_fee_per_exploration) . 'G' }}</p>
+                    <p class="font-black text-emerald-950">{{ $isActiveMapEntry ? 'この地図へ入場中（追加料金なし）' : ($owner ? '発見者は無料（他の冒険者：' . number_format($registration->entry_fee_per_exploration) . 'G）' : '入場料：1入場 ' . number_format($registration->entry_fee_per_exploration) . 'G') }}</p>
+                    @if($entryBankUsed > 0)
+                        <p class="mt-1 text-xs font-bold text-amber-800">支払い内訳：手持ち {{ number_format($entryHandUsed) }}G・銀行 {{ number_format($entryBankUsed) }}G</p>
+                    @endif
                     <p class="mt-1 text-xs font-bold text-emerald-800">薬草・回復薬・魔力水は、所持分から各10個まで持ち込めます。</p>
                     <div class="mt-3 grid grid-cols-2 gap-2">
                         @foreach(array_unique([1, min(10, $registration->remaining_explorations)]) as $count)
-                            <form method="POST" action="{{ route('exploration-maps.explore', $registration) }}">
+                            <form method="POST" action="{{ route('exploration-maps.explore', $registration) }}" @if($entryBankUsed > 0) onsubmit="return confirm(@js('入場料を手持ち' . number_format($entryHandUsed) . 'G・銀行' . number_format($entryBankUsed) . 'Gで支払います。'))" @endif>
                                 @csrf
                                 <input type="hidden" name="count" value="{{ $count }}">
                                 <input type="hidden" name="request_uuid" value="{{ \Illuminate\Support\Str::uuid() }}">
-                                <button class="w-full rounded bg-emerald-700 px-3 py-3 text-sm font-black text-white">{{ $count === 1 ? '探索する ×1' : '残り' . $count . '回をまとめて探索' }}　{{ $owner ? '発見者は無料' : number_format($registration->entry_fee_per_exploration) . 'G' }}</button>
+                                <input type="hidden" name="use_bank" value="{{ $entryBankUsed > 0 ? 1 : 0 }}">
+                                <button @disabled(!$entryCanPay) class="w-full rounded bg-emerald-700 px-3 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-400">{{ $entryCanPay ? (($count === 1 ? '探索する ×1' : '残り' . $count . '回をまとめて探索') . '　' . ($entryFee === 0 ? '無料' : number_format($entryFee) . 'G')) : 'Goldが不足しています' }}</button>
                             </form>
                         @endforeach
                     </div>

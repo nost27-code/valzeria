@@ -32,7 +32,22 @@
     $evolvableCount = $grouped->filter(fn ($group) => collect($group)->contains('can_evolve', true))->count();
 @endphp
 <x-layouts.facility :title="$title" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
-    <div class="w-full mx-auto pb-10" x-data="{ modalOpen: false, helpOpen: false, selected: null, typeFilter: 'all', statusFilter: 'all', sortBy: 'default', srcPopup: { open: false, sources: [], label: '', required: 0 } }">
+    <div
+        class="w-full mx-auto pb-10"
+        x-data="{
+            modalOpen: false,
+            helpOpen: false,
+            selected: null,
+            typeFilter: 'all',
+            statusFilter: 'all',
+            sortBy: 'default',
+            handGold: @js((int) ($goldSummary['hand_gold'] ?? 0)),
+            bankGold: @js((int) ($goldSummary['bank_gold'] ?? 0)),
+            srcPopup: { open: false, sources: [], label: '', required: 0 },
+            handPaymentFor(amount) { return Math.min(this.handGold, Number(amount || 0)); },
+            bankPaymentFor(amount) { return Math.max(0, Number(amount || 0) - this.handPaymentFor(amount)); },
+        }"
+    >
         <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
                 <div>
@@ -43,7 +58,7 @@
                         この装備をベースに、素材を使って上位装備へ進化します。
                     </p>
                     <p class="mt-2 text-sm font-black text-amber-700">
-                        所持Gold {{ number_format((int) ($character->money ?? 0)) }}G
+                        手持ち {{ number_format((int) ($goldSummary['hand_gold'] ?? 0)) }}G / 銀行 {{ number_format((int) ($goldSummary['bank_gold'] ?? 0)) }}G
                     </p>
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-start">
@@ -658,6 +673,7 @@
                         <input type="hidden" name="recipe_type" :value="selected?.recipeType">
                         <input type="hidden" name="recipe_id" :value="selected?.recipeId">
                         <input type="hidden" name="source_character_item_id" :value="selected?.sourceCharacterItemId">
+                        <input type="hidden" name="use_bank" :value="bankPaymentFor(selected?.goldCostAmount) > 0 ? 1 : 0">
 
                         <div class="border-b border-slate-200 px-5 py-5">
                             <h3 class="text-lg font-extrabold text-slate-900" id="modal-title">合成の確認</h3>
@@ -669,6 +685,11 @@
                             <p class="mt-3 rounded bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
                                 合成費用: <span x-text="selected?.goldCost"></span>
                             </p>
+                            <div x-show="bankPaymentFor(selected?.goldCostAmount) > 0" class="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+                                <p>手持ちから <span x-text="new Intl.NumberFormat('ja-JP').format(handPaymentFor(selected?.goldCostAmount)) + 'G'"></span></p>
+                                <p>銀行預金から <span x-text="new Intl.NumberFormat('ja-JP').format(bankPaymentFor(selected?.goldCostAmount)) + 'G'"></span></p>
+                                <p class="mt-1">不足分だけ銀行預金を使用します。</p>
+                            </div>
                             <p class="mt-3 text-xs text-slate-500">
                                 選んだ装備を進化元として使用します。装備中なら進化後の装備へ自動で付け替え、保護中なら保護状態も引き継ぎます。強化値は進化先の上限まで引き継がれます。
                             </p>

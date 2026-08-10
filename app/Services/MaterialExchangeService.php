@@ -266,6 +266,10 @@ class MaterialExchangeService
         ],
     ];
 
+    public function __construct(private readonly BankService $bankService)
+    {
+    }
+
     public function recipes(Character $character): array
     {
         return $this->buildRecipes($character, true);
@@ -281,6 +285,7 @@ class MaterialExchangeService
         $owned = $this->ownedMaterialMap($character);
         $ownedItems = $this->ownedItemMap($character);
         $materials = $this->materialsByCode();
+        $spendableGold = $this->bankService->summary($character)['total_gold'];
         $recipes = [];
 
         foreach ($this->allGroups() as $group) {
@@ -288,11 +293,11 @@ class MaterialExchangeService
         }
 
         $recipes = array_merge($recipes, $this->evolutionStoneRecipes($materials, $owned, $ownedOnly));
-        $recipes = array_merge($recipes, $this->fragmentSynthesisRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
-        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
-        $recipes = array_merge($recipes, $this->lowRefiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
+        $recipes = array_merge($recipes, $this->fragmentSynthesisRecipes($materials, $owned, $spendableGold, $ownedOnly));
+        $recipes = array_merge($recipes, $this->enhancementStoneRecipes($materials, $owned, $spendableGold, $ownedOnly));
+        $recipes = array_merge($recipes, $this->lowRefiningCoreRecipes($materials, $owned, $spendableGold, $ownedOnly));
         $recipes = array_merge($recipes, $this->refiningCorePartRecipes($materials, $owned, $ownedOnly));
-        $recipes = array_merge($recipes, $this->refiningCoreRecipes($materials, $owned, (int) ($character->money ?? 0), $ownedOnly));
+        $recipes = array_merge($recipes, $this->refiningCoreRecipes($materials, $owned, $spendableGold, $ownedOnly));
         $recipes = array_merge($recipes, $this->secretCrystalShardRecipes($materials, $owned, $ownedOnly));
         $recipes = array_merge($recipes, $this->cityMaterialPathStoneRecipes($materials, $owned, $ownedOnly));
         $recipes = array_merge($recipes, $this->ancientCompositeRecipes($materials, $owned, $ownedOnly));
@@ -315,14 +320,20 @@ class MaterialExchangeService
         return $recipes;
     }
 
-    public function exchange(Character $character, string $recipeId, int $quantity = 1): array
+    public function exchange(Character $character, string $recipeId, int $quantity = 1, bool $useBank = false): array
     {
-        return DB::transaction(function () use ($character, $recipeId, $quantity) {
-            return $this->performExchange($character, $recipeId, $quantity);
+        $result = DB::transaction(function () use ($character, $recipeId, $quantity, $useBank) {
+            $lockedCharacter = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+
+            return $this->performExchange($lockedCharacter, $recipeId, $quantity, $useBank);
         }, 3);
+
+        $character->refresh();
+
+        return $result;
     }
 
-    public function exchangeMany(Character $character, array $recipeIds, array $quantities = []): array
+    public function exchangeMany(Character $character, array $recipeIds, array $quantities = [], bool $useBank = false): array
     {
         $exchangeRequests = [];
         foreach ($recipeIds as $index => $recipeId) {
@@ -352,11 +363,12 @@ class MaterialExchangeService
             throw new RuntimeException('一度に交換できる合計回数は500回までです。');
         }
 
-        return DB::transaction(function () use ($character, $exchangeRequests) {
+        $result = DB::transaction(function () use ($character, $exchangeRequests, $useBank) {
+            $lockedCharacter = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
             $messages = [];
 
             foreach ($exchangeRequests as $recipeId => $quantity) {
-                $messages[] = $this->performExchange($character, $recipeId, $quantity)['message'];
+                $messages[] = $this->performExchange($lockedCharacter, $recipeId, $quantity, $useBank)['message'];
             }
 
             return [
@@ -364,9 +376,13 @@ class MaterialExchangeService
                 'messages' => $messages,
             ];
         }, 3);
+
+        $character->refresh();
+
+        return $result;
     }
 
-    private function performExchange(Character $character, string $recipeId, int $quantity = 1): array
+    private function performExchange(Character $character, string $recipeId, int $quantity = 1, bool $useBank = false): array
     {
         $quantity = $this->normalizeExchangeQuantity($quantity);
         $recipe = collect($this->allRecipes($this->materialsByCode()))
@@ -416,9 +432,7 @@ class MaterialExchangeService
         }
 
         $goldCost = (int) ($recipe['gold_cost'] ?? 0) * $quantity;
-        if ($goldCost > 0 && (int) ($character->money ?? 0) < $goldCost) {
-            throw new RuntimeException('Goldが不足しています。');
-        }
+        $payment = null;
 
         foreach ($requirements as $requirement) {
             $source = $sourceMaterials[(string) $requirement['material_code']];
@@ -432,9 +446,10 @@ class MaterialExchangeService
         }
 
         if ($goldCost > 0) {
-            app(GoldService::class)->spend(
+            $payment = $this->bankService->spendForPayment(
                 $character,
                 $goldCost,
+                $useBank,
                 'material_exchange',
                 "{$recipe['target_name']}の素材交換"
             );
@@ -480,7 +495,10 @@ class MaterialExchangeService
 
         return [
             'message' => "{$sourceText}交換し、{$targetName}を{$targetQuantity}個受け取りました。"
-                . ($goldCost > 0 ? ' 交換費用として' . number_format($goldCost) . 'Gを支払いました。' : ''),
+                . ($goldCost > 0 ? ' 交換費用として' . number_format($goldCost) . 'Gを支払いました。' : '')
+                . (($payment['bank_gold_used'] ?? 0) > 0
+                    ? '（手持ち' . number_format($payment['hand_gold_used']) . 'G・銀行' . number_format($payment['bank_gold_used']) . 'G）'
+                    : ''),
         ];
     }
 

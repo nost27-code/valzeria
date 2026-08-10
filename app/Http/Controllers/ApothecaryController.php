@@ -21,10 +21,14 @@ class ApothecaryController extends Controller
     {
         $this->ensureAvailable($support);
         $character = Auth::user()->currentCharacter(); abort_unless($character, 404);
-        $data = $request->validate(['recipe_code' => ['required', 'string'], 'count' => ['required', 'integer', 'min:1', 'max:99']]);
-        try { $result = $apothecary->craft($character, $data['recipe_code'], (int) $data['count']); }
+        $data = $request->validate(['recipe_code' => ['required', 'string'], 'count' => ['required', 'integer', 'min:1', 'max:99'], 'use_bank' => ['nullable', 'boolean']]);
+        try { $result = $apothecary->craft($character, $data['recipe_code'], (int) $data['count'], $request->boolean('use_bank')); }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
-        return back()->with('status', "{$result['name']}を{$result['quantity']}個調合した！");
+        $payment = $result['payment'] ?? [];
+        $paymentText = ($payment['bank_gold_used'] ?? 0) > 0
+            ? '（手持ち' . number_format((int) $payment['hand_gold_used']) . 'G・銀行' . number_format((int) $payment['bank_gold_used']) . 'G）'
+            : '';
+        return back()->with('status', "{$result['name']}を{$result['quantity']}個調合した！{$paymentText}");
     }
 
     public function activate(Request $request, ExplorationSupportService $support)

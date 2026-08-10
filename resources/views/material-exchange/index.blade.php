@@ -26,6 +26,8 @@
         materialDetail: null,
         selectedRecipeIds: [],
         recipeQuantities: {},
+        handGold: {{ (int) $goldSummary['hand_gold'] }},
+        bankGold: {{ (int) $goldSummary['bank_gold'] }},
         typeFilter: 'all',
         searchTerm: '',
         keywordFilter: '',
@@ -50,6 +52,27 @@
         },
         selectedTotalQuantity() {
             return this.selectedRecipeIds.reduce((sum, recipeId) => sum + this.quantityFor(recipeId), 0);
+        },
+        recipeGoldCost(recipeId) {
+            const cards = this.$refs.recipeList ? [...this.$refs.recipeList.querySelectorAll('[data-recipe-card]')] : [];
+            const card = cards.find((candidate) => candidate.dataset.recipeId === recipeId);
+            return Math.max(0, parseInt(card?.dataset.goldCost || 0, 10));
+        },
+        selectedTotalGoldCost() {
+            return this.selectedRecipeIds.reduce((sum, recipeId) => sum + (this.recipeGoldCost(recipeId) * this.quantityFor(recipeId)), 0);
+        },
+        selectedGoldCost() {
+            return Math.max(0, (this.selected?.goldCost || 0) * (this.selected?.quantity || 1));
+        },
+        handPaymentFor(amount) {
+            return Math.min(this.handGold, Math.max(0, amount));
+        },
+        bankPaymentFor(amount) {
+            return Math.max(0, Math.max(0, amount) - this.handPaymentFor(amount));
+        },
+        bulkBankConfirmationText() {
+            const amount = this.selectedTotalGoldCost();
+            return `交換費用 合計${amount.toLocaleString()}G\n手持ち ${this.handPaymentFor(amount).toLocaleString()}G\n銀行預金 ${this.bankPaymentFor(amount).toLocaleString()}G\n\n不足分だけ銀行預金から支払います。実行しますか？`;
         }
     }">
         <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
@@ -62,13 +85,19 @@
                         敵素材の共通化、強化石系素材の合成・精製、回復調合、導石・秘境晶・装飾素材の錬成を行います。
                     </p>
                 </div>
-                <div class="text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">
-                    表示:
-                    <span class="font-bold text-slate-900"
-                          x-text="$refs.recipeList ? [...$refs.recipeList.querySelectorAll('[data-recipe-card]')].filter((card) => (typeFilter === 'all' || card.dataset.recipeType === typeFilter) && (!searchTerm.trim() || card.dataset.searchText.toLowerCase().includes(searchTerm.trim().toLowerCase())) && (!keywordFilter || card.dataset.searchText.includes(keywordFilter))).length : 0">
-                        {{ $recipeCount }}
-                    </span>
-                    / <span id="material-exchange-recipe-count" class="font-bold text-slate-900">{{ $recipeCount }}</span> 件
+                <div class="space-y-1 text-xs sm:text-sm text-slate-600 bg-slate-100 border border-slate-200 px-3 py-2 rounded">
+                    <div>
+                        表示:
+                        <span class="font-bold text-slate-900"
+                              x-text="$refs.recipeList ? [...$refs.recipeList.querySelectorAll('[data-recipe-card]')].filter((card) => (typeFilter === 'all' || card.dataset.recipeType === typeFilter) && (!searchTerm.trim() || card.dataset.searchText.toLowerCase().includes(searchTerm.trim().toLowerCase())) && (!keywordFilter || card.dataset.searchText.includes(keywordFilter))).length : 0">
+                            {{ $recipeCount }}
+                        </span>
+                        / <span id="material-exchange-recipe-count" class="font-bold text-slate-900">{{ $recipeCount }}</span> 件
+                    </div>
+                    <div class="font-bold">
+                        手持ち <span class="font-mono text-slate-900" x-text="handGold.toLocaleString()"></span>G /
+                        銀行 <span class="font-mono text-slate-900" x-text="bankGold.toLocaleString()"></span>G
+                    </div>
                 </div>
             </div>
 
@@ -129,6 +158,7 @@
             >
                 <form method="POST" action="{{ route('material-exchange.bulk') }}" id="material-exchange-bulk-form" class="flex flex-col sm:flex-row sm:items-center gap-3">
                     @csrf
+                    <input type="hidden" name="use_bank" :value="bankPaymentFor(selectedTotalGoldCost()) > 0 ? 1 : 0">
                     <template x-for="recipeId in selectedRecipeIds" :key="recipeId">
                         <div>
                             <input type="hidden" name="recipe_ids[]" :value="recipeId">
@@ -136,8 +166,16 @@
                         </div>
                     </template>
                     <div class="text-sm font-bold text-slate-700">
-                        選択中: <span class="font-mono text-amber-700" x-text="selectedRecipeIds.length"></span>件 /
-                        <span class="font-mono text-amber-700" x-text="selectedTotalQuantity()"></span>回分
+                        <div>
+                            選択中: <span class="font-mono text-amber-700" x-text="selectedRecipeIds.length"></span>件 /
+                            <span class="font-mono text-amber-700" x-text="selectedTotalQuantity()"></span>回分
+                        </div>
+                        <div class="mt-1 text-xs" x-show="selectedTotalGoldCost() > 0">
+                            費用 <span class="font-mono text-amber-700" x-text="selectedTotalGoldCost().toLocaleString()"></span>G
+                            <span x-show="bankPaymentFor(selectedTotalGoldCost()) > 0">
+                                （手持ち<span class="font-mono" x-text="handPaymentFor(selectedTotalGoldCost()).toLocaleString()"></span>G・銀行<span class="font-mono" x-text="bankPaymentFor(selectedTotalGoldCost()).toLocaleString()"></span>G）
+                            </span>
+                        </div>
                     </div>
                     <div class="flex flex-1 gap-2 sm:justify-end">
                         <button
@@ -179,6 +217,7 @@
                         @csrf
                         <input type="hidden" name="recipe_id" :value="selected?.id">
                         <input type="hidden" name="quantity" :value="selected?.quantity || 1">
+                        <input type="hidden" name="use_bank" :value="bankPaymentFor(selectedGoldCost()) > 0 ? 1 : 0">
 
                         <div class="border-b border-slate-200 px-5 py-5">
                             <h3 class="text-lg font-extrabold text-slate-900" id="modal-title">交換の確認</h3>
@@ -196,6 +235,11 @@
                                     費用: <span class="font-mono" x-text="((selected?.goldCost || 0) * (selected?.quantity || 1)).toLocaleString()"></span>G
                                 </span>
                             </p>
+                            <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-slate-700" x-show="bankPaymentFor(selectedGoldCost()) > 0">
+                                <div>手持ちから <span class="font-mono text-slate-900" x-text="handPaymentFor(selectedGoldCost()).toLocaleString()"></span>G</div>
+                                <div class="mt-1">銀行預金から <span class="font-mono text-amber-700" x-text="bankPaymentFor(selectedGoldCost()).toLocaleString()"></span>G</div>
+                                <div class="mt-2 text-amber-800">不足分だけ銀行預金から支払います。</div>
+                            </div>
                         </div>
                         <div class="bg-slate-50 px-5 py-4 sm:flex sm:flex-row-reverse sm:gap-3">
                             <button type="submit" :disabled="isSubmitting" class="inline-flex w-full justify-center rounded-md bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed sm:w-auto">
@@ -316,6 +360,13 @@
 
                     const root = form.closest('[x-data]');
                     const alpine = root && window.Alpine ? window.Alpine.$data(root) : null;
+                    if (form.id === 'material-exchange-bulk-form'
+                        && alpine
+                        && alpine.bankPaymentFor(alpine.selectedTotalGoldCost()) > 0
+                        && !window.confirm(alpine.bulkBankConfirmationText())) {
+                        return;
+                    }
+
                     if (alpine) {
                         alpine.isSubmitting = true;
                     }
@@ -350,6 +401,10 @@
 
                         showMaterialExchangeMessage(data.message || '交換しました。', true);
                         if (alpine) {
+                            if (data.gold_summary) {
+                                alpine.handGold = Number(data.gold_summary.hand_gold || 0);
+                                alpine.bankGold = Number(data.gold_summary.bank_gold || 0);
+                            }
                             alpine.modalOpen = false;
                             alpine.selected = null;
                             alpine.selectedRecipeIds = [];

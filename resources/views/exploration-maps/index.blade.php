@@ -7,6 +7,7 @@
         <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
             <h2 class="font-black text-indigo-950">探索の地図</h2>
             <p class="mt-1 text-sm font-bold text-indigo-900">見つけた地図を調査して公開すると、冒険者たちが同じ地図を探索できる。</p>
+            <p class="mt-2 text-xs font-black text-indigo-800">手持ち {{ number_format((int) $bankSummary['hand_gold']) }}G ／ 銀行 {{ number_format((int) $bankSummary['bank_gold']) }}G</p>
             <details class="mt-3 rounded-lg border border-indigo-200 bg-white/80 px-3 py-2 text-sm text-indigo-950">
                 <summary class="cursor-pointer font-black">Q. なぜ調査を依頼する地図院を選ぶの？</summary>
                 <div class="mt-2 space-y-2 border-t border-indigo-100 pt-2 text-xs font-bold leading-relaxed text-slate-700">
@@ -51,6 +52,9 @@
                     @php
                         $dungeonTypeLabel = $dungeonTypeLabels[$map->dungeon_type] ?? $map->dungeon_type;
                         $surveyCost = $surveyCosts[$map->map_grade] ?? $surveyCosts['normal'];
+                        $surveyHandUsed = min((int) $bankSummary['hand_gold'], (int) $surveyCost);
+                        $surveyBankUsed = max(0, (int) $surveyCost - $surveyHandUsed);
+                        $surveyCanPay = (int) $bankSummary['total_gold'] >= (int) $surveyCost;
                         $registration = $map->registration;
                         $isEnded = ($registration?->isPublished() || $registration?->isWithdrawn()) && !$registration->isOpen();
                         $status = $registration?->isWithdrawn()
@@ -98,10 +102,14 @@
                         @endif
 
                         @if($map->status === 'uninvestigated')
-                            <form method="POST" action="{{ route('exploration-maps.survey.start', $map) }}" class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3" x-data="{ townId: '' }">
+                            <form method="POST" action="{{ route('exploration-maps.survey.start', $map) }}" class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3" x-data="{ townId: '' }" @if($surveyBankUsed > 0) onsubmit="return confirm(@js('遠征調査費を手持ち' . number_format($surveyHandUsed) . 'G・銀行' . number_format($surveyBankUsed) . 'Gで支払います。'))" @endif>
                                 @csrf
+                                <input type="hidden" name="use_bank" value="{{ $surveyBankUsed > 0 ? 1 : 0 }}">
                                 <label for="town-{{ $map->id }}" class="block text-sm font-black text-slate-900">調査を依頼する地図院</label>
                                 <p class="mt-1 text-xs font-bold text-slate-600">推定地形：<span class="text-amber-800">{{ $dungeonTypeLabel }}</span>。遠征調査費：{{ number_format($surveyCost) }}G</p>
+                                @if($surveyBankUsed > 0)
+                                    <p class="mt-1 text-xs font-bold text-amber-800">手持ち {{ number_format($surveyHandUsed) }}G・銀行 {{ number_format($surveyBankUsed) }}G</p>
+                                @endif
                                 <div class="mt-2 flex flex-col gap-2 sm:flex-row">
                                     <select id="town-{{ $map->id }}" name="town_id" x-model="townId" required class="min-w-0 flex-1 rounded border-slate-300 text-sm font-bold">
                                         <option value="" disabled>地図院を選択してください</option>
@@ -111,7 +119,7 @@
                                     </select>
                                 </div>
                                 <div x-cloak x-show="townId !== ''" class="mt-3">
-                                    <button type="submit" class="w-full rounded bg-amber-600 px-4 py-3 text-sm font-black text-white hover:bg-amber-700">遠征調査を始める</button>
+                                    <button type="submit" @disabled(!$surveyCanPay) class="w-full rounded bg-amber-600 px-4 py-3 text-sm font-black text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400">{{ $surveyCanPay ? '遠征調査を始める' : 'Goldが不足しています' }}</button>
                                 </div>
                             </form>
                         @endif

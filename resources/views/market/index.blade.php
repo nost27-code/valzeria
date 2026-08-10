@@ -17,7 +17,7 @@
 <x-layouts.facility title="冒険者市場" headerIconImage="images/icon/icon_032.webp" bgImage="images/facilities/item.webp">
     <div class="w-full mx-auto pb-10">
         <div class="mb-2 flex justify-end px-1 text-sm font-black text-slate-950 sm:text-base">
-            所持：{{ number_format((int) ($character->money ?? 0)) }}G
+            手持ち：{{ number_format((int) ($character->money ?? 0)) }}G ／ 銀行：{{ number_format((int) ($character->bank_gold ?? 0)) }}G
         </div>
 
         <div class="rounded-lg border border-[#d4af37]/50 bg-white p-4 shadow-sm sm:p-6" x-data="{ tab: '{{ $tab }}' }">
@@ -109,11 +109,52 @@
                             @endif
                             <form method="POST" action="{{ route('market.materials.buy') }}"
                                   class="mt-2 flex gap-1.5"
-                                  x-data="{ qty: 1, submitting: false }"
-                                  @submit="submitting = true">
+                                  x-data="{
+                                      qty: 1,
+                                      submitting: false,
+                                      handGold: {{ (int) ($character->money ?? 0) }},
+                                      bankGold: {{ (int) ($character->bank_gold ?? 0) }},
+                                      tiers: @js($marketPurchaseTiers->get($material->id, [])),
+                                      quote() {
+                                          let remaining = Math.max(1, parseInt(this.qty || 1, 10));
+                                          let total = 0;
+                                          for (const tier of this.tiers) {
+                                              if (remaining <= 0) break;
+                                              const filled = Math.min(remaining, Number(tier.quantity || 0));
+                                              total += filled * Number(tier.unit_price || 0);
+                                              remaining -= filled;
+                                          }
+                                          return remaining > 0 ? 0 : total;
+                                      },
+                                      preparePurchase(event) {
+                                          const total = this.quote();
+                                          if (total <= 0) {
+                                              event.preventDefault();
+                                              alert('市場在庫が不足しています。');
+                                              return;
+                                          }
+                                          if (total > this.handGold + this.bankGold) {
+                                              event.preventDefault();
+                                              alert('手持ちと銀行預金を合わせてもGoldが不足しています。');
+                                              return;
+                                          }
+                                          const handUsed = Math.min(this.handGold, total);
+                                          const bankUsed = Math.max(0, total - handUsed);
+                                          this.$refs.confirmedTotal.value = total;
+                                          this.$refs.useBank.value = bankUsed > 0 ? '1' : '0';
+                                          if (bankUsed > 0 && !confirm(`合計${total.toLocaleString()}Gを支払います。\n手持ち${handUsed.toLocaleString()}G・銀行${bankUsed.toLocaleString()}Gを使用します。`)) {
+                                              event.preventDefault();
+                                              return;
+                                          }
+                                          this.submitting = true;
+                                      }
+                                  }"
+                                  @submit="preparePurchase($event)">
                                 @csrf
                                 <input type="hidden" name="material_id" value="{{ $material->id }}">
                                 <input type="hidden" name="quantity" x-model="qty">
+                                <input type="hidden" name="use_bank" value="0" x-ref="useBank">
+                                <input type="hidden" name="confirmed_total" value="" x-ref="confirmedTotal">
                                 <div class="flex overflow-hidden rounded-md border border-slate-300 {{ $stock <= 0 ? 'opacity-50' : '' }}">
                                     <button type="button"
                                             class="flex h-9 w-9 items-center justify-center bg-slate-50 text-base font-black text-slate-600 transition hover:bg-slate-100 active:scale-95 disabled:opacity-40"

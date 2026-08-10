@@ -35,36 +35,32 @@ class WeaponTraitWorkshopService
         string $action,
         int $baseCharacterItemId,
         int $materialCharacterItemId,
+        bool $useBank = false,
     ): array {
         if (!in_array($traitKind, ['engraving', 'slayer'], true)) {
             throw new RuntimeException('鍛える特性が不正です。');
         }
 
         if ($action === 'dual') {
-            return $this->forgeService->forge(
-                $character,
-                'dual_forge',
-                $baseCharacterItemId,
-                $materialCharacterItemId,
-            );
+            return $useBank
+                ? $this->forgeService->forge($character, 'dual_forge', $baseCharacterItemId, $materialCharacterItemId, true)
+                : $this->forgeService->forge($character, 'dual_forge', $baseCharacterItemId, $materialCharacterItemId);
         }
 
         if ($action === 'forge') {
-            return $this->forgeService->forge(
-                $character,
-                $traitKind === 'engraving' ? 'engraving_forge' : 'slayer_forge',
-                $baseCharacterItemId,
-                $materialCharacterItemId,
-            );
+            $operation = $traitKind === 'engraving' ? 'engraving_forge' : 'slayer_forge';
+
+            return $useBank
+                ? $this->forgeService->forge($character, $operation, $baseCharacterItemId, $materialCharacterItemId, true)
+                : $this->forgeService->forge($character, $operation, $baseCharacterItemId, $materialCharacterItemId);
         }
 
         if ($action === 'transfer') {
-            return $this->transferService->transfer(
-                $character,
-                $traitKind === 'engraving' ? 'engraving_transfer' : 'slayer_transfer',
-                $baseCharacterItemId,
-                $materialCharacterItemId,
-            );
+            $operation = $traitKind === 'engraving' ? 'engraving_transfer' : 'slayer_transfer';
+
+            return $useBank
+                ? $this->transferService->transfer($character, $operation, $baseCharacterItemId, $materialCharacterItemId, true)
+                : $this->transferService->transfer($character, $operation, $baseCharacterItemId, $materialCharacterItemId);
         }
 
         throw new RuntimeException('加工方法が不正です。');

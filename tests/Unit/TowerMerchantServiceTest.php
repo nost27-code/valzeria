@@ -30,6 +30,7 @@ class TowerMerchantServiceTest extends TestCase
             $table->id();
             $table->string('name')->nullable();
             $table->unsignedInteger('money')->default(0);
+            $table->unsignedInteger('bank_gold')->default(0);
             $table->unsignedInteger('highest_city_id')->default(1);
             $table->unsignedInteger('equipment_storage_limit')->default(300);
             $table->unsignedInteger('explore_stamina')->nullable();
@@ -171,6 +172,28 @@ class TowerMerchantServiceTest extends TestCase
         ]);
     }
 
+    public function test_buy_item_uses_bank_only_after_confirmation(): void
+    {
+        config(['star_tree_tower.star_tree.merchant_hp_item_price' => 500]);
+        $character = $this->createCharacter(100, 1000);
+        $run = $this->createRun($character);
+
+        try {
+            app(TowerMerchantService::class)->buy($character, $run, 'star_leaf_herb');
+            $this->fail('銀行利用の確認なしで購入されました。');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('銀行預金を使う確認が必要です。', $e->getMessage());
+        }
+
+        $this->assertSame(0, TowerMerchantPurchase::query()->count());
+        $event = app(TowerMerchantService::class)->buy($character, $run, 'star_leaf_herb', true);
+
+        $this->assertSame('merchant_purchase', $event->event_type);
+        $this->assertStringContainsString('手持ち100G・銀行400G', (string) $event->message);
+        $this->assertSame(0, (int) $character->fresh()->money);
+        $this->assertSame(600, (int) $character->fresh()->bank_gold);
+    }
+
     public function test_use_purchased_hp_item_recovers_tower_hp_and_marks_used(): void
     {
         config([
@@ -283,11 +306,12 @@ class TowerMerchantServiceTest extends TestCase
         $this->assertSame(0, $run->merchant_encounter_count);
     }
 
-    private function createCharacter(int $money): Character
+    private function createCharacter(int $money, int $bankGold = 0): Character
     {
         return Character::query()->create([
             'name' => 'Merchant Tester',
             'money' => $money,
+            'bank_gold' => $bankGold,
             'highest_city_id' => 5,
             'explore_stamina' => 250,
             'explore_stamina_max' => 250,

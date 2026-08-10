@@ -237,13 +237,20 @@ class EquipmentEvolutionService
         return $candidates;
     }
 
-    public function evolve(Character $character, string $recipeType, string $recipeId, ?int $sourceCharacterItemId = null): array
+    public function evolve(
+        Character $character,
+        string $recipeType,
+        string $recipeId,
+        ?int $sourceCharacterItemId = null,
+        bool $useBank = false
+    ): array
     {
         if (!in_array($recipeType, ['weapon', 'armor', 'accessory'], true)) {
             throw new RuntimeException('合成種別が不正です。');
         }
 
-        return DB::transaction(function () use ($character, $recipeType, $recipeId, $sourceCharacterItemId) {
+        return DB::transaction(function () use ($character, $recipeType, $recipeId, $sourceCharacterItemId, $useBank) {
+            $character = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
             $recipe = $this->findRecipeForUpdate($recipeType, $recipeId);
             $ownedMaterials = $this->ownedMaterialMap($character);
             $candidate = match ($recipeType) {
@@ -258,9 +265,10 @@ class EquipmentEvolutionService
 
             $goldCost = (int) ($candidate['gold_cost'] ?? 0);
             if ($goldCost > 0) {
-                app(GoldService::class)->spend(
+                $payment = app(BankService::class)->spendForPayment(
                     $character,
                     $goldCost,
+                    $useBank,
                     'equipment_evolution',
                     "{$candidate['from_name']}から{$candidate['to_name']}への合成",
                     null,
@@ -272,6 +280,8 @@ class EquipmentEvolutionService
                         'to_rank' => $candidate['to_rank'],
                     ]
                 );
+            } else {
+                $payment = null;
             }
 
             $usesEvolutionStone = !($candidate['can_use_extra_equipment'] ?? false);
@@ -364,6 +374,9 @@ class EquipmentEvolutionService
             return [
                 'message' => "{$consumedEquipmentName}を合成して、{$candidate['to_name']}を手に入れました！"
                     . ($goldCost > 0 ? ' 合成費用として' . number_format($goldCost) . 'Gを支払いました。' : '')
+                    . (($payment['bank_gold_used'] ?? 0) > 0
+                        ? '（手持ち' . number_format($payment['hand_gold_used']) . 'G・銀行' . number_format($payment['bank_gold_used']) . 'G）'
+                        : '')
                     . ($equippedSlot ? ' 装備中だったため、そのまま装備しました。' : '')
                     . ($sourceWasLocked ? ' 保護状態も引き継ぎました。' : '')
                     . ($affixSource ? ' 銘も引き継ぎました。' : '')
@@ -616,7 +629,8 @@ class EquipmentEvolutionService
         $toIsDiscovered = $toItem && in_array((int) $toItem->id, $discoveredItemIds, true);
         $canEquipSource = $fromItem ? $this->permissionService->canEquip($character, $fromItem) : true;
         $goldCost = app(GoldService::class)->evolutionCost($toRank);
-        $ownedGold = (int) ($character->money ?? 0);
+        $goldSummary = app(BankService::class)->summary($character);
+        $ownedGold = $goldSummary['total_gold'];
         $missingGold = max(0, $goldCost - $ownedGold);
 
         $requiredBaseEquipmentCount = 1;

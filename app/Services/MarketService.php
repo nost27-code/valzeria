@@ -15,6 +15,7 @@ class MarketService
 {
     public function __construct(
         private readonly GoldService $goldService,
+        private readonly BankService $bankService,
         private readonly CharacterNotificationService $notificationService,
         private readonly PlayerShopService $shopService,
     )
@@ -71,11 +72,17 @@ class MarketService
         });
     }
 
-    public function buyMaterial(Character $buyer, Material $material, int $quantity): array
+    public function buyMaterial(
+        Character $buyer,
+        Material $material,
+        int $quantity,
+        bool $bankConfirmed = false,
+        ?int $expectedTotalPrice = null,
+    ): array
     {
         $quantity = max(1, $quantity);
 
-        return DB::transaction(function () use ($buyer, $material, $quantity) {
+        return DB::transaction(function () use ($buyer, $material, $quantity, $bankConfirmed, $expectedTotalPrice) {
             $buyer = Character::whereKey($buyer->id)->lockForUpdate()->firstOrFail();
             $material = Material::whereKey($material->id)->lockForUpdate()->firstOrFail();
             $this->assertMarketable($material);
@@ -117,17 +124,14 @@ class MarketService
                 ]);
             }
 
-            if ((int) $buyer->money < $totalPrice) {
+            if ($expectedTotalPrice !== null && $expectedTotalPrice !== $totalPrice) {
                 throw ValidationException::withMessages([
-                    'quantity' => 'Goldが不足しています。',
+                    'quantity' => '市場価格が変わりました。最新の価格を確認して、もう一度購入してください。',
                 ]);
             }
 
-            $buyer->money = (int) $buyer->money - $totalPrice;
-            $buyer->save();
             $materialName = $material->displayName();
-
-            $this->goldService->record($buyer, 'market_purchase', -$totalPrice, "{$materialName} x{$quantity} を市場で購入", MarketTransaction::class, null, [
+            $payment = $this->bankService->spendForPayment($buyer, $totalPrice, $bankConfirmed, 'market_purchase', "{$materialName} x{$quantity} を市場で購入", MarketTransaction::class, null, [
                 'material_id' => $material->id,
                 'quantity' => $quantity,
             ]);
@@ -210,6 +214,7 @@ class MarketService
                 'quantity' => $quantity,
                 'total_price' => $totalPrice,
                 'lines' => $lines,
+                'payment' => $payment,
             ];
         });
     }

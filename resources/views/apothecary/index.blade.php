@@ -12,6 +12,8 @@
         activateSelected: null,
         clearModalOpen: false,
         quantities: {},
+        handGold: {{ (int) ($character->money ?? 0) }},
+        bankGold: {{ (int) ($character->bank_gold ?? 0) }},
         autoRenew: {{ $activeSupport && $activeSupport['auto_renew'] ? 'true' : 'false' }},
         autoRenewBusy: false,
         quantityFor(code) {
@@ -27,6 +29,15 @@
         },
         decreaseQuantity(code, max) {
             this.setQuantity(code, this.quantityFor(code) - 1, max);
+        },
+        totalFee() {
+            return Number(this.selected?.goldFee || 0) * Number(this.selected?.quantity || 1);
+        },
+        handPayment() {
+            return Math.min(this.handGold, this.totalFee());
+        },
+        bankPayment() {
+            return Math.max(0, this.totalFee() - this.handPayment());
         },
         async toggleAutoRenew() {
             if (this.autoRenewBusy) return;
@@ -62,6 +73,7 @@
                 <p class="mt-2 text-sm text-slate-600 leading-relaxed">
                     探索の前に、一つだけ補助品を持ち込めます。1個につき50戦有効で、切り替えても品目ごとの残り戦数は保存されます。
                 </p>
+                <p class="mt-2 text-xs font-bold text-amber-700">手持ち {{ number_format((int) ($character->money ?? 0)) }}G ／ 銀行 {{ number_format((int) ($character->bank_gold ?? 0)) }}G</p>
             </div>
 
             @if(session('status'))
@@ -279,6 +291,7 @@
                         @csrf
                         <input type="hidden" name="recipe_code" :value="selected?.code">
                         <input type="hidden" name="count" :value="selected?.quantity || 1">
+                        <input type="hidden" name="use_bank" :value="bankPayment() > 0 ? '1' : '0'">
 
                         <div class="border-b border-slate-200 px-5 py-5">
                             <h3 class="text-lg font-extrabold text-slate-900" id="modal-title">調合の確認</h3>
@@ -290,6 +303,10 @@
                             <p class="mt-3 rounded bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
                                 調合費用: <span x-text="((selected?.goldFee || 0) * (selected?.quantity || 1)).toLocaleString()"></span>G
                             </p>
+                            <div x-show="bankPayment() > 0" class="mt-2 rounded border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-amber-800">
+                                <div>手持ちから <span x-text="handPayment().toLocaleString()"></span>G</div>
+                                <div>銀行預金から <span x-text="bankPayment().toLocaleString()"></span>G</div>
+                            </div>
                         </div>
                         <div class="bg-slate-50 px-5 py-4 sm:flex sm:flex-row-reverse sm:gap-3">
                             <button type="submit" :disabled="submitting" class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-70 sm:w-auto">

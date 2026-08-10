@@ -109,7 +109,7 @@ class EquipmentEnhancementService
             ->all();
     }
 
-    public function enhance(Character $character, CharacterItem $characterItem): array
+    public function enhance(Character $character, CharacterItem $characterItem, bool $useBank = false): array
     {
         $executionLock = Cache::lock("equipment-enhancement:{$character->id}:{$characterItem->id}", 30);
         if (!$executionLock->get()) {
@@ -117,26 +117,27 @@ class EquipmentEnhancementService
         }
 
         try {
-            return DB::transaction(function () use ($character, $characterItem) {
+            return DB::transaction(function () use ($character, $characterItem, $useBank) {
+                $lockedCharacter = Character::query()
+                    ->whereKey($character->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
                 $locked = CharacterItem::with('item')
                     ->where('id', $characterItem->id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $this->validateEnhanceTarget($character, $locked);
+                $this->validateEnhanceTarget($lockedCharacter, $locked);
 
                 $nextLevel = ((int) ($locked->enhance_level ?? 0)) + 1;
                 $displayName = $locked->displayName();
                 $type = (string) ($locked->item?->type ?? '');
-                $recipe = $this->recipeForLevel($nextLevel, $type, $character, $locked->item);
+                $recipe = $this->recipeForLevel($nextLevel, $type, $lockedCharacter, $locked->item);
                 $goldCost = (int) ($recipe['gold_cost'] ?? 0);
-                if ($goldCost > 0 && (int) ($character->money ?? 0) < $goldCost) {
-                    throw new RuntimeException(number_format($goldCost) . 'G必要です。');
-                }
 
                 foreach ($recipe['materials'] as $materialRequirement) {
                     $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
-                    $owned = CharacterMaterial::where('character_id', $character->id)
+                    $owned = CharacterMaterial::where('character_id', $lockedCharacter->id)
                         ->where('material_id', $material->id)
                         ->lockForUpdate()
                         ->first();
@@ -152,12 +153,15 @@ class EquipmentEnhancementService
                 }
 
                 if ($goldCost > 0) {
-                    app(GoldService::class)->spend(
-                        $character,
+                    $payment = app(BankService::class)->spendForPayment(
+                        $lockedCharacter,
                         $goldCost,
+                        $useBank,
                         'equipment_enhancement',
                         "{$displayName} +{$nextLevel} 強化"
                     );
+                } else {
+                    $payment = null;
                 }
 
                 $locked->enhance_level = $nextLevel;
@@ -167,16 +171,19 @@ class EquipmentEnhancementService
                 if ($qualityUpgrade === 'excellent') {
                     app(PublicLogService::class)->addLog(
                         'drop',
-                        "【逸品】{$character->name}さんが鍛冶で「{$locked->displayName()}」を逸品に仕上げました！",
-                        $character,
+                        "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$locked->displayName()}」を逸品に仕上げました！",
+                        $lockedCharacter,
                         3,
                     );
                 }
 
-                app(PlayerLifecycleEventService::class)->recordFirstEnhancement($character);
+                app(PlayerLifecycleEventService::class)->recordFirstEnhancement($lockedCharacter);
 
                 return [
                     'message' => "{$displayName} を +{$nextLevel} に強化しました。"
+                        . (($payment['bank_gold_used'] ?? 0) > 0
+                            ? '（手持ち' . number_format($payment['hand_gold_used']) . 'G・銀行' . number_format($payment['bank_gold_used']) . 'G）'
+                            : '')
                         . ($qualityUpgrade === 'good' ? ' 良品に仕上がった！' : ($qualityUpgrade === 'excellent' ? ' 逸品に仕上がった！' : '')),
                     'enhance_level' => $nextLevel,
                 ];
@@ -390,6 +397,7 @@ class EquipmentEnhancementService
         $canEnhance = $item && $currentLevel < $maxLevel;
         $reason = null;
         $recipe = null;
+        $payment = app(BankService::class)->paymentSummary($character, 0);
 
         if (!$item) {
             $canEnhance = false;
@@ -406,6 +414,7 @@ class EquipmentEnhancementService
             }
 
             if ($recipe !== null) {
+                $payment = app(BankService::class)->paymentSummary($character, (int) ($recipe['gold_cost'] ?? 0));
                 foreach ($recipe['materials'] as $materialRequirement) {
                     $material = $this->resolveMaterial($materialRequirement['material_id'], $materialRequirement['material_name']);
                     $owned = $materials[(string) $material->material_code] ?? 0;
@@ -425,13 +434,13 @@ class EquipmentEnhancementService
                     }
                 }
 
-                if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
+                if (!$payment['can_pay']) {
                     $canEnhance = false;
                 }
 
                 if (!$canEnhance) {
                     $reason = '素材が不足しています。';
-                    if (($recipe['gold_cost'] ?? 0) > (int) ($character->money ?? 0)) {
+                    if (!$payment['can_pay']) {
                         $reason = '素材またはGoldが不足しています。';
                     }
                 }
@@ -455,8 +464,10 @@ class EquipmentEnhancementService
             'max_level' => $maxLevel,
             'requirements' => $requirements,
             'gold_cost' => (int) ($recipe['gold_cost'] ?? 0),
-            'owned_gold' => (int) ($character->money ?? 0),
-            'missing_gold' => max(0, (int) ($recipe['gold_cost'] ?? 0) - (int) ($character->money ?? 0)),
+            'owned_gold' => $payment['total_gold'],
+            'hand_gold_used' => $payment['hand_gold_used'],
+            'bank_gold_used' => $payment['bank_gold_used'],
+            'missing_gold' => max(0, $payment['amount'] - $payment['total_gold']),
             'effect' => $recipe['effect'] ?? '+3%',
             'stats' => self::enhancedStatsFor($characterItem),
             'can_enhance' => $canEnhance,

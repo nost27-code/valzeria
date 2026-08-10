@@ -14,14 +14,14 @@ class TowerMerchantService
 {
     public const PENDING_EVENT = 'merchant';
 
-    public function __construct(private readonly GoldService $goldService)
+    public function __construct(private readonly BankService $bankService)
     {
     }
 
     /**
      * @return array<int,array{key:string,name:string,price:int,effect_type:string,effect_value:int,recover_amount:int,description:string,purchased:bool}>
      */
-    public function products(TowerRun $run): array
+    public function products(TowerRun $run, ?Character $character = null): array
     {
         $hpRate = max(1, (int) config('star_tree_tower.star_tree.merchant_hp_item_recover_rate', 25));
         $mpRate = max(1, (int) config('star_tree_tower.star_tree.merchant_mp_item_recover_rate', 25));
@@ -34,7 +34,7 @@ class TowerMerchantService
                 ->all()
             : [];
 
-        return [
+        $products = [
             [
                 'key' => $this->merchantItemConfig('hp', 'key', 'star_leaf_herb'),
                 'name' => $this->merchantItemConfig('hp', 'name', '星葉の薬草'),
@@ -75,6 +75,18 @@ class TowerMerchantService
                 'purchased' => in_array($this->merchantItemConfig('ward', 'key', 'kodama_ward'), $purchasedItemKeys, true),
             ],
         ];
+
+        if (!$character) {
+            return $products;
+        }
+
+        return collect($products)
+            ->map(function (array $product) use ($character): array {
+                $product['payment'] = $this->bankService->paymentSummary($character, (int) $product['price']);
+
+                return $product;
+            })
+            ->all();
     }
 
     public function maybeReserveAfterVictory(Character $character, TowerRun $run): ?TowerRunEvent
@@ -143,9 +155,9 @@ class TowerMerchantService
         return in_array($floor, $rewardFloors, true);
     }
 
-    public function buy(Character $character, TowerRun $run, string $itemKey): TowerRunEvent
+    public function buy(Character $character, TowerRun $run, string $itemKey, bool $bankConfirmed = false): TowerRunEvent
     {
-        return DB::transaction(function () use ($character, $run, $itemKey): TowerRunEvent {
+        return DB::transaction(function () use ($character, $run, $itemKey, $bankConfirmed): TowerRunEvent {
             $lockedRun = TowerRun::query()->whereKey($run->id)->lockForUpdate()->firstOrFail();
             $lockedCharacter = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
 
@@ -165,9 +177,10 @@ class TowerMerchantService
                 throw new RuntimeException('この商品はすでに購入済みです。');
             }
 
-            $this->goldService->spend(
+            $payment = $this->bankService->spendForPayment(
                 $lockedCharacter,
                 (int) $product['price'],
+                $bankConfirmed,
                 'tower_merchant',
                 $this->displayText('merchant_name', '星灯の行商人').": {$product['name']}",
                 TowerRun::class,
@@ -200,6 +213,9 @@ class TowerMerchantService
             $purchaseMessage = $product['effect_type'] === 'damage_reduction_next'
                 ? "{$product['name']}を購入しました。使うと次の戦闘で発動します。"
                 : "{$product['name']}を購入しました。塔内状況から使用できます。";
+            if (($payment['bank_gold_used'] ?? 0) > 0) {
+                $purchaseMessage .= '（手持ち' . number_format((int) $payment['hand_gold_used']) . 'G・銀行' . number_format((int) $payment['bank_gold_used']) . 'G）';
+            }
 
             return TowerRunEvent::query()->create([
                 'tower_run_id' => $lockedRun->id,

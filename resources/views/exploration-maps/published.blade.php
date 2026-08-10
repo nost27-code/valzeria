@@ -3,6 +3,7 @@
         <section class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
             <h2 class="font-black text-indigo-950">地図院で公開された地図</h2>
             <p class="mt-1 text-sm font-bold text-indigo-900">地図を開くと、出現する魔物や地図の特徴を確認できます。入場中は×10探索を何度続けても追加料金はかかりません。街へ戻って入り直すと、入場料がもう一度かかります。</p>
+            <p class="mt-2 text-xs font-black text-indigo-800">手持ち {{ number_format((int) $bankSummary['hand_gold']) }}G ／ 銀行 {{ number_format((int) $bankSummary['bank_gold']) }}G</p>
         </section>
 
         <form method="GET" action="{{ route('exploration-maps.published') }}" class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -25,6 +26,10 @@
                         $isEnded = !$registration->isOpen();
                         $isActive = (int) $registration->id === $activeRegistrationId;
                         $exploreCounts = $isEnded ? [] : array_values(array_unique([1, min(10, (int) $registration->remaining_explorations)]));
+                        $entryFee = (!$isActive && !$owner) ? (int) $registration->entry_fee_per_exploration : 0;
+                        $entryHandUsed = min((int) $bankSummary['hand_gold'], $entryFee);
+                        $entryBankUsed = max(0, $entryFee - $entryHandUsed);
+                        $entryCanPay = (int) $bankSummary['total_gold'] >= $entryFee;
                     @endphp
                     <details class="group relative overflow-hidden rounded-xl border {{ $isEnded ? 'border-red-300 bg-slate-100 opacity-75 grayscale' : ($isActive ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-200 bg-white') }}" @if($details['background_image']) style="background-image: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.94) 38%, rgba(255, 255, 255, 0.72) 100%), url('{{ asset($details['background_image']) }}'); background-position: center; background-size: cover;" @endif @if($isActive && !$isEnded) open @endif>
                         @if($isEnded)
@@ -74,11 +79,12 @@
                                 @if(!$isEnded)
                                 <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     @foreach($exploreCounts as $count)
-                                        <form method="POST" action="{{ route('exploration-maps.explore', $registration) }}">
+                                        <form method="POST" action="{{ route('exploration-maps.explore', $registration) }}" @if($entryBankUsed > 0) onsubmit="return confirm(@js('入場料を手持ち' . number_format($entryHandUsed) . 'G・銀行' . number_format($entryBankUsed) . 'Gで支払います。'))" @endif>
                                             @csrf
                                             <input type="hidden" name="count" value="{{ $count }}">
                                             <input type="hidden" name="request_uuid" value="{{ Illuminate\Support\Str::uuid() }}">
-                                            <button class="w-full rounded-lg bg-emerald-700 px-3 py-3 text-sm font-black text-white hover:bg-emerald-800">{{ $count === 1 ? ($isActive ? '探索を続ける ×1' : '入場して探索する ×1') : ($isActive ? '探索を続ける ×' . $count : '入場して探索する ×' . $count) }}</button>
+                                            <input type="hidden" name="use_bank" value="{{ $entryBankUsed > 0 ? 1 : 0 }}">
+                                            <button @disabled(!$entryCanPay) class="w-full rounded-lg bg-emerald-700 px-3 py-3 text-sm font-black text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400">{{ $entryCanPay ? ($count === 1 ? ($isActive ? '探索を続ける ×1' : '入場して探索する ×1') : ($isActive ? '探索を続ける ×' . $count : '入場して探索する ×' . $count)) : 'Goldが不足しています' }}</button>
                                         </form>
                                     @endforeach
                                 </div>

@@ -10,14 +10,15 @@ use Illuminate\Support\Facades\DB;
 
 class MapSurveyService
 {
-    public function start(Character $character, ExplorationMap $map, City $town): TownMapRegistration
+    public function start(Character $character, ExplorationMap $map, City $town, bool $bankConfirmed = false): TownMapRegistration
     {
-        return DB::transaction(function () use ($character, $map, $town) {
+        return DB::transaction(function () use ($character, $map, $town, $bankConfirmed) {
+            $character = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
             $map = ExplorationMap::lockForUpdate()->findOrFail($map->id);
             if ($map->owner_character_id !== $character->id || $map->status !== 'uninvestigated') throw new \RuntimeException('この地図は調査に出せません。');
             $cost = $this->cost($map);
             $minutes = (int) config('exploration_maps.survey.base_minutes');
-            app(GoldService::class)->spend($character, $cost, 'map_survey', '探索の地図の遠征調査費', ExplorationMap::class, $map->id, ['town_id' => $town->id]);
+            app(BankService::class)->spendForPayment($character, $cost, $bankConfirmed, 'map_survey', '探索の地図の遠征調査費', ExplorationMap::class, $map->id, ['town_id' => $town->id]);
             $surveyedAt = now()->addMinutes($minutes);
             $registration = TownMapRegistration::create(['map_id' => $map->id, 'town_id' => $town->id, 'survey_status' => 'completed', 'survey_cost' => $cost, 'survey_started_at' => now(), 'survey_completed_at' => $surveyedAt, 'exploration_limit' => $map->exploration_limit, 'remaining_explorations' => $map->exploration_limit, 'status' => 'surveyed']);
             $map->update(['status' => 'surveyed']);

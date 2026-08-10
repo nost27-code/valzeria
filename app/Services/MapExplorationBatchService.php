@@ -15,12 +15,12 @@ class MapExplorationBatchService
 {
     public function __construct(private readonly ExplorationMapSeedService $seeds, private readonly MapIncomeService $income, private readonly ExplorationMapDifficultyService $difficulty, private readonly MapExplorationRewardService $rewards, private readonly ExplorationMapLegacyRewardService $legacyRewards) {}
 
-    public function reserve(Character $character, TownMapRegistration $registration, int $requestedCount, string $requestUuid, bool $chargeEntryFee = true): MapExplorationBatch
+    public function reserve(Character $character, TownMapRegistration $registration, int $requestedCount, string $requestUuid, bool $chargeEntryFee = true, bool $bankConfirmed = false): MapExplorationBatch
     {
         $requestedCount = max(1, min(10, $requestedCount));
         $this->recoverStaleBatches((int) $registration->id);
 
-        return DB::transaction(function () use ($character, $registration, $requestedCount, $requestUuid, $chargeEntryFee) {
+        return DB::transaction(function () use ($character, $registration, $requestedCount, $requestUuid, $chargeEntryFee, $bankConfirmed) {
             if ($existing = MapExplorationBatch::where('request_uuid', $requestUuid)->first()) {
                 return $this->existingBatchForRequest($existing, $character, $registration);
             }
@@ -33,7 +33,7 @@ class MapExplorationBatchService
             $entryFee = $character->id === $registration->map->owner_character_id ? 0 : (int) $registration->entry_fee_per_exploration;
             $total = $reserved > 0 && $chargeEntryFee ? $entryFee : 0;
             $lockedCharacter = Character::lockForUpdate()->findOrFail($character->id);
-            if ($total > 0) app(GoldService::class)->spend($lockedCharacter, $total, 'map_entry_fee', '探索の地図の入場料', TownMapRegistration::class, $registration->id, ['map_id' => $registration->map_id, 'count' => $reserved, 'entry_count' => 1]);
+            if ($total > 0) app(BankService::class)->spendForPayment($lockedCharacter, $total, $bankConfirmed, 'map_entry_fee', '探索の地図の入場料', TownMapRegistration::class, $registration->id, ['map_id' => $registration->map_id, 'count' => $reserved, 'entry_count' => 1]);
             $first = $registration->consumed_explorations + 1;
             $registration->decrement('remaining_explorations', $reserved);
             $registration->increment('consumed_explorations', $reserved);

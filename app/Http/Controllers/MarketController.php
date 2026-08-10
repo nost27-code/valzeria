@@ -42,6 +42,21 @@ class MarketController extends Controller
             ->get()
             ->keyBy('material_id');
 
+        $marketPurchaseTiers = MarketListing::query()
+            ->active()
+            ->marketSellerEligible()
+            ->where('listing_type', 'material')
+            ->where('seller_character_id', '!=', $character->id)
+            ->orderBy('material_id')
+            ->orderBy('unit_price')
+            ->orderBy('created_at')
+            ->get(['material_id', 'remaining_quantity', 'unit_price'])
+            ->groupBy('material_id')
+            ->map(fn ($listings) => $listings->map(fn (MarketListing $listing) => [
+                'quantity' => (int) $listing->remaining_quantity,
+                'unit_price' => (int) $listing->unit_price,
+            ])->values()->all());
+
         $ownedByMaterial = CharacterMaterial::query()
             ->where('character_id', $character->id)
             ->where('quantity', '>', 0)
@@ -110,6 +125,7 @@ class MarketController extends Controller
             'ownListings',
             'history',
             'marketStats',
+            'marketPurchaseTiers',
             'ownedByMaterial',
             'materialInfos',
             'ownedMaterialInfos',
@@ -166,14 +182,31 @@ class MarketController extends Controller
         $validated = $request->validate([
             'material_id' => ['required', 'integer', 'exists:materials,id'],
             'quantity' => ['required', 'integer', 'min:1', 'max:999999'],
+            'use_bank' => ['nullable', 'boolean'],
+            'confirmed_total' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $material = Material::findOrFail($validated['material_id']);
-        $result = $this->marketService->buyMaterial($character, $material, (int) $validated['quantity']);
+        try {
+            $result = $this->marketService->buyMaterial(
+                $character,
+                $material,
+                (int) $validated['quantity'],
+                $request->boolean('use_bank'),
+                isset($validated['confirmed_total']) ? (int) $validated['confirmed_total'] : null,
+            );
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage())->withInput();
+        }
+
+        $payment = $result['payment'] ?? [];
+        $paymentText = ($payment['bank_gold_used'] ?? 0) > 0
+            ? '（手持ち' . number_format((int) $payment['hand_gold_used']) . 'G・銀行' . number_format((int) $payment['bank_gold_used']) . 'G）'
+            : '';
 
         return redirect()
             ->route('market.index', ['tab' => 'buy'])
-            ->with('status', "{$result['material_name']} x{$result['quantity']} を合計 " . number_format($result['total_price']) . 'G で購入しました。')
+            ->with('status', "{$result['material_name']} x{$result['quantity']} を合計 " . number_format($result['total_price']) . "G で購入しました。{$paymentText}")
             ->with('market_result', $result);
     }
 

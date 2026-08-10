@@ -107,7 +107,10 @@ class KisekiShopController extends Controller
 
     public function purchaseSupport(Request $request, AdventureSupportService $supportService)
     {
-        $request->validate(['item_key' => 'required|string']);
+        $request->validate([
+            'item_key' => 'required|string',
+            'use_bank' => ['nullable', 'boolean'],
+        ]);
 
         $character = Auth::user()->characters()->first();
         if (!$character) {
@@ -125,7 +128,9 @@ class KisekiShopController extends Controller
         }
 
         try {
-            $result = $supportService->purchase($character, $itemKey);
+            $result = $supportService->purchase($character, $itemKey, $request->boolean('use_bank'));
+        } catch (\RuntimeException $e) {
+            $result = ['success' => false, 'message' => $e->getMessage()];
         } catch (\Throwable $e) {
             report($e);
             $result = ['success' => false, 'message' => '購入処理に失敗しました。時間をおいて再度お試しください。'];
@@ -141,6 +146,7 @@ class KisekiShopController extends Controller
                 'message' => $result['message'],
                 'kiseki' => (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0),
                 'money' => (int) ($character->money ?? 0),
+                'bank_gold' => (int) ($character->bank_gold ?? 0),
                 'support_items' => $supportService->ownedConsumablesFor($character),
             ], $result['success'] ? 200 : 422);
         }

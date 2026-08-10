@@ -15,6 +15,24 @@
                 <div class="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-600"><span>装備本体査定<br><span class="text-sm text-slate-800">{{ number_format($listing->body_appraisal_price) }}G</span></span><span>個体特性査定<br><span class="text-sm text-slate-800">{{ number_format($listing->trait_appraisal_price) }}G</span></span><span class="col-span-2 border-t border-slate-200 pt-2">この出品は査定額の{{ number_format($listing->appraisalRatioPercent(), 1) }}%で設定されています。</span></div>
             @endif
             @if(session('error'))<div class="mt-4 rounded bg-red-50 p-3 text-sm font-bold text-red-700">{{ session('error') }}</div>@endif
-            @if($listing->status === 'active' && $listing->expires_at->isFuture() && (int)$listing->seller_character_id !== (int)$character->id)<form method="POST" action="{{ route('equipment-market.buy', $listing) }}" class="mt-4" onsubmit="return confirm('表示価格のGoldを支払って購入します。購入後72時間は再出品できません。')">@csrf<button class="w-full rounded-md bg-violet-600 px-4 py-3 text-sm font-black text-white hover:bg-violet-700">{{ number_format($listing->listing_price) }}Gで購入する</button></form>@elseif((int)$listing->seller_character_id === (int)$character->id)<p class="mt-4 text-center text-sm font-black text-slate-500">自分の出品です。</p>@else<p class="mt-4 text-center text-sm font-black text-slate-500">この出品は購入できません。</p>@endif
+            @if($listing->status === 'active' && $listing->expires_at->isFuture() && (int)$listing->seller_character_id !== (int)$character->id)
+                <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-600">
+                    手持ち {{ number_format((int) $paymentSummary['hand_gold']) }}G ／ 銀行 {{ number_format((int) $paymentSummary['bank_gold']) }}G
+                    @if($paymentSummary['requires_bank'])
+                        <div class="mt-1 text-amber-700">支払い内訳：手持ち {{ number_format((int) $paymentSummary['hand_gold_used']) }}G・銀行 {{ number_format((int) $paymentSummary['bank_gold_used']) }}G</div>
+                    @endif
+                </div>
+                <form method="POST" action="{{ route('equipment-market.buy', $listing) }}" class="mt-3" onsubmit="return confirm(@js($paymentSummary['requires_bank'] ? '表示価格のGoldを支払います。手持ち' . number_format((int) $paymentSummary['hand_gold_used']) . 'G・銀行' . number_format((int) $paymentSummary['bank_gold_used']) . 'Gを使用します。購入後72時間は再出品できません。' : '表示価格のGoldを支払って購入します。購入後72時間は再出品できません。'))">
+                    @csrf
+                    <input type="hidden" name="use_bank" value="{{ $paymentSummary['requires_bank'] ? 1 : 0 }}">
+                    <button @disabled(!$paymentSummary['can_pay']) class="w-full rounded-md bg-violet-600 px-4 py-3 text-sm font-black text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-400">
+                        {{ $paymentSummary['can_pay'] ? number_format($listing->listing_price) . 'Gで購入する' : 'Goldが不足しています' }}
+                    </button>
+                </form>
+            @elseif((int)$listing->seller_character_id === (int)$character->id)
+                <p class="mt-4 text-center text-sm font-black text-slate-500">自分の出品です。</p>
+            @else
+                <p class="mt-4 text-center text-sm font-black text-slate-500">この出品は購入できません。</p>
+            @endif
         </article></div>
 </x-layouts.facility>

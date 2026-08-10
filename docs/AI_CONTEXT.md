@@ -29,7 +29,7 @@ X = deprecated/removed
 - App: Laravel 11 (PHP) + Livewire v3 + Blade + Alpine.js
 - Styling: Tailwind CSS
 - DB: MySQL (production on Xserver)
-- Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる
+- Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる。トップページでは、β版の冒険データを正式版へ引き継ぐ方針を明記する
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)。ゲストは購入不可で、Google連携またはメールアドレス・パスワード登録済みアカウントだけが購入できる
 - Tests: PHPUnit via `php artisan test`
 - Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージングの初回リリースと公開確認（`/` 200、未ログイン `/home` 302）は成功済み。本番SSHリリースは未実行。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
@@ -40,6 +40,7 @@ X = deprecated/removed
 Core loop: login → explore/battle → EXP·Gold → level up → equip → job change → unlock next city → climb rankings.
 Level cap: Lv255. Player-facing stat labels: HP / SP / 攻撃 / 防御 / 魔力 / 精神 / 敏捷 / 運 (old internal names like mp/str/agi and ATK/DEF/MAG/SPR/SPD/LUK remain internal only).
 Primary currencies: Gold (in-game), 輝石 (paid/support currency).
+Gold支払い対応施設では手持ちを先に使い、不足分だけ確認付きで銀行預金から支払う。対象は装備屋、素材交換所、装備強化・進化合成・銘/特攻/耐性加工、素材/装備市場、素材倉庫Gold拡張、薬屋、地図院遠征調査、探索地図/追加ダンジョン入場、星灯の行商人。
 Main player entities: character (1 per user), jobs (rank ★1-10), equipment (with 銘 affixes), materials, valmon (companion), monster marks, arena rankings, tavern NPCs.
 World: 10 cities (アークレア→…→ヴァルゼリア城), 40+ dungeons (area 1-70 normal, 71-74 special, 75-83 街道).
 

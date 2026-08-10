@@ -26,9 +26,17 @@
                 <h2 class="font-black text-slate-900">入場料</h2>
                 <div class="mt-3 space-y-1 text-sm font-bold text-slate-700">
                     @foreach($payload['entry']['materials'] as $material)<div class="flex justify-between"><span>{{ $material['name'] }} ×{{ $material['required'] }}</span><span class="{{ $material['shortage'] ? 'text-red-600' : 'text-emerald-700' }}">所持 {{ $material['owned'] }}</span></div>@endforeach
-                    <div class="flex justify-between border-t pt-2"><span>{{ number_format($payload['entry']['gold']) }}G</span><span class="{{ $payload['entry']['gold_shortage'] ? 'text-red-600' : 'text-emerald-700' }}">所持 {{ number_format($payload['entry']['gold_owned']) }}G</span></div>
+                    <div class="flex justify-between border-t pt-2"><span>{{ number_format($payload['entry']['gold']) }}G</span><span class="{{ $payload['entry']['gold_shortage'] ? 'text-red-600' : 'text-emerald-700' }}">手持ち {{ number_format($payload['entry']['hand_gold']) }}G・銀行 {{ number_format($payload['entry']['bank_gold']) }}G</span></div>
+                    @if($payload['entry']['requires_bank'])
+                        <div class="flex justify-between text-xs text-amber-700"><span>銀行利用時の内訳</span><span>手持ち {{ number_format($payload['entry']['hand_gold_used']) }}G・銀行 {{ number_format($payload['entry']['bank_gold_used']) }}G</span></div>
+                    @endif
                 </div>
-                <form class="mt-4" method="POST" action="{{ route('region-depth-dungeons.enter', ['dungeonKey' => $dungeonKey]) }}">@csrf<button class="w-full rounded-lg bg-orange-600 px-4 py-3 text-sm font-black text-white">{{ $definition['name'] }}へ入場する</button></form>
+                @php($entryCanPay = !$payload['entry']['gold_shortage'] && !collect($payload['entry']['materials'])->contains(fn (array $material) => $material['shortage'] > 0))
+                <form class="mt-4" method="POST" action="{{ route('region-depth-dungeons.enter', ['dungeonKey' => $dungeonKey]) }}" @if($payload['entry']['requires_bank']) onsubmit="return confirm(@js('入場料を手持ち' . number_format($payload['entry']['hand_gold_used']) . 'G・銀行' . number_format($payload['entry']['bank_gold_used']) . 'Gで支払います。'))" @endif>
+                    @csrf
+                    <input type="hidden" name="use_bank" value="{{ $payload['entry']['requires_bank'] ? 1 : 0 }}">
+                    <button @disabled(!$entryCanPay) class="w-full rounded-lg bg-orange-600 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-400">{{ $entryCanPay ? $definition['name'] . 'へ入場する' : '入場料が不足しています' }}</button>
+                </form>
             </section>
         @endif
 

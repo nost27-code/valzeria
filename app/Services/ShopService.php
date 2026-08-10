@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Schema;
 
 class ShopService
 {
+    public function __construct(private readonly BankService $bankService)
+    {
+    }
+
     /**
      * ショップでの実購入価格を返す。
      */
@@ -57,7 +61,7 @@ class ShopService
             return ['success' => false, 'message' => 'この装備は価格が設定されていないため購入できません。'];
         }
 
-        if ((int) ($character->money ?? 0) < $price) {
+        if ($this->bankService->summary($character)['total_gold'] < $price) {
             return ['success' => false, 'message' => 'Goldが不足しています。'];
         }
 
@@ -67,60 +71,70 @@ class ShopService
     /**
      * 購入処理を実行する
      */
-    public function buy(Character $character, Item $item, int $quantity = 1): array
+    public function buy(Character $character, Item $item, int $quantity = 1, bool $useBank = false): array
     {
         $quantity = max(1, $item->type === 'consumable' ? min(99, $quantity) : 1);
-        $canBuy = $this->canBuy($character, $item, $quantity);
-        if (!$canBuy['success']) {
-            return $canBuy;
-        }
 
         try {
-            DB::beginTransaction();
+            $result = DB::transaction(function () use ($character, $item, $quantity, $useBank): array {
+                $lockedCharacter = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+                $canBuy = $this->canBuy($lockedCharacter, $item, $quantity);
+                if (!$canBuy['success']) {
+                    return $canBuy;
+                }
 
-            $unitPrice = $this->priceFor($character, $item);
-            $totalPrice = $unitPrice * $quantity;
-            app(GoldService::class)->spend(
-                $character,
-                $totalPrice,
-                'shop_equipment_purchase',
-                "{$item->name} を装備屋で購入",
-                Item::class,
-                (int) $item->id,
-                [
-                    'item_id' => (int) $item->id,
-                    'item_name' => $item->name,
+                $unitPrice = $this->priceFor($lockedCharacter, $item);
+                $totalPrice = $unitPrice * $quantity;
+                $payment = $this->bankService->spendForPayment(
+                    $lockedCharacter,
+                    $totalPrice,
+                    $useBank,
+                    'shop_equipment_purchase',
+                    "{$item->name} を装備屋で購入",
+                    Item::class,
+                    (int) $item->id,
+                    [
+                        'item_id' => (int) $item->id,
+                        'item_name' => $item->name,
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                        'city_id' => (int) ($lockedCharacter->current_city_id ?? 0),
+                    ]
+                );
+
+                $characterItem = null;
+                for ($i = 0; $i < $quantity; $i++) {
+                    $characterItem = CharacterItem::create([
+                        'character_id' => $lockedCharacter->id,
+                        'item_id' => $item->id,
+                        'is_equipped' => false,
+                        'acquired_from' => 'shop',
+                    ]);
+                }
+
+                $message = $quantity > 1
+                    ? "{$item->name}を{$quantity}個購入しました。（" . number_format($totalPrice) . 'G）'
+                    : "{$item->name}を購入しました。（" . number_format($totalPrice) . 'G）';
+                if ($payment['bank_gold_used'] > 0) {
+                    $message .= '（手持ち' . number_format($payment['hand_gold_used'])
+                        . 'G・銀行' . number_format($payment['bank_gold_used']) . 'G）';
+                }
+
+                return [
+                    'success' => true,
+                    'message' => $message,
+                    'character_item_id' => $characterItem->id,
+                    'item_type' => $item->type,
                     'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'city_id' => (int) ($character->current_city_id ?? 0),
-                ]
-            );
+                ];
+            }, 3);
 
-            $characterItem = null;
-            for ($i = 0; $i < $quantity; $i++) {
-                $characterItem = CharacterItem::create([
-                    'character_id' => $character->id,
-                    'item_id' => $item->id,
-                    'is_equipped' => false,
-                    'acquired_from' => 'shop',
-                ]);
-            }
+            $character->refresh();
 
-            DB::commit();
-
-            $message = $quantity > 1
-                ? "{$item->name}を{$quantity}個購入しました。（" . number_format($totalPrice) . 'G）'
-                : "{$item->name}を購入しました。（" . number_format($totalPrice) . 'G）';
-
-            return [
-                'success' => true,
-                'message' => $message,
-                'character_item_id' => $characterItem->id,
-                'item_type' => $item->type,
-                'quantity' => $quantity,
-            ];
+            return $result;
+        } catch (\RuntimeException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
         } catch (\Exception $e) {
-            DB::rollBack();
             return ['success' => false, 'message' => '購入処理に失敗しました。'];
         }
     }

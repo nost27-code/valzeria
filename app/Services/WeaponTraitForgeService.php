@@ -49,7 +49,13 @@ class WeaponTraitForgeService
     /**
      * @return array{message: string, base_character_item_id: int, gold_cost: int}
      */
-    public function forge(Character $character, string $operation, int $baseCharacterItemId, int $materialCharacterItemId): array
+    public function forge(
+        Character $character,
+        string $operation,
+        int $baseCharacterItemId,
+        int $materialCharacterItemId,
+        bool $useBank = false
+    ): array
     {
         $this->assertOperation($operation);
 
@@ -57,7 +63,7 @@ class WeaponTraitForgeService
             throw new RuntimeException('同じ装備をベースと素材に選択できません。');
         }
 
-        return DB::transaction(function () use ($character, $operation, $baseCharacterItemId, $materialCharacterItemId) {
+        return DB::transaction(function () use ($character, $operation, $baseCharacterItemId, $materialCharacterItemId, $useBank) {
             $lockedCharacter = Character::query()->lockForUpdate()->find($character->id);
             if (!$lockedCharacter) {
                 throw new RuntimeException('冒険者情報が見つかりません。');
@@ -82,9 +88,10 @@ class WeaponTraitForgeService
             $beforeSnapshot = $this->snapshot($base);
             $materialSnapshot = $this->snapshot($material);
 
-            $this->goldService->spend(
+            $payment = app(BankService::class)->spendForPayment(
                 $lockedCharacter,
                 $result['gold_cost'],
+                $useBank,
                 'weapon_trait_forge',
                 $this->operationLabel($operation, $base) . '：' . $base->displayName(),
                 WeaponTraitOperationLog::class,
@@ -144,6 +151,9 @@ class WeaponTraitForgeService
                     . $base->displayName() . 'になった。 '
                     . $materialSnapshot['display_name'] . 'を素材として消費し、'
                     . number_format($result['gold_cost']) . 'Gを支払った。'
+                    . ($payment['bank_gold_used'] > 0
+                        ? '（手持ち' . number_format($payment['hand_gold_used']) . 'G・銀行' . number_format($payment['bank_gold_used']) . 'G）'
+                        : '')
                     . ($qualityUpgrade === 'good' ? ' 良品に仕上がった！' : ($qualityUpgrade === 'excellent' ? ' 逸品に仕上がった！' : '')),
                 'base_character_item_id' => (int) $base->id,
                 'gold_cost' => $result['gold_cost'],

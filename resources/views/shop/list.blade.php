@@ -32,13 +32,17 @@
                     buyQuantity: 1,
                     buyMaxQuantity: 1,
                     buyIsConsumable: false,
+                    buyPrice: 0,
+                    handGold: {{ (int) ($character->money ?? 0) }},
+                    bankGold: {{ (int) ($character->bank_gold ?? 0) }},
                     selectedSubtype: 'all',
                     isStarterSupply: @js($isStarterSupply ?? false),
                     equipPromptModal: @js((bool) $equipPrompt),
-                    openBuyModal(name, formId, isConsumable = false, maxQuantity = 1) {
+                    openBuyModal(name, formId, isConsumable = false, maxQuantity = 1, price = 0) {
                         this.buyItemName = name;
                         this.buyFormId = formId;
                         this.buyIsConsumable = isConsumable;
+                        this.buyPrice = Math.max(0, Number(price || 0));
                         this.buyMaxQuantity = Math.max(1, Number(maxQuantity || 1));
                         this.buyQuantity = 1;
                         this.buyModal = true;
@@ -49,10 +53,18 @@
                     decreaseBuyQuantity() {
                         this.buyQuantity = Math.max(1, this.buyQuantity - 1);
                     },
+                    handPaymentFor(amount) {
+                        return Math.min(this.handGold, Math.max(0, amount));
+                    },
+                    bankPaymentFor(amount) {
+                        return Math.max(0, Math.max(0, amount) - this.handPaymentFor(amount));
+                    },
                     confirmBuy() {
                         const form = document.getElementById(this.buyFormId);
                         const quantityInput = form ? form.querySelector('[name=quantity]') : null;
+                        const bankInput = form ? form.querySelector('[name=use_bank]') : null;
                         if (quantityInput) quantityInput.value = this.buyQuantity;
+                        if (bankInput) bankInput.value = this.bankPaymentFor(this.buyPrice * this.buyQuantity) > 0 ? '1' : '0';
                         if (form) form.submit();
                         this.buyModal = false;
                     }
@@ -66,10 +78,16 @@
                             Gランクの武器・防具を無料で受け取れます。所持していない装備のみ、同じ装備は1日1個までです。
                         @endif
                     </p>
+                    @if($type !== 'consumable')
+                        <p class="mt-2 text-xs font-bold text-slate-500">
+                            手持ち {{ number_format((int) ($character->money ?? 0)) }}G /
+                            銀行 {{ number_format((int) ($character->bank_gold ?? 0)) }}G
+                        </p>
+                    @endif
                 </div>
 
                 @if(session('status'))
-                    <div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded mb-4">
+                    <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded mb-4 font-bold">
                         {{ session('status') }}
                     </div>
                 @endif
@@ -406,7 +424,8 @@
                                     // レベル制限撤廃により常に購入可能にする
                                     $levelOk = true;
                                     $maxBuyQuantity = 1;
-                                    $goldOk = !$character || (int) ($character->money ?? 0) >= $displayPrice;
+                                    $goldOk = !$character
+                                        || ((int) ($character->money ?? 0) + (int) ($character->bank_gold ?? 0)) >= $displayPrice;
                                 @endphp
 
                                 @if(!$levelOk)
@@ -416,11 +435,12 @@
                                 @else
                                     <form action="{{ route('shop.buy', $item) }}" method="POST" id="buyForm_{{ $item->id }}">
                                         @csrf
+                                        <input type="hidden" name="use_bank" value="0">
                                         @if($type === 'consumable')
                                             <input type="hidden" name="quantity" value="1">
                                         @endif
                                         <button type="button"
-                                                @click="openBuyModal(@js($item->name), 'buyForm_{{ $item->id }}', @js($type === 'consumable'), @js($maxBuyQuantity))"
+                                                @click="openBuyModal(@js($item->name), 'buyForm_{{ $item->id }}', @js($type === 'consumable'), @js($maxBuyQuantity), {{ (int) $displayPrice }})"
                                                 class="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 font-bold shadow-sm">
                                             {{ $type === 'consumable' ? '受け取る' : '購入する' }}
                                         </button>
@@ -460,6 +480,14 @@
                         <p class="text-slate-600 text-sm mt-2 mb-2">
                             <span class="font-bold text-slate-800" x-text="buyItemName"></span><span x-text="buyIsConsumable ? 'を受け取ります。' : 'を購入します。'"></span>
                         </p>
+                        <div x-show="!buyIsConsumable" class="my-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
+                            <div>費用 <span class="font-mono text-amber-700" x-text="(buyPrice * buyQuantity).toLocaleString()"></span>G</div>
+                            <div x-show="bankPaymentFor(buyPrice * buyQuantity) > 0" class="mt-2 border-t border-slate-200 pt-2 text-xs">
+                                <div>手持ちから <span class="font-mono" x-text="handPaymentFor(buyPrice * buyQuantity).toLocaleString()"></span>G</div>
+                                <div class="mt-1">銀行預金から <span class="font-mono text-amber-700" x-text="bankPaymentFor(buyPrice * buyQuantity).toLocaleString()"></span>G</div>
+                                <div class="mt-2 text-amber-800">不足分だけ銀行預金から支払います。</div>
+                            </div>
+                        </div>
                         <div x-show="buyIsConsumable" class="my-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <span class="text-sm font-bold text-slate-700">受け取り数</span>

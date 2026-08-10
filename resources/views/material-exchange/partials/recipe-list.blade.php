@@ -28,7 +28,9 @@
             @endphp
             <div
                 data-recipe-card
+                data-recipe-id="{{ $recipeId }}"
                 data-recipe-type="{{ $recipe['type'] }}"
+                data-gold-cost="{{ $goldCost }}"
                 data-search-text="{{ e($searchText) }}"
                 x-show="(typeFilter === 'all' || typeFilter === '{{ $recipe['type'] }}') && (!searchTerm.trim() || $el.dataset.searchText.toLowerCase().includes(searchTerm.trim().toLowerCase())) && (!keywordFilter || $el.dataset.searchText.includes(keywordFilter))"
                 class="rounded-lg border {{ $cardClass }} px-3 py-2.5 flex flex-col gap-2"

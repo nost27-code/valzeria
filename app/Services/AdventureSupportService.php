@@ -120,7 +120,7 @@ class AdventureSupportService
             ->all();
     }
 
-    public function purchase(Character $character, string $itemKey): array
+    public function purchase(Character $character, string $itemKey, bool $bankConfirmed = false): array
     {
         $items = config('adventure_support.items', []);
         if (!isset($items[$itemKey])) {
@@ -129,7 +129,7 @@ class AdventureSupportService
 
         $item = app(AdventureSupportItemControlService::class)->effectiveItem($itemKey, $items[$itemKey]);
 
-        return DB::transaction(function () use ($character, $itemKey, $item) {
+        return DB::transaction(function () use ($character, $itemKey, $item, $bankConfirmed) {
             $lockedCharacter = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
             $availability = $this->availability($lockedCharacter, $itemKey, $item, true);
             if (!$availability['can_purchase']) {
@@ -138,7 +138,7 @@ class AdventureSupportService
 
             $currency = $this->currency($item);
             $spent = $currency === 'gold'
-                ? $this->spendGold($lockedCharacter, (int) $item['price'], $itemKey, (string) $item['name'])
+                ? $this->spendGold($lockedCharacter, (int) $item['price'], $itemKey, (string) $item['name'], $bankConfirmed)
                 : $this->spendKiseki($lockedCharacter, (int) $item['price']);
             $message = $this->applyPurchaseEffect($lockedCharacter, $itemKey, $item);
 
@@ -165,7 +165,11 @@ class AdventureSupportService
                 ]);
             }
 
-            return ['success' => true, 'message' => $message];
+            if ($currency === 'gold' && ($spent['bank_gold_used'] ?? 0) > 0) {
+                $message .= '（手持ち' . number_format((int) $spent['hand_gold_used']) . 'G・銀行' . number_format((int) $spent['bank_gold_used']) . 'G）';
+            }
+
+            return ['success' => true, 'message' => $message, 'payment' => $currency === 'gold' ? $spent : null];
         });
     }
 
@@ -489,26 +493,28 @@ class AdventureSupportService
         return ['free_spent' => $freeSpent, 'paid_spent' => $paidSpent];
     }
 
-    private function spendGold(Character $character, int $amount, string $itemKey, string $itemName): array
+    private function spendGold(Character $character, int $amount, string $itemKey, string $itemName, bool $bankConfirmed): array
     {
-        app(GoldService::class)->spend(
+        return app(BankService::class)->spendForPayment(
             $character,
             $amount,
+            $bankConfirmed,
             'adventure_support_purchase',
             "{$itemName}購入（{$itemKey}）",
             self::class,
             null,
             ['item_key' => $itemKey]
         );
-
-        return ['gold_spent' => $amount];
     }
 
     private function availability(Character $character, string $key, array $item, bool $locked = false): array
     {
         $currency = $this->currency($item);
+        $payment = $currency === 'gold'
+            ? app(BankService::class)->paymentSummary($character, (int) $item['price'])
+            : null;
         $total = $currency === 'gold'
-            ? (int) ($character->money ?? 0)
+            ? (int) $payment['total_gold']
             : (int) ($character->free_kiseki ?? 0) + (int) ($character->paid_kiseki ?? 0);
         $purchasedCount = $this->purchasedCount($character, $key, null, $locked);
         $dailyPurchasedCount = $this->purchasedCount($character, $key, today('Asia/Tokyo')->toDateString(), $locked);
@@ -546,6 +552,7 @@ class AdventureSupportService
             'disabled_reason' => $disabledReason,
             'purchased_count' => $purchasedCount,
             'daily_purchased_count' => $dailyPurchasedCount,
+            'payment' => $payment,
             'used_today' => $this->usedToday($character, $key, $locked),
             'support_pass' => ($item['effect_type'] ?? null) === SupportPassService::PASS_TYPE
                 ? app(SupportPassService::class)->statusForCharacter($character)

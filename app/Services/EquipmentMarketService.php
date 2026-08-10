@@ -15,6 +15,7 @@ class EquipmentMarketService
     public function __construct(
         private readonly EquipmentMarketAppraisalService $appraisalService,
         private readonly GoldService $goldService,
+        private readonly BankService $bankService,
         private readonly StorageCapacityService $storageCapacityService,
         private readonly CharacterNotificationService $notificationService,
         private readonly PlayerShopService $shopService,
@@ -75,9 +76,9 @@ class EquipmentMarketService
         return $this->listEquipment($seller, $characterItem, $listingPrice);
     }
 
-    public function buyEquipment(Character $buyer, EquipmentMarketListing $listing): EquipmentMarketTransaction
+    public function buyEquipment(Character $buyer, EquipmentMarketListing $listing, bool $bankConfirmed = false): EquipmentMarketTransaction
     {
-        return DB::transaction(function () use ($buyer, $listing) {
+        return DB::transaction(function () use ($buyer, $listing, $bankConfirmed) {
             $listing = EquipmentMarketListing::query()->with('shop')->lockForUpdate()->findOrFail($listing->id);
             if ($listing->status !== 'active' || ($this->shopService->isEnabled() && ! $listing->shop?->isOpen())) throw new RuntimeException('この出品は購入できません。');
             if ($listing->expires_at->isPast()) {
@@ -94,12 +95,10 @@ class EquipmentMarketService
             $seller = $characters->get((int) $listing->seller_character_id) ?? throw new RuntimeException('出品者が見つかりません。');
             $this->assertListingItemValid($listing, $item, $seller);
             $this->storageCapacityService->assertCanReceiveEquipment($buyer, 1);
-            if ((int) $buyer->money < (int) $listing->listing_price) throw new RuntimeException('Goldが不足しています。');
-
             $salePrice = (int) $listing->listing_price;
             $fee = $this->appraisalService->fee($salePrice, (int) $listing->fee_rate_bps);
             $proceeds = $salePrice - $fee;
-            $this->goldService->spend($buyer, $salePrice, 'equipment_market_purchase', '装備市場で装備を購入', EquipmentMarketListing::class, $listing->id, ['character_item_id' => $item->id]);
+            $this->bankService->spendForPayment($buyer, $salePrice, $bankConfirmed, 'equipment_market_purchase', '装備市場で装備を購入', EquipmentMarketListing::class, $listing->id, ['character_item_id' => $item->id]);
             $this->goldService->add($seller, $proceeds, 'equipment_market_sale', '装備市場で装備を売却', EquipmentMarketListing::class, $listing->id, ['gross_price' => $salePrice, 'fee_amount' => $fee, 'net_proceeds' => $proceeds]);
 
             $item->update([
@@ -120,9 +119,9 @@ class EquipmentMarketService
         });
     }
 
-    public function buyWeapon(Character $buyer, EquipmentMarketListing $listing): EquipmentMarketTransaction
+    public function buyWeapon(Character $buyer, EquipmentMarketListing $listing, bool $bankConfirmed = false): EquipmentMarketTransaction
     {
-        return $this->buyEquipment($buyer, $listing);
+        return $this->buyEquipment($buyer, $listing, $bankConfirmed);
     }
 
     public function cancelListing(Character $seller, EquipmentMarketListing $listing): void

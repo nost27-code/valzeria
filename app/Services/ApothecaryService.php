@@ -74,7 +74,8 @@ class ApothecaryService
                 $materialValue += $quantity * max(0, (int) ($material?->npc_sale_price ?? 0));
             }
             $fee = (int) (ceil(($materialValue * $definition['fee_rate']) / 10) * 10);
-            $max = min($max === PHP_INT_MAX ? 0 : $max, intdiv(max(0, (int) $character->money), max(1, $fee)));
+            $totalGold = app(BankService::class)->summary($character)['total_gold'];
+            $max = min($max === PHP_INT_MAX ? 0 : $max, intdiv($totalGold, max(1, $fee)));
             $unlocked = $this->isRecipeUnlocked($character, $definition);
             $outputQuantity = $this->outputQuantity($definition);
             $item = $items->get($definition['item']);
@@ -90,7 +91,7 @@ class ApothecaryService
         })->values()->all();
     }
 
-    public function craft(Character $character, string $code, int $count): array
+    public function craft(Character $character, string $code, int $count, bool $bankConfirmed = false): array
     {
         $definition = self::RECIPES[$code] ?? null;
         if (!$definition) throw new RuntimeException('調合できない品です。');
@@ -98,7 +99,7 @@ class ApothecaryService
         if (!$this->isRecipeUnlocked($character, $definition)) throw new RuntimeException('この調合はまだ解放されていません。');
         $outputQuantity = $this->outputQuantity($definition);
 
-        return DB::transaction(function () use ($character, $definition, $count, $code, $outputQuantity): array {
+        return DB::transaction(function () use ($character, $definition, $count, $code, $outputQuantity, $bankConfirmed): array {
             $lockedCharacter = Character::query()
                 ->whereKey($character->id)
                 ->lockForUpdate()
@@ -113,16 +114,17 @@ class ApothecaryService
                 $value += $quantity * max(0, (int) $material->npc_sale_price);
             }
             $fee = (int) (ceil(($value * $definition['fee_rate']) / 10) * 10) * $count;
-            if ((int) $lockedCharacter->money < $fee) throw new RuntimeException('Goldが足りません。');
             foreach ($definition['materials'] as $name => $quantity) {
                 $row = $rows[$materials[$name]->id]; $rest = (int) $row->quantity - ($quantity * $count);
                 $rest > 0 ? $row->forceFill(['quantity' => $rest])->save() : $row->delete();
             }
-            if ($fee > 0) app(GoldService::class)->spend($lockedCharacter, $fee, 'apothecary_craft', '薬屋で探索補助品を調合', Recipe::class, null, ['recipe_code' => $code, 'count' => $count]);
+            $payment = $fee > 0
+                ? app(BankService::class)->spendForPayment($lockedCharacter, $fee, $bankConfirmed, 'apothecary_craft', '薬屋で探索補助品を調合', Recipe::class, null, ['recipe_code' => $code, 'count' => $count])
+                : null;
             $item = Item::where('name', $definition['item'])->where('type', 'consumable')->firstOrFail();
             $craftedQuantity = $count * $outputQuantity;
             for ($i = 0; $i < $craftedQuantity; $i++) CharacterItem::create(['character_id' => $lockedCharacter->id, 'item_id' => $item->id, 'is_equipped' => false, 'is_locked' => false]);
-            return ['name' => $item->name, 'quantity' => $craftedQuantity, 'fee' => $fee];
+            return ['name' => $item->name, 'quantity' => $craftedQuantity, 'fee' => $fee, 'payment' => $payment];
         });
     }
 

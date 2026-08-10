@@ -28,8 +28,11 @@
 
     {{-- Gold残高 --}}
     <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-        <div class="text-[10px] font-bold text-amber-700 leading-none">所持Gold</div>
-        <div class="mt-0.5 text-xl font-black text-amber-900 tabular-nums leading-none">{{ number_format((int) ($character->money ?? 0)) }}G</div>
+        <div class="text-[10px] font-bold text-amber-700 leading-none">Gold残高</div>
+        <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm font-black text-amber-900 tabular-nums">
+            <span>手持ち {{ number_format((int) ($character->money ?? 0)) }}G</span>
+            <span>銀行 {{ number_format((int) ($character->bank_gold ?? 0)) }}G</span>
+        </div>
     </div>
 
     {{-- 方針 --}}
@@ -232,7 +235,7 @@
 
     <div class="mt-5 space-y-0.5 text-[10px] font-bold leading-relaxed text-slate-400">
         <p>・輝石消費は無償輝石が優先され、不足分のみ有償輝石から消費されます。</p>
-        <p>・Gold商品の購入では所持Goldを消費します。</p>
+        <p>・Gold商品は手持ちから優先して支払い、不足分だけ確認後に銀行預金から支払います。</p>
         <p>・冒険者補給箱を購入しても、探索へ持ち込める薬草・回復薬・魔力水は各10個までです。</p>
         <p>・緊急救助要請は初期実装では、全滅時に所持していれば自動使用されます。</p>
     </div>
@@ -267,6 +270,10 @@
                 </template>
                 <span class="text-red-600" x-text="Number(confirming?.price ?? 0).toLocaleString() + (confirming?.currency_suffix ?? '')"></span>
             </div>
+            <div x-show="confirming?.currency === 'gold' && confirming?.payment?.requires_bank" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                <div>手持ちから <span x-text="Number(confirming?.payment?.hand_gold_used ?? 0).toLocaleString()"></span>G</div>
+                <div>銀行預金から <span x-text="Number(confirming?.payment?.bank_gold_used ?? 0).toLocaleString()"></span>G</div>
+            </div>
             <div class="mt-4 grid grid-cols-2 gap-3">
                 <button type="button" @click="confirming = null" class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 hover:bg-slate-50 transition">
                     キャンセル
@@ -274,6 +281,7 @@
                 <form method="POST" action="{{ route('kiseki.support.purchase') }}" @submit="if (submitting) { $event.preventDefault(); return; } submitting = true">
                     @csrf
                     <input type="hidden" name="item_key" :value="confirming?.key">
+                    <input type="hidden" name="use_bank" :value="confirming?.payment?.requires_bank ? '1' : '0'">
                     <button type="submit" :disabled="submitting" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-wait disabled:opacity-60">
                         <x-loading-spinner x-show="submitting" style="display: none;" />
                         <span x-show="!submitting" x-text="confirming?.purchase_label ?? '購入する'">購入する</span>

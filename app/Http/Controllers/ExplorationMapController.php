@@ -59,6 +59,7 @@ class ExplorationMapController extends Controller
             'activePublicationCount' => $publicationService->activePublicationCount($character),
             'activePublicationLimit' => $publicationService->activePublicationLimit(),
             'mapDetails' => $mapDetails,
+            'bankSummary' => app(\App\Services\BankService::class)->summary($character),
         ]);
     }
     public function published()
@@ -128,6 +129,7 @@ class ExplorationMapController extends Controller
             'activeRegistrationId' => (int) ($activeRegistration?->id ?? 0),
             'sort' => $sort,
             'sortOptions' => $sortOptions,
+            'bankSummary' => app(\App\Services\BankService::class)->summary($character),
         ]);
     }
     public function leave()
@@ -152,12 +154,13 @@ class ExplorationMapController extends Controller
             'mapDetails' => app(ExplorationMapDisplayService::class)->details($registration->map),
             'activePublicationCount' => $publicationService->activePublicationCount($character),
             'activePublicationLimit' => $publicationService->activePublicationLimit(),
+            'bankSummary' => app(\App\Services\BankService::class)->summary($character),
         ]);
     }
     public function startSurvey(Request $request, ExplorationMap $map)
     {
-        $request->validate(['town_id' => ['required', 'integer', 'exists:cities,id']]);
-        try { $registration = app(MapSurveyService::class)->start($this->character(), $map, City::findOrFail($request->integer('town_id'))); return redirect()->route('exploration-maps.show', $registration)->with('message', '地図院の調査が完了した。公開の準備をしよう。'); }
+        $request->validate(['town_id' => ['required', 'integer', 'exists:cities,id'], 'use_bank' => ['nullable', 'boolean']]);
+        try { $registration = app(MapSurveyService::class)->start($this->character(), $map, City::findOrFail($request->integer('town_id')), $request->boolean('use_bank')); return redirect()->route('exploration-maps.show', $registration)->with('message', '地図院の調査が完了した。公開の準備をしよう。'); }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
     }
     public function completeSurvey(TownMapRegistration $registration)
@@ -209,7 +212,7 @@ class ExplorationMapController extends Controller
     }
     public function explore(Request $request, TownMapRegistration $registration)
     {
-        $request->validate(['count' => ['required', 'integer', 'min:1', 'max:10'], 'request_uuid' => ['nullable', 'uuid']]);
+        $request->validate(['count' => ['required', 'integer', 'min:1', 'max:10'], 'request_uuid' => ['nullable', 'uuid'], 'use_bank' => ['nullable', 'boolean']]);
         try {
             $character = $this->character();
             $service = app(MapExplorationBatchService::class);
@@ -220,7 +223,7 @@ class ExplorationMapController extends Controller
             }
             $alreadyEntered = (int) ($activeRegistration?->id ?? 0) === (int) $registration->id;
             $execution = DB::transaction(function () use ($character, $registration, $request, $service, $itemService, $alreadyEntered): array {
-                $batch = $service->reserve($character, $registration, $request->integer('count'), $request->input('request_uuid') ?: (string) Str::uuid(), !$alreadyEntered);
+                $batch = $service->reserve($character, $registration, $request->integer('count'), $request->input('request_uuid') ?: (string) Str::uuid(), !$alreadyEntered, $request->boolean('use_bank'));
                 if ((!$alreadyEntered && $batch->wasRecentlyCreated)
                     || ($alreadyEntered && !$itemService->hasEntry($character, (int) $registration->id))) {
                     $itemService->begin($character, $registration);

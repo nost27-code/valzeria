@@ -6,6 +6,7 @@ use App\Models\CharacterItem;
 use App\Models\Area;
 use App\Models\CharacterMaterial;
 use App\Models\Material;
+use App\Services\BankService;
 use App\Services\EquipmentEnhancementService;
 use App\Services\EquipmentEvolutionService;
 use App\Services\WeaponTraitWorkshopService;
@@ -30,8 +31,9 @@ class SmithController extends Controller
         $character = Auth::user()->currentCharacter();
         $currentCity = $character->currentCity;
         $enhancementCandidates = $this->equipmentEnhancementService->candidates($character);
+        $goldSummary = app(BankService::class)->summary($character);
 
-        return view('smith.enhance', compact('character', 'currentCity', 'enhancementCandidates'));
+        return view('smith.enhance', compact('character', 'currentCity', 'enhancementCandidates', 'goldSummary'));
     }
 
     /**
@@ -45,12 +47,19 @@ class SmithController extends Controller
     /**
      * 武器・防具・装飾品をランクごとの上限まで強化する
      */
-    public function enhance(CharacterItem $characterItem)
+    public function enhance(Request $request, CharacterItem $characterItem)
     {
         $character = Auth::user()->currentCharacter();
+        $validated = $request->validate([
+            'use_bank' => 'nullable|boolean',
+        ]);
 
         try {
-            $result = $this->equipmentEnhancementService->enhance($character, $characterItem);
+            $result = $this->equipmentEnhancementService->enhance(
+                $character,
+                $characterItem,
+                (bool) ($validated['use_bank'] ?? false)
+            );
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -68,8 +77,9 @@ class SmithController extends Controller
         $character = Auth::user()->currentCharacter();
         $currentCity = $character->currentCity;
         $evolutionCandidates = $this->equipmentEvolutionService->candidates($character);
+        $goldSummary = app(BankService::class)->summary($character);
 
-        return view('smith.index', compact('character', 'currentCity', 'evolutionCandidates'));
+        return view('smith.index', compact('character', 'currentCity', 'evolutionCandidates', 'goldSummary'));
     }
 
     /**
@@ -90,8 +100,9 @@ class SmithController extends Controller
         $workshopCandidates = $this->weaponTraitWorkshopService->candidates($character);
         $forgeGoldCosts = config('equipment_affix.forge.single_gold_costs', []);
         $dualDiscountRate = (float) config('equipment_affix.forge.dual_discount_rate', 0.80);
+        $goldSummary = app(BankService::class)->summary($character);
 
-        return view('smith.traits', compact('character', 'currentCity', 'workshopCandidates', 'forgeGoldCosts', 'dualDiscountRate'));
+        return view('smith.traits', compact('character', 'currentCity', 'workshopCandidates', 'forgeGoldCosts', 'dualDiscountRate', 'goldSummary'));
     }
 
     /**
@@ -113,6 +124,7 @@ class SmithController extends Controller
             'action' => 'required|in:forge,transfer,dual',
             'base_character_item_id' => 'required|integer',
             'material_character_item_id' => 'required|integer|different:base_character_item_id',
+            'use_bank' => 'nullable|boolean',
         ]);
 
         try {
@@ -122,6 +134,7 @@ class SmithController extends Controller
                 $validated['action'],
                 (int) $validated['base_character_item_id'],
                 (int) $validated['material_character_item_id'],
+                (bool) ($validated['use_bank'] ?? false),
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -224,6 +237,7 @@ class SmithController extends Controller
             'recipe_type' => 'required|in:weapon,armor,accessory',
             'recipe_id' => 'required|string|max:100',
             'source_character_item_id' => 'nullable|integer',
+            'use_bank' => 'nullable|boolean',
         ]);
 
         try {
@@ -231,7 +245,8 @@ class SmithController extends Controller
                 $character,
                 $validated['recipe_type'],
                 $validated['recipe_id'],
-                $validated['source_character_item_id'] ?? null
+                $validated['source_character_item_id'] ?? null,
+                (bool) ($validated['use_bank'] ?? false)
             );
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());

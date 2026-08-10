@@ -99,6 +99,9 @@
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
                         武器は到達強化値ごとの固定素材と固定Goldを使い、防具・装飾品は従来のレシピで、装備ランクごとの上限まで強化します（+5〜+30）。輝石は使用しません。
                     </p>
+                    <p class="mt-2 text-sm font-black text-amber-700">
+                        手持ち {{ number_format((int) ($goldSummary['hand_gold'] ?? 0)) }}G / 銀行 {{ number_format((int) ($goldSummary['bank_gold'] ?? 0)) }}G
+                    </p>
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-start">
                     <a href="{{ route('blacksmith.help') }}" @click.prevent="helpOpen = true" class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100" title="装備強化の解説">
@@ -241,8 +244,17 @@
 
                                 <div class="sm:w-40 shrink-0">
                                     @if($candidate['can_enhance'])
-                                        <form method="POST" action="{{ route('blacksmith.enhance', $candidate['character_item']) }}" onsubmit='return confirm(@js($candidate["name"] . " を +{$nextLevel} に強化しますか？"));'>
+                                        @php
+                                            $enhanceConfirmText = $candidate['name'] . " を +{$nextLevel} に強化しますか？";
+                                            if (($candidate['bank_gold_used'] ?? 0) > 0) {
+                                                $enhanceConfirmText .= "\n\n手持ちから " . number_format((int) ($candidate['hand_gold_used'] ?? 0)) . 'G';
+                                                $enhanceConfirmText .= "\n銀行預金から " . number_format((int) $candidate['bank_gold_used']) . 'G';
+                                                $enhanceConfirmText .= "\n\n不足分だけ銀行預金を使用します。";
+                                            }
+                                        @endphp
+                                        <form method="POST" action="{{ route('blacksmith.enhance', $candidate['character_item']) }}" onsubmit='return confirm(@js($enhanceConfirmText));'>
                                             @csrf
+                                            <input type="hidden" name="use_bank" value="{{ ($candidate['bank_gold_used'] ?? 0) > 0 ? 1 : 0 }}">
                                             <button type="submit" class="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700 active:scale-[0.99]">
                                                 +{{ $nextLevel }}へ強化
                                             </button>
@@ -287,11 +299,16 @@
                                                     </span>
                                                 </div>
                                                 <div class="flex items-center justify-between gap-3 text-sm">
-                                                    <span class="font-bold text-slate-700">所持Gold</span>
+                                                    <span class="font-bold text-slate-700">利用可能Gold</span>
                                                     <span class="font-mono font-bold {{ ($candidate['missing_gold'] ?? 0) === 0 ? 'text-amber-700' : 'text-red-600' }}">
                                                         {{ number_format($candidate['owned_gold'] ?? 0) }}G
                                                     </span>
                                                 </div>
+                                                @if(($candidate['bank_gold_used'] ?? 0) > 0 && ($candidate['missing_gold'] ?? 0) === 0)
+                                                    <p class="text-right text-xs font-bold text-amber-700">
+                                                        手持ちから{{ number_format((int) ($candidate['hand_gold_used'] ?? 0)) }}G / 銀行預金から{{ number_format((int) $candidate['bank_gold_used']) }}G
+                                                    </p>
+                                                @endif
                                                 @if(($candidate['missing_gold'] ?? 0) > 0)
                                                     <p class="text-right text-xs font-bold text-red-600">Goldが{{ number_format($candidate['missing_gold']) }}G不足しています。</p>
                                                 @endif
