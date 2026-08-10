@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-malibu-exclusive-icon-025',
+        'date' => '2026-08-10',
+        'category' => 'internal',
+        'title' => 'マリブ専用の限定キャラアイコンを追加',
+        'detail' => 'マリブさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-10-published-map-detail-fix',
         'date' => '2026-08-10',
         'category' => 'fixed',
