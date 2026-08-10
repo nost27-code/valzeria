@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-10-smartphone-notifications-all-players',
+        'date' => '2026-08-10',
+        'category' => 'changed',
+        'title' => 'スマホ通知をすべての冒険者へ公開',
+        'detail' => 'ホーム画面へ追加したPWAを対応端末から開くと、すべての冒険者がスマホ通知をONにできるようにしました。通知の種類は冒険者ごと、ON・OFFは端末ごとに設定できます。',
+    ],
+    [
         'id' => '2026-08-10-smartphone-notification-settings',
         'date' => '2026-08-10',
         'category' => 'added',
