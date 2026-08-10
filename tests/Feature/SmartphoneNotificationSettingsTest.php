@@ -32,6 +32,9 @@ class SmartphoneNotificationSettingsTest extends TestCase
 
         $this->assertSame(['設定', 'スマホ通知'], $settingsItems->pluck('name')->all());
         $this->assertSame('smartphone-notifications.edit', $settingsItems->last()['route']);
+        $this->assertSame('icon/icon_279.webp', $settingsItems->last()['icon_image']);
+        $this->assertSame('h-6 w-6 object-contain', $settingsItems->last()['icon_image_class']);
+        $this->assertFileExists(public_path('images/icon/icon_279.webp'));
     }
 
     public function test_settings_page_explains_pwa_constraints_and_lists_current_notification_types(): void
@@ -42,13 +45,27 @@ class SmartphoneNotificationSettingsTest extends TestCase
             ->withSession(['current_character_id' => $character->id])
             ->get(route('smartphone-notifications.edit'))
             ->assertOk()
+            ->assertSee('images/icon/icon_279.webp', false)
             ->assertSee('PWA（アプリのように使えるWebサイト）')
+            ->assertSee('data-platform-accordion="iphone-ipad"', false)
+            ->assertSee('data-platform-accordion="android"', false)
             ->assertSee('iOS・iPadOS 16.4以降')
             ->assertSee('探索力がMAXになったとき')
             ->assertSee('闘技場の順位が下がったとき')
             ->assertSee('素材市場で売れたとき')
             ->assertSee('個別メッセージが届いたとき')
+            ->assertDontSee('キャラアイコン作成の連絡</span>', false)
             ->assertSee('ゲーム内の通知ベルにはすべて残ります');
+
+        $options = app(WebPushPreferenceService::class)->options();
+
+        $this->assertArrayNotHasKey('character_icon_design', $options);
+        $this->assertSame([
+            'private_message',
+            'admin_private_message',
+            'character_icon_design_status',
+            'character_icon_design_message',
+        ], $options['private_message']['types']);
     }
 
     public function test_character_can_save_selected_phone_notification_types(): void

@@ -287,7 +287,7 @@
                                             $menuIsInactive = in_array($menuItem['status'] ?? 'active', ['locked', 'coming_soon']);
                                             $menuBorder = $loop->last ? '' : 'border-b border-slate-100';
                                             $menuIconHtml = isset($menuItem['icon_image'])
-                                                ? '<img src="' . asset('images/' . $menuItem['icon_image']) . '" alt="" class="h-full w-full object-contain">'
+                                                ? '<img src="' . asset('images/' . $menuItem['icon_image']) . '" alt="" class="' . e($menuItem['icon_image_class'] ?? 'h-full w-full object-contain') . '">'
                                                 : '<span class="text-xl leading-none">' . ($menuItem['icon'] ?? '•') . '</span>';
                                         @endphp
 

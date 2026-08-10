@@ -793,7 +793,7 @@ class MainScreen extends Component
             ['group' => '案内', 'name' => '不具合報告', 'icon_image' => 'icon/icon_033.webp', 'icon' => '!', 'desc' => '不具合や表示崩れを管理人へ報告する', 'route' => 'bug-reports.create', 'status' => 'active'],
             ...($characterIconDesignItem ? [$characterIconDesignItem] : []),
             ['group' => '設定', 'name' => '設定', 'icon_image' => 'menu/menu_settings.webp', 'icon' => '⚙️', 'desc' => '名前やアイコンなどを変更する', 'tab' => 'settings', 'status' => 'active'],
-            ['group' => '設定', 'name' => 'スマホ通知', 'icon' => '🔔', 'desc' => '端末への通知と受け取る種類を設定する', 'route' => 'smartphone-notifications.edit', 'status' => 'active'],
+            ['group' => '設定', 'name' => 'スマホ通知', 'icon_image' => 'icon/icon_279.webp', 'icon_image_class' => 'h-6 w-6 object-contain', 'icon' => '🔔', 'desc' => '端末への通知と受け取る種類を設定する', 'route' => 'smartphone-notifications.edit', 'status' => 'active'],
         ];
     }
 

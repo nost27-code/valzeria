@@ -1,7 +1,7 @@
 <x-layouts.facility
     title="スマホ通知"
     subtitle="端末への通知と受け取る種類を設定します"
-    headerIcon="🔔"
+    headerIconImage="images/icon/icon_279.webp"
 >
     @php
         $selectedTypes = collect(old('types', $enabledTypes))->map(fn ($type) => (string) $type)->all();
@@ -42,26 +42,40 @@
             </p>
 
             <div class="mt-4 grid gap-3 md:grid-cols-2">
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <h3 class="text-sm font-black text-slate-800">iPhone・iPad</h3>
-                    <ol class="mt-2 list-decimal space-y-1 pl-5 text-xs font-bold leading-relaxed text-slate-600">
-                        <li>iOS・iPadOS 16.4以降でSafariを開く</li>
-                        <li>共有ボタンから「ホーム画面に追加」を選ぶ</li>
-                        <li>表示される場合は「Webアプリとして開く」をONにして追加する</li>
-                        <li>ホーム画面のヴァルゼリアのアイコンから開く</li>
-                        <li>このページの「通知をON」を押し、通知を許可する</li>
-                    </ol>
-                </div>
+                <details data-platform-accordion="iphone-ipad" class="group min-w-0 self-start overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <summary class="flex min-h-12 cursor-pointer select-none list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+                        <h3 class="text-sm font-black text-slate-800">iPhone・iPad</h3>
+                        <svg aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+                        </svg>
+                    </summary>
+                    <div class="border-t border-slate-200 px-3 pb-3">
+                        <ol class="mt-3 list-decimal space-y-1 pl-5 text-xs font-bold leading-relaxed text-slate-600">
+                            <li>iOS・iPadOS 16.4以降でSafariを開く</li>
+                            <li>共有ボタンから「ホーム画面に追加」を選ぶ</li>
+                            <li>表示される場合は「Webアプリとして開く」をONにして追加する</li>
+                            <li>ホーム画面のヴァルゼリアのアイコンから開く</li>
+                            <li>このページの「通知をON」を押し、通知を許可する</li>
+                        </ol>
+                    </div>
+                </details>
 
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <h3 class="text-sm font-black text-slate-800">Android</h3>
-                    <ol class="mt-2 list-decimal space-y-1 pl-5 text-xs font-bold leading-relaxed text-slate-600">
-                        <li>Chromeでヴァルゼリアを開く</li>
-                        <li>右上のメニューから「アプリをインストール」または「ホーム画面に追加」を選ぶ</li>
-                        <li>ホーム画面のヴァルゼリアのアイコンから開く</li>
-                        <li>このページの「通知をON」を押し、通知を許可する</li>
-                    </ol>
-                </div>
+                <details data-platform-accordion="android" class="group min-w-0 self-start overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <summary class="flex min-h-12 cursor-pointer select-none list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+                        <h3 class="text-sm font-black text-slate-800">Android</h3>
+                        <svg aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+                        </svg>
+                    </summary>
+                    <div class="border-t border-slate-200 px-3 pb-3">
+                        <ol class="mt-3 list-decimal space-y-1 pl-5 text-xs font-bold leading-relaxed text-slate-600">
+                            <li>Chromeでヴァルゼリアを開く</li>
+                            <li>右上のメニューから「アプリをインストール」または「ホーム画面に追加」を選ぶ</li>
+                            <li>ホーム画面のヴァルゼリアのアイコンから開く</li>
+                            <li>このページの「通知をON」を押し、通知を許可する</li>
+                        </ol>
+                    </div>
+                </details>
             </div>
 
             <ul class="mt-3 list-disc space-y-1 pl-5 text-[11px] font-bold leading-relaxed text-slate-500">

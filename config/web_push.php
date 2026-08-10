@@ -90,14 +90,13 @@ return [
             'items' => [
                 'private_message' => [
                     'label' => '個別メッセージが届いたとき',
-                    'description' => '冒険者や運営から個別メッセージが届いたときに知らせます。',
-                    'types' => ['private_message', 'admin_private_message'],
-                    'default' => true,
-                ],
-                'character_icon_design' => [
-                    'label' => 'キャラアイコン作成の連絡',
-                    'description' => '依頼の状態更新や担当者からのメッセージを知らせます。',
-                    'types' => ['character_icon_design_status', 'character_icon_design_message'],
+                    'description' => '冒険者や運営からの個別メッセージ、キャラアイコン作成の連絡を知らせます。',
+                    'types' => [
+                        'private_message',
+                        'admin_private_message',
+                        'character_icon_design_status',
+                        'character_icon_design_message',
+                    ],
                     'default' => true,
                 ],
                 'admin_grants' => [
