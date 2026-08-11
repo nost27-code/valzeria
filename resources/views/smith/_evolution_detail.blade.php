@@ -170,7 +170,8 @@
                                         fromName: @js($sourceOption['display_name']),
                                         toName: @js($sourceOption['evolved_display_name'] ?? $candidate['to_name']),
                                         enhancementLabel: @js((int) ($sourceOption['enhance_level'] ?? 0) > 0 ? '強化値: +' . (int) $sourceOption['enhance_level'] . ' → +' . (int) ($sourceOption['inherited_enhance_level'] ?? 0) . ' を引き継ぎます。' : null),
-                                        goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G')
+                                        goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G'),
+                                        goldCostAmount: {{ (int) ($candidate['gold_cost'] ?? 0) }}
                                     }; modalOpen = true"
                                 >この装備で合成</button>
                             @endif
@@ -260,7 +261,8 @@
                     fromName: @js($candidate['from_name']),
                     toName: @js($toActionName),
                     enhancementLabel: null,
-                    goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G')
+                    goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G'),
+                    goldCostAmount: {{ (int) ($candidate['gold_cost'] ?? 0) }}
                 }; modalOpen = true"
             >合成する</button>
         @elseif($singleSourceOption)
@@ -274,7 +276,8 @@
                     fromName: @js($singleSourceOption['display_name']),
                     toName: @js($singleSourceOption['evolved_display_name'] ?? $candidate['to_name']),
                     enhancementLabel: @js((int) ($singleSourceOption['enhance_level'] ?? 0) > 0 ? '強化値: +' . (int) $singleSourceOption['enhance_level'] . ' → +' . (int) ($singleSourceOption['inherited_enhance_level'] ?? 0) . ' を引き継ぎます。' : null),
-                    goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G')
+                    goldCost: @js(number_format((int) ($candidate['gold_cost'] ?? 0)) . 'G'),
+                    goldCostAmount: {{ (int) ($candidate['gold_cost'] ?? 0) }}
                 }; modalOpen = true"
             >合成する</button>
         @endif

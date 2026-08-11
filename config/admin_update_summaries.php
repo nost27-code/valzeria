@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-11-equipment-evolution-bank-confirmation-fix',
+        'date' => '2026-08-11',
+        'category' => 'fixed',
+        'title' => '進化合成の銀行預金支払い確認を修正',
+        'detail' => '手持ちGoldが合成費用に足りない場合、確認画面に手持ち分と銀行預金分を正しく表示し、不足分を銀行預金から支払って進化合成できるよう修正しました。',
+    ],
+    [
         'id' => '2026-08-10-admin-sidebar-other-analytics',
         'date' => '2026-08-10',
         'category' => 'internal',
