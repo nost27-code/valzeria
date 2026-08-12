@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-12-dark-knight-special-skill-rename',
+        'date' => '2026-08-12',
+        'category' => 'changed',
+        'title' => '暗黒騎士の必殺技名を冥血斬へ変更',
+        'detail' => '奥義の「暗黒剣」と区別しやすくするため、暗黒騎士の職業固有必殺技名を「冥血斬」へ変更しました。威力や反動などの効果は変わりません。',
+    ],
+    [
         'id' => '2026-08-11-equipment-evolution-bank-confirmation-fix',
         'date' => '2026-08-11',
         'category' => 'fixed',
