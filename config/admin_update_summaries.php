@@ -2,11 +2,11 @@
 
 return [
     [
-        'id' => '2026-08-12-dark-knight-special-skill-rename',
+        'id' => '2026-08-12-dark-knight-skill-rebalance',
         'date' => '2026-08-12',
-        'category' => 'changed',
-        'title' => '暗黒騎士の必殺技名を冥血斬へ変更',
-        'detail' => '奥義の「暗黒剣」と区別しやすくするため、暗黒騎士の職業固有必殺技名を「冥血斬」へ変更しました。威力や反動などの効果は変わりません。',
+        'category' => 'balance',
+        'title' => '暗黒騎士の冥血斬と暗黒剣を再調整',
+        'detail' => '奥義「暗黒剣」と区別するため職業固有必殺技を「冥血斬」へ変更し、ATK依存2.20倍の物理攻撃と敵ATK10%低下へ調整しました。冥血斬では自身のHPが減りません。暗黒剣はATK依存1.85倍の物理攻撃へ変更し、与ダメージ35%回復と最大HP5%反動を維持しています。発動率とSP消費は変わりません。',
     ],
     [
         'id' => '2026-08-11-equipment-evolution-bank-confirmation-fix',

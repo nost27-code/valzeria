@@ -4,6 +4,8 @@ namespace App\Support;
 
 class JobArtEffectCatalog
 {
+    private const DRAIN_DAMAGE_TYPES = ['physical', 'magical'];
+
     private const DEFINITIONS = [
         'PHYSICAL_DAMAGE' => ['label' => '攻撃', 'damage_type' => 'physical', 'deals_damage' => true],
         'MAGICAL_DAMAGE' => ['label' => '攻撃', 'damage_type' => 'magical', 'deals_damage' => true],
@@ -52,6 +54,20 @@ class JobArtEffectCatalog
     public static function damageType(string $template): string
     {
         return (string) (self::DEFINITIONS[$template]['damage_type'] ?? 'physical');
+    }
+
+    public static function isDrainDamageType(string $damageType): bool
+    {
+        return in_array(strtolower(trim($damageType)), self::DRAIN_DAMAGE_TYPES, true);
+    }
+
+    public static function drainDamageType(mixed $configuredDamageType = null): string
+    {
+        $damageType = strtolower(trim((string) $configuredDamageType));
+
+        return self::isDrainDamageType($damageType)
+            ? $damageType
+            : self::damageType('DRAIN');
     }
 
     public static function hitCount(string $template): int

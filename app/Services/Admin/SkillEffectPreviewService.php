@@ -224,6 +224,10 @@ class SkillEffectPreviewService
     private function damageType(Skill $skill, BattleActor $attacker): string
     {
         $template = (string) $skill->effect_template;
+        if ($skill->isJobArt() && $template === 'DRAIN') {
+            return JobArtEffectCatalog::drainDamageType($skill->damage_type);
+        }
+
         if ($skill->isJobArt() && in_array($template, self::ADAPTIVE_DAMAGE_TEMPLATES, true)) {
             // 実戦闘(BattleService等)ではこれらのテンプレートは damage_type カラムを見ず、
             // 常に攻撃者の usesMagForNormalAttack() で物理/魔法を動的判定している。

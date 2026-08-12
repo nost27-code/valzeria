@@ -36,6 +36,44 @@ class JobArtEffectCatalogTest extends TestCase
         $this->assertTrue(JobArtEffectCatalog::appliesDropBonus('REWARD_MIXED'));
     }
 
+    public function test_drain_defaults_to_magical_but_accepts_an_explicit_physical_route(): void
+    {
+        $this->assertSame('magical', JobArtEffectCatalog::drainDamageType());
+        $this->assertSame('magical', JobArtEffectCatalog::drainDamageType('magical'));
+        $this->assertSame('physical', JobArtEffectCatalog::drainDamageType('physical'));
+        $this->assertSame('magical', JobArtEffectCatalog::drainDamageType('invalid'));
+    }
+
+    public function test_validator_rejects_an_invalid_explicit_drain_damage_type(): void
+    {
+        $problems = JobArtMasterValidator::validateRows([
+            [
+                'job_id' => 999,
+                'name' => '検査用吸収奥義',
+                'effect_template' => 'DRAIN',
+                'damage_type' => 'hybrid',
+                'drain_hp_rate' => 0.35,
+                'memo' => '与ダメージを吸収',
+            ],
+        ]);
+
+        $this->assertStringContainsString('physical または magical', implode("\n", $problems));
+    }
+
+    public function test_all_combat_routes_resolve_drain_damage_type_consistently(): void
+    {
+        $battle = (string) file_get_contents(__DIR__ . '/../../app/Services/BattleService.php');
+        $tower = (string) file_get_contents(__DIR__ . '/../../app/Services/TowerBattleService.php');
+
+        $this->assertStringContainsString('JobArtEffectCatalog::drainDamageType', $battle);
+        $this->assertStringContainsString('extends BattleService', $tower);
+
+        foreach (['PvPBattleService.php', 'ChampBattleService.php', 'ArenaNpcBattleService.php'] as $file) {
+            $source = (string) file_get_contents(__DIR__ . '/../../app/Services/' . $file);
+            $this->assertStringContainsString('JobArtEffectCatalog::drainDamageType', $source, $file);
+        }
+    }
+
     public function test_every_job_art_json_template_is_registered(): void
     {
         $rows = json_decode((string) file_get_contents(__DIR__ . '/../../database/data/job_arts.json'), true);

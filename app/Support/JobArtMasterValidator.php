@@ -37,6 +37,23 @@ class JobArtMasterValidator
                 continue;
             }
 
+            if (array_key_exists('damage_type', $row)) {
+                $damageType = (string) $row['damage_type'];
+                if ($template !== 'DRAIN') {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: damage_type の個別指定は DRAIN でのみ使用できます',
+                        $jobId,
+                        $name
+                    );
+                } elseif (! JobArtEffectCatalog::isDrainDamageType($damageType)) {
+                    $problems[] = sprintf(
+                        'job_id=%d %s: DRAIN の damage_type は physical または magical で指定してください',
+                        $jobId,
+                        $name
+                    );
+                }
+            }
+
             if (self::memoMentionsDamage($memo) && ! JobArtEffectCatalog::dealsDamage($template)) {
                 $problems[] = sprintf(
                     'job_id=%d %s: memoは「%s」だが effect_template=%s はダメージを与えない実装です',

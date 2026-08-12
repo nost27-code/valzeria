@@ -12,6 +12,7 @@ use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\BattleResult;
+use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
 class PvPBattleService
@@ -402,9 +403,12 @@ class PvPBattleService
         if ($addOpeningLog) {
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
         }
-        
+
+        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
+            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
+            : (string) $skill->damage_type;
         $hitCount = max(1, (int) $skill->hit_count);
-        if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
+        if ((int) $skill->hit_count === 0 && in_array($damageType, ['heal', 'support'], true)) {
             $hitCount = 1; 
         }
         if ((int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
@@ -430,7 +434,7 @@ class PvPBattleService
 
             if ((float) $skill->power_multiplier > 0) {
                 $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
-                if (in_array($skill->damage_type, ['physical', 'gold', 'drop', 'support'], true)) {
+                if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -444,7 +448,7 @@ class PvPBattleService
                         true,
                         $hitCount
                     );
-                } elseif ($skill->damage_type === 'magical') {
+                } elseif ($damageType === 'magical') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -458,7 +462,7 @@ class PvPBattleService
                         true,
                         $hitCount
                     );
-                } elseif ($skill->damage_type === 'hybrid') {
+                } elseif ($damageType === 'hybrid') {
                     $hybridAtk = (string) $skill->hybrid_scaling === 'max'
                         ? max($attacker->str, $attacker->mag)
                         : (int) floor(($attacker->str + $attacker->mag) / 2);

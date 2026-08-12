@@ -1589,7 +1589,14 @@ class BattleService
 
     private function executeDrainJobArt(BattleActor $attacker, BattleActor $defender, BattleState $state, int $power, float $rate, Skill $skill): void
     {
-        $this->executeJobArtDamageTemplate($attacker, $defender, $state, $skill, $power, 'magical');
+        $this->executeJobArtDamageTemplate(
+            $attacker,
+            $defender,
+            $state,
+            $skill,
+            $power,
+            JobArtEffectCatalog::drainDamageType($skill->damage_type),
+        );
     }
 
     private function recoverJobArtSp(BattleActor $attacker, BattleState $state, Skill $skill, float $rate): void

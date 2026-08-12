@@ -14,6 +14,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\DamageCalculator;
 use App\Support\CharacterIconCatalog;
+use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
 class ChampBattleService
@@ -684,8 +685,11 @@ class ChampBattleService
 
     private function skillAttack(BattleActor $attacker, BattleActor $defender, Skill $skill, ?string $openingLog = null): array
     {
+        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
+            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
+            : (string) $skill->damage_type;
         $hitCount = max(1, (int) $skill->hit_count);
-        if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
+        if ((int) $skill->hit_count === 0 && in_array($damageType, ['heal', 'support'], true)) {
             $hitCount = 1;
         }
         if ((int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
@@ -712,7 +716,7 @@ class ChampBattleService
             }
 
             if ((float) $skill->power_multiplier > 0) {
-                if (in_array($skill->damage_type, ['physical', 'gold', 'drop', 'support'], true)) {
+                if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -726,7 +730,7 @@ class ChampBattleService
                         true,
                         $hitCount
                     );
-                } elseif ($skill->damage_type === 'magical') {
+                } elseif ($damageType === 'magical') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -740,7 +744,7 @@ class ChampBattleService
                         true,
                         $hitCount
                     );
-                } elseif ($skill->damage_type === 'hybrid') {
+                } elseif ($damageType === 'hybrid') {
                     $hybridAtk = (string) $skill->hybrid_scaling === 'max'
                         ? max($attacker->str, $attacker->mag)
                         : (int) floor(($attacker->str + $attacker->mag) / 2);
