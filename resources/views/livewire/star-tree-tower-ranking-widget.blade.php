@@ -122,8 +122,13 @@
                 @endphp
                 <div class="flex items-center gap-2 px-3 py-1.5">
                     <div class="w-6 shrink-0 text-center text-sm font-black tabular-nums {{ $rankColor }}">{{ $rank }}</div>
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-100 bg-white">
-                        <img src="{{ $iconPath }}" alt="{{ $row['name'] ?? '冒険者' }}" class="h-full w-full object-contain">
+                    <div data-weekly-ranking-icon-slot class="relative h-8 w-10 shrink-0 bg-white">
+                        <img
+                            src="{{ $iconPath }}"
+                            alt="{{ $row['name'] ?? '冒険者' }}"
+                            data-weekly-ranking-icon
+                            class="absolute left-1/2 top-1/2 h-10 w-10 max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+                        >
                     </div>
                     <div class="min-w-0 flex-1">
                         <button

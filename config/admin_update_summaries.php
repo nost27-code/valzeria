@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-13-weekly-ranking-frameless-icons',
+        'date' => '2026-08-13',
+        'category' => 'changed',
+        'title' => '週間勝利ランキングのキャラ表示を改善',
+        'detail' => 'ホームの週間勝利ランキングでキャラ画像の丸枠をなくし、行の高さを変えずに画像を少し大きく表示しました。',
+    ],
+    [
         'id' => '2026-08-13-colosseum-ranking-local-pose-preview',
         'date' => '2026-08-13',
         'category' => 'changed',

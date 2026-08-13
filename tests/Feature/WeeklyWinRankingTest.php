@@ -860,6 +860,10 @@ class WeeklyWinRankingTest extends TestCase
             ->assertSee('見込み 無償輝石15個')
             ->assertSee('週間首位')
             ->assertSee('週間首位の冒険者カードを見る')
+            ->assertSee('data-weekly-ranking-icon-slot', false)
+            ->assertSee('class="relative h-8 w-10 shrink-0 bg-white"', false)
+            ->assertSee('data-weekly-ranking-icon', false)
+            ->assertSee('h-10 w-10 max-w-none', false)
             ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
             ->assertDontSee('wire:click="openWeeklyWinPlayerModal('.$leader->id.')"', false)
             ->assertSee('週間勝利数番付を見る');
