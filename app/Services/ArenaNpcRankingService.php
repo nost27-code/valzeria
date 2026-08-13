@@ -465,7 +465,6 @@ class ArenaNpcRankingService
                     'label' => '通常',
                     'has_choices' => false,
                 ];
-
             return [
                 'type' => 'player',
                 'id' => (int) $ranking->id,
@@ -499,6 +498,13 @@ class ArenaNpcRankingService
                     'label' => '通常',
                     'has_choices' => false,
                 ];
+            $resolvedPosePaths = $character
+                ? array_values(array_unique($iconSetService->resolvedPaths($character)))
+                : [CharacterIconCatalog::DEFAULT_ICON];
+            $posePaths = array_map(
+                fn (string $path): string => CharacterIconCatalog::versionedAsset($path),
+                $resolvedPosePaths,
+            );
 
             return [
                 'type' => 'player',
@@ -512,6 +518,7 @@ class ArenaNpcRankingService
                 'showcase_scene' => $arenaShowcase['scene'],
                 'showcase_label' => $arenaShowcase['label'],
                 'has_showcase_choices' => $arenaShowcase['has_choices'],
+                'pose_paths' => $posePaths,
             ];
         });
     }

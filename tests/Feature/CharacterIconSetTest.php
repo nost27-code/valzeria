@@ -200,11 +200,13 @@ class CharacterIconSetTest extends TestCase
             ->assertSee('chara_001.webp', escape: false);
     }
 
-    public function test_owner_changes_showcase_from_ranking_and_other_player_sees_it(): void
+    public function test_ranking_pose_switch_is_local_and_keeps_the_saved_showcase(): void
     {
         $owner = $this->createCharacter('展示する冒険者');
         $viewer = $this->createCharacter('見る冒険者');
-        app(CharacterIconSetService::class)->grant($owner, 'exclusive_000');
+        $service = app(CharacterIconSetService::class);
+        $service->grant($owner, 'exclusive_000');
+        $service->cycleArenaShowcase($owner);
         ArenaRanking::query()->create([
             'character_id' => $owner->id,
             'rank' => 1,
@@ -218,23 +220,25 @@ class CharacterIconSetTest extends TestCase
             'losses' => 0,
         ]);
 
-        Livewire::actingAs($owner->user)
-            ->test(ColosseumRanking::class)
-            ->call('cycleMyArenaShowcase')
-            ->assertSet('arenaShowcaseMessage', null)
-            ->assertDontSee('闘技場の表示を「戦闘」に変更しました。')
-            ->assertDontSee('bg-violet-600', escape: false)
-            ->assertSee('aria-label="闘技場の表示ポーズを変更。現在：戦闘"', escape: false)
-            ->assertSee('03_battle.webp', escape: false);
-
         Livewire::actingAs($viewer->user)
             ->test(ColosseumRanking::class)
-            ->assertSee('03_battle.webp', escape: false);
+            ->assertSee('01_normal.webp', escape: false)
+            ->assertSee('03_battle.webp', escape: false)
+            ->assertSee('02_victory.webp', escape: false)
+            ->assertSee('04_defeat.webp', escape: false)
+            ->assertSee('@click.stop=', escape: false)
+            ->assertDontSee('wire:click="cycleMyArenaShowcase"', escape: false);
+
+        $this->assertDatabaseHas('character_icon_entitlements', [
+            'character_id' => $owner->id,
+            'icon_set_key' => 'exclusive_000',
+            'arena_showcase_scene' => 'battle',
+        ]);
     }
 
     public function test_lightweight_ranking_does_not_load_character_detail_tables(): void
     {
-        $character = $this->createCharacter('軽量番付の冒険者');
+        $character = $this->createCharacter('軽量番付の冒険者', '/images/chara/chara_004.webp');
         ArenaRanking::query()->create([
             'character_id' => $character->id,
             'rank' => 1,
@@ -259,6 +263,11 @@ class CharacterIconSetTest extends TestCase
         );
         $this->assertArrayNotHasKey('job', $entry);
         $this->assertArrayNotHasKey('power', $entry);
+        $this->assertCount(4, $entry['pose_paths']);
+        $this->assertStringContainsString('/01_normal.webp', $entry['pose_paths'][0]);
+        $this->assertStringContainsString('/03_battle.webp', $entry['pose_paths'][1]);
+        $this->assertStringContainsString('/02_victory.webp', $entry['pose_paths'][2]);
+        $this->assertStringContainsString('/04_defeat.webp', $entry['pose_paths'][3]);
 
         $sql = implode("\n", $queries);
         $this->assertStringNotContainsString('character_items', $sql);

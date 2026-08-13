@@ -2,18 +2,12 @@
     <div class="mb-5 flex flex-col gap-3 border-b border-[#d4af37]/50 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-black tracking-widest text-[#1e293b]">闘技場ランキング</h2>
-            <p class="mt-1 text-sm font-bold text-slate-500">TOP100まで表示します。名前を押すと職業・装備・戦力を冒険者カードで確認できます。</p>
+            <p class="mt-1 text-sm font-bold text-slate-500">TOP100まで表示します。名前を押すと職業・装備・戦力を冒険者カードで確認できます。キャラ画像を押すと、このページ内だけでポーズを切り替えられます。</p>
         </div>
         <a href="{{ route('home') }}" class="inline-flex items-center justify-center rounded bg-slate-800 px-4 py-2 text-sm font-bold text-white shadow transition hover:bg-slate-700">
             闘技場へ戻る
         </a>
     </div>
-
-    @if($arenaShowcaseMessage)
-        <div class="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800" role="status">
-            {{ $arenaShowcaseMessage }}
-        </div>
-    @endif
 
     <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div class="grid gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-500" style="grid-template-columns: 64px minmax(0, 1fr);">
@@ -27,6 +21,14 @@
                     $player = $ranking['character'] ?? null;
                     $isNpc = ($ranking['type'] ?? null) === 'npc';
                     $isMe = $player && (int) $player->id === (int) $myCharacterId;
+                    $posePaths = array_values(array_unique($ranking['pose_paths'] ?? []));
+                    $configuredPosePath = !empty($ranking['image_path'])
+                        ? \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path'])
+                        : null;
+                    $configuredPoseIndex = $configuredPosePath !== null
+                        ? array_search($configuredPosePath, $posePaths, true)
+                        : false;
+                    $configuredPoseIndex = $configuredPoseIndex === false ? 0 : $configuredPoseIndex;
                 @endphp
                 <div class="grid items-center gap-2 px-3 py-3.5 text-sm {{ $isMe ? 'relative bg-amber-100 ring-2 ring-inset ring-amber-500 shadow-[inset_4px_0_0_#d97706]' : 'bg-white' }}" style="grid-template-columns: 64px minmax(0, 1fr);">
                     <div class="font-black {{ $ranking['rank'] === 1 ? 'text-amber-500' : ($ranking['rank'] === 2 ? 'text-slate-400' : ($ranking['rank'] === 3 ? 'text-amber-700' : 'text-slate-600')) }}">
@@ -36,22 +38,26 @@
                         @if($player)
                             <div class="flex min-w-0 items-center gap-3">
                                 @if(!empty($ranking['image_path']))
-                                    <div class="flex w-12 shrink-0 flex-col items-center gap-1">
-                                        @if($isMe && !empty($ranking['has_showcase_choices']))
+                                    <div class="flex w-14 shrink-0 flex-col items-center gap-1">
+                                        @if(count($posePaths) > 1)
                                             <button
                                                 type="button"
-                                                wire:click="cycleMyArenaShowcase"
-                                                wire:loading.attr="disabled"
-                                                wire:target="cycleMyArenaShowcase"
-                                                class="flex h-12 w-12 cursor-pointer items-center justify-center transition active:scale-95 disabled:cursor-wait disabled:opacity-60"
-                                                aria-label="闘技場の表示ポーズを変更。現在：{{ $ranking['showcase_label'] }}"
-                                                title="クリックで表示ポーズを変更（現在：{{ $ranking['showcase_label'] }}）"
+                                                x-data="{ poseIndex: {{ $configuredPoseIndex }}, posePaths: @js($posePaths) }"
+                                                @click.stop="poseIndex = (poseIndex + 1) % posePaths.length"
+                                                class="flex h-14 w-14 cursor-pointer items-center justify-center transition active:scale-95"
+                                                aria-label="{{ $player->name }}の表示ポーズを切り替える"
+                                                title="タップでポーズを切り替える（このページ内のみ）"
                                             >
-                                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="{{ $player->name }}の{{ $ranking['showcase_label'] }}ポーズ" class="h-full w-full object-contain">
+                                                <img
+                                                    src="{{ $configuredPosePath }}"
+                                                    x-bind:src="posePaths[poseIndex]"
+                                                    alt="{{ $player->name }}"
+                                                    class="h-full w-full object-contain drop-shadow-[0_2px_3px_rgba(15,23,42,0.2)]"
+                                                >
                                             </button>
                                         @else
-                                            <span class="flex h-12 w-12 items-center justify-center">
-                                                <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
+                                            <span class="flex h-14 w-14 items-center justify-center">
+                                                <img src="{{ $configuredPosePath }}" alt="" class="h-full w-full object-contain drop-shadow-[0_2px_3px_rgba(15,23,42,0.2)]">
                                             </span>
                                         @endif
                                     </div>
@@ -69,10 +75,10 @@
                                 </div>
                             </div>
                         @elseif($isNpc)
-                            <div class="flex min-w-0 items-center gap-2">
+                            <div class="flex min-w-0 items-center gap-3">
                                 @if(!empty($ranking['image_path']))
-                                    <span class="h-12 w-12 shrink-0">
-                                        <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain">
+                                    <span class="h-14 w-14 shrink-0">
+                                        <img src="{{ asset($ranking['image_path']) }}" alt="" class="h-full w-full object-contain drop-shadow-[0_2px_3px_rgba(15,23,42,0.2)]">
                                     </span>
                                 @endif
                                 <div class="min-w-0">

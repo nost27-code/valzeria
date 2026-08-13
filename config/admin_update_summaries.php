@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-13-colosseum-ranking-local-pose-preview',
+        'date' => '2026-08-13',
+        'category' => 'changed',
+        'title' => '闘技場ランキングのキャラ表示を拡大',
+        'detail' => '闘技場TOP100のキャラ画像を見やすく拡大しました。4ポーズ対応キャラは画像を押すと、そのページ内だけでポーズを見比べられます。再読み込みすると、各冒険者が設定した展示ポーズへ戻ります。',
+    ],
+    [
         'id' => '2026-08-13-standard-character-icons-four-poses-004-267',
         'date' => '2026-08-13',
         'category' => 'changed',
