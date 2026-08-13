@@ -279,7 +279,96 @@ class WeeklyWinRankingTest extends TestCase
         $this->assertSame('7/27 09:00', $data['updated_at_label']);
     }
 
-    public function test_scheduled_finalization_recovers_all_missing_periods_in_oldest_first_order(): void
+    public function test_automatic_finalization_skips_periods_before_the_configured_boundary(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 17, 9, 10, 0, 'Asia/Tokyo'));
+        [$areaId, $enemyId] = $this->battleMasterIds();
+        $character = $this->createCharacter(User::factory()->create(), '自動配布境界');
+
+        foreach (['2026-07-27', '2026-08-03', '2026-08-10'] as $weekStart) {
+            $this->addWins(
+                $character,
+                1,
+                Carbon::parse("{$weekStart} 12:00:00", 'Asia/Tokyo'),
+                $areaId,
+                $enemyId
+            );
+        }
+
+        $this->artisan('ranking:finalize-weekly-wins', ['--automatic' => true])
+            ->expectsOutput('2026-08-10週の週間勝利数番付を確定しました。')
+            ->expectsOutput('対象週: 1週')
+            ->expectsOutput('参加者合計: 1人')
+            ->expectsOutput('報酬対象合計: 1人')
+            ->expectsOutput('無償輝石合計: 20個')
+            ->assertSuccessful();
+
+        $this->assertSame(
+            ['2026-08-10'],
+            WeeklyWinRankingSeason::query()
+                ->orderBy('week_started_at')
+                ->pluck('season_key')
+                ->all()
+        );
+        $this->assertSame(20, $character->fresh()->free_kiseki);
+        $this->assertSame(1, KisekiTransaction::query()
+            ->where('transaction_type', WeeklyWinRankingService::TRANSACTION_TYPE)
+            ->count());
+        $this->assertSame(1, DB::table('character_notifications')
+            ->where('type', WeeklyWinRankingService::NOTIFICATION_TYPE)
+            ->count());
+    }
+
+    public function test_scheduler_invokes_weekly_finalization_in_automatic_mode(): void
+    {
+        $event = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+            ->first(fn ($event): bool => str_contains(
+                (string) $event->command,
+                'ranking:finalize-weekly-wins'
+            ));
+
+        $this->assertNotNull($event);
+        $this->assertStringContainsString(
+            'ranking:finalize-weekly-wins --automatic',
+            (string) $event->command
+        );
+    }
+
+    public function test_automatic_dry_run_before_the_first_completed_automatic_week_writes_nothing(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 13, 12, 0, 0, 'Asia/Tokyo'));
+        [$areaId, $enemyId] = $this->battleMasterIds();
+        $character = $this->createCharacter(User::factory()->create(), '自動配布試算', 2, 3);
+        $this->addWins(
+            $character,
+            1,
+            Carbon::create(2026, 8, 3, 12, 0, 0, 'Asia/Tokyo'),
+            $areaId,
+            $enemyId
+        );
+
+        $this->artisan('ranking:finalize-weekly-wins', [
+            '--automatic' => true,
+            '--dry-run' => true,
+        ])
+            ->expectsOutput('未確定の終了済み週はありません。')
+            ->assertSuccessful();
+
+        $character->refresh();
+        $this->assertSame(2, $character->free_kiseki);
+        $this->assertSame(3, $character->paid_kiseki);
+        $this->assertSame(5, $character->kiseki);
+        $this->assertDatabaseCount('weekly_win_ranking_seasons', 0);
+        $this->assertDatabaseCount('weekly_win_ranking_records', 0);
+        $this->assertDatabaseMissing('kiseki_transactions', [
+            'transaction_type' => WeeklyWinRankingService::TRANSACTION_TYPE,
+        ]);
+        $this->assertDatabaseMissing('character_notifications', [
+            'type' => WeeklyWinRankingService::NOTIFICATION_TYPE,
+        ]);
+    }
+
+    public function test_manual_pending_finalization_recovers_all_missing_periods_in_oldest_first_order(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 8, 17, 9, 10, 0, 'Asia/Tokyo'));
         [$areaId, $enemyId] = $this->battleMasterIds();

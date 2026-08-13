@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-13-weekly-win-reward-automatic-boundary',
+        'date' => '2026-08-13',
+        'category' => 'fixed',
+        'title' => '週間勝利報酬の自動配布開始週を修正',
+        'detail' => '週間勝利数番付の報酬を、8月10日9:00開始週から毎週自動配布するよう修正しました。7月27日・8月3日開始週の未付与報酬は自動配布しません。',
+    ],
+    [
         'id' => '2026-08-13-account-login-method-status',
         'date' => '2026-08-13',
         'category' => 'added',

@@ -9,6 +9,7 @@ class FinalizeWeeklyWinRanking extends Command
 {
     protected $signature = 'ranking:finalize-weekly-wins
         {--week-start= : 確定する週の月曜日（YYYY-MM-DD）。省略時は終了済みの未確定週を古い順に処理}
+        {--automatic : 定期実行用の開始週以降だけを処理する}
         {--dry-run : 報酬を付与せず、対象人数と無償輝石合計だけを試算する}';
 
     protected $description = '週間勝利数番付を確定し、対象者へ無償輝石と名誉表示を付与する';
@@ -26,11 +27,19 @@ class FinalizeWeeklyWinRanking extends Command
             $period = $weekStart !== ''
                 ? $service->periodForWeekStart($weekStart)
                 : null;
+            $automatic = (bool) $this->option('automatic');
+            if ($automatic && $period !== null) {
+                throw new \InvalidArgumentException(
+                    '--automatic と --week-start は同時に指定できません。'
+                );
+            }
             $dryRun = (bool) $this->option('dry-run');
             $result = match (true) {
                 $dryRun && $period !== null => $service->previewPeriod($period),
+                $dryRun && $automatic => $service->previewAutomaticPendingPeriods(),
                 $dryRun => $service->previewPendingPeriods(),
                 $period !== null => $service->finalizePeriod($period),
+                $automatic => $service->finalizeAutomaticPendingPeriods(),
                 default => $service->finalizePendingPeriods(),
             };
         } catch (\InvalidArgumentException|\LogicException $e) {

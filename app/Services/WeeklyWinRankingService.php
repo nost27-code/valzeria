@@ -446,6 +446,48 @@ class WeeklyWinRankingService
     }
 
     /**
+     * 自動配布の開始週から直前終了週までの未確定期間を、古い順に確定する。
+     *
+     * @return array{
+     *   period_results: array<int, array<string, int|string|bool>>,
+     *   processed_count: int,
+     *   participant_count: int,
+     *   rewarded_count: int,
+     *   total_free_kiseki: int,
+     *   preview: bool
+     * }
+     */
+    public function finalizeAutomaticPendingPeriods(?Carbon $at = null): array
+    {
+        return $this->processPendingPeriods(
+            $at,
+            false,
+            $this->automaticFirstPeriodStart()
+        );
+    }
+
+    /**
+     * 自動配布の開始週から直前終了週までの未確定期間を、書き込みなしで試算する。
+     *
+     * @return array{
+     *   period_results: array<int, array<string, int|string|bool>>,
+     *   processed_count: int,
+     *   participant_count: int,
+     *   rewarded_count: int,
+     *   total_free_kiseki: int,
+     *   preview: bool
+     * }
+     */
+    public function previewAutomaticPendingPeriods(?Carbon $at = null): array
+    {
+        return $this->processPendingPeriods(
+            $at,
+            true,
+            $this->automaticFirstPeriodStart()
+        );
+    }
+
+    /**
      * @param array{
      *   key: string,
      *   start: Carbon,
@@ -1037,9 +1079,13 @@ class WeeklyWinRankingService
      *   preview: bool
      * }
      */
-    private function processPendingPeriods(?Carbon $at, bool $preview): array
+    private function processPendingPeriods(
+        ?Carbon $at,
+        bool $preview,
+        ?Carbon $minimumStart = null
+    ): array
     {
-        $periodResults = $this->pendingCompletedPeriods($at)
+        $periodResults = $this->pendingCompletedPeriods($at, $minimumStart)
             ->map(fn (array $period): array => $preview
                 ? $this->previewPeriod($period)
                 : $this->finalizePeriod($period))
@@ -1067,7 +1113,10 @@ class WeeklyWinRankingService
      *   label: string
      * }>
      */
-    private function pendingCompletedPeriods(?Carbon $at = null): Collection
+    private function pendingCompletedPeriods(
+        ?Carbon $at = null,
+        ?Carbon $minimumStart = null
+    ): Collection
     {
         if (! Schema::hasTable('weekly_win_ranking_seasons')) {
             throw new LogicException('週間勝利数番付のseasonテーブルが準備できていません。');
@@ -1076,6 +1125,10 @@ class WeeklyWinRankingService
         $latestPeriod = $this->previousCompletedPeriod($at);
         $firstStart = $this->firstEligiblePeriodStart()
             ?? $latestPeriod['start']->copy();
+
+        if ($minimumStart !== null && $minimumStart->greaterThan($firstStart)) {
+            $firstStart = $minimumStart->copy();
+        }
 
         if ($firstStart->greaterThan($latestPeriod['start'])) {
             return collect();
@@ -1146,6 +1199,21 @@ class WeeklyWinRankingService
 
         if ($value === '') {
             return null;
+        }
+
+        return Carbon::parse($value, $this->timezone())
+            ->setTimezone($this->timezone());
+    }
+
+    private function automaticFirstPeriodStart(): ?Carbon
+    {
+        $value = trim((string) config(
+            'weekly_win_ranking.automatic_first_period_start_at',
+            ''
+        ));
+
+        if ($value === '') {
+            return $this->firstEligiblePeriodStart();
         }
 
         return Carbon::parse($value, $this->timezone())
