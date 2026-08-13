@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Services\AreaService;
+use App\Services\AuthService;
 use App\Services\PublicLogService;
 use App\Services\CharacterGoalService;
 use App\Services\CharacterIconDesignService;
@@ -46,6 +47,8 @@ class MainScreen extends Component
 
     public $isIconModalOpen = false;
     public $isNameModalOpen = false;
+    public bool $isAccountInfoModalOpen = false;
+    public array $accountInformation = [];
     public $newName = '';
 
     public function openIconModal()
@@ -80,6 +83,18 @@ class MainScreen extends Component
     public function openChatDisplaySettings(): void
     {
         $this->dispatch('open-chat-settings-modal');
+    }
+
+    public function openAccountInfoModal(): void
+    {
+        $this->accountInformation = app(AuthService::class)->loginMethodStatus(Auth::user());
+        $this->isAccountInfoModalOpen = true;
+    }
+
+    public function closeAccountInfoModal(): void
+    {
+        $this->isAccountInfoModalOpen = false;
+        $this->accountInformation = [];
     }
 
     public function closeNameModal()
@@ -886,6 +901,7 @@ class MainScreen extends Component
         }
 
         $explorationSupportEnabled = app(\App\Services\ExplorationSupportService::class)->isEnabled();
+        $accountLoginStatus = app(AuthService::class)->loginMethodStatus(Auth::user());
 
         $townFacilities = [
             ['category' => '休息・補給', 'name' => '宿屋', 'symbol_image' => 'facilities/facility_inn_300.webp', 'desc' => 'HPとSPを全回復して次の冒険に備える', 'details' => ['Lv20まで10G', 'Lv21以降: Lv × 10G'], 'badge' => ($this->character && $resolveTownState ? app(\App\Services\InnService::class)->fee($this->character) . 'G' : null), 'bg_image' => 'facilities/inn.webp', 'status' => 'active', 'action' => '休む', 'route' => 'inn.rest', 'is_post' => true, 'rest_blocked' => $innRestBlocked, 'rest_block_message' => $innRestBlockMessage],
@@ -1032,6 +1048,7 @@ class MainScreen extends Component
                     ['name' => '名前変更', 'icon_image' => 'icon/icon_014.webp', 'icon' => '🏷️', 'desc' => 'キャラクターの名前を変更します', 'details' => ['現在の名前: ' . ($character->name ?? '')], 'bg_image' => 'facilities/04_名前変更.webp', 'status' => 'active', 'action' => '変更する', 'method' => 'openNameModal'],
                     ['name' => 'プロフィール編集', 'icon_image' => 'icon/icon_021.webp', 'icon' => '📝', 'desc' => '自己紹介文や牧場背景を編集します', 'details' => ['コメント', '背景'], 'status' => 'active', 'action' => '編集する', 'route' => 'profile.edit', 'is_post' => false],
                     ['name' => 'チャット表示項目', 'icon_image' => 'icon/icon_022.webp', 'icon' => '⚙️', 'desc' => '全体チャットに表示する項目を変更します', 'details' => ['冒険者ごとに保存'], 'status' => 'active', 'action' => '開く', 'method' => 'openChatDisplaySettings'],
+                    ['name' => '情報確認', 'icon_image' => 'icon/icon_241.webp', 'icon' => 'ℹ️', 'desc' => 'ログイン方法とアカウントの連携状態を確認します', 'details' => ['現在: ' . $accountLoginStatus['summary']], 'status' => 'active', 'action' => '確認する', 'method' => 'openAccountInfoModal'],
                     ['name' => 'ログアウト', 'icon_image' => 'icon/icon_046.webp', 'icon' => '↩', 'desc' => '現在のアカウントからログアウトします', 'details' => ['ログイン画面へ戻る'], 'status' => 'active', 'action' => 'ログアウト', 'route' => 'auth.logout', 'is_post' => true],
                     ['name' => 'アカウント削除', 'icon_image' => 'icon/icon_046.webp', 'icon' => '⚠️', 'desc' => 'Google連携と作成データを完全に削除します', 'details' => ['取り消し不可'], 'status' => 'active', 'action' => '確認する', 'route' => 'account.delete', 'is_post' => false],
                 ]

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-13-account-login-method-status',
+        'date' => '2026-08-13',
+        'category' => 'added',
+        'title' => 'ログイン方法の情報確認を設定へ追加',
+        'detail' => '冒険者タブの設定から、Google連携とメールアドレス・パスワード登録の状態を個別に確認できるようにしました。ゲストプレイ中は、データを引き継ぐためのGoogle連携も案内します。',
+    ],
+    [
         'id' => '2026-08-13-blacksmith-large-inventory-performance',
         'date' => '2026-08-13',
         'category' => 'fixed',

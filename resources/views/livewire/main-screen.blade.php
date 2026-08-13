@@ -1433,6 +1433,71 @@
     </template>
     @endif
 
+    <!-- アカウント情報確認モーダル -->
+    @if($isAccountInfoModalOpen)
+    <template x-teleport="body">
+        <div class="fixed inset-0 flex items-center justify-center bg-black/60 p-4" style="z-index: 2147483647 !important;" wire:click.self="closeAccountInfoModal">
+            <section class="w-full max-w-md overflow-hidden rounded-lg border-2 border-[#d4af37] bg-white shadow-xl" role="dialog" aria-modal="true" aria-labelledby="account-information-title">
+                <div class="flex items-center justify-between border-b border-[#d4af37]/30 bg-slate-100 px-5 py-4">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500">現在のログイン方法</p>
+                        <h3 id="account-information-title" class="mt-0.5 text-xl font-black text-slate-900">{{ $accountInformation['summary'] ?? '情報確認' }}</h3>
+                    </div>
+                    <button type="button" wire:click="closeAccountInfoModal" class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-sm font-black text-slate-500 hover:bg-slate-50" aria-label="閉じる">×</button>
+                </div>
+
+                <div class="space-y-3 p-5">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="font-black text-slate-800">Google連携</span>
+                            @if($accountInformation['google_linked'] ?? false)
+                                <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">連携済み</span>
+                            @else
+                                <span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-black text-slate-600">未連携</span>
+                            @endif
+                        </div>
+                        <p class="mt-2 text-xs font-semibold leading-relaxed text-slate-600">
+                            {{ ($accountInformation['google_linked'] ?? false) ? 'Googleアカウントからログインできます。' : 'Googleアカウントからのログインは設定されていません。' }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="font-black text-slate-800">メールアドレス登録</span>
+                            @if($accountInformation['email_registered'] ?? false)
+                                <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">登録済み</span>
+                            @else
+                                <span class="rounded-full bg-slate-200 px-3 py-1 text-xs font-black text-slate-600">未登録</span>
+                            @endif
+                        </div>
+                        <p class="mt-2 text-xs font-semibold leading-relaxed text-slate-600">
+                            {{ ($accountInformation['email_registered'] ?? false) ? '登録したメールアドレスとパスワードでログインできます。' : 'メールアドレスとパスワードでのログインは登録されていません。' }}
+                        </p>
+                    </div>
+
+                    @if($accountInformation['is_guest'] ?? false)
+                        <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+                            <p class="text-sm font-black">現在はゲストプレイです</p>
+                            <p class="mt-1 text-xs font-semibold leading-relaxed">ログアウトや端末変更の前にGoogle連携すると、この冒険データへ戻れるようになります。</p>
+                            <a href="{{ route('account.link.google') }}" class="mt-3 inline-flex w-full items-center justify-center rounded-md border border-amber-700 bg-amber-600 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-amber-700">
+                                Google連携してデータを引き継ぐ
+                            </a>
+                        </div>
+                    @elseif(!($accountInformation['has_login_method'] ?? false))
+                        <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-xs font-bold leading-relaxed text-red-800">
+                            ログイン方法を確認できませんでした。ログアウトせず、管理人へお問い合わせください。
+                        </div>
+                    @endif
+                </div>
+
+                <div class="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-3">
+                    <button type="button" wire:click="closeAccountInfoModal" class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-100">閉じる</button>
+                </div>
+            </section>
+        </div>
+    </template>
+    @endif
+
     <!-- 名前変更モーダル -->
     @if($isNameModalOpen)
     <template x-teleport="body">

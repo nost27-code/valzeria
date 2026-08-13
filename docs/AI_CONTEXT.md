@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-03
+Last updated: 2026-08-13
 Branch: main
 
 ## Read order
@@ -29,7 +29,7 @@ X = deprecated/removed
 - App: Laravel 11 (PHP) + Livewire v3 + Blade + Alpine.js
 - Styling: Tailwind CSS
 - DB: MySQL (production on Xserver)
-- Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる。トップページでは、β版の冒険データを正式版へ引き継ぐ方針を明記する
+- Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる。冒険者タブの「設定」→「情報確認」では、Google連携とメールアドレス・パスワード登録を別々に判定し、両方利用可能な状態やゲストプレイも確認できる。トップページでは、β版の冒険データを正式版へ引き継ぐ方針を明記する
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)。ゲストは購入不可で、Google連携またはメールアドレス・パスワード登録済みアカウントだけが購入できる
 - Tests: PHPUnit via `php artisan test`
 - Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージングの初回リリースと公開確認（`/` 200、未ログイン `/home` 302）は成功済み。本番SSHリリースは未実行。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。

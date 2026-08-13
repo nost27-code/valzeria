@@ -130,4 +130,39 @@ class AuthService
 
         return (bool) preg_match('/^guest_[0-9a-f-]+@example\\.com$/i', (string) $user->email);
     }
+
+    /**
+     * プレイヤーへ表示するログイン方法の登録状況を返す。
+     *
+     * @return array{
+     *     google_linked: bool,
+     *     email_registered: bool,
+     *     is_guest: bool,
+     *     has_login_method: bool,
+     *     summary: string
+     * }
+     */
+    public function loginMethodStatus(?User $user): array
+    {
+        $googleLinked = !empty($user?->google_id);
+        $emailRegistered = !empty($user?->password);
+        $isGuest = $this->isGuestUser($user);
+
+        $summary = match (true) {
+            $googleLinked && $emailRegistered => 'Google・メールアドレス',
+            $googleLinked => 'Google連携',
+            $emailRegistered => 'メールアドレス登録',
+            $isGuest => 'ゲストプレイ',
+            $user === null => '未ログイン',
+            default => 'ログイン方法未設定',
+        };
+
+        return [
+            'google_linked' => $googleLinked,
+            'email_registered' => $emailRegistered,
+            'is_guest' => $isGuest,
+            'has_login_method' => $googleLinked || $emailRegistered,
+            'summary' => $summary,
+        ];
+    }
 }
