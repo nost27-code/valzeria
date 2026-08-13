@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-13-standard-character-icons-four-poses-004-267',
+        'date' => '2026-08-13',
+        'category' => 'changed',
+        'title' => '既存キャラアイコン2種に4ポーズ追加',
+        'detail' => '既存のキャラアイコン2種へ通常・勝利・戦闘・敗北の4ポーズを追加しました。ランキングや街では通常ポーズ、戦闘結果では場面に合ったポーズが表示されます。',
+    ],
+    [
         'id' => '2026-08-13-weekly-win-reward-automatic-boundary',
         'date' => '2026-08-13',
         'category' => 'fixed',

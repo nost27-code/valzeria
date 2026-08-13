@@ -77,6 +77,30 @@ class CharacterIconCatalogTest extends TestCase
         }
     }
 
+    public function test_chara_004_and_267_have_complete_128px_four_pose_assets(): void
+    {
+        foreach ([4, 267] as $number) {
+            $iconPath = sprintf('/images/chara/chara_%03d.webp', $number);
+            $paths = CharacterIconCatalog::pathsForStandardIcon($iconPath);
+
+            $this->assertNotNull($paths);
+            $this->assertSame($paths, app(CharacterIconSetService::class)->resolvedPaths(
+                new Character(['icon_path' => $iconPath]),
+            ));
+
+            foreach ($paths as $scene => $path) {
+                $absolutePath = public_path(ltrim($path, '/'));
+
+                $this->assertFileExists($absolutePath, "{$iconPath} の {$scene} 画像がありません。");
+                $imageSize = getimagesize($absolutePath);
+                $this->assertIsArray($imageSize, "{$iconPath} の {$scene} 画像を読み取れません。");
+                $this->assertSame(128, $imageSize[0]);
+                $this->assertSame(128, $imageSize[1]);
+                $this->assertSame('image/webp', $imageSize['mime'] ?? null);
+            }
+        }
+    }
+
     public function test_configured_exclusive_icon_paths_are_versioned_but_not_publicly_selectable(): void
     {
         $path = '/images/chara/exclusive/exclusive_000/01_normal.webp';
