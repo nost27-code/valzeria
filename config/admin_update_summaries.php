@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-13-blacksmith-large-inventory-performance',
+        'date' => '2026-08-13',
+        'category' => 'fixed',
+        'title' => '大量の武具を扱う鍛冶屋と一括給餌を改善',
+        'detail' => '武具を多数所持している場合の鍛冶屋表示を軽量化し、候補を20件ずつ追加表示できるようにしました。ヴァルモンへの装備一括給餌は、一度に最大500個まで選択できます。',
+    ],
+    [
         'id' => '2026-08-12-dark-knight-skill-rebalance',
         'date' => '2026-08-12',
         'category' => 'balance',

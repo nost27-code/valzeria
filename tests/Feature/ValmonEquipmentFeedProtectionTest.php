@@ -132,6 +132,40 @@ class ValmonEquipmentFeedProtectionTest extends TestCase
         ]);
     }
 
+    public function test_bulk_feed_accepts_more_than_one_hundred_equipment_items(): void
+    {
+        [$user, $character, $valmon] = $this->createCharacterAndValmon();
+        $item = Item::create([
+            'name' => '大量一括餌試験剣',
+            'type' => 'weapon',
+            'weapon_rank' => 'G',
+            'is_active' => true,
+        ]);
+        $ids = collect(range(1, 101))->map(function () use ($character, $item): int {
+            return (int) CharacterItem::create([
+                'character_id' => $character->id,
+                'item_id' => $item->id,
+                'is_equipped' => false,
+                'is_locked' => false,
+            ])->id;
+        })->all();
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('valmons.feed.equipment.bulk', $valmon), [
+                'character_item_ids' => $ids,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(0, CharacterItem::whereIn('id', $ids)->count());
+        $this->assertDatabaseHas('valmon_feed_logs', [
+            'character_id' => $character->id,
+            'feed_type' => 'equipment_bulk',
+            'quantity' => 101,
+            'gained_exp' => 202,
+        ]);
+    }
+
     private function createCharacterAndValmon(): array
     {
         $user = User::factory()->create();

@@ -15,6 +15,8 @@ use Illuminate\Validation\Rule;
 
 class ValmonController extends Controller
 {
+    private const MAX_BULK_EQUIPMENT_FEED = 500;
+
     public function starter(ValmonService $service)
     {
         $character = Auth::user()->currentCharacter();
@@ -112,7 +114,7 @@ class ValmonController extends Controller
             ->values()
             ->all();
 
-        $equipment = CharacterItem::with('item')
+        $equipment = CharacterItem::with(['item', 'affixPrefix', 'affixSuffix'])
             ->where('character_id', $character->id)
             ->whereNull('market_listing_id')
             ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
@@ -279,7 +281,7 @@ class ValmonController extends Controller
     public function feedEquipmentBulk(Request $request, PlayerValmon $valmon, ValmonService $service)
     {
         $request->validate([
-            'character_item_ids' => 'required|array|min:1|max:100',
+            'character_item_ids' => 'required|array|min:1|max:' . self::MAX_BULK_EQUIPMENT_FEED,
             'character_item_ids.*' => 'integer',
         ]);
 

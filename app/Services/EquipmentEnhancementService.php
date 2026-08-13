@@ -15,6 +15,9 @@ class EquipmentEnhancementService
 {
     public const MAX_EQUIPMENT_ENHANCE = 30;
 
+    /** @var array<string, Material> */
+    private array $materialLookupCache = [];
+
     private const STAT_FIELDS = [
         'hp' => 'hp_bonus',
         'mp' => 'mp_bonus',
@@ -96,13 +99,68 @@ class EquipmentEnhancementService
     {
         $materials = $this->ownedMaterials($character);
 
-        return CharacterItem::with('item')
+        return CharacterItem::with(['item', 'affixPrefix', 'affixSuffix'])
             ->where('character_id', $character->id)
             ->whereHas('item', fn ($query) => $query->whereIn('type', ['weapon', 'armor', 'accessory']))
             ->orderByDesc('is_equipped')
             ->orderByRaw("CASE equipped_slot WHEN 'weapon' THEN 0 WHEN 'armor' THEN 1 WHEN 'accessory' THEN 2 ELSE 3 END")
             ->orderBy('enhance_level')
             ->orderByDesc('id')
+            ->get()
+            ->map(fn (CharacterItem $characterItem) => $this->candidateRow($characterItem, $materials, $character))
+            ->values()
+            ->all();
+    }
+
+    /** @return array{weapon: int, armor: int, accessory: int} */
+    public function candidateCounts(Character $character): array
+    {
+        $counts = CharacterItem::query()
+            ->join('items', 'items.id', '=', 'character_items.item_id')
+            ->where('character_items.character_id', $character->id)
+            ->whereIn('items.type', ['weapon', 'armor', 'accessory'])
+            ->selectRaw('items.type, COUNT(*) as aggregate')
+            ->groupBy('items.type')
+            ->pluck('aggregate', 'items.type');
+
+        return [
+            'weapon' => (int) ($counts['weapon'] ?? 0),
+            'armor' => (int) ($counts['armor'] ?? 0),
+            'accessory' => (int) ($counts['accessory'] ?? 0),
+        ];
+    }
+
+    public function candidatesForType(Character $character, string $type, string $sort, int $limit): array
+    {
+        $materials = $this->ownedMaterials($character);
+        $query = CharacterItem::with(['item', 'affixPrefix', 'affixSuffix'])
+            ->select('character_items.*')
+            ->join('items', 'items.id', '=', 'character_items.item_id')
+            ->where('character_items.character_id', $character->id)
+            ->where('items.type', $type);
+
+        match ($sort) {
+            'rank_desc' => $query
+                ->orderByRaw("CASE UPPER(COALESCE(items.weapon_rank, items.armor_rank, items.accessory_rank, items.rarity, '')) WHEN 'SPECIAL' THEN 15 WHEN 'EPIC' THEN 14 WHEN 'SSS' THEN 13 WHEN 'SS' THEN 12 WHEN 'S' THEN 11 WHEN 'A' THEN 10 WHEN 'B' THEN 9 WHEN 'C' THEN 8 WHEN 'D' THEN 7 WHEN 'E' THEN 6 WHEN 'F' THEN 5 WHEN 'G' THEN 4 WHEN 'H' THEN 3 WHEN 'I' THEN 2 WHEN 'J' THEN 1 ELSE 0 END DESC")
+                ->orderByDesc('character_items.id'),
+            'enhance_asc' => $query
+                ->orderBy('character_items.enhance_level')
+                ->orderByDesc('character_items.id'),
+            'enhance_desc' => $query
+                ->orderByDesc('character_items.enhance_level')
+                ->orderByDesc('character_items.id'),
+            'name_asc' => $query
+                ->orderBy('items.name')
+                ->orderByDesc('character_items.id'),
+            default => $query
+                ->orderByDesc('character_items.is_equipped')
+                ->orderByRaw("CASE character_items.equipped_slot WHEN 'weapon' THEN 0 WHEN 'armor' THEN 1 WHEN 'accessory' THEN 2 ELSE 3 END")
+                ->orderBy('character_items.enhance_level')
+                ->orderByDesc('character_items.id'),
+        };
+
+        return $query
+            ->limit(max(20, $limit))
             ->get()
             ->map(fn (CharacterItem $characterItem) => $this->candidateRow($characterItem, $materials, $character))
             ->values()
@@ -788,6 +846,13 @@ class EquipmentEnhancementService
 
     private function resolveCityMaterial(string $materialType, int $cityId, string $fallbackCode, string $fallbackName, ?bool $high = null): array
     {
+        $cacheKey = implode('|', ['city', $materialType, $cityId, $high === null ? 'any' : (int) $high]);
+        if (isset($this->materialLookupCache[$cacheKey])) {
+            $material = $this->materialLookupCache[$cacheKey];
+
+            return [(string) $material->material_code, $material->name];
+        }
+
         $query = Material::where('material_type', $materialType)->where('city_id', $cityId);
         if ($high !== null) {
             $query->where('rarity', $high ? 'city_high' : 'city_low');
@@ -800,6 +865,10 @@ class EquipmentEnhancementService
                 $fallbackQuery->where('rarity', $high ? 'city_high' : 'city_low');
             }
             $material = $fallbackQuery->first();
+        }
+
+        if ($material) {
+            $this->materialLookupCache[$cacheKey] = $material;
         }
 
         return $material
@@ -889,6 +958,11 @@ class EquipmentEnhancementService
             $code = self::MATERIAL_CODE_ALIASES[$code];
         }
 
+        $cacheKey = implode('|', ['material', (string) $code, (string) $name]);
+        if (isset($this->materialLookupCache[$cacheKey])) {
+            return $this->materialLookupCache[$cacheKey];
+        }
+
         $material = null;
         if ($code) {
             $material = Material::where('material_code', $code)->first();
@@ -902,6 +976,6 @@ class EquipmentEnhancementService
             throw new RuntimeException('強化素材のマスタが見つかりません。');
         }
 
-        return $material;
+        return $this->materialLookupCache[$cacheKey] = $material;
     }
 }

@@ -26,14 +26,45 @@ class SmithController extends Controller
     /**
      * 鍛冶屋の装備強化画面を表示する
      */
-    public function enhanceIndex()
+    public function enhanceIndex(Request $request)
     {
         $character = Auth::user()->currentCharacter();
         $currentCity = $character->currentCity;
-        $enhancementCandidates = $this->equipmentEnhancementService->candidates($character);
+        $typeCounts = $this->equipmentEnhancementService->candidateCounts($character);
+        $requestedType = (string) $request->query('type', '');
+        $initialType = in_array($requestedType, ['weapon', 'armor', 'accessory'], true)
+            ? $requestedType
+            : (array_key_first(array_filter($typeCounts)) ?? 'weapon');
+        $requestedSort = (string) $request->query('sort', 'recommended');
+        $enhanceSort = in_array($requestedSort, ['recommended', 'rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'], true)
+            ? $requestedSort
+            : 'recommended';
+        $enhanceLimit = max(20, min(
+            max(20, $typeCounts[$initialType] ?? 0),
+            (int) $request->query('limit', 20),
+        ));
+        $enhancementCandidates = $this->equipmentEnhancementService->candidatesForType(
+            $character,
+            $initialType,
+            $enhanceSort,
+            $enhanceLimit,
+        );
+        $candidateCount = array_sum($typeCounts);
+        $hasMoreEnhancementCandidates = count($enhancementCandidates) < ($typeCounts[$initialType] ?? 0);
         $goldSummary = app(BankService::class)->summary($character);
 
-        return view('smith.enhance', compact('character', 'currentCity', 'enhancementCandidates', 'goldSummary'));
+        return view('smith.enhance', compact(
+            'character',
+            'currentCity',
+            'enhancementCandidates',
+            'goldSummary',
+            'typeCounts',
+            'initialType',
+            'enhanceSort',
+            'enhanceLimit',
+            'candidateCount',
+            'hasMoreEnhancementCandidates',
+        ));
     }
 
     /**

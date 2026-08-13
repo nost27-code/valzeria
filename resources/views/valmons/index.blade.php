@@ -52,6 +52,7 @@
     materialFeedSort: 'feed_exp_desc',
     selectedBackground: @js(old('profile_ranch_background', $selectedRanchBackground)),
     selectedEquipmentIds: [],
+    maxBulkEquipmentFeed: 500,
     equipmentFeedExpById: @js($equipmentFeedExpById),
     equipmentFeedRankById: @js($equipmentFeedRankById),
     feedConfirmOpen: false,
@@ -106,6 +107,9 @@
     selectedEquipmentCount() {
         return this.selectedEquipmentIds.length;
     },
+    bulkEquipmentFeedLimitExceeded() {
+        return this.selectedEquipmentIds.length > this.maxBulkEquipmentFeed;
+    },
     selectedEquipmentExp() {
         return this.selectedEquipmentIds.reduce((total, id) => total + Number(this.equipmentFeedExpById[id] || 0), 0);
     },
@@ -128,7 +132,7 @@
         this.selectedEquipmentIds = this.selectedEquipmentIds.filter((id) => !targets.has(String(id)));
     },
     openBulkFeedConfirm() {
-        if (this.selectedEquipmentIds.length <= 0) return;
+        if (this.selectedEquipmentIds.length <= 0 || this.bulkEquipmentFeedLimitExceeded()) return;
         const highRank = this.selectedEquipmentIds.some((id) => this.highRanks.includes(this.equipmentFeedRankById[id]));
         this.openFeedConfirm('選択した装備 ' + this.selectedEquipmentIds.length + '個', this.selectedEquipmentExp(), 'valmonEquipmentBulkFeedForm', highRank);
     },
@@ -655,6 +659,10 @@
                                             選択中 <span class="font-black text-slate-950" x-text="selectedEquipmentCount()"></span> 個 /
                                             EXP <span class="font-black text-slate-950" x-text="selectedEquipmentExp()"></span>
                                         </div>
+                                        <div class="mt-0.5 text-[11px] font-bold text-slate-400">一度に最大500個まで選べます。</div>
+                                        <div x-show="bulkEquipmentFeedLimitExceeded()" class="mt-1 text-[11px] font-black text-red-700">
+                                            500個以下になるよう選択を減らしてください。
+                                        </div>
                                         @if(!empty($equipmentFeedRankCounts))
                                             <div class="mt-2 flex flex-wrap gap-1.5">
                                                 @foreach($equipmentFeedRankCounts as $rank => $count)
@@ -676,7 +684,7 @@
                                     </div>
                                     <button type="button"
                                             @click="openBulkFeedConfirm()"
-                                            :disabled="selectedEquipmentIds.length === 0 || feedSubmitting"
+                                            :disabled="selectedEquipmentIds.length === 0 || bulkEquipmentFeedLimitExceeded() || feedSubmitting"
                                             class="min-h-10 rounded-lg bg-red-700 px-4 text-xs font-black text-white shadow-sm hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300">
                                         まとめて餌にする
                                     </button>

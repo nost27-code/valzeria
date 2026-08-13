@@ -2,22 +2,11 @@
     $headerIcon = '🔨';
     $bgImage = 'images/card_bg/shop_blacksmith.webp';
     $title = '鍛冶屋 (' . ($currentCity->name ?? '冒険都市ヴァルゼリア') . ')';
-    $candidateCount = count($enhancementCandidates);
     $typeTabs = [
         'weapon' => '武器',
         'armor' => '防具',
         'accessory' => '装飾品',
     ];
-    $typeCounts = array_fill_keys(array_keys($typeTabs), 0);
-    foreach ($enhancementCandidates as $candidate) {
-        $type = $candidate['type'] ?? 'weapon';
-        if (array_key_exists($type, $typeCounts)) {
-            $typeCounts[$type]++;
-        }
-    }
-    $initialType = collect($typeCounts)->first(fn ($count) => $count > 0, null) !== null
-        ? collect($typeCounts)->filter(fn ($count) => $count > 0)->keys()->first()
-        : 'weapon';
     $statLabels = [
         'hp' => 'HP',
         'mp' => 'SP',
@@ -34,58 +23,21 @@
     <div
         class="w-full mx-auto pb-10"
         x-data="{
-            activeEnhanceType: @js($initialType),
             helpOpen: false,
-            enhanceSort: 'recommended',
             init() {
-                let savedSort = null;
-                try {
-                    savedSort = window.localStorage.getItem('valzeria.blacksmith.enhance.sort');
-                } catch (error) {
-                    // 保存領域が利用できない環境では、画面を初期順で表示する。
-                }
-                if (['recommended', 'rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'].includes(savedSort)) {
-                    this.enhanceSort = savedSort;
-                }
-
-                this.$nextTick(() => this.sortEnhancementCandidates());
-            },
-            sortEnhancementCandidates() {
-                const list = this.$refs.enhancementCandidateList;
-                if (!list) {
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('sort')) {
                     return;
                 }
 
-                const rankOrder = { J: 1, I: 2, H: 3, G: 4, F: 5, E: 6, D: 7, C: 8, B: 9, A: 10, S: 11, SS: 12, SSS: 13, EPIC: 14, 星樹: 15 };
-                const compare = (left, right) => {
-                    const defaultOrder = () => Number(left.dataset.enhancementDefaultOrder) - Number(right.dataset.enhancementDefaultOrder);
-
-                    if (this.enhanceSort === 'rank_desc') {
-                        return (rankOrder[right.dataset.enhancementRank] ?? 0) - (rankOrder[left.dataset.enhancementRank] ?? 0) || defaultOrder();
-                    }
-                    if (this.enhanceSort === 'enhance_asc') {
-                        return Number(left.dataset.enhancementLevel) - Number(right.dataset.enhancementLevel) || defaultOrder();
-                    }
-                    if (this.enhanceSort === 'enhance_desc') {
-                        return Number(right.dataset.enhancementLevel) - Number(left.dataset.enhancementLevel) || defaultOrder();
-                    }
-                    if (this.enhanceSort === 'name_asc') {
-                        return left.dataset.enhancementName.localeCompare(right.dataset.enhancementName, 'ja') || defaultOrder();
-                    }
-
-                    return defaultOrder();
-                };
-
-                ['weapon', 'armor', 'accessory'].forEach((type) => {
-                    [...list.querySelectorAll(`[data-enhancement-candidate][data-enhancement-type=&quot;${type}&quot;]`)]
-                        .sort(compare)
-                        .forEach((card) => list.appendChild(card));
-                });
-
                 try {
-                    window.localStorage.setItem('valzeria.blacksmith.enhance.sort', this.enhanceSort);
+                    const savedSort = window.localStorage.getItem('valzeria.blacksmith.enhance.sort');
+                    if (['rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'].includes(savedSort)) {
+                        params.set('sort', savedSort);
+                        window.location.replace(`${window.location.pathname}?${params.toString()}`);
+                    }
                 } catch (error) {
-                    // 保存領域が利用できない場合も、現在の表示内では並び替えを継続する。
+                    // 保存領域が利用できない環境では、おすすめ順を表示する。
                 }
             },
         }"
@@ -127,34 +79,33 @@
 
             <div class="grid grid-cols-3 gap-2 mb-5 rounded-lg border border-slate-200 bg-slate-50 p-1">
                 @foreach($typeTabs as $type => $label)
-                    <button
-                        type="button"
-                        @click="activeEnhanceType = @js($type)"
-                        :class="activeEnhanceType === @js($type) ? 'bg-white text-slate-900 shadow-sm border-slate-300' : 'border-transparent text-slate-500'"
-                        class="rounded-md border px-2 py-2.5 text-xs sm:text-sm font-black transition"
+                    <a
+                        href="{{ route('blacksmith.index', ['type' => $type, 'sort' => $enhanceSort]) }}"
+                        class="rounded-md border px-2 py-2.5 text-center text-xs font-black transition sm:text-sm {{ $initialType === $type ? 'border-slate-300 bg-white text-slate-900 shadow-sm' : 'border-transparent text-slate-500' }}"
                     >
                         {{ $label }}
                         <span class="ml-1 font-mono text-[11px] opacity-70">{{ $typeCounts[$type] }}</span>
-                    </button>
+                    </a>
                 @endforeach
             </div>
 
             @if($candidateCount > 1)
-                <div class="mb-4 flex items-center justify-end gap-2">
+                <form method="GET" action="{{ route('blacksmith.index') }}" class="mb-4 flex items-center justify-end gap-2">
+                    <input type="hidden" name="type" value="{{ $initialType }}">
                     <label for="enhance-sort" class="text-xs font-bold text-slate-600">並び順</label>
                     <select
                         id="enhance-sort"
-                        x-model="enhanceSort"
-                        @change="sortEnhancementCandidates()"
+                        name="sort"
+                        onchange="try { window.localStorage.setItem('valzeria.blacksmith.enhance.sort', this.value); } catch (error) {} this.form.submit()"
                         class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
                     >
-                        <option value="recommended">おすすめ順</option>
-                        <option value="rank_desc">ランクが高い順</option>
-                        <option value="enhance_asc">強化値が低い順</option>
-                        <option value="enhance_desc">強化値が高い順</option>
-                        <option value="name_asc">名前順</option>
+                        <option value="recommended" @selected($enhanceSort === 'recommended')>おすすめ順</option>
+                        <option value="rank_desc" @selected($enhanceSort === 'rank_desc')>ランクが高い順</option>
+                        <option value="enhance_asc" @selected($enhanceSort === 'enhance_asc')>強化値が低い順</option>
+                        <option value="enhance_desc" @selected($enhanceSort === 'enhance_desc')>強化値が高い順</option>
+                        <option value="name_asc" @selected($enhanceSort === 'name_asc')>名前順</option>
                     </select>
-                </div>
+                </form>
             @endif
 
             @if(session('status'))
@@ -173,18 +124,12 @@
                     <p>強化できる装備を所持していません。</p>
                 </div>
             @else
-                <div class="space-y-3" x-ref="enhancementCandidateList">
-                    @foreach($typeTabs as $type => $label)
-                        @if($typeCounts[$type] === 0)
-                            <div
-                                x-show="activeEnhanceType === @js($type)"
-                                style="display: none;"
-                                class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500"
-                            >
-                                強化できる{{ $label }}を所持していません。
-                            </div>
-                        @endif
-                    @endforeach
+                <div class="space-y-3">
+                    @if(($typeCounts[$initialType] ?? 0) === 0)
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+                            強化できる{{ $typeTabs[$initialType] ?? '装備' }}を所持していません。
+                        </div>
+                    @endif
 
                     @foreach($enhancementCandidates as $candidate)
                         @php
@@ -196,15 +141,7 @@
                                 : ($level >= $maxLevel ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-slate-50');
                         @endphp
                         <div
-                            x-show="activeEnhanceType === @js($candidate['type'] ?? 'weapon')"
-                            style="display: none;"
                             class="rounded-lg border {{ $cardClass }} p-4"
-                            data-enhancement-candidate
-                            data-enhancement-type="{{ $candidate['type'] ?? 'weapon' }}"
-                            data-enhancement-rank="{{ $candidate['rank'] }}"
-                            data-enhancement-level="{{ $level }}"
-                            data-enhancement-name="{{ $candidate['display_name_without_rank'] ?? $candidate['name'] }}"
-                            data-enhancement-default-order="{{ $loop->index }}"
                         >
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                 <div class="min-w-0 flex-1">
@@ -345,6 +282,17 @@
                             </div>
                         </div>
                     @endforeach
+
+                    @if($hasMoreEnhancementCandidates)
+                        <div class="pt-2 text-center">
+                            <a
+                                href="{{ route('blacksmith.index', ['type' => $initialType, 'sort' => $enhanceSort, 'limit' => min($typeCounts[$initialType], $enhanceLimit + 20)]) }}"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:w-auto sm:min-w-64"
+                            >
+                                さらに20件表示（{{ count($enhancementCandidates) }} / {{ $typeCounts[$initialType] }}件）
+                            </a>
+                        </div>
+                    @endif
                 </div>
             @endif
             @include('smith.partials.operation-help-modal', ['helpType' => 'enhance'])
