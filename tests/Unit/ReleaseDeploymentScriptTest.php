@@ -181,4 +181,24 @@ class ReleaseDeploymentScriptTest extends TestCase
             '本番マスタ同期後にSeederを実行して、ステージング専用の追加マスタを復元する。'
         );
     }
+
+    public function test_schedule_wrapper_resolves_current_outside_the_releases_directory(): void
+    {
+        $source = file_get_contents(base_path('scripts/run_current_schedule.php'));
+
+        $this->assertNotFalse($source);
+        $this->assertStringContainsString(
+            "str_ends_with(basename(\$releasesRoot), '_releases')",
+            $source
+        );
+        $this->assertStringContainsString(
+            "realpath(\$deployRoot . '/valzeria_current')",
+            $source
+        );
+        $this->assertStringContainsString("in_array('--check', \$argv, true)", $source);
+        $this->assertStringNotContainsString(
+            "realpath(dirname(__DIR__, 2) . '/valzeria_current')",
+            $source
+        );
+    }
 }

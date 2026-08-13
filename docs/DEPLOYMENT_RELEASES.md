@@ -55,5 +55,5 @@ DBの復元、migrationの巻き戻し、プレイヤーデータに触れる補
 ## 運用上の注意
 
 - `releases` を自動削除しない。世代整理はDBバックアップと復旧可能性を確認してから手動で行う。
-- cronは `scripts/run_current_schedule.php` を使い、開始時に `valzeria_current` の実体パスを固定してから `schedule:run` を実行する。常駐処理も同じ方式へ移す前にXserverの設定を確認する。
+- cronは `scripts/run_current_schedule.php` を使い、開始時に `valzeria_current` の実体パスを固定してから `schedule:run` を実行する。切替前は同ファイルへ `--check` を付け、現在のリリース実体を解決できることだけを副作用なしで確認する。常駐処理も同じ方式へ移す前にXserverの設定を確認する。
 - デプロイAPIのIP制限、秘密鍵、共有領域の権限はサーバー側の運用設定であり、リポジトリへ保存しない。

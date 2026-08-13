@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 // Xserver cron はこのファイルを実行する。開始時に current の実体を固定するため、
 // 実行途中でリリース切替が起きても同じリリースの Artisan だけを使う。
-$releaseRoot = realpath(dirname(__DIR__, 2) . '/valzeria_current');
+$releasesRoot = dirname(__DIR__, 2);
+$deployRoot = str_ends_with(basename($releasesRoot), '_releases')
+    ? dirname($releasesRoot)
+    : $releasesRoot;
+$releaseRoot = realpath($deployRoot . '/valzeria_current');
 if ($releaseRoot === false || !is_file($releaseRoot . '/artisan')) {
     fwrite(STDERR, "current リリースを解決できません。\n");
     exit(1);
+}
+
+if (in_array('--check', $argv, true)) {
+    fwrite(STDOUT, $releaseRoot . "\n");
+    exit(0);
 }
 
 $command = [PHP_BINARY, $releaseRoot . '/artisan', 'schedule:run', '--no-interaction'];
