@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-14-uyuyuyu-exclusive-icon-027',
+        'date' => '2026-08-14',
+        'category' => 'internal',
+        'title' => 'うゆうゆ専用の限定キャラアイコンを追加',
+        'detail' => 'うゆうゆさんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-13-weekly-ranking-frameless-icons',
         'date' => '2026-08-13',
         'category' => 'changed',
