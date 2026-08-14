@@ -66,16 +66,16 @@ class JobArtV2SpCostIntegrationTest extends TestCase
         $support = new JobArtBattleSupportService(
             Mockery::mock(JobArtService::class),
             app(\App\Services\JobArtV2FeatureGate::class),
-            Mockery::mock(JobArtV2SelectionService::class),
+            app(JobArtV2SelectionService::class),
             $calculator,
         );
 
-        $this->assertSame(8, $skill->getAttribute('job_art_display_sp_cost'));
+        $this->assertSame(6, $skill->getAttribute('job_art_display_sp_cost'));
         $this->assertSame(35, $skill->getAttribute('job_art_display_activation_rate'));
-        $this->assertSame(8, $support->spCost($actor, $skill));
+        $this->assertSame(6, $support->spCost($actor, $skill));
 
         $support->consumeAndMarkUse($actor, $state, $skill);
-        $this->assertSame(92, $actor->mp);
+        $this->assertSame(94, $actor->mp);
 
         $slot = new CharacterJobArtSlot([
             'skill_id' => 7001,
@@ -97,7 +97,7 @@ class JobArtV2SpCostIntegrationTest extends TestCase
             'maxCost' => 9,
         ])->render();
 
-        $this->assertStringContainsString('SP8', $html);
+        $this->assertStringContainsString('SP6', $html);
     }
 
     public function test_inherited_ui_activation_rate_matches_v2_rank_value(): void

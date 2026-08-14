@@ -17,6 +17,9 @@ class JobArtV2SelectionService
     private readonly JobArtV2RoleEffectCatalog $roleEffectCatalog;
     private readonly JobArtV2RoleEffectService $roleEffectService;
     private readonly JobArtV2ProgressionService $progressionService;
+    private readonly JobArtV2DeckRoleResolver $deckRoleResolver;
+    private readonly JobArtV2UltimateCounterplayService $ultimateCounterplayService;
+    private readonly JobArtV2CrownBalanceCatalog $crownBalanceCatalog;
 
     public function __construct(
         private readonly JobArtV2RandomSource $random,
@@ -31,6 +34,9 @@ class JobArtV2SelectionService
         ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
         ?JobArtV2RoleEffectService $roleEffectService = null,
         ?JobArtV2ProgressionService $progressionService = null,
+        ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        ?JobArtV2UltimateCounterplayService $ultimateCounterplayService = null,
+        ?JobArtV2CrownBalanceCatalog $crownBalanceCatalog = null,
     ) {
         $this->resourceService = $resourceService ?? app(JobArtV2ResourceService::class);
         $this->fieldService = $fieldService ?? app(JobArtV2FieldService::class);
@@ -40,6 +46,11 @@ class JobArtV2SelectionService
         $this->roleEffectCatalog = $roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
         $this->roleEffectService = $roleEffectService ?? app(JobArtV2RoleEffectService::class);
         $this->progressionService = $progressionService ?? app(JobArtV2ProgressionService::class);
+        $this->deckRoleResolver = $deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
+        $this->ultimateCounterplayService = $ultimateCounterplayService
+            ?? app(JobArtV2UltimateCounterplayService::class);
+        $this->crownBalanceCatalog = $crownBalanceCatalog
+            ?? app(JobArtV2CrownBalanceCatalog::class);
     }
 
     public function selectForTurn(
@@ -56,6 +67,7 @@ class JobArtV2SelectionService
             $blockedReason = $this->eligibilityFailureReason($actor, $state, $skill, $stateKey);
             if ($blockedReason !== null) {
                 $blockedReasons[(int) $skill->id] = $blockedReason;
+                $this->logProgressionGateFailure($actor, $state, $skill, $blockedReason);
                 continue;
             }
             if ($this->progressionService->consumeSealIfBlocked($actor, $state, $skill)) {
@@ -74,6 +86,7 @@ class JobArtV2SelectionService
             ));
             $activated = $this->random->percentRoll() <= $activationRate;
             $this->progressionService->finishActivationAttempt($actor, $skill);
+            $this->advanceCDesignCursor($actor, $skill);
 
             return new JobArtV2SelectionResult(
                 skill: $activated ? $skill : null,
@@ -116,16 +129,6 @@ class JobArtV2SelectionService
             return 'blocked_by_condition';
         }
 
-        if (($state->jobArtCooldowns[$stateKey] ?? 0) > 0) {
-            return 'blocked_by_cooldown';
-        }
-
-        if ($skill->max_uses_per_battle !== null
-            && ($state->jobArtUseCounts[$stateKey] ?? 0) >= (int) $skill->max_uses_per_battle
-        ) {
-            return 'blocked_by_use_limit';
-        }
-
         $spCost = $this->spCostCalculator->forActor($actor, $skill);
         $policy = (string) ($actor->jobArtPolicies[(int) $skill->id] ?? $actor->jobArtActivationPolicy);
         if (!$this->canActivateByPolicy($actor, $spCost, $policy)) {
@@ -136,7 +139,8 @@ class JobArtV2SelectionService
             return 'blocked_by_support_condition';
         }
 
-        return $this->progressionService->eligibilityBlockReason($actor, $state, $skill)
+        return $this->ultimateCounterplayService->eligibilityBlockReason($actor, $state, $skill)
+            ?? $this->progressionService->eligibilityBlockReason($actor, $state, $skill)
             ?? $this->resourceService->eligibilityBlockReason($actor, $skill, $state);
     }
 
@@ -147,23 +151,90 @@ class JobArtV2SelectionService
         Closure $stateKeyForSkill,
     ): array
     {
-        $candidates = array_values(array_filter(
+        $slotCandidates = array_values(array_filter(
             $actor->jobArts,
             static fn ($skill): bool => $skill instanceof Skill,
         ));
+        $candidates = $slotCandidates;
         $candidates = $this->progressionService->orderCandidates($actor, $candidates);
 
         if (!$this->resourceService->enabledFor($actor)) {
             return [$candidates, false];
         }
 
-        // current-job finisherを先に監査し、使用不能な場合だけ同系譜継承finisherへ進む。
-        foreach (['current', 'same_lineage_inherited'] as $priorityGroup) {
+        $deckRoles = $this->deckRoleResolver->resolveActor($actor);
+        if ($deckRoles->active) {
+            if ($this->ultimateCounterplayService->enabledFor($state)
+                || $this->ultimateCounterplayService->pveTelegraphAvailable($actor, $state)
+            ) {
+                // 発動可能な主奥義と対奥義連携を同じ優先層へ置き、
+                // その層の中ではプレイヤーが設定したslot順を守る。
+                $priority = [];
+                foreach ($slotCandidates as $skill) {
+                    if (! ($this->ultimateCounterplayService->isReadyMainRankNine($actor, $state, $skill)
+                            || $this->ultimateCounterplayService->isResponseCandidate($actor, $state, $skill))
+                        || ! $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill))
+                    ) {
+                        continue;
+                    }
+
+                    $priority[] = $skill;
+                }
+
+                if ($priority !== []) {
+                    $priorityIds = array_fill_keys(array_map(
+                        static fn (Skill $skill): int => (int) $skill->id,
+                        $priority,
+                    ), true);
+                    $remaining = array_values(array_filter(
+                        $candidates,
+                        static fn (Skill $skill): bool => ! isset($priorityIds[(int) $skill->id]),
+                    ));
+
+                    return [
+                        [...$priority, ...$remaining],
+                        $this->ultimateCounterplayService->isReadyMainRankNine(
+                            $actor,
+                            $state,
+                            $priority[0],
+                        ),
+                    ];
+                }
+
+                return [$this->rotateFromCDesignCursor($actor, $candidates), false];
+            }
+
+            // 装備中の奥義は、そのカード自身の資源と準備条件が成立した時に優先する。
+            foreach ($candidates as $index => $skill) {
+                if ($deckRoles->roleFor($skill) !== JobArtV2DeckRole::MAIN
+                    || (int) $skill->learn_rank !== 9
+                    || ! $this->finisherCondition->isSatisfied($actor, $state, $skill)
+                    || ! $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill))
+                ) {
+                    continue;
+                }
+
+                unset($candidates[$index]);
+                array_unshift($candidates, $skill);
+
+                return [array_values($candidates), true];
+            }
+
+            return [$this->rotateFromCDesignCursor($actor, $candidates), false];
+        }
+
+        // 現在職→同系譜継承→異系譜継承の順で、満タンになった奥義を優先する。
+        foreach (['current', 'same_lineage_inherited', 'cross_lineage_inherited'] as $priorityGroup) {
             foreach ($candidates as $index => $skill) {
                 $origin = $this->originFor($actor, $skill);
-                $matchesGroup = $priorityGroup === 'current'
-                    ? $origin === 'current'
-                    : $origin === 'inherited' && $this->resourceCatalog->isSameLineageInherited($actor, $skill);
+                $matchesGroup = match ($priorityGroup) {
+                    'current' => $origin === 'current',
+                    'same_lineage_inherited' => $origin === 'inherited'
+                        && $this->resourceCatalog->isSameLineageInherited($actor, $skill),
+                    'cross_lineage_inherited' => $origin === 'inherited'
+                        && $this->resourceCatalog->isCrossLineageInherited($actor, $skill),
+                    default => false,
+                };
                 if (! $matchesGroup
                     || (int) $skill->learn_rank !== 9
                     || ! $this->finisherCondition->isSatisfied($actor, $state, $skill)
@@ -182,6 +253,41 @@ class JobArtV2SelectionService
         return [$candidates, false];
     }
 
+    /** @param list<Skill> $candidates @return list<Skill> */
+    private function rotateFromCDesignCursor(BattleActor $actor, array $candidates): array
+    {
+        $count = count($candidates);
+        if ($count < 2) {
+            return $candidates;
+        }
+
+        $cursor = $actor->jobArtV2SelectionCursor($count);
+
+        return array_values(array_merge(
+            array_slice($candidates, $cursor),
+            array_slice($candidates, 0, $cursor),
+        ));
+    }
+
+    private function advanceCDesignCursor(BattleActor $actor, Skill $attempted): void
+    {
+        if (! $this->deckRoleResolver->resolveActor($actor)->active) {
+            return;
+        }
+
+        $candidates = array_values(array_filter(
+            $actor->jobArts,
+            static fn ($skill): bool => $skill instanceof Skill,
+        ));
+        foreach ($candidates as $index => $candidate) {
+            if ((int) $candidate->id === (int) $attempted->id) {
+                $actor->setJobArtV2SelectionCursor($index + 1, count($candidates));
+
+                return;
+            }
+        }
+    }
+
     private function canActivateByPolicy(BattleActor $actor, int $spCost, string $policy): bool
     {
         if ($actor->mp < $spCost) {
@@ -197,15 +303,53 @@ class JobArtV2SelectionService
         };
     }
 
+    private function logProgressionGateFailure(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+        string $blockedReason,
+    ): void {
+        if (! in_array($blockedReason, ['blocked_by_hunting_mark', 'blocked_by_break_mark'], true)) {
+            return;
+        }
+
+        $target = $state->player === $actor ? $state->enemy : $state->player;
+        $rank = (int) $skill->learn_rank;
+        if ($blockedReason === 'blocked_by_hunting_mark') {
+            $required = $rank === 9 ? 2 : 1;
+            $current = $this->progressionService->huntingMarkCountFor($target, $actor);
+            $label = '標的印';
+        } else {
+            $required = 3;
+            $current = $this->progressionService->breakMarkCountFor($target, $actor);
+            $label = '崩し印';
+        }
+
+        $reportKey = (int) $skill->id.':'.$blockedReason.':'.$current;
+        $progression = $actor->jobArtV2ProgressionState();
+        if (isset($progression->reportedEligibilityGates[$reportKey])) {
+            return;
+        }
+        $progression->reportedEligibilityGates[$reportKey] = true;
+        $state->addLog(
+            '<span class="text-slate-600">'.e((string) $skill->name)
+            .' は '.e($label).' が不足しているため発動できない（必要 '
+            .e((string) $required).'／現在 '.e((string) $current).'）。</span>',
+        );
+    }
+
     private function canActivateRecoveryArt(BattleActor $actor, Skill $skill): bool
     {
+        $skill = $this->crownBalanceCatalog->applyToExecution($skill);
         if ($this->resourceService->supportEffectCanBeMeaningful($actor, $skill)) {
             return true;
         }
 
         if ($this->roleEffectService->enabledFor($actor)) {
             $roleMetadata = $this->roleEffectCatalog->forArt($skill);
-            if ($this->roleEffectCatalog->isPortable($skill)) {
+            if ($this->allowsRoleMetadata($actor, $skill)
+                && $this->roleEffectCatalog->isPortable($skill)
+            ) {
                 if ($this->roleEffectService->supportEffectCanBeMeaningful($actor, $skill)) {
                     return true;
                 }
@@ -241,5 +385,19 @@ class JobArtV2SelectionService
     {
         return (string) ($actor->jobArtOrigins[(int) $skill->id]
             ?? ((int) $skill->job_id === (int) $actor->currentJobId ? 'current' : 'inherited'));
+    }
+
+    private function allowsRoleMetadata(BattleActor $actor, Skill $skill): bool
+    {
+        $resolution = $this->deckRoleResolver->resolveActor($actor);
+        if (! $resolution->active) {
+            return true;
+        }
+
+        return in_array(
+            $resolution->roleFor($skill),
+            [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+            true,
+        ) && $resolution->blockReasonFor($skill) === null;
     }
 }

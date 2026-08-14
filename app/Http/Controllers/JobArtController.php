@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Character;
+use App\Models\Skill;
 use App\Services\JobArtService;
 use App\Services\CharacterStatusService;
 use App\Services\JobArtV2BattleRules;
 use App\Services\JobArtV2LoadoutPresenter;
+use App\Services\JobArtV2LoadoutDiagnosisService;
+use App\Services\JobArtV2LineageGuideCatalog;
 use App\Services\JobArtV2SlotConditionCatalog;
 use App\Services\JobArtV2SpCostCalculator;
+use App\Services\JobArtV2StarterPresetService;
 use App\Services\JobArtPresetService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +28,10 @@ class JobArtController extends Controller
         JobArtV2SpCostCalculator $spCostCalculator,
         JobArtV2BattleRules $battleRules,
         JobArtV2LoadoutPresenter $loadoutPresenter,
+        JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
+        JobArtV2LineageGuideCatalog $lineageGuideCatalog,
         JobArtPresetService $presetService,
+        JobArtV2StarterPresetService $starterPresetService,
     )
     {
         $character = Auth::user()->currentCharacter();
@@ -49,7 +56,12 @@ class JobArtController extends Controller
                 $battleRules,
                 $loadoutPresenter,
             );
-            $selectedSlotsByContext[$slotContext] = $jobArtService->selectedSlots($character, $availabilityContext, $slotContext);
+            $selectedSlotsByContext[$slotContext] = $jobArtService->selectedSlots(
+                $character,
+                $availabilityContext,
+                $slotContext,
+                $availableArtsByContext[$slotContext],
+            );
         }
 
         $availableArts = collect($availableArtsByContext)
@@ -68,11 +80,29 @@ class JobArtController extends Controller
             ->all();
         $currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
         $jobArtV2UiEnabled = $loadoutPresenter->enabledForCurrentJob($currentJobId);
+        if ($jobArtV2UiEnabled && in_array($filter, ['current', 'inherited'], true)) {
+            $filter = 'available';
+        }
+        $contextSpPolicies = $jobArtService->contextSpPolicies($character);
+        $loadoutDiagnosesByContext = collect($jobArtService->slotContexts())
+            ->mapWithKeys(fn (string $slotContext): array => [
+                $slotContext => $loadoutDiagnosisService->diagnose(
+                    $character,
+                    $selectedSlotsByContext[$slotContext],
+                    $slotContext,
+                    $maxSp,
+                    $contextSpPolicies[$slotContext] ?? 'aggressive',
+                    $jobArtService->maxSlots(),
+                    $jobArtService->maxCost(),
+                ),
+            ])
+            ->all();
         $recommendedBattleStyles = $loadoutPresenter->recommendationsForCurrentJob($currentJobId, $availableArts);
         $jobArtPresetUiEnabled = $presetService->enabledFor($character);
         $jobArtPresets = $jobArtPresetUiEnabled
             ? $presetService->presetsForDisplay($character)
             : [];
+        $jobArtStarterPresetCount = $starterPresetService->presetCountForDisplay($character);
         session([$jobArtService->setupSeenSessionKey($character) => $jobArtService->setupSignature($character, $availableArts, $selectedSlots)]);
 
         return view('job-arts.index', [
@@ -97,6 +127,9 @@ class JobArtController extends Controller
                 $battleRules,
                 $currentJobId,
             ),
+            'contextSpPolicies' => $contextSpPolicies,
+            'loadoutDiagnosesByContext' => $loadoutDiagnosesByContext,
+            'jobArtV2CardDetailsEnabled' => (bool) config('battle.job_art_v2.loadout_card_details', false),
             'slotConditionLabels' => $jobArtService->slotConditionLabels(),
             'maxSlots' => $jobArtService->maxSlots(),
             'maxCost' => $jobArtService->maxCost(),
@@ -106,6 +139,40 @@ class JobArtController extends Controller
             'jobArtPresetUiEnabled' => $jobArtPresetUiEnabled,
             'jobArtPresets' => $jobArtPresets,
             'jobArtPresetLimit' => $presetService->limitFor($character),
+            'jobArtStarterPresetCount' => $jobArtStarterPresetCount,
+            'currentLineageResourceGuide' => $starterPresetService->resourceGuideForDisplay($character),
+            'lineageGuides' => $jobArtV2UiEnabled ? $lineageGuideCatalog->all() : [],
+        ]);
+    }
+
+    public function starterPresets(
+        Request $request,
+        JobArtService $jobArtService,
+        JobArtV2StarterPresetService $starterPresetService,
+    ) {
+        $character = Auth::user()->currentCharacter();
+        if (! $character) {
+            return response()->json(['message' => 'キャラクターを選択してください。'], 409);
+        }
+
+        $data = $request->validate([
+            'slot_context' => ['required', 'string', Rule::in($jobArtService->slotContexts())],
+        ]);
+        $slotContext = (string) $data['slot_context'];
+        $starterPresets = $starterPresetService->presetsForDisplay($character, $slotContext);
+        if ($starterPresets === []) {
+            return response()->json(['message' => '現在利用できる公式プリセットはありません。'], 404);
+        }
+
+        $slotContextLabel = ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext]
+            ?? ($jobArtService->slotContextLabels()[$slotContext] ?? $slotContext);
+
+        return response()->json([
+            'html' => view('job-arts.partials.starter-preset-cards', compact(
+                'starterPresets',
+                'slotContext',
+                'slotContextLabel',
+            ))->render(),
         ]);
     }
 
@@ -208,6 +275,7 @@ class JobArtController extends Controller
         JobArtV2BattleRules $battleRules,
         JobArtV2LoadoutPresenter $loadoutPresenter,
         JobArtV2SlotConditionCatalog $slotConditionCatalog,
+        JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
     )
     {
         $character = Auth::user()->currentCharacter();
@@ -296,14 +364,25 @@ class JobArtController extends Controller
                     'maxCost' => $jobArtService->maxCost(),
                     'currentJobId' => $currentJobId,
                     'jobArtV2UiEnabled' => $jobArtV2UiEnabled,
+                    'jobArtV2CardDetailsEnabled' => (bool) config('battle.job_art_v2.loadout_card_details', false),
                 ])->render();
             }
+            $diagnosis = $loadoutDiagnosisService->diagnose(
+                $character,
+                $selectedSlots,
+                $slotContext,
+                $maxSp,
+                $jobArtService->contextSpPolicy($character, $slotContext),
+                $jobArtService->maxSlots(),
+                $jobArtService->maxCost(),
+            );
 
             return response()->json([
                 'message' => $this->displayTerm($character) . 'スロットを更新しました。',
                 'slot_context' => $slotContext,
                 'total_cost' => $contextTotalCost,
                 'slots_html' => $slotsHtml,
+                'diagnosis_html' => view('job-arts.partials.loadout-diagnosis', compact('diagnosis'))->render(),
                 'selected_slot_by_skill' => $selectedSlots
                     ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no])
                     ->all(),
@@ -313,6 +392,60 @@ class JobArtController extends Controller
         return redirect()
             ->route('job-arts.index', ['filter' => $data['filter'] ?? 'available'])
             ->with('message', $this->displayTerm($character) . 'スロットを更新しました。');
+    }
+
+    public function reorder(
+        Request $request,
+        JobArtService $jobArtService,
+        JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
+    )
+    {
+        $character = Auth::user()->currentCharacter();
+        if (!$character) {
+            return redirect()->route('character.select');
+        }
+
+        $data = $request->validate([
+            'slot_context' => ['required', 'string', Rule::in($jobArtService->slotContexts())],
+            'ordered_skill_ids' => ['required', 'array', 'size:' . $jobArtService->maxSlots()],
+            'ordered_skill_ids.*' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $slotContext = (string) $data['slot_context'];
+
+        try {
+            $jobArtService->reorderSlots($character, $slotContext, $data['ordered_skill_ids']);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first() ?: '戦技の並び順を保存できませんでした。',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        $selectedSlots = $jobArtService->selectedSlots(
+            $character->fresh(),
+            $jobArtService->availabilityContextForSlotContext($slotContext),
+            $slotContext,
+        );
+        $character = $character->fresh();
+        $stats = app(CharacterStatusService::class)->getFinalStats($character);
+        $diagnosis = $loadoutDiagnosisService->diagnose(
+            $character,
+            $selectedSlots,
+            $slotContext,
+            max(0, (int) ($stats['max_mp'] ?? $character->mp_base ?? 0)),
+            $jobArtService->contextSpPolicy($character, $slotContext),
+            $jobArtService->maxSlots(),
+            $jobArtService->maxCost(),
+        );
+
+        return response()->json([
+            'message' => '戦技の並び順を保存しました。',
+            'slot_context' => $slotContext,
+            'diagnosis_html' => view('job-arts.partials.loadout-diagnosis', compact('diagnosis'))->render(),
+            'selected_slot_by_skill' => $selectedSlots
+                ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no])
+                ->all(),
+        ]);
     }
 
     private function decorateArtsForDisplay(
@@ -329,6 +462,7 @@ class JobArtController extends Controller
             : null;
 
         foreach ($arts as $art) {
+            $art->setAttribute('job_art_icon_path', $this->jobArtIconPath($art));
             $art->setAttribute('job_art_display_sp_cost', $spCostCalculator->forCharacter($character, $art, $maxSp));
             $art->setAttribute('job_art_display_activation_rate', $battleRules->activationRateFor(
                 $art,
@@ -337,6 +471,19 @@ class JobArtController extends Controller
             ));
             $art->setAttribute('job_art_v2_loadout_display', $loadoutPresenter->forArt($currentJobId, $art));
         }
+    }
+
+    private function jobArtIconPath(Skill $art): ?string
+    {
+        $jobId = (int) $art->job_id;
+        $learnRank = (int) $art->learn_rank;
+        if ($jobId <= 0 || $learnRank <= 0) {
+            return null;
+        }
+
+        $relativePath = sprintf('images/job_art/job_art_%03d_%02d.webp', $jobId, $learnRank);
+
+        return is_file(public_path($relativePath)) ? $relativePath : null;
     }
 
     private function slotContextDescriptions(JobArtService $jobArtService, bool $jobArtV2UiEnabled): array
@@ -380,7 +527,11 @@ class JobArtController extends Controller
         return $descriptions;
     }
 
-    public function policy(Request $request, JobArtService $jobArtService)
+    public function policy(
+        Request $request,
+        JobArtService $jobArtService,
+        JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
+    )
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -389,17 +540,66 @@ class JobArtController extends Controller
 
         $data = $request->validate([
             'activation_policy' => ['required', 'string'],
+            'slot_context' => ['nullable', 'string', Rule::in($jobArtService->slotContexts())],
             'filter' => ['nullable', 'string'],
         ]);
 
         try {
-            $jobArtService->saveActivationPolicy($character, (string) $data['activation_policy']);
+            if (isset($data['slot_context'])) {
+                $jobArtService->saveContextSpPolicy(
+                    $character,
+                    (string) $data['slot_context'],
+                    (string) $data['activation_policy'],
+                );
+            } else {
+                $jobArtService->saveActivationPolicy($character, (string) $data['activation_policy']);
+            }
         } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => collect($e->errors())->flatten()->first() ?: 'SP方針を保存できませんでした。',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+
             return back()->withErrors($e->errors())->withInput();
+        }
+
+        if ($request->expectsJson()) {
+            $diagnosisHtml = null;
+            if (isset($data['slot_context'])) {
+                $slotContext = (string) $data['slot_context'];
+                $stats = app(CharacterStatusService::class)->getFinalStats($character);
+                $diagnosis = $loadoutDiagnosisService->diagnose(
+                    $character,
+                    $jobArtService->selectedSlots(
+                        $character,
+                        $jobArtService->availabilityContextForSlotContext($slotContext),
+                        $slotContext,
+                    ),
+                    $slotContext,
+                    max(0, (int) ($stats['max_mp'] ?? $character->mp_base ?? 0)),
+                    (string) $data['activation_policy'],
+                    $jobArtService->maxSlots(),
+                    $jobArtService->maxCost(),
+                );
+                $diagnosisHtml = view('job-arts.partials.loadout-diagnosis', compact('diagnosis'))->render();
+            }
+
+            return response()->json([
+                'message' => isset($data['slot_context'])
+                    ? 'SP方針を保存しました。'
+                    : $this->displayTerm($character) . '発動方針を保存しました。',
+                'slot_context' => $data['slot_context'] ?? null,
+                'activation_policy' => (string) $data['activation_policy'],
+                'diagnosis_html' => $diagnosisHtml,
+            ]);
         }
 
         return redirect()
             ->route('job-arts.index', ['filter' => $data['filter'] ?? 'available'])
-            ->with('message', $this->displayTerm($character) . '発動方針を保存しました。');
+            ->with('message', isset($data['slot_context'])
+                ? 'SP方針を保存しました。'
+                : $this->displayTerm($character) . '発動方針を保存しました。');
     }
 }

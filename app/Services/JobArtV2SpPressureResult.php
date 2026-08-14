@@ -10,8 +10,6 @@ final class JobArtV2SpPressureResult
         public readonly int $spBefore = 0,
         public readonly int $spAfter = 0,
         public readonly int $actualLoss = 0,
-        public readonly int $battleCap = 0,
-        public readonly int $remainingCap = 0,
         public readonly ?int $sourceActionId = null,
         public readonly ?string $blockedReason = null,
     ) {
@@ -31,8 +29,6 @@ final class JobArtV2SpPressureResult
             'sp_before' => $this->spBefore,
             'sp_after' => $this->spAfter,
             'actual_loss' => $this->actualLoss,
-            'battle_cap' => $this->battleCap,
-            'remaining_cap' => $this->remainingCap,
             'source_action_id' => $this->sourceActionId,
         ];
     }

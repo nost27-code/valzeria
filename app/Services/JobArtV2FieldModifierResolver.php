@@ -36,7 +36,8 @@ final class JobArtV2FieldModifierResolver
                 ) {
                     continue;
                 }
-                $values[] = (float) $effect['value'];
+                $multiplier = $field instanceof FieldState ? $field->effectMultiplier : 1.0;
+                $values[] = (float) $effect['value'] * max(0.0, $multiplier);
             }
         }
 

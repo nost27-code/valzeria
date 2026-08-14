@@ -109,7 +109,6 @@
                     </div>
 
                     {{-- 戦闘ログ --}}
-                    @include('battle.partials.job-art-v2-hud', ['jobArtV2Hud' => $result['job_art_v2_hud'] ?? null])
                     <div class="px-2 mb-6 font-mono text-sm sm:text-base leading-loose text-slate-700">
                         @foreach($result['logs'] as $log)
                             <div>{!! $log !!}</div>

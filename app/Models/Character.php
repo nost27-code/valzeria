@@ -154,6 +154,11 @@ class Character extends Model
         return $this->hasMany(CharacterJobArtSlot::class);
     }
 
+    public function jobArtContextSettings()
+    {
+        return $this->hasMany(CharacterJobArtContextSetting::class);
+    }
+
     public function jobArtPresets()
     {
         return $this->hasMany(JobArtPreset::class);

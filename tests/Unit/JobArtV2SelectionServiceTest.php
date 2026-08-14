@@ -16,33 +16,34 @@ use Tests\TestCase;
 
 class JobArtV2SelectionServiceTest extends TestCase
 {
-    public function test_gate_enables_only_the_completed_current_jobs_when_flag_is_on(): void
+    public function test_gate_enables_every_master_current_job_only_when_flag_is_on(): void
     {
         $gate = new JobArtV2FeatureGate(new JobArtV2PrototypeCatalog());
         $actor = $this->actor();
+        $supportedRepresentatives = [1, 8, 9, 26, 27, 38, 44, 53, 60, 69, 70, 79, 80, 84, 85, 94, 95, 99];
 
         config(['battle.job_art_v2.dynamic_single' => false]);
-        foreach ([24, 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 85] as $jobId) {
+        foreach ($supportedRepresentatives as $jobId) {
             $actor->currentJobId = $jobId;
             $this->assertFalse($gate->usesDynamicSingle($actor));
         }
 
         config(['battle.job_art_v2.dynamic_single' => true]);
-        foreach ([24, 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 85] as $jobId) {
+        foreach ($supportedRepresentatives as $jobId) {
             $actor->currentJobId = $jobId;
             $this->assertTrue($gate->usesDynamicSingle($actor));
         }
-        foreach ([1, 23, 25, 39, 70, 84, 86, 94] as $jobId) {
+        foreach ([39, 40, 41, 42, 43, 100] as $jobId) {
             $actor->currentJobId = $jobId;
             $this->assertFalse($gate->usesDynamicSingle($actor));
         }
 
         config(['battle.job_art_v2.normalized_sp' => true]);
-        foreach ([24, 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 85] as $jobId) {
+        foreach ($supportedRepresentatives as $jobId) {
             $actor->currentJobId = $jobId;
             $this->assertTrue($gate->usesPr5Rules($actor));
         }
-        $actor->currentJobId = 10;
+        $actor->currentJobId = 39;
         $this->assertFalse($gate->usesPr5Rules($actor));
     }
 
@@ -62,7 +63,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         $this->assertSame(1, $random->calls);
     }
 
-    public function test_ineligible_cooldown_use_limit_and_sp_shortage_are_skipped_before_one_roll(): void
+    public function test_v2_ignores_legacy_cooldown_and_use_limit_before_one_roll(): void
     {
         $random = $this->random([1]);
         $service = $this->service($random);
@@ -76,7 +77,22 @@ class JobArtV2SelectionServiceTest extends TestCase
 
         $result = $service->selectForTurn($actor, $state);
 
-        $this->assertSame(204, $result->skill?->id);
+        $this->assertSame(201, $result->skill?->id);
+        $this->assertSame(1, $random->calls);
+    }
+
+    public function test_v2_still_skips_sp_shortage_after_legacy_limits_are_removed(): void
+    {
+        $random = $this->random([1]);
+        $service = $this->service($random);
+        $expensive = $this->art(211, 100, spCostFixed: 20);
+        $expensive->job_id = 85;
+        $eligible = $this->art(212, 100);
+        [$actor, $state] = $this->battle([$expensive, $eligible], mp: 10);
+
+        $result = $service->selectForTurn($actor, $state);
+
+        $this->assertSame(212, $result->skill?->id);
         $this->assertSame(1, $random->calls);
     }
 
@@ -99,16 +115,20 @@ class JobArtV2SelectionServiceTest extends TestCase
 
     public function test_rank_nine_is_prioritized_only_when_resources_and_condition_are_both_enabled(): void
     {
-        $front = $this->art(401, 100, learnRank: 1);
+        // 資源満タン時の始動は上限で適格外になるため、通常順の比較札には
+        // 同じ資源を消費できる連携を置く。
+        $front = $this->art(401, 100, learnRank: 5);
         $rankNine = $this->art(409, 100, learnRank: 9);
-        $front->job_id = 999;
-        $rankNine->job_id = 24;
+        $front->job_id = 11;
+        // 場術の奥義は展開中の場も必要になるため、汎用の優先順だけを
+        // 検証するこのテストでは追加適格条件を持たない反撃奥義を使う。
+        $rankNine->job_id = 11;
 
         config(['battle.job_art_v2.resources' => false]);
         $provider = $this->finisherProvider(true);
         $service = $this->service($this->random([1]), $provider);
         [$actor, $state] = $this->battle([$front, $rankNine]);
-        $actor->currentJobId = 24;
+        $actor->currentJobId = 11;
         $offResult = $service->selectForTurn($actor, $state);
         $this->assertSame(401, $offResult->skill?->id);
         $this->assertFalse($offResult->rankNinePrioritized);
@@ -120,20 +140,25 @@ class JobArtV2SelectionServiceTest extends TestCase
             'battle.job_art_v2.damage_application' => true,
             'battle.job_art_v2.resources' => true,
         ]);
-        $actor->configureResource('star_mark', 12);
-        $actor->setResource('star_mark', 12);
+        $actor->configureResource('sword_momentum', 12);
+        $actor->setResource('sword_momentum', 12);
+        $actor->setJobArtV2SelectionCursor(0, 2);
         $falseProvider = $this->finisherProvider(false);
-        $falseResult = $this->service($this->random([1]), $falseProvider)->selectForTurn($actor, $state);
-        $this->assertSame(401, $falseResult->skill?->id);
+        $falseService = $this->service($this->random([1]), $falseProvider);
+        $this->assertNull($falseService->eligibilityFailureReason($actor, $state, $rankNine, 409));
+        $falseResult = $falseService->selectForTurn($actor, $state);
+        $this->assertSame(401, $falseResult->skill?->id, 'condition false must preserve cursor order');
         $this->assertFalse($falseResult->rankNinePrioritized);
+        $this->assertSame(1, $falseProvider->calls);
 
         $trueProvider = $this->finisherProvider(true);
         $trueResult = $this->service($this->random([1]), $trueProvider)->selectForTurn($actor, $state);
-        $this->assertSame(409, $trueResult->skill?->id);
+        $this->assertSame(1, $trueProvider->calls);
+        $this->assertSame(409, $trueResult->skill?->id, 'condition true must prioritize the ready ultimate');
         $this->assertTrue($trueResult->rankNinePrioritized);
     }
 
-    public function test_only_current_trusted_rank_nine_receives_finisher_priority_in_mixed_loadouts(): void
+    public function test_every_equipped_rank_nine_can_receive_priority_and_set_order_breaks_ties(): void
     {
         config([
             'battle.job_art_v2.dynamic_single' => true,
@@ -152,10 +177,12 @@ class JobArtV2SelectionServiceTest extends TestCase
         $actor->jobArtOrigins[459] = 'inherited';
         $actor->configureResource('break', 12);
         $actor->setResource('break', 12);
+        $actor->configureResource('aim', 12);
+        $actor->setResource('aim', 12);
 
         $inheritedOnly = $this->service($this->random([1]))->selectForTurn($actor, $state);
-        $this->assertSame(451, $inheritedOnly->skill?->id);
-        $this->assertFalse($inheritedOnly->rankNinePrioritized);
+        $this->assertSame(459, $inheritedOnly->skill?->id);
+        $this->assertTrue($inheritedOnly->rankNinePrioritized);
 
         $currentRankNine = $this->art(469, 100, learnRank: 9);
         $currentRankNine->job_id = 68;
@@ -163,7 +190,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         $actor->jobArtOrigins[469] = 'current';
 
         $withCurrentFinisher = $this->service($this->random([1]))->selectForTurn($actor, $state);
-        $this->assertSame(469, $withCurrentFinisher->skill?->id);
+        $this->assertSame(459, $withCurrentFinisher->skill?->id);
         $this->assertTrue($withCurrentFinisher->rankNinePrioritized);
     }
 
@@ -172,17 +199,24 @@ class JobArtV2SelectionServiceTest extends TestCase
         config([
             'battle.job_art_v2.dynamic_single' => true,
             'battle.job_art_v2.normalized_sp' => true,
+            'battle.job_art_v2.resources' => false,
         ]);
 
         foreach ([24, 53, 60, 61, 62, 64, 65, 66, 67, 68, 69, 85] as $jobId) {
             foreach ([1 => 35, 5 => 38, 9 => 50] as $rank => $expectedRate) {
                 $skill = $this->art(($jobId * 10) + $rank, 91, learnRank: $rank);
                 $skill->job_id = $jobId;
-                [$actor, $state] = $this->battle([$skill]);
-                $actor->currentJobId = $jobId;
-                $result = $this->service($this->random([1]))->selectForTurn($actor, $state);
+                $activationRate = app(JobArtV2BattleRules::class)->activationRateFor(
+                    $skill,
+                    $jobId,
+                    'current',
+                );
 
-                $this->assertSame($expectedRate, $result->activationRate);
+                $this->assertSame(
+                    $expectedRate,
+                    $activationRate,
+                    "job {$jobId} rank {$rank} must use the v2 activation rate",
+                );
                 $this->assertSame(91, $skill->effectiveActivationRate());
             }
         }
@@ -200,6 +234,8 @@ class JobArtV2SelectionServiceTest extends TestCase
         [$actor, $state] = $this->battle([$inherited]);
         $actor->currentJobId = 68;
         $actor->jobArtOrigins[581] = 'inherited';
+        $actor->configureResource('aim', 12);
+        $actor->setResource('aim', 4);
 
         $result = $this->service($this->random([1]))->selectForTurn($actor, $state);
 
@@ -208,7 +244,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         $this->assertSame(17, $inherited->effectiveActivationRate());
     }
 
-    public function test_pr5_conserve_accepts_exactly_forty_percent_but_not_just_below(): void
+    public function test_conserve_accepts_exactly_sixty_percent_but_not_just_below(): void
     {
         config([
             'battle.job_art_v2.dynamic_single' => true,
@@ -218,13 +254,43 @@ class JobArtV2SelectionServiceTest extends TestCase
         $skill->job_id = 24;
         $service = $this->service($this->random([]));
 
-        foreach ([39 => false, 40 => true, 41 => true] as $mp => $expected) {
+        foreach ([59 => false, 60 => true, 61 => true] as $mp => $expected) {
             [$actor, $state] = $this->battle([$skill], mp: $mp);
             $actor->currentJobId = 24;
             $actor->jobArtActivationPolicy = 'conserve';
 
             $this->assertSame($expected, $service->isEligible($actor, $state, $skill, 601), "SP{$mp}");
         }
+    }
+
+    public function test_hidden_mark_gate_is_reported_once_until_the_visible_count_changes(): void
+    {
+        config([
+            'battle.job_art_v2.loadout_v2' => true,
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+        ]);
+        $skill = $this->art(6405, 100, learnRank: 5);
+        $skill->job_id = 64;
+        $skill->name = '影冠狙撃';
+        [$actor, $state] = $this->battle([$skill]);
+        $actor->currentJobId = 64;
+        $actor->jobArtOrigins[6405] = 'current';
+        $actor->configureResource('hunt', 12);
+        $actor->setResource('hunt', 4);
+        $service = $this->service($this->random([]));
+
+        $this->assertNull($service->selectForTurn($actor, $state)->skill);
+        $this->assertNull($service->selectForTurn($actor, $state)->skill);
+
+        $matchingLogs = array_values(array_filter(
+            $state->logs,
+            static fn (string $log): bool => str_contains($log, '標的印 が不足')
+                && str_contains($log, '必要 1／現在 0'),
+        ));
+        $this->assertCount(1, $matchingLogs);
     }
 
     private function service(
@@ -310,6 +376,7 @@ class JobArtV2SelectionServiceTest extends TestCase
     ): Skill {
         $skill = new Skill([
             'name' => "art-{$id}",
+            'job_id' => 1,
             'skill_type' => 'job_art',
             'learn_rank' => $learnRank,
             'activation_rate' => $activationRate,

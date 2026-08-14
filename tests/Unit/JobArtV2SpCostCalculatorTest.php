@@ -29,7 +29,7 @@ class JobArtV2SpCostCalculatorTest extends TestCase
         $this->assertFalse($config['job_art_v2']['normalized_sp']);
     }
 
-    public function test_flag_dependencies_and_unsupported_jobs_fail_closed_to_legacy(): void
+    public function test_fixed_sp_cost_does_not_depend_on_feature_flags_or_current_job(): void
     {
         $skill = $this->art(1, 24, activationRate: 77, fixedSpCost: 10);
 
@@ -37,101 +37,97 @@ class JobArtV2SpCostCalculatorTest extends TestCase
             'battle.job_art_v2.dynamic_single' => false,
             'battle.job_art_v2.normalized_sp' => true,
         ]);
-        $this->assertSame(8, $this->calculator->forCurrentJob($skill, 400, 24, 'current'));
+        $this->assertSame(6, $this->calculator->forCurrentJob($skill, 400, 24, 'current'));
         $this->assertSame(77, $this->rules->activationRateFor($skill, 24));
 
         config([
             'battle.job_art_v2.dynamic_single' => true,
             'battle.job_art_v2.normalized_sp' => false,
         ]);
-        $this->assertSame(8, $this->calculator->forCurrentJob($skill, 400, 24, 'current'));
+        $this->assertSame(6, $this->calculator->forCurrentJob($skill, 400, 24, 'current'));
         $this->assertSame(77, $this->rules->activationRateFor($skill, 24));
 
         config([
             'battle.job_art_v2.dynamic_single' => true,
             'battle.job_art_v2.normalized_sp' => true,
         ]);
-        $this->assertSame(8, $this->calculator->forCurrentJob($skill, 400, 10, 'current'));
-        $this->assertSame(77, $this->rules->activationRateFor($skill, 10));
+        $this->assertSame(6, $this->calculator->forCurrentJob($skill, 400, 39, 'current'));
+        $this->assertSame(77, $this->rules->activationRateFor($skill, 39));
+
+        $heroSkill = $this->art(1, 70, activationRate: 77, fixedSpCost: 10);
+        $this->assertSame(30, $this->calculator->forCurrentJob($heroSkill, 800, 70, 'current'));
+        $this->assertSame(35, $this->rules->activationRateFor($heroSkill, 70));
     }
 
-    public function test_frozen_costs_for_current_and_inherited_arts_across_sp_bands(): void
+    public function test_all_eight_job_tiers_use_the_fixed_rank_table(): void
     {
-        $this->enablePr5();
-        $expected = [
-            1 => [
-                'current' => [100 => 2, 200 => 4, 300 => 6, 399 => 8, 400 => 8, 401 => 9, 800 => 15, 1600 => 28, 3200 => 53],
-                'inherited' => [100 => 3, 200 => 5, 300 => 8, 399 => 10, 400 => 10, 401 => 11, 800 => 18, 1600 => 34, 3200 => 66],
-            ],
-            5 => [
-                'current' => [100 => 4, 200 => 7, 300 => 10, 399 => 13, 400 => 13, 401 => 13, 800 => 24, 1600 => 44, 3200 => 86],
-                'inherited' => [100 => 4, 200 => 8, 300 => 12, 399 => 16, 400 => 16, 401 => 17, 800 => 29, 1600 => 55, 3200 => 107],
-            ],
-            9 => [
-                'current' => [100 => 5, 200 => 9, 300 => 14, 399 => 18, 400 => 18, 401 => 18, 800 => 32, 1600 => 61, 3200 => 119],
-                'inherited' => [100 => 6, 200 => 11, 300 => 17, 399 => 22, 400 => 22, 401 => 23, 800 => 40, 1600 => 76, 3200 => 148],
-            ],
+        $tiers = [
+            1 => [1 => 4, 5 => 6, 9 => 8],
+            9 => [1 => 6, 5 => 9, 9 => 13],
+            27 => [1 => 10, 5 => 16, 9 => 22],
+            50 => [1 => 16, 5 => 25, 9 => 35],
+            60 => [1 => 23, 5 => 36, 9 => 50],
+            70 => [1 => 30, 5 => 48, 9 => 66],
+            80 => [1 => 40, 5 => 64, 9 => 88],
+            85 => [1 => 52, 5 => 84, 9 => 115],
         ];
 
-        foreach ($expected as $rank => $origins) {
-            foreach ($origins as $origin => $costs) {
-                $skill = $this->art($rank, $origin === 'current' ? 24 : 99);
-                $previous = 0;
-                foreach ($costs as $maxSp => $expectedCost) {
-                    $actual = $this->calculator->forCurrentJob($skill, $maxSp, 24, $origin);
-                    $this->assertSame($expectedCost, $actual, "Rank{$rank} {$origin} maxSP{$maxSp}");
-                    $this->assertGreaterThanOrEqual(1, $actual);
-                    $this->assertGreaterThanOrEqual($previous, $actual);
-                    $previous = $actual;
+        foreach ($tiers as $jobId => $ranks) {
+            foreach ($ranks as $rank => $expected) {
+                foreach (['current', 'inherited'] as $origin) {
+                    $this->assertSame(
+                        $expected,
+                        $this->calculator->forCurrentJob($this->art($rank, $jobId), 1, 24, $origin),
+                        "job{$jobId} Rank{$rank} {$origin}",
+                    );
                 }
             }
         }
     }
 
-    public function test_sp_four_hundred_and_below_matches_pure_formula_and_current_never_exceeds_inherited(): void
+    public function test_fixed_sp_cost_does_not_change_with_max_sp(): void
     {
         $this->enablePr5();
 
-        foreach ([1 => 50, 5 => 80, 9 => 110] as $rank => $pureRate) {
-            foreach ([100, 200, 300, 399, 400] as $maxSp) {
-                $current = $this->calculator->forCurrentJob($this->art($rank, 24), $maxSp, 24);
-                $inherited = $this->calculator->forCurrentJob($this->art($rank, 99), $maxSp, 24);
-                $this->assertSame((int) ceil(($maxSp * $pureRate) / 2500), $current);
-                $this->assertSame((int) ceil(($maxSp * $pureRate) / 2000), $inherited);
-                $this->assertLessThanOrEqual($inherited, $current);
+        foreach ([0, 1, 100, 400, 3_200, 99_999] as $maxSp) {
+            foreach ([1 => 23, 5 => 36, 9 => 50] as $rank => $expected) {
+                $this->assertSame($expected, $this->calculator->forCurrentJob($this->art($rank, 60), $maxSp, 1));
             }
         }
     }
 
-    public function test_source_job_id_controls_discount_and_unknown_source_is_inherited(): void
+    public function test_source_job_tier_controls_cost_but_current_job_and_origin_do_not(): void
     {
         $this->enablePr5();
 
-        $this->assertSame(8, $this->calculator->forCurrentJob($this->art(1, 24), 400, 24));
-        $this->assertSame(10, $this->calculator->forCurrentJob($this->art(1, 53), 400, 24));
-
-        $unknown = $this->art(1, 24);
-        $unknown->setAttribute('job_id', null);
-        $this->assertSame(10, $this->calculator->forCurrentJob($unknown, 400, 24, 'current'));
+        $skill = $this->art(1, 60);
+        $this->assertSame(23, $this->calculator->forCurrentJob($skill, 400, 60, 'current'));
+        $this->assertSame(23, $this->calculator->forCurrentJob($skill, 400, 1, 'inherited'));
     }
 
-    public function test_final_ceil_is_applied_only_after_min_and_current_job_discount(): void
+    public function test_legend_extension_jobs_share_the_same_legend_cost(): void
     {
         $this->enablePr5();
 
-        // Rank5 at maxSP401 has base numerator 32065. Final-only ceil is 13;
-        // rounding the base to 17 first would incorrectly produce 14.
-        $this->assertSame(13, $this->calculator->forCurrentJob($this->art(5, 24), 401, 24));
-        $this->assertSame(17, $this->calculator->forCurrentJob($this->art(5, 99), 401, 24));
+        $this->assertSame(40, $this->calculator->forCurrentJob($this->art(1, 95), 1, 1));
+        $this->assertSame(64, $this->calculator->forCurrentJob($this->art(5, 99), 9_999, 1));
+        $this->assertSame(88, $this->calculator->forCurrentJob($this->art(9, 99), 9_999, 1));
     }
 
-    public function test_unknown_rank_keeps_legacy_cost_and_activation_rate(): void
+    public function test_unknown_source_job_never_falls_back_to_legacy_sp_cost(): void
     {
-        $this->enablePr5();
-        $skill = $this->art(3, 24, activationRate: 73, fixedSpCost: 10);
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('job_id=39, learn_rank=1');
 
-        $this->assertSame(8, $this->calculator->forCurrentJob($skill, 400, 24, 'current'));
-        $this->assertSame(73, $this->rules->activationRateFor($skill, 24));
+        $this->calculator->forCurrentJob($this->art(1, 39, fixedSpCost: 10), 400, 24, 'current');
+    }
+
+    public function test_unknown_rank_never_falls_back_to_legacy_sp_cost(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('job_id=24, learn_rank=3');
+
+        $this->calculator->forCurrentJob($this->art(3, 24, activationRate: 73, fixedSpCost: 10), 400, 24, 'current');
     }
 
     public function test_v2_activation_rates_do_not_mutate_master_values(): void
@@ -157,14 +153,15 @@ class JobArtV2SpCostCalculatorTest extends TestCase
         $this->assertSame(87, $skill->effectiveActivationRate());
     }
 
-    public function test_conserve_threshold_is_forty_percent_only_for_pr5_target(): void
+    public function test_conserve_threshold_is_sixty_percent_for_all_jobs(): void
     {
         $this->enablePr5();
         $target = $this->actor(24);
-        $unsupported = $this->actor(10);
+        $hero = $this->actor(70);
 
-        $this->assertSame(0.40, $this->rules->conserveThresholdFor($target));
-        $this->assertSame(0.60, $this->rules->conserveThresholdFor($unsupported));
+        $this->assertSame(0.60, $this->rules->conserveThresholdFor($target));
+        $this->assertSame(0.60, $this->rules->conserveThresholdFor($hero));
+        $this->assertSame(60, $this->rules->conserveThresholdPercentForCurrentJob(24));
 
         config(['battle.job_art_v2.normalized_sp' => false]);
         $this->assertSame(0.60, $this->rules->conserveThresholdFor($target));

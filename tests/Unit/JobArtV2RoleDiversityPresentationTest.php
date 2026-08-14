@@ -8,6 +8,7 @@ use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageSourceType;
 use App\Services\FieldEvent;
 use App\Services\JobArtLineageCatalog;
+use App\Services\JobArtV2CardDescriptionCatalog;
 use App\Services\JobArtV2FieldService;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2PrototypeCatalog;
@@ -25,12 +26,18 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         [1, 9, '剣気解放'],
         [11, 9, '刹那雪月花'],
         [13, 9, 'コロッセオブレイク'],
+        [34, 1, '幻惑歩法'],
+        [35, 1, '機巧展開'],
+        [35, 5, '魔導砲'],
         [4, 5, '狙い撃ち'],
         [18, 5, 'クリティカルショット'],
         [22, 5, 'エレメントアロー'],
+        [45, 5, '魔弓連星'],
+        [70, 5, '暁光ブレイク'],
         [6, 1, '魔力の火種'],
         [23, 1, '鼓舞の小節'],
         [23, 5, '勇気の旋律'],
+        [46, 1, '祝詞の一節'],
         [9, 1, '属性付与'],
         [14, 1, '血潮の咆哮'],
         [2, 1, '挑発撃'],
@@ -39,6 +46,9 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         [38, 1, '商聖の助言'],
         [7, 1, 'ヒール'],
         [36, 1, '聖戦の祈り'],
+        [56, 5, '聖域結界'],
+        [44, 9, '天壁イージス'],
+        [56, 9, '聖壁アルカディア'],
         [8, 5, '幸運の一手'],
         [20, 5, '掘り出し物'],
         [31, 1, '黄金鑑定'],
@@ -62,6 +72,7 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         'eclipse' => 61,
         'pierce' => 62,
         'aim' => 65,
+        'hunt' => 64,
         'guard' => 66,
         'transmute' => 67,
     ];
@@ -73,7 +84,7 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         $this->enableV2();
     }
 
-    public function test_portable_field_producers_work_for_foreign_lineage_without_foreign_resource_or_self_application(): void
+    public function test_portable_field_producers_generate_source_resource_without_self_field_application(): void
     {
         foreach ([
             [6, '魔力の火種', 'MAGICAL_DAMAGE_BUFF', 'star_light'],
@@ -93,8 +104,8 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
 
             $this->assertSame($fieldKey, $state->primaryField()?->key, $name);
             $this->assertSame(7, $actor->getResource('dragon_force'), $name);
-            $this->assertSame(0, $actor->getResource('star_mark'), $name);
-            $this->assertSame(0, $actor->resourceCap('star_mark'), $name);
+            $this->assertSame(4, $actor->getResource('star_mark'), $name);
+            $this->assertSame(12, $actor->resourceCap('star_mark'), $name);
 
             if ($fieldKey === 'star_light') {
                 $this->assertSame(100, $fields->modifyDamage($actor, $state, 100, DamageSourceType::JOB_ART), $name);
@@ -110,7 +121,7 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         }
     }
 
-    public function test_bards_field_extension_is_neutral_and_adds_two_rounds_exactly_once(): void
+    public function test_bards_field_extension_is_neutral_and_adds_three_turns_exactly_once(): void
     {
         [$actor, , $state] = $this->battle(53, 61);
         $actor->configureResource('star_mark', 12);
@@ -132,7 +143,7 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
 
         $this->assertFalse($result->applied);
         $this->assertSame(7, $actor->getResource('star_mark'));
-        $this->assertSame(5, $state->primaryField()?->remainingRounds);
+        $this->assertSame(6, $state->primaryField()?->remainingRounds);
         $this->assertSame(1, $state->primaryField()?->extends);
         $extendedEvents = array_filter(
             $state->fieldEvents(),
@@ -141,9 +152,26 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         $this->assertCount(1, $extendedEvents);
     }
 
-    public function test_presenter_exposes_every_exact_role_text_for_same_and_cross_lineage_inheritance_without_changing_master_values(): void
+    public function test_poem_opener_creates_a_five_turn_melody_field_separately_from_its_timed_buff(): void
+    {
+        [$actor, , $state] = $this->battle(46, 61);
+        $actor->configureResource('star_mark', 12);
+        $skill = $this->art(46, 1, '祝詞の一節', 'MAGICAL_DAMAGE_BUFF');
+        $actor->jobArtOrigins[(int) $skill->id] = 'current';
+        $resources = app(JobArtV2ResourceService::class);
+
+        $resources->beginAction($actor, $state);
+        $resources->applyJobArtCast($actor, $state, $skill);
+
+        $this->assertSame('melody', $state->primaryField()?->key);
+        $this->assertSame(5, $state->primaryField()?->remainingRounds);
+        $this->assertSame(4, $actor->getResource('star_mark'));
+    }
+
+    public function test_presenter_exposes_every_exact_role_text_and_l_column_power_for_every_equipped_lineage(): void
     {
         $presenter = app(JobArtV2LoadoutPresenter::class);
+        $descriptions = app(JobArtV2CardDescriptionCatalog::class);
         $roles = app(JobArtV2RoleEffectCatalog::class);
         $lineages = app(JobArtLineageCatalog::class);
 
@@ -151,9 +179,28 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
             $power = 1_000 + $index;
             $hitCount = 2 + ($index % 3);
             $skill = $this->art($jobId, $rank, $name, power: $power, hitCount: $hitCount);
+            $canonicalPower = $descriptions->basePower($skill) ?? $power;
             $skill->setAttribute('job_art_origin', 'inherited');
-            $expectedTexts = $roles->effectTexts($skill);
-            $this->assertNotEmpty($expectedTexts, "missing catalog text:{$jobId}:{$rank}:{$name}");
+            $expectedTexts = array_values(array_filter(array_map(
+                fn (string $text): string => $this->playerFacingEffectText($text),
+                array_filter(
+                    $roles->effectTexts($skill),
+                    fn (string $text): bool => ! $this->isExecutionPowerDerivedHealText($text),
+                ),
+            )));
+            $masterNumericDisplayOnly = in_array("{$jobId}:{$rank}:{$name}", [
+                // 回復倍率はcatalog文ではなく、master powerから具体的なSPR倍率を表示する。
+                '7:1:ヒール',
+                '8:5:幸運の一手',
+                '20:5:掘り出し物',
+                '31:1:黄金鑑定',
+                '31:9:王立独占契約',
+            ], true);
+            if ($masterNumericDisplayOnly) {
+                $this->assertSame([], $expectedTexts, "{$name}はmasterの実数報酬表示へ集約する");
+            } else {
+                $this->assertNotEmpty($expectedTexts, "missing catalog text:{$jobId}:{$rank}:{$name}");
+            }
             $lineageKey = (string) ($lineages->forArt($skill)['lineage_key'] ?? '');
             $sameLineageJob = self::SUPPORTED_JOB_BY_LINEAGE[$lineageKey] ?? null;
             $this->assertNotNull($sameLineageJob, "{$jobId}:{$rank}:{$name}");
@@ -165,12 +212,13 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
                 foreach ($expectedTexts as $text) {
                     $this->assertContains($text, $display['effect_texts'], "{$currentJobId}:{$name}:{$text}");
                 }
+                $this->assertStringNotContainsString('�', $display['card_description'], "broken utf-8:{$currentJobId}:{$name}");
                 $this->assertSame(
                     array_values(array_unique($display['effect_texts'])),
                     $display['effect_texts'],
                     "duplicate:{$currentJobId}:{$name}",
                 );
-                $this->assertSame($power, $display['effective_power'], "power:{$currentJobId}:{$name}");
+                $this->assertSame($canonicalPower, $display['effective_power'], "power:{$currentJobId}:{$name}");
                 $this->assertSame($power, (int) $skill->power, "master power:{$name}");
                 $this->assertSame($hitCount, (int) $skill->hit_count, "master hit count:{$name}");
             }
@@ -196,7 +244,16 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
             $display = $presenter->forArt($jobId, $skill);
             $this->assertNotNull($display, $name);
             $this->assertSame('current', $display['origin_key'], $name);
-            foreach ($roles->effectTexts($skill) as $text) {
+            foreach (array_map(
+                fn (string $text): string => $this->playerFacingEffectText($text),
+                array_filter(
+                    $roles->effectTexts($skill),
+                    fn (string $text): bool => ! $this->isExecutionPowerDerivedHealText($text),
+                ),
+            ) as $text) {
+                if ($text === '') {
+                    continue;
+                }
                 $this->assertContains($text, $display['effect_texts'], "{$name}:{$text}");
             }
             $currentArtCount++;
@@ -219,7 +276,7 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
         $this->assertSame([], $presenter->forArt(60, $inherited)['effect_texts']);
 
         $this->enableV2();
-        $this->assertNull($presenter->forArt(90, $inherited));
+        $this->assertNull($presenter->forArt(39, $inherited));
 
         $unregistered = $this->art(11, 1, '納刀・別名');
         $unregistered->setAttribute('job_art_origin', 'inherited');
@@ -243,6 +300,43 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
             'battle.job_art_v2.resources' => true,
             'battle.job_art_v2.fields' => true,
         ]);
+    }
+
+    private function playerFacingEffectText(string $text): string
+    {
+        $text = strtr($text, [
+            'Rank1' => '始動',
+            'Rank5' => '連携',
+            'Rank9' => '奥義',
+            'maxHP' => '最大HP',
+            'maxSP' => '最大SP',
+            'ATK' => '攻撃',
+            'DEF' => '防御',
+            'MAG' => '魔力',
+            'SPR' => '精神',
+            'SPD' => '敏捷',
+            'LUK' => '運',
+            'ラウンド' => 'ターン',
+            '直接ダメージ' => '直接攻撃のダメージ',
+            'direct damage' => '直接攻撃のダメージ',
+            'resource' => '系譜リソース',
+            'master' => '基礎',
+            'counter_focus' => '剣気集中の準備効果',
+            '追加自己強化なし' => '追加の自己強化はない',
+            '既存の各Hit会心判定を維持' => '各Hitで会心判定を行う',
+        ]);
+        $text = (string) preg_replace('/[（(]?1戦\s*\d+\s*回(?:まで)?[）)]?/u', '', $text);
+        $text = (string) preg_replace('/(?:内部)?CT\s*\d+(?:ターン)?/u', '', $text);
+        $text = (string) preg_replace('/\s{2,}/u', ' ', $text);
+        $text = (string) preg_replace('/[、・\/\s]+$/u', '', trim($text));
+
+        return trim($text);
+    }
+
+    private function isExecutionPowerDerivedHealText(string $text): bool
+    {
+        return str_contains($text, '基礎回復量')
+            || preg_match('/^HP回復\s+(?:SPR|精神)×\d+(?:\.\d+)?%$/u', $text) === 1;
     }
 
     /** @return array{BattleActor, BattleActor, BattleState} */

@@ -44,7 +44,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         ]);
     }
 
-    public function test_white_silver_shield_is_guard_lineage_only_and_uses_inheritance_attenuation(): void
+    public function test_white_silver_shield_keeps_its_full_effect_in_any_equipped_lineage(): void
     {
         [$guard, $target, $state] = $this->battle(66);
         $shield = $this->art(79, 5, '白銀王盾', 'DAMAGE_BUFF', 285, attributes: [
@@ -59,7 +59,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $this->assertSame(0, (int) $execution->self_buff_percent);
         $effect = $guard->jobArtV2TimedEffect('silver_guard_bridge');
         $this->assertNotNull($effect);
-        $this->assertSame(['def' => 0.11249999999999999, 'spr' => 0.11249999999999999], $effect->statModifiers);
+        $this->assertSame(['def' => 0.15, 'spr' => 0.15], $effect->statModifiers);
         $this->assertSame(2, $effect->remainingRounds);
 
         [$cross, $crossTarget, $crossState] = $this->battle(62);
@@ -67,26 +67,28 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $crossShield->setAttribute('id', ++$this->nextSkillId);
         $this->inherit($cross, $crossShield);
         $progression = app(JobArtV2ProgressionService::class);
-        $this->assertSame(
-            JobArtV2ProgressionService::BLOCKED_BY_DAMAGE_MITIGATION,
-            $progression->eligibilityBlockReason($cross, $crossState, $crossShield),
-        );
-
-        $this->assertSame(80, $this->qualifyingMitigation($cross, $crossTarget, $crossState));
-        $this->assertTrue($cross->jobArtV2ProgressionState()->silverShieldReady);
         $this->assertNull($progression->eligibilityBlockReason($cross, $crossState, $crossShield));
+        $this->assertSame(
+            JobArtV2ResourceService::BLOCKED_BY_RESOURCE,
+            $this->resources()->eligibilityBlockReason($cross, $crossShield, $crossState),
+        );
+        $cross->configureResource('holy_guard', 12);
+        $cross->setResource('holy_guard', 4);
+        $this->assertNull($this->resources()->eligibilityBlockReason($cross, $crossShield, $crossState));
 
-        $crossExecution = $this->cast($cross, $crossTarget, $crossState, $crossShield, HitResult::MISS);
+        $crossExecution = $this->cast($cross, $crossTarget, $crossState, $crossShield, HitResult::MISS, true);
 
         $this->assertSame('PHYSICAL_DAMAGE', $crossExecution->effect_template);
         $this->assertSame([285, 100], [(int) $crossExecution->power, (int) $crossExecution->activation_rate]);
         $this->assertSame(0, (int) $crossExecution->self_buff_percent);
-        $this->assertNull($cross->jobArtV2TimedEffect('silver_guard_bridge'));
+        $crossEffect = $cross->jobArtV2TimedEffect('silver_guard_bridge');
+        $this->assertNotNull($crossEffect);
+        $this->assertSame(['def' => 0.15, 'spr' => 0.15], $crossEffect->statModifiers);
         $this->assertSame(0, $cross->getResource('holy_guard'));
         $this->assertFalse($cross->jobArtV2ProgressionState()->silverShieldReady);
     }
 
-    public function test_cross_lineage_white_silver_shield_latch_expires_on_the_next_other_action(): void
+    public function test_white_silver_shield_never_requires_a_damage_mitigation_latch(): void
     {
         [$actor, $target, $state] = $this->battle(62);
         $shield = $this->art(79, 5, '白銀王盾', 'DAMAGE_BUFF', 285);
@@ -104,47 +106,37 @@ final class JobArtV2FixNowProgressionTest extends TestCase
             actionType: BattleActionType::NORMAL_ATTACK,
         );
         $this->assertSame(100, app(JobArtV2DefenseService::class)->resolveDamage($state, $plainHit, 100));
-        $this->assertSame(
-            JobArtV2ProgressionService::BLOCKED_BY_DAMAGE_MITIGATION,
-            $progression->eligibilityBlockReason($actor, $state, $shield),
-        );
-
-        $this->qualifyingMitigation($actor, $target, $state);
-        $this->assertTrue($actor->jobArtV2ProgressionState()->silverShieldReady);
+        $this->assertNull($progression->eligibilityBlockReason($actor, $state, $shield));
 
         $this->beginAction($actor, $state);
         $progression->finishActivationAttempt($actor, $shield);
-        $this->assertTrue(
-            $actor->jobArtV2ProgressionState()->silverShieldReady,
-            'An activation-roll failure must not consume the latch at selection time.',
-        );
+        $this->assertFalse($actor->jobArtV2ProgressionState()->silverShieldReady);
         $this->resources()->recordNormalAttackResolution($actor, $target, $state, HitResult::HIT);
         $this->resources()->finishAction($actor, $state);
         $this->assertFalse($actor->jobArtV2ProgressionState()->silverShieldReady);
-        $this->assertSame(
-            JobArtV2ProgressionService::BLOCKED_BY_DAMAGE_MITIGATION,
-            $progression->eligibilityBlockReason($actor, $state, $shield),
-        );
+        $this->assertNull($progression->eligibilityBlockReason($actor, $state, $shield));
     }
 
-    public function test_cross_lineage_white_silver_shield_consumes_latch_for_every_hit_result(): void
+    public function test_white_silver_shield_executes_for_every_hit_result_without_a_latch(): void
     {
         foreach ([HitResult::HIT, HitResult::MISS, HitResult::EVADE] as $hitResult) {
             [$actor, $target, $state] = $this->battle(62);
             $shield = $this->art(79, 5, '白銀王盾', 'DAMAGE_BUFF', 285);
             $this->inherit($actor, $shield);
-            $this->qualifyingMitigation($actor, $target, $state);
+            $actor->configureResource('holy_guard', 12);
+            $actor->setResource('holy_guard', 4);
 
-            $this->cast($actor, $target, $state, $shield, $hitResult);
+            $this->cast($actor, $target, $state, $shield, $hitResult, true);
 
             $this->assertFalse(
                 $actor->jobArtV2ProgressionState()->silverShieldReady,
                 $hitResult->value,
             );
+            $this->assertNotNull($actor->jobArtV2TimedEffect('silver_guard_bridge'), $hitResult->value);
         }
     }
 
-    public function test_non_direct_damage_never_arms_cross_lineage_white_silver_shield(): void
+    public function test_non_direct_damage_does_not_change_white_silver_shield_availability(): void
     {
         foreach ([DamageSourceType::DOT, DamageSourceType::SELF_DAMAGE, DamageSourceType::REFLECT] as $sourceType) {
             [$actor, $target, $state] = $this->battle(62);
@@ -164,8 +156,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
             ));
 
             $this->assertFalse($actor->jobArtV2ProgressionState()->silverShieldReady, $sourceType->value);
-            $this->assertSame(
-                JobArtV2ProgressionService::BLOCKED_BY_DAMAGE_MITIGATION,
+            $this->assertNull(
                 app(JobArtV2ProgressionService::class)->eligibilityBlockReason($actor, $state, $shield),
                 $sourceType->value,
             );
@@ -183,7 +174,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
 
         $prepared = $actor->jobArtV2PreparedEffect('magic_aim_prep');
         $this->assertNotNull($prepared);
-        $this->assertSame([1, 3], [$prepared->charges, $prepared->remainingActionOpportunities]);
+        $this->assertSame([1, 4], [$prepared->charges, $prepared->remainingActionOpportunities]);
 
         $rankFive = $this->art(65, 5, '鋼冠機砲', 'MAGICAL_DAMAGE', 285);
         $this->current($actor, $rankFive);
@@ -205,7 +196,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $crossLoad->setAttribute('id', ++$this->nextSkillId);
         $this->inherit($cross, $crossLoad);
         $this->cast($cross, $crossTarget, $crossState, $crossLoad);
-        $this->assertNull($cross->jobArtV2PreparedEffect('magic_aim_prep'));
+        $this->assertNotNull($cross->jobArtV2PreparedEffect('magic_aim_prep'));
     }
 
     public function test_break_focus_trades_damage_for_resource_and_only_arms_against_defense(): void
@@ -234,8 +225,8 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $crossFocus->setAttribute('id', ++$this->nextSkillId);
         $this->inherit($cross, $crossFocus);
         $crossExecution = $this->cast($cross, $crossTarget, $crossState, $crossFocus, applyResource: true);
-        $this->assertSame('SELF_BUFF', $crossExecution->effect_template);
-        $this->assertSame(0, $cross->getResource('break'));
+        $this->assertSame('V2_ROLE_EFFECT_ONLY', $crossExecution->effect_template);
+        $this->assertSame(4, $cross->getResource('break'));
         $this->assertNull($cross->jobArtV2PreparedEffect('break_focus'));
     }
 
@@ -347,8 +338,9 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $rankFive = $this->art(67, 5, '金冠錬成', 'MAGICAL_DAMAGE_REWARD', 285);
         $this->current($actor, $rankOne);
         $this->current($actor, $rankFive);
+        $this->current($target, $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE', 225));
         $actor->configureResource('catalyst', 12);
-        $actor->setResource('catalyst', 8);
+        $actor->setResource('catalyst', 0);
         $this->cast($actor, $target, $state, $rankOne, applyResource: true);
         $this->cast($actor, $target, $state, $rankFive, applyResource: true);
         $this->assertSame(0, $actor->getResource('catalyst'));
@@ -367,8 +359,9 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $gainR5->setAttribute('id', ++$this->nextSkillId);
         $this->current($gainOwner, $gainR1);
         $this->current($gainOwner, $gainR5);
+        $this->current($gainTarget, $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE', 225));
         $gainOwner->configureResource('catalyst', 12);
-        $gainOwner->setResource('catalyst', 8);
+        $gainOwner->setResource('catalyst', 0);
         $this->cast($gainOwner, $gainTarget, $gainState, $gainR1, applyResource: true);
         $this->cast($gainOwner, $gainTarget, $gainState, $gainR5, applyResource: true);
         $gainTarget->configureResource('command_points', 12);
@@ -404,48 +397,26 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $this->assertSame(1_200, $this->roles()->modifyJobArtDamage($actor, $state, $rankNine, 1_000));
     }
 
-    public function test_command_crown_rank_one_has_exact_cooldown_and_disadvantaged_only_reroll(): void
+    public function test_command_crown_rank_one_gains_four_and_rerolls_only_after_losing_next_round_initiative(): void
     {
         [$actor, $target, $state] = $this->battle(69);
         $rankOne = $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE', 225);
         $this->current($actor, $rankOne);
         $state->turnCount = 5;
         $this->cast($actor, $target, $state, $rankOne, applyResource: true);
-        $this->assertSame(0, $actor->getResource('command_points'));
+        $this->assertSame(4, $actor->getResource('command_points'));
 
         $progression = app(JobArtV2ProgressionService::class);
-        foreach ([6, 7] as $round) {
-            $state->turnCount = $round;
-            $this->assertSame('blocked_by_internal_cooldown', $progression->eligibilityBlockReason($actor, $state, $rankOne));
-        }
-        $state->turnCount = 8;
-        $this->assertNull($progression->eligibilityBlockReason($actor, $state, $rankOne));
+        $this->assertTrue($actor->jobArtV2ProgressionState()->initiativeRerollNextRound);
+        $rerolls = 0;
+        $this->assertTrue($progression->adjustInitiative($actor, $target, false, function () use (&$rerolls): bool {
+            $rerolls++;
 
-        [$missActor, $missTarget, $missState] = $this->battle(69);
-        $missRankOne = $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE', 225);
-        $this->current($missActor, $missRankOne);
-        $missState->turnCount = 5;
-        $this->cast($missActor, $missTarget, $missState, $missRankOne, HitResult::MISS);
-        $this->assertTrue($missActor->jobArtV2ProgressionState()->initiativeRerollNextRound);
-        $this->assertSame(8, $missActor->jobArtV2ProgressionState()->commandRankOneCooldownUntilRound);
-
-        $calls = 0;
-        $this->assertTrue($progression->adjustInitiative($actor, $target, true, function () use (&$calls): bool {
-            $calls++;
-            return false;
+            return true;
         }));
-        $this->assertSame(0, $calls, 'An already-first actor must not reroll.');
-
-        $actor->jobArtV2ProgressionState()->initiativeRerollNextRound = true;
-        $this->assertFalse($progression->adjustInitiative($actor, $target, false, function () use (&$calls): bool {
-            $calls++;
-            return false;
-        }));
-        $this->assertSame(1, $calls);
+        $this->assertSame(1, $rerolls);
         $this->assertFalse($actor->jobArtV2ProgressionState()->initiativeRerollNextRound);
-
-        $actor->jobArtV2ProgressionState()->initiativeForceFirstNextRound = true;
-        $this->assertTrue($progression->adjustInitiative($actor, $target, false, fn (): bool => false));
+        $this->assertNull($progression->eligibilityBlockReason($actor, $state, $rankOne));
     }
 
     public function test_progression_display_and_flag_off_are_fail_closed(): void
@@ -454,7 +425,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $rankFive->setAttribute('job_art_origin', 'current');
         $presented = app(JobArtV2LoadoutPresenter::class)->forArt(58, $rankFive);
         $this->assertSame(['MULTI_HIT', 3], [$presented['effect_template'], $presented['effective_hit_count']]);
-        $this->assertContains('3Hit（master総威力を均等分割）', $presented['effect_texts']);
+        $this->assertContains('3Hit（基礎総威力を均等分割）', $presented['effect_texts']);
 
         $rankFive->setAttribute('job_art_origin', 'inherited');
         $cross = app(JobArtV2LoadoutPresenter::class)->forArt(65, $rankFive);
@@ -495,7 +466,7 @@ final class JobArtV2FixNowProgressionTest extends TestCase
 
         $hud = app(JobArtV2BattleHudService::class)->present($state);
         $this->assertNotNull($hud);
-        $this->assertContains('狩猟印：1/3', $hud['actors'][0]['progression']);
+        $this->assertContains('標的印：1/3', $hud['actors'][0]['progression']);
     }
 
     /** @return array{BattleActor, BattleActor, BattleState} */
@@ -557,14 +528,20 @@ final class JobArtV2FixNowProgressionTest extends TestCase
 
     private function current(BattleActor $actor, Skill $skill): void
     {
+        if (! collect($actor->jobArts)->contains(fn (Skill $equipped): bool => (int) $equipped->id === (int) $skill->id)) {
+            $actor->jobArts[] = $skill;
+        }
         $actor->jobArtOrigins[(int) $skill->id] = 'current';
         $actor->jobArtRates[(int) $skill->id] = 1.0;
     }
 
     private function inherit(BattleActor $actor, Skill $skill, float $rate = 1.0): void
     {
+        if (! collect($actor->jobArts)->contains(fn (Skill $equipped): bool => (int) $equipped->id === (int) $skill->id)) {
+            $actor->jobArts[] = $skill;
+        }
         $actor->jobArtOrigins[(int) $skill->id] = 'inherited';
-        $actor->jobArtRates[(int) $skill->id] = $rate;
+        $actor->jobArtRates[(int) $skill->id] = 1.0;
     }
 
     private function beginAction(BattleActor $actor, BattleState $state): int

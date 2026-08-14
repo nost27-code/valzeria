@@ -14,14 +14,16 @@ final class JobArtV2FieldService
     public const BLOCKED_BY_FEATURE_DEPENDENCY = 'blocked_by_feature_dependency';
     public const BLOCKED_BY_FIELD_LOCK = 'blocked_by_field_lock';
 
-    private const BASE_DURATION = 3;
-    private const MAX_DURATION = 5;
+    public const BASE_DURATION = 3;
+    private const MAX_DURATION = 8;
     private const OVERLAY_DURATION = 1;
 
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2FieldCatalog $catalog,
         private readonly JobArtV2FieldModifierResolver $modifiers,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
     ) {
     }
 
@@ -80,7 +82,7 @@ final class JobArtV2FieldService
         $metadata = $this->catalog->forArt($skill);
 
         return $this->enabledFor($state)
-            && $this->isTrustedCurrentFieldArt($actor, $skill)
+            && $this->isTrustedFieldArt($actor, $skill)
             && (int) ($metadata['job_id'] ?? 0) === 85
             && (int) ($metadata['learn_rank'] ?? 0) === 5
             && (string) ($metadata['field_operation'] ?? '') === 'lock';
@@ -114,11 +116,37 @@ final class JobArtV2FieldService
             ),
             'lock' => $this->lockPrimary($actor, $state, (int) $skill->id, $sourceActionId),
             'echo_previous_overwritten' => $this->holdPreviousOverwrittenField($actor, $state, (int) $skill->id, $sourceActionId),
-            'overlay' => $actor->currentJobId === 85
+            'overlay' => $this->allowsFieldOperation($actor, $skill)
                 ? $this->createOverlay($actor, $state, (string) $metadata['field_key'], (int) $skill->id, $sourceActionId)
-                : FieldOperationResult::unchanged('current_job_only'),
+                : FieldOperationResult::unchanged('unsupported_art'),
             default => FieldOperationResult::unchanged(),
         };
+    }
+
+    public function completeJobArtCast(BattleActor $actor, BattleState $state, Skill $skill, bool $landed): void
+    {
+        if (! $landed || (int) $skill->job_id !== 53 || (int) $skill->learn_rank !== 9) {
+            return;
+        }
+        $current = $state->primaryField();
+        if ($current === null || $current->ownerActorKey !== $state->actorKey($actor)) {
+            return;
+        }
+        $state->replacePrimaryField(new FieldState(
+            $current->key,
+            $current->ownerActorKey,
+            5,
+            $current->sourceSkillId,
+            $current->sourceActionId,
+            $state->turnCount,
+            $current->extends,
+            $current->overwriteLockRemainingRounds,
+            $current->overwriteLockOwnerActorKey,
+            $current->overwriteLockCreatedRound,
+            1.5,
+            true,
+        ));
+        $state->addLog('<span class="text-violet-700 font-bold">'.e($this->catalog->name($current->key)).'を星天固定した！（5ターン）</span>');
     }
 
     public function deployPrimary(
@@ -127,6 +155,7 @@ final class JobArtV2FieldService
         string $fieldKey,
         int $sourceSkillId,
         int $sourceActionId,
+        int $duration = self::BASE_DURATION,
     ): FieldOperationResult {
         if (!$this->enabledFor($state) || $this->catalog->field($fieldKey) === null) {
             return FieldOperationResult::unchanged();
@@ -135,7 +164,8 @@ final class JobArtV2FieldService
         $actorKey = $state->actorKey($actor);
         $current = $state->primaryField();
         if ($current === null) {
-            $next = new FieldState($fieldKey, $actorKey, self::BASE_DURATION, $sourceSkillId, $sourceActionId, $state->turnCount);
+            $duration = max(1, min(self::MAX_DURATION, $duration));
+            $next = new FieldState($fieldKey, $actorKey, $duration, $sourceSkillId, $sourceActionId, $state->turnCount);
             $state->replacePrimaryField($next);
 
             return $this->emit($state, $actorKey, FieldEvent::CREATED, $next, $sourceActionId);
@@ -147,11 +177,15 @@ final class JobArtV2FieldService
             return $this->emit($state, $actorKey, FieldEvent::OVERWRITE_BLOCKED, $current, $sourceActionId, self::BLOCKED_BY_FIELD_LOCK);
         }
 
+        if ($current->ownerModificationLocked && $current->ownerActorKey === $actorKey) {
+            return FieldOperationResult::unchanged('owner_field_fixed');
+        }
+
         if ($current->key === $fieldKey) {
             $next = new FieldState(
                 $fieldKey,
                 $actorKey,
-                self::BASE_DURATION,
+                max(1, min(self::MAX_DURATION, $duration)),
                 $sourceSkillId,
                 $sourceActionId,
                 $state->turnCount,
@@ -165,7 +199,7 @@ final class JobArtV2FieldService
             return $this->emit($state, $actorKey, FieldEvent::REFRESHED, $next, $sourceActionId);
         }
 
-        $next = new FieldState($fieldKey, $actorKey, self::BASE_DURATION, $sourceSkillId, $sourceActionId, $state->turnCount);
+        $next = new FieldState($fieldKey, $actorKey, max(1, min(self::MAX_DURATION, $duration)), $sourceSkillId, $sourceActionId, $state->turnCount);
         $state->recordFieldOverwrite($actorKey, $current);
         $state->replacePrimaryField($next);
 
@@ -183,7 +217,10 @@ final class JobArtV2FieldService
             return FieldOperationResult::unchanged();
         }
         $current = $state->primaryField();
-        if ($current === null || $current->extends >= 1 || $current->remainingRounds >= self::MAX_DURATION) {
+        if ($current === null
+            || ($current->ownerModificationLocked && $current->ownerActorKey === $state->actorKey($actor))
+            || $current->remainingRounds >= self::MAX_DURATION
+        ) {
             return FieldOperationResult::unchanged();
         }
 
@@ -198,6 +235,8 @@ final class JobArtV2FieldService
             $current->overwriteLockRemainingRounds,
             $current->overwriteLockOwnerActorKey,
             $current->overwriteLockCreatedRound,
+            $current->effectMultiplier,
+            $current->ownerModificationLocked,
         );
         $state->replacePrimaryField($next);
 
@@ -226,6 +265,8 @@ final class JobArtV2FieldService
             2,
             $current->ownerActorKey,
             $state->turnCount,
+            $current->effectMultiplier,
+            $current->ownerModificationLocked,
         );
         $state->replacePrimaryField($next);
 
@@ -282,6 +323,8 @@ final class JobArtV2FieldService
                     $lockRemaining,
                     $lockRemaining > 0 ? $field->overwriteLockOwnerActorKey : null,
                     $lockRemaining > 0 ? $field->overwriteLockCreatedRound : null,
+                    $field->effectMultiplier,
+                    $field->ownerModificationLocked,
                 ));
             }
         }
@@ -360,12 +403,23 @@ final class JobArtV2FieldService
 
     public function modifyHpHeal(BattleActor $actor, BattleState $state, int $heal): int
     {
-        if (!$this->isCurrentActionActor($actor, $state)) {
-            return $heal;
+        $modified = $heal;
+        if ($this->isCurrentActionActor($actor, $state)) {
+            $delta = $this->modifier($actor, $state, 'heal_multiplier');
+            $modified = max(0, (int) floor($heal * (1 + $delta)));
         }
-        $delta = $this->modifier($actor, $state, 'heal_multiplier');
 
-        return max(0, (int) floor($heal * (1 + $delta)));
+        return ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+            ->modifyHpHeal($actor, $state, $modified);
+    }
+
+    public function applyHpHeal(BattleActor $actor, BattleState $state, int $heal): int
+    {
+        $actual = $actor->healHp($this->modifyHpHeal($actor, $state, $heal));
+        ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+            ->completeHpHeal($actor, $state);
+
+        return $actual;
     }
 
     public function modifyResourceGain(BattleActor $actor, BattleState $state, int $baseGain): int
@@ -402,8 +456,24 @@ final class JobArtV2FieldService
             && $this->catalog->isTrustedCurrentJobArt($actor->currentJobId, $skill);
     }
 
+    private function allowsFieldOperation(BattleActor $actor, Skill $skill): bool
+    {
+        return $this->isTrustedFieldArt($actor, $skill);
+    }
+
     private function isTrustedFieldArt(BattleActor $actor, Skill $skill): bool
     {
+        $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
+            ->resolveActor($actor);
+        if ($resolution->active) {
+            return in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+                && $this->catalog->isTrustedFieldArt($skill);
+        }
+
         if ($this->isTrustedCurrentFieldArt($actor, $skill)) {
             return true;
         }
@@ -435,7 +505,14 @@ final class JobArtV2FieldService
 
         return $fieldKey === ''
             ? FieldOperationResult::unchanged('missing_field_key')
-            : $this->deployPrimary($actor, $state, $fieldKey, (int) $skill->id, $sourceActionId);
+            : $this->deployPrimary(
+                $actor,
+                $state,
+                $fieldKey,
+                (int) $skill->id,
+                $sourceActionId,
+                max(1, (int) ($metadata['field_duration_rounds'] ?? self::BASE_DURATION)),
+            );
     }
 
     private function holdPreviousOverwrittenField(
@@ -470,6 +547,7 @@ final class JobArtV2FieldService
 
         return (string) $skill->damage_type === 'magical' ? 'magical' : (string) $skill->damage_type;
     }
+
 
     private function emit(
         BattleState $state,

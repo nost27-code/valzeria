@@ -41,7 +41,7 @@ class JobArtV2PenetrationServiceTest extends TestCase
 
         $this->enableAll();
         $this->assertTrue($this->service()->enabledFor($actor));
-        $this->assertFalse($this->service()->enabledFor($this->actor(61)));
+        $this->assertFalse($this->service()->enabledFor($this->actor(70)));
         $this->assertFalse(config('battle.job_art_v2.normalized_sp'));
         $this->assertFalse(config('battle.job_art_v2.fields'));
     }
@@ -236,6 +236,80 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $actual = [mt_rand(), mt_rand()];
 
         $this->assertSame($expected, $actual);
+    }
+
+    public function test_extreme_magic_ignores_twenty_five_percent_of_spr_only_in_v2(): void
+    {
+        $attacker = $this->actor(29, 40, 40, 40);
+        $defender = $this->actor(null, 120, 101);
+        $skill = new Skill([
+            'name' => '極大魔法',
+            'skill_type' => 'job_art',
+            'job_id' => 29,
+            'learn_rank' => 9,
+            'effect_template' => 'MULTI_HIT',
+            'damage_type' => 'physical',
+            'power' => 315,
+            'power_multiplier' => 3.15,
+            'hit_count' => 2,
+            'def_ignore_percent' => 0,
+        ]);
+        $skill->setAttribute('id', 2_909);
+
+        mt_srand(29_025);
+        $expectedNext = mt_rand();
+        mt_srand(29_025);
+        $overrides = $this->service()->defenseOverrides($attacker, $defender, $skill);
+
+        $this->assertNull($overrides['def']);
+        $this->assertSame(75, $overrides['spr']);
+        $this->assertSame(0.25, $overrides['penetration_rate']);
+        $this->assertSame(120, $defender->def);
+        $this->assertSame(101, $defender->spr);
+        $this->assertSame($expectedNext, mt_rand());
+
+        config(['battle.job_art_v2.resources' => false]);
+        $this->assertSame(
+            ['def' => null, 'spr' => null, 'penetration_rate' => null],
+            $this->service()->defenseOverrides($attacker, $defender, $skill),
+        );
+    }
+
+    public function test_magic_cannon_ignores_fifteen_percent_of_spirit_without_changing_defense_or_rng(): void
+    {
+        $attacker = $this->actor(35, 40, 40, 40);
+        $defender = $this->actor(null, 120, 101);
+        $skill = new Skill([
+            'name' => '魔導砲',
+            'skill_type' => 'job_art',
+            'job_id' => 35,
+            'learn_rank' => 5,
+            'effect_template' => 'MAGICAL_DAMAGE',
+            'damage_type' => 'magical',
+            'power' => 185,
+            'power_multiplier' => 1.85,
+            'hit_count' => 1,
+            'def_ignore_percent' => 0,
+        ]);
+        $skill->setAttribute('id', 3_505);
+
+        mt_srand(35_015);
+        $expectedNext = mt_rand();
+        mt_srand(35_015);
+        $overrides = $this->service()->defenseOverrides($attacker, $defender, $skill);
+
+        $this->assertNull($overrides['def']);
+        $this->assertSame(85, $overrides['spr']);
+        $this->assertSame(0.15, $overrides['penetration_rate']);
+        $this->assertSame(120, $defender->def);
+        $this->assertSame(101, $defender->spr);
+        $this->assertSame($expectedNext, mt_rand());
+
+        config(['battle.job_art_v2.resources' => false]);
+        $this->assertSame(
+            ['def' => null, 'spr' => null, 'penetration_rate' => null],
+            $this->service()->defenseOverrides($attacker, $defender, $skill),
+        );
     }
 
     private function enableAll(): void

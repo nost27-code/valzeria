@@ -72,28 +72,32 @@ class JobArtV2AimCommandServiceTest extends TestCase
         $target = $this->actor(null, false);
 
         foreach ([
-            [5, 95, HitResult::HIT],
-            [5, 96, HitResult::MISS],
+            [5, 98, HitResult::HIT],
+            [5, 99, HitResult::MISS],
             [9, 98, HitResult::HIT],
             [9, 99, HitResult::MISS],
         ] as [$rank, $roll, $expected]) {
             $skill = $this->art(65, $rank);
             $actor->jobArtOrigins[(int) $skill->id] = 'current';
             $random = $this->random([$roll]);
-            $this->assertSame($expected, $this->resolver($random)->resolveJobArt($actor, $target, $skill, 'pve'));
+            $this->assertSame(
+                $expected,
+                $this->resolver($random)->resolveJobArt($actor, $target, $skill, 'pve'),
+                "rank={$rank},roll={$roll}",
+            );
             $this->assertSame(1, $random->calls);
         }
 
         $rankFive = $this->art(65, 5);
         $actor->jobArtOrigins[(int) $rankFive->id] = 'inherited';
-        $this->assertSame(HitResult::MISS, $this->resolver($this->random([91]))->resolveJobArt($actor, $target, $rankFive, 'pve'));
+        $this->assertSame(HitResult::HIT, $this->resolver($this->random([91]))->resolveJobArt($actor, $target, $rankFive, 'pve'));
 
         $actor->jobArtOrigins[(int) $rankFive->id] = 'current';
         config(['battle.job_art_v2.resources' => false]);
         $this->assertSame(HitResult::MISS, $this->resolver($this->random([91]))->resolveJobArt($actor, $target, $rankFive, 'pve'));
     }
 
-    public function test_sp_pressure_uses_actual_current_sp_and_a_fifteen_percent_battle_cap(): void
+    public function test_sp_pressure_uses_actual_current_sp_without_a_battle_wide_cap(): void
     {
         [$actor, $target, $state] = $this->battle(65, targetMp: 1_000, targetMaxMp: 1_000);
         $pressure = app(JobArtV2SpPressureService::class);
@@ -105,13 +109,11 @@ class JobArtV2AimCommandServiceTest extends TestCase
         $this->begin($actor, $state);
         $first = $pressure->applyOnHit($actor, $target, $state, $rankFive, HitResult::HIT);
         $duplicate = $pressure->applyOnHit($actor, $target, $state, $rankFive, HitResult::HIT);
-        $this->assertSame([30, 1_000, 970, 30, 150, 120], [
+        $this->assertSame([30, 1_000, 970, 30], [
             $first->requested,
             $first->spBefore,
             $first->spAfter,
             $first->actualLoss,
-            $first->battleCap,
-            $first->remainingCap,
         ]);
         $this->assertSame('duplicate_sp_pressure_event', $duplicate->blockedReason);
 
@@ -120,21 +122,23 @@ class JobArtV2AimCommandServiceTest extends TestCase
             $pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT);
         }
         $this->begin($actor, $state);
-        $capped = $pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT);
+        $third = $pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT);
 
-        $this->assertSame(850, $target->mp);
-        $this->assertSame(20, $capped->actualLoss);
-        $this->assertSame(0, $capped->remainingCap);
+        $this->assertSame(820, $target->mp);
+        $this->assertSame(50, $third->actualLoss);
         $this->assertSame(1_000, $target->maxMp);
         $this->assertSame(1_000, $actor->mp);
 
         $this->begin($actor, $state);
-        $afterCap = $pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT);
-        $this->assertFalse($afterCap->applied);
-        $this->assertSame(0, $afterCap->actualLoss);
+        $continued = $pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT);
+        $this->assertTrue($continued->applied);
+        $this->assertSame(50, $continued->actualLoss);
+        $this->assertSame(770, $target->mp);
+        $this->assertArrayNotHasKey('battle_cap', $continued->toArray());
+        $this->assertArrayNotHasKey('remaining_cap', $continued->toArray());
     }
 
-    public function test_sp_pressure_requires_current_trusted_hit_and_tracks_actual_loss_when_sp_is_low(): void
+    public function test_sp_pressure_requires_a_trusted_hit_and_also_applies_when_the_card_is_inherited(): void
     {
         [$actor, $target, $state] = $this->battle(65, targetMp: 20, targetMaxMp: 1_000);
         $pressure = app(JobArtV2SpPressureService::class);
@@ -145,7 +149,7 @@ class JobArtV2AimCommandServiceTest extends TestCase
         $low = $pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT);
         $this->assertSame(50, $low->requested);
         $this->assertSame(20, $low->actualLoss);
-        $this->assertSame(130, $low->remainingCap);
+        $this->assertSame(0, $target->mp);
 
         foreach ([HitResult::MISS, HitResult::EVADE] as $result) {
             $target->mp = 1_000;
@@ -156,11 +160,11 @@ class JobArtV2AimCommandServiceTest extends TestCase
 
         $actor->jobArtOrigins[(int) $rankNine->id] = 'inherited';
         $this->begin($actor, $state);
-        $this->assertFalse($pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT)->applied);
-        $this->assertSame(1_000, $target->mp);
+        $this->assertTrue($pressure->applyOnHit($actor, $target, $state, $rankNine, HitResult::HIT)->applied);
+        $this->assertSame(950, $target->mp);
     }
 
-    public function test_command_resource_is_driven_by_the_final_action_and_never_by_rank_one_cast(): void
+    public function test_command_rank_one_produces_four_points_and_other_actions_keep_the_passive_gain(): void
     {
         [$actor, $target, $state] = $this->battle(69);
         $resources = app(JobArtV2ResourceService::class);
@@ -168,8 +172,9 @@ class JobArtV2AimCommandServiceTest extends TestCase
         $resources->beginAction($actor, $state);
         $rankOne = $resources->applyJobArtCast($actor, $state, $this->art(69, 1));
         $resources->finishAction($actor, $state);
-        $this->assertFalse($rankOne->applied);
-        $this->assertSame(0, $actor->getResource('command_points'));
+        $this->assertTrue($rankOne->applied);
+        $this->assertSame(4, $rankOne->delta);
+        $this->assertSame(4, $actor->getResource('command_points'));
         $this->assertSame(BattleActionType::JOB_ART, $state->battleActionResults()[0]->actionType);
 
         $resources->beginAction($actor, $state);
@@ -179,22 +184,22 @@ class JobArtV2AimCommandServiceTest extends TestCase
         $resources->finishAction($actor, $state);
         $this->assertSame(4, $hit->delta);
         $this->assertFalse($duplicateHit->applied);
-        $this->assertSame(5, $actor->getResource('command_points'));
+        $this->assertSame(9, $actor->getResource('command_points'));
         $this->assertSame(BattleActionType::NORMAL_ATTACK, $state->battleActionResults()[1]->actionType);
 
         $resources->beginAction($actor, $state);
         $resources->recordNormalAttackResolution($actor, $target, $state, HitResult::MISS);
         $resources->finishAction($actor, $state);
-        $this->assertSame(6, $actor->getResource('command_points'));
+        $this->assertSame(10, $actor->getResource('command_points'));
 
         $resources->beginAction($actor, $state);
         $resources->markCurrentJobSkillAction($actor, $state, $this->currentSkill());
         $resources->finishAction($actor, $state);
-        $this->assertSame(7, $actor->getResource('command_points'));
+        $this->assertSame(11, $actor->getResource('command_points'));
 
         $resources->beginAction($actor, $state);
         $resources->finishAction($actor, $state);
-        $this->assertSame(7, $actor->getResource('command_points'));
+        $this->assertSame(11, $actor->getResource('command_points'));
         $this->assertSame(BattleActionType::NO_ACTION, $state->battleActionResults()[4]->actionType);
     }
 
@@ -255,7 +260,7 @@ class JobArtV2AimCommandServiceTest extends TestCase
 
     private function actor(?int $jobId, bool $isPlayer = true, int $mp = 1_000, int $maxMp = 1_000): BattleActor
     {
-        return new BattleActor($isPlayer ? 'player' : 'enemy', $isPlayer, [
+        $actor = new BattleActor($isPlayer ? 'player' : 'enemy', $isPlayer, [
             'hp' => 10_000,
             'max_hp' => 10_000,
             'mp' => $mp,
@@ -263,12 +268,29 @@ class JobArtV2AimCommandServiceTest extends TestCase
             'agi' => 100,
             'current_job_id' => $jobId,
         ]);
+        if (in_array($jobId, [65, 69], true)) {
+            $actor->jobArts = [$this->art((int) $jobId, 1), $this->art((int) $jobId, 5), $this->art((int) $jobId, 9)];
+            foreach ($actor->jobArts as $art) {
+                $actor->jobArtOrigins[(int) $art->id] = 'current';
+                $actor->jobArtRates[(int) $art->id] = 1.0;
+            }
+        }
+
+        return $actor;
     }
 
     private function art(int $jobId, int $rank): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => match ([$jobId, $rank]) {
+                [65, 1] => '鋼冠起動',
+                [65, 5] => '鋼冠機砲',
+                [65, 9] => '鋼冠グラビトンコア',
+                [69, 1] => '戦冠指揮',
+                [69, 5] => '戦冠総攻令',
+                [69, 9] => '王戦アークフォーメーション',
+                default => "job-{$jobId}-rank-{$rank}",
+            },
             'skill_type' => 'job_art',
             'job_id' => $jobId,
             'learn_rank' => $rank,

@@ -43,8 +43,27 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
 
     public function test_finisher_pattern_reaches_rank_nine_for_all_four_jobs_with_readable_traces(): void
     {
+        $expectedSp = [24 => 369, 53 => 317, 62 => 281, 85 => 129];
+        $expectedFinalSpTrace = [
+            24 => 'SP=382->369',
+            53 => 'SP=352->317',
+            62 => 'SP=331->281',
+            85 => 'SP=244->129',
+        ];
+
         foreach ([24, 53, 62, 85] as $jobId) {
-            $arts = [$this->art($jobId, 1), $this->art($jobId, 5), $this->art($jobId, 9)];
+            $starter = $this->art($jobId, 1);
+            $secondStarter = clone $starter;
+            $secondStarter->setAttribute('id', ($jobId * 100) + 91);
+            $thirdStarter = clone $starter;
+            $thirdStarter->setAttribute('id', ($jobId * 100) + 92);
+            $arts = [
+                $starter,
+                $secondStarter,
+                $thirdStarter,
+                $this->art($jobId, 5),
+                $this->art($jobId, 9),
+            ];
             [$actor, $target, $state] = $this->battle($jobId, $arts);
             [$service, $selectionRandom] = $this->battleService(array_fill(0, 8, 1), array_fill(0, 8, 1));
             $trace = new JobArtV2BattleTrace();
@@ -58,15 +77,15 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
                 app(JobArtV2FieldService::class)->endRound($state);
             }
 
-            $rankNine = $arts[2];
+            $rankNine = $arts[4];
             $traceDump = "job {$jobId}\n" . implode("\n", $trace->lines());
             $this->assertSame(1, $state->jobArtUseCounts[(int) $rankNine->id] ?? 0, $traceDump);
             $this->assertSame(0, $actor->getResource($jobId === 62 ? 'dragon_force' : 'star_mark'), $traceDump);
-            $this->assertSame(358, $actor->mp, $traceDump);
+            $this->assertSame($expectedSp[$jobId], $actor->mp, $traceDump);
             $this->assertSame(4, $selectionRandom->calls, $traceDump);
             $this->assertCount(4, $trace->lines(), $traceDump);
             $this->assertStringContainsString('T04 action=' . $rankNine->name, $trace->lines()[3], $traceDump);
-            $this->assertStringContainsString('SP=376->358', $trace->lines()[3], $traceDump);
+            $this->assertStringContainsString($expectedFinalSpTrace[$jobId], $trace->lines()[3], $traceDump);
             $this->assertStringContainsString('reason=activated', $trace->lines()[3], $traceDump);
 
             match ($jobId) {
@@ -100,7 +119,8 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
 
     public function test_cycle_pattern_repeats_rank_five_and_produces_distinct_field_and_stance_traces(): void
     {
-        $expectedRankFiveUses = [24 => 2, 53 => 3, 62 => 3, 85 => 3];
+        // 神話連携は固定SP84のため、初期SP400では6手中2回まで。
+        $expectedRankFiveUses = [24 => 3, 53 => 3, 62 => 3, 85 => 2];
         $traces = [];
 
         foreach ([24, 53, 62, 85] as $jobId) {
@@ -187,14 +207,14 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
         $fields->markSkillAction($priest, $state, $rankNine);
         $this->assertSame(110, $fields->modifyHpHeal($priest, $state, 100));
 
-        $meaningless = clone $rankNine;
-        $meaningless->damage_reduction_percent = 0;
-        [$fullHp, , $meaninglessState] = $this->battle(24, [$meaningless]);
+        $guardOnly = clone $rankNine;
+        $guardOnly->damage_reduction_percent = 0;
+        [$fullHp, , $guardState] = $this->battle(24, [$guardOnly]);
         $fullHp->hp = $fullHp->maxHp;
         $fullHp->configureResource('star_mark', 12);
         $fullHp->setResource('star_mark', 12);
-        $blocked = $selection->selectForTurn($fullHp, $meaninglessState);
-        $this->assertSame('blocked_by_support_condition', $blocked->blockedReasons[(int) $meaningless->id]);
+        [$guardSelection] = $this->selection([1]);
+        $this->assertSame($guardOnly, $guardSelection->selectForTurn($fullHp, $guardState)->skill);
 
         $hitRandom = new class extends JobArtV2HitRandomSource
         {
@@ -228,7 +248,7 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
         $this->assertSame(110, $fields->modifyDamage($sage, $sageState, 100, DamageSourceType::JOB_ART));
         $resources->applyJobArtCast($sage, $sageState, $sageRankFive);
         $this->assertSame(0, $sage->getResource('star_mark'));
-        $this->assertSame(4, $sageState->primaryField()?->remainingRounds);
+        $this->assertSame(7, $sageState->primaryField()?->remainingRounds);
 
         [$fieldlessSage, , $fieldlessState] = $this->battle(53, [$sageRankFive]);
         $fieldlessSage->configureResource('star_mark', 12);
@@ -284,7 +304,7 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
         $this->assertSame($damages[0], $damages[1]);
     }
 
-    public function test_same_lineage_inheritance_shares_resource_without_porting_field_operations(): void
+    public function test_equipped_field_arts_keep_resource_and_field_operations_across_jobs(): void
     {
         foreach ([[24, 53], [53, 24], [85, 53]] as [$currentJob, $sourceJob]) {
             $skill = $this->art($sourceJob, 1);
@@ -292,7 +312,11 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
             $this->applyCast($actor, $state, $skill);
 
             $this->assertSame(4, $actor->getResource('star_mark'), "{$currentJob} inherits {$sourceJob}");
-            $this->assertNull($state->primaryField(), "{$currentJob} inherits {$sourceJob}");
+            $this->assertSame(
+                $sourceJob === 24 ? 'sanctuary' : 'star_light',
+                $state->primaryField()?->key,
+                "{$currentJob} inherits {$sourceJob}",
+            );
         }
 
         $inheritedOverlay = $this->art(85, 9);
@@ -302,28 +326,47 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
         $this->applyCast($sage, $state, $inheritedOverlay);
 
         $this->assertSame(0, $sage->getResource('star_mark'));
-        $this->assertNull($state->fieldOverlay());
+        $this->assertSame('melody', $state->fieldOverlay()?->key);
     }
 
-    public function test_cross_lineage_inheritance_uses_legacy_eligibility_without_conversion_or_resonance(): void
+    public function test_cross_lineage_inheritance_requires_and_spends_the_source_resource_without_resonance(): void
     {
         $dragonArt = $this->art(62, 5);
         [$sage, , $fieldState] = $this->battle(53, [$dragonArt], 'pve', 'inherited');
         $sage->configureResource('star_mark', 12);
         $sage->setResource('star_mark', 12);
 
-        $fieldReason = app(JobArtV2ResourceService::class)->eligibilityBlockReason($sage, $dragonArt, $fieldState);
+        $resources = app(JobArtV2ResourceService::class);
+        $this->assertSame(
+            JobArtV2ResourceService::BLOCKED_BY_RESOURCE,
+            $resources->eligibilityBlockReason($sage, $dragonArt, $fieldState),
+        );
+        $sage->configureResource('dragon_force', 12);
+        $sage->setResource('dragon_force', 4);
+        $fieldReason = $resources->eligibilityBlockReason($sage, $dragonArt, $fieldState);
 
         $fieldArt = $this->art(53, 5);
         [$dragon, , $dragonState] = $this->battle(62, [$fieldArt], 'pve', 'inherited');
         $dragon->configureResource('dragon_force', 12);
         $dragon->setResource('dragon_force', 12);
-        $dragonReason = app(JobArtV2ResourceService::class)->eligibilityBlockReason($dragon, $fieldArt, $dragonState);
+        $this->assertSame(
+            JobArtV2ResourceService::BLOCKED_BY_RESOURCE,
+            $resources->eligibilityBlockReason($dragon, $fieldArt, $dragonState),
+        );
+        $dragon->configureResource('star_mark', 12);
+        $dragon->setResource('star_mark', 4);
+        $dragonReason = $resources->eligibilityBlockReason($dragon, $fieldArt, $dragonState);
 
         $this->assertNull($fieldReason);
         $this->assertNull($dragonReason);
+        $resources->beginAction($sage, $fieldState);
+        $this->assertSame(-4, $resources->applyJobArtCast($sage, $fieldState, $dragonArt)->delta);
+        $resources->beginAction($dragon, $dragonState);
+        $this->assertSame(-4, $resources->applyJobArtCast($dragon, $dragonState, $fieldArt)->delta);
         $this->assertSame(12, $sage->getResource('star_mark'));
         $this->assertSame(12, $dragon->getResource('dragon_force'));
+        $this->assertSame(0, $sage->getResource('dragon_force'));
+        $this->assertSame(0, $dragon->getResource('star_mark'));
     }
 
     public function test_field_and_stance_interactions_remain_independent_and_fail_closed(): void
@@ -417,7 +460,7 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
             $this->assertSame(0, $actor->getResource('dragon_force'), $expected->value);
             $this->assertTrue($actor->hasPiercingStance(), $expected->value);
             $this->assertSame(1, $state->jobArtUseCounts[(int) $skill->id] ?? 0, $expected->value);
-            $this->assertSame(387, $actor->mp, $expected->value);
+            $this->assertSame(364, $actor->mp, $expected->value);
             $this->assertStringContainsString("hit={$expected->value}", $line);
             if ($expected === HitResult::HIT) {
                 $this->assertLessThan((int) $before['target_hp'], $target->hp);
@@ -497,24 +540,25 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
     public function test_sp_costs_and_conserve_boundary_match_the_frozen_vertical_slice(): void
     {
         $calculator = app(JobArtV2SpCostCalculator::class);
-        foreach ([1 => [8, 10], 5 => [13, 16], 9 => [18, 22]] as $rank => [$current, $inherited]) {
+        foreach ([1 => 16, 5 => 25, 9 => 35] as $rank => $expected) {
             $skill = $this->art(53, $rank);
-            $this->assertSame($current, $calculator->forCurrentJob($skill, 400, 53, 'current'));
-            $this->assertSame($inherited, $calculator->forCurrentJob($skill, 400, 24, 'inherited'));
+            $this->assertSame($expected, $calculator->forCurrentJob($skill, 400, 53, 'current'));
+            $this->assertSame($expected, $calculator->forCurrentJob($skill, 400, 24, 'inherited'));
         }
 
         $skill = $this->art(53, 1);
         [$actor, , $state] = $this->battle(53, [$skill]);
         $actor->jobArtPolicies[(int) $skill->id] = 'conserve';
-        $actor->mp = 160;
+        $actor->mp = 240;
         [$selection] = $this->selection([1]);
         $this->assertSame($skill, $selection->selectForTurn($actor, $state)->skill);
-        $actor->mp = 159;
+        $actor->mp = 239;
         $this->assertSame('blocked_by_sp_or_policy', $selection->selectForTurn($actor, $state)->blockedReasons[(int) $skill->id]);
     }
 
     public function test_each_prototype_job_crosses_the_shared_slice_in_all_six_battle_contexts(): void
     {
+        $remainingSp = [24 => 394, 53 => 384, 62 => 377, 85 => 348];
         foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
             foreach ([24, 53, 62, 85] as $jobId) {
                 $rankOne = $this->art($jobId, 1);
@@ -526,7 +570,7 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
 
                 $this->assertSame(1, $state->jobArtUseCounts[(int) $rankOne->id] ?? 0, "{$battleType}/{$jobId}");
                 $this->assertSame(4, $actor->getResource($jobId === 62 ? 'dragon_force' : 'star_mark'), "{$battleType}/{$jobId}");
-                $this->assertSame(392, $actor->mp, "{$battleType}/{$jobId}");
+                $this->assertSame($remainingSp[$jobId], $actor->mp, "{$battleType}/{$jobId}");
             }
         }
     }
@@ -549,12 +593,12 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
 
                 $this->assertSame(1, $state->jobArtUseCounts[(int) $rankOne->id] ?? 0, "{$battleType}/{$jobId}");
                 if ($jobId === 67) {
-                    $this->assertSame(0, $actor->getResource($resourceKey), $battleType);
+                    $this->assertSame(8, $actor->getResource($resourceKey), $battleType);
                     $this->assertCount(0, $state->conversionResults(), $battleType);
-                    $this->assertSame(392, $actor->mp, $battleType);
+                    $this->assertSame(377, $actor->mp, $battleType);
                 } else {
                     $this->assertSame(4, $actor->getResource($resourceKey), $battleType);
-                    $this->assertSame(392, $actor->mp, $battleType);
+                    $this->assertSame(377, $actor->mp, $battleType);
                 }
             }
         }

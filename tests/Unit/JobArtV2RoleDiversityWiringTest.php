@@ -42,6 +42,8 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
             'battle.job_art_v2.resources' => true,
             'battle.job_art_v2.fields' => true,
             'battle.job_art_v2.normalized_sp' => false,
+            'battle.job_art_v2.c_design_prototype' => false,
+            'battle.job_art_v2.ultimate_counterplay' => false,
         ]);
     }
 
@@ -61,7 +63,6 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
 
         foreach ([
             [PvPBattleService::class, 'executeAction'],
-            [ChampBattleService::class, 'champAction'],
             [ArenaNpcBattleService::class, 'executeAction'],
         ] as [$service, $method]) {
             $source = $this->methodSource($service, $method);
@@ -75,6 +76,21 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
                 $this->assertSame(1, substr_count($source, $hook), "{$service}::{$method} {$hook}");
             }
         }
+        $champAction = $this->methodSource(ChampBattleService::class, 'champAction');
+        foreach ([
+            'jobArtBattleSupport->beginAction(',
+            'jobArtBattleSupport->consumeAndMarkUse(',
+            'jobArtBattleSupport->skillForExecution(',
+            'jobArtBattleSupport->completeJobArtCast(',
+        ] as $hook) {
+            $this->assertSame(1, substr_count($champAction, $hook), "ChampBattleService::champAction {$hook}");
+        }
+        $this->assertSame(0, substr_count($champAction, 'jobArtBattleSupport->finishAction('));
+        $this->assertSame(
+            1,
+            substr_count($this->methodSource(ChampBattleService::class, 'runBattle'), 'jobArtBattleSupport->finishAction('),
+            'ChampBattleService::runBattle finishAction',
+        );
         $supportDelegations = [
             'beginAction' => 'jobArtV2RoleEffectService->beginAction(',
             'consumeAndMarkUse' => 'jobArtV2RoleEffectService->beginJobArtCast(',
@@ -84,7 +100,9 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
             'markSkillAction' => 'jobArtV2RoleEffectService->markNonJobArtAction(',
             'endRound' => 'jobArtV2RoleEffectService->endRound(',
             'modifyJobArtDamage' => 'jobArtV2RoleEffectService->modifyJobArtDamage(',
+            'damageStatOverrides' => 'jobArtV2RoleEffectService->damageStatOverrides(',
             'criticalBonusPoints' => 'jobArtV2RoleEffectService->criticalBonusPoints(',
+            'applyTimedStructuredDebuffs' => 'jobArtV2RoleEffectService->applyTimedStructuredDebuffs(',
         ];
         foreach ($supportDelegations as $method => $hook) {
             $this->assertSame(
@@ -105,6 +123,44 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
             $this->assertStringContainsString(
                 'jobArtBattleSupport->endRound(',
                 file_get_contents((new ReflectionMethod($service, '__construct'))->getFileName()),
+                $service,
+            );
+            $this->assertStringContainsString(
+                'jobArtBattleSupport->applySharedSelfBuff(',
+                $this->methodSource($service, 'applyJobArtTemplateEffects'),
+                $service,
+            );
+        }
+        foreach (['executePhysicalAttack', 'executeMagicalAttack'] as $method) {
+            $this->assertStringContainsString(
+                'jobArtV2RoleEffectService->damageStatOverrides(',
+                $this->methodSource(BattleService::class, $method),
+                "BattleService::{$method}",
+            );
+        }
+        foreach ([
+            [PvPBattleService::class, 'executeSkillAction'],
+            [ChampBattleService::class, 'skillAttack'],
+            [ArenaNpcBattleService::class, 'executeSkillAction'],
+        ] as [$service, $method]) {
+            $this->assertStringContainsString(
+                'jobArtBattleSupport->damageStatOverrides(',
+                $this->methodSource($service, $method),
+                "{$service}::{$method}",
+            );
+        }
+        $this->assertStringContainsString(
+            'jobArtV2RoleEffectService->applySharedSelfBuff(',
+            $this->methodSource(BattleService::class, 'applySelfBuff'),
+        );
+        $this->assertStringContainsString(
+            'jobArtV2RoleEffectService->applyTimedStructuredDebuffs(',
+            $this->methodSource(BattleService::class, 'applyStructuredDebuffs'),
+        );
+        foreach ([PvPBattleService::class, ChampBattleService::class, ArenaNpcBattleService::class] as $service) {
+            $this->assertStringContainsString(
+                'jobArtBattleSupport->applyTimedStructuredDebuffs(',
+                $this->methodSource($service, 'applyStructuredDebuffs'),
                 $service,
             );
         }
@@ -145,6 +201,8 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
         $support->completeJobArtCast($actor, $state, $skill, HitResult::HIT, $target);
 
         $this->assertSame(970, $actor->hp);
+        $this->assertSame(4, $actor->getResource('eclipse'));
+        $this->assertSame(30, $actor->jobArtV2ProgressionState()->nightmareSelfDamage);
         $this->assertCount(1, $actor->jobArtV2TimedEffects());
     }
 
@@ -174,6 +232,7 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
         $this->assertInSourceOrder($this->methodSource(ChampBattleService::class, 'runBattle'), [
             '$action = $this->champAction(',
             '$damageResult = $this->applyResolvedDamage(',
+            '$this->jobArtBattleSupport->finishAction(',
         ], 'ChampBattleService::runBattle');
 
         $support = app(JobArtBattleSupportService::class);
@@ -292,32 +351,45 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
         $aim = $this->art(4, 5, '狙い撃ち', 'PHYSICAL_DAMAGE', 405);
         $attacker->jobArtOrigins[(int) $aim->id] = 'inherited';
 
-        $atCap = $this->random([97]);
-        $overCap = $this->random([98]);
+        $atCap = $this->random([98]);
+        $overCap = $this->random([99]);
         $this->assertSame(HitResult::HIT, $this->resolver($atCap)->resolveJobArt($attacker, $defender, $aim, 'pve'));
         $this->assertSame(HitResult::MISS, $this->resolver($overCap)->resolveJobArt($attacker, $defender, $aim, 'pve'));
         $this->assertSame(1, $atCap->calls);
         $this->assertSame(1, $overCap->calls);
 
+        $defender->agi = 140;
+        $fastTargetHit = $this->random([82]);
+        $fastTargetMiss = $this->random([83]);
+        $this->assertSame(HitResult::HIT, $this->resolver($fastTargetHit)->resolveJobArt($attacker, $defender, $aim, 'pve'));
+        $this->assertSame(HitResult::MISS, $this->resolver($fastTargetMiss)->resolveJobArt($attacker, $defender, $aim, 'pve'));
+        $defender->agi = 100;
+
         $critical = $this->art(18, 5, 'クリティカルショット', 'PHYSICAL_DAMAGE', 1_805);
         $attacker->jobArtOrigins[(int) $critical->id] = 'inherited';
-        $criticalHit = $this->random([95]);
-        $criticalMiss = $this->random([96]);
+        $criticalHit = $this->random([96]);
+        $criticalMiss = $this->random([97]);
         $this->assertSame(HitResult::HIT, $this->resolver($criticalHit)->resolveJobArt($attacker, $defender, $critical, 'pve'));
         $this->assertSame(HitResult::MISS, $this->resolver($criticalMiss)->resolveJobArt($attacker, $defender, $critical, 'pve'));
         $this->assertSame(10.0, app(JobArtBattleSupportService::class)->criticalBonusPoints($attacker, $critical));
 
         foreach (['pvp', 'champ', 'arena_npc'] as $context) {
-            $aimHit = $this->random([97]);
-            $aimMiss = $this->random([98]);
-            $this->assertSame(HitResult::HIT, $this->resolver($aimHit)->resolveJobArt($attacker, $defender, $aim, $context));
-            $this->assertSame(HitResult::MISS, $this->resolver($aimMiss)->resolveJobArt($attacker, $defender, $aim, $context));
+            $aimSureHit = $this->random([100]);
+            $this->assertSame(HitResult::HIT, $this->resolver($aimSureHit)->resolveJobArt($attacker, $defender, $aim, $context));
+            $this->assertSame(1, $aimSureHit->calls);
 
-            $criticalHit = $this->random([95]);
-            $criticalMiss = $this->random([96]);
+            $criticalHit = $this->random([96]);
+            $criticalMiss = $this->random([97]);
             $this->assertSame(HitResult::HIT, $this->resolver($criticalHit)->resolveJobArt($attacker, $defender, $critical, $context));
             $this->assertSame(HitResult::MISS, $this->resolver($criticalMiss)->resolveJobArt($attacker, $defender, $critical, $context));
         }
+
+        $explicitAccuracy = clone $aim;
+        $explicitAccuracy->accuracy = 70;
+        $explicitHit = $this->random([96]);
+        $explicitMiss = $this->random([97]);
+        $this->assertSame(HitResult::HIT, $this->resolver($explicitHit)->resolveJobArt($attacker, $defender, $explicitAccuracy, 'pvp'));
+        $this->assertSame(HitResult::MISS, $this->resolver($explicitMiss)->resolveJobArt($attacker, $defender, $explicitAccuracy, 'pvp'));
 
         config(['battle.job_art_v2.resources' => false]);
         $disabled = $this->random([91]);
@@ -396,7 +468,7 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
             );
             $this->assertSame(3, substr_count($source, '$executionSkill'), "{$service}::{$method}");
             $this->assertStringContainsString(
-                'consumeAndMarkUse($attacker, '.$state.', $jobArt)',
+                'consumeAndMarkUse(',
                 $source,
                 "{$service}::{$method}",
             );

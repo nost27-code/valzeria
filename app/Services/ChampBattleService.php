@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\DB;
 class ChampBattleService
 {
     private const MATERIAL_CODE = 'MAT_CHAMP_CHALLENGER_FRAGMENT';
-    private const MAX_TURNS = 20;
+    private const MAX_TURNS = BattleState::PVP_MAX_TURNS;
     private const PVP_HIT_AGI_FACTOR = 0.15;
     private const PVP_MIN_HIT_RATE = 75;
     private const PVP_MAX_HIT_RATE = 98;
@@ -580,14 +580,6 @@ class ChampBattleService
         $champAttackMultiplier = BattleTypeAffinity::multiplier($champAffinity, $challengerAffinity);
         $levelGap = max(0, (int) $champ->level - (int) $challenger->level);
         $upsetDamageUsed = false;
-        $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
-        if ((float) $skill->luk_power_rate > 0) {
-            $totalPower += (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
-        }
-        $hitPowers = $skill->isJobArt()
-            ? JobArtHitPower::split($totalPower, $hitCount)
-            : array_fill(0, $hitCount, $totalPower);
-
         $totalDamage = 0;
         $log = [];
         $lastActionWasByChallenger = null;
@@ -746,7 +738,6 @@ class ChampBattleService
     {
         $this->jobArtBattleSupport->beginAction($attacker, $jobArtState);
 
-        try {
         $this->jobArtBattleSupport->tickCooldowns($jobArtState, $attacker);
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $jobArtState);
         if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $jobArtState, $jobArt)) {
@@ -785,9 +776,6 @@ class ChampBattleService
         }
 
         return $this->normalAttackWithResource($attacker, $defender, $jobArtState);
-        } finally {
-            $this->jobArtBattleSupport->finishAction($attacker, $jobArtState);
-        }
     }
 
     private function normalAttackWithResource(
@@ -861,6 +849,14 @@ class ChampBattleService
             $hitCount++;
         }
 
+        $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
+        if ((float) $skill->luk_power_rate > 0) {
+            $totalPower += (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
+        }
+        $hitPowers = $skill->isJobArt()
+            ? JobArtHitPower::split($totalPower, $hitCount)
+            : array_fill(0, $hitCount, $totalPower);
+
         $totalDamage = 0;
         $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
@@ -868,8 +864,10 @@ class ChampBattleService
             $damage = 0;
             $skillPowerInt = $hitPowers[$i];
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
-            $overrideDef = $overrides['def'];
-            $overrideSpr = $overrides['spr'];
+            $statOverrides = $this->jobArtBattleSupport->damageStatOverrides($attacker, $defender, $skill);
+            $overrideAtk = $statOverrides['attack'];
+            $overrideDef = $statOverrides['def'] ?? $overrides['def'];
+            $overrideSpr = $statOverrides['spr'] ?? $overrides['spr'];
 
             if ((float) $skill->power_multiplier > 0) {
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
@@ -880,7 +878,7 @@ class ChampBattleService
                         $skillPowerInt,
                         false,
                         $affinityMultiplier,
-                        null,
+                        $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
                         true,
@@ -894,7 +892,7 @@ class ChampBattleService
                         $skillPowerInt,
                         false,
                         $affinityMultiplier,
-                        null,
+                        $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
                         true,
@@ -938,9 +936,8 @@ class ChampBattleService
 
         if ((int) $skill->heal_percent > 0) {
             $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
-            $healAmount = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $healAmount);
-            $attacker->healHp($healAmount);
-            $logs[] = "<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$healAmount} 回復した！</span>";
+            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $healAmount);
+            $logs[] = "<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>";
         }
 
         if ((int) $skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
@@ -972,11 +969,11 @@ class ChampBattleService
         }
 
         if ($applyTargetEffects) {
-            $this->applyStructuredDebuffs($defender, $skill, $logs);
+            $this->applyStructuredDebuffs($attacker, $defender, $state, $skill, $logs);
         }
 
         if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
             $logs[] = "{$attacker->name} は次の被ダメージを軽減する構えをとった！";
         }
 
@@ -995,7 +992,7 @@ class ChampBattleService
             'source_id' => (int) $skill->id,
             'hit_result' => $jobArtHitResult,
             'hit_count' => $hitCount,
-            'damage_category' => $skill->damage_type === 'magical' ? 'magical' : 'physical',
+            'damage_category' => $damageType === 'magical' ? 'magical' : 'physical',
         ];
     }
 
@@ -1016,16 +1013,14 @@ class ChampBattleService
                 ? $attacker->effectiveSpr()
                 : $attacker->spr;
             $heal = max(1, (int) floor($healingSpr * ($power / 100)));
-            $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
-            $attacker->healHp($heal);
-            $logs[] = "<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>";
+            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
+            $logs[] = "<span class=\"text-emerald-600 font-bold\">HPが {$actualHeal} 回復した！</span>";
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
             $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
-            $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
-            $attacker->healHp($heal);
-            $logs[] = "<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>";
+            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
+            $logs[] = "<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$actualHeal} 回復した！</span>";
         }
 
         if ($template === 'GUTS') {
@@ -1036,16 +1031,30 @@ class ChampBattleService
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
             $reduction = $this->jobArtGuardReduction($skill, $rate);
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, $reduction));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, $reduction));
             $logs[] = "<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>";
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
-            $beforeStr = $attacker->str;
-            $beforeMag = $attacker->mag;
-            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
-            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-            $logs[] = $this->statChangeLog($attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $skill);
+            if ($shared !== null) {
+                $logs[] = $this->statChangeLog(
+                    $attacker->name,
+                    $shared['main_label'],
+                    $shared['main_before'],
+                    $shared['main_after'],
+                    $shared['sub_label'],
+                    $shared['sub_before'],
+                    $shared['sub_after'],
+                    true,
+                );
+            } else {
+                $beforeStr = $attacker->str;
+                $beforeMag = $attacker->mag;
+                $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                $logs[] = $this->statChangeLog($attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+            }
         }
 
         if ($applyTargetEffects && in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
@@ -1101,15 +1110,35 @@ class ChampBattleService
     private function jobArtGuardReduction(Skill $skill, float $rate = 1.0): int
     {
         if ((int) $skill->damage_reduction_percent > 0) {
-            return min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
+            return min(50, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
         }
 
         // powerは呼び出し元でskillForExecution()により既に継承倍率でスケール済み
-        return min(25, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
+        return min(50, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
     }
 
-    private function applyStructuredDebuffs(BattleActor $defender, Skill $skill, array &$logs): void
+    private function applyStructuredDebuffs(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        Skill $skill,
+        array &$logs,
+    ): void
     {
+        $timed = $this->jobArtBattleSupport->applyTimedStructuredDebuffs(
+            $attacker,
+            $defender,
+            $state,
+            $skill,
+        );
+        if ($timed !== null) {
+            foreach ($timed['changes'] as $change) {
+                $logs[] = "{$defender->name} の{$change['label']}が {$change['percent']}% 低下した！（{$timed['duration_turns']}ターン）";
+            }
+
+            return;
+        }
+
         $debuffs = [
             'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
             'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔法力'],

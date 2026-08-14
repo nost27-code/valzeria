@@ -136,25 +136,61 @@ final class JobArtV2RoleEffectCatalog
             'effect_texts' => ['直前の自分の行動後に物理攻撃を受けていれば最終ダメージ ×1.15'],
         ],
 
-        // Aim: three Rank5 choices with distinct accuracy/critical/routes.
+        // Hunt: a defensive producer whose existing master reduction remains
+        // active alongside the normal-attack-type self buff.
+        '34:1:幻惑歩法' => [
+            'role_key' => 'hunt_defensive_producer',
+            'portable' => true,
+            'suppress_legacy_effect' => false,
+            'effect_texts' => ['次の自分の行動開始まで、受けるダメージを10%軽減する'],
+        ],
+
+        // Aim: setup plus three Rank5 choices with distinct
+        // accuracy/critical/routes. Mechanical Deployment deliberately stays
+        // non-damaging and earns its slot by preparing one later Aim attack.
+        '35:1:機巧展開' => [
+            'role_key' => 'aim_cannon_preparation',
+            'portable' => true,
+            'suppress_legacy_effect' => false,
+            'prepared_effect' => [
+                'key' => 'aim_cannon_preparation',
+                'charges' => 1,
+                'action_opportunities' => 4,
+                'trigger' => ['lineage_key' => 'aim', 'learn_ranks' => [5, 9]],
+                'damage_multiplier' => 1.10,
+                'consume_on_execution' => true,
+                'consume_results' => ['hit', 'miss', 'evade'],
+                'retain_on_activation_failure' => true,
+                'retain_on_ineligible_action' => true,
+                'stack_group' => 'aim_cannon_preparation',
+            ],
+            'effect_texts' => ['次に使用する照準系譜の連携または奥義で与えるダメージを1.10倍にする（1回。最大4回の自分の行動機会まで保持）'],
+        ],
+        '35:5:魔導砲' => [
+            'role_key' => 'aim_spirit_piercing_cannon',
+            'portable' => true,
+            'suppress_legacy_effect' => false,
+            'spr_ignore_percent' => 15,
+            'effect_texts' => ['相手の精神を15%無視してダメージを計算する'],
+        ],
         '4:5:狙い撃ち' => [
             'role_key' => 'aim_high_accuracy',
             'portable' => true,
             'suppress_legacy_effect' => true,
             'replacement_template' => 'PHYSICAL_DAMAGE',
-            'accuracy_delta_points' => 8,
-            'accuracy_max_percent' => 97,
-            'effect_texts' => ['この攻撃だけ命中率 +8ポイント（上限97%）'],
+            'accuracy_delta_points' => 12,
+            'preserve_legacy_sure_hit' => true,
+            'effect_texts' => ['この攻撃の命中率を最大+12ポイントする（通常の上限まで・元の命中率は低下しない）'],
         ],
         '18:5:クリティカルショット' => [
             'role_key' => 'aim_critical_shot',
             'portable' => true,
             'suppress_legacy_effect' => true,
             'replacement_template' => 'PHYSICAL_DAMAGE',
-            'accuracy_delta_points' => 5,
+            'accuracy_delta_points' => 6,
             'critical_delta_points' => 10,
             'critical_mode' => 'existing_roll_delta',
-            'effect_texts' => ['この攻撃だけ命中率 +5ポイント', '既存会心率 +10ポイント'],
+            'effect_texts' => ['この攻撃の命中率を+6ポイントする', 'この攻撃の会心率を+10ポイントする'],
         ],
         '22:5:エレメントアロー' => [
             'role_key' => 'aim_adaptive_route',
@@ -171,7 +207,58 @@ final class JobArtV2RoleEffectCatalog
                 'consume_rng' => false,
                 'additional_attack' => false,
             ],
-            'effect_texts' => ['物理経路と魔法経路を比較し、期待ダメージが高い方で1回攻撃'],
+            'effect_texts' => ['攻撃と相手の防御で計算する物理経路と、魔力と相手の精神で計算する魔法経路を比較し、期待ダメージが高い方で1回攻撃する'],
+        ],
+        '45:5:魔弓連星' => [
+            'role_key' => 'aim_magic_against_pierced_defense',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'damage_stat_route' => [
+                'attack_stat' => 'mag',
+                'defense_stat' => 'def',
+                'damage_category' => 'magical',
+                'defense_ignore_percent' => 25,
+            ],
+            'effect_texts' => ['自分の魔力と、25%無視した相手の防御を参照して魔力ダメージを与える'],
+        ],
+        '70:5:暁光ブレイク' => [
+            'role_key' => 'counter_adaptive_break',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'adaptive_route' => [
+                'routes' => ['physical', 'magical'],
+                'selection' => 'higher_expected_damage',
+                'physical_attack_stat' => 'str',
+                'physical_defense_stat' => 'def',
+                'magical_attack_stat' => 'mag',
+                'magical_defense_stat' => 'spr',
+                'tie_breaker' => 'master_damage_type',
+                'consume_rng' => false,
+                'additional_attack' => false,
+            ],
+            'effect_texts' => ['攻撃と相手の防御で計算する物理経路と、魔力と相手の精神で計算する魔法経路を比較し、期待ダメージが高い方で1回攻撃する'],
+        ],
+
+        // Sage: low-power magic plus protection, and a magic finisher that
+        // specializes against high-SPR targets without reaching pierce-lineage
+        // Rank9 penetration values.
+        '29:5:賢者の結界' => [
+            'role_key' => 'field_sage_attack_barrier',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'execution_power' => 110,
+            'next_action_damage_reduction_percent' => 18,
+            'effect_texts' => ['次の自分の行動開始まで、受けるダメージを18%軽減する'],
+        ],
+        '29:9:極大魔法' => [
+            'role_key' => 'field_sage_spr_piercing_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'spr_ignore_percent' => 25,
+            'effect_texts' => ['相手の精神を25%無視してダメージを計算する'],
         ],
 
         // Field v1.3.1: portable field creation and the bard's neutral extension.
@@ -184,6 +271,7 @@ final class JobArtV2RoleEffectCatalog
                 'operation' => 'deploy',
                 'selection_mode' => 'fixed',
                 'field_key' => 'star_light',
+                'duration_rounds' => 5,
                 'apply_new_field_to_source_action' => false,
             ],
             'effect_texts' => ['星光の場を展開', '生成した場はこの戦技自身に適用しない'],
@@ -197,6 +285,7 @@ final class JobArtV2RoleEffectCatalog
                 'operation' => 'deploy',
                 'selection_mode' => 'fixed',
                 'field_key' => 'melody',
+                'duration_rounds' => 5,
                 'apply_new_field_to_source_action' => false,
             ],
             'effect_texts' => ['旋律の場を展開', '生成した場はこの戦技自身に適用しない'],
@@ -213,13 +302,27 @@ final class JobArtV2RoleEffectCatalog
             ],
             'field' => [
                 'operation' => 'extend',
-                'extend_rounds' => 2,
+                'extend_rounds' => 3,
                 'requires_primary_field' => true,
             ],
-            'effect_texts' => ['現在の場を2ラウンド延長', '星印を増減しない'],
+            'effect_texts' => ['星印を増減しない'],
+        ],
+        '46:1:祝詞の一節' => [
+            'role_key' => 'field_melody_timed_blessing',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'timed_effect' => [
+                'key' => 'field_melody_blessing',
+                'modifiers' => ['mag' => 0.15, 'spr' => 0.07],
+                'rounds' => 2,
+                'removable' => true,
+                'strength' => 15,
+            ],
+            'effect_texts' => ['MAG +15% / SPR +7%（2ラウンド）'],
         ],
 
-        // Eclipse: portable combat buffs; foreign resource remains forbidden.
+        // Eclipse: portable combat buffs. Source-lineage resource handling is owned by ResourceService.
         '9:1:属性付与' => [
             'role_key' => 'eclipse_adaptive_buff',
             'portable' => true,
@@ -271,11 +374,11 @@ final class JobArtV2RoleEffectCatalog
                 'trigger' => ['lineage_key' => 'pierce', 'learn_ranks' => [5, 9]],
                 'damage_multiplier' => 1.15,
                 'retain_on_activation_failure' => true,
-                'expire_on_next_executed_non_trigger_action' => true,
+                'retain_on_intervening_action' => true,
                 'stack_group' => 'pierce_prep',
                 'replace_same_group' => true,
             ],
-            'effect_texts' => ['次の行動が貫通系Rank5/9なら最終ダメージ ×1.15'],
+            'effect_texts' => ['次に使用する貫通系譜の連携または奥義の最終ダメージを×1.15する（途中で別の行動をしても維持）'],
         ],
         '16:1:実戦勘' => [
             'role_key' => 'pierce_flexible_prep',
@@ -285,7 +388,7 @@ final class JobArtV2RoleEffectCatalog
             'prepared_effect' => [
                 'key' => 'pierce_flexible_prep',
                 'charges' => 1,
-                'rounds' => 3,
+                'rounds' => 5,
                 'trigger' => ['lineage_key' => 'pierce', 'learn_ranks' => [5, 9]],
                 'damage_multiplier' => 1.10,
                 'retain_on_intervening_action' => true,
@@ -293,7 +396,7 @@ final class JobArtV2RoleEffectCatalog
                 'stack_group' => 'pierce_prep',
                 'replace_same_group' => true,
             ],
-            'effect_texts' => ['3ラウンド以内の次の貫通系Rank5/9を ×1.10', '途中で別行動をしても維持'],
+            'effect_texts' => ['5ターン以内の次の貫通系Rank5/9を ×1.10', '途中で別行動をしても維持'],
         ],
 
         // Transmute Rank1 choices.
@@ -328,11 +431,51 @@ final class JobArtV2RoleEffectCatalog
                     'rate' => 0.20,
                     'consume_rng' => false,
                 ],
-                'rounds' => 3,
+                'rounds' => 4,
                 'removable' => true,
                 'strength' => 20,
             ],
-            'effect_texts' => ['現在値が最も低い能力1つを +20%（3ラウンド）'],
+            'effect_texts' => ['4ターンの間、現在値が最も低い能力1つを+20%する'],
+        ],
+
+        // Break: an ATK-vs-SPR specialist and an exact magic/undead matchup.
+        '21:5:破邪拳' => [
+            'role_key' => 'break_exorcising_strike',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'damage_stat_route' => [
+                'attack_stat' => 'str',
+                'defense_stat' => 'spr',
+                'damage_category' => 'magical',
+            ],
+            'conditional_target_multiplier' => [
+                'species_keys' => ['mage', 'undead'],
+                'include_magical_normal_attack' => true,
+                'multiplier' => 1.20,
+            ],
+            'effect_texts' => [
+                '自分の攻撃と相手の精神を参照してダメージを与える',
+                '魔法型または不死系の相手には、与えるダメージを1.2倍にする',
+            ],
+        ],
+
+        // Transmute: follow the actor's normal attack route, then apply a timed mixed debuff.
+        '26:5:錬成爆弾' => [
+            'role_key' => 'transmute_adaptive_bomb',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'use_normal_attack_damage_type' => true,
+            'structured_debuff' => [
+                'enemy_def_down_percent' => 15,
+                'enemy_spr_down_percent' => 15,
+                'duration_turns' => 3,
+            ],
+            'effect_texts' => [
+                '相手に自身の通常攻撃と同じ種類のダメージを与える',
+                '3ターンの間、相手の防御を-15%、精神を-15%する',
+            ],
         ],
 
         // Guard: raw healing versus lower healing plus accident prevention.
@@ -341,7 +484,7 @@ final class JobArtV2RoleEffectCatalog
             'portable' => true,
             'suppress_legacy_effect' => false,
             'heal' => ['formula' => 'existing_spr', 'multiplier' => 1.0],
-            'effect_texts' => ['既存SPR依存回復を100%使用', '追加加護なし'],
+            'effect_texts' => [],
         ],
         '36:1:聖戦の祈り' => [
             'role_key' => 'guard_heal_and_guard',
@@ -356,6 +499,48 @@ final class JobArtV2RoleEffectCatalog
             ],
             'effect_texts' => ['基礎回復量の70%を回復', '次のdirect damageを15%軽減（1回）'],
         ],
+        '56:5:聖域結界' => [
+            'role_key' => 'guard_sanctuary_barrier',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'timed_effect' => [
+                'key' => 'guard_sanctuary_barrier',
+                'modifiers' => ['mag' => 0.20, 'spr' => 0.10],
+                'rounds' => 2,
+                'removable' => true,
+                'strength' => 20,
+            ],
+            'effect_texts' => ['MAG +20% / SPR +10%（2ラウンド）'],
+        ],
+        '44:9:天壁イージス' => [
+            'role_key' => 'guard_physical_shield_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'use_normal_attack_damage_type' => true,
+            'guard' => [
+                'damage_reduction_rate' => 0.20,
+                'charges' => 1,
+                'scope' => 'direct_damage',
+            ],
+            'effect_texts' => [
+                '相手に自身の通常攻撃と同じ種類のダメージを与える',
+                '次の直接攻撃のダメージを20%軽減する（1回）',
+            ],
+        ],
+        '56:9:聖壁アルカディア' => [
+            'role_key' => 'guard_magical_shield_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'guard' => [
+                'damage_reduction_rate' => 0.25,
+                'charges' => 1,
+                'scope' => 'direct_damage',
+            ],
+            'effect_texts' => ['次の直接攻撃のダメージを25%軽減する（1回）'],
+        ],
 
         // Transmute reward/support identity.
         '8:5:幸運の一手' => [
@@ -363,14 +548,14 @@ final class JobArtV2RoleEffectCatalog
             'portable' => true,
             'suppress_legacy_effect' => false,
             'reward' => ['gold' => 'preserve_master', 'drop' => false],
-            'effect_texts' => ['Gold補正のみ（既存補正量を維持）'],
+            'effect_texts' => [],
         ],
         '20:5:掘り出し物' => [
             'role_key' => 'transmute_drop_specialist',
             'portable' => true,
             'suppress_legacy_effect' => true,
             'reward' => ['gold' => false, 'drop' => 'preserve_master'],
-            'effect_texts' => ['Drop補正のみ（既存補正量を維持）'],
+            'effect_texts' => [],
         ],
         '31:1:黄金鑑定' => [
             'role_key' => 'transmute_appraisal',
@@ -378,7 +563,8 @@ final class JobArtV2RoleEffectCatalog
             'suppress_legacy_effect' => false,
             'reward' => ['gold' => 'preserve_master', 'drop' => 'preserve_master'],
             'appraisal' => ['apply_to_target' => true],
-            'effect_texts' => ['鑑定付与', '既存の探索報酬補助を維持'],
+            // 鑑定markerは戦闘記録用。プレイヤー表示はmasterの実数報酬補正を正本にする。
+            'effect_texts' => [],
         ],
         '47:1:聖薬散布' => [
             'role_key' => 'transmute_single_cleanse_medicine',
@@ -388,9 +574,13 @@ final class JobArtV2RoleEffectCatalog
                 'maximum_states' => 1,
                 'priority' => ['burn', 'poison', 'bleed', 'def_down', 'slow', 'recovery_block'],
             ],
-            'heal' => ['formula' => 'max_hp_rate', 'rate' => 0.05],
+            'heal' => [
+                'formula' => 'max_hp_rate',
+                'rate' => 0.05,
+                'refund_conversion_hp_loss' => true,
+            ],
             'reward' => ['gold' => false, 'drop' => false],
-            'effect_texts' => ['有害状態を優先順に最大1種類解除', '最大HPの5%回復'],
+            'effect_texts' => ['火傷・毒・出血・防御低下・鈍足・回復阻害・崩し印から、優先順に最大1種類を浄化する', 'この変換で消費したHPと同じ量を回復する'],
         ],
         '8:9:大番振る舞い' => [
             'role_key' => 'transmute_basic_finisher',
@@ -415,12 +605,50 @@ final class JobArtV2RoleEffectCatalog
             'heal' => false,
             'effect_texts' => ['次のdirect damageを20%軽減（1回）'],
         ],
+        '21:9:金剛不壊' => [
+            'role_key' => 'break_single_guard_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'guard' => [
+                'damage_reduction_rate' => 0.25,
+                'charges' => 1,
+                'scope' => 'direct_damage',
+            ],
+            'effect_texts' => ['次のdirect damageを25%軽減する（1回）'],
+        ],
+        '24:9:大聖堂の奇跡' => [
+            'role_key' => 'field_cathedral_cleanse_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'heal' => ['formula' => 'existing_spr', 'multiplier' => 1.0],
+            'cleanse' => [
+                'maximum_states' => 'all',
+                'states' => ['burn', 'poison', 'bleed', 'def_down', 'slow', 'recovery_block'],
+            ],
+            'guard' => [
+                'damage_reduction_rate' => 0.20,
+                'charges' => 1,
+                'scope' => 'direct_damage',
+            ],
+            'effect_texts' => [
+                'HP回復 SPR×250%',
+                '火傷・毒・出血・防御低下・鈍足・回復阻害・崩し印をすべて浄化する',
+                '次のdirect damageを20%軽減する（1回）',
+            ],
+        ],
+        '27:9:ギガブレイク' => [
+            'role_key' => 'command_hybrid_multi_hit_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'HYBRID_DAMAGE',
+            'effect_texts' => [],
+        ],
         '31:9:王立独占契約' => [
             'role_key' => 'transmute_reward_finisher',
             'portable' => true,
             'suppress_legacy_effect' => false,
             'reward' => ['gold' => 'preserve_master', 'drop' => 'preserve_master'],
-            'effect_texts' => ['既存のGold / Drop報酬補正を維持'],
+            'effect_texts' => [],
         ],
         '38:9:富国の錬金陣' => [
             'role_key' => 'transmute_buff_harvest',
@@ -434,19 +662,16 @@ final class JobArtV2RoleEffectCatalog
             'timed_effect' => [
                 'key' => 'transmute_harvested_power',
                 'requires' => 'positive_effect_removed',
-                'dynamic_modifier' => [
-                    'select' => 'lowest_current_stat',
-                    'stats' => ['str', 'def', 'mag', 'spr', 'agi', 'luk'],
-                    'tie_break_order' => ['str', 'def', 'mag', 'spr', 'agi', 'luk'],
-                    'rate' => 0.15,
-                    'consume_rng' => false,
-                ],
+                'modifiers' => ['str' => 0.15, 'mag' => 0.15],
                 'rounds' => 3,
                 'removable' => true,
                 'strength' => 15,
             ],
             'reward' => ['gold' => false, 'drop' => false],
-            'effect_texts' => ['解除可能な最も強い強化を1種類解除', '成功時、現在値が最も低い能力を +15%（3ラウンド）'],
+            'effect_texts' => [
+                '解除可能な最も強い強化を1種類解除する',
+                '解除に成功した場合、3ラウンドの間、ATKとMAGを+15%する',
+            ],
         ],
         '47:9:神薬アムリタ' => [
             'role_key' => 'transmute_support_finisher',
@@ -458,7 +683,7 @@ final class JobArtV2RoleEffectCatalog
             ],
             'heal' => ['formula' => 'max_hp_rate', 'rate' => 0.15],
             'reward' => ['gold' => false, 'drop' => false],
-            'effect_texts' => ['解除可能な有害状態を全件解除', '最大HPの15%回復'],
+            'effect_texts' => ['火傷・毒・出血・防御低下・鈍足・回復阻害・崩し印をすべて浄化する', '最大HPの15%回復'],
         ],
 
         // Mechanical support eligibility. Cleanse authority remains the template.
@@ -472,7 +697,7 @@ final class JobArtV2RoleEffectCatalog
                 'maximum_states' => 1,
                 'states' => ['burn', 'poison', 'bleed', 'def_down', 'slow', 'recovery_block'],
             ],
-            'effect_texts' => ['HP / SP中回復', '有害状態を優先順に最大1種類解除'],
+            'effect_texts' => ['火傷・毒・出血・防御低下・鈍足・回復阻害・崩し印から、優先順に最大1種類を浄化する'],
         ],
         '38:5:王者の秘薬' => [
             'role_key' => 'heal_sp_support',
@@ -484,7 +709,7 @@ final class JobArtV2RoleEffectCatalog
                 'lower_ratio_multiplier' => 1.50,
                 'tie_breaker' => 'hp',
             ],
-            'effect_texts' => ['HP / SP中回復', '残存割合が低い側の回復量 ×1.50（同率はHP）', '有害状態は解除しない'],
+            'effect_texts' => ['残存割合が低い側の回復量を1.5倍にする（同率の場合はHPを優先する）', '有害状態は解除しない'],
         ],
 
         // Sword saint / holy sword general overlap.
@@ -572,6 +797,22 @@ final class JobArtV2RoleEffectCatalog
     public function isPortable(Skill $skill): bool
     {
         return (bool) ($this->forArt($skill)['portable'] ?? false);
+    }
+
+    public function executionPower(Skill $skill): ?int
+    {
+        $power = $this->forArt($skill)['execution_power'] ?? null;
+
+        return is_numeric($power) ? max(0, (int) $power) : null;
+    }
+
+    public function sprIgnoreRate(Skill $skill): ?float
+    {
+        $percent = $this->forArt($skill)['spr_ignore_percent'] ?? null;
+
+        return is_numeric($percent)
+            ? min(0.50, max(0.0, (float) $percent / 100))
+            : null;
     }
 
     private function key(Skill $skill): string

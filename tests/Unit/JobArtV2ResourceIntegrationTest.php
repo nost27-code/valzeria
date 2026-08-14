@@ -78,9 +78,67 @@ class JobArtV2ResourceIntegrationTest extends TestCase
         $this->assertSame($finisher, $selected);
         $this->assertTrue($support->consumeAndMarkUse($actor, $state, $selected));
 
-        $this->assertSame(99, $actor->mp);
+        $this->assertSame(50, $actor->mp);
         $this->assertSame(1, array_sum($state->jobArtUseCounts));
         $this->assertSame(0, $actor->getResource('dragon_force'));
+    }
+
+    public function test_cast_time_resource_log_follows_the_activation_log(): void
+    {
+        $producer = $this->art(30, 1, 100, '闇の契約');
+        [$actor, $state] = $this->battle(30, [$producer]);
+        $state->beginSourceAction();
+
+        $this->assertTrue($this->support($this->selection([1]))->consumeAndMarkUse(
+            $actor,
+            $state,
+            $producer,
+            '【奥義】闇の契約 が発動！',
+        ));
+
+        $activationIndex = collect($state->logs)->search(
+            static fn (string $log): bool => str_contains($log, '闇の契約 が発動'),
+        );
+        $resourceIndex = collect($state->logs)->search(
+            static fn (string $log): bool => str_contains($log, '冥蝕 +4'),
+        );
+
+        $this->assertNotFalse($activationIndex);
+        $this->assertNotFalse($resourceIndex);
+        $this->assertLessThan($resourceIndex, $activationIndex);
+        $this->assertSame(4, $actor->getResource('eclipse'));
+    }
+
+    public function test_pve_job_art_announces_before_cast_time_resource_change(): void
+    {
+        $source = file_get_contents(base_path('app/Services/BattleService.php'));
+        $start = strpos($source, 'private function executeJobArtAction(');
+        $end = strpos($source, 'protected function endJobArtV2Round(', $start);
+        $method = substr($source, $start, $end - $start);
+
+        $activation = strpos($method, 'jobArtActivationLog(');
+        $resource = strpos($method, 'applyJobArtCast(');
+
+        $this->assertNotFalse($activation);
+        $this->assertNotFalse($resource);
+        $this->assertLessThan($resource, $activation);
+    }
+
+    public function test_v2_execution_keeps_usage_metrics_but_does_not_create_legacy_cooldown(): void
+    {
+        $producer = $this->art(24, 1, 100);
+        $producer->cooldown_turns = 3;
+        $producer->max_uses_per_battle = 1;
+        [$actor, $state] = $this->battle(24, [$producer]);
+        $actor->configureResource('star_mark', 12);
+        $state->beginSourceAction();
+        $stateKey = spl_object_id($actor).':'.(int) $producer->id;
+        $state->jobArtUseCounts[$stateKey] = 1;
+        $support = $this->support($this->selection([1]));
+
+        $this->assertTrue($support->consumeAndMarkUse($actor, $state, $producer));
+        $this->assertSame(2, $state->jobArtUseCounts[$stateKey]);
+        $this->assertArrayNotHasKey($stateKey, $state->jobArtCooldowns);
     }
 
     public function test_priest_rank_nine_remains_eligible_at_full_hp_when_barrier_can_be_applied(): void
@@ -121,13 +179,24 @@ class JobArtV2ResourceIntegrationTest extends TestCase
         $calculator->shouldReceive('isCritical')->once()->andReturnFalse();
         $calculator->shouldReceive('calculatePhysicalDamage')->once()->andReturn(0);
         $service = $this->battleService($calculator);
-        [$actor, $state] = $this->battle(24, []);
+        [$actor, $state] = $this->battle(24, [$this->art(24, 1, 100, '浄化の光')]);
         app(JobArtV2ResourceService::class)->beginAction($actor, $state);
 
         $service->normalForTest($actor, $state->enemy, $state);
 
         $this->assertSame(1, $actor->getResource('star_mark'));
         $this->assertSame(100, $state->enemy->hp);
+
+        $attackIndex = collect($state->logs)->search(
+            static fn (string $log): bool => str_contains($log, 'player の攻撃！'),
+        );
+        $resourceIndex = collect($state->logs)->search(
+            static fn (string $log): bool => str_contains($log, '星印 +1'),
+        );
+
+        $this->assertNotFalse($attackIndex);
+        $this->assertNotFalse($resourceIndex);
+        $this->assertLessThan($resourceIndex, $attackIndex);
     }
 
     public function test_pve_normal_miss_does_not_award_resource(): void
@@ -143,6 +212,31 @@ class JobArtV2ResourceIntegrationTest extends TestCase
         $this->assertSame(0, $actor->getResource('dragon_force'));
     }
 
+    public function test_rendered_normal_attack_result_precedes_resource_change_in_shared_log_routes(): void
+    {
+        foreach ([BattleService::class, \App\Services\PvPBattleService::class, \App\Services\ArenaNpcBattleService::class] as $service) {
+            $method = new \ReflectionMethod($service, 'executeNormalAttack');
+            $lines = file($method->getFileName());
+            $source = implode('', array_slice(
+                $lines,
+                $method->getStartLine() - 1,
+                $method->getEndLine() - $method->getStartLine() + 1,
+            ));
+
+            $missLog = strpos($source, 'の攻撃！……しかし、');
+            $missResource = strpos($source, 'recordNormalAttackResolution');
+            $hitLog = strpos($source, 'のダメージ！");');
+            $hitResource = strrpos($source, 'recordNormalAttackResolution');
+
+            $this->assertNotFalse($missLog, $service);
+            $this->assertNotFalse($missResource, $service);
+            $this->assertNotFalse($hitLog, $service);
+            $this->assertNotFalse($hitResource, $service);
+            $this->assertLessThan($missResource, $missLog, $service.' MISS log order');
+            $this->assertLessThan($hitResource, $hitLog, $service.' HIT log order');
+        }
+    }
+
     public function test_all_six_battle_paths_use_the_shared_resource_rules_at_formal_action_points(): void
     {
         $battle = file_get_contents(base_path('app/Services/BattleService.php'));
@@ -152,18 +246,18 @@ class JobArtV2ResourceIntegrationTest extends TestCase
         $arenaNpc = file_get_contents(base_path('app/Services/ArenaNpcBattleService.php'));
 
         $this->assertStringContainsString('beginAction($attacker, $state)', $battle);
-        $this->assertStringContainsString('recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT)', $battle);
+        $this->assertStringContainsString('recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT', $battle);
         $this->assertStringContainsString('recordSelfDamage($attacker, $state, $selfDamage)', $battle);
         $this->assertStringContainsString('class TowerBattleService extends BattleService', $tower);
         $this->assertStringContainsString("\$battleContext = \$enemy->is_boss ? 'boss' : 'pve';", $battle);
         $this->assertStringContainsString('beginAction($attacker, $state)', $pvp);
-        $this->assertStringContainsString('recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT)', $pvp);
+        $this->assertStringContainsString('recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT', $pvp);
         $this->assertStringContainsString('recordSelfDamage($attacker, $state, $selfDamage)', $pvp);
         $this->assertStringContainsString('beginAction($attacker, $jobArtState)', $champ);
         $this->assertStringContainsString('normalAttackWithResource', $champ);
         $this->assertStringContainsString('recordSelfDamage($attacker, $state, $selfDamage)', $champ);
         $this->assertStringContainsString('beginAction($attacker, $state)', $arenaNpc);
-        $this->assertStringContainsString('recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT)', $arenaNpc);
+        $this->assertStringContainsString('recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT', $arenaNpc);
         $this->assertStringContainsString('recordSelfDamage($attacker, $state, $selfDamage)', $arenaNpc);
     }
 
@@ -277,10 +371,10 @@ class JobArtV2ResourceIntegrationTest extends TestCase
         return [$actor, new BattleState($actor, $enemy)];
     }
 
-    private function art(int $jobId, int $rank, int $activationRate): Skill
+    private function art(int $jobId, int $rank, int $activationRate, ?string $name = null): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => $name ?? "job-{$jobId}-rank-{$rank}",
             'job_id' => $jobId,
             'skill_type' => 'job_art',
             'learn_rank' => $rank,

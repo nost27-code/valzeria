@@ -23,6 +23,7 @@ final class JobArtV2CleanseService
         'def_down',
         'slow',
         'recovery_block',
+        'black_crown_reversal',
     ];
 
     public function canCleanse(BattleActor $actor): bool
@@ -49,6 +50,8 @@ final class JobArtV2CleanseService
             }
 
             unset($actor->conditions[$conditionKey]);
+            ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+                ->clearCleansedState($actor, $conditionKey);
             $removed[] = $conditionKey;
             if (! $removeAll) {
                 break;

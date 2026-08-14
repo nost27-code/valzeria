@@ -37,48 +37,73 @@ class JobArtV2PowerBalanceTest extends TestCase
             $jobId = (int) $fixture['job_id'];
             $this->assertSame(285, (int) ($pairs[$jobId][5]['power_hint'] ?? 0), $lineage);
             $this->assertSame(355, (int) ($pairs[$jobId][9]['power_hint'] ?? 0), $lineage);
-            $this->assertSame(1, (int) ($pairs[$jobId][9]['max_uses_per_battle'] ?? 0), $lineage);
+            if (in_array($jobId, [67, 69], true)) {
+                $this->assertNull($pairs[$jobId][9]['max_uses_per_battle'] ?? null, $lineage);
+            } else {
+                $this->assertSame(1, (int) ($pairs[$jobId][9]['max_uses_per_battle'] ?? 0), $lineage);
+            }
         }
     }
 
-    public function test_only_trusted_current_job_rank_nine_receives_the_v2_power(): void
+    public function test_final_workbook_removes_only_the_three_explicit_v2_use_caps(): void
+    {
+        $rows = json_decode((string) file_get_contents(base_path('database/data/job_arts.json')), true, 512, JSON_THROW_ON_ERROR);
+        $byKey = collect($rows)->keyBy(static fn (array $row): string =>
+            (int) $row['job_id'].':'.(int) $row['learn_rank'].':'.(string) $row['name']
+        );
+
+        foreach (['59:9:八陣無双策', '67:9:金冠ミダスフィールド', '69:9:王戦アークフォーメーション'] as $key) {
+            $this->assertTrue($byKey->has($key), $key);
+            $this->assertNull($byKey->get($key)['max_uses_per_battle'] ?? null, $key);
+        }
+    }
+
+    public function test_only_trusted_scoped_job_arts_receive_the_v2_power(): void
     {
         $resolver = app(JobArtV2PowerResolver::class);
 
         $sage = $this->actor(53);
-        $sageRankNine = $this->art(53, 9, 320, 5_309);
+        $sageRankNine = $this->art(53, 9, 320, 5_309, '星天グランドスペル');
         $this->attachAsCurrent($sage, $sageRankNine);
-        $this->assertSame(410, $resolver->forExecution($sage, $sageRankNine));
+        $this->assertSame(320, $resolver->forExecution($sage, $sageRankNine));
 
         $counter = $this->actor(60);
-        $counterRankNine = $this->art(60, 9, 355, 6_009);
+        $counterRankNine = $this->art(60, 9, 355, 6_009, '王冠聖剣陣');
         $this->attachAsCurrent($counter, $counterRankNine);
-        $this->assertSame(455, $resolver->forExecution($counter, $counterRankNine));
+        $this->assertSame(355, $resolver->forExecution($counter, $counterRankNine));
 
         $lancer = $this->actor(62);
-        $lancerRankNine = $this->art(62, 9, 355, 6_209);
+        $lancerRankNine = $this->art(62, 9, 355, 6_209, '竜冠天穿槍');
         $this->attachAsCurrent($lancer, $lancerRankNine);
-        $this->assertSame(470, $resolver->forExecution($lancer, $lancerRankNine));
+        $this->assertSame(355, $resolver->forExecution($lancer, $lancerRankNine));
 
         $eclipse = $this->actor(61);
-        $eclipseRankNine = $this->art(61, 9, 355, 6_109);
+        $eclipseRankNine = $this->art(61, 9, 355, 6_109, '黒冠アビスブレイク');
         $this->attachAsCurrent($eclipse, $eclipseRankNine);
-        $this->assertSame(585, $resolver->forExecution($eclipse, $eclipseRankNine));
+        $this->assertSame(355, $resolver->forExecution($eclipse, $eclipseRankNine));
 
         $hunter = $this->actor(64);
-        $hunterRankNine = $this->art(64, 9, 355, 6_409);
+        $hunterRankNine = $this->art(64, 9, 355, 6_409, '影冠終葬射');
         $this->attachAsCurrent($hunter, $hunterRankNine);
-        $this->assertSame(460, $resolver->forExecution($hunter, $hunterRankNine));
+        $this->assertSame(355, $resolver->forExecution($hunter, $hunterRankNine));
+
+        $shadowStitch = $this->actor(54);
+        $shadowStitchRankFive = $this->art(54, 5, 255, 5_405, '影縫い乱舞');
+        $this->attachAsCurrent($shadowStitch, $shadowStitchRankFive);
+        $this->assertSame(180, $resolver->forExecution($shadowStitch, $shadowStitchRankFive));
 
         $aim = $this->actor(65);
-        $aimRankNine = $this->art(65, 9, 355, 6_509);
+        $aimRankFive = $this->art(65, 5, 285, 6_505, '鋼冠機砲');
+        $this->attachAsCurrent($aim, $aimRankFive);
+        $this->assertSame(255, $resolver->forExecution($aim, $aimRankFive));
+        $aimRankNine = $this->art(65, 9, 355, 6_509, '鋼冠グラビトンコア');
         $this->attachAsCurrent($aim, $aimRankNine);
-        $this->assertSame(570, $resolver->forExecution($aim, $aimRankNine));
+        $this->assertSame(355, $resolver->forExecution($aim, $aimRankNine));
 
         $command = $this->actor(69);
-        $commandRankNine = $this->art(69, 9, 355, 6_909);
+        $commandRankNine = $this->art(69, 9, 355, 6_909, '王戦アークフォーメーション');
         $this->attachAsCurrent($command, $commandRankNine);
-        $this->assertSame(455, $resolver->forExecution($command, $commandRankNine));
+        $this->assertSame(355, $resolver->forExecution($command, $commandRankNine));
 
         foreach ([[24, 9, 89], [66, 9, 355], [85, 9, 510], [53, 5, 255], [62, 5, 285]] as [$jobId, $rank, $power]) {
             $actor = $this->actor($jobId);
@@ -92,9 +117,19 @@ class JobArtV2PowerBalanceTest extends TestCase
     {
         $resolver = app(JobArtV2PowerResolver::class);
 
-        foreach ([[53, 9, 320, 410], [60, 9, 355, 455], [61, 9, 355, 585], [62, 9, 355, 470], [64, 9, 355, 460], [65, 9, 355, 570], [69, 9, 355, 455]] as [$jobId, $rank, $masterPower, $effectivePower]) {
+        foreach ([
+            [53, 9, '星天グランドスペル', 320, 320],
+            [54, 5, '影縫い乱舞', 255, 180],
+            [60, 9, '王冠聖剣陣', 355, 355],
+            [61, 9, '黒冠アビスブレイク', 355, 355],
+            [62, 9, '竜冠天穿槍', 355, 355],
+            [64, 9, '影冠終葬射', 355, 355],
+            [65, 5, '鋼冠機砲', 285, 255],
+            [65, 9, '鋼冠グラビトンコア', 355, 355],
+            [69, 9, '王戦アークフォーメーション', 355, 355],
+        ] as [$jobId, $rank, $name, $masterPower, $effectivePower]) {
             $actor = $this->actor($jobId);
-            $skill = $this->art($jobId, $rank, $masterPower, ($jobId * 100) + $rank);
+            $skill = $this->art($jobId, $rank, $masterPower, ($jobId * 100) + $rank, $name);
             $this->attachAsCurrent($actor, $skill);
             $skill->setAttribute('job_art_origin', 'current');
 
@@ -102,6 +137,30 @@ class JobArtV2PowerBalanceTest extends TestCase
             $this->assertSame($effectivePower, $resolver->forDisplay($jobId, $skill));
             $this->assertSame($masterPower, (int) $skill->power);
         }
+    }
+
+    public function test_shadow_stitch_rank_five_uses_the_same_l_column_power_for_every_equipped_owner(): void
+    {
+        $resolver = app(JobArtV2PowerResolver::class);
+        $skill = $this->art(54, 5, 255, 5_405, '影縫い乱舞');
+
+        $current = $this->actor(54);
+        $this->attachAsCurrent($current, $skill);
+        $this->assertSame(180, $resolver->forExecution($current, $skill));
+
+        $sameLineage = $this->actor(64);
+        $sameLineage->jobArtOrigins[(int) $skill->id] = 'inherited';
+        $this->assertSame(180, $resolver->forExecution($sameLineage, $skill));
+        $skill->setAttribute('job_art_origin', 'inherited');
+        $this->assertSame(180, $resolver->forDisplay(64, $skill));
+
+        $crossLineage = $this->actor(65);
+        $crossLineage->jobArtOrigins[(int) $skill->id] = 'inherited';
+        $this->assertSame(180, $resolver->forExecution($crossLineage, $skill));
+        $this->assertSame(180, $resolver->forDisplay(65, $skill));
+
+        config(['battle.job_art_v2.resources' => false]);
+        $this->assertSame(180, $resolver->forExecution($sameLineage, $skill));
     }
 
     public function test_transmute_and_break_keep_master_rank_nine_power_after_effect_aware_calibration(): void
@@ -146,20 +205,20 @@ class JobArtV2PowerBalanceTest extends TestCase
 
     public function test_loadout_power_resolution_does_not_consume_randomness(): void
     {
-        $skill = $this->art(62, 9, 355, 6_209);
+        $skill = $this->art(62, 9, 355, 6_209, '竜冠天穿槍');
         $skill->setAttribute('job_art_origin', 'current');
         mt_srand(19_019);
         $expected = mt_rand();
 
         mt_srand(19_019);
-        $this->assertSame(470, app(JobArtV2PowerResolver::class)->forDisplay(62, $skill));
+        $this->assertSame(355, app(JobArtV2PowerResolver::class)->forDisplay(62, $skill));
         $this->assertSame($expected, mt_rand());
     }
 
     public function test_fail_closed_paths_preserve_master_power(): void
     {
         $resolver = app(JobArtV2PowerResolver::class);
-        $skill = $this->art(62, 9, 355, 6_209);
+        $skill = $this->art(62, 9, 355, 6_209, '竜冠天穿槍');
 
         $inherited = $this->actor(62);
         $inherited->jobArtOrigins[(int) $skill->id] = 'inherited';
@@ -187,8 +246,8 @@ class JobArtV2PowerBalanceTest extends TestCase
         $this->attachAsCurrent($actor, $skill);
 
         $execution = app(JobArtBattleSupportService::class)->skillForExecution($actor, $skill);
-        $this->assertSame(470, (int) $execution->power);
-        $this->assertSame(4.7, (float) $execution->power_multiplier);
+        $this->assertSame(355, (int) $execution->power);
+        $this->assertSame(3.55, (float) $execution->power_multiplier);
         $this->assertSame(355, (int) $skill->power);
 
         $actor->jobArtOrigins[(int) $skill->id] = 'inherited';
@@ -355,10 +414,10 @@ class JobArtV2PowerBalanceTest extends TestCase
         $actor->jobArtRates[(int) $skill->id] = 1.0;
     }
 
-    private function art(int $jobId, int $rank, int $power, int $id): Skill
+    private function art(int $jobId, int $rank, int $power, int $id, ?string $name = null): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => $name ?? "job-{$jobId}-rank-{$rank}",
             'skill_type' => 'job_art',
             'job_id' => $jobId,
             'learn_rank' => $rank,

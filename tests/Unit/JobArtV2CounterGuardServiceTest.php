@@ -13,6 +13,7 @@ use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
 use App\Services\JobArtBattleSupportService;
+use App\Services\JobArtV2CounterStanceState;
 use App\Services\JobArtV2BattleHudService;
 use App\Services\JobArtV2DefenseService;
 use App\Services\JobArtV2FeatureGate;
@@ -21,6 +22,7 @@ use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2ParryRandomSource;
 use App\Services\JobArtV2PrototypeCatalog;
 use App\Services\JobArtV2ResourceService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class JobArtV2CounterGuardServiceTest extends TestCase
@@ -42,7 +44,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         ]);
     }
 
-    public function test_counter_stance_keeps_two_rounds_skips_cast_round_and_refreshes(): void
+    public function test_counter_stance_keeps_four_turns_skips_cast_turn_and_refreshes(): void
     {
         [$counter, , $state] = $this->battle(60);
         $defense = $this->defense(new FixedParryRandomSource([100]));
@@ -50,25 +52,31 @@ class JobArtV2CounterGuardServiceTest extends TestCase
 
         $this->cast($counter, $state, $this->art(60, 1), $defense);
         $this->assertSame(4, $counter->getResource('sword_momentum'));
-        $this->assertSame(2, $counter->counterStanceState()?->remainingRounds);
+        $this->assertSame(4, $counter->counterStanceState()?->remainingRounds);
 
         $defense->endRound($state);
-        $this->assertSame(2, $counter->counterStanceState()?->remainingRounds);
+        $this->assertSame(4, $counter->counterStanceState()?->remainingRounds);
 
         $state->turnCount = 2;
         $defense->endRound($state);
-        $this->assertSame(1, $counter->counterStanceState()?->remainingRounds);
+        $this->assertSame(3, $counter->counterStanceState()?->remainingRounds);
 
         $this->cast($counter, $state, $this->art(60, 1), $defense);
         $this->assertSame(8, $counter->getResource('sword_momentum'));
-        $this->assertSame(2, $counter->counterStanceState()?->remainingRounds);
+        $this->assertSame(4, $counter->counterStanceState()?->remainingRounds);
         $defense->endRound($state);
-        $this->assertSame(2, $counter->counterStanceState()?->remainingRounds);
+        $this->assertSame(4, $counter->counterStanceState()?->remainingRounds);
 
         $state->turnCount = 3;
         $defense->endRound($state);
-        $this->assertSame(1, $counter->counterStanceState()?->remainingRounds);
+        $this->assertSame(3, $counter->counterStanceState()?->remainingRounds);
         $state->turnCount = 4;
+        $defense->endRound($state);
+        $this->assertSame(2, $counter->counterStanceState()?->remainingRounds);
+        $state->turnCount = 5;
+        $defense->endRound($state);
+        $this->assertSame(1, $counter->counterStanceState()?->remainingRounds);
+        $state->turnCount = 6;
         $defense->endRound($state);
         $this->assertNull($counter->counterStanceState());
         $this->assertSame(JobArtV2DefenseService::COUNTER_EVENT_EXPIRED, collect($state->counterStanceEvents())->last()['event']);
@@ -179,6 +187,155 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertSame(5, $counter->getResource('sword_momentum'));
     }
 
+    #[DataProvider('royalSwordBattlePathProvider')]
+    public function test_royal_sword_formation_counters_once_with_power_ninety_in_every_battle_path(
+        string $battleType,
+    ): void {
+        [$counter, $attacker, $state] = $this->battle(60, 60, $battleType);
+        $random = new FixedParryRandomSource([1]);
+        $defense = $this->defense($random);
+        $application = new DamageApplicationService($defense);
+        $counter->replaceCounterStanceState(new JobArtV2CounterStanceState(5, 1, 0.35));
+        $counter->jobArtV2ProgressionState()->applyRoundState('royal_sword_formation', 5, 1);
+
+        // 反撃から別の反撃が再帰しないことも、反撃対象側へ同じ状態を持たせて固定する。
+        $attacker->replaceCounterStanceState(new JobArtV2CounterStanceState(5, 1, 0.35));
+        $attacker->jobArtV2ProgressionState()->applyRoundState('royal_sword_formation', 5, 1);
+        $attacker->configureResource('sword_momentum', 12);
+        $attacker->setResource('sword_momentum', 7);
+
+        $this->resources()->beginAction($attacker, $state);
+        $sourceActionId = $state->currentSourceActionId();
+        $this->assertNotNull($sourceActionId);
+
+        $attackerHpBefore = $attacker->hp;
+        $first = $this->applyDirect($application, $state, $attacker, $counter, 120, 'physical', HitResult::HIT, 1, 2);
+        $this->assertSame(0, $first->requestedDamage);
+        $attackerHpAfterFirstHit = $attacker->hp;
+        $this->assertLessThan($attackerHpBefore, $attackerHpAfterFirstHit);
+
+        // 同一source actionの2Hit目も受け流すが、反撃damageは再発生しない。
+        $second = $this->applyDirect($application, $state, $attacker, $counter, 80, 'physical', HitResult::HIT, 2, 2);
+        $this->assertSame(0, $second->requestedDamage);
+        $this->assertSame($attackerHpAfterFirstHit, $attacker->hp);
+        $this->resources()->finishAction($attacker, $state);
+
+        $parry = $state->parryResult($counter, $sourceActionId);
+        $this->assertNotNull($parry);
+        $this->assertTrue($parry->success);
+        $this->assertSame(90, $parry->counterPower);
+        $this->assertSame($attackerHpBefore - $attackerHpAfterFirstHit, $parry->counterDamage);
+        $this->assertSame(1, $random->calls);
+        $this->assertCount(1, $state->parryResults());
+        $this->assertSame(2, $counter->getResource('sword_momentum'), '被物理+1と受け流し+1だけ。反撃damage自体では剣勢を得ない。');
+        $this->assertSame(7, $attacker->getResource('sword_momentum'), '反撃damageではHIT時resource効果を起動しない。');
+        $this->assertStringContainsString('王冠剣陣が反撃', implode('|', $state->logs));
+
+        $hud = app(JobArtV2BattleHudService::class)->present($state);
+        $incoming = collect($hud['actions'])->firstWhere('action_kind', 'incoming_attack');
+        $parryChange = collect($incoming['changes'] ?? [])->firstWhere('type', 'parry');
+        $this->assertSame(90, $parryChange['counter_power'] ?? null);
+        $this->assertSame($parry->counterDamage, $parryChange['counter_damage'] ?? null);
+    }
+
+    public static function royalSwordBattlePathProvider(): array
+    {
+        return [
+            'normal PvE' => ['pve'],
+            'boss' => ['boss'],
+            'tower (shared PvE pipeline)' => ['pve'],
+            'PvP' => ['pvp'],
+            'champ' => ['champ'],
+            'NPC arena' => ['arena_npc'],
+        ];
+    }
+
+    public function test_royal_sword_counter_requires_a_successful_direct_physical_parry(): void
+    {
+        [$counter, $attacker, $state] = $this->battle(60, 60);
+        $failedRandom = new FixedParryRandomSource([36]);
+        $defense = $this->defense($failedRandom);
+        $counter->replaceCounterStanceState(new JobArtV2CounterStanceState(5, 1, 0.35));
+        $counter->jobArtV2ProgressionState()->applyRoundState('royal_sword_formation', 5, 1);
+
+        $this->resources()->beginAction($attacker, $state);
+        $failedSourceActionId = $state->currentSourceActionId();
+        $failed = new DirectAttackResolution(
+            $failedSourceActionId,
+            $attacker,
+            $counter,
+            HitResult::HIT,
+            'physical',
+            true,
+            BattleActionType::NORMAL_ATTACK,
+        );
+        $this->assertSame(100, $defense->resolveDamage($state, $failed, 100));
+        $this->assertSame(10_000, $attacker->hp);
+        $this->assertSame(0, $state->parryResult($counter, $failedSourceActionId)?->counterDamage);
+        $this->resources()->finishAction($attacker, $state);
+
+        $excludedRandom = new FixedParryRandomSource([1, 1, 1, 1, 1]);
+        $defense = $this->defense($excludedRandom);
+        foreach ([
+            ['magical direct', 'magical', true, HitResult::HIT, DamageSourceType::NORMAL_ATTACK],
+            ['miss', 'physical', true, HitResult::MISS, DamageSourceType::NORMAL_ATTACK],
+            ['DoT', 'physical', false, HitResult::HIT, DamageSourceType::DOT],
+            ['self damage', 'physical', false, HitResult::HIT, DamageSourceType::SELF_DAMAGE],
+            ['reflect', 'physical', false, HitResult::HIT, DamageSourceType::REFLECT],
+            ['counter recursion', 'physical', false, HitResult::HIT, DamageSourceType::COUNTER],
+        ] as [$label, $category, $direct, $hitResult, $sourceType]) {
+            $this->resources()->beginAction($attacker, $state);
+            $sourceActionId = $state->currentSourceActionId();
+            $excluded = DirectAttackResolution::fromDamageSource(
+                $sourceActionId,
+                $attacker,
+                $counter,
+                $hitResult,
+                $category,
+                $direct,
+                $sourceType,
+            );
+            $this->assertSame(100, $defense->resolveDamage($state, $excluded, 100), $label);
+            $this->assertSame(10_000, $attacker->hp, $label);
+            $this->resources()->finishAction($attacker, $state);
+        }
+        $this->assertSame(0, $excludedRandom->calls);
+    }
+
+    public function test_royal_sword_counter_stops_after_the_five_turn_formation_expires(): void
+    {
+        [$counter, $attacker, $state] = $this->battle(60, 60);
+        $random = new FixedParryRandomSource([1]);
+        $defense = $this->defense($random);
+        $state->turnCount = 1;
+        $counter->replaceCounterStanceState(new JobArtV2CounterStanceState(5, 1, 0.35));
+        $counter->jobArtV2ProgressionState()->applyRoundState('royal_sword_formation', 5, 1);
+
+        $defense->endRound($state);
+        app(\App\Services\JobArtV2ProgressionService::class)->endRound($state);
+        for ($round = 2; $round <= 6; $round++) {
+            $state->turnCount = $round;
+            $defense->endRound($state);
+            app(\App\Services\JobArtV2ProgressionService::class)->endRound($state);
+        }
+
+        $this->assertNull($counter->counterStanceState());
+        $this->assertFalse($counter->jobArtV2ProgressionState()->hasRoundState('royal_sword_formation'));
+        $this->resources()->beginAction($attacker, $state);
+        $resolution = new DirectAttackResolution(
+            $state->currentSourceActionId(),
+            $attacker,
+            $counter,
+            HitResult::HIT,
+            'physical',
+            true,
+            BattleActionType::NORMAL_ATTACK,
+        );
+        $this->assertSame(100, $defense->resolveDamage($state, $resolution, 100));
+        $this->assertSame(10_000, $attacker->hp);
+        $this->assertSame(0, $random->calls);
+    }
+
     public function test_guard_reduces_an_entire_multihit_action_once_and_records_actual_prevention(): void
     {
         [$guard, $attacker, $state] = $this->battle(66);
@@ -192,12 +349,12 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $sourceActionId = $state->currentSourceActionId();
         $this->resources()->finishAction($attacker, $state);
 
-        $this->assertSame([80, 40], [$first->requestedDamage, $second->requestedDamage]);
-        $this->assertSame(9_880, $guard->hp);
+        $this->assertSame([75, 37], [$first->requestedDamage, $second->requestedDamage]);
+        $this->assertSame(9_888, $guard->hp);
         $this->assertNull($guard->jobArtV2GuardState());
         $this->assertSame(5, $guard->getResource('holy_guard'));
         $trace = $state->damageTrace($guard, $sourceActionId);
-        $this->assertSame([150, 120, 30], [
+        $this->assertSame([150, 112, 38], [
             $trace->damageBeforeActiveGuard,
             $trace->damageAfterActiveGuard,
             $trace->preventedDamage,
@@ -206,7 +363,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $hud = app(JobArtV2BattleHudService::class)->present($state);
         $incoming = collect($hud['actions'])->firstWhere('action_kind', 'incoming_attack');
         $guardChange = collect($incoming['changes'])->firstWhere('type', 'active_guard');
-        $this->assertSame([150, 120, 30], [$guardChange['damage_before'], $guardChange['damage_after'], $guardChange['prevented_damage']]);
+        $this->assertSame([150, 112, 38], [$guardChange['damage_before'], $guardChange['damage_after'], $guardChange['prevented_damage']]);
     }
 
     public function test_guard_handles_magical_damage_stronger_priority_zero_prevention_and_parry_order(): void
@@ -218,14 +375,14 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $guard->configureResource('holy_guard', 12);
         $guard->setResource('holy_guard', 12);
         $this->cast($guard, $state, $this->art(66, 9, 'MAGICAL_DAMAGE_BUFF'), $defense);
-        $this->assertSame(0.25, $guard->jobArtV2GuardState()?->rate);
+        $this->assertSame(0.45, $guard->jobArtV2GuardState()?->rate);
         $guard->setResource('holy_guard', 4);
         $this->cast($guard, $state, $this->art(66, 5, 'MAGICAL_DAMAGE_BUFF'), $defense);
-        $this->assertSame(0.25, $guard->jobArtV2GuardState()?->rate);
+        $this->assertSame(0.45, $guard->jobArtV2GuardState()?->rate);
 
         $this->resources()->beginAction($attacker, $state);
         $magical = $this->applyDirect($application, $state, $attacker, $guard, 100, 'magical');
-        $this->assertSame(75, $magical->requestedDamage);
+        $this->assertSame(55, $magical->requestedDamage);
 
         $guard->replaceJobArtV2GuardState(new JobArtV2GuardState(0.20));
         $beforeResource = $guard->getResource('holy_guard');
@@ -290,7 +447,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertNull($guard->jobArtV2GuardState());
     }
 
-    public function test_rank_five_cleanse_is_structured_all_at_once_and_gains_once(): void
+    public function test_rank_five_cleanse_remains_structured_but_does_not_refund_its_direct_resource_cost(): void
     {
         [$guard, , $state] = $this->battle(66);
         $defense = $this->defense(new FixedParryRandomSource([100]));
@@ -302,13 +459,13 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $guard->setResource('holy_guard', 4);
 
         $this->cast($guard, $state, $this->art(66, 5, 'MAGICAL_DAMAGE_BUFF'), $defense);
-        $this->assertSame(1, $guard->getResource('holy_guard'));
+        $this->assertSame(0, $guard->getResource('holy_guard'));
         $this->assertSame(['stun'], array_keys($guard->conditions));
         $result = collect($state->cleanseResults())->last();
         $this->assertTrue($result->success);
-        $this->assertSame(6, $result->removedCount);
+        $this->assertSame(7, $result->removedCount);
         $this->assertSame(JobArtV2DefenseService::CLEANSABLE_STATES, $result->removedStates);
-        $this->assertSame(0.20, $guard->jobArtV2GuardState()?->rate);
+        $this->assertSame(0.35, $guard->jobArtV2GuardState()?->rate);
 
         $guard->setResource('holy_guard', 4);
         $this->cast($guard, $state, $this->art(66, 5, 'MAGICAL_DAMAGE_BUFF'), $defense);
@@ -383,7 +540,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertFalse($legacy['legacy_effect_copy_suppressed']);
     }
 
-    public function test_counter_guard_states_do_not_leak_into_inherited_or_flag_off_paths(): void
+    public function test_counter_guard_states_apply_to_equipped_inherited_cards_but_not_flag_off_paths(): void
     {
         $defense = $this->defense(new FixedParryRandomSource([1]));
 
@@ -394,8 +551,13 @@ class JobArtV2CounterGuardServiceTest extends TestCase
             $this->resources()->beginAction($actor, $state);
             $defense->applyJobArtCast($actor, $state, $skill);
 
-            $this->assertNull($actor->counterStanceState());
-            $this->assertNull($actor->jobArtV2GuardState());
+            if ($jobId === 60) {
+                $this->assertNotNull($actor->counterStanceState());
+                $this->assertNull($actor->jobArtV2GuardState());
+            } else {
+                $this->assertNull($actor->counterStanceState());
+                $this->assertNotNull($actor->jobArtV2GuardState());
+            }
         }
 
         config(['battle.job_art_v2.resources' => false]);
@@ -418,11 +580,15 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $guardFive = $presenter->forArt(66, $this->art(66, 5, 'MAGICAL_DAMAGE_BUFF'));
         $guardNine = $presenter->forArt(66, $this->art(66, 9, 'MAGICAL_DAMAGE_BUFF'));
 
-        $this->assertSame('剣勢 +4', $counterOne['resource_text']);
+        $this->assertSame('剣勢 +4（使用時）', $counterOne['resource_text']);
         $this->assertStringContainsString('20%で受け流し', implode('|', $counterOne['stance_texts']));
-        $this->assertStringContainsString('直接物理攻撃', implode('|', $counterOne['effect_texts']));
-        $this->assertSame('聖護 4消費', $guardFive['resource_text']);
-        $this->assertStringContainsString('全浄化', implode('|', $guardFive['effect_texts']));
+        $this->assertSame([], $counterOne['effect_texts']);
+        $this->assertSame('聖護 -4（消費）', $guardFive['resource_text']);
+        $this->assertStringContainsString(
+            '火傷・毒・出血・防御低下・鈍足・回復阻害・崩し印をすべて浄化する',
+            implode('|', $guardFive['effect_texts']),
+        );
+        $this->assertStringNotContainsString('浄化成功：聖護+1', implode('|', $guardFive['effect_texts']));
         $this->assertSame('MAGICAL_DAMAGE', $guardFive['effect_template']);
         $this->assertSame('攻撃', $guardFive['effect_label']);
         $this->assertTrue($guardFive['legacy_effect_copy_suppressed']);
@@ -430,8 +596,8 @@ class JobArtV2CounterGuardServiceTest extends TestCase
             '自己強化 主+20% / 副+10%',
             $this->art(66, 5, 'MAGICAL_DAMAGE_BUFF')->jobArtNumericEffectLabels(285, $guardFive['effect_template']),
         );
-        $this->assertSame('聖護 12消費', $guardNine['resource_text']);
-        $this->assertStringContainsString('25%軽減', implode('|', $guardNine['effect_texts']));
+        $this->assertSame('聖護 -12（消費）', $guardNine['resource_text']);
+        $this->assertStringContainsString('45%軽減', implode('|', $guardNine['effect_texts']));
 
         $counterRecommendations = $presenter->recommendationsForCurrentJob(60, [$this->art(60, 1), $this->art(60, 5), $this->art(60, 9)]);
         $guardRecommendations = $presenter->recommendationsForCurrentJob(66, [$this->art(66, 1), $this->art(66, 5), $this->art(66, 9)]);
@@ -459,6 +625,9 @@ class JobArtV2CounterGuardServiceTest extends TestCase
 
     private function cast(BattleActor $actor, BattleState $state, Skill $skill, JobArtV2DefenseService $defense): void
     {
+        if (! collect($actor->jobArts)->contains(fn (Skill $equipped): bool => (int) $equipped->id === (int) $skill->id)) {
+            $actor->jobArts[] = $skill;
+        }
         $actor->jobArtOrigins[(int) $skill->id] = 'current';
         $this->resources()->beginAction($actor, $state);
         $this->resources()->applyJobArtCast($actor, $state, $skill);
@@ -529,7 +698,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
 
     private function actor(string $name, bool $player, ?int $jobId): BattleActor
     {
-        return new BattleActor($name, $player, [
+        $actor = new BattleActor($name, $player, [
             'hp' => 10_000,
             'max_hp' => 10_000,
             'mp' => 1_000,
@@ -542,12 +711,28 @@ class JobArtV2CounterGuardServiceTest extends TestCase
             'luk' => 100,
             'current_job_id' => $jobId,
         ]);
+        if (in_array($jobId, [60, 66], true)) {
+            $starter = $this->art((int) $jobId, 1, $jobId === 66 ? 'MAGICAL_DAMAGE_BUFF' : 'PHYSICAL_DAMAGE');
+            $actor->jobArts = [$starter];
+            $actor->jobArtOrigins[(int) $starter->id] = 'current';
+            $actor->jobArtRates[(int) $starter->id] = 1.0;
+        }
+
+        return $actor;
     }
 
     private function art(int $jobId, int $rank, string $template = 'PHYSICAL_DAMAGE'): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => match ([$jobId, $rank]) {
+                [60, 1] => '剣冠の構え',
+                [60, 5] => '剣冠裁断',
+                [60, 9] => '王冠聖剣陣',
+                [66, 1] => '聖冠加護',
+                [66, 5] => '聖冠大結界',
+                [66, 9] => '聖冠アイギスロード',
+                default => "job-{$jobId}-rank-{$rank}",
+            },
             'skill_type' => 'job_art',
             'job_id' => $jobId,
             'learn_rank' => $rank,

@@ -40,11 +40,11 @@ class JobArtV2BattleRules
 
     public function conserveThresholdFor(BattleActor $actor): float
     {
-        return $this->featureGate->usesPr5Rules($actor) ? 0.40 : 0.60;
+        return 0.60;
     }
 
     public function conserveThresholdPercentForCurrentJob(?int $currentJobId): int
     {
-        return $this->featureGate->usesPr5RulesForCurrentJob($currentJobId) ? 40 : 60;
+        return 60;
     }
 }

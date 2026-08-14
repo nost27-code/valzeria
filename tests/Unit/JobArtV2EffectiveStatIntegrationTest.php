@@ -43,22 +43,22 @@ class JobArtV2EffectiveStatIntegrationTest extends TestCase
             strength: 25,
         ));
 
-        // 100 * .9 = 90; * .8 = 72; * 1.25 = 90.
-        // 200 * .9 = 180; * .8 = 144; * 1.25 = 180.
-        $this->assertSame(90.0, $player->effectivePercentageDef());
-        $this->assertSame(180.0, $player->effectivePercentageSpr());
+        // All modifiers are additive against base and clamped once:
+        // -10% condition -20% break +25% guard = -5%.
+        $this->assertSame(95.0, $player->effectivePercentageDef());
+        $this->assertSame(190.0, $player->effectivePercentageSpr());
 
         $calculator = app(DamageCalculator::class);
         mt_srand(41);
         $physical = $calculator->calculatePhysicalDamage($enemy, $player);
         mt_srand(41);
-        $expectedPhysical = (int) floor(((1_000 * 1_000) / (1_000 + (3.5 * 90))) * (rand(85, 115) / 100));
+        $expectedPhysical = (int) floor(((1_000 * 1_000) / (1_000 + (3.5 * 95))) * (rand(85, 115) / 100));
         $this->assertSame($expectedPhysical, $physical);
 
         mt_srand(73);
         $magical = $calculator->calculateMagicalDamage($enemy, $player);
         mt_srand(73);
-        $expectedMagical = (int) floor(((1_000 * 1_000) / (1_000 + (3.5 * 180))) * (rand(85, 115) / 100));
+        $expectedMagical = (int) floor(((1_000 * 1_000) / (1_000 + (3.5 * 190))) * (rand(85, 115) / 100));
         $this->assertSame($expectedMagical, $magical);
     }
 
@@ -90,8 +90,51 @@ class JobArtV2EffectiveStatIntegrationTest extends TestCase
         $this->assertSame(200, $actor->hybridAttackPower('max', false));
         $this->assertSame(150, $actor->hybridAttackPower('average', false));
         // Role-enabled callers use effective STR/MAG including timed effects.
-        $this->assertSame(250, $actor->hybridAttackPower('max', true));
-        $this->assertSame(225, $actor->hybridAttackPower('average', true));
+        $this->assertSame(200, $actor->hybridAttackPower('max', true));
+        $this->assertSame(180, $actor->hybridAttackPower('average', true));
+    }
+
+    public function test_final_stat_caps_are_plus_sixty_minus_forty_and_speed_minus_twenty_five_percent(): void
+    {
+        $actor = new BattleActor('actor', true, [
+            'str' => 100,
+            'def' => 100,
+            'agi' => 100,
+            'mag' => 100,
+            'spr' => 100,
+            'max_hp' => 1_000,
+        ]);
+        $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
+            key: 'first_buff',
+            statModifiers: ['str' => 0.40, 'mag' => 0.40],
+            appliedRound: 1,
+            remainingRounds: 3,
+            sourceActionId: 1,
+            sourceSkillId: 1,
+            removable: true,
+            strength: 40,
+        ));
+        $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
+            key: 'second_buff',
+            statModifiers: ['str' => 0.40, 'mag' => 0.40],
+            appliedRound: 1,
+            remainingRounds: 3,
+            sourceActionId: 2,
+            sourceSkillId: 2,
+            removable: true,
+            strength: 40,
+        ));
+        $actor->conditions = [
+            'def_down' => ['rate' => 0.80],
+            'spr_down' => ['rate' => 0.80],
+            'slow' => ['rate' => 0.80],
+        ];
+
+        $this->assertSame(160, $actor->effectiveStr());
+        $this->assertSame(160, $actor->effectiveMag());
+        $this->assertSame(60, $actor->effectiveDef());
+        $this->assertSame(60, $actor->effectiveSpr());
+        $this->assertSame(75, $actor->effectiveAgi());
     }
 
     public function test_all_battle_routes_gate_hybrid_effective_stats_on_role_effects(): void

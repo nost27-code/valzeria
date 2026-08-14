@@ -17,6 +17,7 @@ class JobArtV2ResourceService
     public const BLOCKED_BY_RESOURCE_METADATA = 'blocked_by_resource_metadata';
     public const BLOCKED_BY_UNSUPPORTED_LINEAGE_RESOURCE = 'blocked_by_unsupported_lineage_resource';
     public const BLOCKED_BY_FEATURE_DEPENDENCY = 'blocked_by_feature_dependency';
+    public const BLOCKED_BY_DIRECT_RESOURCE_OPERATION = 'blocked_by_direct_resource_operation';
 
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
@@ -75,7 +76,7 @@ class JobArtV2ResourceService
 
         $art = $this->catalog->forActorArt($actor, $skill);
         if ($art === null) {
-            // 異系譜継承はforeign resourceを生成・要求しない。
+            // v2 profile外の継承戦技だけはlegacy適格性を維持する。
             if ($this->catalog->isInheritedOrigin($actor, $skill)) {
                 return null;
             }
@@ -129,7 +130,7 @@ class JobArtV2ResourceService
     {
         if (!$this->enabledFor($actor)
             || $this->catalog->roleForActorArt($actor, $skill) !== ResourceRole::FINISHER
-            || !$this->catalog->usesPrimaryResource($actor, $skill)
+            || !$this->catalog->usesBattleResource($actor, $skill)
         ) {
             return false;
         }
@@ -145,7 +146,6 @@ class JobArtV2ResourceService
         $art = $this->catalog->forActorArt($actor, $skill);
 
         return $this->enabledFor($actor)
-            && $this->catalog->isTrustedCurrentJobOrigin($actor, $skill)
             && (int) ($art['job_id'] ?? 0) === 24
             && (int) ($art['learn_rank'] ?? 0) === 9
             && (int) $skill->damage_reduction_percent > 0;
@@ -161,8 +161,10 @@ class JobArtV2ResourceService
         $this->battleHud->markJobArt($actor, $state, $skill);
 
         $art = $this->catalog->forActorArt($actor, $skill);
-        if ($art === null || !$this->catalog->usesPrimaryResource($actor, $skill)) {
-            $this->fieldService->applyJobArtCast($actor, $state, $skill);
+        if ($art === null || !$this->catalog->usesBattleResource($actor, $skill)) {
+            if (! $this->lineageEffectsSuppressed($state)) {
+                $this->fieldService->applyJobArtCast($actor, $state, $skill);
+            }
 
             return ResourceChangeResult::unchanged();
         }
@@ -175,12 +177,19 @@ class JobArtV2ResourceService
         $resourceName = (string) $art['resource_name'];
         $cap = (int) $art['resource_max_points'];
         $actor->configureResource($resourceKey, $cap);
+        if ($this->declaresDirectResourceOperation($art)
+            && ! (bool) ($art['allow_lineage_common_gain'] ?? false)
+        ) {
+            $state->markJobArtV2DirectResourceOperation($actor, $resourceKey, $sourceActionId);
+        }
         if (!$state->claimResourceEvent($actor, $resourceKey, ResourceEvent::JOB_ART_CAST->value, $sourceActionId)) {
             return ResourceChangeResult::unchanged('duplicate_resource_event');
         }
 
         $fieldResult = null;
-        if (max(0, (int) ($art['resource_gain_on_field_overwrite_points'] ?? 0)) > 0) {
+        if (! $this->lineageEffectsSuppressed($state)
+            && max(0, (int) ($art['resource_gain_on_field_overwrite_points'] ?? 0)) > 0
+        ) {
             $fieldResult = $this->fieldService->applyJobArtCast($actor, $state, $skill);
         }
 
@@ -192,7 +201,7 @@ class JobArtV2ResourceService
                 $conversionGain = $this->applyGainEvent(
                     $actor,
                     $state,
-                    $this->catalog->forActor($actor) ?? [],
+                    $art,
                     ResourceEvent::HP_SP_CONVERSION_SUCCESS,
                     max(0, (int) $art['resource_gain_points']),
                 );
@@ -244,11 +253,16 @@ class JobArtV2ResourceService
             sourceActionId: $sourceActionId,
         );
         $this->appendLog($state, $result);
-        if ($fieldResult === null) {
+        if ($fieldResult === null && ! $this->lineageEffectsSuppressed($state)) {
             $this->fieldService->applyJobArtCast($actor, $state, $skill);
         }
 
         return $conversionGain?->applied ? $conversionGain : $result;
+    }
+
+    private function lineageEffectsSuppressed(BattleState $state): bool
+    {
+        return ! empty($state->jobArtV2RoleAction()['ultimate_counterplay_lineage_suppressed']);
     }
 
     public function recordJobArtHit(BattleActor $actor, BattleState $state, Skill $skill): ResourceChangeResult
@@ -261,7 +275,7 @@ class JobArtV2ResourceService
         $sourceActionId = $state->currentSourceActionId();
         if ($art === null
             || $sourceActionId === null
-            || !$this->catalog->usesPrimaryResource($actor, $skill)
+            || !$this->catalog->usesBattleResource($actor, $skill)
             || $this->gainEventFor($art) !== ResourceEvent::JOB_ART_HIT
         ) {
             return ResourceChangeResult::unchanged($sourceActionId === null ? 'missing_source_action_id' : null);
@@ -271,6 +285,11 @@ class JobArtV2ResourceService
         $resourceName = (string) $art['resource_name'];
         $cap = (int) $art['resource_max_points'];
         $actor->configureResource($resourceKey, $cap);
+        if ($this->declaresDirectResourceOperation($art)
+            && ! (bool) ($art['allow_lineage_common_gain'] ?? false)
+        ) {
+            $state->markJobArtV2DirectResourceOperation($actor, $resourceKey, $sourceActionId);
+        }
         if (!$state->claimResourceEvent($actor, $resourceKey, ResourceEvent::JOB_ART_HIT->value, $sourceActionId)) {
             return ResourceChangeResult::unchanged('duplicate_resource_event');
         }
@@ -301,41 +320,19 @@ class JobArtV2ResourceService
             return ResourceChangeResult::unchanged();
         }
 
-        $resource = $this->catalog->forActor($actor);
+        $this->progressionService->recordNightmareSelfDamage($actor, $actualDamage);
+
         $sourceActionId = $state->currentSourceActionId();
-        if ($resource === null || $sourceActionId === null) {
+        if ($sourceActionId === null) {
             return ResourceChangeResult::unchanged($sourceActionId === null ? 'missing_source_action_id' : null);
         }
-        $gain = max(0, (int) ($resource['self_damage_gain_points'] ?? 0));
-        if ($gain === 0) {
-            return ResourceChangeResult::unchanged();
-        }
 
-        $resourceKey = (string) $resource['resource_key'];
-        $cap = (int) $resource['resource_max_points'];
-        $actor->configureResource($resourceKey, $cap);
-        if (!$state->claimResourceEvent($actor, $resourceKey, ResourceEvent::SELF_DAMAGE->value, $sourceActionId)) {
-            return ResourceChangeResult::unchanged('duplicate_resource_event');
-        }
-
-        $before = $actor->getResource($resourceKey);
-        $gain = $this->fieldService->modifyResourceGain($actor, $state, $gain);
-        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain));
-        $after = $actor->getResource($resourceKey);
-        $result = new ResourceChangeResult(
-            applied: $before !== $after,
-            resourceKey: $resourceKey,
-            resourceName: (string) $resource['resource_name'],
-            delta: $after - $before,
-            before: $before,
-            after: $after,
-            cap: $cap,
-            event: ResourceEvent::SELF_DAMAGE,
-            sourceActionId: $sourceActionId,
+        return $this->applyConfiguredGainToAll(
+            $actor,
+            $state,
+            ResourceEvent::SELF_DAMAGE,
+            'self_damage_gain_points',
         );
-        $this->appendLog($state, $result);
-
-        return $result;
     }
 
     public function recordNormalAttackHit(BattleActor $actor, BattleState $state): ResourceChangeResult
@@ -428,11 +425,6 @@ class JobArtV2ResourceService
         ));
         $this->battleHud->markNormalAttackResolution($actor, $state, $resolution);
 
-        $resource = $this->catalog->forActor($actor);
-        if ($resource === null) {
-            return ResourceChangeResult::unchanged();
-        }
-
         $event = match ($hitResult) {
             HitResult::HIT => ResourceEvent::NORMAL_ATTACK_HIT,
             HitResult::MISS => ResourceEvent::NORMAL_ATTACK_MISS,
@@ -442,13 +434,11 @@ class JobArtV2ResourceService
             return ResourceChangeResult::unchanged();
         }
 
-        $gain = match ($event) {
-            ResourceEvent::NORMAL_ATTACK_HIT => max(0, (int) ($resource['normal_attack_hit_gain_points'] ?? 0)),
-            ResourceEvent::NORMAL_ATTACK_MISS => max(0, (int) ($resource['normal_attack_miss_gain_points'] ?? 0)),
-            default => 0,
-        };
+        $metadataKey = $event === ResourceEvent::NORMAL_ATTACK_HIT
+            ? 'normal_attack_hit_gain_points'
+            : 'normal_attack_miss_gain_points';
 
-        return $this->applyGainEvent($actor, $state, $resource, $event, $gain);
+        return $this->applyConfiguredGainToAll($actor, $state, $event, $metadataKey);
     }
 
     public function finishAction(BattleActor $actor, BattleState $state): void
@@ -468,16 +458,12 @@ class JobArtV2ResourceService
             }
 
             if (in_array($result->actionType, [BattleActionType::NORMAL_ATTACK, BattleActionType::CURRENT_JOB_SKILL], true)) {
-                $resource = $this->catalog->forActor($actor);
-                if ($resource !== null) {
-                    $this->applyGainEvent(
-                        $actor,
-                        $state,
-                        $resource,
-                        ResourceEvent::NON_JOB_ART_ACTION,
-                        max(0, (int) ($resource['non_job_art_action_gain_points'] ?? 0)),
-                    );
-                }
+                $this->applyConfiguredGainToAll(
+                    $actor,
+                    $state,
+                    ResourceEvent::NON_JOB_ART_ACTION,
+                    'non_job_art_action_gain_points',
+                );
             }
         }
 
@@ -554,18 +540,50 @@ class JobArtV2ResourceService
             return ResourceChangeResult::unchanged();
         }
 
-        $resource = $this->catalog->forActor($actor);
-        if ($resource === null) {
-            return ResourceChangeResult::unchanged();
-        }
-
-        return $this->applyGainEvent(
+        return $this->applyConfiguredGainToAll(
             $actor,
             $state,
-            $resource,
             $event,
-            max(0, (int) ($resource[$metadataKey] ?? 0)),
+            $metadataKey,
         );
+    }
+
+    private function applyConfiguredGainToAll(
+        BattleActor $actor,
+        BattleState $state,
+        ResourceEvent $event,
+        string $metadataKey,
+    ): ResourceChangeResult {
+        $firstApplied = null;
+        $firstBlocked = null;
+        $sourceActionId = $state->currentSourceActionId();
+        foreach ($this->catalog->resourcesForActor($actor) as $resource) {
+            $resourceKey = (string) $resource['resource_key'];
+            $gain = max(0, (int) ($resource[$metadataKey] ?? 0));
+            if ($gain > 0
+                && $sourceActionId !== null
+                && $state->hasJobArtV2DirectResourceOperation($actor, $resourceKey, $sourceActionId)
+            ) {
+                $firstBlocked ??= ResourceChangeResult::unchanged(self::BLOCKED_BY_DIRECT_RESOURCE_OPERATION);
+                continue;
+            }
+
+            $result = $this->applyGainEvent(
+                $actor,
+                $state,
+                $resource,
+                $event,
+                $gain,
+            );
+            if ($firstApplied === null && $result->applied) {
+                $firstApplied = $result;
+            }
+            if ($firstBlocked === null && $result->blockedReason !== null) {
+                $firstBlocked = $result;
+            }
+        }
+
+        return $firstApplied ?? $firstBlocked ?? ResourceChangeResult::unchanged();
     }
 
     private function appendLog(BattleState $state, ResourceChangeResult $result): void
@@ -581,5 +599,13 @@ class JobArtV2ResourceService
     {
         return ResourceEvent::tryFrom((string) ($art['resource_gain_event'] ?? ResourceEvent::JOB_ART_CAST->value))
             ?? ResourceEvent::JOB_ART_CAST;
+    }
+
+    /** @param array<string, int|float|string|bool> $art */
+    private function declaresDirectResourceOperation(array $art): bool
+    {
+        return max(0, (int) ($art['resource_gain_points'] ?? 0)) > 0
+            || max(0, (int) ($art['resource_gain_on_field_overwrite_points'] ?? 0)) > 0
+            || max(0, (int) ($art['resource_cost_points'] ?? 0)) > 0;
     }
 }

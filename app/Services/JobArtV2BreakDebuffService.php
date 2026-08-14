@@ -20,6 +20,7 @@ final class JobArtV2BreakDebuffService
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {}
 
     public function applyOnHit(
@@ -126,16 +127,31 @@ final class JobArtV2BreakDebuffService
     /** @return array<string, int|float|string|bool>|null */
     private function metadata(BattleActor $actor, Skill $skill): ?array
     {
-        if (! $this->featureGate->usesResources($actor)
-            || $actor->currentJobId !== self::JOB_ID
-            || ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') !== 'current'
-            || ! $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill)
-        ) {
+        if (! $this->featureGate->usesResources($actor) || (int) $skill->job_id !== self::JOB_ID) {
+            return null;
+        }
+
+        $resolution = $this->roles()->resolveActor($actor);
+        $trusted = $resolution->active
+            ? in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+            : $actor->currentJobId === self::JOB_ID
+                && ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current'
+                && $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill);
+        if (! $trusted) {
             return null;
         }
 
         $metadata = $this->prototypeCatalog->artResourceMetadata($skill);
 
         return isset($metadata['break_rate'], $metadata['break_rounds']) ? $metadata : null;
+    }
+
+    private function roles(): JobArtV2DeckRoleResolver
+    {
+        return $this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
     }
 }

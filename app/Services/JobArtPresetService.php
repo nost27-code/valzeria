@@ -68,23 +68,29 @@ class JobArtPresetService
                 'name' => $name,
                 'current_job_id' => (int) $character->current_job_id,
                 'source_context' => $sourceContext,
+                'sp_policy' => $this->jobArtService->contextSpPolicy($character, $sourceContext),
             ]);
 
-            $character->jobArtSlots()
-                ->where('battle_context', $sourceContext)
-                ->whereBetween('slot_no', [1, JobArtService::V2_MAX_SLOTS])
-                ->orderBy('slot_no')
-                ->get()
-                ->each(function (CharacterJobArtSlot $slot) use ($preset): void {
-                    $preset->slots()->create([
-                        'slot_no' => (int) $slot->slot_no,
-                        'skill_id' => (int) $slot->skill_id,
-                        'activation_policy' => $this->jobArtService->normalizeActivationPolicy((string) $slot->activation_policy),
-                        'condition_key' => $this->slotConditionCatalog->normalize(
-                            (string) $slot->condition_key,
-                        ),
-                    ]);
-                });
+            $this->copyCurrentLoadoutToPreset($character, $preset, $sourceContext);
+
+            return $preset->load('slots.skill');
+        });
+    }
+
+    public function overwriteFromCurrentLoadout(Character $character, int $presetId, string $sourceContext): JobArtPreset
+    {
+        $this->ensureEnabled($character);
+        $sourceContext = $this->validateContext($sourceContext);
+
+        return DB::transaction(function () use ($character, $presetId, $sourceContext): JobArtPreset {
+            $preset = $this->ownedPreset($character, $presetId, true);
+            $preset->slots()->delete();
+            $preset->update([
+                'current_job_id' => (int) $character->current_job_id,
+                'source_context' => $sourceContext,
+                'sp_policy' => $this->jobArtService->contextSpPolicy($character, $sourceContext),
+            ]);
+            $this->copyCurrentLoadoutToPreset($character, $preset, $sourceContext);
 
             return $preset->load('slots.skill');
         });
@@ -123,6 +129,11 @@ class JobArtPresetService
                 $policies,
                 $conditions,
             );
+            $this->jobArtService->saveContextSpPolicy(
+                $character,
+                $targetContext,
+                $this->jobArtService->normalizeActivationPolicy((string) $preset->sp_policy),
+            );
         });
     }
 
@@ -130,6 +141,32 @@ class JobArtPresetService
     {
         [$slots] = $this->presetInputs($preset->slots);
         $skills = $preset->slots->pluck('skill')->filter(fn ($skill): bool => $skill instanceof Skill);
+        $conditionLabels = $this->slotConditionCatalog->labels();
+        $arts = $preset->slots
+            ->sortBy('slot_no')
+            ->map(function ($slot) use ($conditionLabels): ?array {
+                if (! $slot->skill instanceof Skill) {
+                    return null;
+                }
+
+                $condition = $this->slotConditionCatalog->normalize((string) $slot->condition_key);
+
+                return [
+                    'slot_no' => (int) $slot->slot_no,
+                    'name' => (string) $slot->skill->name,
+                    'role_label' => match ((int) $slot->skill->learn_rank) {
+                        1 => '始動',
+                        5 => '連携',
+                        9 => '奥義',
+                        default => '戦技',
+                    },
+                    'condition_key' => $condition,
+                    'condition_label' => $conditionLabels[$condition] ?? '条件なし',
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
         $status = $this->applicationStatus($character, $preset, $targetContext);
         $applicationStatuses = collect($this->jobArtService->slotContexts())
             ->mapWithKeys(fn (string $context): array => [
@@ -142,7 +179,12 @@ class JobArtPresetService
             'name' => (string) $preset->name,
             'current_job_id' => (int) $preset->current_job_id,
             'source_context' => $preset->source_context,
+            'sp_policy' => $this->jobArtService->normalizeActivationPolicy((string) $preset->sp_policy),
+            'sp_policy_label' => $this->jobArtService->activationPolicyLabels()[
+                $this->jobArtService->normalizeActivationPolicy((string) $preset->sp_policy)
+            ] ?? '積極',
             'slot_count' => count($slots),
+            'arts' => $arts,
             'cost' => $this->jobArtService->totalEffectiveCostFor($character, $skills),
             'can_apply' => $status['can_apply'],
             'unavailable_reason' => $status['reason'],
@@ -192,6 +234,25 @@ class JobArtPresetService
         }
 
         return [$slots, $policies, $conditions];
+    }
+
+    private function copyCurrentLoadoutToPreset(Character $character, JobArtPreset $preset, string $sourceContext): void
+    {
+        $character->jobArtSlots()
+            ->where('battle_context', $sourceContext)
+            ->whereBetween('slot_no', [1, JobArtService::V2_MAX_SLOTS])
+            ->orderBy('slot_no')
+            ->get()
+            ->each(function (CharacterJobArtSlot $slot) use ($preset): void {
+                $preset->slots()->create([
+                    'slot_no' => (int) $slot->slot_no,
+                    'skill_id' => (int) $slot->skill_id,
+                    'activation_policy' => $this->jobArtService->normalizeActivationPolicy((string) $slot->activation_policy),
+                    'condition_key' => $this->slotConditionCatalog->normalize(
+                        (string) $slot->condition_key,
+                    ),
+                ]);
+            });
     }
 
     private function ensureCurrentJobMatches(Character $character, JobArtPreset $preset): void

@@ -59,6 +59,12 @@ final class JobArtV2FieldCatalog
         return $this->prototypeCatalog->isTrustedCurrentJobArt($currentJobId, $skill);
     }
 
+    public function isTrustedFieldArt(Skill $skill): bool
+    {
+        return $this->prototypeCatalog->isTrustedArtProfile($skill)
+            && $this->prototypeCatalog->artFieldMetadata($skill) !== null;
+    }
+
     public function isPortableJob63FieldArt(?int $currentJobId, Skill $skill): bool
     {
         return $currentJobId !== null

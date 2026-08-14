@@ -39,11 +39,11 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         ]);
     }
 
-    public function test_job_63_is_the_fortieth_supported_current_job_with_only_frozen_metadata(): void
+    public function test_job_63_remains_supported_with_only_its_frozen_metadata(): void
     {
         $catalog = app(JobArtV2PrototypeCatalog::class);
 
-        $this->assertCount(40, $catalog->supportedCurrentJobs());
+        $this->assertCount(94, $catalog->supportedCurrentJobs());
         $this->assertSame('crown', $catalog->currentJobTier(63));
         $this->assertSame('full_v2_effect', $catalog->effectCoverageForCurrentJob(63));
         $this->assertSame([
@@ -59,7 +59,7 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         $this->assertSame(1, $catalog->artResourceMetadataForJobRank(63, 5)['field_echo_rounds']);
         $rankNine = $catalog->artResourceMetadataForJobRank(63, 9);
         $this->assertSame('none', $rankNine['field_operation']);
-        $this->assertSame([1.05, 1.10, 1.15], [
+        $this->assertSame([1.15, 1.30, 1.45], [
             $rankNine['field_overwrite_power_multiplier_1_2'],
             $rankNine['field_overwrite_power_multiplier_3_4'],
             $rankNine['field_overwrite_power_multiplier_5_plus'],
@@ -165,7 +165,7 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         $this->assertNull($state->fieldEchoFor($actor));
     }
 
-    public function test_job_63_field_actions_port_only_to_same_lineage_inheritance(): void
+    public function test_job_63_field_actions_remain_same_lineage_only_but_cross_lineage_resource_is_generated(): void
     {
         $resources = app(JobArtV2ResourceService::class);
         $inheritedRankOne = $this->art(63, 1);
@@ -181,9 +181,11 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         $foreignActor->jobArtOrigins[(int) $inheritedRankOne->id] = 'inherited';
         $resources->beginAction($foreignActor, $foreignState);
         $result = $resources->applyJobArtCast($foreignActor, $foreignState, $inheritedRankOne);
-        $this->assertFalse($result->applied);
+        $this->assertTrue($result->applied);
+        $this->assertSame(4, $result->delta);
         $this->assertNull($foreignState->primaryField());
         $this->assertSame(0, $foreignActor->getResource('dragon_force'));
+        $this->assertSame(4, $foreignActor->getResource('star_mark'));
     }
 
     public function test_same_lineage_inherited_rank_five_echoes_the_owners_field_after_an_opponent_overwrites_it(): void
@@ -217,7 +219,7 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
     {
         $resolver = app(JobArtV2PowerResolver::class);
 
-        foreach ([0 => 100, 1 => 105, 2 => 105, 3 => 110, 4 => 110, 5 => 115, 8 => 115] as $count => $expectedPower) {
+        foreach ([0 => 1.00, 1 => 1.15, 2 => 1.15, 3 => 1.30, 4 => 1.30, 5 => 1.45, 8 => 1.45] as $count => $expectedMultiplier) {
             [$actor, $state] = $this->battle(63);
             $rankNine = $this->art(63, 9);
             $actor->jobArtOrigins[(int) $rankNine->id] = 'current';
@@ -227,8 +229,9 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
             $branch = $resolver->fieldOverwriteBranchForExecution($actor, $rankNine, $state);
             $this->assertSame($count, $branch['overwrite_count'], "count {$count}");
             $this->assertTrue($branch['primary_field_present'], "count {$count}");
-            $this->assertSame($expectedPower, $resolver->forExecution($actor, $rankNine, $state), "count {$count}");
-            $this->assertLessThanOrEqual(1.15, $branch['multiplier'], "count {$count}");
+            $this->assertSame($expectedMultiplier, $branch['multiplier'], "count {$count}");
+            $this->assertSame(100, $resolver->forExecution($actor, $rankNine, $state), "count {$count}");
+            $this->assertLessThanOrEqual(1.45, $branch['multiplier'], "count {$count}");
         }
     }
 
@@ -277,36 +280,44 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         $this->createActualOverwrites($withField, $withFieldState, 3);
         $resources->beginAction($withField, $withFieldState);
         $withFieldState->replacePrimaryField(null);
-        $this->assertSame(110, $resolver->forExecution($withField, $rankNine, $withFieldState));
+        $this->assertSame(1.30, $resolver->fieldOverwriteBranchForExecution($withField, $rankNine, $withFieldState)['multiplier']);
+        $this->assertSame(100, $resolver->forExecution($withField, $rankNine, $withFieldState));
     }
 
-    public function test_rank_nine_branch_is_current_job_only_and_inheritance_keeps_existing_resource_rules(): void
+    public function test_rank_nine_branch_and_source_resource_work_for_every_equipped_lineage(): void
     {
         $resolver = app(JobArtV2PowerResolver::class);
         $resources = app(JobArtV2ResourceService::class);
         $rankNine = $this->art(63, 9);
 
         [$sameLineage, $sameLineageState] = $this->battle(53);
+        $sameLineage->jobArts = [$rankNine];
         $sameLineage->jobArtOrigins[(int) $rankNine->id] = 'inherited';
         $sameLineage->configureResource('star_mark', 12);
         $sameLineage->setResource('star_mark', 12);
         $this->createActualOverwrites($sameLineage, $sameLineageState, 5);
         $resources->beginAction($sameLineage, $sameLineageState);
-        $this->assertNull($resolver->fieldOverwriteBranchForExecution($sameLineage, $rankNine, $sameLineageState));
+        $this->assertSame(1.45, $resolver->fieldOverwriteBranchForExecution($sameLineage, $rankNine, $sameLineageState)['multiplier']);
         $this->assertSame(100, $resolver->forExecution($sameLineage, $rankNine, $sameLineageState));
         $this->assertSame(-12, $resources->applyJobArtCast($sameLineage, $sameLineageState, $rankNine)->delta);
 
         [$crossLineage, $crossLineageState] = $this->battle(62);
+        $crossLineage->jobArts = [$rankNine];
         $crossLineage->jobArtOrigins[(int) $rankNine->id] = 'inherited';
         $crossLineage->configureResource('dragon_force', 12);
         $crossLineage->setResource('dragon_force', 12);
+        $crossLineage->configureResource('star_mark', 12);
+        $crossLineage->setResource('star_mark', 12);
+        $this->createActualOverwrites($crossLineage, $crossLineageState, 3);
         $resources->beginAction($crossLineage, $crossLineageState);
+        $this->assertSame(1.30, $resolver->fieldOverwriteBranchForExecution($crossLineage, $rankNine, $crossLineageState)['multiplier']);
         $this->assertSame(100, $resolver->forExecution($crossLineage, $rankNine, $crossLineageState));
-        $this->assertFalse($resources->applyJobArtCast($crossLineage, $crossLineageState, $rankNine)->applied);
+        $this->assertSame(-12, $resources->applyJobArtCast($crossLineage, $crossLineageState, $rankNine)->delta);
         $this->assertSame(12, $crossLineage->getResource('dragon_force'));
+        $this->assertSame(0, $crossLineage->getResource('star_mark'));
     }
 
-    public function test_rank_nine_spends_twelve_once_is_prioritized_and_records_the_structured_hud_branch(): void
+    public function test_rank_nine_spends_twelve_is_prioritized_records_hud_and_ignores_legacy_use_cap(): void
     {
         [$actor, $state] = $this->battle(63);
         $actor->configureResource('star_mark', 12);
@@ -334,15 +345,12 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         $this->assertNotNull($state->primaryField());
         $hudAction = app(JobArtV2BattleHudService::class)->present($state)['actions'][0];
         $this->assertSame(4, $hudAction['field_overwrite_power']['overwrite_count']);
-        $this->assertSame(1.10, $hudAction['field_overwrite_power']['multiplier']);
-        $this->assertSame(10, $hudAction['field_overwrite_power']['bonus_percent']);
+        $this->assertSame(1.30, $hudAction['field_overwrite_power']['multiplier']);
+        $this->assertSame(30, $hudAction['field_overwrite_power']['bonus_percent']);
 
         $state->jobArtUseCounts[(int) $rankNine->id] = 1;
         $actor->setResource('star_mark', 12);
-        $this->assertSame(
-            'blocked_by_use_limit',
-            $selection->eligibilityFailureReason($actor, $state, $rankNine, (int) $rankNine->id),
-        );
+        $this->assertNull($selection->eligibilityFailureReason($actor, $state, $rankNine, (int) $rankNine->id));
     }
 
     public function test_rank_nine_branch_keeps_hit_results_flags_and_all_six_battle_contexts_unchanged(): void
@@ -352,27 +360,33 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
             [$actor, $state] = $this->battle(63, $battleType);
             $rankNine = $this->art(63, 9);
+            $actor->jobArts = [$rankNine];
             $actor->jobArtOrigins[(int) $rankNine->id] = 'current';
             $this->createActualOverwrites($actor, $state, 3);
             app(JobArtV2ResourceService::class)->beginAction($actor, $state);
 
-            $this->assertSame(110, $resolver->forExecution($actor, $rankNine, $state), $battleType);
-            $this->assertSame(110, (int) app(JobArtBattleSupportService::class)->skillForExecution($actor, $rankNine, $state)->power, $battleType);
+            $this->assertSame(100, $resolver->forExecution($actor, $rankNine, $state), $battleType);
+            $execution = app(JobArtBattleSupportService::class)->skillForExecution($actor, $rankNine, $state, $state->enemy);
+            $this->assertSame(100, (int) $execution->power, $battleType);
+            $this->assertSame(1.30, (float) $execution->getAttribute('job_art_v2_target_damage_multiplier'), $battleType);
         }
 
         foreach ([HitResult::HIT, HitResult::MISS, HitResult::EVADE] as $hitResult) {
             [$actor, $state] = $this->battle(63);
             $rankNine = $this->art(63, 9);
+            $actor->jobArts = [$rankNine];
             $actor->jobArtOrigins[(int) $rankNine->id] = 'current';
             $actor->configureResource('star_mark', 12);
             $actor->setResource('star_mark', 12);
             $this->createActualOverwrites($actor, $state, 3);
             app(JobArtV2ResourceService::class)->beginAction($actor, $state);
-            $this->assertSame(110, $resolver->forExecution($actor, $rankNine, $state));
+            $this->assertSame(100, $resolver->forExecution($actor, $rankNine, $state));
             app(JobArtV2ResourceService::class)->applyJobArtCast($actor, $state, $rankNine);
             app(JobArtV2BattleHudService::class)->recordHitResult($actor, $state, $hitResult);
             app(JobArtV2BattleHudService::class)->finishAction($actor, $state);
-            $this->assertSame($hitResult->value, app(JobArtV2BattleHudService::class)->present($state)['actions'][0]['hit_result']);
+            $actions = app(JobArtV2BattleHudService::class)->present($state)['actions'];
+            $this->assertNotEmpty($actions, $hitResult->value);
+            $this->assertSame($hitResult->value, $actions[0]['hit_result']);
             $this->assertSame(0, $actor->getResource('star_mark'));
         }
 
@@ -392,13 +406,13 @@ class JobArtV2Pr27ReleaseCandidateTest extends TestCase
         $presented = app(JobArtV2LoadoutPresenter::class)->forArt(63, $rankNine);
 
         $this->assertSame([
-            '主場あり：自分の場上書き1～2回で威力+5%、3～4回で+10%、5回以上で+15%',
+            'この奥義の行動開始時に自分の主場がある場合、この戦闘中に自分が場を上書きした回数が1～2回なら威力を15%、3～4回なら30%、5回以上なら45%上げる',
         ], $presented['field_texts']);
         $this->assertSame(100, $presented['effective_power']);
 
         $rankNine->setAttribute('job_art_origin', 'inherited');
         $inherited = app(JobArtV2LoadoutPresenter::class)->forArt(53, $rankNine);
-        $this->assertSame([], $inherited['field_texts']);
+        $this->assertSame($presented['field_texts'], $inherited['field_texts']);
         $this->assertSame(100, $inherited['effective_power']);
     }
 

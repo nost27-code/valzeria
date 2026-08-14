@@ -7,11 +7,17 @@ use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\JobArtHitPower;
+use App\Services\JobArtV2SpCostCalculator;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Collection;
 
 class SkillEffectPreviewService
 {
+    public function __construct(
+        private readonly ?JobArtV2SpCostCalculator $jobArtSpCostCalculator = null,
+    ) {
+    }
+
     /**
      * @param array<string, int|string|null> $attackerStats
      * @param Collection<int, Skill> $skills
@@ -68,7 +74,8 @@ class SkillEffectPreviewService
                 'description' => $skill->description ?: $skill->memo,
                 'activation_rate' => $skill->effectiveActivationRate(),
                 'sp_cost' => $skill->isJobArt()
-                    ? $skill->jobArtSpCostForMaxSp($attacker->maxMp, 'inherited')
+                    ? ($this->jobArtSpCostCalculator ?? app(JobArtV2SpCostCalculator::class))
+                        ->forCurrentJob($skill, $attacker->maxMp, null)
                     : $skill->specialSkillSpCostForMaxSp($attacker->maxMp),
                 'state' => $this->stateSnapshot($attacker, $defender),
             ];
@@ -86,7 +93,7 @@ class SkillEffectPreviewService
             'notes' => [
                 '乱数・命中・会心は除外した平均値ベースです。',
                 '倍率は直前の通常攻撃比を主表示し、1ターン目通常攻撃比も併記します。',
-                '継承奥義は継承時の威力倍率を反映します。',
+                '戦技は使用職や系譜にかかわらず、正本の威力と効果をそのまま反映します。',
             ],
         ];
     }
@@ -149,7 +156,7 @@ class SkillEffectPreviewService
      */
     private function skillResult(BattleActor $attacker, BattleActor $defender, Skill $skill): array
     {
-        $rate = $skill->isJobArt() ? max(0.0, (float) ($skill->inherited_rate ?? 1.0)) : 1.0;
+        $rate = 1.0;
         $power = $skill->isJobArt()
             ? max(0, (int) round(((int) ($skill->power ?: 100)) * $rate))
             : max(0, (int) round((float) ($skill->power_multiplier ?: 0) * 100));
@@ -295,7 +302,7 @@ class SkillEffectPreviewService
 
     private function applySkillEffects(BattleActor $attacker, BattleActor $defender, Skill $skill, int $damage): void
     {
-        $rate = $skill->isJobArt() ? max(0.0, (float) ($skill->inherited_rate ?? 1.0)) : 1.0;
+        $rate = 1.0;
         $template = (string) $skill->effect_template;
 
         if ((int) $skill->self_damage_percent > 0) {
@@ -413,7 +420,7 @@ class SkillEffectPreviewService
      */
     private function effectDescriptions(Skill $skill, int $damage, BattleActor $attacker): array
     {
-        $rate = $skill->isJobArt() ? max(0.0, (float) ($skill->inherited_rate ?? 1.0)) : 1.0;
+        $rate = 1.0;
         $effects = [];
 
         foreach ([

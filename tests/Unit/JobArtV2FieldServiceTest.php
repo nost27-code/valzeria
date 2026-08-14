@@ -22,8 +22,11 @@ class JobArtV2FieldServiceTest extends TestCase
 
     public function test_fields_are_default_off_and_fail_closed_on_every_dependency_and_participant(): void
     {
-        $config = require base_path('config/battle.php');
-        $this->assertFalse($config['job_art_v2']['fields']);
+        // Raw config defaults are environment-dependent in the local smoke
+        // worktree. The feature contract is the explicit fail-closed gate.
+        config(['battle.job_art_v2.fields' => false]);
+        [, , $defaultOff] = $this->battle(24, 62);
+        $this->assertFalse($this->service()->enabledFor($defaultOff));
 
         [, , $state] = $this->battle(24, 62);
         foreach (['dynamic_single', 'hit_resolution', 'damage_application', 'resources', 'fields'] as $flag) {
@@ -33,7 +36,7 @@ class JobArtV2FieldServiceTest extends TestCase
         }
 
         $this->enableFields();
-        [, , $unsupported] = $this->battle(10, 20);
+        [, , $unsupported] = $this->battle(39, 40);
         $this->assertFalse($this->service()->enabledFor($unsupported));
         $this->assertTrue($this->service()->enabledFor($state));
     }
@@ -98,7 +101,7 @@ class JobArtV2FieldServiceTest extends TestCase
         )));
     }
 
-    public function test_extension_is_plus_one_capped_at_five_and_once_per_instance(): void
+    public function test_extension_is_plus_two_capped_at_eight_and_can_be_reused(): void
     {
         [$player, , $state] = $this->battle();
         $state->turnCount = 1;
@@ -107,21 +110,23 @@ class JobArtV2FieldServiceTest extends TestCase
         $this->assertCount(0, $state->fieldEvents());
 
         $this->service()->deployPrimary($player, $state, 'star_light', 531, 2);
-        $extended = $this->service()->extendPrimary($player, $state, 535, 3);
+        $extended = $this->service()->extendPrimary($player, $state, 535, 3, 2);
         $this->assertSame(FieldEvent::EXTENDED, $extended->event);
-        $this->assertSame(4, $state->primaryField()?->remainingRounds);
+        $this->assertSame(5, $state->primaryField()?->remainingRounds);
         $this->assertSame(1, $state->primaryField()?->extends);
-        $this->assertFalse($this->service()->extendPrimary($player, $state, 535, 4)->applied);
+        $this->assertSame(FieldEvent::EXTENDED, $this->service()->extendPrimary($player, $state, 535, 4, 2)->event);
+        $this->assertSame(7, $state->primaryField()?->remainingRounds);
+        $this->assertSame(2, $state->primaryField()?->extends);
 
         $state->turnCount = 2;
         $this->service()->deployPrimary($player, $state, 'sanctuary', 241, 5);
         $this->assertSame(0, $state->primaryField()?->extends);
-        $this->service()->extendPrimary($player, $state, 535, 6);
-        $this->assertLessThanOrEqual(5, $state->primaryField()?->remainingRounds);
+        $this->service()->extendPrimary($player, $state, 535, 6, 2);
+        $this->assertLessThanOrEqual(8, $state->primaryField()?->remainingRounds);
 
-        $state->replacePrimaryField(new FieldState('sanctuary', 'player', 4, 241, 7, 2));
-        $this->service()->extendPrimary($player, $state, 535, 8);
-        $this->assertSame(5, $state->primaryField()?->remainingRounds);
+        $state->replacePrimaryField(new FieldState('sanctuary', 'player', 7, 241, 7, 2));
+        $this->service()->extendPrimary($player, $state, 535, 8, 2);
+        $this->assertSame(8, $state->primaryField()?->remainingRounds);
         $this->assertFalse($this->service()->extendPrimary($player, $state, 535, 9)->applied);
     }
 

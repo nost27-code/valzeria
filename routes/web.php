@@ -367,12 +367,16 @@ Route::middleware('auth')->group(function () {
         // 転職所 (Livewire)
         Route::get('/jobs', \App\Livewire\JobChange::class)->name('jobs.index');
         Route::get('/job-arts', [JobArtController::class, 'index'])->name('job-arts.index');
+        Route::get('/job-arts/starter-presets', [JobArtController::class, 'starterPresets'])->name('job-arts.starter-presets');
         Route::post('/job-arts/set', [JobArtController::class, 'set'])->name('job-arts.set');
         Route::post('/job-arts/assign', [JobArtController::class, 'assign'])->name('job-arts.assign');
         Route::post('/job-arts/slot', [JobArtController::class, 'slotSet'])->name('job-arts.slot-set');
+        Route::post('/job-arts/reorder', [JobArtController::class, 'reorder'])->name('job-arts.reorder');
         Route::post('/job-arts/policy', [JobArtController::class, 'policy'])->name('job-arts.policy');
+        Route::post('/job-arts/starter-presets/{style}/apply', [JobArtPresetController::class, 'applyStarter'])->name('job-arts.starter-presets.apply');
         Route::post('/job-arts/presets', [JobArtPresetController::class, 'store'])->name('job-arts.presets.store');
         Route::post('/job-arts/presets/{preset}/apply', [JobArtPresetController::class, 'apply'])->name('job-arts.presets.apply');
+        Route::post('/job-arts/presets/{preset}/overwrite', [JobArtPresetController::class, 'overwrite'])->name('job-arts.presets.overwrite');
         Route::patch('/job-arts/presets/{preset}', [JobArtPresetController::class, 'update'])->name('job-arts.presets.update');
         Route::delete('/job-arts/presets/{preset}', [JobArtPresetController::class, 'destroy'])->name('job-arts.presets.destroy');
 

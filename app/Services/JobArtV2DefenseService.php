@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\CleanseResult;
+use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\DamageTrace;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
@@ -29,6 +31,10 @@ final class JobArtV2DefenseService
         private readonly JobArtV2ResourceService $resourceService,
         private readonly JobArtV2ParryRandomSource $randomSource,
         private readonly ?JobArtV2CleanseService $cleanseService = null,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        private readonly ?JobArtV2UltimateCounterplayService $ultimateCounterplayService = null,
+        private readonly ?JobArtV2ProgressionService $progressionService = null,
+        private readonly ?DamageCalculator $damageCalculator = null,
     ) {}
 
     public function applyJobArtCast(BattleActor $actor, BattleState $state, Skill $skill): void
@@ -39,8 +45,8 @@ final class JobArtV2DefenseService
             return;
         }
 
-        if ($actor->currentJobId === self::COUNTER_JOB_ID
-            && (int) $skill->learn_rank === 1
+        $lineage = $metadata['lineage_key'] ?? null;
+        if ($lineage === 'counter' && (int) $skill->learn_rank === 1
             && isset($metadata['counter_stance_rounds'], $metadata['parry_rate'])
         ) {
             $event = $actor->counterStanceState() === null
@@ -57,10 +63,11 @@ final class JobArtV2DefenseService
                 remainingRounds: $actor->counterStanceState()?->remainingRounds ?? 0,
                 sourceActionId: $sourceActionId,
             );
-            $state->addLog('<span class="text-cyan-700 font-bold">'.e($actor->name).' は剣冠の構えを取った！（2ラウンド）</span>');
+            $rounds = max(1, (int) ($metadata['counter_stance_rounds'] ?? 2));
+            $state->addLog('<span class="text-cyan-700 font-bold">'.e($actor->name).' は剣冠の構えを取った！（'.e((string) $rounds).'ターン）</span>');
         }
 
-        if ($actor->currentJobId !== self::GUARD_JOB_ID || ! isset($metadata['guard_rate'])) {
+        if ($lineage !== 'guard' || ! isset($metadata['guard_rate'])) {
             return;
         }
 
@@ -92,15 +99,10 @@ final class JobArtV2DefenseService
 
         $this->markIncomingHudAction($state, $resolution);
 
-        $targetResource = $this->prototypeCatalog->jobResourceMetadata($resolution->target->currentJobId);
         if ($resolution->damageCategory === 'physical') {
-            // Role-diversity effects (for example Colosseum Break) need the
-            // received-physical window even when the art is inherited. The
-            // lineage resource event remains restricted to counter actors.
+            // ResourceServiceが、装備中の反撃系譜資源だけへ加算する。
             $resolution->target->markPhysicalAttackReceivedSinceOwnAction();
-            if (($targetResource['lineage_key'] ?? null) === 'counter') {
-                $this->resourceService->recordPhysicalAttackReceived($resolution->target, $state);
-            }
+            $this->resourceService->recordPhysicalAttackReceived($resolution->target, $state);
         }
 
         if ($resolution->damageCategory === 'physical') {
@@ -111,7 +113,9 @@ final class JobArtV2DefenseService
             $damage = $parriedDamage;
         }
 
-        return $this->resolveGuard($state, $resolution, $damage);
+        $damage = $this->resolveGuard($state, $resolution, $damage);
+
+        return $this->progression()->absorbHolyWall($resolution->target, $state, $resolution, $damage);
     }
 
     /** @return list<array<string, bool|float|int|string>> */
@@ -168,8 +172,10 @@ final class JobArtV2DefenseService
             );
             $state->recordParryResult($resolution->target, $result);
             if ($success) {
+                $resolution->target->markParrySucceededSinceOwnAction();
                 $this->resourceService->recordParrySuccess($resolution->target, $state);
                 $state->addLog('<span class="text-cyan-700 font-extrabold">'.e($resolution->target->name).' は剣冠の構えで攻撃を受け流した！</span>');
+                $this->applyRoyalSwordCounter($state, $resolution, $result);
             }
         }
 
@@ -177,6 +183,67 @@ final class JobArtV2DefenseService
         $result->recordHit($damage, $after);
 
         return $after;
+    }
+
+    private function applyRoyalSwordCounter(
+        BattleState $state,
+        DirectAttackResolution $resolution,
+        ParryResult $result,
+    ): void {
+        if (! $resolution->target->jobArtV2ProgressionState()->hasRoundState('royal_sword_formation')) {
+            return;
+        }
+
+        $power = JobArtV2CrownBalanceCatalog::ROYAL_SWORD_COUNTER_POWER;
+        $damage = $this->royalSwordCounterDamage(
+            $state,
+            $resolution->target,
+            $resolution->attacker,
+            $power,
+        );
+        $resolution->attacker->takeDamage($damage);
+        $result->recordCounter($power, $damage);
+        $state->addLog(sprintf(
+            '<span class="text-amber-700 font-extrabold">%s の王冠剣陣が反撃し、%s に %s のダメージ！</span>',
+            e($resolution->target->name),
+            e($resolution->attacker->name),
+            number_format($damage),
+        ));
+
+        if ($resolution->attacker->gutsJustTriggered) {
+            $resolution->attacker->gutsJustTriggered = false;
+            $state->addLog('<span class="text-orange-700 font-extrabold">'.e($resolution->attacker->name).' は不屈の精神で致死ダメージを耐えた！（HP1）</span>');
+        }
+    }
+
+    private function royalSwordCounterDamage(
+        BattleState $state,
+        BattleActor $counterActor,
+        BattleActor $target,
+        int $power,
+    ): int {
+        if (in_array($state->battleType, ['pvp', 'champ', 'arena_npc'], true)) {
+            return $this->calculator()->calculateRankBattleDamage(
+                $counterActor,
+                $target,
+                'physical',
+                $power,
+                false,
+                BattleTypeAffinity::multiplier($counterActor->battleTypeWeights, $target->battleTypeWeights),
+                null,
+                null,
+                null,
+                true,
+                1,
+            );
+        }
+
+        return $this->calculator()->calculatePhysicalDamage(
+            $counterActor,
+            $target,
+            $power,
+            false,
+        );
     }
 
     private function resolveGuard(
@@ -187,19 +254,44 @@ final class JobArtV2DefenseService
         $trace = $state->damageTrace($resolution->target, $resolution->sourceActionId);
         if ($trace === null) {
             $guard = $resolution->target->jobArtV2GuardState();
-            if ($guard === null || $guard->charges < 1) {
+            $ultimateGuard = $this->counterplay()->ultimateGuardForIncoming(
+                $resolution->target,
+                $state,
+                $resolution,
+            );
+            $crownGuard = $this->progression()->crownGuardForIncoming($resolution->target, $resolution);
+            $useUltimateGuard = $ultimateGuard !== null
+                && ($guard === null || $ultimateGuard->rate >= $guard->rate);
+            $bestRate = $useUltimateGuard ? $ultimateGuard->rate : ($guard?->rate ?? 0.0);
+            $useCrownGuard = $crownGuard !== null && $crownGuard['rate'] >= $bestRate;
+            if (! $useUltimateGuard && ! $useCrownGuard && ($guard === null || $guard->charges < 1)) {
                 return $damage;
             }
 
-            $resolution->target->replaceJobArtV2GuardState(null);
+            $crownGuardKey = null;
+            if ($useCrownGuard) {
+                $guardRate = $crownGuard['rate'];
+                $crownGuardKey = $crownGuard['key'];
+            } elseif ($useUltimateGuard) {
+                $this->counterplay()->consumeUltimateGuard($resolution->target, $resolution->sourceActionId);
+                $guardRate = $ultimateGuard->rate;
+            } else {
+                $resolution->target->replaceJobArtV2GuardState(null);
+                $guardRate = $guard->rate;
+            }
             $trace = new DamageTrace(
                 sourceActionId: $resolution->sourceActionId,
                 attackerKey: $state->actorKey($resolution->attacker),
                 targetKey: $state->actorKey($resolution->target),
-                guardRate: $guard->rate,
+                guardRate: $guardRate,
                 guardConsumed: true,
             );
             $state->recordDamageTrace($resolution->target, $trace);
+            if ($crownGuardKey !== null) {
+                $state->updateJobArtV2RoleAction($resolution->sourceActionId, [
+                    'progression_crown_guard_key' => $crownGuardKey,
+                ]);
+            }
         }
 
         // Existing direct-damage reduction uses integer truncation and retains
@@ -208,6 +300,21 @@ final class JobArtV2DefenseService
         $trace->recordHit($damage, $after);
         if ($trace->preventedDamage >= 1) {
             $this->resourceService->recordDamageMitigated($resolution->target, $state);
+            $this->counterplay()->recordUltimateMitigation(
+                $resolution->target,
+                $state,
+                $resolution,
+                $trace->preventedDamage,
+            );
+            $crownGuardKey = $state->jobArtV2RoleAction($resolution->sourceActionId)['progression_crown_guard_key'] ?? null;
+            if (is_string($crownGuardKey)) {
+                $this->progression()->consumeCrownGuard(
+                    $resolution->target,
+                    $state,
+                    $crownGuardKey,
+                    $trace->preventedDamage,
+                );
+            }
         }
 
         return $after;
@@ -231,14 +338,30 @@ final class JobArtV2DefenseService
     /** @return array<string, int|float|string|bool>|null */
     private function trustedMetadata(BattleActor $actor, Skill $skill): ?array
     {
-        if (! $this->featureGate->usesResources($actor)
-            || ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') !== 'current'
-            || ! $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill)
-        ) {
+        if (! $this->featureGate->usesResources($actor)) {
+            return null;
+        }
+
+        $resolution = $this->roles()->resolveActor($actor);
+        $trusted = $resolution->active
+            ? in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+                && $this->prototypeCatalog->isTrustedArtProfile($skill)
+            : ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current'
+                && $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill);
+        if (! $trusted) {
             return null;
         }
 
         return $this->prototypeCatalog->artResourceMetadata($skill);
+    }
+
+    private function roles(): JobArtV2DeckRoleResolver
+    {
+        return $this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
     }
 
     private function markIncomingHudAction(BattleState $state, DirectAttackResolution $resolution): void
@@ -258,5 +381,20 @@ final class JobArtV2DefenseService
             };
         }
         $state->updateJobArtV2HudAction($resolution->sourceActionId, $attributes);
+    }
+
+    private function counterplay(): JobArtV2UltimateCounterplayService
+    {
+        return $this->ultimateCounterplayService ?? app(JobArtV2UltimateCounterplayService::class);
+    }
+
+    private function progression(): JobArtV2ProgressionService
+    {
+        return $this->progressionService ?? app(JobArtV2ProgressionService::class);
+    }
+
+    private function calculator(): DamageCalculator
+    {
+        return $this->damageCalculator ?? app(DamageCalculator::class);
     }
 }

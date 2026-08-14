@@ -233,6 +233,10 @@ class JobArtV2FieldModifierResolverTest extends TestCase
             'mag' => 100,
             'current_job_id' => 53,
         ]);
+        $starter = $this->art(53, 1);
+        $owner->jobArts = [$starter];
+        $owner->jobArtOrigins[(int) $starter->id] = 'current';
+        $owner->jobArtRates[(int) $starter->id] = 1.0;
         $opponent = new BattleActor('opponent', false, [
             'hp' => 100,
             'max_hp' => 100,
@@ -247,7 +251,7 @@ class JobArtV2FieldModifierResolverTest extends TestCase
     private function art(int $jobId, int $rank): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => $jobId === 53 && $rank === 1 ? '星読の瞬き' : "job-{$jobId}-rank-{$rank}",
             'skill_type' => 'job_art',
             'job_id' => $jobId,
             'learn_rank' => $rank,

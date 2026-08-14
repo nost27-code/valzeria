@@ -22,12 +22,15 @@ class JobArtService
     public const PVP_SLOT_CONTEXT = 'pvp';
 
     private readonly JobArtV2SlotConditionCatalog $slotConditionCatalog;
+    private readonly JobArtV2DeckRoleResolver $deckRoleResolver;
 
     public function __construct(
         ?JobArtV2SlotConditionCatalog $slotConditionCatalog = null,
+        ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {
         // Keep direct construction used by legacy tests and small CLI tools compatible.
         $this->slotConditionCatalog = $slotConditionCatalog ?? app(JobArtV2SlotConditionCatalog::class);
+        $this->deckRoleResolver = $deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
     }
 
     /** @return array<string, string> */
@@ -109,6 +112,48 @@ class JobArtService
         ];
     }
 
+    /** @return array<string, string> */
+    public function contextSpPolicies(Character $character): array
+    {
+        return collect($this->slotContexts())
+            ->mapWithKeys(fn (string $context): array => [
+                $context => $this->contextSpPolicy($character, $context),
+            ])
+            ->all();
+    }
+
+    public function contextSpPolicy(Character $character, string $slotContext): string
+    {
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        if (! Schema::hasTable('character_job_art_context_settings')) {
+            return 'aggressive';
+        }
+
+        $policy = $character->jobArtContextSettings()
+            ->where('battle_context', $slotContext)
+            ->value('sp_policy');
+
+        return $policy === null
+            ? 'aggressive'
+            : $this->normalizeActivationPolicy((string) $policy);
+    }
+
+    public function saveContextSpPolicy(Character $character, string $slotContext, string $policy): void
+    {
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        $policy = $this->normalizeActivationPolicyStrict($policy);
+        if (! Schema::hasTable('character_job_art_context_settings')) {
+            throw ValidationException::withMessages([
+                'sp_policy' => 'SP方針を保存する準備が完了していません。',
+            ]);
+        }
+
+        $character->jobArtContextSettings()->updateOrCreate(
+            ['battle_context' => $slotContext],
+            ['sp_policy' => $policy],
+        );
+    }
+
     public function availableArts(Character $character, string $context = 'pve'): Collection
     {
         $character->loadMissing(['jobHistories.jobClass', 'currentJob']);
@@ -129,7 +174,9 @@ class JobArtService
             ->map(function (Skill $skill) use ($character, $histories, $currentJobId, $currentRank, $context) {
                 $availability = $this->availabilityFor($skill, $character, $histories, $currentJobId, $currentRank, $context);
                 $skill->setAttribute('job_art_origin', $availability['origin']);
-                $skill->setAttribute('job_art_rate', $availability['rate']);
+                // 戦技v2では、習得済みの戦技は現在職との関係にかかわらず
+                // カードに書かれた効果を100%発揮する。
+                $skill->setAttribute('job_art_rate', 1.0);
                 $skill->setAttribute('job_art_effective_cost', $this->effectiveArtCostFor($character, $skill));
                 return $skill;
             })
@@ -174,6 +221,10 @@ class JobArtService
     {
         $available = $this->availableArts($character, $context)->keyBy('id');
         $slotContext = $this->battleSlotContext($context);
+        $usesV2Loadout = $this->usesV2LoadoutFor($character);
+        $contextSpPolicy = $usesV2Loadout
+            ? $this->contextSpPolicy($character, $slotContext)
+            : null;
 
         $slots = $character->jobArtSlots()
             ->with('skill.jobClass')
@@ -197,18 +248,97 @@ class JobArtService
 
         return $this->evaluateLoadoutSlots($character, $slots)
             ->filter(fn (CharacterJobArtSlot $slot): bool => (bool) $slot->getAttribute('job_art_active'))
-            ->map(function (CharacterJobArtSlot $slot): Skill {
+            ->map(function (CharacterJobArtSlot $slot) use ($usesV2Loadout, $contextSpPolicy): Skill {
                 $skill = $slot->skill;
 
                 $skill->setAttribute('slot_no', (int) $slot->slot_no);
                 $skill->setAttribute('job_art_effective_cost', (int) $slot->getAttribute('job_art_effective_cost'));
-                $skill->setAttribute('job_art_activation_policy', $this->normalizeActivationPolicy((string) $slot->activation_policy));
+                // 戦技v2は個別方針ではなく、通常・ボス・PvPごとのSP方針を
+                // 5枠すべてへ適用する。旧戦技は保存済みの個別方針を維持する。
+                $skill->setAttribute(
+                    'job_art_activation_policy',
+                    $usesV2Loadout
+                        ? $contextSpPolicy
+                        : $this->normalizeActivationPolicy((string) $slot->activation_policy),
+                );
                 $skill->setAttribute('job_art_slot_condition', $this->slotConditionCatalog->normalize(
-                    (string) $slot->getAttribute('job_art_slot_condition'),
+                    $usesV2Loadout
+                        ? JobArtV2SlotConditionCatalog::ALWAYS
+                        : (string) $slot->getAttribute('job_art_slot_condition'),
                 ));
                 return $skill;
             })
             ->values();
+    }
+
+    /**
+     * @param array<int, int|null|string> $orderedSkillIds
+     */
+    public function reorderSlots(Character $character, string $slotContext, array $orderedSkillIds): void
+    {
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        if (! $this->usesV2LoadoutFor($character)) {
+            throw ValidationException::withMessages([
+                'slots' => 'この戦技セットでは並び替えを利用できません。',
+            ]);
+        }
+
+        $orderedSkillIds = array_values($orderedSkillIds);
+        if (count($orderedSkillIds) !== $this->maxSlots()) {
+            throw ValidationException::withMessages([
+                'slots' => '並び替え対象の枠数が正しくありません。',
+            ]);
+        }
+
+        $normalizedOrder = array_map(
+            static function (mixed $skillId): ?int {
+                if ($skillId === null || $skillId === '') {
+                    return null;
+                }
+
+                $skillId = (int) $skillId;
+                return $skillId > 0 ? $skillId : null;
+            },
+            $orderedSkillIds,
+        );
+        $submittedSkillIds = array_values(array_filter($normalizedOrder, static fn (?int $skillId): bool => $skillId !== null));
+        if (count($submittedSkillIds) !== count(array_unique($submittedSkillIds))) {
+            throw ValidationException::withMessages([
+                'slots' => '同じ戦技を複数の枠へ並べることはできません。',
+            ]);
+        }
+
+        $rows = $character->jobArtSlots()
+            ->where('battle_context', $slotContext)
+            ->where('slot_no', '<=', $this->maxSlots())
+            ->orderBy('slot_no')
+            ->get();
+        $currentSkillIds = $rows->pluck('skill_id')->map(static fn ($skillId): int => (int) $skillId)->all();
+        $expectedSkillIds = $currentSkillIds;
+        sort($expectedSkillIds);
+        $actualSkillIds = $submittedSkillIds;
+        sort($actualSkillIds);
+        if ($expectedSkillIds !== $actualSkillIds) {
+            throw ValidationException::withMessages([
+                'slots' => '現在の戦技セットと並び替え内容が一致しません。画面を再読み込みしてください。',
+            ]);
+        }
+
+        $rowsBySkillId = $rows->keyBy(static fn (CharacterJobArtSlot $slot): int => (int) $slot->skill_id);
+        DB::transaction(function () use ($rows, $rowsBySkillId, $normalizedOrder): void {
+            // slot_no の一意制約へ触れないよう、一度だけ安全な退避番号へ移す。
+            foreach ($rows->values() as $index => $slot) {
+                $slot->forceFill(['slot_no' => 101 + $index])->save();
+            }
+
+            foreach ($normalizedOrder as $index => $skillId) {
+                if ($skillId === null) {
+                    continue;
+                }
+
+                $rowsBySkillId->get($skillId)?->forceFill(['slot_no' => $index + 1])->save();
+            }
+        });
     }
 
     public function saveSlots(
@@ -265,12 +395,23 @@ class JobArtService
 
     public function validateSlotConfiguration(Character $character, array $slotSkillIds, string $slotContext): void
     {
+        $this->validateSlotConfigurationAgainstAvailableArts($character, $slotSkillIds, $slotContext);
+    }
+
+    public function validateSlotConfigurationAgainstAvailableArts(
+        Character $character,
+        array $slotSkillIds,
+        string $slotContext,
+        ?Collection $availableArts = null,
+    ): void
+    {
         $slotContext = $this->normalizeSlotContext($slotContext);
         $this->validateSubmittedSlotNumbers($slotSkillIds);
         $this->validateSlots(
             $character,
             $this->normalizeSlotInput($slotSkillIds),
-            $this->availabilityContextForSlotContext($slotContext)
+            $this->availabilityContextForSlotContext($slotContext),
+            $availableArts,
         );
     }
 
@@ -375,21 +516,25 @@ class JobArtService
 
     public function totalEffectiveCostFor(Character $character, Collection $skills): int
     {
-        return (int) $skills->sum(fn (Skill $skill): int => $this->effectiveArtCostFor($character, $skill));
+        $resolution = $this->deckRoleResolver->resolveSkills(
+            $character->current_job_id !== null ? (int) $character->current_job_id : null,
+            $skills,
+        );
+
+        return (int) $skills->sum(
+            fn (Skill $skill): int => $this->effectiveArtCostForResolution($character, $skill, $resolution)
+        );
     }
 
     public function effectiveArtCostFor(Character $character, Skill $skill): int
     {
         $masterCost = max(0, (int) $skill->art_cost);
-        if (!$this->loadoutV2Enabled()) {
+        if (! $this->usesV2LoadoutFor($character) || ! $skill->isJobArt()) {
             return $masterCost;
         }
 
-        $currentJobId = (int) $character->getAttribute('current_job_id');
-        if ($currentJobId <= 0 || (int) $skill->job_id !== $currentJobId) {
-            return $masterCost;
-        }
-
+        // v2のCostは現在職・継承・主副・出張で変えず、戦技の段階だけで決める。
+        // DBのart_costはflag OFF時のlegacy rollback用として保持する。
         return match ((int) $skill->learn_rank) {
             1 => 1,
             5 => 2,
@@ -402,13 +547,20 @@ class JobArtService
     {
         $cumulativeCost = 0;
         $costLimitReached = false;
+        $roleResolution = $this->deckRoleResolver->resolveSkills(
+            $character->current_job_id !== null ? (int) $character->current_job_id : null,
+            $slots
+                ->filter(fn (CharacterJobArtSlot $slot): bool => (int) $slot->slot_no <= $this->maxSlots())
+                ->pluck('skill')
+                ->filter(fn ($skill): bool => $skill instanceof Skill),
+        );
 
         return $slots
             ->sortBy(fn (CharacterJobArtSlot $slot): int => (int) $slot->slot_no)
-            ->map(function (CharacterJobArtSlot $slot) use ($character, &$cumulativeCost, &$costLimitReached): CharacterJobArtSlot {
+            ->map(function (CharacterJobArtSlot $slot) use ($character, $roleResolution, &$cumulativeCost, &$costLimitReached): CharacterJobArtSlot {
                 $slotNo = (int) $slot->slot_no;
                 $effectiveCost = $slot->skill instanceof Skill
-                    ? $this->effectiveArtCostFor($character, $slot->skill)
+                    ? $this->effectiveArtCostForResolution($character, $slot->skill, $roleResolution)
                     : 0;
                 $inactiveReason = null;
 
@@ -445,6 +597,7 @@ class JobArtService
 
     public function setupSignature(Character $character, ?Collection $availableArts = null, ?Collection $selectedSlots = null): string
     {
+        $usesV2Loadout = $this->usesV2LoadoutFor($character);
         $availableArts ??= $this->availableArts($character, 'pve');
         $selectedSlots ??= collect($this->slotContexts())
             ->flatMap(fn (string $slotContext): Collection => $this->selectedSlots(
@@ -462,16 +615,21 @@ class JobArtService
                     'context' => (string) ($slot->battle_context ?: 'normal'),
                     'slot' => (int) $slot->slot_no,
                     'skill' => (int) $slot->skill_id,
-                    'policy' => $this->normalizeActivationPolicy((string) $slot->activation_policy),
-                    'condition' => $this->slotConditionCatalog->normalize(
-                        $this->hasConditionKeyColumn() ? (string) $slot->condition_key : null,
-                    ),
+                    'policy' => $usesV2Loadout
+                        ? $this->contextSpPolicy($character, (string) ($slot->battle_context ?: 'normal'))
+                        : $this->normalizeActivationPolicy((string) $slot->activation_policy),
+                    'condition' => $usesV2Loadout
+                        ? JobArtV2SlotConditionCatalog::ALWAYS
+                        : $this->slotConditionCatalog->normalize(
+                            $this->hasConditionKeyColumn() ? (string) $slot->condition_key : null,
+                        ),
                 ])
                 ->sortBy(fn (array $slot): string => $slot['context'] . ':' . $slot['slot'])
                 ->values()
                 ->all(),
             'selected_count' => $selectedSkills->count(),
             'total_cost' => $this->totalCost($selectedSkills),
+            'context_sp_policies' => $usesV2Loadout ? $this->contextSpPolicies($character) : [],
         ], JSON_THROW_ON_ERROR));
     }
 
@@ -484,62 +642,68 @@ class JobArtService
         };
     }
 
-    private function validateSlots(Character $character, array $slotSkillIds, string $availabilityContext = 'pve'): void
+    private function validateSlots(
+        Character $character,
+        array $slotSkillIds,
+        string $availabilityContext = 'pve',
+        ?Collection $availableArts = null,
+    ): void
     {
+        $usesV2Loadout = $this->usesV2LoadoutFor($character);
         if (count($slotSkillIds) > $this->maxSlots()) {
-            throw ValidationException::withMessages(['slots' => '奥義は最大' . $this->maxSlots() . 'つまで設定できます。']);
+            throw ValidationException::withMessages(['slots' => '戦技は最大' . $this->maxSlots() . 'つまで設定できます。']);
         }
 
-        $available = $this->availableArts($character, $availabilityContext)->keyBy('id');
+        $available = ($availableArts ?? $this->availableArts($character, $availabilityContext))->keyBy('id');
         $selected = collect();
         $seen = [];
 
         foreach ($slotSkillIds as $slotNo => $skillId) {
             if ($slotNo < 1 || $slotNo > $this->maxSlots()) {
-                throw ValidationException::withMessages(['slots' => '奥義枠は1〜' . $this->maxSlots() . 'のみ使用できます。']);
+                throw ValidationException::withMessages(['slots' => '戦技枠は1〜' . $this->maxSlots() . 'のみ使用できます。']);
             }
             if (isset($seen[$skillId])) {
-                throw ValidationException::withMessages(['slots' => '同じ奥義を複数セットすることはできません。']);
+                throw ValidationException::withMessages(['slots' => '同じ戦技を複数セットすることはできません。']);
             }
             $seen[$skillId] = true;
 
             $skill = $available->get($skillId);
             if (!$skill) {
-                throw ValidationException::withMessages(['slots' => 'この奥義はまだ習得していません。']);
+                throw ValidationException::withMessages(['slots' => 'この戦技はまだ習得していません。']);
             }
-            if ($skill->isTimeLimited() && $skill->getAttribute('job_art_origin') !== 'current') {
+            if (! $usesV2Loadout
+                && $skill->isTimeLimited()
+                && $skill->getAttribute('job_art_origin') !== 'current'
+            ) {
                 throw ValidationException::withMessages(['slots' => '時空系の奥義は時空王でのみ使用できます。']);
             }
 
             $selected->push($skill);
         }
 
-        if ($this->totalEffectiveCostFor($character, $selected) > $this->maxCost()) {
-            throw ValidationException::withMessages(['slots' => '奥義コストの合計は' . $this->maxCost() . 'までです。']);
+        if ($usesV2Loadout && $selected->where('learn_rank', 9)->count() > 1) {
+            throw ValidationException::withMessages(['slots' => '奥義は1セットにつき1つまで設定できます。']);
         }
 
-        foreach (['HEAL' => '回復系の奥義は1つまでしか設定できません。', 'REWARD' => '報酬系の奥義は1つまでしか設定できません。', 'TIME' => '時空系の奥義は時空王でのみ使用できます。', 'GUTS' => '踏みとどまり系の奥義は1つまでしか設定できません。'] as $group => $message) {
-            $groupSkills = $selected->where('limit_group', $group)->values();
-            if ($groupSkills->count() > 1 && !$this->allowsV2CurrentJobRestrictionChain($character, $groupSkills)) {
-                throw ValidationException::withMessages(['slots' => $message]);
+        if ($this->totalEffectiveCostFor($character, $selected) > $this->maxCost()) {
+            throw ValidationException::withMessages(['slots' => '戦技Costの合計は' . $this->maxCost() . 'までです。']);
+        }
+
+        if (! $usesV2Loadout) {
+            foreach (['HEAL' => '回復系の奥義は1つまでしか設定できません。', 'REWARD' => '報酬系の奥義は1つまでしか設定できません。', 'TIME' => '時空系の奥義は時空王でのみ使用できます。', 'GUTS' => '踏みとどまり系の奥義は1つまでしか設定できません。'] as $group => $message) {
+                if ($selected->where('limit_group', $group)->count() > 1) {
+                    throw ValidationException::withMessages(['slots' => $message]);
+                }
             }
         }
     }
 
-    private function allowsV2CurrentJobRestrictionChain(Character $character, Collection $skills): bool
-    {
-        $currentJobId = $character->current_job_id !== null
-            ? (int) $character->current_job_id
-            : null;
-        if (!app(JobArtV2FeatureGate::class)->usesLoadoutRestrictionCompatibilityForCurrentJob($currentJobId)) {
-            return false;
-        }
-
-        $catalog = app(JobArtV2PrototypeCatalog::class);
-
-        return $skills->every(
-            fn (Skill $skill): bool => $catalog->isTrustedCurrentJobArt($currentJobId, $skill)
-        );
+    private function effectiveArtCostForResolution(
+        Character $character,
+        Skill $skill,
+        JobArtV2DeckRoleResolution $resolution,
+    ): int {
+        return $this->effectiveArtCostFor($character, $skill);
     }
 
     private function normalizeSlotInput(array $slotSkillIds): array
@@ -626,6 +790,25 @@ class JobArtService
     public function normalizeActivationPolicy(string $policy): string
     {
         return in_array($policy, self::SLOT_ACTIVATION_POLICIES, true) ? $policy : 'normal';
+    }
+
+    public function normalizeActivationPolicyStrict(string $policy): string
+    {
+        if (! in_array($policy, self::SLOT_ACTIVATION_POLICIES, true)) {
+            throw ValidationException::withMessages(['sp_policy' => 'SP方針が正しくありません。']);
+        }
+
+        return $policy;
+    }
+
+    private function usesV2LoadoutFor(Character $character): bool
+    {
+        $currentJobId = $character->current_job_id !== null
+            ? (int) $character->current_job_id
+            : null;
+
+        return app(JobArtV2FeatureGate::class)
+            ->usesLoadoutUiForCurrentJob($currentJobId);
     }
 
     private function hasActivationPolicyColumn(): bool

@@ -48,11 +48,11 @@ class JobArtV2DamageApplicationIntegrationTest extends TestCase
     {
         $gate = new JobArtV2FeatureGate(new JobArtV2PrototypeCatalog());
         $supported = $this->actor('supported', 24);
-        $unsupported = $this->actor('unsupported', 1);
+        $unsupported = $this->actor('unsupported', 39);
 
         $this->assertTrue($gate->usesDamageApplication($supported, $unsupported));
         $this->assertTrue($gate->usesDamageApplication($unsupported, $supported));
-        $this->assertFalse($gate->usesDamageApplication($unsupported, $this->actor('other', 2)));
+        $this->assertFalse($gate->usesDamageApplication($unsupported, $this->actor('other', 40)));
 
         foreach (['dynamic_single', 'hit_resolution', 'damage_application'] as $dependency) {
             config(["battle.job_art_v2.{$dependency}" => false]);

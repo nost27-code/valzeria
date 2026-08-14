@@ -17,6 +17,7 @@ final class JobArtV2PenetrationStanceService
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $catalog,
         private readonly JobArtV2PenetrationService $penetrationService,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {}
 
     public function enabledFor(BattleActor $actor): bool
@@ -105,11 +106,19 @@ final class JobArtV2PenetrationStanceService
 
     private function trustedStanceRank(BattleActor $actor, Skill $skill): ?int
     {
-        if (! $this->enabledFor($actor)
-            || (int) $skill->job_id !== 62
-            || ($actor->jobArtOrigins[(int) $skill->id] ?? null) !== 'current'
-            || ! $skill->isJobArt()
-        ) {
+        if (! $this->enabledFor($actor) || (int) $skill->job_id !== 62 || ! $skill->isJobArt()) {
+            return null;
+        }
+
+        $resolution = $this->roles()->resolveActor($actor);
+        $trusted = $resolution->active
+            ? in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+            : ($actor->jobArtOrigins[(int) $skill->id] ?? null) === 'current';
+        if (! $trusted) {
             return null;
         }
 
@@ -121,6 +130,11 @@ final class JobArtV2PenetrationStanceService
         }
 
         return $rank;
+    }
+
+    private function roles(): JobArtV2DeckRoleResolver
+    {
+        return $this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
     }
 
     /** @return array{def: ?int, spr: ?int, penetration_rate: ?float} */

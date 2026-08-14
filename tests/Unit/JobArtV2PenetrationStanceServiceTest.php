@@ -8,6 +8,7 @@ use App\Services\Battle\BattleState;
 use App\Services\JobArtV2PenetrationStanceService;
 use App\Services\JobArtV2ResourceService;
 use App\Services\JobArtV2SelectionService;
+use App\Services\ResourceChangeResult;
 use Tests\TestCase;
 
 class JobArtV2PenetrationStanceServiceTest extends TestCase
@@ -37,7 +38,7 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
 
         $this->enableAll();
         $this->assertTrue($this->service()->enabledFor($actor));
-        $this->assertFalse($this->service()->enabledFor($this->actor(53)));
+        $this->assertFalse($this->service()->enabledFor($this->actor(70)));
         $this->assertFalse(config('battle.job_art_v2.normalized_sp'));
         $this->assertFalse(config('battle.job_art_v2.fields'));
     }
@@ -222,7 +223,7 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
         );
     }
 
-    public function test_rank_five_is_repeatable_after_its_existing_cooldown_while_rank_nine_is_once_per_battle(): void
+    public function test_v2_ignores_legacy_rank_five_cooldown_and_rank_nine_use_cap(): void
     {
         $actor = $this->actor(62);
         $actor->configureResource('dragon_force', 12);
@@ -239,12 +240,12 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
         $state->jobArtUseCounts[(int) $rankFive->id] = 3;
         $this->assertTrue($selection->isEligible($actor, $state, $rankFive, (int) $rankFive->id));
         $state->jobArtCooldowns[(int) $rankFive->id] = 1;
-        $this->assertFalse($selection->isEligible($actor, $state, $rankFive, (int) $rankFive->id));
+        $this->assertTrue($selection->isEligible($actor, $state, $rankFive, (int) $rankFive->id));
         unset($state->jobArtCooldowns[(int) $rankFive->id]);
         $this->assertTrue($selection->isEligible($actor, $state, $rankFive, (int) $rankFive->id));
 
         $state->jobArtUseCounts[(int) $rankNine->id] = 1;
-        $this->assertFalse($selection->isEligible($actor, $state, $rankNine, (int) $rankNine->id));
+        $this->assertTrue($selection->isEligible($actor, $state, $rankNine, (int) $rankNine->id));
 
         $master = json_decode((string) file_get_contents(base_path('database/data/job_arts.json')), true, flags: JSON_THROW_ON_ERROR);
         $rankFiveMaster = collect($master)->first(fn (array $row): bool => (int) $row['job_id'] === 62 && (int) $row['learn_rank'] === 5);
@@ -265,11 +266,16 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
         $this->markCurrent($actor, $rankOne, $rankFive, $rankNine);
         $resource = app(JobArtV2ResourceService::class);
 
-        $this->castWithResource($resource, $actor, $state, $rankOne);
+        $rankOneResource = $this->castWithResource($resource, $actor, $state, $rankOne);
+        $this->assertTrue($rankOneResource->applied, (string) $rankOneResource->blockedReason);
+        $this->assertSame('dragon_force', $rankOneResource->resourceKey);
+        $this->assertSame(4, $rankOneResource->after);
         $this->assertSame(4, $actor->getResource('dragon_force'));
         $this->assertTrue($actor->hasPiercingStance());
 
-        $this->castWithResource($resource, $actor, $state, $rankFive);
+        $rankFiveResource = $this->castWithResource($resource, $actor, $state, $rankFive);
+        $this->assertTrue($rankFiveResource->applied, (string) $rankFiveResource->blockedReason);
+        $this->assertSame(-4, $rankFiveResource->delta);
         $this->assertSame(0, $actor->getResource('dragon_force'));
         $this->assertTrue($actor->hasPiercingStance());
 
@@ -329,13 +335,15 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
         BattleState $state,
         Skill $skill,
         bool $complete = true,
-    ): void {
+    ): ResourceChangeResult {
         $resource->beginAction($actor, $state);
-        $resource->applyJobArtCast($actor, $state, $skill);
+        $resourceResult = $resource->applyJobArtCast($actor, $state, $skill);
         $this->service()->beginCast($actor, $state, $skill);
         if ($complete) {
             $this->service()->completeCast($actor, $state, $skill);
         }
+
+        return $resourceResult;
     }
 
     private function state(BattleActor $actor, ?BattleActor $defender = null): BattleState
@@ -363,7 +371,11 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
     private function art(int $rank, int $existingIgnore = 0): Skill
     {
         $skill = new Skill([
-            'name' => "job-62-rank-{$rank}",
+            'name' => match ($rank) {
+                1 => '竜冠の槍印',
+                5 => '竜冠穿槍',
+                default => '竜冠天穿槍',
+            },
             'skill_type' => 'job_art',
             'job_id' => 62,
             'learn_rank' => $rank,
@@ -394,5 +406,9 @@ class JobArtV2PenetrationStanceServiceTest extends TestCase
         foreach ($skills as $skill) {
             $actor->jobArtOrigins[(int) $skill->id] = 'current';
         }
+        $actor->jobArts = array_values(array_unique([
+            ...$actor->jobArts,
+            ...$skills,
+        ], SORT_REGULAR));
     }
 }

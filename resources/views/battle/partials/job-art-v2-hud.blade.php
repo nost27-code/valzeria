@@ -27,9 +27,9 @@
             @foreach($hudActors as $actor)
                 @php
                     $resource = $actor['resource'] ?? [];
-                    $resourcePoints = (int) ($resource['points'] ?? 0);
-                    $resourceCap = max(1, (int) ($resource['cap'] ?? 12));
-                    $resourceFull = !empty($resource['is_full']);
+                    $resources = is_array($actor['resources'] ?? null) && $actor['resources'] !== []
+                        ? $actor['resources']
+                        : [$resource];
                     $stance = $actor['stance'] ?? null;
                     $guard = $actor['guard'] ?? null;
                     $debuff = $actor['debuff'] ?? null;
@@ -40,12 +40,30 @@
                             <div class="text-[10px] font-black text-indigo-500">{{ $actor['actor_label'] ?? '' }}</div>
                             <div class="truncate text-sm font-black text-slate-900">{{ $actor['actor_name'] ?? '' }}</div>
                         </div>
-                        <span class="shrink-0 rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-black text-indigo-800">{{ $resource['name'] ?? 'リソース' }} {{ $resourcePoints }}/{{ $resourceCap }}</span>
+                        <div class="flex flex-wrap justify-end gap-1">
+                            @foreach($resources as $resourceSummary)
+                                <span class="shrink-0 rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-black text-indigo-800">{{ $resourceSummary['name'] ?? 'リソース' }} {{ (int) ($resourceSummary['points'] ?? 0) }}/{{ max(1, (int) ($resourceSummary['cap'] ?? 12)) }}</span>
+                            @endforeach
+                        </div>
                     </div>
-                    <div class="mt-2 h-2.5 overflow-hidden rounded-full border border-indigo-100 bg-slate-100" aria-label="{{ $resource['name'] ?? 'リソース' }} {{ $resourcePoints }}/{{ $resourceCap }}">
-                        <div class="h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-600" style="width: {{ (int) ($resource['percent'] ?? 0) }}%"></div>
+                    <div class="mt-2 space-y-2">
+                        @foreach($resources as $resourceSummary)
+                            @php
+                                $resourcePoints = (int) ($resourceSummary['points'] ?? 0);
+                                $resourceCap = max(1, (int) ($resourceSummary['cap'] ?? 12));
+                                $resourceFull = !empty($resourceSummary['is_full']);
+                            @endphp
+                            <div>
+                                <div class="flex items-center justify-between gap-2 text-[10px] font-black text-slate-600">
+                                    <span>{{ !empty($resourceSummary['is_primary']) ? '現在職' : '継承' }}・{{ $resourceSummary['name'] ?? 'リソース' }}</span>
+                                    <span class="{{ $resourceFull ? 'text-amber-700' : '' }}">{{ $resourceFull ? '奥義を使用可能' : '奥義まであと'.number_format((int) ($resourceSummary['remaining'] ?? 0)) }}</span>
+                                </div>
+                                <div class="mt-1 h-2.5 overflow-hidden rounded-full border border-indigo-100 bg-slate-100" aria-label="{{ $resourceSummary['name'] ?? 'リソース' }} {{ $resourcePoints }}/{{ $resourceCap }}">
+                                    <div class="h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-600" style="width: {{ (int) ($resourceSummary['percent'] ?? 0) }}%"></div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
-                    <div class="mt-1 text-right text-[11px] font-black {{ $resourceFull ? 'text-amber-700' : 'text-slate-600' }}">{{ $resourceFull ? '奥義ゲージ満タン' : '奥義まであと'.number_format((int) ($resource['remaining'] ?? 0)) }}</div>
 
                     <dl class="mt-3 space-y-1.5 text-[11px] font-bold text-slate-700">
                         <div class="flex min-w-0 items-start gap-2"><dt class="w-14 shrink-0 text-slate-500">主場</dt><dd class="min-w-0 break-words">{{ $fieldSummary($actor['field'] ?? null) }}</dd></div>
@@ -151,7 +169,7 @@
                                         @elseif(($change['type'] ?? '') === 'counter_stance_state')
                                             <li>・剣冠の構え {{ !empty($change['before']['active']) ? 'ON' : 'OFF' }}→{{ !empty($change['after']['active']) ? 'ON' : 'OFF' }}@if(!empty($change['after']['active']))（残り{{ (int) ($change['after']['remaining_rounds'] ?? 0) }}R）@endif</li>
                                         @elseif(($change['type'] ?? '') === 'parry')
-                                            <li>・受け流し {{ !empty($change['success']) ? '成功' : '不成立' }}（{{ (int) ($change['rate_percent'] ?? 0) }}%）：ダメージ {{ number_format((int) ($change['damage_before'] ?? 0)) }}→{{ number_format((int) ($change['damage_after'] ?? 0)) }}</li>
+                                            <li>・受け流し {{ !empty($change['success']) ? '成功' : '不成立' }}（{{ (int) ($change['rate_percent'] ?? 0) }}%）：ダメージ {{ number_format((int) ($change['damage_before'] ?? 0)) }}→{{ number_format((int) ($change['damage_after'] ?? 0)) }}@if((int) ($change['counter_damage'] ?? 0) > 0)／王冠剣陣の反撃 {{ number_format((int) $change['counter_damage']) }}@endif</li>
                                         @elseif(($change['type'] ?? '') === 'guard_state')
                                             <li>・加護 {{ !empty($change['before']['active']) ? ((int) ($change['before']['rate_percent'] ?? 0)).'%' : 'なし' }}→{{ !empty($change['after']['active']) ? ((int) ($change['after']['rate_percent'] ?? 0)).'%' : 'なし' }}</li>
                                         @elseif(($change['type'] ?? '') === 'active_guard')

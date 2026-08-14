@@ -9,6 +9,7 @@ class JobArtV2FeatureGate
 {
     public function __construct(
         private readonly JobArtV2PrototypeCatalog $catalog,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {
     }
 
@@ -100,6 +101,26 @@ class JobArtV2FeatureGate
             && $this->catalog->supportsCurrentJob($jobId);
     }
 
+    public function usesCDesignPrototype(BattleActor $actor): bool
+    {
+        return $this->usesResources($actor)
+            && $this->roles()->resolveActor($actor)->active;
+    }
+
+    public function usesCDesignPrototypeForCurrentJob(?int $jobId): bool
+    {
+        return $this->usesResourcesForCurrentJob($jobId)
+            && $this->roles()->supportsCurrentJob($jobId);
+    }
+
+    public function usesUltimateCounterplay(BattleState $state): bool
+    {
+        return (bool) config('battle.job_art_v2.ultimate_counterplay', false)
+            && in_array($state->battleType, ['pvp', 'champ', 'arena_npc'], true)
+            && $this->usesCDesignPrototype($state->player)
+            && $this->usesCDesignPrototype($state->enemy);
+    }
+
     public function usesFieldsForCurrentJob(?int $jobId): bool
     {
         return $this->usesResourcesForCurrentJob($jobId)
@@ -110,7 +131,9 @@ class JobArtV2FeatureGate
     {
         return $this->usesResources($actor)
             && (bool) config('battle.job_art_v2.penetration', false)
-            && $this->catalog->supportsLineageCapability($actor->currentJobId, 'penetration');
+            && ($this->catalog->supportsLineageCapability($actor->currentJobId, 'penetration')
+                || ($this->usesCDesignPrototype($actor)
+                    && $this->roles()->hasFormalLineage($actor, 'pierce')));
     }
 
     public function usesPenetrationForCurrentJob(?int $jobId): bool
@@ -124,7 +147,9 @@ class JobArtV2FeatureGate
     {
         return $this->usesPenetration($actor)
             && (bool) config('battle.job_art_v2.penetration_stance', false)
-            && $this->catalog->supportsLineageCapability($actor->currentJobId, 'penetration_stance');
+            && ($this->catalog->supportsLineageCapability($actor->currentJobId, 'penetration_stance')
+                || ($this->usesCDesignPrototype($actor)
+                    && $this->roles()->hasFormalLineage($actor, 'pierce')));
     }
 
     public function usesPenetrationStanceForCurrentJob(?int $jobId): bool
@@ -132,5 +157,10 @@ class JobArtV2FeatureGate
         return $this->usesPenetrationForCurrentJob($jobId)
             && (bool) config('battle.job_art_v2.penetration_stance', false)
             && $this->catalog->supportsLineageCapability($jobId, 'penetration_stance');
+    }
+
+    private function roles(): JobArtV2DeckRoleResolver
+    {
+        return $this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
     }
 }

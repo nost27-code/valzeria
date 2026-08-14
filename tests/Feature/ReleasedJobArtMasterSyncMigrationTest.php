@@ -15,6 +15,14 @@ class ReleasedJobArtMasterSyncMigrationTest extends TestCase
     {
         parent::setUp();
 
+        // The later all-job v2 sync migration intentionally seeds jobs 80-94.
+        // Remove that later state here because this class characterizes the
+        // historical released-only migration in isolation.
+        DB::table('skills')
+            ->whereBetween('job_id', [80, 94])
+            ->where('skill_type', 'job_art')
+            ->delete();
+
         // Exercise the data migration directly so every case starts from its
         // released-master postcondition, independent of the test DB baseline.
         $this->migration()->up();

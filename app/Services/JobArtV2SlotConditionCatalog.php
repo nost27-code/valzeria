@@ -20,10 +20,12 @@ final class JobArtV2SlotConditionCatalog
         'target_def_gt_spr' => '敵DEF＞SPR',
         'target_spr_gt_def' => '敵SPR＞DEF',
         'field_present' => '場あり',
+        'opponent_ultimate_preparing' => '相手が奥義予告中',
     ];
 
     public function __construct(
         private readonly JobArtV2ResourceCatalog $resources,
+        private readonly ?JobArtV2UltimateCounterplayService $ultimateCounterplay = null,
     ) {}
 
     /** @return array<string, string> */
@@ -64,6 +66,9 @@ final class JobArtV2SlotConditionCatalog
             'target_def_gt_spr' => $target->effectiveDef() > $target->effectiveSpr(),
             'target_spr_gt_def' => $target->effectiveSpr() > $target->effectiveDef(),
             'field_present' => $state->primaryField() !== null,
+            'opponent_ultimate_preparing' => ($this->ultimateCounterplay
+                ?? app(JobArtV2UltimateCounterplayService::class))
+                ->opponentIsPreparing($actor, $state),
             default => false,
         };
     }

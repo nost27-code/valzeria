@@ -638,7 +638,7 @@
                                                 発動{{ (int) $art->effectiveActivationRate() }}%
                                             </span>
                                             <span class="rounded border border-slate-100 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                                                Cost {{ (int) $art->art_cost }}
+                                                Cost {{ (int) ($art->getAttribute('job_art_effective_cost') ?? $art->art_cost) }}
                                             </span>
                                             @if($artDamageReference)
                                                 <span class="rounded border border-fuchsia-100 bg-white px-2 py-0.5 text-[10px] font-bold text-fuchsia-700">

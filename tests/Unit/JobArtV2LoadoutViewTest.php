@@ -10,11 +10,12 @@ use Tests\TestCase;
 
 class JobArtV2LoadoutViewTest extends TestCase
 {
-    public function test_v2_slot_card_shows_role_origin_cost_sp_resource_priority_and_once_per_battle(): void
+    public function test_v2_slot_card_shows_role_lineage_cost_resource_and_priority_without_duplicate_stats_or_legacy_limits(): void
     {
         $skill = $this->skill(24, 9);
         $skill->setAttribute('job_art_effective_cost', 3);
         $skill->setAttribute('job_art_display_sp_cost', 18);
+        $skill->setAttribute('job_art_icon_path', 'images/job_art/job_art_024_09.webp');
         $skill->setAttribute('job_art_v2_loadout_display', $this->allFlagsPresenter()->forArt(24, $skill));
         $slot = new CharacterJobArtSlot([
             'skill_id' => (int) $skill->id,
@@ -25,20 +26,54 @@ class JobArtV2LoadoutViewTest extends TestCase
 
         $html = $this->renderSlot($slot, collect([$skill]), 3, true, 24);
 
-        $this->assertStringContainsString('[3]', $html);
+        $this->assertStringContainsString('data-job-art-slot-index', $html);
+        $this->assertMatchesRegularExpression('/data-job-art-slot-index[^>]*>3<\/span>/', $html);
         $this->assertStringContainsString('奥義', $html);
-        $this->assertStringContainsString('現在職', $html);
+        $this->assertStringContainsString('場術系譜', $html);
         $this->assertStringContainsString('Cost 3', $html);
-        $this->assertStringContainsString('SP 18', $html);
-        $this->assertStringContainsString('星印 12消費', $html);
-        $this->assertStringContainsString('条件成立時は最優先候補', $html);
-        $this->assertStringContainsString('1戦1回', $html);
+        $this->assertSame(1, substr_count($html, 'Cost 3'));
+        $this->assertStringNotContainsString('SP 18', $html);
+        $this->assertStringNotContainsString('発動 50%', $html);
+        $this->assertStringNotContainsString('現在職・', $html);
+        $this->assertStringNotContainsString('継承・', $html);
+        $this->assertMatchesRegularExpression('/星印を.*data-job-art-effect-value="spend"[^>]*>-12<\/span>し/s', $html);
+        $this->assertStringContainsString('星印が12ある場合、セット順より先にこの奥義の発動判定を行う', $html);
+        $this->assertStringContainsString('data-job-art-drag-handle', $html);
+        $this->assertStringContainsString('data-job-art-drag-label', $html);
+        $this->assertStringContainsString('data-job-art-slot-icon', $html);
+        $this->assertStringContainsString('images/job_art/job_art_024_09.webp', $html);
+        $this->assertStringContainsString('移動中', $html);
+        $this->assertStringContainsString('draggable="true"', $html);
+        $this->assertStringContainsString('grid grid-cols-2', $html);
+        $this->assertStringNotContainsString('data-job-art-slot-accordion-toggle', $html);
+        $this->assertStringNotContainsString('data-job-art-slot-expanded', $html);
+        $this->assertStringContainsString('data-job-art-slot-summary', $html);
+        $this->assertStringNotContainsString('line-clamp-3', $html);
+        $this->assertStringContainsString('data-job-art-effect-value="spend"', $html);
+        $this->assertStringNotContainsString('data-job-art-policy-radio', $html);
+        $this->assertStringNotContainsString('SPが30%以上ある時だけ発動します', $html);
+        $this->assertStringNotContainsString('1戦1回', $html);
+        $this->assertStringNotContainsString('CT', $html);
+    }
+
+    public function test_effect_text_colors_explicit_gains_and_spends_without_rendering_html_from_copy(): void
+    {
+        $html = view('job-arts.partials.effect-text', [
+            'text' => '崩しを+4し、崩しを-12する。<script>alert(1)</script>',
+        ])->render();
+
+        $this->assertStringContainsString('data-job-art-effect-value="gain"', $html);
+        $this->assertStringContainsString('data-job-art-effect-value="spend"', $html);
+        $this->assertStringContainsString('text-emerald-700', $html);
+        $this->assertStringContainsString('text-rose-700', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
     }
 
     public function test_v2_empty_and_dormant_slots_remain_visible_without_horizontal_width_constraints(): void
     {
         $empty = $this->renderSlot(null, collect(), 4, true, 24);
-        $this->assertStringContainsString('[4]', $empty);
+        $this->assertMatchesRegularExpression('/data-job-art-slot-index[^>]*>4<\/span>/', $empty);
         $this->assertStringContainsString('空き', $empty);
         $this->assertStringContainsString('戦技を設定', $empty);
 
@@ -54,13 +89,14 @@ class JobArtV2LoadoutViewTest extends TestCase
         ]);
         $slot->setAttribute('job_art_inactive_reason', 'cost_limit');
         $dormant = $this->renderSlot($slot, collect([$skill]), 5, true, 24);
+        $this->assertStringContainsString('連携', $dormant);
         $this->assertStringContainsString('休止中', $dormant);
         $this->assertStringContainsString('Cost上限超過', $dormant);
         $this->assertStringContainsString('min-w-0', $dormant);
         $this->assertStringNotContainsString('min-w-[', $dormant);
     }
 
-    public function test_inherited_slot_shows_source_lineage_without_foreign_resource_copy(): void
+    public function test_inherited_slot_shows_source_lineage_and_its_actual_resource_cost(): void
     {
         $skill = $this->skill(65, 5);
         $skill->setAttribute('job_art_origin', 'inherited');
@@ -77,13 +113,15 @@ class JobArtV2LoadoutViewTest extends TestCase
         $html = $this->renderSlot($slot, collect([$skill]), 4, true, 68);
 
         $this->assertStringContainsString('data-job-art-lineage-badge', $html);
-        $this->assertStringContainsString('継承・照準', $html);
-        $this->assertStringNotContainsString('照準 4消費', $html);
+        $this->assertStringContainsString('照準系譜', $html);
+        $this->assertStringNotContainsString('継承・照準', $html);
+        $this->assertMatchesRegularExpression('/照準を.*data-job-art-effect-value="spend"[^>]*>-4<\/span>し/s', $html);
+        $this->assertStringNotContainsString('崩しを', $html);
         $this->assertStringContainsString('min-w-0', $html);
         $this->assertStringNotContainsString('min-w-[', $html);
     }
 
-    public function test_same_lineage_inherited_slot_shows_actual_resource_activation_sp_and_all_conditions(): void
+    public function test_same_lineage_inherited_slot_shows_actual_resource_and_all_conditions_without_origin_or_duplicate_stats(): void
     {
         $skill = $this->skill(24, 5);
         $skill->setAttribute('job_art_origin', 'inherited');
@@ -101,14 +139,15 @@ class JobArtV2LoadoutViewTest extends TestCase
 
         $html = $this->renderSlot($slot, collect([$skill]), 4, true, 53);
 
-        $this->assertStringContainsString('継承・同系譜', $html);
-        $this->assertStringContainsString('星印 4消費', $html);
-        $this->assertStringContainsString('SP 16', $html);
-        $this->assertStringContainsString('発動 38%', $html);
+        $this->assertStringContainsString('場術系譜', $html);
+        $this->assertStringNotContainsString('継承・同系譜', $html);
+        $this->assertMatchesRegularExpression('/星印を.*data-job-art-effect-value="spend"[^>]*>-4<\/span>し/s', $html);
+        $this->assertStringNotContainsString('SP 16', $html);
+        $this->assertStringNotContainsString('発動 38%', $html);
         foreach (app(JobArtV2SlotConditionCatalog::class)->labels() as $label) {
-            $this->assertStringContainsString($label, $html);
+            $this->assertStringNotContainsString($label, $html);
         }
-        $this->assertStringContainsString('条件も戦技と一緒にプリセットへ保存されます', $html);
+        $this->assertStringNotContainsString('発動条件', $html);
     }
 
     public function test_legacy_slot_card_keeps_existing_terms_and_hides_v2_metadata(): void
@@ -130,8 +169,9 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('SLOT 1', $html);
         $this->assertStringContainsString('本職', $html);
         $this->assertStringContainsString('Rank1 · SP20', $html);
+        $this->assertStringContainsString('data-job-art-policy-radio', $html);
         $this->assertStringNotContainsString('data-job-art-v2-details', $html);
-        $this->assertStringNotContainsString('星印 +4', $html);
+        $this->assertStringNotContainsString('星印 +4（使用時）', $html);
     }
 
     public function test_page_template_keeps_legacy_and_v2_titles_tabs_cost_and_order_guidance_separate(): void
@@ -141,12 +181,156 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertIsString($view);
         $this->assertStringContainsString("\$pageTitle = \$jobArtV2UiEnabled ? '戦技セット' : '奥義セット'", $view);
         $this->assertStringContainsString("\$jobArtV2UiEnabled ? (['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP']", $view);
-        $this->assertStringContainsString('戦技は上から順に発動候補を判定します。', $view);
-        $this->assertStringContainsString('条件を満たした奥義は優先されます。', $view);
-        $this->assertStringContainsString('Cost <span data-job-art-total-cost=', $view);
+        $this->assertStringContainsString('data-job-art-overview', $view);
+        $this->assertStringContainsString('data-job-art-overview-meta', $view);
+        $this->assertStringNotContainsString('data-job-art-current-lineage', $view);
+        $this->assertStringNotContainsString('現在の系譜：', $view);
+        $this->assertStringContainsString('data-job-art-overview-rules', $view);
+        $this->assertStringContainsString('<strong class="text-slate-800">上から順</strong>に発動候補を判定', $view);
+        $this->assertStringContainsString('条件を満たした<strong class="text-slate-800">奥義を優先</strong>', $view);
+        $this->assertStringContainsString('class="mt-3 border-t border-slate-100 pt-3"', $view);
+        $this->assertStringNotContainsString('class="shrink-0 rounded-lg border border-amber-200 bg-amber-50', $view);
+        $this->assertStringNotContainsString('class="mt-3 rounded-lg border border-sky-100 bg-sky-50/80', $view);
+        $this->assertStringNotContainsString('class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70', $view);
+        $this->assertStringContainsString('Cost <strong class="text-slate-900"><span data-job-art-total-cost=', $view);
         $this->assertStringContainsString('@for($slotNo = 1; $slotNo <= $maxSlots; $slotNo++)', $view);
         $this->assertStringContainsString('$art->jobArtNumericEffectLabels(', $view);
         $this->assertStringContainsString("\$v2Display['effect_template'] ?? null", $view);
+        $this->assertStringContainsString('@if(!$jobArtV2UiEnabled && $art->cooldown_turns)', $view);
+        $this->assertStringContainsString('@if(!$jobArtV2UiEnabled && $art->max_uses_per_battle)', $view);
+        $this->assertStringContainsString("(?:CT\\s*\\d+|1戦\\s*\\d+\\s*回)", $view);
+        $this->assertStringContainsString('@unless($jobArtV2UiEnabled)', $view);
+        $this->assertStringContainsString('data-job-art-resource-guide', $view);
+        $this->assertStringContainsString('data-job-art-sortable="true"', $view);
+        $this->assertStringContainsString("route('job-arts.reorder')", $view);
+        $this->assertStringContainsString("root.addEventListener('pointerdown'", $view);
+        $this->assertStringContainsString("root.addEventListener('dragstart'", $view);
+        $this->assertStringContainsString('setSlotDragVisual', $view);
+        $this->assertStringContainsString('data-job-art-drop-target', $view);
+        $this->assertStringContainsString('どの職でもカードに書かれた威力と効果がすべて有効です', $view);
+        $this->assertStringContainsString('現在職や系譜では増減しません', $view);
+        $this->assertStringContainsString("'current' => '現在職'", $view);
+        $this->assertStringContainsString("'inherited' => '継承'", $view);
+        $this->assertStringContainsString('initializeSlotAccordions', $view);
+        $this->assertStringContainsString("job-arts.partials.starter-presets", $view);
+        $this->assertStringContainsString('$jobArtStarterPresetCount', $view);
+        $this->assertStringNotContainsString('$jobArtStarterPresetsByContext', $view);
+    }
+
+    public function test_v2_page_filters_by_lineage_and_uses_one_effect_description(): void
+    {
+        $view = file_get_contents(resource_path('views/job-arts/index.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertStringContainsString("['counter', 'eclipse', 'pierce', 'hunt', 'aim', 'guard', 'transmute', 'break', 'command', 'field']", $view);
+        $this->assertStringContainsString('@if($jobArtV2UiEnabled && $lineageTabs->isNotEmpty())', $view);
+        $this->assertStringContainsString('data-job-art-lineage-filter="all"', $view);
+        $this->assertStringContainsString('data-job-art-lineage-filter="{{ $lineageKey }}"', $view);
+        $this->assertStringContainsString('data-job-art-lineage-guide="all"', $view);
+        $this->assertStringContainsString('data-job-art-lineage-guide="{{ $lineageKey }}"', $view);
+        $this->assertStringContainsString('10系譜の共通ルール', $view);
+        $this->assertStringContainsString('{{ $guide[\'lineage_name\'] }}系譜の特性', $view);
+        $this->assertStringContainsString('const lineageGuides = [...root.querySelectorAll(\'[data-job-art-lineage-guide]\')]', $view);
+        $this->assertStringContainsString('guide.hidden = guide.dataset.jobArtLineageGuide !== currentLineage', $view);
+        $this->assertStringContainsString('data-lineage-key="{{ $sourceLineageKey }}"', $view);
+        $this->assertStringContainsString("const matchesLineage = currentLineage === 'all' || card.dataset.lineageKey === currentLineage", $view);
+        $this->assertStringContainsString('const visible = matchesLineage && matchesFilters', $view);
+        $this->assertStringContainsString('aria-label="系譜で戦技を絞り込む"', $view);
+        $this->assertStringContainsString('class="mt-2 flex flex-wrap gap-1.5"', $view);
+        $this->assertStringContainsString('data-job-art-v2-details', $view);
+        $this->assertStringContainsString("\$v2Display['card_description']", $view);
+        $this->assertStringNotContainsString("\$v2Display['resource_text']", $view);
+        $this->assertStringNotContainsString("@foreach(\$v2Display['effect_texts']", $view);
+        $this->assertStringContainsString('data-job-art-card-description', $view);
+        $this->assertStringNotContainsString('data-job-art-origin-badge', $view);
+        $this->assertStringContainsString("\$v2Display['card_description']", $view);
+        $this->assertStringNotContainsString('data-job-art-card-role', $view);
+        $this->assertStringNotContainsString('data-job-art-card-effect', $view);
+        $this->assertStringNotContainsString('この戦技の要点', $view);
+    }
+
+    public function test_v2_available_art_cards_use_one_card_hierarchy_for_fast_comparison(): void
+    {
+        $view = file_get_contents(resource_path('views/job-arts/index.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertStringContainsString('data-job-art-card-header', $view);
+        $this->assertStringContainsString('data-job-art-card-meta', $view);
+        $this->assertStringContainsString('data-job-art-card-body', $view);
+        $this->assertStringContainsString('data-job-art-card-description', $view);
+        $this->assertStringContainsString('data-job-art-card-footer', $view);
+        $this->assertStringNotContainsString('data-job-art-card-stats', $view);
+        $this->assertStringContainsString('data-job-art-card-favorite', $view);
+        $this->assertStringContainsString('data-job-art-card-icon', $view);
+        $this->assertStringContainsString("asset(\$jobArtIconPath)", $view);
+        $this->assertStringContainsString('data-job-art-lineage-icon', $view);
+        $this->assertStringContainsString("asset(\$v2Display['source_lineage_icon_path'])", $view);
+        $this->assertStringContainsString('{{ $lineageDisplayLabel }}のアイコン', $view);
+        $this->assertStringContainsString('data-job-art-open-replace', $view);
+        $this->assertMatchesRegularExpression('/>\s*セットする\s*<\/button>/u', $view);
+        $this->assertStringContainsString("openReplaceBtn?.classList.remove('inline-flex')", $view);
+        $this->assertStringContainsString("openReplaceBtn?.classList.add('hidden')", $view);
+        $this->assertStringContainsString("target.skillName + 'と交換する'", $view);
+        $this->assertStringContainsString('data-job-art-replace-modal', $view);
+        $this->assertStringContainsString('data-job-art-replace-slots', $view);
+        $this->assertStringContainsString('現在セット中の5枠です。入れ替える枠をタップしてください。', $view);
+        $this->assertStringContainsString("const openReplacementModal = (button) =>", $view);
+        $this->assertStringContainsString("await assignSkillToSlot(", $view);
+        $this->assertStringContainsString("const POLICY_URL = @json(route('job-arts.policy'))", $view);
+        $this->assertStringContainsString("'Accept': 'application/json'", $view);
+        $this->assertStringContainsString('data-job-art-context-sp-policy-status', $view);
+        $this->assertStringContainsString("1 => '始動'", $view);
+        $this->assertStringContainsString("5 => '連携'", $view);
+        $this->assertStringContainsString("9 => '奥義'", $view);
+        $this->assertStringContainsString("{{ \$art->jobClass?->name ?? '職業' }} / {{ \$v2StageLabel }}", $view);
+        $this->assertStringNotContainsString("{{ \$art->jobClass?->name ?? '職業' }} / Rank{{ \$art->learn_rank }}</div>\n                                        <div class=\"mt-0.5", $view);
+        $this->assertStringContainsString('>効果</div>', $view);
+        $this->assertStringContainsString("\$v2Display['display_description']", $view);
+        $this->assertStringContainsString("\$v2Display['source_lineage_name'] . '系譜'", $view);
+        $this->assertStringNotContainsString('data-job-art-origin-badge', $view);
+        $this->assertStringContainsString('grid grid-cols-3', $view);
+        $this->assertStringNotContainsString('sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.7fr)]', $view);
+        $this->assertStringNotContainsString('<dt class="text-[9px] font-black tracking-wider text-slate-400">威力</dt>', $view);
+        $this->assertStringNotContainsString('<dt class="text-[9px] font-black tracking-wider text-slate-400">発動率</dt>', $view);
+        $this->assertStringNotContainsString('<dt class="text-[9px] font-black tracking-wider text-slate-400">SP</dt>', $view);
+        $this->assertStringContainsString('data-job-art-loadout-diagnosis', $view);
+        $this->assertStringContainsString('replaceDiagnosis(context, payload.diagnosis_html)', $view);
+        $this->assertStringContainsString('data-job-art-favorite-icon', $view);
+        $this->assertStringContainsString('<span class="sr-only">お気に入り</span>', $view);
+        $this->assertStringNotContainsString('<span>お気に入り</span>', $view);
+        $this->assertLessThan(
+            strpos($view, 'data-job-art-card-meta'),
+            strpos($view, 'data-job-art-card-favorite'),
+        );
+        $this->assertLessThan(
+            strpos($view, 'aria-label="Cost {{ $cost }}"'),
+            strpos($view, 'data-job-art-lineage-icon'),
+        );
+        $this->assertStringContainsString("'consumer' => 'border-sky-300", $view);
+        $this->assertStringNotContainsString('data-job-art-card-width', $view);
+    }
+
+    public function test_v2_filters_follow_player_intent_instead_of_legacy_cost_and_time_groups(): void
+    {
+        $view = file_get_contents(resource_path('views/job-arts/index.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertStringContainsString("'available' => 'すべて'", $view);
+        $this->assertStringContainsString("'equipped' => 'セット中'", $view);
+        $this->assertStringContainsString("'starter' => '始動'", $view);
+        $this->assertStringContainsString("'combo' => '連携'", $view);
+        $this->assertStringContainsString("'ultimate' => '奥義'", $view);
+        $this->assertStringContainsString("'buff' => '強化'", $view);
+        $this->assertStringContainsString("'debuff' => '弱体'", $view);
+        $this->assertStringContainsString("'recovery' => '回復'", $view);
+        $this->assertStringContainsString("'defense' => '防御'", $view);
+        $this->assertStringNotContainsString("'cost1' => 'Cost1'", $view);
+        $this->assertStringNotContainsString("'time' => '時空'", $view);
+        $this->assertStringContainsString("1 => 'starter'", $view);
+        $this->assertStringContainsString("5 => 'combo'", $view);
+        $this->assertStringContainsString("9 => 'ultimate'", $view);
+        $this->assertStringContainsString("if (filter === 'equipped') return isEquipped;", $view);
+        $this->assertStringContainsString("availableFilterKeys.has(requestedFilter) ? requestedFilter : 'available'", $view);
     }
 
     private function allFlagsPresenter(): JobArtV2LoadoutPresenter
@@ -186,6 +370,7 @@ class JobArtV2LoadoutViewTest extends TestCase
             'maxCost' => $maxCost,
             'currentJobId' => $currentJobId,
             'jobArtV2UiEnabled' => $jobArtV2UiEnabled,
+            'jobArtV2CardDetailsEnabled' => false,
             'slotConditionLabels' => app(JobArtV2SlotConditionCatalog::class)->labels(),
         ])->render();
     }

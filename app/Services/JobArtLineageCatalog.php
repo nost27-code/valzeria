@@ -84,6 +84,11 @@ final class JobArtLineageCatalog
         return $this->forJob((int) $skill->job_id);
     }
 
+    public function nameForKey(?string $lineageKey): ?string
+    {
+        return is_string($lineageKey) ? (self::LINEAGE_NAMES[$lineageKey] ?? null) : null;
+    }
+
     /** @return array<int, array{lineage_key: string, lineage_name: string, source: string}> */
     public function mappedJobs(): array
     {

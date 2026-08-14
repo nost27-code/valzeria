@@ -36,9 +36,9 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
         }
     }
 
-    public function test_catalog_contains_exactly_the_thirty_four_frozen_natural_keys(): void
+    public function test_catalog_contains_exactly_the_fifty_frozen_natural_keys(): void
     {
-        $this->assertCount(34, self::roleArtProvider());
+        $this->assertCount(50, self::roleArtProvider());
     }
 
     public function test_same_named_special_skill_is_not_treated_as_a_job_art(): void
@@ -76,6 +76,17 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
 
         $this->assertSame($catalog->forArt($masterValues), $catalog->forArt($differentValues));
         $this->assertSame('PHYSICAL_DAMAGE', $catalog->replacementTemplate($masterValues));
+    }
+
+    public function test_pierce_burst_preparation_waits_for_a_pierce_consumer_or_finisher(): void
+    {
+        $metadata = (new JobArtV2RoleEffectCatalog)->forArt($this->art(2, 1, '挑発撃'));
+        $prepared = $metadata['prepared_effect'] ?? [];
+
+        $this->assertTrue((bool) ($prepared['retain_on_intervening_action'] ?? false));
+        $this->assertArrayNotHasKey('expire_on_next_executed_non_trigger_action', $prepared);
+        $this->assertSame([5, 9], $prepared['trigger']['learn_ranks'] ?? null);
+        $this->assertSame(1.15, $prepared['damage_multiplier'] ?? null);
     }
 
     public function test_balance_candidates_are_explicit_environment_independent_and_default_to_a(): void
@@ -131,26 +142,42 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
             'counter release' => [1, 9, '剣気解放', 'counter_sustained_finisher'],
             'counter multi hit' => [11, 9, '刹那雪月花', 'counter_multi_hit_finisher'],
             'counter reactive' => [13, 9, 'コロッセオブレイク', 'counter_reactive_finisher'],
+            'hunt defensive producer' => [34, 1, '幻惑歩法', 'hunt_defensive_producer'],
+            'aim cannon preparation' => [35, 1, '機巧展開', 'aim_cannon_preparation'],
+            'aim spirit piercing cannon' => [35, 5, '魔導砲', 'aim_spirit_piercing_cannon'],
             'aim accuracy' => [4, 5, '狙い撃ち', 'aim_high_accuracy'],
             'aim critical' => [18, 5, 'クリティカルショット', 'aim_critical_shot'],
             'aim adaptive' => [22, 5, 'エレメントアロー', 'aim_adaptive_route'],
+            'aim magic against defense' => [45, 5, '魔弓連星', 'aim_magic_against_pierced_defense'],
+            'counter adaptive break' => [70, 5, '暁光ブレイク', 'counter_adaptive_break'],
+            'sage attack barrier' => [29, 5, '賢者の結界', 'field_sage_attack_barrier'],
+            'sage spr finisher' => [29, 9, '極大魔法', 'field_sage_spr_piercing_finisher'],
             'field star light' => [6, 1, '魔力の火種', 'field_star_light_producer'],
             'field melody' => [23, 1, '鼓舞の小節', 'field_melody_producer'],
             'field extension' => [23, 5, '勇気の旋律', 'field_neutral_extension'],
+            'field melody timed blessing' => [46, 1, '祝詞の一節', 'field_melody_timed_blessing'],
             'eclipse adaptive' => [9, 1, '属性付与', 'eclipse_adaptive_buff'],
             'eclipse blood' => [14, 1, '血潮の咆哮', 'eclipse_blood_buff'],
             'pierce burst' => [2, 1, '挑発撃', 'pierce_burst_prep'],
             'pierce flexible' => [16, 1, '実戦勘', 'pierce_flexible_prep'],
             'transmute travel' => [20, 1, '旅支度', 'transmute_long_battle_buff'],
             'transmute advice' => [38, 1, '商聖の助言', 'transmute_lowest_stat_advice'],
+            'break exorcising strike' => [21, 5, '破邪拳', 'break_exorcising_strike'],
+            'transmute adaptive bomb' => [26, 5, '錬成爆弾', 'transmute_adaptive_bomb'],
             'guard heal' => [7, 1, 'ヒール', 'guard_pure_heal'],
             'guard prayer' => [36, 1, '聖戦の祈り', 'guard_heal_and_guard'],
+            'guard sanctuary' => [56, 5, '聖域結界', 'guard_sanctuary_barrier'],
+            'guard physical shield finisher' => [44, 9, '天壁イージス', 'guard_physical_shield_finisher'],
+            'guard magical shield finisher' => [56, 9, '聖壁アルカディア', 'guard_magical_shield_finisher'],
             'gold specialist' => [8, 5, '幸運の一手', 'transmute_gold_specialist'],
             'drop specialist' => [20, 5, '掘り出し物', 'transmute_drop_specialist'],
             'appraisal' => [31, 1, '黄金鑑定', 'transmute_appraisal'],
             'single cleanse' => [47, 1, '聖薬散布', 'transmute_single_cleanse_medicine'],
             'basic finisher' => [8, 9, '大番振る舞い', 'transmute_basic_finisher'],
             'long battle guard' => [20, 9, '大商隊の守護', 'transmute_long_battle_guard'],
+            'single guard finisher' => [21, 9, '金剛不壊', 'break_single_guard_finisher'],
+            'cathedral cleanse finisher' => [24, 9, '大聖堂の奇跡', 'field_cathedral_cleanse_finisher'],
+            'hybrid multi hit finisher' => [27, 9, 'ギガブレイク', 'command_hybrid_multi_hit_finisher'],
             'reward finisher' => [31, 9, '王立独占契約', 'transmute_reward_finisher'],
             'buff harvest' => [38, 9, '富国の錬金陣', 'transmute_buff_harvest'],
             'support finisher' => [47, 9, '神薬アムリタ', 'transmute_support_finisher'],
@@ -175,35 +202,81 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
             'counter focus opportunities' => [28, 1, '剣気集中', 'prepared_effect.action_opportunities', 6],
             'counter focus multiplier' => [28, 1, '剣気集中', 'prepared_effect.damage_multiplier', 1.20],
             'counter focus ranks' => [28, 1, '剣気集中', 'prepared_effect.trigger.learn_ranks', [5, 9]],
-            'high accuracy delta' => [4, 5, '狙い撃ち', 'accuracy_delta_points', 8],
-            'high accuracy cap' => [4, 5, '狙い撃ち', 'accuracy_max_percent', 97],
-            'critical accuracy' => [18, 5, 'クリティカルショット', 'accuracy_delta_points', 5],
+            'machine setup charge' => [35, 1, '機巧展開', 'prepared_effect.charges', 1],
+            'machine setup opportunities' => [35, 1, '機巧展開', 'prepared_effect.action_opportunities', 4],
+            'machine setup multiplier' => [35, 1, '機巧展開', 'prepared_effect.damage_multiplier', 1.10],
+            'machine setup ranks' => [35, 1, '機巧展開', 'prepared_effect.trigger.learn_ranks', [5, 9]],
+            'magic cannon spr ignore' => [35, 5, '魔導砲', 'spr_ignore_percent', 15],
+            'pierce burst multiplier' => [2, 1, '挑発撃', 'prepared_effect.damage_multiplier', 1.15],
+            'pierce burst retains intervening actions' => [2, 1, '挑発撃', 'prepared_effect.retain_on_intervening_action', true],
+            'high accuracy delta' => [4, 5, '狙い撃ち', 'accuracy_delta_points', 12],
+            'high accuracy preserves legacy sure hit' => [4, 5, '狙い撃ち', 'preserve_legacy_sure_hit', true],
+            'critical accuracy' => [18, 5, 'クリティカルショット', 'accuracy_delta_points', 6],
             'critical chance' => [18, 5, 'クリティカルショット', 'critical_delta_points', 10],
             'critical existing roll' => [18, 5, 'クリティカルショット', 'critical_mode', 'existing_roll_delta'],
+            'magic bow attack stat' => [45, 5, '魔弓連星', 'damage_stat_route.attack_stat', 'mag'],
+            'magic bow defense stat' => [45, 5, '魔弓連星', 'damage_stat_route.defense_stat', 'def'],
+            'magic bow category' => [45, 5, '魔弓連星', 'damage_stat_route.damage_category', 'magical'],
+            'magic bow defense ignore' => [45, 5, '魔弓連星', 'damage_stat_route.defense_ignore_percent', 25],
+            'dawn physical attack stat' => [70, 5, '暁光ブレイク', 'adaptive_route.physical_attack_stat', 'str'],
+            'dawn physical defense stat' => [70, 5, '暁光ブレイク', 'adaptive_route.physical_defense_stat', 'def'],
+            'dawn magical attack stat' => [70, 5, '暁光ブレイク', 'adaptive_route.magical_attack_stat', 'mag'],
+            'dawn magical defense stat' => [70, 5, '暁光ブレイク', 'adaptive_route.magical_defense_stat', 'spr'],
+            'dawn adaptive selection' => [70, 5, '暁光ブレイク', 'adaptive_route.selection', 'higher_expected_damage'],
+            'dawn adaptive no rng' => [70, 5, '暁光ブレイク', 'adaptive_route.consume_rng', false],
+            'sage barrier power' => [29, 5, '賢者の結界', 'execution_power', 110],
+            'sage barrier reduction' => [29, 5, '賢者の結界', 'next_action_damage_reduction_percent', 18],
+            'extreme magic spr ignore' => [29, 9, '極大魔法', 'spr_ignore_percent', 25],
             'star light key' => [6, 1, '魔力の火種', 'field.field_key', 'star_light'],
             'star light no self apply' => [6, 1, '魔力の火種', 'field.apply_new_field_to_source_action', false],
             'melody key' => [23, 1, '鼓舞の小節', 'field.field_key', 'melody'],
             'melody no self apply' => [23, 1, '鼓舞の小節', 'field.apply_new_field_to_source_action', false],
-            'field extension rounds' => [23, 5, '勇気の旋律', 'field.extend_rounds', 2],
+            'field extension rounds' => [23, 5, '勇気の旋律', 'field.extend_rounds', 3],
             'field extension neutral' => [23, 5, '勇気の旋律', 'resource_override.resource_role', 'neutral'],
+            'poem blessing mag' => [46, 1, '祝詞の一節', 'timed_effect.modifiers.mag', 0.15],
+            'poem blessing spr' => [46, 1, '祝詞の一節', 'timed_effect.modifiers.spr', 0.07],
+            'poem blessing duration' => [46, 1, '祝詞の一節', 'timed_effect.rounds', 2],
+            'exorcising attack stat' => [21, 5, '破邪拳', 'damage_stat_route.attack_stat', 'str'],
+            'exorcising defense stat' => [21, 5, '破邪拳', 'damage_stat_route.defense_stat', 'spr'],
+            'exorcising category' => [21, 5, '破邪拳', 'damage_stat_route.damage_category', 'magical'],
+            'exorcising target species' => [21, 5, '破邪拳', 'conditional_target_multiplier.species_keys', ['mage', 'undead']],
+            'exorcising multiplier' => [21, 5, '破邪拳', 'conditional_target_multiplier.multiplier', 1.20],
+            'bomb normal attack type' => [26, 5, '錬成爆弾', 'use_normal_attack_damage_type', true],
+            'bomb def down' => [26, 5, '錬成爆弾', 'structured_debuff.enemy_def_down_percent', 15],
+            'bomb spr down' => [26, 5, '錬成爆弾', 'structured_debuff.enemy_spr_down_percent', 15],
+            'bomb debuff duration' => [26, 5, '錬成爆弾', 'structured_debuff.duration_turns', 3],
             'pure heal' => [7, 1, 'ヒール', 'heal.multiplier', 1.0],
             'prayer heal' => [36, 1, '聖戦の祈り', 'heal.multiplier', 0.70],
             'prayer guard' => [36, 1, '聖戦の祈り', 'guard.damage_reduction_rate', 0.15],
             'prayer guard charge' => [36, 1, '聖戦の祈り', 'guard.charges', 1],
+            'sanctuary mag' => [56, 5, '聖域結界', 'timed_effect.modifiers.mag', 0.20],
+            'sanctuary spr' => [56, 5, '聖域結界', 'timed_effect.modifiers.spr', 0.10],
+            'sanctuary duration' => [56, 5, '聖域結界', 'timed_effect.rounds', 2],
+            'aegis guard' => [44, 9, '天壁イージス', 'guard.damage_reduction_rate', 0.20],
+            'aegis guard charge' => [44, 9, '天壁イージス', 'guard.charges', 1],
+            'arcadia guard' => [56, 9, '聖壁アルカディア', 'guard.damage_reduction_rate', 0.25],
+            'arcadia guard charge' => [56, 9, '聖壁アルカディア', 'guard.charges', 1],
             'gold only' => [8, 5, '幸運の一手', 'reward.drop', false],
             'drop only' => [20, 5, '掘り出し物', 'reward.gold', false],
             'appraisal retained' => [31, 1, '黄金鑑定', 'appraisal.apply_to_target', true],
             'single cleanse maximum' => [47, 1, '聖薬散布', 'cleanse.maximum_states', 1],
             'single cleanse order' => [47, 1, '聖薬散布', 'cleanse.priority', ['burn', 'poison', 'bleed', 'def_down', 'slow', 'recovery_block']],
             'single cleanse heal' => [47, 1, '聖薬散布', 'heal.rate', 0.05],
+            'single cleanse exact conversion refund' => [47, 1, '聖薬散布', 'heal.refund_conversion_hp_loss', true],
             'basic finisher hp' => [8, 9, '大番振る舞い', 'heal.hp.rate', 0.10],
             'basic finisher sp' => [8, 9, '大番振る舞い', 'heal.sp.rate', 0.05],
             'merchant guard' => [20, 9, '大商隊の守護', 'guard.damage_reduction_rate', 0.20],
+            'diamond guard' => [21, 9, '金剛不壊', 'guard.damage_reduction_rate', 0.25],
+            'cathedral heal' => [24, 9, '大聖堂の奇跡', 'heal.multiplier', 1.0],
+            'cathedral cleanse all' => [24, 9, '大聖堂の奇跡', 'cleanse.maximum_states', 'all'],
+            'cathedral guard' => [24, 9, '大聖堂の奇跡', 'guard.damage_reduction_rate', 0.20],
+            'giga hybrid replacement' => [27, 9, 'ギガブレイク', 'replacement_template', 'HYBRID_DAMAGE'],
             'reward finisher gold' => [31, 9, '王立独占契約', 'reward.gold', 'preserve_master'],
             'reward finisher drop' => [31, 9, '王立独占契約', 'reward.drop', 'preserve_master'],
             'harvest removes one' => [38, 9, '富国の錬金陣', 'remove_positive_effect.maximum_effects', 1],
             'harvest strongest' => [38, 9, '富国の錬金陣', 'remove_positive_effect.selection', 'highest_strength'],
-            'harvest buff' => [38, 9, '富国の錬金陣', 'timed_effect.dynamic_modifier.rate', 0.15],
+            'harvest atk buff' => [38, 9, '富国の錬金陣', 'timed_effect.modifiers.str', 0.15],
+            'harvest mag buff' => [38, 9, '富国の錬金陣', 'timed_effect.modifiers.mag', 0.15],
             'harvest duration' => [38, 9, '富国の錬金陣', 'timed_effect.rounds', 3],
             'amrita cleanse all' => [47, 9, '神薬アムリタ', 'cleanse.maximum_states', 'all'],
             'amrita heal' => [47, 9, '神薬アムリタ', 'heal.rate', 0.15],

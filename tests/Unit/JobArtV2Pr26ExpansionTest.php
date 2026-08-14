@@ -23,7 +23,11 @@ class JobArtV2Pr26ExpansionTest extends TestCase
 
     private const SUPER = [50, 51, 52, 53, 54, 55, 56, 57, 58, 59];
 
-    private const EXISTING = [24, 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 85];
+    private const HERO = [70, 71, 72, 73, 74, 75, 76, 77, 78, 79];
+
+    private const LEGEND = [80, 81, 82, 83, 84, 95, 96, 97, 98, 99];
+
+    private const MYTH = [85, 86, 87, 88, 89, 90, 91, 92, 93, 94];
 
     protected function setUp(): void
     {
@@ -72,7 +76,7 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $this->assertNull($catalog->forJob(100));
     }
 
-    public function test_advanced_super_and_existing_current_jobs_are_enabled_without_enabling_unimplemented_high_tiers(): void
+    public function test_all_job_tiers_are_enabled_as_current_jobs(): void
     {
         $catalog = app(JobArtV2PrototypeCatalog::class);
 
@@ -82,19 +86,26 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         foreach (self::SUPER as $jobId) {
             $this->assertSame('super', $catalog->currentJobTier($jobId), (string) $jobId);
         }
-        foreach (self::EXISTING as $jobId) {
-            $this->assertTrue($catalog->supportsCurrentJob($jobId), (string) $jobId);
+        foreach (self::HERO as $jobId) {
+            $this->assertSame('hero', $catalog->currentJobTier($jobId), (string) $jobId);
         }
-        foreach ([70, 84, 86, 94] as $jobId) {
+        foreach (self::LEGEND as $jobId) {
+            $this->assertSame('legend', $catalog->currentJobTier($jobId), (string) $jobId);
+        }
+        foreach (self::MYTH as $jobId) {
+            $this->assertSame('myth', $catalog->currentJobTier($jobId), (string) $jobId);
+        }
+        foreach ([39, 40, 41, 42, 43, 100] as $jobId) {
             $this->assertFalse($catalog->supportsCurrentJob($jobId), (string) $jobId);
         }
 
-        $this->assertCount(40, $catalog->supportedCurrentJobs());
+        $this->assertCount(94, $catalog->supportedCurrentJobs());
         foreach (array_unique([...self::ADVANCED, ...self::SUPER]) as $jobId) {
             foreach ([1 => 'producer', 5 => 'consumer', 9 => 'finisher'] as $rank => $role) {
                 $skill = $this->art($jobId, $rank);
                 $this->assertTrue($catalog->isTrustedCurrentJobArt($jobId, $skill));
-                $expectedRole = $jobId === 46 && $rank === 5 ? 'neutral' : $role;
+                $neutralArts = ['27:1', '46:5', '48:1'];
+                $expectedRole = in_array("{$jobId}:{$rank}", $neutralArts, true) ? 'neutral' : $role;
                 $this->assertSame($expectedRole, $catalog->artResourceMetadata($skill)['resource_role']);
             }
         }
@@ -102,7 +113,7 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $coverage = collect(array_unique([...self::ADVANCED, ...self::SUPER]))
             ->countBy(fn (int $jobId): string => (string) $catalog->effectCoverageForCurrentJob($jobId));
         $this->assertSame(9, $coverage->get('full_v2_effect'));
-        $this->assertSame(19, $coverage->get('resource_v2_master_effect_fallback'));
+        $this->assertSame(19, $coverage->get('resource_v2_master_effect'));
     }
 
     public function test_same_lineage_inherited_producer_consumer_and_finisher_share_one_current_resource(): void
@@ -133,7 +144,7 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $this->assertSame(0, $actor->getResource('dragon_force'));
     }
 
-    public function test_current_finisher_precedes_same_lineage_finisher_which_precedes_no_cross_lineage_finisher(): void
+    public function test_ready_finishers_follow_set_order_without_current_or_inherited_priority(): void
     {
         [$actor, $state] = $this->battle(53);
         $inherited = $this->art(24, 9);
@@ -145,12 +156,12 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $actor->setResource('star_mark', 12);
 
         $first = $this->selection([1])->selectForTurn($actor, $state);
-        $this->assertSame((int) $current->id, (int) $first->skill?->id);
+        $this->assertSame((int) $inherited->id, (int) $first->skill?->id);
         $this->assertTrue($first->rankNinePrioritized);
 
-        $state->jobArtUseCounts[(int) $current->id] = 1;
+        $actor->jobArtConditions[(int) $inherited->id] = 'target_hp_le_30';
         $second = $this->selection([1])->selectForTurn($actor, $state);
-        $this->assertSame((int) $inherited->id, (int) $second->skill?->id);
+        $this->assertSame((int) $current->id, (int) $second->skill?->id);
         $this->assertTrue($second->rankNinePrioritized);
 
         $cross = $this->art(62, 9);
@@ -158,17 +169,19 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $actor->jobArts = [$front, $cross];
         $actor->jobArtOrigins[(int) $front->id] = 'inherited';
         $actor->jobArtOrigins[(int) $cross->id] = 'inherited';
+        $actor->configureResource('dragon_force', 12);
+        $actor->setResource('dragon_force', 12);
         $third = $this->selection([1])->selectForTurn($actor, $state);
-        $this->assertSame((int) $front->id, (int) $third->skill?->id);
-        $this->assertFalse($third->rankNinePrioritized);
+        $this->assertSame((int) $cross->id, (int) $third->skill?->id);
+        $this->assertTrue($third->rankNinePrioritized);
     }
 
-    public function test_inherited_active_arts_use_v2_activation_and_normalized_sp_without_discount(): void
+    public function test_every_art_uses_its_source_job_tier_sp_without_lineage_discount(): void
     {
         $rules = app(JobArtV2BattleRules::class);
         $sp = app(JobArtV2SpCostCalculator::class);
 
-        foreach ([1 => [35, 8, 10], 5 => [38, 13, 16], 9 => [50, 18, 22]] as $rank => [$rate, $currentCost, $inheritedCost]) {
+        foreach ([1 => [35, 16, 6], 5 => [38, 25, 9], 9 => [50, 35, 13]] as $rank => [$rate, $currentCost, $inheritedCost]) {
             $current = $this->art(53, $rank, 87, 10);
             $inherited = $this->art(24, $rank, 87, 10);
             $this->assertSame($rate, $rules->activationRateFor($inherited, 53, 'inherited'));
@@ -180,19 +193,20 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         config(['battle.job_art_v2.dynamic_single' => false]);
         $legacy = $this->art(24, 9, 87, 10);
         $this->assertSame(87, $rules->activationRateFor($legacy, 53, 'inherited'));
-        $this->assertSame(10, $sp->forCurrentJob($legacy, 400, 53, 'inherited'));
+        $this->assertSame(13, $sp->forCurrentJob($legacy, 400, 53, 'inherited'));
     }
 
     public function test_all_mvp_slot_conditions_are_deterministic_and_match_boundaries(): void
     {
         [$actor, $state] = $this->battle(53, actorHp: 50, targetHp: 30, targetDef: 600, targetSpr: 400);
+        $actor->jobArts = [$this->art(53, 1)];
         $actor->configureResource('star_mark', 12);
         $catalog = app(JobArtV2SlotConditionCatalog::class);
 
         $this->assertSame([
             'always', 'self_hp_le_50', 'target_hp_le_50', 'target_hp_le_30',
             'main_resource_lt_4', 'main_resource_ge_4', 'target_def_gt_spr',
-            'target_spr_gt_def', 'field_present',
+            'target_spr_gt_def', 'field_present', 'opponent_ultimate_preparing',
         ], array_keys($catalog->labels()));
         $this->assertTrue($catalog->matches('self_hp_le_50', $actor, $state));
         $this->assertTrue($catalog->matches('target_hp_le_50', $actor, $state));
@@ -229,16 +243,24 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $this->assertSame('blocked_by_condition', $result->blockedReasons[(int) $front->id]);
         $this->assertSame(1, $random->calls);
 
-        $state->enemy->hp = 30;
+        [$actor, $state] = $this->battle(53, targetHp: 30);
+        $front = $this->art(62, 1, 100);
+        $rear = $this->art(24, 1, 100);
+        $actor->jobArts = [$front, $rear];
+        $actor->jobArtOrigins[(int) $front->id] = 'inherited';
+        $actor->jobArtOrigins[(int) $rear->id] = 'inherited';
+        $actor->jobArtConditions[(int) $front->id] = 'target_hp_le_30';
+        $actor->jobArtConditions[(int) $rear->id] = 'always';
         $random = $this->random([1]);
         $result = $this->selectionWithRandom($random)->selectForTurn($actor, $state);
+        $this->assertSame([], $result->blockedReasons);
         $this->assertSame((int) $front->id, (int) $result->skill?->id);
         $this->assertSame(1, $random->calls);
 
         $random = $this->random([100, 1]);
         $result = $this->selectionWithRandom($random)->selectForTurn($actor, $state);
         $this->assertNull($result->skill);
-        $this->assertSame((int) $front->id, $result->candidateSkillId);
+        $this->assertSame((int) $rear->id, $result->candidateSkillId);
         $this->assertFalse($result->retriedAfterMiss);
         $this->assertSame(1, $random->calls);
     }

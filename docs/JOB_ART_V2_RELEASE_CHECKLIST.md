@@ -1,8 +1,8 @@
 # 戦技v2 Release Candidateチェックリスト
 
-最終更新: 2026-08-09
+最終更新: 2026-08-14
 対象起点: PR26 `2282b4ff682c846a0b0a754b4617957392e2ca48` 以降
-公開判定: **READY**
+公開判定: **PR27 READY / 全94職対応はLOCAL ONLY**
 
 ## 公開ブロッカー
 
@@ -10,16 +10,14 @@
 
 ## 対応inventory
 
-- current-job v2対応: 40職
-- current-job v2対象外: 54職。対応flagがONでもlegacyへfail closed
-- 上級・超級の調査対象: 28職
-  - full v2 effect: 4職
-  - resource-v2 + master-effect fallback: 24職
-- PR27で新たにfullへ昇格した上級・超級職/戦技: 0。役割名だけで具体値のない資料から効果を推測していない
-- 63 星冠導師: current-job v2 gate、Rank1、Rank5、Rank9、resource、field/HUDまでfull effect対応。Rank9の上書き回数分岐は現在職63だけに適用する
-- source lineageは全94職をjob IDで解決するが、lineage解決だけでcurrent-job v2対応とはみなさない
+- current-job v2対応: 現行マスタ全94職
+- current-job v2対象外: 0職。v2 flag ON時は転職先によるlegacy fallbackを設けない
+- 戦技マスタ: 94職×Rank1/5/9=282件。`job_arts.json`・DB・lineage・prototype catalogの自然キー集合を一致させる
+- 個別に凍結済みの追加効果は専用catalog/overrideを正とし、それ以外は各戦技の構造化master効果をv2共通resource・35/38/50・normalized SP・5枠/Cost9で実行する。これは職業別の互換fallbackではなく、全職共通の基礎効果経路である
+- 63 星冠導師はRank1、Rank5、Rank9、resource、field/HUDまで個別効果対応。Rank9の上書き回数分岐は現在職63だけに適用する
+- feature flag OFFだけを運用上の明示rollbackとし、存在しないJob IDや不完全masterはvalidator/testで停止する
 
-`full v2 effect`は、信頼済みRank1/5/9の凍結済み固有効果までruntimeへ接続済みであることを示す。`resource-v2 + master-effect fallback`は、5枠・Cost9・共通resource・35/38/50・normalized SP・条件・継承をv2で扱い、未凍結の固有効果だけ既存masterを使う公開可能な互換状態であり、プレイヤーUIへ`fallback`という内部語は表示しない。
+以下のPR27監査CSVは40職対応時点の履歴であり、現行の対応範囲には使用しない。
 
 監査CSV（リポジトリ外の検証成果物）:
 
@@ -36,9 +34,9 @@
 - Rank5: 上書きされた自分の旧場を1ラウンドだけechoとして保持
 - echo: 既存の場補正を再利用し、追加のprimary/overlay slotを作らない。生成ラウンドは減算せず、次のround endで失効
 - 同主系譜継承: 信頼済みRank1/5のfield/resource役割のみportable。current-job限定効果はportable化しない
-- Rank9: 星印12pt、条件成立時優先、一戦一度。行動開始時snapshotに主場がある場合だけ、本人の実`field_overwritten`回数0/1〜2/3〜4/5以上で基礎powerを1.00/1.05/1.10/1.15倍する
+- Rank9: 星印12pt、条件成立時優先。v2では旧masterのCT・1戦回数上限を使わない。行動開始時snapshotに主場がある場合だけ、本人の実`field_overwritten`回数0/1〜2/3〜4/5以上で基礎powerを1.00/1.05/1.10/1.15倍する
 - Rank9 count: `field_created`、`field_refreshed`、`field_extended`、`field_expired`、副場eventは含めず、倍率上限は1.15
-- Rank9 inheritance: 同主系譜継承は星印12ptで使用できるが基礎damageのみ。異系譜継承は従来どおりfinisher resource適格外
+- Rank9 inheritance: 同主系譜継承は現在職の星印12ptを共有し、異系譜継承は独立した星印を元系譜Rank1等で12ptまで作って消費する。いずれもcurrent-job限定の上書き倍率は持ち込まず基礎damageのみ
 
 Job63選択シミュレーション（seed 11/29/47、各6,000戦、normal、maxSP 800）:
 
@@ -120,7 +118,7 @@ RC READY後も一括ONにはしない。
 4. 戦闘依存を順に `DYNAMIC_SINGLE` -> `NORMALIZED_SP` -> `HIT_RESOLUTION` -> `DAMAGE_APPLICATION` -> `RESOURCES` まで有効化
 5. `FIELDS`を有効化し、field/echo/HUDを確認
 6. `PENETRATION`、`PENETRATION_STANCE`を有効化
-7. normal/boss/tower/player PvP/champ/NPC arenaを対象職・対象外職でsmoke
+7. normal/boss/tower/player PvP/champ/NPC arenaを各階層の代表職でsmoke
 8. 小規模公開後、監視可能な指標と問い合わせを確認してから範囲を拡大
 
 ## 手動smoke
@@ -133,7 +131,7 @@ RC READY後も一括ONにはしない。
 - Job63 Rank5: 直前に上書きされた自分の場だけ1ラウンドecho、主場/overlay数は不変
 - Job63 Rank9: 主場ありで実上書き0/1〜2/3〜4/5+回が1.00/1.05/1.10/1.15倍、主場なし・同系譜継承は基礎damage
 - Job63 HUD: 主場、echo、場上書き回数、resourceが戦闘結果と一致
-- 対象外職: 全v2戦闘機能がlegacyへfail closed
+- 全職coverage: 基本・中級・上級・超級・冠位・英雄・伝説・神話の代表職でv2 UI/runtimeを確認
 - 6戦闘経路: normal、boss、tower、player PvP、champ、NPC arena
 - 372px: condition、preset、field/echo HUDに横スクロールや操作不能なし
 

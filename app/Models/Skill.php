@@ -192,7 +192,10 @@ class Skill extends Model
             if ($buff <= 0) {
                 $buff = $this->jobArtTierPercent($power);
             }
-            $labels[] = '自己強化 主+' . $buff . '% / 副+' . intdiv($buff, 2) . '%';
+            $secondaryBuff = intdiv($buff, 2);
+            $labels[] = $template === 'MAGICAL_DAMAGE_BUFF'
+                ? "自分の魔力を+{$buff}%、精神を+{$secondaryBuff}%する"
+                : "自分の通常攻撃が物理なら攻撃を+{$buff}%、防御を+{$secondaryBuff}%、魔法なら魔力を+{$buff}%、精神を+{$secondaryBuff}%する";
         }
 
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
@@ -200,7 +203,11 @@ class Skill extends Model
             if ($reduction <= 0) {
                 $reduction = min(25, max(10, intdiv(max(1, $power), 10)));
             }
-            $labels[] = "被ダメージ -{$reduction}%";
+            $labels[] = "次の自分の行動開始まで、受けるダメージを{$reduction}%軽減する";
+        }
+
+        if ((int) $this->self_damage_percent > 0) {
+            $labels[] = '反動：最大HP -'.(int) $this->self_damage_percent.'%';
         }
 
         $debuffLabels = [
@@ -211,10 +218,12 @@ class Skill extends Model
             'enemy_spd_down_percent' => '敵SPD',
         ];
         $hasStructuredDebuff = false;
+        $debuffDuration = max(0, (int) $this->duration_turns);
+        $debuffDurationLabel = $debuffDuration > 0 ? "（{$debuffDuration}ターン）" : '';
         foreach ($debuffLabels as $field => $label) {
             $percent = (int) $this->{$field};
             if ($percent > 0) {
-                $labels[] = "{$label} -{$percent}%";
+                $labels[] = "{$label} -{$percent}%{$debuffDurationLabel}";
                 $hasStructuredDebuff = true;
             }
         }

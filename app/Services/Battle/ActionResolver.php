@@ -4,6 +4,8 @@ namespace App\Services\Battle;
 
 use App\Models\Skill;
 use App\Services\JobArtV2ActiveEvasionProvider;
+use App\Services\JobArtV2DeckRole;
+use App\Services\JobArtV2DeckRoleResolver;
 use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2HitRandomSource;
 use App\Services\JobArtV2FieldService;
@@ -25,6 +27,7 @@ class ActionResolver
         private readonly ?JobArtV2PrototypeCatalog $prototypeCatalog = null,
         private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
         private readonly ?JobArtV2ProgressionService $progressionService = null,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {
     }
 
@@ -74,7 +77,7 @@ class ActionResolver
         $explicitAccuracy = $this->explicitAccuracy($skill);
         $roleAccuracyDelta = $this->actionLocalAccuracyDelta($attacker, $skill);
         if ($explicitAccuracy === null
-            && $roleAccuracyDelta <= 0.0
+            && ($roleAccuracyDelta <= 0.0 || $this->preservesLegacySureHit($attacker, $skill))
             && in_array($battleType, ['pvp', 'champ', 'arena_npc'], true)
         ) {
             // These legacy job-art paths do not perform a base hit roll.
@@ -97,7 +100,7 @@ class ActionResolver
         $delta += $roleAccuracyDelta;
 
         $maximum = (float) $rules['max_rate'];
-        if ($this->featureGate->usesResources($attacker)) {
+        if ($this->featureGate->usesResources($attacker) && $this->allowsRoleMetadata($attacker, $skill)) {
             $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
             $roleMetadata = $roleCatalog->forArt($skill);
             if ($roleCatalog->isPortable($skill) && is_numeric($roleMetadata['accuracy_max_percent'] ?? null)) {
@@ -108,6 +111,20 @@ class ActionResolver
         return max((float) $rules['min_rate'], min($maximum, $hitRate + $delta));
     }
 
+    private function preservesLegacySureHit(BattleActor $attacker, Skill $skill): bool
+    {
+        if (! $this->featureGate->usesResources($attacker)) {
+            return false;
+        }
+
+        $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        $roleMetadata = $roleCatalog->forArt($skill);
+
+        return $this->allowsRoleMetadata($attacker, $skill)
+            && $roleCatalog->isPortable($skill)
+            && (bool) ($roleMetadata['preserve_legacy_sure_hit'] ?? false);
+    }
+
     private function actionLocalAccuracyDelta(BattleActor $attacker, Skill $skill): float
     {
         if (! $this->featureGate->usesResources($attacker)) {
@@ -116,7 +133,10 @@ class ActionResolver
 
         $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
         $roleMetadata = $roleCatalog->forArt($skill);
-        if ($roleCatalog->isPortable($skill) && is_numeric($roleMetadata['accuracy_delta_points'] ?? null)) {
+        if ($this->allowsRoleMetadata($attacker, $skill)
+            && $roleCatalog->isPortable($skill)
+            && is_numeric($roleMetadata['accuracy_delta_points'] ?? null)
+        ) {
             return max(0.0, (float) $roleMetadata['accuracy_delta_points']);
         }
 
@@ -126,14 +146,23 @@ class ActionResolver
             return $progressionDelta;
         }
 
-        if ($attacker->currentJobId !== 65
-            || ($attacker->jobArtOrigins[(int) $skill->id] ?? 'current') !== 'current'
-        ) {
+        if ((int) $skill->job_id !== 65) {
             return 0.0;
         }
 
         $catalog = $this->prototypeCatalog ?? app(JobArtV2PrototypeCatalog::class);
-        if (! $catalog->isTrustedCurrentJobArt(65, $skill)) {
+        $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
+            ->resolveActor($attacker);
+        $trusted = $resolution->active
+            ? in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+                && (int) $skill->job_id === 65
+                && $catalog->isTrustedArtProfile($skill)
+            : $catalog->isTrustedCurrentJobArt(65, $skill);
+        if (! $trusted) {
             return 0.0;
         }
 
@@ -168,5 +197,20 @@ class ActionResolver
         }
 
         return (int) $attributes['accuracy'];
+    }
+
+    private function allowsRoleMetadata(BattleActor $actor, Skill $skill): bool
+    {
+        $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
+            ->resolveActor($actor);
+        if (! $resolution->active) {
+            return true;
+        }
+
+        return in_array(
+            $resolution->roleFor($skill),
+            [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+            true,
+        ) && $resolution->blockReasonFor($skill) === null;
     }
 }

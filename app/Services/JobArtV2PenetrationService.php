@@ -14,6 +14,8 @@ class JobArtV2PenetrationService
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $catalog,
         private readonly ?JobArtV2ProgressionService $progressionService = null,
+        private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {}
 
     public function enabledFor(BattleActor $actor): bool
@@ -23,10 +25,21 @@ class JobArtV2PenetrationService
 
     public function trustedRateFor(BattleActor $actor, Skill $skill): ?float
     {
-        if (! $this->enabledFor($actor)
-            || ($actor->jobArtOrigins[(int) $skill->id] ?? null) !== 'current'
-            || ! $this->catalog->isTrustedCurrentJobArt($actor->currentJobId, $skill)
-        ) {
+        if (! $this->enabledFor($actor)) {
+            return null;
+        }
+
+        $resolution = $this->roles()->resolveActor($actor);
+        $trusted = $resolution->active
+            ? in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+                && $this->catalog->isTrustedArtProfile($skill)
+            : ($actor->jobArtOrigins[(int) $skill->id] ?? null) === 'current'
+                && $this->catalog->isTrustedCurrentJobArt($actor->currentJobId, $skill);
+        if (! $trusted) {
             return null;
         }
 
@@ -44,6 +57,15 @@ class JobArtV2PenetrationService
     /** @return array{def: ?int, spr: ?int, penetration_rate: ?float} */
     public function defenseOverrides(BattleActor $attacker, BattleActor $defender, Skill $skill): array
     {
+        $roleRate = $this->roleSprIgnoreRate($attacker, $skill);
+        if ($roleRate !== null) {
+            return [
+                'def' => null,
+                'spr' => (int) floor($defender->effectiveSpr() * (1 - $roleRate)),
+                'penetration_rate' => $roleRate,
+            ];
+        }
+
         $superRate = ($this->progressionService ?? app(JobArtV2ProgressionService::class))
             ->superPierceRateFor($attacker, $skill);
         if ($superRate !== null) {
@@ -75,5 +97,35 @@ class JobArtV2PenetrationService
         }
 
         return ['def' => null, 'spr' => null, 'penetration_rate' => null];
+    }
+
+    private function roleSprIgnoreRate(BattleActor $attacker, Skill $skill): ?float
+    {
+        if (! $this->featureGate->usesResources($attacker)) {
+            return null;
+        }
+
+        $catalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
+        if (! $catalog->isPortable($skill)) {
+            return null;
+        }
+
+        $resolution = $this->roles()->resolveActor($attacker);
+        if ($resolution->active
+            && (! in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) || $resolution->blockReasonFor($skill) !== null)
+        ) {
+            return null;
+        }
+
+        return $catalog->sprIgnoreRate($skill);
+    }
+
+    private function roles(): JobArtV2DeckRoleResolver
+    {
+        return $this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
     }
 }

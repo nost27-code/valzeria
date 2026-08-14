@@ -50,31 +50,33 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         ]);
     }
 
-    public function test_only_current_job_resource_is_active_and_inherited_arts_are_still_visible_to_the_hud(): void
+    public function test_cross_lineage_resource_is_active_independently_and_visible_to_the_hud(): void
     {
         [$actor, , $state] = $this->battle(68, 24);
         $inheritedProducer = $this->art(65, 1, 'PHYSICAL_DAMAGE');
         $inheritedFinisher = $this->art(65, 9, 'PHYSICAL_DAMAGE');
         $this->attachInherited($actor, $inheritedProducer);
         $this->attachInherited($actor, $inheritedFinisher);
+        $actor->jobArts = [$inheritedProducer, $inheritedFinisher];
         $actor->configureResource('break', 12);
         $actor->setResource('break', 7);
 
         $resources = app(JobArtV2ResourceService::class);
         $resources->beginAction($actor, $state);
-        $this->assertFalse($resources->applyJobArtCast($actor, $state, $inheritedProducer)->applied);
+        $this->assertSame(4, $resources->applyJobArtCast($actor, $state, $inheritedProducer)->delta);
         $resources->finishAction($actor, $state);
 
         $this->assertSame(7, $actor->getResource('break'));
-        $this->assertSame(0, $actor->getResource('aim'));
+        $this->assertSame(4, $actor->getResource('aim'));
         $this->assertFalse($resources->isFinisherReady($actor, $inheritedFinisher));
 
         $hud = app(JobArtBattleSupportService::class)->battleHud($state);
-        $this->assertSame('break', $hud['actors'][0]['resource']['key']);
+        $this->assertSame('aim', $hud['actors'][0]['resource']['key']);
+        $this->assertSame(['aim'], array_column($hud['actors'][0]['resources'], 'key'));
         $jobArtAction = collect($hud['actions'])->firstWhere('action_kind', 'job_art');
         $this->assertNotNull($jobArtAction);
         $this->assertSame('job-65-rank-1', $jobArtAction['action_name']);
-        $this->assertNotSame('aim', $hud['actors'][0]['resource']['key']);
+        $this->assertSame(4, collect($hud['actors'][0]['resources'])->firstWhere('key', 'aim')['points']);
     }
 
     public function test_break_target_state_changes_inherited_physical_and_magical_damage(): void
@@ -139,6 +141,10 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         $inheritedFinisher = $this->art(65, 9, 'PHYSICAL_DAMAGE', 570);
         $this->attachCurrent($actor, $currentProducer);
         $this->attachInherited($actor, $inheritedFinisher);
+        $actor->jobArts = [$currentProducer, $inheritedFinisher];
+        $targetProducer = $this->art(68, 1, 'PHYSICAL_DAMAGE', 225);
+        $this->attachCurrent($target, $targetProducer);
+        $target->jobArts = [$targetProducer];
         $actor->configureResource('catalyst', 12);
         $actor->setResource('catalyst', 4);
 
@@ -149,7 +155,7 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         $support->consumeAndMarkUse($actor, $state, $currentProducer);
         $support->completeJobArtCast($actor, $state, $currentProducer, HitResult::HIT, $target);
 
-        $this->assertSame(0, $actor->getResource('catalyst'));
+        $this->assertSame(8, $actor->getResource('catalyst'));
         $this->assertCount(1, $target->jobArtV2ProgressionState()->resourceSuppressions);
         $suppressionBefore = $target->jobArtV2ProgressionState()->resourceSuppressions;
 
@@ -185,8 +191,11 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         $this->assertSame(80, $defense->resolveDamage($guardState, $guardResolution, 100));
 
         [$counter, $counterAttacker, $counterState] = $this->battle(60, 65);
-        $counter->jobArts = [$this->art(65, 5, 'PHYSICAL_DAMAGE')];
-        $this->attachInherited($counter, $counter->jobArts[0]);
+        $counterArt = $this->art(60, 1, 'PHYSICAL_DAMAGE');
+        $aimArt = $this->art(65, 5, 'PHYSICAL_DAMAGE');
+        $counter->jobArts = [$counterArt, $aimArt];
+        $this->attachCurrent($counter, $counterArt);
+        $this->attachInherited($counter, $aimArt);
         $counter->replaceCounterStanceState(new JobArtV2CounterStanceState(2, 1, 0.20));
         app(JobArtV2ResourceService::class)->beginAction($counterAttacker, $counterState);
         $parryResolution = $this->directResolution($counterState, $counterAttacker, $counter);
@@ -194,39 +203,31 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         $this->assertSame(2, $counter->getResource('sword_momentum'));
     }
 
-    public function test_inherited_arts_do_not_receive_current_job_only_v2_effects(): void
+    public function test_inherited_arts_receive_their_full_written_v2_effects(): void
     {
         [$actor, $target, $state] = $this->battle(68, 66);
 
         $pierce = $this->art(62, 5, 'PHYSICAL_DAMAGE', 285);
         $aim = $this->art(65, 5, 'PHYSICAL_DAMAGE', 285);
         $eclipse = $this->art(61, 5, 'PHYSICAL_DAMAGE', 285);
-        $break = $this->art(68, 5, 'DAMAGE_BUFF', 285);
-        foreach ([$pierce, $aim, $eclipse, $break] as $skill) {
+        foreach ([$pierce, $aim, $eclipse] as $skill) {
             $this->attachInherited($actor, $skill);
         }
+        $actor->jobArts = [$pierce, $aim, $eclipse];
 
-        $this->assertNull(app(JobArtV2PenetrationService::class)->trustedRateFor($actor, $pierce));
-        $this->assertNull(app(JobArtV2DamageSemanticsResolver::class)->forExecution($actor, $eclipse));
+        $this->assertNotNull(app(JobArtV2PenetrationService::class)->trustedRateFor($actor, $pierce));
+        $this->assertNotNull(app(JobArtV2DamageSemanticsResolver::class)->forExecution($actor, $eclipse));
 
         app(JobArtV2ResourceService::class)->beginAction($actor, $state);
         $spBefore = $target->mp;
-        $this->assertFalse(app(JobArtV2SpPressureService::class)->applyOnHit(
+        $this->assertTrue(app(JobArtV2SpPressureService::class)->applyOnHit(
             $actor,
             $target,
             $state,
             $aim,
             HitResult::HIT,
         )->applied);
-        $this->assertSame($spBefore, $target->mp);
-        $this->assertNull(app(JobArtV2BreakDebuffService::class)->applyOnHit(
-            $actor,
-            $target,
-            $state,
-            $break,
-            HitResult::HIT,
-        ));
-        $this->assertNull($target->breakDebuffState());
+        $this->assertLessThan($spBefore, $target->mp);
     }
 
     public function test_mixed_selection_uses_the_same_rules_in_all_six_battle_contexts(): void
@@ -257,16 +258,15 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
             $this->attachCurrent($actor, $current);
             $actor->jobArtPolicies[(int) $inherited->id] = 'aggressive';
             $actor->jobArtPolicies[(int) $current->id] = 'aggressive';
+            $actor->configureResource('aim', 12);
+            $actor->setResource('aim', 4);
 
             $result = $selection->selectForTurn($actor, $state);
 
             $this->assertSame($inherited, $result->skill, $battleType);
             $this->assertFalse($result->rankNinePrioritized, $battleType);
             app(JobArtV2ResourceService::class)->beginAction($actor, $state);
-            $this->assertFalse(
-                app(JobArtV2ResourceService::class)->applyJobArtCast($actor, $state, $inherited)->applied,
-                $battleType,
-            );
+            $this->assertSame(-4, app(JobArtV2ResourceService::class)->applyJobArtCast($actor, $state, $inherited)->delta, $battleType);
             $this->assertSame(0, $actor->getResource('aim'), $battleType);
             $this->assertSame(0, $actor->getResource('break'), $battleType);
         }

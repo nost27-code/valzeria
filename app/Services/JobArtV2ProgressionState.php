@@ -68,18 +68,22 @@ final class JobArtV2ProgressionState
      */
     public array $resourceSuppressions = [];
 
-    public bool $transmuteCrownRankNineUsed = false;
-
     public ?string $commandLastSuccessfulCategory = null;
     public ?string $commandDifferentCategoryFrom = null;
     public int $commandActivationBonus = 0;
+    public int $cDesignCommandActivationBonus = 0;
+    public ?string $commandActivationTargetLineage = null;
+    /** @var list<int> */
+    public array $commandActivationTargetRanks = [];
+    public int $commandActivationRemainingOpportunities = 0;
     public bool $commandGuaranteeNextArt = false;
     public bool $commandPrioritizeCurrentArt = false;
-    public int $commandRankNineUses = 0;
 
     public bool $initiativeRerollNextRound = false;
     public bool $initiativeForceFirstNextRound = false;
-    public int $commandRankOneCooldownUntilRound = 0;
+
+    /** @var array<string, true> */
+    public array $reportedEligibilityGates = [];
 
     public bool $aimSuperRankNineSpPressureUsed = false;
 
@@ -91,6 +95,37 @@ final class JobArtV2ProgressionState
      */
     public bool $silverShieldReady = false;
     public int $silverShieldReadyGeneration = 0;
+
+    public bool $cDesignAimMarked = false;
+
+    /** @var array{remaining:int,last_round:int}|null */
+    public ?array $musouZanshin = null;
+
+    /** @var array{remaining:int,last_round:int,charges:int,previous_category:?string}|null */
+    public ?array $overlordFormation = null;
+
+    /** @var array{remaining:int,last_round:int,count:int,previous_category:?string,ready:bool}|null */
+    public ?array $eightFormation = null;
+
+    /** @var array{remaining:int,last_round:int,charges:int,previous_category:?string}|null */
+    public ?array $royalFormation = null;
+
+    /** @var array{remaining:int,last_round:int,charges:int}|null */
+    public ?array $trackingCoordinates = null;
+
+    public int $nightmareSelfDamage = 0;
+
+    /** @var array{remaining:int,last_round:int,cap:int,amount:int,source_action_id:?int}|null */
+    public ?array $holyWall = null;
+
+    /** @var array{remaining:int,last_round:int}|null */
+    public ?array $blackCrownReversal = null;
+
+    /** 黒冠反転で、HP回復の解決後に与える非致死ダメージ。 */
+    public int $pendingBlackCrownReversalDamage = 0;
+
+    /** 次に受けるターン制強化の短縮・解除を無効化する残り回数。 */
+    public int $immutableRhythmCharges = 0;
 
     public function applyRoundState(string $key, int $rounds, int $round): void
     {

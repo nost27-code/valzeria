@@ -18,6 +18,7 @@ final class JobArtV2ConversionService
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
         private readonly JobArtV2SpCostCalculator $spCostCalculator,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {}
 
     public function eligibilityBlockReason(BattleActor $actor, Skill $skill): ?string
@@ -103,11 +104,21 @@ final class JobArtV2ConversionService
     private function appliesTo(BattleActor $actor, Skill $skill): bool
     {
         $metadata = $this->prototypeCatalog->artResourceMetadata($skill);
+        $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
+            ->resolveActor($actor);
+        $trusted = $resolution->active
+            ? in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+                && $this->prototypeCatalog->isTrustedArtProfile($skill)
+            : ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current'
+                && $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill);
 
         return $this->featureGate->usesResources($actor)
             && (int) $skill->learn_rank === self::RANK
-            && ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current'
-            && $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill)
+            && $trusted
             && ($metadata['lineage_key'] ?? null) === 'transmute'
             && ($metadata['resource_gain_event'] ?? null) === ResourceEvent::HP_SP_CONVERSION_SUCCESS->value;
     }

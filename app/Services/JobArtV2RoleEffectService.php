@@ -29,11 +29,162 @@ final class JobArtV2RoleEffectService
         private readonly JobArtV2CleanseService $cleanseService,
         private readonly JobArtV2ResourceService $resourceService,
         private readonly JobArtV2ProgressionService $progressionService,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        private readonly ?JobArtV2CDesignCatalog $cDesignCatalog = null,
+        private readonly ?JobArtV2CDesignEffectCatalog $cDesignEffectCatalog = null,
+        private readonly ?JobArtV2CrownBalanceCatalog $crownBalanceCatalog = null,
     ) {}
 
     public function enabledFor(BattleActor $actor): bool
     {
         return $this->featureGate->usesResources($actor);
+    }
+
+    /**
+     * Keep the legacy DAMAGE_BUFF family on one v2 calculation in every
+     * battle route. The master power still chooses the frozen 10/15/20%
+     * tier; this method only removes the route-specific interpretation.
+     *
+     * @return array{
+     *     main_label: string,
+     *     main_before: int,
+     *     main_after: int,
+     *     sub_label: string,
+     *     sub_before: int,
+     *     sub_after: int
+     * }|null
+     */
+    public function applySharedSelfBuff(BattleActor $actor, Skill $skill): ?array
+    {
+        if (! $this->enabledFor($actor)) {
+            return null;
+        }
+
+        $power = (int) ($skill->power ?: 100);
+        $rate = match (true) {
+            $power >= 200 => 0.20,
+            $power >= 140 => 0.15,
+            default => 0.10,
+        };
+        $isMagical = (string) $skill->effect_template === 'MAGICAL_DAMAGE_BUFF'
+            || $actor->usesMagForNormalAttack();
+
+        if ($isMagical) {
+            $beforeMain = $actor->mag;
+            $beforeSub = $actor->spr;
+            $actor->mag = min(
+                (int) floor($actor->baseMag * 1.5),
+                $actor->mag + max(1, (int) floor($actor->baseMag * $rate)),
+            );
+            $actor->spr = min(
+                (int) floor($actor->baseSpr * 1.5),
+                $actor->spr + max(1, (int) floor($actor->baseSpr * ($rate / 2))),
+            );
+
+            return [
+                'main_label' => 'MAG',
+                'main_before' => $beforeMain,
+                'main_after' => $actor->mag,
+                'sub_label' => 'SPR',
+                'sub_before' => $beforeSub,
+                'sub_after' => $actor->spr,
+            ];
+        }
+
+        $beforeMain = $actor->str;
+        $beforeSub = $actor->def;
+        $actor->str = min(
+            (int) floor($actor->baseStr * 1.5),
+            $actor->str + max(1, (int) floor($actor->baseStr * $rate)),
+        );
+        $actor->def = min(
+            (int) floor($actor->baseDef * 1.5),
+            $actor->def + max(1, (int) floor($actor->baseDef * ($rate / 2))),
+        );
+
+        return [
+            'main_label' => 'ATK',
+            'main_before' => $beforeMain,
+            'main_after' => $actor->str,
+            'sub_label' => 'DEF',
+            'sub_before' => $beforeSub,
+            'sub_after' => $actor->def,
+        ];
+    }
+
+    /**
+     * v2の明示的な敵能力低下を、masterのduration_turnsに従う戦闘中状態として適用する。
+     * flag OFF・通常職技は呼び出し元のlegacy処理へ戻すためnullを返す。
+     *
+     * @return array{
+     *     duration_turns: int,
+     *     changes: list<array{stat: string, label: string, percent: int}>
+     * }|null
+     */
+    public function applyTimedStructuredDebuffs(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        Skill $skill,
+        float $rate = 1.0,
+    ): ?array {
+        if (! $skill->isJobArt() || ! $this->enabledFor($attacker)) {
+            return null;
+        }
+
+        $skill = $this->balances()->applyToExecution($skill);
+        $sourceActionId = $state->currentSourceActionId();
+        if ($sourceActionId === null) {
+            return ['duration_turns' => max(1, (int) $skill->duration_turns), 'changes' => []];
+        }
+
+        $fields = [
+            'enemy_atk_down_percent' => ['stat' => 'str', 'label' => '攻撃力'],
+            'enemy_mag_down_percent' => ['stat' => 'mag', 'label' => '魔法力'],
+            'enemy_def_down_percent' => ['stat' => 'def', 'label' => '防御力'],
+            'enemy_spr_down_percent' => ['stat' => 'spr', 'label' => '精神力'],
+            'enemy_spd_down_percent' => ['stat' => 'agi', 'label' => '素早さ'],
+        ];
+        $modifiers = [];
+        $changes = [];
+        $rate = max(0.0, $rate);
+
+        foreach ($fields as $field => $config) {
+            $configured = (int) ($skill->{$field} ?? 0);
+            if ($configured <= 0) {
+                continue;
+            }
+
+            $percent = max(1, (int) floor($configured * $rate));
+            $modifiers[$config['stat']] = -($percent / 100);
+            $changes[] = [
+                'stat' => $config['stat'],
+                'label' => $config['label'],
+                'percent' => $percent,
+            ];
+        }
+
+        $durationTurns = max(1, (int) $skill->duration_turns);
+        if ($modifiers === []) {
+            return ['duration_turns' => $durationTurns, 'changes' => []];
+        }
+
+        $defender->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
+            key: implode(':', [
+                'master_stat_debuff',
+                (int) $skill->job_id,
+                (int) $skill->learn_rank,
+            ]),
+            statModifiers: $modifiers,
+            appliedRound: $state->turnCount,
+            remainingRounds: $durationTurns,
+            sourceActionId: $sourceActionId,
+            sourceSkillId: (int) $skill->id,
+            removable: false,
+            strength: max(array_map(static fn (float $modifier): float => abs($modifier), $modifiers)),
+        ));
+
+        return ['duration_turns' => $durationTurns, 'changes' => $changes];
     }
 
     public function beginAction(BattleActor $actor, BattleState $state, int $sourceActionId): void
@@ -42,12 +193,20 @@ final class JobArtV2RoleEffectService
             return;
         }
 
+        // The shared meaning of these effects is "until the next own action".
+        // PvE/PvP/NPC already clear this in their route, while Champ did not;
+        // clear it at the common v2 lifecycle boundary so every route agrees.
+        $actor->damageReductionRate = 0;
         $physicalAttackReceived = $actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot();
+        $parrySucceeded = $actor->consumeParrySucceededSinceOwnActionSnapshot();
+        $damageMitigated = $actor->consumeDamageMitigatedSinceOwnActionSnapshot();
         $state->beginJobArtV2RoleAction($sourceActionId, [
             'actor_key' => $state->actorKey($actor),
             'source_action_id' => $sourceActionId,
             'physical_attack_received_since_own_action' => $physicalAttackReceived,
             'physical_attack_received_since_previous_own_action' => $physicalAttackReceived,
+            'parry_success_since_previous_own_action' => $parrySucceeded,
+            'damage_mitigated_since_previous_own_action' => $damageMitigated,
             'role_damage_multiplier' => 1.0,
             'prepared_effect_keys' => [],
             'conditional_multiplier_applied' => false,
@@ -69,6 +228,18 @@ final class JobArtV2RoleEffectService
             || $sourceActionId === null
             || ! $state->claimJobArtV2RoleEffect($actor, 'begin_job_art_cast', $sourceActionId)
         ) {
+            return;
+        }
+
+        if (! empty($state->jobArtV2RoleAction($sourceActionId)['ultimate_counterplay_lineage_suppressed'])) {
+            $state->updateJobArtV2RoleAction($sourceActionId, [
+                'source_skill_id' => (int) $skill->id,
+                'source_skill_name' => (string) $skill->name,
+                'role_damage_multiplier' => 1.0,
+                'prepared_effect_keys' => [],
+                'conditional_multiplier_applied' => false,
+            ]);
+
             return;
         }
 
@@ -114,10 +285,14 @@ final class JobArtV2RoleEffectService
         $roleContext = $state->jobArtV2RoleAction($sourceActionId);
         $conditionalApplied = false;
         $conditional = $metadata['conditional_damage_multiplier'] ?? null;
-        if (is_array($conditional)
-            && ($conditional['condition'] ?? null) === 'physical_attack_received_since_previous_own_action'
-            && (bool) ($roleContext['physical_attack_received_since_previous_own_action'] ?? false)
-        ) {
+        $target = $actor === $state->player ? $state->enemy : $state->player;
+        if (is_array($conditional) && $this->matchesConditionalDamage(
+            $actor,
+            $target,
+            $state,
+            $conditional,
+            $roleContext,
+        )) {
             $multiplier *= max(0.0, (float) ($conditional['multiplier'] ?? 1.0));
             $conditionalApplied = true;
         }
@@ -179,6 +354,13 @@ final class JobArtV2RoleEffectService
         Skill $sourceSkill,
         Skill $executionSkill,
     ): void {
+        if ($this->enabledFor($actor)) {
+            $this->balances()->applyToExistingExecution($executionSkill);
+        }
+
+        if (! empty($state->jobArtV2RoleAction()['ultimate_counterplay_lineage_suppressed'])) {
+            return;
+        }
         $this->progressionService->applyForExecution($actor, $target, $state, $sourceSkill, $executionSkill);
         $metadata = $this->portableMetadata($actor, $sourceSkill);
         if ($metadata === null) {
@@ -186,12 +368,24 @@ final class JobArtV2RoleEffectService
         }
 
         if ((bool) ($metadata['suppress_legacy_effect'] ?? false)) {
-            $template = $this->catalog->replacementTemplate($sourceSkill) ?? 'V2_ROLE_EFFECT_ONLY';
+            $template = is_string($metadata['replacement_template'] ?? null)
+                ? (string) $metadata['replacement_template']
+                : ($this->catalog->replacementTemplate($sourceSkill) ?? 'V2_ROLE_EFFECT_ONLY');
             $executionSkill->effect_template = $template;
             $executionSkill->damage_type = JobArtEffectCatalog::damageType($template);
             $this->clearSuppressedLegacySideEffects($executionSkill);
         }
 
+        $this->applyExecutionPower($actor, $sourceSkill, $executionSkill, $metadata);
+        $this->applyNormalAttackDamageType($actor, $executionSkill, $metadata);
+        $this->applyDamageStatRoute($executionSkill, $metadata);
+        $this->applyStructuredDebuffOverride($executionSkill, $metadata);
+        // Legacy role metadata still supplies routes and special mechanics,
+        // but the spreadsheet-backed crown balance owns the final base
+        // power/debuff values. Apply it before adaptive multipliers so those
+        // mechanics can still scale the canonical value (for example 王者の秘薬).
+        $this->balances()->reapplyCoreExecutionValues($executionSkill);
+        $this->applyConditionalTargetMultiplier($target, $executionSkill, $metadata);
         $this->applyRewardPolicy($actor, $state, $sourceSkill, $executionSkill, $metadata);
         $this->applyAdaptiveRoute($actor, $target, $state, $sourceSkill, $executionSkill, $metadata);
         $this->applyAdaptiveSustain($actor, $executionSkill, $metadata);
@@ -213,7 +407,11 @@ final class JobArtV2RoleEffectService
         Skill $skill,
         ?HitResult $hitResult,
     ): void {
+        if (! empty($state->jobArtV2RoleAction()['ultimate_counterplay_lineage_suppressed'])) {
+            return;
+        }
         $this->progressionService->completeJobArtCast($actor, $target, $state, $skill, $hitResult);
+        $this->fieldService->completeJobArtCast($actor, $state, $skill, $hitResult === null || $hitResult->landed());
         $metadata = $this->portableMetadata($actor, $skill);
         $sourceActionId = $state->currentSourceActionId();
         if ($metadata === null
@@ -225,12 +423,14 @@ final class JobArtV2RoleEffectService
 
         $positiveEffectRemoved = $this->removePositiveTimedEffect($target, $state, $metadata);
         $this->applyAppraisal($target, $state, $metadata);
-        $this->applySelfCost($actor, $state, $skill, $metadata);
+        $this->applySelfCost($actor, $state, $skill, $metadata, $hitResult);
         $this->applyCleanse($actor, $state, $skill, $metadata, $sourceActionId);
         $this->applyHeal($actor, $state, $skill, $metadata);
-        $this->applyGuard($actor, $state, $metadata);
+        $this->applyGuard($actor, $state, $skill, $metadata);
+        $this->applyUntilNextActionDamageReduction($actor, $state, $metadata);
         $this->applyTimedEffect($actor, $state, $skill, $metadata, $positiveEffectRemoved);
         $this->applyPreparedEffect($actor, $state, $skill, $metadata);
+        $this->applyCanonicalSelfBuff($actor, $state, $skill);
     }
 
     public function modifyJobArtDamage(
@@ -244,6 +444,9 @@ final class JobArtV2RoleEffectService
         }
 
         $context = $state->jobArtV2RoleAction();
+        if (! empty($context['ultimate_counterplay_lineage_suppressed'])) {
+            return max(0, $damage);
+        }
         if (($context['actor_key'] ?? null) !== $state->actorKey($actor)
             || (int) ($context['source_skill_id'] ?? 0) !== (int) $skill->id
         ) {
@@ -251,13 +454,40 @@ final class JobArtV2RoleEffectService
         }
 
         $multiplier = max(0.0, (float) ($context['role_damage_multiplier'] ?? 1.0));
+        $targetMultiplier = max(0.0, (float) ($skill->getAttribute('job_art_v2_target_damage_multiplier') ?? 1.0));
 
         return $this->progressionService->modifyJobArtDamage(
             $actor,
             $state,
             $skill,
-            max(0, (int) floor($damage * $multiplier)),
+            max(0, (int) floor(($damage * $multiplier * $targetMultiplier) + 1.0e-9)),
         );
+    }
+
+    /** @return array{attack: ?int, def: ?int, spr: ?int} */
+    public function damageStatOverrides(BattleActor $attacker, BattleActor $defender, Skill $skill): array
+    {
+        if (! $skill->isJobArt() || ! $this->enabledFor($attacker)) {
+            return ['attack' => null, 'def' => null, 'spr' => null];
+        }
+
+        $attackStat = $skill->getAttribute('job_art_v2_attack_stat');
+        $defenseStat = $skill->getAttribute('job_art_v2_defense_stat');
+        $attack = is_string($attackStat) ? $this->effectiveStat($attacker, $attackStat) : null;
+        $defense = is_string($defenseStat) ? $this->effectiveStat($defender, $defenseStat) : null;
+        $ignoreRate = min(
+            0.50,
+            max(0.0, (float) $skill->getAttribute('job_art_v2_defense_ignore_percent') / 100),
+        );
+        if ($defense !== null && $ignoreRate > 0.0) {
+            $defense = (int) floor($defense * (1 - $ignoreRate));
+        }
+
+        return match ($defenseStat) {
+            'def' => ['attack' => $attack, 'def' => $defense, 'spr' => $defense],
+            'spr' => ['attack' => $attack, 'def' => $defense, 'spr' => $defense],
+            default => ['attack' => $attack, 'def' => null, 'spr' => null],
+        };
     }
 
     public function criticalBonusPoints(BattleActor $actor, Skill $skill): float
@@ -274,11 +504,11 @@ final class JobArtV2RoleEffectService
     {
         $events = [];
         foreach ([$state->player, $state->enemy] as $actor) {
-            if (! $this->enabledFor($actor)) {
-                continue;
-            }
-
+            $actorUsesRoleEffects = $this->enabledFor($actor);
             foreach ($actor->jobArtV2TimedEffects() as $effect) {
+                if (! $actorUsesRoleEffects && ! str_starts_with($effect->key, 'master_stat_debuff:')) {
+                    continue;
+                }
                 if (! $effect->advanceAtRoundEnd($state->turnCount)) {
                     continue;
                 }
@@ -286,7 +516,12 @@ final class JobArtV2RoleEffectService
                 $expired = $effect->isExpired();
                 if ($expired) {
                     $actor->removeJobArtV2TimedEffect($effect->key);
-                    $state->addLog('<span class="text-slate-600 font-bold">'.e($actor->name).' の強化効果が切れた。</span>');
+                    $hasNegativeModifier = array_filter(
+                        $effect->statModifiers,
+                        static fn (float $modifier): bool => $modifier < 0.0,
+                    ) !== [];
+                    $effectLabel = $hasNegativeModifier ? '弱体効果' : '強化効果';
+                    $state->addLog('<span class="text-slate-600 font-bold">'.e($actor->name).' の'.$effectLabel.'が切れた。</span>');
                 }
                 $events[] = [
                     'actor_key' => $state->actorKey($actor),
@@ -298,6 +533,9 @@ final class JobArtV2RoleEffectService
             }
 
             foreach ($actor->jobArtV2PreparedEffects() as $effect) {
+                if (! $actorUsesRoleEffects) {
+                    continue;
+                }
                 if (! $effect->advanceAtRoundEnd($state->turnCount)) {
                     continue;
                 }
@@ -373,11 +611,186 @@ final class JobArtV2RoleEffectService
     /** @return array<string, mixed>|null */
     private function portableMetadata(BattleActor $actor, Skill $skill): ?array
     {
-        if (! $this->enabledFor($actor) || ! $this->catalog->isPortable($skill)) {
+        if (! $this->enabledFor($actor)) {
             return null;
         }
 
-        return $this->catalog->forArt($skill);
+        $resolution = $this->roles()->resolveActor($actor);
+        if ($resolution->active && $resolution->blockReasonFor($skill) !== null) {
+            return null;
+        }
+        // プレイヤー向けの主系譜／副系譜／出張区分は廃止済み。
+        // 習得してセットした戦技は、所属職に関係なくカードに記載した
+        // 効果を常にすべて実行する。portable は旧分類との互換情報として
+        // catalog に残すが、実行可否の判定には使用しない。
+        $roleMetadata = $this->catalog->forArt($skill);
+        // Spreadsheet-canonical self buffs are valid runtime effects even
+        // when the older role catalog had no entry for that exact art. An
+        // empty metadata scaffold lets completeJobArtCast apply the canonical
+        // timed effect without restoring any removed prototype side effect.
+        if ($roleMetadata === null && $this->balances()->hasSelfBuff($skill)) {
+            $roleMetadata = [];
+        }
+        if (! $resolution->active) {
+            return $roleMetadata;
+        }
+
+        $cDesignMetadata = ($this->cDesignEffectCatalog ?? app(JobArtV2CDesignEffectCatalog::class))
+            ->forArt($skill);
+        if ($roleMetadata === null) {
+            return $cDesignMetadata;
+        }
+        if ($cDesignMetadata === null) {
+            return $roleMetadata;
+        }
+
+        return array_replace_recursive($roleMetadata, $cDesignMetadata);
+    }
+
+    private function roles(): JobArtV2DeckRoleResolver
+    {
+        return $this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
+    }
+
+    private function balances(): JobArtV2CrownBalanceCatalog
+    {
+        return $this->crownBalanceCatalog ?? app(JobArtV2CrownBalanceCatalog::class);
+    }
+
+    /**
+     * @param array<string, mixed> $conditional
+     * @param array<string, mixed> $roleContext
+     */
+    private function matchesConditionalDamage(
+        BattleActor $actor,
+        BattleActor $target,
+        BattleState $state,
+        array $conditional,
+        array $roleContext,
+    ): bool {
+        return match ((string) ($conditional['condition'] ?? '')) {
+            'physical_attack_received_since_previous_own_action' => (bool) (
+                $roleContext['physical_attack_received_since_previous_own_action'] ?? false
+            ),
+            'parry_success_since_previous_own_action' => (bool) (
+                $roleContext['parry_success_since_previous_own_action'] ?? false
+            ),
+            'damage_mitigated_since_previous_own_action' => (bool) (
+                $roleContext['damage_mitigated_since_previous_own_action'] ?? false
+            ),
+            'actor_hp_ratio_at_most' => (float) (
+                $roleContext['progression_hp_rate_at_action_start']
+                    ?? ($actor->maxHp > 0 ? $actor->hp / $actor->maxHp : 0.0)
+            ) <= max(0.0, min(1.0, (float) ($conditional['maximum'] ?? 0.0))),
+            'target_hunting_mark_at_least' => $this->progressionService->huntingMarkCountFor(
+                $target,
+                $actor,
+            ) >= max(1, (int) ($conditional['minimum'] ?? 1)),
+            default => false,
+        };
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function applyNormalAttackDamageType(
+        BattleActor $actor,
+        Skill $executionSkill,
+        array $metadata,
+    ): void {
+        if (! (bool) ($metadata['use_normal_attack_damage_type'] ?? false)) {
+            return;
+        }
+
+        $template = $actor->usesMagForNormalAttack() ? 'MAGICAL_DAMAGE' : 'PHYSICAL_DAMAGE';
+        $executionSkill->effect_template = $template;
+        $executionSkill->damage_type = JobArtEffectCatalog::damageType($template);
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function applyExecutionPower(
+        BattleActor $actor,
+        Skill $sourceSkill,
+        Skill $executionSkill,
+        array $metadata,
+    ): void
+    {
+        $configured = $metadata['execution_power'] ?? null;
+        $basePower = is_numeric($configured)
+            ? max(0, (int) $configured)
+            : $this->catalog->executionPower($sourceSkill);
+        if ($basePower === null) {
+            return;
+        }
+
+        $power = max(0, $basePower);
+        $executionSkill->power = $power;
+        $executionSkill->power_multiplier = $power / 100;
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function applyDamageStatRoute(Skill $executionSkill, array $metadata): void
+    {
+        $route = $metadata['damage_stat_route'] ?? null;
+        if (! is_array($route)) {
+            return;
+        }
+
+        $category = (string) ($route['damage_category'] ?? '');
+        if (in_array($category, ['physical', 'magical'], true)) {
+            $template = $category === 'magical' ? 'MAGICAL_DAMAGE' : 'PHYSICAL_DAMAGE';
+            $executionSkill->effect_template = $template;
+            $executionSkill->damage_type = $category;
+        }
+        $executionSkill->setAttribute('job_art_v2_attack_stat', (string) ($route['attack_stat'] ?? ''));
+        $executionSkill->setAttribute('job_art_v2_defense_stat', (string) ($route['defense_stat'] ?? ''));
+        $executionSkill->setAttribute(
+            'job_art_v2_defense_ignore_percent',
+            max(0, min(50, (int) ($route['defense_ignore_percent'] ?? 0))),
+        );
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function applyStructuredDebuffOverride(Skill $executionSkill, array $metadata): void
+    {
+        $debuff = $metadata['structured_debuff'] ?? null;
+        if (! is_array($debuff)) {
+            return;
+        }
+
+        foreach ([
+            'enemy_atk_down_percent',
+            'enemy_mag_down_percent',
+            'enemy_def_down_percent',
+            'enemy_spr_down_percent',
+            'enemy_spd_down_percent',
+        ] as $field) {
+            $executionSkill->setAttribute($field, max(0, (int) ($debuff[$field] ?? 0)));
+        }
+        $executionSkill->setAttribute('duration_turns', max(1, (int) ($debuff['duration_turns'] ?? 1)));
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function applyConditionalTargetMultiplier(
+        BattleActor $target,
+        Skill $executionSkill,
+        array $metadata,
+    ): void {
+        $conditional = $metadata['conditional_target_multiplier'] ?? null;
+        if (! is_array($conditional)) {
+            return;
+        }
+
+        $speciesKeys = array_values(array_filter(
+            (array) ($conditional['species_keys'] ?? []),
+            static fn (mixed $key): bool => is_string($key) && $key !== '',
+        ));
+        $matchesSpecies = array_intersect($speciesKeys, $target->speciesKeys) !== [];
+        $matchesMagicalType = (bool) ($conditional['include_magical_normal_attack'] ?? false)
+            && $target->usesMagForNormalAttack();
+        $multiplier = $matchesSpecies || $matchesMagicalType
+            ? max(1.0, (float) ($conditional['multiplier'] ?? 1.0))
+            : 1.0;
+
+        $executionSkill->setAttribute('job_art_v2_target_damage_multiplier', $multiplier);
     }
 
     /** @param array<string, mixed> $metadata */
@@ -476,7 +889,7 @@ final class JobArtV2RoleEffectService
             return;
         }
 
-        $rate = max(0.0, (float) ($actor->jobArtRates[(int) $sourceSkill->id] ?? 1.0));
+        $rate = 1.0;
         $base = max(1, (int) floor(max(1, (int) ($sourceSkill->power ?: 100)) / 20));
         $fallback = max(1, (int) floor($base * $rate));
         $changed = false;
@@ -573,6 +986,10 @@ final class JobArtV2RoleEffectService
             return false;
         }
 
+        if ($this->progressionService->preventTimedBuffReduction($target, $state)) {
+            return false;
+        }
+
         $target->removeJobArtV2TimedEffect($removed->key);
         $state->addLog('<span class="text-amber-700 font-bold">'.e($target->name).' の強化効果を1つ解除した！</span>');
 
@@ -580,10 +997,19 @@ final class JobArtV2RoleEffectService
     }
 
     /** @param array<string, mixed> $metadata */
-    private function applySelfCost(BattleActor $actor, BattleState $state, Skill $skill, array $metadata): void
+    private function applySelfCost(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+        array $metadata,
+        ?HitResult $hitResult,
+    ): void
     {
         $cost = $metadata['self_cost'] ?? null;
-        if (! is_array($cost) || ($cost['type'] ?? null) !== 'max_hp_rate') {
+        if (! is_array($cost)
+            || ($cost['type'] ?? null) !== 'max_hp_rate'
+            || ((bool) ($cost['requires_landed'] ?? false) && ! $hitResult?->landed())
+        ) {
             return;
         }
 
@@ -596,7 +1022,9 @@ final class JobArtV2RoleEffectService
         }
 
         $actor->takeDamage($actual);
-        $this->resourceService->recordSelfDamage($actor, $state, $actual);
+        if ((bool) ($cost['record_resource_event'] ?? true)) {
+            $this->resourceService->recordSelfDamage($actor, $state, $actual);
+        }
         $state->addLog(sprintf(
             '<span class="text-purple-600 font-bold">%s は %d のHPを代償にした！</span>',
             e($actor->name),
@@ -641,9 +1069,17 @@ final class JobArtV2RoleEffectService
 
         $hpDefinition = is_array($heal['hp'] ?? null) ? $heal['hp'] : $heal;
         $spDefinition = is_array($heal['sp'] ?? null) ? $heal['sp'] : null;
-        $hp = $this->hpHealAmount($actor, $state, $skill, $hpDefinition);
+        $conversionRefund = (bool) ($hpDefinition['refund_conversion_hp_loss'] ?? false)
+            ? $this->conversionHpRefundAmount($actor, $state)
+            : null;
+        $hp = $conversionRefund ?? $this->hpHealAmount($actor, $state, $skill, $hpDefinition);
         if ($hp > 0) {
-            $actual = $actor->healHp($this->fieldService->modifyHpHeal($actor, $state, $hp));
+            // Conversion refunds restore exactly the HP paid by this action.
+            // They are not ordinary healing, so field healing bonuses must not
+            // turn the intended ±0 exchange into a net HP gain.
+            $actual = $conversionRefund !== null
+                ? $actor->healHp($hp)
+                : $this->fieldService->applyHpHeal($actor, $state, $hp);
             $state->addLog('<span class="text-emerald-600 font-bold">HPが '.e((string) $actual).' 回復した！</span>');
         }
 
@@ -666,7 +1102,9 @@ final class JobArtV2RoleEffectService
             'existing_spr' => max(1, (int) floor(
                 $actor->effectiveSpr()
                 * (($state->jobArtV2RoleAction()['execution_power'] ?? $this->fallbackExecutionPower($actor, $skill)) / 100)
-                * max(0.0, (float) ($definition['multiplier'] ?? 1.0)),
+                * ($this->balances()->healSprPercent($skill) !== null
+                    ? 1.0
+                    : max(0.0, (float) ($definition['multiplier'] ?? 1.0))),
             )),
             'max_hp_rate' => max(1, (int) floor(
                 $actor->maxHp * max(0.0, (float) ($definition['rate'] ?? 0.0)),
@@ -675,17 +1113,60 @@ final class JobArtV2RoleEffectService
         };
     }
 
+    private function conversionHpRefundAmount(BattleActor $actor, BattleState $state): ?int
+    {
+        $sourceActionId = $state->currentSourceActionId();
+        if ($sourceActionId === null) {
+            return null;
+        }
+
+        $actorKey = $state->actorKey($actor);
+        foreach (array_reverse($state->conversionResults()) as $result) {
+            if ($result->sourceActionId === $sourceActionId
+                && $result->actorKey === $actorKey
+                && $result->success
+                && $result->actualHpLoss > 0
+            ) {
+                return $result->actualHpLoss;
+            }
+        }
+
+        return null;
+    }
+
     /** @param array<string, mixed> $metadata */
-    private function applyGuard(BattleActor $actor, BattleState $state, array $metadata): void
+    private function applyGuard(BattleActor $actor, BattleState $state, Skill $skill, array $metadata): void
     {
         $guard = $metadata['guard'] ?? null;
         if (is_array($guard) && (int) ($guard['charges'] ?? 0) > 0) {
+            $canonicalPercent = $this->balances()->reductionPercent($skill);
             $this->defenseService->applyGuard(
                 $actor,
                 $state,
-                max(0.0, min(1.0, (float) ($guard['damage_reduction_rate'] ?? 0.0))),
+                $canonicalPercent !== null
+                    ? $canonicalPercent / 100
+                    : max(0.0, min(1.0, (float) ($guard['damage_reduction_rate'] ?? 0.0))),
             );
         }
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function applyUntilNextActionDamageReduction(
+        BattleActor $actor,
+        BattleState $state,
+        array $metadata,
+    ): void {
+        $percent = max(0, min(100, (int) ($metadata['next_action_damage_reduction_percent'] ?? 0)));
+        if ($percent <= 0) {
+            return;
+        }
+
+        $actor->damageReductionRate = max($actor->damageReductionRate, $percent);
+        $state->addLog(sprintf(
+            '<span class="text-blue-700 font-bold">%s は次の自分の行動開始まで、受けるダメージを %d%% 軽減する！</span>',
+            e($actor->name),
+            $percent,
+        ));
     }
 
     /** @param array<string, mixed> $metadata */
@@ -724,11 +1205,21 @@ final class JobArtV2RoleEffectService
         array $metadata,
         bool $positiveEffectRemoved,
     ): void {
+        if ($this->balances()->hasSelfBuff($skill)) {
+            return;
+        }
+
         $effect = $metadata['timed_effect'] ?? null;
         if (! is_array($effect)
             || (($effect['requires'] ?? null) === 'positive_effect_removed' && ! $positiveEffectRemoved)
         ) {
             return;
+        }
+        if (($effect['requires'] ?? null) === 'owned_primary_field_active') {
+            $field = $state->primaryField();
+            if ($field === null || $field->ownerActorKey !== $state->actorKey($actor)) {
+                return;
+            }
         }
 
         $modifiers = $this->resolveModifiers($actor, $effect);
@@ -752,6 +1243,26 @@ final class JobArtV2RoleEffectService
             strength: max(0.0, (float) ($effect['strength'] ?? 0.0)),
         ));
         $state->addLog('<span class="text-indigo-700 font-bold">'.e($actor->name).' は一時強化を得た！（'.max(1, (int) ($effect['rounds'] ?? 1)).'ラウンド）</span>');
+    }
+
+    private function applyCanonicalSelfBuff(BattleActor $actor, BattleState $state, Skill $skill): void
+    {
+        $modifiers = $this->balances()->selfBuffModifiers($skill, $actor);
+        $sourceActionId = $state->currentSourceActionId();
+        if ($modifiers === [] || $sourceActionId === null) {
+            return;
+        }
+
+        $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
+            key: 'canonical_self_buff:'.(int) $skill->job_id.':'.(int) $skill->learn_rank,
+            statModifiers: $modifiers,
+            appliedRound: $state->turnCount,
+            remainingRounds: $this->balances()->durationTurns($skill),
+            sourceActionId: $sourceActionId,
+            sourceSkillId: (int) $skill->id,
+            removable: true,
+            strength: max(array_map('abs', $modifiers)),
+        ));
     }
 
     /** @param array<string, mixed> $effect @return array<string, float> */
@@ -874,9 +1385,7 @@ final class JobArtV2RoleEffectService
 
     private function fallbackExecutionPower(BattleActor $actor, Skill $skill): int
     {
-        $rate = max(0.0, (float) ($actor->jobArtRates[(int) $skill->id] ?? 1.0));
-
-        return max(1, (int) round(max(1, (int) ($skill->power ?: 100)) * $rate));
+        return max(1, (int) ($skill->power ?: 100));
     }
 
     /** @param array<string, mixed> $heal */

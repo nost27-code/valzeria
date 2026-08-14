@@ -11,8 +11,14 @@ use App\Models\User;
 use App\Services\JobArtPresetLimitProvider;
 use App\Services\JobArtPresetService;
 use App\Services\JobArtService;
+use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtV2FeatureGate;
+use App\Services\JobArtV2LoadoutPresenter;
+use App\Services\JobArtV2OfficialPresetCatalog;
 use App\Services\JobArtV2PrototypeCatalog;
+use App\Services\JobArtV2ResourceCatalog;
+use App\Services\JobArtV2SlotConditionCatalog;
+use App\Services\JobArtV2StarterPresetService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
@@ -69,31 +75,35 @@ class JobArtPresetTest extends TestCase
         });
         $this->presetMigration()->up();
         $this->conditionMigration()->up();
+        $this->contextSpPolicyMigration()->up();
 
         DB::table('job_classes')->insert([
+            ['id' => 6, 'name' => '魔法使い'],
             ['id' => 24, 'name' => '司祭'],
             ['id' => 53, 'name' => '星詠み賢者'],
             ['id' => 62, 'name' => '竜冠槍将'],
             ['id' => 85, 'name' => '星律神官'],
             ['id' => 20, 'name' => '継承職'],
-            ['id' => 90, 'name' => '対象外職'],
+            ['id' => 100, 'name' => 'マスタ外職'],
         ]);
         DB::table('characters')->insert([
             ['id' => 1, 'user_id' => 1, 'current_job_id' => 24],
             ['id' => 2, 'user_id' => 1, 'current_job_id' => 24],
             ['id' => 3, 'user_id' => 2, 'current_job_id' => 24],
-            ['id' => 4, 'user_id' => 1, 'current_job_id' => 90],
+            ['id' => 4, 'user_id' => 1, 'current_job_id' => 100],
         ]);
         DB::table('skills')->insert([
             $this->skillRow(101, 24, 1, 5),
             $this->skillRow(105, 24, 5, 5),
             $this->skillRow(109, 24, 9, 5),
+            $this->skillRow(601, 6, 1, 1),
+            $this->skillRow(605, 6, 5, 2),
             $this->skillRow(201, 20, 1, 5),
             $this->skillRow(202, 20, 5, 5),
             $this->skillRow(203, 20, 9, 1),
             $this->skillRow(204, 20, 1, 1),
             $this->skillRow(205, 20, 5, 2),
-            $this->skillRow(901, 90, 1, 1),
+            $this->skillRow(1001, 100, 1, 1),
         ]);
 
         config([
@@ -134,10 +144,10 @@ class JobArtPresetTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_feature_gate_is_fail_closed_for_flag_and_unsupported_job(): void
+    public function test_feature_gate_is_fail_closed_when_the_flag_is_off(): void
     {
-        $config = require config_path('battle.php');
-        $this->assertFalse($config['job_art_v2']['presets']);
+        $configSource = file_get_contents(config_path('battle.php'));
+        $this->assertStringContainsString("env('BATTLE_JOB_ART_PRESETS', false)", $configSource);
         $this->assertTrue($this->presetService->enabledFor($this->character));
         config(['battle.job_art_v2.presets' => false]);
         $this->assertFalse($this->presetService->enabledFor($this->character));
@@ -145,9 +155,9 @@ class JobArtPresetTest extends TestCase
         $this->presetService->createFromCurrentLoadout($this->character, '拒否', 'normal');
     }
 
-    public function test_loadout_flag_and_unsupported_job_are_also_fail_closed(): void
+    public function test_all_master_jobs_are_enabled_and_non_master_ids_remain_rejected(): void
     {
-        foreach ([24, 53, 60, 61, 62, 64, 65, 66, 67, 68, 69, 85] as $jobId) {
+        foreach ([...range(1, 38), ...range(44, 99)] as $jobId) {
             $supported = new Character(['current_job_id' => $jobId]);
             $this->assertTrue($this->presetService->enabledFor($supported));
         }
@@ -162,14 +172,23 @@ class JobArtPresetTest extends TestCase
 
     public function test_saves_raw_five_slots_order_policies_and_source_for_all_contexts(): void
     {
-        foreach (['normal', 'boss', 'pvp'] as $context) {
+        foreach (['normal' => 'conserve', 'boss' => 'normal', 'pvp' => 'aggressive'] as $context => $spPolicy) {
+            $this->jobArtService->saveContextSpPolicy($this->character, $context, $spPolicy);
             $this->insertLoadout($this->character, $context, [101, 105, 109, 201, 202], ['aggressive', 'normal', 'conserve', 'normal', 'aggressive']);
             $preset = $this->presetService->createFromCurrentLoadout($this->character, "{$context}構成", $context);
 
             $this->assertSame($context, $preset->source_context);
+            $this->assertSame($spPolicy, $preset->sp_policy);
             $this->assertSame([101, 105, 109, 201, 202], $preset->slots->pluck('skill_id')->all());
             $this->assertSame([1, 2, 3, 4, 5], $preset->slots->pluck('slot_no')->all());
             $this->assertSame(['aggressive', 'normal', 'conserve', 'normal', 'aggressive'], $preset->slots->pluck('activation_policy')->all());
+
+            $display = collect($this->presetService->presetsForDisplay($this->character, $context))
+                ->firstWhere('id', $preset->id);
+            $this->assertSame([1, 2, 3, 4, 5], array_column($display['arts'], 'slot_no'));
+            $this->assertSame(['試験戦技101', '試験戦技105', '試験戦技109', '試験戦技201', '試験戦技202'], array_column($display['arts'], 'name'));
+            $this->assertSame(['始動', '連携', '奥義', '始動', '連携'], array_column($display['arts'], 'role_label'));
+            $this->assertSame($spPolicy, $display['sp_policy']);
         }
 
         $this->assertDatabaseCount('job_art_presets', 3);
@@ -204,6 +223,35 @@ class JobArtPresetTest extends TestCase
         $this->assertDatabaseCount('job_art_presets', 3);
     }
 
+    public function test_overwrite_replaces_saved_slots_with_current_context_without_using_another_slot(): void
+    {
+        $this->insertLoadout(
+            $this->character,
+            'normal',
+            [101, 105],
+            ['aggressive', 'conserve'],
+            ['self_hp_le_50', 'target_hp_le_30'],
+        );
+        $preset = $this->presetService->createFromCurrentLoadout($this->character, '上書き枠', 'normal');
+
+        $this->insertLoadout(
+            $this->character,
+            'boss',
+            [109, 204, 205],
+            ['normal', 'aggressive', 'conserve'],
+            ['always', 'main_resource_lt_4', 'target_def_gt_spr'],
+        );
+        $overwritten = $this->presetService->overwriteFromCurrentLoadout($this->character, $preset->id, 'boss');
+
+        $this->assertSame($preset->id, $overwritten->id);
+        $this->assertSame('上書き枠', $overwritten->name);
+        $this->assertSame('boss', $overwritten->source_context);
+        $this->assertSame([109, 204, 205], $overwritten->slots->pluck('skill_id')->all());
+        $this->assertSame(['normal', 'aggressive', 'conserve'], $overwritten->slots->pluck('activation_policy')->all());
+        $this->assertSame(['always', 'main_resource_lt_4', 'target_def_gt_spr'], $overwritten->slots->pluck('condition_key')->all());
+        $this->assertDatabaseCount('job_art_presets', 1);
+    }
+
     public function test_name_validation_and_duplicate_names(): void
     {
         $this->insertLoadout($this->character, 'normal', [101]);
@@ -223,6 +271,7 @@ class JobArtPresetTest extends TestCase
 
     public function test_applies_same_preset_to_normal_boss_and_pvp_with_all_slots_and_policies(): void
     {
+        $this->jobArtService->saveContextSpPolicy($this->character, 'normal', 'conserve');
         $this->insertLoadout($this->character, 'normal', [101, 105, 109], ['aggressive', 'normal', 'conserve']);
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '共通構成', 'normal');
 
@@ -231,6 +280,7 @@ class JobArtPresetTest extends TestCase
             $this->presetService->apply($this->character, $preset->id, $target);
             $this->assertSame([101, 105, 109], $this->storedSkillIds($this->character, $target));
             $this->assertSame(['aggressive', 'normal', 'conserve'], $this->storedPolicies($this->character, $target));
+            $this->assertSame('conserve', $this->jobArtService->contextSpPolicy($this->character, $target));
         }
     }
 
@@ -302,10 +352,10 @@ class JobArtPresetTest extends TestCase
         $this->assertSame($conditions, $this->storedConditions($this->character, 'boss'));
     }
 
-    public function test_cost_and_restriction_are_recalculated_and_failed_apply_is_atomic(): void
+    public function test_cost_is_recalculated_and_legacy_limit_groups_do_not_restrict_v2(): void
     {
         $this->insertLoadout($this->character, 'normal', [101]);
-        $costPreset = $this->presetWithSlots('Cost超過', [201, 202]);
+        $costPreset = $this->presetWithSlots('Cost超過', [109, 203, 202, 205]);
         $this->replaceLoadout($this->character, 'normal', [101]);
         $this->assertValidationFailureKeepsLoadout(fn () => $this->presetService->apply($this->character, $costPreset->id, 'normal'), [101]);
         $costDisplay = collect($this->presetService->presetsForDisplay($this->character))->firstWhere('id', $costPreset->id);
@@ -314,7 +364,8 @@ class JobArtPresetTest extends TestCase
 
         DB::table('skills')->whereIn('id', [101, 201])->update(['limit_group' => 'HEAL']);
         $restrictionPreset = $this->presetWithSlots('制限違反', [101, 201]);
-        $this->assertValidationFailureKeepsLoadout(fn () => $this->presetService->apply($this->character, $restrictionPreset->id, 'normal'), [101]);
+        $this->presetService->apply($this->character, $restrictionPreset->id, 'normal');
+        $this->assertSame([101, 201], $this->storedSkillIds($this->character, 'normal'));
     }
 
     public function test_unlearned_art_is_retained_as_invalid_and_does_not_change_current_loadout(): void
@@ -382,6 +433,7 @@ class JobArtPresetTest extends TestCase
         srand(9173);
         $preset = $this->presetService->createFromCurrentLoadout($this->character, '乱数不変', 'normal');
         $this->presetService->rename($this->character, $preset->id, '乱数不変2');
+        $this->presetService->overwriteFromCurrentLoadout($this->character, $preset->id, 'normal');
         $this->presetService->apply($this->character, $preset->id, 'boss');
         $this->presetService->delete($this->character, $preset->id);
         $this->assertSame($expected, rand());
@@ -394,7 +446,9 @@ class JobArtPresetTest extends TestCase
             'jobArtPresetLimit' => 3,
         ])->render();
         $this->assertStringContainsString('0 / 3', $html);
-        $this->assertStringContainsString('現在の構成を保存', $html);
+        $this->assertStringContainsString('マイプリセットに登録する', $html);
+        $this->assertStringContainsString('data-job-art-personal-preset-modal', $html);
+        $this->assertStringContainsString('現在の構成を新しく登録', $html);
 
         $html = view('job-arts.partials.presets', [
             'jobArtPresets' => [[
@@ -402,6 +456,9 @@ class JobArtPresetTest extends TestCase
                 'name' => '<script>alert(1)</script>',
                 'source_context' => 'normal',
                 'slot_count' => 3,
+                'arts' => [
+                    ['slot_no' => 1, 'name' => '<b>試験戦技</b>', 'role_label' => '始動', 'condition_key' => 'always', 'condition_label' => '条件なし'],
+                ],
                 'cost' => 6,
                 'can_apply' => true,
                 'unavailable_reason' => null,
@@ -415,7 +472,35 @@ class JobArtPresetTest extends TestCase
         ])->render();
         $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
         $this->assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
+        $this->assertStringContainsString('このプリセットを呼び出す', $html);
+        $this->assertStringContainsString('現在の構成で上書き保存', $html);
+        $this->assertStringContainsString('data-job-art-personal-preset-arts', $html);
+        $this->assertStringContainsString('登録中の戦技（1枠）', $html);
+        $this->assertStringNotContainsString('<b>試験戦技</b>', $html);
+        $this->assertStringContainsString('&lt;b&gt;試験戦技&lt;/b&gt;', $html);
+        $this->assertStringContainsString(route('job-arts.presets.overwrite', 1), $html);
         $this->assertStringNotContainsString('自動適用', $html);
+
+        $fullHtml = view('job-arts.partials.presets', [
+            'jobArtPresets' => array_fill(0, 3, [
+                'id' => 1,
+                'name' => '保存済み',
+                'source_context' => 'normal',
+                'slot_count' => 5,
+                'cost' => 9,
+                'can_apply' => true,
+                'unavailable_reason' => null,
+                'application_statuses' => [
+                    'normal' => ['can_apply' => true, 'reason' => null],
+                    'boss' => ['can_apply' => true, 'reason' => null],
+                    'pvp' => ['can_apply' => true, 'reason' => null],
+                ],
+            ]),
+            'jobArtPresetLimit' => 3,
+        ])->render();
+        $this->assertStringContainsString('3 / 3', $fullHtml);
+        $this->assertStringContainsString('3件すべて登録済み', $fullHtml);
+        $this->assertStringNotContainsString('data-job-art-personal-preset-create', $fullHtml);
 
         $page = file_get_contents(resource_path('views/job-arts/index.blade.php'));
         $this->assertStringContainsString('@if($jobArtPresetUiEnabled ?? false)', $page);
@@ -469,6 +554,106 @@ class JobArtPresetTest extends TestCase
         $this->post('/_test/job-arts/presets', ['name' => '拒否', 'slot_context' => 'normal'])->assertNotFound();
     }
 
+    public function test_official_starter_route_applies_to_selected_context_without_creating_personal_preset(): void
+    {
+        config([
+            'app.key' => 'base64:' . base64_encode(str_repeat('a', 32)),
+            'battle.job_art_v2.loadout_v2' => true,
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+            'battle.job_art_v2.c_design_prototype' => true,
+        ]);
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->forceFill(['id' => 1, 'role' => 'player']);
+        $user->exists = true;
+        $user->shouldReceive('currentCharacter')->once()->andReturn($this->character);
+        $this->actingAs($user);
+
+        DB::table('job_classes')->insert([
+            ['id' => 29, 'name' => '大賢者'],
+            ['id' => 46, 'name' => '詩聖'],
+        ]);
+        DB::table('skills')->insert([
+            $this->skillRow(2901, 29, 1, 1),
+            $this->skillRow(2905, 29, 5, 2),
+            $this->skillRow(4605, 46, 5, 2),
+            $this->skillRow(2909, 29, 9, 3),
+        ]);
+        $officialKeys = ['29:1' => 2901, '29:5' => 2905, '6:1' => 601, '46:5' => 4605, '29:9' => 2909];
+        $starterJobArtService = new class($officialKeys) extends JobArtService
+        {
+            /** @param array<string, int> $officialKeys */
+            public function __construct(private readonly array $officialKeys)
+            {
+                parent::__construct();
+            }
+
+            public function availableArts(Character $character, string $context = 'pve'): Collection
+            {
+                return Skill::query()
+                    ->with('jobClass')
+                    ->whereIn('id', array_values($this->officialKeys))
+                    ->get()
+                    ->each(function (Skill $skill) use ($character): void {
+                        $skill->setAttribute('job_art_origin', (int) $skill->job_id === (int) $character->current_job_id ? 'current' : 'inherited');
+                        $skill->setAttribute('job_art_effective_cost', match ((int) $skill->learn_rank) { 1 => 1, 5 => 2, 9 => 3 });
+                    });
+            }
+
+            public function validateSlotConfiguration(Character $character, array $slotSkillIds, string $slotContext): void
+            {
+            }
+
+            public function saveSlots(
+                Character $character,
+                array $slotSkillIds,
+                string $slotContext = 'normal',
+                string $availabilityContext = 'pve',
+                array $slotPolicies = [],
+                ?array $slotConditions = null,
+            ): void {
+                $character->jobArtSlots()->where('battle_context', $slotContext)->delete();
+                foreach ($slotSkillIds as $slotNo => $skillId) {
+                    CharacterJobArtSlot::create([
+                        'character_id' => $character->id,
+                        'battle_context' => $slotContext,
+                        'slot_no' => $slotNo,
+                        'skill_id' => $skillId,
+                        'activation_policy' => $slotPolicies[$slotNo] ?? 'normal',
+                        'condition_key' => $slotConditions[$slotNo] ?? 'always',
+                    ]);
+                }
+            }
+        };
+        $catalog = app(JobArtV2PrototypeCatalog::class);
+        $starter = new JobArtV2StarterPresetService(
+            $starterJobArtService,
+            new JobArtV2FeatureGate($catalog),
+            $catalog,
+            new JobArtV2ResourceCatalog($catalog),
+            app(JobArtV2LoadoutPresenter::class),
+            app(JobArtLineageCatalog::class),
+            app(JobArtV2OfficialPresetCatalog::class),
+            app(JobArtV2SlotConditionCatalog::class),
+        );
+        $this->app->instance(JobArtV2StarterPresetService::class, $starter);
+        $this->app['router']->post('/_test/job-arts/starter-presets/{style}/apply', [JobArtPresetController::class, 'applyStarter'])->middleware('web');
+
+        $this->post('/_test/job-arts/starter-presets/tactical/apply', [
+            'lineage' => 'field',
+            'slot_context' => 'boss',
+            'variant' => 'advanced',
+        ])
+            ->assertRedirect();
+
+        $this->assertSame([2901, 2905, 601, 4605, 2909], $this->storedSkillIds($this->character, 'boss'));
+        $this->assertSame(['normal', 'normal', 'normal', 'normal', 'normal'], $this->storedPolicies($this->character, 'boss'));
+        $this->assertSame(['always', 'always', 'always', 'always', 'always'], $this->storedConditions($this->character, 'boss'));
+        $this->assertDatabaseCount('job_art_presets', 0);
+    }
+
     public function test_direct_routes_cannot_apply_update_or_delete_another_characters_preset(): void
     {
         config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
@@ -478,15 +663,17 @@ class JobArtPresetTest extends TestCase
         $user = Mockery::mock(User::class)->makePartial();
         $user->forceFill(['id' => 1, 'role' => 'player']);
         $user->exists = true;
-        $user->shouldReceive('currentCharacter')->times(3)->andReturn($intruder);
+        $user->shouldReceive('currentCharacter')->times(4)->andReturn($intruder);
         $this->actingAs($user);
         $this->app->instance(JobArtPresetService::class, $this->presetService);
 
         $this->app['router']->post('/_test/presets/{preset}/apply', [JobArtPresetController::class, 'apply'])->middleware('web');
+        $this->app['router']->post('/_test/presets/{preset}/overwrite', [JobArtPresetController::class, 'overwrite'])->middleware('web');
         $this->app['router']->patch('/_test/presets/{preset}', [JobArtPresetController::class, 'update'])->middleware('web');
         $this->app['router']->delete('/_test/presets/{preset}', [JobArtPresetController::class, 'destroy'])->middleware('web');
 
         $this->post("/_test/presets/{$preset->id}/apply", ['slot_context' => 'normal'])->assertNotFound();
+        $this->post("/_test/presets/{$preset->id}/overwrite", ['slot_context' => 'normal'])->assertNotFound();
         $this->patch("/_test/presets/{$preset->id}", ['name' => '侵入'])->assertNotFound();
         $this->delete("/_test/presets/{$preset->id}")->assertNotFound();
         $this->assertDatabaseHas('job_art_presets', ['id' => $preset->id, 'name' => '所有者']);
@@ -578,10 +765,15 @@ class JobArtPresetTest extends TestCase
         return require database_path('migrations/2026_08_09_120000_add_condition_key_to_job_art_slots.php');
     }
 
+    private function contextSpPolicyMigration(): object
+    {
+        return require database_path('migrations/2026_08_13_120000_add_job_art_context_sp_policies.php');
+    }
+
     private function dropTables(): void
     {
         Schema::disableForeignKeyConstraints();
-        foreach (['job_art_preset_slots', 'job_art_presets', 'character_job_art_slots', 'skills', 'job_classes', 'characters'] as $table) {
+        foreach (['job_art_preset_slots', 'job_art_presets', 'character_job_art_context_settings', 'character_job_art_slots', 'skills', 'job_classes', 'characters'] as $table) {
             Schema::dropIfExists($table);
         }
         Schema::enableForeignKeyConstraints();

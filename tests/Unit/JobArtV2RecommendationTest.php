@@ -43,8 +43,8 @@ class JobArtV2RecommendationTest extends TestCase
             $this->assertSame(['決着型', '循環型', '対策型'], array_column($styles, 'name'));
             $this->assertStringContainsString($resourceName, $styles[0]['priority_note']);
             $this->assertStringContainsString($resourceName, $styles[1]['priority_note']);
-            $this->assertSame(['始動', '展開', '奥義'], array_column($styles[0]['steps'], 'role_label'));
-            $this->assertSame(['展開', '始動', '奥義'], array_column($styles[1]['steps'], 'role_label'));
+            $this->assertSame(['始動', '連携', '奥義'], array_column($styles[0]['steps'], 'role_label'));
+            $this->assertSame(['連携', '始動', '奥義'], array_column($styles[1]['steps'], 'role_label'));
             $this->assertSame('条件戦技', $styles[2]['steps'][0]['role_label']);
             $this->assertNull($styles[2]['steps'][0]['art_name']);
         }
@@ -53,7 +53,7 @@ class JobArtV2RecommendationTest extends TestCase
         $this->assertStringContainsString('通常攻撃や現在職技で指揮点を貯め', $command[0]['description']);
         $this->assertStringContainsString('通常攻撃や現在職技で指揮点を補充', $command[1]['description']);
         $this->assertSame(['通常攻撃／現在職技', '奥義'], array_column($command[0]['steps'], 'role_label'));
-        $this->assertSame(['展開', '通常攻撃／現在職技', '奥義'], array_column($command[1]['steps'], 'role_label'));
+        $this->assertSame(['連携', '通常攻撃／現在職技', '奥義'], array_column($command[1]['steps'], 'role_label'));
     }
 
     public function test_finisher_cycle_and_counter_copy_matches_the_measured_priority_behavior(): void
@@ -63,13 +63,16 @@ class JobArtV2RecommendationTest extends TestCase
         $copy = json_encode($styles, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
         $this->assertSame('始動戦技を重ねてリソースを温存し、強力な奥義を狙う戦型です。', $styles[0]['description']);
-        $this->assertStringContainsString('展開戦技は温存されやすい', $copy);
+        $this->assertStringContainsString('連携戦技は温存されやすい', $copy);
         $this->assertStringContainsString('条件成立時は奥義が優先', $styles[0]['priority_note']);
-        $this->assertStringNotContainsString('始動→展開→奥義', $copy);
+        $this->assertStringNotContainsString('始動→連携→奥義', $copy);
 
-        $this->assertSame('リソースを展開戦技へ積極的に使い、Rank5を繰り返して戦う戦型です。', $styles[1]['description']);
-        $this->assertStringContainsString('星印4pt以上ある時は展開を先に使用', $styles[1]['priority_note']);
-        $this->assertStringContainsString('Rank9は狙いにくい', $copy);
+        $this->assertSame('リソースを連携戦技へ積極的に使い、連携戦技を繰り返して戦う戦型です。', $styles[1]['description']);
+        $this->assertStringContainsString('星印4pt以上ある時は連携を先に使用', $styles[1]['priority_note']);
+        $this->assertStringContainsString('奥義は狙いにくい', $copy);
+        $this->assertStringNotContainsString('Rank1', $copy);
+        $this->assertStringNotContainsString('Rank5', $copy);
+        $this->assertStringNotContainsString('Rank9', $copy);
 
         $this->assertSame('条件付き継承戦技を始動戦技より前に置き、必要な場面だけ割り込ませる戦型です。', $styles[2]['description']);
         $this->assertStringContainsString('条件が成立した時だけ前方の継承戦技が先', $styles[2]['priority_note']);
@@ -92,9 +95,9 @@ class JobArtV2RecommendationTest extends TestCase
             json_encode($priest, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
         );
         $this->assertStringContainsString('星光の場を延長', $sage[1]['job_note']);
-        $this->assertStringContainsString('50%DEF貫通', $lancer[0]['job_note']);
-        $this->assertStringContainsString('35%DEF貫通', $lancer[1]['job_note']);
-        $this->assertStringContainsString('現在の場を2ラウンド固定', $starPriest[1]['job_note']);
+        $this->assertStringContainsString('物理防御50%貫通', $lancer[0]['job_note']);
+        $this->assertStringContainsString('物理防御35%貫通', $lancer[1]['job_note']);
+        $this->assertStringContainsString('現在の場を2ターン固定', $starPriest[1]['job_note']);
         $this->assertStringContainsString('旋律の副場', $starPriest[0]['job_note']);
     }
 
@@ -102,7 +105,7 @@ class JobArtV2RecommendationTest extends TestCase
     {
         $presenter = app(JobArtV2LoadoutPresenter::class);
 
-        $this->assertSame([], $presenter->recommendationsForCurrentJob(90, $this->trustedChain(90)));
+        $this->assertSame([], $presenter->recommendationsForCurrentJob(39, $this->trustedChain(39)));
 
         config(['battle.job_art_v2.loadout_v2' => false]);
         $this->assertSame([], $presenter->recommendationsForCurrentJob(24, $this->trustedChain(24)));
@@ -136,7 +139,7 @@ class JobArtV2RecommendationTest extends TestCase
     {
         return [
             $this->skill($jobId, 1, "始動戦技 {$jobId}"),
-            $this->skill($jobId, 5, "展開戦技 {$jobId}"),
+            $this->skill($jobId, 5, "連携戦技 {$jobId}"),
             $this->skill($jobId, 9, "奥義 {$jobId}"),
         ];
     }

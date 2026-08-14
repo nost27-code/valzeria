@@ -35,24 +35,24 @@ class JobArtV2AimCommandWiringTest extends TestCase
         $aimNine = $presenter->forArt(65, $this->art(65, 9));
         $commandOne = $presenter->forArt(69, $this->art(69, 1));
 
-        $this->assertSame('照準 +4', $aimOne['resource_text']);
-        $this->assertStringContainsString('MISSで照準+2', implode('|', $aimOne['effect_texts']));
-        $this->assertSame('照準 4消費', $aimFive['resource_text']);
-        $this->assertStringContainsString('命中 +5pt', implode('|', $aimFive['effect_texts']));
+        $this->assertSame('照準 +4（使用時）', $aimOne['resource_text']);
+        $this->assertSame([], $aimOne['effect_texts']);
+        $this->assertSame('照準 -4（消費）', $aimFive['resource_text']);
+        $this->assertSame(255, $aimFive['effective_power']);
+        $this->assertStringContainsString('命中率を+10ポイント', implode('|', $aimFive['effect_texts']));
         $this->assertStringContainsString('最大SPの3%', implode('|', $aimFive['effect_texts']));
-        $this->assertSame('照準 12消費', $aimNine['resource_text']);
-        $this->assertSame(570, $aimNine['effective_power']);
-        $this->assertStringContainsString('命中 +8pt', implode('|', $aimNine['effect_texts']));
+        $this->assertSame('照準 -12（消費）', $aimNine['resource_text']);
+        $this->assertSame(355, $aimNine['effective_power']);
+        $this->assertStringContainsString('命中率を+15ポイント', implode('|', $aimNine['effect_texts']));
         $this->assertStringContainsString('最大SPの5%', implode('|', $aimNine['effect_texts']));
-        $this->assertStringContainsString('累計15%', implode('|', $aimNine['effect_texts']));
+        $this->assertStringNotContainsString('累計15%', implode('|', $aimNine['effect_texts']));
 
-        $this->assertNull($commandOne['resource_text']);
-        $this->assertStringNotContainsString('指揮点 +', json_encode($commandOne, JSON_UNESCAPED_UNICODE));
-        $this->assertStringContainsString('通常攻撃HIT：指揮点+4', implode('|', $commandOne['effect_texts']));
-        $this->assertStringContainsString('合計+5', implode('|', $commandOne['effect_texts']));
+        $this->assertSame('指揮点 +4（使用時）', $commandOne['resource_text']);
+        $this->assertStringContainsString('指揮点 +4', json_encode($commandOne, JSON_UNESCAPED_UNICODE));
+        $this->assertSame([], $commandOne['effect_texts']);
 
         $commandNine = $presenter->forArt(69, $this->art(69, 9));
-        $this->assertSame(455, $commandNine['effective_power']);
+        $this->assertSame(355, $commandNine['effective_power']);
     }
 
     public function test_hud_uses_actual_normal_miss_gain_and_structured_target_sp_pressure(): void
@@ -103,12 +103,12 @@ class JobArtV2AimCommandWiringTest extends TestCase
         $this->assertStringContainsString('$target', file_get_contents(base_path('app/Services/JobArtBattleSupportService.php')));
     }
 
-    public function test_flag_off_and_untrusted_origins_do_not_show_or_apply_second_wave_effects(): void
+    public function test_inherited_cards_show_full_effects_while_feature_flag_off_still_rolls_back(): void
     {
         $rankFive = $this->art(65, 5);
         $rankFive->setAttribute('job_art_origin', 'inherited');
         $display = app(JobArtV2LoadoutPresenter::class)->forArt(65, $rankFive);
-        $this->assertSame([], $display['effect_texts']);
+        $this->assertStringContainsString('最大SPの3%', $display['card_description']);
 
         config(['battle.job_art_v2.loadout_v2' => false]);
         $this->assertNull(app(JobArtV2LoadoutPresenter::class)->forArt(65, $this->art(65, 5)));
@@ -133,7 +133,7 @@ class JobArtV2AimCommandWiringTest extends TestCase
 
     private function actor(string $name, bool $isPlayer, ?int $jobId): BattleActor
     {
-        return new BattleActor($name, $isPlayer, [
+        $actor = new BattleActor($name, $isPlayer, [
             'hp' => 10_000,
             'max_hp' => 10_000,
             'mp' => 1_000,
@@ -141,12 +141,29 @@ class JobArtV2AimCommandWiringTest extends TestCase
             'agi' => 100,
             'current_job_id' => $jobId,
         ]);
+        if (in_array($jobId, [65, 69], true)) {
+            $actor->jobArts = [$this->art((int) $jobId, 1), $this->art((int) $jobId, 5), $this->art((int) $jobId, 9)];
+            foreach ($actor->jobArts as $art) {
+                $actor->jobArtOrigins[(int) $art->id] = 'current';
+                $actor->jobArtRates[(int) $art->id] = 1.0;
+            }
+        }
+
+        return $actor;
     }
 
     private function art(int $jobId, int $rank): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => match ([$jobId, $rank]) {
+                [65, 1] => '鋼冠起動',
+                [65, 5] => '鋼冠機砲',
+                [65, 9] => '鋼冠グラビトンコア',
+                [69, 1] => '戦冠指揮',
+                [69, 5] => '戦冠総攻令',
+                [69, 9] => '王戦アークフォーメーション',
+                default => "job-{$jobId}-rank-{$rank}",
+            },
             'skill_type' => 'job_art',
             'job_id' => $jobId,
             'learn_rank' => $rank,

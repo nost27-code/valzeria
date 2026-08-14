@@ -6,6 +6,7 @@ use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\HitResult;
+use App\Services\ConversionResult;
 use App\Services\JobArtV2PreparedEffectState;
 use App\Services\JobArtV2RoleEffectService;
 use App\Services\JobArtV2TimedEffectState;
@@ -31,34 +32,194 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $state->turnCount = 1;
         $this->cast($service, $actor, $target, $state, $art);
 
-        $effect = $actor->jobArtV2TimedEffect('counter_sheathed_tempo');
+        $effect = $actor->jobArtV2TimedEffect('canonical_self_buff:11:1');
         $this->assertNotNull($effect);
-        $this->assertSame(['str' => 0.05], $effect->statModifiers);
-        $this->assertSame(105, $actor->effectiveStr());
+        $this->assertSame(['str' => 0.15], $effect->statModifiers);
+        $this->assertSame(115, $actor->effectiveStr());
         $this->assertSame(80, $actor->effectiveDef());
-        $this->assertSame(2, $effect->remainingRounds);
+        $this->assertSame(4, $effect->remainingRounds);
 
         $service->endRound($state);
-        $this->assertSame(2, $effect->remainingRounds, 'The application round must not decrement duration.');
+        $this->assertSame(4, $effect->remainingRounds, 'The application round must not decrement duration.');
 
         $state->turnCount = 2;
-        $this->cast($service, $actor, $target, $state, $art);
-        $refreshed = $actor->jobArtV2TimedEffect('counter_sheathed_tempo');
+        // 同じマスタ戦技が別のSkill IDで再読込されても、同名効果は別枠に積まず更新する。
+        $sameMasterArt = $this->art(11, 1, '納刀', 'DAMAGE_BUFF', 100, 1);
+        $this->assertNotSame((int) $art->id, (int) $sameMasterArt->id);
+        $this->cast($service, $actor, $target, $state, $sameMasterArt);
+        $refreshed = $actor->jobArtV2TimedEffect('canonical_self_buff:11:1');
         $this->assertNotSame($effect, $refreshed);
         $this->assertCount(1, $actor->jobArtV2TimedEffects());
-        $this->assertSame(2, $refreshed?->remainingRounds);
+        $this->assertSame(4, $refreshed?->remainingRounds);
         $service->endRound($state);
-        $this->assertSame(2, $refreshed?->remainingRounds);
+        $this->assertSame(4, $refreshed?->remainingRounds);
 
         $state->turnCount = 3;
         $service->endRound($state);
-        $this->assertSame(1, $refreshed?->remainingRounds);
-        $this->assertSame(105, $actor->effectiveStr());
+        $this->assertSame(3, $refreshed?->remainingRounds);
+        $this->assertSame(115, $actor->effectiveStr());
 
         $state->turnCount = 4;
         $service->endRound($state);
-        $this->assertNull($actor->jobArtV2TimedEffect('counter_sheathed_tempo'));
+        $this->assertSame(2, $refreshed?->remainingRounds);
+        $state->turnCount = 5;
+        $service->endRound($state);
+        $state->turnCount = 6;
+        $service->endRound($state);
+        $this->assertNull($actor->jobArtV2TimedEffect('canonical_self_buff:11:1'));
         $this->assertSame(100, $actor->effectiveStr());
+    }
+
+    public function test_sanctuary_barrier_uses_a_two_turn_battle_memory_buff_instead_of_a_battle_long_legacy_buff(): void
+    {
+        [$actor, $target, $state] = $this->battle(66);
+        $service = $this->service();
+        $art = $this->art(56, 5, '聖域結界', 'MAGICAL_DAMAGE_BUFF', 255, 1, [
+            'self_buff_percent' => 20,
+            'duration_turns' => 2,
+        ]);
+
+        $state->turnCount = 1;
+        $execution = $this->cast($service, $actor, $target, $state, $art);
+
+        $effect = $actor->jobArtV2TimedEffect('canonical_self_buff:56:5');
+        $this->assertNotNull($effect);
+        $this->assertSame('MAGICAL_DAMAGE', (string) $execution->effect_template);
+        $this->assertSame(0, (int) $execution->self_buff_percent);
+        $this->assertSame(100, $actor->mag, 'The battle-only effect must not mutate the raw stat.');
+        $this->assertSame(80, $actor->spr, 'The battle-only effect must not mutate the raw stat.');
+        $this->assertSame(125, $actor->effectiveMag());
+        $this->assertSame(96, $actor->effectiveSpr());
+        $this->assertSame(4, $effect->remainingRounds);
+
+        $service->endRound($state);
+        $this->assertSame(4, $effect->remainingRounds, 'The cast turn must not shorten the four-turn effect.');
+
+        $state->turnCount = 2;
+        $service->endRound($state);
+        $this->assertSame(3, $effect->remainingRounds);
+        $this->assertSame(125, $actor->effectiveMag());
+        $this->assertSame(96, $actor->effectiveSpr());
+
+        $state->turnCount = 3;
+        $service->endRound($state);
+        $this->assertSame(2, $effect->remainingRounds);
+        $state->turnCount = 4;
+        $service->endRound($state);
+        $state->turnCount = 5;
+        $service->endRound($state);
+        $this->assertNull($actor->jobArtV2TimedEffect('canonical_self_buff:56:5'));
+        $this->assertSame(100, $actor->effectiveMag());
+        $this->assertSame(80, $actor->effectiveSpr());
+    }
+
+    public function test_structured_debuffs_use_master_duration_without_mutating_raw_target_stats(): void
+    {
+        foreach ([
+            [
+                'job_id' => 33,
+                'rank' => 9,
+                'name' => '武神降臨',
+                'duration' => 4,
+                'attributes' => ['enemy_def_down_percent' => 20, 'enemy_spr_down_percent' => 20],
+                'effective' => ['str' => 100, 'def' => 64, 'spr' => 64, 'mag' => 100, 'agi' => 100],
+            ],
+            [
+                'job_id' => 36,
+                'rank' => 5,
+                'name' => '神罰の槌',
+                'duration' => 3,
+                'attributes' => ['enemy_mag_down_percent' => 18],
+                'effective' => ['str' => 100, 'def' => 80, 'spr' => 80, 'mag' => 82, 'agi' => 100],
+            ],
+            [
+                'job_id' => 12,
+                'actor_job_id' => 62,
+                'rank' => 9,
+                'name' => '十面埋伏',
+                'duration' => 4,
+                'attributes' => [
+                    'enemy_atk_down_percent' => 15,
+                    'enemy_mag_down_percent' => 15,
+                    'enemy_spd_down_percent' => 15,
+                ],
+                'effective' => ['str' => 85, 'def' => 80, 'spr' => 80, 'mag' => 85, 'agi' => 85],
+            ],
+        ] as $case) {
+            $actor = $this->actor('actor', true, $case['actor_job_id'] ?? $case['job_id']);
+            $target = $this->actor('target', false, 999, [
+                'str' => 100,
+                'def' => 80,
+                'spr' => 80,
+                'mag' => 100,
+                'agi' => 100,
+            ]);
+            $state = new BattleState($actor, $target, 'pve');
+            $state->turnCount = 1;
+            $service = $this->service();
+            $art = $this->art(
+                $case['job_id'],
+                $case['rank'],
+                $case['name'],
+                'DAMAGE_DEBUFF',
+                255,
+                1,
+                ['duration_turns' => $case['duration'], ...$case['attributes']],
+            );
+
+            $this->beginAction($service, $actor, $state);
+            $result = $service->applyTimedStructuredDebuffs($actor, $target, $state, $art);
+
+            $this->assertNotNull($result, $case['name']);
+            $this->assertSame($case['duration'], $result['duration_turns'], $case['name']);
+            $this->assertNotEmpty($result['changes'], $case['name']);
+            $this->assertSame(100, $target->str, $case['name'].' raw ATK');
+            $this->assertSame(80, $target->def, $case['name'].' raw DEF');
+            $this->assertSame(80, $target->spr, $case['name'].' raw SPR');
+            $this->assertSame(100, $target->mag, $case['name'].' raw MAG');
+            $this->assertSame(100, $target->agi, $case['name'].' raw SPD');
+            $this->assertSame($case['effective']['str'], $target->effectiveStr(), $case['name'].' effective ATK');
+            $this->assertSame($case['effective']['def'], $target->effectiveDef(), $case['name'].' effective DEF');
+            $this->assertSame($case['effective']['spr'], $target->effectiveSpr(), $case['name'].' effective SPR');
+            $this->assertSame($case['effective']['mag'], $target->effectiveMag(), $case['name'].' effective MAG');
+            $this->assertSame($case['effective']['agi'], $target->effectiveAgi(), $case['name'].' effective SPD');
+
+            $service->endRound($state);
+            $this->assertCount(1, $target->jobArtV2TimedEffects(), $case['name'].' cast turn');
+            for ($turn = 2; $turn <= $case['duration']; $turn++) {
+                $state->turnCount = $turn;
+                $service->endRound($state);
+                $this->assertCount(1, $target->jobArtV2TimedEffects(), $case['name']." turn {$turn}");
+            }
+
+            $state->turnCount = $case['duration'] + 1;
+            $service->endRound($state);
+            $this->assertCount(0, $target->jobArtV2TimedEffects(), $case['name'].' expired');
+            $this->assertSame(100, $target->effectiveStr(), $case['name'].' restored ATK');
+            $this->assertSame(80, $target->effectiveDef(), $case['name'].' restored DEF');
+            $this->assertSame(80, $target->effectiveSpr(), $case['name'].' restored SPR');
+            $this->assertSame(100, $target->effectiveMag(), $case['name'].' restored MAG');
+            $this->assertSame(100, $target->effectiveAgi(), $case['name'].' restored SPD');
+            $this->assertStringContainsString('弱体効果が切れた', implode("\n", $state->logs));
+        }
+    }
+
+    public function test_structured_debuffs_keep_legacy_processing_when_v2_resources_are_off(): void
+    {
+        [$actor, $target, $state] = $this->battle(33);
+        $state->beginSourceAction();
+        $art = $this->art(33, 9, '武神降臨', 'DAMAGE_DEBUFF', 255, 1, [
+            'duration_turns' => 3,
+            'enemy_def_down_percent' => 20,
+            'enemy_spr_down_percent' => 10,
+        ]);
+
+        config(['battle.job_art_v2.resources' => false]);
+
+        $this->assertNull($this->service()->applyTimedStructuredDebuffs($actor, $target, $state, $art));
+        $this->assertCount(0, $target->jobArtV2TimedEffects());
+        $this->assertSame(80, $target->effectiveDef());
+        $this->assertSame(80, $target->effectiveSpr());
     }
 
     public function test_counter_focus_is_consumed_on_actual_rank_five_or_nine_execution_for_every_hit_result(): void
@@ -159,6 +320,59 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertNull($actor->jobArtV2PreparedEffect('counter_focus'));
     }
 
+    public function test_mechanical_deployment_prepares_one_aim_rank_five_or_nine_within_four_own_actions(): void
+    {
+        [$actor, $target, $state] = $this->battle(65);
+        $service = $this->service();
+        $setup = $this->art(35, 1, '機巧展開', 'SELF_BUFF', 110, 0);
+        $otherLineage = $this->art(61, 5, '別系譜の連携', 'MAGICAL_DAMAGE', 185, 1);
+        $cannon = $this->art(35, 5, '魔導砲', 'MAGICAL_DAMAGE', 185, 1);
+
+        $execution = $this->cast($service, $actor, $target, $state, $setup);
+        $this->assertSame('SELF_BUFF', $execution->effect_template);
+        $this->assertSame(110, (int) $execution->power);
+
+        $prepared = $actor->jobArtV2PreparedEffect('aim_cannon_preparation');
+        $this->assertNotNull($prepared);
+        $this->assertSame(1, $prepared->charges);
+        $this->assertSame(4, $prepared->remainingActionOpportunities);
+        $this->assertSame(1.10, $prepared->multiplier);
+
+        $this->beginAction($service, $actor, $state);
+        $service->beginJobArtCast($actor, $state, $otherLineage);
+        $this->assertSame(3, $prepared->remainingActionOpportunities);
+        $this->assertSame(1, $prepared->charges);
+        $this->assertSame(1_000, $service->modifyJobArtDamage($actor, $state, $otherLineage, 1_000));
+
+        $this->beginAction($service, $actor, $state);
+        $service->beginJobArtCast($actor, $state, $cannon);
+        $this->assertNull($actor->jobArtV2PreparedEffect('aim_cannon_preparation'));
+        $this->assertSame(1_100, $service->modifyJobArtDamage($actor, $state, $cannon, 1_000));
+        $service->completeJobArtCast($actor, $target, $state, $cannon, HitResult::MISS);
+    }
+
+    public function test_mechanical_deployment_expires_after_four_non_trigger_own_actions(): void
+    {
+        [$actor, $target, $state] = $this->battle(65);
+        $service = $this->service();
+        $setup = $this->art(35, 1, '機巧展開', 'SELF_BUFF', 110, 0);
+
+        $this->cast($service, $actor, $target, $state, $setup);
+        for ($action = 1; $action <= 4; $action++) {
+            $this->beginAction($service, $actor, $state);
+            $service->markNonJobArtAction($actor, $state);
+            $expected = 4 - $action;
+            if ($expected > 0) {
+                $this->assertSame(
+                    $expected,
+                    $actor->jobArtV2PreparedEffect('aim_cannon_preparation')?->remainingActionOpportunities,
+                );
+            }
+        }
+
+        $this->assertNull($actor->jobArtV2PreparedEffect('aim_cannon_preparation'));
+    }
+
     public function test_light_wing_cross_break_consumes_counter_focus_without_receiving_its_multiplier(): void
     {
         [$actor, $target, $state] = $this->battle(60);
@@ -178,32 +392,44 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(5, $prepared->remainingActionOpportunities);
         $this->assertSame(1_000, $service->modifyJobArtDamage($actor, $state, $lightWing, 1_000));
         $service->completeJobArtCast($actor, $target, $state, $lightWing, HitResult::HIT);
-        $this->assertNotNull($actor->jobArtV2TimedEffect('counter_light_wing_guard'));
+        $guard = $actor->jobArtV2TimedEffect('canonical_self_buff:50:9');
+        $this->assertNotNull($guard);
+        $this->assertSame(['def' => 0.20, 'spr' => 0.20], $guard->statModifiers);
+        $this->assertSame(5, $guard->remainingRounds);
     }
 
-    public function test_strict_preparation_expires_on_the_next_non_trigger_action_but_flexible_preparation_survives(): void
+    public function test_pierce_preparations_wait_for_the_next_pierce_rank_five_or_nine(): void
     {
         [$actor, $target, $state] = $this->battle(60);
         $service = $this->service();
-        $strict = $this->art(2, 1, '挑発撃', 'DAMAGE_BUFF', 90, 1);
+        $burst = $this->art(2, 1, '挑発撃', 'DAMAGE_BUFF', 90, 1);
         $flexible = $this->art(16, 1, '実戦勘', 'DAMAGE_BUFF', 100, 1);
 
-        $this->cast($service, $actor, $target, $state, $strict);
+        $this->cast($service, $actor, $target, $state, $burst);
         $this->assertNotNull($actor->jobArtV2PreparedEffect('pierce_burst_prep'));
         $service->markNonJobArtAction($actor);
+        $this->assertNotNull($actor->jobArtV2PreparedEffect('pierce_burst_prep'));
+
+        $wrongLineage = $this->art(11, 5, 'counter-rank-five', 'PHYSICAL_DAMAGE', 165, 1);
+        $this->beginAction($service, $actor, $state);
+        $service->beginJobArtCast($actor, $state, $wrongLineage);
+        $this->assertNotNull($actor->jobArtV2PreparedEffect('pierce_burst_prep'));
+
+        $pierceRankFive = $this->art(2, 5, 'pierce-rank-five', 'PHYSICAL_DAMAGE', 145, 1);
+        $this->beginAction($service, $actor, $state);
+        $service->beginJobArtCast($actor, $state, $pierceRankFive);
         $this->assertNull($actor->jobArtV2PreparedEffect('pierce_burst_prep'));
+        $this->assertSame(1_150, $service->modifyJobArtDamage($actor, $state, $pierceRankFive, 1_000));
 
         $this->cast($service, $actor, $target, $state, $flexible);
         $this->assertNotNull($actor->jobArtV2PreparedEffect('pierce_flexible_prep'));
         $service->markNonJobArtAction($actor);
         $this->assertNotNull($actor->jobArtV2PreparedEffect('pierce_flexible_prep'));
 
-        $wrongLineage = $this->art(11, 5, 'counter-rank-five', 'PHYSICAL_DAMAGE', 165, 1);
         $this->beginAction($service, $actor, $state);
         $service->beginJobArtCast($actor, $state, $wrongLineage);
         $this->assertNotNull($actor->jobArtV2PreparedEffect('pierce_flexible_prep'));
 
-        $pierceRankFive = $this->art(2, 5, 'pierce-rank-five', 'PHYSICAL_DAMAGE', 145, 1);
         $this->beginAction($service, $actor, $state);
         $service->beginJobArtCast($actor, $state, $pierceRankFive);
         $this->assertNull($actor->jobArtV2PreparedEffect('pierce_flexible_prep'));
@@ -267,6 +493,93 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame('physical', $physicalExecution->damage_type);
     }
 
+    public function test_dawn_break_reuses_the_adaptive_route_for_inherited_arts_in_all_battle_types(): void
+    {
+        foreach ([60, 62] as $currentJobId) {
+            foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+                [$physicalActor, $physicalTarget, $physicalState] = $this->battle($currentJobId, $battleType, [
+                    'str' => 5_000,
+                    'mag' => 1,
+                ]);
+                $physicalTarget->def = 1;
+                $physicalTarget->spr = 5_000;
+                $service = $this->service();
+                $art = $this->art(70, 5, '暁光ブレイク', 'HYBRID_DAMAGE', 315, 1, [
+                    'damage_type' => 'hybrid',
+                    'hybrid_scaling' => 'average',
+                ]);
+                $physicalExecution = clone $art;
+
+                $this->beginAction($service, $physicalActor, $physicalState);
+                mt_srand(70_500);
+                $expectedRandom = mt_rand();
+                mt_srand(70_500);
+                $service->applyForExecution(
+                    $physicalActor,
+                    $physicalTarget,
+                    $physicalState,
+                    $art,
+                    $physicalExecution,
+                );
+
+                $this->assertSame($expectedRandom, mt_rand(), "rng:{$currentJobId}:{$battleType}");
+                $this->assertSame('PHYSICAL_DAMAGE', $physicalExecution->effect_template, "physical:{$currentJobId}:{$battleType}");
+                $this->assertSame('physical', $physicalExecution->damage_type, "physical type:{$currentJobId}:{$battleType}");
+                $this->assertSame('physical', $physicalExecution->getAttribute('job_art_v2_adaptive_route'));
+                $this->assertSame(315, (int) $physicalExecution->power);
+                $this->assertSame(1, (int) $physicalExecution->hit_count);
+
+                [$magicalActor, $magicalTarget, $magicalState] = $this->battle($currentJobId, $battleType, [
+                    'str' => 1,
+                    'mag' => 5_000,
+                ]);
+                $magicalTarget->def = 5_000;
+                $magicalTarget->spr = 1;
+                $magicalExecution = clone $art;
+
+                $this->beginAction($service, $magicalActor, $magicalState);
+                $service->applyForExecution(
+                    $magicalActor,
+                    $magicalTarget,
+                    $magicalState,
+                    $art,
+                    $magicalExecution,
+                );
+
+                $this->assertSame('MAGICAL_DAMAGE', $magicalExecution->effect_template, "magical:{$currentJobId}:{$battleType}");
+                $this->assertSame('magical', $magicalExecution->damage_type, "magical type:{$currentJobId}:{$battleType}");
+                $this->assertSame('magical', $magicalExecution->getAttribute('job_art_v2_adaptive_route'));
+                $this->assertSame(315, (int) $magicalExecution->power);
+                $this->assertSame(1, (int) $magicalExecution->hit_count);
+            }
+        }
+    }
+
+    public function test_dawn_break_keeps_the_legacy_hybrid_route_when_role_effects_are_disabled(): void
+    {
+        config(['battle.job_art_v2.resources' => false]);
+        [$actor, $target, $state] = $this->battle(62);
+        $service = $this->service();
+        $art = $this->art(70, 5, '暁光ブレイク', 'HYBRID_DAMAGE', 315, 1, [
+            'damage_type' => 'hybrid',
+            'hybrid_scaling' => 'average',
+        ]);
+        $execution = clone $art;
+
+        $this->beginAction($service, $actor, $state);
+        mt_srand(70_501);
+        $expectedRandom = mt_rand();
+        mt_srand(70_501);
+        $service->applyForExecution($actor, $target, $state, $art, $execution);
+
+        $this->assertSame($expectedRandom, mt_rand());
+        $this->assertSame('HYBRID_DAMAGE', $execution->effect_template);
+        $this->assertSame('hybrid', $execution->damage_type);
+        $this->assertNull($execution->getAttribute('job_art_v2_adaptive_route'));
+        $this->assertSame(315, (int) $execution->power);
+        $this->assertSame(1, (int) $execution->hit_count);
+    }
+
     public function test_suppressed_execution_clears_legacy_side_effects_but_preserves_power_and_hit_count(): void
     {
         [$actor, $target, $state] = $this->battle(61);
@@ -317,6 +630,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         [$actor, $target, $state] = $this->battle(61, actorOverrides: ['hp' => 2, 'max_hp' => 100]);
         $service = $this->service();
         $art = $this->art(14, 1, '血潮の咆哮', 'SELF_BUFF', 100, 0);
+        $actor->jobArts = [$art];
 
         $this->cast($service, $actor, $target, $state, $art);
 
@@ -348,10 +662,10 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         ));
 
         $this->cast($service, $guard, $target, $guardState, $prayer);
-        // effective SPR 125 * power 80% * prayer multiplier 70% = 70.
-        $this->assertSame(170, $guard->hp);
-        $this->assertSame(0, (int) $guardState->jobArtV2RoleAction()['execution_power'] - 80);
-        $this->assertSame(0.15, $guard->jobArtV2GuardState()?->rate);
+        // effective SPR 125 * canonical 65% = floor(81), capped at max HP.
+        $this->assertSame(181, $guard->hp);
+        $this->assertSame(0, (int) $guardState->jobArtV2RoleAction()['execution_power'] - 65);
+        $this->assertSame(0.25, $guard->jobArtV2GuardState()?->rate);
         $this->assertSame(1, $guard->jobArtV2GuardState()?->charges);
 
         [$medicineUser, $medicineTarget, $medicineState] = $this->battle(67, actorOverrides: [
@@ -372,6 +686,115 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertArrayNotHasKey('burn', $medicineUser->conditions);
         $this->assertArrayHasKey('poison', $medicineUser->conditions);
         $this->assertSame(['burn'], $medicineState->cleanseResults()[0]->removedStates);
+    }
+
+    public function test_holy_medicine_refunds_the_exact_conversion_hp_cost_even_in_a_healing_field(): void
+    {
+        [$actor, $target, $state] = $this->battle(67, actorOverrides: [
+            'hp' => 449,
+            'max_hp' => 1_001,
+        ]);
+        $service = $this->service();
+        $medicine = $this->art(47, 1, '聖薬散布', 'REWARD_MIXED', 175, 0);
+        $sourceActionId = $this->beginAction($service, $actor, $state);
+        app(\App\Services\JobArtV2FieldService::class)
+            ->deployPrimary($actor, $state, 'sanctuary', 80_001, $sourceActionId);
+        $state->recordConversionResult(new ConversionResult(
+            sourceActionId: $sourceActionId,
+            actorKey: $state->actorKey($actor),
+            hpBefore: 500,
+            requestedHpCost: 51,
+            actualHpLoss: 51,
+            hpAfter: 449,
+            spBeforeConversion: 300,
+            requestedSpGain: 25,
+            actualSpGain: 25,
+            spAfterConversion: 325,
+            success: true,
+        ));
+
+        $service->completeJobArtCast($actor, $target, $state, $medicine, null);
+
+        $this->assertSame(500, $actor->hp, 'The HP exchange must be exactly ±0.');
+        $this->assertStringContainsString('HPが 51 回復した', implode("\n", $state->logs));
+    }
+
+    public function test_shield_finishers_replace_permanent_buffs_with_one_charge_guards(): void
+    {
+        foreach ([
+            'physical shield' => [44, '天壁イージス', 'DAMAGE_BUFF', 'PHYSICAL_DAMAGE', 0.35],
+            'magical shield' => [56, '聖壁アルカディア', 'MAGICAL_DAMAGE_BUFF', 'MAGICAL_DAMAGE', 0.40],
+        ] as $case => [$jobId, $name, $masterTemplate, $expectedTemplate, $expectedRate]) {
+            [$actor, $target, $state] = $this->battle(62);
+            $actor->normalAttackType = 'physical';
+            $source = $this->art($jobId, 9, $name, $masterTemplate, 320, 1);
+            $execution = $this->cast($this->service(), $actor, $target, $state, $source);
+
+            $this->assertSame($expectedTemplate, $execution->effect_template, $case);
+            $this->assertSame($expectedRate, $actor->jobArtV2GuardState()?->rate, $case);
+            $this->assertSame(1, $actor->jobArtV2GuardState()?->charges, $case);
+            $this->assertSame(100, $actor->str, $case);
+            $this->assertSame(80, $actor->def, $case);
+            $this->assertSame(100, $actor->mag, $case);
+            $this->assertSame(80, $actor->spr, $case);
+            $this->assertSame($masterTemplate, $source->effect_template, "{$case}: source master is immutable");
+        }
+    }
+
+    public function test_magic_bow_stars_uses_mag_against_twenty_five_percent_ignored_defense(): void
+    {
+        [$actor, $target, $state] = $this->battle(62, actorOverrides: ['mag' => 180, 'str' => 999]);
+        $target->def = 200;
+        $target->baseDef = 200;
+        $target->spr = 900;
+        $target->baseSpr = 900;
+        $service = $this->service();
+        $source = $this->art(45, 5, '魔弓連星', 'MAGICAL_DAMAGE', 220, 1);
+        $execution = $this->cast($service, $actor, $target, $state, $source);
+
+        $this->assertSame('MAGICAL_DAMAGE', $execution->effect_template);
+        $this->assertSame('magical', $execution->damage_type);
+        $this->assertSame(25, $execution->getAttribute('job_art_v2_defense_ignore_percent'));
+        $this->assertSame(
+            ['attack' => 180, 'def' => 150, 'spr' => 150],
+            $service->damageStatOverrides($actor, $target, $execution),
+        );
+        $this->assertSame(200, $target->def, 'The target master/runtime stat must not be mutated.');
+        $this->assertSame(900, $target->spr);
+    }
+
+    public function test_poem_blessing_uses_the_canonical_four_turn_buff_without_mutating_raw_stats(): void
+    {
+        [$actor, $target, $state] = $this->battle(46, actorOverrides: ['mag' => 100, 'spr' => 100]);
+        $service = $this->service();
+        $source = $this->art(46, 1, '祝詞の一節', 'MAGICAL_DAMAGE_BUFF', 175, 1, [
+            'duration_turns' => 2,
+        ]);
+        $execution = $this->cast($service, $actor, $target, $state, $source);
+
+        $this->assertSame('MAGICAL_DAMAGE', $execution->effect_template);
+        $this->assertSame(100, $actor->mag);
+        $this->assertSame(100, $actor->spr);
+        $this->assertSame(115, $actor->effectiveMag());
+        $this->assertSame(110, $actor->effectiveSpr());
+        $effect = $actor->jobArtV2TimedEffect('canonical_self_buff:46:1');
+        $this->assertNotNull($effect);
+        $this->assertSame(4, $effect->remainingRounds);
+
+        $service->endRound($state);
+        $state->turnCount = 1;
+        $service->endRound($state);
+        $this->assertSame(3, $effect->remainingRounds);
+        $state->turnCount = 2;
+        $service->endRound($state);
+        $this->assertSame(2, $effect->remainingRounds);
+        $state->turnCount = 3;
+        $service->endRound($state);
+        $state->turnCount = 4;
+        $service->endRound($state);
+        $this->assertNull($actor->jobArtV2TimedEffect('canonical_self_buff:46:1'));
+        $this->assertSame(100, $actor->effectiveMag());
+        $this->assertSame(100, $actor->effectiveSpr());
     }
 
     public function test_potion_mix_cleanses_only_the_first_priority_state(): void
@@ -403,9 +826,9 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         ]);
 
         foreach ([
-            'hp lower' => [['hp' => 20, 'max_hp' => 100, 'mp' => 80, 'max_mp' => 100], 'hp', 150, 10],
-            'sp lower' => [['hp' => 80, 'max_hp' => 100, 'mp' => 20, 'max_mp' => 100], 'sp', 100, 15],
-            'tie prefers hp' => [['hp' => 50, 'max_hp' => 100, 'mp' => 50, 'max_mp' => 100], 'hp', 150, 10],
+            'hp lower' => [['hp' => 20, 'max_hp' => 100, 'mp' => 80, 'max_mp' => 100], 'hp', 165, 10],
+            'sp lower' => [['hp' => 80, 'max_hp' => 100, 'mp' => 20, 'max_mp' => 100], 'sp', 110, 15],
+            'tie prefers hp' => [['hp' => 50, 'max_hp' => 100, 'mp' => 50, 'max_mp' => 100], 'hp', 165, 10],
         ] as $case => [$overrides, $expectedTarget, $expectedPower, $expectedSpRate]) {
             [$actor, $target, $state] = $this->battle(67, actorOverrides: $overrides);
             $this->beginAction($service, $actor, $state);
@@ -474,7 +897,93 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertNotNull($target->jobArtV2TimedEffect('weak'));
         $this->assertNull($target->jobArtV2TimedEffect('strong'));
         $this->assertNotNull($target->jobArtV2TimedEffect('locked'));
-        $this->assertNotNull($actor->jobArtV2TimedEffect('transmute_harvested_power'));
+        $power = $actor->jobArtV2TimedEffect('canonical_self_buff:38:9');
+        $this->assertNotNull($power);
+        $this->assertSame(['str' => 0.30, 'mag' => 0.30], $power->statModifiers);
+        $this->assertSame(130, $actor->effectiveStr());
+        $this->assertSame(130, $actor->effectiveMag());
+        $this->assertSame(80, $actor->effectiveDef());
+        $this->assertSame(80, $actor->effectiveSpr());
+    }
+
+    public function test_cathedral_heals_once_cleanses_all_and_grants_one_direct_damage_guard(): void
+    {
+        [$actor, $target, $state] = $this->battle(24, actorOverrides: [
+            'hp' => 100,
+            'max_hp' => 500,
+            'spr' => 100,
+        ]);
+        $actor->conditions = [
+            'burn' => ['rate' => 0.10, 'remaining_turns' => 2],
+            'poison' => ['rate' => 0.10, 'remaining_turns' => 2],
+            'slow' => ['rate' => 0.10, 'remaining_turns' => 2],
+        ];
+        $cathedral = $this->art(24, 9, '大聖堂の奇跡', 'HEAL_CLEANSE', 250, 0, [
+            'damage_reduction_percent' => 20,
+        ]);
+
+        $this->cast($this->service(), $actor, $target, $state, $cathedral);
+
+        $this->assertSame(350, $actor->hp, 'SPR 250% heal must be applied exactly once.');
+        $this->assertSame([], $actor->conditions);
+        $this->assertSame(['burn', 'poison', 'slow'], $state->cleanseResults()[0]->removedStates);
+        $this->assertSame(0.30, $actor->jobArtV2GuardState()?->rate);
+        $this->assertSame(1, $actor->jobArtV2GuardState()?->charges);
+    }
+
+    public function test_diamond_guard_and_giga_break_use_portable_shared_execution_semantics(): void
+    {
+        [$actor, $target, $state] = $this->battle(62);
+        $service = $this->service();
+        $diamond = $this->art(21, 9, '金剛不壊', 'GUARD_BARRIER', 89, 0, [
+            'damage_reduction_percent' => 25,
+        ]);
+        $this->beginAction($service, $actor, $state);
+        $diamondExecution = clone $diamond;
+        $service->applyForExecution($actor, $target, $state, $diamond, $diamondExecution);
+        $service->completeJobArtCast($actor, $target, $state, $diamond, null);
+
+        $this->assertSame('V2_ROLE_EFFECT_ONLY', $diamondExecution->effect_template);
+        $this->assertSame(0, (int) $diamondExecution->damage_reduction_percent);
+        $this->assertSame(0.30, $actor->jobArtV2GuardState()?->rate);
+
+        [$gigaActor, $gigaTarget, $gigaState] = $this->battle(62);
+        $giga = $this->art(27, 9, 'ギガブレイク', 'MULTI_HIT', 315, 2, [
+            'hybrid_scaling' => 'average',
+        ]);
+        $this->beginAction($service, $gigaActor, $gigaState);
+        $gigaExecution = clone $giga;
+        $service->applyForExecution($gigaActor, $gigaTarget, $gigaState, $giga, $gigaExecution);
+
+        $this->assertSame('HYBRID_DAMAGE', $gigaExecution->effect_template);
+        $this->assertSame('hybrid', $gigaExecution->damage_type);
+        $this->assertSame(315, (int) $gigaExecution->power);
+        $this->assertSame(2, (int) $gigaExecution->hit_count);
+        $this->assertSame('average', (string) $gigaExecution->hybrid_scaling);
+    }
+
+    public function test_shared_v2_damage_buff_uses_normal_attack_type_and_master_power_tier(): void
+    {
+        [$physical] = $this->battle(62, actorOverrides: ['str' => 100, 'def' => 80, 'mag' => 140, 'spr' => 90]);
+        $physical->normalAttackType = 'physical';
+        $art = $this->art(17, 9, '瞬影乱舞', 'DAMAGE_BUFF', 255, 4);
+
+        $physicalChange = $this->service()->applySharedSelfBuff($physical, $art);
+        $this->assertSame(['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 88], $physicalChange);
+        $this->assertSame(140, $physical->mag);
+        $this->assertSame(90, $physical->spr);
+
+        [$magical] = $this->battle(62, actorOverrides: ['str' => 140, 'def' => 90, 'mag' => 100, 'spr' => 80]);
+        $magical->normalAttackType = 'magical';
+        $magicalChange = $this->service()->applySharedSelfBuff($magical, $art);
+        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 88], $magicalChange);
+        $this->assertSame(140, $magical->str);
+        $this->assertSame(90, $magical->def);
+
+        config(['battle.job_art_v2.resources' => false]);
+        [$legacy] = $this->battle(62);
+        $this->assertNull($this->service()->applySharedSelfBuff($legacy, $art));
+        $this->assertSame(100, $legacy->str);
     }
 
     public function test_golden_appraisal_marks_the_target_in_battle_memory(): void
@@ -485,6 +994,87 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertFalse($target->isJobArtV2Appraised());
         $this->cast($this->service(), $actor, $target, $state, $art);
         $this->assertTrue($target->isJobArtV2Appraised());
+    }
+
+    public function test_exorcising_strike_uses_attack_against_spirit_and_gains_exact_matchup_bonus(): void
+    {
+        [$actor, $target, $state] = $this->battle(62, actorOverrides: ['str' => 180, 'mag' => 999]);
+        $service = $this->service();
+        $art = $this->art(21, 5, '破邪拳', 'MAGICAL_DAMAGE', 165, 1);
+        $actor->jobArtOrigins[(int) $art->id] = 'inherited';
+        $execution = $this->cast($service, $actor, $target, $state, $art);
+
+        $this->assertSame('MAGICAL_DAMAGE', $execution->effect_template);
+        $this->assertSame('magical', $execution->damage_type);
+        $this->assertSame(
+            ['attack' => 180, 'def' => 80, 'spr' => 80],
+            $service->damageStatOverrides($actor, $target, $execution),
+        );
+        $this->assertSame(1_000, $service->modifyJobArtDamage($actor, $state, $execution, 1_000));
+
+        foreach ([
+            ['species_keys' => ['mage']],
+            ['species_keys' => ['undead']],
+            ['normal_attack_type' => 'magical'],
+        ] as $targetOverrides) {
+            [$bonusActor, $bonusTarget, $bonusState] = $this->battle(
+                62,
+                actorOverrides: ['str' => 180, 'mag' => 999],
+            );
+            $bonusActor->jobArtOrigins[(int) $art->id] = 'inherited';
+            $bonusTarget->speciesKeys = $targetOverrides['species_keys'] ?? [];
+            $bonusTarget->normalAttackType = $targetOverrides['normal_attack_type'] ?? 'physical';
+            $bonusExecution = $this->cast($service, $bonusActor, $bonusTarget, $bonusState, $art);
+
+            $this->assertSame(
+                1_200,
+                $service->modifyJobArtDamage($bonusActor, $bonusState, $bonusExecution, 1_000),
+            );
+        }
+    }
+
+    public function test_alchemy_bomb_follows_normal_attack_type_and_applies_three_turn_mixed_debuff(): void
+    {
+        [$actor, $target, $state] = $this->battle(62);
+        $service = $this->service();
+        $actor->normalAttackType = 'physical';
+        $art = $this->art(26, 5, '錬成爆弾', 'DAMAGE_DEBUFF', 165, 1, [
+            'enemy_def_down_percent' => 99,
+            'enemy_spr_down_percent' => 0,
+            'duration_turns' => 9,
+        ]);
+        $actor->jobArtOrigins[(int) $art->id] = 'inherited';
+        $execution = $this->cast($service, $actor, $target, $state, $art);
+
+        $this->assertSame('PHYSICAL_DAMAGE', $execution->effect_template);
+        $this->assertSame('physical', $execution->damage_type);
+        $this->assertSame(15, (int) $execution->enemy_def_down_percent);
+        $this->assertSame(15, (int) $execution->enemy_spr_down_percent);
+        $this->assertSame(3, (int) $execution->duration_turns);
+        $applied = $service->applyTimedStructuredDebuffs($actor, $target, $state, $execution);
+        $this->assertSame(3, $applied['duration_turns'] ?? null);
+        $this->assertSame(68, $target->effectiveDef());
+        $this->assertSame(68, $target->effectiveSpr());
+        $this->assertSame(80, $target->def);
+        $this->assertSame(80, $target->spr);
+
+        $state->turnCount = 1;
+        $service->endRound($state);
+        $this->assertSame(68, $target->effectiveDef());
+        $state->turnCount = 2;
+        $service->endRound($state);
+        $this->assertSame(68, $target->effectiveDef());
+        $state->turnCount = 3;
+        $service->endRound($state);
+        $this->assertSame(80, $target->effectiveDef());
+        $this->assertSame(80, $target->effectiveSpr());
+
+        [$magicActor, $magicTarget, $magicState] = $this->battle(62);
+        $magicActor->normalAttackType = 'magical';
+        $magicActor->jobArtOrigins[(int) $art->id] = 'inherited';
+        $magicExecution = $this->cast($service, $magicActor, $magicTarget, $magicState, $art);
+        $this->assertSame('MAGICAL_DAMAGE', $magicExecution->effect_template);
+        $this->assertSame('magical', $magicExecution->damage_type);
     }
 
     public function test_flag_off_keeps_actor_state_execution_clone_logs_and_rng_unchanged(): void
@@ -538,6 +1128,52 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertFalse($actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot());
         $this->assertSame([], $state->jobArtV2RoleAction());
         $this->assertSame([], $state->logs);
+    }
+
+    public function test_sage_barrier_is_low_power_magic_and_reduces_damage_until_the_next_own_action(): void
+    {
+        $this->enableV2();
+        [$actor, $target, $state] = $this->battle(29);
+        $service = $this->service();
+        $barrier = $this->art(
+            29,
+            5,
+            '賢者の結界',
+            'GUARD_BARRIER',
+            185,
+            1,
+            ['damage_reduction_percent' => 18],
+        );
+        $actor->jobArtOrigins[(int) $barrier->id] = 'current';
+        $actor->jobArtRates[(int) $barrier->id] = 1.0;
+
+        $execution = $this->cast($service, $actor, $target, $state, $barrier, HitResult::MISS);
+
+        $this->assertSame('MAGICAL_DAMAGE', $execution->effect_template);
+        $this->assertSame('magical', $execution->damage_type);
+        $this->assertSame(110, (int) $execution->power);
+        $this->assertSame(1.1, (float) $execution->power_multiplier);
+        $this->assertSame(0, (int) $execution->damage_reduction_percent);
+        $this->assertSame(18, $actor->damageReductionRate);
+        $this->assertStringContainsString('次の自分の行動開始まで', implode('\n', $state->logs));
+
+        $this->beginAction($service, $actor, $state);
+        $this->assertSame(0, $actor->damageReductionRate);
+
+        [$inheritedActor, $inheritedTarget, $inheritedState] = $this->battle(62);
+        $inheritedActor->jobArtOrigins[(int) $barrier->id] = 'inherited';
+        $inheritedActor->jobArtRates[(int) $barrier->id] = 0.8;
+        $inheritedExecution = $this->cast(
+            $service,
+            $inheritedActor,
+            $inheritedTarget,
+            $inheritedState,
+            $barrier,
+        );
+
+        $this->assertSame(110, (int) $inheritedExecution->power);
+        $this->assertSame(18, $inheritedActor->damageReductionRate);
+        $this->assertSame(185, (int) $barrier->power);
     }
 
     private function enableV2(): void

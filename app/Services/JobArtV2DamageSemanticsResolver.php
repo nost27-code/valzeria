@@ -11,11 +11,25 @@ final class JobArtV2DamageSemanticsResolver
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
         private readonly JobArtV2DamageSemanticsCatalog $semanticsCatalog,
+        private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {}
 
     /** @return array{attack_stat: string, defense_stat: string, damage_category: string}|null */
     public function forExecution(BattleActor $actor, Skill $skill): ?array
     {
+        $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
+            ->resolveActor($actor);
+        if ($resolution->active) {
+            return in_array(
+                $resolution->roleFor($skill),
+                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                true,
+            ) && $resolution->blockReasonFor($skill) === null
+                && $this->prototypeCatalog->isTrustedArtProfile($skill)
+                    ? $this->semanticsCatalog->overrideFor($skill)
+                    : null;
+        }
+
         return $this->resolve(
             $actor->currentJobId,
             $skill,
@@ -25,10 +39,17 @@ final class JobArtV2DamageSemanticsResolver
     }
 
     /** @return array{attack_stat: string, defense_stat: string, damage_category: string}|null */
-    public function forDisplay(?int $currentJobId, Skill $skill): ?array
+    public function forDisplay(?int $currentJobId, Skill $skill, bool $formalCDesignLineage = false): ?array
     {
         if (! $this->featureGate->usesLoadoutUiForCurrentJob($currentJobId)) {
             return null;
+        }
+
+        if ($formalCDesignLineage
+            && $this->featureGate->usesCDesignPrototypeForCurrentJob($currentJobId)
+            && $this->prototypeCatalog->isTrustedArtProfile($skill)
+        ) {
+            return $this->semanticsCatalog->overrideFor($skill);
         }
 
         return $this->resolve(

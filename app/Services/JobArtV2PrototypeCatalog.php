@@ -5,16 +5,25 @@ namespace App\Services;
 use App\Models\Skill;
 
 /**
- * v2を有効化できる現在職と、継承時にも信頼できるRank1/5/9 profileの正本。
+ * 全94職の現在職v2対応と、継承時にも信頼できるRank1/5/9 profileの正本。
  *
- * 現在職対応とArtProfileは分離する。英雄・伝説・神話は系譜／継承profileを
- * 解決できても、CURRENT_JOB_TIERSに無い限り現在職v2を起動しない。
+ * 現在職の階層・系譜・Rank profileを全職分ここで明示し、転職を理由に
+ * 旧奥義システムへ戻さない。jobs_data.tsv／JobArtLineageCatalogとの完全一致は
+ * 全職coverage testで固定する。
  */
 class JobArtV2PrototypeCatalog
 {
     /** @var array<int, string> */
     private const CURRENT_JOB_TIERS = [
-        24 => 'intermediate',
+        1 => 'basic', 2 => 'basic', 3 => 'basic', 4 => 'basic',
+        5 => 'basic', 6 => 'basic', 7 => 'basic', 8 => 'basic',
+
+        9 => 'intermediate', 10 => 'intermediate', 11 => 'intermediate',
+        12 => 'intermediate', 13 => 'intermediate', 14 => 'intermediate',
+        15 => 'intermediate', 16 => 'intermediate', 17 => 'intermediate',
+        18 => 'intermediate', 19 => 'intermediate', 20 => 'intermediate',
+        21 => 'intermediate', 22 => 'intermediate', 23 => 'intermediate',
+        24 => 'intermediate', 25 => 'intermediate', 26 => 'intermediate',
 
         27 => 'advanced', 28 => 'advanced', 29 => 'advanced', 30 => 'advanced',
         31 => 'advanced', 32 => 'advanced', 33 => 'advanced', 34 => 'advanced',
@@ -28,7 +37,20 @@ class JobArtV2PrototypeCatalog
         60 => 'crown', 61 => 'crown', 62 => 'crown', 63 => 'crown',
         64 => 'crown', 65 => 'crown', 66 => 'crown', 67 => 'crown',
         68 => 'crown', 69 => 'crown',
-        85 => 'myth',
+
+        70 => 'hero', 71 => 'hero', 72 => 'hero', 73 => 'hero',
+        74 => 'hero', 75 => 'hero', 76 => 'hero', 77 => 'hero',
+        78 => 'hero', 79 => 'hero',
+
+        80 => 'legend', 81 => 'legend', 82 => 'legend', 83 => 'legend',
+        84 => 'legend',
+
+        85 => 'myth', 86 => 'myth', 87 => 'myth', 88 => 'myth',
+        89 => 'myth', 90 => 'myth', 91 => 'myth', 92 => 'myth',
+        93 => 'myth', 94 => 'myth',
+
+        95 => 'legend', 96 => 'legend', 97 => 'legend', 98 => 'legend',
+        99 => 'legend',
     ];
 
     /** @var array<string, array<string, int|string>> */
@@ -53,16 +75,31 @@ class JobArtV2PrototypeCatalog
     ];
 
     /**
-     * 凍結済みの個別差分だけを置く。存在しない上級／超級効果はmaster fallback。
+     * 凍結済みの個別差分だけを置く。個別差分がない戦技はmaster効果をv2規則で実行する。
      *
      * @var array<int, array<int, array<string, int|float|string|bool>>>
      */
     private const ART_OVERRIDES = [
         6 => [
-            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light'],
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light', 'field_duration_rounds' => 5],
+        ],
+        12 => [
+            1 => ['resource_role' => 'neutral', 'resource_gain_points' => 0, 'resource_cost_points' => 0, 'minimum_resource_points' => 0],
+        ],
+        14 => [
+            // 血潮の咆哮はL列どおり、HITではなく発動成立時に冥蝕を得る。
+            1 => ['resource_gain_event' => 'job_art_cast'],
+        ],
+        19 => [
+            1 => ['sp_pressure_rate' => 0.02],
+            5 => ['sp_pressure_rate' => 0.03],
+        ],
+        21 => [
+            // 練気呼吸は回復技でHIT判定を持たないため、使用成立時に崩しを得る。
+            1 => ['resource_gain_event' => 'job_art_cast'],
         ],
         23 => [
-            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'melody'],
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'melody', 'field_duration_rounds' => 5],
             5 => [
                 'resource_role' => 'neutral',
                 'resource_gain_points' => 0,
@@ -70,7 +107,7 @@ class JobArtV2PrototypeCatalog
                 'minimum_resource_points' => 0,
                 'requires_trusted_field' => true,
                 'field_operation' => 'extend',
-                'field_extend_rounds' => 2,
+                'field_extend_rounds' => 3,
             ],
         ],
         24 => [
@@ -78,7 +115,14 @@ class JobArtV2PrototypeCatalog
             5 => ['field_operation' => 'none'],
             9 => ['field_operation' => 'none'],
         ],
-        // 29は場の選択／相手場上書きUIが未凍結のためmaster-effect fallback。
+        27 => [
+            1 => ['resource_role' => 'neutral', 'resource_gain_points' => 0, 'resource_cost_points' => 0, 'minimum_resource_points' => 0],
+        ],
+        // 29は場の選択／相手場上書きUIが未凍結のため、正本masterの基礎効果だけを使う。
+        30 => [
+            // 闇の契約は攻撃を伴わないため、使用成立時に冥蝕を得る。
+            1 => ['resource_gain_event' => 'job_art_cast'],
+        ],
         32 => [
             5 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.30],
             9 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.50],
@@ -91,21 +135,24 @@ class JobArtV2PrototypeCatalog
             9 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.40],
         ],
         46 => [
-            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'melody'],
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'melody', 'field_duration_rounds' => 5],
             5 => ['resource_role' => 'neutral', 'resource_gain_points' => 0, 'resource_cost_points' => 0, 'minimum_resource_points' => 0, 'field_operation' => 'none'],
             9 => ['field_operation' => 'none'],
+        ],
+        48 => [
+            1 => ['resource_role' => 'neutral', 'resource_gain_points' => 0, 'resource_cost_points' => 0, 'minimum_resource_points' => 0],
         ],
         52 => [
             5 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.35],
             9 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.50],
         ],
         53 => [
-            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light'],
-            5 => ['field_operation' => 'extend', 'field_extend_rounds' => 1],
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light', 'field_duration_rounds' => 5],
+            5 => ['field_operation' => 'extend', 'field_extend_rounds' => 2],
             9 => ['field_operation' => 'none'],
         ],
         60 => [
-            1 => ['counter_stance_rounds' => 2, 'parry_rate' => 0.20],
+            1 => ['counter_stance_rounds' => 4, 'parry_rate' => 0.20],
         ],
         61 => [
             1 => ['resource_gain_event' => 'job_art_hit'],
@@ -126,28 +173,27 @@ class JobArtV2PrototypeCatalog
             ],
             9 => [
                 'field_operation' => 'none',
-                'current_job_only' => true,
                 'field_overwrite_power_requires_primary' => true,
-                'field_overwrite_power_multiplier_1_2' => 1.05,
-                'field_overwrite_power_multiplier_3_4' => 1.10,
-                'field_overwrite_power_multiplier_5_plus' => 1.15,
+                'field_overwrite_power_multiplier_1_2' => 1.15,
+                'field_overwrite_power_multiplier_3_4' => 1.30,
+                'field_overwrite_power_multiplier_5_plus' => 1.45,
             ],
         ],
         65 => [
-            5 => ['accuracy_delta_points' => 5, 'sp_pressure_rate' => 0.03],
-            9 => ['accuracy_delta_points' => 8, 'sp_pressure_rate' => 0.05],
+            5 => ['accuracy_delta_points' => 10, 'sp_pressure_rate' => 0.03],
+            9 => ['accuracy_delta_points' => 15, 'sp_pressure_rate' => 0.05],
         ],
         66 => [
-            1 => ['guard_rate' => 0.20],
-            5 => ['guard_rate' => 0.20, 'cleanse_harmful_states' => true],
-            9 => ['guard_rate' => 0.25],
+            1 => ['guard_rate' => 0.25],
+            5 => ['guard_rate' => 0.35, 'cleanse_harmful_states' => true],
+            9 => ['guard_rate' => 0.45],
         ],
         67 => [
             1 => [
-                'resource_role' => 'consumer',
-                'resource_gain_points' => 0,
-                'resource_cost_points' => 4,
-                'minimum_resource_points' => 4,
+                'resource_role' => 'producer',
+                'resource_gain_points' => 4,
+                'resource_cost_points' => 0,
+                'minimum_resource_points' => 0,
                 'resource_gain_event' => 'job_art_cast',
             ],
             9 => ['resource_cost_points' => 8, 'minimum_resource_points' => 8],
@@ -157,18 +203,18 @@ class JobArtV2PrototypeCatalog
         ],
         55 => [
             5 => ['accuracy_delta_points' => 5, 'minimum_resource_points' => 8],
-            9 => ['sure_hit' => true, 'sp_pressure_rate' => 0.05],
+            9 => [],
         ],
         59 => [
             1 => ['resource_gain_points' => 4],
         ],
         69 => [
-            1 => ['resource_gain_points' => 0],
+            1 => ['resource_gain_points' => 4],
         ],
         85 => [
             1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light'],
             5 => ['requires_trusted_field' => true, 'field_operation' => 'lock', 'field_lock_rounds' => 2],
-            9 => ['field_operation' => 'overlay', 'field_selection_mode' => 'overlay_fixed', 'field_key' => 'melody', 'current_job_only' => true],
+            9 => ['field_operation' => 'overlay', 'field_selection_mode' => 'overlay_fixed', 'field_key' => 'melody'],
         ],
     ];
 
@@ -206,7 +252,7 @@ class JobArtV2PrototypeCatalog
 
         return in_array($jobId, self::FULL_EFFECT_CURRENT_JOBS, true)
             ? 'full_v2_effect'
-            : 'resource_v2_master_effect_fallback';
+            : 'resource_v2_master_effect';
     }
 
     public function isTrustedCurrentJobArt(?int $currentJobId, Skill $skill): bool

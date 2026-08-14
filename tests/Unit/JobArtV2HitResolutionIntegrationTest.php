@@ -74,12 +74,12 @@ class JobArtV2HitResolutionIntegrationTest extends TestCase
 
         $service->act($attacker, $defender, $state);
 
-        $this->assertSame(92, $attacker->mp);
+        $this->assertSame(94, $attacker->mp);
         $this->assertSame(110, $attacker->str);
         $this->assertSame(5000, $defender->hp);
         $this->assertSame(100, $defender->def);
         $this->assertSame(1, $state->jobArtUseCounts[$skill->id]);
-        $this->assertSame(2, $state->jobArtCooldowns[$skill->id]);
+        $this->assertArrayNotHasKey($skill->id, $state->jobArtCooldowns);
         $this->assertFalse($service->specialFallback);
         $this->assertFalse($service->normalFallback);
         $this->assertSame(1, $random->calls);
@@ -118,7 +118,7 @@ class JobArtV2HitResolutionIntegrationTest extends TestCase
         $this->assertSame(100, $defender->def);
         $this->assertSame(110, $attacker->str);
         $this->assertSame(1, $state->jobArtUseCounts[$skill->id]);
-        $this->assertSame(2, $state->jobArtCooldowns[$skill->id]);
+        $this->assertArrayNotHasKey($skill->id, $state->jobArtCooldowns);
         $this->assertSame(2, $random->calls);
         $this->assertStringContainsString('試作複合奥義は回避された', implode("\n", $state->logs));
     }
@@ -227,12 +227,12 @@ class JobArtV2HitResolutionIntegrationTest extends TestCase
         BattleState $state,
         ?string $log = null,
     ): void {
-        $this->assertSame(92, $attacker->mp);
+        $this->assertSame(94, $attacker->mp);
         $this->assertSame(110, $attacker->str);
         $this->assertSame(5000, $defender->hp);
         $this->assertSame(100, $defender->def);
         $this->assertSame(1, array_sum($state->jobArtUseCounts));
-        $this->assertSame(2, max($state->jobArtCooldowns));
+        $this->assertSame([], $state->jobArtCooldowns);
         $this->assertStringContainsString('試作複合奥義は外れた', $log ?? implode("\n", $state->logs));
     }
 
@@ -296,6 +296,7 @@ class JobArtV2HitResolutionIntegrationTest extends TestCase
     {
         $skill = new Skill([
             'name' => '試作複合奥義',
+            'job_id' => 24,
             'skill_type' => 'job_art',
             'learn_rank' => 1,
             'activation_rate' => 100,

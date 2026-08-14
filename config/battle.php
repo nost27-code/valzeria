@@ -15,6 +15,9 @@ return [
         'preset_free_limit' => 3,
         'pvp_set' => env('BATTLE_JOB_ART_PVP_SET', false),
         'loadout_v2' => env('BATTLE_JOB_ART_LOADOUT_V2', false),
+        // Keep the compact v2 cards now; the dormant per-card detail controls
+        // can be restored without reviving their old runtime conditions.
+        'loadout_card_details' => env('BATTLE_JOB_ART_LOADOUT_CARD_DETAILS', false),
         'dynamic_single' => env('BATTLE_JOB_ART_DYNAMIC_SINGLE', false),
         'normalized_sp' => env('BATTLE_JOB_ART_NORMALIZED_SP', false),
         'hit_resolution' => env('BATTLE_JOB_ART_HIT_RESOLUTION', false),
@@ -23,6 +26,11 @@ return [
         'fields' => env('BATTLE_JOB_ART_FIELDS', false),
         'penetration' => env('BATTLE_JOB_ART_PENETRATION', false),
         'penetration_stance' => env('BATTLE_JOB_ART_PENETRATION_STANCE', false),
+        // Ten-lineage C-design release candidate. Default OFF until every
+        // lineage passes the C-design RC gate.
+        'c_design_prototype' => env('BATTLE_JOB_ART_C_DESIGN_PROTOTYPE', false),
+        // PvP/Champの奥義予告・応答prototype。C-designとは別に既定OFF。
+        'ultimate_counterplay' => env('BATTLE_JOB_ART_ULTIMATE_COUNTERPLAY', false),
     ],
 
     /*

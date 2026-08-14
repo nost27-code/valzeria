@@ -21,8 +21,10 @@ final class JobArtV2BattleHudService
     public function __construct(
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
+        private readonly JobArtV2ResourceCatalog $resourceCatalog,
         private readonly JobArtV2FieldCatalog $fieldCatalog,
         private readonly JobArtV2PowerResolver $powerResolver,
+        private readonly ?JobArtV2UltimateCounterplayService $ultimateCounterplayService = null,
     ) {}
 
     public function beginAction(BattleActor $actor, BattleState $state, int $sourceActionId): void
@@ -67,8 +69,7 @@ final class JobArtV2BattleHudService
 
         $metadata = $this->prototypeCatalog->artResourceMetadata($skill);
         $usesTrustedPenetration = $this->featureGate->usesPenetration($actor)
-            && $this->prototypeCatalog->isTrustedCurrentJobArt($actor->currentJobId, $skill)
-            && ($actor->jobArtOrigins[(int) $skill->id] ?? 'current') === 'current';
+            && $this->prototypeCatalog->isTrustedArtProfile($skill);
         $fieldOverwritePower = $this->powerResolver->fieldOverwriteBranchForExecution($actor, $skill, $state);
         $state->updateJobArtV2HudAction($sourceActionId, [
             'action_kind' => 'job_art',
@@ -296,37 +297,41 @@ final class JobArtV2BattleHudService
             return null;
         }
 
-        $resource = $this->prototypeCatalog->jobResourceMetadata($actor->currentJobId);
-        if ($resource === null) {
+        $resources = $this->resourceSnapshots($actor);
+        if ($resources === []) {
             return null;
         }
 
-        $points = $actor->getResource((string) $resource['resource_key']);
-        $cap = (int) $resource['resource_max_points'];
+        $ultimate = ($this->ultimateCounterplayService
+            ?? app(JobArtV2UltimateCounterplayService::class))->hudSnapshot($actor, $state);
+        if ($ultimate !== null) {
+            foreach ($resources as &$resourceSummary) {
+                if ((string) $resourceSummary['key'] === (string) ($ultimate['resource_key'] ?? '')) {
+                    $resourceSummary['status_label'] = $ultimate['status_label'];
+                }
+            }
+            unset($resourceSummary);
+        }
+
+        $resource = $this->primaryResourceSnapshot($resources);
         $actorKey = $state->actorKey($actor);
 
         return [
             'actor_key' => $actorKey,
             'actor_label' => $label,
             'actor_name' => $actor->name,
-            'resource' => [
-                'key' => (string) $resource['resource_key'],
-                'name' => (string) $resource['resource_name'],
-                'points' => $points,
-                'cap' => $cap,
-                'remaining' => max(0, $cap - $points),
-                'is_full' => $points >= $cap,
-                'percent' => $cap > 0 ? min(100, (int) floor(($points / $cap) * 100)) : 0,
-            ],
+            // resourceは既存表示契約用の先頭資源。resourcesに装備中の全系譜資源を含める。
+            'resource' => $resource,
+            'resources' => $resources,
             'field' => $this->presentField($state->primaryField(), $actorKey),
             'overlay' => $this->presentField($state->fieldOverlay(), $actorKey),
             'echo' => $this->presentField($state->fieldEchoFor($actor), $actorKey),
-            'field_overwrite_count' => $actor->currentJobId === 63
+            'field_overwrite_count' => $this->hasEquippedJobArt($actor, 63)
                 ? $state->fieldOverwriteCountFor($actor)
                 : null,
-            'stance' => $actor->currentJobId === 62 && $this->featureGate->usesPenetrationStance($actor)
+            'stance' => $this->hasEquippedJobArt($actor, 62) && $this->featureGate->usesPenetrationStance($actor)
                 ? ['name' => '貫通構え', 'active' => $actor->hasPiercingStance()]
-                : ($actor->currentJobId === JobArtV2DefenseService::COUNTER_JOB_ID
+                : ($actor->counterStanceState() !== null
                     ? [
                         'name' => '剣冠の構え',
                         'active' => $actor->counterStanceState() !== null,
@@ -334,7 +339,7 @@ final class JobArtV2BattleHudService
                         'rate_percent' => (int) round(($actor->counterStanceState()?->parryRate ?? 0.0) * 100),
                     ]
                     : null),
-            'guard' => $actor->currentJobId === JobArtV2DefenseService::GUARD_JOB_ID
+            'guard' => $actor->jobArtV2GuardState() !== null
                 ? [
                     'active' => $actor->jobArtV2GuardState() !== null,
                     'rate_percent' => (int) round(($actor->jobArtV2GuardState()?->rate ?? 0.0) * 100),
@@ -349,6 +354,7 @@ final class JobArtV2BattleHudService
                 ]
                 : null,
             'progression' => $this->presentProgression($actor, $state),
+            'ultimate' => $ultimate,
         ];
     }
 
@@ -388,7 +394,7 @@ final class JobArtV2BattleHudService
 
         $huntMarks = (int) ($targetState?->huntingMarks[$ownerKey] ?? 0);
         if ($huntMarks > 0) {
-            $labels[] = "狩猟印：{$huntMarks}/3";
+            $labels[] = "標的印：{$huntMarks}/3";
         }
         $seal = $targetState?->sealReservations[$ownerKey] ?? null;
         if (is_array($seal)) {
@@ -419,44 +425,36 @@ final class JobArtV2BattleHudService
         if ($actorState?->initiativeForceFirstNextRound) {
             $labels[] = '次ラウンド：先行確定';
         }
-        if (($actorState?->commandRankOneCooldownUntilRound ?? 0) > $state->turnCount) {
-            $labels[] = '遅滞指令：'.$actorState->commandRankOneCooldownUntilRound.'Rから再使用可';
-        }
-
         return $labels;
     }
 
     /** @return array<string, mixed> */
     private function stateSnapshot(BattleActor $actor, BattleState $state): array
     {
-        $resource = $this->prototypeCatalog->jobResourceMetadata($actor->currentJobId);
-        $resourceSnapshot = $resource === null ? null : [
-            'key' => (string) $resource['resource_key'],
-            'name' => (string) $resource['resource_name'],
-            'points' => $actor->getResource((string) $resource['resource_key']),
-            'cap' => (int) $resource['resource_max_points'],
-        ];
+        $resources = $this->resourceSnapshots($actor);
+        $resourceSnapshot = $this->primaryResourceSnapshot($resources);
 
         return [
             'sp' => $actor->mp,
             'resource' => $resourceSnapshot,
+            'resources' => $resources,
             'field' => $this->rawField($state->primaryField()),
             'overlay' => $this->rawField($state->fieldOverlay()),
             'echo' => $this->rawField($state->fieldEchoFor($actor)),
-            'field_overwrite_count' => $actor->currentJobId === 63
+            'field_overwrite_count' => $this->hasEquippedJobArt($actor, 63)
                 ? $state->fieldOverwriteCountFor($actor)
                 : null,
-            'stance' => $actor->currentJobId === 62 && $this->featureGate->usesPenetrationStance($actor)
+            'stance' => $this->hasEquippedJobArt($actor, 62) && $this->featureGate->usesPenetrationStance($actor)
                 ? $actor->hasPiercingStance()
                 : null,
-            'counter_stance' => $actor->currentJobId === JobArtV2DefenseService::COUNTER_JOB_ID
+            'counter_stance' => $actor->counterStanceState() !== null
                 ? [
                     'active' => $actor->counterStanceState() !== null,
                     'remaining_rounds' => $actor->counterStanceState()?->remainingRounds ?? 0,
                     'rate_percent' => (int) round(($actor->counterStanceState()?->parryRate ?? 0.0) * 100),
                 ]
                 : null,
-            'guard' => $actor->currentJobId === JobArtV2DefenseService::GUARD_JOB_ID
+            'guard' => $actor->jobArtV2GuardState() !== null
                 ? [
                     'active' => $actor->jobArtV2GuardState() !== null,
                     'rate_percent' => (int) round(($actor->jobArtV2GuardState()?->rate ?? 0.0) * 100),
@@ -501,12 +499,17 @@ final class JobArtV2BattleHudService
     private function changes(array $before, array $after, array $stanceEvents = [], string $viewerActorKey = 'player'): array
     {
         $changes = [];
-        $beforeResource = $before['resource'] ?? null;
-        $afterResource = $after['resource'] ?? null;
-        if (is_array($beforeResource)
-            && is_array($afterResource)
-            && (int) $beforeResource['points'] !== (int) $afterResource['points']
-        ) {
+        $beforeResources = $this->indexedResourceSnapshots($before);
+        $afterResources = $this->indexedResourceSnapshots($after);
+        foreach (array_unique([...array_keys($beforeResources), ...array_keys($afterResources)]) as $resourceKey) {
+            $beforeResource = $beforeResources[$resourceKey] ?? null;
+            $afterResource = $afterResources[$resourceKey] ?? null;
+            if (! is_array($beforeResource) || ! is_array($afterResource)
+                || (int) $beforeResource['points'] === (int) $afterResource['points']
+            ) {
+                continue;
+            }
+
             $delta = (int) $afterResource['points'] - (int) $beforeResource['points'];
             $changes[] = [
                 'type' => 'resource',
@@ -579,6 +582,70 @@ final class JobArtV2BattleHudService
         }
 
         return $changes;
+    }
+
+    /** @return list<array<string, int|string|bool>> */
+    private function resourceSnapshots(BattleActor $actor): array
+    {
+        return array_values(array_map(function (array $resource) use ($actor): array {
+            $key = (string) $resource['resource_key'];
+            $points = $actor->getResource($key);
+            $cap = (int) $resource['resource_max_points'];
+
+            return [
+                'key' => $key,
+                'name' => (string) $resource['resource_name'],
+                'points' => $points,
+                'cap' => $cap,
+                'remaining' => max(0, $cap - $points),
+                'is_full' => $points >= $cap,
+                'percent' => $cap > 0 ? min(100, (int) floor(($points / $cap) * 100)) : 0,
+                'is_primary' => (bool) ($resource['is_primary_resource'] ?? false),
+            ];
+        }, $this->resourceCatalog->resourcesForActor($actor)));
+    }
+
+    /** @param list<array<string, mixed>> $resources */
+    private function primaryResourceSnapshot(array $resources): ?array
+    {
+        foreach ($resources as $resource) {
+            if (! empty($resource['is_primary'])) {
+                return $resource;
+            }
+        }
+
+        return $resources[0] ?? null;
+    }
+
+    private function hasEquippedJobArt(BattleActor $actor, int $jobId): bool
+    {
+        foreach ($actor->jobArts as $skill) {
+            if ($skill instanceof Skill
+                && (int) $skill->job_id === $jobId
+                && $this->prototypeCatalog->isTrustedArtProfile($skill)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function indexedResourceSnapshots(array $snapshot): array
+    {
+        $resources = is_array($snapshot['resources'] ?? null)
+            ? $snapshot['resources']
+            : (is_array($snapshot['resource'] ?? null) ? [$snapshot['resource']] : []);
+        $indexed = [];
+        foreach ($resources as $resource) {
+            if (! is_array($resource) || ! isset($resource['key'])) {
+                continue;
+            }
+            $indexed[(string) $resource['key']] = $resource;
+        }
+
+        return $indexed;
     }
 
     /** @return array<string, mixed>|null */
@@ -654,6 +721,8 @@ final class JobArtV2BattleHudService
                 'rate_percent' => (int) round($result->rate * 100),
                 'damage_before' => $result->damageBeforeParry,
                 'damage_after' => $result->damageAfterParry,
+                'counter_power' => $result->counterPower,
+                'counter_damage' => $result->counterDamage,
             ];
         }
         foreach ($state->damageTraces() as $trace) {
@@ -777,7 +846,7 @@ final class JobArtV2BattleHudService
     {
         return match ($rank) {
             1 => '始動',
-            5 => '展開',
+            5 => '連携',
             9 => '奥義',
             default => null,
         };

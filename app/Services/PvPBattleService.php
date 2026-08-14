@@ -374,8 +374,12 @@ class PvPBattleService
         $usedSkill = false;
         $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
-        if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $state, $jobArt)) {
-            $state->addLog($this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt));
+        if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse(
+            $attacker,
+            $state,
+            $jobArt,
+            $this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt),
+        )) {
             $executionSkill = $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $state, $defender);
             $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $executionSkill, $state->battleType, $state);
             if ($hitResult !== null && !$hitResult->landed()) {
@@ -420,6 +424,8 @@ class PvPBattleService
      */
     protected function executeNormalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
+        $this->jobArtBattleSupport->markNormalAttackAction($attacker, $state);
+
         if (!$this->damageCalculator->isHit(
             $attacker,
             $defender,
@@ -429,12 +435,10 @@ class PvPBattleService
             self::PVP_MAX_HIT_RATE,
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
-            $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS);
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS, false);
             return;
         }
-
-        $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT);
 
         $attackType = $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
         $isCrit = $this->damageCalculator->isRankBattleCritical($attacker, $defender);
@@ -467,6 +471,7 @@ class PvPBattleService
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
         $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT, false);
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -530,6 +535,9 @@ class PvPBattleService
     ): void
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
+        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
+            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
+            : (string) $skill->damage_type;
         if ($addOpeningLog) {
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
         }
@@ -566,8 +574,10 @@ class PvPBattleService
             $skillPowerInt = $hitPowers[$i];
 
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
-            $overrideDef = $overrides['def'];
-            $overrideSpr = $overrides['spr'];
+            $statOverrides = $this->jobArtBattleSupport->damageStatOverrides($attacker, $defender, $skill);
+            $overrideAtk = $statOverrides['attack'];
+            $overrideDef = $statOverrides['def'] ?? $overrides['def'];
+            $overrideSpr = $statOverrides['spr'] ?? $overrides['spr'];
 
             if ((float) $skill->power_multiplier > 0) {
                 $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
@@ -579,7 +589,7 @@ class PvPBattleService
                         $skillPowerInt,
                         $isCrit,
                         $affinityMultiplier,
-                        null,
+                        $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
                         true,
@@ -593,7 +603,7 @@ class PvPBattleService
                         $skillPowerInt,
                         $isCrit,
                         $affinityMultiplier,
-                        null,
+                        $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
                         true,
@@ -641,7 +651,7 @@ class PvPBattleService
                     $i + 1,
                     $hitCount,
                     true,
-                    $skill->damage_type === 'magical' ? 'magical' : 'physical',
+                    $damageType === 'magical' ? 'magical' : 'physical',
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
@@ -659,9 +669,8 @@ class PvPBattleService
 
         if ($skill->heal_percent > 0) {
             $healAmount = (int)($attacker->maxHp * ($skill->heal_percent / 100));
-            $healAmount = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $healAmount);
-            $attacker->healHp($healAmount);
-            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$healAmount} 回復した！</span>");
+            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $healAmount);
+            $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>");
         }
 
         if ($skill->mp_recover_percent > 0 && $attacker->maxMp > 0) {
@@ -686,12 +695,12 @@ class PvPBattleService
         }
 
         if ($applyTargetEffects) {
-            $this->applyStructuredDebuffs($defender, $state, $skill);
+            $this->applyStructuredDebuffs($attacker, $defender, $state, $skill);
         }
 
         if ((int) $skill->damage_reduction_percent > 0 && ! ($skill->isJobArt() && in_array((string) $skill->effect_template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true))) {
             $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
         }
         
         if (!$skill->isJobArt() && (int) $skill->self_buff_percent > 0) {
@@ -718,16 +727,14 @@ class PvPBattleService
                 ? $attacker->effectiveSpr()
                 : $attacker->spr;
             $heal = max(1, (int) floor($healingSpr * ($power / 100)));
-            $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
-            $attacker->healHp($heal);
-            $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$heal} 回復した！</span>");
+            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
+            $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$actualHeal} 回復した！</span>");
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
             $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
-            $heal = $this->jobArtBattleSupport->modifyFieldHpHeal($attacker, $state, $heal);
-            $attacker->healHp($heal);
-            $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$heal} 回復した！</span>");
+            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
+            $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$actualHeal} 回復した！</span>");
         }
 
         if ($template === 'GUTS') {
@@ -739,16 +746,31 @@ class PvPBattleService
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $rate = (float) ($attacker->jobArtRates[(int) $skill->id] ?? 1.0);
             $reduction = $this->jobArtGuardReduction($skill, $rate);
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, $reduction));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, $reduction));
             $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
-            $beforeStr = $attacker->str;
-            $beforeMag = $attacker->mag;
-            $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
-            $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-            $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $skill);
+            if ($shared !== null) {
+                $this->logStatChange(
+                    $state,
+                    $attacker->name,
+                    $shared['main_label'],
+                    $shared['main_before'],
+                    $shared['main_after'],
+                    $shared['sub_label'],
+                    $shared['sub_before'],
+                    $shared['sub_after'],
+                    true,
+                );
+            } else {
+                $beforeStr = $attacker->str;
+                $beforeMag = $attacker->mag;
+                $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+            }
         }
 
         if ($applyTargetEffects && in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true) && !$this->hasStructuredDebuff($skill)) {
@@ -806,15 +828,34 @@ class PvPBattleService
     private function jobArtGuardReduction(Skill $skill, float $rate = 1.0): int
     {
         if ((int) $skill->damage_reduction_percent > 0) {
-            return min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
+            return min(50, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
         }
 
         // powerは呼び出し元でskillForExecution()により既に継承倍率でスケール済み
-        return min(25, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
+        return min(50, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
     }
 
-    private function applyStructuredDebuffs(BattleActor $defender, BattleState $state, Skill $skill): void
+    private function applyStructuredDebuffs(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        Skill $skill,
+    ): void
     {
+        $timed = $this->jobArtBattleSupport->applyTimedStructuredDebuffs(
+            $attacker,
+            $defender,
+            $state,
+            $skill,
+        );
+        if ($timed !== null) {
+            foreach ($timed['changes'] as $change) {
+                $state->addLog("{$defender->name} の{$change['label']}が {$change['percent']}% 低下した！（{$timed['duration_turns']}ターン）");
+            }
+
+            return;
+        }
+
         $debuffs = [
             'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
             'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔法力'],

@@ -24,7 +24,7 @@ class JobArtV2ActionResolverTest extends TestCase
         foreach ([
             ['dynamic' => false, 'hit' => true, 'job' => 24],
             ['dynamic' => true, 'hit' => false, 'job' => 24],
-            ['dynamic' => true, 'hit' => true, 'job' => 23],
+            ['dynamic' => true, 'hit' => true, 'job' => 39],
         ] as $case) {
             config([
                 'battle.job_art_v2.dynamic_single' => $case['dynamic'],

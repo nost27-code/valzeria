@@ -50,7 +50,7 @@ class JobArtV2ResourceServiceTest extends TestCase
         }
 
         config(['battle.job_art_v2.resources' => true]);
-        $this->assertFalse($this->service()->enabledFor($this->actor(23)));
+        $this->assertFalse($this->service()->enabledFor($this->actor(39)));
     }
 
     public function test_catalog_contains_trusted_rank_profiles_for_all_mapped_lineage_jobs(): void
@@ -73,7 +73,7 @@ class JobArtV2ResourceServiceTest extends TestCase
                 $this->assertSame($resourceKey, $metadata['resource_key']);
                 $this->assertSame($role, $catalog->roleForArt($skill));
                 $this->assertSame(12, $metadata['resource_max_points']);
-                $this->assertSame($jobId === 69 ? 0 : match ($rank) { 1 => 4, default => 0 }, $metadata['resource_gain_points']);
+                $this->assertSame(match ($rank) { 1 => 4, default => 0 }, $metadata['resource_gain_points']);
                 $this->assertSame(match ($rank) { 5 => 4, 9 => 12, default => 0 }, $metadata['resource_cost_points']);
             }
         }
@@ -93,6 +93,29 @@ class JobArtV2ResourceServiceTest extends TestCase
         $this->assertSame(0, $actor->setResource('star_mark', -5));
         $this->assertFalse($actor->spendResource('star_mark', 1));
         $this->assertSame(0, $actor->getResource('star_mark'));
+    }
+
+    public function test_only_resources_explicitly_used_by_the_equipped_arts_are_active(): void
+    {
+        $catalog = app(JobArtV2ResourceCatalog::class);
+        $actor = $this->actor(12);
+
+        $neutral = $this->art(12, 1);
+        $actor->jobArts = [$neutral];
+        $this->assertFalse($catalog->activatesResource($actor, $neutral));
+        $this->assertSame([], $catalog->resourcesForActor($actor));
+
+        $consumer = $this->art(61, 5);
+        $actor->jobArtOrigins[(int) $consumer->id] = 'inherited';
+        $actor->jobArts = [$neutral, $consumer];
+        $this->assertTrue($catalog->activatesResource($actor, $consumer));
+        $this->assertSame('eclipse', $catalog->resourcesForActor($actor)[0]['resource_key']);
+
+        $ultimate = $this->art(65, 9);
+        $actor->jobArtOrigins[(int) $ultimate->id] = 'inherited';
+        $actor->jobArts = [$neutral, $ultimate];
+        $this->assertTrue($catalog->activatesResource($actor, $ultimate));
+        $this->assertSame('aim', $catalog->resourcesForActor($actor)[0]['resource_key']);
     }
 
     public function test_producer_cast_adds_four_once_for_hit_miss_evade_non_damage_and_multi_hit_cases(): void
@@ -117,6 +140,7 @@ class JobArtV2ResourceServiceTest extends TestCase
     {
         [$actor, $state] = $this->battle(24);
         $service = $this->service();
+        $actor->jobArts = [$this->art(24, 1)];
         $service->beginAction($actor, $state);
 
         $hitWithZeroHpLoss = $service->recordNormalAttackHit($actor, $state);
@@ -162,6 +186,7 @@ class JobArtV2ResourceServiceTest extends TestCase
         [$actor, $state] = $this->battle(61);
         $service = $this->service();
         $rankOne = $this->art(61, 1);
+        $actor->jobArts = [$rankOne];
         $service->beginAction($actor, $state);
 
         $cast = $service->applyJobArtCast($actor, $state, $rankOne);
@@ -178,33 +203,146 @@ class JobArtV2ResourceServiceTest extends TestCase
         $this->assertSame('duplicate_resource_event', $duplicateHit->blockedReason);
     }
 
-    public function test_eclipse_self_damage_adds_two_once_and_can_coexist_with_job_art_hit(): void
+    public function test_direct_eclipse_gain_and_common_self_damage_do_not_stack_in_the_same_art_action(): void
     {
         [$actor, $state] = $this->battle(61);
         $service = $this->service();
         $rankOne = $this->art(61, 1);
+        $actor->jobArts = [$rankOne];
         $service->beginAction($actor, $state);
 
+        $service->applyJobArtCast($actor, $state, $rankOne);
         $hit = $service->recordJobArtHit($actor, $state, $rankOne);
         $selfDamage = $service->recordSelfDamage($actor, $state, 1);
         $duplicateSelfDamage = $service->recordSelfDamage($actor, $state, 1);
 
         $this->assertSame(4, $hit->delta);
-        $this->assertSame(2, $selfDamage->delta);
-        $this->assertSame(ResourceEvent::SELF_DAMAGE, $selfDamage->event);
-        $this->assertSame(6, $actor->getResource('eclipse'));
+        $this->assertFalse($selfDamage->applied);
+        $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_DIRECT_RESOURCE_OPERATION, $selfDamage->blockedReason);
+        $this->assertSame(4, $actor->getResource('eclipse'));
         $this->assertFalse($duplicateSelfDamage->applied);
-        $this->assertSame('duplicate_resource_event', $duplicateSelfDamage->blockedReason);
+        $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_DIRECT_RESOURCE_OPERATION, $duplicateSelfDamage->blockedReason);
+
+        $service->beginAction($actor, $state);
+        $nextActionSelfDamage = $service->recordSelfDamage($actor, $state, 1);
+        $this->assertSame(2, $nextActionSelfDamage->delta);
+        $this->assertSame(ResourceEvent::SELF_DAMAGE, $nextActionSelfDamage->event);
+        $this->assertSame(6, $actor->getResource('eclipse'));
 
         [$hunt, $huntState] = $this->battle(64);
+        $hunt->jobArts = [$this->art(64, 1)];
         $service->beginAction($hunt, $huntState);
         $this->assertFalse($service->recordSelfDamage($hunt, $huntState, 1)->applied);
+        $this->assertSame(0, $hunt->getResource('eclipse'));
         $this->assertSame(0, $hunt->getResource('hunt'));
 
         [$zeroDamage, $zeroDamageState] = $this->battle(61);
         $service->beginAction($zeroDamage, $zeroDamageState);
         $this->assertFalse($service->recordSelfDamage($zeroDamage, $zeroDamageState, 0)->applied);
         $this->assertSame(0, $zeroDamage->getResource('eclipse'));
+    }
+
+    public function test_blood_roar_keeps_self_damage_history_but_ends_at_eclipse_plus_four(): void
+    {
+        [$actor, $state] = $this->battle(14);
+        $service = $this->service();
+        $bloodRoar = $this->art(14, 1);
+        $bloodRoar->name = '血潮の咆哮';
+        $actor->jobArts = [$bloodRoar];
+
+        $service->beginAction($actor, $state);
+        $directGain = $service->applyJobArtCast($actor, $state, $bloodRoar);
+        $commonGain = $service->recordSelfDamage($actor, $state, 3);
+
+        $this->assertSame(4, $directGain->delta);
+        $this->assertFalse($commonGain->applied);
+        $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_DIRECT_RESOURCE_OPERATION, $commonGain->blockedReason);
+        $this->assertSame(4, $actor->getResource('eclipse'));
+        $this->assertSame(3, $actor->jobArtV2ProgressionState()->nightmareSelfDamage);
+    }
+
+    public function test_eclipse_consumer_suppresses_same_action_self_damage_but_not_the_next_action(): void
+    {
+        [$actor, $state] = $this->battle(61);
+        $service = $this->service();
+        $consumer = $this->art(61, 5);
+        $actor->jobArts = [$consumer];
+        $actor->configureResource('eclipse', 12);
+        $actor->setResource('eclipse', 4);
+
+        $service->beginAction($actor, $state);
+        $this->assertSame(-4, $service->applyJobArtCast($actor, $state, $consumer)->delta);
+        $blocked = $service->recordSelfDamage($actor, $state, 2);
+        $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_DIRECT_RESOURCE_OPERATION, $blocked->blockedReason);
+        $this->assertSame(0, $actor->getResource('eclipse'));
+
+        $service->beginAction($actor, $state);
+        $this->assertSame(2, $service->recordSelfDamage($actor, $state, 2)->delta);
+        $this->assertSame(2, $actor->getResource('eclipse'));
+    }
+
+    public function test_direct_eclipse_operation_does_not_suppress_a_different_active_resource(): void
+    {
+        [$actor, $state] = $this->battle(14);
+        $service = $this->service();
+        $bloodRoar = $this->art(14, 1);
+        $guardConsumer = $this->art(15, 5);
+        $actor->jobArtOrigins[(int) $guardConsumer->id] = 'inherited';
+        $actor->jobArts = [$bloodRoar, $guardConsumer];
+
+        $service->beginAction($actor, $state);
+        $this->assertSame(4, $service->applyJobArtCast($actor, $state, $bloodRoar)->delta);
+        $guardGain = $service->recordDamageMitigated($actor, $state);
+
+        $this->assertSame(1, $guardGain->delta);
+        $this->assertSame(4, $actor->getResource('eclipse'));
+        $this->assertSame(1, $actor->getResource('holy_guard'));
+    }
+
+    public function test_explicit_metadata_can_allow_same_action_common_gain_for_a_future_art(): void
+    {
+        $metadata = array_merge(
+            app(JobArtV2PrototypeCatalog::class)->artResourceMetadataForJobRank(14, 1),
+            ['allow_lineage_common_gain' => true],
+        );
+        $catalog = new class($metadata) extends JobArtV2ResourceCatalog
+        {
+            /** @param array<string, int|float|string|bool> $metadata */
+            public function __construct(private readonly array $metadata)
+            {
+            }
+
+            public function forActorArt(BattleActor $actor, Skill $skill): ?array
+            {
+                return $this->metadata;
+            }
+
+            public function usesBattleResource(BattleActor $actor, Skill $skill): bool
+            {
+                return true;
+            }
+
+            public function resourcesForActor(BattleActor $actor): array
+            {
+                return [$this->metadata];
+            }
+        };
+        $service = new JobArtV2ResourceService(
+            app(\App\Services\JobArtV2FeatureGate::class),
+            $catalog,
+            app(\App\Services\JobArtV2FieldService::class),
+            app(\App\Services\JobArtV2BattleHudService::class),
+            app(\App\Services\JobArtV2ConversionService::class),
+            app(\App\Services\JobArtV2ProgressionService::class),
+        );
+        [$actor, $state] = $this->battle(14);
+        $bloodRoar = $this->art(14, 1);
+        $actor->jobArts = [$bloodRoar];
+
+        $service->beginAction($actor, $state);
+        $this->assertSame(4, $service->applyJobArtCast($actor, $state, $bloodRoar)->delta);
+        $this->assertSame(2, $service->recordSelfDamage($actor, $state, 3)->delta);
+        $this->assertSame(6, $actor->getResource('eclipse'));
     }
 
     public function test_hunt_producer_gains_on_cast_without_waiting_for_hit(): void
@@ -293,47 +431,77 @@ class JobArtV2ResourceServiceTest extends TestCase
         }
     }
 
-    public function test_inherited_arts_use_legacy_eligibility_without_foreign_resource_or_finisher_priority(): void
+    public function test_cross_lineage_inherited_arts_build_require_and_spend_their_source_resource(): void
     {
-        foreach ([24, 53, 85] as $currentJobId) {
-            foreach ([24, 53, 85] as $artJobId) {
-                $actor = $this->actor($currentJobId);
-                $skill = $this->art($artJobId, 1);
-                $actor->jobArtOrigins[(int) $skill->id] = $artJobId === $currentJobId ? 'current' : 'inherited';
-                $this->assertNull($this->service()->eligibilityBlockReason($actor, $skill));
-            }
-        }
-
         [$actor, $state] = $this->battle(68);
         $inheritedAimProducer = $this->art(65, 1);
         $inheritedAimFinisher = $this->art(65, 9);
         $actor->jobArtOrigins[(int) $inheritedAimProducer->id] = 'inherited';
         $actor->jobArtOrigins[(int) $inheritedAimFinisher->id] = 'inherited';
+        $actor->jobArts = [$inheritedAimProducer, $inheritedAimFinisher];
         $actor->configureResource('break', 12);
         $actor->setResource('break', 12);
 
         $this->assertNull($this->service()->eligibilityBlockReason($actor, $inheritedAimProducer));
-        $this->assertNull($this->service()->eligibilityBlockReason($actor, $inheritedAimFinisher));
+        $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_RESOURCE, $this->service()->eligibilityBlockReason($actor, $inheritedAimFinisher));
         $this->assertFalse($this->service()->isFinisherReady($actor, $inheritedAimFinisher));
+        $this->assertFalse(app(JobArtV2ResourceCatalog::class)->usesPrimaryResource($actor, $inheritedAimProducer));
+        $this->assertTrue(app(JobArtV2ResourceCatalog::class)->usesBattleResource($actor, $inheritedAimProducer));
 
-        $this->service()->beginAction($actor, $state);
-        $this->assertFalse($this->service()->applyJobArtCast($actor, $state, $inheritedAimProducer)->applied);
+        foreach ([4, 8, 12] as $expected) {
+            $this->service()->beginAction($actor, $state);
+            $this->assertSame(4, $this->service()->applyJobArtCast($actor, $state, $inheritedAimProducer)->delta);
+            $this->assertSame($expected, $actor->getResource('aim'));
+        }
         $this->assertSame(12, $actor->getResource('break'));
-        $this->assertSame(0, $actor->getResource('aim'));
+        $this->assertTrue($this->service()->isFinisherReady($actor, $inheritedAimFinisher));
 
         $this->service()->beginAction($actor, $state);
-        $this->assertFalse($this->service()->applyJobArtCast($actor, $state, $inheritedAimFinisher)->applied);
+        $this->assertSame(-12, $this->service()->applyJobArtCast($actor, $state, $inheritedAimFinisher)->delta);
         $this->assertSame(12, $actor->getResource('break'));
         $this->assertSame(0, $actor->getResource('aim'));
     }
 
-    public function test_unregistered_inherited_arts_keep_legacy_eligibility_for_every_rank(): void
+    public function test_passive_events_apply_to_the_equipped_foreign_lineage_resource(): void
+    {
+        [$actor, $state] = $this->battle(68);
+        $producer = $this->art(65, 1);
+        $actor->jobArtOrigins[(int) $producer->id] = 'inherited';
+        $actor->jobArts = [$producer];
+
+        $this->service()->beginAction($actor, $state);
+        $this->service()->applyJobArtCast($actor, $state, $producer);
+        $this->assertSame(4, $actor->getResource('aim'));
+
+        $this->service()->beginAction($actor, $state);
+        $this->service()->recordNormalAttackHit($actor, $state);
+        $this->assertSame(0, $actor->getResource('break'));
+        $this->assertSame(5, $actor->getResource('aim'));
+    }
+
+    public function test_cross_lineage_resource_chain_is_completely_disabled_with_the_resource_flag_off(): void
+    {
+        [$actor, $state] = $this->battle(68);
+        $producer = $this->art(65, 1);
+        $finisher = $this->art(65, 9);
+        $actor->jobArtOrigins[(int) $producer->id] = 'inherited';
+        $actor->jobArtOrigins[(int) $finisher->id] = 'inherited';
+        config(['battle.job_art_v2.resources' => false]);
+
+        $this->assertFalse($this->service()->enabledFor($actor));
+        $this->assertNull($this->service()->eligibilityBlockReason($actor, $finisher));
+        $this->assertFalse($this->service()->applyJobArtCast($actor, $state, $producer)->applied);
+        $this->assertSame(0, $actor->getResource('aim'));
+        $this->assertSame(0, $actor->resourceCap('aim'));
+    }
+
+    public function test_unmapped_inherited_arts_keep_legacy_eligibility_for_every_rank(): void
     {
         $actor = $this->actor(24);
 
-        $this->assertNull($this->service()->eligibilityBlockReason($actor, $this->art(10, 1)));
-        $this->assertNull($this->service()->eligibilityBlockReason($actor, $this->art(10, 5)));
-        $this->assertNull($this->service()->eligibilityBlockReason($actor, $this->art(10, 9)));
+        $this->assertNull($this->service()->eligibilityBlockReason($actor, $this->art(39, 1)));
+        $this->assertNull($this->service()->eligibilityBlockReason($actor, $this->art(39, 5)));
+        $this->assertNull($this->service()->eligibilityBlockReason($actor, $this->art(39, 9)));
     }
 
     public function test_star_priest_rank_five_fails_closed_until_trusted_fields_exist(): void
@@ -377,6 +545,7 @@ class JobArtV2ResourceServiceTest extends TestCase
             $rank1 = $this->art($jobId, 1);
             $rank5 = $this->art($jobId, 5);
             $rank9 = $this->art($jobId, 9);
+            $actor->jobArts = [$rank1, $rank5, $rank9];
 
             $cast = function (Skill $skill) use ($service, $actor, $state): void {
                 $service->beginAction($actor, $state);
@@ -401,6 +570,46 @@ class JobArtV2ResourceServiceTest extends TestCase
             $this->assertTrue($service->isFinisherReady($actor, $rank9));
             $cast($rank9); $this->assertSame(0, $actor->getResource($resourceKey));
         }
+    }
+
+    public function test_breathing_heal_gains_break_on_cast_without_a_hit_result(): void
+    {
+        [$actor, $state] = $this->battle(68);
+        $breathing = $this->art(21, 1);
+        $breathing->name = '練気呼吸';
+        $breathing->effect_template = 'HEAL';
+        $breathing->damage_type = 'heal';
+        $breathing->hit_count = 0;
+        $actor->jobArtOrigins[(int) $breathing->id] = 'inherited';
+
+        $this->service()->beginAction($actor, $state);
+        $cast = $this->service()->applyJobArtCast($actor, $state, $breathing);
+
+        $this->assertTrue($cast->applied);
+        $this->assertSame(4, $cast->delta);
+        $this->assertSame(4, $actor->getResource('break'));
+        $this->assertFalse($this->service()->recordJobArtHit($actor, $state, $breathing)->applied);
+        $this->assertSame(4, $actor->getResource('break'));
+    }
+
+    public function test_dark_contract_gains_eclipse_on_cast_without_a_hit_result_or_double_gain(): void
+    {
+        [$actor, $state] = $this->battle(30);
+        $contract = $this->art(30, 1);
+        $contract->name = '闇の契約';
+        $contract->effect_template = 'SELF_BUFF';
+        $contract->damage_type = 'support';
+        $contract->hit_count = 0;
+        $actor->jobArtOrigins[(int) $contract->id] = 'current';
+
+        $this->service()->beginAction($actor, $state);
+        $cast = $this->service()->applyJobArtCast($actor, $state, $contract);
+
+        $this->assertTrue($cast->applied);
+        $this->assertSame(4, $cast->delta);
+        $this->assertSame(4, $actor->getResource('eclipse'));
+        $this->assertFalse($this->service()->recordJobArtHit($actor, $state, $contract)->applied);
+        $this->assertSame(4, $actor->getResource('eclipse'));
     }
 
     private function service(): JobArtV2ResourceService

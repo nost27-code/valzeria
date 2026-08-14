@@ -52,7 +52,7 @@ class JobArtV2FieldIntegrationTest extends TestCase
         }
 
         $this->enableFields();
-        [$dragon, , $dragonOnly] = $this->battle(10, 20);
+        [$dragon, , $dragonOnly] = $this->battle(39, 40);
         $this->assertFalse($this->fields()->enabledFor($dragonOnly));
         $this->assertNull($dragonOnly->primaryField());
         $this->assertFalse($this->fields()->deployPrimary($dragon, $dragonOnly, 'star_light', 531, 1)->applied);
@@ -115,7 +115,7 @@ class JobArtV2FieldIntegrationTest extends TestCase
             $this->fields()->deployPrimary($caseSage, $caseState, 'star_light', 531, 100);
             $resources->beginAction($caseSage, $caseState);
             $resources->applyJobArtCast($caseSage, $caseState, $rankFive);
-            $this->assertSame(4, $caseState->primaryField()?->remainingRounds, $resolution);
+            $this->assertSame(5, $caseState->primaryField()?->remainingRounds, $resolution);
             $this->assertSame(1, $caseState->primaryField()?->extends, $resolution);
         }
     }

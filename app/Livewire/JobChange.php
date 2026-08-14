@@ -7,6 +7,7 @@ use App\Models\Character;
 use App\Models\JobClass;
 use App\Models\CharacterJob;
 use App\Services\JobService;
+use App\Services\JobArtService;
 use App\Services\CharacterJobChangeService;
 use App\Services\JobCombatGuideService;
 use App\Services\PublicLogService;
@@ -204,6 +205,14 @@ class JobChange extends Component
         }
 
         $this->normalizeRequirementsForDisplay($job);
+
+        $jobArtService = app(JobArtService::class);
+        $job->jobArts->each(function ($art) use ($jobArtService): void {
+            $art->setAttribute(
+                'job_art_effective_cost',
+                $jobArtService->effectiveArtCostFor($this->character, $art),
+            );
+        });
 
         $this->detailJobId = (int) $job->id;
         $this->detailJob = $job;

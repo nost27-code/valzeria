@@ -49,16 +49,16 @@ class JobArtV2HorizontalExpansionTest extends TestCase
         $this->assertSame(['aim', '照準', 12], [$aim['resource_key'], $aim['resource_name'], $aim['resource_max_points']]);
         $this->assertSame(1, $aim['normal_attack_hit_gain_points']);
         $this->assertSame(2, $aim['normal_attack_miss_gain_points']);
-        $this->assertSame(5, $catalog->artResourceMetadataForJobRank(65, 5)['accuracy_delta_points']);
+        $this->assertSame(10, $catalog->artResourceMetadataForJobRank(65, 5)['accuracy_delta_points']);
         $this->assertSame(0.03, $catalog->artResourceMetadataForJobRank(65, 5)['sp_pressure_rate']);
-        $this->assertSame(8, $catalog->artResourceMetadataForJobRank(65, 9)['accuracy_delta_points']);
+        $this->assertSame(15, $catalog->artResourceMetadataForJobRank(65, 9)['accuracy_delta_points']);
         $this->assertSame(0.05, $catalog->artResourceMetadataForJobRank(65, 9)['sp_pressure_rate']);
 
         $command = $catalog->jobResourceMetadata(69);
         $this->assertSame(['command_points', '指揮点', 12], [$command['resource_key'], $command['resource_name'], $command['resource_max_points']]);
         $this->assertSame(4, $command['normal_attack_hit_gain_points']);
         $this->assertSame(1, $command['non_job_art_action_gain_points']);
-        $this->assertSame(0, $catalog->artResourceMetadataForJobRank(69, 1)['resource_gain_points']);
+        $this->assertSame(4, $catalog->artResourceMetadataForJobRank(69, 1)['resource_gain_points']);
     }
 
     public function test_third_wave_metadata_matches_the_frozen_transmute_and_break_rules(): void
@@ -72,7 +72,7 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $transmute['resource_max_points'],
             $transmute['normal_attack_hit_gain_points'],
         ]);
-        $this->assertSame(['consumer', 4, 4], [
+        $this->assertSame(['producer', 0, 0], [
             $catalog->artResourceMetadataForJobRank(67, 1)['resource_role'],
             $catalog->artResourceMetadataForJobRank(67, 1)['resource_cost_points'],
             $catalog->artResourceMetadataForJobRank(67, 1)['minimum_resource_points'],
@@ -109,7 +109,7 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $counter['physical_attack_received_gain_points'],
             $counter['parry_success_gain_points'],
         ]);
-        $this->assertSame([2, 0.20], [
+        $this->assertSame([4, 0.20], [
             $catalog->artResourceMetadataForJobRank(60, 1)['counter_stance_rounds'],
             $catalog->artResourceMetadataForJobRank(60, 1)['parry_rate'],
         ]);
@@ -124,9 +124,9 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $guard['damage_mitigated_gain_points'],
             $guard['cleanse_success_gain_points'],
         ]);
-        $this->assertSame(0.20, $catalog->artResourceMetadataForJobRank(66, 1)['guard_rate']);
+        $this->assertSame(0.25, $catalog->artResourceMetadataForJobRank(66, 1)['guard_rate']);
         $this->assertTrue($catalog->artResourceMetadataForJobRank(66, 5)['cleanse_harmful_states']);
-        $this->assertSame(0.25, $catalog->artResourceMetadataForJobRank(66, 9)['guard_rate']);
+        $this->assertSame(0.45, $catalog->artResourceMetadataForJobRank(66, 9)['guard_rate']);
     }
 
     public function test_existing_master_effects_are_reused_without_inferred_lineage_effects(): void

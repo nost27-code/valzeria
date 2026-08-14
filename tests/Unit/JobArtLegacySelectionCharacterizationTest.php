@@ -63,7 +63,7 @@ class JobArtLegacySelectionCharacterizationTest extends TestCase
             $this->art(201, 0),
             $this->art(202, 100),
         ]);
-        $actor->currentJobId = 10;
+        $actor->currentJobId = 39;
         config(['battle.job_art_v2.dynamic_single' => true]);
 
         $selected = $support->selectForTurn($actor, $state);
@@ -71,7 +71,7 @@ class JobArtLegacySelectionCharacterizationTest extends TestCase
         $this->assertSame(202, $selected?->id);
     }
 
-    public function test_legacy_sp_cost_and_conserve_sixty_percent_boundary_are_unchanged(): void
+    public function test_fixed_sp_cost_and_conserve_sixty_percent_boundary_apply_even_on_the_legacy_selection_path(): void
     {
         $selection = Mockery::mock(JobArtV2SelectionService::class);
         $selection->shouldNotReceive('selectForTurn');
@@ -92,13 +92,67 @@ class JobArtLegacySelectionCharacterizationTest extends TestCase
             'battle.job_art_v2.normalized_sp' => false,
         ]);
 
-        $this->assertSame(8, $support->spCost($actor, $art));
+        $this->assertSame(6, $support->spCost($actor, $art));
 
         $actor->mp = 59;
         $this->assertNull($support->selectForTurn($actor, $state));
 
         $actor->mp = 60;
         $this->assertSame(301, $support->selectForTurn($actor, $state)?->id);
+    }
+
+    public function test_legacy_pve_still_skips_cooldown_and_battle_use_limit(): void
+    {
+        $selection = Mockery::mock(JobArtV2SelectionService::class);
+        $selection->shouldNotReceive('selectForTurn');
+        $service = new class(
+            Mockery::mock(CharacterStatusService::class),
+            Mockery::mock(DamageCalculator::class),
+            Mockery::mock(JobArtService::class),
+            new JobArtV2FeatureGate(new JobArtV2PrototypeCatalog()),
+            $selection,
+            app(JobArtV2SpCostCalculator::class),
+        ) extends BattleService {
+            public function selectForTest(BattleActor $actor, BattleState $state): ?Skill
+            {
+                return $this->selectJobArtForAction($actor, $state);
+            }
+        };
+        $cooldown = $this->art(401, 100);
+        $limited = $this->art(402, 100);
+        $limited->max_uses_per_battle = 1;
+        $available = $this->art(403, 100);
+        [$actor, $state] = $this->battleWithArts([$cooldown, $limited, $available]);
+        $actor->currentJobId = 24;
+        $state->jobArtCooldowns[401] = 1;
+        $state->jobArtUseCounts[402] = 1;
+        config(['battle.job_art_v2.dynamic_single' => false]);
+
+        $this->assertSame(403, $service->selectForTest($actor, $state)?->id);
+    }
+
+    public function test_legacy_interpersonal_still_skips_cooldown_and_battle_use_limit(): void
+    {
+        $selection = Mockery::mock(JobArtV2SelectionService::class);
+        $selection->shouldNotReceive('selectForTurn');
+        $support = new JobArtBattleSupportService(
+            Mockery::mock(JobArtService::class),
+            new JobArtV2FeatureGate(new JobArtV2PrototypeCatalog()),
+            $selection,
+            app(JobArtV2SpCostCalculator::class),
+        );
+        $cooldown = $this->art(411, 100);
+        $limited = $this->art(412, 100);
+        $limited->max_uses_per_battle = 1;
+        $available = $this->art(413, 100);
+        [$actor, $state] = $this->battleWithArts([$cooldown, $limited, $available]);
+        $actor->currentJobId = 39;
+        $prefix = spl_object_id($actor).':';
+        $state->jobArtCooldowns[$prefix.'411'] = 1;
+        $state->jobArtUseCounts[$prefix.'412'] = 1;
+        config(['battle.job_art_v2.dynamic_single' => true]);
+
+        $this->assertSame(413, $support->selectForTurn($actor, $state)?->id);
     }
 
     /** @param array<int, Skill> $arts */
@@ -121,7 +175,9 @@ class JobArtLegacySelectionCharacterizationTest extends TestCase
     {
         $skill = new Skill([
             'name' => "art-{$id}",
+            'job_id' => 24,
             'skill_type' => 'job_art',
+            'learn_rank' => 1,
             'activation_rate' => $activationRate,
             'sp_cost_rate' => 0,
             'effect_template' => 'DAMAGE',

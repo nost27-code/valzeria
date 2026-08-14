@@ -38,6 +38,9 @@ class BattleState
     public array $enemyActionUseCounts = [];
     public ?int $pendingEnemyActionId = null;
     public int $pendingEnemyActionTurns = 0;
+    /** @var array<string, mixed>|null */
+    public ?array $enemyTelegraphContext = null;
+    public int $enemyTelegraphSequence = 1;
     public ?array $explorationSupportSnapshot = null;
 
     private int $sourceActionSequence = 0;
@@ -52,14 +55,14 @@ class BattleState
     /** @var array<string, true> */
     private array $claimedResourceEvents = [];
 
+    /** @var array<string, true> actor・resource・source action単位の戦技固有リソース操作。 */
+    private array $jobArtV2DirectResourceOperations = [];
+
     /** @var array<int, BattleActionResult> */
     private array $battleActionResults = [];
 
     /** @var array<string, true> */
     private array $claimedSpPressureEvents = [];
-
-    /** @var array<string, int> */
-    private array $spPressureActualLosses = [];
 
     /** @var list<\App\Services\JobArtV2SpPressureResult> */
     private array $spPressureResults = [];
@@ -207,6 +210,26 @@ class BattleState
         $this->claimedResourceEvents[$key] = true;
 
         return true;
+    }
+
+    public function markJobArtV2DirectResourceOperation(
+        BattleActor $actor,
+        string $resourceKey,
+        int $sourceActionId,
+    ): void {
+        $this->jobArtV2DirectResourceOperations[
+            implode(':', [$this->actorKey($actor), $resourceKey, $sourceActionId])
+        ] = true;
+    }
+
+    public function hasJobArtV2DirectResourceOperation(
+        BattleActor $actor,
+        string $resourceKey,
+        int $sourceActionId,
+    ): bool {
+        return isset($this->jobArtV2DirectResourceOperations[
+            implode(':', [$this->actorKey($actor), $resourceKey, $sourceActionId])
+        ]);
     }
 
     public function actorKey(BattleActor $actor): string
@@ -362,17 +385,6 @@ class BattleState
         return true;
     }
 
-    public function spPressureActualLoss(BattleActor $attacker, BattleActor $target): int
-    {
-        return $this->spPressureActualLosses[$this->spPressurePairKey($attacker, $target)] ?? 0;
-    }
-
-    public function addSpPressureActualLoss(BattleActor $attacker, BattleActor $target, int $actualLoss): void
-    {
-        $key = $this->spPressurePairKey($attacker, $target);
-        $this->spPressureActualLosses[$key] = ($this->spPressureActualLosses[$key] ?? 0) + max(0, $actualLoss);
-    }
-
     public function recordSpPressureResult(\App\Services\JobArtV2SpPressureResult $result): void
     {
         $this->spPressureResults[] = $result;
@@ -382,11 +394,6 @@ class BattleState
     public function spPressureResults(): array
     {
         return $this->spPressureResults;
-    }
-
-    private function spPressurePairKey(BattleActor $attacker, BattleActor $target): string
-    {
-        return implode(':', [$this->actorKey($attacker), $this->actorKey($target)]);
     }
 
     public function snapshotPiercingStance(BattleActor $actor, int $sourceActionId, bool $hadStance): bool

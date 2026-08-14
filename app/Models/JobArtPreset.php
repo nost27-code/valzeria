@@ -11,11 +11,13 @@ class JobArtPreset extends Model
         'name',
         'current_job_id',
         'source_context',
+        'sp_policy',
     ];
 
     protected $casts = [
         'character_id' => 'integer',
         'current_job_id' => 'integer',
+        'sp_policy' => 'string',
     ];
 
     public function character()

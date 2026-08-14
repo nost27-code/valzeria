@@ -49,6 +49,8 @@ class BattleService
     protected JobArtV2DefenseService $jobArtV2DefenseService;
     protected JobArtV2RoleEffectService $jobArtV2RoleEffectService;
     protected JobArtV2ProgressionService $jobArtV2ProgressionService;
+    protected JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog;
+    protected JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService;
 
     public function __construct(
         CharacterStatusService $statusService,
@@ -72,6 +74,8 @@ class BattleService
         ?JobArtV2DefenseService $jobArtV2DefenseService = null,
         ?JobArtV2RoleEffectService $jobArtV2RoleEffectService = null,
         ?JobArtV2ProgressionService $jobArtV2ProgressionService = null,
+        ?JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog = null,
+        ?JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService = null,
     ) {
         $this->statusService = $statusService;
         $this->damageCalculator = $damageCalculator;
@@ -94,6 +98,9 @@ class BattleService
         $this->jobArtV2DefenseService = $jobArtV2DefenseService ?? app(JobArtV2DefenseService::class);
         $this->jobArtV2RoleEffectService = $jobArtV2RoleEffectService ?? app(JobArtV2RoleEffectService::class);
         $this->jobArtV2ProgressionService = $jobArtV2ProgressionService ?? app(JobArtV2ProgressionService::class);
+        $this->jobArtV2CrownBalanceCatalog = $jobArtV2CrownBalanceCatalog ?? app(JobArtV2CrownBalanceCatalog::class);
+        $this->jobArtV2UltimateCounterplayService = $jobArtV2UltimateCounterplayService
+            ?? app(JobArtV2UltimateCounterplayService::class);
     }
 
     protected function applyResolvedDamage(
@@ -688,6 +695,7 @@ class BattleService
         }
         } finally {
             $this->jobArtV2ResourceService->finishAction($attacker, $state);
+            $this->jobArtV2UltimateCounterplayService->finishAction($attacker, $state);
         }
     }
 
@@ -900,12 +908,10 @@ class BattleService
         $this->jobArtV2RoleEffectService->markNonJobArtAction($attacker, $state);
 
         if (!$this->isPveAttackHit($attacker, $defender, $state)) {
-            $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS);
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
+            $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::MISS);
             return;
         }
-
-        $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT);
 
         $isCrit = $this->damageCalculator->isCritical($attacker, $defender);
         $damage = $attacker->usesMagForNormalAttack()
@@ -932,6 +938,7 @@ class BattleService
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attacker->usesMagForNormalAttack() ? 'text-purple-600' : 'text-red-600';
         $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT);
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -960,7 +967,17 @@ class BattleService
             ? $this->jobArtV2RoleEffectService->criticalBonusPoints($attacker, $jobArtSkill)
             : 0.0;
         $isCrit = $forceCrit ?? $this->damageCalculator->isCritical($attacker, $defender, $criticalBonus);
-        $damage = $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $powerMultiplier, $isCrit, null, $overrideDef);
+        $statOverrides = $jobArtSkill !== null
+            ? $this->jobArtV2RoleEffectService->damageStatOverrides($attacker, $defender, $jobArtSkill)
+            : ['attack' => null, 'def' => null, 'spr' => null];
+        $damage = $this->damageCalculator->calculatePhysicalDamage(
+            $attacker,
+            $defender,
+            $powerMultiplier,
+            $isCrit,
+            $statOverrides['attack'],
+            $statOverrides['def'] ?? $overrideDef,
+        );
         $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $damage = $this->jobArtV2FieldService->modifyDamage($attacker, $state, $damage, $sourceType);
         if ($sourceType === DamageSourceType::JOB_ART && $jobArtSkill !== null) {
@@ -1060,8 +1077,8 @@ class BattleService
                     $damageDealt = $beforeHp - $defender->hp;
                     if ($damageDealt > 0) {
                         $healAmount = (int)($damageDealt * 0.5);
-                        $attacker->healHp($healAmount);
-                        $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} はHPを {$healAmount} 回復した！</span>");
+                        $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $healAmount);
+                        $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} はHPを {$actualHeal} 回復した！</span>");
                     }
                 } else {
                     $this->executePhysicalAttack($attacker, $defender, $state);
@@ -1104,7 +1121,13 @@ class BattleService
             } else {
                 $state->pendingEnemyActionId = null;
                 $state->pendingEnemyActionTurns = 0;
-                $this->executeEnemyActionEffect($attacker, $defender, $state, $pending, true);
+                $this->jobArtV2UltimateCounterplayService->markPveTelegraphExecuting($state, true);
+                try {
+                    $this->executeEnemyActionEffect($attacker, $defender, $state, $pending, true);
+                } finally {
+                    $this->jobArtV2UltimateCounterplayService->markPveTelegraphExecuting($state, false);
+                    $this->jobArtV2UltimateCounterplayService->completePveTelegraphedEnemyAction($state);
+                }
                 return;
             }
         }
@@ -1118,6 +1141,16 @@ class BattleService
         if ($action->is_telegraphed) {
             $state->pendingEnemyActionId = (int) $action->id;
             $state->pendingEnemyActionTurns = max(1, (int) $action->telegraph_turns);
+            $state->enemyTelegraphContext = [
+                'cycle_id' => $state->enemyTelegraphSequence++,
+                'action_id' => (int) $action->id,
+                'action_name' => (string) $action->name,
+                'can_be_guarded' => (bool) $action->can_be_guarded,
+                'executing' => false,
+                'delayed' => false,
+                'lineage_suppressed' => false,
+                'eclipse_backlash' => false,
+            ];
             $this->markEnemyActionUsed($action, $state);
             $state->addLog("<span class=\"battle-log-telegraph\">⚠ {$attacker->name} は {$action->name} の気配を見せた！</span>");
             return;
@@ -1196,6 +1229,7 @@ class BattleService
         }
         $state->addLog("<span class=\"battle-log-enemy-action\">【敵技】{$attacker->name} の {$action->name}！</span>");
         $beforeHp = $defender->hp;
+        $suppressSecondary = (bool) ($state->enemyTelegraphContext['lineage_suppressed'] ?? false);
 
         switch ((string) $action->action_type) {
             case 'current_hp_percent':
@@ -1220,6 +1254,10 @@ class BattleService
                 $this->executeCappedPhysicalAttack($attacker, $defender, $state, (int) $action->power_percent, 60);
                 return;
             case 'self_buff':
+                if ($suppressSecondary) {
+                    $state->addLog('<span class="text-sky-700 font-bold">封式の場が敵の大技の追加強化を抑えた！</span>');
+                    return;
+                }
                 $rate = max(0, (int) $action->effect_percent) / 100;
                 $attacker->str += (int) floor($attacker->baseStr * $rate);
                 $attacker->mag += (int) floor($attacker->baseMag * $rate);
@@ -1229,7 +1267,7 @@ class BattleService
                 $this->executePhysicalAttack($attacker, $defender, $state, (int) $action->power_percent);
         }
 
-        if ($defender->hp >= $beforeHp || $defender->isDead()) {
+        if ($suppressSecondary || $defender->hp >= $beforeHp || $defender->isDead()) {
             return;
         }
 
@@ -1365,7 +1403,17 @@ class BattleService
             return;
         }
 
-        $damage = $this->damageCalculator->calculateMagicalDamage($attacker, $defender, $powerMultiplier, false, null, $overrideSpr);
+        $statOverrides = $jobArtSkill !== null
+            ? $this->jobArtV2RoleEffectService->damageStatOverrides($attacker, $defender, $jobArtSkill)
+            : ['attack' => null, 'def' => null, 'spr' => null];
+        $damage = $this->damageCalculator->calculateMagicalDamage(
+            $attacker,
+            $defender,
+            $powerMultiplier,
+            false,
+            $statOverrides['attack'],
+            $statOverrides['spr'] ?? $overrideSpr,
+        );
         $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $damage = $this->jobArtV2FieldService->modifyDamage($attacker, $state, $damage, $sourceType);
         if ($sourceType === DamageSourceType::JOB_ART && $jobArtSkill !== null) {
@@ -1505,8 +1553,7 @@ class BattleService
         // 副効果の適用
         if ((int) $skill->heal_percent > 0) {
             $healAmount = (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100));
-            $healAmount = $this->jobArtV2FieldService->modifyHpHeal($attacker, $state, $healAmount);
-            $actualHeal = $attacker->healHp($healAmount);
+            $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $healAmount);
             $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>");
         }
 
@@ -1535,12 +1582,12 @@ class BattleService
         $isBoss = isset($defender->originalModel->is_boss) ? $defender->originalModel->is_boss : false;
         $debuffRatio = $isBoss ? 0.5 : 1.0;
         
-        $this->applyStructuredDebuffs($defender, $state, $skill, $debuffRatio);
+        $this->applyStructuredDebuffs($attacker, $defender, $state, $skill, $debuffRatio);
 
         // バフの適用
         if ((int) $skill->damage_reduction_percent > 0) {
             $state->addLog("{$attacker->name} は次の被ダメージを軽減する構えをとった！");
-            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(25, (int) $skill->damage_reduction_percent));
+            $attacker->damageReductionRate = max($attacker->damageReductionRate, min(50, (int) $skill->damage_reduction_percent));
         }
         
         if ((int) $skill->self_buff_percent > 0) {
@@ -1553,8 +1600,29 @@ class BattleService
         }
     }
 
-    private function applyStructuredDebuffs(BattleActor $defender, BattleState $state, Skill $skill, float $rate = 1.0): bool
+    private function applyStructuredDebuffs(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        Skill $skill,
+        float $rate = 1.0,
+    ): bool
     {
+        $timed = $this->jobArtV2RoleEffectService->applyTimedStructuredDebuffs(
+            $attacker,
+            $defender,
+            $state,
+            $skill,
+            $rate,
+        );
+        if ($timed !== null) {
+            foreach ($timed['changes'] as $change) {
+                $state->addLog("{$defender->name} の{$change['label']}が {$change['percent']}% 低下した！（{$timed['duration_turns']}ターン）");
+            }
+
+            return $timed['changes'] !== [];
+        }
+
         $applied = false;
         $debuffs = [
             'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
@@ -1584,12 +1652,13 @@ class BattleService
     private function executeJobArtAction(BattleActor $attacker, BattleActor $defender, BattleState $state, Skill $skill): void
     {
         $sourceSkill = $skill;
+        $skill = $this->jobArtV2CrownBalanceCatalog->applyToExecution($skill);
         $usesRoleEffects = $this->jobArtV2ResourceService->enabledFor($attacker);
         if ($usesRoleEffects
             || $this->jobArtV2DamageSemanticsResolver->forExecution($attacker, $sourceSkill) !== null
             || $this->jobArtV2EffectSemanticsResolver->suppressesLegacySelfBuff($attacker, $sourceSkill)
         ) {
-            $skill = clone $sourceSkill;
+            $skill = $this->jobArtV2CrownBalanceCatalog->applyToExecution($sourceSkill);
             $this->jobArtV2DamageSemanticsResolver->applyForExecution($attacker, $sourceSkill, $skill);
             $this->jobArtV2EffectSemanticsResolver->applyForExecution($attacker, $sourceSkill, $skill);
         }
@@ -1609,21 +1678,51 @@ class BattleService
             $skill->power = $power;
             $skill->power_multiplier = max(0, $power / 100);
             $this->jobArtV2RoleEffectService->applyForExecution($attacker, $defender, $state, $sourceSkill, $skill);
+            $this->jobArtV2PowerResolver->applyFinalDamageModifiers(
+                $attacker,
+                $sourceSkill,
+                $skill,
+                $state,
+            );
+            $this->jobArtV2UltimateCounterplayService->applyForExecution(
+                $attacker,
+                $defender,
+                $state,
+                $sourceSkill,
+                $skill,
+            );
         }
         $template = (string) $skill->effect_template;
 
         $state->jobArtUseCounts[$skillId] = (int) ($state->jobArtUseCounts[$skillId] ?? 0) + 1;
-        if ((int) $skill->cooldown_turns > 0) {
+        if (! $this->jobArtV2FeatureGate->usesDynamicSingle($attacker)
+            && (int) $skill->cooldown_turns > 0
+        ) {
             $state->jobArtCooldowns[$skillId] = (int) $skill->cooldown_turns;
         }
 
+        // Player-facing order follows the actual action: announce the art first,
+        // then show cast-time resource changes, and finally HIT-time changes.
+        $state->addLog($this->jobArtActivationLog($attacker, $defender, $skill, $prefix));
+
+        $this->jobArtV2UltimateCounterplayService->beginJobArtCast($attacker, $state, $sourceSkill);
         $this->jobArtV2ResourceService->applyJobArtCast($attacker, $state, $skill);
-        $this->jobArtV2PenetrationStanceService->beginCast($attacker, $state, $skill);
-        $this->jobArtV2DefenseService->applyJobArtCast($attacker, $state, $skill);
+        if (! $this->jobArtV2UltimateCounterplayService
+            ->lineageEffectsSuppressedForCurrentAction($attacker, $state, $sourceSkill)
+        ) {
+            $this->jobArtV2PenetrationStanceService->beginCast($attacker, $state, $skill);
+            $this->jobArtV2DefenseService->applyJobArtCast($attacker, $state, $skill);
+        }
         $this->jobArtV2RoleEffectService->beginJobArtCast($attacker, $state, $sourceSkill);
 
-        $state->addLog($this->jobArtActivationLog($attacker, $defender, $skill, $prefix));
         if ($this->jobArtV2FieldService->isFieldOnlyArt($attacker, $state, $skill)) {
+            $this->jobArtV2UltimateCounterplayService->completeJobArtCast(
+                $attacker,
+                $defender,
+                $state,
+                $sourceSkill,
+                null,
+            );
             $this->jobArtV2RoleEffectService->completeJobArtCast($attacker, $defender, $state, $sourceSkill, null);
             $this->jobArtV2PenetrationStanceService->completeCast($attacker, $state, $skill);
             return;
@@ -1633,6 +1732,13 @@ class BattleService
         if ($hitResult !== null && !$hitResult->landed()) {
             $state->addLog($this->jobArtResolutionFailureLog($skill, $hitResult));
             $this->applyMissedJobArtOnCastEffects($attacker, $defender, $state, $skill, $rate);
+            $this->jobArtV2UltimateCounterplayService->completeJobArtCast(
+                $attacker,
+                $defender,
+                $state,
+                $sourceSkill,
+                $hitResult,
+            );
             $this->jobArtV2RoleEffectService->completeJobArtCast($attacker, $defender, $state, $sourceSkill, $hitResult);
             $this->jobArtV2PenetrationStanceService->completeCast($attacker, $state, $skill);
 
@@ -1676,6 +1782,13 @@ class BattleService
         }
         $this->jobArtV2SpPressureService->applyOnHit($attacker, $defender, $state, $skill, $hitResult);
         $this->jobArtV2BreakDebuffService->applyOnHit($attacker, $defender, $state, $skill, $hitResult);
+        $this->jobArtV2UltimateCounterplayService->completeJobArtCast(
+            $attacker,
+            $defender,
+            $state,
+            $sourceSkill,
+            $hitResult,
+        );
         $this->jobArtV2RoleEffectService->completeJobArtCast($attacker, $defender, $state, $sourceSkill, $hitResult);
         $this->jobArtV2PenetrationStanceService->completeCast($attacker, $state, $skill);
     }
@@ -1931,6 +2044,23 @@ class BattleService
 
     private function applySelfBuff(BattleActor $attacker, BattleState $state, Skill $skill, ?bool $forceMagical = null): void
     {
+        $shared = $this->jobArtV2RoleEffectService->applySharedSelfBuff($attacker, $skill);
+        if ($shared !== null) {
+            $this->logStatChange(
+                $state,
+                $attacker->name,
+                $shared['main_label'],
+                $shared['main_before'],
+                $shared['main_after'],
+                $shared['sub_label'],
+                $shared['sub_before'],
+                $shared['sub_after'],
+                true,
+            );
+
+            return;
+        }
+
         $rate = $this->buffRate($skill);
         $isMagical = $forceMagical ?? $attacker->usesMagForNormalAttack();
         if ($isMagical) {
@@ -2004,9 +2134,9 @@ class BattleService
     {
         $base = (int) $skill->damage_reduction_percent > 0
             ? (int) $skill->damage_reduction_percent
-            : min(25, max(10, (int) floor(((int) $skill->power ?: 100) / 10)));
+            : min(50, max(10, (int) floor(((int) $skill->power ?: 100) / 10)));
 
-        return min(25, max(1, (int) floor($base * $rate)));
+        return min(50, max(1, (int) floor($base * $rate)));
     }
 
     private function applyJobArtHeal(BattleActor $attacker, BattleState $state, Skill $skill, float $rate): void
@@ -2016,8 +2146,7 @@ class BattleService
             ? $attacker->effectiveSpr()
             : $attacker->spr;
         $heal = max(1, (int) floor($healingSpr * ($power / 100) * $rate));
-        $heal = $this->jobArtV2FieldService->modifyHpHeal($attacker, $state, $heal);
-        $actualHeal = $attacker->healHp($heal);
+        $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $heal);
         $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$actualHeal} 回復した！</span>");
     }
 
@@ -2079,8 +2208,7 @@ class BattleService
 
         if (!in_array($template, ['HEAL', 'HEAL_CLEANSE'], true) && (int) $skill->heal_percent > 0) {
             $heal = max(1, (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100) * $rate));
-            $heal = $this->jobArtV2FieldService->modifyHpHeal($attacker, $state, $heal);
-            $actualHeal = $attacker->healHp($heal);
+            $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$actualHeal} 回復した！</span>");
         }
 
@@ -2102,7 +2230,7 @@ class BattleService
         }
 
         if ((int) $skill->damage_reduction_percent > 0 && ! in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
-            $reduction = min(25, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
+            $reduction = min(50, max(1, (int) floor((int) $skill->damage_reduction_percent * $rate)));
             $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
             $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
         }
@@ -2111,7 +2239,7 @@ class BattleService
         if ($applyTargetEffects) {
             $isBoss = (bool) ($defender->originalModel->is_boss ?? false);
             $debuffRate = $rate * ($isBoss ? 0.5 : 1.0);
-            $appliedDebuff = $this->applyStructuredDebuffs($defender, $state, $skill, $debuffRate);
+            $appliedDebuff = $this->applyStructuredDebuffs($attacker, $defender, $state, $skill, $debuffRate);
         }
 
         if (
@@ -2128,8 +2256,7 @@ class BattleService
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
             $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate * $rate));
-            $heal = $this->jobArtV2FieldService->modifyHpHeal($attacker, $state, $heal);
-            $actualHeal = $attacker->healHp($heal);
+            $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$actualHeal} 回復した！</span>");
         }
     }

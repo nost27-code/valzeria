@@ -38,12 +38,12 @@ class JobArtV2BattleHudServiceTest extends TestCase
         $this->assertNull($this->hud()->present($state));
 
         config(['battle.job_art_v2.resources' => true]);
-        [$unsupported, $other, $unsupportedState] = $this->battle(23, 22);
+        [$unsupported, $other, $unsupportedState] = $this->battle(39, 40);
         $this->resources()->beginAction($unsupported, $unsupportedState);
         $this->assertNull($this->hud()->present($unsupportedState));
         $this->assertSame([], $unsupportedState->jobArtV2HudActions());
-        $this->assertSame(23, $unsupported->currentJobId);
-        $this->assertSame(22, $other->currentJobId);
+        $this->assertSame(39, $unsupported->currentJobId);
+        $this->assertSame(40, $other->currentJobId);
         $this->assertSame(23, $actor->currentJobId === 24 ? $enemy->currentJobId : null);
     }
 
@@ -68,6 +68,7 @@ class JobArtV2BattleHudServiceTest extends TestCase
         $this->assertFalse($hud['actors'][0]['resource']['is_full']);
         $this->assertCount(4, $hud['actions']);
         $this->assertSame(['HIT', 'HIT', 'MISS', 'EVADE'], array_column($hud['actions'], 'hit_result'));
+        $this->assertSame(['始動', null, '連携', '奥義'], array_column($hud['actions'], 'rank_label'));
         $this->assertSame([4, 1, -4, -12], array_map(
             static fn (array $action): int => (int) collect($action['changes'])->firstWhere('type', 'resource')['delta'],
             $hud['actions'],
@@ -96,6 +97,36 @@ class JobArtV2BattleHudServiceTest extends TestCase
             $this->assertNull($hud['actors'][0]['field']);
             $this->assertNull($hud['actors'][0]['stance']);
         }
+    }
+
+    public function test_current_and_inherited_source_resources_are_displayed_and_traced_independently(): void
+    {
+        [$actor, , $state] = $this->battle(62);
+        $currentProducer = $this->art(62, 1);
+        $foreignProducer = $this->art(3, 1);
+        $foreignFinisher = $this->art(3, 9);
+        $foreignProducer->name = 'すり抜け';
+        $foreignFinisher->name = 'ファントムロブ';
+        $actor->jobArts = [$currentProducer, $foreignProducer, $foreignFinisher];
+        $actor->jobArtOrigins[(int) $currentProducer->id] = 'current';
+        $actor->jobArtOrigins[(int) $foreignProducer->id] = 'inherited';
+        $actor->jobArtOrigins[(int) $foreignFinisher->id] = 'inherited';
+
+        foreach (range(1, 3) as $_) {
+            $this->cast($actor, $state, $foreignProducer, HitResult::HIT);
+        }
+        $this->cast($actor, $state, $foreignFinisher, HitResult::HIT);
+
+        $hud = $this->hud()->present($state);
+        $this->assertSame(['竜気', '狩猟印'], array_column($hud['actors'][0]['resources'], 'name'));
+        $this->assertSame([false, false], array_column($hud['actors'][0]['resources'], 'is_primary'));
+        $this->assertSame([0, 0], array_column($hud['actors'][0]['resources'], 'points'));
+        $this->assertSame([4, 4, 4, -12], array_map(
+            static fn (array $action): int => (int) collect($action['changes'])->firstWhere('type', 'resource')['delta'],
+            $hud['actions'],
+        ));
+        $this->assertSame(0, $actor->getResource('dragon_force'));
+        $this->assertSame(0, $actor->getResource('hunt'));
     }
 
     public function test_twelve_points_is_presented_as_full_but_never_as_castable(): void
@@ -214,7 +245,7 @@ class JobArtV2BattleHudServiceTest extends TestCase
         $this->assertStringNotContainsString('random_int(', $source);
     }
 
-    public function test_views_are_mobile_first_and_the_six_routes_share_the_same_presenter_payload(): void
+    public function test_result_views_hide_the_summary_panel_while_six_routes_keep_the_structured_payload(): void
     {
         $blade = file_get_contents(base_path('resources/views/battle/partials/job-art-v2-hud.blade.php'));
         $this->assertStringContainsString('space-y-3', $blade);
@@ -228,7 +259,7 @@ class JobArtV2BattleHudServiceTest extends TestCase
             'resources/views/champ/result.blade.php',
             'resources/views/tower/star-tree/result.blade.php',
         ] as $view) {
-            $this->assertStringContainsString('battle.partials.job-art-v2-hud', file_get_contents(base_path($view)), $view);
+            $this->assertStringNotContainsString('battle.partials.job-art-v2-hud', file_get_contents(base_path($view)), $view);
         }
 
         foreach ([
@@ -281,7 +312,7 @@ class JobArtV2BattleHudServiceTest extends TestCase
 
     private function actor(string $name, bool $isPlayer, ?int $jobId): BattleActor
     {
-        return new BattleActor($name, $isPlayer, [
+        $actor = new BattleActor($name, $isPlayer, [
             'hp' => 10000,
             'max_hp' => 10000,
             'mp' => 400,
@@ -294,12 +325,41 @@ class JobArtV2BattleHudServiceTest extends TestCase
             'luk' => 100,
             'current_job_id' => $jobId,
         ]);
+        if (in_array($jobId, [24, 53, 61, 62, 64, 85], true)) {
+            $actor->jobArts = [$this->art((int) $jobId, 1), $this->art((int) $jobId, 5), $this->art((int) $jobId, 9)];
+            foreach ($actor->jobArts as $art) {
+                $actor->jobArtOrigins[(int) $art->id] = 'current';
+                $actor->jobArtRates[(int) $art->id] = 1.0;
+            }
+        }
+
+        return $actor;
     }
 
     private function art(int $jobId, int $rank): Skill
     {
         $skill = new Skill([
-            'name' => "job-{$jobId}-rank-{$rank}",
+            'name' => match ([$jobId, $rank]) {
+                [24, 1] => '浄化の光',
+                [24, 5] => 'セイクリッドライト',
+                [24, 9] => '大聖堂の奇跡',
+                [53, 1] => '星読の瞬き',
+                [53, 5] => '星詠みの光',
+                [53, 9] => '星天グランドスペル',
+                [61, 1] => '黒冠契約',
+                [61, 5] => '黒冠魔剣',
+                [61, 9] => '黒冠アビスブレイク',
+                [62, 1] => '竜冠の槍印',
+                [62, 5] => '竜冠穿槍',
+                [62, 9] => '竜冠天穿槍',
+                [64, 1] => '影冠追跡',
+                [64, 5] => '影冠狙撃',
+                [64, 9] => '影冠終葬射',
+                [85, 1] => '星律の祈祷',
+                [85, 5] => '星律神裁',
+                [85, 9] => '星律大聖堂',
+                default => "job-{$jobId}-rank-{$rank}",
+            },
             'skill_type' => 'job_art',
             'job_id' => $jobId,
             'learn_rank' => $rank,
