@@ -4,8 +4,8 @@ Legend: D=done, P=partial, N=not implemented, ?=unverified, X=removed
 
 | Feature | St | Evidence | Notes |
 |---|---:|---|---|
-| Job-art v2 engine / loadout | P | `JobArtService`, `JobArtV2PrototypeCatalog`, `JobArtV2SelectionService`, `JobArtV2SpCostCalculator`, loadout/preset tests | 94職282戦技を対象に、現在職に依存しない全効果、5枠・Cost9・奥義1枚、循環cursor、固定SP表を実装済み。コードは本番へ配置するが、関連15 flagをすべてOFFに保つためプレイヤー挙動はlegacyのまま。 |
-| Job-art flavor rewrite overlay | P | `JobArtFlavorTextService`, `database/data/job_art_flavor_rewrites.json`, `JobArtFlavorTextServiceTest` | 94職282戦技の台詞・発動描写案を完全一致キーで実装済み。`BATTLE_JOB_ART_FLAVOR_REWRITE=false`のまま本番配置するため、現在の戦闘ログ・神殿表示は変更しない。DB・`skills`マスタ更新なし。文言公開は別タスクでflagをONにする。 |
+| Job-art v2 engine / loadout | P | `JobArtService`, `JobArtV2PrototypeCatalog`, `JobArtV2SelectionService`, `JobArtV2SpCostCalculator`, loadout/preset tests | 94職282戦技を対象に、現在職に依存しない全効果、5枠・Cost9・奥義1枚、循環cursor、固定SP表を実装済み。文言専用flagを除く14 engine/UI flagは本番OFFのため、編成・SP・発動判定・戦闘効果はlegacyのまま。 |
+| Job-art flavor rewrite overlay | D | `JobArtFlavorTextService`, `database/data/job_art_flavor_rewrites.json`, `JobArtFlavorTextServiceTest` | 94職282戦技の台詞・発動描写を完全一致キーで実装し、`BATTLE_JOB_ART_FLAVOR_REWRITE=true`で本番公開。戦闘ログと神殿表示だけを切り替え、威力・効果・発動条件は変更しない。DB・`skills`マスタ更新なし。 |
 | Job-art v2 lineage resources / duplicate suppression | P | `JobArtV2ResourceCatalog`, `JobArtV2ResourceService`, resource activation/duplicate-suppression tests | セット内で明示的に資源を扱う戦技または奥義の系譜だけを有効化し、同一戦技・同一行動・同一資源の直接増減と共通獲得を重複させない。6戦闘経路のコードと回帰テストはあるが、本番flagはOFF。 |
 | Job-art v2 runtime master sync | N | `database/data/job_arts.json`, `JobArtSeeder` | コード側正本は94職282戦技。今回のOFF公開ではruntime `skills`同期migration・Seeder・既存データ更新を実行しない。本番有効化時にbackupと自然キー監査を伴う別タスクとして実施する。 |
 | Login | D | `AuthController`, `AuthService`, `CityHeader`, `MainScreen`, `/auth/google`, `/account/link/google` | Google・メール・ゲストで開始できる。ゲスト中は共通ヘッダの「データを引き継ぐ」からGoogle連携を開始し、同じユーザーIDとキャラクターのまま進行データを引き継げる。すでに別データへ連携済みのGoogleアカウントは統合せず拒否する。冒険者タブの「設定」→「情報確認」では、Google連携とメールアドレス・パスワード登録を別々に表示し、両方利用可能な状態とゲスト状態も確認できる。|

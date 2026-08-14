@@ -5,14 +5,14 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-15
 Branch: main
 
-## Job-art v2 current canonical state (production dormant)
+## Job-art v2 current canonical state (engine dormant / flavor live)
 
 - 戦技v2コードは現行マスタ94職・Rank1/5/9の282戦技を対象とする。v2有効時に現在職による対応外判定や旧マスタ説明への職別fallbackは設けない。プレイヤー自身に主系譜・副系譜・出張の所属は持たせず、習得済み戦技は現在職に関係なく編成でき、カードに記載された効果と威力を100%適用する
 - 1セットは5枠・Cost上限9。始動/連携/奥義はCost1/2/3で、奥義は1セット1枚まで。SPは習得職階級×Rankの固定表（基本4/6/8、中級6/9/13、上級10/16/22、超級16/25/35、冠位23/36/50、英雄30/48/66、伝説40/64/88、神話52/84/115）を使い、現在職・系譜・継承率による軽減を行わない
 - 系譜は戦技カードの資源・状態タグとしてのみ扱う。セット内にその資源を明示的に増減する戦技がある場合、またはその系譜の奥義をセットした場合に、その系譜資源を有効化する。有効でない系譜の共通獲得イベントは発生させない。同一戦技・同一行動・同一資源では、戦技本文の直接増減と系譜共通獲得を重複させない
 - 選択は前回判定位置の次から5枠を巡る循環cursor方式。現在使用できない戦技は飛ばし、最初に見つかった候補へ発動抽選を1回だけ行う。不発時に同一行動中の別戦技を再抽選しない。奥義準備と対奥義/予告大技の応答は専用flag配下にある
-- `config/battle.php`の戦技v2関連15 flagはすべて既定OFF。本番への今回の配置はコードのみで、migration・master同期・既存slot/preset更新を行わない。flag OFF中は従来3枠・Cost5・legacy選択/SP/表示を維持する。v2の本番有効化は別タスクでDB backup、migration、全6戦闘経路smokeを経て行う
-- `BATTLE_JOB_ART_FLAVOR_REWRITE`は戦闘v2の他flagから独立した文言切替で、既定OFF。`database/data/job_art_flavor_rewrites.json`に94職282戦技の台詞・発動描写案を完全一致 `(job_id, learn_rank, name)` で保持し、ON時だけ通常/ボス/塔/PvP/チャンプ/NPC闘技場の奥義ログと神殿・管理確認画面へ適用する。OFF時、未一致時、読込失敗時は`skills.activation_phrase` / `activation_description`を維持し、DB同期は行わない
+- `config/battle.php`の戦技v2関連15 flagはすべてコード既定OFF。本番では文言専用の`BATTLE_JOB_ART_FLAVOR_REWRITE`だけをONにし、残る14 engine/UI flagはOFFを維持する。migration・master同期・既存slot/preset更新は行わず、従来3枠・Cost5・legacy選択/SP/戦闘効果を維持する。v2 engineの本番有効化は別タスクでDB backup、migration、全6戦闘経路smokeを経て行う
+- `BATTLE_JOB_ART_FLAVOR_REWRITE`は戦闘v2の他flagから独立した文言切替。`database/data/job_art_flavor_rewrites.json`に94職282戦技の台詞・発動描写を完全一致 `(job_id, learn_rank, name)` で保持し、2026-08-15から本番ON。通常/ボス/塔/PvP/チャンプ/NPC闘技場の奥義ログと神殿・管理確認画面だけへ適用し、威力・効果・発動条件・RNGは変更しない。OFF時、未一致時、読込失敗時は`skills.activation_phrase` / `activation_description`を維持し、DB同期は行わない
 
 ## Job-art v2 progression / FIX_NOW pass (historical design pass)
 

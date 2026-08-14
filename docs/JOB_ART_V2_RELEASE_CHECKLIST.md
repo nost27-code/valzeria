@@ -4,12 +4,19 @@
 対象起点: PR26 `2282b4ff682c846a0b0a754b4617957392e2ca48` 以降
 公開判定: **コードのみ本番配置可 / 戦技v2機能公開は未承認**
 
-## 2026-08-15 OFF本番配置
+## 2026-08-15 文言のみ本番公開
 
-- 今回は戦技v2のコード・表示素材・テストを本番へ配置するが、`config/battle.php`の関連15 flagはすべてOFFのままにする
+- 運営裁定により`BATTLE_JOB_ART_FLAVOR_REWRITE`だけを本番ONにする。コード既定値はOFFのまま、production共有`.env`で明示する
+- 94職282戦技の台詞・発動描写だけを切り替える。威力・効果・発動条件・RNG・SP・枠数は変更しない
+- 残る14 engine/UI flagはOFF。deploymentは`migration_mode=none`で、migration、Seeder、`skills`同期、既存プレイヤーデータ更新は行わない
+- 文言rollbackはproduction共有`.env`を`BATTLE_JOB_ART_FLAVOR_REWRITE=false`へ戻し、config cacheを再生成する
+
+## 2026-08-15 戦技v2エンジンOFF本番配置
+
+- 今回は戦技v2のコード・表示素材・テストを本番へ配置するが、文言専用flagを除く関連14 engine/UI flagはすべてOFFのままにする
 - deploymentは`migration_mode=none`で行う。migration、Seeder、`skills` master同期、既存slot/preset/プレイヤーデータ更新は実行しない
 - flag OFF中の画面・選択・SP・戦闘はlegacyの3枠・Cost5を維持する。v2の5枠・Cost9・固定SP・循環cursor・複数系譜resource・対奥義は起動しない
-- `BATTLE_JOB_ART_FLAVOR_REWRITE=false`中は、別JSONへ配置した282件の台詞・発動描写案を使用せず、`skills`の現行文言を維持する
+- 文言専用flagだけは上記の別裁定によりONとし、戦闘性能から独立して公開する
 - v2有効時の現行仕様は、全94職対応、現在職によるfallbackなし、主/副/出張なし、習得済み戦技の全効果100%、Rank1/5/9のCost1/2/3、奥義1枚、有効資源だけ共通獲得、同一戦技・同一行動・同一資源の重複禁止
 - 本番有効化は別タスク。DB backup、必要migrationの個別確認、282件runtime master監査、6戦闘経路smoke、段階的flag切替を改めて実施する
 
@@ -119,7 +126,7 @@ Down:
 | `BATTLE_JOB_ART_PRESETS` | loadout-v2 + 対応current job | 戦闘処理はpreset tableを直接読まない |
 | `BATTLE_JOB_ART_C_DESIGN_PROTOTYPE` | dynamic + resources | 主/副/出張を廃止した全効果・複数資源runtimeの共通gate |
 | `BATTLE_JOB_ART_ULTIMATE_COUNTERPLAY` | c-design + battle path | 奥義/大技予告と10系譜の対処。既定OFF |
-| `BATTLE_JOB_ART_FLAVOR_REWRITE` | なし | 282件の台詞・発動描写だけを切り替える独立flag。既定OFF、文言公開は別承認 |
+| `BATTLE_JOB_ART_FLAVOR_REWRITE` | なし | 282件の台詞・発動描写だけを切り替える独立flag。コード既定OFF、本番のみ承認済みON |
 
 機械可読の確認表: `C:\tmp\job-art-pr27\release_flag_matrix.csv`
 
@@ -127,7 +134,7 @@ Down:
 
 RC READY後も一括ONにはしない。
 
-`BATTLE_JOB_ART_FLAVOR_REWRITE`は以下の戦闘v2段階公開には連動させず、文言確認後の別タスクで切り替える。
+`BATTLE_JOB_ART_FLAVOR_REWRITE`は以下の戦闘v2段階公開には連動させず、文言専用flagとして先行公開済み。
 
 1. DB backup後に必要migrationだけを適用し、全flag OFFでlegacy smoke
 2. 内部検証characterだけに環境単位でUI系flagを有効化
