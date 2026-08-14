@@ -51,6 +51,7 @@ class BattleService
     protected JobArtV2ProgressionService $jobArtV2ProgressionService;
     protected JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog;
     protected JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService;
+    protected JobArtFlavorTextService $jobArtFlavorTextService;
 
     public function __construct(
         CharacterStatusService $statusService,
@@ -76,6 +77,7 @@ class BattleService
         ?JobArtV2ProgressionService $jobArtV2ProgressionService = null,
         ?JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog = null,
         ?JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService = null,
+        ?JobArtFlavorTextService $jobArtFlavorTextService = null,
     ) {
         $this->statusService = $statusService;
         $this->damageCalculator = $damageCalculator;
@@ -101,6 +103,7 @@ class BattleService
         $this->jobArtV2CrownBalanceCatalog = $jobArtV2CrownBalanceCatalog ?? app(JobArtV2CrownBalanceCatalog::class);
         $this->jobArtV2UltimateCounterplayService = $jobArtV2UltimateCounterplayService
             ?? app(JobArtV2UltimateCounterplayService::class);
+        $this->jobArtFlavorTextService = $jobArtFlavorTextService ?? app(JobArtFlavorTextService::class);
     }
 
     protected function applyResolvedDamage(
@@ -1889,12 +1892,13 @@ class BattleService
             "<span class=\"battle-log-special-title\">【{$prefix}】" . e($skill->name) . " が発動！</span>",
         ];
 
-        $phrase = trim((string) ($skill->activation_phrase ?? ''));
+        $flavorText = $this->jobArtFlavorTextService->resolve($skill);
+        $phrase = trim((string) ($flavorText['activation_phrase'] ?? ''));
         if ($phrase !== '') {
             $lines[] = '<span class="battle-log-special-phrase">' . e($this->formatJobArtFlavorText($phrase, $attacker, $defender, $skill)) . '</span>';
         }
 
-        $description = trim((string) ($skill->activation_description ?? ''));
+        $description = trim((string) ($flavorText['activation_description'] ?? ''));
         if ($description !== '') {
             $lines[] = '<span class="battle-log-special-description">' . e($this->formatJobArtFlavorText($description, $attacker, $defender, $skill)) . '</span>';
         }

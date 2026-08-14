@@ -26,6 +26,7 @@ class JobArtV2OffProductionContractTest extends TestCase
             'penetration_stance',
             'c_design_prototype',
             'ultimate_counterplay',
+            'flavor_rewrite',
         ] as $flag) {
             $this->assertFalse($config['job_art_v2'][$flag], $flag . ' must default to OFF');
         }

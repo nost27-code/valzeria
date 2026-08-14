@@ -657,13 +657,13 @@
                                             @endforeach
                                         </div>
                                     @endif
-                                    @if($art->activation_phrase || $art->activation_description)
+                                    @if($art->job_art_flavor_phrase || $art->job_art_flavor_description)
                                         <div class="mt-2 rounded-md bg-white/70 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-indigo-700">
-                                            @if($art->activation_phrase)
-                                                <div>{{ $art->activation_phrase }}</div>
+                                            @if($art->job_art_flavor_phrase)
+                                                <div>{{ $art->job_art_flavor_phrase }}</div>
                                             @endif
-                                            @if($art->activation_description)
-                                                <div class="text-slate-500">{{ str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $art->name], $art->activation_description) }}</div>
+                                            @if($art->job_art_flavor_description)
+                                                <div class="text-slate-500">{{ str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $art->name], $art->job_art_flavor_description) }}</div>
                                             @endif
                                         </div>
                                     @endif

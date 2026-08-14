@@ -27,6 +27,7 @@ class JobArtBattleSupportService
     private readonly JobArtV2ProgressionService $jobArtV2ProgressionService;
     private readonly JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService;
     private readonly JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog;
+    private readonly JobArtFlavorTextService $jobArtFlavorTextService;
 
     public function __construct(
         private readonly JobArtService $jobArtService,
@@ -49,6 +50,7 @@ class JobArtBattleSupportService
         ?JobArtV2ProgressionService $jobArtV2ProgressionService = null,
         ?JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService = null,
         ?JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog = null,
+        ?JobArtFlavorTextService $jobArtFlavorTextService = null,
     ) {
         $this->jobArtActionResolver = $jobArtActionResolver ?? app(ActionResolver::class);
         $this->jobArtV2ResourceService = $jobArtV2ResourceService ?? app(JobArtV2ResourceService::class);
@@ -68,6 +70,7 @@ class JobArtBattleSupportService
             ?? app(JobArtV2UltimateCounterplayService::class);
         $this->jobArtV2CrownBalanceCatalog = $jobArtV2CrownBalanceCatalog
             ?? app(JobArtV2CrownBalanceCatalog::class);
+        $this->jobArtFlavorTextService = $jobArtFlavorTextService ?? app(JobArtFlavorTextService::class);
     }
 
     public function attachBossSet(BattleActor $actor, Character $character, string $context = 'champ'): void
@@ -487,12 +490,13 @@ class JobArtBattleSupportService
             "<span class=\"text-indigo-700 font-extrabold\">【{$prefix}】" . e($skill->name) . " が発動！</span>",
         ];
 
-        $phrase = trim((string) ($skill->activation_phrase ?? ''));
+        $flavorText = $this->jobArtFlavorTextService->resolve($skill);
+        $phrase = trim((string) ($flavorText['activation_phrase'] ?? ''));
         if ($phrase !== '') {
             $lines[] = '<span class="text-slate-700 font-bold">' . e($this->formatFlavorText($phrase, $attacker, $defender, $skill)) . '</span>';
         }
 
-        $description = trim((string) ($skill->activation_description ?? ''));
+        $description = trim((string) ($flavorText['activation_description'] ?? ''));
         if ($description !== '') {
             $lines[] = '<span class="text-indigo-800 font-bold">' . e($this->formatFlavorText($description, $attacker, $defender, $skill)) . '</span>';
         }

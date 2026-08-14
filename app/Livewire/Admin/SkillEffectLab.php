@@ -9,6 +9,7 @@ use App\Models\Enemy;
 use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\Admin\SkillEffectPreviewService;
+use App\Services\JobArtFlavorTextService;
 use App\Support\JobArtEffectCatalog;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Collection;
@@ -236,11 +237,13 @@ class SkillEffectLab extends Component
      */
     private function jobChangeIntro(Skill $skill): array
     {
+        $flavorText = app(JobArtFlavorTextService::class)->resolve($skill);
+
         return [
             'body' => $skill->memo ?: ($skill->description ?: '効果説明なし'),
-            'phrase' => $skill->activation_phrase ?: null,
-            'description' => $skill->activation_description
-                ? str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $skill->name], $skill->activation_description)
+            'phrase' => $flavorText['activation_phrase'] ?: null,
+            'description' => $flavorText['activation_description']
+                ? str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $skill->name], $flavorText['activation_description'])
                 : null,
         ];
     }

@@ -1,0 +1,1976 @@
+[
+  {
+    "job_id": 1,
+    "learn_rank": 1,
+    "name": "斬り払い",
+    "activation_phrase": "「刃筋はもう見えている――斬り払い！」",
+    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた。残る澄み切った剣気が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 1,
+    "learn_rank": 5,
+    "name": "連斬",
+    "activation_phrase": "「次の一太刀で決める――連斬！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、澄み切った剣気をまとった二連撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 1,
+    "learn_rank": 9,
+    "name": "剣気解放",
+    "activation_phrase": "「剣の極み、この一閃に――剣気解放！」",
+    "activation_description": "{user}は澄み切った剣気を刃へ集め、《{skill}》の剣閃で{target}を斬り裂いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 2,
+    "learn_rank": 1,
+    "name": "挑発撃",
+    "activation_phrase": "「この一撃を次の力へ――挑発撃！」",
+    "activation_description": "勝負の気迫が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 2,
+    "learn_rank": 5,
+    "name": "渾身撃",
+    "activation_phrase": "「勢いはまだ止めない――渾身撃！」",
+    "activation_description": "{user}は高まる戦気を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 2,
+    "learn_rank": 9,
+    "name": "巨人断ち",
+    "activation_phrase": "「勝利へ至る力を解き放つ――巨人断ち！」",
+    "activation_description": "{user}は高まる戦気を一気に解放し、《{skill}》で{target}を打ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 3,
+    "learn_rank": 1,
+    "name": "すり抜け",
+    "activation_phrase": "「視線の外へ――今だ。」",
+    "activation_description": "{user}は《{skill}》で気配を薄め、狩猟の印を刻みながら次の一撃へ備えた！"
+  },
+  {
+    "job_id": 3,
+    "learn_rank": 5,
+    "name": "不意打ち",
+    "activation_phrase": "「その隙は見逃さない――不意打ち！」",
+    "activation_description": "{user}の武器に揺らめく残像が宿る。《{skill}》の一撃が{target}を打ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 3,
+    "learn_rank": 9,
+    "name": "ファントムロブ",
+    "activation_phrase": "「影さえ置き去りにする――ファントムロブ！」",
+    "activation_description": "{user}は研ぎ澄ました気配を武器へ集め、《{skill}》の三連一撃を{target}へ浴びせた。重なる衝撃が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 4,
+    "learn_rank": 1,
+    "name": "足止め矢",
+    "activation_phrase": "「狙いは定まった――足止め矢！」",
+    "activation_description": "獲物を捉える照準が閃き、{user}は《{skill}》の矢撃を{target}へ叩き込んだ。残る張り詰めた狩気が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 4,
+    "learn_rank": 5,
+    "name": "狙い撃ち",
+    "activation_phrase": "「逃げ道ごと射抜く――狙い撃ち！」",
+    "activation_description": "{user}は張り詰めた狩気を矢尻へ集め、《{skill}》の矢撃で{target}を射抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 4,
+    "learn_rank": 9,
+    "name": "五月雨流星射ち",
+    "activation_phrase": "「星の雨よ、逃げ道を奪え！」",
+    "activation_description": "{user}は《{skill}》で五連の星矢を放ち、{target}へ逃げ場のない矢雨を降らせた！"
+  },
+  {
+    "job_id": 5,
+    "learn_rank": 1,
+    "name": "気合拳",
+    "activation_phrase": "「呼吸をひとつに整える――気合拳！」",
+    "activation_description": "{user}は研ぎ澄まされた闘気を拳へ集め、《{skill}》の拳撃で{target}を打ち砕いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 5,
+    "learn_rank": 5,
+    "name": "連打",
+    "activation_phrase": "「拳にすべてを乗せる――連打！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、研ぎ澄まされた闘気をまとった三連撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 5,
+    "learn_rank": 9,
+    "name": "爆裂闘気",
+    "activation_phrase": "「武の極みをここに示す――爆裂闘気！」",
+    "activation_description": "{user}は崩しの呼吸を刻み、《{skill}》の四連拳撃で{target}を打ち据えた。その連撃の余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 6,
+    "learn_rank": 1,
+    "name": "魔力の火種",
+    "activation_phrase": "「炎よ、道を焼き開け――魔力の火種！」",
+    "activation_description": "火焔の紋が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 6,
+    "learn_rank": 5,
+    "name": "火炎弾",
+    "activation_phrase": "「紅蓮よ、さらに燃えろ――火炎弾！」",
+    "activation_description": "{user}は灼熱の炎を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 6,
+    "learn_rank": 9,
+    "name": "フレアストーム",
+    "activation_phrase": "「紅蓮の嵐よ、すべてを焼き尽くせ！」",
+    "activation_description": "{user}は《{skill}》の極大術式を解放し、渦巻く業火で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 7,
+    "learn_rank": 1,
+    "name": "ヒール",
+    "activation_phrase": "「命の息吹よ、応えて――ヒール！」",
+    "activation_description": "{user}の祈りに瑞々しい生命力が応え、《{skill}》が傷ついた身体を満たした！"
+  },
+  {
+    "job_id": 7,
+    "learn_rank": 5,
+    "name": "癒しの祈り",
+    "activation_phrase": "「大地の恵みを巡らせる――癒しの祈り！」",
+    "activation_description": "{user}は《{skill}》を胸元へ宿し、薄れた命の灯を強く燃やした！"
+  },
+  {
+    "job_id": 7,
+    "learn_rank": 9,
+    "name": "聖域展開",
+    "activation_phrase": "「ここから先は、命を守る聖域です！」",
+    "activation_description": "{user}は《{skill}》の祈りを大地へ広げ、傷ついた身体を聖光で満たした！"
+  },
+  {
+    "job_id": 8,
+    "learn_rank": 1,
+    "name": "金貨投げ",
+    "activation_phrase": "「好機は逃さない――金貨投げ！」",
+    "activation_description": "{user}の金貨に錬金の陣が宿る。《{skill}》の投撃が{target}を打ち据えた！"
+  },
+  {
+    "job_id": 8,
+    "learn_rank": 5,
+    "name": "幸運の一手",
+    "activation_phrase": "「価値ある一手に変える――幸運の一手！」",
+    "activation_description": "黄金の魔力がきらめき、{user}の《{skill}》が価値ある獲物を引き寄せた！"
+  },
+  {
+    "job_id": 8,
+    "learn_rank": 9,
+    "name": "大番振る舞い",
+    "activation_phrase": "「さあ、景気よくいこう！」",
+    "activation_description": "{user}は《{skill}》のごちそうと活気を力に変え、傷と疲労を一気に吹き飛ばした！"
+  },
+  {
+    "job_id": 9,
+    "learn_rank": 1,
+    "name": "属性付与",
+    "activation_phrase": "「刃筋はもう見えている――属性付与！」",
+    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 9,
+    "learn_rank": 5,
+    "name": "魔法剣",
+    "activation_phrase": "「次の一太刀で決める――魔法剣！」",
+    "activation_description": "{user}は澄み切った剣気を刃へ集め、《{skill}》の剣閃で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 9,
+    "learn_rank": 9,
+    "name": "双極断",
+    "activation_phrase": "「剣の極み、この一閃に――双極断！」",
+    "activation_description": "{user}は冥蝕の脈動と澄み切った剣気を重ね、《{skill}》で{target}を斬り裂いた。残る澄み切った剣気が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 10,
+    "learn_rank": 1,
+    "name": "聖盾撃",
+    "activation_phrase": "「ここは通さない――聖盾撃！」",
+    "activation_description": "{user}の盾に堅牢な防壁が宿る。《{skill}》の盾撃が{target}を押し崩した。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 10,
+    "learn_rank": 5,
+    "name": "ホーリーブレイド",
+    "activation_phrase": "「聖光よ、ここに集え――ホーリーブレイド！」",
+    "activation_description": "{user}は澄み渡る聖光を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた。その余光が{user}へ巡り、傷を癒やした！"
+  },
+  {
+    "job_id": 10,
+    "learn_rank": 9,
+    "name": "不滅の誓い",
+    "activation_phrase": "「この誓いがある限り、倒れはしない！」",
+    "activation_description": "{user}の足元に聖なる紋章が輝く。《{skill}》が致命の一撃を退ける不屈の加護となった！"
+  },
+  {
+    "job_id": 11,
+    "learn_rank": 1,
+    "name": "納刀",
+    "activation_phrase": "「一閃――そして、静へ。」",
+    "activation_description": "{user}は《{skill}》の抜き打ちで{target}を斬り、音もなく刀を納めて次の一閃へ気を研ぎ澄ませた！"
+  },
+  {
+    "job_id": 11,
+    "learn_rank": 5,
+    "name": "居合斬り",
+    "activation_phrase": "「次の一太刀で決める――居合斬り！」",
+    "activation_description": "{user}は反撃の間合いと澄み切った剣気を重ね、《{skill}》で{target}を斬り裂いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 11,
+    "learn_rank": 9,
+    "name": "刹那雪月花",
+    "activation_phrase": "「剣の極み、この一閃に――刹那雪月花！」",
+    "activation_description": "{user}は澄み切った剣気を武器へ集め、《{skill}》の三連一撃を{target}へ浴びせた！"
+  },
+  {
+    "job_id": 12,
+    "learn_rank": 1,
+    "name": "敵情分析",
+    "activation_phrase": "「戦況は読み切った――敵情分析！」",
+    "activation_description": "{user}の勝利の号令が戦場を走り、《{skill}》で{target}の勝機を奪った！"
+  },
+  {
+    "job_id": 12,
+    "learn_rank": 5,
+    "name": "勝利の采配",
+    "activation_phrase": "「勝ち筋をここに通す――勝利の采配！」",
+    "activation_description": "{user}は勝利の号令を深く刻み、《{skill}》で戦う力と構えを研ぎ澄ませた！"
+  },
+  {
+    "job_id": 12,
+    "learn_rank": 9,
+    "name": "十面埋伏",
+    "activation_phrase": "「全軍、勝利の一手を打て――十面埋伏！」",
+    "activation_description": "{user}は研ぎ澄まされた戦意を操り、《{skill}》で{target}の動線を断ち切った！"
+  },
+  {
+    "job_id": 13,
+    "learn_rank": 1,
+    "name": "闘争本能",
+    "activation_phrase": "「まだ熱くなれる――闘争本能！」",
+    "activation_description": "{user}の全身に《{skill}》の闘気がたぎり、攻めと守りの勘が研ぎ澄まされた！"
+  },
+  {
+    "job_id": 13,
+    "learn_rank": 5,
+    "name": "闘技連斬",
+    "activation_phrase": "「次の一太刀で決める――闘技連斬！」",
+    "activation_description": "{user}の刃が三度きらめき、《{skill}》の連撃が{target}を包囲した！"
+  },
+  {
+    "job_id": 13,
+    "learn_rank": 9,
+    "name": "コロッセオブレイク",
+    "activation_phrase": "「剣の極み、この一閃に――コロッセオブレイク！」",
+    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 14,
+    "learn_rank": 1,
+    "name": "血潮の咆哮",
+    "activation_phrase": "「この血は、まだ燃え尽きていない！」",
+    "activation_description": "{user}は己の血潮を猛る力へ変え、《{skill}》の咆哮とともに全身へ巡らせた！"
+  },
+  {
+    "job_id": 14,
+    "learn_rank": 5,
+    "name": "暴走撃",
+    "activation_phrase": "「もっと激しく燃え上がれ――暴走撃！」",
+    "activation_description": "紅い脈動が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 14,
+    "learn_rank": 9,
+    "name": "狂神乱舞",
+    "activation_phrase": "「この命ごと、限界を越える――狂神乱舞！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、燃え立つ血潮をまとった五連撃を{target}へ叩き込んだ。その連撃の余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 15,
+    "learn_rank": 1,
+    "name": "シールドバッシュ",
+    "activation_phrase": "「ここは通さない――シールドバッシュ！」",
+    "activation_description": "{user}は守護の紋と揺るぎない守護力を重ね、《{skill}》で{target}を押し崩した。残る揺るぎない守護力が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 15,
+    "learn_rank": 5,
+    "name": "ガーディアンブロウ",
+    "activation_phrase": "「守りの要は崩させない――ガーディアンブロウ！」",
+    "activation_description": "{user}の武器に堅牢な防壁が宿る。《{skill}》の一撃が{target}を打ち抜いた。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 15,
+    "learn_rank": 9,
+    "name": "不落要塞",
+    "activation_phrase": "「この壁は決して破れない――不落要塞！」",
+    "activation_description": "{user}は守護の紋を固め、《{skill}》で次の一撃を受け止める構えを取った！"
+  },
+  {
+    "job_id": 16,
+    "learn_rank": 1,
+    "name": "実戦勘",
+    "activation_phrase": "「ここから流れをつかむ――実戦勘！」",
+    "activation_description": "{user}は高まる戦気を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 16,
+    "learn_rank": 5,
+    "name": "戦利の一撃",
+    "activation_phrase": "「倒して価値までいただく――戦利の一撃！」",
+    "activation_description": "勝負の気迫が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。散った勝負の気迫を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 16,
+    "learn_rank": 9,
+    "name": "傭兵団の総攻撃",
+    "activation_phrase": "「力も誇りもここで折る――傭兵団の総攻撃！」",
+    "activation_description": "{user}の武器に勝負の気迫が宿る。《{skill}》の一撃が{target}を打ち抜いた。残る高まる戦気が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 17,
+    "learn_rank": 1,
+    "name": "煙玉",
+    "activation_phrase": "「視線の外へ回る――煙玉！」",
+    "activation_description": "{user}の狩猟の印が戦場を走り、《{skill}》で{target}の勝機を奪った！"
+  },
+  {
+    "job_id": 17,
+    "learn_rank": 5,
+    "name": "影縫い",
+    "activation_phrase": "「その隙は見逃さない――影縫い！」",
+    "activation_description": "{user}は狩猟の印と研ぎ澄ました気配を重ね、《{skill}》で{target}を打ち抜いた。残る研ぎ澄ました気配が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 17,
+    "learn_rank": 9,
+    "name": "瞬影乱舞",
+    "activation_phrase": "「影さえ置き去りにする――瞬影乱舞！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、研ぎ澄ました気配をまとった四連撃を{target}へ叩き込んだ。その連撃の余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 18,
+    "learn_rank": 1,
+    "name": "マーキング",
+    "activation_phrase": "「狙いは定まった――マーキング！」",
+    "activation_description": "{user}は張り詰めた狩気を矢尻へ集め、《{skill}》の矢撃で{target}を射抜いた。残る張り詰めた狩気が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 18,
+    "learn_rank": 5,
+    "name": "クリティカルショット",
+    "activation_phrase": "「逃げ道ごと射抜く――クリティカルショット！」",
+    "activation_description": "{user}の矢尻に獲物を捉える照準が宿る。《{skill}》の矢撃が{target}を射抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 18,
+    "learn_rank": 9,
+    "name": "終弓・星穿ち",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――終弓・星穿ち！」",
+    "activation_description": "星図の軌跡が閃き、{user}は《{skill}》の矢撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 19,
+    "learn_rank": 1,
+    "name": "マナピック",
+    "activation_phrase": "「その魔力、少し借りるよ。」",
+    "activation_description": "{user}は《{skill}》の指先で{target}の魔力を掬い取り、自らの力へ吸収した！"
+  },
+  {
+    "job_id": 19,
+    "learn_rank": 5,
+    "name": "スピリットスティール",
+    "activation_phrase": "「魂の力までいただく――スピリットスティール！」",
+    "activation_description": "{user}は{target}へ《{skill}》を仕掛け、溢れた力を一息に取り込んだ！"
+  },
+  {
+    "job_id": 19,
+    "learn_rank": 9,
+    "name": "ルーン強奪",
+    "activation_phrase": "「その術式、こちらの力に変える！」",
+    "activation_description": "{user}は《{skill}》で{target}へルーンの一撃を刻み、弾けた術式を自らの攻防へ取り込んだ！"
+  },
+  {
+    "job_id": 20,
+    "learn_rank": 1,
+    "name": "旅支度",
+    "activation_phrase": "「次の道は見えている――旅支度！」",
+    "activation_description": "旅路の羅針が{user}を包む。《{skill}》が眠る力を呼び起こした！"
+  },
+  {
+    "job_id": 20,
+    "learn_rank": 5,
+    "name": "掘り出し物",
+    "activation_phrase": "「この旅路を切り開く――掘り出し物！」",
+    "activation_description": "{user}は変成の式を働かせ、《{skill}》で勝機と実入りを同時につかんだ！"
+  },
+  {
+    "job_id": 20,
+    "learn_rank": 9,
+    "name": "大商隊の守護",
+    "activation_phrase": "「世界の果てまで進み続ける――大商隊の守護！」",
+    "activation_description": "{user}の足元から遥かな星風が立ち上がり、《{skill}》の守りを形作った！"
+  },
+  {
+    "job_id": 21,
+    "learn_rank": 1,
+    "name": "練気呼吸",
+    "activation_phrase": "「呼吸をひとつに整える――練気呼吸！」",
+    "activation_description": "{user}は研ぎ澄まされた闘気を傷へ巡らせ、《{skill}》で失った生命力を呼び戻した！"
+  },
+  {
+    "job_id": 21,
+    "learn_rank": 5,
+    "name": "破邪拳",
+    "activation_phrase": "「拳にすべてを乗せる――破邪拳！」",
+    "activation_description": "{user}は崩しの呼吸と研ぎ澄まされた闘気を重ね、《{skill}》で{target}を打ち砕いた！"
+  },
+  {
+    "job_id": 21,
+    "learn_rank": 9,
+    "name": "金剛不壊",
+    "activation_phrase": "「武の極みをここに示す――金剛不壊！」",
+    "activation_description": "武の呼吸が幾重にも重なり、《{skill}》が{user}を守る防壁となった！"
+  },
+  {
+    "job_id": 22,
+    "learn_rank": 1,
+    "name": "魔矢装填",
+    "activation_phrase": "「狙いは定まった――魔矢装填！」",
+    "activation_description": "獲物を捉える照準が閃き、{user}は《{skill}》の矢撃を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 22,
+    "learn_rank": 5,
+    "name": "エレメントアロー",
+    "activation_phrase": "「逃げ道ごと射抜く――エレメントアロー！」",
+    "activation_description": "{user}は研ぎ澄ました照準と張り詰めた狩気を重ね、《{skill}》で{target}を射抜いた！"
+  },
+  {
+    "job_id": 22,
+    "learn_rank": 9,
+    "name": "星霊連弓",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――星霊連弓！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、瞬く星光をまとった三連撃を{target}へ叩き込んだ。重なる衝撃が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 23,
+    "learn_rank": 1,
+    "name": "鼓舞の小節",
+    "activation_phrase": "「この一節を力に変える――鼓舞の小節！」",
+    "activation_description": "{user}の旋律に音律の波紋が宿る。《{skill}》の音撃が{target}を打ち震わせた！"
+  },
+  {
+    "job_id": 23,
+    "learn_rank": 5,
+    "name": "勇気の旋律",
+    "activation_phrase": "「戦場に勇気を響かせる――勇気の旋律！」",
+    "activation_description": "{user}は響き渡る旋律を重ね、《{skill}》で戦場そのものの律動を保った！"
+  },
+  {
+    "job_id": 23,
+    "learn_rank": 9,
+    "name": "英雄譚の終章",
+    "activation_phrase": "「終章まで、魂を震わせる――英雄譚の終章！」",
+    "activation_description": "{user}の足元から響き渡る旋律が立ち上がり、《{skill}》の守りを形作った！"
+  },
+  {
+    "job_id": 24,
+    "learn_rank": 1,
+    "name": "浄化の光",
+    "activation_phrase": "「光よ、我が道を照らせ――浄化の光！」",
+    "activation_description": "{user}は《{skill}》の澄み渡る聖光で身を清め、傷と災いをまとめて洗い流した！"
+  },
+  {
+    "job_id": 24,
+    "learn_rank": 5,
+    "name": "セイクリッドライト",
+    "activation_phrase": "「聖光よ、ここに集え――セイクリッドライト！」",
+    "activation_description": "{user}は澄み渡る聖光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。その余光が{user}へ巡り、傷を癒やした！"
+  },
+  {
+    "job_id": 24,
+    "learn_rank": 9,
+    "name": "大聖堂の奇跡",
+    "activation_phrase": "「神域の輝きよ、天を満たせ――大聖堂の奇跡！」",
+    "activation_description": "{user}の祈りに《{skill}》が応え、傷を癒やして災いを清め、守りまで築いた！"
+  },
+  {
+    "job_id": 25,
+    "learn_rank": 1,
+    "name": "応急手当",
+    "activation_phrase": "「命の息吹よ、応えて――応急手当！」",
+    "activation_description": "{user}は瑞々しい生命力を傷へ巡らせ、《{skill}》で失った生命力を呼び戻した！"
+  },
+  {
+    "job_id": 25,
+    "learn_rank": 5,
+    "name": "秘薬調合",
+    "activation_phrase": "「大地の恵みを巡らせる――秘薬調合！」",
+    "activation_description": "{user}は変成の式を整え、《{skill}》で身体の澱みを祓って傷を癒やした！"
+  },
+  {
+    "job_id": 25,
+    "learn_rank": 9,
+    "name": "万能霊薬",
+    "activation_phrase": "「万象の命よ、ここに芽吹け――万能霊薬！」",
+    "activation_description": "{user}は瑞々しい生命力を全身へ巡らせ、《{skill}》で傷も穢れも浄めた！"
+  },
+  {
+    "job_id": 26,
+    "learn_rank": 1,
+    "name": "錬成火花",
+    "activation_phrase": "「式を組み替える――錬成火花！」",
+    "activation_description": "{user}は変成の式と脈動する錬成力を重ね、《{skill}》で{target}を吹き飛ばした。残る脈動する錬成力が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 26,
+    "learn_rank": 5,
+    "name": "錬成爆弾",
+    "activation_phrase": "「価値あるものへ錬成する――錬成爆弾！」",
+    "activation_description": "幾重もの錬成式が閃き、{user}は《{skill}》の錬成光を{target}へ叩き込んだ。残る脈動する錬成力が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 26,
+    "learn_rank": 9,
+    "name": "賢者の反応炉",
+    "activation_phrase": "「万象を勝利へ錬成する――賢者の反応炉！」",
+    "activation_description": "幾重もの錬成式が閃き、{user}は《{skill}》の錬成光を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 27,
+    "learn_rank": 1,
+    "name": "勇気の灯",
+    "activation_phrase": "「勇気はここにある――勇気の灯！」",
+    "activation_description": "{user}の内側からまばゆい勇気が立ち上がり、《{skill}》の力が全身に満ちた！"
+  },
+  {
+    "job_id": 27,
+    "learn_rank": 5,
+    "name": "ブレイブヒール",
+    "activation_phrase": "「仲間なき戦場でも退かない――ブレイブヒール！」",
+    "activation_description": "{user}はまばゆい勇気を刃と術式へ集め、《{skill}》の剣閃と魔力で{target}を切り裂いた。その余光が{user}へ巡り、傷を癒やした！"
+  },
+  {
+    "job_id": 27,
+    "learn_rank": 9,
+    "name": "ギガブレイク",
+    "activation_phrase": "「夜明けをこの手でつかむ――ギガブレイク！」",
+    "activation_description": "{user}は勝利の号令を刻み、《{skill}》の二連剣閃と魔力で{target}を打ち据えた！"
+  },
+  {
+    "job_id": 28,
+    "learn_rank": 1,
+    "name": "剣気集中",
+    "activation_phrase": "「刃筋はもう見えている――剣気集中！」",
+    "activation_description": "{user}は澄み切った剣気を全身へ巡らせ、《{skill}》で次の攻勢へ向けた力を整えた！"
+  },
+  {
+    "job_id": 28,
+    "learn_rank": 5,
+    "name": "無拍子",
+    "activation_phrase": "「次の一太刀で決める――無拍子！」",
+    "activation_description": "{user}の刃が二度きらめき、《{skill}》の連撃が{target}を包囲した。幾重の軌跡を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 28,
+    "learn_rank": 9,
+    "name": "無双一閃",
+    "activation_phrase": "「剣の極み、この一閃に――無双一閃！」",
+    "activation_description": "鋭い剣閃が閃き、{user}は《{skill}》の剣閃を{target}へ叩き込んだ。跳ね返る澄み切った剣気を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 29,
+    "learn_rank": 1,
+    "name": "魔力循環",
+    "activation_phrase": "「術式を組み上げる――魔力循環！」",
+    "activation_description": "{user}は濃密な魔力を傷へ巡らせ、《{skill}》で失った生命力を呼び戻した！"
+  },
+  {
+    "job_id": 29,
+    "learn_rank": 5,
+    "name": "賢者の結界",
+    "activation_phrase": "「守りの要は崩させない――賢者の結界！」",
+    "activation_description": "{user}は場を巡る律と揺るぎない守護力を重ね、《{skill}》で{target}を呑み込んだ。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 29,
+    "learn_rank": 9,
+    "name": "極大魔法",
+    "activation_phrase": "「極大術式、完全展開――極大魔法！」",
+    "activation_description": "幾重もの術式が幾重にも閃く。{user}は《{skill}》の二連撃で{target}を追い詰めた！"
+  },
+  {
+    "job_id": 30,
+    "learn_rank": 1,
+    "name": "闇の契約",
+    "activation_phrase": "「影よ、静かに満ちろ――闇の契約！」",
+    "activation_description": "{user}は《{skill}》を静かに解放し、次の一手を決める力を蓄えた！"
+  },
+  {
+    "job_id": 30,
+    "learn_rank": 5,
+    "name": "暗黒剣",
+    "activation_phrase": "「魂の力までいただく――暗黒剣！」",
+    "activation_description": "{user}は《{skill}》の冥蝕の脈動で{target}の力を掬い取り、自らの内へ吸収した！"
+  },
+  {
+    "job_id": 30,
+    "learn_rank": 9,
+    "name": "深紅の契約",
+    "activation_phrase": "「この命ごと、限界を越える――深紅の契約！」",
+    "activation_description": "紅い脈動が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 31,
+    "learn_rank": 1,
+    "name": "黄金鑑定",
+    "activation_phrase": "「その価値、見逃しはしない！」",
+    "activation_description": "{user}は《{skill}》で命の一部を触媒へ変え、戦場に眠るGoldと素材の価値を見抜いた！"
+  },
+  {
+    "job_id": 31,
+    "learn_rank": 5,
+    "name": "ゴールドラッシュ",
+    "activation_phrase": "「価値ある一手に変える――ゴールドラッシュ！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、黄金の魔力をまとった四連撃を{target}へ叩き込んだ。散った錬金の陣を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 31,
+    "learn_rank": 9,
+    "name": "王立独占契約",
+    "activation_phrase": "「すべての輝きを我が手に――王立独占契約！」",
+    "activation_description": "{user}は《{skill}》の錬金の陣を広げ、戦場に眠る好機を確かな戦利へ変えた！"
+  },
+  {
+    "job_id": 32,
+    "learn_rank": 1,
+    "name": "竜槍構え",
+    "activation_phrase": "「竜気よ、この身に集え――竜槍構え！」",
+    "activation_description": "{user}は蒼い竜気を全身へ巡らせ、《{skill}》で次の攻勢へ向けた力を整えた！"
+  },
+  {
+    "job_id": 32,
+    "learn_rank": 5,
+    "name": "ドラゴンダイブ",
+    "activation_phrase": "「蒼天を貫く――ドラゴンダイブ！」",
+    "activation_description": "{user}の武器が二度きらめき、《{skill}》の連撃が{target}を包囲した！"
+  },
+  {
+    "job_id": 32,
+    "learn_rank": 9,
+    "name": "竜牙天翔",
+    "activation_phrase": "「天を翔けろ、竜の王牙――竜牙天翔！」",
+    "activation_description": "{user}は蒼い竜気を武器へ集め、《{skill}》の二連一撃を{target}へ浴びせた！"
+  },
+  {
+    "job_id": 33,
+    "learn_rank": 1,
+    "name": "練気",
+    "activation_phrase": "「呼吸をひとつに整える――練気！」",
+    "activation_description": "{user}は研ぎ澄まされた闘気を全身へ巡らせ、《{skill}》で次の攻勢へ向けた力を整えた！"
+  },
+  {
+    "job_id": 33,
+    "learn_rank": 5,
+    "name": "羅刹連撃",
+    "activation_phrase": "「拳にすべてを乗せる――羅刹連撃！」",
+    "activation_description": "武の呼吸が幾重にも閃く。{user}は《{skill}》の五連撃で{target}を追い詰めた。重なる衝撃が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 33,
+    "learn_rank": 9,
+    "name": "武神降臨",
+    "activation_phrase": "「武の極みをここに示す――武神降臨！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、研ぎ澄まされた闘気をまとった二連撃を{target}へ叩き込んだ。重なる衝撃が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 34,
+    "learn_rank": 1,
+    "name": "幻惑歩法",
+    "activation_phrase": "「影よ、静かに満ちろ――幻惑歩法！」",
+    "activation_description": "{user}は《{skill}》を展開し、揺るがぬ守護の力を全身にまとった！"
+  },
+  {
+    "job_id": 34,
+    "learn_rank": 5,
+    "name": "夢幻殺",
+    "activation_phrase": "「闇をさらに深く刻む――夢幻殺！」",
+    "activation_description": "{user}は狩猟の印と深い冥闇を重ね、《{skill}》で{target}を打ち抜いた。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 34,
+    "learn_rank": 9,
+    "name": "百影夜行",
+    "activation_phrase": "「深淵よ、すべてを呑め――百影夜行！」",
+    "activation_description": "{user}は狩猟の印を刻み、《{skill}》の三連一撃で{target}を打ち据えた。幾重の軌跡を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 35,
+    "learn_rank": 1,
+    "name": "機巧展開",
+    "activation_phrase": "「機構、起動する――機巧展開！」",
+    "activation_description": "{user}の内側から唸る機導力が立ち上がり、《{skill}》の力が全身に満ちた！"
+  },
+  {
+    "job_id": 35,
+    "learn_rank": 5,
+    "name": "魔導砲",
+    "activation_phrase": "「出力を戦闘域まで上げる――魔導砲！」",
+    "activation_description": "{user}は唸る機導力を砲口へ集め、《{skill}》の砲撃で{target}を撃ち抜いた！"
+  },
+  {
+    "job_id": 35,
+    "learn_rank": 9,
+    "name": "王機グラビトン",
+    "activation_phrase": "「全機構、限界駆動――王機グラビトン！」",
+    "activation_description": "{user}の砲口に鋼の術式が宿る。《{skill}》の砲撃が{target}を撃ち抜いた。残る唸る機導力が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 36,
+    "learn_rank": 1,
+    "name": "聖戦の祈り",
+    "activation_phrase": "「祈りを、立ち続ける力に！」",
+    "activation_description": "{user}は《{skill}》の聖光で傷を癒やし、残る祈りを次の一撃に備える加護へ変えた！"
+  },
+  {
+    "job_id": 36,
+    "learn_rank": 5,
+    "name": "神罰の槌",
+    "activation_phrase": "「聖光よ、ここに集え――神罰の槌！」",
+    "activation_description": "{user}は守護の紋と澄み渡る聖光を重ね、《{skill}》で{target}を打ち抜いた。残る澄み渡る聖光が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 36,
+    "learn_rank": 9,
+    "name": "神域審判",
+    "activation_phrase": "「神域の輝きよ、天を満たせ――神域審判！」",
+    "activation_description": "{user}は守護の紋と澄み渡る聖光を重ね、《{skill}》で{target}を呑み込んだ。余光が傷を癒やし、あふれた力を守護の壁へ変えた！"
+  },
+  {
+    "job_id": 37,
+    "learn_rank": 1,
+    "name": "影追い",
+    "activation_phrase": "「影よ、静かに満ちろ――影追い！」",
+    "activation_description": "{user}は狩猟の印を読み解き、《{skill}》で{target}の動きを封じた！"
+  },
+  {
+    "job_id": 37,
+    "learn_rank": 5,
+    "name": "シャドウスナイプ",
+    "activation_phrase": "「闇をさらに深く刻む――シャドウスナイプ！」",
+    "activation_description": "{user}は一息に《{skill}》を放ち、深い冥闇をまとった二連撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 37,
+    "learn_rank": 9,
+    "name": "黒翼処刑",
+    "activation_phrase": "「深淵よ、すべてを呑め――黒翼処刑！」",
+    "activation_description": "深淵の影が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 38,
+    "learn_rank": 1,
+    "name": "商聖の助言",
+    "activation_phrase": "「損して得取れ――ここが勝負だ。」",
+    "activation_description": "{user}は《{skill}》の教えに従い、命の一部をSPと触媒へ換えて弱点の能力を補った！"
+  },
+  {
+    "job_id": 38,
+    "learn_rank": 5,
+    "name": "王者の秘薬",
+    "activation_phrase": "「大地の恵みを巡らせる――王者の秘薬！」",
+    "activation_description": "若葉の光輪が{user}を包む。《{skill}》のぬくもりが傷を静かに癒やした！"
+  },
+  {
+    "job_id": 38,
+    "learn_rank": 9,
+    "name": "富国の錬金陣",
+    "activation_phrase": "「その強み、こちらの利益に変える！」",
+    "activation_description": "{user}は《{skill}》の錬金陣で{target}の強化を剥がし、奪った勢いを攻撃と魔力へ転化した！"
+  },
+  {
+    "job_id": 44,
+    "learn_rank": 1,
+    "name": "守護の構え",
+    "activation_phrase": "「ここは通さない――守護の構え！」",
+    "activation_description": "堅牢な防壁が閃き、{user}は《{skill}》の盾撃を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 44,
+    "learn_rank": 5,
+    "name": "聖盾裁き",
+    "activation_phrase": "「守りの要は崩させない――聖盾裁き！」",
+    "activation_description": "{user}は揺るぎない守護力を一気に解放し、《{skill}》で{target}を押し崩した。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 44,
+    "learn_rank": 9,
+    "name": "天壁イージス",
+    "activation_phrase": "「この壁は決して破れない――天壁イージス！」",
+    "activation_description": "{user}は守護の紋と揺るぎない守護力を重ね、《{skill}》で{target}を押し崩した。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 45,
+    "learn_rank": 1,
+    "name": "魔矢統率",
+    "activation_phrase": "「狙いは定まった――魔矢統率！」",
+    "activation_description": "{user}は張り詰めた狩気を一気に解放し、《{skill}》で{target}を射抜いた！"
+  },
+  {
+    "job_id": 45,
+    "learn_rank": 5,
+    "name": "魔弓連星",
+    "activation_phrase": "「星々の光を束ねる――魔弓連星！」",
+    "activation_description": "{user}は瞬く星光を一気に解放し、《{skill}》で{target}を射抜いた！"
+  },
+  {
+    "job_id": 45,
+    "learn_rank": 9,
+    "name": "天弓メテオレイン",
+    "activation_phrase": "「星の果てまで追い詰める――天弓メテオレイン！」",
+    "activation_description": "獲物を捉える照準が閃き、{user}は《{skill}》の矢撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 46,
+    "learn_rank": 1,
+    "name": "祝詞の一節",
+    "activation_phrase": "「この一節を力に変える――祝詞の一節！」",
+    "activation_description": "{user}は場を巡る律と響き渡る旋律を重ね、《{skill}》で{target}を打ち震わせた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 46,
+    "learn_rank": 5,
+    "name": "祝福の大旋律",
+    "activation_phrase": "「戦場に勇気を響かせる――祝福の大旋律！」",
+    "activation_description": "{user}は響き渡る旋律を一気に解放し、《{skill}》で{target}を打ち震わせた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 46,
+    "learn_rank": 9,
+    "name": "聖譚フィナーレ",
+    "activation_phrase": "「終章まで、魂を震わせる――聖譚フィナーレ！」",
+    "activation_description": "{user}は響き渡る旋律を旋律へ集め、《{skill}》の音撃で{target}を打ち震わせた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 47,
+    "learn_rank": 1,
+    "name": "聖薬散布",
+    "activation_phrase": "「痛みも毒も、この霧で洗い流す！」",
+    "activation_description": "{user}は《{skill}》の薬霧を全身へ浴び、消耗をSPへ換えながら災いを祓って傷を癒やした！"
+  },
+  {
+    "job_id": 47,
+    "learn_rank": 5,
+    "name": "霊薬の加護",
+    "activation_phrase": "「大地の恵みを巡らせる――霊薬の加護！」",
+    "activation_description": "{user}は瑞々しい生命力を巡らせ、《{skill}》で戦いの成果を大きく膨らませた！"
+  },
+  {
+    "job_id": 47,
+    "learn_rank": 9,
+    "name": "神薬アムリタ",
+    "activation_phrase": "「万象の命よ、ここに芽吹け――神薬アムリタ！」",
+    "activation_description": "{user}は《{skill}》の瑞々しい生命力で身を清め、傷と災いをまとめて洗い流した！"
+  },
+  {
+    "job_id": 48,
+    "learn_rank": 1,
+    "name": "先読みの布陣",
+    "activation_phrase": "「戦況は読み切った――先読みの布陣！」",
+    "activation_description": "{user}は研ぎ澄まされた戦意を戦陣へ集め、《{skill}》の一斉攻勢で{target}を包囲した！"
+  },
+  {
+    "job_id": 48,
+    "learn_rank": 5,
+    "name": "王戦の号令",
+    "activation_phrase": "「勝ち筋をここに通す――王戦の号令！」",
+    "activation_description": "{user}は勝利の号令と研ぎ澄まされた戦意を重ね、《{skill}》で{target}を包囲した！"
+  },
+  {
+    "job_id": 48,
+    "learn_rank": 9,
+    "name": "覇王大戦略",
+    "activation_phrase": "「全軍、勝利の一手を打て――覇王大戦略！」",
+    "activation_description": "{user}は研ぎ澄まされた戦意を一気に解放し、《{skill}》で{target}を包囲した。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 49,
+    "learn_rank": 1,
+    "name": "高等錬成",
+    "activation_phrase": "「式を組み替える――高等錬成！」",
+    "activation_description": "{user}は脈動する錬成力を錬成陣へ集め、《{skill}》の錬成光で{target}を吹き飛ばした。散った幾重もの錬成式を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 49,
+    "learn_rank": 5,
+    "name": "大錬成爆装",
+    "activation_phrase": "「価値あるものへ錬成する――大錬成爆装！」",
+    "activation_description": "{user}は脈動する錬成力を一気に解放し、《{skill}》で{target}を吹き飛ばした。散った幾重もの錬成式を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 49,
+    "learn_rank": 9,
+    "name": "錬金大崩壊",
+    "activation_phrase": "「万象を勝利へ錬成する――錬金大崩壊！」",
+    "activation_description": "{user}の錬成陣に幾重もの錬成式が宿る。《{skill}》の錬成光が{target}を吹き飛ばした。散った幾重もの錬成式を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 50,
+    "learn_rank": 1,
+    "name": "聖剣構え",
+    "activation_phrase": "「刃筋はもう見えている――聖剣構え！」",
+    "activation_description": "鋭い剣閃が閃き、{user}は《{skill}》の剣閃を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 50,
+    "learn_rank": 5,
+    "name": "聖剣烈破",
+    "activation_phrase": "「次の一太刀で決める――聖剣烈破！」",
+    "activation_description": "{user}は澄み切った剣気を一気に解放し、《{skill}》で{target}を斬り裂いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 50,
+    "learn_rank": 9,
+    "name": "光翼クロスブレイク",
+    "activation_phrase": "「剣の極み、この一閃に――光翼クロスブレイク！」",
+    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた。その余勢を己の力へ変えた。細い光跡が長く宙に残った！"
+  },
+  {
+    "job_id": 51,
+    "learn_rank": 1,
+    "name": "黒炎纏い",
+    "activation_phrase": "「炎よ、道を焼き開け――黒炎纏い！」",
+    "activation_description": "{user}の武器に火焔の紋が宿る。《{skill}》の一撃が{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 51,
+    "learn_rank": 5,
+    "name": "黒炎斬",
+    "activation_phrase": "「紅蓮よ、さらに燃えろ――黒炎斬！」",
+    "activation_description": "{user}は冥蝕の脈動と灼熱の炎を重ね、《{skill}》で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 51,
+    "learn_rank": 9,
+    "name": "獄炎ナイトメア",
+    "activation_phrase": "「すべてを焦がす業火となれ――獄炎ナイトメア！」",
+    "activation_description": "火焔の紋が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 52,
+    "learn_rank": 1,
+    "name": "蒼天槍",
+    "activation_phrase": "「蒼天を穿て、竜の一槍！」",
+    "activation_description": "{user}は蒼い竜気を槍先へ集め、《{skill}》で{target}を一直線に貫いた！"
+  },
+  {
+    "job_id": 52,
+    "learn_rank": 5,
+    "name": "蒼天竜槍",
+    "activation_phrase": "「蒼天を貫く――蒼天竜槍！」",
+    "activation_description": "{user}は蒼い竜気を一気に解放し、《{skill}》で{target}を貫いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 52,
+    "learn_rank": 9,
+    "name": "蒼穹ドラグーンダイブ",
+    "activation_phrase": "「天を翔けろ、竜の王牙――蒼穹ドラグーンダイブ！」",
+    "activation_description": "{user}は貫通の気脈と蒼い竜気を重ね、《{skill}》で{target}を貫いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 53,
+    "learn_rank": 1,
+    "name": "星読の瞬き",
+    "activation_phrase": "「星よ、進む道を示せ――星読の瞬き！」",
+    "activation_description": "{user}は瞬く星光を一気に解放し、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 53,
+    "learn_rank": 5,
+    "name": "星詠みの光",
+    "activation_phrase": "「星々の光を束ねる――星詠みの光！」",
+    "activation_description": "{user}は場を巡る律と瞬く星光を重ね、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 53,
+    "learn_rank": 9,
+    "name": "星天グランドスペル",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――星天グランドスペル！」",
+    "activation_description": "星図の軌跡が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 54,
+    "learn_rank": 1,
+    "name": "影糸仕込み",
+    "activation_phrase": "「影よ、静かに満ちろ――影糸仕込み！」",
+    "activation_description": "深淵の影が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 54,
+    "learn_rank": 5,
+    "name": "影縫い乱舞",
+    "activation_phrase": "「闇をさらに深く刻む――影縫い乱舞！」",
+    "activation_description": "{user}は深い冥闇を一気に解放し、《{skill}》で{target}を打ち抜いた。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 54,
+    "learn_rank": 9,
+    "name": "影牢・無明縛",
+    "activation_phrase": "「深淵よ、すべてを呑め――影牢・無明縛！」",
+    "activation_description": "{user}は深い冥闇を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 55,
+    "learn_rank": 1,
+    "name": "機導起動",
+    "activation_phrase": "「機構、起動する――機導起動！」",
+    "activation_description": "{user}の砲口に鋼の術式が宿る。《{skill}》の砲撃が{target}を撃ち抜いた！"
+  },
+  {
+    "job_id": 55,
+    "learn_rank": 5,
+    "name": "鋼機魔導砲",
+    "activation_phrase": "「出力を戦闘域まで上げる――鋼機魔導砲！」",
+    "activation_description": "鋼の術式が閃き、{user}は《{skill}》の砲撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 55,
+    "learn_rank": 9,
+    "name": "機神オーバードライブ",
+    "activation_phrase": "「全機構、限界駆動――機神オーバードライブ！」",
+    "activation_description": "{user}は研ぎ澄ました照準と唸る機導力を重ね、《{skill}》で{target}を撃ち抜いた！"
+  },
+  {
+    "job_id": 56,
+    "learn_rank": 1,
+    "name": "聖域の印",
+    "activation_phrase": "「ここは通さない――聖域の印！」",
+    "activation_description": "{user}は揺るぎない守護力を一気に解放し、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 56,
+    "learn_rank": 5,
+    "name": "聖域結界",
+    "activation_phrase": "「守りの要は崩させない――聖域結界！」",
+    "activation_description": "{user}は守護の紋と揺るぎない守護力を重ね、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 56,
+    "learn_rank": 9,
+    "name": "聖壁アルカディア",
+    "activation_phrase": "「この壁は決して破れない――聖壁アルカディア！」",
+    "activation_description": "{user}は揺るぎない守護力を一気に解放し、《{skill}》で{target}を呑み込んだ。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 57,
+    "learn_rank": 1,
+    "name": "金脈錬成",
+    "activation_phrase": "「好機は逃さない――金脈錬成！」",
+    "activation_description": "{user}の錬成陣に錬金の陣が宿る。《{skill}》の錬成光が{target}を吹き飛ばした。散った錬金の陣を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 57,
+    "learn_rank": 5,
+    "name": "黄金転化",
+    "activation_phrase": "「価値ある一手に変える――黄金転化！」",
+    "activation_description": "{user}は黄金の魔力を一気に解放し、《{skill}》で{target}を吹き飛ばした。散った錬金の陣を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 57,
+    "learn_rank": 9,
+    "name": "黄金創世陣",
+    "activation_phrase": "「すべての輝きを我が手に――黄金創世陣！」",
+    "activation_description": "{user}は変成の式と黄金の魔力を重ね、《{skill}》で{target}を吹き飛ばした。散った錬金の陣を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 58,
+    "learn_rank": 1,
+    "name": "雷気充填",
+    "activation_phrase": "「雷よ、この身を走れ――雷気充填！」",
+    "activation_description": "{user}は蒼白い雷気を拳へ集め、《{skill}》の拳撃で{target}を打ち砕いた！"
+  },
+  {
+    "job_id": 58,
+    "learn_rank": 5,
+    "name": "雷拳乱舞",
+    "activation_phrase": "「稲妻より速く――雷拳乱舞！」",
+    "activation_description": "{user}は蒼白い雷気を拳へ集め、《{skill}》の三連拳撃を{target}へ浴びせた！"
+  },
+  {
+    "job_id": 58,
+    "learn_rank": 9,
+    "name": "雷霆覇王拳",
+    "activation_phrase": "「天を裂け、雷霆の一撃――雷霆覇王拳！」",
+    "activation_description": "{user}は蒼白い雷気を一気に解放し、《{skill}》で{target}を打ち砕いた。残る蒼白い雷気が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 59,
+    "learn_rank": 1,
+    "name": "戦線把握",
+    "activation_phrase": "「戦況は読み切った――戦線把握！」",
+    "activation_description": "勝機の陣形が閃き、{user}は《{skill}》の一斉攻勢を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 59,
+    "learn_rank": 5,
+    "name": "勝機の戦陣",
+    "activation_phrase": "「勝ち筋をここに通す――勝機の戦陣！」",
+    "activation_description": "{user}は研ぎ澄まされた戦意を一気に解放し、《{skill}》で{target}を包囲した！"
+  },
+  {
+    "job_id": 59,
+    "learn_rank": 9,
+    "name": "八陣無双策",
+    "activation_phrase": "「全軍、勝利の一手を打て――八陣無双策！」",
+    "activation_description": "{user}の戦陣に勝機の陣形が宿る。《{skill}》の一斉攻勢が{target}を包囲した！"
+  },
+  {
+    "job_id": 60,
+    "learn_rank": 1,
+    "name": "剣冠の構え",
+    "activation_phrase": "「刃筋はもう見えている――剣冠の構え！」",
+    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた。その余勢を己の力へ変えた。烈しい気流が周囲を駆け抜けた！"
+  },
+  {
+    "job_id": 60,
+    "learn_rank": 5,
+    "name": "剣冠裁断",
+    "activation_phrase": "「次の一太刀で決める――剣冠裁断！」",
+    "activation_description": "{user}は反撃の間合いと澄み切った剣気を重ね、《{skill}》で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 60,
+    "learn_rank": 9,
+    "name": "王冠聖剣陣",
+    "activation_phrase": "「剣の極み、この一閃に――王冠聖剣陣！」",
+    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた。その余勢を己の力へ変えた。深い鼓動が戦場を満たした！"
+  },
+  {
+    "job_id": 61,
+    "learn_rank": 1,
+    "name": "黒冠契約",
+    "activation_phrase": "「影よ、静かに満ちろ――黒冠契約！」",
+    "activation_description": "深淵の影が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 61,
+    "learn_rank": 5,
+    "name": "黒冠魔剣",
+    "activation_phrase": "「闇をさらに深く刻む――黒冠魔剣！」",
+    "activation_description": "{user}は深い冥闇を刃へ集め、《{skill}》の剣閃で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 61,
+    "learn_rank": 9,
+    "name": "黒冠アビスブレイク",
+    "activation_phrase": "「深淵よ、すべてを呑め――黒冠アビスブレイク！」",
+    "activation_description": "{user}は冥蝕の脈動と深い冥闇を重ね、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 62,
+    "learn_rank": 1,
+    "name": "竜冠の槍印",
+    "activation_phrase": "「竜気よ、この身に集え――竜冠の槍印！」",
+    "activation_description": "竜鱗の輝きが閃き、{user}は《{skill}》の刺突を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 62,
+    "learn_rank": 5,
+    "name": "竜冠穿槍",
+    "activation_phrase": "「蒼天を貫く――竜冠穿槍！」",
+    "activation_description": "{user}は蒼い竜気を槍先へ集め、《{skill}》の刺突で{target}を貫いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 62,
+    "learn_rank": 9,
+    "name": "竜冠天穿槍",
+    "activation_phrase": "「天を翔けろ、竜の王牙――竜冠天穿槍！」",
+    "activation_description": "{user}の槍先に竜鱗の輝きが宿る。《{skill}》の刺突が{target}を貫いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 63,
+    "learn_rank": 1,
+    "name": "星冠詠唱",
+    "activation_phrase": "「星よ、進む道を示せ――星冠詠唱！」",
+    "activation_description": "{user}の術式に星図の軌跡が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 63,
+    "learn_rank": 5,
+    "name": "星冠天導",
+    "activation_phrase": "「星々の光を束ねる――星冠天導！」",
+    "activation_description": "{user}は瞬く星光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 63,
+    "learn_rank": 9,
+    "name": "星冠アストラルレイ",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――星冠アストラルレイ！」",
+    "activation_description": "{user}は瞬く星光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 64,
+    "learn_rank": 1,
+    "name": "影冠追跡",
+    "activation_phrase": "「影よ、静かに満ちろ――影冠追跡！」",
+    "activation_description": "{user}は深い冥闇を一気に解放し、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 64,
+    "learn_rank": 5,
+    "name": "影冠狙撃",
+    "activation_phrase": "「闇をさらに深く刻む――影冠狙撃！」",
+    "activation_description": "{user}は深い冥闇を一気に解放し、《{skill}》で{target}を射抜いた。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 64,
+    "learn_rank": 9,
+    "name": "影冠終葬射",
+    "activation_phrase": "「深淵よ、すべてを呑め――影冠終葬射！」",
+    "activation_description": "{user}は深い冥闇を矢尻へ集め、《{skill}》の矢撃で{target}を射抜いた。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 65,
+    "learn_rank": 1,
+    "name": "鋼冠起動",
+    "activation_phrase": "「機構、起動する――鋼冠起動！」",
+    "activation_description": "{user}の砲口に鋼の術式が宿る。《{skill}》の砲撃が{target}を撃ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 65,
+    "learn_rank": 5,
+    "name": "鋼冠機砲",
+    "activation_phrase": "「出力を戦闘域まで上げる――鋼冠機砲！」",
+    "activation_description": "{user}は唸る機導力を砲口へ集め、《{skill}》の砲撃で{target}を撃ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 65,
+    "learn_rank": 9,
+    "name": "鋼冠グラビトンコア",
+    "activation_phrase": "「全機構、限界駆動――鋼冠グラビトンコア！」",
+    "activation_description": "{user}は唸る機導力を一気に解放し、《{skill}》で{target}を撃ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 66,
+    "learn_rank": 1,
+    "name": "聖冠加護",
+    "activation_phrase": "「ここは通さない――聖冠加護！」",
+    "activation_description": "{user}は守護の紋と揺るぎない守護力を重ね、《{skill}》で{target}を呑み込んだ。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 66,
+    "learn_rank": 5,
+    "name": "聖冠大結界",
+    "activation_phrase": "「守りの要は崩させない――聖冠大結界！」",
+    "activation_description": "{user}の術式に堅牢な防壁が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ。残光が災いを祓い、次の一撃を退ける障壁となった！"
+  },
+  {
+    "job_id": 66,
+    "learn_rank": 9,
+    "name": "聖冠アイギスロード",
+    "activation_phrase": "「この壁は決して破れない――聖冠アイギスロード！」",
+    "activation_description": "堅牢な防壁が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。跳ね返る揺るぎない守護力を守りの障壁へ変えた！"
+  },
+  {
+    "job_id": 67,
+    "learn_rank": 1,
+    "name": "金冠錬符",
+    "activation_phrase": "「好機は逃さない――金冠錬符！」",
+    "activation_description": "{user}は黄金の魔力を錬成陣へ集め、《{skill}》の錬成光で{target}を吹き飛ばした！"
+  },
+  {
+    "job_id": 67,
+    "learn_rank": 5,
+    "name": "金冠錬成",
+    "activation_phrase": "「価値ある一手に変える――金冠錬成！」",
+    "activation_description": "{user}は変成の式と黄金の魔力を重ね、《{skill}》で{target}を吹き飛ばした。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 67,
+    "learn_rank": 9,
+    "name": "金冠ミダスフィールド",
+    "activation_phrase": "「すべての輝きを我が手に――金冠ミダスフィールド！」",
+    "activation_description": "{user}は変成の式と黄金の魔力を重ね、《{skill}》で{target}を吹き飛ばした！"
+  },
+  {
+    "job_id": 68,
+    "learn_rank": 1,
+    "name": "雷冠練気",
+    "activation_phrase": "「雷よ、この身を走れ――雷冠練気！」",
+    "activation_description": "{user}の拳に雷光の環が宿る。《{skill}》の拳撃が{target}を打ち砕いた！"
+  },
+  {
+    "job_id": 68,
+    "learn_rank": 5,
+    "name": "雷冠閃拳",
+    "activation_phrase": "「稲妻より速く――雷冠閃拳！」",
+    "activation_description": "{user}は崩しの呼吸と蒼白い雷気を重ね、《{skill}》で{target}を打ち砕いた！"
+  },
+  {
+    "job_id": 68,
+    "learn_rank": 9,
+    "name": "雷冠天鳴掌",
+    "activation_phrase": "「天を裂け、雷霆の一撃――雷冠天鳴掌！」",
+    "activation_description": "{user}は蒼白い雷気を一気に解放し、《{skill}》で{target}を打ち砕いた！"
+  },
+  {
+    "job_id": 69,
+    "learn_rank": 1,
+    "name": "戦冠指揮",
+    "activation_phrase": "「戦況は読み切った――戦冠指揮！」",
+    "activation_description": "勝機の陣形が閃き、{user}は《{skill}》の一斉攻勢を{target}へ叩き込んだ。澄んだ気配が静かに広がった！"
+  },
+  {
+    "job_id": 69,
+    "learn_rank": 5,
+    "name": "戦冠総攻令",
+    "activation_phrase": "「勝ち筋をここに通す――戦冠総攻令！」",
+    "activation_description": "勝機の陣形が閃き、{user}は《{skill}》の一斉攻勢を{target}へ叩き込んだ。熱い残響が次の一手を呼んだ！"
+  },
+  {
+    "job_id": 69,
+    "learn_rank": 9,
+    "name": "王戦アークフォーメーション",
+    "activation_phrase": "「全軍、勝利の一手を打て――王戦アークフォーメーション！」",
+    "activation_description": "{user}の戦陣に勝機の陣形が宿る。《{skill}》の一斉攻勢が{target}を包囲した。重い衝撃が大地を揺らした！"
+  },
+  {
+    "job_id": 70,
+    "learn_rank": 1,
+    "name": "暁光の誓い",
+    "activation_phrase": "「勇気はここにある――暁光の誓い！」",
+    "activation_description": "希望の輝きが閃き、{user}は《{skill}》の剣閃と魔力を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 70,
+    "learn_rank": 5,
+    "name": "暁光ブレイク",
+    "activation_phrase": "「仲間なき戦場でも退かない――暁光ブレイク！」",
+    "activation_description": "{user}はまばゆい勇気を一気に解放し、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 70,
+    "learn_rank": 9,
+    "name": "夜明けのギガブレイブ",
+    "activation_phrase": "「夜明けをこの手でつかむ――夜明けのギガブレイブ！」",
+    "activation_description": "{user}はまばゆい勇気を刃と術式へ集め、《{skill}》の剣閃と魔力で{target}を切り裂いた！"
+  },
+  {
+    "job_id": 71,
+    "learn_rank": 1,
+    "name": "黒月歩法",
+    "activation_phrase": "「影よ、静かに満ちろ――黒月歩法！」",
+    "activation_description": "{user}は冥蝕の脈動と深い冥闇を重ね、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 71,
+    "learn_rank": 5,
+    "name": "黒月執行",
+    "activation_phrase": "「闇をさらに深く刻む――黒月執行！」",
+    "activation_description": "{user}は深い冥闇を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 71,
+    "learn_rank": 9,
+    "name": "月蝕エクスキューション",
+    "activation_phrase": "「深淵よ、すべてを呑め――月蝕エクスキューション！」",
+    "activation_description": "{user}の武器に深淵の影が宿る。《{skill}》の一撃が{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 72,
+    "learn_rank": 1,
+    "name": "星天詠唱",
+    "activation_phrase": "「星よ、進む道を示せ――星天詠唱！」",
+    "activation_description": "星図の軌跡が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。静かな威圧が周囲を包んだ！"
+  },
+  {
+    "job_id": 72,
+    "learn_rank": 5,
+    "name": "星天裁光",
+    "activation_phrase": "「星々の光を束ねる――星天裁光！」",
+    "activation_description": "{user}は瞬く星光を一気に解放し、《{skill}》で{target}を呑み込んだ。深い鼓動が戦場を満たした！"
+  },
+  {
+    "job_id": 72,
+    "learn_rank": 9,
+    "name": "星天裁きの大光輪",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――星天裁きの大光輪！」",
+    "activation_description": "星図の軌跡が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。深い鼓動が戦場を満たした！"
+  },
+  {
+    "job_id": 73,
+    "learn_rank": 1,
+    "name": "蒼竜闘気",
+    "activation_phrase": "「竜気よ、この身に集え――蒼竜闘気！」",
+    "activation_description": "{user}は貫通の気脈と蒼い竜気を重ね、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 73,
+    "learn_rank": 5,
+    "name": "蒼竜覇撃",
+    "activation_phrase": "「蒼天を貫く――蒼竜覇撃！」",
+    "activation_description": "{user}は蒼い竜気を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 73,
+    "learn_rank": 9,
+    "name": "蒼竜王牙・天",
+    "activation_phrase": "「天を翔けろ、竜の王牙――蒼竜王牙・天！」",
+    "activation_description": "{user}の武器に竜鱗の輝きが宿る。《{skill}》の一撃が{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 74,
+    "learn_rank": 1,
+    "name": "天機演算",
+    "activation_phrase": "「戦況は読み切った――天機演算！」",
+    "activation_description": "{user}は研ぎ澄ました照準と研ぎ澄まされた戦意を重ね、《{skill}》で{target}を呑み込んだ。散った勝機の陣形を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 74,
+    "learn_rank": 5,
+    "name": "天機戦術",
+    "activation_phrase": "「勝ち筋をここに通す――天機戦術！」",
+    "activation_description": "勝機の陣形が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。散った勝機の陣形を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 74,
+    "learn_rank": 9,
+    "name": "天機万策",
+    "activation_phrase": "「全軍、勝利の一手を打て――天機万策！」",
+    "activation_description": "{user}は研ぎ澄まされた戦意を一気に解放し、《{skill}》で{target}を呑み込んだ。散った勝機の陣形を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 75,
+    "learn_rank": 1,
+    "name": "審判の聖印",
+    "activation_phrase": "「光よ、我が道を照らせ――審判の聖印！」",
+    "activation_description": "{user}は澄み渡る聖光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 75,
+    "learn_rank": 5,
+    "name": "聖域審判",
+    "activation_phrase": "「聖光よ、ここに集え――聖域審判！」",
+    "activation_description": "{user}の術式に聖なる紋章が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 75,
+    "learn_rank": 9,
+    "name": "聖裁サンクチュアリ",
+    "activation_phrase": "「神域の輝きよ、天を満たせ――聖裁サンクチュアリ！」",
+    "activation_description": "聖なる紋章が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 76,
+    "learn_rank": 1,
+    "name": "幻葬の影",
+    "activation_phrase": "「影よ、静かに満ちろ――幻葬の影！」",
+    "activation_description": "{user}は深い冥闇を一気に解放し、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 76,
+    "learn_rank": 5,
+    "name": "幻葬魔葬",
+    "activation_phrase": "「闇をさらに深く刻む――幻葬魔葬！」",
+    "activation_description": "{user}は狩猟の印と深い冥闇を重ね、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 76,
+    "learn_rank": 9,
+    "name": "魔王葬送曲",
+    "activation_phrase": "「終章まで、魂を震わせる――魔王葬送曲！」",
+    "activation_description": "{user}は狩猟の印と響き渡る旋律を重ね、《{skill}》で{target}を打ち震わせた！"
+  },
+  {
+    "job_id": 77,
+    "learn_rank": 1,
+    "name": "時読みの歩み",
+    "activation_phrase": "「一瞬先を手繰り寄せる――時読みの歩み！」",
+    "activation_description": "{user}は揺らめく時光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 77,
+    "learn_rank": 5,
+    "name": "時詠み渡り",
+    "activation_phrase": "「時の流れを追い越す――時詠み渡り！」",
+    "activation_description": "{user}は揺らめく時光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 77,
+    "learn_rank": 9,
+    "name": "時渡りの終鐘",
+    "activation_phrase": "「時空よ、我が意のままに――時渡りの終鐘！」",
+    "activation_description": "時環の刻印が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 78,
+    "learn_rank": 1,
+    "name": "荒天の構え",
+    "activation_phrase": "「ここから流れをつかむ――荒天の構え！」",
+    "activation_description": "{user}の武器に勝負の気迫が宿る。《{skill}》の一撃が{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 78,
+    "learn_rank": 5,
+    "name": "荒天覇撃",
+    "activation_phrase": "「この一手で押し切る――荒天覇撃！」",
+    "activation_description": "勝負の気迫が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 78,
+    "learn_rank": 9,
+    "name": "天災ブレイカー",
+    "activation_phrase": "「すべてを賭けて決める――天災ブレイカー！」",
+    "activation_description": "{user}は高まる戦気を一気に解放し、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 79,
+    "learn_rank": 1,
+    "name": "白銀の誓壁",
+    "activation_phrase": "「ここは通さない――白銀の誓壁！」",
+    "activation_description": "{user}は揺るぎない守護力を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 79,
+    "learn_rank": 5,
+    "name": "白銀王盾",
+    "activation_phrase": "「守りの要は崩させない――白銀王盾！」",
+    "activation_description": "{user}は守護の紋と揺るぎない守護力を重ね、《{skill}》で{target}を押し崩した。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 79,
+    "learn_rank": 9,
+    "name": "白銀王城陣",
+    "activation_phrase": "「この壁は決して破れない――白銀王城陣！」",
+    "activation_description": "{user}の武器に堅牢な防壁が宿る。《{skill}》の一撃が{target}を打ち抜いた。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 80,
+    "learn_rank": 1,
+    "name": "天翔の剣気",
+    "activation_phrase": "「刃筋はもう見えている――天翔の剣気！」",
+    "activation_description": "{user}は勝利の号令と澄み切った剣気を重ね、《{skill}》で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 80,
+    "learn_rank": 5,
+    "name": "天翔剣皇斬",
+    "activation_phrase": "「次の一太刀で決める――天翔剣皇斬！」",
+    "activation_description": "鋭い剣閃が閃き、{user}は《{skill}》の剣閃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 80,
+    "learn_rank": 9,
+    "name": "天翔皇刃・蒼空断",
+    "activation_phrase": "「剣の極み、この一閃に――天翔皇刃・蒼空断！」",
+    "activation_description": "{user}は澄み切った剣気を一気に解放し、《{skill}》で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 81,
+    "learn_rank": 1,
+    "name": "黒焔契約",
+    "activation_phrase": "「炎よ、道を焼き開け――黒焔契約！」",
+    "activation_description": "{user}は研ぎ澄ました照準と灼熱の炎を重ね、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 81,
+    "learn_rank": 5,
+    "name": "黒焔魔皇破",
+    "activation_phrase": "「紅蓮よ、さらに燃えろ――黒焔魔皇破！」",
+    "activation_description": "{user}の術式に火焔の紋が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 81,
+    "learn_rank": 9,
+    "name": "黒焔終獄陣",
+    "activation_phrase": "「すべてを焦がす業火となれ――黒焔終獄陣！」",
+    "activation_description": "{user}は灼熱の炎を一気に解放し、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 82,
+    "learn_rank": 1,
+    "name": "世界樹の祈り",
+    "activation_phrase": "「命の息吹よ、応えて――世界樹の祈り！」",
+    "activation_description": "{user}は瑞々しい生命力を一気に解放し、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 82,
+    "learn_rank": 5,
+    "name": "世界樹の祝福",
+    "activation_phrase": "「大地の恵みを巡らせる――世界樹の祝福！」",
+    "activation_description": "{user}の術式に若葉の光輪が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 82,
+    "learn_rank": 9,
+    "name": "世界樹ユグドラシル",
+    "activation_phrase": "「万象の命よ、ここに芽吹け――世界樹ユグドラシル！」",
+    "activation_description": "{user}は守護の紋と瑞々しい生命力を重ね、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 83,
+    "learn_rank": 1,
+    "name": "影葬の刃",
+    "activation_phrase": "「影よ、静かに満ちろ――影葬の刃！」",
+    "activation_description": "{user}の刃に深淵の影が宿る。《{skill}》の剣閃が{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 83,
+    "learn_rank": 5,
+    "name": "影葬王刃",
+    "activation_phrase": "「闇をさらに深く刻む――影葬王刃！」",
+    "activation_description": "{user}は狩猟の印と深い冥闇を重ね、《{skill}》で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 83,
+    "learn_rank": 9,
+    "name": "影葬千夜王",
+    "activation_phrase": "「深淵よ、すべてを呑め――影葬千夜王！」",
+    "activation_description": "{user}は狩猟の印と深い冥闇を重ね、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 84,
+    "learn_rank": 1,
+    "name": "星海の導き",
+    "activation_phrase": "「次の道は見えている――星海の導き！」",
+    "activation_description": "{user}は場を巡る律と遥かな星風を重ね、《{skill}》で{target}を呑み込んだ。散った旅路の羅針を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 84,
+    "learn_rank": 5,
+    "name": "星海羅針",
+    "activation_phrase": "「この旅路を切り開く――星海羅針！」",
+    "activation_description": "{user}は遥かな星風を一気に解放し、《{skill}》で{target}を呑み込んだ。散った旅路の羅針を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 84,
+    "learn_rank": 9,
+    "name": "星海グランドヴォヤージュ",
+    "activation_phrase": "「世界の果てまで進み続ける――星海グランドヴォヤージュ！」",
+    "activation_description": "{user}は遥かな星風を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。散った旅路の羅針を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 85,
+    "learn_rank": 1,
+    "name": "星律の祈祷",
+    "activation_phrase": "「星よ、進む道を示せ――星律の祈祷！」",
+    "activation_description": "{user}は瞬く星光を一気に解放し、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 85,
+    "learn_rank": 5,
+    "name": "星律神裁",
+    "activation_phrase": "「星々の光を束ねる――星律神裁！」",
+    "activation_description": "{user}の術式に星図の軌跡が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 85,
+    "learn_rank": 9,
+    "name": "星律大聖堂",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――星律大聖堂！」",
+    "activation_description": "{user}は場を巡る律と瞬く星光を重ね、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 86,
+    "learn_rank": 1,
+    "name": "深淵覇気",
+    "activation_phrase": "「影よ、静かに満ちろ――深淵覇気！」",
+    "activation_description": "深淵の影が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。鋭い余韻が空気を震わせた！"
+  },
+  {
+    "job_id": 86,
+    "learn_rank": 5,
+    "name": "深淵覇王撃",
+    "activation_phrase": "「闇をさらに深く刻む――深淵覇王撃！」",
+    "activation_description": "{user}は深い冥闇を一気に解放し、《{skill}》で{target}を打ち抜いた。力強い波動が四方へ走った！"
+  },
+  {
+    "job_id": 86,
+    "learn_rank": 9,
+    "name": "深淵覇滅陣",
+    "activation_phrase": "「深淵よ、すべてを呑め――深淵覇滅陣！」",
+    "activation_description": "深淵の影が閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。澄んだ気配が静かに広がった！"
+  },
+  {
+    "job_id": 87,
+    "learn_rank": 1,
+    "name": "時環掌握",
+    "activation_phrase": "「一瞬先を手繰り寄せる――時環掌握！」",
+    "activation_description": "{user}は揺らめく時光を一気に解放し、《{skill}》で{target}を打ち砕いた！"
+  },
+  {
+    "job_id": 87,
+    "learn_rank": 5,
+    "name": "時環支配",
+    "activation_phrase": "「時の流れを追い越す――時環支配！」",
+    "activation_description": "{user}は勝利の号令と揺らめく時光を重ね、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 87,
+    "learn_rank": 9,
+    "name": "時環グランドリセット",
+    "activation_phrase": "「時空よ、我が意のままに――時環グランドリセット！」",
+    "activation_description": "{user}は揺らめく時光を一気に解放し、《{skill}》で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 88,
+    "learn_rank": 1,
+    "name": "天竜の神気",
+    "activation_phrase": "「竜気よ、この身に集え――天竜の神気！」",
+    "activation_description": "竜鱗の輝きが閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 88,
+    "learn_rank": 5,
+    "name": "天竜神牙",
+    "activation_phrase": "「蒼天を貫く――天竜神牙！」",
+    "activation_description": "{user}は蒼い竜気を一気に解放し、《{skill}》で{target}を打ち抜いた！"
+  },
+  {
+    "job_id": 88,
+    "learn_rank": 9,
+    "name": "天竜神滅牙",
+    "activation_phrase": "「天を翔けろ、竜の王牙――天竜神滅牙！」",
+    "activation_description": "竜鱗の輝きが閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。静かな威圧が周囲を包んだ！"
+  },
+  {
+    "job_id": 89,
+    "learn_rank": 1,
+    "name": "魔王の神威",
+    "activation_phrase": "「影よ、静かに満ちろ――魔王の神威！」",
+    "activation_description": "{user}は深い冥闇を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 89,
+    "learn_rank": 5,
+    "name": "魔王神滅",
+    "activation_phrase": "「闇をさらに深く刻む――魔王神滅！」",
+    "activation_description": "深淵の影が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 89,
+    "learn_rank": 9,
+    "name": "魔界創世・終焉",
+    "activation_phrase": "「深淵よ、すべてを呑め――魔界創世・終焉！」",
+    "activation_description": "{user}の術式に深淵の影が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 90,
+    "learn_rank": 1,
+    "name": "雷霆練気",
+    "activation_phrase": "「雷よ、この身を走れ――雷霆練気！」",
+    "activation_description": "雷光の環が閃き、{user}は《{skill}》の拳撃を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 90,
+    "learn_rank": 5,
+    "name": "雷霆神拳",
+    "activation_phrase": "「稲妻より速く――雷霆神拳！」",
+    "activation_description": "{user}の拳に雷光の環が宿る。《{skill}》の拳撃が{target}を打ち砕いた。鮮烈な軌跡が戦場に残った！"
+  },
+  {
+    "job_id": 90,
+    "learn_rank": 9,
+    "name": "雷霆武神降臨",
+    "activation_phrase": "「天を裂け、雷霆の一撃――雷霆武神降臨！」",
+    "activation_description": "{user}は蒼白い雷気を一気に解放し、《{skill}》で{target}を打ち砕いた。力強い波動が四方へ走った！"
+  },
+  {
+    "job_id": 91,
+    "learn_rank": 1,
+    "name": "虚空の導き",
+    "activation_phrase": "「虚空の座標を定める――虚空の導き！」",
+    "activation_description": "虚空の環が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 91,
+    "learn_rank": 5,
+    "name": "虚空導光",
+    "activation_phrase": "「無へ至る道を開く――虚空導光！」",
+    "activation_description": "虚空の環が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ！"
+  },
+  {
+    "job_id": 91,
+    "learn_rank": 9,
+    "name": "虚空神域",
+    "activation_phrase": "「境界よ、すべてを呑み込め――虚空神域！」",
+    "activation_description": "{user}の術式に虚空の環が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ！"
+  },
+  {
+    "job_id": 92,
+    "learn_rank": 1,
+    "name": "神樹の芽吹き",
+    "activation_phrase": "「命の息吹よ、応えて――神樹の芽吹き！」",
+    "activation_description": "若葉の光輪が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 92,
+    "learn_rank": 5,
+    "name": "世界樹神歌",
+    "activation_phrase": "「大地の恵みを巡らせる――世界樹神歌！」",
+    "activation_description": "{user}は瑞々しい生命力を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 92,
+    "learn_rank": 9,
+    "name": "神樹万象祝福",
+    "activation_phrase": "「万象の命よ、ここに芽吹け――神樹万象祝福！」",
+    "activation_description": "若葉の光輪が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。その余勢を己の力へ変えた。熱い残響が次の一手を呼んだ！"
+  },
+  {
+    "job_id": 93,
+    "learn_rank": 1,
+    "name": "終焉の祈り",
+    "activation_phrase": "「光よ、我が道を照らせ――終焉の祈り！」",
+    "activation_description": "{user}は反撃の間合いと澄み渡る聖光を重ね、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 93,
+    "learn_rank": 5,
+    "name": "終焉聖裁",
+    "activation_phrase": "「聖光よ、ここに集え――終焉聖裁！」",
+    "activation_description": "{user}は澄み渡る聖光を一気に解放し、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 93,
+    "learn_rank": 9,
+    "name": "ラストサンクチュアリ",
+    "activation_phrase": "「神域の輝きよ、天を満たせ――ラストサンクチュアリ！」",
+    "activation_description": "{user}は反撃の間合いと澄み渡る聖光を重ね、《{skill}》で{target}を呑み込んだ。その余勢を己の力へ変えた。眩い残光が足元を照らした！"
+  },
+  {
+    "job_id": 94,
+    "learn_rank": 1,
+    "name": "天命観測",
+    "activation_phrase": "「星よ、進む道を示せ――天命観測！」",
+    "activation_description": "星図の軌跡が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。散った星図の軌跡を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 94,
+    "learn_rank": 5,
+    "name": "天命改変",
+    "activation_phrase": "「星々の光を束ねる――天命改変！」",
+    "activation_description": "{user}は瞬く星光を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ。散った星図の軌跡を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 94,
+    "learn_rank": 9,
+    "name": "天命星図・終局観測",
+    "activation_phrase": "「天命の星空よ、ここに降りよ――天命星図・終局観測！」",
+    "activation_description": "{user}の術式に星図の軌跡が宿る。《{skill}》の魔力の奔流が{target}を呑み込んだ。散った星図の軌跡を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 95,
+    "learn_rank": 1,
+    "name": "救世の鼓舞",
+    "activation_phrase": "「勇気はここにある――救世の鼓舞！」",
+    "activation_description": "{user}の刃と術式に希望の輝きが宿る。《{skill}》の剣閃と魔力が{target}を切り裂いた！"
+  },
+  {
+    "job_id": 95,
+    "learn_rank": 5,
+    "name": "六星救世陣",
+    "activation_phrase": "「仲間なき戦場でも退かない――六星救世陣！」",
+    "activation_description": "{user}は反撃の間合いとまばゆい勇気を重ね、《{skill}》で{target}を切り裂いた！"
+  },
+  {
+    "job_id": 95,
+    "learn_rank": 9,
+    "name": "救世覇道斬",
+    "activation_phrase": "「夜明けをこの手でつかむ――救世覇道斬！」",
+    "activation_description": "{user}はまばゆい勇気を一気に解放し、《{skill}》で{target}を斬り裂いた！"
+  },
+  {
+    "job_id": 96,
+    "learn_rank": 1,
+    "name": "深淵の囁き",
+    "activation_phrase": "「影よ、静かに満ちろ――深淵の囁き！」",
+    "activation_description": "{user}の武器に深淵の影が宿る。《{skill}》の一撃が{target}を打ち抜いた。残る深い冥闇が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 96,
+    "learn_rank": 5,
+    "name": "影界侵食",
+    "activation_phrase": "「闇をさらに深く刻む――影界侵食！」",
+    "activation_description": "{user}は冥蝕の脈動と深い冥闇を重ね、《{skill}》で{target}を打ち抜いた。確かな手応えがその場に刻まれた！"
+  },
+  {
+    "job_id": 96,
+    "learn_rank": 9,
+    "name": "深淵崩壊",
+    "activation_phrase": "「深淵よ、すべてを呑め――深淵崩壊！」",
+    "activation_description": "{user}は冥蝕の脈動と深い冥闇を重ね、《{skill}》で{target}を打ち抜いた。細い光跡が長く宙に残った！"
+  },
+  {
+    "job_id": 97,
+    "learn_rank": 1,
+    "name": "古式錬成",
+    "activation_phrase": "「式を組み替える――古式錬成！」",
+    "activation_description": "{user}は変成の式と脈動する錬成力を重ね、《{skill}》で{target}を吹き飛ばした。散った幾重もの錬成式を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 97,
+    "learn_rank": 5,
+    "name": "神代防壁",
+    "activation_phrase": "「神代の壁よ、反照の富を生め！」",
+    "activation_description": "{user}は《{skill}》の古代防壁で魔力を反射し、{target}を撃ち抜いて砕けた光を戦利へ錬成した！"
+  },
+  {
+    "job_id": 97,
+    "learn_rank": 9,
+    "name": "神代錬成",
+    "activation_phrase": "「万象を勝利へ錬成する――神代錬成！」",
+    "activation_description": "幾重もの錬成式が閃き、{user}は《{skill}》の錬成光を{target}へ叩き込んだ。散った幾重もの錬成式を戦利の輝きへ変えた！"
+  },
+  {
+    "job_id": 98,
+    "learn_rank": 1,
+    "name": "蒼竜の息吹",
+    "activation_phrase": "「竜気よ、この身に集え――蒼竜の息吹！」",
+    "activation_description": "竜鱗の輝きが閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。深い鼓動が戦場を満たした！"
+  },
+  {
+    "job_id": 98,
+    "learn_rank": 5,
+    "name": "蒼竜王牙",
+    "activation_phrase": "「蒼天を貫く――蒼竜王牙！」",
+    "activation_description": "{user}の武器が二度きらめき、《{skill}》の連撃が{target}を包囲した。その連撃の余勢を己の力へ変えた！"
+  },
+  {
+    "job_id": 98,
+    "learn_rank": 9,
+    "name": "蒼天竜王撃",
+    "activation_phrase": "「天を翔けろ、竜の王牙――蒼天竜王撃！」",
+    "activation_description": "竜鱗の輝きが閃き、{user}は《{skill}》の一撃を{target}へ叩き込んだ。烈しい気流が周囲を駆け抜けた！"
+  },
+  {
+    "job_id": 99,
+    "learn_rank": 1,
+    "name": "時流補正",
+    "activation_phrase": "「一瞬先を手繰り寄せる――時流補正！」",
+    "activation_description": "{user}は揺らめく時光を一気に解放し、《{skill}》で{target}を呑み込んだ。残る揺らめく時光が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 99,
+    "learn_rank": 5,
+    "name": "クロノシフト",
+    "activation_phrase": "「時の流れを追い越す――クロノシフト！」",
+    "activation_description": "{user}は崩しの呼吸と揺らめく時光を重ね、《{skill}》で{target}を呑み込んだ。残る揺らめく時光が{target}の勢いを削いだ！"
+  },
+  {
+    "job_id": 99,
+    "learn_rank": 9,
+    "name": "クロノブレイク",
+    "activation_phrase": "「時空よ、我が意のままに――クロノブレイク！」",
+    "activation_description": "時環の刻印が閃き、{user}は《{skill}》の魔力の奔流を{target}へ叩き込んだ。残る揺らめく時光が{target}の勢いを削いだ！"
+  }
+]
