@@ -1,8 +1,18 @@
 # 戦技v2 Release Candidateチェックリスト
 
-最終更新: 2026-08-14
+最終更新: 2026-08-15
 対象起点: PR26 `2282b4ff682c846a0b0a754b4617957392e2ca48` 以降
-公開判定: **PR27 READY / 全94職対応はLOCAL ONLY**
+公開判定: **コードのみ本番配置可 / 戦技v2機能公開は未承認**
+
+## 2026-08-15 OFF本番配置
+
+- 今回は戦技v2のコード・表示素材・テストを本番へ配置するが、`config/battle.php`の関連14 flagはすべてOFFのままにする
+- deploymentは`migration_mode=none`で行う。migration、Seeder、`skills` master同期、既存slot/preset/プレイヤーデータ更新は実行しない
+- flag OFF中の画面・選択・SP・戦闘はlegacyの3枠・Cost5を維持する。v2の5枠・Cost9・固定SP・循環cursor・複数系譜resource・対奥義は起動しない
+- v2有効時の現行仕様は、全94職対応、現在職によるfallbackなし、主/副/出張なし、習得済み戦技の全効果100%、Rank1/5/9のCost1/2/3、奥義1枚、有効資源だけ共通獲得、同一戦技・同一行動・同一資源の重複禁止
+- 本番有効化は別タスク。DB backup、必要migrationの個別確認、282件runtime master監査、6戦闘経路smoke、段階的flag切替を改めて実施する
+
+以下のmigration・段階公開項目は、将来のv2有効化時に使うactivation checklistであり、今回のOFF本番配置では実行しない。
 
 ## 公開ブロッカー
 
@@ -13,7 +23,7 @@
 - current-job v2対応: 現行マスタ全94職
 - current-job v2対象外: 0職。v2 flag ON時は転職先によるlegacy fallbackを設けない
 - 戦技マスタ: 94職×Rank1/5/9=282件。`job_arts.json`・DB・lineage・prototype catalogの自然キー集合を一致させる
-- 個別に凍結済みの追加効果は専用catalog/overrideを正とし、それ以外は各戦技の構造化master効果をv2共通resource・35/38/50・normalized SP・5枠/Cost9で実行する。これは職業別の互換fallbackではなく、全職共通の基礎効果経路である
+- 個別に凍結済みの追加効果は専用catalog/overrideを正とし、それ以外は各戦技の構造化master効果をv2共通resource・35/38/50・固定SP・5枠/Cost9で実行する。これは職業別の互換fallbackではなく、全職共通の効果経路である
 - 63 星冠導師はRank1、Rank5、Rank9、resource、field/HUDまで個別効果対応。Rank9の上書き回数分岐は現在職63だけに適用する
 - feature flag OFFだけを運用上の明示rollbackとし、存在しないJob IDや不完全masterはvalidator/testで停止する
 
@@ -95,9 +105,10 @@ Down:
 | Flag | 依存 | 公開前の扱い |
 |---|---|---|
 | `BATTLE_JOB_ART_PVP_SET` | なし | 専用PvP setのUI/API/migration確認後にON |
-| `BATTLE_JOB_ART_LOADOUT_V2` | 対応current job | 5枠/Cost9。単独ONでは戦闘v2を起動しない |
-| `BATTLE_JOB_ART_DYNAMIC_SINGLE` | 対応current job | 戦闘v2の基点 |
-| `BATTLE_JOB_ART_NORMALIZED_SP` | 対応current job | dynamic未成立なら実質legacy |
+| `BATTLE_JOB_ART_LOADOUT_V2` | 全94職catalog | 5枠/Cost9。単独ONでは戦闘v2を起動しない |
+| `BATTLE_JOB_ART_LOADOUT_CARD_DETAILS` | loadout-v2 | 個別カード詳細UI。既定OFF |
+| `BATTLE_JOB_ART_DYNAMIC_SINGLE` | 全94職catalog | 戦闘v2の基点 |
+| `BATTLE_JOB_ART_NORMALIZED_SP` | dynamic | 階級×Rank固定SP表。dynamic未成立ならlegacy |
 | `BATTLE_JOB_ART_HIT_RESOLUTION` | dynamic | 依存不成立ならlegacy |
 | `BATTLE_JOB_ART_DAMAGE_APPLICATION` | dynamic + hit | 依存不成立ならlegacy |
 | `BATTLE_JOB_ART_RESOURCES` | dynamic + hit + damage | 依存不成立なら無効 |
@@ -105,6 +116,8 @@ Down:
 | `BATTLE_JOB_ART_PENETRATION` | resources | 対応metadataがない攻撃では無効 |
 | `BATTLE_JOB_ART_PENETRATION_STANCE` | penetration | current job 62以外では無効 |
 | `BATTLE_JOB_ART_PRESETS` | loadout-v2 + 対応current job | 戦闘処理はpreset tableを直接読まない |
+| `BATTLE_JOB_ART_C_DESIGN_PROTOTYPE` | dynamic + resources | 主/副/出張を廃止した全効果・複数資源runtimeの共通gate |
+| `BATTLE_JOB_ART_ULTIMATE_COUNTERPLAY` | c-design + battle path | 奥義/大技予告と10系譜の対処。既定OFF |
 
 機械可読の確認表: `C:\tmp\job-art-pr27\release_flag_matrix.csv`
 
@@ -112,7 +125,7 @@ Down:
 
 RC READY後も一括ONにはしない。
 
-1. migration適用、全flag OFFでlegacy smoke
+1. DB backup後に必要migrationだけを適用し、全flag OFFでlegacy smoke
 2. 内部検証characterだけに環境単位でUI系flagを有効化
 3. `PVP_SET`、`LOADOUT_V2`、`PRESETS`の保存・再読込を確認
 4. 戦闘依存を順に `DYNAMIC_SINGLE` -> `NORMALIZED_SP` -> `HIT_RESOLUTION` -> `DAMAGE_APPLICATION` -> `RESOURCES` まで有効化
@@ -157,7 +170,7 @@ RC READY後も一括ONにはしない。
 
 最優先rollback:
 
-1. 11個の戦技v2 flagをすべてOFF
+1. 14個の戦技v2 flagをすべてOFF
 2. config cacheを対象環境だけ再構築
 3. legacy UI・選択・SP・RNG・戦闘結果をsmoke
 

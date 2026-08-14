@@ -15,6 +15,8 @@ final class FieldState
         public readonly int $overwriteLockRemainingRounds = 0,
         public readonly ?string $overwriteLockOwnerActorKey = null,
         public readonly ?int $overwriteLockCreatedRound = null,
+        public readonly float $effectMultiplier = 1.0,
+        public readonly bool $ownerModificationLocked = false,
     ) {
     }
 

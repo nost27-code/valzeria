@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-job-art-v2-dormant-production-foundation',
+        'date' => '2026-08-15',
+        'category' => 'internal',
+        'title' => '戦技v2の本番待機基盤を追加',
+        'detail' => '戦技v2のコードと素材を本番へ配置しました。全機能フラグはOFFのため、プレイヤー画面・戦闘挙動・保存データは従来どおりです。',
+    ],
+    [
         'id' => '2026-08-14-uyuyuyu-exclusive-icon-027',
         'date' => '2026-08-14',
         'category' => 'internal',

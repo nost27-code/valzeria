@@ -166,43 +166,6 @@ class SkillEffectPreviewServiceTest extends TestCase
         $this->assertSame(92, $result['skill_summaries'][0]['damage']);
     }
 
-    public function test_physical_drain_uses_atk_and_is_labeled_as_physical(): void
-    {
-        $service = new SkillEffectPreviewService();
-        $job = new JobClass(['name' => '暗黒騎士', 'normal_attack_type' => 'physical']);
-        $enemy = new Enemy([
-            'name' => '検証敵',
-            'level' => 1,
-            'max_hp' => 10_000,
-            'str' => 80,
-            'def' => 100,
-            'agi' => 50,
-            'mag' => 50,
-            'spr' => 60,
-            'luk' => 10,
-            'is_boss' => false,
-        ]);
-        $skill = new Skill([
-            'name' => '暗黒剣',
-            'skill_type' => 'job_art',
-            'effect_template' => 'DRAIN',
-            'damage_type' => 'physical',
-            'power' => 185,
-            'power_multiplier' => 1.85,
-            'hit_count' => 1,
-            'drain_hp_rate' => 0.35,
-            'self_damage_percent' => 5,
-            'inherit_on_master' => true,
-            'inherited_rate' => 1.0,
-            'activation_rate' => 14,
-        ]);
-
-        $result = $service->preview($this->stats(), $job, $enemy, Collection::make([$skill]));
-
-        $this->assertSame('物理', $result['skill_summaries'][0]['damage_type_label']);
-        $this->assertSame(92, $result['skill_summaries'][0]['damage']);
-    }
-
     /**
      * @return array<string, int>
      */

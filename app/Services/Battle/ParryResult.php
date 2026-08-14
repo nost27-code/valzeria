@@ -6,6 +6,8 @@ final class ParryResult
 {
     public int $damageBeforeParry = 0;
     public int $damageAfterParry = 0;
+    public int $counterPower = 0;
+    public int $counterDamage = 0;
 
     public function __construct(
         public readonly int $sourceActionId,
@@ -23,6 +25,12 @@ final class ParryResult
         $this->damageAfterParry += max(0, $after);
     }
 
+    public function recordCounter(int $power, int $damage): void
+    {
+        $this->counterPower = max(0, $power);
+        $this->counterDamage = max(0, $damage);
+    }
+
     /** @return array<string, bool|float|int|string> */
     public function toArray(): array
     {
@@ -36,6 +44,8 @@ final class ParryResult
             'rate' => $this->rate,
             'damage_before_parry' => $this->damageBeforeParry,
             'damage_after_parry' => $this->damageAfterParry,
+            'counter_power' => $this->counterPower,
+            'counter_damage' => $this->counterDamage,
         ];
     }
 }

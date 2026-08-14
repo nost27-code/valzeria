@@ -2,22 +2,30 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-13
+Last updated: 2026-08-15
 Branch: main
 
-## Job-art v2 progression / FIX_NOW pass
+## Job-art v2 current canonical state (production dormant)
+
+- 戦技v2コードは現行マスタ94職・Rank1/5/9の282戦技を対象とする。v2有効時に現在職による対応外判定や旧マスタ説明への職別fallbackは設けない。プレイヤー自身に主系譜・副系譜・出張の所属は持たせず、習得済み戦技は現在職に関係なく編成でき、カードに記載された効果と威力を100%適用する
+- 1セットは5枠・Cost上限9。始動/連携/奥義はCost1/2/3で、奥義は1セット1枚まで。SPは習得職階級×Rankの固定表（基本4/6/8、中級6/9/13、上級10/16/22、超級16/25/35、冠位23/36/50、英雄30/48/66、伝説40/64/88、神話52/84/115）を使い、現在職・系譜・継承率による軽減を行わない
+- 系譜は戦技カードの資源・状態タグとしてのみ扱う。セット内にその資源を明示的に増減する戦技がある場合、またはその系譜の奥義をセットした場合に、その系譜資源を有効化する。有効でない系譜の共通獲得イベントは発生させない。同一戦技・同一行動・同一資源では、戦技本文の直接増減と系譜共通獲得を重複させない
+- 選択は前回判定位置の次から5枠を巡る循環cursor方式。現在使用できない戦技は飛ばし、最初に見つかった候補へ発動抽選を1回だけ行う。不発時に同一行動中の別戦技を再抽選しない。奥義準備と対奥義/予告大技の応答は専用flag配下にある
+- `config/battle.php`の戦技v2関連14 flagはすべて既定OFF。本番への今回の配置はコードのみで、migration・master同期・既存slot/preset更新を行わない。flag OFF中は従来3枠・Cost5・legacy選択/SP/表示を維持する。v2の本番有効化は別タスクでDB backup、migration、全6戦闘経路smokeを経て行う
+
+## Job-art v2 progression / FIX_NOW pass (historical design pass)
 
 - 公開戦技237件の監査から、人間裁定済み22件だけを完全一致 `(job_id, learn_rank, name)` で補正する。`JobArtV2ProgressionCatalog`が対象identityと表示文言、`JobArtV2ProgressionService`が通常PvE・boss・tower・PvP・champ・NPC arenaの実効効果、`JobArtV2ProgressionState`がbattle-memory-onlyの準備・印・封技・残心・指揮・軽減ラッチを一元管理する。master、DB、Cost、SP、発動率は変更しない
 - 上級・超級・冠位の同系譜内で、照準準備、貫通構え、狩猟印、崩し印、resource抑制、行動カテゴリ観測などを段階的に接続する。現在職または同系譜継承だけが系譜固有mechanicsを使い、異系譜継承は明示portable効果以外を持ち込まず、foreign resourceを生成しない。flag不足・未登録技・unsupported current jobはlegacyへfail closedする
 - 白銀王盾はcurrent/same guard lineageではdamageにDEF/SPR +15%（2ラウンド・継承減衰あり）を付与する。cross-lineageではbuff/resourceを持ち込まず、前回の自分の行動以降にdirect damageを実際に1以上軽減した時だけ次の自分の行動機会まで使用できる。実行時はHIT/MISS/EVADEを問わずラッチを消費し、発動抽選不発では保持する。3-arm因果監査ではcross-lineage donor改善0/9、対象22件のdead-art/universal-donor/adjacent-tier/power-only blockerはいずれも0
 
-## Job-art v2 role diversity pass
+## Job-art v2 role diversity pass (historical design pass)
 
 - 公開済みmasterとv2 resource規則を変えず、同期後監査TOP20の13 engine gapと7 role-design gapだけを対象にした。正本は`JobArtV2RoleEffectCatalog`の完全一致 `(job_id, learn_rank, name)` metadataで、`JobArtV2RoleEffectService`がbattle-memory-onlyのTimedEffect/PreparedEffect、支援、報酬、場、適応damage routeを6戦闘経路へ接続する。対象外戦技・flag不足・unsupported current jobは既存効果とRNG経路を維持する
 - portable指定された役割効果は同系譜/異系譜継承でも使用できるが、現在職のresource barは1本のままでforeign resourceを生成しない。source `power` / `hit_count` の値、Cost、35・38・50%発動、normalized SPは変更しない。Job Artの`power`は1行動全体の総量で、`hit_count > 1`は`JobArtHitPower`が整数余りを前方Hitへ配り、全Hit入力の合計を総powerと一致させる。通常PvE/bossとそれを継承するtower、PvP/champ/NPC arenaで同じ分割を使う
 - 反撃は納刀=短期tempo（ATK+5%/2R）、闘争本能=長期強化（ATK+25%・DEF+20%/5R）、剣気集中=決着準備（反撃Rank5/9を各×1.20、2回、最大6回の自分の行動機会）へ分離した。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と有害状態の優先1件浄化、王者の秘薬は残存割合が低いHP/SP側の今回回復量を×1.50（同率HP、浄化なし）とする。照準は高命中・既存会心補正・乱数なしの物理/魔法期待値選択、場術は星光/旋律生成と場延長、貫通はstrict/flexible準備、変成/守護は長期buff・能力選択・回復/加護・Gold/Drop/鑑定/浄化/収奪へ分離した
 
-## PR27 job-art v2 release candidate
+## PR27 job-art v2 release candidate (historical boundary)
 
 - 既定OFFのcurrent-job v2対応は40職。PR26までの39職に63星冠導師を追加し、全94職のうち54職はcurrent-job v2をfail closedする。上級・超級28職のeffect inventoryは、凍結済み個別効果を持つ4職がfull、残る24職がresource-v2 + master-effect fallbackのままである
 - 9種類のslot条件は`character_job_art_slots.condition_key`を正本として通常/ボス/PvPごとに保存する。`job_art_preset_slots.condition_key`にも同じ値を保存し、preset適用後も維持する。未知値は読込時だけ`always`へfail closedし、DB値を自動更新しない。旧cache専用storeは廃止した

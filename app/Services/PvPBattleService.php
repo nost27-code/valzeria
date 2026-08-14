@@ -169,7 +169,7 @@ class PvPBattleService
         $defenderActor->normalAttackType = $this->normalAttackType($defenderJob);
         $this->jobArtBattleSupport->attachBossSet($defenderActor, $defenderChar, 'champ');
 
-        $state = new BattleState($attackerActor, $defenderActor);
+        $state = new BattleState($attackerActor, $defenderActor, 'pvp');
         
         $state->addLog("【闘技場】{$attackerActor->name} が {$defenderActor->name} に勝負を挑んだ！");
         $state->addLog($this->affinityLog($attackerActor, $defenderActor));
@@ -198,14 +198,14 @@ class PvPBattleService
 
             if ($attackerFirst) {
                 $this->executeAction($attackerActor, $defenderActor, $state);
-                if ($state->isBattleEnded()) {
+                if ($attackerActor->isDead() || $defenderActor->isDead()) {
                     $this->jobArtBattleSupport->endRound($state);
                     break;
                 }
                 $this->executeAction($defenderActor, $attackerActor, $state);
             } else {
                 $this->executeAction($defenderActor, $attackerActor, $state);
-                if ($state->isBattleEnded()) {
+                if ($attackerActor->isDead() || $defenderActor->isDead()) {
                     $this->jobArtBattleSupport->endRound($state);
                     break;
                 }
