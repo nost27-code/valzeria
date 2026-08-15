@@ -55,6 +55,12 @@ class BattleState
     /** @var array<string, true> */
     private array $claimedResourceEvents = [];
 
+    /** @var array<string, true> actor・resource・modifier・source action単位の獲得補正。 */
+    private array $claimedResourceGainModifiers = [];
+
+    /** @var array<string, true> actor・抑制owner・source action単位の金蝕消費予約。 */
+    private array $claimedResourceSuppressionActions = [];
+
     /** @var array<string, true> actor・resource・source action単位の戦技固有リソース操作。 */
     private array $jobArtV2DirectResourceOperations = [];
 
@@ -210,6 +216,42 @@ class BattleState
         $this->claimedResourceEvents[$key] = true;
 
         return true;
+    }
+
+    public function claimResourceGainModifier(
+        BattleActor $actor,
+        string $resourceKey,
+        string $modifierKey,
+        int $sourceActionId,
+    ): bool {
+        $key = implode(':', [$this->actorKey($actor), $resourceKey, $modifierKey, $sourceActionId]);
+        if (isset($this->claimedResourceGainModifiers[$key])) {
+            return false;
+        }
+
+        $this->claimedResourceGainModifiers[$key] = true;
+
+        return true;
+    }
+
+    public function claimResourceSuppressionAction(
+        BattleActor $actor,
+        string $ownerKey,
+        int $sourceActionId,
+    ): void {
+        $this->claimedResourceSuppressionActions[
+            implode(':', [$this->actorKey($actor), $ownerKey, $sourceActionId])
+        ] = true;
+    }
+
+    public function hasClaimedResourceSuppressionAction(
+        BattleActor $actor,
+        string $ownerKey,
+        int $sourceActionId,
+    ): bool {
+        return isset($this->claimedResourceSuppressionActions[
+            implode(':', [$this->actorKey($actor), $ownerKey, $sourceActionId])
+        ]);
     }
 
     public function markJobArtV2DirectResourceOperation(

@@ -136,9 +136,17 @@ class JobArtV2ResourceService
         }
 
         $art = $this->catalog->forActorArt($actor, $skill);
+        if ($art === null) {
+            return false;
+        }
+        $required = max(
+            0,
+            (int) $art['resource_cost_points'],
+            (int) $art['minimum_resource_points'],
+        );
 
-        return $art !== null
-            && $actor->getResource((string) $art['resource_key']) === (int) $art['resource_max_points'];
+        return $required > 0
+            && $actor->getResource((string) $art['resource_key']) >= $required;
     }
 
     public function supportEffectCanBeMeaningful(BattleActor $actor, Skill $skill): bool
@@ -212,9 +220,10 @@ class JobArtV2ResourceService
         $role = ResourceRole::from((string) $art['resource_role']);
         $configuredDelta = match ($role) {
             ResourceRole::PRODUCER => $this->gainEventFor($art) === ResourceEvent::JOB_ART_CAST
-                ? $this->fieldService->modifyResourceGain(
+                ? $this->modifyResourceGainForAction(
                     $actor,
                     $state,
+                    $resourceKey,
                     max(0, (int) $art['resource_gain_points'])
                         + ($fieldResult?->event === FieldEvent::OVERWRITTEN
                             ? max(0, (int) ($art['resource_gain_on_field_overwrite_points'] ?? 0))
@@ -236,7 +245,7 @@ class JobArtV2ResourceService
         if ($configuredDelta > 0) {
             $actor->addResource(
                 $resourceKey,
-                $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $configuredDelta),
+                $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $configuredDelta, $state),
             );
         }
 
@@ -295,8 +304,13 @@ class JobArtV2ResourceService
         }
 
         $before = $actor->getResource($resourceKey);
-        $gain = $this->fieldService->modifyResourceGain($actor, $state, max(0, (int) $art['resource_gain_points']));
-        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain));
+        $gain = $this->modifyResourceGainForAction(
+            $actor,
+            $state,
+            $resourceKey,
+            max(0, (int) $art['resource_gain_points']),
+        );
+        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain, $state));
         $after = $actor->getResource($resourceKey);
         $result = new ResourceChangeResult(
             applied: $before !== $after,
@@ -492,8 +506,8 @@ class JobArtV2ResourceService
         }
 
         $before = $actor->getResource($resourceKey);
-        $gain = $this->fieldService->modifyResourceGain($actor, $state, $gain);
-        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain));
+        $gain = $this->modifyResourceGainForAction($actor, $state, $resourceKey, $gain);
+        $actor->addResource($resourceKey, $this->progressionService->modifyIncomingResourceGain($actor, $resourceKey, $gain, $state));
         $after = $actor->getResource($resourceKey);
         $result = new ResourceChangeResult(
             applied: $before !== $after,
@@ -592,6 +606,24 @@ class JobArtV2ResourceService
         if ($message !== null) {
             $state->addLog("<span class=\"text-sky-700 font-bold\">{$message}</span>");
         }
+    }
+
+    private function modifyResourceGainForAction(
+        BattleActor $actor,
+        BattleState $state,
+        string $resourceKey,
+        int $gain,
+    ): int {
+        $gain = max(0, $gain);
+        $sourceActionId = $state->currentSourceActionId();
+        if ($gain <= 0
+            || $sourceActionId === null
+            || ! $state->claimResourceGainModifier($actor, $resourceKey, 'field', $sourceActionId)
+        ) {
+            return $gain;
+        }
+
+        return $this->fieldService->modifyResourceGain($actor, $state, $gain);
     }
 
     /** @param array<string, int|float|string|bool> $art */

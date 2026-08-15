@@ -36,7 +36,7 @@ class JobArtV2PowerBalanceTest extends TestCase
         foreach (JobArtV2BalanceFixture::lineages() as $lineage => $fixture) {
             $jobId = (int) $fixture['job_id'];
             $this->assertSame(285, (int) ($pairs[$jobId][5]['power_hint'] ?? 0), $lineage);
-            $this->assertSame(355, (int) ($pairs[$jobId][9]['power_hint'] ?? 0), $lineage);
+            $this->assertSame($jobId === 67 ? 315 : 355, (int) ($pairs[$jobId][9]['power_hint'] ?? 0), $lineage);
             if (in_array($jobId, [67, 69], true)) {
                 $this->assertNull($pairs[$jobId][9]['max_uses_per_battle'] ?? null, $lineage);
             } else {
@@ -105,6 +105,11 @@ class JobArtV2PowerBalanceTest extends TestCase
         $this->attachAsCurrent($command, $commandRankNine);
         $this->assertSame(355, $resolver->forExecution($command, $commandRankNine));
 
+        $transmute = $this->actor(67);
+        $transmuteRankNine = $this->art(67, 9, 315, 6_709, '金冠ミダスフィールド');
+        $this->attachAsCurrent($transmute, $transmuteRankNine);
+        $this->assertSame(315, $resolver->forExecution($transmute, $transmuteRankNine));
+
         foreach ([[24, 9, 89], [66, 9, 355], [85, 9, 510], [53, 5, 255], [62, 5, 285]] as [$jobId, $rank, $power]) {
             $actor = $this->actor($jobId);
             $skill = $this->art($jobId, $rank, $power, ($jobId * 100) + $rank);
@@ -126,6 +131,7 @@ class JobArtV2PowerBalanceTest extends TestCase
             [64, 9, '影冠終葬射', 355, 355],
             [65, 5, '鋼冠機砲', 285, 255],
             [65, 9, '鋼冠グラビトンコア', 355, 355],
+            [67, 9, '金冠ミダスフィールド', 315, 315],
             [69, 9, '王戦アークフォーメーション', 355, 355],
         ] as [$jobId, $rank, $name, $masterPower, $effectivePower]) {
             $actor = $this->actor($jobId);
@@ -163,21 +169,29 @@ class JobArtV2PowerBalanceTest extends TestCase
         $this->assertSame(180, $resolver->forExecution($sameLineage, $skill));
     }
 
-    public function test_transmute_and_break_keep_master_rank_nine_power_after_effect_aware_calibration(): void
+    public function test_transmute_uses_315_while_break_keeps_355_after_effect_aware_calibration(): void
     {
         $resolver = app(JobArtV2PowerResolver::class);
 
         foreach ([67 => 'transmute', 68 => 'break'] as $jobId => $lineage) {
             $fixture = JobArtV2BalanceFixture::lineages()[$lineage];
             $actor = $this->actor($jobId);
-            $skill = $this->art($jobId, 9, 355, ($jobId * 100) + 9);
+            $masterPower = $jobId === 67 ? 315 : 355;
+            $skill = $this->art(
+                $jobId,
+                9,
+                $masterPower,
+                ($jobId * 100) + 9,
+                $jobId === 67 ? '金冠ミダスフィールド' : '雷冠天鳴掌',
+            );
             $this->attachAsCurrent($actor, $skill);
             $skill->setAttribute('job_art_origin', 'current');
 
-            $this->assertSame(355, $fixture['candidate_rank9_power'], $lineage);
-            $this->assertSame(355, $resolver->forExecution($actor, $skill), $lineage);
-            $this->assertSame(355, $resolver->forDisplay($jobId, $skill), $lineage);
-            $this->assertSame(355, (int) $skill->power, $lineage);
+            $expected = $jobId === 67 ? 315 : 355;
+            $this->assertSame($expected, $fixture['candidate_rank9_power'], $lineage);
+            $this->assertSame($expected, $resolver->forExecution($actor, $skill), $lineage);
+            $this->assertSame($expected, $resolver->forDisplay($jobId, $skill), $lineage);
+            $this->assertSame($expected, (int) $skill->power, $lineage);
         }
     }
 

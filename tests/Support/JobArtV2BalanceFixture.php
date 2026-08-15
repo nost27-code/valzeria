@@ -21,14 +21,19 @@ final class JobArtV2BalanceFixture
             'hunt' => self::entry(64, 'damage', 460),
             'aim' => self::entry(65, 'damage', 570),
             'guard' => self::entry(66, 'hybrid', 355),
-            'transmute' => self::entry(67, 'hybrid', 355),
+            'transmute' => self::entry(67, 'hybrid', 315, 315),
             'break' => self::entry(68, 'hybrid', 355),
             'command' => self::entry(69, 'damage', 455),
         ];
     }
 
     /** @return array<string, int|string|null> */
-    private static function entry(int $jobId, string $classification, ?int $candidate): array
+    private static function entry(
+        int $jobId,
+        string $classification,
+        ?int $candidate,
+        int $currentRankNinePower = 355,
+    ): array
     {
         return [
             'job_id' => $jobId,
@@ -36,7 +41,7 @@ final class JobArtV2BalanceFixture
             'rank9' => 9,
             'classification' => $classification,
             'current_rank5_power' => 285,
-            'current_rank9_power' => 355,
+            'current_rank9_power' => $currentRankNinePower,
             'candidate_rank9_power' => $candidate,
         ];
     }

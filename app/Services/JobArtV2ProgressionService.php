@@ -414,16 +414,7 @@ final class JobArtV2ProgressionService
             if ($targetHasLineageResource) {
                 $ownerKey = $this->actorKey($actor);
                 if ($rank === 1) {
-                    $targetState->resourceSuppressions[$ownerKey] = [
-                        'owner' => $actor,
-                        'resource_key' => '*',
-                        'remaining_gains' => 1,
-                        'compensation_armed' => false,
-                        'compensation_actions' => 0,
-                        'compensation_seen_gain' => false,
-                        'refund_points' => 0,
-                        'created_source_action_id' => $sourceActionId,
-                    ];
+                    $this->applyGoldCorrosion($targetState, $ownerKey, $actor, 1, $sourceActionId);
                 } elseif ($rank === 5 && isset($targetState->resourceSuppressions[$ownerKey])) {
                     $targetState->resourceSuppressions[$ownerKey]['compensation_armed'] = true;
                     $targetState->resourceSuppressions[$ownerKey]['compensation_actions'] = 2;
@@ -431,16 +422,7 @@ final class JobArtV2ProgressionService
                     $targetState->resourceSuppressions[$ownerKey]['refund_points'] = 2;
                     $targetState->resourceSuppressions[$ownerKey]['created_source_action_id'] = $sourceActionId;
                 } elseif ($rank === 9) {
-                    $targetState->resourceSuppressions[$ownerKey] = [
-                        'owner' => $actor,
-                        'resource_key' => '*',
-                        'remaining_gains' => 2,
-                        'compensation_armed' => false,
-                        'compensation_actions' => 0,
-                        'compensation_seen_gain' => false,
-                        'refund_points' => 0,
-                        'created_source_action_id' => $sourceActionId,
-                    ];
+                    $this->applyGoldCorrosion($targetState, $ownerKey, $actor, 2, $sourceActionId);
                 }
             }
         }
@@ -906,10 +888,34 @@ final class JobArtV2ProgressionService
         }
     }
 
+    private function applyGoldCorrosion(
+        JobArtV2ProgressionState $targetState,
+        string $ownerKey,
+        BattleActor $owner,
+        int $charges,
+        int $sourceActionId,
+    ): void {
+        $existing = $targetState->resourceSuppressions[$ownerKey] ?? null;
+        $targetState->resourceSuppressions[$ownerKey] = [
+            'owner' => $owner,
+            'resource_key' => '*',
+            'remaining_gains' => max(
+                max(0, (int) ($existing['remaining_gains'] ?? 0)),
+                max(0, min(2, $charges)),
+            ),
+            'compensation_armed' => (bool) ($existing['compensation_armed'] ?? false),
+            'compensation_actions' => max(0, (int) ($existing['compensation_actions'] ?? 0)),
+            'compensation_seen_gain' => (bool) ($existing['compensation_seen_gain'] ?? false),
+            'refund_points' => max(0, (int) ($existing['refund_points'] ?? 0)),
+            'created_source_action_id' => (int) ($existing['created_source_action_id'] ?? $sourceActionId),
+        ];
+    }
+
     public function modifyIncomingResourceGain(
         BattleActor $actor,
         string $resourceKey,
         int $gain,
+        ?BattleState $state = null,
     ): int {
         if (! $this->enabledFor($actor) || $gain <= 0) {
             return max(0, $gain);
@@ -918,6 +924,7 @@ final class JobArtV2ProgressionService
         $progression = $actor->jobArtV2ProgressionState();
 
         $modifiedGain = $gain;
+        $goldCorrosionApplied = false;
         foreach ($progression->resourceSuppressions as $ownerKey => $suppression) {
             if (! in_array($suppression['resource_key'], ['*', $resourceKey], true)
                 || $suppression['remaining_gains'] <= 0
@@ -932,15 +939,29 @@ final class JobArtV2ProgressionService
                 return $modifiedGain;
             }
 
-            $suppression['remaining_gains']--;
+            $sourceActionId = $state?->currentSourceActionId();
+            if ($state !== null && $sourceActionId !== null) {
+                if (! $state->claimResourceGainModifier(
+                    $actor,
+                    $resourceKey,
+                    'gold_corrosion:'.$ownerKey,
+                    $sourceActionId,
+                )) {
+                    continue;
+                }
+                $state->claimResourceSuppressionAction($actor, $ownerKey, $sourceActionId);
+            } else {
+                $suppression['remaining_gains']--;
+            }
             $suppression['compensation_seen_gain'] = true;
-            if ($suppression['remaining_gains'] <= 0) {
+            if ($state === null && $suppression['remaining_gains'] <= 0) {
                 unset($progression->resourceSuppressions[$ownerKey]);
             } else {
                 $progression->resourceSuppressions[$ownerKey] = $suppression;
             }
 
-            $modifiedGain = (int) floor($modifiedGain / 2);
+            $modifiedGain = max(1, $modifiedGain - 1);
+            $goldCorrosionApplied = true;
             break;
         }
 
@@ -953,7 +974,7 @@ final class JobArtV2ProgressionService
             }
         }
 
-        return $modifiedGain;
+        return $goldCorrosionApplied ? max(1, $modifiedGain) : $modifiedGain;
     }
 
     /**
@@ -1003,29 +1024,37 @@ final class JobArtV2ProgressionService
         }
 
         foreach ($progression->resourceSuppressions as $ownerKey => $suppression) {
-            if (! $suppression['compensation_armed']
-                || $suppression['created_source_action_id'] === $sourceActionId
+            if ($state->hasClaimedResourceSuppressionAction($actor, $ownerKey, $sourceActionId)) {
+                $suppression['remaining_gains'] = max(0, (int) $suppression['remaining_gains'] - 1);
+                $suppression['compensation_seen_gain'] = true;
+            }
+
+            if ($suppression['compensation_armed']
+                && $suppression['created_source_action_id'] !== $sourceActionId
             ) {
-                continue;
-            }
-
-            if ($suppression['compensation_seen_gain']) {
-                $suppression['compensation_armed'] = false;
-                $progression->resourceSuppressions[$ownerKey] = $suppression;
-                continue;
-            }
-
-            $suppression['compensation_actions']--;
-            if ($suppression['compensation_actions'] <= 0) {
-                $owner = $suppression['owner'];
-                $ownerResource = collect($this->resourceCatalog->resourcesForActor($owner))
-                    ->firstWhere('resource_key', 'catalyst');
-                if (is_array($ownerResource)) {
-                    $owner->configureResource('catalyst', (int) $ownerResource['resource_max_points']);
-                    $owner->addResource('catalyst', (int) $suppression['refund_points']);
+                if ($suppression['compensation_seen_gain']) {
+                    $suppression['compensation_armed'] = false;
+                    $suppression['compensation_actions'] = 0;
+                    $suppression['refund_points'] = 0;
+                } else {
+                    $suppression['compensation_actions']--;
+                    if ($suppression['compensation_actions'] <= 0) {
+                        $owner = $suppression['owner'];
+                        $ownerResource = collect($this->resourceCatalog->resourcesForActor($owner))
+                            ->firstWhere('resource_key', 'catalyst');
+                        if (is_array($ownerResource)) {
+                            $owner->configureResource('catalyst', (int) $ownerResource['resource_max_points']);
+                            $owner->addResource('catalyst', (int) $suppression['refund_points']);
+                        }
+                        $suppression['compensation_armed'] = false;
+                        $suppression['refund_points'] = 0;
+                    }
                 }
-                $suppression['compensation_armed'] = false;
-                $suppression['refund_points'] = 0;
+            }
+
+            if ($suppression['remaining_gains'] <= 0 && ! $suppression['compensation_armed']) {
+                unset($progression->resourceSuppressions[$ownerKey]);
+                continue;
             }
             $progression->resourceSuppressions[$ownerKey] = $suppression;
         }

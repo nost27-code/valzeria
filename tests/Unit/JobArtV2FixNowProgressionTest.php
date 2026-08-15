@@ -367,8 +367,9 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $gainTarget->configureResource('command_points', 12);
         $this->beginAction($gainTarget, $gainState);
         $normal = $this->resources()->recordNormalAttackResolution($gainTarget, $gainOwner, $gainState, HitResult::HIT);
-        $this->assertSame(2, $normal->delta, 'The actual +4 gain is halved once.');
+        $this->assertSame(3, $normal->delta, 'Gold corrosion subtracts one from the +4 HIT gain.');
         $this->resources()->finishAction($gainTarget, $gainState);
+        $this->assertSame(4, $gainTarget->getResource('command_points'));
         $this->assertSame(0, $gainOwner->getResource('catalyst'));
     }
 

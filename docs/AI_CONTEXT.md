@@ -10,8 +10,9 @@ Branch: main
 - 戦技v2コードは現行マスタ94職・Rank1/5/9の282戦技を対象とする。v2有効時に現在職による対応外判定や旧マスタ説明への職別fallbackは設けない。プレイヤー自身に主系譜・副系譜・出張の所属は持たせず、習得済み戦技は現在職に関係なく編成でき、カードに記載された効果と威力を100%適用する
 - 1セットは5枠・Cost上限9。始動/連携/奥義はCost1/2/3で、奥義は1セット1枚まで。SPは習得職階級×Rankの固定表（基本4/6/8、中級6/9/13、上級10/16/22、超級16/25/35、冠位23/36/50、英雄30/48/66、伝説40/64/88、神話52/84/115）を使い、現在職・系譜・継承率による軽減を行わない
 - 系譜は戦技カードの資源・状態タグとしてのみ扱う。セット内にその資源を明示的に増減する戦技がある場合、またはその系譜の奥義をセットした場合に、その系譜資源を有効化する。有効でない系譜の共通獲得イベントは発生させない。同一戦技・同一行動・同一資源では、戦技本文の直接増減と系譜共通獲得を重複させない
+- v2有効時の金冠錬師は、金冠錬符がHIT時触媒+4・金蝕1回、金冠ミダスフィールドが触媒8pt・power315・HIT時金蝕2回。金蝕は次の系譜資源獲得行動で各獲得量-1（最低1）、最大2・非加算更新で、複数資源でも1行動につき1回だけ消費する。同一行動・同一資源の場補正も1回だけとし、指揮の通常攻撃HIT+4と非戦技手番+1に天測がある場合は合計+6
 - 選択は前回判定位置の次から5枠を巡る循環cursor方式。現在使用できない戦技は飛ばし、最初に見つかった候補へ発動抽選を1回だけ行う。不発時に同一行動中の別戦技を再抽選しない。奥義準備と対奥義/予告大技の応答は専用flag配下にある
-- `config/battle.php`の戦技v2関連15 flagはすべてコード既定OFF。本番では文言専用の`BATTLE_JOB_ART_FLAVOR_REWRITE`だけをONにし、残る14 engine/UI flagはOFFを維持する。migration・master同期・既存slot/preset更新は行わず、従来3枠・Cost5・legacy選択/SP/戦闘効果を維持する。v2 engineの本番有効化は別タスクでDB backup、migration、全6戦闘経路smokeを経て行う
+- `config/battle.php`の戦技v2関連15 flagはすべてコード既定OFF。本番では文言専用の`BATTLE_JOB_ART_FLAVOR_REWRITE`だけをONにし、残る14 engine/UI flagはOFFを維持する。全282戦技のmaster同期や既存slot/preset更新は行わず、従来3枠・Cost5・legacy選択/SP/戦闘効果を維持する。ただし金冠ミダスフィールドのpowerだけは共通戦闘経路と既存DBを315へ同期済みで、金蝕・HIT時触媒・同一行動補正はengine flag ONまで休止する。v2 engineの本番有効化は別タスクでDB backup、残りのmaster同期、全6戦闘経路smokeを経て行う
 - `BATTLE_JOB_ART_FLAVOR_REWRITE`は戦闘v2の他flagから独立した文言切替。`database/data/job_art_flavor_rewrites.json`に94職282戦技の台詞・発動描写を完全一致 `(job_id, learn_rank, name)` で保持し、2026-08-15から本番ON。通常/ボス/塔/PvP/チャンプ/NPC闘技場の奥義ログと神殿・管理確認画面だけへ適用し、威力・効果・発動条件・RNGは変更しない。OFF時、未一致時、読込失敗時は`skills.activation_phrase` / `activation_description`を維持し、DB同期は行わない
 
 ## Job-art v2 progression / FIX_NOW pass (historical design pass)
@@ -55,7 +56,7 @@ Branch: main
 - 既定OFFの既存v2依存flagと共通基盤を維持したまま、production対応current jobへ67金冠錬師（変成）と68雷冠拳聖（崩し）を追加した。現在の対応jobは24/53/61/62/64/65/67/68/69/85。60反撃と66守護はPR24までprototype catalogへ登録せずfail closedする
 - 67は触媒0〜12pt。信頼済みRank1の正式SP消費後に最大HP5%を非致死で支払い、最大SP5%を実回復できた時だけ変換成功として触媒+4、通常攻撃HITで+1。変換HP消費はdamage/self-damageへ通知しない。Rank5/9は4/12消費し、既存の魔法ダメージと報酬効果を維持する
 - 68は崩し0〜12pt。信頼済みRank1の奥義単位HITで+4、通常攻撃HITで+1。Rank5/9は4/12消費し、その攻撃の解決後から対象DEF/SPRを10%・2ラウンド／15%・3ラウンド低下させる。非stackで強い値を優先し、同値だけrefresh、弱い値は既存状態を更新しない。ボスは既存規則どおり効果率半減。v2 R5/9だけlegacy自己buffを抑止する
-- `ConversionResult`と`JobArtV2BreakDebuffResult`を表示用の構造化正本とし、HUD・おすすめ戦型・プリセットは既存共通経路へ接続する。67/68のRank9 powerは追加効果込みの120,096戦比較によりマスタ355を維持し、power overrideを追加しない
+- `ConversionResult`と`JobArtV2BreakDebuffResult`を表示用の構造化正本とし、HUD・おすすめ戦型・プリセットは既存共通経路へ接続する。当時の67/68 Rank9 powerは追加効果込みの120,096戦比較によりマスタ355を維持する判断だったが、67だけは2026-08-15の再裁定で315へ変更し、68は355を維持する
 
 ## PR22 job-art v2 horizontal expansion
 
@@ -211,5 +212,5 @@ Recent key points:
 - 代表4職（24/53/62/85）の縦切りE2Eを維持しつつ、現在はprototype対応40職が同じ通常/ボス/PvPセット、5枠/Cost9、dynamic-single、normalized SP、HIT解決、共通HP適用、系譜resourceを使う。loadout-v2とdynamic-singleの両flag ONかつ現在職がprototype対応職の場合、現在職自身の登録済みRank1/5/9同士だけはlegacy restriction groupの競合を無視して同じセットへ保存できる。継承・未登録・対象外職・依存flag OFFはlegacy制約を維持する。全flagは既定OFF
 - `BATTLE_JOB_ART_LOADOUT_V2=true`かつprototype対応40職では、既存の奥義セット画面をプレイヤー向けに「戦技セット」と表示する。信頼済みmetadataだけを使い、Rank1 producer=`始動`、Rank5 consumer=`展開`、Rank9 finisher=`奥義`、現在職/継承と同系譜/系譜外badge、共通計算済みCost/SP/発動率/power、現在職主系譜resourceと固有効果を5枠へ表示する。9種類のslot条件は折りたたみ設定に保存し、異系譜継承へforeign resourceを表示しない。内部の`JobArt`名・route・DB・マスタは変更せず、flag OFFは従来の「奥義セット」3枠/Cost5を維持する
 - `BATTLE_JOB_ART_PRESETS` は既定OFF。LOADOUT_V2もONかつprototype対応40職の場合だけ「マイ戦技プリセット」を表示・操作できる。1キャラクター無料3件で、保存時の現在職と同じ職でのみ通常/ボス/PvPの現在タブへ適用可能。保存する正本は5枠の戦技ID・順番・発動方針・slot条件で、適用時に現行Cost・習得・restrictionを再検証する。戦闘はpreset tableを直接参照しない。冒険者パス・課金枠拡張は未実装
-- v2の12pt経済校正では、既存Rank5を維持し、必要な現在職の信頼済みRank9だけを `JobArtV2PowerResolver` で実行時補正する。53=410、60=455、61=585、62=470、64=460、65=570、69=455。66/67/68は固有効果込み比較でmaster 355を維持しoverrideを追加しない。63はmaster powerを維持し、行動開始時の主場と本人の実上書き回数に基づく最大1.15倍だけを実行時に一度適用する。戦技セットの固定威力表示と実行時powerは同じResolverを使い、継承・対象外職・依存flag不成立時は既存マスタpowerへfail closedする。24/85とlegacy masterは変更せず、新しいpower専用flagは追加しない
+- v2の12pt経済校正では、既存Rank5を維持し、必要な現在職の信頼済みRank9だけを `JobArtV2PowerResolver` で実行時補正する。53=410、60=455、61=585、62=470、64=460、65=570、69=455。当時は66/67/68を固有効果込み比較でmaster 355維持としたが、67だけは2026-08-15の再裁定でmaster 315へ変更し、66/68は355を維持する。63はmaster powerを維持し、行動開始時の主場と本人の実上書き回数に基づく最大1.15倍だけを実行時に一度適用する。戦技セットの固定威力表示と実行時powerは同じResolverを使い、継承・対象外職・依存flag不成立時は既存マスタpowerへfail closedする。24/85と他のlegacy masterは変更せず、新しいpower専用flagは追加しない
 - 全v2戦闘依存flagが成立したprototype対応40職では、通常・ボス・塔・PvP・チャンプ・NPC闘技場の戦闘結果に表示専用の「戦技の流れ」を出す。サーバーで戦闘全体を解決した後の最終HUDと折りたたみ履歴で、現在職主系譜resource 0〜12、奥義までの残量、場/echo/構え/HIT/MISS/EVADE/貫通/SP変化を表示する。resource barは常に1本で、同系譜継承の増減も同じbarへ反映し、異系譜resourceは生成しない。日本語ログは解析せず、表示値を戦闘判定へ戻さない。flag OFF・対象外職はHUDを出さず、RNGと勝敗結果を変更しない

@@ -77,7 +77,7 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $catalog->artResourceMetadataForJobRank(67, 1)['resource_cost_points'],
             $catalog->artResourceMetadataForJobRank(67, 1)['minimum_resource_points'],
         ]);
-        $this->assertSame('job_art_cast', $catalog->artResourceMetadataForJobRank(67, 1)['resource_gain_event']);
+        $this->assertSame('job_art_hit', $catalog->artResourceMetadataForJobRank(67, 1)['resource_gain_event']);
         $this->assertSame([8, 8], [
             $catalog->artResourceMetadataForJobRank(67, 9)['resource_cost_points'],
             $catalog->artResourceMetadataForJobRank(67, 9)['minimum_resource_points'],

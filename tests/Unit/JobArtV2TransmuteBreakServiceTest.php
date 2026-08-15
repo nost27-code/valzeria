@@ -7,12 +7,16 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\HitResult;
 use App\Services\JobArtV2BreakDebuffService;
+use App\Services\JobArtV2BattleRules;
+use App\Services\JobArtV2FinisherConditionProvider;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2ProgressionService;
 use App\Services\JobArtV2PrototypeCatalog;
+use App\Services\JobArtV2RandomSource;
 use App\Services\JobArtV2ResourceService;
 use App\Services\JobArtV2RoleEffectService;
 use App\Services\JobArtV2SelectionService;
+use App\Services\JobArtV2SpCostCalculator;
 use Tests\TestCase;
 
 final class JobArtV2TransmuteBreakServiceTest extends TestCase
@@ -46,13 +50,44 @@ final class JobArtV2TransmuteBreakServiceTest extends TestCase
             $catalog->jobResourceMetadata(67)['resource_max_points'],
             $catalog->jobResourceMetadata(67)['normal_attack_hit_gain_points'],
         ]);
-        $this->assertSame(['producer', 0, 0, 'job_art_cast'], [
+        $this->assertSame(['producer', 0, 0, 'job_art_hit'], [
             $rankOne['resource_role'],
             $rankOne['resource_cost_points'],
             $rankOne['minimum_resource_points'],
             $rankOne['resource_gain_event'],
         ]);
         $this->assertSame([8, 8], [$rankNine['resource_cost_points'], $rankNine['minimum_resource_points']]);
+
+        $readyRankOne = $this->art(67, 1, '金冠錬符', 'MAGICAL_DAMAGE_REWARD');
+        $readyRankNine = $this->art(67, 9, '金冠ミダスフィールド', 'MAGICAL_DAMAGE_REWARD');
+        [$readyActor, , $readyState] = $this->battle(67, 69);
+        $this->current($readyActor, $readyRankOne);
+        $this->current($readyActor, $readyRankNine);
+        $readyActor->jobArts = [$readyRankOne, $readyRankNine];
+        $readyActor->configureResource('catalyst', 12);
+        $readyActor->setResource('catalyst', 8);
+        $this->assertTrue(app(JobArtV2ResourceService::class)->isFinisherReady($readyActor, $readyRankNine));
+        $this->assertNull(app(JobArtV2SelectionService::class)->eligibilityFailureReason(
+            $readyActor,
+            $readyState,
+            $readyRankNine,
+            (int) $readyRankNine->id,
+        ));
+        $selection = new JobArtV2SelectionService(
+            new class extends JobArtV2RandomSource
+            {
+                public function percentRoll(): int
+                {
+                    return 1;
+                }
+            },
+            app(JobArtV2FinisherConditionProvider::class),
+            app(JobArtV2SpCostCalculator::class),
+            app(JobArtV2BattleRules::class),
+        );
+        $selected = $selection->selectForTurn($readyActor, $readyState);
+        $this->assertSame((int) $readyRankNine->id, (int) $selected->skill?->id);
+        $this->assertTrue($selected->rankNinePrioritized);
 
         [$actor, $target, $state] = $this->battle(67, 69);
         $skill = $this->art(67, 1, '金冠錬符', 'MAGICAL_DAMAGE_REWARD');
@@ -63,12 +98,127 @@ final class JobArtV2TransmuteBreakServiceTest extends TestCase
 
         $this->begin($actor, $state);
         $this->assertNull(app(JobArtV2SelectionService::class)->eligibilityFailureReason($actor, $state, $skill, (int) $skill->id));
-        $result = app(JobArtV2ResourceService::class)->applyJobArtCast($actor, $state, $skill);
+        $cast = app(JobArtV2ResourceService::class)->applyJobArtCast($actor, $state, $skill);
+        $result = app(JobArtV2ResourceService::class)->recordJobArtHit($actor, $state, $skill);
 
+        $this->assertFalse($cast->applied);
         $this->assertSame(4, $result->delta);
         $this->assertSame($before, [$actor->hp, $actor->mp]);
         $this->assertSame([], $state->conversionResults());
         $this->assertSame(4, $actor->getResource('catalyst'));
+    }
+
+    public function test_gold_corrosion_reduces_once_per_action_with_a_minimum_of_one_and_refreshes_without_stacking(): void
+    {
+        [$actor, $target, $state] = $this->battle(67, 69);
+        $rankOne = $this->art(67, 1, '金冠錬符', 'MAGICAL_DAMAGE_REWARD');
+        $rankNine = $this->art(67, 9, '金冠ミダスフィールド', 'MAGICAL_DAMAGE_REWARD');
+        $command = $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE');
+        $this->current($actor, $rankOne);
+        $this->current($actor, $rankNine);
+        $this->current($target, $command);
+        $actor->jobArts = [$rankOne, $rankNine];
+        $target->jobArts = [$command];
+        $actor->configureResource('catalyst', 12);
+        $actor->setResource('catalyst', 8);
+
+        $this->cast($actor, $target, $state, $rankNine, applyResource: true);
+        $suppression = array_values($target->jobArtV2ProgressionState()->resourceSuppressions)[0];
+        $this->assertSame(2, $suppression['remaining_gains']);
+
+        $resources = app(JobArtV2ResourceService::class);
+        $resources->beginAction($target, $state);
+        $hit = $resources->recordNormalAttackResolution($target, $actor, $state, HitResult::HIT);
+        $this->assertSame(3, $hit->delta);
+        $resources->finishAction($target, $state);
+        $this->assertSame(4, $target->getResource('command_points'));
+        $this->assertSame(1, array_values($target->jobArtV2ProgressionState()->resourceSuppressions)[0]['remaining_gains']);
+
+        $actor->setResource('catalyst', 0);
+        $this->cast($actor, $target, $state, $rankOne, applyResource: true);
+        $this->assertSame(1, array_values($target->jobArtV2ProgressionState()->resourceSuppressions)[0]['remaining_gains']);
+        $actor->setResource('catalyst', 8);
+        $this->cast($actor, $target, $state, $rankNine, applyResource: true);
+        $this->assertSame(2, array_values($target->jobArtV2ProgressionState()->resourceSuppressions)[0]['remaining_gains']);
+
+        $target->configureResource('command_points', 12);
+        $target->setResource('command_points', 12);
+        $resources->beginAction($target, $state);
+        $resources->recordNormalAttackResolution($target, $actor, $state, HitResult::HIT);
+        $resources->finishAction($target, $state);
+        $this->assertSame(2, array_values($target->jobArtV2ProgressionState()->resourceSuppressions)[0]['remaining_gains']);
+
+        [$minimumActor, $minimumTarget, $minimumState] = $this->battle(67, 53);
+        $minimumRankOne = clone $rankOne;
+        $minimumRankOne->setAttribute('id', ++$this->nextSkillId);
+        $star = $this->art(53, 1, '星読の瞬き', 'MAGICAL_DAMAGE');
+        $this->current($minimumActor, $minimumRankOne);
+        $this->current($minimumTarget, $star);
+        $minimumActor->jobArts = [$minimumRankOne];
+        $minimumTarget->jobArts = [$star];
+        $this->cast($minimumActor, $minimumTarget, $minimumState, $minimumRankOne, applyResource: true);
+
+        $resources->beginAction($minimumTarget, $minimumState);
+        $minimum = $resources->recordNormalAttackResolution($minimumTarget, $minimumActor, $minimumState, HitResult::HIT);
+        $this->assertSame(1, $minimum->delta);
+        $resources->finishAction($minimumTarget, $minimumState);
+        $this->assertSame([], $minimumTarget->jobArtV2ProgressionState()->resourceSuppressions);
+    }
+
+    public function test_gold_corrosion_reduces_every_active_lineage_once_without_loadout_order_dependence(): void
+    {
+        foreach ([false, true] as $reverseOrder) {
+            [$actor, $target, $state] = $this->battle(67, 69);
+            $gold = $this->art(67, 1, '金冠錬符', 'MAGICAL_DAMAGE_REWARD');
+            $command = $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE');
+            $star = $this->art(53, 1, '星読の瞬き', 'MAGICAL_DAMAGE');
+            $this->current($actor, $gold);
+            $this->current($target, $command);
+            $this->inherit($target, $star);
+            $actor->jobArts = [$gold];
+            $target->jobArts = $reverseOrder ? [$star, $command] : [$command, $star];
+
+            $this->cast($actor, $target, $state, $gold, applyResource: true);
+
+            $resources = app(JobArtV2ResourceService::class);
+            $resources->beginAction($target, $state);
+            $resources->recordNormalAttackResolution($target, $actor, $state, HitResult::HIT);
+            $resources->finishAction($target, $state);
+
+            $this->assertSame(4, $target->getResource('command_points'));
+            $this->assertSame(1, $target->getResource('star_mark'));
+            $this->assertSame([], $target->jobArtV2ProgressionState()->resourceSuppressions);
+        }
+    }
+
+    public function test_crown_transmute_hit_effects_do_not_apply_on_miss_but_rank_nine_cost_is_spent(): void
+    {
+        foreach ([[1, 0], [9, 8]] as [$rank, $startingCatalyst]) {
+            [$actor, $target, $state] = $this->battle(67, 69);
+            $skill = $this->art(
+                67,
+                $rank,
+                $rank === 1 ? '金冠錬符' : '金冠ミダスフィールド',
+                'MAGICAL_DAMAGE_REWARD',
+            );
+            $command = $this->art(69, 1, '戦冠指揮', 'PHYSICAL_DAMAGE');
+            $this->current($actor, $skill);
+            $this->current($target, $command);
+            $actor->jobArts = [$skill];
+            $target->jobArts = [$command];
+            $actor->configureResource('catalyst', 12);
+            $actor->setResource('catalyst', $startingCatalyst);
+
+            $this->begin($actor, $state);
+            $resources = app(JobArtV2ResourceService::class);
+            $roles = app(JobArtV2RoleEffectService::class);
+            $resources->applyJobArtCast($actor, $state, $skill);
+            $roles->beginJobArtCast($actor, $state, $skill);
+            $roles->completeJobArtCast($actor, $target, $state, $skill, HitResult::MISS);
+
+            $this->assertSame(0, $actor->getResource('catalyst'));
+            $this->assertSame([], $target->jobArtV2ProgressionState()->resourceSuppressions);
+        }
     }
 
     public function test_crown_transmute_rank_five_and_nine_spend_four_and_eight(): void
@@ -183,7 +333,7 @@ final class JobArtV2TransmuteBreakServiceTest extends TestCase
         $breakView = app(JobArtV2LoadoutPresenter::class)->forArt(68, $break);
 
         $this->assertSame($expected, mt_rand());
-        $this->assertContains('対象の次回系譜リソース実獲得を半減', $transmuteView['effect_texts']);
+        $this->assertContains('HIT時に対象へ金蝕1回（次の系譜リソース獲得行動で各獲得量-1、最低1）', $transmuteView['effect_texts']);
         $this->assertContains('浄化された冠位由来の崩し印を残心として保持', $breakView['effect_texts']);
         $this->assertSame('MAGICAL_DAMAGE', $transmuteView['effect_template']);
         $this->assertSame('PHYSICAL_DAMAGE', $breakView['effect_template']);
@@ -267,7 +417,9 @@ final class JobArtV2TransmuteBreakServiceTest extends TestCase
         $roles = app(JobArtV2RoleEffectService::class);
         $roles->applyForExecution($actor, $target, $state, $source, $execution);
         if ($applyResource) {
-            app(JobArtV2ResourceService::class)->applyJobArtCast($actor, $state, $source);
+            $resources = app(JobArtV2ResourceService::class);
+            $resources->applyJobArtCast($actor, $state, $source);
+            $resources->recordJobArtHit($actor, $state, $source);
         }
         $roles->beginJobArtCast($actor, $state, $source);
         $roles->completeJobArtCast($actor, $target, $state, $source, HitResult::HIT);

@@ -194,7 +194,7 @@ class JobArtV2PrototypeCatalog
                 'resource_gain_points' => 4,
                 'resource_cost_points' => 0,
                 'minimum_resource_points' => 0,
-                'resource_gain_event' => 'job_art_cast',
+                'resource_gain_event' => 'job_art_hit',
             ],
             9 => ['resource_cost_points' => 8, 'minimum_resource_points' => 8],
         ],

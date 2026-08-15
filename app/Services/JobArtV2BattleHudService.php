@@ -412,7 +412,7 @@ final class JobArtV2BattleHudService
 
         $suppression = $targetState?->resourceSuppressions[$ownerKey] ?? null;
         if (is_array($suppression)) {
-            $label = '獲得抑制：残り'.(int) ($suppression['remaining_gains'] ?? 0).'回';
+            $label = '金蝕：残り'.(int) ($suppression['remaining_gains'] ?? 0).'回';
             if (! empty($suppression['compensation_armed'])) {
                 $label .= ' / 補償判定まで'.(int) ($suppression['compensation_actions'] ?? 0).'行動';
             }

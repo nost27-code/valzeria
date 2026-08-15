@@ -97,7 +97,7 @@
 | 64 | 影冠狩人 | 影冠終葬射 | PHYSICAL_DAMAGE | hit_count: 2 | 320 | 技巧2連射（合計320）。SPD/LUKで会心寄り維持、会心判定は各Hit |
 | 65 | 鋼冠機導師 | 鋼冠グラビトンコア | MAGICAL_DAMAGE | def_ignore_percent: 25, enemy_spd_down_percent: 10 | 300 | 魔法ダメージ。敵防御25%無視＋敵SPDを10%低下（戦闘中） |
 | 66 | 聖冠守護者 | 聖冠アイギスロード | MAGICAL_DAMAGE | damage_reduction_percent: 25 | 320 | 聖属性ダメージ＋次の被ダメージを25%軽減。1戦1回 |
-| 67 | 金冠錬師 | 金冠ミダスフィールド | 維持 | gold_bonus_percent: 5, drop_bonus_percent: 2 | 355（維持） | Gold寄り配分 |
+| 67 | 金冠錬師 | 金冠ミダスフィールド | 維持 | gold_bonus_percent: 5, drop_bonus_percent: 2 | 315（2026-08-15再裁定、旧355） | Gold寄り配分 |
 | 68 | 雷冠拳聖 | 雷冠天鳴掌 | DAMAGE_DEBUFF | hit_count: 3, enemy_spd_down_percent: 10 | 300 | 3回攻撃（合計300）＋雷の痺れで敵SPDを10%低下（戦闘中） |
 | 69 | 戦冠司令 | 王戦アークフォーメーション | DAMAGE_DEBUFF | enemy_atk_down_percent: 8, enemy_mag_down_percent: 8, enemy_spd_down_percent: 8 | 300 | 物理ダメージ＋敵ATK/MAG/SPDを8%低下（十面埋伏の上位系譜） |
 

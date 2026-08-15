@@ -6,14 +6,18 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 
 - Loadout/rules: `app/Services/JobArtService.php`, `app/Services/JobArtV2FeatureGate.php`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2SelectionService.php`
 - Fixed SP: `app/Services/JobArtV2SpCostCalculator.php`
-- Lineage resources and duplicate suppression: `app/Services/JobArtV2ResourceCatalog.php`, `app/Services/JobArtV2ResourceService.php`
+- Lineage resources and duplicate suppression: `app/Services/Battle/BattleState.php`, `app/Services/JobArtV2ResourceCatalog.php`, `app/Services/JobArtV2ResourceService.php`, `app/Services/JobArtV2ProgressionService.php`
 - Runtime effects across the six battle paths: `app/Services/JobArtBattleSupportService.php`, `app/Services/BattleService.php`, `app/Services/TowerBattleService.php`, `app/Services/PvPBattleService.php`, `app/Services/ChampBattleService.php`, `app/Services/ArenaNpcBattleService.php`
 - Flavor rewrite overlay: `app/Services/JobArtFlavorTextService.php`, `database/data/job_art_flavor_rewrites.json`, `app/Livewire/JobChange.php`, `app/Livewire/Admin/SkillEffectLab.php`. The code default is OFF and production enables only `BATTLE_JOB_ART_FLAVOR_REWRITE`; exact `(job_id, learn_rank, name)` matches switch all 282 phrases/descriptions, while OFF and unmatched rows retain `skills` text
 - Loadout/presets UI: `app/Http/Controllers/JobArtController.php`, `app/Http/Controllers/JobArtPresetController.php`, `app/Services/JobArtPresetService.php`, `resources/views/job-arts/`
-- Master source and validation: `database/data/job_arts.json`, `database/seeders/JobArtSeeder.php`, `app/Support/JobArtMasterValidator.php`. The 2026-08-15 OFF release does not include or execute a runtime master-sync migration
+- Master source and validation: `database/data/job_arts.json`, `database/seeders/JobArtSeeder.php`, `app/Support/JobArtMasterValidator.php`. The OFF release does not execute the full 282-art runtime sync; `2026_08_15_120000_rebalance_crown_alchemist_job_art.php` updates only the existing job 67 Rank9 row to power315 without changing its ID
 - Feature switches: `config/battle.php`. All 15 switches default OFF. Production enables only the independent flavor rewrite and keeps the other 14 switches OFF, so slot selection, SP, RNG, effects, and battle results remain on the legacy path
 
 The older Job-art sections and architecture-table notes below are historical design boundaries. Do not use their current-job, main/sub-lineage, portable, inherited-rate, or normalized-SP descriptions as the current specification.
+
+## Job-art v2 crown alchemist resource balance
+
+`JobArtV2PrototypeCatalog` owns 金冠錬符のHIT時触媒+4と金冠ミダスフィールドの触媒8pt条件、`JobArtV2CardDescriptionCatalog` and `database/data/job_arts.json` own the displayed/master 225% and 315% powers, and `JobArtV2ProgressionService` owns battle-only 金蝕 charges. `JobArtV2ResourceService` and `BattleState` apply field gain modifiers and 金蝕 once per actor/resource/source action, then consume one 金蝕 charge for the whole action even when multiple active resources gain. The engine behavior remains dormant while its production flags are OFF; the shared Rank9 power and targeted DB row are already 315.
 
 ## Job-art v2 role diversity pass (historical)
 
@@ -37,7 +41,7 @@ At the PR24 boundary, the default-OFF catalog supported current jobs 24/53/60/61
 
 ## PR23 job-art v2 horizontal expansion
 
-The default-OFF prototype catalog added current jobs 67/68 in PR23. `JobArtV2ConversionService` resolves job 67's post-art-SP, nonlethal 5% max-HP to 5% max-SP conversion and emits `ConversionResult`; `JobArtV2ResourceService` grants 触媒 only from that structured success. `JobArtV2BreakDebuffService` and `JobArtV2BreakDebuffState` own job 68's post-HIT, temporary DEF/SPR reduction, exact round expiry, stronger/equal/weaker merge rules, boss halving, and structured HUD results. `JobArtV2EffectSemanticsResolver` suppresses only trusted current-job 68 Rank5/9 legacy self-buffs at runtime. `BattleActor::effectiveDef/effectiveSpr`, `BattleState`, all six battle paths, `JobArtV2LoadoutPresenter`, and `JobArtV2BattleHudService` consume these shared results without DB persistence or additional RNG. Rank9 remains master power 355 for both jobs after effect-aware simulation. Contracts live in `JobArtV2TransmuteBreakServiceTest.php`, `JobArtV2VerticalSliceAcceptanceTest.php`, `JobArtV2HorizontalExpansionTest.php`, and `JobArtV2PowerBalanceTest.php`. Jobs 60/66 were added later in PR24 as documented above.
+The default-OFF prototype catalog added current jobs 67/68 in PR23. `JobArtV2ConversionService` resolves job 67's post-art-SP, nonlethal 5% max-HP to 5% max-SP conversion and emits `ConversionResult`; `JobArtV2ResourceService` grants 触媒 only from that structured success. `JobArtV2BreakDebuffService` and `JobArtV2BreakDebuffState` own job 68's post-HIT, temporary DEF/SPR reduction, exact round expiry, stronger/equal/weaker merge rules, boss halving, and structured HUD results. `JobArtV2EffectSemanticsResolver` suppresses only trusted current-job 68 Rank5/9 legacy self-buffs at runtime. `BattleActor::effectiveDef/effectiveSpr`, `BattleState`, all six battle paths, `JobArtV2LoadoutPresenter`, and `JobArtV2BattleHudService` consume these shared results without DB persistence or additional RNG. The original effect-aware simulation kept both Rank9 arts at master power355; the 2026-08-15 ruling changes job67 only to315 while job68 remains355. Contracts live in `JobArtV2TransmuteBreakServiceTest.php`, `JobArtV2VerticalSliceAcceptanceTest.php`, `JobArtV2HorizontalExpansionTest.php`, and `JobArtV2PowerBalanceTest.php`. Jobs 60/66 were added later in PR24 as documented above.
 
 ## PR22 job-art v2 horizontal expansion
 

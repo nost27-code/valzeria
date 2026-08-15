@@ -84,9 +84,9 @@ final class JobArtV2ProgressionCatalog
         '57:1:金脈錬成' => ['key' => 'transmute_super_producer'],
         '57:5:黄金転化' => ['key' => 'transmute_super_cycle', 'effect_texts' => ['触媒4消費・標準変成の連携']],
         '57:9:黄金創世陣' => ['key' => 'transmute_super_finisher'],
-        '67:1:金冠錬符' => ['key' => 'transmute_crown_suppress', 'effect_texts' => ['対象の次回resource実獲得を半減']],
+        '67:1:金冠錬符' => ['key' => 'transmute_crown_suppress', 'effect_texts' => ['HIT時に対象へ金蝕1回（次の系譜リソース獲得行動で各獲得量-1、最低1）']],
         '67:5:金冠錬成' => ['key' => 'transmute_crown_compensation', 'effect_texts' => ['対象の次2行動でresource実獲得がなければ触媒 +2']],
-        '67:9:金冠ミダスフィールド' => ['key' => 'transmute_crown_double_suppress', 'effect_texts' => ['対象の次2回のresource実獲得を半減']],
+        '67:9:金冠ミダスフィールド' => ['key' => 'transmute_crown_double_suppress', 'effect_texts' => ['HIT時に対象へ金蝕2回（次の系譜リソース獲得行動で各獲得量-1、最低1）']],
 
         '58:1:雷気充填' => ['key' => 'break_super_mark', 'effect_texts' => ['HIT時に対象へ崩し印 +1段階']],
         '58:5:雷拳乱舞' => ['key' => 'break_super_multi', 'effect_texts' => ['3Hit（master総威力を均等分割）', '崩し印は1行動につき最大1段階']],

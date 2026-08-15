@@ -10,6 +10,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\HitResult;
+use App\Services\FieldState;
 use App\Services\JobArtV2ActiveEvasionProvider;
 use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2HitRandomSource;
@@ -30,6 +31,7 @@ class JobArtV2AimCommandServiceTest extends TestCase
             'battle.job_art_v2.hit_resolution' => true,
             'battle.job_art_v2.damage_application' => true,
             'battle.job_art_v2.resources' => true,
+            'battle.job_art_v2.fields' => true,
         ]);
     }
 
@@ -201,6 +203,21 @@ class JobArtV2AimCommandServiceTest extends TestCase
         $resources->finishAction($actor, $state);
         $this->assertSame(11, $actor->getResource('command_points'));
         $this->assertSame(BattleActionType::NO_ACTION, $state->battleActionResults()[4]->actionType);
+    }
+
+    public function test_command_and_observation_apply_the_field_bonus_once_to_the_same_action(): void
+    {
+        [$actor, $target, $state] = $this->battle(69);
+        $state->replacePrimaryField(new FieldState('observation', 'player', 3, 1, 1, 1));
+        $state->replaceFieldOverlay(null);
+        $resources = app(JobArtV2ResourceService::class);
+
+        $resources->beginAction($actor, $state);
+        $hit = $resources->recordNormalAttackResolution($actor, $target, $state, HitResult::HIT);
+        $resources->finishAction($actor, $state);
+
+        $this->assertSame(5, $hit->delta);
+        $this->assertSame(6, $actor->getResource('command_points'));
     }
 
     public function test_battle_action_result_is_immutable_once_per_source_action(): void

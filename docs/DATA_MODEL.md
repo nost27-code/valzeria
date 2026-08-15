@@ -2,6 +2,8 @@
 
 Purpose: compressed DB/data contract map.
 
+Job Art v2 targeted balance sync: `2026_08_15_120000_rebalance_crown_alchemist_job_art.php`は既存の`skills` job 67 / Rank9 / `job_art` / 「金冠ミダスフィールド」1行だけを照合し、IDを変えず`power=315`・`power_multiplier=3.15`へ更新する。冠位戦技層自体が未投入のfresh installでは何もしないが、job 60〜69の戦技がある状態で対象が0件または重複している場合は停止する。schema・slot・preset・他の戦技行は変更せず、全282戦技のruntime master同期とは別の限定移行である。
+
 | Entity/Table | Purpose | Key fields | Used by | Notes |
 |---|---|---|---|---|
 | users | Account and login owner for one current character | `support_pass_expires_at`, `selected_card_skin`, auth/profile fields | `SupportPassService`, `ProfileController`, `AdventureSupportService`, auth | 冒険者支援パスの期限とカード見た目選択（通常/支援パス金茶/支援パス青）をユーザー単位で保持する。期限切れ時も `selected_card_skin` は保存し、表示時だけ通常カードへ戻す。 |

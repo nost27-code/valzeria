@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-crown-alchemist-resource-balance',
+        'date' => '2026-08-15',
+        'category' => 'balance',
+        'title' => '金冠錬師と系譜資源獲得を調整',
+        'detail' => '金冠ミダスフィールドの威力を315%へ調整しました。戦技v2公開後は、金冠錬符をHIT時の触媒+4・金蝕1回、奥義を触媒8pt・金蝕2回とし、金蝕は獲得量-1（最低1）、天測などの場補正は同じ行動で1回だけ適用します。資源処理は本番flag OFF中です。',
+    ],
+    [
         'id' => '2026-08-15-retire-job-special-skills',
         'date' => '2026-08-15',
         'category' => 'changed',

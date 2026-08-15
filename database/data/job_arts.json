@@ -5799,7 +5799,7 @@
     "art_category": "reward",
     "limit_group": "REWARD",
     "element": "支",
-    "power_hint": 355,
+    "power_hint": 315,
     "gold_bonus_percent": 3,
     "drop_bonus_percent": 3,
     "duration_turns": 1,

@@ -1807,8 +1807,8 @@ final class JobArtV2LoadoutPresenter
 
         if ($currentJobId === 67) {
             return $style === 'finisher'
-                ? "通常攻撃などで{$resourceName}を蓄積し、対象のresource獲得を複数回妨害する{$rankNineName}を狙います。"
-                : "対象のresource獲得を妨害し、獲得がなかった時は{$rankFiveName}で一部補償を受ける戦型です。";
+                ? "始動HITや通常攻撃で{$resourceName}を蓄積し、金蝕で相手の系譜リソース獲得を抑えながら{$rankNineName}を狙います。"
+                : "金蝕で相手の系譜リソース獲得を抑え、獲得がなかった時は{$rankFiveName}で一部補償を受ける戦型です。";
         }
 
         return match ([$currentJobId, $style]) {
@@ -1893,7 +1893,7 @@ final class JobArtV2LoadoutPresenter
         }
 
         if ($currentJobId === 67 && $rank === 1) {
-            return ['対象の次回resource実獲得を半減'];
+            return ['HIT時に対象へ金蝕1回（次の系譜リソース獲得行動で各獲得量-1、最低1）'];
         }
 
         if ($currentJobId === 68) {
