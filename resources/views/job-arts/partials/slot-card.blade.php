@@ -110,7 +110,7 @@
                         @endif
                     </div>
                     @if($v2Display)
-                        <p data-job-art-slot-summary data-job-art-v2-details class="mt-1 line-clamp-2 min-w-0 break-words text-[10px] font-bold leading-[1.55] text-slate-500 sm:text-[11px]">@include('job-arts.partials.effect-text', ['text' => $v2Display['display_description'] ?? $v2Display['card_description']])</p>
+                        <p data-job-art-slot-summary data-job-art-v2-details class="mt-1 min-w-0 break-words text-[10px] font-bold leading-[1.55] text-slate-500 sm:text-[11px]">@include('job-arts.partials.effect-text', ['text' => $v2Display['display_description'] ?? $v2Display['card_description']])</p>
                     @endif
                 </div>
 

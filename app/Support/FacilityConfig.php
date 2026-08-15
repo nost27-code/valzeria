@@ -41,7 +41,7 @@ class FacilityConfig
 
     const HOME_ENTRIES = [
         ['slug' => 'bonus_points',  'label' => '能力割振り',  'default_name' => '能力割振り',  'default_desc' => '未使用BPを使って能力を伸ばす',               'default_icon' => 'menu/menu_bonus_points.webp'],
-        ['slug' => 'job_arts',      'label' => '奥義',        'default_name' => '奥義',        'default_desc' => '通常戦用・ボス戦用の奥義をセットする',         'default_icon' => 'icon/icon_041.webp'],
+        ['slug' => 'job_arts',      'label' => '戦技セット',  'default_name' => '戦技セット',  'default_desc' => '習得した奥義を最大5つまでセットする',              'default_icon' => 'icon/icon_041.webp'],
         ['slug' => 'item_book',     'label' => 'アイテム図鑑', 'default_name' => 'アイテム図鑑', 'default_desc' => '素材の入手方法・作り方・用途を確認する',     'default_icon' => 'icon/icon_241.webp'],
         ['slug' => 'enemy_book',    'label' => 'エネミー図鑑', 'default_name' => 'エネミー図鑑', 'default_desc' => '発見・討伐した敵の姿と記録を確認する',         'default_icon' => 'icon/icon_240.webp'],
         ['slug' => 'equipment_book','label' => '装備図鑑',    'default_name' => '装備図鑑',    'default_desc' => '武器の発見記録と進化系譜を見る（防具は準備中）', 'default_icon' => 'icon/icon_277.webp'],

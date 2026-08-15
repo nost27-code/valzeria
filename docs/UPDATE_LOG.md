@@ -8,6 +8,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 冒険者メニューの項目名を「戦技セット」に変更し、最大5枠であることが分かる説明へ更新しました。セット中の各戦技は、効果説明を省略せず全文表示します。
+
 - 戦技セット画面の通常・ボス切替、枠数とCost、有効系譜、SP方針、公式プリセットをまとまりごとに整理しました。セット中の戦技は、アイコン・技名・効果・Costをスマホでも追いやすい一覧で表示します。
 
 ### Balance

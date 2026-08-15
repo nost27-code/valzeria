@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-job-art-menu-and-full-description',
+        'date' => '2026-08-16',
+        'category' => 'changed',
+        'title' => '冒険者メニューと戦技一覧の表示を改善',
+        'detail' => '冒険者メニューの項目名を「戦技セット」に変更し、5枠であることが分かる説明へ更新しました。セット中の各戦技は、効果説明を省略せず全文表示します。',
+    ],
+    [
         'id' => '2026-08-16-job-art-loadout-layout-cleanup',
         'date' => '2026-08-16',
         'category' => 'changed',

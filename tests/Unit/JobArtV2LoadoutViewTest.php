@@ -50,7 +50,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringNotContainsString('data-job-art-slot-expanded', $html);
         $this->assertStringContainsString('data-job-art-slot-summary', $html);
         $this->assertStringContainsString('data-job-art-compact-slot', $html);
-        $this->assertStringContainsString('line-clamp-2', $html);
+        $this->assertStringNotContainsString('line-clamp-2', $html);
         $this->assertStringNotContainsString('line-clamp-3', $html);
         $this->assertStringContainsString('data-job-art-effect-value="spend"', $html);
         $this->assertStringNotContainsString('data-job-art-policy-radio', $html);

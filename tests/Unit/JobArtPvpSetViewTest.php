@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\JobArtService;
+use App\Support\FacilityConfig;
 use Tests\TestCase;
 
 class JobArtPvpSetViewTest extends TestCase
@@ -42,6 +43,21 @@ class JobArtPvpSetViewTest extends TestCase
         $this->assertStringContainsString("'max-w-[680px] space-y-3'", $view);
         $this->assertStringContainsString("'max-w-[560px] space-y-4 px-3'", $view);
         $this->assertStringNotContainsString('min-w-[', $slotCard);
-        $this->assertStringContainsString('app(JobArtService::class)->maxSlots()', $mainScreen);
+        $this->assertStringContainsString('JobArtService::V2_MAX_SLOTS', $mainScreen);
+    }
+
+    public function test_home_menu_uses_job_art_name_and_five_slot_copy(): void
+    {
+        $mainScreen = file_get_contents(app_path('Livewire/MainScreen.php'));
+        $jobArtEntry = collect(FacilityConfig::HOME_ENTRIES)->firstWhere('slug', 'job_arts');
+
+        $this->assertIsString($mainScreen);
+        $this->assertStringContainsString("'name' => '戦技セット'", $mainScreen);
+        $this->assertStringContainsString('習得した奥義を最大{$jobArtMaxSlots}つまでセットする', $mainScreen);
+        $this->assertSame(5, JobArtService::V2_MAX_SLOTS);
+        $this->assertSame('戦技セット', $jobArtEntry['label'] ?? null);
+        $this->assertSame('戦技セット', $jobArtEntry['default_name'] ?? null);
+        $this->assertSame('習得した奥義を最大5つまでセットする', $jobArtEntry['default_desc'] ?? null);
+        $this->assertSame('job_arts', FacilityConfig::nameToSlug('home')['戦技セット'] ?? null);
     }
 }

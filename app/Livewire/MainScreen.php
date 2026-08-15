@@ -790,11 +790,11 @@ class MainScreen extends Component
     private function homeMenuItems(): array
     {
         $characterIconDesignItem = $this->characterIconDesignMenuItem();
-        $jobArtMaxSlots = app(JobArtService::class)->maxSlots();
+        $jobArtMaxSlots = JobArtService::V2_MAX_SLOTS;
 
         return [
             ['group' => '育成', 'name' => '能力割振り', 'icon_image' => 'menu/menu_bonus_points.webp', 'icon' => '✦', 'desc' => '未使用BPを使って能力を伸ばす', 'route' => 'bonus-points.index', 'status' => 'active'],
-            ['group' => '育成', 'name' => '奥義', 'icon_image' => 'icon/icon_041.webp', 'icon' => '✦', 'desc' => "習得した奥義を最大{$jobArtMaxSlots}つまでセットする", 'route' => 'job-arts.index', 'status' => 'active'],
+            ['group' => '育成', 'name' => '戦技セット', 'icon_image' => 'icon/icon_041.webp', 'icon' => '✦', 'desc' => "習得した奥義を最大{$jobArtMaxSlots}つまでセットする", 'route' => 'job-arts.index', 'status' => 'active'],
             ['group' => '記録', 'name' => 'アイテム図鑑', 'icon_image' => 'icon/icon_241.webp', 'icon' => '📖', 'desc' => '素材の入手方法・作り方・用途を確認する', 'route' => 'item-book.index', 'status' => 'active'],
             ['group' => '記録', 'name' => 'エネミー図鑑', 'icon_image' => 'icon/icon_240.webp', 'icon' => '📖', 'desc' => '発見・討伐した敵の姿と記録を確認する', 'route' => 'enemy-book.index', 'status' => 'active'],
             ...(app(\App\Services\ExtraContentControlService::class)->isActive('equipment_book') ? [[
