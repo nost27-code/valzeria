@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-exclusive-character-icon-two-sets',
+        'date' => '2026-08-15',
+        'category' => 'internal',
+        'title' => '限定キャラ画像2セットの登録対応',
+        'detail' => '制作済みの限定キャラ画像2セットを、所有者だけが使用できる専用セットとして登録しました。通常のキャラ画像一覧には表示されません。',
+    ],
+    [
         'id' => '2026-08-15-crown-alchemist-resource-balance',
         'date' => '2026-08-15',
         'category' => 'balance',

@@ -250,5 +250,23 @@ return [
                 'defeat' => '/images/chara/exclusive/exclusive_027/04_defeat.webp',
             ],
         ],
+        'exclusive_028' => [
+            'label' => '限定キャラアイコン #028',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_028/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_028/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_028/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_028/04_defeat.webp',
+            ],
+        ],
+        'exclusive_029' => [
+            'label' => '限定キャラアイコン #029',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_029/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_029/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_029/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_029/04_defeat.webp',
+            ],
+        ],
     ],
 ];
