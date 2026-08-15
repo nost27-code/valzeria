@@ -484,10 +484,8 @@ class JobArtBattleSupportService
 
     public function activationLog(BattleActor $attacker, BattleActor $defender, Skill $skill): string
     {
-        $origin = (string) ($attacker->jobArtOrigins[(int) $skill->id] ?? 'current');
-        $prefix = $origin === 'inherited' ? '継承奥義' : '奥義';
         $lines = [
-            "<span class=\"text-indigo-700 font-extrabold\">【{$prefix}】" . e($skill->name) . " が発動！</span>",
+            '<span class="text-indigo-700 font-extrabold">《' . e($skill->name) . '》が発動！</span>',
         ];
 
         $flavorText = $this->jobArtFlavorTextService->resolve($skill);

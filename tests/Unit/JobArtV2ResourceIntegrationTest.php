@@ -93,11 +93,11 @@ class JobArtV2ResourceIntegrationTest extends TestCase
             $actor,
             $state,
             $producer,
-            '【奥義】闇の契約 が発動！',
+            '《闇の契約》が発動！',
         ));
 
         $activationIndex = collect($state->logs)->search(
-            static fn (string $log): bool => str_contains($log, '闇の契約 が発動'),
+            static fn (string $log): bool => str_contains($log, '《闇の契約》が発動'),
         );
         $resourceIndex = collect($state->logs)->search(
             static fn (string $log): bool => str_contains($log, '冥蝕 +4'),

@@ -1667,10 +1667,8 @@ class BattleService
         }
         $skillId = (int) $skill->id;
         $rate = (float) ($attacker->jobArtRates[$skillId] ?? 1.0);
-        $origin = (string) ($attacker->jobArtOrigins[$skillId] ?? 'current');
         $basePower = $this->jobArtV2PowerResolver->forExecution($attacker, $sourceSkill, $state);
         $power = max(0, (int) round(($basePower ?: 100) * $rate));
-        $prefix = $origin === 'inherited' ? '継承奥義' : '奥義';
 
         if ((float) $skill->luk_power_rate > 0) {
             $power += max(0, (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate * $rate));
@@ -1706,7 +1704,7 @@ class BattleService
 
         // Player-facing order follows the actual action: announce the art first,
         // then show cast-time resource changes, and finally HIT-time changes.
-        $state->addLog($this->jobArtActivationLog($attacker, $defender, $skill, $prefix));
+        $state->addLog($this->jobArtActivationLog($attacker, $defender, $skill));
 
         $this->jobArtV2UltimateCounterplayService->beginJobArtCast($attacker, $state, $sourceSkill);
         $this->jobArtV2ResourceService->applyJobArtCast($attacker, $state, $skill);
@@ -1886,10 +1884,10 @@ class BattleService
         }
     }
 
-    private function jobArtActivationLog(BattleActor $attacker, BattleActor $defender, Skill $skill, string $prefix): string
+    private function jobArtActivationLog(BattleActor $attacker, BattleActor $defender, Skill $skill): string
     {
         $lines = [
-            "<span class=\"battle-log-special-title\">【{$prefix}】" . e($skill->name) . " が発動！</span>",
+            '<span class="battle-log-special-title">《' . e($skill->name) . '》が発動！</span>',
         ];
 
         $flavorText = $this->jobArtFlavorTextService->resolve($skill);

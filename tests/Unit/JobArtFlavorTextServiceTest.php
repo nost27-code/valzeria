@@ -105,6 +105,9 @@ class JobArtFlavorTextServiceTest extends TestCase
         $attacker->jobArtOrigins[1401] = 'inherited';
 
         $supportLog = app(JobArtBattleSupportService::class)->activationLog($attacker, $defender, $skill);
+        $this->assertStringContainsString('《血潮の咆哮》が発動！', $supportLog);
+        $this->assertStringNotContainsString('【継承奥義】', $supportLog);
+        $this->assertStringNotContainsString('【奥義】', $supportLog);
         $this->assertStringContainsString('「この血は、まだ燃え尽きていない！」', $supportLog);
         $this->assertStringContainsString('かんりにんは己の血潮を猛る力へ変え、《血潮の咆哮》の咆哮とともに全身へ巡らせた！', $supportLog);
         $this->assertStringNotContainsString('中枢守護機へ叩き込んだ', $supportLog);
@@ -116,9 +119,11 @@ class JobArtFlavorTextServiceTest extends TestCase
             $attacker,
             $defender,
             $skill,
-            '継承奥義',
         );
 
+        $this->assertStringContainsString('《血潮の咆哮》が発動！', $pveLog);
+        $this->assertStringNotContainsString('【継承奥義】', $pveLog);
+        $this->assertStringNotContainsString('【奥義】', $pveLog);
         $this->assertStringContainsString('「この血は、まだ燃え尽きていない！」', $pveLog);
         $this->assertStringContainsString('かんりにんは己の血潮を猛る力へ変え、《血潮の咆哮》の咆哮とともに全身へ巡らせた！', $pveLog);
         $this->assertStringNotContainsString('中枢守護機へ叩き込んだ', $pveLog);

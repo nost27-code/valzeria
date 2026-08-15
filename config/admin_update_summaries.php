@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-job-art-activation-title-cleanup',
+        'date' => '2026-08-15',
+        'category' => 'changed',
+        'title' => '奥義の発動ログを技名中心に整理',
+        'detail' => '戦闘ログの「奥義」「継承奥義」という固定見出しを外し、発動した技名・台詞・描写がすっきり読める表示へ変更しました。技の性能は変更していません。',
+    ],
+    [
         'id' => '2026-08-15-job-art-flavor-rewrite-release',
         'date' => '2026-08-15',
         'category' => 'changed',
