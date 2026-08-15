@@ -639,6 +639,13 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(2, $actor->getResource('eclipse'));
         $this->assertSame(130, $actor->effectiveStr());
         $this->assertSame(125, $actor->effectiveMag());
+
+        $logs = implode("\n", $state->logs);
+        $costPosition = strpos($logs, 'HPを代償にした');
+        $resourcePosition = strpos($logs, '冥蝕 +2');
+        $this->assertNotFalse($costPosition);
+        $this->assertNotFalse($resourcePosition);
+        $this->assertLessThan($resourcePosition, $costPosition);
     }
 
     public function test_role_heal_cleanse_and_guard_use_the_shared_services(): void

@@ -150,9 +150,76 @@ class JobArtV2DamageApplicationIntegrationTest extends TestCase
         // Champは既存の外部ログ配列へ、行動ダメージ文の直後に遅延ログを移す。
         $damagePosition = strpos($champSource, '$log[] = $action[\'log\'];');
         $flushPosition = strpos($champSource, '$jobArtState->pullDeferredDamageLogs()');
+        $ordinaryFlushPosition = strpos($champSource, '$jobArtState->pullLogs()', $flushPosition);
         $this->assertNotFalse($damagePosition);
         $this->assertNotFalse($flushPosition);
+        $this->assertNotFalse($ordinaryFlushPosition);
         $this->assertLessThan($flushPosition, $damagePosition);
+        $this->assertLessThan($ordinaryFlushPosition, $flushPosition);
+
+        // 発動時に生じた消費・HP代償・浄化ログは、発動文の直後へ取り込む。
+        $champActionPosition = strpos($champSource, 'private function champAction(');
+        $champActionSource = substr($champSource, $champActionPosition ?: 0);
+        $activationPosition = strpos($champActionSource, '$this->jobArtBattleSupport->activationLog(');
+        $preExecutionFlushPosition = strpos($champActionSource, '$jobArtState->pullLogs()');
+        $executionPosition = strpos($champActionSource, '$this->jobArtBattleSupport->skillForExecution(');
+        $this->assertNotFalse($activationPosition);
+        $this->assertNotFalse($preExecutionFlushPosition);
+        $this->assertNotFalse($executionPosition);
+        $this->assertLessThan($preExecutionFlushPosition, $activationPosition);
+        $this->assertLessThan($executionPosition, $preExecutionFlushPosition);
+    }
+
+    public function test_battle_state_pulls_immediate_logs_without_consuming_damage_deferred_logs(): void
+    {
+        $source = $this->actor('source', 24);
+        $target = $this->actor('target', null);
+        $state = new BattleState($source, $target, 'champ');
+        $sourceActionId = $state->beginSourceAction();
+
+        $state->addLog('immediate');
+        $state->deferLogAfterDamage('after damage', $sourceActionId);
+
+        $this->assertSame(['immediate'], $state->pullLogs());
+        $this->assertSame([], $state->logs);
+        $this->assertSame(['after damage'], $state->pullDeferredDamageLogs($sourceActionId));
+    }
+
+    public function test_self_cost_and_cleanse_logs_precede_their_resource_gain_logs(): void
+    {
+        $roleSource = file_get_contents(base_path('app/Services/JobArtV2RoleEffectService.php'));
+        $defenseSource = file_get_contents(base_path('app/Services/JobArtV2DefenseService.php'));
+
+        $this->assertIsString($roleSource);
+        $this->assertIsString($defenseSource);
+
+        $selfCostSource = substr($roleSource, strpos($roleSource, 'private function applySelfCost(') ?: 0);
+        $selfCostSource = substr($selfCostSource, 0, strpos($selfCostSource, 'private function applyCleanse('));
+        $selfCostLogPosition = strpos($selfCostSource, 'HPを代償にした');
+        $selfCostResourcePosition = strpos($selfCostSource, 'recordSelfDamage(');
+        $this->assertNotFalse($selfCostLogPosition);
+        $this->assertNotFalse($selfCostResourcePosition);
+        $this->assertLessThan(
+            $selfCostResourcePosition,
+            $selfCostLogPosition,
+        );
+
+        $roleCleanseSource = substr($roleSource, strpos($roleSource, 'private function applyCleanse(') ?: 0);
+        $roleCleanseSource = substr($roleCleanseSource, 0, strpos($roleCleanseSource, 'private function applyHeal('));
+        $roleCleanseLogPosition = strpos($roleCleanseSource, 'の有害状態を浄化した');
+        $roleCleanseResourcePosition = strpos($roleCleanseSource, 'recordCleanseSuccess(');
+        $this->assertNotFalse($roleCleanseLogPosition);
+        $this->assertNotFalse($roleCleanseResourcePosition);
+        $this->assertLessThan(
+            $roleCleanseResourcePosition,
+            $roleCleanseLogPosition,
+        );
+
+        $defenseCleansePosition = strpos($defenseSource, 'recordCleanseSuccess(');
+        $defenseLogPosition = strpos($defenseSource, 'の有害状態を浄化した');
+        $this->assertNotFalse($defenseCleansePosition);
+        $this->assertNotFalse($defenseLogPosition);
+        $this->assertLessThan($defenseCleansePosition, $defenseLogPosition);
     }
 
     public function test_current_skill_and_job_art_keep_source_and_per_hit_metadata(): void

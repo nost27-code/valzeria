@@ -1022,14 +1022,14 @@ final class JobArtV2RoleEffectService
         }
 
         $actor->takeDamage($actual);
-        if ((bool) ($cost['record_resource_event'] ?? true)) {
-            $this->resourceService->recordSelfDamage($actor, $state, $actual);
-        }
         $state->addLog(sprintf(
             '<span class="text-purple-600 font-bold">%s は %d のHPを代償にした！</span>',
             e($actor->name),
             $actual,
         ));
+        if ((bool) ($cost['record_resource_event'] ?? true)) {
+            $this->resourceService->recordSelfDamage($actor, $state, $actual);
+        }
     }
 
     /** @param array<string, mixed> $metadata */
@@ -1055,8 +1055,8 @@ final class JobArtV2RoleEffectService
             return;
         }
 
-        $this->resourceService->recordCleanseSuccess($actor, $state);
         $state->addLog('<span class="text-emerald-700 font-bold">'.e($actor->name).' の有害状態を浄化した！（'.e(implode(' / ', $result->removedStates)).'）</span>');
+        $this->resourceService->recordCleanseSuccess($actor, $state);
     }
 
     /** @param array<string, mixed> $metadata */

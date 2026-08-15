@@ -75,8 +75,8 @@ final class JobArtV2DefenseService
             $result = ($this->cleanseService ?? app(JobArtV2CleanseService::class))
                 ->cleanse($actor, $state, $sourceActionId);
             if ($result->success) {
-                $this->resourceService->recordCleanseSuccess($actor, $state);
                 $state->addLog('<span class="text-emerald-700 font-bold">'.e($actor->name).' の有害状態を浄化した！（'.e(implode(' / ', $result->removedStates)).'）</span>');
+                $this->resourceService->recordCleanseSuccess($actor, $state);
             }
         }
 

@@ -151,6 +151,15 @@ class BattleState
         $this->logs[] = $message;
     }
 
+    /** @return list<string> */
+    public function pullLogs(): array
+    {
+        $logs = $this->logs;
+        $this->logs = [];
+
+        return $logs;
+    }
+
     public function deferLogAfterDamage(string $message, ?int $sourceActionId = null): void
     {
         $sourceActionId ??= $this->currentSourceActionId;

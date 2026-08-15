@@ -657,6 +657,9 @@ class ChampBattleService
                 foreach ($jobArtState->pullDeferredDamageLogs() as $deferredDamageLog) {
                     $log[] = $deferredDamageLog;
                 }
+                foreach ($jobArtState->pullLogs() as $jobArtLog) {
+                    $log[] = $jobArtLog;
+                }
                 if ($upsetDamage > 0) {
                     $log[] = "<span class=\"text-fuchsia-700 font-extrabold\">【格上への一撃】レベル差を覆す渾身の一撃！ 追加で {$upsetDamage} ダメージ！</span>";
                 }
@@ -723,6 +726,9 @@ class ChampBattleService
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $jobArtState);
         if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $jobArtState, $jobArt)) {
             $openingLog = $this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt);
+            foreach ($jobArtState->pullLogs() as $jobArtLog) {
+                $openingLog .= '<br>'.$jobArtLog;
+            }
             $executionSkill = $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $jobArtState, $defender);
             $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $executionSkill, 'champ', $jobArtState);
             if ($hitResult !== null && !$hitResult->landed()) {
