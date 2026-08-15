@@ -18,6 +18,11 @@ return [
         // Keep the compact v2 cards now; the dormant per-card detail controls
         // can be restored without reviving their old runtime conditions.
         'loadout_card_details' => env('BATTLE_JOB_ART_LOADOUT_CARD_DETAILS', false),
+        // 新戦技公開後の数日間だけ、公式プリセット導線を強調表示する。
+        'official_preset_highlight_until' => env(
+            'BATTLE_JOB_ART_OFFICIAL_PRESET_HIGHLIGHT_UNTIL',
+            '2026-08-20 23:59:59',
+        ),
         'dynamic_single' => env('BATTLE_JOB_ART_DYNAMIC_SINGLE', false),
         'normalized_sp' => env('BATTLE_JOB_ART_NORMALIZED_SP', false),
         'hit_resolution' => env('BATTLE_JOB_ART_HIT_RESOLUTION', false),

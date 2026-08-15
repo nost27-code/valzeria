@@ -729,7 +729,7 @@ class BattleService
             $partner->id,
         );
         $state->valmonAssistUsed = true;
-        $state->addLog($this->valmonBondArtActivationLog($attacker, $defender, $partner, $spec, $damage));
+        $state->addDamageLog($this->valmonBondArtActivationLog($attacker, $defender, $partner, $spec, $damage));
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -926,7 +926,7 @@ class BattleService
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attacker->usesMagForNormalAttack() ? 'text-purple-600' : 'text-red-600';
-        $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->jobArtV2ResourceService->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT);
         $this->logGutsIfTriggered($defender, $state);
     }
@@ -989,7 +989,7 @@ class BattleService
         $this->tryExplorationSupportHerbal($defender, $state);
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
-        $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -1308,7 +1308,7 @@ class BattleService
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
         $this->tryExplorationSupportHerbal($defender, $state);
-        $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -1423,7 +1423,7 @@ class BattleService
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
         $this->tryExplorationSupportHerbal($defender, $state);
-        $state->addLog("{$attacker->name} の魔法攻撃！ {$defender->name} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->name} の魔法攻撃！ {$defender->name} に <span class=\"text-purple-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -1522,7 +1522,7 @@ class BattleService
                     $skill->damage_type === 'magical' ? 'magical' : 'physical',
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
-                $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $state->addDamageLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
 
@@ -1986,7 +1986,7 @@ class BattleService
                 'physical',
             );
             $damage = $damageResult?->requestedDamage ?? $damage;
-            $state->addLog("{$defender->name} に <span class=\"text-fuchsia-600 font-extrabold text-lg\">{$damage}</span> の複合ダメージ！");
+            $state->addDamageLog("{$defender->name} に <span class=\"text-fuchsia-600 font-extrabold text-lg\">{$damage}</span> の複合ダメージ！");
             $this->logGutsIfTriggered($defender, $state);
             if ($defender->isDead()) {
                 break;

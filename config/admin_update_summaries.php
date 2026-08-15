@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-job-art-active-lineage-log-order',
+        'date' => '2026-08-16',
+        'category' => 'changed',
+        'title' => '有効系譜表示と戦闘ログ順を改善',
+        'detail' => '戦技セットで有効になる系譜と資源を確認できるようにしました。公式プリセット30件への導線を期間限定で見つけやすくし、被ダメージで資源が増える場合はダメージ表示の直後に資源増加を表示します。',
+    ],
+    [
         'id' => '2026-08-15-monster-mark-duplicate-grant-fix',
         'date' => '2026-08-15',
         'category' => 'fixed',

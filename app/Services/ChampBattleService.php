@@ -654,6 +654,9 @@ class ChampBattleService
                 }
 
                 $log[] = $action['log'];
+                foreach ($jobArtState->pullDeferredDamageLogs() as $deferredDamageLog) {
+                    $log[] = $deferredDamageLog;
+                }
                 if ($upsetDamage > 0) {
                     $log[] = "<span class=\"text-fuchsia-700 font-extrabold\">【格上への一撃】レベル差を覆す渾身の一撃！ 追加で {$upsetDamage} ダメージ！</span>";
                 }

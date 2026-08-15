@@ -6,15 +6,18 @@ use App\Models\Character;
 use App\Models\Skill;
 use App\Services\JobArtService;
 use App\Services\CharacterStatusService;
+use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtV2BattleRules;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2LoadoutDiagnosisService;
 use App\Services\JobArtV2LineageGuideCatalog;
+use App\Services\JobArtV2ResourceCatalog;
 use App\Services\JobArtV2SlotConditionCatalog;
 use App\Services\JobArtV2SpCostCalculator;
 use App\Services\JobArtV2StarterPresetService;
 use App\Services\JobArtPresetService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -30,6 +33,8 @@ class JobArtController extends Controller
         JobArtV2LoadoutPresenter $loadoutPresenter,
         JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
         JobArtV2LineageGuideCatalog $lineageGuideCatalog,
+        JobArtV2ResourceCatalog $resourceCatalog,
+        JobArtLineageCatalog $lineageCatalog,
         JobArtPresetService $presetService,
         JobArtV2StarterPresetService $starterPresetService,
     )
@@ -79,6 +84,14 @@ class JobArtController extends Controller
             ->map(fn ($skills): int => $jobArtService->totalCost($skills))
             ->all();
         $currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
+        $activeLineagesByContext = collect($selectedSkillsByContext)
+            ->map(fn ($skills): array => $this->activeLineagesForSkills(
+                $currentJobId,
+                $skills,
+                $resourceCatalog,
+                $lineageCatalog,
+            ))
+            ->all();
         $jobArtV2UiEnabled = $loadoutPresenter->enabledForCurrentJob($currentJobId);
         if ($jobArtV2UiEnabled && in_array($filter, ['current', 'inherited'], true)) {
             $filter = 'available';
@@ -140,6 +153,8 @@ class JobArtController extends Controller
             'jobArtPresets' => $jobArtPresets,
             'jobArtPresetLimit' => $presetService->limitFor($character),
             'jobArtStarterPresetCount' => $jobArtStarterPresetCount,
+            'jobArtStarterPresetHighlighted' => $this->starterPresetHighlightActive(),
+            'activeLineagesByContext' => $activeLineagesByContext,
             'currentLineageResourceGuide' => $starterPresetService->resourceGuideForDisplay($character),
             'lineageGuides' => $jobArtV2UiEnabled ? $lineageGuideCatalog->all() : [],
         ]);
@@ -276,6 +291,8 @@ class JobArtController extends Controller
         JobArtV2LoadoutPresenter $loadoutPresenter,
         JobArtV2SlotConditionCatalog $slotConditionCatalog,
         JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
+        JobArtV2ResourceCatalog $resourceCatalog,
+        JobArtLineageCatalog $lineageCatalog,
     )
     {
         $character = Auth::user()->currentCharacter();
@@ -376,6 +393,12 @@ class JobArtController extends Controller
                 $jobArtService->maxSlots(),
                 $jobArtService->maxCost(),
             );
+            $activeLineages = $this->activeLineagesForSkills(
+                $currentJobId,
+                $selectedSkills,
+                $resourceCatalog,
+                $lineageCatalog,
+            );
 
             return response()->json([
                 'message' => $this->displayTerm($character) . 'スロットを更新しました。',
@@ -383,6 +406,10 @@ class JobArtController extends Controller
                 'total_cost' => $contextTotalCost,
                 'slots_html' => $slotsHtml,
                 'diagnosis_html' => view('job-arts.partials.loadout-diagnosis', compact('diagnosis'))->render(),
+                'active_lineages_html' => view(
+                    'job-arts.partials.active-lineages',
+                    compact('activeLineages'),
+                )->render(),
                 'selected_slot_by_skill' => $selectedSlots
                     ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no])
                     ->all(),
@@ -470,6 +497,45 @@ class JobArtController extends Controller
                 (string) $art->getAttribute('job_art_origin'),
             ));
             $art->setAttribute('job_art_v2_loadout_display', $loadoutPresenter->forArt($currentJobId, $art));
+        }
+    }
+
+    /**
+     * @param iterable<mixed> $skills
+     * @return list<array{lineage_key:string,lineage_name:string,resource_name:string,icon_path:?string}>
+     */
+    private function activeLineagesForSkills(
+        ?int $currentJobId,
+        iterable $skills,
+        JobArtV2ResourceCatalog $resourceCatalog,
+        JobArtLineageCatalog $lineageCatalog,
+    ): array {
+        return collect($resourceCatalog->resourcesForSkills($currentJobId, $skills))
+            ->map(function (array $resource) use ($lineageCatalog): array {
+                $lineageKey = (string) $resource['lineage_key'];
+
+                return [
+                    'lineage_key' => $lineageKey,
+                    'lineage_name' => $lineageCatalog->nameForKey($lineageKey) ?? $lineageKey,
+                    'resource_name' => (string) $resource['resource_name'],
+                    'icon_path' => $lineageCatalog->iconPathForKey($lineageKey),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function starterPresetHighlightActive(): bool
+    {
+        $until = trim((string) config('battle.job_art_v2.official_preset_highlight_until', ''));
+        if ($until === '') {
+            return false;
+        }
+
+        try {
+            return now()->lessThanOrEqualTo(Carbon::parse($until, (string) config('app.timezone')));
+        } catch (\Throwable) {
+            return false;
         }
     }
 

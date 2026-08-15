@@ -437,6 +437,9 @@ final class JobArtV2LoadoutPresenter
             'origin_label' => $originLabel,
             'source_lineage_key' => $sourceLineage['lineage_key'] ?? null,
             'source_lineage_name' => $sourceLineageName,
+            'source_lineage_icon_path' => $this->lineageCatalog->iconPathForKey(
+                $sourceLineage['lineage_key'] ?? null,
+            ),
             'lineage_relation' => $isTrustedCurrentOrigin
                 ? 'current'
                 : ($isSameLineageInherited ? 'same_lineage' : 'cross_lineage'),

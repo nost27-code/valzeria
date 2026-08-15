@@ -33,19 +33,39 @@
     }"
     data-job-art-starter-presets="{{ $slotContext }}"
 >
-    <button
-        type="button"
-        x-ref="starterPresetLink"
-        @click="openStarterPresets()"
-        x-bind:aria-expanded="starterPresetOpen.toString()"
-        aria-haspopup="dialog"
-        aria-controls="job-art-starter-preset-modal-{{ $slotContext }}"
-        class="inline-flex min-h-8 items-center gap-1 text-xs font-black text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-900"
-        data-job-art-starter-preset-link
-    >
-        <span>公式プリセットから選ぶ</span>
-        <span class="text-[10px] text-slate-400 no-underline">（{{ $starterPresetCount }}件）</span>
-    </button>
+    @php($starterPresetHighlighted = (bool) ($starterPresetHighlighted ?? false))
+    <div @class([
+        'rounded-xl border px-3 py-2.5' => $starterPresetHighlighted,
+        'border-amber-300 bg-gradient-to-r from-amber-50 to-indigo-50 shadow-sm' => $starterPresetHighlighted,
+    ]) data-job-art-starter-preset-launcher>
+        @if($starterPresetHighlighted)
+            <div class="mb-1.5 flex items-center gap-2">
+                <span class="rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-black tracking-wide text-white">期間限定おすすめ</span>
+                <span class="text-[10px] font-bold text-slate-600">迷った時は、動作確認済みの構成から始められます。</span>
+            </div>
+        @endif
+        <button
+            type="button"
+            x-ref="starterPresetLink"
+            @click="openStarterPresets()"
+            x-bind:aria-expanded="starterPresetOpen.toString()"
+            aria-haspopup="dialog"
+            aria-controls="job-art-starter-preset-modal-{{ $slotContext }}"
+            @class([
+                'inline-flex min-h-8 items-center gap-1 text-xs font-black transition-colors',
+                'w-full justify-center rounded-lg bg-indigo-600 px-3 py-2 text-white shadow-sm hover:bg-indigo-700' => $starterPresetHighlighted,
+                'text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-900' => ! $starterPresetHighlighted,
+            ])
+            data-job-art-starter-preset-link
+        >
+            <span>公式プリセットから選ぶ</span>
+            <span @class([
+                'text-[10px] no-underline',
+                'text-indigo-100' => $starterPresetHighlighted,
+                'text-slate-400' => ! $starterPresetHighlighted,
+            ])>（{{ $starterPresetCount }}件）</span>
+        </button>
+    </div>
 
     <template x-teleport="body">
         <div

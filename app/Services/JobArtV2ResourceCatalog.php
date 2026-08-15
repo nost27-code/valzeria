@@ -173,6 +173,43 @@ class JobArtV2ResourceCatalog
         return array_values($resources);
     }
 
+    /**
+     * 戦技セットの表示用。runtimeと同じmetadata判定で、
+     * そのセットが実際に有効化する系譜資源だけを返す。
+     *
+     * @param iterable<mixed> $skills
+     * @return list<array{lineage_key:string,resource_key:string,resource_name:string,resource_max_points:int,is_primary_resource:bool}>
+     */
+    public function resourcesForSkills(?int $currentJobId, iterable $skills): array
+    {
+        $resources = [];
+        foreach ($skills as $skill) {
+            if (! $skill instanceof Skill) {
+                continue;
+            }
+
+            $origin = (string) $skill->getAttribute('job_art_origin');
+            if (! in_array($origin, ['current', 'inherited'], true)) {
+                $origin = (int) $skill->job_id === (int) $currentJobId ? 'current' : 'inherited';
+            }
+            $art = $this->forCurrentJobArt($currentJobId, $skill, $origin);
+            if ($art === null || ! $this->metadataActivatesResource($art)) {
+                continue;
+            }
+
+            $key = (string) $art['resource_key'];
+            $resources[$key] ??= array_merge($art, [
+                'lineage_key' => (string) $art['lineage_key'],
+                'resource_key' => $key,
+                'resource_name' => (string) $art['resource_name'],
+                'resource_max_points' => (int) $art['resource_max_points'],
+                'is_primary_resource' => false,
+            ]);
+        }
+
+        return array_values($resources);
+    }
+
     /** @param array<string, int|float|string|bool> $art */
     private function metadataActivatesResource(array $art): bool
     {

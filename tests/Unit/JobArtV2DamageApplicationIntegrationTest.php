@@ -130,6 +130,31 @@ class JobArtV2DamageApplicationIntegrationTest extends TestCase
         );
     }
 
+    public function test_all_six_battle_paths_flush_damage_triggered_resource_logs_after_damage_output(): void
+    {
+        $sharedPveSource = file_get_contents(base_path('app/Services/BattleService.php'));
+        $pvpSource = file_get_contents(base_path('app/Services/PvPBattleService.php'));
+        $arenaSource = file_get_contents(base_path('app/Services/ArenaNpcBattleService.php'));
+        $champSource = file_get_contents(base_path('app/Services/ChampBattleService.php'));
+
+        $this->assertIsString($sharedPveSource);
+        $this->assertIsString($pvpSource);
+        $this->assertIsString($arenaSource);
+        $this->assertIsString($champSource);
+
+        // 通常PvE・Boss・塔はBattleServiceの共通直接ダメージ表示を通る。
+        $this->assertStringContainsString('$state->addDamageLog(', $sharedPveSource);
+        $this->assertStringContainsString('$state->addDamageLog(', $pvpSource);
+        $this->assertStringContainsString('$state->addDamageLog(', $arenaSource);
+
+        // Champは既存の外部ログ配列へ、行動ダメージ文の直後に遅延ログを移す。
+        $damagePosition = strpos($champSource, '$log[] = $action[\'log\'];');
+        $flushPosition = strpos($champSource, '$jobArtState->pullDeferredDamageLogs()');
+        $this->assertNotFalse($damagePosition);
+        $this->assertNotFalse($flushPosition);
+        $this->assertLessThan($flushPosition, $damagePosition);
+    }
+
     public function test_current_skill_and_job_art_keep_source_and_per_hit_metadata(): void
     {
         $spy = $this->damageSpy();

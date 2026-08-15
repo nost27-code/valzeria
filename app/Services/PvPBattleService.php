@@ -440,7 +440,7 @@ class PvPBattleService
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
-        $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->jobArtBattleSupport->recordNormalAttackResolution($attacker, $defender, $state, HitResult::HIT, false);
         $this->logGutsIfTriggered($defender, $state);
     }
@@ -487,7 +487,7 @@ class PvPBattleService
         $damage = $damageResult?->requestedDamage ?? $damage;
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
-        $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+        $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
     }
 
@@ -624,7 +624,7 @@ class PvPBattleService
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
-                $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $state->addDamageLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
 

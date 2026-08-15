@@ -130,6 +130,14 @@
                         </div>
 
                         @if($jobArtV2UiEnabled)
+                            <div data-job-art-active-lineages="{{ $slotContext }}">
+                                @include('job-arts.partials.active-lineages', [
+                                    'activeLineages' => $activeLineagesByContext[$slotContext] ?? [],
+                                ])
+                            </div>
+                        @endif
+
+                        @if($jobArtV2UiEnabled)
                                 <form
                                     method="POST"
                                     action="{{ route('job-arts.policy') }}"
@@ -172,6 +180,7 @@
                         @if(($jobArtStarterPresetCount ?? 0) > 0)
                             @include('job-arts.partials.starter-presets', [
                                 'starterPresetCount' => $jobArtStarterPresetCount,
+                                'starterPresetHighlighted' => $jobArtStarterPresetHighlighted ?? false,
                                 'slotContext' => $slotContext,
                                 'slotContextLabel' => ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel,
                             ])
@@ -724,6 +733,12 @@
                 if (container) container.innerHTML = html;
             };
 
+            const replaceActiveLineages = (context, html) => {
+                if (!context || typeof html !== 'string') return;
+                const container = root.querySelector('[data-job-art-active-lineages="' + context + '"]');
+                if (container) container.innerHTML = html;
+            };
+
             const targetBanner = root.querySelector('[data-job-art-target-banner]');
             const targetSlotNoEl = root.querySelector('[data-job-art-target-slot-no]');
             const targetContextLabelEl = root.querySelector('[data-job-art-target-context-label]');
@@ -1209,6 +1224,7 @@
                     if (currentFilters.has('equipped')) applyFilters();
                 }
                 replaceDiagnosis(context, payload.diagnosis_html);
+                replaceActiveLineages(context, payload.active_lineages_html);
 
                 if (target && target.context === context && Number(target.slotNo) === Number(slotNo)) {
                     clearTarget();

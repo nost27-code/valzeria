@@ -104,18 +104,44 @@ class JobArtV2ResourceServiceTest extends TestCase
         $actor->jobArts = [$neutral];
         $this->assertFalse($catalog->activatesResource($actor, $neutral));
         $this->assertSame([], $catalog->resourcesForActor($actor));
+        $this->assertSame([], $catalog->resourcesForSkills(12, [$neutral]));
 
         $consumer = $this->art(61, 5);
         $actor->jobArtOrigins[(int) $consumer->id] = 'inherited';
         $actor->jobArts = [$neutral, $consumer];
         $this->assertTrue($catalog->activatesResource($actor, $consumer));
         $this->assertSame('eclipse', $catalog->resourcesForActor($actor)[0]['resource_key']);
+        $this->assertSame('eclipse', $catalog->resourcesForSkills(12, [$neutral, $consumer])[0]['resource_key']);
 
         $ultimate = $this->art(65, 9);
         $actor->jobArtOrigins[(int) $ultimate->id] = 'inherited';
         $actor->jobArts = [$neutral, $ultimate];
         $this->assertTrue($catalog->activatesResource($actor, $ultimate));
         $this->assertSame('aim', $catalog->resourcesForActor($actor)[0]['resource_key']);
+        $this->assertSame('aim', $catalog->resourcesForSkills(12, [$neutral, $ultimate])[0]['resource_key']);
+    }
+
+    public function test_incoming_damage_resource_logs_are_flushed_after_the_damage_log(): void
+    {
+        [$actor, $state] = $this->battle(60);
+        $service = $this->service();
+        $actor->jobArts = [$this->art(60, 1)];
+        $service->beginAction($actor, $state);
+
+        $received = $service->recordPhysicalAttackReceived($actor, $state);
+        $parried = $service->recordParrySuccess($actor, $state);
+
+        $this->assertSame(1, $received->delta);
+        $this->assertSame(1, $parried->delta);
+        $this->assertSame(2, $actor->getResource('sword_momentum'));
+        $this->assertSame([], $state->logs);
+
+        $state->addDamageLog('敵の攻撃！ 100 のダメージ！');
+
+        $this->assertSame('敵の攻撃！ 100 のダメージ！', $state->logs[0]);
+        $this->assertStringContainsString('剣勢 +1', $state->logs[1]);
+        $this->assertStringContainsString('剣勢 +1', $state->logs[2]);
+        $this->assertSame([], $state->pullDeferredDamageLogs());
     }
 
     public function test_producer_cast_adds_four_once_for_hit_miss_evade_non_damage_and_multi_hit_cases(): void

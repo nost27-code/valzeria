@@ -23,6 +23,19 @@ final class JobArtLineageCatalog
         'command' => '指揮',
     ];
 
+    private const LINEAGE_ICON_PATHS = [
+        'counter' => 'images/icon/icon_281.webp',
+        'eclipse' => 'images/icon/icon_282.webp',
+        'pierce' => 'images/icon/icon_283.webp',
+        'hunt' => 'images/icon/icon_284.webp',
+        'aim' => 'images/icon/icon_285.webp',
+        'guard' => 'images/icon/icon_286.webp',
+        'transmute' => 'images/icon/icon_287.webp',
+        'break' => 'images/icon/icon_288.webp',
+        'command' => 'images/icon/icon_289.webp',
+        'field' => 'images/icon/icon_290.webp',
+    ];
+
     private const FIELD_SPEC = 'valzeria_job_art_field_v1_3_1.md';
     private const FOUR_LINEAGE_SPEC = 'valzeria_job_art_4lineage_v1_1.md';
     private const PR26_ASSIGNMENT = 'human-ruling:PR26-94-job-lineage-assignment';
@@ -87,6 +100,11 @@ final class JobArtLineageCatalog
     public function nameForKey(?string $lineageKey): ?string
     {
         return is_string($lineageKey) ? (self::LINEAGE_NAMES[$lineageKey] ?? null) : null;
+    }
+
+    public function iconPathForKey(?string $lineageKey): ?string
+    {
+        return is_string($lineageKey) ? (self::LINEAGE_ICON_PATHS[$lineageKey] ?? null) : null;
     }
 
     /** @return array<int, array{lineage_key: string, lineage_name: string, source: string}> */

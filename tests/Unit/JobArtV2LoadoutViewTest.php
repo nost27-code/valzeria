@@ -215,6 +215,36 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString("job-arts.partials.starter-presets", $view);
         $this->assertStringContainsString('$jobArtStarterPresetCount', $view);
         $this->assertStringNotContainsString('$jobArtStarterPresetsByContext', $view);
+        $this->assertStringContainsString('data-job-art-active-lineages="{{ $slotContext }}"', $view);
+        $this->assertStringContainsString("job-arts.partials.active-lineages", $view);
+        $this->assertStringContainsString('replaceActiveLineages(context, payload.active_lineages_html)', $view);
+    }
+
+    public function test_active_lineage_summary_and_temporary_preset_highlight_are_player_facing(): void
+    {
+        $summary = view('job-arts.partials.active-lineages', [
+            'activeLineages' => [[
+                'lineage_key' => 'counter',
+                'lineage_name' => '反撃',
+                'resource_name' => '剣勢',
+                'icon_path' => 'images/icon/icon_281.webp',
+            ]],
+        ])->render();
+        $this->assertStringContainsString('有効な系譜', $summary);
+        $this->assertStringContainsString('反撃系譜', $summary);
+        $this->assertStringContainsString('剣勢', $summary);
+        $this->assertStringContainsString('images/icon/icon_281.webp', $summary);
+
+        $launcher = view('job-arts.partials.starter-presets', [
+            'slotContext' => 'normal',
+            'slotContextLabel' => '通常',
+            'starterPresetCount' => 30,
+            'starterPresetHighlighted' => true,
+        ])->render();
+        $this->assertStringContainsString('期間限定おすすめ', $launcher);
+        $this->assertStringContainsString('公式プリセットから選ぶ', $launcher);
+        $this->assertStringContainsString('（30件）', $launcher);
+        $this->assertStringContainsString('bg-indigo-600', $launcher);
     }
 
     public function test_v2_page_filters_by_lineage_and_uses_one_effect_description(): void

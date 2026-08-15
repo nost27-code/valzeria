@@ -70,6 +70,7 @@ final class JobArtV2LoadoutPresenterTest extends TestCase
         $chain = $presenter->forArt(62, $fieldChain);
 
         $this->assertSame('場術', $starter['source_badge']);
+        $this->assertSame('images/icon/icon_290.webp', $starter['source_lineage_icon_path']);
         $this->assertSame('星印 +4（使用時）', $starter['resource_text']);
         $this->assertSame(
             ['5種類の場を固定順で次へ張り替え', '実際の場上書き時：星印+2（基礎+4と合計）'],

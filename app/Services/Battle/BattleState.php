@@ -25,6 +25,10 @@ class BattleState
     public int $maxTurns;
 
     public array $logs = [];
+
+    /** @var array<int, list<string>> 被ダメージ表示の直後へ送る派生ログ。 */
+    private array $deferredDamageLogs = [];
+
     public int $goldBonusPercent = 0;
     public int $dropBonusPercent = 0;
     public int $rareBonusPercent = 0;
@@ -145,6 +149,41 @@ class BattleState
     public function addLog(string $message): void
     {
         $this->logs[] = $message;
+    }
+
+    public function deferLogAfterDamage(string $message, ?int $sourceActionId = null): void
+    {
+        $sourceActionId ??= $this->currentSourceActionId;
+        if ($sourceActionId === null) {
+            $this->addLog($message);
+
+            return;
+        }
+
+        $this->deferredDamageLogs[$sourceActionId] ??= [];
+        $this->deferredDamageLogs[$sourceActionId][] = $message;
+    }
+
+    public function addDamageLog(string $message, ?int $sourceActionId = null): void
+    {
+        $this->addLog($message);
+        foreach ($this->pullDeferredDamageLogs($sourceActionId) as $deferredLog) {
+            $this->addLog($deferredLog);
+        }
+    }
+
+    /** @return list<string> */
+    public function pullDeferredDamageLogs(?int $sourceActionId = null): array
+    {
+        $sourceActionId ??= $this->currentSourceActionId;
+        if ($sourceActionId === null) {
+            return [];
+        }
+
+        $logs = $this->deferredDamageLogs[$sourceActionId] ?? [];
+        unset($this->deferredDamageLogs[$sourceActionId]);
+
+        return $logs;
     }
 
     public function beginSourceAction(): int

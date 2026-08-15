@@ -373,6 +373,7 @@ class JobArtV2ResourceService
             $state,
             ResourceEvent::PHYSICAL_ATTACK_RECEIVED,
             'physical_attack_received_gain_points',
+            true,
         );
     }
 
@@ -383,6 +384,7 @@ class JobArtV2ResourceService
             $state,
             ResourceEvent::PARRY_SUCCESS,
             'parry_success_gain_points',
+            true,
         );
     }
 
@@ -395,6 +397,7 @@ class JobArtV2ResourceService
             $state,
             ResourceEvent::DAMAGE_MITIGATED,
             'damage_mitigated_gain_points',
+            true,
         );
     }
 
@@ -492,6 +495,7 @@ class JobArtV2ResourceService
         array $resource,
         ResourceEvent $event,
         int $gain,
+        bool $deferLogAfterDamage = false,
     ): ResourceChangeResult {
         $sourceActionId = $state->currentSourceActionId();
         if ($gain <= 0 || $sourceActionId === null) {
@@ -520,7 +524,7 @@ class JobArtV2ResourceService
             event: $event,
             sourceActionId: $sourceActionId,
         );
-        $this->appendLog($state, $result);
+        $this->appendLog($state, $result, $deferLogAfterDamage);
 
         return $result;
     }
@@ -549,6 +553,7 @@ class JobArtV2ResourceService
         BattleState $state,
         ResourceEvent $event,
         string $metadataKey,
+        bool $deferLogAfterDamage = false,
     ): ResourceChangeResult {
         if (! $this->enabledFor($actor)) {
             return ResourceChangeResult::unchanged();
@@ -559,6 +564,7 @@ class JobArtV2ResourceService
             $state,
             $event,
             $metadataKey,
+            $deferLogAfterDamage,
         );
     }
 
@@ -567,6 +573,7 @@ class JobArtV2ResourceService
         BattleState $state,
         ResourceEvent $event,
         string $metadataKey,
+        bool $deferLogAfterDamage = false,
     ): ResourceChangeResult {
         $firstApplied = null;
         $firstBlocked = null;
@@ -588,6 +595,7 @@ class JobArtV2ResourceService
                 $resource,
                 $event,
                 $gain,
+                $deferLogAfterDamage,
             );
             if ($firstApplied === null && $result->applied) {
                 $firstApplied = $result;
@@ -600,11 +608,20 @@ class JobArtV2ResourceService
         return $firstApplied ?? $firstBlocked ?? ResourceChangeResult::unchanged();
     }
 
-    private function appendLog(BattleState $state, ResourceChangeResult $result): void
+    private function appendLog(
+        BattleState $state,
+        ResourceChangeResult $result,
+        bool $deferLogAfterDamage = false,
+    ): void
     {
         $message = $result->logMessage();
         if ($message !== null) {
-            $state->addLog("<span class=\"text-sky-700 font-bold\">{$message}</span>");
+            $formatted = "<span class=\"text-sky-700 font-bold\">{$message}</span>";
+            if ($deferLogAfterDamage) {
+                $state->deferLogAfterDamage($formatted, $result->sourceActionId);
+            } else {
+                $state->addLog($formatted);
+            }
         }
     }
 
