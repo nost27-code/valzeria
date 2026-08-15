@@ -484,8 +484,9 @@ class JobArtBattleSupportService
 
     public function activationLog(BattleActor $attacker, BattleActor $defender, Skill $skill): string
     {
+        $titleClass = $this->jobArtFlavorTextService->activationTitleClass($skill);
         $lines = [
-            '<span class="text-indigo-700 font-extrabold">《' . e($skill->name) . '》が発動！</span>',
+            '<span class="' . e($titleClass) . '">《' . e($skill->name) . '》が発動！</span>',
         ];
 
         $flavorText = $this->jobArtFlavorTextService->resolve($skill);

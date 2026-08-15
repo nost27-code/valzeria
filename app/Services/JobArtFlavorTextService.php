@@ -24,6 +24,20 @@ class JobArtFlavorTextService
         return (bool) config('battle.job_art_v2.flavor_rewrite', false);
     }
 
+    public function activationTitleClass(Skill $skill): string
+    {
+        $variant = match ((int) $skill->learn_rank) {
+            1 => 'starter',
+            5 => 'combo',
+            9 => 'ultimate',
+            default => null,
+        };
+
+        return $variant === null
+            ? 'battle-log-job-art-title'
+            : "battle-log-job-art-title battle-log-job-art-title--{$variant}";
+    }
+
     /**
      * @return array{activation_phrase: ?string, activation_description: ?string}
      */

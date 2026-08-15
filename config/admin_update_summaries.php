@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-job-art-stage-log-styles',
+        'date' => '2026-08-15',
+        'category' => 'changed',
+        'title' => '始動・連携・奥義の発動表示を色分け',
+        'detail' => '戦闘ログの発動技名を、始動は翠色、連携は青色、奥義は金色で表示し、段階が上がるほど文字を大きくしました。台詞・描写と技の性能は変更していません。',
+    ],
+    [
         'id' => '2026-08-15-job-art-activation-title-cleanup',
         'date' => '2026-08-15',
         'category' => 'changed',

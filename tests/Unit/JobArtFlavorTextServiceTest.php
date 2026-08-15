@@ -45,6 +45,41 @@ class JobArtFlavorTextServiceTest extends TestCase
         ], app(JobArtFlavorTextService::class)->resolve($skill));
     }
 
+    public function test_activation_title_classes_follow_the_job_art_stage(): void
+    {
+        $service = app(JobArtFlavorTextService::class);
+        $expectedClasses = [
+            1 => 'battle-log-job-art-title battle-log-job-art-title--starter',
+            5 => 'battle-log-job-art-title battle-log-job-art-title--combo',
+            9 => 'battle-log-job-art-title battle-log-job-art-title--ultimate',
+        ];
+
+        foreach ($expectedClasses as $rank => $expectedClass) {
+            $skill = $this->bloodRoar();
+            $skill->learn_rank = $rank;
+
+            $this->assertSame($expectedClass, $service->activationTitleClass($skill));
+        }
+    }
+
+    public function test_activation_title_css_uses_distinct_stage_sizes_and_colors(): void
+    {
+        $css = (string) file_get_contents(resource_path('css/app.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.battle-log-job-art-title--starter\s*\{[^}]*color:\s*#047857;[^}]*font-size:\s*1em;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.battle-log-job-art-title--combo\s*\{[^}]*color:\s*#0369a1;[^}]*font-size:\s*1\.15em;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.battle-log-job-art-title--ultimate\s*\{[^}]*color:\s*#92400e;[^}]*font-size:\s*1\.35em;/s',
+            $css,
+        );
+    }
+
     public function test_catalog_exactly_covers_the_current_282_job_art_master_rows(): void
     {
         $masterRows = json_decode(
@@ -105,6 +140,7 @@ class JobArtFlavorTextServiceTest extends TestCase
         $attacker->jobArtOrigins[1401] = 'inherited';
 
         $supportLog = app(JobArtBattleSupportService::class)->activationLog($attacker, $defender, $skill);
+        $this->assertStringContainsString('battle-log-job-art-title--starter', $supportLog);
         $this->assertStringContainsString('《血潮の咆哮》が発動！', $supportLog);
         $this->assertStringNotContainsString('【継承奥義】', $supportLog);
         $this->assertStringNotContainsString('【奥義】', $supportLog);
@@ -121,6 +157,7 @@ class JobArtFlavorTextServiceTest extends TestCase
             $skill,
         );
 
+        $this->assertStringContainsString('battle-log-job-art-title--starter', $pveLog);
         $this->assertStringContainsString('《血潮の咆哮》が発動！', $pveLog);
         $this->assertStringNotContainsString('【継承奥義】', $pveLog);
         $this->assertStringNotContainsString('【奥義】', $pveLog);
