@@ -9,6 +9,7 @@ use App\Models\MapExplorationBatch;
 use App\Models\MapExplorationResult;
 use App\Models\TownMapRegistration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class MapExplorationBatchService
@@ -34,11 +35,30 @@ class MapExplorationBatchService
             $total = $reserved > 0 && $chargeEntryFee ? $entryFee : 0;
             $lockedCharacter = Character::lockForUpdate()->findOrFail($character->id);
             if ($total > 0) app(BankService::class)->spendForPayment($lockedCharacter, $total, $bankConfirmed, 'map_entry_fee', '探索の地図の入場料', TownMapRegistration::class, $registration->id, ['map_id' => $registration->map_id, 'count' => $reserved, 'entry_count' => 1]);
-            $first = $registration->consumed_explorations + 1;
+            $first = $this->nextExplorationIndex($registration);
             $registration->decrement('remaining_explorations', $reserved);
             $registration->increment('consumed_explorations', $reserved);
             return MapExplorationBatch::create(['uuid' => (string) Str::uuid(), 'request_uuid' => $requestUuid, 'registration_id' => $registration->id, 'map_id' => $registration->map_id, 'character_id' => $character->id, 'requested_count' => $requestedCount, 'reserved_count' => $reserved, 'first_exploration_index' => $first, 'last_exploration_index' => $first + $reserved - 1, 'fee_per_exploration' => $entryFee, 'total_fee' => $total, 'status' => 'reserved']);
         });
+    }
+
+    private function nextExplorationIndex(TownMapRegistration $registration): int
+    {
+        // consumed_explorations は未実行分の返却で減るため、採番は保存済み結果や
+        // 実行待ち予約の末尾より前へ巻き戻さない。
+        $maxResultIndex = (int) MapExplorationResult::query()
+            ->where('map_id', $registration->map_id)
+            ->max('global_exploration_index');
+        $maxActiveReservationIndex = (int) MapExplorationBatch::query()
+            ->where('registration_id', $registration->id)
+            ->whereIn('status', ['reserved', 'processing'])
+            ->max('last_exploration_index');
+
+        return max(
+            (int) $registration->consumed_explorations,
+            $maxResultIndex,
+            $maxActiveReservationIndex,
+        ) + 1;
     }
 
     private function existingBatchForRequest(MapExplorationBatch $batch, Character $character, TownMapRegistration $registration): MapExplorationBatch
@@ -72,6 +92,24 @@ class MapExplorationBatchService
                 throw new \RuntimeException('この地図探索は実行できません。');
             }
 
+            if (MapExplorationResult::query()
+                ->where('map_id', $batch->map_id)
+                ->whereBetween('global_exploration_index', [
+                    $batch->first_exploration_index,
+                    $batch->last_exploration_index,
+                ])
+                ->exists()) {
+                Log::warning('Map exploration range overlaps existing results.', [
+                    'batch_id' => $batch->id,
+                    'registration_id' => $batch->registration_id,
+                    'map_id' => $batch->map_id,
+                    'first_exploration_index' => $batch->first_exploration_index,
+                    'last_exploration_index' => $batch->last_exploration_index,
+                ]);
+
+                throw new \RuntimeException('地図探索の開始処理が重なりました。探索回数・料金・探索力は消費されていません。もう一度お試しください。');
+            }
+
             $batch->update(['status' => 'processing', 'started_at' => now()]);
             $map = $batch->map;
             $root = $this->seeds->decrypt($map->seed_encrypted);
@@ -80,7 +118,6 @@ class MapExplorationBatchService
             $stopReason = null;
             $stamina = app(ExplorationStaminaService::class);
             for ($index = $batch->first_exploration_index; $index <= $batch->last_exploration_index; $index++) {
-                if (MapExplorationResult::where('map_id', $map->id)->where('global_exploration_index', $index)->exists()) continue;
                 $character->refresh();
                 if ($character->current_hp <= 0) break;
                 if ($stamina->enabled()) {

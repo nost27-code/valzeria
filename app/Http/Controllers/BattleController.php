@@ -206,13 +206,15 @@ class BattleController extends Controller
             $registration = TownMapRegistration::findOrFail($registrationId);
             $service = app(MapExplorationBatchService::class);
             $itemService = app(\App\Services\MapExplorationItemService::class);
-            if (!$itemService->hasEntry($character, $registrationId)) {
-                $itemService->begin($character, $registration);
-            }
-            $execution = $service->execute(
-                $character,
-                $service->reserve($character, $registration, max(1, min(10, $count)), (string) Str::uuid(), false)
-            );
+            $execution = DB::transaction(function () use ($character, $registration, $registrationId, $count, $service, $itemService): array {
+                if (!$itemService->hasEntry($character, $registrationId)) {
+                    $itemService->begin($character, $registration);
+                }
+
+                $batch = $service->reserve($character, $registration, max(1, min(10, $count)), (string) Str::uuid(), false);
+
+                return $service->execute($character, $batch);
+            });
             $batch = $execution['batch'];
             $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
             session(['active_map_exploration' => [

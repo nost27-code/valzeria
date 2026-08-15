@@ -396,6 +396,40 @@ class ExplorationMapLifecycleTest extends TestCase
         $this->assertSame(0, MapExplorationBatch::count());
     }
 
+    public function test_invalid_map_seed_during_active_map_continuation_rolls_back_reservation(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $this->grantStarterValmon($character);
+        $map = $this->generateMap($character, $area, $enemy, 43);
+        $registration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $map, $city),
+            0,
+        );
+        app(MapExplorationItemService::class)->begin($character, $registration);
+        $map->update(['seed_encrypted' => 'invalid-encrypted-seed']);
+        $remainingBefore = (int) $registration->remaining_explorations;
+
+        $this->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                'active_map_exploration' => [
+                    'registration_id' => $registration->id,
+                    'area_id' => $area->id,
+                ],
+            ])
+            ->post(route('battle.explore', $area), [
+                'continue_chain' => true,
+                'batch_count' => 10,
+            ])
+            ->assertRedirect(route('battle.result'))
+            ->assertSessionHas('error');
+
+        $this->assertSame($remainingBefore, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(0, (int) $registration->fresh()->consumed_explorations);
+        $this->assertSame(0, MapExplorationBatch::count());
+    }
+
     /** @return array{Character, City, Area, Enemy} */
     private function mapContext(): array
     {

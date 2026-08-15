@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-map-exploration-sequence-recovery',
+        'date' => '2026-08-15',
+        'category' => 'fixed',
+        'title' => '探索の地図が開始できない問題を修正',
+        'detail' => '探索の地図の進行順を管理する処理を修正し、一部の公開地図でGold・探索力が足りていても結果を読み込めず、再試行しても探索できない問題を解消しました。未実行時は入場料・地図探索回数・探索力を消費しません。',
+    ],
+    [
         'id' => '2026-08-15-exclusive-character-icon-two-sets',
         'date' => '2026-08-15',
         'category' => 'internal',

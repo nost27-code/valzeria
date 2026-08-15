@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy;
+use App\Models\MapExplorationResult;
 use App\Models\User;
 use App\Services\Battle\BattleResult;
 use App\Services\BattleService;
@@ -16,6 +17,7 @@ use App\Services\MapExplorationBatchService;
 use App\Services\MapPublicationService;
 use App\Services\MapSurveyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
@@ -219,6 +221,87 @@ class MapExplorationBatchServiceTest extends TestCase
         $this->assertSame(1, (int) $next->reserved_count);
         $this->assertSame($remainingBefore - 1, (int) $registration->fresh()->remaining_explorations);
         $this->assertSame(1, (int) $registration->fresh()->consumed_explorations);
+    }
+
+    public function test_stale_non_tail_reservation_does_not_reuse_completed_global_indices(): void
+    {
+        config()->set('exploration_maps.stale_batch_recovery_seconds', 60);
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図予約順序試験地', 'map-batch-stale-non-tail-test');
+        $batchService = app(MapExplorationBatchService::class);
+        $remainingBefore = (int) $registration->remaining_explorations;
+
+        $stale = $batchService->reserve($visitor, $registration, 10, (string) Str::uuid());
+        $completed = $batchService->reserve($visitor, $registration->fresh(), 10, (string) Str::uuid());
+
+        $victory = new BattleResult();
+        $victory->result = 'victory';
+        $victory->exp = 20;
+        $victory->gold = 0;
+        $victory->jobExp = 1;
+        $battleService = Mockery::mock(BattleService::class);
+        $battleService->shouldReceive('executeBattle')->times(11)->andReturn($victory);
+        $this->app->instance(BattleService::class, $battleService);
+
+        $batchService->execute($visitor, $completed);
+        $stale->update(['created_at' => now()->subMinutes(2)]);
+
+        $next = $batchService->reserve($visitor, $registration->fresh(), 1, (string) Str::uuid());
+        $execution = $batchService->execute($visitor, $next);
+
+        $this->assertSame('recovered', $stale->fresh()->status);
+        $this->assertSame(0, (int) $stale->fresh()->reserved_count);
+        $this->assertSame(11, (int) $completed->first_exploration_index);
+        $this->assertSame(20, (int) $completed->last_exploration_index);
+        $this->assertSame(21, (int) $next->first_exploration_index);
+        $this->assertSame(21, (int) $next->last_exploration_index);
+        $this->assertArrayNotHasKey('error', $execution['battle_result']);
+        $this->assertSame(range(11, 21), MapExplorationResult::query()
+            ->where('map_id', $registration->map_id)
+            ->orderBy('global_exploration_index')
+            ->pluck('global_exploration_index')
+            ->map(fn ($index): int => (int) $index)
+            ->all());
+        $this->assertSame($remainingBefore - 11, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(11, (int) $registration->fresh()->consumed_explorations);
+    }
+
+    public function test_existing_global_index_is_rejected_before_batch_execution(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図番号重複試験地', 'map-batch-overlap-test');
+        $batchService = app(MapExplorationBatchService::class);
+        $registration->update(['entry_fee_per_exploration' => 1000]);
+        $remainingBefore = (int) $registration->remaining_explorations;
+        $moneyBefore = (int) $visitor->money;
+        $goldTransactionsBefore = DB::table('gold_transactions')->where('character_id', $visitor->id)->count();
+
+        try {
+            DB::transaction(function () use ($visitor, $registration, $batchService): void {
+                $batch = $batchService->reserve($visitor, $registration, 1, (string) Str::uuid());
+                MapExplorationResult::create([
+                    'batch_id' => $batch->id,
+                    'map_id' => $batch->map_id,
+                    'registration_id' => $batch->registration_id,
+                    'character_id' => $visitor->id,
+                    'global_exploration_index' => $batch->first_exploration_index,
+                    'encounter_seed_hash' => str_repeat('a', 64),
+                    'reward_seed_hash' => str_repeat('b', 64),
+                    'monster_variants_json' => [],
+                    'battle_result' => 'victory',
+                    'drops_json' => [],
+                ]);
+                $batchService->execute($visitor, $batch);
+            });
+            $this->fail('重複する探索番号を持つバッチが実行されました。');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('地図探索の開始処理が重なりました。探索回数・料金・探索力は消費されていません。もう一度お試しください。', $e->getMessage());
+        }
+
+        $this->assertSame($remainingBefore, (int) $registration->fresh()->remaining_explorations);
+        $this->assertSame(0, (int) $registration->fresh()->consumed_explorations);
+        $this->assertSame(0, DB::table('map_exploration_batches')->count());
+        $this->assertSame(0, MapExplorationResult::query()->count());
+        $this->assertSame($moneyBefore, (int) $visitor->fresh()->money);
+        $this->assertSame($goldTransactionsBefore, DB::table('gold_transactions')->where('character_id', $visitor->id)->count());
     }
 
     /** @return array{Character, \App\Models\TownMapRegistration} */
