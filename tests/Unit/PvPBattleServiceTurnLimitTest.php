@@ -15,9 +15,12 @@ use Tests\TestCase;
 
 class PvPBattleServiceTurnLimitTest extends TestCase
 {
-    public function test_time_limit_is_one_hundred_turns_and_keeps_the_existing_defense_result(): void
+    public function test_equal_remaining_hp_ratio_keeps_the_defense_result_after_one_hundred_turns(): void
     {
-        $service = $this->service();
+        $service = $this->service(
+            challengerMaxHp: 2_000,
+            defenderMaxHp: 1_000,
+        );
 
         $result = $service->executeBattle(
             $this->character('挑戦者'),
@@ -32,9 +35,14 @@ class PvPBattleServiceTurnLimitTest extends TestCase
         $this->assertStringContainsString('防衛に成功した', implode("\n", $result->logs));
     }
 
-    public function test_time_limit_keeps_the_existing_attacker_hp_judgment_victory(): void
+    public function test_higher_remaining_hp_ratio_wins_even_when_challenger_has_less_raw_hp(): void
     {
-        $service = $this->service(challengerDamagePerAction: 1);
+        $service = $this->service(
+            challengerDamagePerAction: 10,
+            defenderDamagePerAction: 4,
+            challengerMaxHp: 1_000,
+            defenderMaxHp: 2_000,
+        );
 
         $result = $service->executeBattle(
             $this->character('挑戦者'),
@@ -46,19 +54,54 @@ class PvPBattleServiceTurnLimitTest extends TestCase
         $this->assertStringContainsString('判定勝利', implode("\n", $result->logs));
     }
 
-    private function service(int $challengerDamagePerAction = 0): PvPBattleService
+    public function test_lower_remaining_hp_ratio_loses_even_when_challenger_has_more_raw_hp(): void
+    {
+        $service = $this->service(
+            challengerDamagePerAction: 4,
+            defenderDamagePerAction: 10,
+            challengerMaxHp: 2_000,
+            defenderMaxHp: 1_000,
+        );
+
+        $result = $service->executeBattle(
+            $this->character('挑戦者'),
+            $this->character('防衛者'),
+        );
+
+        $this->assertSame('defeat', $result->result);
+        $this->assertCount(200, $service->observedBattleTypes);
+        $this->assertStringContainsString('防衛に成功した', implode("\n", $result->logs));
+    }
+
+    public function test_player_and_npc_rank_battles_share_the_remaining_hp_ratio_judgment(): void
+    {
+        $pvpService = file_get_contents(app_path('Services/PvPBattleService.php'));
+        $npcService = file_get_contents(app_path('Services/ArenaNpcBattleService.php'));
+
+        $this->assertIsString($pvpService);
+        $this->assertIsString($npcService);
+        $this->assertStringContainsString(
+            '$attackerActor->hasHigherRemainingHpRatioThan($defenderActor)',
+            $pvpService,
+        );
+        $this->assertStringContainsString(
+            '$attackerActor->hasHigherRemainingHpRatioThan($npcActor)',
+            $npcService,
+        );
+    }
+
+    private function service(
+        int $challengerDamagePerAction = 0,
+        int $defenderDamagePerAction = 0,
+        int $challengerMaxHp = 1_000,
+        int $defenderMaxHp = 1_000,
+    ): PvPBattleService
     {
         $statusService = Mockery::mock(CharacterStatusService::class);
-        $statusService->shouldReceive('getFinalStats')->twice()->andReturn([
-            'max_hp' => 1_000,
-            'max_mp' => 100,
-            'str' => 100,
-            'def' => 100,
-            'agi' => 100,
-            'mag' => 100,
-            'spr' => 100,
-            'luk' => 100,
-        ]);
+        $statusService->shouldReceive('getFinalStats')->twice()->andReturn(
+            $this->stats($challengerMaxHp),
+            $this->stats($defenderMaxHp),
+        );
 
         $jobArtSupport = Mockery::mock(JobArtBattleSupportService::class);
         $jobArtSupport->shouldReceive('attachBossSet')->twice();
@@ -73,6 +116,7 @@ class PvPBattleServiceTurnLimitTest extends TestCase
             Mockery::mock(DamageCalculator::class),
             $jobArtSupport,
             $challengerDamagePerAction,
+            $defenderDamagePerAction,
         ) extends PvPBattleService {
             /** @var list<string> */
             public array $observedBattleTypes = [];
@@ -82,6 +126,7 @@ class PvPBattleServiceTurnLimitTest extends TestCase
                 DamageCalculator $damageCalculator,
                 JobArtBattleSupportService $jobArtBattleSupport,
                 private readonly int $challengerDamagePerAction,
+                private readonly int $defenderDamagePerAction,
             ) {
                 parent::__construct($statusService, $damageCalculator, $jobArtBattleSupport);
             }
@@ -93,8 +138,26 @@ class PvPBattleServiceTurnLimitTest extends TestCase
                 if ($attacker->name === '挑戦者' && $this->challengerDamagePerAction > 0) {
                     $defender->takeDamage($this->challengerDamagePerAction);
                 }
+                if ($attacker->name === '防衛者' && $this->defenderDamagePerAction > 0) {
+                    $defender->takeDamage($this->defenderDamagePerAction);
+                }
             }
         };
+    }
+
+    /** @return array{max_hp: int, max_mp: int, str: int, def: int, agi: int, mag: int, spr: int, luk: int} */
+    private function stats(int $maxHp): array
+    {
+        return [
+            'max_hp' => $maxHp,
+            'max_mp' => 100,
+            'str' => 100,
+            'def' => 100,
+            'agi' => 100,
+            'mag' => 100,
+            'spr' => 100,
+            'luk' => 100,
+        ];
     }
 
     private function character(string $name): Character

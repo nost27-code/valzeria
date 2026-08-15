@@ -210,8 +210,8 @@ class PvPBattleService
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$attackerActor->name}は、{$defenderActor->name}を倒した！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;
-        } elseif (!$attackerActor->isDead() && $isTurnLimit && $attackerActor->hp > $defenderActor->hp) {
-            // ターン上限時は残HPが多い挑戦者の判定勝利
+        } elseif (!$attackerActor->isDead() && $isTurnLimit && $attackerActor->hasHigherRemainingHpRatioThan($defenderActor)) {
+            // ターン上限時は残り体力の割合が高い挑戦者の判定勝利
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">判定勝利！{$attackerActor->name}が優勢のまま押し切った！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;

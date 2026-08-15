@@ -2,10 +2,15 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-15
+Last updated: 2026-08-16
 Branch: main
 
-## Job-art v2 current canonical state (engine dormant / flavor live)
+## Job-art v2 guide / rank-battle judgment (production)
+
+- 戦技セット上部から初心者向け解説モーダルを開ける。系譜と0〜12の戦闘内リソース、5枠の循環候補順と1行動1候補1抽選、10系譜の直接・共通獲得、PvP奥義予告、最大100ターン、最大5枠・Cost9・奥義1枚等の制限をまとめる。行動順のプレイヤー向け表記は「敏捷」とし、英字能力名を使わない
+- プレイヤーPvPとNPCランク戦は、100ターン終了時に双方が生存していれば残り体力÷最大体力の割合を比較する。挑戦者の割合が高い時だけ判定勝利とし、同率または防衛側が高い場合は防衛成功。チャンプ戦はこの割合判定を使わず、100ターン以内の実際の撃破だけで交代する
+
+## Job-art v2 pre-release canonical state (historical)
 
 - 戦技v2コードは現行マスタ94職・Rank1/5/9の282戦技を対象とする。v2有効時に現在職による対応外判定や旧マスタ説明への職別fallbackは設けない。プレイヤー自身に主系譜・副系譜・出張の所属は持たせず、習得済み戦技は現在職に関係なく編成でき、カードに記載された効果と威力を100%適用する
 - 1セットは5枠・Cost上限9。始動/連携/奥義はCost1/2/3で、奥義は1セット1枚まで。SPは習得職階級×Rankの固定表（基本4/6/8、中級6/9/13、上級10/16/22、超級16/25/35、冠位23/36/50、英雄30/48/66、伝説40/64/88、神話52/84/115）を使い、現在職・系譜・継承率による軽減を行わない

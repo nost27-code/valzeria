@@ -62,6 +62,36 @@ class JobArtV2LineageGuideCatalogTest extends TestCase
         $this->assertStringContainsString('合計+5', $guides['command']['trait']);
     }
 
+    public function test_beginner_guide_exposes_exact_direct_and_common_gain_rules(): void
+    {
+        $guides = app(JobArtV2LineageGuideCatalog::class)->all();
+
+        $this->assertSame([
+            'counter' => '始動使用で+4',
+            'eclipse' => '原則、始動HITで+4。「血潮の咆哮」「闇の契約」は使用成立で+4',
+            'pierce' => '始動使用で+4',
+            'hunt' => '始動使用で+4',
+            'aim' => '始動使用で+4',
+            'guard' => '始動使用で+4',
+            'transmute' => '原則、最大HP5%消費と最大SP5%回復が両方成立すると+4。「金冠錬符」はHIT時+4',
+            'break' => '原則、始動HITで+4。「練気呼吸」「練気」は使用成立で+4',
+            'command' => '原則、始動では増えない。「戦線把握」「戦冠指揮」だけ使用成立で+4',
+            'field' => '始動使用で+4。「星冠詠唱」は実際に既存の場を上書きすると追加+2、計+6',
+        ], collect($guides)->mapWithKeys(
+            fn (array $guide, string $key): array => [$key => $guide['direct_gain']],
+        )->all());
+
+        $this->assertSame(
+            '通常攻撃HIT +1、物理攻撃を受ける +1、受け流し成功 +1。物理攻撃を受け流した場合は計+2',
+            $guides['counter']['common_gain'],
+        );
+        $this->assertSame(
+            '通常攻撃HIT +4、戦技以外の手番 +1。通常攻撃がHITした場合は計+5',
+            $guides['command']['common_gain'],
+        );
+        $this->assertSame('通常攻撃HIT +1、通常攻撃MISS +2', $guides['aim']['common_gain']);
+    }
+
     public function test_field_characteristics_reuse_the_field_catalog_values(): void
     {
         $guide = app(JobArtV2LineageGuideCatalog::class)->all()['field'];

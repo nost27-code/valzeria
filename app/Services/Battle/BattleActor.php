@@ -198,6 +198,14 @@ class BattleActor
         return $this->hp <= 0;
     }
 
+    public function hasHigherRemainingHpRatioThan(self $other): bool
+    {
+        $ownMaxHp = max(1, $this->maxHp);
+        $otherMaxHp = max(1, $other->maxHp);
+
+        return ($this->hp * $otherMaxHp) > ($other->hp * $ownMaxHp);
+    }
+
     public function takeDamage(int $damage): void
     {
         $this->totalDamageTaken += max(0, $damage);

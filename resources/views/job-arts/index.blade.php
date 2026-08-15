@@ -71,9 +71,14 @@
 
             @if($jobArtV2UiEnabled)
                 <div class="mt-3 border-t border-slate-100 pt-3" data-job-art-overview-rules>
-                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-bold leading-relaxed text-slate-600">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-bold leading-relaxed text-slate-600">
                         <span><strong class="text-slate-800">上から順</strong>に発動候補を判定</span>
                         <span>条件を満たした<strong class="text-slate-800">奥義を優先</strong></span>
+                        @include('job-arts.partials.system-guide', [
+                            'lineageGuides' => $lineageGuides,
+                            'maxSlots' => $maxSlots,
+                            'maxCost' => $maxCost,
+                        ])
                     </div>
                 </div>
             @endif

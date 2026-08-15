@@ -2,16 +2,18 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
-## Job-art v2 current authority (2026-08-15, engine OFF / flavor ON)
+## Job-art v2 current authority (2026-08-16, production)
 
 - Loadout/rules: `app/Services/JobArtService.php`, `app/Services/JobArtV2FeatureGate.php`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2SelectionService.php`
 - Fixed SP: `app/Services/JobArtV2SpCostCalculator.php`
 - Lineage resources and duplicate suppression: `app/Services/Battle/BattleState.php`, `app/Services/JobArtV2ResourceCatalog.php`, `app/Services/JobArtV2ResourceService.php`, `app/Services/JobArtV2ProgressionService.php`
 - Runtime effects across the six battle paths: `app/Services/JobArtBattleSupportService.php`, `app/Services/BattleService.php`, `app/Services/TowerBattleService.php`, `app/Services/PvPBattleService.php`, `app/Services/ChampBattleService.php`, `app/Services/ArenaNpcBattleService.php`
-- Flavor rewrite overlay: `app/Services/JobArtFlavorTextService.php`, `database/data/job_art_flavor_rewrites.json`, `app/Livewire/JobChange.php`, `app/Livewire/Admin/SkillEffectLab.php`. The code default is OFF and production enables only `BATTLE_JOB_ART_FLAVOR_REWRITE`; exact `(job_id, learn_rank, name)` matches switch all 282 phrases/descriptions, while OFF and unmatched rows retain `skills` text
+- Flavor rewrite overlay: `app/Services/JobArtFlavorTextService.php`, `database/data/job_art_flavor_rewrites.json`, `app/Livewire/JobChange.php`, `app/Livewire/Admin/SkillEffectLab.php`. Exact `(job_id, learn_rank, name)` matches switch all 282 phrases/descriptions, while OFF and unmatched rows retain `skills` text
 - Loadout/presets UI: `app/Http/Controllers/JobArtController.php`, `app/Http/Controllers/JobArtPresetController.php`, `app/Services/JobArtPresetService.php`, `resources/views/job-arts/`
-- Master source and validation: `database/data/job_arts.json`, `database/seeders/JobArtSeeder.php`, `app/Support/JobArtMasterValidator.php`. The OFF release does not execute the full 282-art runtime sync; `2026_08_15_120000_rebalance_crown_alchemist_job_art.php` updates only the existing job 67 Rank9 row to power315 without changing its ID
-- Feature switches: `config/battle.php`. All 15 switches default OFF. Production enables only the independent flavor rewrite and keeps the other 14 switches OFF, so slot selection, SP, RNG, effects, and battle results remain on the legacy path
+- Beginner guide: `app/Services/JobArtV2LineageGuideCatalog.php`, `resources/views/job-arts/partials/system-guide.blade.php`, `tests/Unit/JobArtV2LineageGuideCatalogTest.php`, `tests/Unit/JobArtV2LoadoutViewTest.php`
+- Rank-battle percentage judgment: `app/Services/Battle/BattleActor.php`, `app/Services/PvPBattleService.php`, `app/Services/ArenaNpcBattleService.php`, `tests/Unit/PvPBattleServiceTurnLimitTest.php`
+- Master source and validation: `database/data/job_arts.json`, `database/seeders/JobArtSeeder.php`, `app/Support/JobArtMasterValidator.php`, `database/migrations/2026_08_14_140000_sync_all_job_art_master_for_v2.php`. The sync validates all 94×Rank1/5/9 natural keys, preserves existing skill IDs, and stops on missing or duplicate input
+- Feature switches: `config/battle.php`. Released v2 dependencies are enabled in production; code defaults remain OFF as the explicit rollback boundary. The superseded `BATTLE_JOB_ART_C_DESIGN_PROTOTYPE` remains OFF
 
 The older Job-art sections and architecture-table notes below are historical design boundaries. Do not use their current-job, main/sub-lineage, portable, inherited-rate, or normalized-SP descriptions as the current specification.
 

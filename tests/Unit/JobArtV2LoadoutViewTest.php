@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\CharacterJobArtSlot;
 use App\Models\Skill;
+use App\Services\JobArtV2LineageGuideCatalog;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2SlotConditionCatalog;
 use Tests\TestCase;
@@ -218,6 +219,43 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('data-job-art-active-lineages="{{ $slotContext }}"', $view);
         $this->assertStringContainsString("job-arts.partials.active-lineages", $view);
         $this->assertStringContainsString('replaceActiveLineages(context, payload.active_lineages_html)', $view);
+    }
+
+    public function test_beginner_system_guide_opens_as_an_accessible_modal_with_exact_rules(): void
+    {
+        $page = file_get_contents(resource_path('views/job-arts/index.blade.php'));
+        $html = view('job-arts.partials.system-guide', [
+            'lineageGuides' => collect(app(JobArtV2LineageGuideCatalog::class)->all()),
+            'maxSlots' => 5,
+            'maxCost' => 9,
+        ])->render();
+
+        $this->assertIsString($page);
+        $this->assertStringContainsString("job-arts.partials.system-guide", $page);
+        $this->assertStringContainsString('data-job-art-system-guide-link', $html);
+        $this->assertStringContainsString('戦技セットの解説を見る', $html);
+        $this->assertStringContainsString('x-teleport="body"', $html);
+        $this->assertStringContainsString('data-job-art-system-guide-modal', $html);
+        $this->assertStringContainsString('role="dialog"', $html);
+        $this->assertStringContainsString('aria-modal="true"', $html);
+        $this->assertStringContainsString('5枠の順番と系譜リソース', $html);
+        $this->assertStringContainsString('1 → 2 → 3 → 4 → 5 → 1…', $html);
+        $this->assertStringContainsString('同じ手番で後ろの枠を再抽選しません', $html);
+        $this->assertStringContainsString('候補優先とある効果は先に判定されます', $html);
+        $this->assertSame(10, substr_count($html, 'data-job-art-system-guide-lineage='));
+        $this->assertStringContainsString('「金冠錬符」はHIT時+4', $html);
+        $this->assertStringContainsString('自傷分を足して+6にはなりません', $html);
+        $this->assertStringContainsString('相手に次の1行動が渡る', $html);
+        $this->assertStringContainsString('双方が敏捷の高い順に行動', $html);
+        $this->assertStringContainsString('最大体力に対する残り体力の割合を比べます', $html);
+        $this->assertStringContainsString('挑戦者の割合が防衛者より高ければ挑戦者の判定勝利', $html);
+        $this->assertStringContainsString('同じ割合または防衛者の方が高ければ防衛成功', $html);
+        foreach (['ATK', 'DEF', 'MAG', 'SPR', 'SPD', 'LUK'] as $englishStatLabel) {
+            $this->assertStringNotContainsString($englishStatLabel, $html);
+        }
+        $this->assertStringContainsString('最大5枠、合計Costは9まで', $html);
+        $this->assertStringContainsString('奥義は1セットにつき1つまで', $html);
+        $this->assertStringContainsString('同じ戦技を複数枠へ入れることもできません', $html);
     }
 
     public function test_active_lineage_summary_and_temporary_preset_highlight_are_player_facing(): void

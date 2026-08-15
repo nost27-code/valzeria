@@ -152,7 +152,7 @@ class ArenaNpcBattleService
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">決着！{$attackerActor->name}は、{$npcActor->name}を倒した！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;
-        } elseif (!$attackerActor->isDead() && $attackerActor->hp > $npcActor->hp) {
+        } elseif (!$attackerActor->isDead() && $attackerActor->hasHigherRemainingHpRatioThan($npcActor)) {
             $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">判定勝利！{$attackerActor->name}が優勢のまま押し切った！</span>");
             $result->result = 'victory';
             $isAttackerWin = true;

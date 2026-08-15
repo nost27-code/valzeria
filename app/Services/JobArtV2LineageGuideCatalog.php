@@ -93,6 +93,7 @@ final class JobArtV2LineageGuideCatalog
                 continue;
             }
 
+            $additionalGains = $this->additionalGains($starter);
             $guides[$lineageKey] = [
                 'lineage_key' => $lineageKey,
                 'lineage_name' => (string) $starter['lineage_name'],
@@ -106,7 +107,9 @@ final class JobArtV2LineageGuideCatalog
                     $this->resourceFlowText('連携', $connector),
                     $this->resourceFlowText('奥義', $ultimate),
                 ],
-                'additional_gains' => $this->additionalGains($starter),
+                'additional_gains' => $additionalGains,
+                'direct_gain' => $this->directGainText($lineageKey, $starter),
+                'common_gain' => $this->commonGainText($lineageKey, $additionalGains),
                 'field_effects' => $lineageKey === 'field' ? $this->fieldEffects() : [],
                 'inheritance' => 'どの職で使っても、戦技の効果と威力は変わりません。カードに書かれた増減と系譜特性は、そのカード自身の系譜リソースへ反映されます。',
             ];
@@ -156,6 +159,48 @@ final class JobArtV2LineageGuideCatalog
         }
 
         return $gains;
+    }
+
+    /** @param array<string, mixed> $starter */
+    private function directGainText(string $lineageKey, array $starter): string
+    {
+        $gain = max(0, (int) ($starter['resource_gain_points'] ?? 0));
+
+        return match ($lineageKey) {
+            'eclipse' => "原則、始動HITで+{$gain}。「血潮の咆哮」「闇の契約」は使用成立で+{$gain}",
+            'transmute' => "原則、最大HP5%消費と最大SP5%回復が両方成立すると+{$gain}。「金冠錬符」はHIT時+{$this->resourceGainPoints(67)}",
+            'break' => "原則、始動HITで+{$gain}。「練気呼吸」「練気」は使用成立で+{$this->resourceGainPoints(21)}",
+            'command' => "原則、始動では増えない。「戦線把握」「戦冠指揮」だけ使用成立で+{$this->resourceGainPoints(59)}",
+            'field' => $this->fieldDirectGainText($gain),
+            default => "始動使用で+{$gain}",
+        };
+    }
+
+    /** @param list<string> $additionalGains */
+    private function commonGainText(string $lineageKey, array $additionalGains): string
+    {
+        $text = implode('、', $additionalGains);
+
+        return match ($lineageKey) {
+            'counter' => $text.'。物理攻撃を受け流した場合は計+2',
+            'command' => $text.'。通常攻撃がHITした場合は計+5',
+            default => $text,
+        };
+    }
+
+    private function fieldDirectGainText(int $gain): string
+    {
+        $metadata = $this->prototypeCatalog->artResourceMetadataForJobRank(63, 1) ?? [];
+        $overwriteGain = max(0, (int) ($metadata['resource_gain_on_field_overwrite_points'] ?? 0));
+
+        return "始動使用で+{$gain}。「星冠詠唱」は実際に既存の場を上書きすると追加+{$overwriteGain}、計+".($gain + $overwriteGain);
+    }
+
+    private function resourceGainPoints(int $jobId): int
+    {
+        $metadata = $this->prototypeCatalog->artResourceMetadataForJobRank($jobId, 1) ?? [];
+
+        return max(0, (int) ($metadata['resource_gain_points'] ?? 0));
     }
 
     /** @return list<string> */

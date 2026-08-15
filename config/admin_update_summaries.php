@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-08-16-rank-battle-remaining-hp-rate',
+        'date' => '2026-08-16',
+        'category' => 'balance',
+        'title' => 'ランク戦の100ターン判定を割合化',
+        'detail' => 'プレイヤー同士とNPCのランク戦で、100ターン終了時は最大体力に対する残り体力の割合を比べるようにしました。挑戦者の割合が高ければ判定勝利、同率または防衛側が高ければ防衛成功になります。',
+    ],
+    [
+        'id' => '2026-08-16-job-art-beginner-system-guide',
+        'date' => '2026-08-16',
+        'category' => 'added',
+        'title' => '戦技セットに初心者向け解説を追加',
+        'detail' => '戦技セット画面から、5枠の候補順、10系譜のリソースの貯め方、PvPの奥義予告と100ターン判定、セット制限をまとめて確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-16-job-art-active-lineage-log-order',
         'date' => '2026-08-16',
         'category' => 'changed',
