@@ -1064,11 +1064,15 @@
                                                 $staminaCostHtml = $usesStamina
                                                     ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
                                                     : '';
-                                                $batchExploreCount = 10;
-                                                $batchStaminaCost = $staminaCost * $batchExploreCount;
-                                                $batchStaminaCostHtml = $usesStamina
-                                                    ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($batchStaminaCost) . '）</span></span>'
-                                                    : '';
+                                                $quickRepeatCounts = \App\Services\ExplorationService::QUICK_REPEAT_COUNTS;
+                                                $minCustomRepeatCount = \App\Services\ExplorationService::MIN_CUSTOM_REPEAT_COUNT;
+                                                $defaultCustomRepeatCount = \App\Services\ExplorationService::DEFAULT_CUSTOM_REPEAT_COUNT;
+                                                $maxRepeatCount = \App\Services\ExplorationService::MAX_REPEAT_COUNT;
+                                                $lowResourceWarningPercent = \App\Services\ExplorationService::LOW_RESOURCE_WARNING_PERCENT;
+                                                $exploreCurrentHp = max(0, (int) ($character->current_hp ?? 0));
+                                                $exploreMaxHp = max(1, (int) ($finalStats['max_hp'] ?? $character->hp_base ?? 1));
+                                                $exploreCurrentSp = max(0, (int) ($character->current_mp ?? 0));
+                                                $exploreMaxSp = max(0, (int) ($finalStats['max_mp'] ?? $character->mp_base ?? 0));
                                             @endphp
                                             @if(!empty($facility['depth_entries']))
                                                 <div class="rounded border border-amber-200 bg-white/85 p-1.5 shadow-sm">
@@ -1122,17 +1126,67 @@
                                                 @php
                                                     $readyActionText = $facility['action'] ?? '探索する';
                                                 @endphp
-                                                <div class="flex w-full items-stretch gap-2">
-                                                    <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="min-w-0 flex-1"
+                                                @if($usesStamina)
+                                                    <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}"
+                                                          method="POST"
+                                                          class="w-full rounded-lg border border-amber-200 bg-white/90 p-2 shadow-sm sm:w-72"
                                                           x-data="{
                                                               submitting: false,
                                                               remaining: {{ $cooldownRemaining }},
+                                                              selectedCount: 1,
+                                                              customCount: {{ $defaultCustomRepeatCount }},
+                                                              customSelected: false,
                                                               staminaCurrent: {{ $staminaCurrent }},
                                                               staminaCost: {{ $staminaCost }},
-                                                              usesStamina: @js($usesStamina),
+                                                              currentHp: {{ $exploreCurrentHp }},
+                                                              maxHp: {{ $exploreMaxHp }},
+                                                              currentSp: {{ $exploreCurrentSp }},
+                                                              maxSp: {{ $exploreMaxSp }},
+                                                              lowPercent: {{ $lowResourceWarningPercent }},
                                                               timer: null,
-                                                              get enoughStamina() { return !this.usesStamina || this.staminaCurrent >= this.staminaCost; },
-                                                              get ready() { return this.remaining <= 0 && this.enoughStamina; },
+                                                              get effectiveCount() {
+                                                                  if (!this.customSelected) return this.selectedCount;
+                                                                  const parsed = Number.parseInt(this.customCount, 10);
+                                                                  if (!Number.isFinite(parsed)) return {{ $defaultCustomRepeatCount }};
+                                                                  return Math.min({{ $maxRepeatCount }}, Math.max({{ $minCustomRepeatCount }}, parsed));
+                                                              },
+                                                              get requiredStamina() { return this.staminaCost * this.effectiveCount; },
+                                                              get staminaAfter() { return Math.max(0, this.staminaCurrent - this.requiredStamina); },
+                                                              get enoughStamina() { return this.staminaCurrent >= this.requiredStamina; },
+                                                              get hpPercent() { return Math.floor((Math.max(0, this.currentHp) / Math.max(1, this.maxHp)) * 100); },
+                                                              get spPercent() { return this.maxSp > 0 ? Math.floor((Math.max(0, this.currentSp) / this.maxSp) * 100) : 100; },
+                                                              get hpAllowsRepeat() { return this.effectiveCount === 1 || this.hpPercent > this.lowPercent; },
+                                                              get ready() { return this.remaining <= 0 && this.enoughStamina && this.hpAllowsRepeat; },
+                                                              get buttonLabel() {
+                                                                  if (this.effectiveCount === 1) return '1回探索する';
+                                                                  return `${this.effectiveCount}回まとめて探索する`;
+                                                              },
+                                                              get resourceWarning() {
+                                                                  const hpLow = this.hpPercent <= this.lowPercent;
+                                                                  const spLow = this.spPercent <= this.lowPercent;
+                                                                  if (hpLow && spLow) return 'HP/SPが少ないため、途中で敗北する可能性があります。';
+                                                                  if (hpLow) return 'HPが少ないため、途中で敗北する可能性があります。';
+                                                                  if (spLow) return 'SPが少ないため、途中で敗北する可能性があります。';
+                                                                  return '';
+                                                              },
+                                                              selectFixedCount(count) {
+                                                                  this.customSelected = false;
+                                                                  this.selectedCount = count;
+                                                              },
+                                                              selectCustomCount() {
+                                                                  this.customSelected = true;
+                                                                  this.customCount = this.effectiveCount;
+                                                              },
+                                                              normalizeCustomCount() {
+                                                                  this.customCount = this.effectiveCount;
+                                                              },
+                                                              adjustCustomCount(delta) {
+                                                                  this.customSelected = true;
+                                                                  this.customCount = Math.min(
+                                                                      {{ $maxRepeatCount }},
+                                                                      Math.max({{ $minCustomRepeatCount }}, this.effectiveCount + delta)
+                                                                  );
+                                                              },
                                                               start() {
                                                                   if (this.remaining <= 0) return;
                                                                   this.timer = setInterval(() => {
@@ -1145,47 +1199,128 @@
                                                               }
                                                           }"
                                                           x-init="start()"
+                                                          @valzeria-stamina-sync.window="staminaCurrent = Math.max(0, Number($event.detail.current || 0))"
                                                           @submit="
                                                               if (!ready) { $event.preventDefault(); return; }
                                                               submitting = true
                                                           ">
+                                                        @csrf
+                                                        <input type="hidden" name="batch_count" x-bind:value="effectiveCount" value="1">
+
+                                                        <div class="mb-1 text-left text-[11px] font-black text-slate-700">探索回数</div>
+                                                        <div class="grid grid-cols-3 overflow-hidden rounded border border-slate-300 bg-white"
+                                                             x-bind:style="customSelected ? 'grid-template-columns: 42px 42px minmax(124px, 1fr)' : 'grid-template-columns: repeat(3, minmax(0, 1fr))'"
+                                                             role="group"
+                                                             aria-label="探索回数">
+                                                            @foreach($quickRepeatCounts as $repeatCount)
+                                                                <button type="button"
+                                                                        @click="selectFixedCount({{ $repeatCount }})"
+                                                                        x-bind:aria-pressed="!customSelected && selectedCount === {{ $repeatCount }}"
+                                                                        x-bind:class="!customSelected && selectedCount === {{ $repeatCount }} ? 'bg-sky-700 text-white shadow-inner' : 'bg-white text-slate-700 hover:bg-slate-50'"
+                                                                        class="min-h-11 border-r border-slate-200 px-0.5 py-1.5 text-xs font-black transition last:border-r-0">
+                                                                    {{ $repeatCount }}回
+                                                                </button>
+                                                            @endforeach
+                                                            <div class="min-w-0">
+                                                                <button type="button"
+                                                                        x-show="!customSelected"
+                                                                        @click="selectCustomCount()"
+                                                                        x-bind:aria-pressed="customSelected"
+                                                                        class="flex min-h-11 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-1 font-black text-slate-700 transition hover:bg-slate-50">
+                                                                    <span class="text-xs leading-none">回数指定</span>
+                                                                    <span class="text-[9px] font-bold leading-none text-slate-500">（2〜50回）</span>
+                                                                </button>
+                                                                <div x-show="customSelected"
+                                                                     style="display:none"
+                                                                     class="flex h-11 min-w-0 items-stretch bg-sky-700 text-white shadow-inner focus-within:ring-2 focus-within:ring-inset focus-within:ring-sky-300"
+                                                                     role="group"
+                                                                     aria-label="任意の探索回数を調整">
+                                                                    <span class="sr-only">2〜50回</span>
+                                                                    <button type="button"
+                                                                            @click="adjustCustomCount(-1)"
+                                                                            x-bind:disabled="effectiveCount <= {{ $minCustomRepeatCount }}"
+                                                                            aria-label="探索回数を1減らす"
+                                                                            class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-r border-sky-500 bg-sky-700 text-xl font-black leading-none text-white transition hover:bg-sky-800 active:bg-sky-900 disabled:cursor-not-allowed disabled:text-sky-300 disabled:opacity-60">
+                                                                        <span aria-hidden="true">−</span>
+                                                                    </button>
+                                                                    <label class="flex h-11 min-w-0 flex-1 items-center justify-center">
+                                                                        <span class="sr-only">探索回数</span>
+                                                                        <input type="number"
+                                                                               min="{{ $minCustomRepeatCount }}"
+                                                                               max="{{ $maxRepeatCount }}"
+                                                                               step="1"
+                                                                               inputmode="numeric"
+                                                                               aria-label="任意の探索回数（2〜50回）"
+                                                                               x-model.number="customCount"
+                                                                               @focus="$event.target.select()"
+                                                                               @input="customSelected = true"
+                                                                               @change="normalizeCustomCount()"
+                                                                               @blur="normalizeCustomCount()"
+                                                                               class="h-11 min-w-0 w-full border-0 bg-sky-700 px-0.5 text-center text-sm font-black text-white [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                                                    </label>
+                                                                    <button type="button"
+                                                                            @click="adjustCustomCount(1)"
+                                                                            x-bind:disabled="effectiveCount >= {{ $maxRepeatCount }}"
+                                                                            aria-label="探索回数を1増やす"
+                                                                            class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-l border-sky-500 bg-sky-700 text-xl font-black leading-none text-white transition hover:bg-sky-800 active:bg-sky-900 disabled:cursor-not-allowed disabled:text-sky-300 disabled:opacity-60">
+                                                                        <span aria-hidden="true">＋</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <p x-show="resourceWarning" x-text="resourceWarning" class="mt-1.5 text-center text-[10px] font-black leading-4 text-amber-700" role="alert" @if($exploreCurrentHp > floor($exploreMaxHp * ($lowResourceWarningPercent / 100)) && ($exploreMaxSp === 0 || $exploreCurrentSp > floor($exploreMaxSp * ($lowResourceWarningPercent / 100)))) style="display:none" @endif></p>
+
+                                                        <button type="submit"
+                                                                x-bind:disabled="submitting || !ready"
+                                                                x-bind:class="ready ? 'border-amber-700 bg-amber-600 text-white hover:bg-amber-700 active:scale-[0.99] cursor-pointer disabled:cursor-wait' : 'border-slate-400 bg-slate-300 text-slate-600 cursor-not-allowed'"
+                                                                class="mt-1.5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black shadow transition-all duration-150 disabled:opacity-80">
+                                                            <x-loading-spinner x-show="submitting" style="display: none;" />
+                                                            <span x-show="!submitting" x-text="buttonLabel">1回探索する</span>
+                                                            <span x-show="submitting" style="display: none;">探索中...</span>
+                                                        </button>
+                                                        <p class="mt-1 flex items-center justify-center gap-1 text-[10px] font-black text-slate-600">
+                                                            <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-3.5 w-3.5 object-contain">
+                                                            <span>探索力</span>
+                                                            <span x-text="`-${requiredStamina.toLocaleString()}`">-{{ number_format($staminaCost) }}</span>
+                                                            <span class="text-slate-400">｜</span>
+                                                            <span x-text="`${staminaCurrent.toLocaleString()} → ${staminaAfter.toLocaleString()}`">{{ number_format($staminaCurrent) }} → {{ number_format(max(0, $staminaCurrent - $staminaCost)) }}</span>
+                                                        </p>
+                                                        <p x-show="!enoughStamina" class="mt-1 text-center text-[10px] font-black text-red-600" @if($staminaCurrent >= $staminaCost) style="display:none" @endif>選択した回数分の探索力が足りません。</p>
+                                                        <p x-show="remaining > 0" x-text="`待機中 あと${remaining}秒`" class="mt-1 text-center text-[10px] font-black text-slate-500" @if($cooldownRemaining <= 0) style="display:none" @endif></p>
+                                                    </form>
+                                                @else
+                                                    <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="w-full"
+                                                          x-data="{
+                                                              submitting: false,
+                                                              remaining: {{ $cooldownRemaining }},
+                                                              timer: null,
+                                                              get ready() { return this.remaining <= 0; },
+                                                              start() {
+                                                                  if (this.remaining <= 0) return;
+                                                                  this.timer = setInterval(() => {
+                                                                      this.remaining = Math.max(0, this.remaining - 1);
+                                                                      if (this.remaining <= 0 && this.timer) {
+                                                                          clearInterval(this.timer);
+                                                                          this.timer = null;
+                                                                      }
+                                                                  }, 1000);
+                                                              }
+                                                          }"
+                                                          x-init="start()"
+                                                          @submit="if (!ready) { $event.preventDefault(); return; } submitting = true">
                                                         @csrf
                                                         <button type="submit"
                                                                 x-bind:disabled="submitting || !ready"
                                                                 x-bind:class="ready ? 'bg-[#1e40af] text-white hover:bg-[#1e3a8a] border-[#1e3a8a] active:scale-95 cursor-pointer disabled:cursor-wait' : 'bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed'"
                                                                 class="inline-flex h-full w-full items-center justify-center gap-2 border-2 px-4 py-1.5 rounded text-sm font-bold shadow transition-all duration-150 text-center disabled:opacity-80">
                                                             <x-loading-spinner x-show="submitting" style="display: none;" />
-                                                            <span x-show="!submitting && ready" class="inline-flex items-center gap-1">{{ $readyActionText }} {!! $staminaCostHtml !!}</span>
-                                                            <span x-show="!submitting && !ready" x-text="enoughStamina ? `待機中 あと${remaining}秒` : '探索力不足'">{{ $usesStamina && $staminaCurrent < $staminaCost ? '探索力不足' : ($cooldownRemaining > 0 ? '待機中 あと' . $cooldownRemaining . '秒' : $readyActionText) }}</span>
+                                                            <span x-show="!submitting && ready">{{ $readyActionText }}</span>
+                                                            <span x-show="!submitting && !ready" x-text="`待機中 あと${remaining}秒`">{{ $cooldownRemaining > 0 ? '待機中 あと' . $cooldownRemaining . '秒' : $readyActionText }}</span>
                                                             <span x-show="submitting" style="display: none;">探索中...</span>
                                                         </button>
                                                     </form>
-                                                    @if($usesStamina)
-                                                        <form action="{{ route('battle.explore', ['area' => $facility['id']]) }}" method="POST" class="shrink-0"
-                                                              x-data="{
-                                                                  submitting: false,
-                                                                  staminaCurrent: {{ $staminaCurrent }},
-                                                                  staminaCost: {{ $staminaCost }},
-                                                                  get ready() { return this.staminaCurrent >= this.staminaCost; }
-                                                              }"
-                                                              @submit="
-                                                                  if (!ready) { $event.preventDefault(); return; }
-                                                                  submitting = true
-                                                              ">
-                                                            @csrf
-                                                            <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
-                                                            <button type="submit"
-                                                                    title="探索力を1回ごとに消費して最大10回探索"
-                                                                    x-bind:disabled="submitting || !ready"
-                                                                    x-bind:class="ready ? 'bg-sky-700 text-white hover:bg-sky-800 border-sky-800 active:scale-95 cursor-pointer disabled:cursor-wait' : 'bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed'"
-                                                                    class="inline-flex h-full items-center justify-center gap-1.5 border-2 px-3 rounded text-xs font-bold shadow transition-all duration-150 text-center disabled:opacity-80">
-                                                                <x-loading-spinner x-show="submitting" style="display: none;" />
-                                                                <span x-show="!submitting">×10 探索</span>
-                                                                <span x-show="submitting" style="display: none;">探索中...</span>
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                </div>
+                                                @endif
                                             @endif
                                             @if(isset($facility['boss_action']))
                                                 <form action="{{ route('battle.boss', ['area' => $facility['id']]) }}" method="POST" class="w-full"

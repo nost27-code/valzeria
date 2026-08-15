@@ -181,7 +181,7 @@
                                             </p>
                                             @if(!empty($result['batch_explore']))
                                                 <p class="mt-3 rounded-lg border border-amber-200/50 bg-amber-400/15 px-3 py-2 text-sm font-black leading-7 text-amber-100">
-                                                    10回探索は入口で一時停止しています。まだ深度は切り替わっていません。下の「{{ $depthLabel }}へ進む」を選ぶと次の深度へ入り、引き返す・戦利品を持って帰る場合は現在の深度のままです。
+                                                    {{ number_format((int) ($result['batch_explore']['requested'] ?? 10)) }}回探索は入口で一時停止しています。まだ深度は切り替わっていません。下の「{{ $depthLabel }}へ進む」を選ぶと次の深度へ入り、引き返す・戦利品を持って帰る場合は現在の深度のままです。
                                                 </p>
                                             @endif
                                         </div>
@@ -603,7 +603,7 @@
                             <div class="mb-6 -mx-3 rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm">
                                 <h3 class="mb-3 flex items-center gap-2 text-base font-extrabold text-sky-900">
                                     <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-5 w-5 object-contain">
-                                    10回探索の結果
+                                    {{ number_format((int) ($batchExplore['requested'] ?? 10)) }}回探索の結果
                                 </h3>
                                 <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                     <div class="rounded border border-sky-100 bg-white px-3 py-2">
@@ -1688,6 +1688,17 @@
                             $batchExploreCount = 10;
                             $batchStaminaCost = $staminaCost * $batchExploreCount;
                             $batchStartStaminaCost = $staminaCost;
+                            $quickRepeatCounts = \App\Services\ExplorationService::QUICK_REPEAT_COUNTS;
+                            $minCustomRepeatCount = \App\Services\ExplorationService::MIN_CUSTOM_REPEAT_COUNT;
+                            $defaultCustomRepeatCount = \App\Services\ExplorationService::DEFAULT_CUSTOM_REPEAT_COUNT;
+                            $maxRepeatCount = \App\Services\ExplorationService::MAX_REPEAT_COUNT;
+                            $selectedExploreCount = \App\Services\ExplorationService::normalizeRepeatCount($selectedExploreCount ?? 1);
+                            $customExploreSelected = !in_array($selectedExploreCount, $quickRepeatCounts, true);
+                            $customExploreCount = $customExploreSelected ? $selectedExploreCount : $defaultCustomRepeatCount;
+                            $selectedStaminaCost = \App\Services\ExplorationService::staminaCostForCount($staminaCost, $selectedExploreCount);
+                            $selectedHasStamina = (int) ($stamina['current'] ?? 0) >= $selectedStaminaCost;
+                            $lowResourceWarningPercent = \App\Services\ExplorationService::LOW_RESOURCE_WARNING_PERCENT;
+                            $selectedHpBlocked = $selectedExploreCount > 1 && ($hpPercent ?? 100) <= $lowResourceWarningPercent;
                             $staminaCostHtml = $usesStamina
                                 ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
                                 : '';
@@ -1874,32 +1885,203 @@
                                 </button>
                             </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['result'] === 'victory' || $result['result'] === 'win'))
-                            <div class="w-full max-w-md sm:w-auto">
-                                <div class="flex items-stretch justify-center gap-2">
-                                    <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" class="min-w-0 flex-1 sm:flex-none">
-                                        @csrf
-                                        <input type="hidden" name="continue_chain" value="1">
-                                        <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="h-full w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-7 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2">
-                                            <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
-                                            <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する ' . $staminaCostHtml) !!}</span>
-                                        </button>
-                                    </form>
-                                    @if($usesStamina)
-                                        <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
+                            @if($usesStamina && !isset($mapExploration))
+                                <form action="{{ route('battle.explore', ['area' => $areaId]) }}"
+                                      method="POST"
+                                      id="explore-form"
+                                      data-async-explore-form
+                                      data-explore-count-form
+                                      data-wait-seconds="{{ $battleWaitSeconds }}"
+                                      data-initial-lock-seconds="{{ $initialExploreLockSeconds }}"
+                                      data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}"
+                                      data-current-hp="{{ $remainingHp ?? 0 }}"
+                                      data-max-hp="{{ $maxHp ?? 1 }}"
+                                      data-current-sp="{{ $remainingMp ?? 0 }}"
+                                      data-max-sp="{{ $maxMp ?? 1 }}"
+                                      data-min-hp-percent="{{ $lowResourceWarningPercent }}"
+                                      data-selected-count="{{ $selectedExploreCount }}"
+                                      data-required-stamina="{{ $selectedStaminaCost }}"
+                                      data-ready-text="{{ $selectedExploreCount === 1 ? '1回探索する' : $selectedExploreCount . '回まとめて探索する' }}"
+                                      data-stamina-warning="探索力が足りません。探索回数を減らすか、探索力を回復してください。"
+                                      x-data="{
+                                          selectedCount: {{ $selectedExploreCount }},
+                                          customCount: {{ $customExploreCount }},
+                                          customSelected: @js($customExploreSelected),
+                                          staminaCurrent: {{ (int) ($stamina['current'] ?? 0) }},
+                                          staminaCost: {{ $staminaCost }},
+                                          currentHp: {{ $remainingHp ?? 0 }},
+                                          maxHp: {{ $maxHp ?? 1 }},
+                                          currentSp: {{ $remainingMp ?? 0 }},
+                                          maxSp: {{ $maxMp ?? 1 }},
+                                          lowPercent: {{ $lowResourceWarningPercent }},
+                                          get effectiveCount() {
+                                              if (!this.customSelected) return this.selectedCount;
+                                              const parsed = Number.parseInt(this.customCount, 10);
+                                              if (!Number.isFinite(parsed)) return {{ $defaultCustomRepeatCount }};
+                                              return Math.min({{ $maxRepeatCount }}, Math.max({{ $minCustomRepeatCount }}, parsed));
+                                          },
+                                          get requiredStamina() { return this.staminaCost * this.effectiveCount; },
+                                          get staminaAfter() { return Math.max(0, this.staminaCurrent - this.requiredStamina); },
+                                          get hpPercent() { return Math.floor((Math.max(0, this.currentHp) / Math.max(1, this.maxHp)) * 100); },
+                                          get spPercent() { return this.maxSp > 0 ? Math.floor((Math.max(0, this.currentSp) / this.maxSp) * 100) : 100; },
+                                          get buttonLabel() {
+                                              if (this.effectiveCount === 1) return '1回探索する';
+                                              return `${this.effectiveCount}回まとめて探索する`;
+                                          },
+                                          get resourceWarning() {
+                                              const hpLow = this.hpPercent <= this.lowPercent;
+                                              const spLow = this.spPercent <= this.lowPercent;
+                                              if (hpLow && spLow) return 'HP/SPが少ないため、途中で敗北する可能性があります。';
+                                              if (hpLow) return 'HPが少ないため、途中で敗北する可能性があります。';
+                                              if (spLow) return 'SPが少ないため、途中で敗北する可能性があります。';
+                                              return '';
+                                          },
+                                          syncButtonState() {
+                                              this.$nextTick(() => window.dispatchEvent(new CustomEvent('explore-count-state-changed')));
+                                          },
+                                          selectFixedCount(count) {
+                                              this.customSelected = false;
+                                              this.selectedCount = count;
+                                              this.syncButtonState();
+                                          },
+                                          selectCustomCount() {
+                                              this.customSelected = true;
+                                              this.customCount = this.effectiveCount;
+                                              this.syncButtonState();
+                                          },
+                                          normalizeCustomCount() {
+                                              this.customCount = this.effectiveCount;
+                                              this.syncButtonState();
+                                          },
+                                          adjustCustomCount(delta) {
+                                              this.customSelected = true;
+                                              this.customCount = Math.min(
+                                                  {{ $maxRepeatCount }},
+                                                  Math.max({{ $minCustomRepeatCount }}, this.effectiveCount + delta)
+                                              );
+                                              this.syncButtonState();
+                                          }
+                                      }"
+                                      x-bind:data-selected-count="effectiveCount"
+                                      x-bind:data-required-stamina="requiredStamina"
+                                      x-bind:data-ready-text="buttonLabel"
+                                      @valzeria-stamina-sync.window="staminaCurrent = Math.max(0, Number($event.detail.current || 0)); syncButtonState()"
+                                      @battle-stamina-updated.window="staminaCurrent = Math.max(0, Number($event.detail.current || 0)); syncButtonState()"
+                                      @battle-hp-updated.window="currentHp = Math.max(0, Number($event.detail.current || 0)); maxHp = Math.max(1, Number($event.detail.max || 1)); syncButtonState()"
+                                      @battle-sp-updated.window="currentSp = Math.max(0, Number($event.detail.current || 0)); maxSp = Math.max(0, Number($event.detail.max || 0))"
+                                      class="w-full max-w-md rounded-xl border border-amber-200 bg-amber-50/70 p-3 shadow-sm">
+                                    @csrf
+                                    <input type="hidden" name="continue_chain" value="1">
+                                    <input type="hidden" name="batch_count" x-bind:value="effectiveCount" value="{{ $selectedExploreCount }}">
+
+                                    <div class="mb-1 text-left text-xs font-black text-slate-700">探索回数</div>
+                                    <div class="grid grid-cols-3 overflow-hidden rounded-lg border border-slate-300 bg-white"
+                                         x-bind:style="customSelected ? 'grid-template-columns: 42px 42px minmax(124px, 1fr)' : 'grid-template-columns: repeat(3, minmax(0, 1fr))'"
+                                         role="group"
+                                         aria-label="探索回数">
+                                        @foreach($quickRepeatCounts as $repeatCount)
+                                            <button type="button"
+                                                    @click="selectFixedCount({{ $repeatCount }})"
+                                                    x-bind:aria-pressed="!customSelected && selectedCount === {{ $repeatCount }}"
+                                                    x-bind:class="!customSelected && selectedCount === {{ $repeatCount }} ? 'bg-sky-700 text-white shadow-inner' : 'bg-white text-slate-700 hover:bg-slate-50'"
+                                                    class="min-h-11 border-r border-slate-200 px-0.5 py-2 text-xs font-black transition last:border-r-0">
+                                                {{ $repeatCount }}回
+                                            </button>
+                                        @endforeach
+                                        <div class="min-w-0">
+                                            <button type="button"
+                                                    x-show="!customSelected"
+                                                    @click="selectCustomCount()"
+                                                    x-bind:aria-pressed="customSelected"
+                                                    class="flex min-h-11 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-1 font-black text-slate-700 transition hover:bg-slate-50">
+                                                <span class="text-xs leading-none">回数指定</span>
+                                                <span class="text-[9px] font-bold leading-none text-slate-500">（2〜50回）</span>
+                                            </button>
+                                            <div x-show="customSelected"
+                                                 style="display:none"
+                                                 class="flex h-11 min-w-0 items-stretch bg-sky-700 text-white shadow-inner focus-within:ring-2 focus-within:ring-inset focus-within:ring-sky-300"
+                                                 role="group"
+                                                 aria-label="任意の探索回数を調整">
+                                                <span class="sr-only">2〜50回</span>
+                                                <button type="button"
+                                                        @click="adjustCustomCount(-1)"
+                                                        x-bind:disabled="effectiveCount <= {{ $minCustomRepeatCount }}"
+                                                        aria-label="探索回数を1減らす"
+                                                        class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-r border-sky-500 bg-sky-700 text-xl font-black leading-none text-white transition hover:bg-sky-800 active:bg-sky-900 disabled:cursor-not-allowed disabled:text-sky-300 disabled:opacity-60">
+                                                    <span aria-hidden="true">−</span>
+                                                </button>
+                                                <label class="flex h-11 min-w-0 flex-1 items-center justify-center">
+                                                    <span class="sr-only">探索回数</span>
+                                                    <input type="number"
+                                                           min="{{ $minCustomRepeatCount }}"
+                                                           max="{{ $maxRepeatCount }}"
+                                                           step="1"
+                                                           inputmode="numeric"
+                                                           aria-label="任意の探索回数（2〜50回）"
+                                                           x-model.number="customCount"
+                                                           @focus="$event.target.select()"
+                                                           @input="customSelected = true; syncButtonState()"
+                                                           @change="normalizeCustomCount()"
+                                                           @blur="normalizeCustomCount()"
+                                                           class="h-11 min-w-0 w-full border-0 bg-sky-700 px-0.5 text-center text-sm font-black text-white [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                                </label>
+                                                <button type="button"
+                                                        @click="adjustCustomCount(1)"
+                                                        x-bind:disabled="effectiveCount >= {{ $maxRepeatCount }}"
+                                                        aria-label="探索回数を1増やす"
+                                                        class="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center border-l border-sky-500 bg-sky-700 text-xl font-black leading-none text-white transition hover:bg-sky-800 active:bg-sky-900 disabled:cursor-not-allowed disabled:text-sky-300 disabled:opacity-60">
+                                                    <span aria-hidden="true">＋</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p x-show="resourceWarning" x-text="resourceWarning" class="mt-2 text-center text-xs font-black leading-5 text-amber-700" role="alert" @if(($hpPercent ?? 100) > $lowResourceWarningPercent && ($mpPercent ?? 100) > $lowResourceWarningPercent) style="display:none" @endif></p>
+
+                                    <button type="submit"
+                                            id="explore-btn"
+                                            @disabled($battleWaitSeconds > 0 || $initialExploreLockSeconds > 0 || !$selectedHasStamina || $selectedHpBlocked)
+                                            class="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-amber-700 bg-amber-600 px-4 py-3 text-base font-black text-white shadow-md transition hover:bg-amber-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:border-slate-400 disabled:bg-slate-400">
+                                        <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                        <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="h-5 w-5 object-contain">
+                                        <span id="explore-btn-text" x-text="buttonLabel">{{ $selectedExploreCount === 1 ? '1回探索する' : $selectedExploreCount . '回まとめて探索する' }}</span>
+                                    </button>
+                                    <p class="mt-1.5 flex items-center justify-center gap-1 text-xs font-black text-slate-600">
+                                        <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                        <span>探索力</span>
+                                        <span x-text="`-${requiredStamina.toLocaleString()}`">-{{ number_format($selectedStaminaCost) }}</span>
+                                        <span class="text-slate-400">｜</span>
+                                        <span x-text="`${staminaCurrent.toLocaleString()} → ${staminaAfter.toLocaleString()}`">{{ number_format((int) ($stamina['current'] ?? 0)) }} → {{ number_format(max(0, (int) ($stamina['current'] ?? 0) - $selectedStaminaCost)) }}</span>
+                                    </p>
+                                </form>
+                            @else
+                                <div class="w-full max-w-md sm:w-auto">
+                                    <div class="flex items-stretch justify-center gap-2">
+                                        <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" class="min-w-0 flex-1 sm:flex-none">
                                             @csrf
                                             <input type="hidden" name="continue_chain" value="1">
-                                            <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
-                                            <button type="submit" id="explore-btn" title="探索力を{{ number_format($batchStaminaCost) }}消費して最大10回探索" class="h-full bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold px-3.5 rounded-lg shadow-md transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                                            <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="h-full w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-7 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2">
                                                 <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
-                                                <span id="explore-btn-text">×10 探索</span>
+                                                <img src="{{ asset('images/icon/icon_005.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する ' . $staminaCostHtml) !!}</span>
                                             </button>
                                         </form>
+                                        @if($usesStamina)
+                                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
+                                                @csrf
+                                                <input type="hidden" name="continue_chain" value="1">
+                                                <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
+                                                <button type="submit" id="explore-btn" title="探索力を{{ number_format($batchStaminaCost) }}消費して最大10回探索" class="h-full bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold px-3.5 rounded-lg shadow-md transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                                                    <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                                    <span id="explore-btn-text">×10 探索</span>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                    @if($usesStamina)
+                                        <p id="batch-explore-inline-warning" class="mt-2 hidden text-center text-xs font-black leading-5 text-red-600"></p>
                                     @endif
                                 </div>
-                                @if($usesStamina)
-                                    <p id="batch-explore-inline-warning" class="mt-2 hidden text-center text-xs font-black leading-5 text-red-600"></p>
-                                @endif
-                            </div>
+                            @endif
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '連続で戦闘'))
                             @php
                                 $retryWaitSeconds = max(1, $battleWaitSeconds);
@@ -2231,7 +2413,7 @@
             function openBatchStaminaModal(form, current, required) {
                 const modal = batchStaminaModal();
                 if (!modal) {
-                    showBattleToast(form.dataset.staminaWarning || '×10探索には探索力が足りません。探索力の小瓶や薬で回復してから探索してください。', 'warning');
+                    showBattleToast(form.dataset.staminaWarning || '探索力が足りません。探索回数を減らすか、探索力を回復してください。', 'warning');
                     return;
                 }
 
@@ -2336,6 +2518,26 @@
 
                 warning.textContent = text || '';
                 warning.classList.toggle('hidden', !text);
+            }
+
+            function selectedExploreCountForForm(form) {
+                if (!form) return 1;
+
+                const selected = Number.parseInt(form.dataset.selectedCount || '', 10);
+                if (Number.isInteger(selected)
+                    && selected >= {{ \App\Services\ExplorationService::MIN_REPEAT_COUNT }}
+                    && selected <= {{ \App\Services\ExplorationService::MAX_REPEAT_COUNT }}) {
+                    return selected;
+                }
+
+                const input = form.querySelector('input[name="batch_count"]');
+                const inputCount = Number.parseInt(input?.value || '1', 10);
+
+                return Number.isInteger(inputCount)
+                    && inputCount >= {{ \App\Services\ExplorationService::MIN_REPEAT_COUNT }}
+                    && inputCount <= {{ \App\Services\ExplorationService::MAX_REPEAT_COUNT }}
+                    ? inputCount
+                    : 1;
             }
 
             async function useBatchStaminaItem(button) {
@@ -2453,7 +2655,11 @@
             }
 
             function batchExploreHpBlocked(form) {
-                if (!form?.hasAttribute('data-batch-explore-form')) return false;
+                if (!form?.hasAttribute('data-batch-explore-form') && !form?.hasAttribute('data-explore-count-form')) return false;
+                if (selectedExploreCountForForm(form) <= 1) {
+                    setBatchExploreInlineWarning(form);
+                    return false;
+                }
 
                 const currentHp = Number.parseInt(form.dataset.currentHp || '0', 10);
                 const maxHp = Math.max(1, Number.parseInt(form.dataset.maxHp || '1', 10));
@@ -2465,7 +2671,7 @@
                     return false;
                 }
 
-                setBatchExploreInlineWarning(form, form.dataset.hpWarning || '×10探索を続けるにはHPを回復してください。');
+                setBatchExploreInlineWarning(form, form.dataset.hpWarning || '連続探索を続けるにはHPを回復してください。');
                 return true;
             }
 
@@ -2507,6 +2713,11 @@
                 const buttonText = form.querySelector('#explore-btn-text');
                 if (!button || !buttonText) return;
 
+                if (form.dataset.timerReady === '0') {
+                    button.disabled = true;
+                    return;
+                }
+
                 if (!form.hasAttribute('data-required-stamina')) {
                     button.disabled = false;
                     setExploreButtonReadyText(form, buttonText);
@@ -2515,8 +2726,9 @@
 
                 const current = Number.parseInt(form.dataset.currentStamina || '0', 10);
                 const required = Math.max(1, Number.parseInt(form.dataset.requiredStamina || '1', 10));
-                button.disabled = false;
-                if (current < required && !form.hasAttribute('data-batch-explore-form')) {
+                const hpBlocked = batchExploreHpBlocked(form);
+                button.disabled = current < required || hpBlocked;
+                if (current < required) {
                     buttonText.textContent = '探索力不足';
                     return;
                 }
@@ -2532,7 +2744,7 @@
                     ? normalizedRecoverySeconds
                     : Math.max(0, Number(nextRecoverySeconds || 0));
 
-                document.querySelectorAll('[data-batch-explore-form]').forEach((form) => {
+                document.querySelectorAll('[data-batch-explore-form], [data-explore-count-form]').forEach((form) => {
                     form.dataset.currentStamina = String(normalizedCurrent);
                     if (normalizedMax !== null) {
                         form.dataset.maxStamina = String(normalizedMax);
@@ -2594,10 +2806,12 @@
                 hpBar.style.background = colors.bar;
                 hpPercentText.textContent = `残り ${percent}%`;
 
-                document.querySelectorAll('[data-batch-explore-form]').forEach((form) => {
+                document.querySelectorAll('[data-batch-explore-form], [data-explore-count-form]').forEach((form) => {
                     form.dataset.currentHp = String(current);
                     form.dataset.maxHp = String(max);
+                    setExploreFormStaminaState(form);
                 });
+                window.dispatchEvent(new CustomEvent('battle-hp-updated', { detail: { current, max } }));
             }
 
             function updateMp(mp) {
@@ -2613,6 +2827,12 @@
                 mpText.innerHTML = `${formatNumber.format(current)} / ${formatNumber.format(max)}&ensp;<span style="opacity:0.7;">${percent}%</span>`;
                 mpBar.style.width = `${percent}%`;
                 mpPercentText.textContent = `残り ${percent}%`;
+
+                document.querySelectorAll('[data-explore-count-form]').forEach((form) => {
+                    form.dataset.currentSp = String(current);
+                    form.dataset.maxSp = String(max);
+                });
+                window.dispatchEvent(new CustomEvent('battle-sp-updated', { detail: { current, max } }));
             }
 
             function updateExplorationItems(items) {
@@ -2683,13 +2903,12 @@
                     window.setTimeout(() => {
                         form.dataset.submitted = '0';
                         if (button) {
-                            button.disabled = false;
                             button.classList.remove('scale-95', 'opacity-80');
                         }
                         if (spinner) {
                             spinner.classList.add('hidden');
                         }
-                        setExploreButtonReadyText(form, buttonText);
+                        setExploreFormStaminaState(form);
                     }, Math.max(1, seconds) * 1000);
                 };
 
@@ -2784,6 +3003,7 @@
                     }
                     if (timeLeft <= 0) {
                         if (Number.isFinite(initialLockSeconds) && initialLockSeconds > 0 && form.dataset.initialLockDone !== '1') {
+                            form.dataset.timerReady = '0';
                             form.dataset.initialLockDone = '1';
                             button.disabled = true;
                             if (spinner) {
@@ -2796,18 +3016,20 @@
                                 if (spinner) {
                                     spinner.classList.add('hidden');
                                 }
+                                form.dataset.timerReady = '1';
                                 setExploreFormStaminaState(form);
                             }, initialLockSeconds * 1000);
                             return;
                         }
 
-                        button.disabled = false;
+                        form.dataset.timerReady = '1';
                         if (spinner) {
                             spinner.classList.add('hidden');
                         }
                         setExploreFormStaminaState(form);
                         return;
                     }
+                    form.dataset.timerReady = '0';
                     buttonText.textContent = 'あと ' + timeLeft + ' 秒...';
                     const timer = setInterval(() => {
                         if (!document.body.contains(form)) {
@@ -2818,7 +3040,7 @@
                         timeLeft--;
                         if (timeLeft <= 0) {
                             clearInterval(timer);
-                            button.disabled = false;
+                            form.dataset.timerReady = '1';
                             if (spinner) {
                                 spinner.classList.add('hidden');
                             }
@@ -2837,6 +3059,10 @@
                     event.detail?.recoverySeconds ?? null,
                     event.detail?.nextRecoverySeconds ?? null
                 );
+            });
+
+            window.addEventListener('explore-count-state-changed', function() {
+                document.querySelectorAll('[data-explore-count-form]').forEach(setExploreFormStaminaState);
             });
 
             document.addEventListener('click', function(event) {

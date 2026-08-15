@@ -34,6 +34,8 @@ class BattleController extends Controller
 {
     private const EXPLORE_REQUEST_DELAY_SECONDS = 2;
 
+    private const EXPLORE_COUNT_SESSION_PREFIX = 'exploration_selected_count.';
+
     protected ExplorationService $explorationService;
     protected CharacterStatusService $statusService;
     protected \App\Services\AreaService $areaService;
@@ -164,7 +166,7 @@ class BattleController extends Controller
         }
 
         $forcedEvent = $request->boolean('challenge_dungeon_lord') ? 'dungeon_lord' : null;
-        $batchCount = (int) $request->input('batch_count', 1);
+        $batchCount = $this->resolveExploreCount($request, $character);
         $canBatchExplore = $batchCount > 1
             && $targetDepth === ''
             && $forcedEvent === null
@@ -174,7 +176,7 @@ class BattleController extends Controller
             $result = $this->explorationService->exploreRepeated(
                 $character,
                 $areaId,
-                min(10, $batchCount)
+                $batchCount
             );
         } else {
             $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
@@ -192,6 +194,7 @@ class BattleController extends Controller
             'areaId' => $areaId,
             'isBoss' => false,
             'jobLevel' => $jobLevel,
+            'selectedExploreCount' => $batchCount,
         ];
 
         return redirect()->route('battle.result')->with('battleData', $battleData);
@@ -537,6 +540,7 @@ class BattleController extends Controller
             $explorationStateService = app(\App\Services\ExplorationStateService::class);
             $explorationStateService->reset($character);
             app(\App\Services\MapExplorationItemService::class)->end($character);
+            $this->forgetExploreCount($character);
         }
 
         session()->forget(['lastBattleData', 'active_map_exploration']);
@@ -572,6 +576,7 @@ class BattleController extends Controller
             app(\App\Services\ValmonService::class)->hatchActiveEggs($character);
             app(ExplorationStateService::class)->reset($character);
             app(\App\Services\MapExplorationItemService::class)->end($character);
+            $this->forgetExploreCount($character);
         }
 
         session()->forget(['lastBattleData', 'active_map_exploration']);
@@ -1104,6 +1109,13 @@ class BattleController extends Controller
         // セッションから復元した際に配列化されている場合の対策
         // ログイン中のキャラクターを再取得
         $battleData['character'] = Auth::user()->currentCharacter();
+        $battleData['selectedExploreCount'] = isset($battleData['mapExploration'])
+            ? 1
+            : ExplorationService::normalizeRepeatCount(
+                $battleData['selectedExploreCount']
+                    ?? session($this->exploreCountSessionKey($battleData['character']), 1)
+            );
+        session(['lastBattleData' => $battleData]);
         \App\Livewire\MainScreen::clearHomeCache($battleData['character']->id);
         $battleData['hasActiveValmonEgg'] = $this->hasActiveValmonEgg($battleData['character']);
         $battleData['finalStats'] = $this->statusService->getFinalStats($battleData['character']);
@@ -1170,6 +1182,29 @@ class BattleController extends Controller
 
         return response()->view('battle.result', $battleData)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    private function resolveExploreCount(Request $request, Character $character): int
+    {
+        $count = $request->has('batch_count')
+            ? ExplorationService::normalizeRepeatCount($request->input('batch_count'))
+            : ($request->boolean('continue_chain')
+                ? ExplorationService::normalizeRepeatCount(session($this->exploreCountSessionKey($character), 1))
+                : 1);
+
+        session([$this->exploreCountSessionKey($character) => $count]);
+
+        return $count;
+    }
+
+    private function forgetExploreCount(Character $character): void
+    {
+        session()->forget($this->exploreCountSessionKey($character));
+    }
+
+    private function exploreCountSessionKey(Character $character): string
+    {
+        return self::EXPLORE_COUNT_SESSION_PREFIX . $character->id;
     }
 
     private function hasActiveValmonEgg(Character $character): bool

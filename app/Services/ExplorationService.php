@@ -16,6 +16,18 @@ use App\Support\CharacterIconCatalog;
 
 class ExplorationService
 {
+    public const QUICK_REPEAT_COUNTS = [1, 10];
+
+    public const MIN_REPEAT_COUNT = 1;
+
+    public const MIN_CUSTOM_REPEAT_COUNT = 2;
+
+    public const DEFAULT_CUSTOM_REPEAT_COUNT = 50;
+
+    public const MAX_REPEAT_COUNT = 50;
+
+    public const LOW_RESOURCE_WARNING_PERCENT = 30;
+
     private const COMMON_MONSTER_FRAGMENT_CODE = 'MAT_COMMON_MONSTER_FRAGMENT';
     private const LEGACY_COMMON_FRAGMENT_CODES = ['WEV0001', '5001', 'ACC0001', 'MAT_WEAPON_FRAGMENT'];
     private const GOLDEN_GOBLIN_REWARD_MIN_MULTIPLIER = 2.0;
@@ -53,6 +65,23 @@ class ExplorationService
         $this->publicLogService = $publicLogService;
         $this->kisekiDropService = $kisekiDropService;
         $this->discoveryService = $discoveryService;
+    }
+
+    public static function normalizeRepeatCount(mixed $count): int
+    {
+        $count = filter_var($count, FILTER_VALIDATE_INT, [
+            'options' => [
+                'min_range' => self::MIN_REPEAT_COUNT,
+                'max_range' => self::MAX_REPEAT_COUNT,
+            ],
+        ]);
+
+        return $count === false ? 1 : $count;
+    }
+
+    public static function staminaCostForCount(int $perRunCost, int $count): int
+    {
+        return max(1, $perRunCost) * self::normalizeRepeatCount($count);
     }
 
     /**
@@ -880,12 +909,36 @@ class ExplorationService
 
     public function exploreRepeated(Character $character, int $areaId, int $requestedCount = 10): array
     {
-        $requestedCount = max(2, min(10, $requestedCount));
+        $requestedCount = self::normalizeRepeatCount($requestedCount);
         $staminaService = app(ExplorationStaminaService::class);
+        if ($requestedCount === 1) {
+            return [
+                'error' => '連続探索の回数が正しくありません。',
+                'exploration_stamina' => $staminaService->summary($character),
+            ];
+        }
+
         if (!$staminaService->enabled()) {
             return [
-                'error' => '10回探索は探索力制が有効な時だけ使えます。',
+                'error' => 'まとめて探索は探索力制が有効な時だけ使えます。',
                 'exploration_stamina' => $staminaService->summary($character),
+            ];
+        }
+
+        $initialStamina = $staminaService->summary($character);
+        $requiredStamina = self::staminaCostForCount(
+            (int) ($initialStamina['cost'] ?? 1),
+            $requestedCount,
+        );
+        if ((int) ($initialStamina['current'] ?? 0) < $requiredStamina) {
+            return [
+                'error' => "{$requestedCount}回探索には探索力が" . number_format($requiredStamina) . '必要です。',
+                'exploration_stamina' => $initialStamina,
+                'batch_explore' => [
+                    'requested' => $requestedCount,
+                    'completed' => 0,
+                    'stop_reason' => 'stamina_shortage',
+                ],
             ];
         }
 
@@ -915,7 +968,7 @@ class ExplorationService
 
             $finalStats = app(CharacterStatusService::class)->getFinalStats($character);
             $maxHp = max(1, (int) ($finalStats['max_hp'] ?? $character->hp_base ?? 1));
-            $pinchHp = max(1, (int) floor($maxHp * 0.3));
+            $pinchHp = max(1, (int) floor($maxHp * (self::LOW_RESOURCE_WARNING_PERCENT / 100)));
             if ((int) $character->current_hp <= $pinchHp) {
                 $stopReason = 'hp_pinch';
                 break;
@@ -1019,7 +1072,7 @@ class ExplorationService
                 'error' => match ($stopReason) {
                     'hp_pinch' => 'HPが少なくなっています。宿屋や回復アイテムで整えてから探索してください。',
                     'stamina_empty' => '探索力が足りません。回復を待つか、探索力回復アイテムを使ってください。',
-                    default => '10回探索を開始できませんでした。',
+                    default => "{$requestedCount}回探索を開始できませんでした。",
                 },
                 'exploration_stamina' => $staminaService->summary($character),
                 'batch_explore' => [
@@ -1031,7 +1084,7 @@ class ExplorationService
         }
 
         $summaryLines = [
-            '<span class="text-sky-800 font-extrabold">【10回探索】最大' . $requestedCount . '回の連続探索を行いました。</span>',
+            '<span class="text-sky-800 font-extrabold">【' . $requestedCount . '回探索】最大' . $requestedCount . '回の連続探索を行いました。</span>',
         ];
         foreach ($runs as $run) {
             $isTreasureRun = ($run['special_event'] ?? null) === 'treasure';
