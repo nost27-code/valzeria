@@ -2,10 +2,11 @@
     $lineageGuides = collect($lineageGuides ?? []);
     $guideMaxSlots = (int) ($maxSlots ?? 5);
     $guideMaxCost = (int) ($maxCost ?? 9);
+    $compact = (bool) ($compact ?? false);
 @endphp
 
 <div
-    class="w-full sm:ml-auto sm:w-auto"
+    class="{{ $compact ? 'shrink-0' : 'w-full sm:ml-auto sm:w-auto' }}"
     x-data="{
         guideOpen: false,
         guideOpener: null,
@@ -27,11 +28,14 @@
         x-bind:aria-expanded="guideOpen.toString()"
         aria-haspopup="dialog"
         aria-controls="job-art-system-guide-modal"
-        class="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-[11px] font-black text-indigo-700 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-100 sm:w-auto"
+        class="inline-flex items-center justify-center gap-1.5 border border-indigo-200 bg-indigo-50 font-black text-indigo-700 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-100 {{ $compact ? 'h-7 rounded-full px-2 text-[10px]' : 'min-h-9 w-full rounded-lg px-3 text-[11px] sm:w-auto' }}"
         data-job-art-system-guide-link
     >
         <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white" aria-hidden="true">?</span>
-        <span>戦技セットの解説を見る</span>
+        <span class="{{ $compact ? 'hidden sm:inline' : '' }}">戦技セットの解説を見る</span>
+        @if($compact)
+            <span class="sm:hidden">解説</span>
+        @endif
     </button>
 
     <template x-teleport="body">

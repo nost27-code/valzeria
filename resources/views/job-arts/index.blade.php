@@ -25,12 +25,34 @@
             $lineageKey => $lineageGuides->get($lineageKey)['lineage_name'] ?? $availableLineages->get($lineageKey),
         ]);
 @endphp
-<x-layouts.facility :title="$pageTitle" headerIcon="✦" bgImage="images/bg-castle.webp" :showExit="false">
-    <div class="mx-auto w-full max-w-[560px] space-y-4 px-3 pb-24" data-job-art-root data-job-art-v2-ui="{{ $jobArtV2UiEnabled ? '1' : '0' }}">
-        <div class="flex items-center justify-between gap-3">
-            <a href="{{ route('home') }}" class="text-sm font-bold text-slate-500 hover:text-slate-800">← 戻る</a>
-            <a href="{{ route('jobs.index') }}" class="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-extrabold text-amber-700">神殿へ</a>
-        </div>
+<x-layouts.facility
+    :title="$pageTitle"
+    headerIcon="✦"
+    bgImage="images/bg-castle.webp"
+    :showExit="false"
+    :showFacilityHeader="!$jobArtV2UiEnabled"
+    :mainContentClass="$jobArtV2UiEnabled ? 'py-3 sm:py-5' : null"
+>
+    <div class="mx-auto w-full pb-24 {{ $jobArtV2UiEnabled ? 'max-w-[680px] space-y-3' : 'max-w-[560px] space-y-4 px-3' }}" data-job-art-root data-job-art-v2-ui="{{ $jobArtV2UiEnabled ? '1' : '0' }}">
+        @if($jobArtV2UiEnabled)
+            <header class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm" data-job-art-page-header>
+                <a href="{{ route('home') }}" aria-label="街へ戻る" class="inline-flex h-10 w-10 items-center justify-center rounded-full text-indigo-700 transition-colors hover:bg-indigo-50">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" class="h-6 w-6" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6" />
+                    </svg>
+                </a>
+                <h1 class="text-center text-[15px] font-black tracking-wide text-slate-950 sm:text-lg">戦技をセットする</h1>
+                <a href="{{ route('jobs.index') }}" class="ml-auto inline-flex min-h-9 items-center justify-center gap-1 rounded-xl border border-indigo-500 px-2.5 text-[11px] font-black text-indigo-700 transition-colors hover:bg-indigo-50 sm:px-3 sm:text-xs">
+                    <span aria-hidden="true">⛩</span>
+                    <span>神殿へ</span>
+                </a>
+            </header>
+        @else
+            <div class="flex items-center justify-between gap-3">
+                <a href="{{ route('home') }}" class="text-sm font-bold text-slate-500 hover:text-slate-800">← 戻る</a>
+                <a href="{{ route('jobs.index') }}" class="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-extrabold text-amber-700">神殿へ</a>
+            </div>
+        @endif
 
         @if(session('message'))
             <div class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
@@ -43,22 +65,21 @@
             </div>
         @endif
 
-        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" data-job-art-overview>
-            <div class="flex items-start justify-between gap-3">
+        <section class="border border-slate-200 bg-white shadow-sm {{ $jobArtV2UiEnabled ? 'rounded-2xl p-4 sm:p-5' : 'rounded-lg p-4' }}" data-job-art-overview>
+            <div class="relative flex items-start justify-between gap-3 overflow-hidden">
                 <div>
-                    <div class="text-xs font-black uppercase tracking-[0.16em] text-amber-600">{{ $jobArtV2UiEnabled ? 'BATTLE ARTS' : 'JOB ARTS' }}</div>
-                    <h1 class="text-xl font-black text-slate-900">{{ $jobArtTerm }}をセットする</h1>
-                    <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">選ぶとその場で自動保存されます。@unless($jobArtV2UiEnabled)最大{{ $maxSlots }}つまで。@endunless</p>
+                    <div class="text-xs font-black uppercase tracking-[0.24em] {{ $jobArtV2UiEnabled ? 'text-indigo-700' : 'text-amber-600' }}">{{ $jobArtV2UiEnabled ? 'BATTLE ARTS' : 'JOB ARTS' }}</div>
+                    <h1 class="mt-1 font-black text-slate-950 {{ $jobArtV2UiEnabled ? 'text-2xl sm:text-3xl' : 'text-xl' }}">{{ $jobArtTerm }}をセットする</h1>
+                    @if($jobArtV2UiEnabled)
+                        <p class="mt-3 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+                            <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[11px] text-white" aria-hidden="true">✓</span>
+                            <span>変更は自動保存されます</span>
+                        </p>
+                    @else
+                        <p class="mt-1 text-xs font-bold leading-relaxed text-slate-500">選ぶとその場で自動保存されます。最大{{ $maxSlots }}つまで。</p>
+                    @endif
                 </div>
-                @if($jobArtV2UiEnabled)
-                    <div class="shrink-0 text-right text-[11px] font-bold text-slate-500" data-job-art-overview-meta>
-                        <div class="text-[10px] text-slate-400">
-                            <strong class="text-slate-700">{{ $maxSlots }}枠</strong>
-                            <span class="mx-1 text-slate-300">/</span>
-                            Cost上限 <strong class="text-slate-700">{{ $maxCost }}</strong>
-                        </div>
-                    </div>
-                @else
+                @if(!$jobArtV2UiEnabled)
                     <div class="shrink-0 space-y-0.5 text-right text-xs font-black text-slate-500">
                         @foreach(['normal' => '通常', 'boss' => 'ボス', 'pvp' => '対人'] as $slotContext => $shortLabel)
                             @if(array_key_exists($slotContext, $slotContextLabels))
@@ -67,24 +88,16 @@
                         @endforeach
                     </div>
                 @endif
+                @if($jobArtV2UiEnabled)
+                    <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" class="pointer-events-none absolute -right-5 -top-6 h-28 w-28 rotate-6 text-indigo-100" aria-hidden="true">
+                        <circle cx="60" cy="60" r="32" stroke-width="4" />
+                        <path d="M34 86L84 36M76 30l14 14M29 91l17-4-13-13-4 17ZM33 36l50 50M90 91l-17-4 13-13 4 17ZM40 30L26 44" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                @endif
             </div>
 
-            @if($jobArtV2UiEnabled)
-                <div class="mt-3 border-t border-slate-100 pt-3" data-job-art-overview-rules>
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-bold leading-relaxed text-slate-600">
-                        <span><strong class="text-slate-800">上から順</strong>に発動候補を判定</span>
-                        <span>条件を満たした<strong class="text-slate-800">奥義を優先</strong></span>
-                        @include('job-arts.partials.system-guide', [
-                            'lineageGuides' => $lineageGuides,
-                            'maxSlots' => $maxSlots,
-                            'maxCost' => $maxCost,
-                        ])
-                    </div>
-                </div>
-            @endif
-
             <div
-                class="mt-4 space-y-3"
+                class="{{ $jobArtV2UiEnabled ? 'mt-5 space-y-4' : 'mt-4 space-y-3' }}"
                 x-data="{
                     activeContext: 'normal',
                     availableContexts: @js(array_keys($slotContextLabels)),
@@ -108,56 +121,137 @@
                     },
                 }"
             >
-                <div class="grid {{ count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-lg bg-slate-100 p-1">
-                    @foreach($slotContextLabels as $slotContext => $slotContextLabel)
-                        <button
-                            type="button"
-                            @click="setActiveContext(@js($slotContext))"
-                            class="rounded-md px-3 py-1.5 text-sm font-black transition-colors"
-                            :class="activeContext === @js($slotContext) ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-                        >
-                            {{ $jobArtV2UiEnabled ? (['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel) : $slotContextLabel }}
-                        </button>
-                    @endforeach
-                </div>
+                @if($jobArtV2UiEnabled)
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white" data-job-art-context-summary>
+                        <div class="flex items-center gap-2 p-1.5 sm:gap-3 sm:p-2">
+                            <div class="grid min-w-0 flex-1 {{ count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-lg bg-slate-50 p-1">
+                                @foreach($slotContextLabels as $slotContext => $slotContextLabel)
+                                    <button
+                                        type="button"
+                                        @click="setActiveContext(@js($slotContext))"
+                                        class="min-h-9 rounded-md px-2 text-xs font-black transition-colors sm:text-sm"
+                                        :class="activeContext === @js($slotContext) ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-700'"
+                                    >
+                                        {{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel }}
+                                    </button>
+                                @endforeach
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2 pr-1 text-[11px] font-black text-slate-500" data-job-art-overview-meta>
+                                <span class="text-slate-800">{{ $maxSlots }}枠</span>
+                                <span class="h-5 w-px bg-slate-200" aria-hidden="true"></span>
+                                @foreach($slotContextLabels as $slotContext => $slotContextLabel)
+                                    <span x-show="activeContext === @js($slotContext)" class="whitespace-nowrap">Cost <strong class="text-slate-950"><span data-job-art-total-cost="{{ $slotContext }}">{{ $totalCostByContext[$slotContext] ?? 0 }}</span> / {{ $maxCost }}</strong></span>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50/80 px-3 py-2" data-job-art-overview-rules>
+                            <div class="flex min-w-0 items-center gap-2 text-[10px] font-bold text-slate-500 sm:text-[11px]">
+                                <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[11px] font-black text-slate-500" aria-hidden="true">i</span>
+                                <span><strong class="text-slate-700">発動順：</strong>上から / 奥義優先</span>
+                            </div>
+                            @include('job-arts.partials.system-guide', [
+                                'lineageGuides' => $lineageGuides,
+                                'maxSlots' => $maxSlots,
+                                'maxCost' => $maxCost,
+                                'compact' => true,
+                            ])
+                        </div>
+                    </div>
+                @else
+                    <div class="grid {{ count($slotContextLabels) === 3 ? 'grid-cols-3' : 'grid-cols-2' }} gap-1 rounded-lg bg-slate-100 p-1">
+                        @foreach($slotContextLabels as $slotContext => $slotContextLabel)
+                            <button
+                                type="button"
+                                @click="setActiveContext(@js($slotContext))"
+                                class="rounded-md px-3 py-1.5 text-sm font-black transition-colors"
+                                :class="activeContext === @js($slotContext) ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                            >
+                                {{ $slotContextLabel }}
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
 
                 @foreach($slotContextLabels as $slotContext => $slotContextLabel)
                     @php
                         $contextSlots = $selectedSlotsByContext[$slotContext] ?? collect();
                         $contextArts = $availableArtsByContext[$slotContext] ?? collect();
                     @endphp
-                    <div x-show="activeContext === @js($slotContext)" class="space-y-2">
-                        <div class="flex items-start justify-between gap-3">
-                            <p class="min-w-0 flex-1 text-[11px] font-bold leading-relaxed text-slate-400">{{ $slotContextDescriptions[$slotContext] ?? '' }}</p>
-                            @if($jobArtV2UiEnabled)
-                                <div class="shrink-0 text-xs font-bold text-slate-500">Cost <strong class="text-slate-900"><span data-job-art-total-cost="{{ $slotContext }}">{{ $totalCostByContext[$slotContext] ?? 0 }}</span> / {{ $maxCost }}</strong></div>
-                            @endif
-                        </div>
+                    <div x-show="activeContext === @js($slotContext)" class="space-y-3">
+                        <p class="{{ $jobArtV2UiEnabled ? 'sr-only' : 'text-[11px] font-bold leading-relaxed text-slate-400' }}">{{ $slotContextDescriptions[$slotContext] ?? '' }}</p>
 
                         @if($jobArtV2UiEnabled)
-                            <div data-job-art-active-lineages="{{ $slotContext }}">
-                                @include('job-arts.partials.active-lineages', [
-                                    'activeLineages' => $activeLineagesByContext[$slotContext] ?? [],
-                                ])
-                            </div>
-                        @endif
-
-                        @if($jobArtV2UiEnabled)
+                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white" data-job-art-compact-settings>
+                                <div data-job-art-active-lineages="{{ $slotContext }}">
+                                    @include('job-arts.partials.active-lineages', [
+                                        'activeLineages' => $activeLineagesByContext[$slotContext] ?? [],
+                                    ])
+                                </div>
                                 <form
                                     method="POST"
                                     action="{{ route('job-arts.policy') }}"
-                                    class="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5"
+                                    class="border-t border-slate-200 px-3 py-2.5"
                                     data-job-art-context-sp-policy="{{ $slotContext }}"
                                     data-saved-policy="{{ $contextSpPolicies[$slotContext] ?? 'aggressive' }}"
+                                    x-data="{ policyHelpOpen: false }"
                                 >
+                                    @csrf
+                                    <input type="hidden" name="slot_context" value="{{ $slotContext }}">
+                                    <div class="flex items-center gap-2 sm:gap-3">
+                                        <div class="flex shrink-0 items-center gap-2">
+                                            <div class="text-xs font-black text-slate-800">SP方針</div>
+                                            <span class="hidden text-[10px] font-black text-emerald-600" data-job-art-context-sp-policy-status aria-live="polite"></span>
+                                        </div>
+                                        <div class="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-lg bg-slate-50 p-1">
+                                            @foreach($activationPolicyLabels as $policyKey => $policyLabel)
+                                                <label>
+                                                    <input
+                                                        type="radio"
+                                                        name="activation_policy"
+                                                        value="{{ $policyKey }}"
+                                                        class="peer sr-only"
+                                                        data-job-art-context-sp-policy-radio
+                                                        @checked(($contextSpPolicies[$slotContext] ?? 'aggressive') === $policyKey)
+                                                    >
+                                                    <span class="flex min-h-8 cursor-pointer items-center justify-center rounded-md border border-transparent px-1 text-[11px] font-black text-slate-500 transition-colors peer-checked:border-indigo-500 peer-checked:bg-indigo-600 peer-checked:text-white sm:px-3">{{ $policyLabel }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                        <button type="button" @click="policyHelpOpen = !policyHelpOpen" x-bind:aria-expanded="policyHelpOpen.toString()" aria-label="SP方針の説明を表示" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-indigo-700">
+                                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 transition-transform" :class="policyHelpOpen ? 'rotate-180' : ''" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 7.5l5 5 5-5" /></svg>
+                                        </button>
+                                    </div>
+                                    <p x-cloak x-show="policyHelpOpen" class="mt-2 rounded-md bg-indigo-50 px-2 py-1.5 text-[10px] font-bold text-indigo-700" data-job-art-context-sp-policy-description>
+                                        {{ $activationPolicyDescriptions[$contextSpPolicies[$slotContext] ?? 'aggressive'] ?? '' }}
+                                    </p>
+                                </form>
+
+                                @if(($jobArtStarterPresetCount ?? 0) > 0)
+                                    @include('job-arts.partials.starter-presets', [
+                                        'starterPresetCount' => $jobArtStarterPresetCount,
+                                        'starterPresetHighlighted' => $jobArtStarterPresetHighlighted ?? false,
+                                        'slotContext' => $slotContext,
+                                        'slotContextLabel' => ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? $slotContextLabel,
+                                        'compact' => true,
+                                    ])
+                                @endif
+                            </div>
+                        @else
+                            <form
+                                method="POST"
+                                action="{{ route('job-arts.policy') }}"
+                                class="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5"
+                                data-job-art-context-sp-policy="{{ $slotContext }}"
+                                data-saved-policy="{{ $contextSpPolicies[$slotContext] ?? 'aggressive' }}"
+                            >
                                 @csrf
                                 <input type="hidden" name="slot_context" value="{{ $slotContext }}">
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                            <div class="flex items-center gap-2">
-                                                <div class="text-xs font-black text-slate-800">SP方針</div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="text-xs font-black text-slate-800">SP方針</div>
                                                 <span class="hidden text-[10px] font-black text-emerald-600" data-job-art-context-sp-policy-status aria-live="polite"></span>
-                                            </div>
+                                        </div>
                                         <p class="mt-0.5 text-[10px] font-bold leading-relaxed text-slate-500">この{{ ['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][$slotContext] ?? '' }}セットの5枠へ一括適用します。</p>
                                     </div>
                                     <div class="grid grid-cols-3 gap-1 rounded-lg bg-white p-1 shadow-sm">
@@ -182,7 +276,7 @@
                             </form>
                         @endif
 
-                        @if(($jobArtStarterPresetCount ?? 0) > 0)
+                        @if(!$jobArtV2UiEnabled && ($jobArtStarterPresetCount ?? 0) > 0)
                             @include('job-arts.partials.starter-presets', [
                                 'starterPresetCount' => $jobArtStarterPresetCount,
                                 'starterPresetHighlighted' => $jobArtStarterPresetHighlighted ?? false,
@@ -191,6 +285,12 @@
                             ])
                         @endif
 
+                        @if($jobArtV2UiEnabled)
+                            <div class="flex items-end justify-between gap-3 pt-1" data-job-art-selected-list-heading>
+                                <h2 class="text-sm font-black text-slate-950">戦技一覧</h2>
+                                <span class="text-[10px] font-bold text-slate-400">上から発動順</span>
+                            </div>
+                        @endif
                         <div data-job-art-slots="{{ $slotContext }}" @if($jobArtV2UiEnabled) data-job-art-sortable="true" @endif class="space-y-2">
                             @for($slotNo = 1; $slotNo <= $maxSlots; $slotNo++)
                                 @include('job-arts.partials.slot-card', [

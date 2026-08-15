@@ -33,39 +33,71 @@
     }"
     data-job-art-starter-presets="{{ $slotContext }}"
 >
-    @php($starterPresetHighlighted = (bool) ($starterPresetHighlighted ?? false))
-    <div @class([
-        'rounded-xl border px-3 py-2.5' => $starterPresetHighlighted,
-        'border-amber-300 bg-gradient-to-r from-amber-50 to-indigo-50 shadow-sm' => $starterPresetHighlighted,
-    ]) data-job-art-starter-preset-launcher>
-        @if($starterPresetHighlighted)
-            <div class="mb-1.5 flex items-center gap-2">
-                <span class="rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-black tracking-wide text-white">期間限定おすすめ</span>
-                <span class="text-[10px] font-bold text-slate-600">迷った時は、動作確認済みの構成から始められます。</span>
-            </div>
-        @endif
-        <button
-            type="button"
-            x-ref="starterPresetLink"
-            @click="openStarterPresets()"
-            x-bind:aria-expanded="starterPresetOpen.toString()"
-            aria-haspopup="dialog"
-            aria-controls="job-art-starter-preset-modal-{{ $slotContext }}"
-            @class([
-                'inline-flex min-h-8 items-center gap-1 text-xs font-black transition-colors',
-                'w-full justify-center rounded-lg bg-indigo-600 px-3 py-2 text-white shadow-sm hover:bg-indigo-700' => $starterPresetHighlighted,
-                'text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-900' => ! $starterPresetHighlighted,
-            ])
-            data-job-art-starter-preset-link
-        >
-            <span>公式プリセットから選ぶ</span>
-            <span @class([
-                'text-[10px] no-underline',
-                'text-indigo-100' => $starterPresetHighlighted,
-                'text-slate-400' => ! $starterPresetHighlighted,
-            ])>（{{ $starterPresetCount }}件）</span>
-        </button>
-    </div>
+    @php
+        $starterPresetHighlighted = (bool) ($starterPresetHighlighted ?? false);
+        $compact = (bool) ($compact ?? false);
+    @endphp
+    @if($compact)
+        <div class="border-t border-slate-200 px-3 py-2" data-job-art-starter-preset-launcher data-job-art-starter-preset-compact>
+            <button
+                type="button"
+                x-ref="starterPresetLink"
+                @click="openStarterPresets()"
+                x-bind:aria-expanded="starterPresetOpen.toString()"
+                aria-haspopup="dialog"
+                aria-controls="job-art-starter-preset-modal-{{ $slotContext }}"
+                class="flex min-h-10 w-full items-center gap-2 text-left transition-colors hover:text-indigo-800"
+                data-job-art-starter-preset-link
+            >
+                @if($starterPresetHighlighted)
+                    <span class="shrink-0 rounded-md bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">期間限定おすすめ</span>
+                @else
+                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-sm text-indigo-700" aria-hidden="true">✦</span>
+                @endif
+                <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 10h16v10H4V10Zm8 0v10M3 7h18v3H3V7Zm9 0H8.5a2.5 2.5 0 1 1 2.2-3.7L12 7Zm0 0h3.5a2.5 2.5 0 1 0-2.2-3.7L12 7Z" />
+                    </svg>
+                </span>
+                <span class="min-w-0 flex-1 text-xs font-black text-slate-800">公式プリセットから選ぶ</span>
+                <span class="shrink-0 text-[11px] font-black text-indigo-700">{{ $starterPresetCount }}件</span>
+                <span class="shrink-0 text-base text-slate-300" aria-hidden="true">›</span>
+            </button>
+        </div>
+    @else
+        <div @class([
+            'rounded-xl border px-3 py-2.5' => $starterPresetHighlighted,
+            'border-amber-300 bg-gradient-to-r from-amber-50 to-indigo-50 shadow-sm' => $starterPresetHighlighted,
+        ]) data-job-art-starter-preset-launcher>
+            @if($starterPresetHighlighted)
+                <div class="mb-1.5 flex items-center gap-2">
+                    <span class="rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-black tracking-wide text-white">期間限定おすすめ</span>
+                    <span class="text-[10px] font-bold text-slate-600">迷った時は、動作確認済みの構成から始められます。</span>
+                </div>
+            @endif
+            <button
+                type="button"
+                x-ref="starterPresetLink"
+                @click="openStarterPresets()"
+                x-bind:aria-expanded="starterPresetOpen.toString()"
+                aria-haspopup="dialog"
+                aria-controls="job-art-starter-preset-modal-{{ $slotContext }}"
+                @class([
+                    'inline-flex min-h-8 items-center gap-1 text-xs font-black transition-colors',
+                    'w-full justify-center rounded-lg bg-indigo-600 px-3 py-2 text-white shadow-sm hover:bg-indigo-700' => $starterPresetHighlighted,
+                    'text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-900' => ! $starterPresetHighlighted,
+                ])
+                data-job-art-starter-preset-link
+            >
+                <span>公式プリセットから選ぶ</span>
+                <span @class([
+                    'text-[10px] no-underline',
+                    'text-indigo-100' => $starterPresetHighlighted,
+                    'text-slate-400' => ! $starterPresetHighlighted,
+                ])>（{{ $starterPresetCount }}件）</span>
+            </button>
+        </div>
+    @endif
 
     <template x-teleport="body">
         <div

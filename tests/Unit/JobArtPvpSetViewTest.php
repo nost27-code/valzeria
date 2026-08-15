@@ -39,7 +39,8 @@ class JobArtPvpSetViewTest extends TestCase
         $this->assertStringContainsString("'slot_limit' => \$jobArtV2UiEnabled ? '5枠上限' : '枠数上限のため休止'", $slotCard);
         $this->assertStringContainsString("'cost_limit' => \$jobArtV2UiEnabled ? 'Cost上限超過' : 'Cost上限を超えたため休止'", $slotCard);
         $this->assertStringContainsString('data-job-art-inactive-reason', $slotCard);
-        $this->assertStringContainsString('mx-auto w-full max-w-[560px]', $view);
+        $this->assertStringContainsString("'max-w-[680px] space-y-3'", $view);
+        $this->assertStringContainsString("'max-w-[560px] space-y-4 px-3'", $view);
         $this->assertStringNotContainsString('min-w-[', $slotCard);
         $this->assertStringContainsString('app(JobArtService::class)->maxSlots()', $mainScreen);
     }

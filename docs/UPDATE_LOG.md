@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Changed
+
+- 戦技セット画面の通常・ボス切替、枠数とCost、有効系譜、SP方針、公式プリセットをまとまりごとに整理しました。セット中の戦技は、アイコン・技名・効果・Costをスマホでも追いやすい一覧で表示します。
+
 ### Balance
 
 - プレイヤー同士とNPCのランク戦で、100ターン終了時の判定を残り体力の数値ではなく、最大体力に対する残り体力の割合で比べるようにしました。挑戦者の割合が高ければ判定勝利、同率または防衛側が高ければ防衛成功になります。

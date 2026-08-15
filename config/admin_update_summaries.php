@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-job-art-loadout-layout-cleanup',
+        'date' => '2026-08-16',
+        'category' => 'changed',
+        'title' => '戦技セット画面の情報配置を見やすく整理',
+        'detail' => '戦技セット画面の通常・ボス切替、枠数とCost、有効系譜、SP方針、公式プリセットをまとまりごとに整理しました。セット中の戦技は、アイコン・技名・効果・Costをスマホでも追いやすい一覧で表示します。',
+    ],
+    [
         'id' => '2026-08-16-rank-battle-remaining-hp-rate',
         'date' => '2026-08-16',
         'category' => 'balance',

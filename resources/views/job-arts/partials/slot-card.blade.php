@@ -65,15 +65,15 @@
 >
     @if($hasArt)
         @if($jobArtV2UiEnabled)
-            <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1.5">
-                <div class="flex items-start gap-1">
+            <div class="grid min-w-0 {{ $jobArtIconPath !== '' ? 'grid-cols-[auto_48px_minmax(0,1fr)_auto]' : 'grid-cols-[auto_minmax(0,1fr)_auto]' }} items-center gap-2" data-job-art-compact-slot>
+                <div class="flex items-center gap-0.5">
                     <button
                         type="button"
                         data-job-art-drag-handle
                         draggable="true"
                         aria-label="{{ $slotArt->name }}をドラッグして並び替える"
                         title="ドラッグして並び替え"
-                        class="group inline-flex h-8 w-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 active:cursor-grabbing"
+                        class="group inline-flex h-8 w-5 shrink-0 touch-none cursor-grab items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 active:cursor-grabbing"
                     >
                         <span aria-hidden="true" class="grid grid-cols-2 gap-[2px]">
                             @for($dot = 0; $dot < 6; $dot++)
@@ -81,69 +81,67 @@
                             @endfor
                         </span>
                     </button>
-                    <span data-job-art-slot-index class="mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[11px] font-black text-white {{ $isUltimate ? 'bg-amber-700' : 'bg-slate-700' }}">{{ $slotNo }}</span>
+                    <span data-job-art-slot-index class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 bg-white text-xs font-black {{ $isUltimate ? 'border-amber-500 text-amber-700' : 'border-indigo-400 text-indigo-700' }}">{{ $slotNo }}</span>
                 </div>
-                <span data-job-art-drag-label class="absolute left-10 top-1 z-20 hidden rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">移動中</span>
+                <span data-job-art-drag-label class="absolute left-9 top-1 z-20 hidden rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">移動中</span>
 
                 @if($jobArtIconPath !== '')
                     <img
                         src="{{ asset($jobArtIconPath) }}"
                         alt=""
-                        width="52"
-                        height="52"
+                        width="48"
+                        height="48"
                         loading="lazy"
                         decoding="async"
-                        class="col-start-1 row-span-2 row-start-2 h-[52px] w-[52px] self-center justify-self-center object-contain"
+                        class="h-12 w-12 shrink-0 object-contain"
                         data-job-art-icon
                         data-job-art-slot-icon
                     >
                 @endif
 
-                <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 pt-1">
-                    <span class="min-w-0 break-words text-[15px] font-black leading-tight text-slate-900">{{ $slotArt->name }}</span>
+                <div class="min-w-0">
+                    <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                        <span class="min-w-0 break-words text-[15px] font-black leading-tight text-slate-950 sm:text-base">{{ $slotArt->name }}</span>
+                        @if($v2Display)
+                            <span class="inline-flex shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-black {{ $roleBadgeClass }}" data-job-art-v2-role>{{ $v2Display['role_label'] }}</span>
+                        @endif
+                        @if($originLabel !== '')
+                            <span class="inline-flex shrink-0 text-[9px] font-black text-indigo-700" data-job-art-lineage-badge>{{ $originLabel }}系譜</span>
+                        @endif
+                    </div>
                     @if($v2Display)
-                        <span class="inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-black {{ $roleBadgeClass }}" data-job-art-v2-role>{{ $v2Display['role_label'] }}</span>
-                    @endif
-                    @if($originLabel !== '')
-                        <span class="inline-flex shrink-0 text-[10px] font-black text-indigo-700" data-job-art-lineage-badge>{{ $originLabel }}系譜</span>
+                        <p data-job-art-slot-summary data-job-art-v2-details class="mt-1 line-clamp-2 min-w-0 break-words text-[10px] font-bold leading-[1.55] text-slate-500 sm:text-[11px]">@include('job-arts.partials.effect-text', ['text' => $v2Display['display_description'] ?? $v2Display['card_description']])</p>
                     @endif
                 </div>
 
-                <div class="flex items-center gap-1.5 pt-0.5">
-                    @if($inactiveReason)
-                        <span class="inline-flex items-center rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-black text-white">休止中</span>
-                    @endif
-                    <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-black {{ $costBadgeClass }}">Cost {{ $artCost }}</span>
-                </div>
-
-                @if($v2Display)
-                    <p data-job-art-slot-summary data-job-art-v2-details class="col-span-2 col-start-2 min-w-0 break-words text-[11px] font-bold leading-[1.55] text-slate-600">@include('job-arts.partials.effect-text', ['text' => $v2Display['display_description'] ?? $v2Display['card_description']])</p>
-                @endif
-
-                <div class="col-span-2 col-start-2 flex shrink-0 items-end justify-end gap-1.5 self-end">
-                    @if($jobArtV2CardDetailsEnabled ?? false)
-                        <button
-                            type="button"
-                            data-job-art-slot-accordion-toggle
-                            aria-expanded="false"
-                            aria-label="{{ $slotArt->name }}の詳細を開く"
-                            class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
-                        >
-                            <span data-job-art-slot-accordion-label>詳細</span>
-                            <span data-job-art-slot-accordion-icon aria-hidden="true">⌄</span>
-                        </button>
-                    @endif
+                <div class="flex shrink-0 flex-col items-end gap-1">
+                    <div class="flex items-center gap-1">
+                        @if($inactiveReason)
+                            <span class="inline-flex items-center rounded bg-slate-600 px-1.5 py-0.5 text-[9px] font-black text-white">休止中</span>
+                        @endif
+                        <span class="inline-flex items-center rounded-md px-1.5 py-1 text-[10px] font-black {{ $costBadgeClass }}">Cost {{ $artCost }}</span>
+                    </div>
                     <button type="button"
                         data-job-art-target-btn
                         data-slot-context="{{ $slotContext }}"
                         data-slot-no="{{ $slotNo }}"
-                        class="inline-flex shrink-0 items-center rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-black text-indigo-700 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-100">
-                        変更する
+                        class="inline-flex shrink-0 items-center px-1 py-0.5 text-[9px] font-black text-indigo-600 transition-colors hover:text-indigo-900">
+                        変更
                     </button>
                 </div>
             </div>
 
             @if($jobArtV2CardDetailsEnabled ?? false)
+            <button
+                type="button"
+                data-job-art-slot-accordion-toggle
+                aria-expanded="false"
+                aria-label="{{ $slotArt->name }}の詳細を開く"
+                class="mt-2 inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+            >
+                <span data-job-art-slot-accordion-label>詳細</span>
+                <span data-job-art-slot-accordion-icon aria-hidden="true">⌄</span>
+            </button>
             <details data-job-art-slot-expanded class="mt-2 hidden rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
                 <summary class="cursor-pointer text-[11px] font-black text-slate-600">発動条件：{{ $slotConditionLabels[$slotCondition] }}</summary>
                 <label class="mt-2 block text-[10px] font-bold text-slate-500">

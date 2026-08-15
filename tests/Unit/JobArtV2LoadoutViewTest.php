@@ -49,6 +49,8 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringNotContainsString('data-job-art-slot-accordion-toggle', $html);
         $this->assertStringNotContainsString('data-job-art-slot-expanded', $html);
         $this->assertStringContainsString('data-job-art-slot-summary', $html);
+        $this->assertStringContainsString('data-job-art-compact-slot', $html);
+        $this->assertStringContainsString('line-clamp-2', $html);
         $this->assertStringNotContainsString('line-clamp-3', $html);
         $this->assertStringContainsString('data-job-art-effect-value="spend"', $html);
         $this->assertStringNotContainsString('data-job-art-policy-radio', $html);
@@ -181,19 +183,22 @@ class JobArtV2LoadoutViewTest extends TestCase
 
         $this->assertIsString($view);
         $this->assertStringContainsString("\$pageTitle = \$jobArtV2UiEnabled ? '戦技セット' : '奥義セット'", $view);
-        $this->assertStringContainsString("\$jobArtV2UiEnabled ? (['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP']", $view);
+        $this->assertStringContainsString("['normal' => '通常', 'boss' => 'ボス', 'pvp' => 'PvP'][\$slotContext]", $view);
         $this->assertStringContainsString('data-job-art-overview', $view);
         $this->assertStringContainsString('data-job-art-overview-meta', $view);
         $this->assertStringNotContainsString('data-job-art-current-lineage', $view);
         $this->assertStringNotContainsString('現在の系譜：', $view);
         $this->assertStringContainsString('data-job-art-overview-rules', $view);
-        $this->assertStringContainsString('<strong class="text-slate-800">上から順</strong>に発動候補を判定', $view);
-        $this->assertStringContainsString('条件を満たした<strong class="text-slate-800">奥義を優先</strong>', $view);
-        $this->assertStringContainsString('class="mt-3 border-t border-slate-100 pt-3"', $view);
+        $this->assertStringContainsString('data-job-art-page-header', $view);
+        $this->assertStringContainsString('data-job-art-context-summary', $view);
+        $this->assertStringContainsString('data-job-art-compact-settings', $view);
+        $this->assertStringContainsString('data-job-art-selected-list-heading', $view);
+        $this->assertStringContainsString('<strong class="text-slate-700">発動順：</strong>上から / 奥義優先', $view);
+        $this->assertStringContainsString('変更は自動保存されます', $view);
         $this->assertStringNotContainsString('class="shrink-0 rounded-lg border border-amber-200 bg-amber-50', $view);
         $this->assertStringNotContainsString('class="mt-3 rounded-lg border border-sky-100 bg-sky-50/80', $view);
         $this->assertStringNotContainsString('class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70', $view);
-        $this->assertStringContainsString('Cost <strong class="text-slate-900"><span data-job-art-total-cost=', $view);
+        $this->assertStringContainsString('Cost <strong class="text-slate-950"><span data-job-art-total-cost=', $view);
         $this->assertStringContainsString('@for($slotNo = 1; $slotNo <= $maxSlots; $slotNo++)', $view);
         $this->assertStringContainsString('$art->jobArtNumericEffectLabels(', $view);
         $this->assertStringContainsString("\$v2Display['effect_template'] ?? null", $view);
@@ -283,6 +288,18 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('公式プリセットから選ぶ', $launcher);
         $this->assertStringContainsString('（30件）', $launcher);
         $this->assertStringContainsString('bg-indigo-600', $launcher);
+
+        $compactLauncher = view('job-arts.partials.starter-presets', [
+            'slotContext' => 'normal',
+            'slotContextLabel' => '通常',
+            'starterPresetCount' => 30,
+            'starterPresetHighlighted' => true,
+            'compact' => true,
+        ])->render();
+        $this->assertStringContainsString('data-job-art-starter-preset-compact', $compactLauncher);
+        $this->assertStringContainsString('期間限定おすすめ', $compactLauncher);
+        $this->assertStringContainsString('30件', $compactLauncher);
+        $this->assertStringNotContainsString('（30件）', $compactLauncher);
     }
 
     public function test_v2_page_filters_by_lineage_and_uses_one_effect_description(): void
