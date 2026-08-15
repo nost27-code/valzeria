@@ -13,8 +13,11 @@ use Illuminate\Support\Facades\DB;
 class MonsterMarkService
 {
     private const UNLOCK_THRESHOLDS = [1, 3, 7, 15];
+
     private const BASE_DROP_RATE_DIVISOR = 2.0;
+
     private const DROP_RATE_REDUCTION_QUANTITY = 15;
+
     private const COMPLETED_DROP_RATE_DIVISOR = 3.0;
 
     public function rollAndGrant(Character $character, Enemy $enemy): ?array
@@ -24,22 +27,28 @@ class MonsterMarkService
         }
 
         $mark = $this->markForEnemy($enemy);
-        if (!$mark || !$mark->is_active) {
+        if (! $mark || ! $mark->is_active) {
             return null;
         }
 
-        $currentQuantity = $this->ownedQuantity($character, $mark);
-        if (!$this->rollPercent($this->effectiveDropRate($mark, $currentQuantity))) {
+        $equivalentMarkIds = $this->equivalentMarkIds($mark);
+        $currentQuantity = $this->ownedQuantity($character, $equivalentMarkIds);
+        if (! $this->rollPercent($this->effectiveDropRate($mark, $currentQuantity))) {
             return null;
         }
 
-        return DB::transaction(function () use ($character, $mark) {
-            $row = CharacterMonsterMark::where('character_id', $character->id)
-                ->where('monster_mark_id', $mark->id)
+        return DB::transaction(function () use ($character, $mark, $equivalentMarkIds) {
+            $rows = CharacterMonsterMark::where('character_id', $character->id)
+                ->whereIn('monster_mark_id', $equivalentMarkIds->all())
+                ->orderBy('monster_mark_id')
                 ->lockForUpdate()
-                ->first();
+                ->get();
+            $beforeQuantity = (int) $rows->sum('quantity');
+            $row = $rows->first(
+                fn (CharacterMonsterMark $ownedMark): bool => (int) $ownedMark->monster_mark_id === (int) $mark->id
+            );
 
-            if (!$row) {
+            if (! $row) {
                 $row = CharacterMonsterMark::create([
                     'character_id' => $character->id,
                     'monster_mark_id' => $mark->id,
@@ -48,9 +57,10 @@ class MonsterMarkService
                 ]);
             }
 
-            $beforeLevel = $this->unlockedLevel((int) $row->quantity, $mark);
+            $beforeLevel = $this->unlockedLevel($beforeQuantity, $mark);
             $row->quantity++;
-            $afterLevel = $this->unlockedLevel((int) $row->quantity, $mark);
+            $afterQuantity = $beforeQuantity + 1;
+            $afterLevel = $this->unlockedLevel($afterQuantity, $mark);
             $row->unlocked_level = $afterLevel;
             $row->save();
 
@@ -58,7 +68,7 @@ class MonsterMarkService
                 'monster_mark_id' => $mark->id,
                 'name' => $mark->mark_name,
                 'quantity' => 1,
-                'total_quantity' => (int) $row->quantity,
+                'total_quantity' => $afterQuantity,
                 'before_level' => $beforeLevel,
                 'unlocked_level' => $afterLevel,
                 'level_up' => $afterLevel > $beforeLevel,
@@ -66,7 +76,7 @@ class MonsterMarkService
                 'bonus_stat_label' => $this->statLabel((string) $mark->bonus_stat),
                 'bonus_per_level' => $this->effectiveBonusPerLevel($mark),
                 'total_bonus' => $this->totalBonus($afterLevel, $mark),
-                'next_required' => $this->nextRequired((int) $row->quantity, $mark),
+                'next_required' => $this->nextRequired($afterQuantity, $mark),
             ];
         });
     }
@@ -200,7 +210,7 @@ class MonsterMarkService
                 })
                 ->first()
                 ?->monsterMark;
-            if (!$mark || !$mark->is_active || !array_key_exists((string) $mark->bonus_stat, $bonuses)) {
+            if (! $mark || ! $mark->is_active || ! array_key_exists((string) $mark->bonus_stat, $bonuses)) {
                 continue;
             }
 
@@ -244,11 +254,34 @@ class MonsterMarkService
             ->values();
     }
 
-    private function ownedQuantity(Character $character, MonsterMark $mark): int
+    private function ownedQuantity(Character $character, Collection $markIds): int
     {
         return (int) CharacterMonsterMark::where('character_id', $character->id)
-            ->where('monster_mark_id', $mark->id)
-            ->value('quantity');
+            ->whereIn('monster_mark_id', $markIds->all())
+            ->sum('quantity');
+    }
+
+    private function equivalentMarkIds(MonsterMark $mark): Collection
+    {
+        $mark->loadMissing('enemy');
+        $enemy = $mark->enemy;
+        if (! $enemy) {
+            return collect([(int) $mark->id]);
+        }
+
+        $ids = MonsterMark::query()
+            ->where('is_active', true)
+            ->whereHas('enemy', function ($query) use ($enemy) {
+                $query->where('area_id', $enemy->area_id)
+                    ->where('name', $enemy->name)
+                    ->where('is_boss', false);
+            })
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
+        return $ids->isNotEmpty() ? $ids : collect([(int) $mark->id]);
     }
 
     private function deduplicateCollectionEntries(Collection $entries): Collection
@@ -292,7 +325,7 @@ class MonsterMarkService
         $areaId = (int) ($entry['area']?->id ?? 0);
         $enemyName = trim((string) ($entry['enemy']?->name ?? $entry['mark']?->mark_name ?? ''));
 
-        return $areaId . ':' . preg_replace('/の印$/u', '', $enemyName);
+        return $areaId.':'.preg_replace('/の印$/u', '', $enemyName);
     }
 
     private function markSignature(MonsterMark $mark): string
@@ -301,7 +334,7 @@ class MonsterMarkService
         $areaId = (int) ($enemy?->area_id ?? $enemy?->area?->id ?? 0);
         $enemyName = trim((string) ($enemy?->name ?? $mark->mark_name));
 
-        return $areaId . ':' . preg_replace('/の印$/u', '', $enemyName);
+        return $areaId.':'.preg_replace('/の印$/u', '', $enemyName);
     }
 
     private function effectiveDropRate(MonsterMark $mark, int $currentQuantity): float
@@ -326,7 +359,42 @@ class MonsterMarkService
 
     private function markForEnemy(Enemy $enemy): ?MonsterMark
     {
-        $existing = MonsterMark::query()
+        $existing = $this->findActiveMarkForEnemy($enemy);
+        if ($existing) {
+            return $existing;
+        }
+
+        $sourceEnemy = $enemy;
+        if ($enemy->getKey() !== null) {
+            $persistedEnemy = Enemy::query()->find($enemy->getKey());
+            if ($persistedEnemy
+                && ((int) $persistedEnemy->area_id !== (int) $enemy->area_id
+                    || trim((string) $persistedEnemy->name) !== trim((string) $enemy->name))) {
+                $sourceEnemy = $persistedEnemy;
+                $existing = $this->findActiveMarkForEnemy($sourceEnemy);
+                if ($existing) {
+                    return $existing;
+                }
+            }
+        }
+
+        return MonsterMark::firstOrCreate(
+            ['enemy_id' => $sourceEnemy->id],
+            [
+                'mark_name' => $sourceEnemy->name.'の印',
+                'bonus_stat' => $this->bonusStat($sourceEnemy),
+                'bonus_per_level' => $this->bonusPerLevel($sourceEnemy),
+                'required_per_level' => 10,
+                'max_level' => count(self::UNLOCK_THRESHOLDS),
+                'drop_rate' => str_contains((string) ($sourceEnemy->role ?? ''), 'レア') ? 20.0 : 8.0,
+                'is_active' => true,
+            ]
+        );
+    }
+
+    private function findActiveMarkForEnemy(Enemy $enemy): ?MonsterMark
+    {
+        return MonsterMark::query()
             ->where('is_active', true)
             ->whereHas('enemy', function ($query) use ($enemy) {
                 $query->where('area_id', $enemy->area_id)
@@ -335,23 +403,6 @@ class MonsterMarkService
             })
             ->orderBy('id')
             ->first();
-
-        if ($existing) {
-            return $existing;
-        }
-
-        return MonsterMark::firstOrCreate(
-            ['enemy_id' => $enemy->id],
-            [
-                'mark_name' => $enemy->name . 'の印',
-                'bonus_stat' => $this->bonusStat($enemy),
-                'bonus_per_level' => $this->bonusPerLevel($enemy),
-                'required_per_level' => 10,
-                'max_level' => count(self::UNLOCK_THRESHOLDS),
-                'drop_rate' => str_contains((string) ($enemy->role ?? ''), 'レア') ? 20.0 : 8.0,
-                'is_active' => true,
-            ]
-        );
     }
 
     public function unlockedLevel(int $quantity, MonsterMark $mark): int
@@ -445,7 +496,7 @@ class MonsterMarkService
 
     private function bonusStat(Enemy $enemy): string
     {
-        $text = (string) ($enemy->type_name ?? '') . ' ' . (string) ($enemy->role ?? '') . ' ' . (string) ($enemy->name ?? '');
+        $text = (string) ($enemy->type_name ?? '').' '.(string) ($enemy->role ?? '').' '.(string) ($enemy->name ?? '');
 
         if (str_contains($text, '耐久') || str_contains($text, '重装') || str_contains($text, '防御')) {
             return 'def';

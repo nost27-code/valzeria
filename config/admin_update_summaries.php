@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-monster-mark-duplicate-grant-fix',
+        'date' => '2026-08-15',
+        'category' => 'fixed',
+        'title' => '重複したモンスター印の解放判定を修正',
+        'detail' => '同じ探索地の同名モンスターに印データが複数あった場合も、合計所持数を基準に印の解放段階と獲得率を判定するよう修正しました。すでに所持している印を初獲得のように表示する問題も解消しています。',
+    ],
+    [
         'id' => '2026-08-15-normal-exploration-count-selector',
         'date' => '2026-08-15',
         'category' => 'added',
