@@ -512,7 +512,7 @@ class TowerBattleService extends BattleService
             ->first();
 
         $currentJob = $character->current_job_id
-            ? $character->currentJob()->with('skill')->first()
+            ? $character->currentJob()->first()
             : null;
         $permissionService = app(EquipmentPermissionService::class);
 
@@ -539,9 +539,6 @@ class TowerBattleService extends BattleService
         ], clone $character);
 
         if ($currentJob) {
-            if ($currentJob->skill) {
-                $actor->skill = $currentJob->skill;
-            }
             $actor->jobKey = $currentJob->key;
         }
 

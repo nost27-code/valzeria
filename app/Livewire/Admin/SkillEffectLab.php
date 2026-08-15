@@ -99,9 +99,15 @@ class SkillEffectLab extends Component
         $enemy = Enemy::with('area.city')->findOrFail($this->selectedEnemyId);
         $skills = Skill::with('jobClass')
             ->whereIn('id', $skillIds)
+            ->where('skill_type', 'job_art')
             ->get()
             ->sortBy(fn (Skill $skill): int => $skillIds->search((int) $skill->id))
             ->values();
+
+        if ($skills->count() !== $skillIds->count()) {
+            $this->addError('selectedSkillIds', '廃止済みの固有必殺技は検証できません。奥義を選び直してください。');
+            return;
+        }
 
         $this->result = app(SkillEffectPreviewService::class)->preview($this->stats, $job, $enemy, $skills);
     }
@@ -176,21 +182,16 @@ class SkillEffectLab extends Component
 
         return Skill::query()
             ->with('jobClass')
+            ->where('skill_type', 'job_art')
+            ->where('pve_enabled', true)
             ->where(function ($query) use ($jobId) {
-                $query->where(function ($specialQuery) use ($jobId) {
-                    $specialQuery->where('skill_type', 'special')
-                        ->when($jobId, fn ($q) => $q->where('job_id', $jobId));
-                })->orWhere(function ($currentArtQuery) use ($jobId) {
-                    $currentArtQuery->where('skill_type', 'job_art')
-                        ->when($jobId, fn ($q) => $q->where('job_id', $jobId))
-                        ->where('pve_enabled', true);
-                })->orWhere(function ($artQuery) {
-                    $artQuery->where('skill_type', 'job_art')
-                        ->where('inherit_on_master', true)
-                        ->where('pve_enabled', true);
-                });
+                $query->where('inherit_on_master', true);
+
+                if ($jobId) {
+                    $query->orWhere('job_id', $jobId);
+                }
             })
-            ->orderByRaw("case when skill_type = 'special' then 0 when job_id = ? then 1 else 2 end", [$jobId ?? 0])
+            ->orderByRaw('case when job_id = ? then 0 else 1 end', [$jobId ?? 0])
             ->orderBy('job_id')
             ->orderBy('learn_rank')
             ->orderBy('sort_order')
@@ -212,6 +213,7 @@ class SkillEffectLab extends Component
         return Skill::query()
             ->with('jobClass')
             ->whereIn('id', $skillIds)
+            ->where('skill_type', 'job_art')
             ->get()
             ->sortBy(fn (Skill $skill): int => $skillIds->search((int) $skill->id))
             ->values()
@@ -225,10 +227,6 @@ class SkillEffectLab extends Component
 
     private function skillKindLabel(Skill $skill): string
     {
-        if ($skill->skill_type === 'special') {
-            return '必殺技';
-        }
-
         return (int) $skill->job_id === (int) $this->selectedJobId ? '職業奥義' : '継承奥義';
     }
 

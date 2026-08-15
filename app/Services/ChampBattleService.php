@@ -32,9 +32,6 @@ class ChampBattleService
     private const PVP_HIT_AGI_FACTOR = 0.15;
     private const PVP_MIN_HIT_RATE = 75;
     private const PVP_MAX_HIT_RATE = 98;
-    private const CHAMP_SKILL_COST_MAX_SP_RATE = 0.25;
-    private const LOW_LEVEL_SKILL_BONUS_PER_LEVELS = 2;
-    private const LOW_LEVEL_SKILL_BONUS_MAX = 25;
     private const UPSET_DAMAGE_MIN_LEVEL_GAP = 10;
     private const UPSET_DAMAGE_BASE_CHANCE = 12;
     private const UPSET_DAMAGE_CHANCE_PER_10_LEVELS = 3;
@@ -544,10 +541,7 @@ class ChampBattleService
         ], $challenger);
         $challengerJob = $challenger->relationLoaded('currentJob')
             ? $challenger->currentJob
-            : $challenger->currentJob()->with('skill')->first();
-        if ($challengerJob?->skill) {
-            $attacker->skill = $challengerJob->skill;
-        }
+            : $challenger->currentJob()->first();
         $this->jobArtBattleSupport->attachBossSet($attacker, $challenger, 'champ');
 
         $defender = new BattleActor($champ->player_name, false, [
@@ -564,10 +558,6 @@ class ChampBattleService
             'battle_type_weights' => $champAffinity,
             'normal_attack_type' => $champ->normal_attack_type ?? 'physical',
         ], $champ);
-        $champSkill = $this->champSkill($champ);
-        if ($champSkill) {
-            $defender->skill = $champSkill;
-        }
         $champCharacter = $champ->character_id
             ? Character::query()->find($champ->character_id)
             : null;
@@ -716,18 +706,6 @@ class ChampBattleService
         return $champIsDead && $lastActionWasByChallenger === true;
     }
 
-    private function champSkill(ChampState $champ): ?Skill
-    {
-        if (!$champ->character_id) {
-            return null;
-        }
-
-        $character = Character::query()->find($champ->character_id);
-        $job = $character?->currentJob()->with('skill')->first();
-
-        return $job?->skill;
-    }
-
     private function champAction(
         BattleActor $attacker,
         BattleActor $defender,
@@ -761,20 +739,6 @@ class ChampBattleService
             return $result;
         }
 
-        if ($attacker->skill && random_int(1, 100) <= $this->champSkillActivationRate($attacker->skill, $attackerLevel, $defenderLevel)) {
-            $spCost = $this->champSkillSpCost($attacker, $attacker->skill);
-
-            if ($attacker->mp >= $spCost) {
-                $attacker->mp -= $spCost;
-                return $this->skillAttack($attacker, $defender, $attacker->skill, $jobArtState);
-            }
-
-            $normal = $this->normalAttackWithResource($attacker, $defender, $jobArtState);
-            $normal['log'] = "<span class=\"text-slate-500 font-bold\">{$attacker->name} は {$attacker->skill->name} を狙ったが、SPが足りない！</span><br>" . $normal['log'];
-
-            return $normal;
-        }
-
         return $this->normalAttackWithResource($attacker, $defender, $jobArtState);
     }
 
@@ -797,22 +761,6 @@ class ChampBattleService
         );
 
         return $result;
-    }
-
-    private function champSkillActivationRate(Skill $skill, int $attackerLevel, int $defenderLevel): int
-    {
-        $baseRate = max(0, min(100, $skill->effectiveActivationRate()));
-        $levelGap = max(0, $defenderLevel - $attackerLevel);
-        if ($levelGap <= 0) {
-            return $baseRate;
-        }
-
-        $bonus = min(
-            self::LOW_LEVEL_SKILL_BONUS_MAX,
-            (int) floor($levelGap / self::LOW_LEVEL_SKILL_BONUS_PER_LEVELS)
-        );
-
-        return min(100, $baseRate + $bonus);
     }
 
     private function skillAttack(
@@ -1158,18 +1106,6 @@ class ChampBattleService
             $defender->{$prop} = max(1, $defender->{$prop} - (int) floor($defender->{$base} * ($effect / 100)));
             $logs[] = "{$defender->name} の{$config['label']}が {$effect}% 低下した！";
         }
-    }
-
-    private function champSkillSpCost(BattleActor $attacker, Skill $skill): int
-    {
-        $baseCost = $skill->specialSkillSpCostForMaxSp($attacker->maxMp);
-        if ($baseCost <= 0 || $attacker->maxMp <= 0) {
-            return $baseCost;
-        }
-
-        $cap = max(1, (int) ceil($attacker->maxMp * self::CHAMP_SKILL_COST_MAX_SP_RATE));
-
-        return min($baseCost, $cap);
     }
 
     private function champStreakFatigue(ChampState $champ): array

@@ -9,6 +9,7 @@ use App\Models\CharacterJob;
 use App\Services\JobService;
 use App\Services\JobArtService;
 use App\Services\JobArtFlavorTextService;
+use App\Services\JobArtV2CardDescriptionCatalog;
 use App\Services\CharacterJobChangeService;
 use App\Services\JobCombatGuideService;
 use App\Services\PublicLogService;
@@ -38,6 +39,8 @@ class JobChange extends Component
     public array $detailHeroJobGrowthStats = [];
     public array $detailJobMasterBonusChips = [];
     public array $detailJobCombatGuide = [];
+    public array $detailJobArtDescriptions = [];
+    public array $detailJobArtUsesCanonicalDescription = [];
     public bool $detailJobCanChange = false;
     public bool $hasCrownProof = false;
     public int $bonusPointBlockedJobCount = 0;
@@ -209,7 +212,16 @@ class JobChange extends Component
 
         $jobArtService = app(JobArtService::class);
         $flavorTextService = app(JobArtFlavorTextService::class);
-        $job->jobArts->each(function ($art) use ($jobArtService, $flavorTextService): void {
+        $descriptionCatalog = app(JobArtV2CardDescriptionCatalog::class);
+        $this->detailJobArtDescriptions = [];
+        $this->detailJobArtUsesCanonicalDescription = [];
+        $job->jobArts->each(function ($art) use ($jobArtService, $flavorTextService, $descriptionCatalog): void {
+            $canonicalDescription = $descriptionCatalog->defaultDescription($art);
+            $artId = (int) $art->id;
+
+            $this->detailJobArtDescriptions[$artId] = $canonicalDescription
+                ?? (string) ($art->memo ?: ($art->description ?: '効果説明なし'));
+            $this->detailJobArtUsesCanonicalDescription[$artId] = $canonicalDescription !== null;
             $art->setAttribute(
                 'job_art_effective_cost',
                 $jobArtService->effectiveArtCostFor($this->character, $art),
@@ -240,6 +252,8 @@ class JobChange extends Component
         $this->detailHeroJobGrowthStats = [];
         $this->detailJobMasterBonusChips = [];
         $this->detailJobCombatGuide = [];
+        $this->detailJobArtDescriptions = [];
+        $this->detailJobArtUsesCanonicalDescription = [];
         $this->detailJobCanChange = false;
     }
 

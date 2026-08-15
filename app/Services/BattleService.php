@@ -182,7 +182,7 @@ class BattleService
         $stats = $this->statusService->getFinalStats($character);
         $currentJob = $character->relationLoaded('currentJob')
             ? $character->currentJob
-            : $character->currentJob()->with('skill')->first();
+            : $character->currentJob()->first();
         $equippedWeapon = $character->characterItems()
             ->where('is_equipped', true)
             ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
@@ -216,10 +216,6 @@ class BattleService
             'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
         ], clone $character);
 
-        // プレイヤーの職業技をセット
-        if ($currentJob?->skill) {
-            $playerActor->skill = $currentJob->skill;
-        }
         $playerActor->jobKey = $currentJob?->key;
         $playerActor->jobArtActivationPolicy = (string) ($character->job_art_activation_policy ?: 'normal');
 
@@ -669,16 +665,6 @@ class BattleService
                 $attacker->mp -= $spCost;
                 $this->executeJobArtAction($attacker, $defender, $state, $jobArt);
                 $usedSkill = true;
-            } elseif ($attacker->skill && rand(1, 100) <= $attacker->skill->effectiveActivationRate()) {
-                $spCost = $attacker->skill->specialSkillSpCostForMaxSp($attacker->maxMp);
-                if ($attacker->mp >= $spCost) {
-                    $attacker->mp -= $spCost;
-                    $this->jobArtV2ResourceService->markCurrentJobSkillAction($attacker, $state, $attacker->skill);
-                    $this->jobArtV2FieldService->markSkillAction($attacker, $state, $attacker->skill);
-                    $this->jobArtV2RoleEffectService->markNonJobArtAction($attacker, $state);
-                    $this->executeSkillAction($attacker, $defender, $state, $attacker->skill);
-                    $usedSkill = true;
-                }
             }
 
             if (!$usedSkill) {

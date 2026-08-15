@@ -4,7 +4,6 @@ namespace App\Livewire\Admin;
 
 use App\Models\JobClass;
 use App\Models\JobRequirement;
-use App\Models\Skill;
 use App\Support\JobRankCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -21,7 +20,6 @@ class JobManager extends Component
     public int $perPage = 30;
 
     public array $form = [];
-    public array $skillForm = [];
     public array $requirementRows = [];
 
     private array $defaults = [
@@ -54,28 +52,6 @@ class JobManager extends Component
         'is_hidden' => false,
         'is_active' => true,
         'sort_order' => 0,
-    ];
-
-    private array $skillDefaults = [
-        'name' => '',
-        'activation_rate' => 0,
-        'sp_cost_base' => 0,
-        'sp_cost_rate' => 0,
-        'mp_cost' => 0,
-        'damage_type' => 'physical',
-        'power_multiplier' => 1,
-        'hit_count' => 1,
-        'heal_percent' => 0,
-        'self_damage_percent' => 0,
-        'gold_bonus_percent' => 0,
-        'drop_bonus_percent' => 0,
-        'def_ignore_percent' => 0,
-        'damage_reduction_percent' => 0,
-        'enemy_def_down_percent' => 0,
-        'enemy_spr_down_percent' => 0,
-        'enemy_spd_down_percent' => 0,
-        'mp_recover_percent' => 0,
-        'description' => '',
     ];
 
     public function mount(): void
@@ -117,7 +93,7 @@ class JobManager extends Component
 
     public function edit(int $jobId): void
     {
-        $job = JobClass::with(['skill', 'requirements.requiredJob'])->findOrFail($jobId);
+        $job = JobClass::with('requirements.requiredJob')->findOrFail($jobId);
         $this->editingJobId = $job->id;
 
         $this->form = array_merge($this->defaults, [
@@ -152,29 +128,6 @@ class JobManager extends Component
             'sort_order' => (int) $job->sort_order,
         ]);
 
-        $skill = $job->skill;
-        $this->skillForm = array_merge($this->skillDefaults, $skill ? [
-            'name' => $skill->name,
-            'activation_rate' => (int) $skill->effectiveActivationRate(),
-            'sp_cost_base' => (int) ($skill->sp_cost_base ?? 0),
-            'sp_cost_rate' => (float) ($skill->sp_cost_rate ?? 0),
-            'mp_cost' => (int) ($skill->mp_cost ?? 0),
-            'damage_type' => $skill->damage_type ?? 'physical',
-            'power_multiplier' => (float) $skill->power_multiplier,
-            'hit_count' => (int) $skill->hit_count,
-            'heal_percent' => (int) $skill->heal_percent,
-            'self_damage_percent' => (int) $skill->self_damage_percent,
-            'gold_bonus_percent' => (int) $skill->gold_bonus_percent,
-            'drop_bonus_percent' => (int) $skill->drop_bonus_percent,
-            'def_ignore_percent' => (int) $skill->def_ignore_percent,
-            'damage_reduction_percent' => (int) $skill->damage_reduction_percent,
-            'enemy_def_down_percent' => (int) $skill->enemy_def_down_percent,
-            'enemy_spr_down_percent' => (int) $skill->enemy_spr_down_percent,
-            'enemy_spd_down_percent' => (int) $skill->enemy_spd_down_percent,
-            'mp_recover_percent' => (int) $skill->mp_recover_percent,
-            'description' => $skill->description ?? '',
-        ] : []);
-
         $this->requirementRows = $job->requirements
             ->map(fn (JobRequirement $requirement) => [
                 'requirement_type' => $requirement->requirement_type,
@@ -188,10 +141,6 @@ class JobManager extends Component
 
     public function save(): void
     {
-        $skillId = $this->editingJobId
-            ? Skill::where('job_id', $this->editingJobId)->where('skill_type', 'special')->value('id')
-            : null;
-
         $validated = $this->validate([
             'form.key' => [
                 'required',
@@ -228,30 +177,6 @@ class JobManager extends Component
             'form.is_hidden' => 'boolean',
             'form.is_active' => 'boolean',
             'form.sort_order' => 'required|integer|min:0|max:999999',
-            'skillForm.name' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('skills', 'name')->where('skill_type', 'special')->ignore($skillId),
-            ],
-            'skillForm.activation_rate' => 'required|integer|min:0|max:100',
-            'skillForm.sp_cost_base' => 'required|integer|min:0|max:9999',
-            'skillForm.sp_cost_rate' => 'required|numeric|min:0|max:1',
-            'skillForm.mp_cost' => 'required|integer|min:0|max:9999',
-            'skillForm.damage_type' => 'required|in:physical,magical,hybrid,heal,support,gold,drop',
-            'skillForm.power_multiplier' => 'required|numeric|min:0|max:99.99',
-            'skillForm.hit_count' => 'required|integer|min:0|max:20',
-            'skillForm.heal_percent' => 'required|integer|min:0|max:100',
-            'skillForm.self_damage_percent' => 'required|integer|min:0|max:100',
-            'skillForm.gold_bonus_percent' => 'required|integer|min:0|max:999',
-            'skillForm.drop_bonus_percent' => 'required|integer|min:0|max:999',
-            'skillForm.def_ignore_percent' => 'required|integer|min:0|max:100',
-            'skillForm.damage_reduction_percent' => 'required|integer|min:0|max:100',
-            'skillForm.enemy_def_down_percent' => 'required|integer|min:0|max:100',
-            'skillForm.enemy_spr_down_percent' => 'required|integer|min:0|max:100',
-            'skillForm.enemy_spd_down_percent' => 'required|integer|min:0|max:100',
-            'skillForm.mp_recover_percent' => 'required|integer|min:0|max:100',
-            'skillForm.description' => 'nullable|string|max:1000',
             'requirementRows' => 'array',
             'requirementRows.*.requirement_type' => 'required|in:master_job,character_level,title,item,quest,event_flag',
             'requirementRows.*.required_job_id' => 'nullable',
@@ -270,7 +195,6 @@ class JobManager extends Component
                 ? tap(JobClass::findOrFail($this->editingJobId))->update($jobData)
                 : JobClass::create($jobData);
 
-            $this->syncSkill($job, $validated['skillForm']);
             $this->syncRequirements($job, $validated['requirementRows'] ?? []);
 
             $this->editingJobId = $job->id;
@@ -293,23 +217,7 @@ class JobManager extends Component
     {
         $this->editingJobId = null;
         $this->form = $this->defaults;
-        $this->skillForm = $this->skillDefaults;
         $this->requirementRows = [];
-    }
-
-    private function syncSkill(JobClass $job, array $skillData): void
-    {
-        if (trim((string) $skillData['name']) === '') {
-            Skill::where('job_id', $job->id)->where('skill_type', 'special')->delete();
-            return;
-        }
-
-        $skillData['job_id'] = $job->id;
-        $skillData['skill_type'] = 'special';
-        $skillData['trigger_rate'] = (int) $skillData['activation_rate'];
-        $skillData['description'] = $skillData['description'] !== '' ? $skillData['description'] : null;
-
-        Skill::updateOrCreate(['job_id' => $job->id, 'skill_type' => 'special'], $skillData);
     }
 
     private function syncRequirements(JobClass $job, array $rows): void
@@ -361,7 +269,7 @@ class JobManager extends Component
 
     public function render()
     {
-        $jobsQuery = JobClass::with(['skill', 'requirements.requiredJob'])
+        $jobsQuery = JobClass::with('requirements.requiredJob')
             ->when($this->rankFilter !== 'all', fn ($q) => $q->where('rank', $this->rankFilter))
             ->when($this->search !== '', fn ($q) => $q->where(function ($query) {
                 $query->where('name', 'like', '%' . $this->search . '%')

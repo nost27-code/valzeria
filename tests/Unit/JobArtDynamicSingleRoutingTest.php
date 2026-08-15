@@ -77,13 +77,13 @@ class JobArtDynamicSingleRoutingTest extends TestCase
         $this->assertSame($skill, $support->selectForTurn($actor, $state));
     }
 
-    public function test_v2_miss_keeps_existing_special_skill_then_normal_attack_fallback_order(): void
+    public function test_v2_miss_ignores_retired_special_skill_and_uses_normal_attack(): void
     {
         config(['battle.job_art_v2.dynamic_single' => true]);
         [$actor, $state] = $this->battle(24);
         $selector = Mockery::mock(JobArtV2SelectionService::class);
         $selector->shouldReceive('selectForTurn')
-            ->twice()
+            ->once()
             ->andReturn(new JobArtV2SelectionResult(null, 9001, 50, false, false, false));
         $service = new class(
             Mockery::mock(CharacterStatusService::class),
@@ -115,14 +115,6 @@ class JobArtDynamicSingleRoutingTest extends TestCase
 
         $service->act($actor, $state->enemy, $state);
 
-        $this->assertTrue($service->specialUsed);
-        $this->assertFalse($service->normalUsed);
-
-        [$normalActor, $normalState] = $this->battle(24);
-        $service->specialUsed = false;
-        $service->normalUsed = false;
-        $service->act($normalActor, $normalState->enemy, $normalState);
-
         $this->assertFalse($service->specialUsed);
         $this->assertTrue($service->normalUsed);
     }
@@ -144,6 +136,11 @@ class JobArtDynamicSingleRoutingTest extends TestCase
         $this->assertStringContainsString('$this->jobArtBattleSupport->selectForTurn(', $arenaNpc);
         $this->assertStringContainsString('private function selectJobArtForTurn(', $battle);
         $this->assertStringContainsString('foreach ($actor->jobArts as $art)', file_get_contents(base_path('app/Services/JobArtBattleSupportService.php')));
+
+        foreach ([$battle, $tower, $pvp, $champ, $arenaNpc] as $battleSource) {
+            $this->assertStringNotContainsString('->skill =', $battleSource);
+            $this->assertStringNotContainsString('specialSkillSpCostForMaxSp', $battleSource);
+        }
     }
 
     private function battle(int $currentJobId): array
@@ -185,7 +182,7 @@ class JobArtDynamicSingleRoutingTest extends TestCase
     {
         $skill = new Skill([
             'name' => 'current-job-special',
-            'skill_type' => 'active',
+            'skill_type' => 'special',
             'activation_rate' => 100,
             'sp_cost_fixed' => 0,
         ]);

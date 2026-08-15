@@ -12,21 +12,12 @@
             'quest' => 'クエスト',
             'event_flag' => 'イベント',
         ];
-        $damageTypeLabels = [
-            'physical' => '物理',
-            'magical' => '魔法',
-            'hybrid' => '複合',
-            'heal' => '回復',
-            'support' => '支援',
-            'gold' => '獲得補正',
-            'drop' => 'ドロップ補正',
-        ];
     @endphp
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h1 class="text-3xl font-bold text-[#1e293b]">職業管理</h1>
-            <p class="text-sm text-gray-500 mt-1">職業マスタ、転職条件、職業ごとの必殺技を編集します。保存内容は転職所と戦闘に反映されます。</p>
+            <p class="text-sm text-gray-500 mt-1">職業マスタと転職条件を編集します。職業固有必殺技は廃止済みで、戦闘技は奥義へ統一されています。</p>
         </div>
         <div class="flex flex-wrap gap-2">
             @foreach($rankLabels as $rankKey => $rankLabel)
@@ -122,7 +113,7 @@
                         @endforeach
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        @foreach(['bonus_gold_rate' => 'Gold%', 'bonus_drop_rate' => 'Drop%', 'bonus_critical_rate' => '会心%', 'special_skill_rate' => '技率%'] as $field => $label)
+                        @foreach(['bonus_gold_rate' => 'Gold%', 'bonus_drop_rate' => 'Drop%', 'bonus_critical_rate' => '会心%'] as $field => $label)
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">{{ $label }}</label>
                                 <input type="number" wire:model="form.{{ $field }}" class="{{ $compactFieldClass }}">
@@ -178,77 +169,6 @@
                     @endforelse
                 </section>
 
-                <section class="space-y-4">
-                    <h3 class="text-sm font-extrabold text-slate-600 border-b pb-2">職業ごとの技</h3>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">技名</label>
-                        <input type="text" wire:model="skillForm.name" placeholder="空欄で技なし" class="{{ $fieldClass }}">
-                        @error('skillForm.name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">発動率%</label>
-                            <input type="number" wire:model="skillForm.activation_rate" class="{{ $compactFieldClass }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">固定SP</label>
-                            <input type="number" wire:model="skillForm.sp_cost_base" class="{{ $compactFieldClass }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">SP係数</label>
-                            <input type="number" step="0.0001" wire:model="skillForm.sp_cost_rate" class="{{ $compactFieldClass }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">旧SP消費</label>
-                            <input type="number" wire:model="skillForm.mp_cost" class="{{ $compactFieldClass }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">タイプ</label>
-                            <select wire:model="skillForm.damage_type" class="{{ $compactFieldClass }}">
-                                @foreach($damageTypeLabels as $key => $label)
-                                    <option value="{{ $key }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">倍率</label>
-                            <input type="number" step="0.01" wire:model="skillForm.power_multiplier" class="{{ $compactFieldClass }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Hit数</label>
-                            <input type="number" wire:model="skillForm.hit_count" class="{{ $compactFieldClass }}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">回復%</label>
-                            <input type="number" wire:model="skillForm.heal_percent" class="{{ $compactFieldClass }}">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        @foreach([
-                            'self_damage_percent' => '反動%',
-                            'gold_bonus_percent' => 'Gold%',
-                            'drop_bonus_percent' => 'Drop%',
-                            'def_ignore_percent' => '防御無視%',
-                            'damage_reduction_percent' => '軽減%',
-                            'enemy_def_down_percent' => '敵DEF低下%',
-                            'enemy_spr_down_percent' => '敵SPR低下%',
-                            'enemy_spd_down_percent' => '敵SPD低下%',
-                            'mp_recover_percent' => 'SP回復%',
-                        ] as $field => $label)
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">{{ $label }}</label>
-                                <input type="number" wire:model="skillForm.{{ $field }}" class="{{ $compactFieldClass }}">
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">技説明</label>
-                        <textarea wire:model="skillForm.description" rows="2" class="{{ $fieldClass }}"></textarea>
-                    </div>
-                </section>
-
                 <div class="flex gap-2 pt-2">
                     <button type="submit" wire:loading.attr="disabled" wire:target="save" class="flex-1 bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-bold py-2 rounded shadow disabled:cursor-wait disabled:opacity-60">
                         <span wire:loading.remove wire:target="save">{{ $editingJobId ? '更新する' : '追加する' }}</span>
@@ -291,7 +211,6 @@
                             <th class="px-3 py-2 text-left">ID</th>
                             <th class="px-3 py-2 text-left">職業</th>
                             <th class="px-3 py-2 text-left">倍率</th>
-                            <th class="px-3 py-2 text-left">技</th>
                             <th class="px-3 py-2 text-left">条件</th>
                             <th class="px-3 py-2 text-left">状態</th>
                             <th class="px-3 py-2 text-right">操作</th>
@@ -316,14 +235,6 @@
                                     @endforeach
                                     @if(collect(['hp_rate','mp_rate','atk_rate','def_rate','mag_rate','spr_rate','spd_rate','luck_rate'])->every(fn($field) => (int) $job->{$field} === 100))
                                         <span class="text-slate-400">標準</span>
-                                    @endif
-                                </td>
-                                <td class="px-3 py-2 min-w-44">
-                                    @if($job->skill)
-                                        <div class="font-bold text-slate-800">{{ $job->skill->name }}</div>
-                                        <div class="text-xs text-gray-500">{{ $damageTypeLabels[$job->skill->damage_type] ?? $job->skill->damage_type }} / {{ $job->skill->effectiveActivationRate() }}%</div>
-                                    @else
-                                        <span class="text-xs text-gray-400">なし</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-xs min-w-52">

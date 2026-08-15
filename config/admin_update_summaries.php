@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-15-retire-job-special-skills',
+        'date' => '2026-08-15',
+        'category' => 'changed',
+        'title' => '職業固有必殺技を廃止し奥義へ統一',
+        'detail' => '戦闘中に自動発動していた職業固有必殺技を廃止し、通常探索・ボス・塔・PvP・チャンプ・NPCランク戦で使う技をセットした奥義へ統一しました。神殿の職業詳細も現行の奥義効果へ更新しています。',
+    ],
+    [
         'id' => '2026-08-15-job-art-stage-log-styles',
         'date' => '2026-08-15',
         'category' => 'changed',

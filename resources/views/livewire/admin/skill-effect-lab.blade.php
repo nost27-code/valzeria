@@ -3,7 +3,7 @@
         <div>
             <p class="text-xs font-black tracking-[0.24em] text-amber-600">SKILL EFFECT LAB</p>
             <h1 class="mt-2 text-3xl font-black text-slate-950">技効果検証</h1>
-            <p class="mt-2 text-sm font-bold text-slate-500">必殺技・継承奥義の平均ダメージ、通常攻撃比、追加効果の反映を6ターンで確認します。</p>
+            <p class="mt-2 text-sm font-bold text-slate-500">職業奥義・継承奥義の平均ダメージ、通常攻撃比、追加効果の反映を6ターンで確認します。</p>
         </div>
         <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-800">
             DBへ保存されません
@@ -86,9 +86,7 @@
                                 <option value="">未選択</option>
                                 @foreach($skillOptions as $skill)
                                     @php
-                                        $skillKindLabel = $skill->skill_type === 'special'
-                                            ? '必殺技'
-                                            : ((int) $skill->job_id === (int) $selectedJobId ? '職業奥義' : '継承奥義');
+                                        $skillKindLabel = (int) $skill->job_id === (int) $selectedJobId ? '職業奥義' : '継承奥義';
                                         $skillJobLabel = $skill->jobClass
                                             ? \App\Support\JobRankCatalog::label($skill->jobClass->rank) . ' / ' . $skill->jobClass->name
                                             : '-';
@@ -299,7 +297,7 @@
             <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
                 @foreach($result['skill_summaries'] as $summary)
                     <div class="rounded-md bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                        <div class="text-xs font-black text-slate-500">{{ $summary['kind_label'] ?? ($summary['kind'] === 'job_art' ? '奥義' : '必殺技') }}</div>
+                        <div class="text-xs font-black text-slate-500">{{ $summary['kind_label'] ?? '奥義' }}</div>
                         <div class="mt-1 text-lg font-black text-slate-950">{{ $summary['label'] }}</div>
                         <div class="mt-3 grid grid-cols-2 gap-2">
                             <div class="rounded bg-slate-50 px-3 py-2">

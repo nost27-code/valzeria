@@ -580,24 +580,13 @@
                     @if(!empty($detailJobCombatGuide))
                         <section>
                             <h4 class="text-sm font-extrabold text-slate-900">戦い方と適正武器</h4>
-                            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                            <div class="mt-2 grid gap-2">
                                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                                     <div class="text-[10px] font-extrabold tracking-wide text-slate-500">通常攻撃</div>
                                     <div class="mt-1 text-sm font-extrabold text-slate-900">
                                         {{ $detailJobCombatGuide['normal_attack_reference'] }}
                                     </div>
                                 </div>
-                                @if($detailJobCombatGuide['special_skill'])
-                                    <div class="rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2.5">
-                                        <div class="text-[10px] font-extrabold tracking-wide text-blue-500">必殺技</div>
-                                        <div class="mt-1 text-sm font-extrabold text-slate-900">
-                                            {{ $detailJobCombatGuide['special_skill']['name'] }}
-                                        </div>
-                                        <div class="mt-0.5 text-xs font-bold text-blue-700">
-                                            {{ $detailJobCombatGuide['special_skill']['damage_reference'] ?? '直接ダメージなし' }}
-                                        </div>
-                                    </div>
-                                @endif
                             </div>
                             <div class="mt-3 flex flex-wrap items-center gap-1.5">
                                 <span class="text-xs font-extrabold text-slate-700">適正武器：</span>
@@ -615,7 +604,7 @@
                                 @else
                                     現在は適正武器のみ装備できます。
                                 @endif
-                                必殺技・奥義は、それぞれ表示された能力を参照します。
+                                奥義は表示された能力を参照します。
                             </p>
                         </section>
                     @endif
@@ -647,10 +636,10 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <div class="mt-2 text-xs font-medium leading-relaxed text-slate-600">
-                                        {{ $art->memo ?? $art->description ?? '効果説明なし' }}
+                                    <div class="mt-2 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-600">
+                                        {{ $detailJobArtDescriptions[(int) $art->id] ?? ($art->memo ?? $art->description ?? '効果説明なし') }}
                                     </div>
-                                    @if($art->jobArtNumericEffectLabels())
+                                    @if(!($detailJobArtUsesCanonicalDescription[(int) $art->id] ?? false) && $art->jobArtNumericEffectLabels())
                                         <div class="mt-2 flex flex-wrap gap-1 text-[10px] font-bold text-indigo-700">
                                             @foreach($art->jobArtNumericEffectLabels() as $numericEffectLabel)
                                                 <span class="rounded border border-indigo-100 bg-white px-2 py-0.5">{{ $numericEffectLabel }}</span>

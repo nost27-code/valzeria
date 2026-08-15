@@ -44,23 +44,14 @@ class JobCombatGuideService
      *     normal_attack_reference: string,
      *     weapon_labels: list<string>,
      *     non_proficient_enabled: bool,
-     *     special_skill: array{name: string, damage_reference: ?string}|null,
      *     job_art_damage_references: array<int, string>
      * }
      */
     public function detailFor(JobClass $job): array
     {
-        $job->loadMissing(['skill', 'jobArts']);
+        $job->loadMissing('jobArts');
         $summary = $this->summaryFor($job);
         $normalAttackType = (string) $job->normal_attack_type;
-        $specialSkill = $job->skill;
-
-        $summary['special_skill'] = $specialSkill
-            ? [
-                'name' => (string) $specialSkill->name,
-                'damage_reference' => $this->damageReference($specialSkill, $normalAttackType),
-            ]
-            : null;
         $summary['job_art_damage_references'] = $job->jobArts
             ->mapWithKeys(function (Skill $skill) use ($normalAttackType): array {
                 $reference = $this->damageReference($skill, $normalAttackType);

@@ -250,7 +250,7 @@ class ArenaNpcBattleService
         $stats = $this->statusService->getFinalStats($character);
         $job = $character->relationLoaded('currentJob')
             ? $character->currentJob
-            : $character->currentJob()->with('skill')->first();
+            : $character->currentJob()->first();
 
         $actor = new BattleActor($character->name, true, [
             'hp' => $stats['max_hp'],
@@ -267,7 +267,6 @@ class ArenaNpcBattleService
             'normal_attack_type' => $this->normalAttackType($job),
         ], clone $character);
 
-        $actor->skill = $job?->skill;
         $actor->jobKey = $job?->key;
         $this->jobArtBattleSupport->attachBossSet($actor, $character, 'champ');
 
@@ -334,15 +333,6 @@ class ArenaNpcBattleService
                 return;
             }
 
-            if ($attacker->skill && random_int(1, 100) <= $attacker->skill->effectiveActivationRate()) {
-                $spCost = $attacker->skill->specialSkillSpCostForMaxSp($attacker->maxMp);
-                if ($attacker->mp >= $spCost) {
-                    $attacker->mp -= $spCost;
-                    $this->jobArtBattleSupport->markSkillAction($attacker, $state, $attacker->skill);
-                    $this->executeSkillAction($attacker, $defender, $state, $attacker->skill);
-                    return;
-                }
-            }
         }
 
         $this->executeNormalAttack($attacker, $defender, $state);

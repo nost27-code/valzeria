@@ -28,14 +28,7 @@ class PvPBattleService
     private const PVP_MIN_HIT_RATE = 84;
     private const PVP_MAX_HIT_RATE = 97;
     private const PVP_TURN_SPEED_RANDOM = 2;
-    private const PVP_FOCUS_MAX = 100;
-    private const PVP_FOCUS_ATTACK_GAIN = 25;
-    private const PVP_FOCUS_DAMAGE_GAIN = 15;
-    private const PVP_FOCUS_BONUS_GAIN = 10;
-    private const PVP_FOCUS_EARLY_THRESHOLD = 80;
-    private const PVP_FOCUS_EARLY_RATE = 20;
     private const PVP_NORMAL_POWER_MULTIPLIER = 125;
-    private const PVP_SKILL_COST_MAX_SP_RATE = 0.25;
     private const PUBLIC_RANK_UP_LOG_MAX_RANK = 50;
 
     protected CharacterStatusService $statusService;
@@ -134,10 +127,7 @@ class PvPBattleService
 
         $attackerJob = $attackerChar->relationLoaded('currentJob')
             ? $attackerChar->currentJob
-            : $attackerChar->currentJob()->with('skill')->first();
-        if ($attackerJob?->skill) {
-            $attackerActor->skill = $attackerJob->skill;
-        }
+            : $attackerChar->currentJob()->first();
         $attackerActor->jobKey = $attackerJob?->key;
         $attackerActor->battleTypeWeights = BattleTypeAffinity::normalize($this->battleTypeWeights($attackerJob));
         $attackerActor->normalAttackType = $this->normalAttackType($attackerJob);
@@ -160,10 +150,7 @@ class PvPBattleService
 
         $defenderJob = $defenderChar->relationLoaded('currentJob')
             ? $defenderChar->currentJob
-            : $defenderChar->currentJob()->with('skill')->first();
-        if ($defenderJob?->skill) {
-            $defenderActor->skill = $defenderJob->skill;
-        }
+            : $defenderChar->currentJob()->first();
         $defenderActor->jobKey = $defenderJob?->key;
         $defenderActor->battleTypeWeights = BattleTypeAffinity::normalize($this->battleTypeWeights($defenderJob));
         $defenderActor->normalAttackType = $this->normalAttackType($defenderJob);
@@ -369,8 +356,6 @@ class PvPBattleService
         try {
         $attacker->isDefending = false;
         $attacker->damageReductionRate = 0;
-        $this->addFocus($attacker, self::PVP_FOCUS_ATTACK_GAIN);
-
         $usedSkill = false;
         $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
@@ -395,20 +380,6 @@ class PvPBattleService
             );
             $this->jobArtBattleSupport->completeJobArtCast($attacker, $state, $jobArt, $hitResult, $defender);
             $usedSkill = true;
-        }
-
-        if (!$usedSkill && $this->shouldUseRankSkill($attacker)) {
-            $spCost = $this->rankBattleSkillSpCost($attacker, $attacker->skill);
-            if ($attacker->mp >= $spCost) {
-                $attacker->mp -= $spCost;
-                $this->resetFocus($attacker);
-                $this->jobArtBattleSupport->markSkillAction($attacker, $state, $attacker->skill);
-                $state->addLog("<span class=\"text-indigo-600 font-bold\">【闘気解放】{$attacker->name} の闘気が満ちた！</span>");
-                $this->executeSkillAction($attacker, $defender, $state, $attacker->skill);
-                $usedSkill = true;
-            } else {
-                $state->addLog("<span class=\"text-slate-500 font-bold\">{$attacker->name} の闘気は高まったが、SPが足りない！</span>");
-            }
         }
 
         if (!$usedSkill) {
@@ -466,7 +437,6 @@ class PvPBattleService
             $attackType,
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
-        $this->rewardRankBattleFocusAfterDamage($attacker, $defender, $damage, $isCrit, $affinityMultiplier);
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
@@ -515,7 +485,6 @@ class PvPBattleService
             'physical',
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
-        $this->rewardRankBattleFocusAfterDamage($attacker, $defender, $damage, $isCrit, $affinityMultiplier);
 
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $state->addLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
@@ -655,7 +624,6 @@ class PvPBattleService
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
-                $this->rewardRankBattleFocusAfterDamage($attacker, $defender, $damage, $isCrit, $affinityMultiplier ?? 1.0);
                 $state->addLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
@@ -909,69 +877,6 @@ class PvPBattleService
 
         $actor->gutsJustTriggered = false;
         $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
-    }
-
-    private function focus(BattleActor $actor): int
-    {
-        return (int) ($actor->conditions['rank_battle_focus'] ?? 0);
-    }
-
-    private function addFocus(BattleActor $actor, int $amount): void
-    {
-        $actor->conditions['rank_battle_focus'] = min(
-            self::PVP_FOCUS_MAX,
-            max(0, $this->focus($actor) + $amount)
-        );
-    }
-
-    private function resetFocus(BattleActor $actor): void
-    {
-        $actor->conditions['rank_battle_focus'] = 0;
-    }
-
-    private function shouldUseRankSkill(BattleActor $attacker): bool
-    {
-        if (!$attacker->skill) {
-            return false;
-        }
-
-        $focus = $this->focus($attacker);
-        if ($focus >= self::PVP_FOCUS_MAX) {
-            return true;
-        }
-
-        return $focus >= self::PVP_FOCUS_EARLY_THRESHOLD
-            && rand(1, 100) <= self::PVP_FOCUS_EARLY_RATE;
-    }
-
-    private function rankBattleSkillSpCost(BattleActor $attacker, Skill $skill): int
-    {
-        $baseCost = $skill->specialSkillSpCostForMaxSp($attacker->maxMp);
-        if ($baseCost <= 0 || $attacker->maxMp <= 0) {
-            return $baseCost;
-        }
-
-        $rankBattleCap = max(1, (int) ceil($attacker->maxMp * self::PVP_SKILL_COST_MAX_SP_RATE));
-
-        return min($baseCost, $rankBattleCap);
-    }
-
-    private function rewardRankBattleFocusAfterDamage(
-        BattleActor $attacker,
-        BattleActor $defender,
-        int $damage,
-        bool $isCritical,
-        float $affinityMultiplier
-    ): void {
-        if ($damage <= 0) {
-            return;
-        }
-
-        $this->addFocus($defender, self::PVP_FOCUS_DAMAGE_GAIN);
-
-        if ($isCritical || $affinityMultiplier > 1.01) {
-            $this->addFocus($attacker, self::PVP_FOCUS_BONUS_GAIN);
-        }
     }
 
     private function affinityLog(BattleActor $attacker, BattleActor $defender): string

@@ -170,7 +170,7 @@
                                     @endif
                                 </div>
                             </div>
-                            <p class="mt-2 text-sm font-bold leading-6 text-slate-600">{{ $art->memo ?? $art->description ?? '効果説明なし' }}</p>
+                            <p class="mt-2 whitespace-pre-line text-sm font-bold leading-6 text-slate-600">{{ $detailJobArtDescriptions[(int) $art->id] ?? ($art->memo ?? $art->description ?? '効果説明なし') }}</p>
                         </article>
                     @empty
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-400">覚える奥義はまだ登録されていません。</div>

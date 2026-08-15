@@ -165,16 +165,17 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSeeInOrder(['おすすめ順のローブ', 'おすすめ順の重鎧']);
     }
 
-    public function test_job_detail_shows_special_skill_and_job_art_damage_references(): void
+    public function test_job_detail_hides_retired_special_skill_and_shows_job_art_damage_references(): void
     {
         config(['equipment_proficiency.non_proficient.enabled' => true]);
+        config(['battle.job_art_v2.loadout_v2' => true]);
         [$user, $character, $merchant] = $this->merchantPlayer();
 
         Skill::query()->updateOrCreate([
             'job_id' => $merchant->id,
             'skill_type' => 'special',
         ], [
-            'name' => '幸運の一手',
+            'name' => '廃止確認用の固有必殺技',
             'damage_type' => 'drop',
             'power_multiplier' => 1.25,
         ]);
@@ -182,7 +183,7 @@ class JobCombatGuideDisplayTest extends TestCase
             'job_id' => $merchant->id,
             'skill_type' => 'job_art',
             'name' => '金貨投げ',
-            'learn_rank' => 2,
+            'learn_rank' => 1,
             'effect_template' => 'PHYSICAL_DAMAGE_GOLD_REWARD',
             'damage_type' => 'physical',
             'power' => 120,
@@ -197,13 +198,50 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSet('showingJobDetail', true)
             ->assertSee('戦い方と適正武器')
             ->assertSee('通常攻撃')
-            ->assertSee('幸運の一手')
+            ->assertDontSee('廃止確認用の固有必殺技')
             ->assertSee('金貨投げ')
+            ->assertSee('Cost 1')
+            ->assertDontSee('Cost 5')
             ->assertSee('攻撃参照')
             ->assertSet(
                 'detailJobCombatGuide.job_art_damage_references.' . $art->id,
                 '攻撃参照',
             );
+    }
+
+    public function test_job_detail_uses_the_current_canonical_job_art_description(): void
+    {
+        [$user, $character] = $this->merchantPlayer();
+        $magicThief = JobClass::query()->findOrFail(19);
+        $magicThief->forceFill([
+            'is_hidden' => false,
+            'is_active' => true,
+        ])->save();
+
+        Skill::query()->updateOrCreate([
+            'job_id' => $magicThief->id,
+            'skill_type' => 'job_art',
+            'learn_rank' => 5,
+        ], [
+            'name' => 'スピリットスティール',
+            'memo' => 'HP/SP吸収＋敵SPR低下',
+            'description' => '旧説明',
+            'effect_template' => 'DRAIN',
+            'damage_type' => 'magical',
+            'power' => 165,
+            'power_multiplier' => 1.65,
+            'hit_count' => 1,
+            'mp_recover_percent' => 10,
+        ]);
+
+        session(['current_character_id' => $character->id]);
+        Livewire::actingAs($user)
+            ->test(JobChange::class)
+            ->call('showJobDetail', $magicThief->id)
+            ->assertSee('冥蝕を-4し、相手に威力165%の魔力ダメージを与え、与えたダメージの30%分、自分のHPを回復する。')
+            ->assertSee('相手の現在SPを最大SPの3%分減らす。')
+            ->assertDontSee('HP/SP吸収＋敵SPR低下')
+            ->assertDontSee('最大SP回復 +10%');
     }
 
     public function test_hero_job_detail_uses_the_dedicated_full_screen_showcase(): void
