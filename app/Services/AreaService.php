@@ -15,7 +15,7 @@ class AreaService
     public function getAreasWithProgress(Character $character)
     {
         if (app(FerdiaMapService::class)->isFerdiaCityId((int) $character->current_city_id)
-            && !app(FerdiaMapService::class)->isEnabled()
+            && !app(FerdiaMapService::class)->canAccessRegion($character)
         ) {
             return collect();
         }
@@ -120,7 +120,7 @@ class AreaService
     public function canEnterArea(Character $character, int $areaId): bool
     {
         if (app(FerdiaMapService::class)->isFerdiaAreaId($areaId)
-            && !app(FerdiaMapService::class)->isEnabled()
+            && !app(FerdiaMapService::class)->canAccessRegion($character)
         ) {
             return false;
         }

@@ -20,9 +20,27 @@ class FerdiaMapService
         return (string) config('ferdia_world_map.content_key', 'ferdia_unlocked');
     }
 
-    public function mapFor(Character $character): ?array
+    public function canAccessRegion(Character $character): bool
     {
         if (!$this->isEnabled()) {
+            return false;
+        }
+
+        $requiredAreaId = (int) config('ferdia_world_map.entry_requirement.area_id', 0);
+        if ($requiredAreaId <= 0) {
+            return true;
+        }
+
+        return CharacterAreaProgress::query()
+            ->where('character_id', (int) $character->id)
+            ->where('area_id', $requiredAreaId)
+            ->where('boss_defeated', true)
+            ->exists();
+    }
+
+    public function mapFor(Character $character): ?array
+    {
+        if (!$this->canAccessRegion($character)) {
             return null;
         }
 
@@ -90,7 +108,7 @@ class FerdiaMapService
 
     public function ensureInitialAccess(Character $character): void
     {
-        if (!$this->isEnabled()) {
+        if (!$this->canAccessRegion($character)) {
             return;
         }
 
@@ -127,7 +145,7 @@ class FerdiaMapService
 
     public function canAccessArea(Character $character, int $areaId): bool
     {
-        if (!$this->isEnabled() || !$this->isFerdiaAreaId($areaId)) {
+        if (!$this->canAccessRegion($character) || !$this->isFerdiaAreaId($areaId)) {
             return false;
         }
 
@@ -153,7 +171,7 @@ class FerdiaMapService
             return false;
         }
 
-        if (!$this->isEnabled()) {
+        if (!$this->canAccessRegion($character)) {
             return false;
         }
 
@@ -165,7 +183,7 @@ class FerdiaMapService
 
     public function nextTravelCityFor(Character $character, ?City $currentCity): ?City
     {
-        if (!$currentCity || !$this->isEnabled() || !$this->isFerdiaCityId((int) $currentCity->id)) {
+        if (!$currentCity || !$this->canAccessRegion($character) || !$this->isFerdiaCityId((int) $currentCity->id)) {
             return null;
         }
 
@@ -189,7 +207,7 @@ class FerdiaMapService
 
     public function relocateFromDisabledRegion(Character $character): bool
     {
-        if ($this->isEnabled() || !$this->isFerdiaCityId((int) $character->current_city_id)) {
+        if ($this->canAccessRegion($character) || !$this->isFerdiaCityId((int) $character->current_city_id)) {
             return false;
         }
 

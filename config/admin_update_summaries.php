@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-ferdia-valzeria-clear-gate',
+        'date' => '2026-08-16',
+        'category' => 'changed',
+        'title' => 'フェルディア地方の解放条件を追加',
+        'detail' => 'フェルディア地方は、魔王城ヴァルゼリアの最終ボスを倒した冒険者だけがMAPから進めるようになりました。未達成の間はフェルディア地方タブを表示しません。',
+    ],
+    [
         'id' => '2026-08-16-job-art-menu-legacy-text-fix',
         'date' => '2026-08-16',
         'category' => 'fixed',

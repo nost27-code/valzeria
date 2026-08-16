@@ -57,6 +57,10 @@ $allNodes = static fn (array $keys): array => [
 
 return [
     'content_key' => 'ferdia_unlocked',
+    'entry_requirement' => [
+        'area_id' => 70,
+        'label' => '魔王城ヴァルゼリアクリア',
+    ],
     'name' => 'フェルディア大陸',
     'subtitle' => '緑豊かなる連邦の大地',
     'map_image' => 'images/map/map02.webp',
