@@ -291,6 +291,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/champ/confirm', [ChampBattleController::class, 'confirm'])->name('champ.confirm');
         Route::post('/champ/challenge', [ChampBattleController::class, 'challenge'])->name('champ.challenge');
         Route::get('/champ/result', [ChampBattleController::class, 'result'])->name('champ.result');
+        Route::get('/training-ground', [\App\Http\Controllers\TrainingGroundController::class, 'index'])->name('training-ground.index');
+        Route::post('/training-ground/battle', [\App\Http\Controllers\TrainingGroundController::class, 'battle'])->name('training-ground.battle');
+        Route::get('/training-ground/result', [\App\Http\Controllers\TrainingGroundController::class, 'result'])->name('training-ground.result');
         Route::post('/inn/rest', [\App\Http\Controllers\InnController::class, 'rest'])->name('inn.rest');
         Route::get('/inn/rescue', [\App\Http\Controllers\InnController::class, 'rescue'])->name('inn.rescue');
         Route::get('/inn/rescue-refused', [\App\Http\Controllers\InnController::class, 'rescueRefused'])->name('inn.rescue-refused');

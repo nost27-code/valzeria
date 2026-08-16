@@ -5,6 +5,11 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-16
 Branch: main
 
+## Dungeon-lord job-art set / training-ground practice battle
+
+- ダンジョン主は`is_boss=false`の通常PvE・報酬ルールを維持しつつ、プレイヤーが使う戦技セットだけボス戦用を選ぶ
+- 街施設「冒険者訓練所」は`TrainingGroundBattleService`で通常戦用／ボス戦用セットを選び、既存PvE戦闘を50ターン実行する。双方はHP1で踏みとどまり、訓練人形は受け流し可能な単発直接物理攻撃だけを行い、1回のダメージをプレイヤー最大HPの1%以下に抑える。開始時だけHP/SP全快を使い、実HP/SP、装備、戦績、戦闘履歴、報酬、探索支援品、待機時間は更新しない。多重実行はキャラクター単位の短時間ガードで止める
+
 ## Job-art v2 guide / rank-battle judgment (production)
 
 - 戦技セット上部から初心者向け解説モーダルを開ける。系譜と0〜12の戦闘内リソース、5枠の循環候補順と1行動1候補1抽選、10系譜の直接・共通獲得、PvP奥義予告、最大100ターン、最大5枠・Cost9・奥義1枚等の制限をまとめる。行動順のプレイヤー向け表記は「敏捷」とし、英字能力名を使わない

@@ -174,8 +174,11 @@ class BattleService
         $persistCharacterState = (bool) ($options['persist_character_state'] ?? true);
         $rewardsEnabled = (bool) ($options['rewards_enabled'] ?? true);
         $explorationSupportEnabled = (bool) ($options['exploration_support_enabled'] ?? true);
+        $autoUnequipInvalidItems = (bool) ($options['auto_unequip_invalid_items'] ?? true);
         $enemy->loadMissing('actions');
-        app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
+        if ($autoUnequipInvalidItems) {
+            app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
+        }
         $character->refresh();
 
         // プレイヤーアクターの生成
@@ -248,7 +251,11 @@ class BattleService
         ], clone $enemy);
 
         $battleContext = $enemy->is_boss ? 'boss' : 'pve';
-        $jobArts = $this->jobArtService->battleArtsFor($character, $battleContext);
+        $jobArtBattleContext = (string) ($options['job_art_context'] ?? $this->jobArtBattleContext($enemy));
+        if (! in_array($jobArtBattleContext, ['pve', 'boss'], true)) {
+            $jobArtBattleContext = $this->jobArtBattleContext($enemy);
+        }
+        $jobArts = $this->jobArtService->battleArtsFor($character, $jobArtBattleContext);
         $playerActor->jobArts = $jobArts->all();
         foreach ($jobArts as $art) {
             $playerActor->jobArtRates[(int) $art->id] = (float) $art->getAttribute('job_art_rate');
@@ -287,6 +294,9 @@ class BattleService
         $result->playerMpBefore = $playerActor->mp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
+        if (isset($options['max_turns'])) {
+            $state->maxTurns = max(1, (int) $options['max_turns']);
+        }
         if ($explorationSupportEnabled) {
             $state->explorationSupportSnapshot = app(ExplorationSupportService::class)->beginBattle($character, $enemy);
         }
@@ -407,6 +417,15 @@ class BattleService
         }
 
         return $result;
+    }
+
+    private function jobArtBattleContext(Enemy $enemy): string
+    {
+        if ((bool) $enemy->is_boss || str_contains((string) ($enemy->role ?? ''), 'ダンジョン主')) {
+            return 'boss';
+        }
+
+        return 'pve';
     }
 
     private function enemyBattleStats(Character $character, Enemy $enemy): array

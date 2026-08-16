@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-training-ground-practice-battle',
+        'date' => '2026-08-16',
+        'category' => 'added',
+        'title' => '街の訓練所で奥義を50ターン確認',
+        'detail' => '街に冒険者訓練所を追加しました。通常戦用・ボス戦用の戦技セットを選び、攻撃が軽い訓練人形と50ターン何度でも模擬戦できます。HP/SP・戦績・報酬・探索支援品・待機時間には反映されません。',
+    ],
+    [
         'id' => '2026-08-16-job-art-menu-and-full-description',
         'date' => '2026-08-16',
         'category' => 'changed',
