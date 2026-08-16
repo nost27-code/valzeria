@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-ferdia-unique-weapon-drop-fix',
+        'date' => '2026-08-16',
+        'category' => 'fixed',
+        'title' => 'フェルディア固有武器のドロップを修正',
+        'detail' => 'ヒル・ホーク、ルイン・ギア、聖城の光霊、スノー・インプから、それぞれに設定された激レア固有武器が正しくドロップするよう修正しました。フェルディアで汎用装備が落ちない仕様は従来どおりです。',
+    ],
+    [
         'id' => '2026-08-16-pvp-reward-job-art-availability',
         'date' => '2026-08-16',
         'category' => 'fixed',

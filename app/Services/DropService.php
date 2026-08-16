@@ -127,6 +127,13 @@ class DropService
         if ($this->isFerdiaEnemy($enemy)) {
             $result['materials'] = $this->rollFerdiaMaterialDrops($character, $enemy, $trackExplorationLoot);
             $result['by_slot']['material'] = $result['materials'];
+            foreach ($this->rollEnemySpecificEquipmentDrops($character, $enemy, $trackExplorationLoot) as $drop) {
+                $result['equipment'][] = $drop;
+                $slot = (string) ($drop['slot'] ?? '');
+                if ($slot !== '' && array_key_exists($slot, $result['by_slot']) && $result['by_slot'][$slot] === null) {
+                    $result['by_slot'][$slot] = $drop;
+                }
+            }
             if ($rollMonsterMark) {
                 $monsterMark = app(MonsterMarkService::class)->rollAndGrant($character, $enemy);
                 $result['monster_mark'] = $monsterMark;

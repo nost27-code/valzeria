@@ -2,15 +2,18 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\DropEquipmentAdditionsSeeder;
-use Database\Seeders\DropWeaponEvolutionSeeder;
-use Database\Seeders\AllDungeonsSeeder;
-use Database\Seeders\CitySeeder;
-use Database\Seeders\EnemySeeder;
-use Database\Seeders\FerdiaRegionSeeder;
+use App\Models\Character;
 use App\Models\Enemy;
 use App\Models\EnemyDrop;
+use App\Models\Item;
+use App\Models\User;
 use App\Services\DropService;
+use Database\Seeders\AllDungeonsSeeder;
+use Database\Seeders\CitySeeder;
+use Database\Seeders\DropEquipmentAdditionsSeeder;
+use Database\Seeders\DropWeaponEvolutionSeeder;
+use Database\Seeders\EnemySeeder;
+use Database\Seeders\FerdiaRegionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use ReflectionMethod;
@@ -242,6 +245,74 @@ class DropWeaponEvolutionSeederTest extends TestCase
                 $this->assertSame($expected, (int) $epic->{$column}, "{$epicExternalId} {$column}");
             }
         }
+    }
+
+    public function test_ferdia_rare_weapons_are_reachable_through_the_battle_drop_pipeline(): void
+    {
+        $this->seed(FerdiaRegionSeeder::class);
+        $this->seed(DropEquipmentAdditionsSeeder::class);
+
+        $character = Character::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'フェルディア固有装備確認者',
+            'hp_base' => 100,
+            'current_hp' => 100,
+        ]);
+        $dropService = app(DropService::class);
+
+        foreach ([
+            ['見晴らしの丘道', 'ヒル・ホーク', 'DROP_WPN_RARE_FERDIA_HILL_HAWK_BOW'],
+            ['アーデル遺跡', 'ルイン・ギア', 'DROP_WPN_RARE_FERDIA_RUIN_GEAR_GUN'],
+            ['大樹の聖城外縁', '聖城の光霊', 'DROP_WPN_RARE_FERDIA_LIGHT_SPIRIT_DEVICE'],
+            ['北境の霊峰エルヴァン', 'スノー・インプ', 'DROP_WPN_RARE_FERDIA_SNOW_IMP_DAGGER'],
+        ] as [$areaName, $enemyName, $externalItemId]) {
+            $enemy = Enemy::query()
+                ->where('name', $enemyName)
+                ->whereHas('area', fn ($query) => $query->where('name', $areaName))
+                ->firstOrFail();
+            $item = Item::query()->where('external_item_id', $externalItemId)->firstOrFail();
+
+            EnemyDrop::query()
+                ->where('enemy_id', $enemy->id)
+                ->where('item_id', $item->id)
+                ->update(['drop_rate' => 100]);
+
+            $result = $dropService->rollBattleDrops(
+                $character,
+                $enemy,
+                trackExplorationLoot: false,
+                rollMonsterMark: false,
+            );
+
+            $this->assertCount(1, $result['equipment'], "{$enemyName} should grant only its configured unique weapon.");
+            $this->assertSame($item->id, $result['equipment'][0]['item_id']);
+            $this->assertSame($item->id, $result['by_slot']['weapon']['item_id']);
+            $this->assertNull($result['by_slot']['armor']);
+            $this->assertNull($result['by_slot']['accessory']);
+        }
+
+        $enemySpecificEquipmentEnemyIds = EnemyDrop::query()
+            ->whereHas('item', fn ($query) => $query
+                ->whereIn('type', ['weapon', 'armor', 'accessory'])
+                ->where('external_item_id', 'like', 'DROP_%'))
+            ->pluck('enemy_id');
+        $ordinaryFerdiaEnemy = Enemy::query()
+            ->whereBetween('area_id', [1001, 1013])
+            ->where('is_boss', false)
+            ->whereNotIn('id', $enemySpecificEquipmentEnemyIds)
+            ->firstOrFail();
+
+        $ordinaryResult = $dropService->rollBattleDrops(
+            $character,
+            $ordinaryFerdiaEnemy,
+            trackExplorationLoot: false,
+            rollMonsterMark: false,
+        );
+
+        $this->assertSame([], $ordinaryResult['equipment']);
+        $this->assertNull($ordinaryResult['by_slot']['weapon']);
+        $this->assertNull($ordinaryResult['by_slot']['armor']);
+        $this->assertNull($ordinaryResult['by_slot']['accessory']);
     }
 
     public function test_rebalanced_unique_paths_keep_a_distinct_role_without_a_clear_branch_upgrade(): void
