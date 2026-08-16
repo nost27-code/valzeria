@@ -233,8 +233,6 @@ class SkillEffectPreviewService
         return max(1, (int) floor($damage));
     }
 
-    private const ADAPTIVE_DAMAGE_TEMPLATES = ['DAMAGE_BUFF', 'DAMAGE_DEBUFF', 'MULTI_HIT', 'DAMAGE_GUARD_BARRIER'];
-
     private function damageType(Skill $skill, BattleActor $attacker): string
     {
         $template = (string) $skill->effect_template;
@@ -242,7 +240,11 @@ class SkillEffectPreviewService
             return JobArtEffectCatalog::drainDamageType($skill->damage_type);
         }
 
-        if ($skill->isJobArt() && in_array($template, self::ADAPTIVE_DAMAGE_TEMPLATES, true)) {
+        if ($skill->isJobArt() && $this->hasExplicitV2DamageRoute($skill)) {
+            return (string) $skill->damage_type;
+        }
+
+        if ($skill->isJobArt() && JobArtEffectCatalog::usesNormalAttackDamageType($template)) {
             // 実戦闘(BattleService等)ではこれらのテンプレートは damage_type カラムを見ず、
             // 常に攻撃者の usesMagForNormalAttack() で物理/魔法を動的判定している。
             // プレビューも同じ判定に揃える。
@@ -263,6 +265,17 @@ class SkillEffectPreviewService
         }
 
         return $type;
+    }
+
+    private function hasExplicitV2DamageRoute(Skill $skill): bool
+    {
+        foreach (['job_art_v2_attack_stat', 'job_art_v2_defense_stat'] as $attribute) {
+            if (trim((string) $skill->getAttribute($attribute)) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function damageTypeLabel(string $damageType): string

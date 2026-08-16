@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-17-pvp-job-art-damage-type-sync',
+        'date' => '2026-08-17',
+        'category' => 'fixed',
+        'title' => 'プレイヤーランク戦の戦技参照能力を修正',
+        'detail' => '連撃や攻撃と同時に強化・弱体・防御を行う戦技が、プレイヤー同士のランク戦でも通常攻撃と同じく、職業に応じて攻撃または魔力を参照するよう修正しました。',
+    ],
+    [
         'id' => '2026-08-16-ferdia-unique-weapon-drop-fix',
         'date' => '2026-08-16',
         'category' => 'fixed',

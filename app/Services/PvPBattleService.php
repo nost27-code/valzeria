@@ -504,15 +504,10 @@ class PvPBattleService
     ): void
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
-        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
-            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
-            : (string) $skill->damage_type;
+        $damageType = $this->resolveSkillDamageType($attacker, $skill);
         if ($addOpeningLog) {
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
         }
-        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
-            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
-            : (string) $skill->damage_type;
         if ($this->jobArtBattleSupport->isFieldOnlyArt($attacker, $state, $skill)) {
             return;
         }
@@ -677,6 +672,37 @@ class PvPBattleService
             $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * $rate));
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * $rate));
         }
+    }
+
+    protected function resolveSkillDamageType(BattleActor $attacker, Skill $skill): string
+    {
+        $template = (string) $skill->effect_template;
+        if ($skill->isJobArt() && $template === 'DRAIN') {
+            return JobArtEffectCatalog::drainDamageType($skill->damage_type);
+        }
+
+        // v2の明示経路はskillForExecution()で先に実行用Skillへ反映される。
+        // 明示された能力参照をlegacyの通常攻撃タイプ連動で上書きしない。
+        if ($skill->isJobArt() && $this->hasExplicitV2DamageRoute($skill)) {
+            return (string) $skill->damage_type;
+        }
+
+        if ($skill->isJobArt() && JobArtEffectCatalog::usesNormalAttackDamageType($template)) {
+            return $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
+        }
+
+        return (string) $skill->damage_type;
+    }
+
+    private function hasExplicitV2DamageRoute(Skill $skill): bool
+    {
+        foreach (['job_art_v2_attack_stat', 'job_art_v2_defense_stat'] as $attribute) {
+            if (trim((string) $skill->getAttribute($attribute)) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function applyJobArtTemplateEffects(

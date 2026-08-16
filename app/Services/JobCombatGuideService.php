@@ -8,13 +8,6 @@ use App\Support\JobArtEffectCatalog;
 
 class JobCombatGuideService
 {
-    private const JOB_ARTS_USING_NORMAL_ATTACK_REFERENCE = [
-        'MULTI_HIT',
-        'DAMAGE_BUFF',
-        'DAMAGE_DEBUFF',
-        'DAMAGE_GUARD_BARRIER',
-    ];
-
     public function __construct(
         private readonly EquipmentPermissionService $equipmentPermissionService,
     ) {
@@ -95,7 +88,21 @@ class JobCombatGuideService
             return null;
         }
 
-        if (in_array($template, self::JOB_ARTS_USING_NORMAL_ATTACK_REFERENCE, true)) {
+        if ($template === 'DRAIN') {
+            return $this->damageTypeReference(
+                JobArtEffectCatalog::drainDamageType($skill->damage_type),
+                (string) $skill->hybrid_scaling,
+            );
+        }
+
+        if ($this->hasExplicitV2DamageRoute($skill)) {
+            return $this->damageTypeReference(
+                (string) $skill->damage_type,
+                (string) $skill->hybrid_scaling,
+            );
+        }
+
+        if (JobArtEffectCatalog::usesNormalAttackDamageType($template)) {
             return $this->normalAttackReference($normalAttackType);
         }
 
@@ -103,6 +110,17 @@ class JobCombatGuideService
             JobArtEffectCatalog::damageType($template),
             (string) $skill->hybrid_scaling,
         );
+    }
+
+    private function hasExplicitV2DamageRoute(Skill $skill): bool
+    {
+        foreach (['job_art_v2_attack_stat', 'job_art_v2_defense_stat'] as $attribute) {
+            if (trim((string) $skill->getAttribute($attribute)) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function damageTypeReference(string $damageType, string $hybridScaling): string

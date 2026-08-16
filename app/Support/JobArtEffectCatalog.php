@@ -6,6 +6,13 @@ class JobArtEffectCatalog
 {
     private const DRAIN_DAMAGE_TYPES = ['physical', 'magical'];
 
+    private const NORMAL_ATTACK_DAMAGE_TYPE_TEMPLATES = [
+        'MULTI_HIT',
+        'DAMAGE_BUFF',
+        'DAMAGE_DEBUFF',
+        'DAMAGE_GUARD_BARRIER',
+    ];
+
     private const DEFINITIONS = [
         'PHYSICAL_DAMAGE' => ['label' => '攻撃', 'damage_type' => 'physical', 'deals_damage' => true],
         'MAGICAL_DAMAGE' => ['label' => '攻撃', 'damage_type' => 'magical', 'deals_damage' => true],
@@ -56,6 +63,11 @@ class JobArtEffectCatalog
     public static function damageType(string $template): string
     {
         return (string) (self::DEFINITIONS[$template]['damage_type'] ?? 'physical');
+    }
+
+    public static function usesNormalAttackDamageType(string $template): bool
+    {
+        return in_array($template, self::NORMAL_ATTACK_DAMAGE_TYPE_TEMPLATES, true);
     }
 
     public static function isDrainDamageType(string $damageType): bool
