@@ -627,7 +627,15 @@ class PvPBattleService
         }
 
         if ($skill->isJobArt()) {
-            $this->applyJobArtTemplateEffects($attacker, $defender, $state, $skill, $totalDamage, $applyTargetEffects);
+            $this->applyJobArtTemplateEffects(
+                $attacker,
+                $defender,
+                $state,
+                $skill,
+                $totalDamage,
+                $applyTargetEffects,
+                $damageType,
+            );
         }
 
         if ($skill->heal_percent > 0) {
@@ -712,6 +720,7 @@ class PvPBattleService
         Skill $skill,
         int $totalDamage,
         bool $applyTargetEffects = true,
+        string $damageType = '',
     ): void {
         $template = (string) $skill->effect_template;
         $power = max(1, (int) ($skill->power ?: 100));
@@ -745,7 +754,11 @@ class PvPBattleService
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
-            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $skill);
+            $shared = $this->jobArtBattleSupport->applySharedSelfBuff(
+                $attacker,
+                $skill,
+                $template === 'DAMAGE_BUFF' ? $damageType : null,
+            );
             if ($shared !== null) {
                 $this->logStatChange(
                     $state,
@@ -759,11 +772,31 @@ class PvPBattleService
                     true,
                 );
             } else {
-                $beforeStr = $attacker->str;
-                $beforeMag = $attacker->mag;
-                $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
-                $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-                $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+                $isMagicalDamageBuff = $template === 'MAGICAL_DAMAGE_BUFF'
+                    || ($template === 'DAMAGE_BUFF' && match ($damageType) {
+                        'magical' => true,
+                        'physical' => false,
+                        default => $attacker->usesMagForNormalAttack(),
+                    });
+                if ($isMagicalDamageBuff) {
+                    $beforeMag = $attacker->mag;
+                    $beforeSpr = $attacker->spr;
+                    $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                    $attacker->spr = min((int) floor($attacker->baseSpr * 1.5), $attacker->spr + max(1, (int) floor($attacker->baseSpr * 0.05)));
+                    $this->logStatChange($state, $attacker->name, 'MAG', $beforeMag, $attacker->mag, 'SPR', $beforeSpr, $attacker->spr, true);
+                } elseif ($template === 'DAMAGE_BUFF') {
+                    $beforeStr = $attacker->str;
+                    $beforeDef = $attacker->def;
+                    $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                    $attacker->def = min((int) floor($attacker->baseDef * 1.5), $attacker->def + max(1, (int) floor($attacker->baseDef * 0.05)));
+                    $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'DEF', $beforeDef, $attacker->def, true);
+                } else {
+                    $beforeStr = $attacker->str;
+                    $beforeMag = $attacker->mag;
+                    $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                    $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                    $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+                }
             }
         }
 

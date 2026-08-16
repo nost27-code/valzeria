@@ -54,7 +54,7 @@ final class JobArtV2RoleEffectService
      *     sub_after: int
      * }|null
      */
-    public function applySharedSelfBuff(BattleActor $actor, Skill $skill): ?array
+    public function applySharedSelfBuff(BattleActor $actor, Skill $skill, ?string $damageType = null): ?array
     {
         if (! $this->enabledFor($actor)) {
             return null;
@@ -66,8 +66,12 @@ final class JobArtV2RoleEffectService
             $power >= 140 => 0.15,
             default => 0.10,
         };
-        $isMagical = (string) $skill->effect_template === 'MAGICAL_DAMAGE_BUFF'
-            || $actor->usesMagForNormalAttack();
+        $isMagical = match ($damageType) {
+            'magical' => true,
+            'physical' => false,
+            default => (string) $skill->effect_template === 'MAGICAL_DAMAGE_BUFF'
+                || $actor->usesMagForNormalAttack(),
+        };
 
         if ($isMagical) {
             $beforeMain = $actor->mag;

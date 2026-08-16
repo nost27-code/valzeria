@@ -1029,6 +1029,13 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(140, $magical->str);
         $this->assertSame(90, $magical->def);
 
+        [$explicitMagical] = $this->battle(62, actorOverrides: ['str' => 140, 'def' => 90, 'mag' => 100, 'spr' => 80]);
+        $explicitMagical->normalAttackType = 'physical';
+        $explicitMagicalChange = $this->service()->applySharedSelfBuff($explicitMagical, $art, 'magical');
+        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 88], $explicitMagicalChange);
+        $this->assertSame(140, $explicitMagical->str);
+        $this->assertSame(90, $explicitMagical->def);
+
         config(['battle.job_art_v2.resources' => false]);
         [$legacy] = $this->battle(62);
         $this->assertNull($this->service()->applySharedSelfBuff($legacy, $art));
