@@ -160,6 +160,11 @@ class BattleState
         return $logs;
     }
 
+    public function jobArtRewardBonusesEnabled(): bool
+    {
+        return ! in_array($this->battleType, ['pvp', 'champ', 'arena_npc'], true);
+    }
+
     public function deferLogAfterDamage(string $message, ?int $sourceActionId = null): void
     {
         $sourceActionId ??= $this->currentSourceActionId;

@@ -890,6 +890,48 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(0, (int) $dropExecution->drop_bonus_percent);
     }
 
+    public function test_competitive_battles_suppress_role_reward_bonuses_and_reward_logs(): void
+    {
+        foreach (['pvp', 'champ', 'arena_npc'] as $battleType) {
+            [$actor, $target, $state] = $this->battle(67, $battleType);
+            $service = $this->service();
+            $gold = $this->art(8, 5, '幸運の一手', 'REWARD_GOLD', 145, 0, [
+                'gold_bonus_percent' => 7,
+                'drop_bonus_percent' => 9,
+                'rare_bonus_percent' => 4,
+                'material_bonus_percent' => 3,
+                'reward_scope' => 'normal_exploration_win_only',
+            ]);
+            $goldExecution = clone $gold;
+            $this->beginAction($service, $actor, $state);
+            $service->applyForExecution($actor, $target, $state, $gold, $goldExecution);
+
+            $this->assertSame('REWARD_GOLD', $goldExecution->effect_template, $battleType);
+            $this->assertSame('none', $goldExecution->reward_scope, $battleType);
+            $this->assertSame(0, (int) $goldExecution->gold_bonus_percent, $battleType);
+            $this->assertSame(0, (int) $goldExecution->drop_bonus_percent, $battleType);
+            $this->assertSame(0, (int) $goldExecution->rare_bonus_percent, $battleType);
+            $this->assertSame(0, (int) $goldExecution->material_bonus_percent, $battleType);
+
+            $drop = $this->art(20, 5, '掘り出し物', 'REWARD_MIXED', 165, 0, [
+                'gold_bonus_percent' => 12,
+                'drop_bonus_percent' => 6,
+                'rare_bonus_percent' => 3,
+                'material_bonus_percent' => 2,
+                'reward_scope' => 'normal_exploration_win_only',
+            ]);
+            $dropExecution = clone $drop;
+            $this->beginAction($service, $actor, $state);
+            $service->applyForExecution($actor, $target, $state, $drop, $dropExecution);
+
+            $this->assertSame(0, $state->goldBonusPercent, $battleType);
+            $this->assertSame(0, $state->dropBonusPercent, $battleType);
+            $this->assertSame(0, $state->rareBonusPercent, $battleType);
+            $this->assertSame(0, $state->materialBonusPercent, $battleType);
+            $this->assertSame([], $state->logs, $battleType);
+        }
+    }
+
     public function test_harvest_removes_only_the_strongest_removable_timed_effect(): void
     {
         [$actor, $target, $state] = $this->battle(67);

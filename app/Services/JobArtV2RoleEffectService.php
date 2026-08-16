@@ -876,6 +876,20 @@ final class JobArtV2RoleEffectService
             return;
         }
 
+        if (! $state->jobArtRewardBonusesEnabled()) {
+            foreach ([
+                'gold_bonus_percent',
+                'drop_bonus_percent',
+                'rare_bonus_percent',
+                'material_bonus_percent',
+            ] as $field) {
+                $executionSkill->setAttribute($field, 0);
+            }
+            $executionSkill->setAttribute('reward_scope', 'none');
+
+            return;
+        }
+
         if (($reward['gold'] ?? false) === false) {
             $executionSkill->gold_bonus_percent = 0;
         }

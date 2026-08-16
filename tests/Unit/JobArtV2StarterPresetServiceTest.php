@@ -110,6 +110,65 @@ class JobArtV2StarterPresetServiceTest extends TestCase
         ];
     }
 
+    public function test_pvp_transmute_presets_allow_reward_arts_but_keep_other_disabled_arts_locked(): void
+    {
+        $rewardKeys = [
+            '38:9',
+            '47:1', '47:5', '47:9',
+            '49:1', '49:5', '49:9',
+            '57:1', '57:5', '57:9',
+            '67:1', '67:5', '67:9',
+        ];
+        DB::table('skills')
+            ->whereIn('id', array_map(fn (string $key): int => $this->skillId($key), $rewardKeys))
+            ->update([
+                'limit_group' => 'REWARD',
+                'champ_enabled' => false,
+            ]);
+
+        $jobArtService = app(JobArtService::class);
+        $rewardArt = Skill::query()->findOrFail($this->skillId('49:1'));
+        $disabledNonRewardArt = new Skill([
+            'limit_group' => null,
+            'champ_enabled' => false,
+        ]);
+
+        $this->assertTrue($jobArtService->contextAllows($rewardArt, 'champ'));
+        $this->assertFalse($jobArtService->contextAllows($disabledNonRewardArt, 'champ'));
+        $this->assertStringContainsString(
+            '報酬補正は発動しません',
+            $jobArtService->slotContextDescriptions()['pvp'],
+        );
+
+        $keys = collect(['finisher', 'cycle', 'tactical'])
+            ->flatMap(fn (string $style): array => config("job_art_official_presets.transmute.{$style}.variants.crown.skills"))
+            ->unique()
+            ->values()
+            ->all();
+        $pvpArts = $this->arts($keys, 67)
+            ->filter(fn (Skill $skill): bool => $jobArtService->contextAllows($skill, 'champ'))
+            ->values();
+        [$service, $savingService] = $this->serviceWithJobArt($pvpArts);
+        $character = $this->character(67);
+        $presets = collect($service->presetsForDisplay($character, 'pvp'))
+            ->where('lineage_key', 'transmute')
+            ->values();
+
+        $this->assertCount(count($keys), $pvpArts);
+        $this->assertCount(3, $presets);
+        $this->assertTrue($presets->every(fn (array $preset): bool => $preset['can_apply']));
+        $this->assertTrue($presets->every(fn (array $preset): bool => $preset['current_variant']['key'] === 'crown'));
+
+        $service->apply($character, 'transmute', JobArtV2StarterPresetService::CYCLE, 'pvp', 'crown');
+        $this->assertSame(
+            array_map(fn (string $key): int => $this->skillId($key), config('job_art_official_presets.transmute.cycle.variants.crown.skills')),
+            array_values($savingService->saved['pvp']['slots']),
+        );
+
+        config(['battle.job_art_v2.pvp_set' => false]);
+        $this->assertFalse($jobArtService->contextAllows($rewardArt, 'champ'));
+    }
+
     public function test_one_current_job_can_complete_and_apply_presets_from_all_ten_lineages(): void
     {
         $keys = collect(config('job_art_official_presets'))

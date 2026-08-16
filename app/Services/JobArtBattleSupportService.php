@@ -407,7 +407,7 @@ class JobArtBattleSupportService
             $baseOnly = $this->jobArtV2UltimateCounterplayService
                 ->baseOnlySkillForExecution($actor, $state, $skill);
             if ($baseOnly !== null) {
-                return $baseOnly;
+                return $this->suppressCompetitiveRewardBonuses($state, $baseOnly);
             }
         }
 
@@ -426,7 +426,7 @@ class JobArtBattleSupportService
             $executionSkill->damage_type = 'support';
             $executionSkill->effect_template = 'TIME_CONTROL_CURRENT_ONLY';
 
-            return $executionSkill;
+            return $this->suppressCompetitiveRewardBonuses($state, $executionSkill);
         }
         $basePower = $this->jobArtV2PowerResolver->forExecution($actor, $skill, $state);
         $power = max(0, (int) round(($basePower ?: 100) * $rate));
@@ -457,6 +457,32 @@ class JobArtBattleSupportService
                 $executionSkill->setAttribute('luk_power_rate', 0.0);
             }
         }
+
+        return $state !== null
+            ? $this->suppressCompetitiveRewardBonuses($state, $executionSkill)
+            : $executionSkill;
+    }
+
+    private function suppressCompetitiveRewardBonuses(BattleState $state, Skill $executionSkill): Skill
+    {
+        if ($state->jobArtRewardBonusesEnabled()) {
+            return $executionSkill;
+        }
+
+        foreach ([
+            'gold_bonus_percent',
+            'drop_bonus_percent',
+            'rare_bonus_percent',
+            'material_bonus_percent',
+        ] as $field) {
+            $executionSkill->setAttribute($field, 0);
+        }
+        $executionSkill->setAttribute('reward_scope', 'none');
+
+        $state->goldBonusPercent = 0;
+        $state->dropBonusPercent = 0;
+        $state->rareBonusPercent = 0;
+        $state->materialBonusPercent = 0;
 
         return $executionSkill;
     }

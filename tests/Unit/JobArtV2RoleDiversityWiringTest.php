@@ -206,6 +206,49 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
         $this->assertCount(1, $actor->jobArtV2TimedEffects());
     }
 
+    public function test_competitive_routes_keep_reward_art_damage_but_clear_every_reward_bonus(): void
+    {
+        foreach (['pvp', 'champ', 'arena_npc'] as $battleType) {
+            $support = app(JobArtBattleSupportService::class);
+            $actor = $this->actor('transmuter', 67, 1_000);
+            $target = $this->actor('target', 60, 1_000);
+            $state = new BattleState($actor, $target, $battleType);
+            $state->goldBonusPercent = 10;
+            $state->dropBonusPercent = 8;
+            $state->rareBonusPercent = 4;
+            $state->materialBonusPercent = 6;
+            $skill = $this->art(49, 5, '大錬成爆装', 'MAGICAL_DAMAGE_REWARD', 4_905, 255, 1);
+            $skill->damage_type = 'magical';
+            $skill->gold_bonus_percent = 7;
+            $skill->drop_bonus_percent = 6;
+            $skill->rare_bonus_percent = 3;
+            $skill->material_bonus_percent = 2;
+            $skill->reward_scope = 'normal_exploration_win_only';
+            $actor->jobArtOrigins[(int) $skill->id] = 'inherited';
+            $actor->jobArtRates[(int) $skill->id] = 1.0;
+
+            $this->assertNotNull($support->beginAction($actor, $state));
+            $execution = $support->skillForExecution($actor, $skill, $state, $target);
+
+            $this->assertSame('MAGICAL_DAMAGE_REWARD', (string) $execution->effect_template, $battleType);
+            $this->assertSame('magical', (string) $execution->damage_type, $battleType);
+            $this->assertGreaterThan(0, (int) $execution->power, $battleType);
+            $this->assertSame(1, (int) $execution->hit_count, $battleType);
+            $this->assertSame('none', (string) $execution->reward_scope, $battleType);
+            $this->assertSame(0, (int) $execution->gold_bonus_percent, $battleType);
+            $this->assertSame(0, (int) $execution->drop_bonus_percent, $battleType);
+            $this->assertSame(0, (int) $execution->rare_bonus_percent, $battleType);
+            $this->assertSame(0, (int) $execution->material_bonus_percent, $battleType);
+            $this->assertSame(0, $state->goldBonusPercent, $battleType);
+            $this->assertSame(0, $state->dropBonusPercent, $battleType);
+            $this->assertSame(0, $state->rareBonusPercent, $battleType);
+            $this->assertSame(0, $state->materialBonusPercent, $battleType);
+
+            $this->assertSame(7, (int) $skill->gold_bonus_percent, 'source skill must not be mutated');
+            $this->assertSame(6, (int) $skill->drop_bonus_percent, 'source skill must not be mutated');
+        }
+    }
+
     public function test_field_then_role_multiplier_then_damage_application_order_is_shared(): void
     {
         foreach (['executePhysicalAttack', 'executeMagicalAttack', 'executeHybridJobArtAttack'] as $method) {

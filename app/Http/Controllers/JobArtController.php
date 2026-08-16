@@ -563,7 +563,7 @@ class JobArtController extends Controller
             'boss' => 'ボス戦で使う戦技です。高Cost、回復、防御、弱体の戦技も候補にしやすいです。',
         ];
         if ($jobArtService->pvpSetEnabled()) {
-            $descriptions['pvp'] = 'プレイヤーPvP、チャンプ戦、闘技場NPC戦で使う戦技です。';
+            $descriptions['pvp'] = 'プレイヤーPvP、チャンプ戦、闘技場NPC戦で使う戦技です。Gold・ドロップなどの報酬補正は発動しません。';
         }
 
         return $descriptions;

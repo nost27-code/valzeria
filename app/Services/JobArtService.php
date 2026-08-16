@@ -88,7 +88,7 @@ class JobArtService
         ];
 
         if ($this->pvpSetEnabled()) {
-            $descriptions[self::PVP_SLOT_CONTEXT] = 'プレイヤーPvP、チャンプ戦、闘技場NPC戦で使う奥義です。';
+            $descriptions[self::PVP_SLOT_CONTEXT] = 'プレイヤーPvP、チャンプ戦、闘技場NPC戦で使う戦技です。Gold・ドロップなどの報酬補正は発動しません。';
         }
 
         return $descriptions;
@@ -637,7 +637,8 @@ class JobArtService
     {
         return match ($context) {
             'boss' => (bool) $skill->boss_enabled,
-            'champ' => (bool) $skill->champ_enabled && !$skill->isRewardArt(),
+            'champ' => (bool) $skill->champ_enabled
+                || ($this->pvpSetEnabled() && $skill->isRewardArt()),
             default => (bool) $skill->pve_enabled,
         };
     }

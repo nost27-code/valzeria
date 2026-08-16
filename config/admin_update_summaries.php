@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-pvp-reward-job-art-availability',
+        'date' => '2026-08-16',
+        'category' => 'fixed',
+        'title' => 'PvPで報酬系の戦技を設定可能に修正',
+        'detail' => 'PvPセットで報酬系の戦技と変成系譜の公式プリセットを設定できるようにしました。攻撃・回復・補助効果は対戦でも使えますが、Gold・ドロップなどの報酬補正は発動しません。',
+    ],
+    [
         'id' => '2026-08-16-admin-job-art-meta-analytics',
         'date' => '2026-08-16',
         'category' => 'internal',

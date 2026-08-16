@@ -30,6 +30,10 @@ class JobArtPvpSetSelectionTest extends TestCase
             $table->unsignedBigInteger('job_id');
             $table->string('name');
             $table->string('skill_type')->default('job_art');
+            $table->string('limit_group')->nullable();
+            $table->boolean('pve_enabled')->default(true);
+            $table->boolean('boss_enabled')->default(true);
+            $table->boolean('champ_enabled')->default(true);
         });
         Schema::create('character_job_art_slots', function (Blueprint $table): void {
             $table->id();
@@ -43,14 +47,23 @@ class JobArtPvpSetSelectionTest extends TestCase
 
         DB::table('job_classes')->insert(['id' => 1, 'name' => '試験職']);
         DB::table('skills')->insert([
-            ['id' => 100, 'job_id' => 1, 'name' => '通常奥義', 'skill_type' => 'job_art'],
-            ['id' => 101, 'job_id' => 1, 'name' => 'ボス奥義', 'skill_type' => 'job_art'],
-            ['id' => 102, 'job_id' => 1, 'name' => '対人奥義', 'skill_type' => 'job_art'],
+            ['id' => 100, 'job_id' => 1, 'name' => '通常奥義', 'skill_type' => 'job_art', 'limit_group' => null, 'champ_enabled' => true],
+            ['id' => 101, 'job_id' => 1, 'name' => 'ボス奥義', 'skill_type' => 'job_art', 'limit_group' => null, 'champ_enabled' => true],
+            ['id' => 102, 'job_id' => 1, 'name' => '対人奥義', 'skill_type' => 'job_art', 'limit_group' => null, 'champ_enabled' => true],
+            [
+                'id' => 103,
+                'job_id' => 1,
+                'name' => '保存済み報酬戦技',
+                'skill_type' => 'job_art',
+                'limit_group' => 'REWARD',
+                'champ_enabled' => false,
+            ],
         ]);
         DB::table('character_job_art_slots')->insert([
             $this->slot('normal', 100),
             $this->slot('boss', 101),
             $this->slot('pvp', 102),
+            $this->slot('pvp', 103, 2),
         ]);
     }
 
@@ -69,10 +82,16 @@ class JobArtPvpSetSelectionTest extends TestCase
         {
             public function availableArts(Character $character, string $context = 'pve'): Collection
             {
-                return Skill::query()->with('jobClass')->orderBy('id')->get()->each(function (Skill $skill): void {
-                    $skill->setAttribute('job_art_origin', 'current');
-                    $skill->setAttribute('job_art_rate', 1.0);
-                });
+                return Skill::query()
+                    ->with('jobClass')
+                    ->orderBy('id')
+                    ->get()
+                    ->filter(fn (Skill $skill): bool => $this->contextAllows($skill, $context))
+                    ->each(function (Skill $skill): void {
+                        $skill->setAttribute('job_art_origin', 'current');
+                        $skill->setAttribute('job_art_rate', 1.0);
+                    })
+                    ->values();
             }
         };
         $character = new Character(['id' => 1]);
@@ -82,17 +101,17 @@ class JobArtPvpSetSelectionTest extends TestCase
         $this->assertSame([101], $service->battleArtsFor($character, 'champ')->pluck('id')->all());
 
         config(['battle.job_art_v2.pvp_set' => true]);
-        $this->assertSame([102], $service->battleArtsFor($character, 'champ')->pluck('id')->all());
+        $this->assertSame([102, 103], $service->battleArtsFor($character, 'champ')->pluck('id')->all());
         $this->assertSame([100], $service->battleArtsFor($character, 'pve')->pluck('id')->all());
         $this->assertSame([101], $service->battleArtsFor($character, 'boss')->pluck('id')->all());
     }
 
-    private function slot(string $context, int $skillId): array
+    private function slot(string $context, int $skillId, int $slotNo = 1): array
     {
         return [
             'character_id' => 1,
             'battle_context' => $context,
-            'slot_no' => 1,
+            'slot_no' => $slotNo,
             'skill_id' => $skillId,
             'activation_policy' => 'normal',
             'created_at' => '2026-08-06 12:00:00',

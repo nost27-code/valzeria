@@ -224,6 +224,9 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('data-job-art-active-lineages="{{ $slotContext }}"', $view);
         $this->assertStringContainsString("job-arts.partials.active-lineages", $view);
         $this->assertStringContainsString('replaceActiveLineages(context, payload.active_lineages_html)', $view);
+        $this->assertStringContainsString('data-job-art-pvp-reward-note', $view);
+        $this->assertStringContainsString('報酬系の戦技も設定できます', $view);
+        $this->assertStringContainsString('報酬補正は対戦では発動しません', $view);
     }
 
     public function test_beginner_system_guide_opens_as_an_accessible_modal_with_exact_rules(): void

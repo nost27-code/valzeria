@@ -180,6 +180,12 @@
                     <div x-show="activeContext === @js($slotContext)" class="space-y-3">
                         <p class="{{ $jobArtV2UiEnabled ? 'sr-only' : 'text-[11px] font-bold leading-relaxed text-slate-400' }}">{{ $slotContextDescriptions[$slotContext] ?? '' }}</p>
 
+                        @if($jobArtV2UiEnabled && $slotContext === 'pvp')
+                            <p class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-amber-800" data-job-art-pvp-reward-note>
+                                報酬系の戦技も設定できます。攻撃・回復・補助効果は有効ですが、Gold・ドロップなどの報酬補正は対戦では発動しません。
+                            </p>
+                        @endif
+
                         @if($jobArtV2UiEnabled)
                             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white" data-job-art-compact-settings>
                                 <div data-job-art-active-lineages="{{ $slotContext }}">
