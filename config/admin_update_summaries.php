@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-exploration-stamina-recovery-resume',
+        'date' => '2026-08-16',
+        'category' => 'fixed',
+        'title' => '連続探索中の探索力回復導線を修正',
+        'detail' => '通常探索の回数指定中に探索力が不足した時、街へ戻らず回復アイテムを使用・購入し、同じ探索回数で続けられるよう修正しました。',
+    ],
+    [
         'id' => '2026-08-16-training-ground-practice-battle',
         'date' => '2026-08-16',
         'category' => 'added',

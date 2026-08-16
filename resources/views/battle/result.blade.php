@@ -1698,7 +1698,10 @@
                             $selectedStaminaCost = \App\Services\ExplorationService::staminaCostForCount($staminaCost, $selectedExploreCount);
                             $selectedHasStamina = (int) ($stamina['current'] ?? 0) >= $selectedStaminaCost;
                             $lowResourceWarningPercent = \App\Services\ExplorationService::LOW_RESOURCE_WARNING_PERCENT;
-                            $selectedHpBlocked = $selectedExploreCount > 1 && ($hpPercent ?? 100) <= $lowResourceWarningPercent;
+                            $exploreCurrentHp = max(0, (int) ($remainingHp ?? $character->current_hp ?? 0));
+                            $exploreMaxHp = max(1, (int) ($maxHp ?? data_get($finalStats ?? [], 'max_hp', 1)));
+                            $exploreHpPercent = min(100, (int) floor(($exploreCurrentHp / $exploreMaxHp) * 100));
+                            $selectedHpBlocked = $selectedExploreCount > 1 && $exploreHpPercent <= $lowResourceWarningPercent;
                             $staminaCostHtml = $usesStamina
                                 ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
                                 : '';
@@ -2105,6 +2108,37 @@
                                 </button>
                             </form>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索力'))
+                            @if($usesStamina)
+                                <form action="{{ route('battle.explore', ['area' => $areaId]) }}"
+                                      method="POST"
+                                      id="explore-form"
+                                      data-async-explore-form
+                                      data-explore-count-form
+                                      data-ready-text="{{ $selectedExploreCount === 1 ? '1回探索する' : $selectedExploreCount . '回まとめて探索する' }}"
+                                      data-wait-seconds="0"
+                                      data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}"
+                                      data-current-hp="{{ $exploreCurrentHp }}"
+                                      data-max-hp="{{ $exploreMaxHp }}"
+                                      data-min-hp-percent="{{ $lowResourceWarningPercent }}"
+                                      data-selected-count="{{ $selectedExploreCount }}"
+                                      data-required-stamina="{{ $selectedStaminaCost }}"
+                                      data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。"
+                                      data-hp-warning="連続探索を続けるにはHPを回復してください。"
+                                      data-inline-warning-target="stamina-shortage-inline-warning"
+                                      class="w-full max-w-md">
+                                    @csrf
+                                    <input type="hidden" name="continue_chain" value="1">
+                                    <input type="hidden" name="batch_count" value="{{ $selectedExploreCount }}">
+                                    <button type="submit" id="explore-btn" @disabled($selectedHpBlocked) class="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition duration-200 hover:bg-amber-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-400">
+                                        <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
+                                        <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-4 w-4 object-contain">
+                                        <span id="explore-btn-text">探索力不足</span>
+                                    </button>
+                                    <p id="stamina-shortage-inline-warning" class="mt-2 {{ $selectedHpBlocked ? '' : 'hidden' }} text-center text-xs font-black leading-5 text-red-600">
+                                        {{ $selectedHpBlocked ? '連続探索を続けるにはHPを回復してください。' : '' }}
+                                    </p>
+                                </form>
+                            @endif
                             <form action="{{ route('battle.resume.return') }}" method="POST">
                                 @csrf
                                 <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
@@ -2727,7 +2761,8 @@
                 const current = Number.parseInt(form.dataset.currentStamina || '0', 10);
                 const required = Math.max(1, Number.parseInt(form.dataset.requiredStamina || '1', 10));
                 const hpBlocked = batchExploreHpBlocked(form);
-                button.disabled = current < required || hpBlocked;
+                // 探索力不足時も押せる状態を保ち、回復アイテムの使用・購入モーダルへつなぐ。
+                button.disabled = hpBlocked;
                 if (current < required) {
                     buttonText.textContent = '探索力不足';
                     return;
