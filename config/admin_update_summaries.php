@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-17-admin-newcomer-log-color',
+        'date' => '2026-08-17',
+        'category' => 'changed',
+        'title' => '管理画面の新規冒険者ログを色分け',
+        'detail' => '管理人チャットの全体チャットで、新しい冒険者がヴァルゼリアへ到着したログをオレンジ色で見分けやすくしました。',
+    ],
+    [
         'id' => '2026-08-17-pvp-job-art-damage-type-sync',
         'date' => '2026-08-17',
         'category' => 'fixed',

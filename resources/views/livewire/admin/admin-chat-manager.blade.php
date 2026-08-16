@@ -36,6 +36,7 @@
                         <span class="min-w-0 break-words
                             @if($log['type'] === 'admin') text-[#1e40af] font-black
                             @elseif($log['type'] === 'notice') text-cyan-700 font-black
+                            @elseif($log['type'] === 'newcomer') text-orange-600 font-bold
                             @elseif($log['type'] === 'system') text-orange-600 font-bold
                             @elseif($log['type'] === 'chat') text-green-700 font-bold
                             @elseif($log['type'] === 'drop') text-yellow-600 font-bold
