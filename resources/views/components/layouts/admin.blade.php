@@ -141,6 +141,7 @@
                     ['route' => 'admin.world-activity-map', 'label' => '冒険者分布マップ', 'abbr' => 'MAP'],
                     ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
                     ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
+                    ['route' => 'admin.job-art-analytics', 'label' => '戦技メタ分析', 'abbr' => 'JA'],
                 ],
             ],
         ];

@@ -575,6 +575,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/inn-analytics', \App\Livewire\Admin\InnAnalyticsManager::class)->name('admin.inn-analytics');
     Route::get('/admin/operator-analytics', \App\Livewire\Admin\OperatorAnalyticsManager::class)->name('admin.operator-analytics');
     Route::get('/admin/growth-analytics', \App\Livewire\Admin\GrowthAnalyticsManager::class)->name('admin.growth-analytics');
+    Route::get('/admin/job-art-analytics', \App\Livewire\Admin\JobArtAnalyticsManager::class)->name('admin.job-art-analytics');
     Route::get('/admin/testers', \App\Livewire\Admin\TesterManager::class)->name('admin.testers');
     Route::get('/admin/items', \App\Livewire\Admin\ItemManager::class)->name('admin.items');
     Route::get('/admin/jobs', \App\Livewire\Admin\JobManager::class)->name('admin.jobs');

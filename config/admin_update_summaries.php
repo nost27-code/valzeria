@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-admin-job-art-meta-analytics',
+        'date' => '2026-08-16',
+        'category' => 'internal',
+        'title' => '戦技セットの流行分析画面を追加',
+        'detail' => '管理画面で、通常・ボス・PvP別の戦技採用率、セット順、流行構成、併用ペア、各プレイヤーの現在セットとSP方針を確認し、CSVへ出力できるようにしました。',
+    ],
+    [
         'id' => '2026-08-16-ferdia-valzeria-clear-gate',
         'date' => '2026-08-16',
         'category' => 'changed',
