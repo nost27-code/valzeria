@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\BattleController;
+use App\Models\Area;
 use App\Models\Character;
 use App\Models\User;
 use App\Services\AreaService;
@@ -16,6 +17,7 @@ use App\Services\ExplorationStaminaService;
 use App\Services\KisekiDropService;
 use App\Services\LevelService;
 use App\Services\PublicLogService;
+use App\Services\RegionDepthDungeonService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Mockery;
@@ -140,6 +142,111 @@ class ExplorationRepeatServiceTest extends TestCase
         $this->assertSame(25, session('exploration_selected_count.' . $character->id));
     }
 
+    public function test_continuation_without_an_explicit_count_runs_one_battle_and_keeps_the_selected_count(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $character->forceFill(['current_hp' => 30])->save();
+        $area = Area::query()->create([
+            'name' => '探索継続の試験場',
+            'slug' => 'single-continuation-test',
+        ]);
+        $sessionKey = 'exploration_selected_count.' . $character->id;
+        $service = $this->fakeExplorationService();
+        $this->app->instance(ExplorationService::class, $service);
+        $this->allowNormalAreaExploration();
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                $sessionKey => 50,
+            ])
+            ->post(route('battle.explore', ['area' => $area->id]), [
+                'continue_chain' => 1,
+            ]);
+
+        $response->assertRedirect(route('battle.result'));
+        $response->assertSessionHas('battleData.selectedExploreCount', 50);
+        $response->assertSessionHas($sessionKey, 50);
+        $this->assertSame(1, $service->exploreCalls);
+        $this->assertSame(49, (int) $character->fresh()->explore_stamina);
+    }
+
+    public function test_continuation_with_an_explicit_repeat_count_still_uses_batch_exploration(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create([
+            'name' => '明示回数探索の試験場',
+            'slug' => 'explicit-repeat-continuation-test',
+        ]);
+        $sessionKey = 'exploration_selected_count.' . $character->id;
+        $service = $this->fakeExplorationService();
+        $this->app->instance(ExplorationService::class, $service);
+        $this->allowNormalAreaExploration();
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                $sessionKey => 10,
+            ])
+            ->post(route('battle.explore', ['area' => $area->id]), [
+                'continue_chain' => 1,
+                'batch_count' => 50,
+            ]);
+
+        $response->assertRedirect(route('battle.result'));
+        $response->assertSessionHas('battleData.selectedExploreCount', 50);
+        $response->assertSessionHas($sessionKey, 50);
+        $this->assertSame(50, $service->exploreCalls);
+        $this->assertSame(0, (int) $character->fresh()->explore_stamina);
+    }
+
+    public function test_retreating_from_a_depth_gate_runs_one_battle_and_keeps_the_selected_count(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $character->forceFill(['current_hp' => 30])->save();
+        $area = Area::query()->create([
+            'name' => '深度入口の試験場',
+            'slug' => 'depth-gate-retreat-test',
+        ]);
+        $sessionKey = 'exploration_selected_count.' . $character->id;
+
+        $areaService = Mockery::mock(AreaService::class);
+        $areaService->shouldReceive('canEnterArea')->twice()->andReturnTrue();
+        $this->app->instance(AreaService::class, $areaService);
+
+        $regionDepthDungeonService = Mockery::mock(RegionDepthDungeonService::class);
+        $regionDepthDungeonService->shouldReceive('isRegionDepthArea')->andReturnFalse();
+        $this->app->instance(RegionDepthDungeonService::class, $regionDepthDungeonService);
+
+        $staminaService = Mockery::mock(ExplorationStaminaService::class);
+        $staminaService->shouldReceive('enabled')->never();
+        $this->app->instance(ExplorationStaminaService::class, $staminaService);
+
+        $explorationService = Mockery::mock(ExplorationService::class);
+        $explorationService->shouldReceive('exploreRepeated')->never();
+        $explorationService->shouldReceive('explore')->once()->andReturn([
+            'result' => 'victory',
+            'enemy' => (object) ['name' => '試験敵'],
+            'exploration_progress' => ['depth_transitions' => []],
+        ]);
+        $this->app->instance(ExplorationService::class, $explorationService);
+
+        $response = $this->withoutMiddleware()
+            ->actingAs($character->user)
+            ->withSession([
+                'current_character_id' => $character->id,
+                $sessionKey => 50,
+            ])
+            ->post(route('battle.depth.retreat', ['area' => $area->id]));
+
+        $response->assertRedirect(route('battle.result'));
+        $response->assertSessionHas('status', '危険な入口から引き返し、現在のエリア探索を続けます。');
+        $response->assertSessionHas('battleData.selectedExploreCount', 50);
+        $response->assertSessionHas($sessionKey, 50);
+    }
+
     private function characterWithStamina(int $stamina): Character
     {
         return Character::query()->create([
@@ -155,6 +262,17 @@ class ExplorationRepeatServiceTest extends TestCase
             'explore_stamina_max' => 250,
             'explore_stamina_updated_at' => now(),
         ]);
+    }
+
+    private function allowNormalAreaExploration(): void
+    {
+        $areaService = Mockery::mock(AreaService::class);
+        $areaService->shouldReceive('canEnterArea')->andReturnTrue();
+        $this->app->instance(AreaService::class, $areaService);
+
+        $regionDepthDungeonService = Mockery::mock(RegionDepthDungeonService::class);
+        $regionDepthDungeonService->shouldReceive('isRegionDepthArea')->andReturnFalse();
+        $this->app->instance(RegionDepthDungeonService::class, $regionDepthDungeonService);
     }
 
     private function fakeExplorationService(?int $defeatAt = null): ExplorationService

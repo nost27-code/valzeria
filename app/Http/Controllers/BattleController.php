@@ -167,7 +167,11 @@ class BattleController extends Controller
 
         $forcedEvent = $request->boolean('challenge_dungeon_lord') ? 'dungeon_lord' : null;
         $batchCount = $this->resolveExploreCount($request, $character);
-        $canBatchExplore = $batchCount > 1
+        // 回数を明示しない「探索を続ける」は、保存中の回数を維持したまま直後の1戦だけを行う。
+        $forceSingleExplore = (bool) $request->attributes->get('force_single_explore', false)
+            || ($request->boolean('continue_chain') && !$request->has('batch_count'));
+        $canBatchExplore = !$forceSingleExplore
+            && $batchCount > 1
             && $targetDepth === ''
             && $forcedEvent === null
             && app(\App\Services\ExplorationStaminaService::class)->enabled();
@@ -739,6 +743,8 @@ class BattleController extends Controller
 
         $request->merge(['continue_chain' => true]);
         $request->attributes->set('skip_explore_request_delay', true);
+        // 選択中の探索回数は保持したまま、入口直後だけは1戦ずつ進める。
+        $request->attributes->set('force_single_explore', true);
 
         return $this->explore($request, $areaId)->with('status', $statusMessage);
     }

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-exploration-single-continuation-fix',
+        'date' => '2026-08-16',
+        'category' => 'fixed',
+        'title' => '探索継続時の一戦再開を共通化',
+        'detail' => '新しい探索深度への入口から進む・引き返す時や、中断した探索などを再開する時、回数指定中かつHPが少ないと探索を続けられない問題を修正しました。回数を選び直していない継続操作は直後に1戦だけ行い、選択回数と現在の階層は維持されます。',
+    ],
+    [
         'id' => '2026-08-16-exploration-stamina-recovery-resume',
         'date' => '2026-08-16',
         'category' => 'fixed',
