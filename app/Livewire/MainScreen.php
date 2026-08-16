@@ -852,10 +852,20 @@ class MainScreen extends Component
             $descOverride = (string) ($overrides["{$prefix}.desc"] ?? '');
             $iconOverride = (string) ($overrides["{$prefix}.icon"] ?? '');
             if ($nameOverride !== '') {
-                $item['name'] = $nameOverride;
+                $item['name'] = FacilityConfig::normalizeLegacyOverride(
+                    $section,
+                    $slug,
+                    'name',
+                    $nameOverride
+                );
             }
             if ($descOverride !== '') {
-                $item['desc'] = $descOverride;
+                $item['desc'] = FacilityConfig::normalizeLegacyOverride(
+                    $section,
+                    $slug,
+                    'desc',
+                    $descOverride
+                );
             }
             if ($iconOverride !== '') {
                 $item['icon_image'] = $iconOverride;

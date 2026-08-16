@@ -57,6 +57,20 @@ class FacilityConfig
         ['slug' => 'settings',      'label' => '設定',        'default_name' => '設定',        'default_desc' => '名前やアイコンなどを変更する',               'default_icon' => 'menu/menu_settings.webp'],
     ];
 
+    public static function normalizeLegacyOverride(string $section, string $slug, string $field, string $value): string
+    {
+        if ($section !== 'home' || $slug !== 'job_arts') {
+            return $value;
+        }
+
+        return match ([$field, $value]) {
+            ['name', '奥義'] => '戦技セット',
+            ['desc', '習得した奥義を最大3つまでセットする'] => '習得した奥義を最大5つまでセットする',
+            ['desc', '通常戦用・ボス戦用の奥義をセットする'] => '習得した奥義を最大5つまでセットする',
+            default => $value,
+        };
+    }
+
     public static function nameToSlug(string $section): array
     {
         $entries = match ($section) {

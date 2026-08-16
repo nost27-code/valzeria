@@ -2,8 +2,12 @@
 
 namespace Tests\Unit;
 
+use App\Livewire\MainScreen;
+use App\Services\GameTextService;
 use App\Services\JobArtService;
 use App\Support\FacilityConfig;
+use Mockery;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class JobArtPvpSetViewTest extends TestCase
@@ -59,5 +63,49 @@ class JobArtPvpSetViewTest extends TestCase
         $this->assertSame('戦技セット', $jobArtEntry['default_name'] ?? null);
         $this->assertSame('習得した奥義を最大5つまでセットする', $jobArtEntry['default_desc'] ?? null);
         $this->assertSame('job_arts', FacilityConfig::nameToSlug('home')['戦技セット'] ?? null);
+    }
+
+    public function test_home_menu_normalizes_legacy_job_art_overrides_only(): void
+    {
+        $gameTextService = Mockery::mock(GameTextService::class);
+        $gameTextService->shouldReceive('getAllForPrefix')
+            ->once()
+            ->with('fac.home.')
+            ->andReturn([
+                'fac.home.job_arts.name' => '奥義',
+                'fac.home.job_arts.desc' => '習得した奥義を最大3つまでセットする',
+                'fac.home.help.name' => '冒険ガイド',
+                'fac.home.help.desc' => '独自の案内文',
+            ]);
+        $this->app->instance(GameTextService::class, $gameTextService);
+
+        $method = new ReflectionMethod(MainScreen::class, 'applyFacilityOverrides');
+        $result = $method->invoke(new MainScreen(), [
+            ['name' => '戦技セット', 'desc' => '習得した奥義を最大5つまでセットする'],
+            ['name' => 'ヘルプ', 'desc' => '遊び方や施設の説明を確認する'],
+        ], 'home');
+
+        $this->assertSame('戦技セット', $result[0]['name']);
+        $this->assertSame('習得した奥義を最大5つまでセットする', $result[0]['desc']);
+        $this->assertSame('冒険ガイド', $result[1]['name']);
+        $this->assertSame('独自の案内文', $result[1]['desc']);
+        $this->assertSame(
+            '習得した奥義を最大5つまでセットする',
+            FacilityConfig::normalizeLegacyOverride(
+                'home',
+                'job_arts',
+                'desc',
+                '通常戦用・ボス戦用の奥義をセットする'
+            )
+        );
+    }
+
+    public function test_help_copy_uses_five_slot_normal_boss_and_pvp_sets(): void
+    {
+        $helpContent = file_get_contents(config_path('help_content.php'));
+
+        $this->assertIsString($helpContent);
+        $this->assertStringNotContainsString('最大3つまでセット', $helpContent);
+        $this->assertStringContainsString('通常戦用・ボス戦用・PvP用にそれぞれ最大5つまでセット', $helpContent);
     }
 }

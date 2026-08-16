@@ -36,8 +36,18 @@ class FacilityTextManager extends Component
             $slug   = $entry['slug'];
             $prefix = "fac.{$section}.{$slug}";
             $result[$slug] = [
-                'name' => $dbValues->get("{$prefix}.name") ?? $entry['default_name'],
-                'desc' => $dbValues->get("{$prefix}.desc") ?? $entry['default_desc'],
+                'name' => FacilityConfig::normalizeLegacyOverride(
+                    $section,
+                    $slug,
+                    'name',
+                    $dbValues->get("{$prefix}.name") ?? $entry['default_name']
+                ),
+                'desc' => FacilityConfig::normalizeLegacyOverride(
+                    $section,
+                    $slug,
+                    'desc',
+                    $dbValues->get("{$prefix}.desc") ?? $entry['default_desc']
+                ),
                 'icon' => $dbValues->get("{$prefix}.icon") ?? $entry['default_icon'],
             ];
         }

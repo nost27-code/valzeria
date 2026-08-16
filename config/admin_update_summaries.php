@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-16-job-art-menu-legacy-text-fix',
+        'date' => '2026-08-16',
+        'category' => 'fixed',
+        'title' => '戦技セットの旧メニュー文言を修正',
+        'detail' => '冒険者メニューに旧テキストが保存されている場合も、「奥義」「最大3つ」へ戻らず、「戦技セット」「最大5つ」と表示するよう修正しました。ヘルプ内の説明も通常・ボス・PvPの現在仕様へ揃えています。',
+    ],
+    [
         'id' => '2026-08-16-exploration-single-continuation-fix',
         'date' => '2026-08-16',
         'category' => 'fixed',
