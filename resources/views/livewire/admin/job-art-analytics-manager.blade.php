@@ -171,7 +171,13 @@
                             <tr class="align-top hover:bg-slate-50">
                                 <td class="px-4 py-3 font-black text-slate-400">{{ $index + 1 }}</td>
                                 <td class="px-4 py-3">
-                                    <div class="font-black text-slate-950">{{ $row['name'] }}</div>
+                                    <div class="font-black text-slate-950">
+                                        <span
+                                            data-job-art-effect-tooltip="{{ $row['skill_id'] }}"
+                                            class="cursor-help border-b border-dotted border-slate-400"
+                                            title="効果：{{ $row['effect_description'] }}"
+                                        >{{ $row['name'] }}</span>
+                                    </div>
                                     <div class="mt-1 flex flex-wrap gap-1 text-[11px] font-bold text-slate-500">
                                         <span class="rounded bg-slate-100 px-2 py-0.5">{{ $row['source_job_name'] }}</span>
                                         <span class="rounded bg-violet-100 px-2 py-0.5 text-violet-800">{{ $row['stage_label'] }}</span>

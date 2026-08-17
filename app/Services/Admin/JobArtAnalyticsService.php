@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\JobArtService;
+use App\Services\JobArtV2CardDescriptionCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -33,7 +34,10 @@ class JobArtAnalyticsService
 
     private const ART_SORTS = ['popular', 'low', 'name'];
 
-    public function __construct(private readonly JobArtService $jobArtService) {}
+    public function __construct(
+        private readonly JobArtService $jobArtService,
+        private readonly JobArtV2CardDescriptionCatalog $cardDescriptionCatalog,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $filters
@@ -374,6 +378,7 @@ class JobArtAnalyticsService
             return [
                 'skill_id' => $skillId,
                 'name' => (string) $art->name,
+                'effect_description' => $this->effectDescription($art),
                 'source_job_name' => $art->jobClass?->name ?? '職業不明',
                 'learn_rank' => (int) $art->learn_rank,
                 'stage_label' => $this->stageLabel((int) $art->learn_rank),
@@ -418,6 +423,15 @@ class JobArtAnalyticsService
         }
 
         return $rows->values()->all();
+    }
+
+    private function effectDescription(Skill $art): string
+    {
+        $description = $this->cardDescriptionCatalog->defaultDescription($art)
+            ?? ($art->memo ?: $art->description);
+        $description = trim((string) $description);
+
+        return $description !== '' ? $description : $art->jobArtEffectLabel();
     }
 
     /**

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-17-admin-job-art-effect-hover',
+        'date' => '2026-08-17',
+        'category' => 'internal',
+        'title' => '戦技採用状況で効果説明をホバー表示',
+        'detail' => '管理画面の「戦技別の採用状況」で、戦技名にマウスを重ねると、その戦技の効果説明を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-17-job-art-card-header-single-row',
         'date' => '2026-08-17',
         'category' => 'changed',

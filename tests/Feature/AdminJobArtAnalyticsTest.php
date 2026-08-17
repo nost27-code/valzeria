@@ -77,6 +77,7 @@ class AdminJobArtAnalyticsTest extends TestCase
         $this->assertSame(2, $arts[$opening->id]['selected_count']);
         $this->assertSame(3, $arts[$opening->id]['eligible_count']);
         $this->assertSame(66.7, $arts[$opening->id]['eligible_adoption_rate']);
+        $this->assertSame('分析の構えの効果説明', $arts[$opening->id]['effect_description']);
         $this->assertSame(1, $arts[$opening->id]['slot_counts'][1]);
         $this->assertSame(1, $arts[$opening->id]['slot_counts'][2]);
         $this->assertSame(0, $arts[$unused->id]['selected_count']);
@@ -139,6 +140,8 @@ class AdminJobArtAnalyticsTest extends TestCase
         Livewire::actingAs($admin)
             ->test(JobArtAnalyticsManager::class)
             ->assertSee($opening->name)
+            ->assertSeeHtml('data-job-art-effect-tooltip="'.$opening->id.'"')
+            ->assertSee('効果：'.$opening->memo)
             ->set('battleContext', 'boss')
             ->assertSee($bossArt->name)
             ->assertDontSee($opening->name);
@@ -183,6 +186,7 @@ class AdminJobArtAnalyticsTest extends TestCase
             'pve_enabled' => $pve,
             'boss_enabled' => $boss,
             'champ_enabled' => $champ,
+            'memo' => $name.'の効果説明',
         ]);
     }
 
