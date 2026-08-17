@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-17-job-art-card-header-single-row',
+        'date' => '2026-08-17',
+        'category' => 'changed',
+        'title' => '戦技カード上部をスマホでも一行化',
+        'detail' => '戦技一覧カードの上部で、戦技アイコン・技名と、系譜アイコン・Cost・お気に入りをスマホでも同じ行にまとめ、余分な上下の空きを減らしました。',
+    ],
+    [
         'id' => '2026-08-17-admin-newcomer-log-color',
         'date' => '2026-08-17',
         'category' => 'changed',

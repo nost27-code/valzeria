@@ -343,6 +343,9 @@ class JobArtV2LoadoutViewTest extends TestCase
 
         $this->assertIsString($view);
         $this->assertStringContainsString('data-job-art-card-header', $view);
+        $this->assertStringContainsString('data-job-art-card-header-row', $view);
+        $this->assertStringContainsString('grid-cols-[minmax(0,1fr)_auto]', $view);
+        $this->assertStringNotContainsString('flex min-w-0 flex-col gap-2 min-[440px]:flex-row', $view);
         $this->assertStringContainsString('data-job-art-card-meta', $view);
         $this->assertStringContainsString('data-job-art-card-body', $view);
         $this->assertStringContainsString('data-job-art-card-description', $view);

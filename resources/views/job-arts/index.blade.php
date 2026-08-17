@@ -640,7 +640,7 @@
                     >
                         @if($jobArtV2UiEnabled)
                             <div class="border-b px-3 py-2.5 {{ $v2HeaderClass }}" data-job-art-card-header>
-                                <div class="flex min-w-0 flex-col gap-2 min-[440px]:flex-row min-[440px]:items-start min-[440px]:justify-between">
+                                <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2" data-job-art-card-header-row>
                                     <div class="flex min-w-0 items-center gap-2.5">
                                         @if($jobArtIconPath !== '')
                                             <img
@@ -650,7 +650,7 @@
                                                 height="56"
                                                 loading="lazy"
                                                 decoding="async"
-                                                class="h-14 w-14 shrink-0 object-contain"
+                                                class="h-12 w-12 shrink-0 object-contain min-[440px]:h-14 min-[440px]:w-14"
                                                 data-job-art-icon
                                                 data-job-art-card-icon
                                             >
@@ -660,7 +660,7 @@
                                             <div class="mt-0.5 break-words text-[15px] font-black leading-snug text-slate-950">{{ $art->name }}</div>
                                         </div>
                                     </div>
-                                    <div class="ml-auto flex shrink-0 items-start gap-2">
+                                    <div class="ml-auto flex shrink-0 items-center gap-1.5 min-[440px]:gap-2">
                                         @if($v2Display['source_lineage_icon_path'] ?? null)
                                             <img
                                                 src="{{ asset($v2Display['source_lineage_icon_path']) }}"
@@ -669,11 +669,11 @@
                                                 height="40"
                                                 loading="lazy"
                                                 decoding="async"
-                                                class="h-10 w-10 shrink-0 object-contain"
+                                                class="h-9 w-9 shrink-0 object-contain min-[440px]:h-10 min-[440px]:w-10"
                                                 data-job-art-lineage-icon
                                             >
                                         @endif
-                                        <div class="rounded-lg border-2 px-2.5 py-1 text-center {{ $costBadgeClass }}" aria-label="Cost {{ $cost }}">
+                                        <div class="rounded-lg border-2 px-2 py-1 text-center min-[440px]:px-2.5 {{ $costBadgeClass }}" aria-label="Cost {{ $cost }}">
                                             <div class="text-[9px] font-black uppercase leading-none tracking-wider">Cost</div>
                                             <div class="mt-0.5 text-base font-black leading-none">{{ $cost }}</div>
                                         </div>
