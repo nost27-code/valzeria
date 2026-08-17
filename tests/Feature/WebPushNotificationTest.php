@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\CharacterNotification;
 use App\Models\User;
 use App\Models\WebPushSubscription;
+use App\Services\AdminWebPushNotificationService;
 use App\Services\WebPushDispatchService;
 use App\Services\WebPushEligibilityService;
 use App\Services\WebPushPreferenceService;
@@ -176,7 +177,8 @@ class WebPushNotificationTest extends TestCase
         $dispatcher = new WebPushDispatchService(
             app(WebPushEligibilityService::class),
             app(WebPushPreferenceService::class),
-            $sender
+            $sender,
+            app(AdminWebPushNotificationService::class),
         );
         $result = $dispatcher->dispatch();
 
@@ -221,7 +223,8 @@ class WebPushNotificationTest extends TestCase
         $result = (new WebPushDispatchService(
             app(WebPushEligibilityService::class),
             app(WebPushPreferenceService::class),
-            $sender
+            $sender,
+            app(AdminWebPushNotificationService::class),
         ))->dispatch();
 
         $this->assertSame(1, $result['expired']);
@@ -269,7 +272,8 @@ class WebPushNotificationTest extends TestCase
         $result = (new WebPushDispatchService(
             app(WebPushEligibilityService::class),
             app(WebPushPreferenceService::class),
-            $sender
+            $sender,
+            app(AdminWebPushNotificationService::class),
         ))->dispatch();
 
         $this->assertSame(1, $result['sent']);
@@ -316,7 +320,8 @@ class WebPushNotificationTest extends TestCase
         $dispatcher = new WebPushDispatchService(
             app(WebPushEligibilityService::class),
             app(WebPushPreferenceService::class),
-            $sender
+            $sender,
+            app(AdminWebPushNotificationService::class),
         );
         $firstResult = $dispatcher->dispatch();
         $secondResult = $dispatcher->dispatch();
@@ -326,6 +331,123 @@ class WebPushNotificationTest extends TestCase
         $this->assertSame($disabledNotification->id, $subscription->fresh()->last_notification_id);
         $this->assertDatabaseHas('character_notifications', ['id' => $enabledNotification->id]);
         $this->assertDatabaseHas('character_notifications', ['id' => $disabledNotification->id]);
+    }
+
+    public function test_admin_notification_is_sent_only_to_the_configured_admin_character(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $recipient = $this->createCharacter($admin, 'ヴァル');
+        $otherUser = User::factory()->create();
+        $other = $this->createCharacter($otherUser, '対象外');
+        $this->configureWebPush('all', []);
+        config()->set('web_push.admin_recipient_character_id', $recipient->id);
+
+        $subscriptionService = app(WebPushSubscriptionService::class);
+        $recipientSubscription = $subscriptionService->subscribe(
+            $recipient,
+            'https://push.example.test/admin-recipient',
+            'adminPublicKey',
+            'adminAuthToken',
+        );
+        $otherSubscription = $subscriptionService->subscribe(
+            $other,
+            'https://push.example.test/other-recipient',
+            'otherPublicKey',
+            'otherAuthToken',
+        );
+        app(WebPushPreferenceService::class)->save($recipient, []);
+
+        $adminNotification = CharacterNotification::query()->create([
+            'character_id' => $recipient->id,
+            'category' => 'admin',
+            'type' => AdminWebPushNotificationService::TYPE_BUG_REPORT,
+            'title' => '新しい不具合報告があります',
+            'url' => route('admin.bug-reports'),
+        ]);
+        $otherNotification = CharacterNotification::query()->create([
+            'character_id' => $other->id,
+            'category' => 'admin',
+            'type' => AdminWebPushNotificationService::TYPE_BUG_REPORT,
+            'title' => '対象外へ送ってはいけない通知',
+            'url' => route('admin.bug-reports'),
+        ]);
+
+        $sender = Mockery::mock(WebPushSender::class);
+        $sender->shouldReceive('send')
+            ->once()
+            ->with(
+                Mockery::on(fn (WebPushSubscription $subscription): bool => $subscription->is($recipientSubscription)),
+                Mockery::on(fn (array $payload): bool => $payload['body'] === '新しい不具合報告があります'
+                    && $payload['tag'] === 'valzeria-admin-'.$adminNotification->id
+                    && $payload['data']['url'] === '/admin/bug-reports'
+                    && $payload['data']['notificationId'] === $adminNotification->id),
+            )
+            ->andReturn(['success' => true, 'expired' => false]);
+
+        $result = (new WebPushDispatchService(
+            app(WebPushEligibilityService::class),
+            app(WebPushPreferenceService::class),
+            $sender,
+            app(AdminWebPushNotificationService::class),
+        ))->dispatch();
+
+        $this->assertSame(2, $result['scanned']);
+        $this->assertSame(1, $result['sent']);
+        $this->assertSame($adminNotification->id, $recipientSubscription->fresh()->last_notification_id);
+        $this->assertSame($otherNotification->id, $otherSubscription->fresh()->last_notification_id);
+    }
+
+    public function test_admin_and_regular_notifications_are_announced_together_without_silent_loss(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $recipient = $this->createCharacter($admin, 'ヴァル');
+        $this->configureWebPush('all', []);
+        config()->set('web_push.admin_recipient_character_id', $recipient->id);
+
+        $subscription = app(WebPushSubscriptionService::class)->subscribe(
+            $recipient,
+            'https://push.example.test/admin-and-regular',
+            'combinedPublicKey',
+            'combinedAuthToken',
+        );
+        app(WebPushPreferenceService::class)->save($recipient, ['market_material_sold']);
+
+        $adminNotification = CharacterNotification::query()->create([
+            'character_id' => $recipient->id,
+            'category' => 'admin',
+            'type' => AdminWebPushNotificationService::TYPE_BUG_REPORT,
+            'title' => '新しい不具合報告があります',
+            'url' => route('admin.bug-reports'),
+        ]);
+        $regularNotification = CharacterNotification::query()->create([
+            'character_id' => $recipient->id,
+            'category' => 'market',
+            'type' => 'market_material_sold',
+            'title' => '市場で素材が売れました',
+            'url' => route('market.index'),
+        ]);
+
+        $sender = Mockery::mock(WebPushSender::class);
+        $sender->shouldReceive('send')
+            ->once()
+            ->with(
+                Mockery::on(fn (WebPushSubscription $stored): bool => $stored->is($subscription)),
+                Mockery::on(fn (array $payload): bool => $payload['body'] === '管理画面と通知ベルに新着があります。'
+                    && $payload['tag'] === 'valzeria-admin-'.$adminNotification->id
+                    && $payload['data']['url'] === '/admin/bug-reports'
+                    && $payload['data']['notificationId'] === $adminNotification->id),
+            )
+            ->andReturn(['success' => true, 'expired' => false]);
+
+        $result = (new WebPushDispatchService(
+            app(WebPushEligibilityService::class),
+            app(WebPushPreferenceService::class),
+            $sender,
+            app(AdminWebPushNotificationService::class),
+        ))->dispatch();
+
+        $this->assertSame(1, $result['sent']);
+        $this->assertSame($regularNotification->id, $subscription->fresh()->last_notification_id);
     }
 
     private function configureWebPush(string $mode, array $characterIds): void

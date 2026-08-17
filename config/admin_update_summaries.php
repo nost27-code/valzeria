@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-18-admin-pwa-operational-notifications',
+        'date' => '2026-08-18',
+        'category' => 'internal',
+        'title' => '管理者専用のスマホ新着通知を追加',
+        'detail' => '不具合報告、新着メール、キャラ画像作成依頼が届いた際、指定した管理者のPWA端末だけへ通知するようにしました。',
+    ],
+    [
         'id' => '2026-08-18-exclusive-character-icon-set-030',
         'date' => '2026-08-18',
         'category' => 'internal',

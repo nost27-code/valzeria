@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ContactMessage;
+use App\Services\ContactMessageIntakeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,7 +16,7 @@ class ContactController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ContactMessageIntakeService $messages)
     {
         $validated = $request->validate([
             'sender_name'  => ['nullable', 'string', 'max:100'],
@@ -38,7 +38,7 @@ class ContactController extends Controller
             $attachmentPath = 'contact_images/' . $filename;
         }
 
-        ContactMessage::create([
+        $messages->create([
             'user_id'         => $user?->id,
             'character_id'    => $character?->id,
             'recipient_email' => 'info@valzeria.com',

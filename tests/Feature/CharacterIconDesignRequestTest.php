@@ -10,6 +10,7 @@ use App\Models\CharacterIconDesignRequest;
 use App\Models\PlayerValmon;
 use App\Models\User;
 use App\Models\ValmonMaster;
+use App\Services\AdminWebPushNotificationService;
 use App\Services\CharacterIconDesignService;
 use App\Services\ExtraContentControlService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -381,6 +382,9 @@ class CharacterIconDesignRequestTest extends TestCase
 
     public function test_sheet_submission_spends_free_kiseki_first_and_cannot_charge_twice(): void
     {
+        [$admin, $adminCharacter] = $this->createPlayer('ヴァル');
+        $admin->forceFill(['role' => 'admin'])->save();
+        config()->set('web_push.admin_recipient_character_id', $adminCharacter->id);
         [$player, $character] = $this->createPlayer('提出者', 30, 20);
 
         $this->actingAs($player)
@@ -419,6 +423,11 @@ class CharacterIconDesignRequestTest extends TestCase
             'source_type' => 'character_icon_design',
             'source_id' => $designRequest->id,
         ]);
+        $this->assertDatabaseHas('character_notifications', [
+            'character_id' => $adminCharacter->id,
+            'type' => AdminWebPushNotificationService::TYPE_CHARACTER_ICON_DESIGN,
+            'title' => 'キャラ画像作成依頼が届きました',
+        ]);
         $this->get(route('character-icon-design.show'))
             ->assertOk()
             ->assertSee('管理人との専用チャット');
@@ -428,6 +437,9 @@ class CharacterIconDesignRequestTest extends TestCase
 
         $this->assertSame(1, CharacterIconDesignRequest::query()->where('character_id', $character->id)->count());
         $this->assertDatabaseCount('kiseki_transactions', 1);
+        $this->assertSame(1, \App\Models\CharacterNotification::query()
+            ->where('type', AdminWebPushNotificationService::TYPE_CHARACTER_ICON_DESIGN)
+            ->count());
         $this->assertSame(10, (int) $character->fresh()->kiseki);
 
         $retryResult = app(CharacterIconDesignService::class)->saveForm(
@@ -439,6 +451,7 @@ class CharacterIconDesignRequestTest extends TestCase
 
         $this->assertTrue($retryResult['success']);
         $this->assertSame('ヒアリングシートは提出済みです。', $retryResult['message']);
+        $this->assertFalse($retryResult['submitted_now']);
         $this->assertSame(10, (int) $character->fresh()->kiseki);
         $this->assertDatabaseCount('kiseki_transactions', 1);
     }

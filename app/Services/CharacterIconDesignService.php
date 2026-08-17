@@ -91,7 +91,7 @@ class CharacterIconDesignService
     }
 
     /**
-     * @return array{success: bool, message: string}
+     * @return array{success: bool, message: string, submitted_now: bool}
      */
     public function saveForm(
         Character $character,
@@ -103,6 +103,7 @@ class CharacterIconDesignService
             return [
                 'success' => false,
                 'message' => $this->preparingMessage(),
+                'submitted_now' => false,
             ];
         }
 
@@ -132,6 +133,7 @@ class CharacterIconDesignService
                     return [
                         'success' => false,
                         'message' => '提出できるヒアリングシートがありません。',
+                        'submitted_now' => false,
                     ];
                 }
 
@@ -146,6 +148,7 @@ class CharacterIconDesignService
                 return [
                     'success' => true,
                     'message' => 'ヒアリングシートは提出済みです。',
+                    'submitted_now' => false,
                 ];
             }
 
@@ -166,6 +169,7 @@ class CharacterIconDesignService
                         return [
                             'success' => false,
                             'message' => '輝石が不足しているため提出できませんでした。入力内容は下書きに保存しました。',
+                            'submitted_now' => false,
                         ];
                     }
 
@@ -200,6 +204,7 @@ class CharacterIconDesignService
                 'message' => $submit
                     ? 'ヒアリングシートを提出しました。管理人との専用チャットが開きました。'
                     : '下書きを保存しました。',
+                'submitted_now' => $submit,
             ];
         });
     }

@@ -26,6 +26,7 @@ Schedule::command('arena:npc-auto-battles --battles=1')->dailyAt('15:20')->witho
 Schedule::command('arena:npc-auto-battles --battles=2')->dailyAt('22:20')->withoutOverlapping();
 Schedule::command('portal:send-online-count')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('note:rss-sync')->everyThirtyMinutes()->withoutOverlapping();
+Schedule::command('contact-mail:import')->everyFiveMinutes()->withoutOverlapping(10);
 Schedule::command('web-push:dispatch')->everyMinute()->withoutOverlapping(10);
 Schedule::command('security:detect-anomalies')->everyFiveMinutes()->withoutOverlapping(10);
 Schedule::command('ranking:finalize-weekly-wins --automatic')

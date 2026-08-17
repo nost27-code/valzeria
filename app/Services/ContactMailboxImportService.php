@@ -3,12 +3,24 @@
 namespace App\Services;
 
 use App\Models\ContactMessage;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class ContactMailboxImportService
 {
     private $stream = null;
+
+    public function __construct(
+        private readonly ContactMessageIntakeService $messages,
+    ) {}
+
+    public function isConfigured(): bool
+    {
+        return trim((string) config('contact_mail.host')) !== ''
+            && trim((string) config('contact_mail.username')) !== ''
+            && trim((string) config('contact_mail.password')) !== '';
+    }
 
     public function import(): array
     {
@@ -20,7 +32,7 @@ class ContactMailboxImportService
         $address = (string) config('contact_mail.address', 'info@valzeria.com');
         $scheme = config('contact_mail.encryption', 'ssl') === 'ssl' ? 'ssl://' : '';
 
-        if ($host === '' || $username === '' || $password === '') {
+        if (! $this->isConfigured()) {
             throw new RuntimeException('メール受信設定が未設定です。');
         }
 
@@ -66,7 +78,17 @@ class ContactMailboxImportService
                     $values['body_html'] = $parsed['body_html'];
                 }
 
-                ContactMessage::create($values);
+                try {
+                    $this->messages->create($values);
+                } catch (QueryException $exception) {
+                    if (ContactMessage::where('source', 'pop3')->where('external_uid', $uid)->exists()) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    throw $exception;
+                }
 
                 $imported++;
             }

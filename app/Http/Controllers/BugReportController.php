@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BugReport;
 use App\Models\BugReportAttachment;
+use App\Services\AdminWebPushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ class BugReportController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AdminWebPushNotificationService $adminNotifications)
     {
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:10', 'max:5000'],
@@ -37,7 +38,7 @@ class BugReportController extends Controller
         $user = Auth::user();
         $character = $user->currentCharacter();
 
-        DB::transaction(function () use ($request, $validated, $user, $character): void {
+        $report = DB::transaction(function () use ($request, $validated, $user, $character): BugReport {
             $report = BugReport::create([
                 'user_id' => $user->id,
                 'character_id' => $character?->id,
@@ -60,7 +61,11 @@ class BugReportController extends Controller
                     'position' => $position,
                 ]);
             }
+
+            return $report;
         });
+
+        $adminNotifications->notifyBugReport($report);
 
         return redirect()
             ->route('bug-reports.create')

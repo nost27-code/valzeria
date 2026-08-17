@@ -11,10 +11,14 @@ $allowedCharacterIds = array_values(array_unique(array_filter(
     ),
     static fn (int $characterId): bool => $characterId > 0
 )));
+$isProduction = strtolower(trim((string) env('APP_ENV', 'production'))) === 'production';
 
 return [
     'mode' => strtolower(trim((string) env('WEB_PUSH_MODE', 'off'))),
     'allowed_character_ids' => $allowedCharacterIds,
+    'admin_recipient_character_id' => $isProduction
+        ? 5
+        : max(0, (int) env('ADMIN_WEB_PUSH_CHARACTER_ID', 0)),
     'preview_mode' => strtolower(trim((string) env('WEB_PUSH_PREVIEW_MODE', 'generic'))),
 
     'vapid' => [

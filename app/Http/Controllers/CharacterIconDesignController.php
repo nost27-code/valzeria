@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Character;
 use App\Models\CharacterIconDesignMessageAttachment;
 use App\Models\CharacterIconDesignRequest;
+use App\Services\AdminWebPushNotificationService;
 use App\Services\CharacterIconDesignService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -162,8 +163,11 @@ class CharacterIconDesignController extends Controller
         ]);
     }
 
-    public function submit(Request $request, CharacterIconDesignService $service)
-    {
+    public function submit(
+        Request $request,
+        CharacterIconDesignService $service,
+        AdminWebPushNotificationService $adminNotifications,
+    ) {
         $character = $this->authorizedCharacter($service);
         if (! $service->canSubmit($character)) {
             return $this->preparingRedirect($service);
@@ -203,6 +207,10 @@ class CharacterIconDesignController extends Controller
             true,
             $designRequest->id,
         );
+
+        if ($result['submitted_now']) {
+            $adminNotifications->notifyCharacterIconDesignRequest($designRequest);
+        }
 
         if ($result['success'] && $request->hasFile('attachments')) {
             try {
