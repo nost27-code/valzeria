@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-18-sub-area-recovery-items',
+        'date' => '2026-08-18',
+        'category' => 'fixed',
+        'title' => '亜域で回復アイテムを使用可能に修正',
+        'detail' => '記録済みの入口から亜域へ直接入った時も、薬草・回復薬・魔力水を所持分から各10個まで持ち込み、戦闘結果から使用できるようにしました。',
+    ],
+    [
         'id' => '2026-08-18-job-art-first-replacement-wave',
         'date' => '2026-08-18',
         'category' => 'balance',

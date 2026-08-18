@@ -1127,9 +1127,10 @@ class BattleController extends Controller
         $battleData['finalStats'] = $this->statusService->getFinalStats($battleData['character']);
         if (!($battleData['isBoss'] ?? false)) {
             $registrationId = (int) data_get($battleData, 'mapExploration.registration_id', 0);
+            $subAreaSourceAreaId = ExplorationItemService::subAreaSourceAreaId($battleData);
             $battleData['recoveryItems'] = $registrationId > 0
                 ? app(\App\Services\MapExplorationItemService::class)->carriedItems($battleData['character'], $registrationId)
-                : app(ExplorationItemService::class)->carriedItems($battleData['character']);
+                : app(ExplorationItemService::class)->carriedItems($battleData['character'], $subAreaSourceAreaId);
             $battleData['supportItemCounts'] = app(\App\Services\AdventureSupportService::class)->countsFor($battleData['character']);
             if ($registrationId <= 0) {
                 $explorationSupport = app(\App\Services\ExplorationSupportService::class);

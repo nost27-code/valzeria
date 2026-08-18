@@ -24,9 +24,10 @@ class ExplorationItemController extends Controller
 
         $activeMap = session('active_map_exploration');
         $registrationId = is_array($activeMap) ? (int) ($activeMap['registration_id'] ?? 0) : 0;
+        $subAreaSourceAreaId = ExplorationItemService::subAreaSourceAreaId((array) session('lastBattleData', []));
         $result = $registrationId > 0
             ? $mapService->use($character, $item, $registrationId)
-            : $service->use($character, $item);
+            : $service->use($character, $item, $subAreaSourceAreaId);
         $character->refresh();
 
         if ($request->expectsJson()) {
@@ -45,7 +46,7 @@ class ExplorationItemController extends Controller
                 ],
                 'items' => $registrationId > 0
                     ? $mapService->carriedItems($character, $registrationId)
-                    : $service->carriedItems($character),
+                    : $service->carriedItems($character, $subAreaSourceAreaId),
             ], $result['success'] ? 200 : 422);
         }
 

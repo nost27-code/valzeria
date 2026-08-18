@@ -12,14 +12,14 @@ class ExplorationItemService
 {
     private const CARRY_LIMIT = 10;
 
-    public function carriedItems(Character $character): array
+    public function carriedItems(Character $character, ?int $areaId = null): array
     {
-        $state = app(ExplorationStateService::class)->currentFor($character);
-        if (!$state || !$state->area_id) {
+        $areaId = $this->resolveAreaId($character, $areaId);
+        if (!$areaId) {
             return $this->emptyItems($character);
         }
 
-        return array_map(function (array $config) use ($character, $state) {
+        return array_map(function (array $config) use ($character, $areaId) {
             $item = Item::where('type', 'consumable')->where('name', $config['name'])->first();
             if (!$item) {
                 return $this->entryFromConfig($config, null, 0, 0, 0);
@@ -30,15 +30,15 @@ class ExplorationItemService
             $carry = ExplorationItemCarry::firstOrCreate(
                 ['character_id' => $character->id, 'item_id' => $item->id],
                 [
-                    'area_id' => $state->area_id,
+                    'area_id' => $areaId,
                     'carried_count' => $initialCarryCount,
                     'used_count' => 0,
                 ]
             );
 
-            if ((int) $carry->area_id !== (int) $state->area_id) {
+            if ((int) $carry->area_id !== $areaId) {
                 $carry->forceFill([
-                    'area_id' => $state->area_id,
+                    'area_id' => $areaId,
                     'carried_count' => $initialCarryCount,
                     'used_count' => 0,
                 ])->save();
@@ -54,19 +54,19 @@ class ExplorationItemService
         }, $this->configs());
     }
 
-    public function use(Character $character, Item $item): array
+    public function use(Character $character, Item $item, ?int $areaId = null): array
     {
         $config = $this->configFor($item);
         if (!$config) {
             return ['success' => false, 'message' => 'このアイテムは探索中に使用できません。'];
         }
 
-        $state = app(ExplorationStateService::class)->currentFor($character);
-        if (!$state || !$state->area_id) {
+        $areaId = $this->resolveAreaId($character, $areaId);
+        if (!$areaId) {
             return ['success' => false, 'message' => '探索中のみ使用できます。'];
         }
 
-        $this->carriedItems($character);
+        $this->carriedItems($character, $areaId);
         $carry = ExplorationItemCarry::where('character_id', $character->id)
             ->where('item_id', $item->id)
             ->first();
@@ -153,6 +153,17 @@ class ExplorationItemService
         ExplorationItemCarry::where('character_id', $character->id)->delete();
     }
 
+    public static function subAreaSourceAreaId(array $battleData): ?int
+    {
+        if (data_get($battleData, 'result.special_event') !== 'sub_area_explore') {
+            return null;
+        }
+
+        $areaId = (int) ($battleData['areaId'] ?? 0);
+
+        return $areaId > 0 ? $areaId : null;
+    }
+
     private function configs(): array
     {
         return [
@@ -209,5 +220,16 @@ class ExplorationItemService
     private function initialCarryCount(int $ownedCount): int
     {
         return min(self::CARRY_LIMIT, max(0, $ownedCount));
+    }
+
+    private function resolveAreaId(Character $character, ?int $areaId): int
+    {
+        if ($areaId !== null) {
+            return max(0, $areaId);
+        }
+
+        $state = app(ExplorationStateService::class)->currentFor($character);
+
+        return max(0, (int) ($state?->area_id ?? 0));
     }
 }
