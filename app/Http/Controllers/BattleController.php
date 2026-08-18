@@ -457,6 +457,10 @@ class BattleController extends Controller
             return redirect()->route('home')->with('error', 'この入口は利用できません。');
         }
 
+        if ($character->is_frozen) {
+            return redirect()->route('home')->with('error', 'このアカウントは凍結されています。お問い合わせください。');
+        }
+
         if ($redirect = $this->redirectIfStorageFull($character)) {
             return $redirect;
         }
@@ -466,7 +470,17 @@ class BattleController extends Controller
             return $this->redirectExploreRequestBusy($request, $character, (int) ($discovery->route?->source_area_id ?? 0));
         }
 
-        $result = app(\App\Services\SubAreaExplorationService::class)->explore($character, $discovery);
+        $batchCount = $this->resolveExploreCount($request, $character);
+        $subAreaService = app(\App\Services\SubAreaExplorationService::class);
+        $result = $batchCount > 1 && app(\App\Services\ExplorationStaminaService::class)->enabled()
+            ? $subAreaService->exploreRepeated($character, $discovery, $batchCount)
+            : $subAreaService->explore($character, $discovery);
+        $result = array_merge($result, [
+            'special_event' => 'sub_area_explore',
+            'sub_area_name' => $discovery->route?->subArea?->name,
+            'sub_area_route_name' => $discovery->route?->route_name,
+            'sub_area_discovery_id' => $discovery->id,
+        ]);
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
 
@@ -475,6 +489,7 @@ class BattleController extends Controller
             'areaId' => (int) ($discovery->route?->source_area_id ?? 0),
             'isBoss' => false,
             'jobLevel' => $jobLevel,
+            'selectedExploreCount' => $batchCount,
         ]);
     }
 

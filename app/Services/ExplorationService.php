@@ -907,7 +907,17 @@ class ExplorationService
         return [$enemy, $enemyImagePath];
     }
 
-    public function exploreRepeated(Character $character, int $areaId, int $requestedCount = 10): array
+    /**
+     * @param  null|callable(Character): array  $exploreRunner
+     * @param  list<string>  $repeatableSpecialEvents
+     */
+    public function exploreRepeated(
+        Character $character,
+        int $areaId,
+        int $requestedCount = 10,
+        ?callable $exploreRunner = null,
+        array $repeatableSpecialEvents = [],
+    ): array
     {
         $requestedCount = self::normalizeRepeatCount($requestedCount);
         $staminaService = app(ExplorationStaminaService::class);
@@ -974,7 +984,9 @@ class ExplorationService
                 break;
             }
 
-            $result = $this->explore($character, $areaId, false, null, true);
+            $result = $exploreRunner
+                ? $exploreRunner($character)
+                : $this->explore($character, $areaId, false, null, true);
             $lastResult = $result;
 
             if (isset($result['error'])) {
@@ -1046,7 +1058,8 @@ class ExplorationService
                 break;
             }
 
-            if ($specialEventType !== null && !in_array($specialEventType, ['treasure', 'golden_goblin'], true)) {
+            if ($specialEventType !== null
+                && !in_array($specialEventType, ['treasure', 'golden_goblin', ...$repeatableSpecialEvents], true)) {
                 $stopReason = match ($specialEventType) {
                     'dungeon_lord_encounter' => 'dungeon_lord_encounter',
                     'hidden_area_gate' => 'hidden_area_gate',

@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Http\Controllers\BattleController;
 use App\Models\Area;
 use App\Models\Character;
+use App\Models\CharacterSubAreaRouteDiscovery;
+use App\Models\SubArea;
+use App\Models\SubAreaRoute;
 use App\Models\User;
 use App\Services\AreaService;
 use App\Services\BattleLogService;
@@ -18,6 +21,7 @@ use App\Services\KisekiDropService;
 use App\Services\LevelService;
 use App\Services\PublicLogService;
 use App\Services\RegionDepthDungeonService;
+use App\Services\SubAreaExplorationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Mockery;
@@ -83,6 +87,46 @@ class ExplorationRepeatServiceTest extends TestCase
         $this->assertSame(50, $service->exploreCalls);
         $this->assertSame(0, $character->fresh()->explore_stamina);
         $this->assertStringContainsString('【50回探索】最大50回', (string) $result['log']);
+    }
+
+    public function test_repeat_exploration_can_use_the_sub_area_runner_without_stopping_on_its_marker(): void
+    {
+        $character = $this->characterWithStamina(3);
+        $service = $this->fakeExplorationService();
+        $subAreaCalls = 0;
+
+        $result = $service->exploreRepeated(
+            $character,
+            999,
+            3,
+            static function (Character $currentCharacter) use (&$subAreaCalls): array {
+                $subAreaCalls++;
+                $currentCharacter->explore_stamina = max(0, (int) $currentCharacter->explore_stamina - 1);
+                $currentCharacter->save();
+
+                return [
+                    'result' => 'victory',
+                    'enemy' => (object) ['name' => '亜域の試験敵'],
+                    'log' => '',
+                    'exp_gained' => 1,
+                    'gold_gained' => 1,
+                    'job_exp_gained' => 1,
+                    'level_up_details' => [],
+                    'material_drop' => [],
+                    'equipment_drops' => [],
+                    'new_discoveries' => [],
+                    'special_event' => 'sub_area_explore',
+                ];
+            },
+            ['sub_area_explore'],
+        );
+
+        $this->assertSame(3, $subAreaCalls);
+        $this->assertSame(0, $service->exploreCalls);
+        $this->assertSame(3, data_get($result, 'batch_explore.completed'));
+        $this->assertNull(data_get($result, 'batch_explore.stop_reason'));
+        $this->assertSame('sub_area_explore', $result['special_event']);
+        $this->assertSame(0, $character->fresh()->explore_stamina);
     }
 
     public function test_fifty_run_exploration_stops_on_the_defeat_run(): void
@@ -200,6 +244,109 @@ class ExplorationRepeatServiceTest extends TestCase
         $response->assertSessionHas($sessionKey, 50);
         $this->assertSame(50, $service->exploreCalls);
         $this->assertSame(0, (int) $character->fresh()->explore_stamina);
+    }
+
+    public function test_sub_area_request_with_an_explicit_count_uses_the_shared_repeat_path(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $area = Area::query()->create([
+            'name' => '亜域連続探索の入口',
+            'slug' => 'sub-area-repeat-entry-test',
+        ]);
+        $subArea = SubArea::query()->create([
+            'name' => '亜域連続探索の試験場',
+            'is_enabled' => true,
+        ]);
+        $route = SubAreaRoute::query()->create([
+            'sub_area_id' => $subArea->id,
+            'source_area_id' => $area->id,
+            'route_name' => '連続探索試験路',
+            'is_enabled' => true,
+        ]);
+        $discovery = CharacterSubAreaRouteDiscovery::query()->create([
+            'character_id' => $character->id,
+            'sub_area_route_id' => $route->id,
+            'discovered_at' => now(),
+        ]);
+
+        $staminaService = Mockery::mock(ExplorationStaminaService::class);
+        $staminaService->shouldReceive('enabled')->once()->andReturnTrue();
+        $this->app->instance(ExplorationStaminaService::class, $staminaService);
+
+        $subAreaService = Mockery::mock(SubAreaExplorationService::class);
+        $subAreaService->shouldReceive('explore')->never();
+        $subAreaService->shouldReceive('exploreRepeated')
+            ->once()
+            ->withArgs(fn (Character $actualCharacter, CharacterSubAreaRouteDiscovery $actualDiscovery, int $count): bool =>
+                (int) $actualCharacter->id === (int) $character->id
+                && (int) $actualDiscovery->id === (int) $discovery->id
+                && $count === 10)
+            ->andReturn([
+                'result' => 'victory',
+                'enemy' => (object) ['name' => '亜域の試験敵'],
+                'batch_explore' => [
+                    'requested' => 10,
+                    'completed' => 10,
+                    'stop_reason' => null,
+                ],
+            ]);
+        $this->app->instance(SubAreaExplorationService::class, $subAreaService);
+
+        $response = $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('battle.sub_area.explore', ['discovery' => $discovery->id]), [
+                'continue_chain' => 1,
+                'batch_count' => 10,
+            ]);
+
+        $response->assertRedirect(route('battle.result'));
+        $response->assertSessionHas('battleData.selectedExploreCount', 10);
+        $response->assertSessionHas('battleData.result.batch_explore.completed', 10);
+        $response->assertSessionHas('battleData.result.special_event', 'sub_area_explore');
+        $response->assertSessionHas('battleData.result.sub_area_discovery_id', $discovery->id);
+        $response->assertSessionHas('exploration_selected_count.' . $character->id, 10);
+    }
+
+    public function test_frozen_character_cannot_start_sub_area_exploration(): void
+    {
+        $character = $this->characterWithStamina(50);
+        $character->forceFill(['is_frozen' => true])->save();
+        $area = Area::query()->create([
+            'name' => '凍結確認用の入口',
+            'slug' => 'frozen-sub-area-entry-test',
+        ]);
+        $subArea = SubArea::query()->create([
+            'name' => '凍結確認用の亜域',
+            'is_enabled' => true,
+        ]);
+        $route = SubAreaRoute::query()->create([
+            'sub_area_id' => $subArea->id,
+            'source_area_id' => $area->id,
+            'route_name' => '凍結確認路',
+            'is_enabled' => true,
+        ]);
+        $discovery = CharacterSubAreaRouteDiscovery::query()->create([
+            'character_id' => $character->id,
+            'sub_area_route_id' => $route->id,
+            'discovered_at' => now(),
+        ]);
+
+        $subAreaService = Mockery::mock(SubAreaExplorationService::class);
+        $subAreaService->shouldReceive('explore')->never();
+        $subAreaService->shouldReceive('exploreRepeated')->never();
+        $this->app->instance(SubAreaExplorationService::class, $subAreaService);
+
+        $response = $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('battle.sub_area.explore', ['discovery' => $discovery->id]), [
+                'batch_count' => 50,
+            ]);
+
+        $response->assertRedirect(route('home'));
+        $response->assertSessionHas('error', 'このアカウントは凍結されています。お問い合わせください。');
+        $response->assertSessionMissing('battleData');
     }
 
     public function test_retreating_from_a_depth_gate_runs_one_battle_and_keeps_the_selected_count(): void

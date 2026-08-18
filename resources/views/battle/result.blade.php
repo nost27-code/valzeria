@@ -1702,6 +1702,9 @@
                             $exploreMaxHp = max(1, (int) ($maxHp ?? data_get($finalStats ?? [], 'max_hp', 1)));
                             $exploreHpPercent = min(100, (int) floor(($exploreCurrentHp / $exploreMaxHp) * 100));
                             $selectedHpBlocked = $selectedExploreCount > 1 && $exploreHpPercent <= $lowResourceWarningPercent;
+                            $exploreAgainAction = (($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
+                                ? route('battle.sub_area.explore', ['discovery' => $result['sub_area_discovery_id']])
+                                : route('battle.explore', ['area' => $areaId]);
                             $staminaCostHtml = $usesStamina
                                 ? '<span class="inline-flex items-center gap-0.5"><span>（</span><img src="' . asset('images/icon/icon_082.webp') . '" alt="" class="h-4 w-4 object-contain"><span>-' . number_format($staminaCost) . '）</span></span>'
                                 : '';
@@ -1879,17 +1882,9 @@
                                     <span>↩</span> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : '今は探索を続ける ' . $staminaCostHtml) !!}</span>
                                 </button>
                             </form>
-                        @elseif(!isset($result['error']) && !$isBoss && $isVictoryResult && ($result['special_event'] ?? null) === 'sub_area_explore' && !empty($result['sub_area_discovery_id']))
-                            <form action="{{ route('battle.sub_area.explore', ['discovery' => $result['sub_area_discovery_id']]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
-                                @csrf
-                                <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="bg-indigo-700 hover:bg-indigo-800 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
-                                    <x-loading-spinner class="hidden" data-explore-spinner size="h-4 w-4" />
-                                    <img src="{{ asset('images/icon/icon_003.webp') }}" alt="" class="w-4 h-4 object-contain"> <span id="explore-btn-text">{!! !$hasStamina ? '探索力不足' : ($battleWaitSeconds > 0 ? 'あと ' . $battleWaitSeconds . ' 秒...' : 'もう一度探索する ' . $staminaCostHtml) !!}</span>
-                                </button>
-                            </form>
                         @elseif(!isset($result['error']) && !$isBoss && ($result['result'] === 'victory' || $result['result'] === 'win'))
                             @if($usesStamina && !isset($mapExploration))
-                                <form action="{{ route('battle.explore', ['area' => $areaId]) }}"
+                                <form action="{{ $exploreAgainAction }}"
                                       method="POST"
                                       id="explore-form"
                                       data-async-explore-form
@@ -2060,7 +2055,7 @@
                             @else
                                 <div class="w-full max-w-md sm:w-auto">
                                     <div class="flex items-stretch justify-center gap-2">
-                                        <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" class="min-w-0 flex-1 sm:flex-none">
+                                        <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="もう一度探索する" data-ready-html="{!! e('もう一度探索する ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $battleWaitSeconds }}" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" class="min-w-0 flex-1 sm:flex-none">
                                             @csrf
                                             <input type="hidden" name="continue_chain" value="1">
                                             <button type="submit" id="explore-btn" @disabled($battleWaitSeconds > 0 || !$hasStamina) class="h-full w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-7 rounded-lg shadow-md transition duration-200 text-sm flex items-center justify-center gap-2">
@@ -2069,7 +2064,7 @@
                                             </button>
                                         </form>
                                         @if($usesStamina)
-                                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
+                                            <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form-batch" data-async-explore-form data-batch-explore-form data-ready-text="×10 探索" data-ready-html="{!! e('×10 探索') !!}" data-wait-seconds="0" data-initial-lock-seconds="{{ $initialExploreLockSeconds }}" data-current-hp="{{ $remainingHp ?? 0 }}" data-max-hp="{{ $maxHp ?? 1 }}" data-min-hp-percent="30" data-hp-warning="×10探索を続けるにはHPを回復してください。" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $batchStartStaminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。" data-inline-warning-target="batch-explore-inline-warning" class="shrink-0">
                                                 @csrf
                                                 <input type="hidden" name="continue_chain" value="1">
                                                 <input type="hidden" name="batch_count" value="{{ $batchExploreCount }}">
@@ -2092,7 +2087,7 @@
                                     $retryWaitSeconds = max(1, min(max(1, $battleWaitSeconds), (int) $retryMatches[1]));
                                 }
                             @endphp
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $retryWaitSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
+                            <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="{{ $retryWaitSeconds }}" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
                                 @csrf
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
@@ -2100,7 +2095,7 @@
                                 </button>
                             </form>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索処理中'))
-                            <form action="{{ route('battle.explore', ['area' => $areaId]) }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="2" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
+                            <form action="{{ $exploreAgainAction }}" method="POST" id="explore-form" data-async-explore-form data-ready-text="探索を続ける" data-ready-html="{!! e('探索を続ける ' . $staminaCostHtml) !!}" data-wait-seconds="2" data-current-stamina="{{ (int) ($stamina['current'] ?? 0) }}" data-required-stamina="{{ $staminaCost }}" data-stamina-warning="探索力が足りません。探索力の小瓶や薬で回復してから探索してください。">
                                 @csrf
                                 <input type="hidden" name="continue_chain" value="1">
                                 <button type="submit" id="explore-btn" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-8 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2">
@@ -2109,7 +2104,7 @@
                             </form>
                         @elseif(isset($result['error']) && !$isBoss && str_contains((string) $result['error'], '探索力'))
                             @if($usesStamina)
-                                <form action="{{ route('battle.explore', ['area' => $areaId]) }}"
+                                <form action="{{ $exploreAgainAction }}"
                                       method="POST"
                                       id="explore-form"
                                       data-async-explore-form

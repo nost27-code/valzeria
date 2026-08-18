@@ -227,6 +227,30 @@ class SubAreaExplorationService
         ];
     }
 
+    public function exploreRepeated(
+        Character $character,
+        CharacterSubAreaRouteDiscovery $discovery,
+        int $requestedCount,
+    ): array
+    {
+        $discovery->loadMissing('route.subArea', 'route.sourceArea');
+
+        $result = app(ExplorationService::class)->exploreRepeated(
+            $character,
+            (int) ($discovery->route?->source_area_id ?? 0),
+            $requestedCount,
+            fn (Character $currentCharacter): array => $this->explore($currentCharacter, $discovery),
+            ['sub_area_explore'],
+        );
+
+        return array_merge($result, [
+            'special_event' => 'sub_area_explore',
+            'sub_area_name' => $discovery->route?->subArea?->name,
+            'sub_area_route_name' => $discovery->route?->route_name,
+            'sub_area_discovery_id' => $discovery->id,
+        ]);
+    }
+
     private function pickEnemy(int $sourceAreaId): ?Enemy
     {
         $enemies = Enemy::where('area_id', $sourceAreaId)

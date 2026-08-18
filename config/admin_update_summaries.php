@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-19-sub-area-repeat-exploration',
+        'date' => '2026-08-19',
+        'category' => 'changed',
+        'title' => '亜域でも通常探索と同じ回数指定に対応',
+        'detail' => '亜域探索でも1回・10回のクイック選択と2〜50回の回数指定を利用できるようにしました。必要な探索力が不足している場合は開始せず、敗北・HP低下・時間切れ・エラー時は途中で探索を止めます。',
+    ],
+    [
         'id' => '2026-08-18-sub-area-recovery-items',
         'date' => '2026-08-18',
         'category' => 'fixed',
