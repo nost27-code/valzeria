@@ -20,7 +20,7 @@ final class JobArtV2ProgressionCatalog
         '19:5:スピリットスティール' => ['key' => 'c_design_eclipse_drain', 'effect_texts' => ['与ダメージ35%分HP回復・最大SP10%回復・SPR -7%（2ターン）']],
         '27:1:勇気の灯' => ['key' => 'c_design_command_light', 'effect_texts' => ['次の指揮系連携の発動率 +10ポイント（最大3行動）']],
         '28:5:無拍子' => ['key' => 'c_design_counter_parry_chain', 'effect_texts' => ['予告中の奥義または大技を20%軽減し、実軽減後の次の反撃系連携/奥義を1.20倍']],
-        '30:1:闇の契約' => ['key' => 'c_design_eclipse_contract', 'effect_texts' => ['HIT時に冥蝕+4・物理型/魔法型に応じた4ターン強化']],
+        '30:1:闇の契約' => ['key' => 'c_design_eclipse_contract', 'effect_texts' => ['使用成立時に冥蝕+4・物理型/魔法型に応じた4ターン強化']],
         '30:5:暗黒剣' => ['key' => 'c_design_eclipse_drain_cost', 'effect_texts' => ['与ダメージ35%分HP回復・最大HP5%の反動']],
         '31:5:ゴールドラッシュ' => ['key' => 'c_design_transmute_reward', 'effect_texts' => ['通常探索勝利時のGold獲得量 +2%']],
         '32:1:竜槍構え' => ['key' => 'c_design_pierce_stance', 'effect_texts' => ['物理型/魔法型に応じた4ターン強化']],

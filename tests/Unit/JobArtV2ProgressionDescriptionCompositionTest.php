@@ -8,6 +8,18 @@ use PHPUnit\Framework\TestCase;
 
 final class JobArtV2ProgressionDescriptionCompositionTest extends TestCase
 {
+    public function test_dark_contract_describes_its_cast_time_resource_gain_without_a_hit_condition(): void
+    {
+        $catalog = new JobArtV2ProgressionCatalog;
+        $skill = $this->art(30, 1, '闇の契約');
+
+        $this->assertSame('c_design_eclipse_contract', $catalog->keyFor($skill));
+        $this->assertSame(
+            ['使用成立時に冥蝕+4・物理型/魔法型に応じた4ターン強化'],
+            $catalog->effectTextsForDisplay($skill, true, true),
+        );
+    }
+
     public function test_resource_gain_and_cost_are_not_duplicated_as_progression_effect_texts(): void
     {
         $catalog = new JobArtV2ProgressionCatalog;
