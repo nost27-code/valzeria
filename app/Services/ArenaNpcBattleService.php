@@ -379,6 +379,8 @@ class ArenaNpcBattleService
         $hitPowers = $skill->isJobArt()
             ? JobArtHitPower::split($totalPower, $hitCount)
             : array_fill(0, $hitCount, $totalPower);
+        $dealsDamage = ! $skill->isJobArt()
+            || JobArtEffectCatalog::dealsDamage((string) $skill->effect_template);
 
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
         $totalDamage = 0;
@@ -391,7 +393,7 @@ class ArenaNpcBattleService
             $overrideDef = $statOverrides['def'] ?? $overrides['def'];
             $overrideSpr = $statOverrides['spr'] ?? $overrides['spr'];
 
-            if ((float) $skill->power_multiplier > 0) {
+            if ($dealsDamage && (float) $skill->power_multiplier > 0) {
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,

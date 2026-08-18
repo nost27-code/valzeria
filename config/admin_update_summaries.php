@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-18-competitive-support-job-art-damage-fix',
+        'date' => '2026-08-18',
+        'category' => 'fixed',
+        'title' => '対人戦で補助戦技が攻撃する問題を修正',
+        'detail' => '闇の契約など攻撃を伴わない戦技が、プレイヤーランク戦・チャンプ戦・NPC闘技場でダメージを与えていた問題を修正しました。強化・弱体・防御・報酬など本来の効果はそのまま発動します。',
+    ],
+    [
         'id' => '2026-08-18-admin-pwa-operational-notifications',
         'date' => '2026-08-18',
         'category' => 'internal',

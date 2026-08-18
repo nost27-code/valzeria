@@ -528,6 +528,8 @@ class PvPBattleService
         $hitPowers = $skill->isJobArt()
             ? JobArtHitPower::split($totalPower, $hitCount)
             : array_fill(0, $hitCount, $totalPower);
+        $dealsDamage = ! $skill->isJobArt()
+            || JobArtEffectCatalog::dealsDamage((string) $skill->effect_template);
 
         $totalDamage = 0;
         for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
@@ -543,7 +545,7 @@ class PvPBattleService
             $overrideDef = $statOverrides['def'] ?? $overrides['def'];
             $overrideSpr = $statOverrides['spr'] ?? $overrides['spr'];
 
-            if ((float) $skill->power_multiplier > 0) {
+            if ($dealsDamage && (float) $skill->power_multiplier > 0) {
                 $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(

@@ -813,6 +813,8 @@ class ChampBattleService
         $hitPowers = $skill->isJobArt()
             ? JobArtHitPower::split($totalPower, $hitCount)
             : array_fill(0, $hitCount, $totalPower);
+        $dealsDamage = ! $skill->isJobArt()
+            || JobArtEffectCatalog::dealsDamage((string) $skill->effect_template);
 
         $totalDamage = 0;
         $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
@@ -826,7 +828,7 @@ class ChampBattleService
             $overrideDef = $statOverrides['def'] ?? $overrides['def'];
             $overrideSpr = $statOverrides['spr'] ?? $overrides['spr'];
 
-            if ((float) $skill->power_multiplier > 0) {
+            if ($dealsDamage && (float) $skill->power_multiplier > 0) {
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
