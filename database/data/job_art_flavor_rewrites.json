@@ -2,9 +2,9 @@
   {
     "job_id": 1,
     "learn_rank": 1,
-    "name": "斬り払い",
-    "activation_phrase": "「刃筋はもう見えている――斬り払い！」",
-    "activation_description": "{user}の刃に鋭い剣閃が宿る。《{skill}》の剣閃が{target}を斬り裂いた。残る澄み切った剣気が{target}の勢いを削いだ！"
+    "name": "見切りの呼吸",
+    "activation_phrase": "「その一太刀、見切った。」",
+    "activation_description": "{user}は呼吸を研ぎ澄ます。《{skill}》で{target}の動きを読み、受け流しの構えを取った！"
   },
   {
     "job_id": 1,
@@ -30,9 +30,9 @@
   {
     "job_id": 2,
     "learn_rank": 5,
-    "name": "渾身撃",
-    "activation_phrase": "「勢いはまだ止めない――渾身撃！」",
-    "activation_description": "{user}は高まる戦気を武器へ集め、《{skill}》の一撃で{target}を打ち抜いた。その余勢を己の力へ変えた！"
+    "name": "二段穿ち",
+    "activation_phrase": "「一点を、二度穿つ！」",
+    "activation_description": "{user}が鋭く踏み込む。《{skill}》の二撃が{target}の守りを貫いた！"
   },
   {
     "job_id": 2,
@@ -100,9 +100,9 @@
   {
     "job_id": 5,
     "learn_rank": 9,
-    "name": "爆裂闘気",
-    "activation_phrase": "「武の極みをここに示す――爆裂闘気！」",
-    "activation_description": "{user}は崩しの呼吸を刻み、《{skill}》の四連拳撃で{target}を打ち据えた。その連撃の余勢を己の力へ変えた！"
+    "name": "大崩拳",
+    "activation_phrase": "「崩し切る――これで終いだ！」",
+    "activation_description": "{user}が残る力を拳へ集める。《{skill}》が{target}の体勢ごと打ち砕いた！"
   },
   {
     "job_id": 6,
@@ -184,9 +184,9 @@
   {
     "job_id": 9,
     "learn_rank": 9,
-    "name": "双極断",
-    "activation_phrase": "「剣の極み、この一閃に――双極断！」",
-    "activation_description": "{user}は冥蝕の脈動と澄み切った剣気を重ね、《{skill}》で{target}を斬り裂いた。残る澄み切った剣気が{target}の勢いを削いだ！"
+    "name": "蝕みの終端",
+    "activation_phrase": "「蝕め、命の果てまで。」",
+    "activation_description": "{user}の身を蝕む力が刃へ集う。《{skill}》が{target}へ終焉の一撃を刻んだ！"
   },
   {
     "job_id": 10,
@@ -247,9 +247,9 @@
   {
     "job_id": 12,
     "learn_rank": 9,
-    "name": "十面埋伏",
-    "activation_phrase": "「全軍、勝利の一手を打て――十面埋伏！」",
-    "activation_description": "{user}は研ぎ澄まされた戦意を操り、《{skill}》で{target}の動線を断ち切った！"
+    "name": "総力戦",
+    "activation_phrase": "「全軍、ここが勝負どころだ！」",
+    "activation_description": "{user}の号令にすべての力が応える。《{skill}》が{target}へ総攻撃を仕掛けた！"
   },
   {
     "job_id": 13,
@@ -296,9 +296,9 @@
   {
     "job_id": 15,
     "learn_rank": 1,
-    "name": "シールドバッシュ",
-    "activation_phrase": "「ここは通さない――シールドバッシュ！」",
-    "activation_description": "{user}は守護の紋と揺るぎない守護力を重ね、《{skill}》で{target}を押し崩した。残る揺るぎない守護力が{target}の勢いを削いだ！"
+    "name": "不屈の誓い",
+    "activation_phrase": "「この身は、まだ折れない。」",
+    "activation_description": "{user}は決して退かない。《{skill}》の守りが次の一撃に備えて立ちはだかる！"
   },
   {
     "job_id": 15,
@@ -590,9 +590,9 @@
   {
     "job_id": 29,
     "learn_rank": 1,
-    "name": "魔力循環",
-    "activation_phrase": "「術式を組み上げる――魔力循環！」",
-    "activation_description": "{user}は濃密な魔力を傷へ巡らせ、《{skill}》で失った生命力を呼び戻した！"
+    "name": "静寂の帳",
+    "activation_phrase": "「音よ、沈み、力を伏せよ。」",
+    "activation_description": "{user}が静かに手を掲げる。《{skill}》が{target}を包む静寂の帳を広げた！"
   },
   {
     "job_id": 29,

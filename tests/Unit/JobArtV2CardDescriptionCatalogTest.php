@@ -39,7 +39,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
         $this->assertCount(192, $catalog);
         $this->assertSame($masterKeys, array_keys($catalog));
         $this->assertSame(
-            '44638dcaf25dc7c5e46938a15233c34612834f65a1a52bf20f2ef030a66027fb',
+            '6897ee3f1f5cbc42b58b7307fd277708ef56dfb6ce2270973ded9e2ccb3c0de6',
             hash('sha256', json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)),
         );
         $this->assertNotContains('', array_map('trim', $catalog));
@@ -142,7 +142,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
     {
         $presenter = app(JobArtV2LoadoutPresenter::class);
         $catalog = app(JobArtV2CardDescriptionCatalog::class);
-        $crossLineage = $this->masterArt(1, 1, '斬り払い', 'inherited');
+        $crossLineage = $this->masterArt(1, 1, '見切りの呼吸', 'inherited');
         $crossLineage->setAttribute('power', 90);
         $current = $this->masterArt(59, 1, '戦線把握', 'current');
         $crossLineageDisplay = $presenter->forArt(68, $crossLineage);
@@ -155,7 +155,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
             $catalog->defaultDescription($crossLineage),
             $crossLineageDisplay['display_description'],
         );
-        $this->assertStringContainsString('-12%', $crossLineageDisplay['display_description']);
+        $this->assertStringContainsString('受け流し率を+25%', $crossLineageDisplay['display_description']);
 
         config(['battle.job_art_v2.resources' => false]);
         $this->assertSame(

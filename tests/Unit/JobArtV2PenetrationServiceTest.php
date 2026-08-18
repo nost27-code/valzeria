@@ -75,6 +75,34 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $this->assertNull($this->service()->trustedRateFor($actor, $notAnArt));
     }
 
+    public function test_double_pierce_ignores_twenty_five_percent_of_physical_defense_on_both_hits(): void
+    {
+        $attacker = $this->actor(2);
+        $defender = $this->actor(null, 101, 87);
+        $skill = new Skill([
+            'name' => '二段穿ち',
+            'skill_type' => 'job_art',
+            'job_id' => 2,
+            'learn_rank' => 5,
+            'effect_template' => 'MULTI_HIT',
+            'damage_type' => 'physical',
+            'power' => 145,
+            'power_multiplier' => 1.45,
+            'hit_count' => 2,
+            'def_ignore_percent' => 0,
+        ]);
+        $skill->setAttribute('id', 2_005);
+        $this->markCurrent($attacker, $skill);
+
+        $firstHit = $this->service()->defenseOverrides($attacker, $defender, $skill);
+        $secondHit = $this->service()->defenseOverrides($attacker, $defender, $skill);
+
+        $this->assertSame(0.25, $this->service()->trustedRateFor($attacker, $skill));
+        $this->assertSame(['def' => 75, 'spr' => null, 'penetration_rate' => 0.25], $firstHit);
+        $this->assertSame($firstHit, $secondHit);
+        $this->assertSame(101, $defender->def);
+    }
+
     public function test_formula_a_floors_once_reduces_only_def_and_never_mutates_the_actor(): void
     {
         $attacker = $this->actor(62);

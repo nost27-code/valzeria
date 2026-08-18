@@ -53,6 +53,71 @@ final class JobArtV2RoleEffectCatalog
 
     /** @var array<string, array<string, mixed>> */
     private const ARTS = [
+        // First replacement wave: seven repeat-safe lineage identities.
+        '29:1:静寂の帳' => [
+            'role_key' => 'field_silence_producer',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'MAGICAL_DAMAGE',
+            'field' => [
+                'operation' => 'deploy',
+                'selection_mode' => 'fixed',
+                'field_key' => 'silence',
+                'duration_rounds' => 5,
+                'apply_new_field_to_source_action' => false,
+            ],
+            'effect_texts' => ['静寂の場を5ラウンド展開する', '新しく展開した静寂の場は、この戦技自身には適用しない'],
+        ],
+        '5:9:大崩拳' => [
+            'role_key' => 'break_desperate_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'conditional_damage_multiplier' => [
+                'condition' => 'actor_hp_ratio_at_most',
+                'maximum' => 0.30,
+                'multiplier' => 1.60,
+            ],
+            'effect_texts' => ['行動開始時のHPが30%以下なら最終ダメージ ×1.60'],
+        ],
+        '9:9:蝕みの終端' => [
+            'role_key' => 'eclipse_attrition_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'conditional_damage_multiplier' => [
+                'condition' => 'actor_hp_ratio_at_most',
+                'maximum' => 0.40,
+                'multiplier' => 1.50,
+            ],
+            'effect_texts' => ['行動開始時のHPが40%以下なら最終ダメージ ×1.50'],
+        ],
+        '12:9:総力戦' => [
+            'role_key' => 'command_total_war_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'HYBRID_DAMAGE',
+            'timed_effect' => [
+                'key' => 'command_total_war',
+                'modifiers' => ['str' => 0.30, 'mag' => 0.30],
+                'rounds' => 3,
+                'removable' => true,
+                'strength' => 30,
+            ],
+            'effect_texts' => ['発動後 ATK +30% / MAG +30%（3ラウンド、再使用時は重複せず更新）'],
+        ],
+        '15:1:不屈の誓い' => [
+            'role_key' => 'guard_unyielding_vow',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'guard' => [
+                'damage_reduction_rate' => 0.40,
+                'charges' => 1,
+                'scope' => 'direct_damage',
+            ],
+            'effect_texts' => ['次の直接ダメージを40%軽減する（1回）'],
+        ],
+
         // Counter: tempo, sustained preparation, and distinct finishers.
         '11:1:納刀' => [
             'role_key' => 'counter_tempo',

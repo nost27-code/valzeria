@@ -80,6 +80,12 @@ class JobArtV2PrototypeCatalog
      * @var array<int, array<int, array<string, int|float|string|bool>>>
      */
     private const ART_OVERRIDES = [
+        1 => [
+            1 => ['counter_stance_rounds' => 1, 'parry_rate' => 0.25],
+        ],
+        2 => [
+            5 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.25],
+        ],
         6 => [
             1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light', 'field_duration_rounds' => 5],
         ],
@@ -118,7 +124,9 @@ class JobArtV2PrototypeCatalog
         27 => [
             1 => ['resource_role' => 'neutral', 'resource_gain_points' => 0, 'resource_cost_points' => 0, 'minimum_resource_points' => 0],
         ],
-        // 29は場の選択／相手場上書きUIが未凍結のため、正本masterの基礎効果だけを使う。
+        29 => [
+            1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'silence', 'field_duration_rounds' => 5],
+        ],
         30 => [
             // 闇の契約は攻撃を伴わないため、使用成立時に冥蝕を得る。
             1 => ['resource_gain_event' => 'job_art_cast'],

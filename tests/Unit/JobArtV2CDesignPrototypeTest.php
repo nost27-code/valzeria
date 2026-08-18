@@ -42,7 +42,7 @@ class JobArtV2CDesignPrototypeTest extends TestCase
 
     public function test_every_equipped_lineage_is_formal_without_main_secondary_or_tech(): void
     {
-        $counter = $this->art(1, 1, '斬り払い');
+        $counter = $this->art(1, 1, '見切りの呼吸');
         $eclipse = $this->art(19, 5, 'スピリットスティール');
         $guard = $this->art(15, 5, 'ガーディアンブロウ');
         $resolution = app(JobArtV2DeckRoleResolver::class)->resolveSkills(68, [
@@ -66,7 +66,7 @@ class JobArtV2CDesignPrototypeTest extends TestCase
 
     public function test_each_card_uses_its_own_lineage_resource_at_full_speed(): void
     {
-        $counterStarter = $this->art(1, 1, '斬り払い');
+        $counterStarter = $this->art(1, 1, '見切りの呼吸');
         $eclipseStarter = $this->art(19, 1, 'マナピック');
         $eclipseChain = $this->art(19, 5, 'スピリットスティール');
         $actor = $this->actor(68, [$counterStarter, $eclipseStarter, $eclipseChain]);
@@ -134,7 +134,7 @@ class JobArtV2CDesignPrototypeTest extends TestCase
 
     public function test_presenter_never_labels_a_card_as_secondary_or_tech(): void
     {
-        $skill = $this->art(1, 1, '斬り払い');
+        $skill = $this->art(1, 1, '見切りの呼吸');
         $loadout = [$skill, $this->art(19, 1, 'マナピック')];
         $display = app(JobArtV2LoadoutPresenter::class)->forArt(68, $skill, $loadout);
 
@@ -152,7 +152,7 @@ class JobArtV2CDesignPrototypeTest extends TestCase
         $service = app(JobArtService::class);
         $character = new \App\Models\Character(['current_job_id' => 68]);
 
-        $this->assertSame(1, $service->effectiveArtCostFor($character, $this->art(1, 1, '斬り払い')));
+        $this->assertSame(1, $service->effectiveArtCostFor($character, $this->art(1, 1, '見切りの呼吸')));
         $this->assertSame(2, $service->effectiveArtCostFor($character, $this->art(19, 5, 'スピリットスティール')));
         $this->assertSame(3, $service->effectiveArtCostFor($character, $this->art(60, 9, '王冠聖剣陣')));
     }

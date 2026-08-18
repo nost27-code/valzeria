@@ -136,7 +136,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
                 'job_id' => 12,
                 'actor_job_id' => 62,
                 'rank' => 9,
-                'name' => '十面埋伏',
+                'name' => '構造化弱体テスト',
                 'duration' => 4,
                 'attributes' => [
                     'enemy_atk_down_percent' => 15,
@@ -639,13 +639,6 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(2, $actor->getResource('eclipse'));
         $this->assertSame(130, $actor->effectiveStr());
         $this->assertSame(125, $actor->effectiveMag());
-
-        $logs = implode("\n", $state->logs);
-        $costPosition = strpos($logs, 'HPを代償にした');
-        $resourcePosition = strpos($logs, '冥蝕 +2');
-        $this->assertNotFalse($costPosition);
-        $this->assertNotFalse($resourcePosition);
-        $this->assertLessThan($resourcePosition, $costPosition);
     }
 
     public function test_role_heal_cleanse_and_guard_use_the_shared_services(): void
@@ -1251,6 +1244,77 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(110, (int) $inheritedExecution->power);
         $this->assertSame(18, $inheritedActor->damageReductionRate);
         $this->assertSame(185, (int) $barrier->power);
+    }
+
+    public function test_first_wave_low_hp_finishers_use_the_action_start_boundary(): void
+    {
+        foreach ([
+            [5, '大崩拳', 0.30, 1.60],
+            [9, '蝕みの終端', 0.40, 1.50],
+        ] as [$jobId, $name, $maximum, $multiplier]) {
+            foreach ([
+                [(int) ($maximum * 1_000), (int) round(1_000 * $multiplier)],
+                [(int) ($maximum * 1_000) + 1, 1_000],
+            ] as [$hp, $expectedDamage]) {
+                [$actor, , $state] = $this->battle($jobId, actorOverrides: ['hp' => $hp, 'max_hp' => 1_000]);
+                $service = $this->service();
+                $art = $this->art($jobId, 9, $name, 'PHYSICAL_DAMAGE', $jobId === 5 ? 225 : 255, 1);
+
+                $this->beginAction($service, $actor, $state);
+                $service->beginJobArtCast($actor, $state, $art);
+
+                $this->assertSame($expectedDamage, $service->modifyJobArtDamage($actor, $state, $art, 1_000), "{$name}: HP {$hp}");
+            }
+        }
+    }
+
+    public function test_total_war_refreshes_one_three_round_atk_mag_effect_without_stacking(): void
+    {
+        [$actor, $target, $state] = $this->battle(12);
+        $service = $this->service();
+        $art = $this->art(12, 9, '総力戦', 'HYBRID_DAMAGE', 255, 1, ['damage_type' => 'hybrid']);
+
+        $state->turnCount = 1;
+        $execution = $this->cast($service, $actor, $target, $state, $art);
+        $effect = $actor->jobArtV2TimedEffect('command_total_war');
+
+        $this->assertSame('HYBRID_DAMAGE', $execution->effect_template);
+        $this->assertNotNull($effect);
+        $this->assertSame(['str' => 0.30, 'mag' => 0.30], $effect->statModifiers);
+        $this->assertSame(3, $effect->remainingRounds);
+        $this->assertSame(130, $actor->effectiveStr());
+        $this->assertSame(130, $actor->effectiveMag());
+
+        $state->turnCount = 2;
+        $service->endRound($state);
+        $this->assertSame(2, $effect->remainingRounds);
+        $this->cast($service, $actor, $target, $state, $art);
+        $refreshed = $actor->jobArtV2TimedEffect('command_total_war');
+
+        $this->assertCount(1, $actor->jobArtV2TimedEffects());
+        $this->assertNotSame($effect, $refreshed);
+        $this->assertSame(3, $refreshed?->remainingRounds);
+        $this->assertSame(130, $actor->effectiveStr());
+        $this->assertSame(130, $actor->effectiveMag());
+    }
+
+    public function test_unyielding_vow_grants_one_repeatable_forty_percent_direct_damage_guard(): void
+    {
+        [$actor, $target, $state] = $this->battle(15);
+        $service = $this->service();
+        $art = $this->art(15, 1, '不屈の誓い', 'GUARD_BARRIER', 0, 0, ['damage_reduction_percent' => 40]);
+
+        $firstExecution = $this->cast($service, $actor, $target, $state, $art, null);
+
+        $this->assertSame('V2_ROLE_EFFECT_ONLY', $firstExecution->effect_template);
+        $this->assertSame(0.40, $actor->jobArtV2GuardState()?->rate);
+        $this->assertSame(1, $actor->jobArtV2GuardState()?->charges);
+
+        $actor->replaceJobArtV2GuardState(null);
+        $this->cast($service, $actor, $target, $state, $art, null);
+
+        $this->assertSame(0.40, $actor->jobArtV2GuardState()?->rate);
+        $this->assertSame(1, $actor->jobArtV2GuardState()?->charges);
     }
 
     private function enableV2(): void

@@ -192,10 +192,11 @@ class JobArtV2FieldServiceTest extends TestCase
         $this->assertSame(0, count(array_filter($events, static fn (FieldEvent $event): bool => $event === FieldEvent::EXPIRED)));
     }
 
-    public function test_catalog_contains_only_the_frozen_nine_field_operations(): void
+    public function test_catalog_contains_the_frozen_field_operations_and_silence_replacement(): void
     {
         $catalog = app(JobArtV2PrototypeCatalog::class);
         $expected = [
+            29 => [1 => ['deploy', 'silence']],
             24 => [1 => ['deploy', 'sanctuary'], 5 => ['none', null], 9 => ['none', null]],
             53 => [1 => ['deploy', 'star_light'], 5 => ['extend', null], 9 => ['none', null]],
             85 => [1 => ['deploy', 'star_light'], 5 => ['lock', null], 9 => ['overlay', 'melody']],
@@ -209,6 +210,29 @@ class JobArtV2FieldServiceTest extends TestCase
             }
         }
         $this->assertNull($catalog->artFieldMetadata($this->art(62, 1)));
+    }
+
+    public function test_silence_curtain_deploys_and_refreshes_silence_for_five_rounds(): void
+    {
+        [$player, , $state] = $this->battle(29, 24);
+        $service = $this->service();
+        $art = $this->art(29, 1);
+        $art->name = '静寂の帳';
+        $state->turnCount = 1;
+
+        $state->beginSourceAction();
+        $created = $service->applyJobArtCast($player, $state, $art);
+
+        $this->assertSame(FieldEvent::CREATED, $created->event);
+        $this->assertSame('silence', $state->primaryField()?->key);
+        $this->assertSame(5, $state->primaryField()?->remainingRounds);
+
+        $state->turnCount = 2;
+        $state->beginSourceAction();
+        $refreshed = $service->applyJobArtCast($player, $state, $art);
+
+        $this->assertSame(FieldEvent::REFRESHED, $refreshed->event);
+        $this->assertSame(5, $state->primaryField()?->remainingRounds);
     }
 
     public function test_field_service_does_not_consume_rng(): void

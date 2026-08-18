@@ -82,6 +82,21 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertSame(JobArtV2DefenseService::COUNTER_EVENT_EXPIRED, collect($state->counterStanceEvents())->last()['event']);
     }
 
+    public function test_mikiri_breath_grants_a_one_round_twenty_five_percent_parry_stance(): void
+    {
+        [$actor, , $state] = $this->battle(1);
+        $defense = $this->defense(new FixedParryRandomSource([100]));
+        $skill = $this->art(1, 1);
+        $skill->name = '見切りの呼吸';
+        $skill->power = 90;
+        $skill->power_multiplier = 0.90;
+
+        $this->cast($actor, $state, $skill, $defense);
+
+        $this->assertSame(1, $actor->counterStanceState()?->remainingRounds);
+        $this->assertSame(0.25, $actor->counterStanceState()?->parryRate);
+    }
+
     public function test_parry_rolls_once_for_a_multihit_action_and_allows_both_counter_events(): void
     {
         [$counter, $attacker, $state] = $this->battle(60);

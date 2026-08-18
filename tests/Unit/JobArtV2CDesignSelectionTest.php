@@ -60,7 +60,7 @@ final class JobArtV2CDesignSelectionTest extends TestCase
             $this->art(1, 62, '主始動A'),
             $this->art(2, 52, '主始動B'),
             $this->art(3, 45, '主始動C'),
-            $this->art(4, 1, '斬り払い'),
+            $this->art(4, 1, '見切りの呼吸'),
             $this->art(5, 5, '気合拳'),
         ];
         $actor = new BattleActor('player', true, [

@@ -28,7 +28,7 @@ final class JobArtV2CDesignCatalog
 
     /** @var array<string, true> */
     private const PORTABLE_RANK_ONE = [
-        '1:1:斬り払い' => true,
+        '1:1:見切りの呼吸' => true,
         '2:1:挑発撃' => true,
         '3:1:すり抜け' => true,
         '4:1:足止め矢' => true,

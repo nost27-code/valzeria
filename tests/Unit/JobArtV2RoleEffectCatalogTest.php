@@ -36,9 +36,9 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
         }
     }
 
-    public function test_catalog_contains_exactly_the_fifty_frozen_natural_keys(): void
+    public function test_catalog_contains_exactly_the_fifty_five_frozen_natural_keys(): void
     {
-        $this->assertCount(50, self::roleArtProvider());
+        $this->assertCount(55, self::roleArtProvider());
     }
 
     public function test_same_named_special_skill_is_not_treated_as_a_job_art(): void
@@ -136,6 +136,11 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
     public static function roleArtProvider(): array
     {
         return [
+            'field silence producer' => [29, 1, '静寂の帳', 'field_silence_producer'],
+            'break low hp finisher' => [5, 9, '大崩拳', 'break_desperate_finisher'],
+            'eclipse low hp finisher' => [9, 9, '蝕みの終端', 'eclipse_attrition_finisher'],
+            'command total war' => [12, 9, '総力戦', 'command_total_war_finisher'],
+            'guard unyielding vow' => [15, 1, '不屈の誓い', 'guard_unyielding_vow'],
             'counter tempo' => [11, 1, '納刀', 'counter_tempo'],
             'counter sustained' => [13, 1, '闘争本能', 'counter_sustained_buff'],
             'counter focus' => [28, 1, '剣気集中', 'counter_finisher_prep'],
@@ -193,6 +198,18 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
     public static function fixedValueProvider(): array
     {
         return [
+            'silence field key' => [29, 1, '静寂の帳', 'field.field_key', 'silence'],
+            'silence field duration' => [29, 1, '静寂の帳', 'field.duration_rounds', 5],
+            'silence no self apply' => [29, 1, '静寂の帳', 'field.apply_new_field_to_source_action', false],
+            'break hp threshold' => [5, 9, '大崩拳', 'conditional_damage_multiplier.maximum', 0.30],
+            'break hp multiplier' => [5, 9, '大崩拳', 'conditional_damage_multiplier.multiplier', 1.60],
+            'eclipse hp threshold' => [9, 9, '蝕みの終端', 'conditional_damage_multiplier.maximum', 0.40],
+            'eclipse hp multiplier' => [9, 9, '蝕みの終端', 'conditional_damage_multiplier.multiplier', 1.50],
+            'total war atk' => [12, 9, '総力戦', 'timed_effect.modifiers.str', 0.30],
+            'total war mag' => [12, 9, '総力戦', 'timed_effect.modifiers.mag', 0.30],
+            'total war duration' => [12, 9, '総力戦', 'timed_effect.rounds', 3],
+            'unyielding guard' => [15, 1, '不屈の誓い', 'guard.damage_reduction_rate', 0.40],
+            'unyielding charge' => [15, 1, '不屈の誓い', 'guard.charges', 1],
             'noto atk' => [11, 1, '納刀', 'timed_effect.modifiers.str', 0.05],
             'noto duration' => [11, 1, '納刀', 'timed_effect.rounds', 2],
             'fighting instinct atk' => [13, 1, '闘争本能', 'timed_effect.modifiers.str', 0.25],

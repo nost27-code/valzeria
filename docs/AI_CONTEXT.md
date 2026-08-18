@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 Branch: main
 
 ## Dungeon-lord job-art set / training-ground practice battle
@@ -15,6 +15,12 @@ Branch: main
 - 戦技セット上部から初心者向け解説モーダルを開ける。系譜と0〜12の戦闘内リソース、5枠の循環候補順と1行動1候補1抽選、10系譜の直接・共通獲得、PvP奥義予告、最大100ターン、最大5枠・Cost9・奥義1枚等の制限をまとめる。行動順のプレイヤー向け表記は「敏捷」とし、英字能力名を使わない
 - プレイヤーPvPとNPCランク戦は、100ターン終了時に双方が生存していれば残り体力÷最大体力の割合を比較する。挑戦者の割合が高い時だけ判定勝利とし、同率または防衛側が高い場合は防衛成功。チャンプ戦はこの割合判定を使わず、100ターン以内の実際の撃破だけで交代する
 - PvPセットが有効な時は`REWARD`区分の戦技も設定・発動できる。PvP・チャンプ戦・NPC闘技場では攻撃・回復・強化・弱体などの戦闘効果を維持し、実行用戦技と`BattleState`のGold・drop・rare・material報酬補正だけを必ず0にする。通常探索・ボスの報酬効果と、各対戦にもともとある固定報酬は変更しない
+
+## Job-art v2 first replacement wave (release candidate)
+
+- 既存戦技差し替え第1弾は、1:1見切りの呼吸（物理90%＋受け流し25%/1R）、2:5二段穿ち（合計145%/2Hit・DEF25%無視）、5:9大崩拳（225%、行動開始時HP30%以下×1.60）、9:9蝕みの終端（255%、HP40%以下×1.50）、12:9総力戦（複合255%後に攻撃/魔力+30%/3R・非加算更新）、15:1不屈の誓い（次の直接ダメージ40%軽減・1回）、29:1静寂の帳（魔力95%後に静寂の場5R・元攻撃へ非適用）を正とする
+- `2026_08_17_150000_replace_first_wave_job_arts.php`は7件の自然キーだけを更新し、既存`skills.id`と戦技枠参照を維持する。見切りの呼吸と静寂の帳の専用アイコンも同じリリースへ含める。戦技v2では旧`cooldown_turns`・`max_uses_per_battle`・`limit_group`を再使用・同時セット制限に使わない
+- 2026-08-18時点では本番公開前のリリース候補であり、本番migration・本番実戦確認は未実施。旧コード稼働中にDB名だけが先行しないよう、公開時はmaintenance modeを必須とする
 
 ## Job-art v2 pre-release canonical state (historical)
 
@@ -35,7 +41,7 @@ Branch: main
 ## Job-art v2 role diversity pass (historical design pass)
 
 - 公開済みmasterとv2 resource規則を変えず、同期後監査TOP20の13 engine gapと7 role-design gapだけを対象にした。正本は`JobArtV2RoleEffectCatalog`の完全一致 `(job_id, learn_rank, name)` metadataで、`JobArtV2RoleEffectService`がbattle-memory-onlyのTimedEffect/PreparedEffect、支援、報酬、場、適応damage routeを6戦闘経路へ接続する。対象外戦技・flag不足・unsupported current jobは既存効果とRNG経路を維持する
-- 正本自己強化36件はraw能力を変更せず、解除可能な期限付き効果だけを使う。`JobArtV2CanonicalSelfBuffRuntimeAuditTest`が全282件から対象を抽出し、通常PvE・boss・tower・PvP・champ・NPC arena、現在職/継承、物理/魔法で値・持続・失効・非重複を検査する。旅支度はATK/DEF/MAG/SPRを同時に+10%し、4ターン維持する
+- 正本自己強化34件はraw能力を変更せず、解除可能な期限付き効果だけを使う。`JobArtV2CanonicalSelfBuffRuntimeAuditTest`が全282件から対象を抽出し、通常PvE・boss・tower・PvP・champ・NPC arena、現在職/継承、物理/魔法で値・持続・失効・非重複を検査する。旅支度はATK/DEF/MAG/SPRを同時に+10%し、4ターン維持する。第1弾で自己強化型から外れた渾身撃・爆裂闘気の2件はこの集合から除外し、総力戦の攻撃/魔力強化は役割効果側で監査する
 - portable指定された役割効果は同系譜/異系譜継承でも使用できるが、現在職のresource barは1本のままでforeign resourceを生成しない。source `power` / `hit_count` の値、Cost、35・38・50%発動、normalized SPは変更しない。Job Artの`power`は1行動全体の総量で、`hit_count > 1`は`JobArtHitPower`が整数余りを前方Hitへ配り、全Hit入力の合計を総powerと一致させる。通常PvE/bossとそれを継承するtower、PvP/champ/NPC arenaで同じ分割を使う
 - 反撃は納刀=短期tempo（ATK+5%/2R）、闘争本能=長期強化（ATK+25%・DEF+20%/5R）、剣気集中=決着準備（反撃Rank5/9を各×1.20、2回、最大6回の自分の行動機会）へ分離した。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と有害状態の優先1件浄化、王者の秘薬は残存割合が低いHP/SP側の今回回復量を×1.50（同率HP、浄化なし）とする。照準は高命中・既存会心補正・乱数なしの物理/魔法期待値選択、場術は星光/旋律生成と場延長、貫通はstrict/flexible準備、変成/守護は長期buff・能力選択・回復/加護・Gold/Drop/鑑定/浄化/収奪へ分離した
 - `MULTI_HIT` / `DAMAGE_BUFF` / `DAMAGE_DEBUFF` / `DAMAGE_GUARD_BARRIER`は通常攻撃と同じdamage種別を使う。プレイヤーPvPでも`usesMagForNormalAttack()`へ統一し、v2が実行用Skillへ明示したdamage routeはlegacyの通常攻撃連動より優先する。対象テンプレート判定は`JobArtEffectCatalog`を正本とし、管理プレビューと職業案内も同じ優先順位を使う

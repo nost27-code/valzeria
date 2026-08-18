@@ -36,16 +36,16 @@ final class JobArtV2CDesignClassificationCatalog
 
     /** @var array<string, true> */
     private const B2_ARTS = [
-        '1:1:斬り払い' => true, '1:5:連斬' => true, '2:5:渾身撃' => true,
+        '1:1:見切りの呼吸' => true, '1:5:連斬' => true, '2:5:二段穿ち' => true,
         '3:1:すり抜け' => true, '3:5:不意打ち' => true, '4:1:足止め矢' => true,
         '5:1:気合拳' => true, '5:5:連打' => true, '6:5:火炎弾' => true,
         '7:5:癒しの祈り' => true, '8:1:金貨投げ' => true, '9:5:魔法剣' => true,
         '10:5:ホーリーブレイド' => true, '11:5:居合斬り' => true, '12:1:敵情分析' => true,
-        '12:5:勝利の采配' => true, '13:5:闘技連斬' => true, '15:1:シールドバッシュ' => true,
+        '12:5:勝利の采配' => true, '13:5:闘技連斬' => true, '15:1:不屈の誓い' => true,
         '16:5:戦利の一撃' => true, '17:1:煙玉' => true, '17:5:影縫い' => true,
         '19:1:マナピック' => true, '21:1:練気呼吸' => true, '24:1:浄化の光' => true,
         '24:5:セイクリッドライト' => true, '25:1:応急手当' => true, '26:1:錬成火花' => true,
-        '27:5:ブレイブヒール' => true, '29:1:魔力循環' => true, '36:5:神罰の槌' => true,
+        '27:5:ブレイブヒール' => true, '29:1:静寂の帳' => true, '36:5:神罰の槌' => true,
     ];
 
     public function __construct(private readonly JobArtV2CDesignCatalog $cDesignCatalog) {}

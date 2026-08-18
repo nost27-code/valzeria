@@ -23,7 +23,7 @@ final class JobArtV2CrownBalanceCatalogTest extends TestCase
         ];
 
         $this->assertIsArray($runtime);
-        $this->assertCount(102, $runtime);
+        $this->assertCount(96, $runtime);
 
         foreach ($runtime as $key => $metadata) {
             $description = $descriptions[$key] ?? null;
@@ -58,26 +58,24 @@ final class JobArtV2CrownBalanceCatalogTest extends TestCase
         }
     }
 
-    public function test_slash_uses_the_l_column_debuff_without_changing_its_master_power(): void
+    public function test_double_pierce_uses_two_hits_without_changing_its_master_power(): void
     {
         $source = new Skill([
-            'job_id' => 1,
-            'learn_rank' => 1,
-            'name' => '斬り払い',
+            'job_id' => 2,
+            'learn_rank' => 5,
+            'name' => '二段穿ち',
             'skill_type' => 'job_art',
-            'power' => 90,
-            'power_multiplier' => 0.9,
-            'enemy_atk_down_percent' => 6,
-            'duration_turns' => 3,
+            'power' => 145,
+            'power_multiplier' => 1.45,
+            'hit_count' => 1,
         ]);
 
         $execution = app(JobArtV2CrownBalanceCatalog::class)->applyToExecution($source);
 
         $this->assertNotSame($source, $execution);
-        $this->assertSame(90, (int) $execution->power);
-        $this->assertSame(12, (int) $execution->enemy_atk_down_percent);
-        $this->assertSame(3, (int) $execution->duration_turns);
-        $this->assertSame(6, (int) $source->enemy_atk_down_percent, 'The DB/master model must not be mutated.');
+        $this->assertSame(145, (int) $execution->power);
+        $this->assertSame(2, (int) $execution->hit_count);
+        $this->assertSame(1, (int) $source->hit_count, 'The DB/master model must not be mutated.');
     }
 
     private function assertModifierToken(

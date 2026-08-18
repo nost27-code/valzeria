@@ -250,6 +250,7 @@ class JobArtMasterValidator
     {
         return self::containsAny($memo, self::DAMAGE_KEYWORDS)
             && ! str_contains($memo, '被ダメージ')
+            && ! preg_match('/受けるダメージ.{0,12}軽減/u', $memo)
             && ! str_contains($memo, 'ダメージを1回だけ耐え')
             && ! str_contains($memo, 'ダメージを耐え');
     }
