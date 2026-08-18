@@ -16,11 +16,11 @@ Branch: main
 - プレイヤーPvPとNPCランク戦は、100ターン終了時に双方が生存していれば残り体力÷最大体力の割合を比較する。挑戦者の割合が高い時だけ判定勝利とし、同率または防衛側が高い場合は防衛成功。チャンプ戦はこの割合判定を使わず、100ターン以内の実際の撃破だけで交代する
 - PvPセットが有効な時は`REWARD`区分の戦技も設定・発動できる。PvP・チャンプ戦・NPC闘技場では攻撃・回復・強化・弱体などの戦闘効果を維持し、実行用戦技と`BattleState`のGold・drop・rare・material報酬補正だけを必ず0にする。通常探索・ボスの報酬効果と、各対戦にもともとある固定報酬は変更しない
 
-## Job-art v2 first replacement wave (release candidate)
+## Job-art v2 first replacement wave
 
 - 既存戦技差し替え第1弾は、1:1見切りの呼吸（物理90%＋受け流し25%/1R）、2:5二段穿ち（合計145%/2Hit・DEF25%無視）、5:9大崩拳（225%、行動開始時HP30%以下×1.60）、9:9蝕みの終端（255%、HP40%以下×1.50）、12:9総力戦（複合255%後に攻撃/魔力+30%/3R・非加算更新）、15:1不屈の誓い（次の直接ダメージ40%軽減・1回）、29:1静寂の帳（魔力95%後に静寂の場5R・元攻撃へ非適用）を正とする
 - `2026_08_17_150000_replace_first_wave_job_arts.php`は7件の自然キーだけを更新し、既存`skills.id`と戦技枠参照を維持する。見切りの呼吸と静寂の帳の専用アイコンも同じリリースへ含める。戦技v2では旧`cooldown_turns`・`max_uses_per_battle`・`limit_group`を再使用・同時セット制限に使わない
-- 2026-08-18時点では本番公開前のリリース候補であり、本番migration・本番実戦確認は未実施。旧コード稼働中にDB名だけが先行しないよう、公開時はmaintenance modeを必須とする
+- 2026-08-18に `maintenance_required` で本番公開し、差し替えmigration・戦技/ダンジョン検証・公開URLと専用アイコンのHTTP確認まで完了。本番の認証済み実戦確認は未実施
 
 ## Job-art v2 pre-release canonical state (historical)
 
@@ -110,7 +110,7 @@ X = deprecated/removed
 - Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる。冒険者タブの「設定」→「情報確認」では、Google連携とメールアドレス・パスワード登録を別々に判定し、両方利用可能な状態やゲストプレイも確認できる。トップページでは、β版の冒険データを正式版へ引き継ぐ方針を明記する
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)。ゲストは購入不可で、Google連携またはメールアドレス・パスワード登録済みアカウントだけが購入できる
 - Tests: PHPUnit via `php artisan test`
-- Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージングの初回リリースと公開確認（`/` 200、未ログイン `/home` 302）は成功済み。本番SSHリリースは未実行。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
+- Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージング・本番とも原子的リリースと公開確認に成功済み。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
 
 ## Product summary
 
