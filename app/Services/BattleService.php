@@ -2052,7 +2052,8 @@ class BattleService
 
     private function applySelfBuff(BattleActor $attacker, BattleState $state, Skill $skill, ?bool $forceMagical = null): void
     {
-        $shared = $this->jobArtV2RoleEffectService->applySharedSelfBuff($attacker, $skill);
+        $damageType = $forceMagical === null ? null : ($forceMagical ? 'magical' : 'physical');
+        $shared = $this->jobArtV2RoleEffectService->applySharedSelfBuff($attacker, $state, $skill, $damageType);
         if ($shared !== null) {
             $this->logStatChange(
                 $state,

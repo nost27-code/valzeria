@@ -995,7 +995,7 @@ class ChampBattleService
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
-            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $skill);
+            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $state, $skill);
             if ($shared !== null) {
                 $logs[] = $this->statChangeLog(
                     $attacker->name,

@@ -758,6 +758,7 @@ class PvPBattleService
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
             $shared = $this->jobArtBattleSupport->applySharedSelfBuff(
                 $attacker,
+                $state,
                 $skill,
                 $template === 'DAMAGE_BUFF' ? $damageType : null,
             );

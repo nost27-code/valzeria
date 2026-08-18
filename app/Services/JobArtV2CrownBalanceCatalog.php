@@ -59,7 +59,7 @@ final class JobArtV2CrownBalanceCatalog
         '19:1:マナピック' => ['mp_recover_percent' => 0, 'sp_pressure_rate' => 0.02],
         '19:5:スピリットスティール' => ['debuffs' => ['spr' => 12], 'duration' => 3, 'drain_hp_rate' => 0.30, 'mp_recover_percent' => 0, 'sp_pressure_rate' => 0.03],
         '19:9:ルーン強奪' => ['buffs' => ['str' => 35,'def' => 20,'mag' => 35,'spr' => 20],'duration' => 5],
-        '20:1:旅支度' => ['buffs' => ['str' => 10, 'def' => 10, 'mag' => 10, 'spr' => 10],'duration' => 4],
+        '20:1:旅支度' => ['buffs' => ['str' => 10, 'def' => 10, 'mag' => 10, 'spr' => 10], 'buff_route' => 'simultaneous', 'duration' => 4],
         '20:9:大商隊の守護' => ['reduction' => 30],
         '21:1:練気呼吸' => ['heal_spr' => 100],
         '21:9:金剛不壊' => ['reduction' => 30],
@@ -283,7 +283,11 @@ final class JobArtV2CrownBalanceCatalog
         // not be reduced to one side by the normal-attack route.
         $hasPhysicalPair = isset($buffs['str']) && isset($buffs['def']);
         $hasMagicalPair = isset($buffs['mag']) && isset($buffs['spr']);
-        if ($hasPhysicalPair && $hasMagicalPair && count($buffs) === 4) {
+        if ($hasPhysicalPair
+            && $hasMagicalPair
+            && count($buffs) === 4
+            && ($metadata['buff_route'] ?? 'normal_attack') !== 'simultaneous'
+        ) {
             $buffs = $actor->usesMagForNormalAttack()
                 ? array_intersect_key($buffs, ['mag' => true, 'spr' => true])
                 : array_intersect_key($buffs, ['str' => true, 'def' => true]);

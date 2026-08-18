@@ -1011,35 +1011,56 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame('average', (string) $gigaExecution->hybrid_scaling);
     }
 
-    public function test_shared_v2_damage_buff_uses_normal_attack_type_and_master_power_tier(): void
+    public function test_shared_v2_damage_buff_uses_normal_attack_type_and_canonical_timed_values(): void
     {
-        [$physical] = $this->battle(62, actorOverrides: ['str' => 100, 'def' => 80, 'mag' => 140, 'spr' => 90]);
+        [$physical, , $physicalState] = $this->battle(62, actorOverrides: ['str' => 100, 'def' => 80, 'mag' => 140, 'spr' => 90]);
         $physical->normalAttackType = 'physical';
         $art = $this->art(17, 9, '瞬影乱舞', 'DAMAGE_BUFF', 255, 4);
 
-        $physicalChange = $this->service()->applySharedSelfBuff($physical, $art);
-        $this->assertSame(['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 88], $physicalChange);
+        $physicalState->beginSourceAction();
+        $physicalChange = $this->service()->applySharedSelfBuff($physical, $physicalState, $art);
+        $this->assertSame(['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 135, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 96], $physicalChange);
+        $this->assertSame(100, $physical->str);
+        $this->assertSame(80, $physical->def);
+        $this->assertSame(135, $physical->effectiveStr());
+        $this->assertSame(96, $physical->effectiveDef());
         $this->assertSame(140, $physical->mag);
         $this->assertSame(90, $physical->spr);
 
-        [$magical] = $this->battle(62, actorOverrides: ['str' => 140, 'def' => 90, 'mag' => 100, 'spr' => 80]);
+        [$magical, , $magicalState] = $this->battle(62, actorOverrides: ['str' => 140, 'def' => 90, 'mag' => 100, 'spr' => 80]);
         $magical->normalAttackType = 'magical';
-        $magicalChange = $this->service()->applySharedSelfBuff($magical, $art);
-        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 88], $magicalChange);
+        $magicalState->beginSourceAction();
+        $magicalChange = $this->service()->applySharedSelfBuff($magical, $magicalState, $art);
+        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 135, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 96], $magicalChange);
+        $this->assertSame(100, $magical->mag);
+        $this->assertSame(80, $magical->spr);
+        $this->assertSame(135, $magical->effectiveMag());
+        $this->assertSame(96, $magical->effectiveSpr());
         $this->assertSame(140, $magical->str);
         $this->assertSame(90, $magical->def);
 
-        [$explicitMagical] = $this->battle(62, actorOverrides: ['str' => 140, 'def' => 90, 'mag' => 100, 'spr' => 80]);
-        $explicitMagical->normalAttackType = 'physical';
-        $explicitMagicalChange = $this->service()->applySharedSelfBuff($explicitMagical, $art, 'magical');
-        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 88], $explicitMagicalChange);
-        $this->assertSame(140, $explicitMagical->str);
-        $this->assertSame(90, $explicitMagical->def);
-
         config(['battle.job_art_v2.resources' => false]);
-        [$legacy] = $this->battle(62);
-        $this->assertNull($this->service()->applySharedSelfBuff($legacy, $art));
+        [$legacy, , $legacyState] = $this->battle(62);
+        $this->assertNull($this->service()->applySharedSelfBuff($legacy, $legacyState, $art));
         $this->assertSame(100, $legacy->str);
+    }
+
+    public function test_shared_v2_damage_buff_keeps_power_tier_fallback_without_a_canonical_entry(): void
+    {
+        [$actor, , $state] = $this->battle(62, actorOverrides: ['str' => 100, 'def' => 80]);
+        $actor->normalAttackType = 'physical';
+        $art = $this->art(999, 1, '正本未登録テスト', 'DAMAGE_BUFF', 255, 1);
+
+        $state->beginSourceAction();
+        $change = $this->service()->applySharedSelfBuff($actor, $state, $art);
+
+        $this->assertSame(
+            ['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 88],
+            $change,
+        );
+        $this->assertSame(120, $actor->str);
+        $this->assertSame(88, $actor->def);
+        $this->assertCount(0, $actor->jobArtV2TimedEffects());
     }
 
     public function test_golden_appraisal_marks_the_target_in_battle_memory(): void

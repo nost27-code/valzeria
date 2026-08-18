@@ -125,9 +125,14 @@ class JobArtBattleSupportService
      *     sub_after: int
      * }|null
      */
-    public function applySharedSelfBuff(BattleActor $actor, Skill $skill, ?string $damageType = null): ?array
+    public function applySharedSelfBuff(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+        ?string $damageType = null,
+    ): ?array
     {
-        return $this->jobArtV2RoleEffectService->applySharedSelfBuff($actor, $skill, $damageType);
+        return $this->jobArtV2RoleEffectService->applySharedSelfBuff($actor, $state, $skill, $damageType);
     }
 
     /**

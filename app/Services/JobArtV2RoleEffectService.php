@@ -41,9 +41,9 @@ final class JobArtV2RoleEffectService
     }
 
     /**
-     * Keep the legacy DAMAGE_BUFF family on one v2 calculation in every
-     * battle route. The master power still chooses the frozen 10/15/20%
-     * tier; this method only removes the route-specific interpretation.
+     * Apply card-canonical self buffs as removable battle-memory effects in
+     * every route. Arts without a canonical entry keep the legacy raw-stat
+     * 10/15/20% power tier for backwards compatibility.
      *
      * @return array{
      *     main_label: string,
@@ -54,10 +54,37 @@ final class JobArtV2RoleEffectService
      *     sub_after: int
      * }|null
      */
-    public function applySharedSelfBuff(BattleActor $actor, Skill $skill, ?string $damageType = null): ?array
+    public function applySharedSelfBuff(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+        ?string $damageType = null,
+    ): ?array
     {
         if (! $this->enabledFor($actor)) {
             return null;
+        }
+
+        $isMagical = match ($damageType) {
+            'magical' => true,
+            'physical' => false,
+            default => (string) $skill->effect_template === 'MAGICAL_DAMAGE_BUFF'
+                || $actor->usesMagForNormalAttack(),
+        };
+        $canonicalModifiers = $this->balances()->selfBuffModifiers($skill, $actor);
+        if ($canonicalModifiers !== []) {
+            $beforeMain = $isMagical ? $actor->effectiveMag() : $actor->effectiveStr();
+            $beforeSub = $isMagical ? $actor->effectiveSpr() : $actor->effectiveDef();
+            $this->applyCanonicalSelfBuff($actor, $state, $skill, $canonicalModifiers);
+
+            return [
+                'main_label' => $isMagical ? 'MAG' : 'ATK',
+                'main_before' => $beforeMain,
+                'main_after' => $isMagical ? $actor->effectiveMag() : $actor->effectiveStr(),
+                'sub_label' => $isMagical ? 'SPR' : 'DEF',
+                'sub_before' => $beforeSub,
+                'sub_after' => $isMagical ? $actor->effectiveSpr() : $actor->effectiveDef(),
+            ];
         }
 
         $power = (int) ($skill->power ?: 100);
@@ -65,12 +92,6 @@ final class JobArtV2RoleEffectService
             $power >= 200 => 0.20,
             $power >= 140 => 0.15,
             default => 0.10,
-        };
-        $isMagical = match ($damageType) {
-            'magical' => true,
-            'physical' => false,
-            default => (string) $skill->effect_template === 'MAGICAL_DAMAGE_BUFF'
-                || $actor->usesMagForNormalAttack(),
         };
 
         if ($isMagical) {
@@ -1263,16 +1284,27 @@ final class JobArtV2RoleEffectService
         $state->addLog('<span class="text-indigo-700 font-bold">'.e($actor->name).' は一時強化を得た！（'.max(1, (int) ($effect['rounds'] ?? 1)).'ラウンド）</span>');
     }
 
-    private function applyCanonicalSelfBuff(BattleActor $actor, BattleState $state, Skill $skill): void
+    /** @param array<string, float>|null $modifiers */
+    private function applyCanonicalSelfBuff(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+        ?array $modifiers = null,
+    ): void
     {
-        $modifiers = $this->balances()->selfBuffModifiers($skill, $actor);
+        $modifiers ??= $this->balances()->selfBuffModifiers($skill, $actor);
         $sourceActionId = $state->currentSourceActionId();
         if ($modifiers === [] || $sourceActionId === null) {
             return;
         }
 
+        $key = 'canonical_self_buff:'.(int) $skill->job_id.':'.(int) $skill->learn_rank;
+        if ($actor->jobArtV2TimedEffect($key)?->sourceActionId === $sourceActionId) {
+            return;
+        }
+
         $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
-            key: 'canonical_self_buff:'.(int) $skill->job_id.':'.(int) $skill->learn_rank,
+            key: $key,
             statModifiers: $modifiers,
             appliedRound: $state->turnCount,
             remainingRounds: $this->balances()->durationTurns($skill),
