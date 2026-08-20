@@ -23,7 +23,7 @@ final class JobArtV2CrownBalanceCatalogTest extends TestCase
         ];
 
         $this->assertIsArray($runtime);
-        $this->assertCount(96, $runtime);
+        $this->assertCount(95, $runtime);
 
         foreach ($runtime as $key => $metadata) {
             $description = $descriptions[$key] ?? null;
@@ -34,7 +34,16 @@ final class JobArtV2CrownBalanceCatalogTest extends TestCase
                 $this->assertStringContainsString((int) $metadata['duration'].'ターン', $normalEffect, $key);
             }
             if (isset($metadata['hit_count'])) {
-                $this->assertStringContainsString((int) $metadata['hit_count'].'回', $normalEffect, $key);
+                $hitCount = (int) $metadata['hit_count'];
+                if ($hitCount > 1) {
+                    $this->assertStringContainsString($hitCount.'回', $normalEffect, $key);
+                } else {
+                    $this->assertDoesNotMatchRegularExpression(
+                        '/合計威力.*(?:[2-9]|[1-9][0-9]+)回に分けて/u',
+                        $normalEffect,
+                        $key,
+                    );
+                }
             }
             if (isset($metadata['heal_spr'])) {
                 $this->assertStringContainsString('精神の'.(int) $metadata['heal_spr'].'%', $normalEffect, $key);

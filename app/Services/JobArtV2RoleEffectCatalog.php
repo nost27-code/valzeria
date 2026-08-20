@@ -118,6 +118,33 @@ final class JobArtV2RoleEffectCatalog
             'effect_texts' => ['次の直接ダメージを40%軽減する（1回）'],
         ],
 
+        // Second replacement wave 2-A: generic target-mark consumption and
+        // the existing positive-effect removal primitive.
+        '17:9:狩猟の完成' => [
+            'role_key' => 'hunt_mark_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'conditional_damage_multiplier' => [
+                'condition' => 'target_hunting_mark_at_least',
+                'minimum' => 2,
+                'multiplier' => 1.50,
+                'consume_target_hunting_marks' => 2,
+            ],
+            'effect_texts' => ['相手の標的印が2段階以上ある場合、標的印を2段階消費し、最終ダメージを1.50倍にする'],
+        ],
+        '33:9:崩落' => [
+            'role_key' => 'break_collapse',
+            'portable' => true,
+            'suppress_legacy_effect' => false,
+            'remove_positive_effect' => [
+                'maximum_effects' => 1,
+                'selection' => 'highest_strength',
+                'removable_only' => true,
+            ],
+            'effect_texts' => ['相手の解除可能な強化を1つ解除する'],
+        ],
+
         // Counter: tempo, sustained preparation, and distinct finishers.
         '11:1:納刀' => [
             'role_key' => 'counter_tempo',

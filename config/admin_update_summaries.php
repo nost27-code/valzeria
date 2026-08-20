@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-20-job-art-replacement-wave-2a',
+        'date' => '2026-08-21',
+        'category' => 'balance',
+        'title' => '戦技4種を系譜らしい新効果へ刷新',
+        'detail' => '狩猟の完成、崩落、天測の陣、魂喰らいの4戦技を、標的印の活用・強化解除・場展開・HP吸収とSP圧迫を軸にした効果へ変更し、専用アイコンを追加しました。装備中の戦技セットはそのまま引き継がれます。',
+    ],
+    [
         'id' => '2026-08-19-sub-area-repeat-exploration',
         'date' => '2026-08-19',
         'category' => 'changed',

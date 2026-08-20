@@ -6,6 +6,8 @@ Job Art v2 targeted balance sync: `2026_08_15_120000_rebalance_crown_alchemist_j
 
 Job Art first replacement wave: `2026_08_17_150000_replace_first_wave_job_arts.php`は`skills`の自然キー1:1・2:5・5:9・9:9・12:9・15:1・29:1だけを一意性確認後に更新する。対象キーが1件もないfresh installではSeederへ委ねてno-opとし、1件以上存在する環境では7件すべてが一意でなければtransaction全体を停止する。既存`skills.id`と戦技枠参照を維持し、schema変更はない。
 
+Job Art replacement wave 2-A: `2026_08_20_120000_replace_job_arts_wave2_2a.php`は`skills`の自然キー6:5・17:9・19:9・33:9だけを一意性確認後に更新する。対象キーが1件もないfresh installではSeederへ委ねてno-opとし、1件以上存在する環境では4件すべてが一意でなければtransaction全体を停止する。既存`skills.id`と戦技枠参照を維持し、schema変更はない。
+
 | Entity/Table | Purpose | Key fields | Used by | Notes |
 |---|---|---|---|---|
 | users | Account and login owner for one current character | `support_pass_expires_at`, `selected_card_skin`, auth/profile fields | `SupportPassService`, `ProfileController`, `AdventureSupportService`, auth | 冒険者支援パスの期限とカード見た目選択（通常/支援パス金茶/支援パス青）をユーザー単位で保持する。期限切れ時も `selected_card_skin` は保存し、表示時だけ通常カードへ戻す。 |

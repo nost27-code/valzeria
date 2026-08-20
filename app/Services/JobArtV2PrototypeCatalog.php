@@ -88,6 +88,7 @@ class JobArtV2PrototypeCatalog
         ],
         6 => [
             1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light', 'field_duration_rounds' => 5],
+            5 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'observation', 'field_duration_rounds' => 5],
         ],
         12 => [
             1 => ['resource_role' => 'neutral', 'resource_gain_points' => 0, 'resource_cost_points' => 0, 'minimum_resource_points' => 0],

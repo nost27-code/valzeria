@@ -114,9 +114,9 @@
   {
     "job_id": 6,
     "learn_rank": 5,
-    "name": "火炎弾",
-    "activation_phrase": "「紅蓮よ、さらに燃えろ――火炎弾！」",
-    "activation_description": "{user}は灼熱の炎を術式へ集め、《{skill}》の魔力の奔流で{target}を呑み込んだ！"
+    "name": "天測の陣",
+    "activation_phrase": "「術式展開。」",
+    "activation_description": "{user}が術式を描く。《{skill}》の魔力が{target}を包み込んだ！"
   },
   {
     "job_id": 6,
@@ -352,9 +352,9 @@
   {
     "job_id": 17,
     "learn_rank": 9,
-    "name": "瞬影乱舞",
-    "activation_phrase": "「影さえ置き去りにする――瞬影乱舞！」",
-    "activation_description": "{user}は一息に《{skill}》を放ち、研ぎ澄ました気配をまとった四連撃を{target}へ叩き込んだ。その連撃の余勢を己の力へ変えた！"
+    "name": "狩猟の完成",
+    "activation_phrase": "「深き夜よ、すべてを呑め！」",
+    "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！"
   },
   {
     "job_id": 18,
@@ -394,9 +394,9 @@
   {
     "job_id": 19,
     "learn_rank": 9,
-    "name": "ルーン強奪",
-    "activation_phrase": "「その術式、こちらの力に変える！」",
-    "activation_description": "{user}は《{skill}》で{target}へルーンの一撃を刻み、弾けた術式を自らの攻防へ取り込んだ！"
+    "name": "魂喰らい",
+    "activation_phrase": "「影に沈め。」",
+    "activation_description": "{user}の姿が影に溶ける。《{skill}》が無数の幻影となって{target}を襲った！"
   },
   {
     "job_id": 20,
@@ -688,9 +688,9 @@
   {
     "job_id": 33,
     "learn_rank": 9,
-    "name": "武神降臨",
-    "activation_phrase": "「武の極みをここに示す――武神降臨！」",
-    "activation_description": "{user}は一息に《{skill}》を放ち、研ぎ澄まされた闘気をまとった二連撃を{target}へ叩き込んだ。重なる衝撃が{target}の勢いを削いだ！"
+    "name": "崩落",
+    "activation_phrase": "「我が闘気、解き放つ！」",
+    "activation_description": "{user}の全身から闘気が噴き上がる。《{skill}》が{target}を一気に打ち抜いた！"
   },
   {
     "job_id": 34,

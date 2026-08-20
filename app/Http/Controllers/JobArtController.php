@@ -548,8 +548,14 @@ class JobArtController extends Controller
         }
 
         $relativePath = sprintf('images/job_art/job_art_%03d_%02d.webp', $jobId, $learnRank);
+        $absolutePath = public_path($relativePath);
+        if (! is_file($absolutePath)) {
+            return null;
+        }
 
-        return is_file(public_path($relativePath)) ? $relativePath : null;
+        $modifiedAt = filemtime($absolutePath);
+
+        return $modifiedAt === false ? $relativePath : $relativePath.'?v='.$modifiedAt;
     }
 
     private function slotContextDescriptions(JobArtService $jobArtService, bool $jobArtV2UiEnabled): array

@@ -1158,6 +1158,15 @@ final class JobArtV2ProgressionService
         return $this->huntingMarkCount($target, $owner);
     }
 
+    public function consumeHuntingMarksFor(BattleActor $target, BattleActor $owner, int $count): bool
+    {
+        if ($count < 1) {
+            return false;
+        }
+
+        return $this->consumeHuntingMarks($target, $owner, $count);
+    }
+
     public function breakMarkCountFor(BattleActor $target, BattleActor $owner): int
     {
         return $this->breakMarkCount($target, $owner);

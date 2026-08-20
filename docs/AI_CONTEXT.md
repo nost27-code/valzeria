@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-18
+Last updated: 2026-08-21
 Branch: main
 
 ## Dungeon-lord job-art set / training-ground practice battle
@@ -21,6 +21,12 @@ Branch: main
 - 既存戦技差し替え第1弾は、1:1見切りの呼吸（物理90%＋受け流し25%/1R）、2:5二段穿ち（合計145%/2Hit・DEF25%無視）、5:9大崩拳（225%、行動開始時HP30%以下×1.60）、9:9蝕みの終端（255%、HP40%以下×1.50）、12:9総力戦（複合255%後に攻撃/魔力+30%/3R・非加算更新）、15:1不屈の誓い（次の直接ダメージ40%軽減・1回）、29:1静寂の帳（魔力95%後に静寂の場5R・元攻撃へ非適用）を正とする
 - `2026_08_17_150000_replace_first_wave_job_arts.php`は7件の自然キーだけを更新し、既存`skills.id`と戦技枠参照を維持する。見切りの呼吸と静寂の帳の専用アイコンも同じリリースへ含める。戦技v2では旧`cooldown_turns`・`max_uses_per_battle`・`limit_group`を再使用・同時セット制限に使わない
 - 2026-08-18に `maintenance_required` で本番公開し、差し替えmigration・戦技/ダンジョン検証・公開URLと専用アイコンのHTTP確認まで完了。本番の認証済み実戦確認は未実施
+
+## Job-art v2 replacement wave 2-A (production)
+
+- 既存IDを維持した差し替え2-Aは、17:9狩猟の完成（狩猟印12・物理255%単発、対象の標的印2段階を発動確定時に消費できた場合だけ最終×1.50）、33:9崩落（崩し12・物理315%単発、解除可能な強化1つ解除、防御/精神-25%・5R）、6:5天測の陣（星印4・魔力145%単発後にobservationを5R展開）、19:9魂喰らい（冥蝕12・魔力255%単発、実ダメージ35%吸収、HIT時に最大SP10%圧）を正とする。19:5スピリットスティールのHP吸収30%は変更しない
+- `2026_08_20_120000_replace_job_arts_wave2_2a.php`は4件の自然キーだけを更新し、既存`skills.id`と戦技枠参照を維持する。狩猟の完成の標的印消費はHIT/MISS/EVADEより前の発動確定時、崩落の強化解除はHIT非依存、天測の陣が新しく展開した場は展開元攻撃へ遡及しない。専用アイコンは天測の陣=`job_art_006_05.webp`、狩猟の完成=`job_art_017_09.webp`、魂喰らい=`job_art_019_09.webp`、崩落=`job_art_033_09.webp`を使い、更新時刻queryで同名画像の旧cacheを避ける
+- 2026-08-21に`maintenance_required`で本番公開。新しい発動台詞・発動描写は今回の人間公開承認に基づき、別途差し替えるまで既存の汎用文を維持する
 
 ## Job-art v2 pre-release canonical state (historical)
 
@@ -41,7 +47,7 @@ Branch: main
 ## Job-art v2 role diversity pass (historical design pass)
 
 - 公開済みmasterとv2 resource規則を変えず、同期後監査TOP20の13 engine gapと7 role-design gapだけを対象にした。正本は`JobArtV2RoleEffectCatalog`の完全一致 `(job_id, learn_rank, name)` metadataで、`JobArtV2RoleEffectService`がbattle-memory-onlyのTimedEffect/PreparedEffect、支援、報酬、場、適応damage routeを6戦闘経路へ接続する。対象外戦技・flag不足・unsupported current jobは既存効果とRNG経路を維持する
-- 正本自己強化34件はraw能力を変更せず、解除可能な期限付き効果だけを使う。`JobArtV2CanonicalSelfBuffRuntimeAuditTest`が全282件から対象を抽出し、通常PvE・boss・tower・PvP・champ・NPC arena、現在職/継承、物理/魔法で値・持続・失効・非重複を検査する。旅支度はATK/DEF/MAG/SPRを同時に+10%し、4ターン維持する。第1弾で自己強化型から外れた渾身撃・爆裂闘気の2件はこの集合から除外し、総力戦の攻撃/魔力強化は役割効果側で監査する
+- 正本自己強化は第1弾公開時34件、差し替え2-A公開後は32件とする。raw能力を変更せず、解除可能な期限付き効果だけを使う。`JobArtV2CanonicalSelfBuffRuntimeAuditTest`が全282件から対象を抽出し、通常PvE・boss・tower・PvP・champ・NPC arena、現在職/継承、物理/魔法で値・持続・失効・非重複を検査する。旅支度は攻撃/防御/魔力/精神を同時に+10%し、4ターン維持する。第1弾で自己強化型から外れた渾身撃・爆裂闘気、第2弾2-Aで外れた瞬影乱舞・ルーン強奪の計4件はこの集合から除外し、総力戦の攻撃/魔力強化は役割効果側で監査する
 - portable指定された役割効果は同系譜/異系譜継承でも使用できるが、現在職のresource barは1本のままでforeign resourceを生成しない。source `power` / `hit_count` の値、Cost、35・38・50%発動、normalized SPは変更しない。Job Artの`power`は1行動全体の総量で、`hit_count > 1`は`JobArtHitPower`が整数余りを前方Hitへ配り、全Hit入力の合計を総powerと一致させる。通常PvE/bossとそれを継承するtower、PvP/champ/NPC arenaで同じ分割を使う
 - 反撃は納刀=短期tempo（ATK+5%/2R）、闘争本能=長期強化（ATK+25%・DEF+20%/5R）、剣気集中=決着準備（反撃Rank5/9を各×1.20、2回、最大6回の自分の行動機会）へ分離した。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と有害状態の優先1件浄化、王者の秘薬は残存割合が低いHP/SP側の今回回復量を×1.50（同率HP、浄化なし）とする。照準は高命中・既存会心補正・乱数なしの物理/魔法期待値選択、場術は星光/旋律生成と場延長、貫通はstrict/flexible準備、変成/守護は長期buff・能力選択・回復/加護・Gold/Drop/鑑定/浄化/収奪へ分離した
 - `MULTI_HIT` / `DAMAGE_BUFF` / `DAMAGE_DEBUFF` / `DAMAGE_GUARD_BARRIER`は通常攻撃と同じdamage種別を使う。プレイヤーPvPでも`usesMagForNormalAttack()`へ統一し、v2が実行用Skillへ明示したdamage routeはlegacyの通常攻撃連動より優先する。対象テンプレート判定は`JobArtEffectCatalog`を正本とし、管理プレビューと職業案内も同じ優先順位を使う

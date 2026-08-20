@@ -119,10 +119,10 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
             [
                 'job_id' => 33,
                 'rank' => 9,
-                'name' => '武神降臨',
-                'duration' => 4,
-                'attributes' => ['enemy_def_down_percent' => 20, 'enemy_spr_down_percent' => 20],
-                'effective' => ['str' => 100, 'def' => 64, 'spr' => 64, 'mag' => 100, 'agi' => 100],
+                'name' => '崩落',
+                'duration' => 5,
+                'attributes' => ['enemy_def_down_percent' => 25, 'enemy_spr_down_percent' => 25],
+                'effective' => ['str' => 100, 'def' => 60, 'spr' => 60, 'mag' => 100, 'agi' => 100],
             ],
             [
                 'job_id' => 36,
@@ -208,10 +208,10 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
     {
         [$actor, $target, $state] = $this->battle(33);
         $state->beginSourceAction();
-        $art = $this->art(33, 9, '武神降臨', 'DAMAGE_DEBUFF', 255, 1, [
-            'duration_turns' => 3,
-            'enemy_def_down_percent' => 20,
-            'enemy_spr_down_percent' => 10,
+        $art = $this->art(33, 9, '崩落', 'DAMAGE_DEBUFF', 315, 1, [
+            'duration_turns' => 5,
+            'enemy_def_down_percent' => 25,
+            'enemy_spr_down_percent' => 25,
         ]);
 
         config(['battle.job_art_v2.resources' => false]);
@@ -1008,7 +1008,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
     {
         [$physical, , $physicalState] = $this->battle(62, actorOverrides: ['str' => 100, 'def' => 80, 'mag' => 140, 'spr' => 90]);
         $physical->normalAttackType = 'physical';
-        $art = $this->art(17, 9, '瞬影乱舞', 'DAMAGE_BUFF', 255, 4);
+        $art = $this->art(26, 9, '賢者の反応炉', 'DAMAGE_BUFF', 255, 1);
 
         $physicalState->beginSourceAction();
         $physicalChange = $this->service()->applySharedSelfBuff($physical, $physicalState, $art);

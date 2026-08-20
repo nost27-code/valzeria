@@ -28,6 +28,14 @@ The older Job-art sections and architecture-table notes below are historical des
 - Dedicated icons: `public/images/job_art/job_art_001_01.webp`, `public/images/job_art/job_art_029_01.webp`
 - Contracts: `tests/Feature/FirstJobArtReplacementWaveMigrationTest.php` and the targeted field, penetration, counter/guard, role-effect, card-description, crown-balance, and C-design unit tests
 
+## Job-art v2 replacement wave 2-A
+
+- Master/display authority: `database/data/job_arts.json`, `database/data/job_art_flavor_rewrites.json`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2CardDescriptionCatalog.php`, `app/Services/JobArtV2RoleEffectCatalog.php`, `app/Services/JobArtV2CrownBalanceCatalog.php`
+- Generic hunting-mark consumption: `app/Services/JobArtV2ProgressionService.php`, called from `app/Services/JobArtV2RoleEffectService.php` through `consume_target_hunting_marks` metadata
+- Existing-row migration: `database/migrations/2026_08_20_120000_replace_job_arts_wave2_2a.php`; it updates only natural keys 6:5, 17:9, 19:9, and 33:9 while preserving `skills.id`
+- Dedicated icons: `public/images/job_art/job_art_006_05.webp`, `job_art_017_09.webp`, `job_art_019_09.webp`, and `job_art_033_09.webp`; `JobArtController::jobArtIconPath()` appends the file update time as a cache version
+- Contracts: `tests/Feature/SecondJobArtReplacementWave2AMigrationTest.php`, `tests/Unit/JobArtV2ReplacementWave2ATest.php`, and the CrownBalance/canonical-self-buff/card-description/role-effect audits
+
 ## Job-art v2 role diversity pass (historical)
 
 `JobArtV2RoleEffectCatalog` is the exact `(job_id, learn_rank, name)` authority for the 34 explicitly ruled arts; it never owns master power or hit count. `JobArtV2CrownBalanceCatalog` owns card-canonical self-buff stats and duration. `JobArtV2RoleEffectService` applies their execution-time replacement semantics, owns battle-only timed/prepared lifecycle, and applies canonical self buffs as removable timed effects without mutating raw stats. Canonical entries refresh by natural key; only uncatalogued legacy self buffs retain the raw-stat power-tier fallback. `JobArtV2TimedEffectState` and `JobArtV2PreparedEffectState` live on `BattleActor`; `BattleState` holds the source-action role context. `JobArtV2CleanseService` is the shared structured cleanse boundary, while existing `JobArtV2DefenseService`, `JobArtV2FieldService`, `JobArtV2ResourceService`, and `DamageApplicationService` remain the guard, field, resource, and HP-application authorities.

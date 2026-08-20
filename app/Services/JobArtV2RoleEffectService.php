@@ -318,8 +318,17 @@ final class JobArtV2RoleEffectService
             $conditional,
             $roleContext,
         )) {
-            $multiplier *= max(0.0, (float) ($conditional['multiplier'] ?? 1.0));
-            $conditionalApplied = true;
+            $huntingMarksToConsume = max(0, (int) ($conditional['consume_target_hunting_marks'] ?? 0));
+            $consumed = $huntingMarksToConsume === 0
+                || $this->progressionService->consumeHuntingMarksFor(
+                    $target,
+                    $actor,
+                    $huntingMarksToConsume,
+                );
+            if ($consumed) {
+                $multiplier *= max(0.0, (float) ($conditional['multiplier'] ?? 1.0));
+                $conditionalApplied = true;
+            }
         }
 
         $state->updateJobArtV2RoleAction($sourceActionId, [

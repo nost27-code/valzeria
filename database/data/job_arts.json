@@ -456,7 +456,7 @@
   {
     "job_id": 6,
     "learn_rank": 5,
-    "name": "火炎弾",
+    "name": "天測の陣",
     "skill_type": "job_art",
     "effect_template": "MAGICAL_DAMAGE",
     "art_category": "attack",
@@ -477,9 +477,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 2,
-    "memo": "単体中魔法ダメージ",
+    "memo": "星印を4消費して魔法威力145%。天測の場を5ラウンド展開（この攻撃には非適用）",
     "activation_phrase": "「術式展開。」",
-    "activation_description": "{user}が術式を描く。《{skill}》の魔力が{target}を包み込んだ！"
+    "activation_description": "{user}が術式を描く。《{skill}》の魔力が{target}を包み込んだ！",
+    "hit_count": 1
   },
   {
     "job_id": 6,
@@ -1427,9 +1428,9 @@
   {
     "job_id": 17,
     "learn_rank": 9,
-    "name": "瞬影乱舞",
+    "name": "狩猟の完成",
     "skill_type": "job_art",
-    "effect_template": "DAMAGE_BUFF",
+    "effect_template": "PHYSICAL_DAMAGE",
     "art_category": "attack",
     "limit_group": "NONE",
     "element": "無",
@@ -1448,10 +1449,10 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "4回攻撃＋自身の戦闘力上昇（戦闘中）。1戦1回",
+    "memo": "物理威力255%。標的印が2段階以上なら2段階消費して最終ダメージ1.50倍",
     "activation_phrase": "「深き夜よ、すべてを呑め！」",
     "activation_description": "{user}の周囲に深い夜が落ちる。《{skill}》が戦場ごと{target}を呑み込んだ！",
-    "hit_count": 4
+    "hit_count": 1
   },
   {
     "job_id": 18,
@@ -1600,13 +1601,13 @@
   {
     "job_id": 19,
     "learn_rank": 9,
-    "name": "ルーン強奪",
+    "name": "魂喰らい",
     "skill_type": "job_art",
-    "effect_template": "DAMAGE_BUFF",
+    "effect_template": "DRAIN",
     "art_category": "attack",
     "limit_group": "NONE",
     "element": "闇",
-    "power_hint": "補助255",
+    "power_hint": 255,
     "duration_turns": 1,
     "sp_cost_rate": 0.2,
     "activation_rate": 8,
@@ -1621,9 +1622,14 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "単体大魔法＋自身の戦闘力を上昇（戦闘中）。1戦1回",
+    "memo": "魔法威力255%。与ダメージの35%をHP吸収し、HIT時に対象の最大SP10%分を圧する",
     "activation_phrase": "「影に沈め。」",
-    "activation_description": "{user}の姿が影に溶ける。《{skill}》が無数の幻影となって{target}を襲った！"
+    "activation_description": "{user}の姿が影に溶ける。《{skill}》が無数の幻影となって{target}を襲った！",
+    "sp_cost_fixed": 42,
+    "damage_type": "magical",
+    "hit_count": 1,
+    "drain_hp_rate": 0.35,
+    "mp_recover_percent": 0
   },
   {
     "job_id": 20,
@@ -2796,14 +2802,14 @@
   {
     "job_id": 33,
     "learn_rank": 9,
-    "name": "武神降臨",
+    "name": "崩落",
     "skill_type": "job_art",
     "effect_template": "DAMAGE_DEBUFF",
     "art_category": "debuff",
     "limit_group": "NONE",
     "element": "無",
     "power_hint": 315,
-    "duration_turns": 3,
+    "duration_turns": 5,
     "sp_cost_rate": 0.2,
     "activation_rate": 8,
     "art_cost": 3,
@@ -2817,12 +2823,12 @@
     "champ_enabled": true,
     "reward_scope": "none",
     "sort_order": 3,
-    "memo": "強力な2回攻撃＋敵の守りを低下（戦闘中）。1戦1回",
+    "memo": "物理威力315%の単発攻撃＋敵DEF/SPRを25%低下（戦闘中）",
     "activation_phrase": "「我が闘気、解き放つ！」",
     "activation_description": "{user}の全身から闘気が噴き上がる。《{skill}》が{target}を一気に打ち抜いた！",
-    "hit_count": 2,
-    "enemy_def_down_percent": 20,
-    "enemy_spr_down_percent": 10
+    "hit_count": 1,
+    "enemy_def_down_percent": 25,
+    "enemy_spr_down_percent": 25
   },
   {
     "job_id": 34,

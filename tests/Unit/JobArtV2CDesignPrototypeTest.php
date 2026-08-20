@@ -96,7 +96,7 @@ class JobArtV2CDesignPrototypeTest extends TestCase
     public function test_foreign_ultimate_uses_its_own_twelve_point_resource(): void
     {
         $starter = $this->art(19, 1, 'マナピック');
-        $ultimate = $this->art(19, 9, 'ルーン強奪');
+        $ultimate = $this->art(19, 9, '魂喰らい');
         $actor = $this->actor(68, [$starter, $ultimate]);
         $target = $this->actor(66, []);
         $state = new BattleState($actor, $target, 'pvp');
