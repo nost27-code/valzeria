@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-21-holy-sword-buff-battle-log-fix',
+        'date' => '2026-08-21',
+        'category' => 'fixed',
+        'title' => '聖剣構え系の能力強化ログを修正',
+        'detail' => '聖剣構えと光翼クロスブレイクで、防御・精神の強化が戦闘ログに表示されない問題を修正しました。強化の効果量や持続時間、ダメージは変更していません。',
+    ],
+    [
         'id' => '2026-08-20-job-art-replacement-wave-2a',
         'date' => '2026-08-21',
         'category' => 'balance',

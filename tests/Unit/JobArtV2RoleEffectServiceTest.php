@@ -70,6 +70,67 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(100, $actor->effectiveStr());
     }
 
+    public function test_holy_sword_general_guard_buffs_log_their_exact_stats_and_duration_once(): void
+    {
+        foreach ([
+            [
+                'rank' => 1,
+                'name' => '聖剣構え',
+                'power' => 205,
+                'modifiers' => ['def' => 0.10, 'spr' => 0.10],
+                'duration' => 4,
+                'log' => 'actor の防御が10%、精神が10%アップした！（4ターン）',
+            ],
+            [
+                'rank' => 9,
+                'name' => '光翼クロスブレイク',
+                'power' => 320,
+                'modifiers' => ['def' => 0.20, 'spr' => 0.20],
+                'duration' => 5,
+                'log' => 'actor の防御が20%、精神が20%アップした！（5ターン）',
+            ],
+        ] as $case) {
+            foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+                foreach (['current' => 50, 'inherited' => 60] as $origin => $currentJobId) {
+                    [$actor, $target, $state] = $this->battle($currentJobId, $battleType);
+                    $service = $this->service();
+                    $art = $this->art(50, $case['rank'], $case['name'], 'DAMAGE_BUFF', $case['power'], 1);
+                    $label = "{$case['name']} / {$battleType} / {$origin}";
+
+                    $execution = $this->cast($service, $actor, $target, $state, $art);
+
+                    $this->assertSame('PHYSICAL_DAMAGE', (string) $execution->effect_template, $label);
+                    $effect = $actor->jobArtV2TimedEffect("canonical_self_buff:50:{$case['rank']}");
+                    $this->assertNotNull($effect, $label);
+                    $this->assertSame($case['modifiers'], $effect->statModifiers, $label);
+                    $this->assertSame($case['duration'], $effect->remainingRounds, $label);
+
+                    $matchingLogs = array_values(array_filter(
+                        $state->logs,
+                        static fn (string $log): bool => str_contains($log, $case['log']),
+                    ));
+                    $this->assertCount(1, $matchingLogs, $label.' の能力変化ログは1回だけ出力すること。');
+                    $this->assertStringNotContainsString('ATK', $matchingLogs[0], $label);
+                    $this->assertStringNotContainsString('DEF', $matchingLogs[0], $label);
+                    $this->assertStringNotContainsString('SPR', $matchingLogs[0], $label);
+                }
+            }
+        }
+    }
+
+    public function test_shared_template_canonical_buff_leaves_log_output_to_the_route_caller(): void
+    {
+        [$actor, $target, $state] = $this->battle(20);
+        $service = $this->service();
+        $art = $this->art(20, 1, '旅支度', 'SELF_BUFF', 100, 0);
+
+        $this->beginAction($service, $actor, $state);
+        $change = $service->applySharedSelfBuff($actor, $state, $art);
+
+        $this->assertNotNull($change);
+        $this->assertSame([], $state->logs, '既存の各戦闘経路が出力する能力変化ログと二重表示しないこと。');
+    }
+
     public function test_sanctuary_barrier_uses_a_two_turn_battle_memory_buff_instead_of_a_battle_long_legacy_buff(): void
     {
         [$actor, $target, $state] = $this->battle(66);

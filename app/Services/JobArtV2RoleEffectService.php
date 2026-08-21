@@ -19,6 +19,16 @@ use App\Support\JobArtEffectCatalog;
  */
 final class JobArtV2RoleEffectService
 {
+    /** @var array<string, string> */
+    private const PLAYER_STAT_LABELS = [
+        'str' => '攻撃',
+        'def' => '防御',
+        'mag' => '魔力',
+        'spr' => '精神',
+        'agi' => '敏捷',
+        'luk' => '運',
+    ];
+
     public function __construct(
         private readonly JobArtV2RoleEffectCatalog $catalog,
         private readonly JobArtV2FeatureGate $featureGate,
@@ -75,7 +85,7 @@ final class JobArtV2RoleEffectService
         if ($canonicalModifiers !== []) {
             $beforeMain = $isMagical ? $actor->effectiveMag() : $actor->effectiveStr();
             $beforeSub = $isMagical ? $actor->effectiveSpr() : $actor->effectiveDef();
-            $this->applyCanonicalSelfBuff($actor, $state, $skill, $canonicalModifiers);
+            $this->applyCanonicalSelfBuff($actor, $state, $skill, $canonicalModifiers, false);
 
             return [
                 'main_label' => $isMagical ? 'MAG' : 'ATK',
@@ -1299,6 +1309,7 @@ final class JobArtV2RoleEffectService
         BattleState $state,
         Skill $skill,
         ?array $modifiers = null,
+        bool $logChange = true,
     ): void
     {
         $modifiers ??= $this->balances()->selfBuffModifiers($skill, $actor);
@@ -1312,16 +1323,50 @@ final class JobArtV2RoleEffectService
             return;
         }
 
+        $durationTurns = $this->balances()->durationTurns($skill);
         $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
             key: $key,
             statModifiers: $modifiers,
             appliedRound: $state->turnCount,
-            remainingRounds: $this->balances()->durationTurns($skill),
+            remainingRounds: $durationTurns,
             sourceActionId: $sourceActionId,
             sourceSkillId: (int) $skill->id,
             removable: true,
             strength: max(array_map('abs', $modifiers)),
         ));
+
+        if ($logChange) {
+            $this->logCanonicalSelfBuff($actor, $state, $modifiers, $durationTurns);
+        }
+    }
+
+    /** @param  array<string, float>  $modifiers */
+    private function logCanonicalSelfBuff(
+        BattleActor $actor,
+        BattleState $state,
+        array $modifiers,
+        int $durationTurns,
+    ): void
+    {
+        $changes = [];
+        foreach ($modifiers as $stat => $rate) {
+            $label = self::PLAYER_STAT_LABELS[$stat] ?? null;
+            if ($label === null || $rate <= 0.0) {
+                continue;
+            }
+
+            $percent = rtrim(rtrim(number_format($rate * 100, 1, '.', ''), '0'), '.');
+            $changes[] = $label.'が'.$percent.'%';
+        }
+
+        if ($changes === []) {
+            return;
+        }
+
+        $state->addLog(
+            '<span class="text-indigo-700 font-bold">'
+            .e($actor->name).' の'.implode('、', $changes).'アップした！（'.$durationTurns.'ターン）</span>',
+        );
     }
 
     /** @param array<string, mixed> $effect @return array<string, float> */

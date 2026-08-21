@@ -21,6 +21,7 @@ Purpose: canonical game rules. Keep concise.
 - 反撃系Role Diversity: 納刀はATK+5%/2Rの短期tempo、闘争本能はATK+25%・DEF+20%/5Rの長期強化、剣気集中は次の反撃Rank5/9を各×1.20する2 charge・最大6 own-action-opportunityの決着準備とする。反撃Rank5/9が実行された時はHIT/MISS/EVADEにかかわらず1 chargeを消費し、発動抽選不発では消費しない。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と優先有害状態最大1件の浄化、王者の秘薬はHP/SP残存割合が低い側の今回回復量×1.50（同率HP）で浄化しない。
 - 戦技v2 progression補正: 完全一致 `(job_id, learn_rank, name)` のmetadataで個別効果を補正する。編成時の現在職・同系譜・異系譜による効果縮小は行わない。照準準備・貫通構え・標的印・崩し印・resource抑制・行動カテゴリ観測等はカードに記載された条件で有効になる。戦技本文と構造化runtimeは必ず同期し、説明文だけを実行時に解析しない。
 - 正本自己強化: `JobArtV2CrownBalanceCatalog`に`buffs`または`dynamic_buff`がある戦技は、カードの数値・対象能力・持続時間を正本とする。raw能力を直接書き換えず、解除可能なbattle-memory-only効果として通常PvE・boss・tower・PvP・champ・NPC arenaへ同じ値で付与する。同じ自然キーは加算せず再使用時に更新する。旅支度はATK/DEF/MAG/SPRを同時に各+10%して4ターン維持し、LUKは上昇させない。正本登録がない旧自己強化だけは10/15/20% power tierとraw能力上限を維持する。
+- 聖剣将の防御自己強化ログ: 聖剣構えと光翼クロスブレイクは、強化が成立した時に防御・精神の上昇率と持続ターンを発動直後の戦闘ログへ表示し、同一action内では重ねて表示しない。表示追加によって能力値、効果量、持続時間、damage、RNG、勝敗を変更しない。
 
 ## Notifications
 
