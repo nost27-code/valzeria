@@ -19,21 +19,12 @@ use App\Support\JobArtEffectCatalog;
  */
 final class JobArtV2RoleEffectService
 {
-    /** @var array<string, string> */
-    private const PLAYER_STAT_LABELS = [
-        'str' => '攻撃',
-        'def' => '防御',
-        'mag' => '魔力',
-        'spr' => '精神',
-        'agi' => '敏捷',
-        'luk' => '運',
-    ];
-
     public function __construct(
         private readonly JobArtV2RoleEffectCatalog $catalog,
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtLineageCatalog $lineageCatalog,
         private readonly DamageCalculator $damageCalculator,
+        private readonly JobArtStatBuffLogFormatter $statBuffLogFormatter,
         private readonly JobArtV2FieldService $fieldService,
         private readonly JobArtV2DefenseService $defenseService,
         private readonly JobArtV2CleanseService $cleanseService,
@@ -1290,17 +1281,18 @@ final class JobArtV2RoleEffectService
             return;
         }
 
+        $durationRounds = max(1, (int) ($effect['rounds'] ?? 1));
         $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
             key: (string) $effect['key'],
             statModifiers: $modifiers,
             appliedRound: $state->turnCount,
-            remainingRounds: max(1, (int) ($effect['rounds'] ?? 1)),
+            remainingRounds: $durationRounds,
             sourceActionId: $sourceActionId,
             sourceSkillId: (int) $skill->id,
             removable: (bool) ($effect['removable'] ?? false),
             strength: max(0.0, (float) ($effect['strength'] ?? 0.0)),
         ));
-        $state->addLog('<span class="text-indigo-700 font-bold">'.e($actor->name).' は一時強化を得た！（'.max(1, (int) ($effect['rounds'] ?? 1)).'ラウンド）</span>');
+        $this->addStatBuffLog($actor, $state, $modifiers, $durationRounds, 'ラウンド');
     }
 
     /** @param array<string, float>|null $modifiers */
@@ -1348,25 +1340,26 @@ final class JobArtV2RoleEffectService
         int $durationTurns,
     ): void
     {
-        $changes = [];
-        foreach ($modifiers as $stat => $rate) {
-            $label = self::PLAYER_STAT_LABELS[$stat] ?? null;
-            if ($label === null || $rate <= 0.0) {
-                continue;
-            }
+        $this->addStatBuffLog($actor, $state, $modifiers, $durationTurns, 'ターン');
+    }
 
-            $percent = rtrim(rtrim(number_format($rate * 100, 1, '.', ''), '0'), '.');
-            $changes[] = $label.'が'.$percent.'%';
-        }
-
-        if ($changes === []) {
-            return;
-        }
-
-        $state->addLog(
-            '<span class="text-indigo-700 font-bold">'
-            .e($actor->name).' の'.implode('、', $changes).'アップした！（'.$durationTurns.'ターン）</span>',
+    /** @param array<string, float> $modifiers */
+    private function addStatBuffLog(
+        BattleActor $actor,
+        BattleState $state,
+        array $modifiers,
+        int $duration,
+        string $durationUnit,
+    ): void {
+        $log = $this->statBuffLogFormatter->formatIncrease(
+            $actor->name,
+            $modifiers,
+            $duration,
+            $durationUnit,
         );
+        if ($log !== null) {
+            $state->addLog($log);
+        }
     }
 
     /** @param array<string, mixed> $effect @return array<string, float> */

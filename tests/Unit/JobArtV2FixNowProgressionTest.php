@@ -61,6 +61,10 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $this->assertNotNull($effect);
         $this->assertSame(['def' => 0.15, 'spr' => 0.15], $effect->statModifiers);
         $this->assertSame(2, $effect->remainingRounds);
+        $this->assertStringContainsString(
+            'actor の防御が15%、精神が15%アップした！（2ラウンド）',
+            implode("\n", $state->logs),
+        );
 
         [$cross, $crossTarget, $crossState] = $this->battle(62);
         $crossShield = clone $shield;
@@ -86,6 +90,10 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $this->assertSame(['def' => 0.15, 'spr' => 0.15], $crossEffect->statModifiers);
         $this->assertSame(0, $cross->getResource('holy_guard'));
         $this->assertFalse($cross->jobArtV2ProgressionState()->silverShieldReady);
+        $this->assertStringContainsString(
+            'actor の防御が15%、精神が15%アップした！（2ラウンド）',
+            implode("\n", $crossState->logs),
+        );
     }
 
     public function test_white_silver_shield_never_requires_a_damage_mitigation_latch(): void
@@ -115,6 +123,28 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         $this->resources()->finishAction($actor, $state);
         $this->assertFalse($actor->jobArtV2ProgressionState()->silverShieldReady);
         $this->assertNull($progression->eligibilityBlockReason($actor, $state, $shield));
+    }
+
+    public function test_white_silver_shield_logs_the_exact_buff_in_all_battle_types(): void
+    {
+        foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+            [$actor, $target, $state] = $this->battle(66, battleType: $battleType);
+            $shield = $this->art(79, 5, '白銀王盾', 'DAMAGE_BUFF', 285);
+            $this->inherit($actor, $shield);
+
+            $this->cast($actor, $target, $state, $shield);
+
+            $matchingLogs = array_values(array_filter(
+                $state->logs,
+                static fn (string $log): bool => str_contains(
+                    $log,
+                    'actor の防御が15%、精神が15%アップした！（2ラウンド）',
+                ),
+            ));
+            $this->assertCount(1, $matchingLogs, $battleType);
+            $this->assertStringNotContainsString('DEF', $matchingLogs[0], $battleType);
+            $this->assertStringNotContainsString('SPR', $matchingLogs[0], $battleType);
+        }
     }
 
     public function test_white_silver_shield_executes_for_every_hit_result_without_a_latch(): void
@@ -476,11 +506,12 @@ final class JobArtV2FixNowProgressionTest extends TestCase
         int $targetJobId = 60,
         array $actorOverrides = [],
         array $targetOverrides = [],
+        string $battleType = 'pve',
     ): array {
         $actor = $this->actor('actor', true, $actorJobId, $actorOverrides);
         $target = $this->actor('target', false, $targetJobId, $targetOverrides);
 
-        return [$actor, $target, new BattleState($actor, $target)];
+        return [$actor, $target, new BattleState($actor, $target, $battleType)];
     }
 
     private function actor(string $name, bool $isPlayer, int $jobId, array $overrides = []): BattleActor

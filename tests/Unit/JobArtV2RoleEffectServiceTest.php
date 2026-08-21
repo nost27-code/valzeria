@@ -1359,6 +1359,68 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(130, $actor->effectiveMag());
     }
 
+    public function test_role_timed_stat_buffs_log_the_exact_stats_rate_and_duration(): void
+    {
+        foreach ([
+            [
+                'job_id' => 12,
+                'rank' => 9,
+                'name' => '総力戦',
+                'template' => 'HYBRID_DAMAGE',
+                'power' => 255,
+                'actor_overrides' => [],
+                'expected' => 'actor の攻撃が30%、魔力が30%アップした！（3ラウンド）',
+            ],
+            [
+                'job_id' => 38,
+                'rank' => 1,
+                'name' => '商聖の助言',
+                'template' => 'DAMAGE_BUFF',
+                'power' => 100,
+                'actor_overrides' => ['luk' => 40],
+                'expected' => 'actor の運が20%アップした！（4ラウンド）',
+            ],
+        ] as $case) {
+            foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+                foreach (['current' => $case['job_id'], 'inherited' => 60] as $origin => $currentJobId) {
+                    [$actor, $target, $state] = $this->battle(
+                        $currentJobId,
+                        $battleType,
+                        $case['actor_overrides'],
+                    );
+                    $service = $this->service();
+                    $art = $this->art(
+                        $case['job_id'],
+                        $case['rank'],
+                        $case['name'],
+                        $case['template'],
+                        $case['power'],
+                        1,
+                    );
+                    $actor->jobArtOrigins[(int) $art->id] = $origin;
+                    $actor->jobArtRates[(int) $art->id] = 1.0;
+
+                    $this->cast($service, $actor, $target, $state, $art);
+
+                    $logs = implode("\n", $state->logs);
+                    $label = $case['name'].' / '.$battleType.' / '.$origin;
+                    $matchingLogs = array_values(array_filter(
+                        $state->logs,
+                        static fn (string $log): bool => str_contains($log, $case['expected']),
+                    ));
+                    $this->assertCount(1, $matchingLogs, $label);
+                    $this->assertStringNotContainsString('一時強化を得た', $logs, $label);
+                    $this->assertStringNotContainsString('ATK', $logs, $label);
+                    $this->assertStringNotContainsString('DEF', $logs, $label);
+                    $this->assertStringNotContainsString('MAG', $logs, $label);
+                    $this->assertStringNotContainsString('SPR', $logs, $label);
+                    $this->assertStringNotContainsString('SPD', $logs, $label);
+                    $this->assertStringNotContainsString('LUK', $logs, $label);
+                }
+            }
+        }
+    }
+
     public function test_unyielding_vow_grants_one_repeatable_forty_percent_direct_damage_guard(): void
     {
         [$actor, $target, $state] = $this->battle(15);

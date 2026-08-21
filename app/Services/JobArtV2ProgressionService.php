@@ -29,6 +29,7 @@ final class JobArtV2ProgressionService
         private readonly JobArtV2ResourceCatalog $resourceCatalog,
         private readonly JobArtLineageCatalog $lineageCatalog,
         private readonly DamageCalculator $damageCalculator,
+        private readonly JobArtStatBuffLogFormatter $statBuffLogFormatter,
         private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
     ) {}
 
@@ -347,9 +348,10 @@ final class JobArtV2ProgressionService
 
         if ($jobId === 79 && $rank === 5 && $sameLineage) {
             $rate = 0.15;
+            $modifiers = ['def' => $rate, 'spr' => $rate];
             $actor->replaceJobArtV2TimedEffect(new JobArtV2TimedEffectState(
                 key: 'silver_guard_bridge',
-                statModifiers: ['def' => $rate, 'spr' => $rate],
+                statModifiers: $modifiers,
                 appliedRound: $state->turnCount,
                 remainingRounds: 2,
                 sourceActionId: $sourceActionId,
@@ -357,6 +359,10 @@ final class JobArtV2ProgressionService
                 removable: true,
                 strength: $rate * 100,
             ));
+            $log = $this->statBuffLogFormatter->formatIncrease($actor->name, $modifiers, 2, 'ラウンド');
+            if ($log !== null) {
+                $state->addLog($log);
+            }
         }
 
         if ($sameLineage && $rank === 1 && $jobId === 22) {
