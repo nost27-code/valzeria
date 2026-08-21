@@ -248,6 +248,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('aria-modal="true"', $html);
         $this->assertStringContainsString('5枠の順番と系譜リソース', $html);
         $this->assertStringContainsString('1 → 2 → 3 → 4 → 5 → 1…', $html);
+        $this->assertStringContainsString('基礎発動率は始動50%・連携55%・奥義60%', $html);
         $this->assertStringContainsString('同じ手番で後ろの枠を再抽選しません', $html);
         $this->assertStringContainsString('候補優先とある効果は先に判定されます', $html);
         $this->assertSame(10, substr_count($html, 'data-job-art-system-guide-lineage='));

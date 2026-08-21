@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-21
+Last updated: 2026-08-22
 Branch: main
 
 ## Six Heroes / 六極殿（本番コード配備・公開OFF）
@@ -25,6 +25,7 @@ Branch: main
 
 ## Job-art v2 guide / rank-battle judgment (production)
 
+- 戦技v2の基礎発動率は、現在職・継承とも始動50%・連携55%・奥義60%。通常探索・ボス・塔・プレイヤー闘技場・チャンプ戦・NPCランク戦の共通`JobArtV2BattleRules`を正本とし、場・戦技固有の既存補正はその後に適用する。flag OFFのlegacy発動率とマスタ値は変更しない
 - 戦技セット上部から初心者向け解説モーダルを開ける。系譜と0〜12の戦闘内リソース、5枠の循環候補順と1行動1候補1抽選、10系譜の直接・共通獲得、PvP奥義予告、最大100ターン、最大5枠・Cost9・奥義1枚等の制限をまとめる。行動順のプレイヤー向け表記は「敏捷」とし、英字能力名を使わない
 - プレイヤーPvPとNPCランク戦は、100ターン終了時に双方が生存していれば残り体力÷最大体力の割合を比較する。挑戦者の割合が高い時だけ判定勝利とし、同率または防衛側が高い場合は防衛成功。チャンプ戦はこの割合判定を使わず、100ターン以内の実際の撃破だけで交代する
 - PvPセットが有効な時は`REWARD`区分の戦技も設定・発動できる。PvP・チャンプ戦・NPC闘技場では攻撃・回復・強化・弱体などの戦闘効果を維持し、実行用戦技と`BattleState`のGold・drop・rare・material報酬補正だけを必ず0にする。通常探索・ボスの報酬効果と、各対戦にもともとある固定報酬は変更しない
@@ -246,7 +247,7 @@ Recent key points:
 - 神殿の職業詳細は `JobArtV2CardDescriptionCatalog` の現行正本説明を優先し、正本がある奥義では旧マスタ由来の説明と数値効果ラベルを表示しない。
 - Job Artのmaster正本は`database/data/job_arts.json`、`skills`の`skill_type=job_art`行はseed/import時点のruntime snapshot。公開済み79職（ID 1〜38・44〜79・95〜99）の237戦技は`JobArtSeeder::runForJobIds()`を使うdata migrationで同期し、既存skill IDを維持する。非公開ID 80〜94は同期対象外。migrationはnatural key `(job_id, learn_rank, skill_type)` の重複を更新前に拒否し、downはplayer参照保護のためno-op。v2の発動率・SP・resource・power等の実効overrideはmasterへ書き戻さない
 - チャンプ戦は、画面表示時のチャンプIDと就任時刻を戦闘開始直前に再照合し、交代済みなら戦闘せず最新表示へ戻す。ホームのチャンプカードはタブ復帰時にも更新する。戦闘結果はキャラクター別の一時トークンでも保持し、ホームのLivewire更新と重なってセッション結果が失われても結果画面へ遷移する。撃破判定は挑戦者の行動でチャンプHPが0になった場合だけ成立し、挑戦者側の反動相打ちは撃破、チャンプ側の反動死は交代なしでHP1を維持する。
-- 奥義v2試作はfeature flag既定OFF。`BATTLE_JOB_ART_DYNAMIC_SINGLE=true`でも`JobArtV2PrototypeCatalog`対応40職だけが1ターン1候補・不発後再抽選なしの選択方式を使い、対象外職とflag OFFは既存の複数抽選経路をそのまま使う。9種類のdeterministic slot条件は前方条件不成立時だけ後方slotを評価し、追加RNGを消費しない。さらに`BATTLE_JOB_ART_NORMALIZED_SP=true`の両flag ON時だけ、activeな現在職・継承Rank1/5/9へ発動率35/38/50%、温存40%、共通分母2000の上限制Hybrid SP式（Rank1: `min(最大SP×50, 4000+最大SP×40)`、Rank5: `min(最大SP×80, 6000+最大SP×65)`、Rank9: `min(最大SP×110, 8000+最大SP×90)`、継承は2000・本職だけ2500で除して切上げ、最低1SP）を戦闘と戦技画面で共通使用する
+- 奥義v2試作はfeature flag既定OFF。`BATTLE_JOB_ART_DYNAMIC_SINGLE=true`でも`JobArtV2PrototypeCatalog`対応40職だけが1ターン1候補・不発後再抽選なしの選択方式を使い、対象外職とflag OFFは既存の複数抽選経路をそのまま使う。9種類のdeterministic slot条件は前方条件不成立時だけ後方slotを評価し、追加RNGを消費しない。さらに`BATTLE_JOB_ART_NORMALIZED_SP=true`の両flag ON時だけ、activeな現在職・継承Rank1/5/9へ発動率50/55/60%、温存40%、共通分母2000の上限制Hybrid SP式（Rank1: `min(最大SP×50, 4000+最大SP×40)`、Rank5: `min(最大SP×80, 6000+最大SP×65)`、Rank9: `min(最大SP×110, 8000+最大SP×90)`、継承は2000・本職だけ2500で除して切上げ、最低1SP）を戦闘と戦技画面で共通使用する
 - `BATTLE_JOB_ART_HIT_RESOLUTION=true` はdynamic-singleとの両flag ONかつ現在職がprototype対応40職の時だけ、信頼済み分類のダメージ奥義を共通`ActionResolver`でHIT/MISS/EVADEへ解決する。既定OFFで、非ダメージ・分類不能奥義、対象外職と通常攻撃はlegacy経路を維持する。accuracy未指定の既存奥義はPvE・ボス・塔でlegacyの1Hit命中率、対人3経路でlegacyの基礎必中を再利用し、奥義全体を1回だけ抽選する。65の信頼済み現在職Rank5/9だけは同じ1回の抽選前に+5/+8ptを加えて既存clampを適用する。能動回避providerの本番既定値は0%
 - `BATTLE_JOB_ART_DAMAGE_APPLICATION=true` はdynamic-single・hit-resolutionとの3flag ONかつ戦闘参加者にprototype対応40職が含まれる時だけ、通常攻撃・奥義・継続/反動ダメージなどの最終HP減算を共通`DamageApplicationService`へ委譲する。既定OFFで、既存`BattleActor::takeDamage()`のHP・不屈・死亡判定をそのまま再利用し、要求ダメージ、実HP減少、超過ダメージ、致死、発生源、HIT結果、Hit位置を追加の乱数やログなしで返す。MISS/EVADE、非ダメージ奥義、0ダメージは委譲しない
 - `BATTLE_JOB_ART_RESOURCES=true` はdynamic-single・hit-resolution・damage-applicationとの4flag ONかつ行動者の現在職がprototype対応40職の時だけ、現在職主系譜の戦闘内0〜12ptリソースを1本だけ有効にする。Rank5は4、Rank9は12消費して戦闘外へ保存しない。同主系譜継承Rank1/5/9はこのresourceへproducer/consumer/finisherとして参加し、現在職Rank9が使用不能な時だけ同主系譜継承Rank9を優先候補化する。異系譜継承はforeign resource、finisher優先、current-job限定特殊効果を持ち込まない。60/61/63/65/66/67/68/69の系譜固有獲得eventは既存正本を維持し、現在職85 Rank5はFIELDS依存不成立または主場なしなら候補外にする

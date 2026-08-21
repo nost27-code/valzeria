@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-22-job-art-base-activation-rates',
+        'date' => '2026-08-22',
+        'category' => 'balance',
+        'title' => '始動・連携・奥義の基礎発動率を引き上げ',
+        'detail' => '戦技構成が戦闘へ現れやすくなるよう、基礎発動率を始動35%から50%、連携38%から55%、奥義50%から60%へ引き上げました。威力・命中・SP消費・系譜資源・発動条件は変更していません。',
+    ],
+    [
         'id' => '2026-08-22-six-heroes-mariadb-release-baseline',
         'date' => '2026-08-22',
         'category' => 'internal',

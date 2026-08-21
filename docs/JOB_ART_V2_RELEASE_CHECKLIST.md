@@ -31,7 +31,7 @@
 - current-job v2対応: 現行マスタ全94職
 - current-job v2対象外: 0職。v2 flag ON時は転職先によるlegacy fallbackを設けない
 - 戦技マスタ: 94職×Rank1/5/9=282件。`job_arts.json`・DB・lineage・prototype catalogの自然キー集合を一致させる
-- 個別に凍結済みの追加効果は専用catalog/overrideを正とし、それ以外は各戦技の構造化master効果をv2共通resource・35/38/50・固定SP・5枠/Cost9で実行する。これは職業別の互換fallbackではなく、全職共通の効果経路である
+- 個別に凍結済みの追加効果は専用catalog/overrideを正とし、それ以外は各戦技の構造化master効果をv2共通resource・50/55/60・固定SP・5枠/Cost9で実行する。これは職業別の互換fallbackではなく、全職共通の効果経路である
 - 63 星冠導師はRank1、Rank5、Rank9、resource、field/HUDまで個別効果対応。Rank9の上書き回数分岐は現在職63だけに適用する
 - feature flag OFFだけを運用上の明示rollbackとし、存在しないJob IDや不完全masterはvalidator/testで停止する
 

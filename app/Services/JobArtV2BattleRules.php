@@ -8,9 +8,9 @@ use App\Services\Battle\BattleActor;
 class JobArtV2BattleRules
 {
     private const ACTIVATION_RATES = [
-        1 => 35,
-        5 => 38,
-        9 => 50,
+        1 => 50,
+        5 => 55,
+        9 => 60,
     ];
 
     public function __construct(

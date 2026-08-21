@@ -71,7 +71,7 @@ class JobArtV2SpCostIntegrationTest extends TestCase
         );
 
         $this->assertSame(6, $skill->getAttribute('job_art_display_sp_cost'));
-        $this->assertSame(35, $skill->getAttribute('job_art_display_activation_rate'));
+        $this->assertSame(50, $skill->getAttribute('job_art_display_activation_rate'));
         $this->assertSame(6, $support->spCost($actor, $skill));
 
         $support->consumeAndMarkUse($actor, $state, $skill);
@@ -130,7 +130,7 @@ class JobArtV2SpCostIntegrationTest extends TestCase
             app(JobArtV2LoadoutPresenter::class),
         );
 
-        $this->assertSame(50, $skill->getAttribute('job_art_display_activation_rate'));
+        $this->assertSame(60, $skill->getAttribute('job_art_display_activation_rate'));
         $this->assertSame(27, $skill->effectiveActivationRate());
     }
 

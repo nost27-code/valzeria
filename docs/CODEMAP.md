@@ -12,7 +12,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 
 ## Job-art v2 current authority (2026-08-16, production)
 
-- Loadout/rules: `app/Services/JobArtService.php`, `app/Services/JobArtV2FeatureGate.php`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2SelectionService.php`
+- Loadout/rules: `app/Services/JobArtService.php`, `app/Services/JobArtV2FeatureGate.php`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2BattleRules.php`, `app/Services/JobArtV2SelectionService.php`
 - Fixed SP: `app/Services/JobArtV2SpCostCalculator.php`
 - Lineage resources and duplicate suppression: `app/Services/Battle/BattleState.php`, `app/Services/JobArtV2ResourceCatalog.php`, `app/Services/JobArtV2ResourceService.php`, `app/Services/JobArtV2ProgressionService.php`
 - Runtime effects across the six battle paths: `app/Services/JobArtBattleSupportService.php`, `app/Services/BattleService.php`, `app/Services/TowerBattleService.php`, `app/Services/PvPBattleService.php`, `app/Services/ChampBattleService.php`, `app/Services/ArenaNpcBattleService.php`

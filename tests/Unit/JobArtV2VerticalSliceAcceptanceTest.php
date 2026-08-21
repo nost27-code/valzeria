@@ -103,7 +103,7 @@ class JobArtV2VerticalSliceAcceptanceTest extends TestCase
         [$actor, , $state] = $this->battle(53, $arts);
         $actor->configureResource('star_mark', 12);
         $actor->setResource('star_mark', 12);
-        [$selection, $random] = $this->selection([51, 1]);
+        [$selection, $random] = $this->selection([61, 1]);
 
         $result = $selection->selectForTurn($actor, $state);
 

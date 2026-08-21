@@ -56,7 +56,7 @@ class JobArtV2SpCostCalculatorTest extends TestCase
 
         $heroSkill = $this->art(1, 70, activationRate: 77, fixedSpCost: 10);
         $this->assertSame(30, $this->calculator->forCurrentJob($heroSkill, 800, 70, 'current'));
-        $this->assertSame(35, $this->rules->activationRateFor($heroSkill, 70));
+        $this->assertSame(50, $this->rules->activationRateFor($heroSkill, 70));
     }
 
     public function test_all_eight_job_tiers_use_the_fixed_rank_table(): void
@@ -134,7 +134,7 @@ class JobArtV2SpCostCalculatorTest extends TestCase
     {
         $this->enablePr5();
 
-        foreach ([1 => 35, 5 => 38, 9 => 50] as $rank => $expectedRate) {
+        foreach ([1 => 50, 5 => 55, 9 => 60] as $rank => $expectedRate) {
             $skill = $this->art($rank, 24, activationRate: 87);
             $this->assertSame($expectedRate, $this->rules->activationRateFor($skill, 24));
             $this->assertSame(87, $skill->effectiveActivationRate());
@@ -147,9 +147,9 @@ class JobArtV2SpCostCalculatorTest extends TestCase
         $skill = $this->art(9, 53, activationRate: 87);
         $skill->setAttribute('job_art_origin', 'inherited');
 
-        $this->assertSame(50, $this->rules->activationRateFor($skill, 24));
-        $this->assertSame(50, $this->rules->activationRateFor($skill, 24, 'inherited'));
-        $this->assertSame(50, $this->rules->activationRateFor($skill, 24, 'current'));
+        $this->assertSame(60, $this->rules->activationRateFor($skill, 24));
+        $this->assertSame(60, $this->rules->activationRateFor($skill, 24, 'inherited'));
+        $this->assertSame(60, $this->rules->activationRateFor($skill, 24, 'current'));
         $this->assertSame(87, $skill->effectiveActivationRate());
     }
 

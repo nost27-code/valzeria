@@ -181,7 +181,7 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $rules = app(JobArtV2BattleRules::class);
         $sp = app(JobArtV2SpCostCalculator::class);
 
-        foreach ([1 => [35, 16, 6], 5 => [38, 25, 9], 9 => [50, 35, 13]] as $rank => [$rate, $currentCost, $inheritedCost]) {
+        foreach ([1 => [50, 16, 6], 5 => [55, 25, 9], 9 => [60, 35, 13]] as $rank => [$rate, $currentCost, $inheritedCost]) {
             $current = $this->art(53, $rank, 87, 10);
             $inherited = $this->art(24, $rank, 87, 10);
             $this->assertSame($rate, $rules->activationRateFor($inherited, 53, 'inherited'));

@@ -203,7 +203,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         ]);
 
         foreach ([24, 53, 60, 61, 62, 64, 65, 66, 67, 68, 69, 85] as $jobId) {
-            foreach ([1 => 35, 5 => 38, 9 => 50] as $rank => $expectedRate) {
+            foreach ([1 => 50, 5 => 55, 9 => 60] as $rank => $expectedRate) {
                 $skill = $this->art(($jobId * 10) + $rank, 91, learnRank: $rank);
                 $skill->job_id = $jobId;
                 $activationRate = app(JobArtV2BattleRules::class)->activationRateFor(
@@ -240,7 +240,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         $result = $this->service($this->random([1]))->selectForTurn($actor, $state);
 
         $this->assertSame(581, $result->skill?->id);
-        $this->assertSame(38, $result->activationRate);
+        $this->assertSame(55, $result->activationRate);
         $this->assertSame(17, $inherited->effectiveActivationRate());
     }
 

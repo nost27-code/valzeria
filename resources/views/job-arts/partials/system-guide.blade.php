@@ -112,7 +112,7 @@
 
                             <ol class="mt-3 space-y-2 text-[11px] font-bold leading-relaxed text-slate-600">
                                 <li class="flex gap-2"><span class="shrink-0 font-black text-sky-700">1.</span><span>戦闘開始時は1枠目から見て、必要なリソース・SPなどを満たす最初の1枠だけを発動候補にします。</span></li>
-                                <li class="flex gap-2"><span class="shrink-0 font-black text-sky-700">2.</span><span>候補になった戦技は1回だけ発動抽選します。発動しなくても、同じ手番で後ろの枠を再抽選しません。</span></li>
+                                <li class="flex gap-2"><span class="shrink-0 font-black text-sky-700">2.</span><span>候補になった戦技は1回だけ発動抽選します。基礎発動率は始動50%・連携55%・奥義60%で、戦技や場の効果によって増減します。発動しなくても、同じ手番で後ろの枠を再抽選しません。</span></li>
                                 <li class="flex gap-2"><span class="shrink-0 font-black text-sky-700">3.</span><span>次の自分の行動では、直前に候補になった枠の次から見ます。5枠目の次は1枠目へ戻るため、5枚に順番に出番が回ります。</span></li>
                             </ol>
 

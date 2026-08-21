@@ -107,5 +107,7 @@ class JobArtPvpSetViewTest extends TestCase
         $this->assertIsString($helpContent);
         $this->assertStringNotContainsString('最大3つまでセット', $helpContent);
         $this->assertStringContainsString('通常戦用・ボス戦用・PvP用にそれぞれ最大5つまでセット', $helpContent);
+        $this->assertStringContainsString('基礎発動率は始動50%・連携55%・奥義60%', $helpContent);
+        $this->assertStringNotContainsString('始動35%・連携38%・奥義50%', $helpContent);
     }
 }
