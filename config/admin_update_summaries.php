@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-21-exclusive-character-icon-set-031',
+        'date' => '2026-08-21',
+        'category' => 'internal',
+        'title' => '限定キャラ画像セットを1件登録',
+        'detail' => '制作済みの限定キャラ画像1セットを、所有者だけが使用できる専用セットとして登録しました。通常のキャラ画像一覧には表示されません。',
+    ],
+    [
         'id' => '2026-08-21-canonical-self-buff-log-clarity',
         'date' => '2026-08-21',
         'category' => 'fixed',
