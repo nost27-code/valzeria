@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-22-six-heroes-mariadb-release-baseline',
+        'date' => '2026-08-22',
+        'category' => 'internal',
+        'title' => '六極殿の本番DB競合検証を完了',
+        'detail' => '本番と同じMariaDB 10.5.13で、六極殿の同時登録・挑戦回数・順位戦・月次初期化・英雄確定・月跨ぎと主要画面の性能を再検証しました。公開フラグはOFFのままです。',
+    ],
+    [
         'id' => '2026-08-22-six-heroes-production-code-off',
         'date' => '2026-08-22',
         'category' => 'internal',

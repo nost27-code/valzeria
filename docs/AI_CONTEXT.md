@@ -126,7 +126,7 @@ X = deprecated/removed
 
 - App: Laravel 11 (PHP) + Livewire v3 + Blade + Alpine.js
 - Styling: Tailwind CSS
-- DB: MySQL (production on Xserver)
+- DB: MariaDB 10.5.13 (production on Xserver; Six Heroes release baseline verified on the same version)
 - Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる。冒険者タブの「設定」→「情報確認」では、Google連携とメールアドレス・パスワード登録を別々に判定し、両方利用可能な状態やゲストプレイも確認できる。トップページでは、β版の冒険データを正式版へ引き継ぐ方針を明記する
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)。ゲストは購入不可で、Google連携またはメールアドレス・パスワード登録済みアカウントだけが購入できる
 - Tests: PHPUnit via `php artisan test`

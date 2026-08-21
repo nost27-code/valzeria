@@ -4,11 +4,11 @@ return [
     'operations' => [
         'expected_database_product' => strtolower((string) env(
             'SIX_HERO_EXPECTED_DATABASE_PRODUCT',
-            'mysql',
+            'mariadb',
         )),
         'minimum_database_version' => (string) env(
             'SIX_HERO_MINIMUM_DATABASE_VERSION',
-            '8.4.0',
+            '10.5.13',
         ),
         'stale_battle_minutes' => max(1, (int) env(
             'SIX_HERO_STALE_BATTLE_MINUTES',

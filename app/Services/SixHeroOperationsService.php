@@ -244,11 +244,11 @@ final class SixHeroOperationsService
                 $product = $this->databaseProduct($driver, $version);
                 $expectedProduct = strtolower(trim((string) config(
                     'six_heroes.operations.expected_database_product',
-                    'mysql',
+                    'mariadb',
                 )));
                 $minimumVersion = trim((string) config(
                     'six_heroes.operations.minimum_database_version',
-                    '8.4.0',
+                    '10.5.13',
                 ));
                 $detectedVersion = $this->comparableDatabaseVersion($version);
                 $metadata = [

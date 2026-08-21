@@ -179,7 +179,7 @@ function runRaceSuite(): array
         'database' => [
             'driver' => DB::connection()->getDriverName(),
             'version' => (string) DB::scalar('SELECT VERSION()'),
-            'isolation' => (string) DB::scalar('SELECT @@transaction_isolation'),
+            'isolation' => databaseIsolationLevel(),
         ],
         'concurrent_register' => concurrentRegisterScenario(),
         'daily_limit_race' => dailyLimitScenario(),
@@ -190,6 +190,16 @@ function runRaceSuite(): array
         'concurrent_finalizer' => concurrentFinalizerScenario(),
         'month_rollover' => monthRolloverScenario(),
     ];
+}
+
+function databaseIsolationLevel(): string
+{
+    $version = strtolower((string) DB::scalar('SELECT VERSION()'));
+    $variable = str_contains($version, 'mariadb')
+        ? '@@tx_isolation'
+        : '@@transaction_isolation';
+
+    return (string) DB::scalar("SELECT {$variable}");
 }
 
 /** @return array<string, mixed> */
@@ -225,17 +235,21 @@ function runPerformanceSuite(): array
     $screenService = app(SixHeroHallScreenService::class);
     $smallStarted = microtime(true);
     $small = $screenService->screenData($characters[99], SixHeroRoomKey::DIVINE_SPEED);
+    $smallRankings = performanceRankingPage($current, SixHeroRoomKey::DIVINE_SPEED);
     $smallDurationMs = (int) round((microtime(true) - $smallStarted) * 1000);
-    releaseAssert($small['rankings']->count() === 20, 'Small performance fixture did not return a bounded page.');
+    releaseAssert($small['ready'] === true, 'Small performance fixture was not ready.');
+    releaseAssert($smallRankings->count() === 20, 'Small performance fixture did not return a bounded page.');
 
     $phase = 'ignore';
     seedPerformanceRankings($current, $characters, 1000, 101);
     $phase = 'large';
     $largeStarted = microtime(true);
     $large = $screenService->screenData($characters[99], SixHeroRoomKey::DIVINE_SPEED);
+    $largeRankings = performanceRankingPage($current, SixHeroRoomKey::DIVINE_SPEED);
     $largeDurationMs = (int) round((microtime(true) - $largeStarted) * 1000);
     $phase = 'ignore';
-    releaseAssert($large['rankings']->count() === 20, 'Large performance fixture did not return a bounded page.');
+    releaseAssert($large['ready'] === true, 'Large performance fixture was not ready.');
+    releaseAssert($largeRankings->count() === 20, 'Large performance fixture did not return a bounded page.');
     releaseAssert(
         $queryCounts['large'] <= $queryCounts['small'],
         "Screen query count grew with participant count: {$queryCounts['small']} -> {$queryCounts['large']}.",
@@ -256,10 +270,23 @@ function runPerformanceSuite(): array
         'query_count_1000_participants' => $queryCounts['large'],
         'duration_ms_100_participants' => $smallDurationMs,
         'duration_ms_1000_participants' => $largeDurationMs,
-        'ranking_page_size' => $large['rankings']->count(),
-        'ranking_total' => $large['rankings']->total(),
+        'ranking_page_size' => $largeRankings->count(),
+        'ranking_total' => $largeRankings->total(),
         'explain' => $plans,
     ];
+}
+
+function performanceRankingPage(
+    SixHeroSeason $season,
+    SixHeroRoomKey $room,
+): \Illuminate\Contracts\Pagination\LengthAwarePaginator {
+    return SixHeroRanking::query()
+        ->with('character')
+        ->where('season_id', $season->id)
+        ->where('room_key', $room->value)
+        ->orderBy('rank')
+        ->orderBy('id')
+        ->paginate(20, ['*'], 'roomPage');
 }
 
 /** @return array<string, mixed> */

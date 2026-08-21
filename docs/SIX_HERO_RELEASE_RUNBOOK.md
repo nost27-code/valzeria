@@ -28,13 +28,13 @@
 
 本番DB接続先で製品/versionを確認し、作業記録へ残します。接続文字列、host、user、passwordはログやチャットへ貼り付けません。
 
-Phase 6Dで実証した既定Release baselineはMySQL 8.4以上です。本番でMariaDB等を使う場合は、その製品/versionでPhase 6D相当の検証を完了したうえで、検証済みの最低versionを明示します。
+Phase 6Dで実証した既定Release baselineはMariaDB 10.5.13以上です。2026-08-22に本番と同versionの隔離MariaDBで、全migration、Champion identity trigger、実複数connectionによるregister・日次上限・順位戦・initializer・finalizer・月跨ぎ、1,000人×6Room・BattleLog 20,000件の性能Gateを再実行し、すべてPASSしました。
 
-2026-08-22の本番配備時に、ステージング・本番とも`MariaDB 10.5.13`であることを確認しました。機能flag OFFでのコード・schema配備は行えますが、flag ONは同versionの隔離DBでPhase 6Dの並行Gateを再実行し、Release baseline設定をMariaDBへ更新してから判断します。
+ステージング・本番とも`MariaDB 10.5.13`であることを確認済みです。別製品またはこれより古いversionへ変更する場合は、値だけを緩めず、その製品/versionでPhase 6D相当の検証を完了してからbaselineを更新します。
 
 ```dotenv
-SIX_HERO_EXPECTED_DATABASE_PRODUCT=mysql
-SIX_HERO_MINIMUM_DATABASE_VERSION=8.4.0
+SIX_HERO_EXPECTED_DATABASE_PRODUCT=mariadb
+SIX_HERO_MINIMUM_DATABASE_VERSION=10.5.13
 ```
 
 ```sql
