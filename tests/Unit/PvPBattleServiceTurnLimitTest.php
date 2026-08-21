@@ -105,6 +105,7 @@ class PvPBattleServiceTurnLimitTest extends TestCase
 
         $jobArtSupport = Mockery::mock(JobArtBattleSupportService::class);
         $jobArtSupport->shouldReceive('attachBossSet')->twice();
+        $jobArtSupport->shouldReceive('registerHpHealingResolver')->once();
         $jobArtSupport->shouldReceive('usesRoleEffects')->times(200)->andReturnFalse();
         $jobArtSupport->shouldReceive('endRound')->times(100)->andReturn([]);
         $jobArtSupport->shouldReceive('battleHud')->once()->andReturnNull();

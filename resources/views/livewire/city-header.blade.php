@@ -1532,7 +1532,14 @@
                         @forelse($onlinePlayers as $player)
                             <a href="#"
                                x-on:click.prevent="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $player['id'] }} })"
-                               class="hover:underline hover:text-blue-800">{{ $player['name'] }}</a>
+                               @if($player['is_six_hero_top_ranker'] ?? false)
+                                   data-six-hero-top-ranker="{{ (int) $player['id'] }}"
+                                   aria-label="六極殿 現在首位 {{ $player['name'] }}"
+                                   title="六極殿の現在首位"
+                               @endif
+                               class="hover:underline hover:text-blue-800">
+                                @if($player['is_six_hero_top_ranker'] ?? false)<span aria-hidden="true">👑</span>@endif{{ $player['name'] }}
+                            </a>
                             @if(!$loop->last)
                                 <span class="text-gray-300 mx-1">|</span>
                             @endif
@@ -1733,6 +1740,51 @@
                             </div>
                             <div class="adventurer-card-comment-text" x-text="playerInfo.profile_comment"></div>
                         </div>
+
+                        @if((bool) config('features.six_hero_ui_enabled', false))
+                            <template x-if="playerInfo.six_hero_current_record">
+                                <section data-profile-six-hero-current-record class="mt-3 rounded-xl border border-[#d8b44a] bg-white/80 p-2.5 shadow-sm">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <h3 class="text-sm font-black text-[#7a4b08]">今期の六極殿戦績</h3>
+                                        <span class="text-[10px] font-bold text-slate-500" x-text="playerInfo.six_hero_current_record.seasonLabel"></span>
+                                    </div>
+                                    <div class="mt-2 grid grid-cols-2 gap-1.5">
+                                        <template x-for="room in playerInfo.six_hero_current_record.rooms" :key="room.key">
+                                            <div class="rounded-lg border border-amber-100 bg-[#fffdf7] px-2 py-1.5 text-[10px] text-slate-700">
+                                                <div class="flex items-center justify-between gap-1 font-black">
+                                                    <span x-text="room.label"></span>
+                                                    <span class="text-[#a16207]" x-text="`${room.rank}位`"></span>
+                                                </div>
+                                                <div class="mt-1 flex justify-between gap-2 text-[9px] font-bold text-slate-500">
+                                                    <span>挑戦 <span x-text="`${room.challengeWins}勝 ${room.challengeLosses}敗`"></span></span>
+                                                    <span>防衛 <span x-text="`${room.defenseWins}勝 ${room.defenseLosses}敗`"></span></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </section>
+                            </template>
+
+                            <template x-if="playerInfo.six_hero_achievement">
+                                <section data-profile-six-hero-achievement class="mt-3 rounded-xl border border-[#c59a2e] bg-[linear-gradient(145deg,#fffdf6,#fff8df)] p-2.5 shadow-sm">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <h3 class="text-sm font-black text-[#7a4b08]">六英雄実績</h3>
+                                        <span class="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[10px] font-black text-[#9a6200]" x-text="playerInfo.six_hero_achievement.maxCrownLabel"></span>
+                                    </div>
+                                    <div class="mt-2 grid grid-cols-2 gap-2 text-center">
+                                        <div class="rounded-lg bg-white/80 px-2 py-1.5">
+                                            <div class="text-[9px] font-bold text-slate-500">英雄獲得</div>
+                                            <div class="text-base font-black text-[#9a6200]"><span x-text="playerInfo.six_hero_achievement.heroCount"></span>回</div>
+                                        </div>
+                                        <div class="rounded-lg bg-white/80 px-2 py-1.5">
+                                            <div class="text-[9px] font-bold text-slate-500">制覇した間</div>
+                                            <div class="text-base font-black text-[#9a6200]"><span x-text="playerInfo.six_hero_achievement.conqueredRoomCount"></span> / <span x-text="playerInfo.six_hero_achievement.totalRoomCount"></span></div>
+                                        </div>
+                                    </div>
+                                    <a href="{{ route('six-heroes.index') }}" class="mt-2 block rounded-lg border border-amber-300 bg-white px-3 py-2 text-center text-xs font-black text-[#8a5200] hover:bg-amber-50">六極殿で詳しく見る</a>
+                                </section>
+                            </template>
+                        @endif
 
                     </div>
 

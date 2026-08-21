@@ -758,7 +758,18 @@ class MainScreen extends Component
             ['group' => '工房', ...($findTown('合成屋') ?? [])],
             ['group' => '工房', ...($findTown('素材交換所') ?? [])],
             ['group' => '交流', 'name' => '冒険者市場', 'icon_image' => 'icon/icon_032.webp', 'icon' => '⚖️', 'desc' => '素材を冒険者同士で売買する', 'action' => '開く', 'route' => 'market.index', 'is_post' => false, 'status' => 'active'],
-            ['group' => '交流', 'name' => '闘技場', 'icon_image' => 'icon/icon_005.webp', 'icon' => '⚔️', 'desc' => '他の冒険者と戦う', 'action' => '開く', 'tab' => 'colosseum', 'status' => 'active'],
+            [
+                'group' => '交流',
+                'name' => '闘技場',
+                'icon_image' => 'icon/icon_005.webp',
+                'icon' => '⚔️',
+                'desc' => (bool) config('features.six_hero_ui_enabled', false)
+                    ? '六つの特殊ルールで月間順位を競う'
+                    : '上位ランカーへ挑み、順位を競う',
+                'action' => '開く',
+                'tab' => 'colosseum',
+                'status' => 'active',
+            ],
             ['group' => '交流', ...($findTown('酒場') ?? [])],
             ['group' => '交流', 'name' => '個人チャット', 'icon_image' => 'icon/icon_015.webp', 'icon' => '✉️', 'desc' => '冒険者同士でメッセージを送る', 'action' => '開く', 'tab' => 'message', 'status' => 'active'],
             ['group' => 'その他', ...($findTown('案内所') ?? [])],
@@ -996,19 +1007,13 @@ class MainScreen extends Component
                 'facilities' => [] // renderで上書き
             ],
             'colosseum' => [
-                'title' => '闘技場',
-                'description' => '育てた力を試し、最強冒険者を目指す場所。',
-                'news_title' => '闘技場の熱狂',
-                'news' => [
-                    'アスナさんがランク戦で5連勝中です！',
-                    '本日の王者戦は20:00より開催されます'
-                ],
-                'facilities' => [
-                    ['name' => 'ランク戦', 'icon_image' => 'icon/icon_010.webp', 'icon' => '🏆', 'desc' => '近い実力の冒険者とランダムマッチ', 'details' => ['報酬: BP+10'], 'status' => 'active', 'action' => '挑む'],
-                    ['name' => '決闘相手', 'icon_image' => 'icon/icon_057.webp', 'icon' => '🤺', 'desc' => '対戦できる冒険者を一覧から探す', 'details' => ['指名対戦'], 'status' => 'active', 'action' => '挑む'],
-                    ['name' => 'PvP順位', 'icon_image' => 'icon/icon_053.webp', 'icon' => '📊', 'desc' => '現在の闘技場ランキングを確認する', 'details' => ['毎週月曜リセット'], 'status' => 'active', 'action' => '確認する'],
-                    ['name' => '王者戦', 'icon_image' => 'icon/icon_009.webp', 'icon' => '👑', 'desc' => '現在の王者に挑戦する特別な決闘', 'details' => ['参加資格: ランクS以上'], 'status' => 'locked', 'action' => '挑む'],
-                ]
+                'title' => (bool) config('features.six_hero_ui_enabled', false) ? '六極殿' : '闘技場',
+                'description' => (bool) config('features.six_hero_ui_enabled', false)
+                    ? '六つの間、それぞれの頂を目指す月次競技。'
+                    : '上位ランカーへ挑み、闘技場の頂点を目指す。',
+                'news_title' => (bool) config('features.six_hero_ui_enabled', false) ? '六極殿' : '闘技場',
+                'news' => [],
+                'facilities' => [],
             ],
             'job' => [
                 'title' => '神殿',

@@ -2,11 +2,14 @@
 
 namespace App\Livewire;
 
+use App\Enums\SixHeroRoomKey;
 use App\Models\BattleLog;
 use App\Models\Character;
 use App\Models\CharacterNotification;
 use App\Models\City;
 use App\Models\JobClass;
+use App\Models\SixHeroRanking;
+use App\Models\SixHeroSeason;
 use App\Models\ValmonMaster;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
@@ -18,13 +21,17 @@ use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
 use App\Services\SchemaStateService;
+use App\Services\SixHeroHallOfFameService;
+use App\Services\SixHeroHallPresenter;
 use App\Services\SupportPassService;
 use App\Services\TownUpdateService;
 use App\Services\WeeklyWinRankingService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
 use App\Support\JobRankCatalog;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class CityHeader extends Component
@@ -302,7 +309,12 @@ class CityHeader extends Component
 
     private function onlinePlayers(): array
     {
-        return Cache::remember('city_header_online_players_v4', now()->addSeconds(20), function (): array {
+        $sixHeroUiEnabled = (bool) config('features.six_hero_ui_enabled', false);
+        $cacheKey = 'city_header_online_players_v5_'.($sixHeroUiEnabled ? 'enabled' : 'disabled');
+
+        return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
+            $sixHeroTopRankerIds = $this->currentSixHeroTopRankerIds();
+
             return Character::visibleToPublic()
                 // visibleToPublic() の全公開面除外とは分け、現在の冒険者だけから運営テスト用を隠す。
                 ->where(function ($query): void {
@@ -316,9 +328,38 @@ class CityHeader extends Component
                 ->map(fn (Character $char): array => [
                     'id' => (int) $char->id,
                     'name' => $char->name,
+                    'is_six_hero_top_ranker' => isset($sixHeroTopRankerIds[(int) $char->id]),
                 ])
                 ->toArray();
         });
+    }
+
+    /** @return array<int, true> */
+    private function currentSixHeroTopRankerIds(): array
+    {
+        if (
+            ! (bool) config('features.six_hero_ui_enabled', false)
+            || ! Schema::hasTable('six_hero_seasons')
+            || ! Schema::hasTable('six_hero_rankings')
+        ) {
+            return [];
+        }
+
+        $timezone = (string) config('app.timezone', 'Asia/Tokyo');
+        $seasonId = SixHeroSeason::query()
+            ->where('season_key', CarbonImmutable::now($timezone)->format('Y-m'))
+            ->value('id');
+        if ($seasonId === null) {
+            return [];
+        }
+
+        return SixHeroRanking::query()
+            ->where('season_id', $seasonId)
+            ->where('rank', 1)
+            ->distinct()
+            ->pluck('character_id')
+            ->mapWithKeys(fn (int $characterId): array => [$characterId => true])
+            ->all();
     }
 
     private function shouldShowFerdiaSimpleBase(?Character $character, City $city): bool
@@ -455,6 +496,8 @@ class CityHeader extends Component
             'adventure_records_loaded' => false,
             'adventure_records' => [],
             'card_records' => $this->emptyCardRecords(),
+            'six_hero_current_record' => $this->sixHeroCurrentRecord($character),
+            'six_hero_achievement' => $this->sixHeroAchievement($character),
             'valmon_badges' => $this->valmonBadges($character),
             'stats' => [
                 'str' => $this->statBreakdown($stats, 'str'),
@@ -470,6 +513,74 @@ class CityHeader extends Component
                 'accessory' => $this->equipmentLine($accessory, 'accessory_rank'),
             ],
         ];
+    }
+
+    private function sixHeroCurrentRecord(Character $character): ?array
+    {
+        if (
+            ! (bool) config('features.six_hero_ui_enabled', false)
+            || ! Schema::hasTable('six_hero_seasons')
+            || ! Schema::hasTable('six_hero_rankings')
+        ) {
+            return null;
+        }
+
+        $timezone = (string) config('app.timezone', 'Asia/Tokyo');
+        $currentMonth = CarbonImmutable::now($timezone);
+        $season = SixHeroSeason::query()
+            ->where('season_key', $currentMonth->format('Y-m'))
+            ->first();
+        if ($season === null) {
+            return null;
+        }
+
+        $rankingsByRoom = SixHeroRanking::query()
+            ->where('season_id', $season->id)
+            ->where('character_id', $character->id)
+            ->get()
+            ->keyBy(fn (SixHeroRanking $ranking): string => $ranking->room_key->value);
+        if ($rankingsByRoom->isEmpty()) {
+            return null;
+        }
+
+        $rooms = collect(SixHeroRoomKey::cases())
+            ->map(function (SixHeroRoomKey $room) use ($rankingsByRoom): ?array {
+                /** @var SixHeroRanking|null $ranking */
+                $ranking = $rankingsByRoom->get($room->value);
+                if ($ranking === null) {
+                    return null;
+                }
+
+                return [
+                    'key' => $room->value,
+                    'label' => $room->label(),
+                    'rank' => (int) $ranking->rank,
+                    'isLeader' => (int) $ranking->rank === 1,
+                    'challengeWins' => (int) $ranking->official_attack_wins,
+                    'challengeLosses' => (int) $ranking->official_attack_losses,
+                    'defenseWins' => (int) $ranking->defense_wins,
+                    'defenseLosses' => (int) $ranking->defense_losses,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return [
+            'seasonLabel' => $currentMonth->format('Y年n月期'),
+            'currentCrownCount' => $rooms->where('isLeader', true)->count(),
+            'rooms' => $rooms->all(),
+        ];
+    }
+
+    private function sixHeroAchievement(Character $character): ?array
+    {
+        if (! (bool) config('features.six_hero_ui_enabled', false)) {
+            return null;
+        }
+
+        return app(SixHeroHallPresenter::class)->characterSummary(
+            app(SixHeroHallOfFameService::class)->characterSummary($character),
+        );
     }
 
     private function versionedProfileAsset(string $path): string

@@ -7,20 +7,16 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
     --color-valzeria-blue: #1e40af;
-    --color-valzeria-blue-dark: #1e3a8a;
     --color-valzeria-blue-deep: #0a1628;
     --color-valzeria-gold: #d4af37;
-    --color-valzeria-gold-dark: #b8860b;
     --color-valzeria-gold-soft: #fef3c7;
 }
 
 @layer base {
     :root {
         --valzeria-blue: #1e40af;
-        --valzeria-blue-dark: #1e3a8a;
         --valzeria-blue-deep: #0a1628;
         --valzeria-gold: #d4af37;
-        --valzeria-gold-dark: #b8860b;
         --valzeria-gold-soft: #fef3c7;
     }
 
@@ -78,6 +74,183 @@
         font-size: 1.35em;
         letter-spacing: 0.03em;
         text-shadow: 0 1px 0 rgb(251 191 36 / 35%);
+    }
+
+    .battle-log-job-art-tooltip {
+        position: relative;
+        overflow: visible;
+    }
+
+    .battle-log-job-art-tooltip-trigger {
+        appearance: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-bottom: 1px dotted currentcolor;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-weight: inherit;
+        letter-spacing: inherit;
+        line-height: inherit;
+        text-align: inherit;
+        text-shadow: inherit;
+        cursor: help;
+    }
+
+    .battle-log-job-art-tooltip-trigger:active {
+        transform: none;
+    }
+
+    .battle-log-job-art-tooltip-trigger:focus-visible {
+        border-radius: 0.2rem;
+        outline: 2px solid #f59e0b;
+        outline-offset: 3px;
+    }
+
+    .battle-log-job-art-tooltip-panel {
+        position: absolute;
+        z-index: 60;
+        top: calc(100% + 0.4rem);
+        left: 0;
+        display: none;
+        width: max-content;
+        min-width: min(14rem, calc(100vw - 2rem));
+        max-width: min(18rem, calc(100vw - 2rem));
+        padding: 0.65rem 0.75rem;
+        border: 1px solid #fbbf24;
+        border-radius: 0.55rem;
+        background: #fffbeb;
+        box-shadow: 0 10px 24px rgb(15 23 42 / 18%);
+        color: #334155;
+        font-family: var(--font-sans);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: normal;
+        line-height: 1.65;
+        text-align: left;
+        text-shadow: none;
+        white-space: normal;
+    }
+
+    .battle-log-job-art-tooltip-label,
+    .battle-log-job-art-tooltip-description {
+        display: block;
+    }
+
+    .battle-log-job-art-tooltip-label {
+        margin-bottom: 0.2rem;
+        color: #92400e;
+        font-size: 0.7rem;
+        font-weight: 900;
+    }
+
+    .battle-log-job-art-tooltip-description {
+        white-space: pre-line;
+    }
+
+    .battle-log-job-art-tooltip.is-open .battle-log-job-art-tooltip-panel,
+    .battle-log-job-art-tooltip:focus-within .battle-log-job-art-tooltip-panel {
+        display: block;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .battle-log-job-art-tooltip:hover .battle-log-job-art-tooltip-panel {
+            display: block;
+        }
+    }
+
+    @media (max-width: 40rem) {
+        .battle-log-job-art-tooltip-panel {
+            left: -1rem;
+        }
+    }
+
+    .battle-log-entry {
+        letter-spacing: 0.01em;
+    }
+
+    .battle-log-entry .battle-log-enemy-action,
+    .battle-log-entry .battle-log-telegraph,
+    .battle-log-entry .battle-log-condition,
+    .battle-log-entry .battle-log-dot,
+    .battle-log-entry .battle-log-percent {
+        display: inline-block;
+        margin: 0.12rem 0;
+        padding: 0.08rem 0.42rem;
+        border-radius: 0.35rem;
+        font-weight: 800;
+        line-height: 1.65;
+    }
+
+    .battle-log-entry .battle-log-enemy-action {
+        border-left: 3px solid #fb7185;
+        background: #fff1f2;
+        color: #be123c;
+    }
+
+    .battle-log-entry .battle-log-telegraph {
+        border-left: 3px solid #f59e0b;
+        background: #fffbeb;
+        color: #92400e;
+    }
+
+    .battle-log-entry .battle-log-percent {
+        border-left: 3px solid #e11d48;
+        background: #fff1f2;
+        color: #9f1239;
+    }
+
+    .battle-log-entry .battle-log-condition-burn,
+    .battle-log-entry .battle-log-dot-burn {
+        border-left: 3px solid #f97316;
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .battle-log-entry .battle-log-condition-poison,
+    .battle-log-entry .battle-log-dot-poison {
+        border-left: 3px solid #10b981;
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .battle-log-entry .battle-log-condition-bleed,
+    .battle-log-entry .battle-log-dot-bleed {
+        border-left: 3px solid #e11d48;
+        background: #fff1f2;
+        color: #be123c;
+    }
+
+    .battle-log-entry .battle-log-condition-def_down,
+    .battle-log-entry .battle-log-condition-slow,
+    .battle-log-entry .battle-log-condition-recovery_block {
+        border-left: 3px solid #8b5cf6;
+        background: #f5f3ff;
+        color: #6d28d9;
+    }
+
+    .battle-log-entry .battle-log-special-title {
+        color: #4338ca;
+        font-weight: 900;
+    }
+
+    .battle-log-entry .battle-log-special-phrase {
+        display: inline-block;
+        margin: 0.12rem 0;
+        color: #312e81;
+        font-size: 1.08em;
+        font-weight: 900;
+        line-height: 1.7;
+    }
+
+    .battle-log-entry .battle-log-special-description {
+        display: inline-block;
+        margin: 0.08rem 0 0.16rem;
+        color: #3730a3;
+        font-size: 1.12em;
+        font-weight: 900;
+        line-height: 1.75;
     }
 
     .is-submit-locking,
@@ -154,4 +327,5 @@
             display: none;
         }
     }
+
 }

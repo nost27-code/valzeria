@@ -555,3 +555,37 @@ document.addEventListener('livewire:navigated', () => {
     initializeMultiImagePickers();
     initializeCharacterIconDesignAutosave();
 });
+
+const closeJobArtTooltips = (except = null) => {
+    document.querySelectorAll('.battle-log-job-art-tooltip.is-open').forEach((tooltip) => {
+        if (tooltip === except) return;
+
+        tooltip.classList.remove('is-open');
+        tooltip.querySelector('.battle-log-job-art-tooltip-trigger')?.setAttribute('aria-expanded', 'false');
+    });
+};
+
+document.addEventListener('click', (event) => {
+    const trigger = event.target instanceof Element
+        ? event.target.closest('.battle-log-job-art-tooltip-trigger')
+        : null;
+
+    if (!trigger) {
+        closeJobArtTooltips();
+        return;
+    }
+
+    const tooltip = trigger.closest('.battle-log-job-art-tooltip');
+    if (!tooltip) return;
+
+    const shouldOpen = !tooltip.classList.contains('is-open');
+    closeJobArtTooltips(tooltip);
+    tooltip.classList.toggle('is-open', shouldOpen);
+    trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+
+    closeJobArtTooltips();
+});

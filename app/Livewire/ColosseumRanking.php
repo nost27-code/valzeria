@@ -21,6 +21,10 @@ class ColosseumRanking extends Component
     public function mount(): void
     {
         session(['current_location' => 'colosseum']);
+
+        if ((bool) config('features.six_hero_ui_enabled', false)) {
+            $this->redirectRoute('home', navigate: true);
+        }
     }
 
     public function openPlayerModal(int $characterId): void

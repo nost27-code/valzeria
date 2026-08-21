@@ -2,6 +2,14 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
+## Six Heroes / 六極殿
+
+- RoomRule/共通PvP: `app/Services/PvPBattleService.php`, `app/Services/Battle/PvPRoomRuleInterface.php`, `app/Services/Battle/NullPvPRoomRule.php`, `app/Services/Battle/RoomRules/`, `app/Services/Battle/SixHeroRoomRuleResolver.php`, `app/Services/Battle/SixHeroBattleContextFactory.php`
+- Season/Ranking/対戦: `app/Services/SixHeroSeasonService.php`, `app/Services/SixHeroRankingService.php`, `app/Services/SixHeroDailyUsageService.php`, `app/Services/SixHeroOfficialBattleService.php`, `app/Services/SixHeroPracticeBattleService.php`, `app/Services/SixHeroSeasonFinalizationService.php`, `app/Services/SixHeroRankingInitializationService.php`
+- UI/結果/履歴: `app/Livewire/SixHeroHallScreen.php`, `app/Livewire/SixHeroRoomRanking.php`, `resources/views/livewire/six-hero-hall-screen.blade.php`, `resources/views/six-heroes/battle-result.blade.php`, `app/Services/SixHeroHallOfFameService.php`, `app/Services/SixHeroHallPresenter.php`, `app/Livewire/CityHeader.php`
+- 運用: `app/Services/SixHeroOperationsService.php`, `app/Livewire/Admin/SixHeroOperationsManager.php`, `app/Console/Commands/CheckSixHeroHealth.php`, `app/Console/Commands/CheckSixHeroRelease.php`, `docs/SIX_HERO_RELEASE_RUNBOOK.md`, `scripts/verify/six-hero-mysql-release.php`
+- 公開境界: `config/features.php`, `routes/web.php`, `routes/console.php`, `app/Livewire/MainScreen.php`, `resources/views/livewire/main-screen.blade.php`。flag OFFは従来闘技場、ONは同じhomeタブの六極殿
+
 ## Job-art v2 current authority (2026-08-16, production)
 
 - Loadout/rules: `app/Services/JobArtService.php`, `app/Services/JobArtV2FeatureGate.php`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2SelectionService.php`

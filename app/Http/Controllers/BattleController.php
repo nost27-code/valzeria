@@ -967,6 +967,8 @@ class BattleController extends Controller
      */
     public function randomPvp(Request $request, \App\Services\PvPBattleService $pvpService, ArenaNpcBattleService $npcBattleService)
     {
+        $this->abortIfLegacyArenaDisabled();
+
         $attacker = Auth::user()->currentCharacter();
         if (!$attacker) {
             return redirect()->route('home');
@@ -1111,6 +1113,8 @@ class BattleController extends Controller
      */
     public function pvp(Request $request, int $targetCharacterId, \App\Services\PvPBattleService $pvpService)
     {
+        $this->abortIfLegacyArenaDisabled();
+
         $attacker = Auth::user()->currentCharacter();
         if (!$attacker) {
             return redirect()->route('home');
@@ -1560,6 +1564,8 @@ class BattleController extends Controller
      */
     public function showPvpResult(Request $request)
     {
+        $this->abortIfLegacyArenaDisabled();
+
         $battleData = session('battleData');
 
         if (!$battleData) {
@@ -1578,5 +1584,10 @@ class BattleController extends Controller
         }
 
         return view('battle.pvp_result', $battleData);
+    }
+
+    private function abortIfLegacyArenaDisabled(): void
+    {
+        abort_if((bool) config('features.six_hero_ui_enabled', false), 404);
     }
 }

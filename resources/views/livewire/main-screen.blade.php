@@ -743,10 +743,15 @@
                         <livewire:message-box />
                     </div>
                 @elseif($currentLocation === 'colosseum')
-                    <!-- 闘技場コンポーネントを直接埋め込む -->
-                    <div class="w-full">
-                        <livewire:colosseum-screen />
-                    </div>
+                    @if((bool) config('features.six_hero_ui_enabled', false))
+                        <div class="w-full pb-20" data-six-hero-home-tab>
+                            <livewire:six-hero-hall-screen />
+                        </div>
+                    @else
+                        <div class="w-full pb-20" data-legacy-arena-home-tab>
+                            <livewire:colosseum-screen />
+                        </div>
+                    @endif
                 @elseif($currentLocation === 'settings')
                     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm pb-4">
                         @foreach($locationData['facilities'] as $facility)

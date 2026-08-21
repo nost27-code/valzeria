@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-22-six-heroes-production-code-off',
+        'date' => '2026-08-22',
+        'category' => 'internal',
+        'title' => '六極殿を公開前OFFで本番配備',
+        'detail' => '六英雄戦の6部屋、月次ランキング、公式戦、英雄履歴、運用診断を本番へ配備しました。公開フラグはOFFのため、切り替えるまでは従来の闘技場がそのまま利用されます。',
+    ],
+    [
         'id' => '2026-08-21-gameplay-metrics-dashboard',
         'date' => '2026-08-21',
         'category' => 'internal',

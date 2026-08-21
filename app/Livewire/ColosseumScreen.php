@@ -28,6 +28,8 @@ class ColosseumScreen extends Component
 
     public function mount()
     {
+        abort_if((bool) config('features.six_hero_ui_enabled', false), 404);
+
         $this->character = Auth::user()->characters()->first();
         if (!$this->character) {
             return redirect()->route('character.create');

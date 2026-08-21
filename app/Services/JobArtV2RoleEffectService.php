@@ -445,6 +445,7 @@ final class JobArtV2RoleEffectService
         BattleState $state,
         Skill $skill,
         ?HitResult $hitResult,
+        ?\Closure $hpHealingResolver = null,
     ): void {
         if (! empty($state->jobArtV2RoleAction()['ultimate_counterplay_lineage_suppressed'])) {
             return;
@@ -464,7 +465,7 @@ final class JobArtV2RoleEffectService
         $this->applyAppraisal($target, $state, $metadata);
         $this->applySelfCost($actor, $state, $skill, $metadata, $hitResult);
         $this->applyCleanse($actor, $state, $skill, $metadata, $sourceActionId);
-        $this->applyHeal($actor, $state, $skill, $metadata);
+        $this->applyHeal($actor, $state, $skill, $metadata, $hpHealingResolver);
         $this->applyGuard($actor, $state, $skill, $metadata);
         $this->applyUntilNextActionDamageReduction($actor, $state, $metadata);
         $this->applyTimedEffect($actor, $state, $skill, $metadata, $positiveEffectRemoved);
@@ -1113,8 +1114,13 @@ final class JobArtV2RoleEffectService
     }
 
     /** @param array<string, mixed> $metadata */
-    private function applyHeal(BattleActor $actor, BattleState $state, Skill $skill, array $metadata): void
-    {
+    private function applyHeal(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+        array $metadata,
+        ?\Closure $hpHealingResolver = null,
+    ): void {
         $heal = $metadata['heal'] ?? null;
         if (! is_array($heal) || ! (bool) ($metadata['suppress_legacy_effect'] ?? false)) {
             return;
@@ -1130,9 +1136,11 @@ final class JobArtV2RoleEffectService
             // Conversion refunds restore exactly the HP paid by this action.
             // They are not ordinary healing, so field healing bonuses must not
             // turn the intended ±0 exchange into a net HP gain.
-            $actual = $conversionRefund !== null
-                ? $actor->healHp($hp)
-                : $this->fieldService->applyHpHeal($actor, $state, $hp);
+            $actual = $hpHealingResolver !== null
+                ? $hpHealingResolver($actor, $state, $skill, $hp, $conversionRefund === null)
+                : ($conversionRefund !== null
+                    ? $actor->healHp($hp)
+                    : $this->fieldService->applyHpHeal($actor, $state, $hp));
             $state->addLog('<span class="text-emerald-600 font-bold">HPが '.e((string) $actual).' 回復した！</span>');
         }
 

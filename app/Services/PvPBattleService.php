@@ -9,6 +9,7 @@ use App\Models\Skill;
 use App\Services\CharacterNotificationService;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
@@ -19,6 +20,10 @@ use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\BattleResult;
 use App\Services\Battle\HitResult;
 use App\Services\Battle\JobArtHitPower;
+use App\Services\Battle\NullPvPRoomRule;
+use App\Services\Battle\PvPBattleExecutionContext;
+use App\Services\Battle\PvPBattleResolution;
+use App\Services\Battle\PvPRoomRuleInterface;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +41,11 @@ class PvPBattleService
     protected JobArtBattleSupportService $jobArtBattleSupport;
     protected DamageApplicationService $damageApplicationService;
 
+    /** @var \WeakMap<BattleState, PvPRoomRuleInterface>|null */
+    private ?\WeakMap $roomRules = null;
+
+    private ?NullPvPRoomRule $nullRoomRule = null;
+
     public function __construct(
         CharacterStatusService $statusService,
         DamageCalculator $damageCalculator,
@@ -47,6 +57,75 @@ class PvPBattleService
         $this->damageCalculator = $damageCalculator;
         $this->jobArtBattleSupport = $jobArtBattleSupport;
         $this->damageApplicationService = $damageApplicationService ?? app(DamageApplicationService::class);
+        $this->roomRules = new \WeakMap();
+        $this->nullRoomRule = new NullPvPRoomRule();
+    }
+
+    protected function associateRoomRule(BattleState $state, PvPRoomRuleInterface $roomRule): void
+    {
+        $this->roomRules ??= new \WeakMap();
+        $this->roomRules[$state] = $roomRule;
+        $this->jobArtBattleSupport->registerHpHealingResolver(
+            $state,
+            fn (
+                BattleActor $actor,
+                BattleState $healingState,
+                Skill $skill,
+                int $amount,
+                bool $applyExistingModifiers,
+            ): int => $this->applyResolvedHealing(
+                $actor,
+                $actor,
+                $healingState,
+                $amount,
+                (int) $skill->id,
+                $applyExistingModifiers,
+            ),
+        );
+    }
+
+    protected function roomRuleFor(BattleState $state): PvPRoomRuleInterface
+    {
+        return $this->roomRules !== null && isset($this->roomRules[$state])
+            ? $this->roomRules[$state]
+            : ($this->nullRoomRule ??= new NullPvPRoomRule());
+    }
+
+    private function ensureRoomRuleAssociation(BattleState $state): void
+    {
+        if ($this->roomRules !== null && isset($this->roomRules[$state])) {
+            return;
+        }
+
+        $this->associateRoomRule($state, $this->roomRuleFor($state));
+    }
+
+    protected function applyResolvedHealing(
+        ?BattleActor $source,
+        BattleActor $target,
+        BattleState $state,
+        int $amount,
+        int|string|null $sourceId = null,
+        bool $applyExistingModifiers = true,
+    ): int {
+        if ($applyExistingModifiers) {
+            $amount = $this->jobArtBattleSupport->modifyFieldHpHeal($target, $state, $amount);
+        }
+
+        $amount = $this->roomRuleFor($state)->modifyHealing(
+            $source,
+            $target,
+            $state,
+            $amount,
+            $sourceId,
+        );
+        $actualHeal = $target->healHp(max(0, $amount));
+
+        if ($applyExistingModifiers) {
+            $this->jobArtBattleSupport->completeFieldHpHeal($target, $state);
+        }
+
+        return max(0, $actualHeal);
     }
 
     protected function applyResolvedDamage(
@@ -68,37 +147,75 @@ class PvPBattleService
             return null;
         }
 
-        if (!$this->jobArtBattleSupport->usesDamageApplication($source, $target)) {
-            $target->takeDamage($damage);
+        $damage = max(0, $this->roomRuleFor($state)->modifyFinalDamage(
+            $source,
+            $target,
+            $state,
+            $damage,
+            $sourceType,
+            $sourceId,
+            $hitIndex,
+            $hitCount,
+        ));
+        $hpBefore = $target->hp;
+        $result = null;
 
-            return null;
+        if ($damage <= 0 || !$this->jobArtBattleSupport->usesDamageApplication($source, $target)) {
+            $target->takeDamage($damage);
+        } else {
+            $result = $this->damageApplicationService->apply(new DamageApplicationRequest(
+                sourceActor: $source,
+                targetActor: $target,
+                resolvedDamage: $damage,
+                sourceType: $sourceType,
+                sourceId: $sourceId,
+                battleType: $state->battleType,
+                hitResult: $hitResult,
+                hitIndex: $hitIndex,
+                hitCount: $hitCount,
+                battleState: $state,
+                directAttackResolution: $isDirect
+                    && $source !== null
+                    && $state->currentSourceActionId() !== null
+                    ? DirectAttackResolution::fromDamageSource(
+                        sourceActionId: $state->currentSourceActionId(),
+                        attacker: $source,
+                        target: $target,
+                        hitResult: $hitResult,
+                        damageCategory: (string) $damageCategory,
+                        direct: true,
+                        sourceType: $sourceType,
+                    )
+                    : null,
+            ));
         }
 
-        return $this->damageApplicationService->apply(new DamageApplicationRequest(
-            sourceActor: $source,
-            targetActor: $target,
-            resolvedDamage: $damage,
+        $hpAfter = $target->hp;
+        $actualHpLoss = max(0, $hpBefore - $hpAfter);
+        if ($actualHpLoss > 0) {
+            $this->roomRuleFor($state)->onActualHpLoss(
+                $source,
+                $target,
+                $state,
+                $actualHpLoss,
+                $sourceType,
+                $sourceId,
+            );
+        }
+
+        return $result ?? new DamageApplicationResult(
+            requestedDamage: $damage,
+            hpBefore: $hpBefore,
+            hpAfter: $hpAfter,
+            actualHpLoss: $actualHpLoss,
+            overkillDamage: max(0, $damage - $hpBefore),
+            wasLethal: $target->isDead(),
             sourceType: $sourceType,
             sourceId: $sourceId,
-            battleType: $state->battleType,
             hitResult: $hitResult,
             hitIndex: $hitIndex,
             hitCount: $hitCount,
-            battleState: $state,
-            directAttackResolution: $isDirect
-                && $source !== null
-                && $state->currentSourceActionId() !== null
-                ? DirectAttackResolution::fromDamageSource(
-                    sourceActionId: $state->currentSourceActionId(),
-                    attacker: $source,
-                    target: $target,
-                    hitResult: $hitResult,
-                    damageCategory: (string) $damageCategory,
-                    direct: true,
-                    sourceType: $sourceType,
-                )
-                : null,
-        ));
+        );
     }
 
     /**
@@ -108,6 +225,32 @@ class PvPBattleService
      */
     public function executeBattle(Character $attackerChar, Character $defenderChar): BattleResult
     {
+        $resolution = $this->resolveBattle(
+            $attackerChar,
+            $defenderChar,
+            PvPBattleExecutionContext::arena(),
+        );
+
+        $this->persistArenaBattleOutcome(
+            $attackerChar,
+            $defenderChar,
+            $resolution->attackerWon,
+        );
+
+        app(GameplayMetricService::class)->recordJobArtBattle($attackerChar, 'pvp', $resolution->result);
+
+        return $resolution->result;
+    }
+
+    /**
+     * 順位・対戦ログ等を更新せず、PvP戦闘の解決結果だけを返す。
+     */
+    public function resolveBattle(
+        Character $attackerChar,
+        Character $defenderChar,
+        ?PvPBattleExecutionContext $context = null,
+    ): PvPBattleResolution {
+        $context ??= PvPBattleExecutionContext::arena();
         $result = new BattleResult();
 
         // アタッカーアクターの生成
@@ -157,10 +300,17 @@ class PvPBattleService
         $this->jobArtBattleSupport->attachBossSet($defenderActor, $defenderChar, 'champ');
 
         $state = new BattleState($attackerActor, $defenderActor, 'pvp');
+        $state->rankBattleMinimumDamageGuaranteeEnabled = $context->rankBattleMinimumDamageGuaranteeEnabled;
+        $state->rankBattleDamageCapEnabled = $context->rankBattleDamageCapEnabled;
+        $this->associateRoomRule(
+            $state,
+            $context->roomRule ?? ($this->nullRoomRule ??= new NullPvPRoomRule()),
+        );
         
-        $state->addLog("【闘技場】{$attackerActor->name} が {$defenderActor->name} に勝負を挑んだ！");
+        $state->addLog("【{$context->displayLabel}】{$attackerActor->name} が {$defenderActor->name} に勝負を挑んだ！");
         $state->addLog($this->affinityLog($attackerActor, $defenderActor));
         $state->addLog($this->affinityLog($defenderActor, $attackerActor));
+        $this->roomRuleFor($state)->onBattleStart($attackerActor, $defenderActor, $state);
 
         while (!$state->isBattleEnded() && $state->turnCount < $state->maxTurns) {
             $state->turnCount++;
@@ -168,40 +318,49 @@ class PvPBattleService
             
             $usesRoleSpeed = $this->jobArtBattleSupport->usesRoleEffects($attackerActor)
                 || $this->jobArtBattleSupport->usesRoleEffects($defenderActor);
-            $attackerSpeed = ($usesRoleSpeed ? $attackerActor->effectiveAgi() : $attackerActor->agi)
-                + rand(0, self::PVP_TURN_SPEED_RANDOM);
-            $defenderSpeed = ($usesRoleSpeed ? $defenderActor->effectiveAgi() : $defenderActor->agi)
-                + rand(0, self::PVP_TURN_SPEED_RANDOM);
-            $attackerFirst = $attackerSpeed >= $defenderSpeed;
+            $attackerFirst = $this->resolveBaseInitiative(
+                $attackerActor,
+                $defenderActor,
+                $state,
+                $usesRoleSpeed,
+            );
             if ($usesRoleSpeed) {
                 $attackerFirst = $this->jobArtBattleSupport->adjustInitiative(
                     $attackerActor,
                     $defenderActor,
                     $attackerFirst,
-                    static fn (): bool => ($attackerActor->effectiveAgi() + rand(0, self::PVP_TURN_SPEED_RANDOM))
-                        >= ($defenderActor->effectiveAgi() + rand(0, self::PVP_TURN_SPEED_RANDOM)),
+                    fn (): bool => $this->resolveBaseInitiative(
+                        $attackerActor,
+                        $defenderActor,
+                        $state,
+                        $usesRoleSpeed,
+                    ),
                 );
             }
 
             if ($attackerFirst) {
-                $this->executeAction($attackerActor, $defenderActor, $state);
+                $this->addTurnActionHeading($state, $attackerActor, $attackerActor, true);
+                $this->executeActionWithRoomRule($attackerActor, $defenderActor, $state);
                 if ($attackerActor->isDead() || $defenderActor->isDead()) {
                     $this->jobArtBattleSupport->endRound($state);
                     break;
                 }
-                $this->executeAction($defenderActor, $attackerActor, $state);
+                $this->addTurnActionHeading($state, $defenderActor, $attackerActor, false);
+                $this->executeActionWithRoomRule($defenderActor, $attackerActor, $state);
             } else {
-                $this->executeAction($defenderActor, $attackerActor, $state);
+                $this->addTurnActionHeading($state, $defenderActor, $attackerActor, true);
+                $this->executeActionWithRoomRule($defenderActor, $attackerActor, $state);
                 if ($attackerActor->isDead() || $defenderActor->isDead()) {
                     $this->jobArtBattleSupport->endRound($state);
                     break;
                 }
-                $this->executeAction($attackerActor, $defenderActor, $state);
+                $this->addTurnActionHeading($state, $attackerActor, $attackerActor, false);
+                $this->executeActionWithRoomRule($attackerActor, $defenderActor, $state);
             }
             $this->jobArtBattleSupport->endRound($state);
         }
 
-        // 戦闘終了と順位変動処理
+        // 戦闘終了と勝敗判定
         $isAttackerWin = false;
         
         $isTurnLimit = $state->turnCount >= $state->maxTurns;
@@ -229,10 +388,44 @@ class PvPBattleService
         $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
         $result->jobArtUsage = $state->jobArtUsageFor($attackerActor);
 
-        // キャラクターのHP/SPは闘技場では減らさない仕様にするのが一般的だが、
-        // 現状は引継ぎで設定（PvP後に回復するかは外で制御するかもしれないが、今回はHP更新しない方向でも良い。
-        // とりあえず戦闘での消耗は残すならsaveするが、闘技場専用なら減らない方が親切。ここでは減らさず、外のColosseumScreenに委ねる）
+        return new PvPBattleResolution(
+            result: $result,
+            attackerWon: $isAttackerWin,
+            turnCount: $state->turnCount,
+            attackerHp: $attackerActor->hp,
+            attackerMaxHp: $attackerActor->maxHp,
+            defenderHp: $defenderActor->hp,
+            defenderMaxHp: $defenderActor->maxHp,
+        );
+    }
 
+    protected function resolveBaseInitiative(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        bool $usesRoleSpeed,
+    ): bool {
+        $attackerSpeed = ($usesRoleSpeed ? $attacker->effectiveAgi() : $attacker->agi)
+            + rand(0, self::PVP_TURN_SPEED_RANDOM);
+        $defenderSpeed = ($usesRoleSpeed ? $defender->effectiveAgi() : $defender->agi)
+            + rand(0, self::PVP_TURN_SPEED_RANDOM);
+        $defaultAttackerFirst = $attackerSpeed >= $defenderSpeed;
+
+        return $this->roomRuleFor($state)->modifyInitiative(
+            $attacker,
+            $defender,
+            $state,
+            $attackerSpeed,
+            $defenderSpeed,
+            $defaultAttackerFirst,
+        );
+    }
+
+    private function persistArenaBattleOutcome(
+        Character $attackerChar,
+        Character $defenderChar,
+        bool $isAttackerWin,
+    ): void {
         // DBトランザクションで順位変動とログ記録
         DB::transaction(function () use ($attackerChar, $defenderChar, $isAttackerWin) {
             $attackerRanking = app(ArenaNpcRankingService::class)->ensurePlayerRanking($attackerChar);
@@ -314,10 +507,6 @@ class PvPBattleService
                 (int) $attackerNewRank
             );
         });
-
-        app(GameplayMetricService::class)->recordJobArtBattle($attackerChar, 'pvp', $result);
-
-        return $result;
     }
 
     private function publishArenaRankPublicLogs(
@@ -353,13 +542,42 @@ class PvPBattleService
     /**
      * 行動（通常攻撃またはスキル攻撃）
      */
+    private function addTurnActionHeading(
+        BattleState $state,
+        BattleActor $actor,
+        BattleActor $challenger,
+        bool $isFirst,
+    ): void {
+        $orderLabel = $isFirst ? '先手' : '後手';
+        $orderMark = $isFirst ? '◆' : '◇';
+        $isChallenger = $actor === $challenger;
+        $perspectiveLabel = $isChallenger ? 'あなた' : '対戦相手';
+        $colorClass = $isChallenger ? 'text-blue-700' : 'text-rose-700';
+        $actorName = e($actor->name);
+
+        $state->addLog(
+            "<br><span class=\"{$colorClass} font-extrabold\">{$orderMark} {$orderLabel}　{$actorName}（{$perspectiveLabel}）の行動</span>",
+        );
+    }
+
+    protected function executeActionWithRoomRule(
+        BattleActor $actor,
+        BattleActor $opponent,
+        BattleState $state,
+    ): void {
+        $this->executeAction($actor, $opponent, $state);
+        $this->roomRuleFor($state)->onActionEnd($actor, $opponent, $state);
+    }
+
     protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
     {
+        $this->ensureRoomRuleAssociation($state);
         $this->jobArtBattleSupport->beginAction($attacker, $state);
 
         try {
         $attacker->isDefending = false;
         $attacker->damageReductionRate = 0;
+
         $usedSkill = false;
         $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
@@ -418,13 +636,27 @@ class PvPBattleService
         $attackType = $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
         $isCrit = $this->damageCalculator->isRankBattleCritical($attacker, $defender);
         $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
+        $statOverrides = $this->roomRuleFor($state)->modifyDamageStatOverrides(
+            $attacker,
+            $defender,
+            $state,
+            $attackType,
+            DamageSourceType::NORMAL_ATTACK,
+            null,
+            ['attack' => null, 'def' => null, 'spr' => null],
+        );
         $damage = $this->damageCalculator->calculateRankBattleDamage(
             $attacker,
             $defender,
             $attackType,
             $powerMultiplier,
             $isCrit,
-            $affinityMultiplier
+            $affinityMultiplier,
+            $statOverrides['attack'],
+            $statOverrides['def'],
+            $statOverrides['spr'],
+            minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+            damageCapEnabled: $state->rankBattleDamageCapEnabled,
         );
         $damage = $this->jobArtBattleSupport->modifyFieldDamage($attacker, $state, $damage, DamageSourceType::NORMAL_ATTACK);
         $damageResult = $this->applyResolvedDamage(
@@ -441,7 +673,6 @@ class PvPBattleService
             $attackType,
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
-
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $damageClass = $attackType === 'magical' ? 'text-purple-600' : 'text-red-600';
         $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
@@ -466,13 +697,27 @@ class PvPBattleService
 
         $isCrit = $this->damageCalculator->isRankBattleCritical($attacker, $defender);
         $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
+        $statOverrides = $this->roomRuleFor($state)->modifyDamageStatOverrides(
+            $attacker,
+            $defender,
+            $state,
+            'physical',
+            DamageSourceType::NORMAL_ATTACK,
+            null,
+            ['attack' => null, 'def' => null, 'spr' => null],
+        );
         $damage = $this->damageCalculator->calculateRankBattleDamage(
             $attacker,
             $defender,
             'physical',
             $powerMultiplier,
             $isCrit,
-            $affinityMultiplier
+            $affinityMultiplier,
+            $statOverrides['attack'],
+            $statOverrides['def'],
+            $statOverrides['spr'],
+            minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+            damageCapEnabled: $state->rankBattleDamageCapEnabled,
         );
         $damage = $this->jobArtBattleSupport->modifyFieldDamage($attacker, $state, $damage, DamageSourceType::NORMAL_ATTACK);
         $damageResult = $this->applyResolvedDamage(
@@ -489,7 +734,6 @@ class PvPBattleService
             'physical',
         );
         $damage = $damageResult?->requestedDamage ?? $damage;
-
         $critText = $isCrit ? "<span class=\"text-orange-500 font-bold\">【痛恨の一撃！】</span>" : "";
         $state->addDamageLog("{$attacker->name} の攻撃！ {$critText} {$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
         $this->logGutsIfTriggered($defender, $state);
@@ -527,7 +771,17 @@ class PvPBattleService
 
         $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
         if ((float) $skill->luk_power_rate > 0) {
-            $totalPower += (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
+            $lukPowerContribution = (int) floor(
+                $attacker->effectiveLuk() * (float) $skill->luk_power_rate,
+            );
+            $lukPowerContribution = $this->roomRuleFor($state)->modifyLukPowerContribution(
+                $attacker,
+                $defender,
+                $state,
+                $skill,
+                $lukPowerContribution,
+            );
+            $totalPower += $lukPowerContribution;
         }
         $hitPowers = $skill->isJobArt()
             ? JobArtHitPower::split($totalPower, $hitCount)
@@ -545,12 +799,37 @@ class PvPBattleService
 
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
             $statOverrides = $this->jobArtBattleSupport->damageStatOverrides($attacker, $defender, $skill);
-            $overrideAtk = $statOverrides['attack'];
-            $overrideDef = $statOverrides['def'] ?? $overrides['def'];
-            $overrideSpr = $statOverrides['spr'] ?? $overrides['spr'];
+            $statOverrides = [
+                'attack' => $statOverrides['attack'],
+                'def' => $statOverrides['def'] ?? $overrides['def'],
+                'spr' => $statOverrides['spr'] ?? $overrides['spr'],
+            ];
+            if ($damageType === 'hybrid') {
+                $statOverrides['attack'] = $attacker->hybridAttackPower(
+                    (string) $skill->hybrid_scaling,
+                    $this->jobArtBattleSupport->usesRoleEffects($attacker),
+                );
+            }
 
             if ($dealsDamage && (float) $skill->power_multiplier > 0) {
                 $affinityMultiplier = $this->affinityMultiplier($attacker, $defender);
+                $calculationAttackType = match ($damageType) {
+                    'magical' => 'magical',
+                    'hybrid' => 'hybrid',
+                    default => 'physical',
+                };
+                $statOverrides = $this->roomRuleFor($state)->modifyDamageStatOverrides(
+                    $attacker,
+                    $defender,
+                    $state,
+                    $calculationAttackType,
+                    $skill->isJobArt() ? DamageSourceType::JOB_ART : DamageSourceType::JOB_SKILL,
+                    $skill,
+                    $statOverrides,
+                );
+                $overrideAtk = $statOverrides['attack'];
+                $overrideDef = $statOverrides['def'];
+                $overrideSpr = $statOverrides['spr'];
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
@@ -563,7 +842,9 @@ class PvPBattleService
                         $overrideDef,
                         $overrideSpr,
                         true,
-                        $hitCount
+                        $hitCount,
+                        $state->rankBattleMinimumDamageGuaranteeEnabled,
+                        $state->rankBattleDamageCapEnabled,
                     );
                 } elseif ($damageType === 'magical') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
@@ -577,13 +858,11 @@ class PvPBattleService
                         $overrideDef,
                         $overrideSpr,
                         true,
-                        $hitCount
+                        $hitCount,
+                        $state->rankBattleMinimumDamageGuaranteeEnabled,
+                        $state->rankBattleDamageCapEnabled,
                     );
                 } elseif ($damageType === 'hybrid') {
-                    $hybridAtk = $attacker->hybridAttackPower(
-                        (string) $skill->hybrid_scaling,
-                        $this->jobArtBattleSupport->usesRoleEffects($attacker),
-                    );
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
                         $defender,
@@ -591,11 +870,13 @@ class PvPBattleService
                         $skillPowerInt,
                         $isCrit,
                         $affinityMultiplier,
-                        $hybridAtk,
+                        $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
                         true,
-                        $hitCount
+                        $hitCount,
+                        $state->rankBattleMinimumDamageGuaranteeEnabled,
+                        $state->rankBattleDamageCapEnabled,
                     );
                 }
             }
@@ -629,7 +910,7 @@ class PvPBattleService
                 $this->logGutsIfTriggered($defender, $state);
             }
 
-            if ($defender->isDead()) break;
+            if ($attacker->isDead() || $defender->isDead()) break;
         }
 
         if ($skill->isJobArt()) {
@@ -646,7 +927,13 @@ class PvPBattleService
 
         if ($skill->heal_percent > 0) {
             $healAmount = (int)($attacker->maxHp * ($skill->heal_percent / 100));
-            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $healAmount);
+            $actualHeal = $this->applyResolvedHealing(
+                $attacker,
+                $attacker,
+                $state,
+                $healAmount,
+                (int) $skill->id,
+            );
             $state->addLog("<span class=\"text-green-600 font-bold\">{$attacker->name} の傷が {$actualHeal} 回復した！</span>");
         }
 
@@ -681,10 +968,15 @@ class PvPBattleService
         }
         
         if (!$skill->isJobArt() && (int) $skill->self_buff_percent > 0) {
-            $state->addLog("{$attacker->name} の攻撃力と魔法力が上昇した！");
             $rate = (int) $skill->self_buff_percent / 100;
+            $beforeStr = $attacker->str;
+            $beforeMag = $attacker->mag;
             $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * $rate));
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * $rate));
+            $state->addLog(BattleStatChangeLogFormatter::fromValues($attacker->name, [
+                ['label' => 'ATK', 'before' => $beforeStr, 'after' => $attacker->str],
+                ['label' => 'MAG', 'before' => $beforeMag, 'after' => $attacker->mag],
+            ], true));
         }
     }
 
@@ -736,13 +1028,25 @@ class PvPBattleService
                 ? $attacker->effectiveSpr()
                 : $attacker->spr;
             $heal = max(1, (int) floor($healingSpr * ($power / 100)));
-            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
+            $actualHeal = $this->applyResolvedHealing(
+                $attacker,
+                $attacker,
+                $state,
+                $heal,
+                (int) $skill->id,
+            );
             $state->addLog("<span class=\"text-emerald-600 font-bold\">HPが {$actualHeal} 回復した！</span>");
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
             $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
-            $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
+            $actualHeal = $this->applyResolvedHealing(
+                $attacker,
+                $attacker,
+                $state,
+                $heal,
+                (int) $skill->id,
+            );
             $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$actualHeal} 回復した！</span>");
         }
 
@@ -821,8 +1125,9 @@ class PvPBattleService
             $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
             $before = $defender->agi;
             $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
-            $pct = $before > 0 ? (int) round((abs($before - $defender->agi) / $before) * 100) : 0;
-            $state->addLog("<span class=\"text-sky-700 font-bold\">{$defender->name} のSPDが {$pct}% 低下した！</span>");
+            $state->addLog(BattleStatChangeLogFormatter::fromValues($defender->name, [
+                ['label' => 'SPD', 'before' => $before, 'after' => $defender->agi],
+            ], false));
         }
     }
 
@@ -837,19 +1142,10 @@ class PvPBattleService
         int $subAfter,
         bool $isBuff
     ): void {
-        $mainPct = $mainBefore > 0 ? (int) round((abs($mainAfter - $mainBefore) / $mainBefore) * 100) : 0;
-        $subPct = $subBefore > 0 ? (int) round((abs($subAfter - $subBefore) / $subBefore) * 100) : 0;
-
-        if ($mainAfter === $mainBefore && $subAfter === $subBefore) {
-            $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
-            $verb = $isBuff ? '強化' : '弱体化';
-            $state->addLog("<span class=\"{$color} font-bold\">{$actorName} はこれ以上{$verb}できない！</span>");
-            return;
-        }
-
-        $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
-        $direction = $isBuff ? '上昇' : '低下';
-        $state->addLog("<span class=\"{$color} font-bold\">{$actorName} の{$mainLabel}が {$mainPct}% / {$subLabel}が {$subPct}% {$direction}した！</span>");
+        $state->addLog(BattleStatChangeLogFormatter::fromValues($actorName, [
+            ['label' => $mainLabel, 'before' => $mainBefore, 'after' => $mainAfter],
+            ['label' => $subLabel, 'before' => $subBefore, 'after' => $subAfter],
+        ], $isBuff));
     }
 
     private function hasStructuredDebuff(Skill $skill): bool
@@ -871,14 +1167,18 @@ class PvPBattleService
         return min(50, max(10, (int) floor(max(80, (int) ($skill->power ?: 100)) / 10)));
     }
 
-    private function applyStructuredDebuffs(
-        BattleActor $attacker,
-        BattleActor $defender,
-        BattleState $state,
-        Skill $skill,
-    ): void
-    {
-        $timed = $this->jobArtBattleSupport->applyTimedStructuredDebuffs(
+   private function applyStructuredDebuffs(
+       BattleActor $attacker,
+       BattleActor $defender,
+       BattleState $state,
+       Skill $skill,
+   ): void
+   {
+        if ($state->harmfulAttachedEffectsBlockedFor($defender)) {
+            return;
+        }
+
+       $timed = $this->jobArtBattleSupport->applyTimedStructuredDebuffs(
             $attacker,
             $defender,
             $state,
@@ -886,7 +1186,12 @@ class PvPBattleService
         );
         if ($timed !== null) {
             foreach ($timed['changes'] as $change) {
-                $state->addLog("{$defender->name} の{$change['label']}が {$change['percent']}% 低下した！（{$timed['duration_turns']}ターン）");
+                $state->addLog(BattleStatChangeLogFormatter::fromPercentages(
+                    $defender->name,
+                    [['label' => $change['label'], 'percent' => $change['percent']]],
+                    false,
+                    $timed['duration_turns'].'ターン',
+                ));
             }
 
             return;
@@ -909,7 +1214,11 @@ class PvPBattleService
             $prop = $config['prop'];
             $base = $config['base'];
             $defender->{$prop} = max(1, $defender->{$prop} - (int) floor($defender->{$base} * ($effect / 100)));
-            $state->addLog("{$defender->name} の{$config['label']}が {$effect}% 低下した！");
+            $state->addLog(BattleStatChangeLogFormatter::fromPercentages(
+                $defender->name,
+                [['label' => $config['label'], 'percent' => $effect]],
+                false,
+            ));
         }
     }
 

@@ -4,11 +4,15 @@
     $navs = [
         'town' => ['label' => '街', 'icon' => '🏛️', 'route' => route('home')],
         'dungeon' => ['label' => '探索', 'icon' => '⛩️', 'route' => route('home')],
-        'colosseum' => ['label' => '闘技場', 'icon' => '⚔️', 'route' => route('home')],
         'guild' => ['label' => 'ギルド', 'icon' => '🏛️', 'route' => route('home')],
         'message' => ['label' => '手紙', 'icon' => '✉️', 'route' => route('home')],
         'settings' => ['label' => '設定', 'icon' => '⚙️', 'route' => route('home')],
     ];
+    if ((bool) config('features.six_hero_ui_enabled', false)) {
+        $navs = array_slice($navs, 0, 2, true)
+            + ['colosseum' => ['label' => '闘技場', 'icon' => '⚔️', 'route' => route('home')]]
+            + array_slice($navs, 2, null, true);
+    }
 @endphp
 
 <div class="bg-gray-50 border border-[#d4af37] rounded-t-lg px-2 pt-2 flex flex-wrap gap-1 justify-center shadow-inner mb-[-1px] relative z-10 w-full overflow-hidden shrink-0">

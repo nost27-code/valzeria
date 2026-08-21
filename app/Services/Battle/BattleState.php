@@ -29,6 +29,9 @@ class BattleState
     /** @var array<int, list<string>> 被ダメージ表示の直後へ送る派生ログ。 */
     private array $deferredDamageLogs = [];
 
+    /** @var (\Closure(BattleActor, BattleState, \App\Models\Skill, int, bool): int)|null */
+    private ?\Closure $hpHealingResolver = null;
+
     public int $goldBonusPercent = 0;
     public int $dropBonusPercent = 0;
     public int $rareBonusPercent = 0;
@@ -38,6 +41,8 @@ class BattleState
     public bool $valmonAssistRolled = false;
     public bool $valmonAssistUsed = false;
     public string $battleType;
+    public bool $rankBattleMinimumDamageGuaranteeEnabled = true;
+    public bool $rankBattleDamageCapEnabled = true;
     public array $enemyActionUseTurns = [];
     public array $enemyActionUseCounts = [];
     public ?int $pendingEnemyActionId = null;
@@ -218,6 +223,18 @@ class BattleState
         return $this->currentSourceActionId;
     }
 
+    /** @param \Closure(BattleActor, BattleState, \App\Models\Skill, int, bool): int $resolver */
+    public function setHpHealingResolver(\Closure $resolver): void
+    {
+        $this->hpHealingResolver = $resolver;
+    }
+
+    /** @return (\Closure(BattleActor, BattleState, \App\Models\Skill, int, bool): int)|null */
+    public function hpHealingResolver(): ?\Closure
+    {
+        return $this->hpHealingResolver;
+    }
+
     /** @param array<string, mixed> $context */
     public function beginJobArtV2RoleAction(int $sourceActionId, array $context): void
     {
@@ -241,6 +258,16 @@ class BattleState
         return $sourceActionId !== null
             ? ($this->jobArtV2RoleActionContexts[$sourceActionId] ?? [])
             : [];
+    }
+
+    public function harmfulAttachedEffectsBlockedFor(
+        BattleActor $target,
+        ?int $sourceActionId = null,
+    ): bool {
+        $context = $this->jobArtV2RoleAction($sourceActionId);
+
+        return ($context['fortress_harmful_effects_blocked_target_key'] ?? null)
+            === $this->actorKey($target);
     }
 
     public function claimJobArtV2RoleEffect(

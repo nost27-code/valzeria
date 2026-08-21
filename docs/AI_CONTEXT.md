@@ -5,6 +5,13 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-21
 Branch: main
 
+## Six Heroes / 六極殿（本番コード配備・公開OFF）
+
+- 六英雄戦は6つの独立Room、Room別月次Ranking、各Room1日5回の公式戦、相性確認、月次英雄・空位確定、翌月順位引継ぎ、殿堂・冠・連覇、管理診断まで実装済み
+- `SIX_HERO_UI_ENABLED`のコード既定値と本番設定はOFF。OFFではhomeの「闘技場」タブ、旧対戦Route、旧Ranking、NPC自動順位戦を従来どおり使う。明示ON時だけ同じタブを六極殿へ切り替え、旧プレイヤー対戦RouteとNPC自動順位戦を停止する
+- 戦闘計算は副作用なしの`PvPBattleService::resolveBattle()`へ統一し、通常闘技場は`NullPvPRoomRule`、六英雄戦だけfreshな6種RoomRuleを注入する。通常闘技場の順位・ログ副作用は既存facadeに残す
+- 永続化は`SixHeroSeason`、Room別`SixHeroRanking`、Room別日次使用回数、公式BattleLog、確定済み`SixHeroChampion` snapshot。管理画面とCLIは同じ`SixHeroOperationsService`を読み取り正本とし、安全な既存処理の再試行だけを許可する
+
 ## Job-art / exploration live metrics
 
 - 管理者専用`/admin/gameplay-analytics`は、導入後の通常プレイヤー実績だけを`gameplay_metrics`へ記録して集計する。管理者・`tester_%@valzeria.local`は記録・表示から除外し、過去行動は補完しない

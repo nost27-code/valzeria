@@ -16,4 +16,10 @@ return [
         env('PLAYER_SHOPS_ENABLED', $defaultsEnabled),
         FILTER_VALIDATE_BOOL,
     ),
+
+    // Keep disabled until operations explicitly replaces the legacy arena.
+    'six_hero_ui_enabled' => filter_var(
+        env('SIX_HERO_UI_ENABLED', false),
+        FILTER_VALIDATE_BOOL,
+    ),
 ];

@@ -11,6 +11,9 @@ use App\Services\Battle\HitResult;
 
 class JobArtBattleSupportService
 {
+    /** @var \WeakMap<BattleState, \Closure>|null */
+    private ?\WeakMap $hpHealingResolvers = null;
+
     private readonly ActionResolver $jobArtActionResolver;
     private readonly JobArtV2ResourceService $jobArtV2ResourceService;
     private readonly JobArtV2FieldService $jobArtV2FieldService;
@@ -28,6 +31,7 @@ class JobArtBattleSupportService
     private readonly JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService;
     private readonly JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog;
     private readonly JobArtFlavorTextService $jobArtFlavorTextService;
+    private readonly JobArtBattleLogPresenter $jobArtBattleLogPresenter;
 
     public function __construct(
         private readonly JobArtService $jobArtService,
@@ -51,6 +55,7 @@ class JobArtBattleSupportService
         ?JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService = null,
         ?JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog = null,
         ?JobArtFlavorTextService $jobArtFlavorTextService = null,
+        ?JobArtBattleLogPresenter $jobArtBattleLogPresenter = null,
     ) {
         $this->jobArtActionResolver = $jobArtActionResolver ?? app(ActionResolver::class);
         $this->jobArtV2ResourceService = $jobArtV2ResourceService ?? app(JobArtV2ResourceService::class);
@@ -71,6 +76,7 @@ class JobArtBattleSupportService
         $this->jobArtV2CrownBalanceCatalog = $jobArtV2CrownBalanceCatalog
             ?? app(JobArtV2CrownBalanceCatalog::class);
         $this->jobArtFlavorTextService = $jobArtFlavorTextService ?? app(JobArtFlavorTextService::class);
+        $this->jobArtBattleLogPresenter = $jobArtBattleLogPresenter ?? app(JobArtBattleLogPresenter::class);
     }
 
     public function attachBossSet(BattleActor $actor, Character $character, string $context = 'champ'): void
@@ -274,6 +280,21 @@ class JobArtBattleSupportService
         return $this->jobArtV2FieldService->applyHpHeal($actor, $state, $heal);
     }
 
+    public function completeFieldHpHeal(BattleActor $actor, BattleState $state): void
+    {
+        $this->jobArtV2ProgressionService->completeHpHeal($actor, $state);
+    }
+
+    /**
+     * @param \Closure(BattleActor, BattleState, Skill, int, bool): int $resolver
+     */
+    public function registerHpHealingResolver(BattleState $state, \Closure $resolver): void
+    {
+        $this->hpHealingResolvers ??= new \WeakMap();
+        $this->hpHealingResolvers[$state] = $resolver;
+        $state->setHpHealingResolver($resolver);
+    }
+
     public function fieldAccuracyDelta(BattleActor $actor, BattleState $state): float
     {
         if ($this->jobArtV2UltimateCounterplayService->currentActionLineageEffectsSuppressed($actor, $state)) {
@@ -401,7 +422,17 @@ class JobArtBattleSupportService
                 $skill,
                 $hitResult,
             );
-            $this->jobArtV2RoleEffectService->completeJobArtCast($actor, $target, $state, $skill, $hitResult);
+            $hpHealingResolver = $this->hpHealingResolvers !== null
+                ? ($this->hpHealingResolvers[$state] ?? null)
+                : null;
+            $this->jobArtV2RoleEffectService->completeJobArtCast(
+                $actor,
+                $target,
+                $state,
+                $skill,
+                $hitResult,
+                $hpHealingResolver,
+            );
         }
     }
 
@@ -521,7 +552,7 @@ class JobArtBattleSupportService
     {
         $titleClass = $this->jobArtFlavorTextService->activationTitleClass($skill);
         $lines = [
-            '<span class="' . e($titleClass) . '">《' . e($skill->name) . '》が発動！</span>',
+            $this->jobArtBattleLogPresenter->activationTitle($attacker, $skill, $titleClass),
         ];
 
         $flavorText = $this->jobArtFlavorTextService->resolve($skill);

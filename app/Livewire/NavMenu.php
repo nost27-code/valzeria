@@ -2,9 +2,9 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\Attributes\On;
 use App\Services\HomeActionService;
+use Livewire\Attributes\On;
+use Livewire\Component;
 
 class NavMenu extends Component
 {
@@ -14,11 +14,18 @@ class NavMenu extends Component
     {
         $routeName = request()->route()?->getName() ?? '';
         $this->currentLocation = $this->normalizeLocation(session('current_location', 'home'));
-        
-        if (str_starts_with($routeName, 'shop.')) $this->currentLocation = 'shop';
-        if ($routeName === 'jobs.index') $this->currentLocation = 'town';
-        if ($routeName === 'equipment.index') $this->currentLocation = 'shop';
+
+        if (str_starts_with($routeName, 'shop.')) {
+            $this->currentLocation = 'shop';
+        }
+        if ($routeName === 'jobs.index') {
+            $this->currentLocation = 'town';
+        }
+        if ($routeName === 'equipment.index') {
+            $this->currentLocation = 'shop';
+        }
     }
+
     #[On('tabSelectedFromOutside')]
     public function selectTab($location)
     {
@@ -40,7 +47,12 @@ class NavMenu extends Component
 
     private function normalizeLocation(?string $location): string
     {
-        return $location === 'job' ? 'town' : ($location ?: 'home');
+        $location = $location === 'job' ? 'town' : ($location ?: 'home');
+
+        return $location === 'colosseum'
+            && ! (bool) config('features.six_hero_ui_enabled', false)
+                ? 'home'
+                : $location;
     }
 
     public function render(HomeActionService $homeActionService)
