@@ -52,7 +52,8 @@ final class JobArtV2RoleEffectService
      *     main_after: int,
      *     sub_label: string,
      *     sub_before: int,
-     *     sub_after: int
+     *     sub_after: int,
+     *     exact_log_written: bool
      * }|null
      */
     public function applySharedSelfBuff(
@@ -76,7 +77,7 @@ final class JobArtV2RoleEffectService
         if ($canonicalModifiers !== []) {
             $beforeMain = $isMagical ? $actor->effectiveMag() : $actor->effectiveStr();
             $beforeSub = $isMagical ? $actor->effectiveSpr() : $actor->effectiveDef();
-            $this->applyCanonicalSelfBuff($actor, $state, $skill, $canonicalModifiers, false);
+            $this->applyCanonicalSelfBuff($actor, $state, $skill, $canonicalModifiers);
 
             return [
                 'main_label' => $isMagical ? 'MAG' : 'ATK',
@@ -85,6 +86,7 @@ final class JobArtV2RoleEffectService
                 'sub_label' => $isMagical ? 'SPR' : 'DEF',
                 'sub_before' => $beforeSub,
                 'sub_after' => $isMagical ? $actor->effectiveSpr() : $actor->effectiveDef(),
+                'exact_log_written' => true,
             ];
         }
 
@@ -114,6 +116,7 @@ final class JobArtV2RoleEffectService
                 'sub_label' => 'SPR',
                 'sub_before' => $beforeSub,
                 'sub_after' => $actor->spr,
+                'exact_log_written' => false,
             ];
         }
 
@@ -135,6 +138,7 @@ final class JobArtV2RoleEffectService
             'sub_label' => 'DEF',
             'sub_before' => $beforeSub,
             'sub_after' => $actor->def,
+            'exact_log_written' => false,
         ];
     }
 

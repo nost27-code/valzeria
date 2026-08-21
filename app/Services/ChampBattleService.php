@@ -997,16 +997,18 @@ class ChampBattleService
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
             $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $state, $skill);
             if ($shared !== null) {
-                $logs[] = $this->statChangeLog(
-                    $attacker->name,
-                    $shared['main_label'],
-                    $shared['main_before'],
-                    $shared['main_after'],
-                    $shared['sub_label'],
-                    $shared['sub_before'],
-                    $shared['sub_after'],
-                    true,
-                );
+                if (! $shared['exact_log_written']) {
+                    $logs[] = $this->statChangeLog(
+                        $attacker->name,
+                        $shared['main_label'],
+                        $shared['main_before'],
+                        $shared['main_after'],
+                        $shared['sub_label'],
+                        $shared['sub_before'],
+                        $shared['sub_after'],
+                        true,
+                    );
+                }
             } else {
                 $beforeStr = $attacker->str;
                 $beforeMag = $attacker->mag;

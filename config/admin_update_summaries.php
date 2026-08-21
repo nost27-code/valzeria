@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-21-canonical-self-buff-log-clarity',
+        'date' => '2026-08-21',
+        'category' => 'fixed',
+        'title' => '自己強化戦技の効果確認ログを修正',
+        'detail' => '賢者の反応炉・守護の構えなど、通常攻撃の種類に応じて能力が変わる戦技で、実際に強化された能力・上昇率・持続ターンを戦闘ログへ明記しました。戦技の効果量・ダメージは変更していません。',
+    ],
+    [
         'id' => '2026-08-21-spirit-steal-obsolete-description-fix',
         'date' => '2026-08-21',
         'category' => 'fixed',

@@ -135,6 +135,7 @@ final class JobArtV2CanonicalSelfBuffRuntimeAuditTest extends TestCase
             'applySharedSelfBuff($attacker, $state, $skill',
             $battle,
         );
+        $this->assertStringContainsString('if (! $shared[\'exact_log_written\'])', $battle);
 
         $support = (string) file_get_contents(app_path('Services/JobArtBattleSupportService.php'));
         $this->assertMatchesRegularExpression(
@@ -150,6 +151,11 @@ final class JobArtV2CanonicalSelfBuffRuntimeAuditTest extends TestCase
             $source = (string) file_get_contents(app_path('Services/'.$file));
             $this->assertMatchesRegularExpression(
                 '/applySharedSelfBuff\\(\\s*\\$attacker,\\s*\\$state,\\s*\\$skill(?:,|\\))/s',
+                $source,
+                $file,
+            );
+            $this->assertStringContainsString(
+                'if (! $shared[\'exact_log_written\'])',
                 $source,
                 $file,
             );

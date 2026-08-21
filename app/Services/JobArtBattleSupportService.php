@@ -122,7 +122,8 @@ class JobArtBattleSupportService
      *     main_after: int,
      *     sub_label: string,
      *     sub_before: int,
-     *     sub_after: int
+     *     sub_after: int,
+     *     exact_log_written: bool
      * }|null
      */
     public function applySharedSelfBuff(

@@ -2055,17 +2055,19 @@ class BattleService
         $damageType = $forceMagical === null ? null : ($forceMagical ? 'magical' : 'physical');
         $shared = $this->jobArtV2RoleEffectService->applySharedSelfBuff($attacker, $state, $skill, $damageType);
         if ($shared !== null) {
-            $this->logStatChange(
-                $state,
-                $attacker->name,
-                $shared['main_label'],
-                $shared['main_before'],
-                $shared['main_after'],
-                $shared['sub_label'],
-                $shared['sub_before'],
-                $shared['sub_after'],
-                true,
-            );
+            if (! $shared['exact_log_written']) {
+                $this->logStatChange(
+                    $state,
+                    $attacker->name,
+                    $shared['main_label'],
+                    $shared['main_before'],
+                    $shared['main_after'],
+                    $shared['sub_label'],
+                    $shared['sub_before'],
+                    $shared['sub_after'],
+                    true,
+                );
+            }
 
             return;
         }

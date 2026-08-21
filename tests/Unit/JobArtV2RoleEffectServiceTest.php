@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\HitResult;
 use App\Services\ConversionResult;
 use App\Services\JobArtV2PreparedEffectState;
@@ -118,17 +119,119 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         }
     }
 
-    public function test_shared_template_canonical_buff_leaves_log_output_to_the_route_caller(): void
+    public function test_reported_route_dependent_buffs_log_exact_effects_once_in_every_battle_context(): void
     {
-        [$actor, $target, $state] = $this->battle(20);
-        $service = $this->service();
-        $art = $this->art(20, 1, '旅支度', 'SELF_BUFF', 100, 0);
+        foreach ([
+            [
+                'job_id' => 26,
+                'rank' => 9,
+                'name' => '賢者の反応炉',
+                'power' => 255,
+                'duration' => 5,
+                'physical' => 'actor の攻撃が35%、防御が20%アップした！（5ターン）',
+                'magical' => 'actor の魔力が35%、精神が20%アップした！（5ターン）',
+            ],
+            [
+                'job_id' => 44,
+                'rank' => 1,
+                'name' => '守護の構え',
+                'power' => 175,
+                'duration' => 4,
+                'physical' => 'actor の攻撃が15%、防御が15%アップした！（4ターン）',
+                'magical' => 'actor の魔力が15%、精神が15%アップした！（4ターン）',
+            ],
+        ] as $case) {
+            foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+                foreach (['current' => $case['job_id'], 'inherited' => 62] as $origin => $currentJobId) {
+                    foreach (['physical', 'magical'] as $normalAttackType) {
+                        [$actor, $target, $state] = $this->battle($currentJobId, $battleType);
+                        $actor->normalAttackType = $normalAttackType;
+                        $service = $this->service();
+                        $art = $this->art(
+                            $case['job_id'],
+                            $case['rank'],
+                            $case['name'],
+                            'DAMAGE_BUFF',
+                            $case['power'],
+                            1,
+                        );
+                        $actor->jobArtOrigins[(int) $art->id] = $origin;
 
-        $this->beginAction($service, $actor, $state);
-        $change = $service->applySharedSelfBuff($actor, $state, $art);
+                        $this->beginAction($service, $actor, $state);
+                        $change = $service->applySharedSelfBuff($actor, $state, $art);
+                        $service->completeJobArtCast($actor, $target, $state, $art, HitResult::HIT);
 
-        $this->assertNotNull($change);
-        $this->assertSame([], $state->logs, '既存の各戦闘経路が出力する能力変化ログと二重表示しないこと。');
+                        $label = implode(' / ', [$case['name'], $battleType, $origin, $normalAttackType]);
+                        $this->assertNotNull($change, $label);
+                        $this->assertTrue($change['exact_log_written'] ?? false, $label);
+                        $effect = $actor->jobArtV2TimedEffect(
+                            "canonical_self_buff:{$case['job_id']}:{$case['rank']}",
+                        );
+                        $this->assertSame($case['duration'], $effect?->remainingRounds, $label);
+                        $matchingLogs = array_values(array_filter(
+                            $state->logs,
+                            static fn (string $log): bool => str_contains($log, $case[$normalAttackType]),
+                        ));
+                        $this->assertCount(1, $matchingLogs, $label);
+                    }
+                }
+            }
+        }
+    }
+
+    public function test_reported_route_dependent_buffs_raise_damage_in_every_route_formula(): void
+    {
+        $calculator = app(DamageCalculator::class);
+
+        foreach ([
+            [26, 9, '賢者の反応炉', 255],
+            [44, 1, '守護の構え', 175],
+        ] as [$jobId, $rank, $name, $power]) {
+            foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+                foreach (['physical', 'magical'] as $normalAttackType) {
+                    $actor = $this->actor('actor', true, 62, [
+                        'str' => 1_000,
+                        'mag' => 1_000,
+                    ]);
+                    $actor->normalAttackType = $normalAttackType;
+                    $target = $this->actor('target', false, 60, [
+                        'hp' => 10_000,
+                        'max_hp' => 10_000,
+                        'def' => 100,
+                        'spr' => 100,
+                    ]);
+                    $state = new BattleState($actor, $target, $battleType);
+                    $art = $this->art($jobId, $rank, $name, 'DAMAGE_BUFF', $power, 1);
+
+                    mt_srand(8_210);
+                    $before = $this->normalAttackDamageForContext(
+                        $calculator,
+                        $actor,
+                        $target,
+                        $battleType,
+                        $normalAttackType,
+                    );
+
+                    $this->beginAction($this->service(), $actor, $state);
+                    $this->service()->applySharedSelfBuff($actor, $state, $art);
+
+                    mt_srand(8_210);
+                    $after = $this->normalAttackDamageForContext(
+                        $calculator,
+                        $actor,
+                        $target,
+                        $battleType,
+                        $normalAttackType,
+                    );
+
+                    $this->assertGreaterThan(
+                        $before,
+                        $after,
+                        implode(' / ', [$name, $battleType, $normalAttackType]),
+                    );
+                }
+            }
+        }
     }
 
     public function test_sanctuary_barrier_uses_a_two_turn_battle_memory_buff_instead_of_a_battle_long_legacy_buff(): void
@@ -1073,7 +1176,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
 
         $physicalState->beginSourceAction();
         $physicalChange = $this->service()->applySharedSelfBuff($physical, $physicalState, $art);
-        $this->assertSame(['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 135, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 96], $physicalChange);
+        $this->assertSame(['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 135, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 96, 'exact_log_written' => true], $physicalChange);
         $this->assertSame(100, $physical->str);
         $this->assertSame(80, $physical->def);
         $this->assertSame(135, $physical->effectiveStr());
@@ -1085,7 +1188,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $magical->normalAttackType = 'magical';
         $magicalState->beginSourceAction();
         $magicalChange = $this->service()->applySharedSelfBuff($magical, $magicalState, $art);
-        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 135, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 96], $magicalChange);
+        $this->assertSame(['main_label' => 'MAG', 'main_before' => 100, 'main_after' => 135, 'sub_label' => 'SPR', 'sub_before' => 80, 'sub_after' => 96, 'exact_log_written' => true], $magicalChange);
         $this->assertSame(100, $magical->mag);
         $this->assertSame(80, $magical->spr);
         $this->assertSame(135, $magical->effectiveMag());
@@ -1109,7 +1212,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $change = $this->service()->applySharedSelfBuff($actor, $state, $art);
 
         $this->assertSame(
-            ['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 88],
+            ['main_label' => 'ATK', 'main_before' => 100, 'main_after' => 120, 'sub_label' => 'DEF', 'sub_before' => 80, 'sub_after' => 88, 'exact_log_written' => false],
             $change,
         );
         $this->assertSame(120, $actor->str);
@@ -1550,6 +1653,26 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $service->completeJobArtCast($actor, $target, $state, $source, $hitResult);
 
         return $execution;
+    }
+
+    private function normalAttackDamageForContext(
+        DamageCalculator $calculator,
+        BattleActor $actor,
+        BattleActor $target,
+        string $battleType,
+        string $attackType,
+    ): int {
+        return match ($battleType) {
+            'pvp', 'arena_npc' => $calculator->calculateRankBattleDamage(
+                $actor,
+                $target,
+                $attackType,
+            ),
+            'champ' => $calculator->calculateDuelDamage($actor, $target, $attackType),
+            default => $attackType === 'magical'
+                ? $calculator->calculateMagicalDamage($actor, $target)
+                : $calculator->calculatePhysicalDamage($actor, $target),
+        };
     }
 
     private function timed(string $key, float $rate, float $strength, bool $removable): JobArtV2TimedEffectState
