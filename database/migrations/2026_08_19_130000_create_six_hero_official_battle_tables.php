@@ -48,10 +48,10 @@ return new class extends Migration
             $table->decimal('attacker_hp_ratio', 9, 8)->nullable();
             $table->decimal('defender_hp_ratio', 9, 8)->nullable();
             $table->unsignedTinyInteger('daily_attempt_number');
-            $table->timestamp('started_at');
-            $table->timestamp('resolved_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->timestamp('failed_at')->nullable();
+            $table->dateTime('started_at');
+            $table->dateTime('resolved_at')->nullable();
+            $table->dateTime('completed_at')->nullable();
+            $table->dateTime('failed_at')->nullable();
             $table->string('failure_code', 64)->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();

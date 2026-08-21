@@ -11,9 +11,9 @@ return new class extends Migration
         Schema::create('six_hero_seasons', function (Blueprint $table): void {
             $table->id();
             $table->string('season_key', 7)->unique();
-            $table->timestamp('starts_at');
-            $table->timestamp('ends_at');
-            $table->timestamp('finalized_at')->nullable();
+            $table->dateTime('starts_at');
+            $table->dateTime('ends_at');
+            $table->dateTime('finalized_at')->nullable();
             $table->timestamps();
         });
 
@@ -29,8 +29,8 @@ return new class extends Migration
             $table->unsignedInteger('official_attack_losses')->default(0);
             $table->unsignedInteger('defense_wins')->default(0);
             $table->unsignedInteger('defense_losses')->default(0);
-            $table->timestamp('registered_at');
-            $table->timestamp('first_place_since')->nullable();
+            $table->dateTime('registered_at');
+            $table->dateTime('first_place_since')->nullable();
             $table->timestamps();
 
             $table->unique(

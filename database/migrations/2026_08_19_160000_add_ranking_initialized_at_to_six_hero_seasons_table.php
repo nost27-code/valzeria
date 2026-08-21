@@ -10,7 +10,7 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('six_hero_seasons', 'ranking_initialized_at')) {
             Schema::table('six_hero_seasons', function (Blueprint $table): void {
-                $table->timestamp('ranking_initialized_at')->nullable();
+                $table->dateTime('ranking_initialized_at')->nullable();
             });
         }
 

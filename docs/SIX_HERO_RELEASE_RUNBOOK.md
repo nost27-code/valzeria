@@ -30,6 +30,8 @@
 
 Phase 6Dで実証した既定Release baselineはMySQL 8.4以上です。本番でMariaDB等を使う場合は、その製品/versionでPhase 6D相当の検証を完了したうえで、検証済みの最低versionを明示します。
 
+2026-08-22の本番配備時に、ステージング・本番とも`MariaDB 10.5.13`であることを確認しました。機能flag OFFでのコード・schema配備は行えますが、flag ONは同versionの隔離DBでPhase 6Dの並行Gateを再実行し、Release baseline設定をMariaDBへ更新してから判断します。
+
 ```dotenv
 SIX_HERO_EXPECTED_DATABASE_PRODUCT=mysql
 SIX_HERO_MINIMUM_DATABASE_VERSION=8.4.0
