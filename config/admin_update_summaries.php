@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-21-spirit-steal-obsolete-description-fix',
+        'date' => '2026-08-21',
+        'category' => 'fixed',
+        'title' => 'スピリットスティールの旧説明を修正',
+        'detail' => '戦技情報に残っていた「最大SP10%回復」などの古い追加説明を削除し、実際の効果と一致する正本説明だけを表示するようにしました。戦闘効果と数値は変更していません。',
+    ],
+    [
         'id' => '2026-08-21-holy-sword-buff-battle-log-fix',
         'date' => '2026-08-21',
         'category' => 'fixed',

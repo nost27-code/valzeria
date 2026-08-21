@@ -20,6 +20,15 @@ final class JobArtV2ProgressionDescriptionCompositionTest extends TestCase
         );
     }
 
+    public function test_spirit_steal_does_not_append_an_obsolete_effect_copy_to_its_canonical_description(): void
+    {
+        $catalog = new JobArtV2ProgressionCatalog;
+        $skill = $this->art(19, 5, 'スピリットスティール');
+
+        $this->assertSame('c_design_eclipse_drain', $catalog->keyFor($skill));
+        $this->assertSame([], $catalog->effectTextsForDisplay($skill, true, true));
+    }
+
     public function test_resource_gain_and_cost_are_not_duplicated_as_progression_effect_texts(): void
     {
         $catalog = new JobArtV2ProgressionCatalog;

@@ -17,7 +17,7 @@ final class JobArtV2ProgressionCatalog
         '14:5:暴走撃' => ['key' => 'c_design_eclipse_reckless', 'effect_texts' => ['反動で最大HPの8%分のダメージ']],
         '15:5:ガーディアンブロウ' => ['key' => 'c_design_guard_cycle', 'effect_texts' => ['次に受ける直接ダメージを16%軽減（1回）']],
         '18:1:マーキング' => ['key' => 'c_design_aim_mark', 'effect_texts' => ['対象をマーキングし、DEF -10% / SPR -5%']],
-        '19:5:スピリットスティール' => ['key' => 'c_design_eclipse_drain', 'effect_texts' => ['与ダメージ35%分HP回復・最大SP10%回復・SPR -7%（2ターン）']],
+        '19:5:スピリットスティール' => ['key' => 'c_design_eclipse_drain'],
         '27:1:勇気の灯' => ['key' => 'c_design_command_light', 'effect_texts' => ['次の指揮系連携の発動率 +10ポイント（最大3行動）']],
         '28:5:無拍子' => ['key' => 'c_design_counter_parry_chain', 'effect_texts' => ['予告中の奥義または大技を20%軽減し、実軽減後の次の反撃系連携/奥義を1.20倍']],
         '30:1:闇の契約' => ['key' => 'c_design_eclipse_contract', 'effect_texts' => ['使用成立時に冥蝕+4・物理型/魔法型に応じた4ターン強化']],
