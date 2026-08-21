@@ -164,7 +164,9 @@ class ArenaNpcBattleService
         $result->logs = $state->logs;
         $result->playerHpAfter = $attackerActor->hp;
         $result->playerMpAfter = $attackerActor->mp;
+        $result->turnCount = $state->turnCount;
         $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
+        $result->jobArtUsage = $state->jobArtUsageFor($attackerActor);
 
         DB::transaction(function () use ($attacker, $npcRanking, $isAttackerWin): void {
             $attackerRanking = ArenaRanking::where('character_id', $attacker->id)->lockForUpdate()->firstOrFail();
@@ -212,6 +214,8 @@ class ArenaNpcBattleService
 
             $this->publishPublicLogs($attacker, $isAttackerWin, $attackerOldRank, $attackerNewRank, $log);
         });
+
+        app(GameplayMetricService::class)->recordJobArtBattle($attacker, 'arena_npc', $result);
 
         return $result;
     }

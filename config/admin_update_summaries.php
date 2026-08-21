@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-21-gameplay-metrics-dashboard',
+        'date' => '2026-08-21',
+        'category' => 'internal',
+        'title' => '戦技・探索の実戦計測を追加',
+        'detail' => '管理画面に、戦技の実発動率・命中状況・勝率と、1回／まとめて探索の完了率・報酬・ドロップ・停止理由を比較する実績画面を追加しました。導入後の通常プレイヤー実績だけを集計します。',
+    ],
+    [
         'id' => '2026-08-21-exclusive-character-icon-set-031',
         'date' => '2026-08-21',
         'category' => 'internal',

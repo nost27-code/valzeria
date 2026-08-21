@@ -5,6 +5,12 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-21
 Branch: main
 
+## Job-art / exploration live metrics
+
+- 管理者専用`/admin/gameplay-analytics`は、導入後の通常プレイヤー実績だけを`gameplay_metrics`へ記録して集計する。管理者・`tester_%@valzeria.local`は記録・表示から除外し、過去行動は補完しない
+- 戦技は通常探索・追加ダンジョン・ボス・共有サブエリア・探索の地図・塔・英雄試練・プレイヤー闘技場・チャンプ戦・NPCランク戦の各実戦について、挑戦側冒険者の発動戦数、戦技別発動数、HIT/MISS/EVADE、支援型の判定なし、勝敗を記録する。訓練所と管理者ベンチマークは実績に含めない
+- 探索はHTTP探索要求単位で、通常・追加ダンジョン・共有サブエリア・探索の地図の要求回数、完了回数、停止理由、勝敗内訳、EXP/Gold/職業EXP、装備/素材/印/地図、探索力と危険度の前後を記録する。報酬・ドロップ・危険度・戦闘判定自体は変更しない
+
 ## Dungeon-lord job-art set / training-ground practice battle
 
 - ダンジョン主は`is_boss=false`の通常PvE・報酬ルールを維持しつつ、プレイヤーが使う戦技セットだけボス戦用を選ぶ

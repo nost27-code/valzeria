@@ -205,6 +205,33 @@ class MapExplorationBatchServiceTest extends TestCase
         $this->assertSame(12, (int) $registration->fresh()->consumed_explorations);
     }
 
+    public function test_batch_reports_map_availability_exhaustion_when_fewer_runs_can_be_reserved(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図残回数試験地', 'map-batch-availability-test');
+        $registration->update([
+            'exploration_limit' => 3,
+            'remaining_explorations' => 3,
+            'consumed_explorations' => 0,
+        ]);
+        $victory = new BattleResult();
+        $victory->result = 'victory';
+        $victory->exp = 20;
+        $victory->gold = 10;
+        $victory->jobExp = 1;
+        $battleService = Mockery::mock(BattleService::class);
+        $battleService->shouldReceive('executeBattle')->times(3)->andReturn($victory);
+        $this->app->instance(BattleService::class, $battleService);
+
+        $batchService = app(MapExplorationBatchService::class);
+        $batch = $batchService->reserve($visitor, $registration->fresh(), 10, (string) Str::uuid());
+        $result = $batchService->execute($visitor, $batch)['battle_result'];
+
+        $this->assertSame(10, (int) data_get($result, 'batch_explore.requested'));
+        $this->assertSame(3, (int) data_get($result, 'batch_explore.completed'));
+        $this->assertSame('map_availability_exhausted', data_get($result, 'batch_explore.stop_reason'));
+        $this->assertSame('探索可能回数が尽きたため、途中で探索を止めました。', data_get($result, 'batch_explore.stop_text'));
+    }
+
     public function test_stale_unexecuted_reservation_is_recovered_before_the_next_reservation(): void
     {
         config()->set('exploration_maps.stale_batch_recovery_seconds', 60);

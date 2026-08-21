@@ -175,6 +175,9 @@ class BattleController extends Controller
             && $targetDepth === ''
             && $forcedEvent === null
             && app(\App\Services\ExplorationStaminaService::class)->enabled();
+        $gameplayMetrics = app(\App\Services\GameplayMetricService::class);
+        $metricContext = $isRegionDepthDungeon ? 'region_depth' : 'normal';
+        $metricBefore = $gameplayMetrics->explorationSnapshot($character, $metricContext, $areaId);
 
         if ($canBatchExplore) {
             $result = $this->explorationService->exploreRepeated(
@@ -186,9 +189,22 @@ class BattleController extends Controller
             $result = $this->explorationService->explore($character, $areaId, false, $forcedEvent, $skipBattleCooldown);
         }
 
+        $metricResult = $result;
         if (!$isRegionDepthDungeon) {
             $result = $this->replaceWithDepthGateResultIfCrossed($request, $character, $areaId, $result);
+            if (($result['special_event'] ?? null) === 'depth_gate'
+                && ! is_array($metricResult['batch_explore'] ?? null)) {
+                $metricResult['metric_stop_reason'] = 'depth_transition';
+            }
         }
+        $gameplayMetrics->recordExplorationRequest(
+            $character,
+            $metricContext,
+            $canBatchExplore ? $batchCount : 1,
+            $metricResult,
+            $metricBefore,
+            areaId: $areaId,
+        );
 
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
@@ -211,6 +227,8 @@ class BattleController extends Controller
     {
         try {
             $registration = TownMapRegistration::findOrFail($registrationId);
+            $gameplayMetrics = app(\App\Services\GameplayMetricService::class);
+            $metricBefore = $gameplayMetrics->explorationSnapshot($character, 'map');
             $service = app(MapExplorationBatchService::class);
             $itemService = app(\App\Services\MapExplorationItemService::class);
             $execution = DB::transaction(function () use ($character, $registration, $registrationId, $count, $service, $itemService): array {
@@ -223,6 +241,14 @@ class BattleController extends Controller
                 return $service->execute($character, $batch);
             });
             $batch = $execution['batch'];
+            $gameplayMetrics->recordJobArtExplorationResult($character, 'map', $execution['battle_result']);
+            $gameplayMetrics->recordExplorationRequest(
+                $character,
+                'map',
+                max(1, min(10, $count)),
+                $execution['battle_result'],
+                $metricBefore,
+            );
             $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
             session(['active_map_exploration' => [
                 'registration_id' => (int) $batch->registration_id,
@@ -472,6 +498,12 @@ class BattleController extends Controller
 
         $batchCount = $this->resolveExploreCount($request, $character);
         $subAreaService = app(\App\Services\SubAreaExplorationService::class);
+        $gameplayMetrics = app(\App\Services\GameplayMetricService::class);
+        $metricBefore = $gameplayMetrics->explorationSnapshot(
+            $character,
+            'sub_area',
+            subAreaRouteId: (int) ($discovery->route?->id ?? 0),
+        );
         $result = $batchCount > 1 && app(\App\Services\ExplorationStaminaService::class)->enabled()
             ? $subAreaService->exploreRepeated($character, $discovery, $batchCount)
             : $subAreaService->explore($character, $discovery);
@@ -481,6 +513,14 @@ class BattleController extends Controller
             'sub_area_route_name' => $discovery->route?->route_name,
             'sub_area_discovery_id' => $discovery->id,
         ]);
+        $gameplayMetrics->recordExplorationRequest(
+            $character,
+            'sub_area',
+            $batchCount > 1 ? $batchCount : 1,
+            $result,
+            $metricBefore,
+            subAreaRouteId: (int) ($discovery->route?->id ?? 0),
+        );
         $jobHistory = $character->jobHistories()->where('job_class_id', $character->current_job_id)->first();
         $jobLevel = $jobHistory ? $jobHistory->job_level : 1;
 

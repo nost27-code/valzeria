@@ -236,7 +236,7 @@ class ChampBattleService
         ?int $expectedChampAppointedAt = null
     ): array
     {
-        return DB::transaction(function () use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
+        $result = DB::transaction(function () use ($challenger, $expectedChampCharacterId, $expectedChampAppointedAt) {
             $challenger = Character::query()
                 ->with(['jobClass', 'user'])
                 ->lockForUpdate()
@@ -358,6 +358,7 @@ class ChampBattleService
                 'turns' => $battle['turns'],
                 'battle_log' => $battle['log'],
                 'job_art_v2_hud' => $battle['job_art_v2_hud'] ?? null,
+                'job_art_usage' => $battle['job_art_usage'] ?? [],
                 'champ_before_name' => $oldChamp['player_name'],
                 'champ_after_name' => ($champDefeated && ! $isAdminTester) ? $challenger->name : $champ->player_name,
                 'challenger_actor' => array_merge($challengerActor, [
@@ -385,6 +386,16 @@ class ChampBattleService
                 'next_available_at' => now()->addSeconds(app(CooldownSettingService::class)->champBattleSeconds()),
             ];
         });
+
+        if (($result['ok'] ?? false) === true) {
+            app(GameplayMetricService::class)->recordJobArtBattle($challenger, 'champ', [
+                'result' => ($result['champ_defeated'] ?? false) ? 'victory' : 'defeat',
+                'turn_count' => (int) ($result['turns'] ?? 0),
+                'job_art_usage' => $result['job_art_usage'] ?? [],
+            ]);
+        }
+
+        return $result;
     }
 
     public function recentLogs(int $limit = 5)
@@ -704,6 +715,7 @@ class ChampBattleService
             'challenger_mp_after' => $attacker->mp,
             'champ_mp_after' => $defender->mp,
             'job_art_v2_hud' => $this->jobArtBattleSupport->battleHud($jobArtState),
+            'job_art_usage' => $jobArtState->jobArtUsageFor($attacker),
         ];
     }
 

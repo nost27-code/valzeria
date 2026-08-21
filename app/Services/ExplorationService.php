@@ -832,6 +832,12 @@ class ExplorationService
             $battleLog->forceFill(['log_text' => $logText])->save();
         }
 
+        app(GameplayMetricService::class)->recordJobArtBattle(
+            $character,
+            $isBossBattle ? 'boss' : ($isRegionDepthDungeon ? 'region_depth' : 'normal'),
+            $battleResult,
+        );
+
         return [
             'success' => true,
             'result' => $battleResult->result,

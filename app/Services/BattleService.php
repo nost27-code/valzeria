@@ -404,6 +404,7 @@ class BattleService
         $result->damageDealt = $enemyActor->totalDamageTaken;
         $result->damageTaken = $playerActor->totalDamageTaken;
         $result->jobArtV2Hud = $this->jobArtV2BattleHudService->present($state);
+        $result->jobArtUsage = $state->jobArtUsageFor($state->player);
 
         if ($explorationSupportEnabled) {
             app(ExplorationSupportService::class)->persistBattleProcs($character, $state->explorationSupportSnapshot);
@@ -1701,6 +1702,7 @@ class BattleService
         $template = (string) $skill->effect_template;
 
         $state->jobArtUseCounts[$skillId] = (int) ($state->jobArtUseCounts[$skillId] ?? 0) + 1;
+        $state->recordJobArtActivation($attacker, $sourceSkill);
         if (! $this->jobArtV2FeatureGate->usesDynamicSingle($attacker)
             && (int) $skill->cooldown_turns > 0
         ) {
@@ -1722,6 +1724,7 @@ class BattleService
         $this->jobArtV2RoleEffectService->beginJobArtCast($attacker, $state, $sourceSkill);
 
         if ($this->jobArtV2FieldService->isFieldOnlyArt($attacker, $state, $skill)) {
+            $state->completeJobArtActivation($attacker, null);
             $this->jobArtV2UltimateCounterplayService->completeJobArtCast(
                 $attacker,
                 $defender,
@@ -1736,6 +1739,7 @@ class BattleService
         $hitResult = $this->jobArtActionResolver->resolveJobArt($attacker, $defender, $skill, $state->battleType, $state);
         $this->jobArtV2BattleHudService->recordHitResult($attacker, $state, $hitResult);
         if ($hitResult !== null && !$hitResult->landed()) {
+            $state->completeJobArtActivation($attacker, $hitResult);
             $state->addLog($this->jobArtResolutionFailureLog($skill, $hitResult));
             $this->applyMissedJobArtOnCastEffects($attacker, $defender, $state, $skill, $rate);
             $this->jobArtV2UltimateCounterplayService->completeJobArtCast(
@@ -1786,6 +1790,7 @@ class BattleService
         if ($hitResult?->landed()) {
             $this->jobArtV2ResourceService->recordJobArtHit($attacker, $state, $skill);
         }
+        $state->completeJobArtActivation($attacker, $hitResult);
         $this->jobArtV2SpPressureService->applyOnHit($attacker, $defender, $state, $skill, $hitResult);
         $this->jobArtV2BreakDebuffService->applyOnHit($attacker, $defender, $state, $skill, $hitResult);
         $this->jobArtV2UltimateCounterplayService->completeJobArtCast(

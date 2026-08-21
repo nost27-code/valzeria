@@ -14,6 +14,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 - Rank-battle percentage judgment: `app/Services/Battle/BattleActor.php`, `app/Services/PvPBattleService.php`, `app/Services/ArenaNpcBattleService.php`, `tests/Unit/PvPBattleServiceTurnLimitTest.php`
 - Master source and validation: `database/data/job_arts.json`, `database/seeders/JobArtSeeder.php`, `app/Support/JobArtMasterValidator.php`, `database/migrations/2026_08_14_140000_sync_all_job_art_master_for_v2.php`. The sync validates all 94×Rank1/5/9 natural keys, preserves existing skill IDs, and stops on missing or duplicate input
 - Feature switches: `config/battle.php`. Released v2 dependencies are enabled in production; code defaults remain OFF as the explicit rollback boundary. The superseded `BATTLE_JOB_ART_C_DESIGN_PROTOTYPE` remains OFF
+- Live gameplay metrics: `app/Services/GameplayMetricService.php`, `app/Models/GameplayMetric.php`, `app/Services/Admin/GameplayAnalyticsService.php`, `app/Livewire/Admin/GameplayAnalyticsManager.php`, `resources/views/livewire/admin/gameplay-analytics-manager.blade.php`, `/admin/gameplay-analytics`. `BattleState` accumulates actual player-side Job Art casts in memory; real battle/exploration boundaries persist one versioned payload while excluding admin/test characters and never backfilling old activity
 
 The older Job-art sections and architecture-table notes below are historical design boundaries. Do not use their current-job, main/sub-lineage, portable, inherited-rate, or normalized-SP descriptions as the current specification.
 

@@ -36,5 +36,7 @@ class BattleResult
 
     /** 奥義v2の表示専用スナップショット。戦闘判定には使用しない。 */
     public ?array $jobArtV2Hud = null;
+    /** @var list<array<string,mixed>> 実績計測専用。戦闘判定には使用しない。 */
+    public array $jobArtUsage = [];
     public array $enemyDurability = []; // ['hp'=>float,'def_spr'=>float,'atk_mag'=>float,'tier'=>string]
 }

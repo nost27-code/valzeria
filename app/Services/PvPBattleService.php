@@ -225,7 +225,9 @@ class PvPBattleService
         $result->logs = $state->logs;
         $result->playerHpAfter = $attackerActor->hp;
         $result->playerMpAfter = $attackerActor->mp;
+        $result->turnCount = $state->turnCount;
         $result->jobArtV2Hud = $this->jobArtBattleSupport->battleHud($state);
+        $result->jobArtUsage = $state->jobArtUsageFor($attackerActor);
 
         // キャラクターのHP/SPは闘技場では減らさない仕様にするのが一般的だが、
         // 現状は引継ぎで設定（PvP後に回復するかは外で制御するかもしれないが、今回はHP更新しない方向でも良い。
@@ -312,6 +314,8 @@ class PvPBattleService
                 (int) $attackerNewRank
             );
         });
+
+        app(GameplayMetricService::class)->recordJobArtBattle($attackerChar, 'pvp', $result);
 
         return $result;
     }

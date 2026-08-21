@@ -164,7 +164,7 @@ class HeroTrialService
         $enemies = $this->profileService->enemies((string) ($trial['profile_key'] ?? ''));
 
         try {
-            return DB::transaction(function () use ($character, $trialKey, $trial, $profile, $enemies): array {
+            $challengeResult = DB::transaction(function () use ($character, $trialKey, $trial, $profile, $enemies): array {
                 $lockedCharacter = Character::query()
                     ->whereKey($character->id)
                     ->lockForUpdate()
@@ -250,6 +250,18 @@ class HeroTrialService
                     'phase_results' => $phaseResults,
                 ];
             }, 3);
+
+            foreach ($challengeResult['phase_results'] as $phaseResult) {
+                if (($phaseResult['result'] ?? null) instanceof BattleResult) {
+                    app(GameplayMetricService::class)->recordJobArtBattle(
+                        $character,
+                        'hero_trial',
+                        $phaseResult['result'],
+                    );
+                }
+            }
+
+            return $challengeResult;
         } finally {
             CharacterStatusService::clearRequestCache((int) $character->id);
         }

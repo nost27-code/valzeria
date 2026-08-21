@@ -316,7 +316,7 @@ class TowerBattleService extends BattleService
             $pendingRewards = [];
         }
 
-        return TowerRunEvent::query()->create([
+        $event = TowerRunEvent::query()->create([
             'tower_run_id' => $updatedRun->id,
             'character_id' => $character->id,
             'floor' => (int) $floorMaster->floor,
@@ -352,6 +352,10 @@ class TowerBattleService extends BattleService
                 'pending_stance' => $this->pendingStance($updatedRun),
             ],
         ]);
+
+        app(GameplayMetricService::class)->recordJobArtBattle($character, 'tower', $battle);
+
+        return $event;
     }
 
     private function floorForRun(TowerRun $run): TowerFloorMaster
@@ -468,6 +472,7 @@ class TowerBattleService extends BattleService
             'player_hp_after' => max(0, $player->hp),
             'player_mp_after' => max(0, $player->mp),
             'job_art_v2_hud' => $this->jobArtV2BattleHudService->present($state),
+            'job_art_usage' => $state->jobArtUsageFor($player),
             'enemy_stats' => $enemyStats,
             'enemy_base_stats' => $enemyBaseStats,
             'player_start_stats' => [

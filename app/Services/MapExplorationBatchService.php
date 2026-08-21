@@ -248,6 +248,7 @@ class MapExplorationBatchService
             'success' => true,
             'result' => $battle->result,
             'turn_count' => $battle->turnCount,
+            'job_art_usage' => $battle->jobArtUsage,
             'log' => $logText,
             'enemy' => $enemy,
             'enemy_image_path' => $enemyImagePath,
@@ -328,6 +329,7 @@ class MapExplorationBatchService
         $totalJobExp = 0;
         $materials = [];
         $equipment = [];
+        $mapDrops = [];
         $levelUps = [];
         $summaryLines = [
             '<span class="text-sky-800 font-extrabold">【10回探索】最大' . $batch->requested_count . '回の連続探索を行いました。</span>',
@@ -340,6 +342,9 @@ class MapExplorationBatchService
             $totalJobExp += (int) ($run['job_exp_gained'] ?? 0);
             $levelUps = array_merge($levelUps, $run['level_up_details'] ?? []);
             $equipment = array_merge($equipment, $run['equipment_drops'] ?? []);
+            if (is_array($run['map_drop'] ?? null)) {
+                $mapDrops[] = $run['map_drop'];
+            }
 
             foreach ($run['material_drop'] ?? [] as $drop) {
                 $key = (string) ($drop['material_id'] ?? $drop['material_code'] ?? $drop['name'] ?? count($materials));
@@ -356,6 +361,8 @@ class MapExplorationBatchService
                 'index' => $index,
                 'enemy_name' => $enemyName,
                 'result' => (string) ($run['result'] ?? 'unknown'),
+                'turn_count' => (int) ($run['turn_count'] ?? 0),
+                'job_art_usage' => (array) ($run['job_art_usage'] ?? []),
                 'exp' => (int) ($run['exp_gained'] ?? 0),
                 'gold' => (int) ($run['gold_gained'] ?? 0),
                 'job_exp' => (int) ($run['job_exp_gained'] ?? 0),
@@ -373,7 +380,7 @@ class MapExplorationBatchService
         $completed = count($runs);
         $lastOutcome = (string) ($lastResult['result'] ?? '');
         $stopReason ??= in_array($lastOutcome, ['victory', 'win'], true)
-            ? 'completed'
+            ? ($completed < (int) $batch->requested_count ? 'map_availability_exhausted' : 'completed')
             : ($lastOutcome === 'timeout' ? 'timeout' : 'defeat');
         $stoppedRun = $displayRuns[array_key_last($displayRuns)] ?? [];
         $stopText = match ($stopReason) {
@@ -388,6 +395,7 @@ class MapExplorationBatchService
                 (string) ($stoppedRun['enemy_name'] ?? '敵'),
             ),
             'stamina_empty' => '探索力が尽きたため、途中で探索を止めました。回復後にまた探索できます。',
+            'map_availability_exhausted' => '探索可能回数が尽きたため、途中で探索を止めました。',
             default => $completed < (int) $batch->requested_count
                 ? '探索可能回数が尽きたため、途中で探索を止めました。'
                 : '',
@@ -420,6 +428,7 @@ class MapExplorationBatchService
             'total_job_exp' => $totalJobExp,
             'total_kiseki' => 0,
             'defeat_loss' => in_array($stopReason, ['defeat', 'timeout'], true) ? $this->defeatLossSummary($lastResult) : null,
+            'map_drops' => $mapDrops,
             'runs' => $displayRuns,
         ];
 

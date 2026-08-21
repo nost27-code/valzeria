@@ -187,6 +187,8 @@ class SubAreaExplorationService
             $this->battleLogService->telemetryFor($character, $battleResult)
         );
 
+        app(GameplayMetricService::class)->recordJobArtBattle($character, 'sub_area', $battleResult);
+
         return [
             'success' => true,
             'result' => $battleResult->result,

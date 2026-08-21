@@ -71,6 +71,12 @@ class BattleState
     /** @var array<int, BattleActionResult> */
     private array $battleActionResults = [];
 
+    /** @var array<string, array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int}> */
+    private array $jobArtUsage = [];
+
+    /** @var array<string, string> actor/source action => usage key */
+    private array $pendingJobArtUsage = [];
+
     /** @var array<string, true> */
     private array $claimedSpPressureEvents = [];
 
@@ -463,6 +469,58 @@ class BattleState
     public function battleActionResults(): array
     {
         return array_values($this->battleActionResults);
+    }
+
+    public function recordJobArtActivation(BattleActor $actor, \App\Models\Skill $skill): void
+    {
+        $actorKey = $this->actorKey($actor);
+        $usageKey = $actorKey.':'.(int) $skill->id;
+        $this->jobArtUsage[$usageKey] ??= [
+            'skill_id' => (int) $skill->id,
+            'name' => (string) $skill->name,
+            'origin' => (string) ($actor->jobArtOrigins[(int) $skill->id] ?? 'current'),
+            'activation_count' => 0,
+            'hit_count' => 0,
+            'miss_count' => 0,
+            'evade_count' => 0,
+            'no_resolution_count' => 0,
+        ];
+        $this->jobArtUsage[$usageKey]['activation_count']++;
+
+        $sourceActionId = $this->currentSourceActionId ?? $this->sourceActionSequence;
+        $this->pendingJobArtUsage[$actorKey.':'.$sourceActionId] = $usageKey;
+    }
+
+    public function completeJobArtActivation(BattleActor $actor, ?HitResult $hitResult): void
+    {
+        $actorKey = $this->actorKey($actor);
+        $sourceActionId = $this->currentSourceActionId ?? $this->sourceActionSequence;
+        $pendingKey = $actorKey.':'.$sourceActionId;
+        $usageKey = $this->pendingJobArtUsage[$pendingKey] ?? null;
+        if ($usageKey === null || ! isset($this->jobArtUsage[$usageKey])) {
+            return;
+        }
+
+        $counter = match ($hitResult) {
+            HitResult::HIT => 'hit_count',
+            HitResult::MISS => 'miss_count',
+            HitResult::EVADE => 'evade_count',
+            null => 'no_resolution_count',
+        };
+        $this->jobArtUsage[$usageKey][$counter]++;
+        unset($this->pendingJobArtUsage[$pendingKey]);
+    }
+
+    /** @return list<array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int}> */
+    public function jobArtUsageFor(BattleActor $actor): array
+    {
+        $prefix = $this->actorKey($actor).':';
+
+        return array_values(array_filter(
+            $this->jobArtUsage,
+            static fn (array $row, string $key): bool => str_starts_with($key, $prefix),
+            ARRAY_FILTER_USE_BOTH,
+        ));
     }
 
     public function claimSpPressureEvent(

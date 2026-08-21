@@ -142,6 +142,7 @@
                     ['route' => 'admin.growth-analytics', 'label' => '運営分析', 'abbr' => 'G'],
                     ['route' => 'admin.operator-analytics', 'label' => '統計分析', 'abbr' => 'Y'],
                     ['route' => 'admin.job-art-analytics', 'label' => '戦技メタ分析', 'abbr' => 'JA'],
+                    ['route' => 'admin.gameplay-analytics', 'label' => '戦技・探索実績', 'abbr' => '実'],
                 ],
             ],
         ];

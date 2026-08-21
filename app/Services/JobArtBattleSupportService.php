@@ -348,6 +348,7 @@ class JobArtBattleSupportService
 
         $actor->mp -= $this->spCost($actor, $skill);
         $state->jobArtUseCounts[$stateKey] = (int) ($state->jobArtUseCounts[$stateKey] ?? 0) + 1;
+        $state->recordJobArtActivation($actor, $skill);
 
         if (! $this->jobArtV2FeatureGate->usesDynamicSingle($actor)
             && (int) $skill->cooldown_turns > 0
@@ -378,6 +379,8 @@ class JobArtBattleSupportService
         ?BattleActor $target = null,
     ): void
     {
+        $state->completeJobArtActivation($actor, $hitResult);
+
         if ($hitResult?->landed()) {
             $this->jobArtV2ResourceService->recordJobArtHit($actor, $state, $skill);
         }
