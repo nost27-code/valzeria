@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-22-owned-map-sort-filter',
+        'date' => '2026-08-22',
+        'category' => 'added',
+        'title' => '手元の探索地図に整理機能を追加',
+        'detail' => '地図院の手元一覧で、状態・等級による絞り込みと、入手日時・等級・状態による並べ替えができるようになりました。現在の表示件数と条件解除も同じ画面で確認できます。',
+    ],
+    [
         'id' => '2026-08-22-job-art-base-activation-rates',
         'date' => '2026-08-22',
         'category' => 'balance',

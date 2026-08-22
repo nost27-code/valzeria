@@ -204,6 +204,71 @@ class ExplorationMapLifecycleTest extends TestCase
         $this->assertSame('uninvestigated', $uninvestigated->fresh()->status);
     }
 
+    public function test_owned_maps_can_be_filtered_by_status_and_grade_and_sorted(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $normal = $this->generateMap($character, $area, $enemy, 51);
+        $hero = $this->generateMap($character, $area, $enemy, 52);
+        $legend = $this->generateMap($character, $area, $enemy, 53);
+
+        $normal->update(['name' => '通常の整理試験地図', 'map_grade' => 'normal', 'created_at' => now()->subDays(3)]);
+        $hero->update(['name' => '英雄の整理試験地図', 'map_grade' => 'hero', 'created_at' => now()->subDays(2)]);
+        $legend->update(['name' => '伝説の整理試験地図', 'map_grade' => 'legend', 'created_at' => now()->subDay()]);
+        app(MapSurveyService::class)->start($character, $normal->fresh(), $city);
+        app(MapSurveyService::class)->start($character, $hero->fresh(), $city);
+        app(MapSurveyService::class)->start($character, $legend->fresh(), $city);
+
+        $this->ownedMapIndexResponse($character, ['status' => 'surveyed', 'grade' => 'hero'])
+            ->assertOk()
+            ->assertSee('表示 1 / 3件')
+            ->assertSee('英雄の整理試験地図')
+            ->assertDontSee('通常の整理試験地図')
+            ->assertDontSee('伝説の整理試験地図');
+
+        $this->ownedMapIndexResponse($character, ['sort' => 'grade_desc'])
+            ->assertOk()
+            ->assertSeeInOrder(['伝説の整理試験地図', '英雄の整理試験地図', '通常の整理試験地図']);
+
+        $this->ownedMapIndexResponse($character, ['sort' => 'oldest'])
+            ->assertOk()
+            ->assertSeeInOrder(['通常の整理試験地図', '英雄の整理試験地図', '伝説の整理試験地図']);
+    }
+
+    public function test_owned_map_status_filter_distinguishes_open_and_closed_publications(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $openMap = $this->generateMap($character, $area, $enemy, 54);
+        $closedMap = $this->generateMap($character, $area, $enemy, 55);
+        $openMap->update(['name' => '公開中の整理試験地図']);
+        $closedMap->update(['name' => '終了した整理試験地図']);
+
+        app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $openMap->fresh(), $city),
+            0,
+        );
+        $closedRegistration = app(MapPublicationService::class)->publish(
+            $character,
+            app(MapSurveyService::class)->start($character, $closedMap->fresh(), $city),
+            0,
+        );
+        $closedRegistration->update(['expires_at' => now()->subMinute()]);
+
+        $this->ownedMapIndexResponse($character, ['status' => 'published'])
+            ->assertOk()
+            ->assertSee('公開中の整理試験地図')
+            ->assertDontSee('終了した整理試験地図');
+
+        $this->ownedMapIndexResponse($character, ['status' => 'closed'])
+            ->assertOk()
+            ->assertSee('終了した整理試験地図')
+            ->assertDontSee('公開中の整理試験地図');
+
+        $this->ownedMapIndexResponse($character, ['sort' => 'status_asc'])
+            ->assertOk()
+            ->assertSeeInOrder(['公開中の整理試験地図', '終了した整理試験地図']);
+    }
+
     public function test_surveyed_map_is_shown_as_waiting_for_publication(): void
     {
         [$character, $city, $area, $enemy] = $this->mapContext();
@@ -445,6 +510,14 @@ class ExplorationMapLifecycleTest extends TestCase
     private function generateMap(Character $character, Area $area, Enemy $enemy, int $sequence): ExplorationMap
     {
         return app(ExplorationMapGenerator::class)->generate($character, $area, $enemy, sprintf('00000000-0000-4000-8000-%012d', $sequence));
+    }
+
+    private function ownedMapIndexResponse(Character $character, array $query = []): \Illuminate\Testing\TestResponse
+    {
+        return $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('exploration-maps.index', $query));
     }
 
     private function grantStarterValmon(Character $character): void

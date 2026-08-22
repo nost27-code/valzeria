@@ -17,12 +17,13 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ExplorationMapController extends Controller
 {
     private function character() { return Auth::user()?->currentCharacter() ?? abort(404); }
-    public function index()
+    public function index(Request $request)
     {
         $character = $this->character();
         $ownedMaps = ExplorationMap::with('registration.town')
@@ -36,6 +37,47 @@ class ExplorationMapController extends Controller
                 return $registration === null || $registration->isOpen() || $registration->isRecentlyClosed() || in_array($map->status, ['uninvestigated', 'surveying', 'surveyed'], true);
             })
             ->values();
+        $ownedMapCount = $ownedMaps->count();
+        $statusFilterOptions = [
+            'all' => 'すべての状態',
+            'uninvestigated' => '未調査',
+            'surveying' => '調査中',
+            'surveyed' => '調査完了・公開待ち',
+            'published' => '公開中',
+            'closed' => '終了・取り下げ済み',
+        ];
+        $gradeFilterOptions = [
+            'all' => 'すべての等級',
+            'normal' => '通常',
+            'rare' => '希少',
+            'hero' => '英雄',
+            'legend' => '伝説',
+        ];
+        $sortOptions = [
+            'recent' => '入手が新しい順',
+            'oldest' => '入手が古い順',
+            'grade_desc' => '等級が高い順',
+            'grade_asc' => '等級が低い順',
+            'status_asc' => '状態順（未調査から）',
+        ];
+        $statusFilter = $request->string('status')->toString();
+        $statusFilter = array_key_exists($statusFilter, $statusFilterOptions) ? $statusFilter : 'all';
+        $gradeFilter = $request->string('grade')->toString();
+        $gradeFilter = array_key_exists($gradeFilter, $gradeFilterOptions) ? $gradeFilter : 'all';
+        $sort = $request->string('sort')->toString();
+        $sort = array_key_exists($sort, $sortOptions) ? $sort : 'recent';
+
+        if ($statusFilter !== 'all') {
+            $ownedMaps = $ownedMaps->filter(function (ExplorationMap $map) use ($statusFilter): bool {
+                return $this->ownedMapStatus($map) === $statusFilter;
+            })->values();
+        }
+        if ($gradeFilter !== 'all') {
+            $ownedMaps = $ownedMaps
+                ->where('map_grade', $gradeFilter)
+                ->values();
+        }
+        $ownedMaps = $this->sortOwnedMaps($ownedMaps, $sort);
         $towns = City::whereBetween('id', [1, 10])->orderBy('id')->get();
         $surveyCosts = app(MapSurveyService::class)->costs();
         $publicationService = app(MapPublicationService::class);
@@ -54,6 +96,14 @@ class ExplorationMapController extends Controller
         return view('exploration-maps.index', [
             'character' => $character,
             'ownedMaps' => $ownedMaps,
+            'ownedMapCount' => $ownedMapCount,
+            'ownedMapStatusFilter' => $statusFilter,
+            'ownedMapGradeFilter' => $gradeFilter,
+            'ownedMapSort' => $sort,
+            'ownedMapStatusFilterOptions' => $statusFilterOptions,
+            'ownedMapGradeFilterOptions' => $gradeFilterOptions,
+            'ownedMapSortOptions' => $sortOptions,
+            'ownedMapFiltersActive' => $statusFilter !== 'all' || $gradeFilter !== 'all' || $sort !== 'recent',
             'towns' => $towns,
             'surveyCosts' => $surveyCosts,
             'activePublicationCount' => $publicationService->activePublicationCount($character),
@@ -61,6 +111,47 @@ class ExplorationMapController extends Controller
             'mapDetails' => $mapDetails,
             'bankSummary' => app(\App\Services\BankService::class)->summary($character),
         ]);
+    }
+
+    private function sortOwnedMaps(Collection $ownedMaps, string $sort): Collection
+    {
+        $gradeOrder = ['normal' => 0, 'rare' => 1, 'hero' => 2, 'legend' => 3];
+        $statusOrder = ['uninvestigated' => 0, 'surveying' => 1, 'surveyed' => 2, 'published' => 3, 'closed' => 4];
+
+        return $ownedMaps->sort(function (ExplorationMap $left, ExplorationMap $right) use ($sort, $gradeOrder, $statusOrder): int {
+            $leftCreatedAt = $left->created_at?->getTimestamp() ?? 0;
+            $rightCreatedAt = $right->created_at?->getTimestamp() ?? 0;
+            $comparison = match ($sort) {
+                'oldest' => $leftCreatedAt <=> $rightCreatedAt,
+                'grade_desc' => ($gradeOrder[$right->map_grade] ?? -1) <=> ($gradeOrder[$left->map_grade] ?? -1),
+                'grade_asc' => ($gradeOrder[$left->map_grade] ?? PHP_INT_MAX) <=> ($gradeOrder[$right->map_grade] ?? PHP_INT_MAX),
+                'status_asc' => ($statusOrder[$this->ownedMapStatus($left)] ?? PHP_INT_MAX) <=> ($statusOrder[$this->ownedMapStatus($right)] ?? PHP_INT_MAX),
+                default => $rightCreatedAt <=> $leftCreatedAt,
+            };
+
+            if ($comparison !== 0) {
+                return $comparison;
+            }
+
+            return $sort === 'oldest'
+                ? (int) $left->id <=> (int) $right->id
+                : (int) $right->id <=> (int) $left->id;
+        })->values();
+    }
+
+    private function ownedMapStatus(ExplorationMap $map): string
+    {
+        $registration = $map->registration;
+        if ($registration?->isOpen()) {
+            return 'published';
+        }
+        if ($registration !== null
+            && ($registration->isPublished() || $registration->isWithdrawn())
+            && !$registration->isOpen()) {
+            return 'closed';
+        }
+
+        return (string) $map->status;
     }
     public function published()
     {

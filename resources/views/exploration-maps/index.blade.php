@@ -32,11 +32,48 @@
             }"
             @keydown.escape.window="confirmBulkDiscard = false"
         >
-            <div class="flex items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 class="font-black text-slate-900">手元の探索地図</h2>
-                <p class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-900">公開枠 {{ $activePublicationCount }} / {{ $activePublicationLimit }}件</p>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    <p class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">表示 {{ $ownedMaps->count() }} / {{ $ownedMapCount }}件</p>
+                    <p class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-900">公開枠 {{ $activePublicationCount }} / {{ $activePublicationLimit }}件</p>
+                </div>
             </div>
             <p class="mt-2 text-xs font-bold text-slate-600">公開中の地図は詳細画面から取り下げると、すぐに公開枠が空きます。</p>
+            <form method="GET" action="{{ route('exploration-maps.index') }}" class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <label class="block text-xs font-black text-slate-700">
+                        状態で絞り込む
+                        <select name="status" class="mt-1 w-full rounded border-slate-300 bg-white text-sm font-bold text-slate-800">
+                            @foreach($ownedMapStatusFilterOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($ownedMapStatusFilter === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="block text-xs font-black text-slate-700">
+                        等級で絞り込む
+                        <select name="grade" class="mt-1 w-full rounded border-slate-300 bg-white text-sm font-bold text-slate-800">
+                            @foreach($ownedMapGradeFilterOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($ownedMapGradeFilter === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="block text-xs font-black text-slate-700">
+                        並べ替え
+                        <select name="sort" class="mt-1 w-full rounded border-slate-300 bg-white text-sm font-bold text-slate-800">
+                            @foreach($ownedMapSortOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($ownedMapSort === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                </div>
+                <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button type="submit" class="w-full rounded bg-indigo-700 px-4 py-2 text-sm font-black text-white hover:bg-indigo-800 sm:w-auto">この条件で表示</button>
+                    @if($ownedMapFiltersActive)
+                        <a href="{{ route('exploration-maps.index') }}" class="w-full rounded border border-slate-300 bg-white px-4 py-2 text-center text-sm font-black text-slate-700 hover:bg-slate-100 sm:w-auto">条件をクリア</a>
+                    @endif
+                </div>
+            </form>
             @if($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed'])->isNotEmpty())
                 <div class="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <button type="button" @click="toggleAll()" class="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100">
@@ -125,7 +162,7 @@
                         @endif
                     </div>
                 @empty
-                    <p class="py-4 text-sm font-bold text-slate-500">まだ未調査の地図はない。通常探索や討伐で見つけよう。</p>
+                    <p class="py-4 text-sm font-bold text-slate-500">{{ $ownedMapCount > 0 ? '条件に合う探索地図はない。絞り込み条件を変えてみよう。' : 'まだ探索地図を持っていない。通常探索や討伐で見つけよう。' }}</p>
                 @endforelse
             </div>
 
