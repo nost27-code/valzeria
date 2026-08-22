@@ -37,7 +37,10 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
         $result = $this->executeJobArt($route, 'DAMAGE_BUFF', 'physical');
 
         $this->assertSame(1, $result['calculator']->calls, $route);
+        $this->assertSame(['physical'], $result['calculator']->attackTypes, $route);
         $this->assertSame(40, (int) ($result['action']['damage'] ?? 40), $route);
+        $this->assertStringContainsString('text-red-600', $result['log'], $route);
+        $this->assertStringNotContainsString('text-purple-600', $result['log'], $route);
         $this->assertStringContainsString('40</span> のダメージ！', $result['log'], $route);
         $this->assertGreaterThan(100, $result['attacker']->str, $route);
 
@@ -52,6 +55,18 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
         if ($route !== 'champ') {
             $this->assertSame(960, $result['defender']->hp, $route);
         }
+    }
+
+    #[DataProvider('competitiveRoutes')]
+    public function test_magical_job_art_uses_magical_damage_color_in_every_competitive_route(string $route): void
+    {
+        $result = $this->executeJobArt($route, 'MAGICAL_DAMAGE', 'magical');
+
+        $this->assertSame(1, $result['calculator']->calls, $route);
+        $this->assertSame(['magical'], $result['calculator']->attackTypes, $route);
+        $this->assertStringContainsString('text-purple-600', $result['log'], $route);
+        $this->assertStringNotContainsString('text-red-600', $result['log'], $route);
+        $this->assertStringContainsString('40</span> のダメージ！', $result['log'], $route);
     }
 
     /** @return array<string, array{string}> */
@@ -83,6 +98,9 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
 
             public int $rankCalls = 0;
 
+            /** @var list<string> */
+            public array $attackTypes = [];
+
             public function calculateDuelDamage(
                 BattleActor $attacker,
                 BattleActor $defender,
@@ -96,6 +114,7 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
             ): int {
                 $this->calls++;
                 $this->duelCalls++;
+                $this->attackTypes[] = $attackType;
 
                 return 40;
             }
@@ -117,6 +136,7 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
             ): int {
                 $this->calls++;
                 $this->rankCalls++;
+                $this->attackTypes[] = $attackType;
 
                 return 40;
             }

@@ -194,6 +194,47 @@ class JobArtV2SelectionServiceTest extends TestCase
         $this->assertTrue($withCurrentFinisher->rankNinePrioritized);
     }
 
+    public function test_prioritized_ultimate_miss_is_logged_and_remains_prioritized_on_the_next_action(): void
+    {
+        config([
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.normalized_sp' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+        ]);
+
+        $front = $this->art(501, 100, learnRank: 5);
+        $front->job_id = 11;
+        $ultimate = $this->art(509, 100, learnRank: 9);
+        $ultimate->job_id = 11;
+        $ultimate->name = '聖壁<アルカディア>';
+        [$actor, $state] = $this->battle([$front, $ultimate]);
+        $actor->currentJobId = 11;
+        $actor->configureResource('sword_momentum', 12);
+        $actor->setResource('sword_momentum', 12);
+
+        $service = $this->service($this->random([100, 100]), $this->finisherProvider(true));
+        $first = $service->selectForTurn($actor, $state);
+        $second = $service->selectForTurn($actor, $state);
+
+        foreach ([$first, $second] as $result) {
+            $this->assertNull($result->skill);
+            $this->assertSame(509, $result->candidateSkillId);
+            $this->assertSame(60, $result->activationRate);
+            $this->assertTrue($result->rankNinePrioritized);
+            $this->assertFalse($result->retriedAfterMiss);
+        }
+        $matchingLogs = array_values(array_filter(
+            $state->logs,
+            static fn (string $log): bool => str_contains($log, '聖壁&lt;アルカディア&gt;')
+                && str_contains($log, '発動率60%')
+                && str_contains($log, '発動条件を満たしている間は、次の行動でもこの奥義が優先される'),
+        ));
+        $this->assertCount(2, $matchingLogs);
+        $this->assertStringNotContainsString('聖壁<アルカディア>', implode("\n", $state->logs));
+    }
+
     public function test_pr5_uses_rank_activation_rates_for_every_completed_job(): void
     {
         config([

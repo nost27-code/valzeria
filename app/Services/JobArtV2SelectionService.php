@@ -87,6 +87,13 @@ class JobArtV2SelectionService
             $activated = $this->random->percentRoll() <= $activationRate;
             $this->progressionService->finishActivationAttempt($actor, $skill);
             $this->advanceCDesignCursor($actor, $skill);
+            if (! $activated && $rankNinePrioritized && (int) $skill->learn_rank === 9) {
+                $state->addLog(
+                    '<span class="text-amber-700 font-bold">'
+                    .e($actor->name).' の《'.e($skill->name).'》は発動しなかった！（発動率'.$activationRate.'%）'
+                    .'発動条件を満たしている間は、次の行動でもこの奥義が優先される。</span>',
+                );
+            }
 
             return new JobArtV2SelectionResult(
                 skill: $activated ? $skill : null,

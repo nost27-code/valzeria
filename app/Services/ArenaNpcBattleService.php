@@ -357,6 +357,7 @@ class ArenaNpcBattleService
         $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
             ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
             : (string) $skill->damage_type;
+        $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($addOpeningLog) {
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
         }
@@ -472,7 +473,7 @@ class ArenaNpcBattleService
                 );
                 $damage = $damageResult?->requestedDamage ?? $damage;
                 $totalDamage += $damage;
-                $state->addDamageLog("{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！");
+                $state->addDamageLog("{$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！");
                 $this->logGutsIfTriggered($defender, $state);
             }
 

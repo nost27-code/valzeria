@@ -760,7 +760,13 @@ class ChampBattleService
             return $result;
         }
 
-        return $this->normalAttackWithResource($attacker, $defender, $jobArtState);
+        $preActionLogs = $jobArtState->pullLogs();
+        $result = $this->normalAttackWithResource($attacker, $defender, $jobArtState);
+        if ($preActionLogs !== []) {
+            $result['log'] = implode('<br>', $preActionLogs).'<br>'.$result['log'];
+        }
+
+        return $result;
     }
 
     private function normalAttackWithResource(
@@ -797,6 +803,7 @@ class ChampBattleService
         $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
             ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
             : (string) $skill->damage_type;
+        $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($this->jobArtBattleSupport->isFieldOnlyArt($attacker, $state, $skill)) {
             return [
                 'hit' => false,
@@ -895,7 +902,7 @@ class ChampBattleService
                     $damage = $this->jobArtBattleSupport->modifyJobArtDamage($attacker, $state, $skill, $damage);
                 }
                 $totalDamage += $damage;
-                $logs[] = "{$defender->name} に <span class=\"text-red-600 font-extrabold text-lg\">{$damage}</span> のダメージ！";
+                $logs[] = "{$defender->name} に <span class=\"{$damageClass} font-extrabold text-lg\">{$damage}</span> のダメージ！";
             }
         }
 
