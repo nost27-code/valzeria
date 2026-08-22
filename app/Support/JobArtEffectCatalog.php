@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Skill;
+
 class JobArtEffectCatalog
 {
     private const DRAIN_DAMAGE_TYPES = ['physical', 'magical'];
@@ -70,6 +72,30 @@ class JobArtEffectCatalog
         return in_array($template, self::NORMAL_ATTACK_DAMAGE_TYPE_TEMPLATES, true);
     }
 
+    public static function resolveDamageType(Skill $skill, bool $normalAttackIsMagical): string
+    {
+        $configuredDamageType = (string) $skill->damage_type;
+        if (! $skill->isJobArt()) {
+            return $configuredDamageType;
+        }
+
+        $template = (string) $skill->effect_template;
+        if ($template === 'DRAIN') {
+            return self::drainDamageType($configuredDamageType);
+        }
+
+        // skillForExecution()で明示されたv2経路を、通常攻撃タイプ連動で上書きしない。
+        if (self::hasExplicitV2DamageRoute($skill)) {
+            return $configuredDamageType;
+        }
+
+        if (self::usesNormalAttackDamageType($template)) {
+            return $normalAttackIsMagical ? 'magical' : 'physical';
+        }
+
+        return $configuredDamageType;
+    }
+
     public static function isDrainDamageType(string $damageType): bool
     {
         return in_array(strtolower(trim($damageType)), self::DRAIN_DAMAGE_TYPES, true);
@@ -106,5 +132,16 @@ class JobArtEffectCatalog
     public static function label(string $template): ?string
     {
         return self::DEFINITIONS[$template]['label'] ?? null;
+    }
+
+    private static function hasExplicitV2DamageRoute(Skill $skill): bool
+    {
+        foreach (['job_art_v2_attack_stat', 'job_art_v2_defense_stat'] as $attribute) {
+            if (trim((string) $skill->getAttribute($attribute)) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

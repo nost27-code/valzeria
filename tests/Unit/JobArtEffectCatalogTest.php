@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Skill;
 use App\Support\JobArtEffectCatalog;
 use App\Support\JobArtMasterValidator;
 use PHPUnit\Framework\TestCase;
@@ -44,6 +45,28 @@ class JobArtEffectCatalogTest extends TestCase
         $this->assertSame('magical', JobArtEffectCatalog::drainDamageType('invalid'));
     }
 
+    public function test_shared_damage_type_resolver_preserves_precedence(): void
+    {
+        $normalLinked = new Skill([
+            'skill_type' => 'job_art',
+            'effect_template' => 'DAMAGE_BUFF',
+            'damage_type' => 'physical',
+        ]);
+        $this->assertSame('magical', JobArtEffectCatalog::resolveDamageType($normalLinked, true));
+
+        $explicit = clone $normalLinked;
+        $explicit->damage_type = 'magical';
+        $explicit->setAttribute('job_art_v2_attack_stat', 'mag');
+        $this->assertSame('magical', JobArtEffectCatalog::resolveDamageType($explicit, false));
+
+        $drain = new Skill([
+            'skill_type' => 'job_art',
+            'effect_template' => 'DRAIN',
+            'damage_type' => 'physical',
+        ]);
+        $this->assertSame('physical', JobArtEffectCatalog::resolveDamageType($drain, true));
+    }
+
     public function test_validator_rejects_an_invalid_explicit_drain_damage_type(): void
     {
         $problems = JobArtMasterValidator::validateRows([
@@ -70,7 +93,7 @@ class JobArtEffectCatalogTest extends TestCase
 
         foreach (['PvPBattleService.php', 'ChampBattleService.php', 'ArenaNpcBattleService.php'] as $file) {
             $source = (string) file_get_contents(__DIR__ . '/../../app/Services/' . $file);
-            $this->assertStringContainsString('JobArtEffectCatalog::drainDamageType', $source, $file);
+            $this->assertStringContainsString('JobArtEffectCatalog::resolveDamageType', $source, $file);
         }
     }
 

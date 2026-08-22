@@ -983,33 +983,7 @@ class PvPBattleService
 
     protected function resolveSkillDamageType(BattleActor $attacker, Skill $skill): string
     {
-        $template = (string) $skill->effect_template;
-        if ($skill->isJobArt() && $template === 'DRAIN') {
-            return JobArtEffectCatalog::drainDamageType($skill->damage_type);
-        }
-
-        // v2の明示経路はskillForExecution()で先に実行用Skillへ反映される。
-        // 明示された能力参照をlegacyの通常攻撃タイプ連動で上書きしない。
-        if ($skill->isJobArt() && $this->hasExplicitV2DamageRoute($skill)) {
-            return (string) $skill->damage_type;
-        }
-
-        if ($skill->isJobArt() && JobArtEffectCatalog::usesNormalAttackDamageType($template)) {
-            return $attacker->usesMagForNormalAttack() ? 'magical' : 'physical';
-        }
-
-        return (string) $skill->damage_type;
-    }
-
-    private function hasExplicitV2DamageRoute(Skill $skill): bool
-    {
-        foreach (['job_art_v2_attack_stat', 'job_art_v2_defense_stat'] as $attribute) {
-            if (trim((string) $skill->getAttribute($attribute)) !== '') {
-                return true;
-            }
-        }
-
-        return false;
+        return JobArtEffectCatalog::resolveDamageType($skill, $attacker->usesMagForNormalAttack());
     }
 
     private function applyJobArtTemplateEffects(

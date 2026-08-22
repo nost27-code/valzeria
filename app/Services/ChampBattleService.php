@@ -800,9 +800,7 @@ class ChampBattleService
     ): array
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
-        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
-            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
-            : (string) $skill->damage_type;
+        $damageType = JobArtEffectCatalog::resolveDamageType($skill, $attacker->usesMagForNormalAttack());
         $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($this->jobArtBattleSupport->isFieldOnlyArt($attacker, $state, $skill)) {
             return [
@@ -937,7 +935,16 @@ class ChampBattleService
         }
 
         if ($skill->isJobArt()) {
-            $this->applyJobArtTemplateEffects($attacker, $defender, $state, $skill, $totalDamage, $logs, $applyTargetEffects);
+            $this->applyJobArtTemplateEffects(
+                $attacker,
+                $defender,
+                $state,
+                $skill,
+                $totalDamage,
+                $logs,
+                $applyTargetEffects,
+                $damageType,
+            );
         }
 
         if ($applyTargetEffects) {
@@ -976,6 +983,7 @@ class ChampBattleService
         int $totalDamage,
         array &$logs,
         bool $applyTargetEffects = true,
+        string $damageType = '',
     ): void {
         $template = (string) $skill->effect_template;
         $power = max(1, (int) ($skill->power ?: 100));
@@ -1008,7 +1016,12 @@ class ChampBattleService
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
-            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $state, $skill);
+            $shared = $this->jobArtBattleSupport->applySharedSelfBuff(
+                $attacker,
+                $state,
+                $skill,
+                $template === 'DAMAGE_BUFF' ? $damageType : null,
+            );
             if ($shared !== null) {
                 if (! $shared['exact_log_written']) {
                     $logs[] = $this->statChangeLog(
@@ -1023,11 +1036,31 @@ class ChampBattleService
                     );
                 }
             } else {
-                $beforeStr = $attacker->str;
-                $beforeMag = $attacker->mag;
-                $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
-                $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-                $logs[] = $this->statChangeLog($attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+                $isMagicalDamageBuff = $template === 'MAGICAL_DAMAGE_BUFF'
+                    || ($template === 'DAMAGE_BUFF' && match ($damageType) {
+                        'magical' => true,
+                        'physical' => false,
+                        default => $attacker->usesMagForNormalAttack(),
+                    });
+                if ($isMagicalDamageBuff) {
+                    $beforeMag = $attacker->mag;
+                    $beforeSpr = $attacker->spr;
+                    $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                    $attacker->spr = min((int) floor($attacker->baseSpr * 1.5), $attacker->spr + max(1, (int) floor($attacker->baseSpr * 0.05)));
+                    $logs[] = $this->statChangeLog($attacker->name, 'MAG', $beforeMag, $attacker->mag, 'SPR', $beforeSpr, $attacker->spr, true);
+                } elseif ($template === 'DAMAGE_BUFF') {
+                    $beforeStr = $attacker->str;
+                    $beforeDef = $attacker->def;
+                    $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                    $attacker->def = min((int) floor($attacker->baseDef * 1.5), $attacker->def + max(1, (int) floor($attacker->baseDef * 0.05)));
+                    $logs[] = $this->statChangeLog($attacker->name, 'ATK', $beforeStr, $attacker->str, 'DEF', $beforeDef, $attacker->def, true);
+                } else {
+                    $beforeStr = $attacker->str;
+                    $beforeMag = $attacker->mag;
+                    $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                    $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                    $logs[] = $this->statChangeLog($attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+                }
             }
         }
 

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-competitive-job-art-damage-type-fix',
+        'date' => '2026-08-23',
+        'category' => 'fixed',
+        'title' => '対戦時の戦技ダメージ種類を統一',
+        'detail' => '聖剣烈破など通常攻撃と同じ種類で攻撃する戦技が、プレイヤー対戦・チャンプ戦・NPC闘技場でも職業に応じて攻撃または魔力を正しく参照し、発動後の能力強化も同じ種類に揃うよう修正しました。',
+    ],
+    [
         'id' => '2026-08-22-job-art-damage-color-and-ultimate-miss-log',
         'date' => '2026-08-22',
         'category' => 'fixed',

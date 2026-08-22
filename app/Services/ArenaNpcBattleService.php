@@ -354,9 +354,7 @@ class ArenaNpcBattleService
         ?HitResult $jobArtHitResult = null,
     ): void {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
-        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
-            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
-            : (string) $skill->damage_type;
+        $damageType = JobArtEffectCatalog::resolveDamageType($skill, $attacker->usesMagForNormalAttack());
         $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($addOpeningLog) {
             $state->addLog("<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>");
@@ -365,9 +363,6 @@ class ArenaNpcBattleService
             return;
         }
 
-        $damageType = $skill->isJobArt() && (string) $skill->effect_template === 'DRAIN'
-            ? JobArtEffectCatalog::drainDamageType($skill->damage_type)
-            : (string) $skill->damage_type;
         $applyTargetEffects = $jobArtHitResult === null || $jobArtHitResult->landed();
         $hitCount = max(1, (int) $skill->hit_count);
         if ((int) $skill->hit_count === 0 && in_array($damageType, ['heal', 'support'], true)) {
@@ -483,7 +478,15 @@ class ArenaNpcBattleService
         }
 
         if ($skill->isJobArt()) {
-            $this->applyJobArtTemplateEffects($attacker, $defender, $state, $skill, $totalDamage, $applyTargetEffects);
+            $this->applyJobArtTemplateEffects(
+                $attacker,
+                $defender,
+                $state,
+                $skill,
+                $totalDamage,
+                $applyTargetEffects,
+                $damageType,
+            );
         }
 
         if ((int) $skill->heal_percent > 0) {
@@ -537,6 +540,7 @@ class ArenaNpcBattleService
         Skill $skill,
         int $totalDamage,
         bool $applyTargetEffects = true,
+        string $damageType = '',
     ): void {
         $template = (string) $skill->effect_template;
         $power = max(1, (int) ($skill->power ?: 100));
@@ -569,7 +573,12 @@ class ArenaNpcBattleService
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
-            $shared = $this->jobArtBattleSupport->applySharedSelfBuff($attacker, $state, $skill);
+            $shared = $this->jobArtBattleSupport->applySharedSelfBuff(
+                $attacker,
+                $state,
+                $skill,
+                $template === 'DAMAGE_BUFF' ? $damageType : null,
+            );
             if ($shared !== null) {
                 if (! $shared['exact_log_written']) {
                     $this->logStatChange(
@@ -585,11 +594,31 @@ class ArenaNpcBattleService
                     );
                 }
             } else {
-                $beforeStr = $attacker->str;
-                $beforeMag = $attacker->mag;
-                $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
-                $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
-                $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+                $isMagicalDamageBuff = $template === 'MAGICAL_DAMAGE_BUFF'
+                    || ($template === 'DAMAGE_BUFF' && match ($damageType) {
+                        'magical' => true,
+                        'physical' => false,
+                        default => $attacker->usesMagForNormalAttack(),
+                    });
+                if ($isMagicalDamageBuff) {
+                    $beforeMag = $attacker->mag;
+                    $beforeSpr = $attacker->spr;
+                    $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                    $attacker->spr = min((int) floor($attacker->baseSpr * 1.5), $attacker->spr + max(1, (int) floor($attacker->baseSpr * 0.05)));
+                    $this->logStatChange($state, $attacker->name, 'MAG', $beforeMag, $attacker->mag, 'SPR', $beforeSpr, $attacker->spr, true);
+                } elseif ($template === 'DAMAGE_BUFF') {
+                    $beforeStr = $attacker->str;
+                    $beforeDef = $attacker->def;
+                    $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                    $attacker->def = min((int) floor($attacker->baseDef * 1.5), $attacker->def + max(1, (int) floor($attacker->baseDef * 0.05)));
+                    $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'DEF', $beforeDef, $attacker->def, true);
+                } else {
+                    $beforeStr = $attacker->str;
+                    $beforeMag = $attacker->mag;
+                    $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + max(1, (int) floor($attacker->baseStr * 0.10)));
+                    $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + max(1, (int) floor($attacker->baseMag * 0.10)));
+                    $this->logStatChange($state, $attacker->name, 'ATK', $beforeStr, $attacker->str, 'MAG', $beforeMag, $attacker->mag, true);
+                }
             }
         }
 

@@ -68,7 +68,7 @@ Branch: main
 - 期限付き能力強化の戦闘ログは、実際に選ばれた能力・上昇率・継続時間を日本語の能力名で表示する。正本自己強化に加え、役割効果の総力戦・商聖の助言と進行補正の白銀王盾も同じ表示規則を使う
 - portable指定された役割効果は同系譜/異系譜継承でも使用できるが、現在職のresource barは1本のままでforeign resourceを生成しない。source `power` / `hit_count` の値、Cost、35・38・50%発動、normalized SPは変更しない。Job Artの`power`は1行動全体の総量で、`hit_count > 1`は`JobArtHitPower`が整数余りを前方Hitへ配り、全Hit入力の合計を総powerと一致させる。通常PvE/bossとそれを継承するtower、PvP/champ/NPC arenaで同じ分割を使う
 - 反撃は納刀=短期tempo（ATK+5%/2R）、闘争本能=長期強化（ATK+25%・DEF+20%/5R）、剣気集中=決着準備（反撃Rank5/9を各×1.20、2回、最大6回の自分の行動機会）へ分離した。血潮の咆哮は非致死maxHP3%を払いATK+30%・MAG+25%/5R。秘薬調合はHP/SP中回復と有害状態の優先1件浄化、王者の秘薬は残存割合が低いHP/SP側の今回回復量を×1.50（同率HP、浄化なし）とする。照準は高命中・既存会心補正・乱数なしの物理/魔法期待値選択、場術は星光/旋律生成と場延長、貫通はstrict/flexible準備、変成/守護は長期buff・能力選択・回復/加護・Gold/Drop/鑑定/浄化/収奪へ分離した
-- `MULTI_HIT` / `DAMAGE_BUFF` / `DAMAGE_DEBUFF` / `DAMAGE_GUARD_BARRIER`は通常攻撃と同じdamage種別を使う。プレイヤーPvPでも`usesMagForNormalAttack()`へ統一し、v2が実行用Skillへ明示したdamage routeはlegacyの通常攻撃連動より優先する。対象テンプレート判定は`JobArtEffectCatalog`を正本とし、管理プレビューと職業案内も同じ優先順位を使う
+- `MULTI_HIT` / `DAMAGE_BUFF` / `DAMAGE_DEBUFF` / `DAMAGE_GUARD_BARRIER`は通常攻撃と同じdamage種別を使う。プレイヤーPvP・champ・NPC arenaは`JobArtEffectCatalog::resolveDamageType()`を共通正本として`usesMagForNormalAttack()`へ統一し、v2が実行用Skillへ明示したdamage routeはlegacyの通常攻撃連動より優先する。`DAMAGE_BUFF`の後続強化にも同じ解決結果を渡す。管理プレビューと職業案内も同じ優先順位を使う
 
 ## PR27 job-art v2 release candidate (historical boundary)
 

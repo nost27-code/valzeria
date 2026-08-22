@@ -16,6 +16,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 - Fixed SP: `app/Services/JobArtV2SpCostCalculator.php`
 - Lineage resources and duplicate suppression: `app/Services/Battle/BattleState.php`, `app/Services/JobArtV2ResourceCatalog.php`, `app/Services/JobArtV2ResourceService.php`, `app/Services/JobArtV2ProgressionService.php`
 - Runtime effects across the six battle paths: `app/Services/JobArtBattleSupportService.php`, `app/Services/BattleService.php`, `app/Services/TowerBattleService.php`, `app/Services/PvPBattleService.php`, `app/Services/ChampBattleService.php`, `app/Services/ArenaNpcBattleService.php`
+- Competitive damage type: `app/Support/JobArtEffectCatalog.php` resolves normal-attack-linked, DRAIN, HYBRID, and explicit v2 routes for `PvPBattleService`, `ChampBattleService`, and `ArenaNpcBattleService`
 - Flavor rewrite overlay: `app/Services/JobArtFlavorTextService.php`, `database/data/job_art_flavor_rewrites.json`, `app/Livewire/JobChange.php`, `app/Livewire/Admin/SkillEffectLab.php`. Exact `(job_id, learn_rank, name)` matches switch all 282 phrases/descriptions, while OFF and unmatched rows retain `skills` text
 - Loadout/presets UI: `app/Http/Controllers/JobArtController.php`, `app/Http/Controllers/JobArtPresetController.php`, `app/Services/JobArtPresetService.php`, `resources/views/job-arts/`
 - Beginner guide: `app/Services/JobArtV2LineageGuideCatalog.php`, `resources/views/job-arts/partials/system-guide.blade.php`, `tests/Unit/JobArtV2LineageGuideCatalogTest.php`, `tests/Unit/JobArtV2LoadoutViewTest.php`
