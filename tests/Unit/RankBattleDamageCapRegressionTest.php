@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * 武器のランク比例補正で攻撃が大きく伸びても、ランク戦の通常攻撃基準の
- * ダメージ上限（通常18%/会心22%）と表示威力の線形倍率を確認する回帰テスト。
+ * ダメージを最大HP割合で打ち止めにせず、表示威力を線形適用する回帰テスト。
  */
 class RankBattleDamageCapRegressionTest extends TestCase
 {
@@ -53,7 +53,7 @@ class RankBattleDamageCapRegressionTest extends TestCase
         ];
     }
 
-    public function test_rank_battle_skill_cap_scales_from_the_normal_attack_cap(): void
+    public function test_rank_battle_skill_scales_uncapped_normal_attack_damage(): void
     {
         $calculator = new DamageCalculator;
         $attacker = $this->actor(str: 50_000, luk: 10, maxHp: 100_000);
@@ -71,8 +71,8 @@ class RankBattleDamageCapRegressionTest extends TestCase
             isSkill: true,
         );
 
-        $this->assertSame(18_000, $normal);
-        $this->assertSame(57_600, $skill);
+        $this->assertGreaterThan(18_000, $normal);
+        $this->assertSame(intdiv($normal * 320, 100), $skill);
     }
 
     public function test_duel_skill_uses_the_displayed_power_from_the_same_normal_attack_base(): void
@@ -89,41 +89,54 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $this->assertSame(intdiv($normal * 320, 100), $skill);
     }
 
-    public function test_normal_attack_damage_stays_within_cap_even_with_extreme_atk(): void
+    public function test_normal_attack_damage_is_not_capped_at_eighteen_percent_of_target_hp(): void
     {
         $calculator = new DamageCalculator;
         $attacker = $this->actor(str: 50_000, luk: 10); // 武器比例補正で極端に伸びた想定
         $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
 
+        mt_srand(20_260_823);
         $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, false);
 
-        $this->assertLessThanOrEqual((int) floor(100_000 * 0.18), $damage);
+        $this->assertGreaterThan((int) floor(100_000 * 0.18), $damage);
     }
 
-    public function test_critical_normal_attack_damage_stays_within_critical_cap(): void
+    public function test_critical_normal_attack_damage_is_not_capped_at_twenty_two_percent_of_target_hp(): void
     {
         $calculator = new DamageCalculator;
         $attacker = $this->actor(str: 50_000, luk: 10);
         $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
 
+        mt_srand(20_260_824);
         $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, true);
 
-        $this->assertLessThanOrEqual((int) floor(100_000 * 0.22), $damage);
+        $this->assertGreaterThan((int) floor(100_000 * 0.22), $damage);
     }
 
-    public function test_skill_damage_total_scales_the_normal_cap_by_displayed_power_across_hits(): void
+    public function test_multi_hit_skill_scales_uncapped_normal_damage_by_total_displayed_power(): void
     {
         $calculator = new DamageCalculator;
         $attacker = $this->actor(str: 50_000, luk: 10);
         $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
 
         $hitCount = 3;
-        $total = 0;
-        foreach (JobArtHitPower::split(250, $hitCount) as $hitPower) {
-            $total += $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', $hitPower, false, 1.0, null, null, null, true, $hitCount);
+        $actualTotal = 0;
+        $expectedTotal = 0;
+        foreach (JobArtHitPower::split(250, $hitCount) as $index => $hitPower) {
+            $seed = 20_260_830 + $index;
+            mt_srand($seed);
+            $normalEquivalent = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, false);
+            mt_srand($seed);
+            $actual = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', $hitPower, false, 1.0, null, null, null, true, $hitCount);
+            $expected = intdiv($normalEquivalent * $hitPower, 100);
+
+            $this->assertSame($expected, $actual);
+            $actualTotal += $actual;
+            $expectedTotal += $expected;
         }
 
-        $this->assertSame((int) floor(100_000 * 0.18 * 2.5), $total);
+        $this->assertSame($expectedTotal, $actualTotal);
+        $this->assertGreaterThan((int) floor(100_000 * 0.18 * 2.5), $actualTotal);
     }
 
     public function test_normal_attack_damage_still_respects_floor_when_atk_is_small(): void

@@ -186,7 +186,7 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $this->assertLessThanOrEqual((int) ceil($actual * 0.41), $reduced);
     }
 
-    public function test_pvp_keeps_spr_and_scales_the_normal_floor_and_cap_by_displayed_power(): void
+    public function test_pvp_keeps_spr_floor_and_uncapped_damage_with_displayed_power(): void
     {
         $attacker = $this->actor(62, 10, 10, 1000, 10_000);
         $rankFive = $this->art(5);
@@ -213,11 +213,18 @@ class JobArtV2PenetrationServiceTest extends TestCase
 
         $lowHpTarget = $this->actor(null, 1, 1, 10, 1000);
         mt_srand(6202);
-        $normalCap = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 285, false, 1.0, null, null, null, true, 1);
+        $normalEquivalent = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 100, false);
         mt_srand(6202);
-        $penetratedCap = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 285, false, 1.0, null, 0, null, true, 1);
-        $this->assertSame(intdiv(180 * 285, 100), $normalCap);
-        $this->assertSame($normalCap, $penetratedCap);
+        $normalDamage = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 285, false, 1.0, null, null, null, true, 1);
+        mt_srand(6202);
+        $penetratedEquivalent = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 100, false, 1.0, null, 0);
+        mt_srand(6202);
+        $penetratedDamage = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 285, false, 1.0, null, 0, null, true, 1);
+
+        $this->assertSame(intdiv($normalEquivalent * 285, 100), $normalDamage);
+        $this->assertSame(intdiv($penetratedEquivalent * 285, 100), $penetratedDamage);
+        $this->assertGreaterThan(intdiv(180 * 285, 100), $normalDamage);
+        $this->assertGreaterThanOrEqual($normalDamage, $penetratedDamage);
     }
 
     public function test_numeric_characterization_preserves_the_frozen_damage_curve(): void

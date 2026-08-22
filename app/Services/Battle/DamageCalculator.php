@@ -17,8 +17,6 @@ class DamageCalculator
     private const RANK_BATTLE_MIN_HP_RATE = 0.045;
     private const RANK_BATTLE_MIN_ATTACK_RATE = 0.18;
     private const RANK_BATTLE_NORMAL_FLOOR_RATE = 0.04;
-    private const RANK_BATTLE_NORMAL_CAP_RATE = 0.18;
-    private const RANK_BATTLE_NORMAL_CRITICAL_CAP_RATE = 0.22;
     private const RANK_BATTLE_CRITICAL_MULTIPLIER = 1.18;
     private const RANK_BATTLE_VARIANCE_MIN = 96;
     private const RANK_BATTLE_VARIANCE_MAX = 104;
@@ -213,13 +211,6 @@ class DamageCalculator
             );
         }
 
-        if ($damageCapEnabled) {
-            $normalEquivalentDamage = min(
-                $normalEquivalentDamage,
-                $this->rankBattleDamageCap($defender, $isCritical),
-            );
-        }
-
         return $this->applyDisplayedPower($normalEquivalentDamage, $skillPower);
     }
 
@@ -315,7 +306,6 @@ class DamageCalculator
 
             $resolved = max(1, (int) floor($damage));
             $resolved = max($resolved, $this->rankBattleNormalDamageFloor($defender));
-            $resolved = min($resolved, $this->rankBattleDamageCap($defender, $isCritical));
 
             return $this->applyDisplayedPower($resolved, $skillPower);
         }
@@ -345,15 +335,6 @@ class DamageCalculator
             1,
             intdiv($normalEquivalentDamage * max(0, $skillPower), 100),
         );
-    }
-
-    private function rankBattleDamageCap(BattleActor $defender, bool $isCritical): int
-    {
-        $capRate = $isCritical
-            ? self::RANK_BATTLE_NORMAL_CRITICAL_CAP_RATE
-            : self::RANK_BATTLE_NORMAL_CAP_RATE;
-
-        return max(1, (int) floor($defender->maxHp * $capRate));
     }
 
     private function rankBattleNormalDamageFloor(BattleActor $defender): int
