@@ -83,6 +83,8 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
                 ?int $overrideSpr = null,
                 bool $isSkill = false,
                 int $hitCount = 1,
+                bool $minimumDamageGuaranteeEnabled = true,
+                bool $damageCapEnabled = true,
             ): int {
                 $this->calls++;
 

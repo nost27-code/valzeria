@@ -595,6 +595,7 @@ class MainScreen extends Component
             }
         }
         $rankingSpotlightLeader = $this->currentLocation === 'town'
+            && now()->lte(Carbon::parse('2026-07-14 23:59:59', config('app.timezone')))
             ? $this->rankingSpotlightLeader()
             : null;
         $mapInstitutePickup = $this->currentLocation === 'town' && !$isFerdiaSimpleBase

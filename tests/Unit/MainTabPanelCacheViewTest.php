@@ -19,6 +19,17 @@ class MainTabPanelCacheViewTest extends TestCase
         $this->assertStringNotContainsString('preloadCachedTab', $source);
         $this->assertStringContainsString("'main-tab-panel-'.\$location", $source);
         $this->assertStringContainsString('data-main-tab-utility', $source);
+        $this->assertStringContainsString("['placeholderLocation' => \$location]", $source);
+    }
+
+    public function test_main_tab_placeholder_offers_a_retry_instead_of_spinning_forever(): void
+    {
+        $source = file_get_contents(resource_path('views/livewire/main-screen-placeholder.blade.php'));
+
+        $this->assertIsString($source);
+        $this->assertStringContainsString('読み込みに時間がかかっています', $source);
+        $this->assertStringContainsString("\$dispatch('changeTab'", $source);
+        $this->assertStringContainsString('もう一度読み込む', $source);
     }
 
     public function test_heavy_main_screen_no_longer_listens_for_every_tab_change(): void

@@ -141,6 +141,8 @@ class PvPJobArtDamageTypeTest extends TestCase
                 ?int $overrideSpr = null,
                 bool $isSkill = false,
                 int $hitCount = 1,
+                bool $minimumDamageGuaranteeEnabled = true,
+                bool $damageCapEnabled = true,
             ): int {
                 $this->calls[] = [
                     'damage_type' => $attackType,

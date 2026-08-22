@@ -17,7 +17,7 @@
                     :key="'main-tab-panel-'.$location"
                 />
             @else
-                @include('livewire.main-screen-placeholder')
+                @include('livewire.main-screen-placeholder', ['placeholderLocation' => $location])
             @endif
         </section>
     @endforeach
@@ -33,7 +33,7 @@
                 :key="'main-tab-utility-'.$currentLocation"
             />
         @else
-            @include('livewire.main-screen-placeholder')
+            @include('livewire.main-screen-placeholder', ['placeholderLocation' => null])
         @endif
     </section>
 </div>

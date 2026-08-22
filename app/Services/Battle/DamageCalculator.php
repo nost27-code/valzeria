@@ -167,7 +167,9 @@ class DamageCalculator
         ?int $overrideDef = null,
         ?int $overrideSpr = null,
         bool $isSkill = false,
-        int $hitCount = 1
+        int $hitCount = 1,
+        bool $minimumDamageGuaranteeEnabled = true,
+        bool $damageCapEnabled = true,
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
         $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr());
@@ -182,11 +184,13 @@ class DamageCalculator
         $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
             - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
         $pressureDamage = max(0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE;
-        $minimumDamage = max(
-            1,
-            $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
-            $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE
-        );
+        $minimumDamage = $minimumDamageGuaranteeEnabled
+            ? max(
+                1,
+                $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
+                $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
+            )
+            : 1;
 
         $baseDamage = max($minimumDamage, $statDamage + $pressureDamage) * $powerMultiplier;
 
@@ -206,13 +210,17 @@ class DamageCalculator
         $variance = rand(self::RANK_BATTLE_VARIANCE_MIN, self::RANK_BATTLE_VARIANCE_MAX) / 100;
         $damage = max(1, (int) floor($baseDamage * $variance));
 
-        if ($isSkill) {
-            $damage = max($damage, $this->rankBattleSkillDamageFloor($defender, $hitCount));
-        } else {
-            $damage = max($damage, $this->rankBattleNormalDamageFloor($defender));
+        if ($minimumDamageGuaranteeEnabled) {
+            if ($isSkill) {
+                $damage = max($damage, $this->rankBattleSkillDamageFloor($defender, $hitCount));
+            } else {
+                $damage = max($damage, $this->rankBattleNormalDamageFloor($defender));
+            }
         }
 
-        return min($damage, $this->rankBattleDamageCap($defender, $isSkill, $isCritical, $hitCount));
+        return $damageCapEnabled
+            ? min($damage, $this->rankBattleDamageCap($defender, $isSkill, $isCritical, $hitCount))
+            : $damage;
     }
 
     /**

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-22-arena-town-display-recovery',
+        'date' => '2026-08-22',
+        'category' => 'fixed',
+        'title' => '闘技場と街タブの表示障害を修正',
+        'detail' => '闘技場のランク戦でエラーになる問題と、街タブが読み込み中のままになる問題を修正しました。読み込みが長引いた場合は、その場でもう一度読み込めます。',
+    ],
+    [
         'id' => '2026-08-22-exploration-stamina-header-help',
         'date' => '2026-08-22',
         'category' => 'added',

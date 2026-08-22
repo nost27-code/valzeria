@@ -60,6 +60,23 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $this->assertGreaterThanOrEqual((int) floor(100_000 * 0.04), $damage);
     }
 
+    public function test_rank_battle_accepts_room_rule_damage_options(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 1, luk: 10);
+        $defender = $this->actor(def: 10_000, luk: 10, maxHp: 100_000);
+
+        $damage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'physical',
+            minimumDamageGuaranteeEnabled: false,
+            damageCapEnabled: false,
+        );
+
+        $this->assertSame(1, $damage);
+    }
+
     private function actor(int $str = 10, int $def = 10, int $luk = 10, int $maxHp = 1000): BattleActor
     {
         return new BattleActor('テストアクター', true, [

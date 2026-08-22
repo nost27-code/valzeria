@@ -122,7 +122,6 @@ fi
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:validate-master-data --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:validate-release-readiness --all --no-interaction
 
-"$DEPLOY_PHP_BINARY" "$release_dir/artisan" cache:clear --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" config:cache --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" event:cache --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" view:cache --no-interaction
