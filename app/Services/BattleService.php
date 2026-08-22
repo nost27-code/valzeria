@@ -175,6 +175,7 @@ class BattleService
         $rewardsEnabled = (bool) ($options['rewards_enabled'] ?? true);
         $explorationSupportEnabled = (bool) ($options['exploration_support_enabled'] ?? true);
         $autoUnequipInvalidItems = (bool) ($options['auto_unequip_invalid_items'] ?? true);
+        $timeoutDefeatDisplay = (bool) ($options['timeout_defeat_display'] ?? false);
         $enemy->loadMissing('actions');
         if ($autoUnequipInvalidItems) {
             app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
@@ -390,7 +391,9 @@ class BattleService
                 }
             }
         } else {
-            $state->addLog("<br><span class=\"text-black font-extrabold text-xl\">双方が疲弊し、戦闘は終了した。</span>");
+            $state->addLog($timeoutDefeatDisplay
+                ? "<br><span class=\"text-rose-700 font-extrabold text-xl\">【時間切れ敗北】{$state->turnCount}ターンで決着がつかず、敗北となった。</span>"
+                : '<br><span class="text-black font-extrabold text-xl">双方が疲弊し、戦闘は終了した。</span>');
             $result->result = 'timeout';
         }
 

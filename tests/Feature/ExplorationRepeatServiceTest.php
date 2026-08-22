@@ -145,6 +145,24 @@ class ExplorationRepeatServiceTest extends TestCase
         $this->assertStringContainsString('3回目の試験敵戦で敗北したため', (string) data_get($result, 'batch_explore.stop_text'));
     }
 
+    public function test_repeat_exploration_reports_timeout_as_an_explicit_defeat_with_turns_and_loss(): void
+    {
+        $character = $this->characterWithStamina(10);
+        $service = $this->fakeExplorationService(timeoutAt: 3);
+
+        $result = $service->exploreRepeated($character, 999, 10);
+
+        $this->assertSame('timeout', data_get($result, 'batch_explore.stop_reason'));
+        $this->assertSame(3, data_get($result, 'batch_explore.completed'));
+        $this->assertSame(50, data_get($result, 'batch_explore.runs.2.turn_count'));
+        $this->assertSame(
+            '3回目の試験敵戦は50ターンで決着せず、時間切れ敗北となったため探索を終了しました。HPは敗北後に最大HPの30%まで回復した状態です。',
+            data_get($result, 'batch_explore.stop_text'),
+        );
+        $this->assertSame(100, data_get($result, 'batch_explore.defeat_loss.gold_amount'));
+        $this->assertStringContainsString('時間切れ敗北（50ターン）', (string) $result['log']);
+    }
+
     public function test_returning_with_loot_resets_the_selected_count_to_one_for_the_next_exploration(): void
     {
         $character = $this->characterWithStamina(50);
@@ -422,7 +440,7 @@ class ExplorationRepeatServiceTest extends TestCase
         $this->app->instance(RegionDepthDungeonService::class, $regionDepthDungeonService);
     }
 
-    private function fakeExplorationService(?int $defeatAt = null): ExplorationService
+    private function fakeExplorationService(?int $defeatAt = null, ?int $timeoutAt = null): ExplorationService
     {
         $staminaService = Mockery::mock(ExplorationStaminaService::class);
         $staminaService->shouldReceive('enabled')->andReturnTrue();
@@ -450,6 +468,7 @@ class ExplorationRepeatServiceTest extends TestCase
             app(KisekiDropService::class),
             app(DiscoveryService::class),
             $defeatAt,
+            $timeoutAt,
         ) extends ExplorationService
         {
             public int $exploreCalls = 0;
@@ -464,6 +483,7 @@ class ExplorationRepeatServiceTest extends TestCase
                 KisekiDropService $kisekiDropService,
                 DiscoveryService $discoveryService,
                 private readonly ?int $defeatAt,
+                private readonly ?int $timeoutAt,
             ) {
                 parent::__construct(
                     $battleService,
@@ -488,8 +508,13 @@ class ExplorationRepeatServiceTest extends TestCase
                 $character->explore_stamina = max(0, (int) $character->explore_stamina - 1);
                 $character->save();
 
+                $result = $this->timeoutAt === $this->exploreCalls
+                    ? 'timeout'
+                    : ($this->defeatAt === $this->exploreCalls ? 'defeat' : 'victory');
+
                 return [
-                    'result' => $this->defeatAt === $this->exploreCalls ? 'defeat' : 'victory',
+                    'result' => $result,
+                    'turn_count' => $result === 'timeout' ? 50 : 1,
                     'enemy' => (object) ['name' => '試験敵'],
                     'log' => '',
                     'logs' => [],
@@ -500,6 +525,10 @@ class ExplorationRepeatServiceTest extends TestCase
                     'material_drop' => [],
                     'equipment_drops' => [],
                     'new_discoveries' => [],
+                    'gold_loss' => $result === 'timeout' ? ['amount' => 100, 'rate_label' => '10%'] : null,
+                    'material_penalty' => [],
+                    'rescue_support' => null,
+                    'valmon_egg_lost' => null,
                 ];
             }
         };

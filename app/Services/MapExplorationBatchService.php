@@ -178,7 +178,12 @@ class MapExplorationBatchService
             if (!($consumed['ok'] ?? false)) throw new \RuntimeException((string) ($consumed['error'] ?? '探索力が足りません。'));
         }
         $modifiers = $map->reward_modifiers_json ?? [];
-        $battle = app(BattleService::class)->executeBattle($character, $enemy, (int) ($modifiers['gold_drop_rate_bonus_points'] ?? 0));
+        $battle = app(BattleService::class)->executeBattle(
+            $character,
+            $enemy,
+            (int) ($modifiers['gold_drop_rate_bonus_points'] ?? 0),
+            ['timeout_defeat_display' => true],
+        );
         $win = $battle->result === 'victory';
         $exp = 0; $gold = 0; $jobExp = 0; $drops = ['materials' => [], 'equipment' => []];
         $rewardResult = ['level_up_count' => 0, 'details' => [], 'progression' => null];
@@ -248,6 +253,7 @@ class MapExplorationBatchService
             'success' => true,
             'result' => $battle->result,
             'turn_count' => $battle->turnCount,
+            'timeout_defeat_display' => true,
             'job_art_usage' => $battle->jobArtUsage,
             'log' => $logText,
             'enemy' => $enemy,
@@ -291,7 +297,8 @@ class MapExplorationBatchService
         return [
             'success' => true,
             'result' => $result->battle_result,
-            'turn_count' => 0,
+            'turn_count' => $result->battle_result === 'timeout' ? 50 : 0,
+            'timeout_defeat_display' => true,
             'log' => '地図探索の結果を再表示しています。',
             'enemy' => $enemy,
             'enemy_image_path' => $enemyImagePath,
@@ -367,6 +374,19 @@ class MapExplorationBatchService
                 'gold' => (int) ($run['gold_gained'] ?? 0),
                 'job_exp' => (int) ($run['job_exp_gained'] ?? 0),
             ];
+            if (($run['result'] ?? null) === 'timeout') {
+                $summaryLines[] = sprintf(
+                    '<span class="text-rose-700 font-extrabold">%d回目: %s / 時間切れ敗北（%dターン） / EXP +%s / Job EXP +%s / Gold +%sG</span>',
+                    $index,
+                    e($enemyName),
+                    (int) ($run['turn_count'] ?? 0),
+                    number_format((int) ($run['exp_gained'] ?? 0)),
+                    number_format((int) ($run['job_exp_gained'] ?? 0)),
+                    number_format((int) ($run['gold_gained'] ?? 0)),
+                );
+
+                continue;
+            }
             $summaryLines[] = sprintf(
                 '<span class="text-slate-700 font-bold">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>',
                 $index,
@@ -390,9 +410,10 @@ class MapExplorationBatchService
                 (string) ($stoppedRun['enemy_name'] ?? '敵'),
             ),
             'timeout' => sprintf(
-                '%d回目の%s戦が長引いたため、途中で探索を止めました。',
+                '%d回目の%s戦は%dターンで決着せず、時間切れ敗北となったため探索を終了しました。HPは敗北後に最大HPの30%%まで回復した状態です。',
                 (int) ($stoppedRun['index'] ?? $completed),
                 (string) ($stoppedRun['enemy_name'] ?? '敵'),
+                (int) ($stoppedRun['turn_count'] ?? 0),
             ),
             'stamina_empty' => '探索力が尽きたため、途中で探索を止めました。回復後にまた探索できます。',
             'map_availability_exhausted' => '探索可能回数が尽きたため、途中で探索を止めました。',
@@ -406,7 +427,8 @@ class MapExplorationBatchService
                 . '</span>';
         }
         if ($stopText !== '') {
-            $summaryLines[] = '<span class="text-amber-700 font-extrabold">【停止理由】' . e($stopText) . '</span>';
+            $stopReasonClass = $stopReason === 'timeout' ? 'text-rose-700' : 'text-amber-700';
+            $summaryLines[] = '<span class="' . $stopReasonClass . ' font-extrabold">【停止理由】' . e($stopText) . '</span>';
         }
 
         $lastResult['log'] = implode('<br>', $summaryLines);

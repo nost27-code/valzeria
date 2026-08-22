@@ -77,22 +77,34 @@ class MapExplorationBatchServiceTest extends TestCase
 
         $timeout = new BattleResult();
         $timeout->result = 'timeout';
+        $timeout->turnCount = 50;
         $battleService = Mockery::mock(BattleService::class);
         $battleService->shouldReceive('executeBattle')->once()->andReturn($timeout);
         $this->app->instance(BattleService::class, $battleService);
 
         $execution = $batchService->execute($visitor, $batch);
         $result = $execution['battle_result'];
+        $replayedResult = $batchService->execute($visitor, $batch)['battle_result'];
 
         $this->assertSame('timeout', $result['result']);
         $this->assertSame(1, (int) data_get($result, 'batch_explore.completed'));
         $this->assertSame('timeout', data_get($result, 'batch_explore.stop_reason'));
+        $stoppedEnemyName = (string) data_get($result, 'batch_explore.runs.0.enemy_name');
+        $this->assertSame(50, (int) data_get($result, 'batch_explore.runs.0.turn_count'));
+        $this->assertSame(
+            '1回目の' . $stoppedEnemyName . '戦は50ターンで決着せず、時間切れ敗北となったため探索を終了しました。HPは敗北後に最大HPの30%まで回復した状態です。',
+            data_get($result, 'batch_explore.stop_text'),
+        );
+        $this->assertStringContainsString('時間切れ敗北（50ターン）', (string) $result['log']);
         $this->assertSame(1, $batch->fresh()->executed_count);
         $this->assertSame(1, $batch->fresh()->reserved_count);
         $this->assertSame($remainingBefore - 1, (int) $registration->fresh()->remaining_explorations);
         $this->assertSame(9000, (int) $visitor->fresh()->money);
         $this->assertSame(1, (int) $visitor->fresh()->losses);
         $this->assertSame(1000, (int) data_get($result, 'batch_explore.defeat_loss.gold_amount'));
+        $this->assertSame('timeout', $replayedResult['result']);
+        $this->assertSame(50, $replayedResult['turn_count']);
+        $this->assertTrue($replayedResult['timeout_defeat_display']);
     }
 
     public function test_batch_stops_after_the_sixth_run_defeat_without_repeating_the_loss(): void

@@ -96,7 +96,9 @@ class SubAreaExplorationService
         }
 
         $targetEnemy = $this->scaleEnemyForSubArea($enemy, $subArea, (int) $state->danger_rate);
-        $battleResult = $this->battleService->executeBattle($character, $targetEnemy);
+        $battleResult = $this->battleService->executeBattle($character, $targetEnemy, 0, [
+            'timeout_defeat_display' => true,
+        ]);
         $isWin = $battleResult->result === 'victory';
         $logText = implode('<br>', $battleResult->logs);
 
@@ -192,6 +194,8 @@ class SubAreaExplorationService
         return [
             'success' => true,
             'result' => $battleResult->result,
+            'turn_count' => $battleResult->turnCount,
+            'timeout_defeat_display' => true,
             'log' => $logText,
             'enemy' => $targetEnemy,
             'exp_gained' => $expGained,

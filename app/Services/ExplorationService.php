@@ -245,9 +245,12 @@ class ExplorationService
         // 3. バトル実行
         $nonCombatEventTypes = ['treasure', 'hidden_area_gate', 'dungeon_lord_encounter', 'sub_area_gate'];
         $isNonCombatEvent = in_array(($specialEvent['type'] ?? null), $nonCombatEventTypes, true);
+        $timeoutDefeatDisplay = !$isBossBattle;
         $battleResult = $isNonCombatEvent
             ? $this->resolveNonCombatEvent($character, $area, $specialEvent['source_enemy'] ?? $targetEnemy, $specialEvent['type'], $specialEvent)
-            : $this->battleService->executeBattle($character, $targetEnemy);
+            : $this->battleService->executeBattle($character, $targetEnemy, 0, [
+                'timeout_defeat_display' => $timeoutDefeatDisplay,
+            ]);
         $isWin = $battleResult->result === 'victory';
         $isEventOnly = $battleResult->result === 'event';
         $logText = implode("<br>", $battleResult->logs);
@@ -842,6 +845,7 @@ class ExplorationService
             'success' => true,
             'result' => $battleResult->result,
             'turn_count' => $battleResult->turnCount,
+            'timeout_defeat_display' => $timeoutDefeatDisplay,
             'log' => $logText,
             'job_art_v2_hud' => $battleResult->jobArtV2Hud,
             'enemy' => $targetEnemy,
@@ -1048,6 +1052,7 @@ class ExplorationService
                 'index' => $i,
                 'enemy_name' => $enemyName,
                 'result' => $result['result'] ?? 'unknown',
+                'turn_count' => (int) ($result['turn_count'] ?? 0),
                 'exp' => $exp,
                 'gold' => $gold,
                 'job_exp' => $jobExp,
@@ -1113,26 +1118,39 @@ class ExplorationService
             $isSecretRealmLordVictoryRun = $isSecretRealmLordRun && in_array($run['result'] ?? null, ['victory', 'win'], true);
             $isHiddenGateRun = ($run['special_event'] ?? null) === 'hidden_area_gate';
             $isSubAreaGateRun = ($run['special_event'] ?? null) === 'sub_area_gate';
-            $summaryLines[] = sprintf(
-                $isDungeonLordEncounterRun
-                    ? '<span class="font-bold" style="color:#991b1b;background:#fee2e2;padding:1px 4px;border-radius:4px;">%d回目: %s遭遇</span>'
-                    : ($isSecretRealmLordRun
-                    ? '<span class="font-bold" style="color:#6d28d9;background:#f3e8ff;padding:1px 4px;border-radius:4px;">%d回目: %s' . ($isSecretRealmLordVictoryRun ? '撃破' : '戦') . ' / EXP +%s / Job EXP +%s / Gold +%sG</span>'
-                    : ($isHiddenGateRun
-                    ? '<span class="font-bold" style="color:#047857;background:#ecfdf5;padding:1px 4px;border-radius:4px;">%d回目: %s発見 / EXP +%s / Job EXP +%s / Gold +%sG</span>'
-                    : ($isSubAreaGateRun
-                    ? '<span class="font-bold" style="color:#4338ca;background:#eef2ff;padding:1px 4px;border-radius:4px;">%d回目: %s発見 / EXP +%s / Job EXP +%s / Gold +%sG</span>'
-                    : ($isGoldenGoblinRun
-                    ? '<span class="font-bold" style="color:#b45309;background:#fef3c7;padding:1px 4px;border-radius:4px;">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'
-                    : ($isTreasureRun
-                    ? '<span class="font-bold" style="color:#b45309;background:#fef9c3;padding:1px 4px;border-radius:4px;">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'
-                    : '<span class="text-slate-700 font-bold">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'))))),
-                (int) $run['index'],
-                e($run['enemy_name']),
-                number_format((int) $run['exp']),
-                number_format((int) $run['job_exp']),
-                number_format((int) $run['gold'])
-            );
+            $isTimeoutRun = ($run['result'] ?? null) === 'timeout';
+            if ($isTimeoutRun) {
+                $summaryLines[] = sprintf(
+                    '<span class="text-rose-700 font-extrabold">%d回目: %s / 時間切れ敗北（%dターン） / EXP +%s / Job EXP +%s / Gold +%sG</span>',
+                    (int) $run['index'],
+                    e($run['enemy_name']),
+                    (int) ($run['turn_count'] ?? 0),
+                    number_format((int) $run['exp']),
+                    number_format((int) $run['job_exp']),
+                    number_format((int) $run['gold'])
+                );
+            } else {
+                $summaryLines[] = sprintf(
+                    $isDungeonLordEncounterRun
+                        ? '<span class="font-bold" style="color:#991b1b;background:#fee2e2;padding:1px 4px;border-radius:4px;">%d回目: %s遭遇</span>'
+                        : ($isSecretRealmLordRun
+                        ? '<span class="font-bold" style="color:#6d28d9;background:#f3e8ff;padding:1px 4px;border-radius:4px;">%d回目: %s' . ($isSecretRealmLordVictoryRun ? '撃破' : '戦') . ' / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                        : ($isHiddenGateRun
+                        ? '<span class="font-bold" style="color:#047857;background:#ecfdf5;padding:1px 4px;border-radius:4px;">%d回目: %s発見 / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                        : ($isSubAreaGateRun
+                        ? '<span class="font-bold" style="color:#4338ca;background:#eef2ff;padding:1px 4px;border-radius:4px;">%d回目: %s発見 / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                        : ($isGoldenGoblinRun
+                        ? '<span class="font-bold" style="color:#b45309;background:#fef3c7;padding:1px 4px;border-radius:4px;">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                        : ($isTreasureRun
+                        ? '<span class="font-bold" style="color:#b45309;background:#fef9c3;padding:1px 4px;border-radius:4px;">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'
+                        : '<span class="text-slate-700 font-bold">%d回目: %s / EXP +%s / Job EXP +%s / Gold +%sG</span>'))))),
+                    (int) $run['index'],
+                    e($run['enemy_name']),
+                    number_format((int) $run['exp']),
+                    number_format((int) $run['job_exp']),
+                    number_format((int) $run['gold'])
+                );
+            }
 
             if (!empty($run['player_encounter']['message'])) {
                 $giftText = !empty($run['player_encounter']['gift']['name'])
@@ -1149,13 +1167,17 @@ class ExplorationService
         $stoppedRun = collect($runs)->last();
         $stoppedRunIndex = (int) ($stoppedRun['index'] ?? $completedCount);
         $stoppedEnemyName = (string) ($stoppedRun['enemy_name'] ?? '敵');
+        $stoppedTurnCount = (int) ($stoppedRun['turn_count'] ?? $lastResult['turn_count'] ?? 0);
+        $defeatRecoveryText = ($lastResult['special_event'] ?? null) === 'sub_area_explore'
+            ? ''
+            : 'HPは敗北後に最大HPの30%まで回復した状態です。';
         $depthTransition = $this->firstDepthTransition($lastResult);
         $depthTransitionLabel = (string) ($depthTransition['label'] ?? '次の深度');
 
         $stopText = match ($stopReason) {
             'hp_pinch' => 'HPが少なくなったため、途中で探索を止めました。',
-            'defeat' => "{$stoppedRunIndex}回目の{$stoppedEnemyName}戦で敗北したため、途中で探索を止めました。HPは敗北後に最大HPの30%まで回復した状態です。",
-            'timeout' => "{$stoppedRunIndex}回目の{$stoppedEnemyName}戦が長引いたため、途中で探索を止めました。",
+            'defeat' => "{$stoppedRunIndex}回目の{$stoppedEnemyName}戦で敗北したため、途中で探索を止めました。{$defeatRecoveryText}",
+            'timeout' => "{$stoppedRunIndex}回目の{$stoppedEnemyName}戦は{$stoppedTurnCount}ターンで決着せず、時間切れ敗北となったため探索を終了しました。{$defeatRecoveryText}",
             'dungeon_lord_encounter' => 'ダンジョン主と遭遇したため、連続探索を止めました。',
             'secret_realm_lord_victory' => "{$stoppedRunIndex}回目に{$stoppedEnemyName}を撃破したため、連続探索を止めました。秘境主の報酬を獲得しています。",
             'hidden_area_gate' => "{$stoppedRunIndex}回目に秘境への入口を発見したため、連続探索を止めました。秘境の採取結果を確認してください。",
@@ -1166,7 +1188,7 @@ class ExplorationService
             'error' => '探索を続けられない状態になったため、途中で止めました。',
             default => '',
         };
-        $defeatLossSummary = $stopReason === 'defeat'
+        $defeatLossSummary = in_array($stopReason, ['defeat', 'timeout'], true)
             ? $this->batchDefeatLossSummary($lastResult)
             : null;
         if (data_get($lastResult, 'beginner_protection.active')) {
@@ -1175,7 +1197,8 @@ class ExplorationService
                 . '</span>';
         }
         if ($stopText !== '') {
-            $summaryLines[] = '<span class="text-amber-700 font-extrabold">【停止理由】' . $stopText . '</span>';
+            $stopReasonClass = $stopReason === 'timeout' ? 'text-rose-700' : 'text-amber-700';
+            $summaryLines[] = '<span class="' . $stopReasonClass . ' font-extrabold">【停止理由】' . $stopText . '</span>';
         }
 
         $lastResult['log'] = implode('<br>', $summaryLines);

@@ -110,6 +110,39 @@ class EnemyDurabilityBattleIntegrationTest extends TestCase
         $this->assertSame(1.15, $result->enemyStatDisplay['durability']['def_spr_multiplier']);
     }
 
+    public function test_only_exploration_timeout_option_writes_the_explicit_defeat_log(): void
+    {
+        $area = Area::query()->create([
+            'name' => '時間切れ表示試験エリア', 'slug' => 'timeout-display-test-' . uniqid(),
+            'city_id' => 1, 'recommended_level_min' => 1, 'recommended_level_max' => 1,
+        ]);
+        $enemy = Enemy::query()->create([
+            'name' => '時間切れ表示試験敵', 'area_id' => $area->id, 'level' => 1,
+            'max_hp' => 100000, 'str' => 1, 'def' => 100000, 'agi' => 1, 'mag' => 0, 'spr' => 100000, 'luk' => 0,
+            'is_boss' => false, 'role_key' => 'normal', 'exp_reward' => 1, 'gold_reward' => 1,
+        ]);
+        $character = $this->character(1);
+        $baseOptions = [
+            'persist_character_state' => false,
+            'rewards_enabled' => false,
+            'exploration_support_enabled' => false,
+            'auto_unequip_invalid_items' => false,
+        ];
+
+        $explorationResult = app(BattleService::class)->executeBattle(
+            $character,
+            $enemy,
+            0,
+            [...$baseOptions, 'timeout_defeat_display' => true],
+        );
+        $otherResult = app(BattleService::class)->executeBattle($character, $enemy, 0, $baseOptions);
+
+        $this->assertSame('timeout', $explorationResult->result);
+        $this->assertSame(50, $explorationResult->turnCount);
+        $this->assertStringContainsString('【時間切れ敗北】50ターンで決着がつかず、敗北となった。', implode('', $explorationResult->logs));
+        $this->assertStringNotContainsString('【時間切れ敗北】', implode('', $otherResult->logs));
+    }
+
     private function character(int $attackBase): Character
     {
         $user = User::factory()->create();

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-22-timeout-defeat-display',
+        'date' => '2026-08-22',
+        'category' => 'fixed',
+        'title' => '探索の時間切れ敗北表示を明確化',
+        'detail' => '通常探索・共有サブエリア・探索の地図で時間切れになった際、敗北であることと経過ターン数を明確に表示し、まとめ探索では敗北時に失ったGoldや戦利品も確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-22-arena-town-display-recovery',
         'date' => '2026-08-22',
         'category' => 'fixed',

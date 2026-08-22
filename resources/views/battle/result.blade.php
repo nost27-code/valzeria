@@ -1,4 +1,4 @@
-<x-layouts.facility :title="(($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！')" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitUrl="isset($mapExploration) ? route('exploration-maps.leave') : null" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
+<x-layouts.facility :title="(($result['result'] ?? null) === 'timeout' && (bool) ($result['timeout_defeat_display'] ?? false)) ? '時間切れ敗北' : ((($result['special_event'] ?? null) === 'depth_gate') ? (($result['depth_gate']['label'] ?? '深層') . 'への入口発見') : ((($result['special_event'] ?? null) === 'depth_retreat') ? '探索を継続' : '戦闘開始！'))" :subtitle="$areaName ?? null" :headerIconImage="$battleHeaderIconImage ?? 'images/icon/icon_005.webp'" :pageBackgroundStyle="$battleCityBackgroundStyle ?? null" :headerOverlayClass="$battleHeaderOverlayClass ?? 'bg-white/75'" :headerTitleClass="$battleHeaderTitleClass ?? null" :headerShellStyle="$battleHeaderShellStyle ?? null" :headerBorderClass="$battleHeaderBorderClass ?? null" bgImage="images/bg-battle.webp" :battleResultLayout="true" :showBattleChatLog="true" :exitUrl="isset($mapExploration) ? route('exploration-maps.leave') : null" :exitLabel="!empty($hasActiveValmonEgg) ? '卵を連れて街へ戻る' : ((isset($result['error']) && !empty($result['batch_explore']) && (int) data_get($result, 'batch_explore.completed', 0) === 0) ? '街に戻る' : null)">
     <div class="py-1 flex flex-col items-center" data-battle-result-page>
         <div class="w-full mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow-md sm:rounded-lg overflow-hidden border border-slate-200">
@@ -56,6 +56,9 @@
                             $isDepthRetreat = ($result['special_event'] ?? null) === 'depth_retreat';
                             $isVictoryResult = in_array($result['result'] ?? null, ['victory', 'win'], true);
                             $isDefeatResult = !isset($result['error']) && !in_array($result['result'] ?? null, ['victory', 'win', 'event'], true);
+                            $isTimeoutDefeat = ($result['result'] ?? null) === 'timeout'
+                                && (bool) ($result['timeout_defeat_display'] ?? false);
+                            $timeoutTurnCount = (int) ($result['turn_count'] ?? 0);
                             $enemyFrameClass = $isSecretRealmLord
                                 ? 'border-slate-800 shadow-xl shadow-amber-950/25'
                                 : ($isDungeonLord
@@ -130,6 +133,20 @@
                                     || str_contains($name, '極印');
                             };
                         @endphp
+
+                        @if($isTimeoutDefeat)
+                            <section class="mb-6 rounded-xl border-2 border-rose-400 bg-rose-50 px-4 py-4 shadow-sm" role="status" data-timeout-defeat-banner>
+                                <div class="flex items-start gap-3">
+                                    <img src="{{ asset('images/icon/icon_072.webp') }}" alt="" class="h-10 w-10 shrink-0 object-contain">
+                                    <div class="min-w-0">
+                                        <h2 class="text-lg font-black text-rose-950">時間切れ敗北</h2>
+                                        <p class="mt-1 text-sm font-bold leading-6 text-rose-800">
+                                            {{ number_format($timeoutTurnCount) }}ターンで決着がつかなかったため、敗北扱いとなりました。戦闘を終了し、敗北時の処理を行いました。
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+                        @endif
 
                         {{-- 装備育成への導線（敗北時のみ） --}}
                         @php
@@ -724,7 +741,7 @@
                                     </div>
                                 @endif
                                 @if(!empty($batchExplore['stop_text']))
-                                    <div class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-6 text-amber-800">
+                                    <div class="mt-3 rounded border px-3 py-2 text-xs font-bold leading-6 {{ ($batchExplore['stop_reason'] ?? null) === 'timeout' ? 'border-rose-300 bg-rose-50 text-rose-800' : 'border-amber-200 bg-amber-50 text-amber-800' }}">
                                         {{ $batchExplore['stop_text'] }}
                                     </div>
                                 @endif
@@ -738,7 +755,7 @@
                                         $valmonEggLostCount = (int) ($defeatLoss['valmon_egg_lost_count'] ?? 0);
                                     @endphp
                                     <div class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-6 text-rose-900">
-                                        <div class="mb-1 text-sm font-black text-rose-800">敗北時の喪失</div>
+                                        <div class="mb-1 text-sm font-black text-rose-800">{{ $isTimeoutDefeat ? '時間切れ敗北時の喪失' : '敗北時の喪失' }}</div>
                                         @if(!empty($defeatLoss['support_label']))
                                             <div class="mb-2 rounded border border-sky-200 bg-white px-3 py-1 text-sky-800">
                                                 {{ $defeatLoss['support_label'] }}
