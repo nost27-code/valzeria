@@ -52,6 +52,45 @@ class ExplorationStaminaService
         return min(500, $max);
     }
 
+    /**
+     * @return array{
+     *     base_max: int,
+     *     cap: int,
+     *     at_cap: bool,
+     *     wins_to_next: ?int,
+     *     next_increase: int,
+     *     next_base_max: int
+     * }
+     */
+    public static function growthProgressForWins(int $wins): array
+    {
+        $wins = max(0, $wins);
+        $baseMax = self::baseMaxForWins($wins);
+
+        if ($baseMax >= self::DEFAULT_MAX) {
+            return [
+                'base_max' => self::DEFAULT_MAX,
+                'cap' => self::DEFAULT_MAX,
+                'at_cap' => true,
+                'wins_to_next' => null,
+                'next_increase' => 0,
+                'next_base_max' => self::DEFAULT_MAX,
+            ];
+        }
+
+        $nextMilestoneWins = min(3000, (intdiv($wins, 100) + 1) * 100);
+        $nextBaseMax = self::baseMaxForWins($nextMilestoneWins);
+
+        return [
+            'base_max' => $baseMax,
+            'cap' => self::DEFAULT_MAX,
+            'at_cap' => false,
+            'wins_to_next' => $nextMilestoneWins - $wins,
+            'next_increase' => $nextBaseMax - $baseMax,
+            'next_base_max' => $nextBaseMax,
+        ];
+    }
+
     public function recoverySeconds(): int
     {
         return max(1, app(GameSettingService::class)->getInt('exploration.stamina_recovery_seconds', self::DEFAULT_RECOVERY_SECONDS));
@@ -183,11 +222,16 @@ class ExplorationStaminaService
 
     public function summary(Character $character): array
     {
+        $growth = self::growthProgressForWins((int) ($character->wins ?? 0));
+
         if (!$this->schemaReady()) {
             return [
                 'enabled' => false,
                 'current' => 0,
                 'max' => $this->max(),
+                'base_max' => $growth['base_max'],
+                'bonus_max' => 0,
+                'growth' => $growth,
                 'cost' => $this->cost(),
                 'recovery_seconds' => $this->recoverySeconds(),
                 'next_recovery_seconds' => null,
@@ -218,6 +262,9 @@ class ExplorationStaminaService
             'enabled' => $this->enabled(),
             'current' => $current,
             'max' => $max,
+            'base_max' => $growth['base_max'],
+            'bonus_max' => max(0, $max - $growth['base_max']),
+            'growth' => $growth,
             'cost' => $this->cost(),
             'recovery_seconds' => $this->recoverySeconds(),
             'next_recovery_seconds' => $nextRecovery,

@@ -1267,49 +1267,79 @@
                 {{-- 探索力 / ゴールド / 輝石 --}}
                 <div class="col-start-4 row-span-2 row-start-1 flex min-w-0 flex-col items-end justify-center gap-0.5 text-[9px] font-black leading-none tabular-nums sm:text-[10px]">
                     @if(!empty($topPlayer['exploration_stamina']))
-                        <div class="flex min-w-0 items-center justify-end gap-0.5 text-blue-900"
-                             title="探索力"
+                        @php
+                            $stamina = $topPlayer['exploration_stamina'];
+                            $staminaGrowth = $stamina['growth'] ?? [];
+                        @endphp
+                        <div class="relative flex min-w-0 items-center justify-end text-blue-900"
                              x-data="{
-                                 current: {{ (int) $topPlayer['exploration_stamina']['current'] }},
-                                 max: {{ (int) $topPlayer['exploration_stamina']['max'] }},
-                                 recoverySeconds: {{ (int) ($topPlayer['exploration_stamina']['recovery_seconds'] ?? 60) }},
-                                 nextRecoverySeconds: {{ (int) ($topPlayer['exploration_stamina']['next_recovery_seconds'] ?? 0) }},
+                                 current: {{ (int) $stamina['current'] }},
+                                 max: {{ (int) $stamina['max'] }},
+                                 recoverySeconds: {{ (int) ($stamina['recovery_seconds'] ?? 60) }},
+                                 nextRecoverySeconds: {{ (int) ($stamina['next_recovery_seconds'] ?? 0) }},
+                                 secondsUntilRecovery: {{ (int) ($stamina['next_recovery_seconds'] ?? 0) }},
                                  timer: null,
                                  nextAt: null,
+                                 helpOpen: false,
+                                 helpPinned: false,
+                                 pointerCanHover() {
+                                     return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+                                 },
+                                 closeHelp() {
+                                     this.helpOpen = false;
+                                     this.helpPinned = false;
+                                 },
+                                 toggleHelp() {
+                                     this.helpPinned = !this.helpPinned;
+                                     this.helpOpen = this.helpPinned;
+                                 },
                                  stopTimer() {
                                      if (this.timer) {
                                          clearInterval(this.timer);
                                          this.timer = null;
                                      }
                                  },
+                                 updateRecovery(now = Date.now()) {
+                                     if (this.current >= this.max) {
+                                         this.secondsUntilRecovery = 0;
+                                         this.stopTimer();
+                                         return;
+                                     }
+                                     if (now >= this.nextAt) {
+                                         const gained = 1 + Math.floor((now - this.nextAt) / (this.recoverySeconds * 1000));
+                                         this.current = Math.min(this.max, this.current + gained);
+                                         this.nextAt += gained * this.recoverySeconds * 1000;
+                                     }
+                                     this.secondsUntilRecovery = this.current >= this.max
+                                         ? 0
+                                         : Math.max(1, Math.ceil((this.nextAt - now) / 1000));
+                                 },
                                  startTimer() {
                                      this.stopTimer();
-                                     if (this.current >= this.max) return;
+                                     if (this.current >= this.max) {
+                                         this.secondsUntilRecovery = 0;
+                                         return;
+                                     }
                                      if (this.nextRecoverySeconds <= 0) {
                                          this.nextRecoverySeconds = this.recoverySeconds;
                                      }
                                      this.nextAt = Date.now() + (this.nextRecoverySeconds * 1000);
+                                     this.updateRecovery();
                                      this.timer = setInterval(() => {
                                          if (!this.$root?.isConnected) {
                                              this.stopTimer();
                                              return;
                                          }
-                                         if (this.current >= this.max) {
-                                             this.stopTimer();
-                                             return;
-                                         }
-                                         const now = Date.now();
-                                         if (now >= this.nextAt) {
-                                             const gained = 1 + Math.floor((now - this.nextAt) / (this.recoverySeconds * 1000));
-                                             this.current = Math.min(this.max, this.current + gained);
-                                             this.nextAt += gained * this.recoverySeconds * 1000;
-                                         }
+                                         this.updateRecovery();
                                      }, 1000);
                                  },
                                  init() {
                                      this.startTimer();
                                  }
                              }"
+                             @mouseenter="if (pointerCanHover()) helpOpen = true"
+                             @mouseleave="if (pointerCanHover() && !helpPinned) helpOpen = false"
+                             @keydown.escape.window="closeHelp()"
                              @valzeria-stamina-sync.window="
                                  current = Math.max(0, Number($event.detail.current || 0));
                                  if ($event.detail.max !== null && $event.detail.max !== undefined) {
@@ -1321,8 +1351,53 @@
                                  nextRecoverySeconds = Math.max(0, Number($event.detail.nextRecoverySeconds || recoverySeconds));
                                  startTimer();
                              ">
-                            <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
-                            <span class="whitespace-nowrap"><span x-text="current.toLocaleString()">{{ number_format((int) $topPlayer['exploration_stamina']['current']) }}</span><span class="text-slate-400">/{{ number_format((int) $topPlayer['exploration_stamina']['max']) }}</span></span>
+                            <button type="button"
+                                    data-exploration-stamina-help-trigger
+                                    @click.stop="toggleHelp()"
+                                    @focus="helpOpen = true"
+                                    @blur="if (!helpPinned) helpOpen = false"
+                                    :aria-expanded="helpOpen.toString()"
+                                    aria-label="探索力の回復と上限を確認"
+                                    class="flex min-w-0 items-center justify-end gap-0.5 rounded px-0.5 py-px text-blue-900 transition hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+                                <img src="{{ asset('images/icon/icon_082.webp') }}" alt="" class="h-3.5 w-3.5 shrink-0 object-contain">
+                                <span class="whitespace-nowrap"><span x-text="current.toLocaleString()">{{ number_format((int) $stamina['current']) }}</span><span class="text-slate-400">/<span x-text="max.toLocaleString()">{{ number_format((int) $stamina['max']) }}</span></span></span>
+                            </button>
+
+                            <div x-show="helpOpen"
+                                 x-cloak
+                                 x-transition.origin.top.right
+                                 @click.outside="closeHelp()"
+                                 data-exploration-stamina-help-popover
+                                 class="absolute right-0 top-[calc(100%+0.5rem)] z-[70] hidden w-72 text-left normal-nums sm:block"
+                                 role="dialog"
+                                 aria-label="探索力の詳細">
+                                @include('livewire.partials.exploration-stamina-help', ['mobile' => false])
+                            </div>
+
+                            <template x-teleport="body">
+                                <div x-show="helpOpen"
+                                     x-cloak
+                                     data-exploration-stamina-help-sheet
+                                     class="fixed inset-0 z-[10040] sm:hidden"
+                                     role="dialog"
+                                     aria-modal="true"
+                                     aria-label="探索力の詳細">
+                                    <button type="button"
+                                            @click="closeHelp()"
+                                            class="absolute inset-0 h-full w-full bg-slate-950/45"
+                                            aria-label="探索力の詳細を閉じる"></button>
+                                    <div x-show="helpOpen"
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="translate-y-full"
+                                         x-transition:enter-end="translate-y-0"
+                                         x-transition:leave="transition ease-in duration-150"
+                                         x-transition:leave-start="translate-y-0"
+                                         x-transition:leave-end="translate-y-full"
+                                         class="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl">
+                                        @include('livewire.partials.exploration-stamina-help', ['mobile' => true])
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     @endif
                     <div class="flex min-w-0 items-center justify-end gap-0.5 text-slate-900" title="ゴールド">

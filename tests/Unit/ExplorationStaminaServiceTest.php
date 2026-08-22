@@ -63,6 +63,24 @@ class ExplorationStaminaServiceTest extends TestCase
 
     public function test_max_for_character_adds_support_pass_bonus(): void
     {
+        $this->app->instance(GameSettingService::class, new class
+        {
+            public function getString(string $key, string $default = ''): string
+            {
+                return $key === 'exploration.mode' ? ExplorationStaminaService::MODE_STAMINA : $default;
+            }
+
+            public function getInt(string $key, int $default = 0): int
+            {
+                return $default;
+            }
+
+            public function getBool(string $key, bool $default = false): bool
+            {
+                return $default;
+            }
+        });
+
         $this->app->instance(SupportPassService::class, new class extends SupportPassService
         {
             public function staminaBonusFor(Character $character): int
@@ -78,6 +96,10 @@ class ExplorationStaminaServiceTest extends TestCase
         $character = new Character(['wins' => 0]);
 
         $this->assertSame(500, $service->maxForCharacter($character));
+
+        $summary = $service->summary($character);
+        $this->assertSame(250, $summary['base_max']);
+        $this->assertSame(250, $summary['bonus_max']);
     }
 
     public function test_new_character_stamina_starts_at_250(): void
@@ -193,5 +215,28 @@ class ExplorationStaminaServiceTest extends TestCase
         $this->assertSame(495, $service->maxForCharacter(new Character(['wins' => 2999])));
         $this->assertSame(500, $service->maxForCharacter(new Character(['wins' => 3000])));
         $this->assertSame(500, $service->maxForCharacter(new Character(['wins' => 10000])));
+    }
+
+    public function test_growth_progress_reports_the_next_victory_milestone_and_cap(): void
+    {
+        $beforeTwoThousand = ExplorationStaminaService::growthProgressForWins(1999);
+        $this->assertSame(440, $beforeTwoThousand['base_max']);
+        $this->assertSame(1, $beforeTwoThousand['wins_to_next']);
+        $this->assertSame(10, $beforeTwoThousand['next_increase']);
+        $this->assertSame(450, $beforeTwoThousand['next_base_max']);
+
+        $afterTwoThousand = ExplorationStaminaService::growthProgressForWins(2000);
+        $this->assertSame(100, $afterTwoThousand['wins_to_next']);
+        $this->assertSame(5, $afterTwoThousand['next_increase']);
+        $this->assertSame(455, $afterTwoThousand['next_base_max']);
+
+        $beforeCap = ExplorationStaminaService::growthProgressForWins(2999);
+        $this->assertSame(1, $beforeCap['wins_to_next']);
+        $this->assertSame(5, $beforeCap['next_increase']);
+
+        $atCap = ExplorationStaminaService::growthProgressForWins(3000);
+        $this->assertTrue($atCap['at_cap']);
+        $this->assertNull($atCap['wins_to_next']);
+        $this->assertSame(500, $atCap['cap']);
     }
 }
