@@ -12,7 +12,7 @@ class FacilityConfig
         ['slug' => 'synthesis',         'label' => '合成屋',      'default_name' => '合成屋',      'default_desc' => '装備と欠片・専用素材で武器・防具を進化させる',         'default_icon' => 'facilities/facility_synthesis_300.webp'],
         ['slug' => 'material_exchange', 'label' => '素材交換所',  'default_name' => '素材交換所',  'default_desc' => '素材精製・錬成・調合で必要素材を作る',                 'default_icon' => 'facilities/facility_material_exchange_300.webp'],
         ['slug' => 'valmon_farm',       'label' => 'ヴァルモン牧場', 'default_name' => 'ヴァルモン牧場', 'default_desc' => '相棒ヴァルモンの確認・相棒設定・餌育成を行う', 'default_icon' => 'facilities/facility_valmon_farm_300.webp'],
-        ['slug' => 'training_ground',    'label' => '冒険者訓練所', 'default_name' => '冒険者訓練所', 'default_desc' => '奥義を安全な50ターンの模擬戦で試す',              'default_icon' => 'icon/icon_005.webp'],
+        ['slug' => 'training_ground',    'label' => '冒険者訓練所', 'default_name' => '冒険者訓練所', 'default_desc' => '奥義を安全な50ターンの模擬戦で試す',              'default_icon' => 'icon/icon_291.webp'],
         ['slug' => 'temple',            'label' => '神殿',        'default_name' => '神殿',        'default_desc' => '職業変更と職業ランクを確認する',                       'default_icon' => 'facilities/facility_temple.webp'],
         ['slug' => 'guide',             'label' => '案内所',      'default_name' => '案内所',      'default_desc' => 'ヴァルゼリアの遊び方やヘルプを確認する',               'default_icon' => 'facilities/facility_guide_300.webp'],
         ['slug' => 'bank',              'label' => '銀行',        'default_name' => '銀行',        'default_desc' => 'Goldを預けて探索中の喪失から守る',                     'default_icon' => 'facilities/facility_bank.webp'],
@@ -36,7 +36,7 @@ class FacilityConfig
         ['slug' => 'ranking_board',     'label' => '番付掲示板',  'default_name' => '番付掲示板',  'default_desc' => '冒険者たちの各種番付を確認する',        'default_icon' => 'icon/icon_223.webp'],
         ['slug' => 'adventurer_market', 'label' => '冒険者市場',  'default_name' => '冒険者市場',  'default_desc' => '素材を冒険者同士で売買する',            'default_icon' => 'icon/icon_032.webp'],
         ['slug' => 'colosseum',         'label' => '闘技場',      'default_name' => '闘技場',      'default_desc' => '他の冒険者と戦う',                      'default_icon' => 'icon/icon_005.webp'],
-        ['slug' => 'training_ground',    'label' => '冒険者訓練所', 'default_name' => '冒険者訓練所', 'default_desc' => '奥義を50ターンの模擬戦で試す',        'default_icon' => 'icon/icon_005.webp'],
+        ['slug' => 'training_ground',    'label' => '冒険者訓練所', 'default_name' => '冒険者訓練所', 'default_desc' => '奥義を50ターンの模擬戦で試す',        'default_icon' => 'icon/icon_291.webp'],
         ['slug' => 'private_chat',      'label' => '個人チャット', 'default_name' => '個人チャット', 'default_desc' => '冒険者同士でメッセージを送る',         'default_icon' => 'icon/icon_015.webp'],
         ['slug' => 'settings',          'label' => '設定',        'default_name' => '設定',        'default_desc' => '表示やキャラクター情報を変更する',      'default_icon' => 'icon/icon_022.webp'],
     ];
