@@ -222,14 +222,30 @@ final class JobArtV2DefenseService
         BattleActor $target,
         int $power,
     ): int {
-        if (in_array($state->battleType, ['pvp', 'champ', 'arena_npc'], true)) {
+        $affinityMultiplier = BattleTypeAffinity::multiplier(
+            $counterActor->battleTypeWeights,
+            $target->battleTypeWeights,
+        );
+
+        if ($state->battleType === 'champ') {
+            return $this->calculator()->calculateDuelDamage(
+                $counterActor,
+                $target,
+                'physical',
+                $power,
+                false,
+                $affinityMultiplier,
+            );
+        }
+
+        if (in_array($state->battleType, ['pvp', 'arena_npc'], true)) {
             return $this->calculator()->calculateRankBattleDamage(
                 $counterActor,
                 $target,
                 'physical',
                 $power,
                 false,
-                BattleTypeAffinity::multiplier($counterActor->battleTypeWeights, $target->battleTypeWeights),
+                $affinityMultiplier,
                 null,
                 null,
                 null,

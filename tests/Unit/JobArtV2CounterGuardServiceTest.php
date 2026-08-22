@@ -9,6 +9,7 @@ use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
 use App\Services\Battle\DamageApplicationService;
+use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
@@ -205,10 +206,12 @@ class JobArtV2CounterGuardServiceTest extends TestCase
     #[DataProvider('royalSwordBattlePathProvider')]
     public function test_royal_sword_formation_counters_once_with_power_ninety_in_every_battle_path(
         string $battleType,
+        string $expectedDamageRoute,
     ): void {
         [$counter, $attacker, $state] = $this->battle(60, 60, $battleType);
         $random = new FixedParryRandomSource([1]);
-        $defense = $this->defense($random);
+        $calculator = new RecordingCounterDamageCalculator;
+        $defense = $this->defense($random, $calculator);
         $application = new DamageApplicationService($defense);
         $counter->replaceCounterStanceState(new JobArtV2CounterStanceState(5, 1, 0.35));
         $counter->jobArtV2ProgressionState()->applyRoundState('royal_sword_formation', 5, 1);
@@ -240,6 +243,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertTrue($parry->success);
         $this->assertSame(90, $parry->counterPower);
         $this->assertSame($attackerHpBefore - $attackerHpAfterFirstHit, $parry->counterDamage);
+        $this->assertSame([['route' => $expectedDamageRoute, 'power' => 90]], $calculator->calls);
         $this->assertSame(1, $random->calls);
         $this->assertCount(1, $state->parryResults());
         $this->assertSame(2, $counter->getResource('sword_momentum'), '被物理+1と受け流し+1だけ。反撃damage自体では剣勢を得ない。');
@@ -256,12 +260,12 @@ class JobArtV2CounterGuardServiceTest extends TestCase
     public static function royalSwordBattlePathProvider(): array
     {
         return [
-            'normal PvE' => ['pve'],
-            'boss' => ['boss'],
-            'tower (shared PvE pipeline)' => ['pve'],
-            'PvP' => ['pvp'],
-            'champ' => ['champ'],
-            'NPC arena' => ['arena_npc'],
+            'normal PvE' => ['pve', 'physical'],
+            'boss' => ['boss', 'physical'],
+            'tower (shared PvE pipeline)' => ['pve', 'physical'],
+            'PvP' => ['pvp', 'rank'],
+            'champ' => ['champ', 'duel'],
+            'NPC arena' => ['arena_npc', 'rank'],
         ];
     }
 
@@ -687,13 +691,17 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         ));
     }
 
-    private function defense(FixedParryRandomSource $random): JobArtV2DefenseService
+    private function defense(
+        FixedParryRandomSource $random,
+        ?DamageCalculator $damageCalculator = null,
+    ): JobArtV2DefenseService
     {
         return new JobArtV2DefenseService(
             app(JobArtV2FeatureGate::class),
             app(JobArtV2PrototypeCatalog::class),
             app(JobArtV2ResourceService::class),
             $random,
+            damageCalculator: $damageCalculator,
         );
     }
 
@@ -777,5 +785,60 @@ final class FixedParryRandomSource extends JobArtV2ParryRandomSource
         $this->calls++;
 
         return array_shift($this->rolls) ?? 100;
+    }
+}
+
+final class RecordingCounterDamageCalculator extends DamageCalculator
+{
+    /** @var list<array{route: string, power: int}> */
+    public array $calls = [];
+
+    public function calculateDuelDamage(
+        BattleActor $attacker,
+        BattleActor $defender,
+        string $attackType,
+        int $skillPower = 100,
+        bool $isCritical = false,
+        float $affinityMultiplier = 1.0,
+        ?int $overrideAtk = null,
+        ?int $overrideDef = null,
+        ?int $overrideSpr = null,
+    ): int {
+        $this->calls[] = ['route' => 'duel', 'power' => $skillPower];
+
+        return $skillPower;
+    }
+
+    public function calculateRankBattleDamage(
+        BattleActor $attacker,
+        BattleActor $defender,
+        string $attackType,
+        int $skillPower = 100,
+        bool $isCritical = false,
+        float $affinityMultiplier = 1.0,
+        ?int $overrideAtk = null,
+        ?int $overrideDef = null,
+        ?int $overrideSpr = null,
+        bool $isSkill = false,
+        int $hitCount = 1,
+        bool $minimumDamageGuaranteeEnabled = true,
+        bool $damageCapEnabled = true,
+    ): int {
+        $this->calls[] = ['route' => 'rank', 'power' => $skillPower];
+
+        return $skillPower;
+    }
+
+    public function calculatePhysicalDamage(
+        BattleActor $attacker,
+        BattleActor $defender,
+        int $skillPower = 100,
+        bool $isCritical = false,
+        ?int $overrideAtk = null,
+        ?int $overrideDef = null,
+    ): int {
+        $this->calls[] = ['route' => 'physical', 'power' => $skillPower];
+
+        return $skillPower;
     }
 }
