@@ -21,7 +21,7 @@ Branch: main
 ## Dungeon-lord job-art set / training-ground practice battle
 
 - ダンジョン主は`is_boss=false`の通常PvE・報酬ルールを維持しつつ、プレイヤーが使う戦技セットだけボス戦用を選ぶ
-- 街施設「冒険者訓練所」は、通常戦用／ボス戦用セットで倒れない訓練人形と50ターン戦うほか、キャラクター名検索または闘技場ランキングから相手を選び、`TrainingGroundPvpBattleService`から副作用なしの`PvPBattleService::resolveBattle()`を使う対人模擬戦を行える。各セットの戦技画面へ直接移動でき、PvPセットflag OFF時の対人戦導線はruntimeと同じボス戦用fallbackを案内する。戦闘ログは上から下へ発生順に表示する。開始時だけ訓練内のHP/SPを全快にし、実HP/SP、装備、順位、戦績、戦闘履歴、報酬、探索支援品、待機時間、実績計測は更新しない。多重実行はキャラクター単位の短時間ガードで止める
+- 街施設「冒険者訓練所」は、通常戦用／ボス戦用セットで倒れない訓練人形と50ターン戦うほか、公開キャラクターを名前検索で選ぶか、闘技場ランキングのプルダウンから1回のPOSTで直接開始し、`TrainingGroundPvpBattleService`から副作用なしの`PvPBattleService::resolveBattle()`を使う対人模擬戦を行える。名前検索だけは選択した相手の確認カードを表示し、ランキング経由では重複カードを表示しない。各セットの戦技画面へ直接移動でき、PvPセットflag OFF時の対人戦導線はruntimeと同じボス戦用fallbackを案内する。戦闘ログは上から下へ発生順に表示する。開始時だけ訓練内のHP/SPを全快にし、実HP/SP、装備、順位、戦績、戦闘履歴、報酬、探索支援品、待機時間、実績計測は更新しない。多重実行はキャラクター単位の短時間ガードで止める
 
 ## Job-art v2 guide / rank-battle judgment (production)
 
@@ -163,7 +163,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 - PWA Web Pushは、冒険者タブの設定から専用「スマホ通知」画面を開き、PWA導入手順・端末状態・通知種類を確認できる。種類はキャラクター単位、購読ON/OFFは端末単位で保存し、種類をOFFにしてもゲーム内の通知ベルは消さない。毎分の `web-push:dispatch` は時間経過で探索力がMAXになった対象者へ重複しないベル通知を作り、選択済みの新着だけを端末へ送る。端末情報は `web_push_subscriptions` へ暗号化保存する。`WEB_PUSH_MODE=off` が既定で、`allowlist` または `all` と完全なVAPID鍵が揃った時だけ購読APIと送信を開く。本番は2026-08-10に `all` へ切り替え、対応PWA端末を使う全冒険者へ公開した。端末文面は `WEB_PUSH_PREVIEW_MODE=generic` が既定で、`title` の時だけHTMLと余分な空白を除いた通知ベルのタイトルを最大60文字で表示し、通知ベル本文は送らない。管理者向けの不具合報告・新着メール・キャラ画像作成依頼は、本番ではヴァルの `character_id=5` に固定し、所有ユーザーが `admin` の時だけ通知する。本番では環境変数による別キャラクターへの上書きを許可しない。staging/local/testingの既定通知先は0で無効だが、検証時だけ `ADMIN_WEB_PUSH_CHARACTER_ID` で指定できる。未設定・不一致・非管理者では通知を作らず、通常プレイヤーの配信処理からも管理者通知種別を除外する。管理者通知と選択済み通常通知が同じ配信待ち区間にある場合は、両方の新着があることを1件の汎用文面で知らせる。POP3メールは管理画面を開いていない時も5分ごとの `contact-mail:import` で取り込む
 - State management: Livewire component state + DB; no SPA framework
 - アプリ起動時にはmigration・Seeder・プレイヤーデータ修復・公開リンク変更を行わない。街／職業EXPマスタ、職業履歴の整合性、必須カラムはリリース準備チェックで検証し、異常時はデプロイを停止する。
-- P1の認証・送信・設定変更UIは、通常フォームでは明示した `data-submit-lock` を `resources/js/app.js` が処理し、Livewireでは対象アクションの `wire:loading` で完了まで再押下を止める。全ボタンには `resources/css/app.css` の短い押下変形があり、数量増減・タブ切替など連続操作前提の操作には送信ロックを自動適用しない。
+- 通常のPOSTフォームは `resources/js/app.js` が送信ボタンを処理中表示へ切り替えて再押下を止める。連続操作が必要な例外だけ `data-submit-lock="off"` で除外する。GETフォームは `data-submit-lock`、ページ遷移するボタン型リンクは `data-navigation-lock` を明示した箇所で同じスピナーを使う。Livewireは対象アクションの `wire:loading` で完了まで再押下を止める。全ボタンには `resources/css/app.css` の短い押下変形がある。
 - メイン画面内のタブ導線は、`MainScreenShell` が現在タブと探索退出処理を管理する。街・探索・冒険者・市場・闘技場の重い `MainScreen` は初回選択時にだけ読み込み、その後はDOMへ保持してAlpineで即時切替する。MAP・設定・メッセージも必要時だけ読み込む。保持中のパネルは60秒経過後の再表示時にバックグラウンド更新し、探索退出時は探索パネルを即時無効化する。
 - ホームの週間番付は新規表示では`AdventurerCardModal`へ直接イベントを送り、公開前から開かれている旧画面の`wire:click`だけは`StarTreeTowerRankingWidget::openWeeklyWinPlayerModal()`が互換処理として受ける。
 - 闘技場タブは `ArenaNpcRankingService::screenEntries()` でTOP6と挑戦候補3件だけを取得し、上位6名を1位／2〜3位／4〜6位の3段配置でキャラ画像中心に表示する。画面表示時に全ランキングの戦力を組み立てず、同一リクエスト内の順位整合性確認と倉庫集計も各1回にまとめる。独立したTOP100番付は `lightweightRankingEntries()` で順位・画像・名前・Lvだけを取得し、職業・装備・印を使う戦力計算は行わない。4ポーズ対応キャラの画像は各閲覧者がページ内だけで順送りでき、再読み込みすると本人が保存した展示ポーズへ戻る。プレイヤーの詳細は名前を押した後に既存の冒険者カード、NPCの詳細はNPCモーダルで取得する。

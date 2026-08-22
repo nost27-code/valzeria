@@ -73,6 +73,45 @@ class TrainingGroundBattleTest extends TestCase
             ->assertSee('50ターン固定');
     }
 
+    public function test_training_ground_buttons_expose_processing_feedback(): void
+    {
+        $character = $this->character('操作表示確認者');
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('training-ground.index'))
+            ->assertOk()
+            ->assertSee('data-submit-lock data-loading-text="訓練中..."', false)
+            ->assertSee('data-submit-lock data-loading-text="検索中..."', false)
+            ->assertSee('data-navigation-lock data-loading-text="移動中..."', false);
+    }
+
+    public function test_ranking_opponent_can_start_pvp_training_in_one_post_without_duplicate_card(): void
+    {
+        $character = $this->character('選ぶ側');
+        $rankedTarget = $this->character('一手で戦う相手');
+        ArenaRanking::query()->create([
+            'character_id' => $rankedTarget->id,
+            'rank' => 2,
+            'wins' => 10,
+            'losses' => 3,
+        ]);
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('training-ground.index', ['opponent_id' => $rankedTarget->id]))
+            ->assertOk()
+            ->assertSee('data-ranking-practice-form data-submit-lock data-loading-text="模擬戦中..."', false)
+            ->assertSee('action="'.route('training-ground.battle').'" method="POST"', false)
+            ->assertSee('name="context" value="pvp"', false)
+            ->assertSee('name="opponent_id" required', false)
+            ->assertSee($rankedTarget->name)
+            ->assertSee('模擬戦をする')
+            ->assertDontSee('この冒険者を選ぶ')
+            ->assertDontSee('選択中の対戦相手')
+            ->assertDontSee($rankedTarget->name.'と模擬戦する');
+    }
+
     public function test_training_ground_pvp_job_art_link_opens_the_requested_context(): void
     {
         config(['battle.job_art_v2.pvp_set' => true]);
@@ -121,6 +160,14 @@ class TrainingGroundBattleTest extends TestCase
             ->assertDontSee($hiddenTarget->name)
             ->assertSee($rankedTarget->name)
             ->assertSee('12位');
+
+        $this->get(route('training-ground.index', [
+            'opponent_search' => '蒼',
+            'opponent_id' => $searchTarget->id,
+        ]))
+            ->assertOk()
+            ->assertSee('選択中の対戦相手')
+            ->assertSee($searchTarget->name.'と模擬戦する');
     }
 
     public function test_pvp_training_preserves_state_metrics_and_chronological_log_order(): void

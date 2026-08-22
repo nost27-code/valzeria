@@ -205,10 +205,18 @@ window.adventurerCardToBlob = async (node, player) => {
 };
 
 const submitLockButtonSelector = 'button[type="submit"], button:not([type]), input[type="submit"]';
+const submitLockFormSelector = 'form[data-submit-lock], form[method="post" i]';
+const submitLockOriginalDisabled = new WeakMap();
+
+const shouldUseSubmitLock = (form) => (
+    form.dataset.submitLock !== 'off'
+    && form.matches(submitLockFormSelector)
+);
 
 const restoreSubmitLock = (form) => {
     form.removeAttribute('aria-busy');
     delete form.dataset.submitLocked;
+    form.querySelectorAll('[data-submit-lock-payload]').forEach((input) => input.remove());
 
     form.querySelectorAll('[data-submit-lock-active]').forEach((button) => {
         button.disabled = button.dataset.submitLockWasDisabled === 'true';
@@ -231,7 +239,23 @@ const restoreSubmitLock = (form) => {
 const showSubmitLockFeedback = (form, button) => {
     if (!button) return;
 
-    button.dataset.submitLockWasDisabled = button.disabled ? 'true' : 'false';
+    const wasDisabled = submitLockOriginalDisabled.get(button) ?? button.disabled;
+    submitLockOriginalDisabled.delete(button);
+    button.dataset.submitLockWasDisabled = wasDisabled ? 'true' : 'false';
+
+    if (
+        !wasDisabled
+        && (button instanceof HTMLButtonElement || button instanceof HTMLInputElement)
+        && button.name
+    ) {
+        const payload = document.createElement('input');
+        payload.type = 'hidden';
+        payload.name = button.name;
+        payload.value = button.value;
+        payload.dataset.submitLockPayload = '';
+        form.append(payload);
+    }
+
     button.dataset.submitLockActive = '';
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
@@ -253,6 +277,38 @@ const showSubmitLockFeedback = (form, button) => {
     const label = document.createElement('span');
     label.textContent = loadingText;
     button.replaceChildren(spinner, label);
+};
+
+const restoreNavigationLock = (link) => {
+    delete link.dataset.navigationLocked;
+    link.removeAttribute('aria-busy');
+    link.removeAttribute('aria-disabled');
+    link.classList.remove('is-navigation-locking');
+
+    if (link.dataset.navigationLockOriginalHtml !== undefined) {
+        link.innerHTML = link.dataset.navigationLockOriginalHtml;
+        delete link.dataset.navigationLockOriginalHtml;
+    }
+};
+
+const showNavigationLockFeedback = (link) => {
+    link.dataset.navigationLocked = 'true';
+    link.dataset.navigationLockOriginalHtml = link.innerHTML;
+    link.setAttribute('aria-busy', 'true');
+    link.setAttribute('aria-disabled', 'true');
+    link.classList.add('is-navigation-locking');
+
+    const spinner = document.createElement('span');
+    spinner.className = 'submit-lock-spinner';
+    spinner.setAttribute('aria-hidden', 'true');
+
+    const label = document.createElement('span');
+    label.textContent = link.dataset.loadingText || '移動中...';
+    link.replaceChildren(spinner, label);
+
+    window.setTimeout(() => {
+        if (link.isConnected) restoreNavigationLock(link);
+    }, 15000);
 };
 
 const initializeMultiImagePickers = () => {
@@ -524,25 +580,74 @@ const initializeCharacterIconDesignAutosave = () => {
 
 document.addEventListener('submit', (event) => {
     const form = event.target instanceof HTMLFormElement ? event.target : null;
-    if (!form?.matches('form[data-submit-lock]') || event.defaultPrevented) return;
+    if (!form || !shouldUseSubmitLock(form)) return;
+
+    const submitter = event.submitter instanceof HTMLElement
+        ? event.submitter
+        : form.querySelector(submitLockButtonSelector);
+    if (submitter) submitLockOriginalDisabled.set(submitter, submitter.disabled);
+}, true);
+
+document.addEventListener('submit', (event) => {
+    const form = event.target instanceof HTMLFormElement ? event.target : null;
+    if (!form || !shouldUseSubmitLock(form)) return;
+
+    const submitter = event.submitter instanceof HTMLElement
+        ? event.submitter
+        : form.querySelector(submitLockButtonSelector);
+    if (event.defaultPrevented) {
+        if (submitter) submitLockOriginalDisabled.delete(submitter);
+        return;
+    }
 
     if (form.dataset.submitLocked === 'true') {
+        if (submitter) submitLockOriginalDisabled.delete(submitter);
         event.preventDefault();
         event.stopImmediatePropagation();
         return;
     }
 
     form.dataset.submitLocked = 'true';
-    form.setAttribute('aria-busy', 'true');
 
-    const submitter = event.submitter instanceof HTMLElement
-        ? event.submitter
-        : form.querySelector(submitLockButtonSelector);
-    showSubmitLockFeedback(form, submitter);
+    queueMicrotask(() => {
+        if (event.defaultPrevented || !form.isConnected) {
+            if (submitter) submitLockOriginalDisabled.delete(submitter);
+            restoreSubmitLock(form);
+            return;
+        }
+
+        form.setAttribute('aria-busy', 'true');
+        showSubmitLockFeedback(form, submitter);
+    });
+});
+
+document.addEventListener('click', (event) => {
+    const link = event.target instanceof Element
+        ? event.target.closest('a[data-navigation-lock]')
+        : null;
+    if (!(link instanceof HTMLAnchorElement)) return;
+
+    const opensCurrentPage = event.button === 0
+        && !event.altKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.shiftKey
+        && !link.hasAttribute('download')
+        && (!link.target || link.target === '_self');
+    if (!opensCurrentPage) return;
+
+    if (link.dataset.navigationLocked === 'true') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+    }
+
+    showNavigationLockFeedback(link);
 });
 
 window.addEventListener('pageshow', () => {
-    document.querySelectorAll('form[data-submit-lock]').forEach(restoreSubmitLock);
+    document.querySelectorAll(submitLockFormSelector).forEach(restoreSubmitLock);
+    document.querySelectorAll('a[data-navigation-lock]').forEach(restoreNavigationLock);
     initializeMultiImagePickers();
     initializeCharacterIconDesignAutosave();
 });
@@ -552,6 +657,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeCharacterIconDesignAutosave();
 });
 document.addEventListener('livewire:navigated', () => {
+    document.querySelectorAll(submitLockFormSelector).forEach(restoreSubmitLock);
+    document.querySelectorAll('a[data-navigation-lock]').forEach(restoreNavigationLock);
     initializeMultiImagePickers();
     initializeCharacterIconDesignAutosave();
 });

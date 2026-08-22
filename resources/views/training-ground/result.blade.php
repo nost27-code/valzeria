@@ -74,7 +74,7 @@
         </section>
 
         <section class="grid gap-3 {{ $isPvp ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }}">
-            <form action="{{ route('training-ground.battle') }}" method="POST" data-submit-lock>
+            <form action="{{ route('training-ground.battle') }}" method="POST" data-submit-lock data-loading-text="{{ $isPvp ? '模擬戦中...' : '訓練中...' }}">
                 @csrf
                 <input type="hidden" name="context" value="{{ $outcome['context'] ?? 'pve' }}">
                 @if($isPvp)
@@ -84,9 +84,9 @@
                     {{ $isPvp ? '同じ相手ともう一度戦う' : '同じセットでもう一度訓練する' }}
                 </button>
             </form>
-            <a href="{{ route('training-ground.index') }}" class="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm active:scale-[0.99]">{{ $isPvp ? '対戦相手を選び直す' : '訓練方法を選び直す' }}</a>
+            <a href="{{ route('training-ground.index') }}" data-navigation-lock data-loading-text="移動中..." class="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm active:scale-[0.99]">{{ $isPvp ? '対戦相手を選び直す' : '訓練方法を選び直す' }}</a>
             @if($isPvp)
-                <a href="{{ route('job-arts.index', ['context' => $pvpSetEnabled ? 'pvp' : 'boss']) }}" class="inline-flex min-h-12 items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-4 py-3 text-sm font-black text-violet-800 shadow-sm active:scale-[0.99]">{{ $pvpSetEnabled ? 'PvP戦技セットを見直す' : '対人用のボス戦技を見直す' }}</a>
+                <a href="{{ route('job-arts.index', ['context' => $pvpSetEnabled ? 'pvp' : 'boss']) }}" data-navigation-lock data-loading-text="移動中..." class="inline-flex min-h-12 items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-4 py-3 text-sm font-black text-violet-800 shadow-sm active:scale-[0.99]">{{ $pvpSetEnabled ? 'PvP戦技セットを見直す' : '対人用のボス戦技を見直す' }}</a>
             @endif
         </section>
     </div>

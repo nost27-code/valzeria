@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-training-ground-direct-pvp-feedback',
+        'date' => '2026-08-23',
+        'category' => 'changed',
+        'title' => '訓練所の模擬戦導線とボタン表示を改善',
+        'detail' => '冒険者訓練所の闘技場ランキングから、相手をプルダウンで選んで「模擬戦をする」を押すだけで対戦を開始できるようにしました。重複していた選択相手カードを整理し、送信・画面移動ボタンには処理中表示と二重押し防止を追加しました。',
+    ],
+    [
         'id' => '2026-08-23-exclusive-character-icon-set-032',
         'date' => '2026-08-23',
         'category' => 'internal',

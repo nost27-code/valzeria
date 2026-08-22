@@ -42,9 +42,9 @@
                 <span class="text-xs font-bold text-slate-500">変更は戦技セット画面で自動保存</span>
             </div>
             <div class="mt-3 grid grid-cols-3 gap-2">
-                <a href="{{ route('job-arts.index', ['context' => 'normal']) }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-center text-xs font-black text-emerald-800">通常戦用</a>
-                <a href="{{ route('job-arts.index', ['context' => 'boss']) }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-2 text-center text-xs font-black text-rose-800">ボス戦用</a>
-                <a href="{{ route('job-arts.index', ['context' => $pvpSetEnabled ? 'pvp' : 'boss']) }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 px-2 text-center text-xs font-black text-violet-800">{{ $pvpSetEnabled ? 'PvP戦用' : '対人用（ボス戦用）' }}</a>
+                <a href="{{ route('job-arts.index', ['context' => 'normal']) }}" data-navigation-lock data-loading-text="移動中..." class="inline-flex min-h-11 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 text-center text-xs font-black text-emerald-800">通常戦用</a>
+                <a href="{{ route('job-arts.index', ['context' => 'boss']) }}" data-navigation-lock data-loading-text="移動中..." class="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-2 text-center text-xs font-black text-rose-800">ボス戦用</a>
+                <a href="{{ route('job-arts.index', ['context' => $pvpSetEnabled ? 'pvp' : 'boss']) }}" data-navigation-lock data-loading-text="移動中..." class="inline-flex min-h-11 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 px-2 text-center text-xs font-black text-violet-800">{{ $pvpSetEnabled ? 'PvP戦用' : '対人用（ボス戦用）' }}</a>
             </div>
         </section>
 
@@ -66,14 +66,14 @@
                         @endforelse
                     </div>
 
-                    <form action="{{ route('training-ground.battle') }}" method="POST" class="mt-4" data-submit-lock>
+                    <form action="{{ route('training-ground.battle') }}" method="POST" class="mt-4" data-submit-lock data-loading-text="訓練中...">
                         @csrf
                         <input type="hidden" name="context" value="{{ $context }}">
                         <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-black text-white shadow active:scale-[0.99] {{ $context === 'boss' ? 'bg-rose-700' : 'bg-emerald-700' }}">
                             {{ $loadout['label'] }}で訓練する
                         </button>
                     </form>
-                    <a href="{{ route('job-arts.index', ['context' => $context === 'boss' ? 'boss' : 'normal']) }}" class="mt-2 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-black text-slate-700">
+                    <a href="{{ route('job-arts.index', ['context' => $context === 'boss' ? 'boss' : 'normal']) }}" data-navigation-lock data-loading-text="移動中..." class="mt-2 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-black text-slate-700">
                         {{ $loadout['label'] }}を整える
                     </a>
                 </section>
@@ -89,7 +89,7 @@
                         冒険者を一人選び、通常の闘技場と同じルールで腕試しできる。実際のHP/SP、順位、勝敗、報酬、対戦履歴、実績計測には反映されない。
                     </p>
                 </div>
-                <a href="{{ route('job-arts.index', ['context' => $pvpSetEnabled ? 'pvp' : 'boss']) }}" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-3 text-xs font-black text-violet-800">
+                <a href="{{ route('job-arts.index', ['context' => $pvpSetEnabled ? 'pvp' : 'boss']) }}" data-navigation-lock data-loading-text="移動中..." class="inline-flex min-h-10 items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-3 text-xs font-black text-violet-800">
                     {{ $pvpSetEnabled ? 'PvP戦技セットを整える' : '対人用のボス戦技を整える' }}
                 </a>
             </div>
@@ -97,7 +97,7 @@
             <div class="mt-4 grid gap-4 lg:grid-cols-2">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <h3 class="text-sm font-black text-slate-900">キャラクター名から探す</h3>
-                    <form action="{{ route('training-ground.index') }}" method="GET" class="mt-2 flex gap-2">
+                    <form action="{{ route('training-ground.index') }}" method="GET" class="mt-2 flex gap-2" data-submit-lock data-loading-text="検索中...">
                         <label for="opponent-search" class="sr-only">キャラクター名</label>
                         <input id="opponent-search" name="opponent_search" value="{{ $opponentSearch }}" maxlength="50" placeholder="名前の一部を入力" class="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900">
                         <button type="submit" class="min-h-11 shrink-0 rounded-lg bg-slate-800 px-4 text-sm font-black text-white">検索</button>
@@ -106,7 +106,7 @@
                     @if($opponentSearch !== '')
                         <div class="mt-3 space-y-2">
                             @forelse($searchResults as $opponent)
-                                <a href="{{ route('training-ground.index', ['opponent_search' => $opponentSearch, 'opponent_id' => $opponent->id]) }}" class="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800">
+                                <a href="{{ route('training-ground.index', ['opponent_search' => $opponentSearch, 'opponent_id' => $opponent->id]) }}" data-navigation-lock data-loading-text="選択中..." class="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800">
                                     <span class="min-w-0 truncate">{{ $opponent->name }}</span>
                                     <span class="shrink-0 text-xs text-slate-500">Lv{{ number_format((int) $opponent->level) }}{{ $opponent->arenaRanking ? '・'.$opponent->arenaRanking->rank.'位' : '' }}</span>
                                 </a>
@@ -119,9 +119,11 @@
 
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <h3 class="text-sm font-black text-slate-900">闘技場ランキングから選ぶ</h3>
-                    <form action="{{ route('training-ground.index') }}" method="GET" class="mt-2 space-y-2">
+                    <form action="{{ route('training-ground.battle') }}" method="POST" class="mt-2 space-y-2" data-ranking-practice-form data-submit-lock data-loading-text="模擬戦中...">
+                        @csrf
+                        <input type="hidden" name="context" value="pvp">
                         <label for="ranking-opponent" class="sr-only">ランキングの冒険者</label>
-                        <select id="ranking-opponent" name="opponent_id" class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900">
+                        <select id="ranking-opponent" name="opponent_id" required class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900">
                             <option value="">対戦相手を選択</option>
                             @foreach($rankingOpponents as $ranking)
                                 <option value="{{ $ranking->character_id }}" @selected((int) old('opponent_id', $selectedOpponent?->id) === (int) $ranking->character_id)>
@@ -129,7 +131,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <button type="submit" class="min-h-11 w-full rounded-lg border border-violet-300 bg-white px-3 text-sm font-black text-violet-800">この冒険者を選ぶ</button>
+                        <button type="submit" class="min-h-11 w-full rounded-lg bg-violet-700 px-3 text-sm font-black text-white shadow active:scale-[0.99]">模擬戦をする</button>
                     </form>
                     @if($rankingOpponents->isEmpty())
                         <p class="mt-2 text-center text-xs font-bold text-slate-500">選べるランキング参加者はまだいない。</p>
@@ -137,7 +139,7 @@
                 </div>
             </div>
 
-            @if($selectedOpponent)
+            @if($selectedOpponent && $opponentSearch !== '')
                 <div class="mt-4 rounded-xl border-2 border-violet-300 bg-violet-50 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -149,7 +151,7 @@
                                 @if($selectedOpponent->arenaRanking)・闘技場 {{ number_format((int) $selectedOpponent->arenaRanking->rank) }}位@endif
                             </div>
                         </div>
-                        <form action="{{ route('training-ground.battle') }}" method="POST" class="w-full sm:w-auto" data-submit-lock>
+                        <form action="{{ route('training-ground.battle') }}" method="POST" class="w-full sm:w-auto" data-submit-lock data-loading-text="模擬戦中...">
                             @csrf
                             <input type="hidden" name="context" value="pvp">
                             <input type="hidden" name="opponent_id" value="{{ $selectedOpponent->id }}">
@@ -159,8 +161,6 @@
                         </form>
                     </div>
                 </div>
-            @else
-                <p class="mt-4 rounded-lg border border-dashed border-violet-300 bg-violet-50 px-3 py-3 text-center text-xs font-bold text-violet-800">名前検索かランキングから対戦相手を選ぼう。</p>
             @endif
         </section>
     </div>
