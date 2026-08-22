@@ -8,7 +8,7 @@ class DamageCalculator
 {
     private const DUEL_DEFENSE_RATE = 0.50;
     private const DUEL_MIN_DAMAGE_RATE = 0.20;
-    private const DUEL_CRITICAL_MULTIPLIER = 1.35;
+    private const DUEL_CRITICAL_MULTIPLIER = 1.50;
     private const DUEL_VARIANCE_MIN = 90;
     private const DUEL_VARIANCE_MAX = 110;
     private const RANK_BATTLE_ATTACK_RATE = 0.56;
@@ -17,7 +17,7 @@ class DamageCalculator
     private const RANK_BATTLE_MIN_HP_RATE = 0.045;
     private const RANK_BATTLE_MIN_ATTACK_RATE = 0.18;
     private const RANK_BATTLE_NORMAL_FLOOR_RATE = 0.04;
-    private const RANK_BATTLE_CRITICAL_MULTIPLIER = 1.18;
+    private const RANK_BATTLE_CRITICAL_MULTIPLIER = 1.50;
     private const RANK_BATTLE_VARIANCE_MIN = 96;
     private const RANK_BATTLE_VARIANCE_MAX = 104;
 
@@ -92,18 +92,26 @@ class DamageCalculator
 
     public function isDuelCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        $critRate = 5.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.05);
-        $critRate = max(3.0, min(20.0, $critRate));
+        return rand(1, 100) <= $this->duelCriticalChance($attacker, $defender, $bonusRate);
+    }
 
-        return rand(1, 100) <= $critRate;
+    public function duelCriticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
+    {
+        $critRate = 5.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.05);
+
+        return max(3.0, min(20.0, $critRate));
     }
 
     public function isRankBattleCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        $critRate = 3.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.03);
-        $critRate = max(2.0, min(12.0, $critRate));
+        return rand(1, 100) <= $this->rankBattleCriticalChance($attacker, $defender, $bonusRate);
+    }
 
-        return rand(1, 100) <= $critRate;
+    public function rankBattleCriticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
+    {
+        $critRate = 3.0 + $bonusRate + (($attacker->effectiveLuk() - $defender->effectiveLuk()) * 0.03);
+
+        return max(2.0, min(12.0, $critRate));
     }
 
     public function calculateDuelDamage(
