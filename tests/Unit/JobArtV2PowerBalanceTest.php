@@ -48,8 +48,7 @@ class JobArtV2PowerBalanceTest extends TestCase
     public function test_final_workbook_removes_only_the_three_explicit_v2_use_caps(): void
     {
         $rows = json_decode((string) file_get_contents(base_path('database/data/job_arts.json')), true, 512, JSON_THROW_ON_ERROR);
-        $byKey = collect($rows)->keyBy(static fn (array $row): string =>
-            (int) $row['job_id'].':'.(int) $row['learn_rank'].':'.(string) $row['name']
+        $byKey = collect($rows)->keyBy(static fn (array $row): string => (int) $row['job_id'].':'.(int) $row['learn_rank'].':'.(string) $row['name']
         );
 
         foreach (['59:9:八陣無双策', '67:9:金冠ミダスフィールド', '69:9:王戦アークフォーメーション'] as $key) {
@@ -351,7 +350,7 @@ class JobArtV2PowerBalanceTest extends TestCase
         $this->assertLessThan(0.73, JobArtV2BalanceFixture::activationAdjustedRatio($rankFive, $acceptedCandidate));
     }
 
-    public function test_eclipse_and_hunt_keep_existing_pvp_skill_floors_and_caps(): void
+    public function test_eclipse_and_hunt_use_their_displayed_power_in_pvp(): void
     {
         $calculator = new DamageCalculator;
 
@@ -359,14 +358,34 @@ class JobArtV2PowerBalanceTest extends TestCase
             $attacker = $this->actor($jobId, 1_000, 500, 10_000);
             $defender = $this->actor(null, 1_000, 800, 10_000);
 
-            for ($i = 0; $i < 100; $i++) {
-                $this->assertSame(1_000, $calculator->calculateRankBattleDamage($attacker, $defender, $damageType, 285, false, 1.0, null, null, null, true, 1));
-                $this->assertSame(1_000, $calculator->calculateRankBattleDamage($attacker, $defender, $damageType, $rankNinePower, false, 1.0, null, null, null, true, 1));
+            foreach ([285, $rankNinePower] as $power) {
+                for ($i = 0; $i < 100; $i++) {
+                    $seed = ($jobId * 100_000) + ($power * 100) + $i;
+                    mt_srand($seed);
+                    $normalEquivalent = $calculator->calculateRankBattleDamage(
+                        $attacker,
+                        $defender,
+                        $damageType,
+                        100,
+                        false,
+                    );
+                    mt_srand($seed);
+                    $actual = $calculator->calculateRankBattleDamage(
+                        $attacker,
+                        $defender,
+                        $damageType,
+                        $power,
+                        false,
+                        isSkill: true,
+                    );
+
+                    $this->assertSame(intdiv($normalEquivalent * $power, 100), $actual);
+                }
             }
         }
     }
 
-    public function test_rank_sixty_two_pvp_floor_and_cap_remain_authoritative(): void
+    public function test_rank_sixty_two_pvp_penetration_keeps_displayed_power_authoritative(): void
     {
         $calculator = new DamageCalculator;
         $penetration = app(JobArtV2PenetrationService::class);
@@ -379,9 +398,31 @@ class JobArtV2PowerBalanceTest extends TestCase
 
         $rankFiveDef = $penetration->defenseOverrides($attacker, $defender, $rankFive)['def'];
         $rankNineDef = $penetration->defenseOverrides($attacker, $defender, $rankNine)['def'];
-        for ($i = 0; $i < 100; $i++) {
-            $this->assertSame(1_000, $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 285, false, 1.0, null, $rankFiveDef, null, true, 1));
-            $this->assertSame(1_000, $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 470, false, 1.0, null, $rankNineDef, null, true, 1));
+        foreach ([[285, $rankFiveDef], [470, $rankNineDef]] as [$power, $overrideDef]) {
+            for ($i = 0; $i < 100; $i++) {
+                $seed = ($power * 1_000) + $i;
+                mt_srand($seed);
+                $normalEquivalent = $calculator->calculateRankBattleDamage(
+                    $attacker,
+                    $defender,
+                    'physical',
+                    100,
+                    false,
+                    overrideDef: $overrideDef,
+                );
+                mt_srand($seed);
+                $actual = $calculator->calculateRankBattleDamage(
+                    $attacker,
+                    $defender,
+                    'physical',
+                    $power,
+                    false,
+                    overrideDef: $overrideDef,
+                    isSkill: true,
+                );
+
+                $this->assertSame(intdiv($normalEquivalent * $power, 100), $actual);
+            }
         }
     }
 

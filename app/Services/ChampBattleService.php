@@ -842,7 +842,7 @@ class ChampBattleService
 
             if ($dealsDamage && (float) $skill->power_multiplier > 0) {
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
-                    $damage = $this->damageCalculator->calculateRankBattleDamage(
+                    $damage = $this->damageCalculator->calculateDuelDamage(
                         $attacker,
                         $defender,
                         'physical',
@@ -852,11 +852,9 @@ class ChampBattleService
                         $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
-                        true,
-                        $hitCount
                     );
                 } elseif ($damageType === 'magical') {
-                    $damage = $this->damageCalculator->calculateRankBattleDamage(
+                    $damage = $this->damageCalculator->calculateDuelDamage(
                         $attacker,
                         $defender,
                         'magical',
@@ -866,15 +864,13 @@ class ChampBattleService
                         $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
-                        true,
-                        $hitCount
                     );
                 } elseif ($damageType === 'hybrid') {
                     $hybridAtk = $attacker->hybridAttackPower(
                         (string) $skill->hybrid_scaling,
                         $this->jobArtBattleSupport->usesRoleEffects($attacker),
                     );
-                    $damage = $this->damageCalculator->calculateRankBattleDamage(
+                    $damage = $this->damageCalculator->calculateDuelDamage(
                         $attacker,
                         $defender,
                         'physical',
@@ -884,8 +880,6 @@ class ChampBattleService
                         $hybridAtk,
                         $overrideDef,
                         $overrideSpr,
-                        true,
-                        $hitCount
                     );
                 }
             }

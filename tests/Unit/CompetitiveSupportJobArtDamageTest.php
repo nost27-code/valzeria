@@ -41,6 +41,14 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
         $this->assertStringContainsString('40</span> のダメージ！', $result['log'], $route);
         $this->assertGreaterThan(100, $result['attacker']->str, $route);
 
+        if ($route === 'champ') {
+            $this->assertSame(1, $result['calculator']->duelCalls, $route);
+            $this->assertSame(0, $result['calculator']->rankCalls, $route);
+        } else {
+            $this->assertSame(0, $result['calculator']->duelCalls, $route);
+            $this->assertSame(1, $result['calculator']->rankCalls, $route);
+        }
+
         if ($route !== 'champ') {
             $this->assertSame(960, $result['defender']->hp, $route);
         }
@@ -71,6 +79,27 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
         {
             public int $calls = 0;
 
+            public int $duelCalls = 0;
+
+            public int $rankCalls = 0;
+
+            public function calculateDuelDamage(
+                BattleActor $attacker,
+                BattleActor $defender,
+                string $attackType,
+                int $skillPower = 100,
+                bool $isCritical = false,
+                float $affinityMultiplier = 1.0,
+                ?int $overrideAtk = null,
+                ?int $overrideDef = null,
+                ?int $overrideSpr = null,
+            ): int {
+                $this->calls++;
+                $this->duelCalls++;
+
+                return 40;
+            }
+
             public function calculateRankBattleDamage(
                 BattleActor $attacker,
                 BattleActor $defender,
@@ -87,6 +116,7 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
                 bool $damageCapEnabled = true,
             ): int {
                 $this->calls++;
+                $this->rankCalls++;
 
                 return 40;
             }

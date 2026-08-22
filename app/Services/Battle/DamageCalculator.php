@@ -17,11 +17,8 @@ class DamageCalculator
     private const RANK_BATTLE_MIN_HP_RATE = 0.045;
     private const RANK_BATTLE_MIN_ATTACK_RATE = 0.18;
     private const RANK_BATTLE_NORMAL_FLOOR_RATE = 0.04;
-    private const RANK_BATTLE_SKILL_TOTAL_FLOOR_RATE = 0.10;
     private const RANK_BATTLE_NORMAL_CAP_RATE = 0.18;
     private const RANK_BATTLE_NORMAL_CRITICAL_CAP_RATE = 0.22;
-    private const RANK_BATTLE_SKILL_TOTAL_CAP_RATE = 0.35;
-    private const RANK_BATTLE_SKILL_CRITICAL_TOTAL_CAP_RATE = 0.40;
     private const RANK_BATTLE_CRITICAL_MULTIPLIER = 1.18;
     private const RANK_BATTLE_VARIANCE_MIN = 96;
     private const RANK_BATTLE_VARIANCE_MAX = 104;
@@ -131,11 +128,10 @@ class DamageCalculator
             ? ($spr * 0.7) + ($def * 0.3)
             : ($def * 0.7) + ($spr * 0.3);
 
-        $rawPower = $attackPower * ($skillPower / 100);
         $baseDamage = max(
             1,
-            $rawPower * self::DUEL_MIN_DAMAGE_RATE,
-            $rawPower - ($effectiveDefense * self::DUEL_DEFENSE_RATE)
+            $attackPower * self::DUEL_MIN_DAMAGE_RATE,
+            $attackPower - ($effectiveDefense * self::DUEL_DEFENSE_RATE)
         );
 
         if ($isCritical) {
@@ -152,8 +148,9 @@ class DamageCalculator
         }
 
         $variance = rand(self::DUEL_VARIANCE_MIN, self::DUEL_VARIANCE_MAX) / 100;
+        $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
 
-        return max(1, (int) floor($baseDamage * $variance));
+        return $this->applyDisplayedPower($normalEquivalentDamage, $skillPower);
     }
 
     public function calculateRankBattleDamage(
@@ -180,7 +177,6 @@ class DamageCalculator
             ? ($spr * 0.72) + ($def * 0.28)
             : ($def * 0.72) + ($spr * 0.28);
 
-        $powerMultiplier = $this->rankBattlePowerMultiplier($skillPower);
         $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
             - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
         $pressureDamage = max(0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE;
@@ -192,7 +188,7 @@ class DamageCalculator
             )
             : 1;
 
-        $baseDamage = max($minimumDamage, $statDamage + $pressureDamage) * $powerMultiplier;
+        $baseDamage = max($minimumDamage, $statDamage + $pressureDamage);
 
         if ($isCritical) {
             $baseDamage *= self::RANK_BATTLE_CRITICAL_MULTIPLIER;
@@ -208,19 +204,23 @@ class DamageCalculator
         }
 
         $variance = rand(self::RANK_BATTLE_VARIANCE_MIN, self::RANK_BATTLE_VARIANCE_MAX) / 100;
-        $damage = max(1, (int) floor($baseDamage * $variance));
+        $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
 
         if ($minimumDamageGuaranteeEnabled) {
-            if ($isSkill) {
-                $damage = max($damage, $this->rankBattleSkillDamageFloor($defender, $hitCount));
-            } else {
-                $damage = max($damage, $this->rankBattleNormalDamageFloor($defender));
-            }
+            $normalEquivalentDamage = max(
+                $normalEquivalentDamage,
+                $this->rankBattleNormalDamageFloor($defender),
+            );
         }
 
-        return $damageCapEnabled
-            ? min($damage, $this->rankBattleDamageCap($defender, $isSkill, $isCritical, $hitCount))
-            : $damage;
+        if ($damageCapEnabled) {
+            $normalEquivalentDamage = min(
+                $normalEquivalentDamage,
+                $this->rankBattleDamageCap($defender, $isCritical),
+            );
+        }
+
+        return $this->applyDisplayedPower($normalEquivalentDamage, $skillPower);
     }
 
     /**
@@ -269,11 +269,10 @@ class DamageCalculator
             $effectiveDefense = $attackType === 'magical'
                 ? ($spr * 0.7) + ($def * 0.3)
                 : ($def * 0.7) + ($spr * 0.3);
-            $rawPower = $attackPower * ($skillPower / 100);
             $damage = max(
                 1,
-                $rawPower * self::DUEL_MIN_DAMAGE_RATE,
-                $rawPower - ($effectiveDefense * self::DUEL_DEFENSE_RATE),
+                $attackPower * self::DUEL_MIN_DAMAGE_RATE,
+                $attackPower - ($effectiveDefense * self::DUEL_DEFENSE_RATE),
             );
             if ($isCritical) {
                 $damage *= self::DUEL_CRITICAL_MULTIPLIER;
@@ -285,7 +284,7 @@ class DamageCalculator
                 $damage *= (1 - ($defender->damageReductionRate / 100));
             }
 
-            return max(1, (int) floor($damage));
+            return $this->applyDisplayedPower(max(1, (int) floor($damage)), $skillPower);
         }
 
         if (in_array($battleType, ['pvp', 'arena_npc'], true)) {
@@ -303,8 +302,7 @@ class DamageCalculator
                 $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
                 $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
             );
-            $damage = max($minimumDamage, $statDamage + $pressureDamage)
-                * $this->rankBattlePowerMultiplier($skillPower);
+            $damage = max($minimumDamage, $statDamage + $pressureDamage);
             if ($isCritical) {
                 $damage *= self::RANK_BATTLE_CRITICAL_MULTIPLIER;
             }
@@ -316,9 +314,10 @@ class DamageCalculator
             }
 
             $resolved = max(1, (int) floor($damage));
-            $resolved = max($resolved, $this->rankBattleSkillDamageFloor($defender, $hitCount));
+            $resolved = max($resolved, $this->rankBattleNormalDamageFloor($defender));
+            $resolved = min($resolved, $this->rankBattleDamageCap($defender, $isCritical));
 
-            return min($resolved, $this->rankBattleDamageCap($defender, true, $isCritical, $hitCount));
+            return $this->applyDisplayedPower($resolved, $skillPower);
         }
 
         $attackPower = $attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr();
@@ -340,45 +339,26 @@ class DamageCalculator
         return max(1, (int) floor($damage));
     }
 
-    private function rankBattlePowerMultiplier(int $skillPower): float
+    private function applyDisplayedPower(int $normalEquivalentDamage, int $skillPower): int
     {
-        $rawMultiplier = max(0.1, $skillPower / 100);
-
-        if ($rawMultiplier <= 1.0) {
-            return $rawMultiplier;
-        }
-
-        return min(1.85, 1.0 + (($rawMultiplier - 1.0) * 0.42));
+        return max(
+            1,
+            intdiv($normalEquivalentDamage * max(0, $skillPower), 100),
+        );
     }
 
-    private function rankBattleDamageCap(BattleActor $defender, bool $isSkill, bool $isCritical, int $hitCount): int
+    private function rankBattleDamageCap(BattleActor $defender, bool $isCritical): int
     {
-        if (!$isSkill) {
-            $capRate = $isCritical
-                ? self::RANK_BATTLE_NORMAL_CRITICAL_CAP_RATE
-                : self::RANK_BATTLE_NORMAL_CAP_RATE;
+        $capRate = $isCritical
+            ? self::RANK_BATTLE_NORMAL_CRITICAL_CAP_RATE
+            : self::RANK_BATTLE_NORMAL_CAP_RATE;
 
-            return max(1, (int) floor($defender->maxHp * $capRate));
-        }
-
-        $hitCount = max(1, $hitCount);
-        $totalCapRate = $isCritical
-            ? self::RANK_BATTLE_SKILL_CRITICAL_TOTAL_CAP_RATE
-            : self::RANK_BATTLE_SKILL_TOTAL_CAP_RATE;
-
-        return max(1, (int) floor($defender->maxHp * ($totalCapRate / $hitCount)));
+        return max(1, (int) floor($defender->maxHp * $capRate));
     }
 
     private function rankBattleNormalDamageFloor(BattleActor $defender): int
     {
         return max(1, (int) floor($defender->maxHp * self::RANK_BATTLE_NORMAL_FLOOR_RATE));
-    }
-
-    private function rankBattleSkillDamageFloor(BattleActor $defender, int $hitCount): int
-    {
-        $hitCount = max(1, $hitCount);
-
-        return max(1, (int) floor($defender->maxHp * (self::RANK_BATTLE_SKILL_TOTAL_FLOOR_RATE / $hitCount)));
     }
 
     /**

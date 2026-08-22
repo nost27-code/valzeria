@@ -186,7 +186,7 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $this->assertLessThanOrEqual((int) ceil($actual * 0.41), $reduced);
     }
 
-    public function test_pvp_keeps_spr_and_existing_floor_and_cap_semantics(): void
+    public function test_pvp_keeps_spr_and_scales_the_normal_floor_and_cap_by_displayed_power(): void
     {
         $attacker = $this->actor(62, 10, 10, 1000, 10_000);
         $rankFive = $this->art(5);
@@ -202,10 +202,12 @@ class JobArtV2PenetrationServiceTest extends TestCase
         mt_srand(6201);
         $normal = $calculator->calculateRankBattleDamage($attacker, $highDefense, 'physical', 285, false, 1.0, null, null, null, true, 1);
         mt_srand(6201);
+        $normalEquivalent = $calculator->calculateRankBattleDamage($attacker, $highDefense, 'physical', 100, false);
+        mt_srand(6201);
         $r5Damage = $calculator->calculateRankBattleDamage($attacker, $highDefense, 'physical', 285, false, 1.0, null, $this->service()->defenseOverrides($attacker, $highDefense, $rankFive)['def'], null, true, 1);
         mt_srand(6201);
         $r9Damage = $calculator->calculateRankBattleDamage($attacker, $highDefense, 'physical', 285, false, 1.0, null, $this->service()->defenseOverrides($attacker, $highDefense, $rankNine)['def'], null, true, 1);
-        $this->assertSame(1000, $normal);
+        $this->assertSame(intdiv($normalEquivalent * 285, 100), $normal);
         $this->assertSame($normal, $r5Damage);
         $this->assertSame($normal, $r9Damage);
 
@@ -214,7 +216,7 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $normalCap = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 285, false, 1.0, null, null, null, true, 1);
         mt_srand(6202);
         $penetratedCap = $calculator->calculateRankBattleDamage($attacker, $lowHpTarget, 'physical', 285, false, 1.0, null, 0, null, true, 1);
-        $this->assertSame(350, $normalCap);
+        $this->assertSame(intdiv(180 * 285, 100), $normalCap);
         $this->assertSame($normalCap, $penetratedCap);
     }
 
