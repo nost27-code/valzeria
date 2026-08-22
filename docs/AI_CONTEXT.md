@@ -21,7 +21,7 @@ Branch: main
 ## Dungeon-lord job-art set / training-ground practice battle
 
 - ダンジョン主は`is_boss=false`の通常PvE・報酬ルールを維持しつつ、プレイヤーが使う戦技セットだけボス戦用を選ぶ
-- 街施設「冒険者訓練所」は`TrainingGroundBattleService`で通常戦用／ボス戦用セットを選び、既存PvE戦闘を50ターン実行する。双方はHP1で踏みとどまり、訓練人形は受け流し可能な単発直接物理攻撃だけを行い、1回のダメージをプレイヤー最大HPの1%以下に抑える。開始時だけHP/SP全快を使い、実HP/SP、装備、戦績、戦闘履歴、報酬、探索支援品、待機時間は更新しない。多重実行はキャラクター単位の短時間ガードで止める
+- 街施設「冒険者訓練所」は、通常戦用／ボス戦用セットで倒れない訓練人形と50ターン戦うほか、キャラクター名検索または闘技場ランキングから相手を選び、`TrainingGroundPvpBattleService`から副作用なしの`PvPBattleService::resolveBattle()`を使う対人模擬戦を行える。各セットの戦技画面へ直接移動でき、PvPセットflag OFF時の対人戦導線はruntimeと同じボス戦用fallbackを案内する。戦闘ログは上から下へ発生順に表示する。開始時だけ訓練内のHP/SPを全快にし、実HP/SP、装備、順位、戦績、戦闘履歴、報酬、探索支援品、待機時間、実績計測は更新しない。多重実行はキャラクター単位の短時間ガードで止める
 
 ## Job-art v2 guide / rank-battle judgment (production)
 

@@ -33,7 +33,7 @@
     :showFacilityHeader="!$jobArtV2UiEnabled"
     :mainContentClass="$jobArtV2UiEnabled ? 'py-3 sm:py-5' : null"
 >
-    <div class="mx-auto w-full pb-24 {{ $jobArtV2UiEnabled ? 'max-w-[680px] space-y-3' : 'max-w-[560px] space-y-4 px-3' }}" data-job-art-root data-job-art-v2-ui="{{ $jobArtV2UiEnabled ? '1' : '0' }}">
+    <div class="mx-auto w-full pb-24 {{ $jobArtV2UiEnabled ? 'max-w-[680px] space-y-3' : 'max-w-[560px] space-y-4 px-3' }}" data-job-art-root data-job-art-v2-ui="{{ $jobArtV2UiEnabled ? '1' : '0' }}" data-initial-job-art-context="{{ $initialSlotContext ?? '' }}">
         @if($jobArtV2UiEnabled)
             <header class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm" data-job-art-page-header>
                 <a href="{{ route('home') }}" aria-label="街へ戻る" class="inline-flex h-10 w-10 items-center justify-center rounded-full text-indigo-700 transition-colors hover:bg-indigo-50">
@@ -99,10 +99,19 @@
             <div
                 class="{{ $jobArtV2UiEnabled ? 'mt-5 space-y-4' : 'mt-4 space-y-3' }}"
                 x-data="{
-                    activeContext: 'normal',
+                    activeContext: @js($initialSlotContext ?? 'normal'),
+                    requestedContext: @js($initialSlotContext),
                     availableContexts: @js(array_keys($slotContextLabels)),
                     activeContextStorageKey: 'valzeria.jobArtActiveContext.v1',
                     init() {
+                        if (this.requestedContext && this.availableContexts.includes(this.requestedContext)) {
+                            this.activeContext = this.requestedContext;
+                            try {
+                                localStorage.setItem(this.activeContextStorageKey, this.requestedContext);
+                            } catch (error) {}
+
+                            return;
+                        }
                         try {
                             const savedContext = localStorage.getItem(this.activeContextStorageKey);
                             if (this.availableContexts.includes(savedContext)) {

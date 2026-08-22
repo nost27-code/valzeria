@@ -12,6 +12,19 @@ use Tests\TestCase;
 
 class JobArtPvpSetViewTest extends TestCase
 {
+    public function test_training_links_can_open_the_requested_battle_context(): void
+    {
+        $view = file_get_contents(resource_path('views/job-arts/index.blade.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/JobArtController.php'));
+
+        $this->assertIsString($view);
+        $this->assertIsString($controller);
+        $this->assertStringContainsString('$initialSlotContext', $controller);
+        $this->assertStringContainsString("'initialSlotContext' => \$initialSlotContext", $controller);
+        $this->assertStringContainsString('requestedContext: @js($initialSlotContext)', $view);
+        $this->assertStringContainsString('this.activeContext = this.requestedContext', $view);
+    }
+
     public function test_ui_uses_flag_aware_context_slot_and_cost_limits(): void
     {
         $view = file_get_contents(resource_path('views/job-arts/index.blade.php'));

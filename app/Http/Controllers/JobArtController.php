@@ -116,6 +116,10 @@ class JobArtController extends Controller
             ? $presetService->presetsForDisplay($character)
             : [];
         $jobArtStarterPresetCount = $starterPresetService->presetCountForDisplay($character);
+        $requestedSlotContext = (string) $request->query('context', '');
+        $initialSlotContext = in_array($requestedSlotContext, $jobArtService->slotContexts(), true)
+            ? $requestedSlotContext
+            : null;
         session([$jobArtService->setupSeenSessionKey($character) => $jobArtService->setupSignature($character, $availableArts, $selectedSlots)]);
 
         return view('job-arts.index', [
@@ -153,6 +157,7 @@ class JobArtController extends Controller
             'jobArtPresets' => $jobArtPresets,
             'jobArtPresetLimit' => $presetService->limitFor($character),
             'jobArtStarterPresetCount' => $jobArtStarterPresetCount,
+            'initialSlotContext' => $initialSlotContext,
             'jobArtStarterPresetHighlighted' => $this->starterPresetHighlightActive(),
             'activeLineagesByContext' => $activeLineagesByContext,
             'currentLineageResourceGuide' => $starterPresetService->resourceGuideForDisplay($character),

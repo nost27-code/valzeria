@@ -22,4 +22,15 @@ final readonly class PvPBattleExecutionContext
             rankBattleDamageCapEnabled: true,
         );
     }
+
+    public static function trainingGround(): self
+    {
+        return new self(
+            displayLabel: '対人模擬戦',
+            jobArtContext: 'champ',
+            roomRule: null,
+            rankBattleMinimumDamageGuaranteeEnabled: true,
+            rankBattleDamageCapEnabled: true,
+        );
+    }
 }
