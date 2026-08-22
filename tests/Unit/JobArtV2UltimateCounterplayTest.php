@@ -83,29 +83,16 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertFalse($gate->usesUltimateCounterplay(new BattleState($player, $enemy, 'pvp')));
     }
 
-    public function test_main_rank_five_is_required_then_preparing_becomes_ready_after_one_response(): void
+    public function test_resource_twelve_enters_preparation_without_rank_five_and_becomes_ready_after_one_response(): void
     {
         [$owner, $responder] = $this->actors();
+        $owner->jobArts = [$this->commandArt(1), $this->commandArt(9)];
+        $this->setOrigins($owner);
         $state = new BattleState($owner, $responder, 'pvp');
         $service = app(JobArtV2UltimateCounterplayService::class);
         $owner->configureResource('command_points', 12);
         $owner->setResource('command_points', 12);
 
-        $this->action($owner, $state, fn () => null, $service);
-        $this->assertNull($owner->existingJobArtV2UltimateCounterplayState()?->preparation);
-        $this->assertSame(
-            JobArtV2UltimateCounterplayService::BLOCKED_PREREQUISITE,
-            $service->eligibilityBlockReason($owner, $state, $this->commandArt(9)),
-        );
-
-        $owner->setResource('command_points', 4);
-        $this->action($owner, $state, function () use ($service, $owner, $state): void {
-            $service->beginJobArtCast($owner, $state, $this->commandArt(5));
-            $owner->setResource('command_points', 0);
-        }, $service);
-        $this->assertTrue($owner->jobArtV2UltimateCounterplayState()->mainRankFiveEstablished);
-
-        $owner->setResource('command_points', 12);
         $this->action($owner, $state, fn () => null, $service);
         $this->assertTrue($owner->jobArtV2UltimateCounterplayState()->preparation?->isPreparing());
         $this->assertSame(
@@ -116,6 +103,25 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->action($responder, $state, fn () => null, $service);
         $this->assertTrue($owner->jobArtV2UltimateCounterplayState()->preparation?->isReady());
         $this->assertNull($service->eligibilityBlockReason($owner, $state, $this->commandArt(9)));
+    }
+
+    public function test_rank_five_is_not_a_preparation_prerequisite_in_any_competitive_route(): void
+    {
+        foreach (['pvp', 'champ', 'arena_npc'] as $battleType) {
+            [$owner, $responder] = $this->actors();
+            $owner->jobArts = [$this->commandArt(1), $this->commandArt(9)];
+            $this->setOrigins($owner);
+            $state = new BattleState($owner, $responder, $battleType);
+            $owner->configureResource('command_points', 12);
+            $owner->setResource('command_points', 12);
+
+            $this->action($owner, $state, fn () => null, app(JobArtV2UltimateCounterplayService::class));
+
+            $this->assertTrue(
+                $owner->jobArtV2UltimateCounterplayState()->preparation?->isPreparing(),
+                $battleType,
+            );
+        }
     }
 
     public function test_hunt_hit_cancels_preparation_preserves_twelve_and_replaces_normal_seal(): void
@@ -278,7 +284,7 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertTrue($preparation->isReady());
     }
 
-    public function test_secondary_rank_five_cannot_satisfy_the_main_ultimate_prerequisite(): void
+    public function test_cross_lineage_rank_five_is_not_required_for_the_equipped_ultimate(): void
     {
         $guardArts = $this->guardArts();
         $actor = $this->actor('mixed', 62, [
@@ -299,8 +305,9 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $service->finishAction($actor, $state);
 
         $this->assertFalse($actor->jobArtV2UltimateCounterplayState()->mainRankFiveEstablished);
+        $this->assertTrue($actor->jobArtV2UltimateCounterplayState()->preparation?->isPreparing());
         $this->assertSame(
-            JobArtV2UltimateCounterplayService::BLOCKED_PREREQUISITE,
+            JobArtV2UltimateCounterplayService::BLOCKED_PREPARING,
             $service->eligibilityBlockReason($actor, $state, $this->pierceArt(9)),
         );
     }
@@ -477,7 +484,8 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertStringContainsString('35%軽減', implode(' ', $guardCard['effect_texts']));
         $this->assertStringContainsString('35%軽減', implode(' ', $unselectedCandidate['effect_texts']));
         $this->assertStringNotContainsString('対人戦・主／副系譜の対奥義', implode(' ', $techCandidate['effect_texts']));
-        $this->assertStringContainsString('この奥義と同じ系譜の連携を1回', implode(' ', $ultimateCard['effect_texts']));
+        $this->assertStringContainsString('資源が必要量に達すると予告', implode(' ', $ultimateCard['effect_texts']));
+        $this->assertStringNotContainsString('連携を1回', implode(' ', $ultimateCard['effect_texts']));
 
         $hud = app(JobArtV2BattleHudService::class)->present($state);
         $this->assertSame(

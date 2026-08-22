@@ -103,6 +103,9 @@ class BattleActor
     /** C案prototypeの候補巡回位置。戦闘終了時に破棄する。 */
     private int $jobArtV2SelectionCursor = 0;
 
+    /** 資源満タン後に一度優先抽選した奥義。資源不足へ戻ると解除する。 */
+    private ?int $jobArtV2PrioritizedUltimateSkillId = null;
+
     /** 対奥義prototypeの準備・応答状態。戦闘終了時に破棄する。 */
     private ?JobArtV2UltimateCounterplayState $jobArtV2UltimateCounterplayState = null;
     /** このアクターが受けたダメージの累計（DOT・追撃含む全経路）。戦闘ログ集計に使う。 */
@@ -450,6 +453,23 @@ class BattleActor
         $this->jobArtV2SelectionCursor = $candidateCount > 0
             ? (($cursor % $candidateCount) + $candidateCount) % $candidateCount
             : 0;
+    }
+
+    public function isJobArtV2UltimatePriorityPending(): bool
+    {
+        return $this->jobArtV2PrioritizedUltimateSkillId === null;
+    }
+
+    public function markJobArtV2UltimatePriorityAttempted(int $skillId): void
+    {
+        $this->jobArtV2PrioritizedUltimateSkillId = $skillId;
+    }
+
+    public function resetJobArtV2UltimatePriorityAttempt(int $skillId): void
+    {
+        if ($this->jobArtV2PrioritizedUltimateSkillId === $skillId) {
+            $this->jobArtV2PrioritizedUltimateSkillId = null;
+        }
     }
 
     public function jobArtV2UltimateCounterplayState(): JobArtV2UltimateCounterplayState

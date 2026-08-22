@@ -64,7 +64,7 @@ class JobArtV2RecommendationTest extends TestCase
 
         $this->assertSame('始動戦技を重ねてリソースを温存し、強力な奥義を狙う戦型です。', $styles[0]['description']);
         $this->assertStringContainsString('連携戦技は温存されやすい', $copy);
-        $this->assertStringContainsString('条件成立時は奥義が優先', $styles[0]['priority_note']);
+        $this->assertStringContainsString('条件成立後、最初の候補は奥義が優先', $styles[0]['priority_note']);
         $this->assertStringNotContainsString('始動→連携→奥義', $copy);
 
         $this->assertSame('リソースを連携戦技へ積極的に使い、連携戦技を繰り返して戦う戦型です。', $styles[1]['description']);

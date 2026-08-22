@@ -421,6 +421,20 @@ class JobArtV2ResourceServiceTest extends TestCase
         $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_CAP, $this->service()->eligibilityBlockReason($actor, $skill));
     }
 
+    public function test_producer_remains_eligible_at_cap_when_an_equipped_finisher_uses_the_same_resource(): void
+    {
+        [$actor] = $this->battle(53);
+        $producer = $this->art(53, 1);
+        $finisher = $this->art(53, 9);
+        $actor->jobArts = [$producer, $finisher];
+        $actor->jobArtOrigins[(int) $producer->id] = 'current';
+        $actor->jobArtOrigins[(int) $finisher->id] = 'current';
+        $actor->configureResource('star_mark', 12);
+        $actor->setResource('star_mark', 12);
+
+        $this->assertNull($this->service()->eligibilityBlockReason($actor, $producer));
+    }
+
     public function test_consumer_and_finisher_require_and_spend_the_frozen_points_once(): void
     {
         foreach ([[5, 4], [9, 12]] as [$rank, $cost]) {
@@ -592,7 +606,7 @@ class JobArtV2ResourceServiceTest extends TestCase
             $cast($rank1); $this->assertSame(10, $actor->getResource($resourceKey));
             $normal(); $this->assertSame(11, $actor->getResource($resourceKey));
             $cast($rank1); $this->assertSame(12, $actor->getResource($resourceKey));
-            $this->assertSame(JobArtV2ResourceService::BLOCKED_BY_CAP, $service->eligibilityBlockReason($actor, $rank1));
+            $this->assertNull($service->eligibilityBlockReason($actor, $rank1));
             $this->assertTrue($service->isFinisherReady($actor, $rank9));
             $cast($rank9); $this->assertSame(0, $actor->getResource($resourceKey));
         }

@@ -11,7 +11,6 @@ use App\Services\Battle\HitResult;
 /** PvP系の奥義予告と、PvE大技予告への応答を扱うbattle-memory-only状態。 */
 final class JobArtV2UltimateCounterplayService
 {
-    public const BLOCKED_PREREQUISITE = 'blocked_by_ultimate_rank_five_prerequisite';
     public const BLOCKED_PREPARING = 'blocked_by_ultimate_preparing';
     public const BLOCKED_DELAYED = 'blocked_by_ultimate_readiness_delay';
 
@@ -114,7 +113,7 @@ final class JobArtV2UltimateCounterplayService
 
         $preparation = $actor->existingJobArtV2UltimateCounterplayState()?->preparation;
         if ($preparation === null) {
-            return self::BLOCKED_PREREQUISITE;
+            return self::BLOCKED_PREPARING;
         }
         if ($preparation->isPreparing()) {
             return self::BLOCKED_PREPARING;
@@ -400,7 +399,7 @@ final class JobArtV2UltimateCounterplayService
         }
 
         // 封狩への耐性は、キャンセルされた側の次のown action終了まで。
-        // その行動で奥義と同じ系譜の連携を再成立させたなら、同じ終了処理で再準備へ入れる。
+        // キャンセル耐性が解けた同じ終了処理で、資源が足りていれば再予告へ入れる。
         if ($hadHuntResistance) {
             $actorState->huntCancelResistance = false;
         }
@@ -738,9 +737,8 @@ final class JobArtV2UltimateCounterplayService
             $preparation?->isPreparing() === true => '奥義予告中（相手の応答待ち）',
             $preparation?->isReady() === true && $preparation->delayOwnActionsRemaining > 0 => '奥義発動まであと1行動',
             $preparation?->isReady() === true => '奥義を使用可能',
-            $full => '同じ系譜の連携成立待ち',
-            (bool) ($actorState?->mainRankFiveEstablished) => '同じ系譜の連携成立済み',
-            default => '同じ系譜の連携未成立',
+            $full => '奥義予告待ち',
+            default => '奥義資源を蓄積中',
         };
 
         return [
@@ -768,7 +766,7 @@ final class JobArtV2UltimateCounterplayService
         if ($this->isMainRankNine($actor, $skill)) {
             $resource = $this->resourceCatalog->forActorArt($actor, $skill);
             $required = max(1, (int) ($resource['minimum_resource_points'] ?? 12));
-            $texts[] = '［対人戦］この奥義と同じ系譜の連携を1回実行し、必要な資源が'.$required.'に達すると奥義を予告する。相手の次の1行動後に発動可能になる。奥義実行または準備中断後は、連携の再実行が必要';
+            $texts[] = '［対人戦］必要な資源が'.$required.'に達すると奥義を予告する。相手の次の1行動後に発動可能になる。奥義実行または準備中断後は、資源が必要量に達していれば再び予告する';
         }
 
         return $texts;
@@ -778,7 +776,6 @@ final class JobArtV2UltimateCounterplayService
     {
         $actorState = $actor->jobArtV2UltimateCounterplayState();
         if ($actorState->preparation !== null
-            || ! $actorState->mainRankFiveEstablished
             || $actorState->huntCancelResistance
             || ! $this->hasMainRankNine($actor)
         ) {

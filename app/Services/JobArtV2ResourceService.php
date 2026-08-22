@@ -99,6 +99,7 @@ class JobArtV2ResourceService
         if ($role === ResourceRole::PRODUCER
             && (int) $art['resource_gain_points'] > 0
             && $points >= (int) $art['resource_max_points']
+            && ! $this->hasEquippedFinisherForResource($actor, $resourceKey)
         ) {
             return self::BLOCKED_BY_CAP;
         }
@@ -119,6 +120,25 @@ class JobArtV2ResourceService
         }
 
         return null;
+    }
+
+    private function hasEquippedFinisherForResource(BattleActor $actor, string $resourceKey): bool
+    {
+        foreach ($actor->jobArts as $skill) {
+            if (! $skill instanceof Skill) {
+                continue;
+            }
+
+            $art = $this->catalog->forActorArt($actor, $skill);
+            if ($art !== null
+                && ResourceRole::from((string) $art['resource_role']) === ResourceRole::FINISHER
+                && (string) $art['resource_key'] === $resourceKey
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function canCommitCast(BattleActor $actor, Skill $skill, ?BattleState $state = null): bool

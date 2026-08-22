@@ -158,7 +158,7 @@ class JobArtV2SelectionServiceTest extends TestCase
         $this->assertTrue($trueResult->rankNinePrioritized);
     }
 
-    public function test_every_equipped_rank_nine_can_receive_priority_and_set_order_breaks_ties(): void
+    public function test_normal_cursor_resumes_with_the_starter_after_one_ready_finisher_attempt(): void
     {
         config([
             'battle.job_art_v2.dynamic_single' => true,
@@ -190,11 +190,11 @@ class JobArtV2SelectionServiceTest extends TestCase
         $actor->jobArtOrigins[469] = 'current';
 
         $withCurrentFinisher = $this->service($this->random([1]))->selectForTurn($actor, $state);
-        $this->assertSame(459, $withCurrentFinisher->skill?->id);
-        $this->assertTrue($withCurrentFinisher->rankNinePrioritized);
+        $this->assertSame(451, $withCurrentFinisher->skill?->id);
+        $this->assertFalse($withCurrentFinisher->rankNinePrioritized);
     }
 
-    public function test_prioritized_ultimate_miss_is_logged_and_remains_prioritized_on_the_next_action(): void
+    public function test_prioritized_ultimate_miss_is_logged_then_the_starter_is_considered_next(): void
     {
         config([
             'battle.job_art_v2.dynamic_single' => true,
@@ -204,7 +204,7 @@ class JobArtV2SelectionServiceTest extends TestCase
             'battle.job_art_v2.resources' => true,
         ]);
 
-        $front = $this->art(501, 100, learnRank: 5);
+        $front = $this->art(501, 100, learnRank: 1);
         $front->job_id = 11;
         $ultimate = $this->art(509, 100, learnRank: 9);
         $ultimate->job_id = 11;
@@ -214,24 +214,27 @@ class JobArtV2SelectionServiceTest extends TestCase
         $actor->configureResource('sword_momentum', 12);
         $actor->setResource('sword_momentum', 12);
 
-        $service = $this->service($this->random([100, 100]), $this->finisherProvider(true));
+        $service = $this->service($this->random([100, 1]), $this->finisherProvider(true));
         $first = $service->selectForTurn($actor, $state);
         $second = $service->selectForTurn($actor, $state);
 
-        foreach ([$first, $second] as $result) {
-            $this->assertNull($result->skill);
-            $this->assertSame(509, $result->candidateSkillId);
-            $this->assertSame(60, $result->activationRate);
-            $this->assertTrue($result->rankNinePrioritized);
-            $this->assertFalse($result->retriedAfterMiss);
-        }
+        $this->assertNull($first->skill);
+        $this->assertSame(509, $first->candidateSkillId);
+        $this->assertSame(60, $first->activationRate);
+        $this->assertTrue($first->rankNinePrioritized);
+        $this->assertFalse($first->retriedAfterMiss);
+        $this->assertSame(501, $second->skill?->id);
+        $this->assertSame(501, $second->candidateSkillId);
+        $this->assertSame(50, $second->activationRate);
+        $this->assertFalse($second->rankNinePrioritized);
+        $this->assertFalse($second->retriedAfterMiss);
         $matchingLogs = array_values(array_filter(
             $state->logs,
             static fn (string $log): bool => str_contains($log, '聖壁&lt;アルカディア&gt;')
                 && str_contains($log, '発動率60%')
-                && str_contains($log, '発動条件を満たしている間は、次の行動でもこの奥義が優先される'),
+                && str_contains($log, '次の行動は通常の候補順に戻る'),
         ));
-        $this->assertCount(2, $matchingLogs);
+        $this->assertCount(1, $matchingLogs);
         $this->assertStringNotContainsString('聖壁<アルカディア>', implode("\n", $state->logs));
     }
 

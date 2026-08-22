@@ -144,7 +144,7 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $this->assertSame(0, $actor->getResource('dragon_force'));
     }
 
-    public function test_ready_finishers_follow_set_order_without_current_or_inherited_priority(): void
+    public function test_ready_finisher_is_prioritized_once_then_normal_set_order_resumes(): void
     {
         [$actor, $state] = $this->battle(53);
         $inherited = $this->art(24, 9);
@@ -162,7 +162,7 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $actor->jobArtConditions[(int) $inherited->id] = 'target_hp_le_30';
         $second = $this->selection([1])->selectForTurn($actor, $state);
         $this->assertSame((int) $current->id, (int) $second->skill?->id);
-        $this->assertTrue($second->rankNinePrioritized);
+        $this->assertFalse($second->rankNinePrioritized);
 
         $cross = $this->art(62, 9);
         $front = $this->art(62, 1);
@@ -172,8 +172,8 @@ class JobArtV2Pr26ExpansionTest extends TestCase
         $actor->configureResource('dragon_force', 12);
         $actor->setResource('dragon_force', 12);
         $third = $this->selection([1])->selectForTurn($actor, $state);
-        $this->assertSame((int) $cross->id, (int) $third->skill?->id);
-        $this->assertTrue($third->rankNinePrioritized);
+        $this->assertSame((int) $front->id, (int) $third->skill?->id);
+        $this->assertFalse($third->rankNinePrioritized);
     }
 
     public function test_every_art_uses_its_source_job_tier_sp_without_lineage_discount(): void

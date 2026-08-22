@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-22
+Last updated: 2026-08-23
 Branch: main
 
 ## Six Heroes / 六極殿（本番コード配備・公開OFF）
@@ -52,6 +52,7 @@ Branch: main
 - 系譜は戦技カードの資源・状態タグとしてのみ扱う。セット内にその資源を明示的に増減する戦技がある場合、またはその系譜の奥義をセットした場合に、その系譜資源を有効化する。有効でない系譜の共通獲得イベントは発生させない。同一戦技・同一行動・同一資源では、戦技本文の直接増減と系譜共通獲得を重複させない
 - v2有効時の金冠錬師は、金冠錬符がHIT時触媒+4・金蝕1回、金冠ミダスフィールドが触媒8pt・power315・HIT時金蝕2回。金蝕は次の系譜資源獲得行動で各獲得量-1（最低1）、最大2・非加算更新で、複数資源でも1行動につき1回だけ消費する。同一行動・同一資源の場補正も1回だけとし、指揮の通常攻撃HIT+4と非戦技手番+1に天測がある場合は合計+6
 - 選択は前回判定位置の次から5枠を巡る循環cursor方式。現在使用できない戦技は飛ばし、最初に見つかった候補へ発動抽選を1回だけ行う。不発時に同一行動中の別戦技を再抽選しない。奥義準備と対奥義/予告大技の応答は専用flag配下にある
+- v2奥義は資源が必要量へ達した周期の初回候補だけ優先し、発動抽選不発後は次の自分の行動を通常の循環候補順へ戻す。同じ資源の奥義を装備した始動は資源上限時も候補に残る。プレイヤーランク戦・チャンプ戦・NPC闘技場の奥義予告は同系譜Rank5連携を前提とせず、資源条件と相手の1行動分の応答機会で成立する
 - `config/battle.php`の戦技v2関連15 flagはすべてコード既定OFF。本番では文言専用の`BATTLE_JOB_ART_FLAVOR_REWRITE`だけをONにし、残る14 engine/UI flagはOFFを維持する。全282戦技のmaster同期や既存slot/preset更新は行わず、従来3枠・Cost5・legacy選択/SP/戦闘効果を維持する。ただし金冠ミダスフィールドのpowerだけは共通戦闘経路と既存DBを315へ同期済みで、金蝕・HIT時触媒・同一行動補正はengine flag ONまで休止する。v2 engineの本番有効化は別タスクでDB backup、残りのmaster同期、全6戦闘経路smokeを経て行う
 - `BATTLE_JOB_ART_FLAVOR_REWRITE`は戦闘v2の他flagから独立した文言切替。`database/data/job_art_flavor_rewrites.json`に94職282戦技の台詞・発動描写を完全一致 `(job_id, learn_rank, name)` で保持し、2026-08-15から本番ON。通常/ボス/塔/PvP/チャンプ/NPC闘技場の奥義ログと神殿・管理確認画面だけへ適用し、威力・効果・発動条件・RNGは変更しない。OFF時、未一致時、読込失敗時は`skills.activation_phrase` / `activation_description`を維持し、DB同期は行わない
 

@@ -86,12 +86,15 @@ class JobArtV2SelectionService
             ));
             $activated = $this->random->percentRoll() <= $activationRate;
             $this->progressionService->finishActivationAttempt($actor, $skill);
+            if ($rankNinePrioritized && (int) $skill->learn_rank === 9) {
+                $actor->markJobArtV2UltimatePriorityAttempted((int) $skill->id);
+            }
             $this->advanceCDesignCursor($actor, $skill);
             if (! $activated && $rankNinePrioritized && (int) $skill->learn_rank === 9) {
                 $state->addLog(
                     '<span class="text-amber-700 font-bold">'
                     .e($actor->name).' の《'.e($skill->name).'》は発動しなかった！（発動率'.$activationRate.'%）'
-                    .'発動条件を満たしている間は、次の行動でもこの奥義が優先される。</span>',
+                    .'次の行動は通常の候補順に戻る。</span>',
                 );
             }
 
@@ -164,6 +167,13 @@ class JobArtV2SelectionService
         ));
         $candidates = $slotCandidates;
         $candidates = $this->progressionService->orderCandidates($actor, $candidates);
+        $ultimatePriorityCache = [];
+        $shouldPrioritizeUltimate = function (Skill $skill) use ($actor, $state, &$ultimatePriorityCache): bool {
+            $skillId = (int) $skill->id;
+
+            return $ultimatePriorityCache[$skillId]
+                ??= $this->shouldPrioritizeUltimate($actor, $state, $skill);
+        };
 
         if (!$this->resourceService->enabledFor($actor)) {
             return [$candidates, false];
@@ -178,7 +188,7 @@ class JobArtV2SelectionService
                 // その層の中ではプレイヤーが設定したslot順を守る。
                 $priority = [];
                 foreach ($slotCandidates as $skill) {
-                    if (! ($this->ultimateCounterplayService->isReadyMainRankNine($actor, $state, $skill)
+                    if (! ($shouldPrioritizeUltimate($skill)
                             || $this->ultimateCounterplayService->isResponseCandidate($actor, $state, $skill))
                         || ! $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill))
                     ) {
@@ -200,11 +210,7 @@ class JobArtV2SelectionService
 
                     return [
                         [...$priority, ...$remaining],
-                        $this->ultimateCounterplayService->isReadyMainRankNine(
-                            $actor,
-                            $state,
-                            $priority[0],
-                        ),
+                        $shouldPrioritizeUltimate($priority[0]),
                     ];
                 }
 
@@ -215,7 +221,7 @@ class JobArtV2SelectionService
             foreach ($candidates as $index => $skill) {
                 if ($deckRoles->roleFor($skill) !== JobArtV2DeckRole::MAIN
                     || (int) $skill->learn_rank !== 9
-                    || ! $this->finisherCondition->isSatisfied($actor, $state, $skill)
+                    || ! $shouldPrioritizeUltimate($skill)
                     || ! $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill))
                 ) {
                     continue;
@@ -230,7 +236,7 @@ class JobArtV2SelectionService
             return [$this->rotateFromCDesignCursor($actor, $candidates), false];
         }
 
-        // 現在職→同系譜継承→異系譜継承の順で、満タンになった奥義を優先する。
+        // 資源周期ごとの初回だけ、満タンになった奥義を優先する。
         foreach (['current', 'same_lineage_inherited', 'cross_lineage_inherited'] as $priorityGroup) {
             foreach ($candidates as $index => $skill) {
                 $origin = $this->originFor($actor, $skill);
@@ -244,7 +250,7 @@ class JobArtV2SelectionService
                 };
                 if (! $matchesGroup
                     || (int) $skill->learn_rank !== 9
-                    || ! $this->finisherCondition->isSatisfied($actor, $state, $skill)
+                    || ! $shouldPrioritizeUltimate($skill)
                     || ! $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill))
                 ) {
                     continue;
@@ -406,5 +412,33 @@ class JobArtV2SelectionService
             [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
             true,
         ) && $resolution->blockReasonFor($skill) === null;
+    }
+
+    private function isReadyUltimate(BattleActor $actor, BattleState $state, Skill $skill): bool
+    {
+        if ((int) $skill->learn_rank !== 9) {
+            return false;
+        }
+
+        if ($this->ultimateCounterplayService->enabledFor($state)) {
+            return $this->ultimateCounterplayService->isReadyMainRankNine($actor, $state, $skill);
+        }
+
+        return $this->finisherCondition->isSatisfied($actor, $state, $skill);
+    }
+
+    private function shouldPrioritizeUltimate(BattleActor $actor, BattleState $state, Skill $skill): bool
+    {
+        if ((int) $skill->learn_rank !== 9) {
+            return false;
+        }
+
+        if (! $this->isReadyUltimate($actor, $state, $skill)) {
+            $actor->resetJobArtV2UltimatePriorityAttempt((int) $skill->id);
+
+            return false;
+        }
+
+        return $actor->isJobArtV2UltimatePriorityPending();
     }
 }

@@ -113,8 +113,8 @@ final class JobArtV2LoadoutPresenter
                     ? $this->commandPrioritySteps('finisher', $trustedArtsByRank)
                     : $this->prioritySteps([1, 5, 9], $trustedArtsByRank),
                 'priority_note' => $currentJobId === 69
-                    ? "戦技を使わない手番を作り、通常攻撃や現在職技で{$resourceName}を貯めます。{$resourceName}{$finisherMinimum}ptなど条件成立時は奥義が優先されます。"
-                    : "始動が使用可能な間は連携より先に判定されるため、{$resourceName}を温存して奥義を狙います。{$resourceName}{$finisherMinimum}ptなど条件成立時は奥義が優先されます。",
+                    ? "戦技を使わない手番を作り、通常攻撃や現在職技で{$resourceName}を貯めます。{$resourceName}{$finisherMinimum}ptなど条件成立後、最初の候補は奥義が優先されます。"
+                    : "始動が使用可能な間は連携より先に判定されるため、{$resourceName}を温存して奥義を狙います。{$resourceName}{$finisherMinimum}ptなど条件成立後、最初の候補は奥義が優先されます。",
                 'job_note' => $this->jobSpecificRecommendation(
                     $currentJobId,
                     'finisher',
@@ -310,7 +310,7 @@ final class JobArtV2LoadoutPresenter
                         || ($deckRoleResolution === null
                             && $this->prototypeCatalog->isSamePrimaryLineage($currentJobId, $skill)));
                 if ($potentialMainRankNine) {
-                    $effectTexts[] = '［奥義準備］この奥義と同じ系譜の連携を1回実行し、その奥義が使う資源が必要量に達すると予告する。相手の次の1行動後に発動可能になる。奥義実行または準備中断後は、連携の再実行が必要';
+                    $effectTexts[] = '［奥義準備］この奥義が使う資源が必要量に達すると予告する。相手の次の1行動後に発動可能になる。奥義実行または準備中断後は、資源が必要量に達していれば再び予告する';
                 }
                 $effectTexts = array_values(array_unique($effectTexts));
             }
