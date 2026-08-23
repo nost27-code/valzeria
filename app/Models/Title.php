@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlayerStatLabel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,5 +19,10 @@ class Title extends Model
     public function characterTitles()
     {
         return $this->hasMany(CharacterTitle::class);
+    }
+
+    public function getDescriptionAttribute(mixed $value): ?string
+    {
+        return $value === null ? null : PlayerStatLabel::inText((string) $value);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\GameSetting;
 use App\Models\TopUpdate;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -308,7 +309,7 @@ class TownUpdateService
 
     private function headlineFor(array $summary): string
     {
-        $detail = trim((string) ($summary['detail'] ?? ''));
+        $detail = trim(PlayerStatLabel::inText((string) ($summary['detail'] ?? '')));
         if ($detail !== '' && preg_match('/^(.+?。)/u', $detail, $matches) === 1) {
             $firstSentence = trim($matches[1]);
             if (mb_strlen($firstSentence) <= 255) {
@@ -316,12 +317,12 @@ class TownUpdateService
             }
         }
 
-        return (string) $summary['title'];
+        return PlayerStatLabel::inText((string) $summary['title']);
     }
 
     private function detailFor(array $summary): ?string
     {
-        $detail = trim((string) ($summary['detail'] ?? ''));
+        $detail = trim(PlayerStatLabel::inText((string) ($summary['detail'] ?? '')));
         $headline = $this->headlineFor($summary);
         if ($detail !== '' && str_starts_with($detail, $headline)) {
             $detail = trim(mb_substr($detail, mb_strlen($headline)));

@@ -91,7 +91,7 @@
                         @if(is_array($debuff))
                             <div class="flex min-w-0 items-center gap-2">
                                 <dt class="w-14 shrink-0 text-slate-500">状態</dt>
-                                <dd><span class="rounded bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">{{ $debuff['name'] ?? '崩し' }} DEF/SPR -{{ rtrim(rtrim(number_format((float) ($debuff['rate_percent'] ?? 0), 1), '0'), '.') }}%・残り{{ (int) ($debuff['remaining_rounds'] ?? 0) }}R</span></dd>
+                                <dd><span class="rounded bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">{{ $debuff['name'] ?? '崩し' }} 防御/精神 -{{ rtrim(rtrim(number_format((float) ($debuff['rate_percent'] ?? 0), 1), '0'), '.') }}%・残り{{ (int) ($debuff['remaining_rounds'] ?? 0) }}R</span></dd>
                             </div>
                         @endif
                         @foreach(($actor['progression'] ?? []) as $progressionLabel)
@@ -123,7 +123,7 @@
                                 @elseif(($action['hit_result'] ?? null) === 'EVADE')
                                     <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">EVADE：回避された</span>
                                 @endif
-                                @if($action['penetration_percent'] !== null)<span class="rounded bg-cyan-100 px-1.5 py-0.5 text-[10px] font-black text-cyan-800">DEF貫通 {{ $action['penetration_percent'] }}%</span>@endif
+                                @if($action['penetration_percent'] !== null)<span class="rounded bg-cyan-100 px-1.5 py-0.5 text-[10px] font-black text-cyan-800">防御貫通 {{ $action['penetration_percent'] }}%</span>@endif
                                 @if(is_array($action['field_overwrite_power'] ?? null) && (int) ($action['field_overwrite_power']['bonus_percent'] ?? 0) > 0)
                                     <span class="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-black text-violet-800">上書き {{ (int) $action['field_overwrite_power']['overwrite_count'] }}回・星冠転輪 +{{ (int) $action['field_overwrite_power']['bonus_percent'] }}%</span>
                                 @endif
@@ -148,7 +148,7 @@
                                                     'kept_stronger' => '既存の強い崩しを維持',
                                                 ];
                                             @endphp
-                                            <li>・{{ $breakEventLabels[$change['event'] ?? ''] ?? '崩し' }}：DEF/SPR -{{ rtrim(rtrim(number_format((float) ($change['rate_percent'] ?? 0), 1), '0'), '.') }}%（残り{{ (int) ($change['remaining_rounds'] ?? 0) }}R）</li>
+                                            <li>・{{ $breakEventLabels[$change['event'] ?? ''] ?? '崩し' }}：防御/精神 -{{ rtrim(rtrim(number_format((float) ($change['rate_percent'] ?? 0), 1), '0'), '.') }}%（残り{{ (int) ($change['remaining_rounds'] ?? 0) }}R）</li>
                                         @elseif(($change['type'] ?? '') === 'main_field')
                                             <li>・主場 {{ $fieldSummary($change['before'] ?? null) }} → {{ $fieldSummary($change['after'] ?? null) }}</li>
                                         @elseif(($change['type'] ?? '') === 'overlay')

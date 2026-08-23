@@ -12,6 +12,7 @@ use App\Services\Admin\SkillEffectPreviewService;
 use App\Services\JobArtFlavorTextService;
 use App\Support\JobArtEffectCatalog;
 use App\Support\JobRankCatalog;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 
@@ -238,7 +239,7 @@ class SkillEffectLab extends Component
         $flavorText = app(JobArtFlavorTextService::class)->resolve($skill);
 
         return [
-            'body' => $skill->memo ?: ($skill->description ?: '効果説明なし'),
+            'body' => PlayerStatLabel::inText((string) ($skill->memo ?: ($skill->description ?: '効果説明なし'))),
             'phrase' => $flavorText['activation_phrase'] ?: null,
             'description' => $flavorText['activation_description']
                 ? str_replace(['{user}', '{target}', '{skill}'], ['冒険者', '敵', $skill->name], $flavorText['activation_description'])
@@ -270,9 +271,9 @@ class SkillEffectLab extends Component
         }
         $this->addEffectRow($rows, '発動率', $skill->effectiveActivationRate() > 0 ? $skill->effectiveActivationRate() . '%' : null);
         $this->addEffectRow($rows, '継承倍率', $skill->isJobArt() && $skill->inherited_rate !== null ? number_format((float) $skill->inherited_rate, 2) . '倍' : null);
-        $this->addEffectRow($rows, 'DEF/SPR無視', (int) $skill->def_ignore_percent > 0 ? $skill->def_ignore_percent . '%' : null);
+        $this->addEffectRow($rows, '防御/精神無視', (int) $skill->def_ignore_percent > 0 ? $skill->def_ignore_percent . '%' : null);
         $this->addEffectRow($rows, '追加Hit確率', (int) $skill->extra_hit_chance_percent > 0 ? $skill->extra_hit_chance_percent . '%' : null);
-        $this->addEffectRow($rows, 'LUK威力加算', (float) $skill->luk_power_rate > 0 ? (string) $skill->luk_power_rate : null);
+        $this->addEffectRow($rows, '運による威力加算', (float) $skill->luk_power_rate > 0 ? (string) $skill->luk_power_rate : null);
         $this->addEffectRow($rows, '自己バフ', (int) $skill->self_buff_percent > 0 ? $skill->self_buff_percent . '%' : null);
         $this->addEffectRow($rows, '被ダメ軽減', (int) $skill->damage_reduction_percent > 0 ? $skill->damage_reduction_percent . '%' : null);
         $template = (string) $skill->effect_template;
@@ -284,11 +285,11 @@ class SkillEffectLab extends Component
         $this->addEffectRow($rows, 'SP回復', (int) $skill->mp_recover_percent > 0 ? $skill->mp_recover_percent . '%' : null);
         $this->addEffectRow($rows, '反動', (int) $skill->self_damage_percent > 0 ? $skill->self_damage_percent . '%' : null);
         $this->addEffectRow($rows, '吸収', (float) $skill->drain_hp_rate > 0 ? number_format((float) $skill->drain_hp_rate * 100, 1) . '%' : null);
-        $this->addEffectRow($rows, '敵ATK低下', (int) $skill->enemy_atk_down_percent > 0 ? $skill->enemy_atk_down_percent . '%' : null);
-        $this->addEffectRow($rows, '敵MAG低下', (int) $skill->enemy_mag_down_percent > 0 ? $skill->enemy_mag_down_percent . '%' : null);
-        $this->addEffectRow($rows, '敵DEF低下', (int) $skill->enemy_def_down_percent > 0 ? $skill->enemy_def_down_percent . '%' : null);
-        $this->addEffectRow($rows, '敵SPR低下', (int) $skill->enemy_spr_down_percent > 0 ? $skill->enemy_spr_down_percent . '%' : null);
-        $this->addEffectRow($rows, '敵SPD低下', (int) $skill->enemy_spd_down_percent > 0 ? $skill->enemy_spd_down_percent . '%' : null);
+        $this->addEffectRow($rows, '敵の攻撃低下', (int) $skill->enemy_atk_down_percent > 0 ? $skill->enemy_atk_down_percent . '%' : null);
+        $this->addEffectRow($rows, '敵の魔力低下', (int) $skill->enemy_mag_down_percent > 0 ? $skill->enemy_mag_down_percent . '%' : null);
+        $this->addEffectRow($rows, '敵の防御低下', (int) $skill->enemy_def_down_percent > 0 ? $skill->enemy_def_down_percent . '%' : null);
+        $this->addEffectRow($rows, '敵の精神低下', (int) $skill->enemy_spr_down_percent > 0 ? $skill->enemy_spr_down_percent . '%' : null);
+        $this->addEffectRow($rows, '敵の敏捷低下', (int) $skill->enemy_spd_down_percent > 0 ? $skill->enemy_spd_down_percent . '%' : null);
         $this->addEffectRow($rows, 'Gold補正', (int) $skill->gold_bonus_percent > 0 ? $skill->gold_bonus_percent . '%' : null);
         $this->addEffectRow($rows, '素材補正', (int) $skill->drop_bonus_percent > 0 ? $skill->drop_bonus_percent . '%' : null);
         $this->addEffectRow($rows, 'レア補正', (int) $skill->rare_bonus_percent > 0 ? $skill->rare_bonus_percent . '%' : null);

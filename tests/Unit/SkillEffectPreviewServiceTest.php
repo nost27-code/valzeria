@@ -85,7 +85,7 @@ class SkillEffectPreviewServiceTest extends TestCase
 
         $this->assertSame(50, $result['turns'][0]['damage']);
         $this->assertGreaterThan($result['turns'][0]['damage'], $result['turns'][2]['damage']);
-        $this->assertContains('敵DEF20%低下', $result['turns'][1]['effects']);
+        $this->assertContains('敵の防御20%低下', $result['turns'][1]['effects']);
     }
 
     public function test_job_art_heal_template_is_reported_without_heal_percent(): void

@@ -67,6 +67,45 @@ class TownUpdateServiceTest extends TestCase
         ]);
     }
 
+    public function test_imported_summaries_normalize_legacy_stat_labels_including_mp(): void
+    {
+        config()->set('admin_update_summaries', [[
+            'id' => 'legacy-stat-update',
+            'date' => '2026-07-31',
+            'category' => 'fixed',
+            'title' => 'MPとATKの表示を修正',
+            'detail' => 'MPとATKの表示を修正しました。最大MPとSPRの表示も統一しました。',
+        ]]);
+
+        $this->assertSame(1, app(TownUpdateService::class)->syncDraftsFromAdminSummaries());
+        $this->assertDatabaseHas('top_updates', [
+            'source_key' => 'legacy-stat-update',
+            'body' => 'SPと攻撃の表示を修正しました。',
+            'detail' => '最大SPと精神の表示も統一しました。',
+        ]);
+    }
+
+    public function test_published_updates_normalize_legacy_stat_labels_without_rewriting_stored_copy(): void
+    {
+        $update = TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => '残りMPとATKを表示',
+            'detail' => '最大MPとSPRも確認できます。',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+
+        $published = app(TownUpdateService::class)->published()->firstOrFail();
+
+        $this->assertSame('残りSPと攻撃を表示', $published->body);
+        $this->assertSame('最大SPと精神も確認できます。', $published->detail);
+        $this->assertDatabaseHas('top_updates', [
+            'id' => $update->id,
+            'body' => '残りMPとATKを表示',
+            'detail' => '最大MPとSPRも確認できます。',
+        ]);
+    }
+
     public function test_sync_does_not_overwrite_an_edited_draft(): void
     {
         config()->set('admin_update_summaries', [[

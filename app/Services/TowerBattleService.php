@@ -11,6 +11,7 @@ use App\Models\TowerRunEvent;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageCalculator;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
@@ -100,7 +101,7 @@ class TowerBattleService extends BattleService
             'attack' => [
                 'key' => 'attack',
                 'name' => '攻めの構え',
-                'summary' => "ATK/MAG +{$buffRate}%、DEF/SPR -{$debuffRate}%",
+                'summary' => "攻撃/魔力 +{$buffRate}%、防御/精神 -{$debuffRate}%",
                 'modifiers' => [
                     'str' => $buffRate,
                     'mag' => $buffRate,
@@ -111,7 +112,7 @@ class TowerBattleService extends BattleService
             'guard' => [
                 'key' => 'guard',
                 'name' => '守りの構え',
-                'summary' => "DEF/SPR +{$buffRate}%、SPD -{$debuffRate}%",
+                'summary' => "防御/精神 +{$buffRate}%、敏捷 -{$debuffRate}%",
                 'modifiers' => [
                     'def' => $buffRate,
                     'spr' => $buffRate,
@@ -121,7 +122,7 @@ class TowerBattleService extends BattleService
             'speed' => [
                 'key' => 'speed',
                 'name' => '疾風の構え',
-                'summary' => "SPD/LUK +{$buffRate}%、ATK/MAG -{$debuffRate}%",
+                'summary' => "敏捷/運 +{$buffRate}%、攻撃/魔力 -{$debuffRate}%",
                 'modifiers' => [
                     'agi' => $buffRate,
                     'luk' => $buffRate,
@@ -767,14 +768,10 @@ class TowerBattleService extends BattleService
      */
     private function formatModifierTotals(array $totals): array
     {
-        $labels = [
-            'str' => 'ATK',
-            'def' => 'DEF',
-            'agi' => 'SPD',
-            'mag' => 'MAG',
-            'spr' => 'SPR',
-            'luk' => 'LUK',
-        ];
+        $labels = array_combine(
+            ['str', 'def', 'agi', 'mag', 'spr', 'luk'],
+            array_map(PlayerStatLabel::for(...), ['str', 'def', 'agi', 'mag', 'spr', 'luk']),
+        );
         $result = [];
 
         foreach ($labels as $key => $label) {

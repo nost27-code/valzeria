@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlayerStatLabel;
 use Illuminate\Database\Eloquent\Model;
 
 class JobClass extends Model
@@ -46,5 +47,10 @@ class JobClass extends Model
     public function jobArts()
     {
         return $this->hasMany(Skill::class, 'job_id')->where('skill_type', 'job_art');
+    }
+
+    public function getDescriptionAttribute(mixed $value): ?string
+    {
+        return $value === null ? null : PlayerStatLabel::inText((string) $value);
     }
 }

@@ -637,7 +637,7 @@
                                         </div>
                                     </div>
                                     <div class="mt-2 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-600">
-                                        {{ $detailJobArtDescriptions[(int) $art->id] ?? ($art->memo ?? $art->description ?? '効果説明なし') }}
+                                        {{ \App\Support\PlayerStatLabel::inText((string) ($detailJobArtDescriptions[(int) $art->id] ?? ($art->memo ?? $art->description ?? '効果説明なし'))) }}
                                     </div>
                                     @if(!($detailJobArtUsesCanonicalDescription[(int) $art->id] ?? false) && $art->jobArtNumericEffectLabels())
                                         <div class="mt-2 flex flex-wrap gap-1 text-[10px] font-bold text-indigo-700">
@@ -778,11 +778,11 @@
                             <span class="text-sm font-bold text-slate-900">{{ $statPreview['mp'] ?? 0 }}</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-gray-100 pb-1 w-full">
-                            <span class="text-sm text-gray-500 font-medium mr-2">攻撃力</span>
+                            <span class="text-sm text-gray-500 font-medium mr-2">攻撃</span>
                             <span class="text-sm font-bold text-slate-900">{{ $statPreview['str'] ?? 0 }}</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-gray-100 pb-1 w-full">
-                            <span class="text-sm text-gray-500 font-medium mr-2">防御力</span>
+                            <span class="text-sm text-gray-500 font-medium mr-2">防御</span>
                             <span class="text-sm font-bold text-slate-900">{{ $statPreview['def'] ?? 0 }}</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-gray-100 pb-1 w-full">
@@ -790,11 +790,11 @@
                             <span class="text-sm font-bold text-slate-900">{{ $statPreview['mag'] ?? 0 }}</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-gray-100 pb-1 w-full">
-                            <span class="text-sm text-gray-500 font-medium mr-2">敏捷性</span>
+                            <span class="text-sm text-gray-500 font-medium mr-2">敏捷</span>
                             <span class="text-sm font-bold text-slate-900">{{ $statPreview['agi'] ?? 0 }}</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-gray-100 pb-1 w-full">
-                            <span class="text-sm text-gray-500 font-medium mr-2">精神力</span>
+                            <span class="text-sm text-gray-500 font-medium mr-2">精神</span>
                             <span class="text-sm font-bold text-slate-900">{{ $statPreview['spr'] ?? 0 }}</span>
                         </div>
                         <div class="flex justify-between items-center border-b border-gray-100 pb-1 w-full">
@@ -807,7 +807,7 @@
                         @if($isHighRankJob($selectedJob->rank ?? null))
                             <span class="font-extrabold text-amber-700">
                                 忠告：{{ \App\Support\JobRankCatalog::label($selectedJob->rank ?? null) }}は高位転職となるため、転職時に現在の基礎能力値の約{{ $inheritancePercentLabel($selectedJob->rank ?? null) }}になります。<br>
-                                マスターボーナスは維持されますが、HP/SPや攻撃力などの基礎能力値は{{ $inheritanceFractionLabel($selectedJob->rank ?? null) }}に圧縮されます。
+                                マスターボーナスは維持されますが、HP/SPや攻撃などの基礎能力値は{{ $inheritanceFractionLabel($selectedJob->rank ?? null) }}に圧縮されます。
                             </span>
                         @else
                             <span>転職後、基礎能力値の1/2（50%）を引き継ぎます。<br>マスターボーナスは維持されます。</span>

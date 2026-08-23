@@ -1562,7 +1562,7 @@ final class JobArtV2LoadoutPresenter
             ? "{$effectiveHitCount}回のダメージ"
             : 'ダメージ';
 
-        return "{$reference}を攻撃力として、相手の防御を参照して{$damageCopy}を与え".($polite ? 'ます' : 'る');
+        return "{$reference}を基準に、相手の防御を参照して{$damageCopy}を与え".($polite ? 'ます' : 'る');
     }
 
     private function drainActionDescription(Skill $skill, bool $polite = false): string
@@ -2000,10 +2000,10 @@ final class JobArtV2LoadoutPresenter
 
         $rate = (int) round(max(0.0, (float) ($metadata['penetration_rate'] ?? 0)) * 100);
         if ($rank === 5 && $rate > 0) {
-            return ["構え時：物理DEF {$rate}%貫通", '使用後、構えを再形成'];
+            return ["構え時：物理防御 {$rate}%貫通", '使用後、構えを再形成'];
         }
         if ($rank === 9 && $rate > 0) {
-            return ["構え時：物理DEF {$rate}%貫通"];
+            return ["構え時：物理防御 {$rate}%貫通"];
         }
 
         return [];

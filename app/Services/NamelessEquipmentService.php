@@ -7,6 +7,7 @@ use App\Models\CharacterItem;
 use App\Models\CharacterMaterial;
 use App\Models\Material;
 use App\Models\PlayerNamelessEquipment;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -22,7 +23,6 @@ class NamelessEquipmentService
         'weapon' => ['剣' => 'str', '短剣' => 'str', '槍' => 'str', '斧' => 'str', '弓' => 'str', '銃' => 'str', '拳具' => 'str', '杖' => 'mag', '魔導書' => 'mag'],
         'armor' => ['鎧' => 'def', '服' => 'def', '外套' => 'def', '盾' => 'def', '装束' => 'def', 'ローブ' => 'spr'],
     ];
-    private const STAT_LABELS = ['str' => 'ATK', 'def' => 'DEF', 'mag' => 'MAG', 'spr' => 'SPR'];
 
     public static function powerFor(int $forgeLevel): int
     {
@@ -63,13 +63,13 @@ class NamelessEquipmentService
     {
         $key = self::STAT_KEYS[$kind][$equipmentType] ?? null;
         if (!$key) throw new RuntimeException('この武具種別は選択できません。');
-        return ['key' => $key, 'label' => self::STAT_LABELS[$key]];
+        return ['key' => $key, 'label' => PlayerStatLabel::for($key)];
     }
 
     /** @return array<string, array{key: string, label: string}> */
     public static function statOptionsFor(string $kind): array
     {
-        return collect(self::STAT_KEYS[$kind] ?? [])->map(fn (string $key) => ['key' => $key, 'label' => self::STAT_LABELS[$key]])->all();
+        return collect(self::STAT_KEYS[$kind] ?? [])->map(fn (string $key) => ['key' => $key, 'label' => PlayerStatLabel::for($key)])->all();
     }
 
     public function rowsFor(Character $character): array

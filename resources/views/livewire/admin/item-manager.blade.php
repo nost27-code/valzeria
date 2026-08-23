@@ -235,7 +235,7 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-xs text-blue-700 font-bold">
-                                    @foreach(['hp_bonus' => 'HP', 'mp_bonus' => 'SP', 'str_bonus' => '攻', 'def_bonus' => '防', 'agi_bonus' => '敏', 'mag_bonus' => '魔', 'spr_bonus' => '精', 'luk_bonus' => '運'] as $field => $label)
+                                    @foreach(['hp_bonus' => 'HP', 'mp_bonus' => 'SP', 'str_bonus' => '攻撃', 'def_bonus' => '防御', 'agi_bonus' => '敏捷', 'mag_bonus' => '魔力', 'spr_bonus' => '精神', 'luk_bonus' => '運'] as $field => $label)
                                         @if((int) $item->{$field} !== 0)
                                             <span class="mr-1">{{ $label }}{{ $item->{$field} > 0 ? '+' : '' }}{{ $item->{$field} }}</span>
                                         @endif

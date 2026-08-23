@@ -93,7 +93,7 @@
                 <section class="space-y-4">
                     <h3 class="text-sm font-extrabold text-slate-600 border-b pb-2">成長倍率</h3>
                     <div class="grid grid-cols-4 gap-2">
-                        @foreach(['hp_rate' => 'HP', 'mp_rate' => 'SP', 'atk_rate' => 'ATK', 'def_rate' => 'DEF', 'mag_rate' => 'MAG', 'spr_rate' => 'SPR', 'spd_rate' => 'SPD', 'luck_rate' => 'LUK'] as $field => $label)
+                        @foreach(['hp_rate' => 'HP', 'mp_rate' => 'SP', 'atk_rate' => '攻撃', 'def_rate' => '防御', 'mag_rate' => '魔力', 'spr_rate' => '精神', 'spd_rate' => '敏捷', 'luck_rate' => '運'] as $field => $label)
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">{{ $label }}</label>
                                 <input type="number" wire:model="form.{{ $field }}" class="{{ $compactFieldClass }}">
@@ -105,7 +105,7 @@
                 <section class="space-y-4">
                     <h3 class="text-sm font-extrabold text-slate-600 border-b pb-2">職業Lvボーナス</h3>
                     <div class="grid grid-cols-4 gap-2">
-                        @foreach(['bonus_hp' => 'HP', 'bonus_mp' => 'SP', 'bonus_str' => 'ATK', 'bonus_def' => 'DEF', 'bonus_mag' => 'MAG', 'bonus_spr' => 'SPR', 'bonus_spd' => 'SPD', 'bonus_luk' => 'LUK'] as $field => $label)
+                        @foreach(['bonus_hp' => 'HP', 'bonus_mp' => 'SP', 'bonus_str' => '攻撃', 'bonus_def' => '防御', 'bonus_mag' => '魔力', 'bonus_spr' => '精神', 'bonus_spd' => '敏捷', 'bonus_luk' => '運'] as $field => $label)
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">{{ $label }}</label>
                                 <input type="number" wire:model="form.{{ $field }}" class="{{ $compactFieldClass }}">
@@ -228,7 +228,7 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-xs text-blue-700 font-bold min-w-44">
-                                    @foreach(['hp_rate' => 'HP', 'mp_rate' => 'SP', 'atk_rate' => 'ATK', 'def_rate' => 'DEF', 'mag_rate' => 'MAG', 'spr_rate' => 'SPR', 'spd_rate' => 'SPD', 'luck_rate' => 'LUK'] as $field => $label)
+                                    @foreach(['hp_rate' => 'HP', 'mp_rate' => 'SP', 'atk_rate' => '攻撃', 'def_rate' => '防御', 'mag_rate' => '魔力', 'spr_rate' => '精神', 'spd_rate' => '敏捷', 'luck_rate' => '運'] as $field => $label)
                                         @if((int) $job->{$field} !== 100)
                                             <span class="mr-1">{{ $label }}{{ $job->{$field} }}</span>
                                         @endif

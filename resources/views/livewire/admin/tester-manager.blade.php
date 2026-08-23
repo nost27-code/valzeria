@@ -49,27 +49,27 @@
                         <input type="number" wire:model="mp_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1">STR (腕力)</label>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">攻撃</label>
                         <input type="number" wire:model="attack_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1">DEF (体力)</label>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">防御</label>
                         <input type="number" wire:model="defense_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1">AGI (敏捷)</label>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">敏捷</label>
                         <input type="number" wire:model="speed_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1">MAG (魔力)</label>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">魔力</label>
                         <input type="number" wire:model="magic_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1">LUK (運)</label>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">運</label>
                         <input type="number" wire:model="luck_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-600 mb-1">SPR (精神)</label>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">精神</label>
                         <input type="number" wire:model="spirit_base" class="w-full rounded-md border border-slate-300 bg-slate-50 shadow-inner focus:border-[#d4af37] focus:bg-white focus:ring focus:ring-[#d4af37]">
                     </div>
                 </div>
@@ -105,12 +105,12 @@
                                 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 mb-4 text-sm">
                                     <div><span class="text-xs text-gray-500 block">HP</span><input type="number" wire:model="editData.hp_base" class="w-full p-1 border rounded"></div>
                                     <div><span class="text-xs text-gray-500 block">SP</span><input type="number" wire:model="editData.mp_base" class="w-full p-1 border rounded"></div>
-                                    <div><span class="text-xs text-gray-500 block">STR</span><input type="number" wire:model="editData.attack_base" class="w-full p-1 border rounded"></div>
-                                    <div><span class="text-xs text-gray-500 block">DEF</span><input type="number" wire:model="editData.defense_base" class="w-full p-1 border rounded"></div>
-                                    <div><span class="text-xs text-gray-500 block">AGI</span><input type="number" wire:model="editData.speed_base" class="w-full p-1 border rounded"></div>
-                                    <div><span class="text-xs text-gray-500 block">MAG</span><input type="number" wire:model="editData.magic_base" class="w-full p-1 border rounded"></div>
-                                    <div><span class="text-xs text-gray-500 block">LUK</span><input type="number" wire:model="editData.luck_base" class="w-full p-1 border rounded"></div>
-                                    <div><span class="text-xs text-gray-500 block">SPR</span><input type="number" wire:model="editData.spirit_base" class="w-full p-1 border rounded"></div>
+                                    <div><span class="text-xs text-gray-500 block">攻撃</span><input type="number" wire:model="editData.attack_base" class="w-full p-1 border rounded"></div>
+                                    <div><span class="text-xs text-gray-500 block">防御</span><input type="number" wire:model="editData.defense_base" class="w-full p-1 border rounded"></div>
+                                    <div><span class="text-xs text-gray-500 block">敏捷</span><input type="number" wire:model="editData.speed_base" class="w-full p-1 border rounded"></div>
+                                    <div><span class="text-xs text-gray-500 block">魔力</span><input type="number" wire:model="editData.magic_base" class="w-full p-1 border rounded"></div>
+                                    <div><span class="text-xs text-gray-500 block">運</span><input type="number" wire:model="editData.luck_base" class="w-full p-1 border rounded"></div>
+                                    <div><span class="text-xs text-gray-500 block">精神</span><input type="number" wire:model="editData.spirit_base" class="w-full p-1 border rounded"></div>
                                 </div>
                                 <div class="flex gap-2">
                                     <button wire:click="updateTester" wire:loading.attr="disabled" wire:target="updateTester" class="flex-1 border-2 border-green-500 bg-white hover:bg-green-50 text-green-700 font-bold py-2 px-3 rounded transition shadow-sm disabled:cursor-wait disabled:opacity-60">
@@ -149,12 +149,12 @@
                                 <div class="bg-gray-50 p-2 rounded text-sm text-gray-600 mb-4 grid grid-cols-2 md:grid-cols-4 gap-1">
                                     <div><span class="text-gray-400 text-xs">HP:</span> <span class="font-semibold">{{ $character->hp_base }}</span></div>
                                     <div><span class="text-gray-400 text-xs">SP:</span> <span class="font-semibold">{{ $character->mp_base }}</span></div>
-                                    <div><span class="text-gray-400 text-xs">STR:</span> <span class="font-semibold">{{ $character->attack_base }}</span></div>
-                                    <div><span class="text-gray-400 text-xs">DEF:</span> <span class="font-semibold">{{ $character->defense_base }}</span></div>
-                                    <div><span class="text-gray-400 text-xs">AGI:</span> <span class="font-semibold">{{ $character->speed_base }}</span></div>
-                                    <div><span class="text-gray-400 text-xs">MAG:</span> <span class="font-semibold">{{ $character->magic_base }}</span></div>
-                                    <div><span class="text-gray-400 text-xs">LUK:</span> <span class="font-semibold">{{ $character->luck_base }}</span></div>
-                                    <div><span class="text-gray-400 text-xs">SPR:</span> <span class="font-semibold">{{ $character->spirit_base ?? 0 }}</span></div>
+                                    <div><span class="text-gray-400 text-xs">攻撃:</span> <span class="font-semibold">{{ $character->attack_base }}</span></div>
+                                    <div><span class="text-gray-400 text-xs">防御:</span> <span class="font-semibold">{{ $character->defense_base }}</span></div>
+                                    <div><span class="text-gray-400 text-xs">敏捷:</span> <span class="font-semibold">{{ $character->speed_base }}</span></div>
+                                    <div><span class="text-gray-400 text-xs">魔力:</span> <span class="font-semibold">{{ $character->magic_base }}</span></div>
+                                    <div><span class="text-gray-400 text-xs">運:</span> <span class="font-semibold">{{ $character->luck_base }}</span></div>
+                                    <div><span class="text-gray-400 text-xs">精神:</span> <span class="font-semibold">{{ $character->spirit_base ?? 0 }}</span></div>
                                 </div>
                                 <div class="flex gap-2 mt-auto">
                                     <button wire:click="editTester({{ $tester->id }})" class="flex-1 border-2 border-gray-400 bg-white hover:bg-gray-100 text-gray-800 font-bold py-2 px-3 rounded text-sm transition shadow-sm text-center">

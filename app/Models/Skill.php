@@ -3,12 +3,18 @@
 namespace App\Models;
 
 use App\Support\JobArtEffectCatalog;
+use App\Support\PlayerStatLabel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Skill extends Model
 {
     use HasFactory;
+
+    public function getDescriptionAttribute(mixed $value): ?string
+    {
+        return $value === null ? null : PlayerStatLabel::inText((string) $value);
+    }
 
     protected $fillable = [
         'job_id',
@@ -184,7 +190,7 @@ class Skill extends Model
         }
 
         if (in_array($template, ['HEAL', 'HEAL_CLEANSE'], true)) {
-            $labels[] = "HP回復 SPR×{$power}%";
+            $labels[] = "HP回復 精神×{$power}%";
         }
 
         if (in_array($template, ['SELF_BUFF', 'DAMAGE_BUFF', 'MAGICAL_DAMAGE_BUFF'], true)) {
@@ -211,11 +217,11 @@ class Skill extends Model
         }
 
         $debuffLabels = [
-            'enemy_atk_down_percent' => '敵ATK',
-            'enemy_mag_down_percent' => '敵MAG',
-            'enemy_def_down_percent' => '敵DEF',
-            'enemy_spr_down_percent' => '敵SPR',
-            'enemy_spd_down_percent' => '敵SPD',
+            'enemy_atk_down_percent' => '敵攻撃',
+            'enemy_mag_down_percent' => '敵魔力',
+            'enemy_def_down_percent' => '敵防御',
+            'enemy_spr_down_percent' => '敵精神',
+            'enemy_spd_down_percent' => '敵敏捷',
         ];
         $hasStructuredDebuff = false;
         $debuffDuration = max(0, (int) $this->duration_turns);
@@ -230,11 +236,11 @@ class Skill extends Model
 
         if (! $hasStructuredDebuff && in_array($template, ['ENEMY_DEBUFF', 'DAMAGE_DEBUFF'], true)) {
             $debuff = $this->jobArtTierPercent($power);
-            $labels[] = "敵DEF -{$debuff}% / SPR -" . intdiv($debuff, 2) . '%';
+            $labels[] = "敵防御 -{$debuff}% / 精神 -" . intdiv($debuff, 2) . '%';
         }
 
         foreach ([
-            'def_ignore_percent' => '敵DEF/SPR無視',
+            'def_ignore_percent' => '敵防御/精神無視',
             'heal_percent' => '最大HP回復',
             'mp_recover_percent' => '最大SP回復',
             'gold_bonus_percent' => 'Gold判定',

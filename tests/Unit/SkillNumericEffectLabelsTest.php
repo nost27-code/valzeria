@@ -92,8 +92,8 @@ class SkillNumericEffectLabelsTest extends TestCase
 
         $this->assertSame([
             '威力 410%',
-            '敵DEF -20%（3ターン）',
-            '敵SPR -10%（3ターン）',
+            '敵防御 -20%（3ターン）',
+            '敵精神 -10%（3ターン）',
         ], $skill->jobArtNumericEffectLabels());
     }
 }

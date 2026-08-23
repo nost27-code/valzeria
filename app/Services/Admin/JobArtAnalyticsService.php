@@ -7,6 +7,7 @@ use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\JobArtService;
 use App\Services\JobArtV2CardDescriptionCatalog;
+use App\Support\PlayerStatLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -431,7 +432,9 @@ class JobArtAnalyticsService
             ?? ($art->memo ?: $art->description);
         $description = trim((string) $description);
 
-        return $description !== '' ? $description : $art->jobArtEffectLabel();
+        return PlayerStatLabel::inText(
+            $description !== '' ? $description : $art->jobArtEffectLabel(),
+        );
     }
 
     /**

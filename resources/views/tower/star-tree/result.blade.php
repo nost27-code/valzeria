@@ -29,7 +29,7 @@
         'timeout' => '撤退',
         default => $event->result,
     };
-    $battleLogs = collect($event->metadata['logs'] ?? []);
+    $battleLogs = $event->playerFacingBattleLogs();
     $unlockedTitles = collect($event->metadata['unlocked_titles'] ?? [])->filter();
     $claimedCardBackgroundRewards = collect($event->metadata['pending_rewards'] ?? [])
         ->filter(fn ($reward) => ($reward['reward_type'] ?? '') === \App\Services\StarTreeTowerRewardService::TYPE_CARD_BACKGROUND)

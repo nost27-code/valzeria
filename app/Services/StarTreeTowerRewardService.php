@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\CharacterItem;
 use App\Models\Item;
 use App\Models\TowerRewardClaim;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -328,14 +329,14 @@ class StarTreeTowerRewardService
                 'name' => (string) ($weapon['name'] ?? ($item?->name ?? '報酬武器')),
                 'item_id' => $item?->id,
                 'stats' => [
-                    'HP' => (int) ($weapon['hp'] ?? 0),
-                    'SP' => (int) ($weapon['sp'] ?? 0),
-                    'ATK' => (int) ($weapon['atk'] ?? 0),
-                    'DEF' => (int) ($weapon['def'] ?? 0),
-                    'MAG' => (int) ($weapon['mag'] ?? 0),
-                    'SPR' => (int) ($weapon['spr'] ?? 0),
-                    'SPD' => (int) ($weapon['spd'] ?? 0),
-                    'LUK' => (int) ($weapon['luk'] ?? 0),
+                    PlayerStatLabel::for('hp') => (int) ($weapon['hp'] ?? 0),
+                    PlayerStatLabel::for('sp') => (int) ($weapon['sp'] ?? 0),
+                    PlayerStatLabel::for('str') => (int) ($weapon['atk'] ?? 0),
+                    PlayerStatLabel::for('def') => (int) ($weapon['def'] ?? 0),
+                    PlayerStatLabel::for('mag') => (int) ($weapon['mag'] ?? 0),
+                    PlayerStatLabel::for('spr') => (int) ($weapon['spr'] ?? 0),
+                    PlayerStatLabel::for('agi') => (int) ($weapon['spd'] ?? 0),
+                    PlayerStatLabel::for('luk') => (int) ($weapon['luk'] ?? 0),
                 ],
                 'killer_label' => '植物+'.(int) round(((float) config("star_tree_tower_rewards.weapon_rewards.{$floor}.killer_damage_rate", 0)) * 100).'%',
             ];

@@ -12,6 +12,7 @@ use App\Models\Material;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
@@ -960,7 +961,7 @@ class ChampBattleService
             $rate = (int) $skill->self_buff_percent / 100;
             $attacker->str = min((int) floor($attacker->baseStr * 1.5), $attacker->str + (int) floor($attacker->baseStr * $rate));
             $attacker->mag = min((int) floor($attacker->baseMag * 1.5), $attacker->mag + (int) floor($attacker->baseMag * $rate));
-            $logs[] = "{$attacker->name} の攻撃力と魔法力が上昇した！";
+            $logs[] = "{$attacker->name} の攻撃と魔力が上昇した！";
         }
 
         return [
@@ -1076,8 +1077,9 @@ class ChampBattleService
             $rate = (int) $skill->enemy_spd_down_percent > 0 ? (int) $skill->enemy_spd_down_percent / 100 : 0.10;
             $before = $defender->agi;
             $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
-            $pct = $before > 0 ? (int) round((abs($before - $defender->agi) / $before) * 100) : 0;
-            $logs[] = "<span class=\"text-sky-700 font-bold\">{$defender->name} のSPDが {$pct}% 低下した！</span>";
+            $logs[] = BattleStatChangeLogFormatter::fromValues($defender->name, [
+                ['label' => 'agi', 'before' => $before, 'after' => $defender->agi],
+            ], false);
         }
     }
 
@@ -1091,18 +1093,10 @@ class ChampBattleService
         int $subAfter,
         bool $isBuff
     ): string {
-        $mainPct = $mainBefore > 0 ? (int) round((abs($mainAfter - $mainBefore) / $mainBefore) * 100) : 0;
-        $subPct = $subBefore > 0 ? (int) round((abs($subAfter - $subBefore) / $subBefore) * 100) : 0;
-
-        if ($mainAfter === $mainBefore && $subAfter === $subBefore) {
-            $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
-            $verb = $isBuff ? '強化' : '弱体化';
-            return "<span class=\"{$color} font-bold\">{$actorName} はこれ以上{$verb}できない！</span>";
-        }
-
-        $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
-        $direction = $isBuff ? '上昇' : '低下';
-        return "<span class=\"{$color} font-bold\">{$actorName} の{$mainLabel}が {$mainPct}% / {$subLabel}が {$subPct}% {$direction}した！</span>";
+        return BattleStatChangeLogFormatter::fromValues($actorName, [
+            ['label' => $mainLabel, 'before' => $mainBefore, 'after' => $mainAfter],
+            ['label' => $subLabel, 'before' => $subBefore, 'after' => $subAfter],
+        ], $isBuff);
     }
 
     private function hasStructuredDebuff(Skill $skill): bool
@@ -1140,18 +1134,23 @@ class ChampBattleService
         );
         if ($timed !== null) {
             foreach ($timed['changes'] as $change) {
-                $logs[] = "{$defender->name} の{$change['label']}が {$change['percent']}% 低下した！（{$timed['duration_turns']}ターン）";
+                $logs[] = BattleStatChangeLogFormatter::fromPercentages(
+                    $defender->name,
+                    [['label' => $change['label'], 'percent' => $change['percent']]],
+                    false,
+                    $timed['duration_turns'].'ターン',
+                );
             }
 
             return;
         }
 
         $debuffs = [
-            'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
-            'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔法力'],
-            'enemy_def_down_percent' => ['prop' => 'def', 'base' => 'baseDef', 'label' => '防御力'],
-            'enemy_spr_down_percent' => ['prop' => 'spr', 'base' => 'baseSpr', 'label' => '精神力'],
-            'enemy_spd_down_percent' => ['prop' => 'agi', 'base' => 'baseAgi', 'label' => '素早さ'],
+            'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃'],
+            'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔力'],
+            'enemy_def_down_percent' => ['prop' => 'def', 'base' => 'baseDef', 'label' => '防御'],
+            'enemy_spr_down_percent' => ['prop' => 'spr', 'base' => 'baseSpr', 'label' => '精神'],
+            'enemy_spd_down_percent' => ['prop' => 'agi', 'base' => 'baseAgi', 'label' => '敏捷'],
         ];
 
         foreach ($debuffs as $field => $config) {
@@ -1163,7 +1162,11 @@ class ChampBattleService
             $prop = $config['prop'];
             $base = $config['base'];
             $defender->{$prop} = max(1, $defender->{$prop} - (int) floor($defender->{$base} * ($effect / 100)));
-            $logs[] = "{$defender->name} の{$config['label']}が {$effect}% 低下した！";
+            $logs[] = BattleStatChangeLogFormatter::fromPercentages(
+                $defender->name,
+                [['label' => $config['label'], 'percent' => $effect]],
+                false,
+            );
         }
     }
 

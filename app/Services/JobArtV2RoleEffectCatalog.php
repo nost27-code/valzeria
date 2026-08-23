@@ -173,7 +173,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 30,
             ],
-            'effect_texts' => ['発動後 ATK +30% / MAG +30%（3ラウンド、再使用時は重複せず更新）'],
+            'effect_texts' => ['発動後 攻撃 +30% / 魔力 +30%（3ラウンド、再使用時は重複せず更新）'],
         ],
         '15:1:不屈の誓い' => [
             'role_key' => 'guard_unyielding_vow',
@@ -227,7 +227,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 5,
             ],
-            'effect_texts' => ['ATK +5%（2ラウンド）'],
+            'effect_texts' => ['攻撃 +5%（2ラウンド）'],
         ],
         '13:1:闘争本能' => [
             'role_key' => 'counter_sustained_buff',
@@ -240,7 +240,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 25,
             ],
-            'effect_texts' => ['ATK +25% / DEF +20%（5ラウンド）'],
+            'effect_texts' => ['攻撃 +25% / 防御 +20%（5ラウンド）'],
         ],
         '28:1:剣気集中' => [
             'role_key' => 'counter_finisher_prep',
@@ -272,7 +272,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 20,
             ],
-            'effect_texts' => ['発動後 ATK +20% / DEF +10%（3ラウンド）'],
+            'effect_texts' => ['発動後 攻撃 +20% / 防御 +10%（3ラウンド）'],
         ],
         '11:9:刹那雪月花' => [
             'role_key' => 'counter_multi_hit_finisher',
@@ -480,7 +480,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 15,
             ],
-            'effect_texts' => ['MAG +15% / SPR +7%（2ラウンド）'],
+            'effect_texts' => ['魔力 +15% / 精神 +7%（2ラウンド）'],
         ],
 
         // Eclipse: portable combat buffs. Source-lineage resource handling is owned by ResourceService.
@@ -501,7 +501,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 10,
             ],
-            'effect_texts' => ['現在値が高い方のATK/MAGを +10%（同値はATK・2ラウンド）'],
+            'effect_texts' => ['攻撃または魔力のうち現在値が高い方を+10%（同値は攻撃・2ラウンド）'],
         ],
         '14:1:血潮の咆哮' => [
             'role_key' => 'eclipse_blood_buff',
@@ -520,7 +520,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 30,
             ],
-            'effect_texts' => ['最大HP3%を非致死で消費', 'ATK +30% / MAG +25%（5ラウンド）'],
+            'effect_texts' => ['最大HP3%を非致死で消費', '攻撃 +30% / 魔力 +25%（5ラウンド）'],
         ],
 
         // Pierce: mutually exclusive burst/flexible preparation.
@@ -577,7 +577,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 5,
             ],
-            'effect_texts' => ['ATK / DEF / MAG / SPR +5%（3ラウンド）'],
+            'effect_texts' => ['攻撃 / 防御 / 魔力 / 精神 +5%（3ラウンド）'],
         ],
         '38:1:商聖の助言' => [
             'role_key' => 'transmute_lowest_stat_advice',
@@ -672,7 +672,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 20,
             ],
-            'effect_texts' => ['MAG +20% / SPR +10%（2ラウンド）'],
+            'effect_texts' => ['魔力 +20% / 精神 +10%（2ラウンド）'],
         ],
         '44:9:天壁イージス' => [
             'role_key' => 'guard_physical_shield_finisher',
@@ -792,7 +792,7 @@ final class JobArtV2RoleEffectCatalog
                 'scope' => 'direct_damage',
             ],
             'effect_texts' => [
-                'HP回復 SPR×250%',
+                'HP回復 精神×250%',
                 '火傷・毒・出血・防御低下・鈍足・回復阻害・崩し印をすべて浄化する',
                 '次のdirect damageを20%軽減する（1回）',
             ],
@@ -831,7 +831,7 @@ final class JobArtV2RoleEffectCatalog
             'reward' => ['gold' => false, 'drop' => false],
             'effect_texts' => [
                 '解除可能な最も強い強化を1種類解除する',
-                '解除に成功した場合、3ラウンドの間、ATKとMAGを+15%する',
+                '解除に成功した場合、3ラウンドの間、攻撃と魔力を+15%する',
             ],
         ],
         '47:9:神薬アムリタ' => [
@@ -886,7 +886,7 @@ final class JobArtV2RoleEffectCatalog
                 'removable' => true,
                 'strength' => 10,
             ],
-            'effect_texts' => ['DEF +10% / SPR +10%（2ラウンド）'],
+            'effect_texts' => ['防御 +10% / 精神 +10%（2ラウンド）'],
         ],
         '28:9:無双一閃' => [
             'role_key' => 'counter_focused_finisher',
@@ -909,7 +909,7 @@ final class JobArtV2RoleEffectCatalog
                 'strength' => 15,
             ],
             'rejects_prepared_effects' => ['counter_focus'],
-            'effect_texts' => ['発動後 DEF +15% / SPR +15%（2ラウンド）', 'counter_focus専用追加効果なし'],
+            'effect_texts' => ['発動後 防御 +15% / 精神 +15%（2ラウンド）', 'counter_focus専用追加効果なし'],
         ],
     ];
 

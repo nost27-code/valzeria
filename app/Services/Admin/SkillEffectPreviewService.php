@@ -9,6 +9,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\JobArtHitPower;
 use App\Services\JobArtV2SpCostCalculator;
 use App\Support\JobArtEffectCatalog;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Collection;
 
 class SkillEffectPreviewService
@@ -71,7 +72,7 @@ class SkillEffectPreviewService
                 'ratio_to_previous_normal' => $this->ratio($result['damage'], $normalDamage),
                 'ratio_to_first_normal' => $this->ratio($result['damage'], $baselineDamage),
                 'effects' => array_values(array_unique(array_merge($result['effects'], $this->effectDescriptions($skill, $result['damage'], $attacker)))),
-                'description' => $skill->description ?: $skill->memo,
+                'description' => PlayerStatLabel::inText((string) ($skill->description ?: $skill->memo)),
                 'activation_rate' => $skill->effectiveActivationRate(),
                 'sp_cost' => $skill->isJobArt()
                     ? ($this->jobArtSpCostCalculator ?? app(JobArtV2SpCostCalculator::class))
@@ -441,16 +442,16 @@ class SkillEffectPreviewService
             'mp_recover_percent' => '最大SP%d%%回復',
             'self_damage_percent' => '反動 最大HP%d%%',
             'damage_reduction_percent' => '次被ダメージ%d%%軽減',
-            'self_buff_percent' => 'ATK/MAG%d%%上昇',
-            'enemy_atk_down_percent' => '敵ATK%d%%低下',
-            'enemy_mag_down_percent' => '敵MAG%d%%低下',
-            'enemy_def_down_percent' => '敵DEF%d%%低下',
-            'enemy_spr_down_percent' => '敵SPR%d%%低下',
-            'enemy_spd_down_percent' => '敵SPD%d%%低下',
+            'self_buff_percent' => '攻撃/魔力%d%%上昇',
+            'enemy_atk_down_percent' => '敵の攻撃%d%%低下',
+            'enemy_mag_down_percent' => '敵の魔力%d%%低下',
+            'enemy_def_down_percent' => '敵の防御%d%%低下',
+            'enemy_spr_down_percent' => '敵の精神%d%%低下',
+            'enemy_spd_down_percent' => '敵の敏捷%d%%低下',
             'gold_bonus_percent' => 'Gold判定+%d%%',
             'drop_bonus_percent' => '素材判定+%d%%',
             'rare_bonus_percent' => 'レア判定+%d%%',
-            'def_ignore_percent' => '敵DEF/SPR%d%%無視',
+            'def_ignore_percent' => '敵の防御/精神%d%%無視',
         ] as $field => $format) {
             $value = (int) ($skill->{$field} ?? 0);
             if ($field === 'heal_percent' && in_array((string) $skill->effect_template, ['HEAL', 'HEAL_CLEANSE'], true)) {
@@ -469,7 +470,7 @@ class SkillEffectPreviewService
             $effects[] = '吸収HP ' . number_format(max(1, (int) floor($damage * (float) $skill->drain_hp_rate * $rate)));
         }
         if ((float) $skill->luk_power_rate > 0) {
-            $effects[] = 'LUKで威力加算';
+            $effects[] = '運で威力加算';
         }
 
         $template = (string) $skill->effect_template;

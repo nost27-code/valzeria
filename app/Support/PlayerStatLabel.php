@@ -19,6 +19,7 @@ final class PlayerStatLabel
         '防御力' => '防御',
         'mag' => '魔力',
         '魔力' => '魔力',
+        '魔法' => '魔力',
         '魔法力' => '魔力',
         'spr' => '精神',
         '精神' => '精神',
@@ -26,6 +27,8 @@ final class PlayerStatLabel
         'agi' => '敏捷',
         'spd' => '敏捷',
         '敏捷' => '敏捷',
+        '速さ' => '敏捷',
+        '速度' => '敏捷',
         '素早さ' => '敏捷',
         'luk' => '運',
         'luck' => '運',
@@ -38,5 +41,29 @@ final class PlayerStatLabel
         $normalized = strtolower($trimmed);
 
         return self::LABELS[$normalized] ?? self::LABELS[$trimmed] ?? $trimmed;
+    }
+
+    public static function inText(string $text): string
+    {
+        $text = strtr($text, [
+            '魔法攻撃力' => '魔力',
+            '魔法防御力' => '精神',
+            '物理攻撃力' => '攻撃',
+            '物理防御力' => '防御',
+            '最大体力' => '最大HP',
+            '残り体力' => '残りHP',
+            '攻撃力' => '攻撃',
+            '防御力' => '防御',
+            '魔法力' => '魔力',
+            '精神力' => '精神',
+            '敏捷性' => '敏捷',
+            '素早さ' => '敏捷',
+        ]);
+
+        return (string) preg_replace_callback(
+            '/(?<![A-Z0-9_])(ATK|DEF|MAG|SPR|SPD|LUK|LUCK|MP|STR|AGI)(?![A-Z0-9_])/u',
+            static fn (array $matches): string => self::for($matches[1]),
+            $text,
+        );
     }
 }

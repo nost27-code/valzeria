@@ -14,6 +14,7 @@ use App\Services\CharacterJobChangeService;
 use App\Services\JobCombatGuideService;
 use App\Services\PublicLogService;
 use App\Support\JobRankCatalog;
+use App\Support\PlayerStatLabel;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 
@@ -220,7 +221,7 @@ class JobChange extends Component
             $artId = (int) $art->id;
 
             $this->detailJobArtDescriptions[$artId] = $canonicalDescription
-                ?? (string) ($art->memo ?: ($art->description ?: '効果説明なし'));
+                ?? PlayerStatLabel::inText((string) ($art->memo ?: ($art->description ?: '効果説明なし')));
             $this->detailJobArtUsesCanonicalDescription[$artId] = $canonicalDescription !== null;
             $art->setAttribute(
                 'job_art_effective_cost',
@@ -298,12 +299,12 @@ class JobChange extends Component
         $stats = [
             ['label' => 'HP', 'rate' => (int) ($job->hp_rate ?? 100)],
             ['label' => 'SP', 'rate' => (int) ($job->mp_rate ?? 100)],
-            ['label' => 'ATK', 'rate' => (int) ($job->atk_rate ?? 100)],
-            ['label' => 'DEF', 'rate' => (int) ($job->def_rate ?? 100)],
-            ['label' => 'MAG', 'rate' => (int) ($job->mag_rate ?? 100)],
-            ['label' => 'SPR', 'rate' => (int) ($job->spr_rate ?? 100)],
-            ['label' => 'SPD', 'rate' => (int) ($job->spd_rate ?? 100)],
-            ['label' => 'LUK', 'rate' => (int) ($job->luck_rate ?? 100)],
+            ['label' => '攻撃', 'rate' => (int) ($job->atk_rate ?? 100)],
+            ['label' => '防御', 'rate' => (int) ($job->def_rate ?? 100)],
+            ['label' => '魔力', 'rate' => (int) ($job->mag_rate ?? 100)],
+            ['label' => '精神', 'rate' => (int) ($job->spr_rate ?? 100)],
+            ['label' => '敏捷', 'rate' => (int) ($job->spd_rate ?? 100)],
+            ['label' => '運', 'rate' => (int) ($job->luck_rate ?? 100)],
         ];
         $maxRate = max(1, ...array_column($stats, 'rate'));
 

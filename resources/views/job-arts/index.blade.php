@@ -571,15 +571,9 @@
                             ?? $art->jobArtSpCostForMaxSp($maxSp, $artOrigin));
                         $displayActivationRate = (int) ($art->getAttribute('job_art_display_activation_rate')
                             ?? $art->effectiveActivationRate());
-                        $statLabelReplacements = [
-                            'ATK' => '攻撃',
-                            'DEF' => '防御',
-                            'SPD' => '敏捷',
-                            'MAG' => '魔力',
-                            'SPR' => '精神',
-                            'LUK' => '運',
-                        ];
-                        $displayMemo = strtr((string) ($art->memo ?: $art->description), $statLabelReplacements);
+                        $displayMemo = \App\Support\PlayerStatLabel::inText(
+                            (string) ($art->memo ?: $art->description),
+                        );
                         if (!empty($v2Display['legacy_effect_copy_suppressed'])) {
                             $displayMemo = '';
                         } elseif ($jobArtV2UiEnabled) {

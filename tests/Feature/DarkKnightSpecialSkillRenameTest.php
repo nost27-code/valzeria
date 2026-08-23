@@ -36,7 +36,7 @@ class DarkKnightSpecialSkillRenameTest extends TestCase
         $this->assertSame(2.20, (float) ($specialSkill['power_multiplier'] ?? 0));
         $this->assertSame(0, (int) ($specialSkill['self_damage_percent'] ?? 0));
         $this->assertSame(10, (int) ($specialSkill['enemy_atk_down_percent'] ?? 0));
-        $this->assertSame('ATK依存の2.20倍物理攻撃。敵ATKを10%低下', $specialSkill['description'] ?? null);
+        $this->assertSame('攻撃依存の2.20倍物理攻撃。敵攻撃を10%低下', $specialSkill['description'] ?? null);
         $this->assertSame('暗黒剣', $jobArt['name'] ?? null);
         $this->assertSame('physical', $jobArt['damage_type'] ?? null);
         $this->assertSame(185, (int) ($jobArt['power_hint'] ?? 0));

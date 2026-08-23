@@ -9,6 +9,7 @@ use App\Models\PlayerValmon;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
@@ -1279,7 +1280,7 @@ class BattleService
                 $rate = max(0, (int) $action->effect_percent) / 100;
                 $attacker->str += (int) floor($attacker->baseStr * $rate);
                 $attacker->mag += (int) floor($attacker->baseMag * $rate);
-                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->name} のATKとMAGが高まった！</span>");
+                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->name} の攻撃と魔力が高まった！</span>");
                 return;
             default:
                 $this->executePhysicalAttack($attacker, $defender, $state, (int) $action->power_percent);
@@ -1353,7 +1354,7 @@ class BattleService
             ? app(ExplorationSupportService::class)->adjustedConditionDuration($turns, $state->explorationSupportSnapshot)
             : max(1, $turns);
         $defender->conditions[$key] = ['turns' => $turns, 'rate' => $rate];
-        $labels = ['burn' => '火傷', 'bleed' => '出血', 'def_down' => 'DEF低下', 'slow' => '鈍足', 'recovery_block' => '回復阻害'];
+        $labels = ['burn' => '火傷', 'bleed' => '出血', 'def_down' => '防御低下', 'slow' => '鈍足', 'recovery_block' => '回復阻害'];
         $state->addLog("<span class=\"battle-log-condition battle-log-condition-{$key}\">{$defender->name} は {$labels[$key]} 状態になった！</span>");
     }
 
@@ -1610,7 +1611,7 @@ class BattleService
         
         if ((int) $skill->self_buff_percent > 0) {
             $rate = (int) $skill->self_buff_percent / 100;
-            $state->addLog("{$attacker->name} の攻撃力と魔法力が上昇した！");
+            $state->addLog("{$attacker->name} の攻撃と魔力が上昇した！");
             $attacker->str += (int) floor($attacker->baseStr * $rate);
             $attacker->mag += (int) floor($attacker->baseMag * $rate);
             $attacker->str = min($attacker->str, (int) floor($attacker->baseStr * 1.5)); // 上限1.5倍
@@ -1635,7 +1636,12 @@ class BattleService
         );
         if ($timed !== null) {
             foreach ($timed['changes'] as $change) {
-                $state->addLog("{$defender->name} の{$change['label']}が {$change['percent']}% 低下した！（{$timed['duration_turns']}ターン）");
+                $state->addLog(BattleStatChangeLogFormatter::fromPercentages(
+                    $defender->name,
+                    [['label' => $change['label'], 'percent' => $change['percent']]],
+                    false,
+                    $timed['duration_turns'].'ターン',
+                ));
             }
 
             return $timed['changes'] !== [];
@@ -1643,11 +1649,11 @@ class BattleService
 
         $applied = false;
         $debuffs = [
-            'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃力'],
-            'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔法力'],
-            'enemy_def_down_percent' => ['prop' => 'def', 'base' => 'baseDef', 'label' => '防御力'],
-            'enemy_spr_down_percent' => ['prop' => 'spr', 'base' => 'baseSpr', 'label' => '精神力'],
-            'enemy_spd_down_percent' => ['prop' => 'agi', 'base' => 'baseAgi', 'label' => '素早さ'],
+            'enemy_atk_down_percent' => ['prop' => 'str', 'base' => 'baseStr', 'label' => '攻撃'],
+            'enemy_mag_down_percent' => ['prop' => 'mag', 'base' => 'baseMag', 'label' => '魔力'],
+            'enemy_def_down_percent' => ['prop' => 'def', 'base' => 'baseDef', 'label' => '防御'],
+            'enemy_spr_down_percent' => ['prop' => 'spr', 'base' => 'baseSpr', 'label' => '精神'],
+            'enemy_spd_down_percent' => ['prop' => 'agi', 'base' => 'baseAgi', 'label' => '敏捷'],
         ];
 
         foreach ($debuffs as $field => $config) {
@@ -1660,7 +1666,11 @@ class BattleService
             $prop = $config['prop'];
             $base = $config['base'];
             $defender->{$prop} = max(1, $defender->{$prop} - (int) floor($defender->{$base} * ($effect / 100)));
-            $state->addLog("{$defender->name} の{$config['label']}が {$effect}% 低下した！");
+            $state->addLog(BattleStatChangeLogFormatter::fromPercentages(
+                $defender->name,
+                [['label' => $config['label'], 'percent' => $effect]],
+                false,
+            ));
             $applied = true;
         }
 
@@ -2124,19 +2134,10 @@ class BattleService
         int $subAfter,
         bool $isBuff
     ): void {
-        $mainPct = $mainBefore > 0 ? (int) round((abs($mainAfter - $mainBefore) / $mainBefore) * 100) : 0;
-        $subPct = $subBefore > 0 ? (int) round((abs($subAfter - $subBefore) / $subBefore) * 100) : 0;
-
-        if ($mainAfter === $mainBefore && $subAfter === $subBefore) {
-            $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
-            $verb = $isBuff ? '強化' : '弱体化';
-            $state->addLog("<span class=\"{$color} font-bold\">{$actorName} はこれ以上{$verb}できない！</span>");
-            return;
-        }
-
-        $color = $isBuff ? 'text-indigo-600' : 'text-violet-700';
-        $direction = $isBuff ? '上昇' : '低下';
-        $state->addLog("<span class=\"{$color} font-bold\">{$actorName} の{$mainLabel}が {$mainPct}% / {$subLabel}が {$subPct}% {$direction}した！</span>");
+        $state->addLog(BattleStatChangeLogFormatter::fromValues($actorName, [
+            ['label' => $mainLabel, 'before' => $mainBefore, 'after' => $mainAfter],
+            ['label' => $subLabel, 'before' => $subBefore, 'after' => $subAfter],
+        ], $isBuff));
     }
 
     private function hasStructuredDebuff(Skill $skill): bool
@@ -2324,8 +2325,9 @@ class BattleService
             : max(0.05, $this->buffRate($skill));
         $before = $defender->agi;
         $defender->agi = max(1, $defender->agi - max(1, (int) floor($defender->baseAgi * $rate)));
-        $pct = $before > 0 ? (int) round((abs($before - $defender->agi) / $before) * 100) : 0;
-        $state->addLog("<span class=\"text-sky-700 font-bold\">{$defender->name} のSPDが {$pct}% 低下した！</span>");
+        $state->addLog(BattleStatChangeLogFormatter::fromValues($defender->name, [
+            ['label' => 'agi', 'before' => $before, 'after' => $defender->agi],
+        ], false));
     }
 
     private function buffRate(Skill $skill): float

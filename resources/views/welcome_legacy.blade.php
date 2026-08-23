@@ -266,7 +266,7 @@
                             </div>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:14px;">
-                            @foreach([['攻撃',$topChamp->atk],['防御',$topChamp->def],['魔法',$topChamp->mag],['精神',$topChamp->spr],['速さ',$topChamp->spd],['運',$topChamp->luk]] as [$lbl,$val])
+                            @foreach([['攻撃',$topChamp->atk],['防御',$topChamp->def],['魔力',$topChamp->mag],['精神',$topChamp->spr],['敏捷',$topChamp->spd],['運',$topChamp->luk]] as [$lbl,$val])
                             <div style="background:#faf9f6;border:1px solid #e7e5e4;border-radius:7px;padding:7px 9px;display:flex;justify-content:space-between;align-items:center;">
                                 <span style="font-size:13px;color:#78716c;font-weight:700;">{{ $lbl }}</span>
                                 <span style="font-size:15px;font-weight:900;color:#1c1917;">{{ number_format((int)$val) }}</span>

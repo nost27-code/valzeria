@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
+use App\Support\PlayerStatLabel;
 
 final class JobArtBattleLogPresenter
 {
@@ -77,7 +78,9 @@ final class JobArtBattleLogPresenter
             $description = trim((string) ($skill->memo ?: $skill->description));
         }
 
-        return $description !== '' ? $description : '戦況に応じた効果を発動する。';
+        return $description !== ''
+            ? PlayerStatLabel::inText($description)
+            : '戦況に応じた効果を発動する。';
     }
 
     private function resourceGainDescription(string $resourceKey): ?string

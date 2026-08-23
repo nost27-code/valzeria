@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\HitResult;
 
 final class JobArtV2BreakDebuffService
@@ -84,11 +85,14 @@ final class JobArtV2BreakDebuffService
         $state->recordBreakDebuffResult($result);
 
         if ($applied) {
-            $state->addLog(sprintf(
-                '<span class="text-violet-700 font-bold">%s のDEF/SPRが %s%%低下した！（%dラウンド）</span>',
-                e($target->name),
-                rtrim(rtrim(number_format($rate * 100, 1), '0'), '.'),
-                $rounds,
+            $state->addLog(BattleStatChangeLogFormatter::fromPercentages(
+                $target->name,
+                [
+                    ['label' => 'def', 'percent' => $rate * 100],
+                    ['label' => 'spr', 'percent' => $rate * 100],
+                ],
+                false,
+                $rounds.'ラウンド',
             ));
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlayerStatLabel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -36,5 +37,10 @@ class Area extends Model
     {
         return $this->hasMany(AreaDiscoveryLink::class, 'from_id')
             ->where('from_type', 'area');
+    }
+
+    public function getDescriptionAttribute(mixed $value): ?string
+    {
+        return $value === null ? null : PlayerStatLabel::inText((string) $value);
     }
 }

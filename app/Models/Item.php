@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PlayerStatLabel;
 use Illuminate\Database\Eloquent\Model;
 
 class Item extends Model
@@ -94,6 +95,11 @@ class Item extends Model
             'accessory' => 'images/icon/icon_238.webp',
             default => null,
         };
+    }
+
+    public function getDescriptionAttribute(mixed $value): ?string
+    {
+        return $value === null ? null : PlayerStatLabel::inText((string) $value);
     }
 
     public static function weaponIconPathForCategory(?string $category): ?string

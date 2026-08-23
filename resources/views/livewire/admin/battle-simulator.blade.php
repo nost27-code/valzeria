@@ -75,12 +75,12 @@
                         @endif
                         <div class="mt-2 grid grid-cols-4 gap-2 text-xs font-black text-slate-600">
                             <span>HP {{ $selectedCharacterStats['max_hp'] ?? '-' }}</span>
-                            <span>ATK {{ $selectedCharacterStats['str'] ?? '-' }}</span>
-                            <span>DEF {{ $selectedCharacterStats['def'] ?? '-' }}</span>
-                            <span>SPD {{ $selectedCharacterStats['agi'] ?? '-' }}</span>
-                            <span>MAG {{ $selectedCharacterStats['mag'] ?? '-' }}</span>
-                            <span>SPR {{ $selectedCharacterStats['spr'] ?? '-' }}</span>
-                            <span>LUK {{ $selectedCharacterStats['luk'] ?? '-' }}</span>
+                            <span>攻撃 {{ $selectedCharacterStats['str'] ?? '-' }}</span>
+                            <span>防御 {{ $selectedCharacterStats['def'] ?? '-' }}</span>
+                            <span>敏捷 {{ $selectedCharacterStats['agi'] ?? '-' }}</span>
+                            <span>魔力 {{ $selectedCharacterStats['mag'] ?? '-' }}</span>
+                            <span>精神 {{ $selectedCharacterStats['spr'] ?? '-' }}</span>
+                            <span>運 {{ $selectedCharacterStats['luk'] ?? '-' }}</span>
                             <span>SP {{ $selectedCharacterStats['max_mp'] ?? '-' }}</span>
                         </div>
                     </div>
@@ -95,12 +95,12 @@
                         <div class="font-black text-slate-950">{{ $selectedEnemy->name }} / Lv {{ $selectedEnemy->level }}</div>
                         <div class="mt-2 grid grid-cols-4 gap-2 text-xs font-black text-slate-600">
                             <span>HP {{ $selectedEnemy->max_hp }}</span>
-                            <span>ATK {{ $selectedEnemy->str }}</span>
-                            <span>DEF {{ $selectedEnemy->def }}</span>
-                            <span>SPD {{ $selectedEnemy->agi }}</span>
-                            <span>MAG {{ $selectedEnemy->mag }}</span>
-                            <span>SPR {{ $selectedEnemy->spr ?? $selectedEnemy->def }}</span>
-                            <span>LUK {{ $selectedEnemy->luk ?? 10 }}</span>
+                            <span>攻撃 {{ $selectedEnemy->str }}</span>
+                            <span>防御 {{ $selectedEnemy->def }}</span>
+                            <span>敏捷 {{ $selectedEnemy->agi }}</span>
+                            <span>魔力 {{ $selectedEnemy->mag }}</span>
+                            <span>精神 {{ $selectedEnemy->spr ?? $selectedEnemy->def }}</span>
+                            <span>運 {{ $selectedEnemy->luk ?? 10 }}</span>
                             <span>{{ $selectedEnemy->type_name ?? '-' }}</span>
                         </div>
                     </div>

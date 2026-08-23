@@ -20,25 +20,25 @@ class ItemSeeder extends Seeder
             // --- 防具 (armor) ---
             ['name' => '布の服', 'type' => 'armor', 'price' => 10, 'required_level' => 1, 'def_bonus' => 4, 'description' => '最低限の防具', 'is_shop_item' => true],
             ['name' => '革の鎧', 'type' => 'armor', 'price' => 100, 'required_level' => 2, 'hp_bonus' => 7, 'def_bonus' => 7, 'description' => '軽くて動きやすい革鎧', 'is_shop_item' => true],
-            ['name' => '鉄の鎧', 'type' => 'armor', 'price' => 400, 'required_level' => 5, 'hp_bonus' => 13, 'def_bonus' => 16, 'agi_bonus' => -1, 'description' => '防御力の高い鉄鎧', 'is_shop_item' => true],
+            ['name' => '鉄の鎧', 'type' => 'armor', 'price' => 400, 'required_level' => 5, 'hp_bonus' => 13, 'def_bonus' => 16, 'agi_bonus' => -1, 'description' => '防御を高める鉄鎧', 'is_shop_item' => true],
             ['name' => '魔法のローブ', 'type' => 'armor', 'price' => 380, 'required_level' => 5, 'hp_bonus' => 7, 'def_bonus' => 8, 'mag_bonus' => 7, 'description' => '魔力を補うローブ', 'is_shop_item' => true],
 
             // --- 装飾品 (accessory) ---
             ['name' => '魔除けの護符', 'type' => 'accessory', 'price' => 10, 'required_level' => 1, 'luk_bonus' => 4, 'description' => '初心者用のお守り', 'is_shop_item' => true, 'unlock_city_id' => 1],
             ['name' => '旅人のお守り', 'type' => 'accessory', 'price' => 80, 'required_level' => 1, 'hp_bonus' => 7, 'luk_bonus' => 5, 'description' => '旅の安全を願うお守り', 'is_shop_item' => true, 'unlock_city_id' => 1],
-            ['name' => '俊足の指輪', 'type' => 'accessory', 'price' => 220, 'required_level' => 3, 'agi_bonus' => 7, 'description' => '素早さを高める指輪', 'is_shop_item' => true, 'unlock_city_id' => 1],
-            ['name' => '力の腕輪', 'type' => 'accessory', 'price' => 300, 'required_level' => 4, 'str_bonus' => 7, 'description' => 'STRを高める腕輪', 'is_shop_item' => true, 'unlock_city_id' => 1],
-            ['name' => '魔力の首飾り', 'type' => 'accessory', 'price' => 300, 'required_level' => 4, 'mag_bonus' => 7, 'description' => 'MAGを高める首飾り', 'is_shop_item' => true, 'unlock_city_id' => 1],
+            ['name' => '俊足の指輪', 'type' => 'accessory', 'price' => 220, 'required_level' => 3, 'agi_bonus' => 7, 'description' => '敏捷を高める指輪', 'is_shop_item' => true, 'unlock_city_id' => 1],
+            ['name' => '力の腕輪', 'type' => 'accessory', 'price' => 300, 'required_level' => 4, 'str_bonus' => 7, 'description' => '攻撃を高める腕輪', 'is_shop_item' => true, 'unlock_city_id' => 1],
+            ['name' => '魔力の首飾り', 'type' => 'accessory', 'price' => 300, 'required_level' => 4, 'mag_bonus' => 7, 'description' => '魔力を高める首飾り', 'is_shop_item' => true, 'unlock_city_id' => 1],
 
             // --- ドロップ専用装備 ---
             // はじまりの草原
             ['name' => '草原の護符', 'type' => 'accessory', 'rarity' => 'normal', 'required_level' => 1, 'hp_bonus' => 5, 'luk_bonus' => 4, 'description' => '草原の魔力を少し帯びた護符', 'is_shop_item' => false],
-            ['name' => 'うさぎの足飾り', 'type' => 'accessory', 'rarity' => 'rare', 'required_level' => 2, 'agi_bonus' => 6, 'luk_bonus' => 5, 'description' => '素早さと運を少し高める足飾り', 'is_shop_item' => false],
+            ['name' => 'うさぎの足飾り', 'type' => 'accessory', 'rarity' => 'rare', 'required_level' => 2, 'agi_bonus' => 6, 'luk_bonus' => 5, 'description' => '敏捷と運を少し高める足飾り', 'is_shop_item' => false],
             ['name' => '古びた短剣', 'type' => 'weapon', 'rarity' => 'rare', 'required_level' => 3, 'str_bonus' => 8, 'agi_bonus' => 5, 'luk_bonus' => 3, 'description' => '草原で拾われた古い短剣', 'is_shop_item' => false],
             ['name' => '大スライムの護符', 'type' => 'accessory', 'rarity' => 'rare', 'required_level' => 4, 'hp_bonus' => 10, 'def_bonus' => 4, 'luk_bonus' => 5, 'description' => '草原の大スライムの核から作られた護符', 'is_shop_item' => false],
             // 小鬼の森
             ['name' => '小鬼の棍棒', 'type' => 'weapon', 'rarity' => 'normal', 'required_level' => 4, 'str_bonus' => 11, 'agi_bonus' => -1, 'description' => '小鬼が使っていた粗末な棍棒', 'is_shop_item' => false],
-            ['name' => '森ネズミの首飾り', 'type' => 'accessory', 'rarity' => 'rare', 'required_level' => 5, 'agi_bonus' => 8, 'luk_bonus' => 4, 'description' => '森ネズミの素早さにあやかった首飾り', 'is_shop_item' => false],
+            ['name' => '森ネズミの首飾り', 'type' => 'accessory', 'rarity' => 'rare', 'required_level' => 5, 'agi_bonus' => 8, 'luk_bonus' => 4, 'description' => '森ネズミの敏捷にあやかった首飾り', 'is_shop_item' => false],
             ['name' => 'ゴブリンソード', 'type' => 'weapon', 'rarity' => 'rare', 'required_level' => 6, 'str_bonus' => 16, 'agi_bonus' => 3, 'description' => 'ゴブリン見習いが持つ実戦用の剣', 'is_shop_item' => false],
             ['name' => '親分の腕輪', 'type' => 'accessory', 'rarity' => 'rare', 'required_level' => 8, 'hp_bonus' => 13, 'str_bonus' => 6, 'def_bonus' => 4, 'description' => '小鬼の森の親分が身につけていた腕輪', 'is_shop_item' => false],
             // 古びた洞窟

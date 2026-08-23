@@ -54,12 +54,12 @@
                     @foreach([
                         'max_hp' => 'HP',
                         'max_mp' => 'SP',
-                        'str' => 'ATK',
-                        'def' => 'DEF',
-                        'agi' => 'SPD',
-                        'mag' => 'MAG',
-                        'spr' => 'SPR',
-                        'luk' => 'LUK',
+                        'str' => '攻撃',
+                        'def' => '防御',
+                        'agi' => '敏捷',
+                        'mag' => '魔力',
+                        'spr' => '精神',
+                        'luk' => '運',
                     ] as $key => $label)
                         <label class="block">
                             <span class="text-xs font-black text-slate-500">{{ $label }}</span>
@@ -148,7 +148,7 @@
                                             {{ $skill->description ?: '説明文なし' }}
                                         </div>
                                         @if($skill->memo)
-                                            <div class="mt-2 text-[11px] font-bold leading-relaxed text-slate-500">memo: {{ $skill->memo }}</div>
+                                            <div class="mt-2 text-[11px] font-bold leading-relaxed text-slate-500">memo: {{ \App\Support\PlayerStatLabel::inText((string) $skill->memo) }}</div>
                                         @endif
                                         @if($skill->activation_description)
                                             <div class="mt-2 rounded bg-amber-50 px-3 py-2 text-xs font-bold leading-relaxed text-amber-900">
@@ -208,12 +208,12 @@
                 <div class="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
                     @foreach([
                         'max_hp' => 'HP',
-                        'str' => 'ATK',
-                        'def' => 'DEF',
-                        'agi' => 'SPD',
-                        'mag' => 'MAG',
-                        'spr' => 'SPR',
-                        'luk' => 'LUK',
+                        'str' => '攻撃',
+                        'def' => '防御',
+                        'agi' => '敏捷',
+                        'mag' => '魔力',
+                        'spr' => '精神',
+                        'luk' => '運',
                     ] as $key => $label)
                         <div class="rounded-md bg-slate-50 px-3 py-2">
                             <div class="text-[11px] font-black text-slate-500">{{ $label }}</div>
@@ -227,7 +227,7 @@
                 <div class="text-sm font-black text-slate-800">表示の前提</div>
                 <ul class="mt-2 space-y-1 text-xs font-bold leading-relaxed text-slate-500">
                     <li>・乱数、命中、会心、敵の反撃は含めません。</li>
-                    <li>・敵DEF/SPR低下や自己バフは、以後の通常攻撃にも反映します。</li>
+                    <li>・敵の防御・精神低下や自己バフは、以後の通常攻撃にも反映します。</li>
                     <li>・継承奥義はマスタ時継承として、各奥義の継承倍率を掛けます。</li>
                 </ul>
             </div>

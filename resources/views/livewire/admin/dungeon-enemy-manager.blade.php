@@ -2,7 +2,7 @@
     @php
         $fieldClass = 'w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900 shadow-inner focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200';
         $compactFieldClass = 'w-full rounded-md border border-slate-300 bg-slate-50 px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-inner focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200';
-        $statLabels = ['max_hp' => 'HP', 'str' => 'ATK', 'def' => 'DEF', 'agi' => 'SPD', 'mag' => 'MAG', 'spr' => 'SPR', 'luk' => 'LUK'];
+        $statLabels = ['max_hp' => 'HP', 'str' => '攻撃', 'def' => '防御', 'agi' => '敏捷', 'mag' => '魔力', 'spr' => '精神', 'luk' => '運'];
         $rewardLabels = ['exp_reward' => 'EXP', 'gold_reward' => 'Gold', 'job_exp_reward' => '職EXP', 'appearance_weight' => '出現'];
     @endphp
 
@@ -96,10 +96,10 @@
                                 <th class="border-b border-slate-200 px-3 py-3">Lv</th>
                                 <th class="border-b border-slate-200 px-3 py-3">生成式</th>
                                 <th class="border-b border-slate-200 px-3 py-3">HP</th>
-                                <th class="border-b border-slate-200 px-3 py-3">ATK</th>
-                                <th class="border-b border-slate-200 px-3 py-3">DEF</th>
-                                <th class="border-b border-slate-200 px-3 py-3">SPD</th>
-                                <th class="border-b border-slate-200 px-3 py-3">MAG/SPR</th>
+                                <th class="border-b border-slate-200 px-3 py-3">攻撃</th>
+                                <th class="border-b border-slate-200 px-3 py-3">防御</th>
+                                <th class="border-b border-slate-200 px-3 py-3">敏捷</th>
+                                <th class="border-b border-slate-200 px-3 py-3">魔力/精神</th>
                                 <th class="border-b border-slate-200 px-3 py-3">報酬</th>
                                 <th class="border-b border-slate-200 px-3 py-3">出現</th>
                                 <th class="border-b border-slate-200 px-3 py-3">30日敗北率</th>
@@ -149,7 +149,7 @@
                                     <td class="px-3 py-3 font-bold">{{ number_format($enemy->str) }}</td>
                                     <td class="px-3 py-3 font-bold">{{ number_format($enemy->def) }}</td>
                                     <td class="px-3 py-3 font-bold">{{ number_format($enemy->agi) }}</td>
-                                    <td class="px-3 py-3 text-xs font-bold">MAG {{ $enemy->mag }}<br>SPR {{ $enemy->spr ?? 0 }}</td>
+                                    <td class="px-3 py-3 text-xs font-bold">魔力 {{ $enemy->mag }}<br>精神 {{ $enemy->spr ?? 0 }}</td>
                                     <td class="px-3 py-3 text-xs font-bold">EXP {{ $enemy->exp_reward }}<br>Gold {{ $enemy->gold_reward }} / 職 {{ $enemy->job_exp_reward ?? 0 }}</td>
                                     <td class="px-3 py-3 font-bold">{{ $enemy->appearance_weight }}</td>
                                     <td class="px-3 py-3">
@@ -290,7 +290,7 @@
 
                     <form wire:submit.prevent="applyAreaScale" class="mt-4 space-y-4">
                         <div class="grid grid-cols-2 gap-2">
-                            @foreach(['hp_rate' => 'HP', 'str_rate' => 'ATK', 'def_rate' => 'DEF', 'agi_rate' => 'SPD', 'mag_rate' => 'MAG', 'spr_rate' => 'SPR', 'luk_rate' => 'LUK', 'reward_rate' => '報酬'] as $field => $label)
+                            @foreach(['hp_rate' => 'HP', 'str_rate' => '攻撃', 'def_rate' => '防御', 'agi_rate' => '敏捷', 'mag_rate' => '魔力', 'spr_rate' => '精神', 'luk_rate' => '運', 'reward_rate' => '報酬'] as $field => $label)
                                 <div>
                                     <label class="mb-1 block text-xs font-bold text-slate-600">{{ $label }}倍率</label>
                                     <div class="flex items-center gap-2">

@@ -17,8 +17,8 @@ final class JobArtV2SlotConditionCatalog
         'target_hp_le_30' => '敵HP30%以下',
         'main_resource_lt_4' => 'リソース4未満',
         'main_resource_ge_4' => 'リソース4以上',
-        'target_def_gt_spr' => '敵DEF＞SPR',
-        'target_spr_gt_def' => '敵SPR＞DEF',
+        'target_def_gt_spr' => '敵防御＞精神',
+        'target_spr_gt_def' => '敵精神＞防御',
         'field_present' => '場あり',
         'opponent_ultimate_preparing' => '相手が奥義予告中',
     ];

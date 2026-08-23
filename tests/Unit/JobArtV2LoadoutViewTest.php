@@ -256,7 +256,7 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('自傷分を足して+6にはなりません', $html);
         $this->assertStringContainsString('相手に次の1行動が渡る', $html);
         $this->assertStringContainsString('双方が敏捷の高い順に行動', $html);
-        $this->assertStringContainsString('最大体力に対する残り体力の割合を比べます', $html);
+        $this->assertStringContainsString('最大HPに対する残りHPの割合を比べます', $html);
         $this->assertStringContainsString('挑戦者の割合が防衛者より高ければ挑戦者の判定勝利', $html);
         $this->assertStringContainsString('同じ割合または防衛者の方が高ければ防衛成功', $html);
         foreach (['ATK', 'DEF', 'MAG', 'SPR', 'SPD', 'LUK'] as $englishStatLabel) {
@@ -336,6 +336,8 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringNotContainsString('data-job-art-card-role', $view);
         $this->assertStringNotContainsString('data-job-art-card-effect', $view);
         $this->assertStringNotContainsString('この戦技の要点', $view);
+        $this->assertStringContainsString('PlayerStatLabel::inText', $view);
+        $this->assertStringNotContainsString('$statLabelReplacements', $view);
     }
 
     public function test_v2_available_art_cards_use_one_card_hierarchy_for_fast_comparison(): void

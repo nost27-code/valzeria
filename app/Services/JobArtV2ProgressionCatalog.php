@@ -16,7 +16,7 @@ final class JobArtV2ProgressionCatalog
         '10:1:聖盾撃' => ['key' => 'c_design_guard_basic', 'effect_texts' => ['次に受ける直接ダメージを10%軽減（1回）']],
         '14:5:暴走撃' => ['key' => 'c_design_eclipse_reckless', 'effect_texts' => ['反動で最大HPの8%分のダメージ']],
         '15:5:ガーディアンブロウ' => ['key' => 'c_design_guard_cycle', 'effect_texts' => ['次に受ける直接ダメージを16%軽減（1回）']],
-        '18:1:マーキング' => ['key' => 'c_design_aim_mark', 'effect_texts' => ['対象をマーキングし、DEF -10% / SPR -5%']],
+        '18:1:マーキング' => ['key' => 'c_design_aim_mark', 'effect_texts' => ['対象をマーキングし、防御 -10% / 精神 -5%']],
         '19:5:スピリットスティール' => ['key' => 'c_design_eclipse_drain'],
         '27:1:勇気の灯' => ['key' => 'c_design_command_light', 'effect_texts' => ['次の指揮系連携の発動率 +10ポイント（最大3行動）']],
         '28:5:無拍子' => ['key' => 'c_design_counter_parry_chain', 'effect_texts' => ['予告中の奥義または大技を20%軽減し、実軽減後の次の反撃系連携/奥義を1.20倍']],
@@ -24,15 +24,15 @@ final class JobArtV2ProgressionCatalog
         '30:5:暗黒剣' => ['key' => 'c_design_eclipse_drain_cost', 'effect_texts' => ['与ダメージ35%分HP回復・最大HP5%の反動']],
         '31:5:ゴールドラッシュ' => ['key' => 'c_design_transmute_reward', 'effect_texts' => ['通常探索勝利時のGold獲得量 +2%']],
         '32:1:竜槍構え' => ['key' => 'c_design_pierce_stance', 'effect_texts' => ['物理型/魔法型に応じた4ターン強化']],
-        '32:5:ドラゴンダイブ' => ['key' => 'c_design_pierce_reform', 'effect_texts' => ['DEF30%無視・予告中は最終ダメージ1.15倍/DEF50%無視']],
+        '32:5:ドラゴンダイブ' => ['key' => 'c_design_pierce_reform', 'effect_texts' => ['防御30%無視・予告中は最終ダメージ1.15倍/防御50%無視']],
         '33:5:羅刹連撃' => ['key' => 'c_design_break_multi_mark', 'effect_texts' => ['HIT時、対象へ崩し印 +1段階（1行動につき1回）']],
-        '34:5:夢幻殺' => ['key' => 'c_design_hunt_marked_strike', 'effect_texts' => ['DEF/SPR -15%（3ターン）']],
+        '34:5:夢幻殺' => ['key' => 'c_design_hunt_marked_strike', 'effect_texts' => ['防御/精神 -15%（3ターン）']],
         '37:1:影追い' => ['key' => 'c_design_hunt_mark', 'effect_texts' => ['HIT時、対象へ狩猟印 +1段階']],
         '37:5:シャドウスナイプ' => ['key' => 'c_design_hunt_marked_accuracy', 'effect_texts' => ['対象に狩猟印がある場合、この攻撃の命中率 +8ポイント']],
         '44:1:守護の構え' => ['key' => 'c_design_guard_stance', 'effect_texts' => ['物理型/魔法型に応じた4ターン強化']],
         '44:5:聖盾裁き' => ['key' => 'c_design_guard_counter', 'effect_texts' => ['物理型/魔法型に応じた4ターン強化']],
         '45:1:魔矢統率' => ['key' => 'c_design_pierce_adaptive_prep', 'effect_texts' => ['次の貫通系連携を物理・魔法の有利な経路で実行（1回・最大3行動）']],
-        '46:5:祝福の大旋律' => ['key' => 'c_design_field_blessing', 'effect_texts' => ['MAG +25% / SPR +15%（5ターン）', '不変律（次のターン制強化短縮・解除を1回無効）']],
+        '46:5:祝福の大旋律' => ['key' => 'c_design_field_blessing', 'effect_texts' => ['魔力 +25% / 精神 +15%（5ターン）', '不変律（次のターン制強化短縮・解除を1回無効）']],
         '47:5:霊薬の加護' => ['key' => 'c_design_transmute_lineage_only', 'effect_texts' => ['変成の主・副系譜専用。通常探索勝利時の報酬補助']],
         '48:1:先読みの布陣' => ['key' => 'c_design_command_forecast', 'effect_texts' => ['次の指揮系連携の発動率 +10ポイント（最大4行動）']],
         '48:5:王戦の号令' => ['key' => 'c_design_command_order', 'effect_texts' => ['次の指揮系連携/奥義の発動率 +15ポイント（最大3行動）']],
@@ -49,20 +49,20 @@ final class JobArtV2ProgressionCatalog
         '53:1:星読の瞬き' => ['key' => 'c_design_field_star_deploy', 'effect_texts' => ['星光の場を展開（生成した場はこの攻撃自身に適用しない）']],
         '53:5:星詠みの光' => ['key' => 'c_design_field_star_extend', 'effect_texts' => ['現在の場を2ターン延長（最大8ターン）']],
         '53:9:星天グランドスペル' => ['key' => 'crown_field_fix'],
-        '56:1:聖域の印' => ['key' => 'c_design_guard_sanctuary', 'effect_texts' => ['MAG +15% / SPR +15%（4ターン）']],
+        '56:1:聖域の印' => ['key' => 'c_design_guard_sanctuary', 'effect_texts' => ['魔力 +15% / 精神 +15%（4ターン）']],
         '60:5:剣冠裁断' => ['key' => 'c_design_counter_received', 'effect_texts' => ['物理ダメージ']],
         '60:9:王冠聖剣陣' => ['key' => 'crown_royal_sword_formation'],
         '61:9:黒冠アビスブレイク' => ['key' => 'crown_black_reversal'],
 
-        '79:5:白銀王盾' => ['key' => 'silver_guard_bridge', 'effect_texts' => ['同系譜: DEF/SPR +15%（2ラウンド・継承減衰あり）', '異系譜: 実軽減後のみ使用可能（ダメージのみ）']],
+        '79:5:白銀王盾' => ['key' => 'silver_guard_bridge', 'effect_texts' => ['同系譜: 防御/精神 +15%（2ラウンド・継承減衰あり）', '異系譜: 実軽減後のみ使用可能（ダメージのみ）']],
         '22:1:魔矢装填' => ['key' => 'magic_aim_prep', 'effect_texts' => ['次の照準系Rank5/9を物理・魔法の有利な経路で実行（1回・最大4行動）']],
         '26:5:錬成爆弾' => ['key' => 'balance_alchemy_bomb'],
         '33:1:練気' => ['key' => 'break_focus_prep', 'effect_texts' => ['防御準備中の敵に対して、次の崩し系譜の連携または奥義の最終ダメージを1.15倍にする（1回・最大3行動）']],
         '98:1:蒼竜の息吹' => ['key' => 'split_pierce_prep', 'effect_texts' => ['次の貫通系Rank5を2回まで竜気2で使用（最大5行動）']],
 
         '52:1:蒼天槍' => ['key' => 'pierce_super_stance', 'effect_texts' => ['蒼天構えを5ターン形成']],
-        '52:5:蒼天竜槍' => ['key' => 'pierce_super_cycle', 'effect_texts' => ['構え中: 物理DEF35%貫通・構えを1ラウンド再形成']],
-        '52:9:蒼穹ドラグーンダイブ' => ['key' => 'pierce_super_finisher', 'effect_texts' => ['蒼天構え成立時: 物理DEF50%貫通・最終ダメージ ×1.15']],
+        '52:5:蒼天竜槍' => ['key' => 'pierce_super_cycle', 'effect_texts' => ['構え中: 物理防御35%貫通・構えを1ラウンド再形成']],
+        '52:9:蒼穹ドラグーンダイブ' => ['key' => 'pierce_super_finisher', 'effect_texts' => ['蒼天構え成立時: 物理防御50%貫通・最終ダメージ ×1.15']],
         '62:1:竜冠の槍印' => ['key' => 'pierce_crown_prep'],
         '62:5:竜冠穿槍' => ['key' => 'pierce_crown_cycle'],
         '62:9:竜冠天穿槍' => ['key' => 'pierce_crown_finisher', 'effect_texts' => ['Rank5使用済みなら実効威力470、未使用ならmaster威力']],
@@ -146,7 +146,7 @@ final class JobArtV2ProgressionCatalog
         }
         if ($key === 'silver_guard_bridge') {
             return $mechanicsAllowed
-                ? ['DEF/SPR +15%（2ラウンド・継承減衰あり）']
+                ? ['防御/精神 +15%（2ラウンド・継承減衰あり）']
                 : ['異系譜では実軽減後のみ使用可能（ダメージのみ）'];
         }
 

@@ -67,7 +67,7 @@ class JobAffinityChecker extends Component
             'is_hybrid' => $dominantValue < 0.95,
             'attack_type' => match ($job->normal_attack_type) {
                 'magical' => '魔法',
-                'adaptive' => '適応(ATK/MAG高い方)',
+                'adaptive' => '適応（攻撃/魔力の高い方）',
                 default => '物理',
             },
             'weight_text' => $this->weightText($weights),

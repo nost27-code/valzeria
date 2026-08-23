@@ -105,11 +105,11 @@
                             @foreach([
                                 'max_hp' => 'HP',
                                 'max_mp' => 'SP',
-                                'str' => '攻',
-                                'def' => '防',
-                                'agi' => '敏',
-                                'mag' => '魔',
-                                'spr' => '精',
+                                'str' => '攻撃',
+                                'def' => '防御',
+                                'agi' => '敏捷',
+                                'mag' => '魔力',
+                                'spr' => '精神',
                                 'luk' => '運',
                             ] as $key => $label)
                                 <div class="rounded bg-amber-50 px-2 py-1 text-center">
@@ -241,11 +241,11 @@
                     <div class="font-black text-slate-950">{{ $selectedEnemy->name }} / Lv {{ $selectedEnemy->level }}</div>
                     <div class="mt-2 grid grid-cols-2 gap-2 text-xs font-black text-slate-600 md:grid-cols-4">
                         <span>HP {{ number_format($selectedEnemy->max_hp) }}</span>
-                        <span>攻 {{ number_format($selectedEnemy->str) }}</span>
-                        <span>防 {{ number_format($selectedEnemy->def) }}</span>
-                        <span>速 {{ number_format($selectedEnemy->agi) }}</span>
-                        <span>魔 {{ number_format($selectedEnemy->mag) }}</span>
-                        <span>精 {{ number_format($selectedEnemy->spr ?? $selectedEnemy->def) }}</span>
+                        <span>攻撃 {{ number_format($selectedEnemy->str) }}</span>
+                        <span>防御 {{ number_format($selectedEnemy->def) }}</span>
+                        <span>敏捷 {{ number_format($selectedEnemy->agi) }}</span>
+                        <span>魔力 {{ number_format($selectedEnemy->mag) }}</span>
+                        <span>精神 {{ number_format($selectedEnemy->spr ?? $selectedEnemy->def) }}</span>
                         <span>運 {{ number_format($selectedEnemy->luk ?? 10) }}</span>
                         <span>{{ $selectedEnemy->type_name ?? '-' }}</span>
                     </div>

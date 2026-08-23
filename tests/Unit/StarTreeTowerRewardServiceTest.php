@@ -162,6 +162,25 @@ class StarTreeTowerRewardServiceTest extends TestCase
         $service->claim(TowerRewardClaim::query()->first(), $character, 'sword');
     }
 
+    public function test_weapon_reward_options_use_canonical_player_stat_labels(): void
+    {
+        $character = Character::query()->create(['name' => 'Reward Tester']);
+        $service = app(StarTreeTowerRewardService::class);
+        $service->createPendingRewardsForClearedFloor($character, 50);
+
+        $reward = $service->pendingRewardsFor($character)
+            ->firstWhere('reward_type', StarTreeTowerRewardService::TYPE_WEAPON);
+
+        $this->assertIsArray($reward);
+        $this->assertNotEmpty($reward['options']);
+        foreach ($reward['options'] as $option) {
+            $this->assertSame(
+                ['HP', 'SP', '攻撃', '防御', '魔力', '精神', '敏捷', '運'],
+                array_keys($option['stats']),
+            );
+        }
+    }
+
     public function test_it_auto_claims_elphia_card_background_reward(): void
     {
         $character = Character::query()->create(['name' => 'Reward Tester']);

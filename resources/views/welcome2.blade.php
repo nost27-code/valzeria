@@ -475,9 +475,9 @@
             $champStatList = [
                 ['攻撃', $champStats['atk'], 'images/icon/icon_str.webp'],
                 ['防御', $champStats['def'], 'images/icon/icon_def.webp'],
-                ['魔法', $champStats['mag'], 'images/icon/icon_mag.webp'],
+                ['魔力', $champStats['mag'], 'images/icon/icon_mag.webp'],
                 ['精神', $champStats['spr'], 'images/icon/icon_spr.webp'],
-                ['速さ', $champStats['spd'], 'images/icon/icon_agi.webp'],
+                ['敏捷', $champStats['spd'], 'images/icon/icon_agi.webp'],
                 ['運',   $champStats['luk'], 'images/icon/icon_luk.webp'],
             ];
             $champEquipList = [

@@ -30,4 +30,22 @@ class JobSpecialSkillValidatorTest extends TestCase
         $this->assertNotSame([], $problems);
         $this->assertStringContainsString('luk_power_rate', implode("\n", $problems));
     }
+
+    public function test_validator_checks_canonical_player_facing_stat_labels(): void
+    {
+        $problems = JobSpecialSkillValidator::validateRows([
+            [
+                'job_key' => 'test_job',
+                'special_name' => '検査用必殺技',
+                'damage_type' => 'physical',
+                'power_multiplier' => 1.5,
+                'hit_count' => 1,
+                'enemy_atk_down_percent' => 5,
+                'description' => '1.50倍物理攻撃。敵攻撃を10%低下',
+            ],
+        ]);
+
+        $this->assertNotSame([], $problems);
+        $this->assertStringContainsString('enemy_atk_down_percent', implode("\n", $problems));
+    }
 }

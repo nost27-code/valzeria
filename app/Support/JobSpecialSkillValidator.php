@@ -18,7 +18,9 @@ class JobSpecialSkillValidator
             $name = (string) ($row['special_name'] ?? '');
             $description = (string) ($row['description'] ?? '');
 
-            if (str_contains($description, 'LUKに応じて') && (float) ($row['luk_power_rate'] ?? 0) <= 0) {
+            if ((str_contains($description, 'LUKに応じて') || str_contains($description, '運に応じて'))
+                && (float) ($row['luk_power_rate'] ?? 0) <= 0
+            ) {
                 $problems[] = self::message($jobKey, $name, 'LUK依存の説明がありますが luk_power_rate が設定されていません');
             }
             if (str_contains($description, '確率で追加') && (int) ($row['extra_hit_chance_percent'] ?? 0) <= 0) {
@@ -52,11 +54,18 @@ class JobSpecialSkillValidator
                 }
             }
 
-            foreach (['ATK' => 'enemy_atk_down_percent', 'MAG' => 'enemy_mag_down_percent', 'DEF' => 'enemy_def_down_percent', 'SPR' => 'enemy_spr_down_percent', 'SPD' => 'enemy_spd_down_percent'] as $label => $field) {
-                if (preg_match('/' . $label . 'を(\d+)%低下/u', $description, $matches)
+            foreach ([
+                ['pattern' => 'ATK|攻撃', 'label' => '攻撃', 'field' => 'enemy_atk_down_percent'],
+                ['pattern' => 'MAG|魔力', 'label' => '魔力', 'field' => 'enemy_mag_down_percent'],
+                ['pattern' => 'DEF|防御', 'label' => '防御', 'field' => 'enemy_def_down_percent'],
+                ['pattern' => 'SPR|精神', 'label' => '精神', 'field' => 'enemy_spr_down_percent'],
+                ['pattern' => 'SPD|敏捷', 'label' => '敏捷', 'field' => 'enemy_spd_down_percent'],
+            ] as $stat) {
+                $field = $stat['field'];
+                if (preg_match('/(?:'.$stat['pattern'].')を(\d+)%低下/u', $description, $matches)
                     && (int) ($row[$field] ?? 0) !== (int) $matches[1]
                 ) {
-                    $problems[] = self::message($jobKey, $name, sprintf('%s低下説明は%d%%ですが %s が一致しません', $label, (int) $matches[1], $field));
+                    $problems[] = self::message($jobKey, $name, sprintf('%s低下説明は%d%%ですが %s が一致しません', $stat['label'], (int) $matches[1], $field));
                 }
             }
 

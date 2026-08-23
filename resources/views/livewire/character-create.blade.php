@@ -46,7 +46,7 @@
                             'warrior' => ['name' => '戦士',    'icon_image' => 'images/icon/icon_006.webp', 'desc' => 'HP・攻撃・防御が高い安定型', 'skill' => '会心斬り'],
                             'mage'    => ['name' => '魔法使い', 'icon_image' => 'images/icon/icon_056.webp', 'desc' => '魔力が高く魔法攻撃が得意',   'skill' => 'ファイア'],
                             'priest'  => ['name' => '僧侶',    'icon_image' => 'images/icon/icon_042.webp', 'desc' => '回復系スキルを持つ安定型',   'skill' => 'ヒール'],
-                            'thief'   => ['name' => '盗賊',    'icon_image' => 'images/icon/icon_057.webp', 'desc' => '素早さ・運が高く回避に優れる','skill' => '急所突き'],
+                            'thief'   => ['name' => '盗賊',    'icon_image' => 'images/icon/icon_057.webp', 'desc' => '敏捷・運が高く回避に優れる',  'skill' => '急所突き'],
                         ];
                     @endphp
                     @foreach($jobs as $key => $job)
