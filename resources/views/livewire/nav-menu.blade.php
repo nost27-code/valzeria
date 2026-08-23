@@ -5,7 +5,7 @@
             'dungeon'   => ['label' => '探索',    'icon' => '🧭', 'image' => 'tabs/tab_dungeon.webp'],
             'home'      => ['label' => '冒険者',  'icon' => '👤', 'image' => 'tabs/tab_home.webp'],
             'guild'     => ['label' => '商店街', 'icon' => '⚖️', 'image' => 'tabs/tab_guild.webp'],
-            'nation'    => ['label' => '国家',   'icon' => '🏳️', 'image' => 'icon/icon_305.webp'],
+            'nation'    => ['label' => '国家',   'icon' => '🏳️', 'image' => 'icon/icon_305.webp', 'image_class' => 'p-2'],
             'colosseum' => ['label' => '闘技場', 'icon' => '🛡️', 'image' => 'tabs/tab_colosseum.webp'],
         ];
     @endphp
@@ -27,7 +27,7 @@
                     @if(!empty($nav['image']) && file_exists(public_path('images/' . $nav['image'])))
                         <span class="relative">
                             <img src="{{ asset('images/' . $nav['image']) }}" alt=""
-                                 class="h-12 w-12 object-contain transition-all duration-200"
+                                 class="h-12 w-12 object-contain transition-all duration-200 {{ $nav['image_class'] ?? '' }}"
                                  :class="(pending ?? $wire.currentLocation) === '{{ $key }}'
                                      ? 'scale-110 opacity-100'
                                      : 'scale-100 opacity-35 grayscale'">

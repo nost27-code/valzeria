@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Fixed
+
+- 下部メニューの「国家」アイコンを、ほかのメニューアイコンと同じ見た目の大きさに調整しました。
+
 ### Added
 
 - 下部メニューの商店街と闘技場の間に、紋章付きの「国家」タブを追加しました。タップすると「準備中」だけを表示します。

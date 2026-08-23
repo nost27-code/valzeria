@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-nation-tab-icon-size-fix',
+        'date' => '2026-08-23',
+        'category' => 'fixed',
+        'title' => '国家タブの紋章サイズを調整',
+        'detail' => '下部メニューの「国家」アイコンを、ほかのメニューアイコンと同じ見た目の大きさに調整しました。',
+    ],
+    [
         'id' => '2026-08-23-nation-tab-placeholder',
         'date' => '2026-08-23',
         'category' => 'added',

@@ -66,6 +66,8 @@ class MainTabPanelCacheViewTest extends TestCase
         );
         $this->assertStringContainsString("'label' => '国家'", $source);
         $this->assertStringContainsString("'image' => 'icon/icon_305.webp'", $source);
+        $this->assertStringContainsString("'image_class' => 'p-2'", $source);
+        $this->assertStringContainsString("{{ \$nav['image_class'] ?? '' }}", $source);
         $this->assertStringContainsString("'grid-cols-6'", $source);
     }
 }
