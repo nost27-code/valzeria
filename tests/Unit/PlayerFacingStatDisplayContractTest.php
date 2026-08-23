@@ -19,6 +19,7 @@ use App\Services\JobArtV2ProgressionCatalog;
 use App\Services\JobArtV2RoleEffectCatalog;
 use App\Services\JobArtV2SlotConditionCatalog;
 use App\Services\NamelessEquipmentService;
+use App\Services\PvPBattleService;
 use App\Services\TowerBattleService;
 use App\Support\PlayerStatLabel;
 use ReflectionClass;
@@ -47,7 +48,7 @@ class PlayerFacingStatDisplayContractTest extends TestCase
 
     public function test_battle_stat_change_helpers_use_canonical_player_labels_on_every_legacy_route(): void
     {
-        foreach ([BattleService::class, ArenaNpcBattleService::class] as $serviceClass) {
+        foreach ([BattleService::class, ArenaNpcBattleService::class, PvPBattleService::class] as $serviceClass) {
             $state = $this->battleState();
             $service = (new ReflectionClass($serviceClass))->newInstanceWithoutConstructor();
             $method = new ReflectionMethod($serviceClass, 'logStatChange');
