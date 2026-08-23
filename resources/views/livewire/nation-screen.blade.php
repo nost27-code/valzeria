@@ -1,111 +1,231 @@
-<div class="mx-auto w-full max-w-5xl space-y-4 px-3 pb-24 pt-4 sm:px-5" data-nation-screen>
-    <header class="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-stone-100 p-5 shadow-sm">
-        <p class="text-xs font-black tracking-[0.22em] text-amber-700">NATION</p>
-        <h1 class="mt-1 text-2xl font-black text-stone-950">建国と国家</h1>
-        <p class="mt-2 text-sm font-bold leading-relaxed text-stone-600">仲間と資材を持ち寄り、国の要塞を築こう。</p>
-    </header>
-
-    <div aria-live="polite" aria-atomic="true">
-        @if($feedback)<div class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800" role="status">{{ $feedback }}</div>@endif
-        @if($error)<div class="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-black text-rose-800" role="alert">{{ $error }}</div>@endif
-    </div>
-
+<div
+    class="mx-auto w-full max-w-4xl space-y-3 bg-white px-2.5 pb-24 pt-3 sm:space-y-4 sm:px-5 sm:pt-5"
+    data-nation-screen
+    data-nation-membership-state="{{ $membership ? 'member' : 'unaffiliated' }}"
+>
     @if(!$membership)
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">国を興す</h2>
-            <div class="mt-3 space-y-3">
-                <input wire:model="nationName" maxlength="40" placeholder="国名" class="min-h-12 w-full rounded-lg border border-stone-300 px-3 text-base font-bold">
-                <textarea wire:model="nationDescription" maxlength="1000" placeholder="国の紹介（任意）" class="min-h-24 w-full rounded-lg border border-stone-300 p-3 text-sm"></textarea>
-                <button type="button" wire:click="createNation" wire:loading.attr="disabled" class="min-h-12 w-full rounded-lg bg-amber-600 px-4 py-3 font-black text-white disabled:opacity-50">建国する</button>
+        <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5">
+            <div class="flex items-center gap-3 sm:gap-5">
+                <img
+                    src="{{ asset('images/nation/nation-crest-green.webp') }}"
+                    alt="緑の城を描いた国家の紋章"
+                    width="128"
+                    height="128"
+                    class="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28"
+                >
+                <div class="min-w-0">
+                    <p class="text-xs font-black tracking-[0.22em] text-emerald-700">NATION</p>
+                    <h1 class="mt-0.5 text-2xl font-black text-stone-950">国家</h1>
+                    <p class="mt-1 text-sm font-bold leading-relaxed text-stone-600">国を興し、仲間を集め、要塞を築き、他国との戦いに備えよう。</p>
+                </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <button
+                    type="button"
+                    wire:click="showNotImplemented('nation-search')"
+                    class="min-h-12 rounded-xl border border-blue-800 bg-gradient-to-b from-blue-500 to-blue-700 px-3 py-2.5 text-sm font-black text-white shadow-sm transition active:scale-[0.98]"
+                >
+                    <span aria-hidden="true">🔍</span> 国家を探す
+                </button>
+                <button
+                    type="button"
+                    wire:click="showNotImplemented('nation-create')"
+                    class="min-h-12 rounded-xl border border-amber-700 bg-gradient-to-b from-amber-400 to-amber-600 px-3 py-2.5 text-sm font-black text-white shadow-sm transition active:scale-[0.98]"
+                >
+                    <span aria-hidden="true">🏰</span> 建国する
+                </button>
             </div>
         </section>
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">国家一覧</h2>
-            <div class="mt-3 divide-y divide-stone-100">
+
+        <section class="rounded-2xl border border-[#d4af37] bg-white p-3 shadow-sm sm:p-4">
+            <div class="flex items-center justify-between gap-3 border-b border-[#e3ded2] pb-3">
+                <h2 class="text-base font-black text-stone-900">国家一覧</h2>
+                <button
+                    type="button"
+                    wire:click="showNotImplemented('nation-list')"
+                    class="min-h-10 rounded-lg border border-[#cfc6b4] bg-white px-3 text-xs font-black text-stone-700 shadow-sm"
+                >
+                    一覧を見る
+                </button>
+            </div>
+
+            <div class="divide-y divide-[#e8e2d8]">
                 @forelse($nations as $nation)
-                    <div class="flex items-center justify-between gap-3 py-3">
-                        <div class="min-w-0"><div class="truncate font-black text-stone-900">{{ $nation->name }}</div><div class="text-xs font-bold text-stone-500">国民 {{ $nation->memberships_count }}/100</div></div>
-                        <button type="button" wire:click="joinNation({{ $nation->id }})" class="min-h-11 shrink-0 rounded-lg bg-stone-900 px-4 text-sm font-black text-white">参加する</button>
-                    </div>
+                    @php($kingName = $nation->memberships->first()?->character?->name ?? '不明')
+                    <article class="flex gap-3 py-3">
+                        <img
+                            src="{{ asset('images/nation/nation-crest-blue.webp') }}"
+                            alt="{{ $nation->name }}の仮紋章"
+                            width="128"
+                            height="128"
+                            loading="lazy"
+                            class="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20"
+                        >
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <h3 class="truncate text-base font-black text-stone-950">{{ $nation->name }}</h3>
+                                    <p class="mt-0.5 text-xs font-bold text-stone-500">国王：{{ $kingName }}</p>
+                                </div>
+                                <div class="shrink-0 text-right">
+                                    <div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/100人</div>
+                                    <div class="text-[11px] font-black text-emerald-600">参加受付は準備中</div>
+                                </div>
+                            </div>
+                            <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
+                            <div class="mt-2 grid grid-cols-2 gap-2">
+                                <button type="button" wire:click="showNotImplemented('nation-detail')" class="min-h-9 rounded-lg border border-[#cfc6b4] bg-white px-2 text-xs font-black text-stone-700">詳細を見る</button>
+                                <button type="button" wire:click="showNotImplemented('nation-apply')" class="min-h-9 rounded-lg border border-blue-800 bg-blue-600 px-2 text-xs font-black text-white">加入申請</button>
+                            </div>
+                        </div>
+                    </article>
                 @empty
-                    <p class="py-6 text-center text-sm font-bold text-stone-500">まだ国家は存在しない。</p>
+                    <div class="py-7 text-center">
+                        <div class="text-3xl" aria-hidden="true">🛡️</div>
+                        <p class="mt-2 text-sm font-black text-stone-700">まだ国家は存在しない。</p>
+                        <p class="mt-1 text-xs font-bold text-stone-500">最初の建国者が現れる日を待っている。</p>
+                    </div>
                 @endforelse
+            </div>
+
+            @if($nationCount > 3)
+                <button type="button" wire:click="showNotImplemented('nation-list')" class="min-h-11 w-full rounded-lg border border-[#d4af37] bg-white text-sm font-black text-stone-700">
+                    もっと多くの国家を見る <span aria-hidden="true">›</span>
+                </button>
+            @endif
+        </section>
+
+        <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm">
+            <h2 class="text-base font-black text-amber-900">国家とは？</h2>
+            <p class="mt-1 text-xs font-bold leading-relaxed text-stone-600">冒険者たちが集まり、資材を持ち寄って要塞を築く大きな共同体です。</p>
+            <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm font-black text-stone-700">
+                <div class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="text-xl" aria-hidden="true">🏗️</span><span>要塞を発展</span></div>
+                <div class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="text-xl" aria-hidden="true">📦</span><span>資材を納品</span></div>
+                <div class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="text-xl" aria-hidden="true">👥</span><span>国民と協力</span></div>
+                <div class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="text-xl" aria-hidden="true">⚔️</span><span>他国と戦う</span></div>
             </div>
         </section>
     @else
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <div class="flex flex-wrap items-end justify-between gap-3">
-                <div><p class="text-xs font-black text-amber-700">所属国家</p><h2 class="text-2xl font-black text-stone-950">{{ $membership->nation->name }}</h2><p class="mt-1 text-sm font-bold text-stone-500">{{ $membership->nation->description ?: '国の歩みは、これから刻まれていく。' }}</p></div>
-                <div class="rounded-lg bg-amber-50 px-4 py-2 text-right"><div class="text-xs font-black text-amber-800">国家資材</div><div class="text-xl font-black text-amber-950">{{ number_format($membership->nation->treasury_points) }} pt</div></div>
-            </div>
-        </section>
-
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">要塞</h2>
-            <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                @foreach(['wall'=>'城壁','magic_cannon'=>'魔導砲','logistics'=>'兵站所','arsenal'=>'要塞工廠','headquarters'=>'本陣'] as $type=>$label)
-                    @php($facility = $membership->nation->facilities->firstWhere('facility_type', $type))
-                    <div class="rounded-lg border border-stone-200 bg-stone-50 p-3"><div class="font-black text-stone-900">{{ $label }}</div><div class="mt-1 text-sm font-bold text-stone-600">Lv{{ $facility?->level ?? 1 }} / 耐久{{ number_format(($facility?->condition_bps ?? 10000) / 100, 0) }}%</div></div>
-                @endforeach
-            </div>
-            @unless($upgradesEnabled)<p class="mt-3 rounded-lg bg-stone-100 px-3 py-2 text-sm font-black text-stone-600">施設のレベル上げは現在停止中です。</p>@endunless
-        </section>
-
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">国家資材を納める</h2>
-            @if($rates->isEmpty())
-                <p class="mt-2 text-sm font-bold text-stone-500">納品できる対象素材を所持していません。</p>
-            @else
-                <div class="mt-3 grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
-                    <select wire:model="donationMaterialId" class="min-h-12 rounded-lg border border-stone-300 px-3 text-sm font-bold"><option value="">素材を選択</option>@foreach($rates as $rate)<option value="{{ $rate['material_id'] }}">{{ $rate['name'] }}（{{ $rate['points'] }}pt / 所持{{ $rate['quantity'] }}）</option>@endforeach</select>
-                    <input type="number" min="1" wire:model="donationQuantity" class="min-h-12 rounded-lg border border-stone-300 px-3 text-base font-bold">
-                    <button type="button" wire:click="donate" wire:loading.attr="disabled" class="min-h-12 rounded-lg bg-emerald-700 px-5 font-black text-white disabled:opacity-50">納品する</button>
+        <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5">
+            <div class="flex items-start gap-3 sm:gap-5">
+                <img
+                    src="{{ asset('images/nation/nation-crest-blue.webp') }}"
+                    alt="{{ $dashboard['nation']->name }}の仮紋章"
+                    width="128"
+                    height="128"
+                    class="h-20 w-20 shrink-0 object-contain sm:h-28 sm:w-28"
+                >
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-black tracking-[0.2em] text-blue-700">MY NATION</p>
+                    <h1 class="break-words text-xl font-black leading-tight text-stone-950 sm:text-2xl">{{ $dashboard['nation']->name }}</h1>
+                    <p class="mt-1 text-xs font-bold text-stone-600">国王：{{ $dashboard['king_name'] }}</p>
+                    <p class="mt-0.5 text-xs font-bold text-stone-600">国民数：{{ $dashboard['member_count'] }} / 100人</p>
+                    <span class="mt-1 inline-flex rounded-full bg-stone-100 px-2 py-1 text-[11px] font-black text-stone-600">国家機能は準備中</span>
+                    <button type="button" wire:click="showNotImplemented('nation-settings')" class="mt-2 block min-h-10 rounded-lg border border-[#cfc6b4] bg-white px-3 text-xs font-black text-stone-700 shadow-sm">
+                        ⚙️ 国家設定
+                    </button>
                 </div>
-            @endif
-        </section>
+            </div>
 
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">国家戦</h2>
-            @if(!$declarationEnabled)
-                <p class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-sm font-black text-sky-900">宣戦布告は停止中です。要塞と国家資材の基礎を整えてお待ちください。</p>
-            @elseif(!$calibrated)
-                <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-black text-amber-900">戦闘基準の校正が完了していないため宣戦布告できません。</p>
-            @endif
-            @php($warStatusLabels = ['reserved'=>'開戦待ち','preparing'=>'開戦準備中','active'=>'交戦中','resolved'=>'終戦','cancelled'=>'中止'])
-            <div class="mt-3 space-y-2">
-                @forelse($wars as $war)
-                    <div class="rounded-lg border border-stone-200 p-3 text-sm font-bold text-stone-700">
-                        {{ $war->declaringNation?->name ?? '不明な国' }} 対 {{ $war->defendingNation?->name ?? '不明な国' }}
-                        <span class="text-stone-400"> / </span>{{ $warStatusLabels[$war->status] ?? '状況不明' }}
-                        @if($war->starts_at)<span class="text-stone-400"> / </span>{{ $war->starts_at->format('Y/m/d H:i') }}@endif
-                    </div>
-                @empty
-                    <p class="text-sm font-bold text-stone-500">国家戦の記録はまだない。</p>
-                @endforelse
+            <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="rounded-xl border border-[#e1dacd] bg-white px-2 py-3 text-center shadow-sm">
+                    <div class="text-[11px] font-black text-amber-800">国家資材</div>
+                    <div class="mt-1 text-lg font-black text-stone-950">{{ number_format($dashboard['nation']->treasury_points) }}<span class="ml-1 text-xs">pt</span></div>
+                </div>
+                <div class="rounded-xl border border-[#e1dacd] bg-white px-2 py-3 text-center shadow-sm">
+                    <div class="text-[11px] font-black text-amber-800">要塞発展度</div>
+                    <div class="mt-1 text-lg font-black text-stone-950">Lv.{{ number_format($dashboard['average_level'], 1) }}</div>
+                    <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-200"><div class="h-full rounded-full bg-blue-500" style="width: {{ $dashboard['development_percent'] }}%"></div></div>
+                </div>
+                <div class="rounded-xl border border-[#e1dacd] bg-white px-2 py-3 text-center shadow-sm">
+                    <div class="text-[11px] font-black text-amber-800">戦績</div>
+                    <div class="mt-1 text-sm font-black text-stone-950">{{ $dashboard['wins'] }}勝 {{ $dashboard['losses'] }}敗 {{ $dashboard['draws'] }}分</div>
+                    <div class="mt-1 text-[11px] font-bold text-stone-500">勝率 {{ number_format($dashboard['win_rate'], 1) }}%</div>
+                </div>
             </div>
         </section>
 
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">国家戦史</h2>
-            <div class="mt-3 space-y-2">
-                @forelse($histories as $history)
-                    <div class="rounded-lg border border-stone-200 p-3 text-sm font-bold text-stone-700">
-                        <div>{{ $history->declaringNation?->name ?? '不明な国' }} 対 {{ $history->defendingNation?->name ?? '不明な国' }}</div>
-                        <div class="mt-1 text-xs text-stone-500">
-                            @if($history->winnerNation)勝者 {{ $history->winnerNation->name }}@else引き分け@endif
-                            @if($history->resolved_at)<span class="text-stone-300"> / </span>{{ $history->resolved_at->format('Y/m/d H:i') }}@endif
+        <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="text-base font-black text-stone-900">現在の状況</h2>
+                <span class="rounded-lg border px-3 py-1 text-xs font-black {{ $dashboard['is_at_war'] ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-sky-300 bg-sky-50 text-sky-700' }}">{{ $dashboard['war_status'] }}</span>
+            </div>
+            <div class="mt-2 flex items-center gap-3 rounded-xl bg-stone-50 px-3 py-3">
+                <span class="text-3xl" aria-hidden="true">{{ $dashboard['is_at_war'] ? '⚔️' : '🕊️' }}</span>
+                <div>
+                    <p class="text-sm font-black text-stone-800">{{ $dashboard['is_at_war'] ? '国家戦に関する状況を確認してください。' : '現在、戦争は行われていません。' }}</p>
+                    <p class="mt-0.5 text-xs font-bold text-stone-500">国を強化し、来るべき戦いに備えよう。</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid gap-3 md:grid-cols-2">
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm">
+                <h2 class="text-base font-black text-stone-900">要塞の状態</h2>
+                <div class="mt-3 space-y-2.5">
+                    @foreach($dashboard['facilities'] as $facility)
+                        <div class="grid grid-cols-[1.5rem_4.8rem_2.5rem_1fr_2.4rem] items-center gap-1 text-xs">
+                            <span class="text-lg" aria-hidden="true">{{ $facility['icon'] }}</span>
+                            <span class="font-black text-stone-700">{{ $facility['label'] }}</span>
+                            <span class="font-bold text-stone-500">Lv.{{ $facility['level'] }}</span>
+                            <div class="h-2 overflow-hidden rounded-full bg-stone-200"><div class="h-full rounded-full bg-emerald-500" style="width: {{ $facility['condition_percent'] }}%"></div></div>
+                            <span class="text-right font-black text-emerald-700">{{ $facility['condition_percent'] }}%</span>
                         </div>
-                    </div>
-                @empty
-                    <p class="text-sm font-bold text-stone-500">まだ戦史に刻まれた戦いはない。</p>
-                @endforelse
-            </div>
-        </section>
+                    @endforeach
+                </div>
+                <div class="mt-3 rounded-lg bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-600">要塞発展度平均：Lv.{{ number_format($dashboard['average_level'], 1) }}</div>
+            </section>
 
-        <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 class="text-lg font-black text-stone-950">国民</h2>
-            @php($roleLabels = ['king'=>'国王','chancellor'=>'宰相','marshal'=>'軍務官','logistics_officer'=>'兵站官','citizen'=>'国民'])
-            <div class="mt-2 divide-y divide-stone-100">@foreach($membership->nation->memberships as $member)<div class="flex justify-between py-2 text-sm"><span class="font-bold text-stone-800">{{ $member->character?->name ?? '冒険者' }}</span><span class="font-black text-stone-500">{{ $roleLabels[$member->role] ?? '国民' }}</span></div>@endforeach</div>
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm">
+                <h2 class="text-base font-black text-stone-900">お知らせ・申請</h2>
+                <div class="mt-2 divide-y divide-[#e8e2d8]">
+                    @foreach([['👤','加入申請'],['💌','招待中の冒険者'],['✉️','国家からのお知らせ']] as [$icon, $label])
+                        <button type="button" wire:click="showNotImplemented('notices')" class="flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left">
+                            <span class="text-sm font-black text-stone-700"><span class="mr-2" aria-hidden="true">{{ $icon }}</span>{{ $label }}</span>
+                            <span class="text-xs font-black text-stone-400">準備中</span>
+                        </button>
+                    @endforeach
+                </div>
+                <div class="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-center">
+                    <p class="text-sm font-black text-blue-900">🏰 国民募集中！</p>
+                    <p class="mt-1 text-xs font-bold text-blue-700">仲間とともに国を強くしよう。</p>
+                    <button type="button" wire:click="showNotImplemented('recruitment')" class="mt-2 min-h-10 w-full rounded-lg border border-blue-300 bg-white text-xs font-black text-blue-800">募集内容を編集</button>
+                </div>
+            </section>
+        </div>
+
+        <section class="grid grid-cols-3 gap-2 sm:gap-3" aria-label="国家メニュー">
+            @foreach([
+                ['members', '👥', '国民', 'メンバー管理'],
+                ['donation', '📦', '納品', '資材を納品する'],
+                ['fortress', '🏰', '要塞', '要塞を強化する'],
+                ['war', '⚔️', '戦争', '宣戦・戦況確認'],
+                ['history', '📜', '戦史', '過去の戦争記録'],
+                ['nation-settings', '⚙️', '設定', '国家の各種設定'],
+            ] as [$feature, $icon, $label, $description])
+                <button type="button" wire:click="showNotImplemented('{{ $feature }}')" class="min-h-24 rounded-xl border border-[#d4af37] bg-white px-2 py-3 text-center shadow-sm transition active:scale-[0.98]">
+                    <span class="block text-3xl" aria-hidden="true">{{ $icon }}</span>
+                    <span class="mt-1 block text-sm font-black text-stone-900">{{ $label }}</span>
+                    <span class="mt-0.5 block text-[10px] font-bold leading-tight text-stone-500">{{ $description }}</span>
+                </button>
+            @endforeach
         </section>
+    @endif
+
+    @if($pendingFeature)
+        <div class="fixed inset-0 z-[10050] flex items-center justify-center px-4 py-6" data-nation-not-implemented-modal>
+            <button type="button" wire:click="closeNotImplementedModal" class="absolute inset-0 bg-slate-950/55 backdrop-blur-[1px]" aria-label="モーダルを閉じる"></button>
+            <section class="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl border-2 border-[#d4af37] bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="nation-pending-modal-title">
+                <div class="border-b border-amber-200 bg-gradient-to-r from-amber-50 to-stone-50 px-5 py-4 text-center">
+                    <div class="text-4xl" aria-hidden="true">🛠️</div>
+                    <h2 id="nation-pending-modal-title" class="mt-2 text-lg font-black text-stone-950">{{ $pendingFeature }}は準備中です</h2>
+                </div>
+                <div class="px-5 py-4 text-center">
+                    <p class="text-sm font-bold leading-relaxed text-stone-600">この機能はまだ利用できません。現在は画面のみの実装です。</p>
+                    <button type="button" wire:click="closeNotImplementedModal" class="mt-4 min-h-11 w-full rounded-xl bg-stone-900 px-4 text-sm font-black text-white">閉じる</button>
+                </div>
+            </section>
+        </div>
     @endif
 </div>

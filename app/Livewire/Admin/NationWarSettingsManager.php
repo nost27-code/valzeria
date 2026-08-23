@@ -55,6 +55,7 @@ final class NationWarSettingsManager extends Component
             'settings' => $this->nationSettings(),
             'rates' => NationMaterialConversionRate::with('material')->orderBy('id')->get(),
             'summary' => ['nations' => Nation::count(), 'live_wars' => NationWar::whereIn('status', NationWar::LIVE_STATUSES)->count()],
+            'screenEnabled' => (bool) config('features.nation_screen_enabled', true),
             'featureEnabled' => (bool) config('features.nation_war_enabled', false),
         ])->layout('components.layouts.admin');
     }

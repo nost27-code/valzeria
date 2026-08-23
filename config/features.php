@@ -23,7 +23,14 @@ return [
         FILTER_VALIDATE_BOOL,
     ),
 
-    // Keep the nation foundation hidden until operations explicitly enables it.
+    // Player-facing nation dashboard preview. All buttons remain non-mutating
+    // while the nation-war feature and its operational gates stay disabled.
+    'nation_screen_enabled' => filter_var(
+        env('NATION_SCREEN_ENABLED', true),
+        FILTER_VALIDATE_BOOL,
+    ),
+
+    // Keep nation gameplay disabled until operations explicitly enables it.
     'nation_war_enabled' => filter_var(
         env('NATION_WAR_ENABLED', false),
         FILTER_VALIDATE_BOOL,

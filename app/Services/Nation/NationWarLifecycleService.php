@@ -10,6 +10,10 @@ final class NationWarLifecycleService
     /** @return array{activated:int,resolved:int,rebuilt:int} */
     public function run(): array
     {
+        if (! app(NationWarSettingsService::class)->featureEnabled()) {
+            return ['activated' => 0, 'resolved' => 0, 'rebuilt' => 0];
+        }
+
         NationWar::where('status', 'reserved')->where('starts_at', '<=', now())->orderBy('id')->each(function (NationWar $war): void {
             $nationIds = [$war->declaring_nation_id, $war->defending_nation_id];
             $blocked = NationWar::whereIn('status', ['preparing','active'])

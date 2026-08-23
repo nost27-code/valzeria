@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-nation-screen-preview',
+        'date' => '2026-08-23',
+        'category' => 'added',
+        'title' => '国家タブに国家画面のプレビューを公開',
+        'detail' => '国家タブで未所属時と所属時の国家画面を確認できるようにしました。建国・加入・納品・要塞強化・国家戦などの操作は、引き続き準備中です。',
+    ],
+    [
         'id' => '2026-08-23-exclusive-character-icon-set-033',
         'date' => '2026-08-23',
         'category' => 'internal',

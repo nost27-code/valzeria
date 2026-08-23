@@ -13,6 +13,14 @@ class MainScreenShellTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('features.nation_screen_enabled', false);
+        config()->set('features.nation_war_enabled', false);
+    }
+
     public function test_shell_loads_only_the_initial_cached_panel(): void
     {
         config(['features.six_hero_ui_enabled' => true]);
@@ -24,7 +32,7 @@ class MainScreenShellTest extends TestCase
             ->assertSet('loadedTabLocations', ['home'])
             ->assertSeeHtml('data-main-tab-panel="home"')
             ->assertSeeHtml('data-main-tab-panel="nation"')
-            ->assertSeeHtml('data-nation-preparation')
+            ->assertDontSeeHtml('data-nation-preparation')
             ->assertSeeHtml('data-main-tab-panel="colosseum"');
     }
 
@@ -61,6 +69,43 @@ class MainScreenShellTest extends TestCase
             ->assertSet('loadedTabLocations', ['home', 'nation'])
             ->assertSeeHtml('data-nation-preparation')
             ->assertSee('準備中');
+    }
+
+    public function test_shell_shows_the_read_only_nation_screen_while_nation_war_is_off(): void
+    {
+        config()->set('features.nation_screen_enabled', true);
+        config()->set('features.nation_war_enabled', false);
+        $user = User::factory()->create();
+        $character = Character::query()->create([
+            'user_id' => $user->id,
+            'name' => '国家画面確認者',
+            'icon_path' => '/images/chara/chara_001.webp',
+        ]);
+        session(['current_character_id' => $character->id]);
+        $this->actingAs($user);
+
+        Livewire::test(MainScreenShell::class)
+            ->dispatch('changeTab', newLocation: 'nation')
+            ->assertSet('currentLocation', 'nation')
+            ->assertSeeHtml('wire:name="nation-screen"')
+            ->assertDontSeeHtml('data-nation-preparation');
+    }
+
+    public function test_shell_does_not_mount_the_nation_screen_before_the_tab_is_selected(): void
+    {
+        config()->set('features.nation_screen_enabled', true);
+        $user = User::factory()->create();
+        $character = Character::query()->create([
+            'user_id' => $user->id,
+            'name' => '国家未選択確認者',
+            'icon_path' => '/images/chara/chara_001.webp',
+        ]);
+        session(['current_character_id' => $character->id]);
+        $this->actingAs($user);
+
+        Livewire::test(MainScreenShell::class)
+            ->assertSet('currentLocation', 'home')
+            ->assertDontSeeHtml('wire:name="nation-screen"');
     }
 
     public function test_shell_keeps_the_legacy_colosseum_tab_when_six_heroes_is_off(): void

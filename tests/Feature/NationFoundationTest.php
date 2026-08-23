@@ -21,6 +21,7 @@ use App\Services\Nation\NationFacilityService;
 use App\Services\Nation\NationResourceService;
 use App\Services\Nation\NationService;
 use App\Services\Nation\NationWarHpCalculator;
+use App\Services\Nation\NationWarLifecycleService;
 use App\Services\Nation\NationWarCannonService;
 use App\Services\Nation\NationWarRebuildService;
 use App\Services\Nation\NationWarRepairService;
@@ -48,6 +49,7 @@ final class NationFoundationTest extends TestCase
 
     public function test_miasma_bone_drops_remain_disabled_while_nation_war_is_off(): void
     {
+        config()->set('features.nation_war_enabled', false);
         $materialId = DB::table('materials')->where('material_code', 'WEV0030')->value('id');
 
         $this->assertFalse((bool) config('features.nation_war_enabled', false));
@@ -55,34 +57,121 @@ final class NationFoundationTest extends TestCase
         $this->assertSame(0, DB::table('material_drops')->where('material_id', $materialId)->where('is_active', true)->count());
     }
 
-    public function test_nation_screen_can_be_previewed_locally_while_declaration_and_upgrades_remain_off(): void
+    public function test_nation_screen_shows_unaffiliated_mock_and_routes_actions_to_pending_modal(): void
     {
-        config()->set('features.nation_war_enabled', true);
-        $character = $this->character('画面建国者');
+        config()->set('features.nation_screen_enabled', true);
+        config()->set('features.nation_war_enabled', false);
+        $character = $this->character('未所属冒険者');
+        $otherFounder = $this->character('他国建国者');
+        app(NationService::class)->create($otherFounder, '蒼天騎士国', '仲間と歩む国です。');
+        $this->actingAs($character->user);
+        $nationCountBefore = Nation::query()->count();
+        $membershipCountBefore = NationMembership::query()->count();
+
+        $component = Livewire::test(\App\Livewire\NationScreen::class)
+            ->assertSee('国家を探す')
+            ->assertSee('建国する')
+            ->assertSee('国家一覧')
+            ->assertSee('蒼天騎士国')
+            ->assertSee('国家とは？')
+            ->assertSee('data-nation-membership-state="unaffiliated"', false)
+            ->assertDontSee('wire:click="createNation"', false)
+            ->assertDontSee('wire:click="joinNation', false)
+            ->call('showNotImplemented', 'nation-search')
+            ->assertSet('pendingFeature', '国家を探す')
+            ->assertSee('国家を探すは準備中です')
+            ->assertSee('現在は画面のみの実装です。')
+            ->call('closeNotImplementedModal')
+            ->assertSet('pendingFeature', null);
+
+        $component
+            ->call('showNotImplemented', 'nation-create')
+            ->call('showNotImplemented', 'nation-apply');
+        $this->assertSame($nationCountBefore, Nation::query()->count());
+        $this->assertSame($membershipCountBefore, NationMembership::query()->count());
+    }
+
+    public function test_nation_screen_shows_member_dashboard_without_live_actions(): void
+    {
+        config()->set('features.nation_screen_enabled', true);
+        config()->set('features.nation_war_enabled', false);
+        $character = $this->character('所属冒険者');
+        $nation = app(NationService::class)->create($character, '白銀王国', '静かな北国です。');
+        $nation->update([
+            'treasury_points' => 28540,
+            'war_wins' => 12,
+            'war_losses' => 4,
+            'war_draws' => 0,
+        ]);
+        $nation->facilities()->where('facility_type', 'magic_cannon')->update([
+            'level' => 6,
+            'condition_bps' => 6800,
+        ]);
         $this->actingAs($character->user);
 
-        Livewire::test(\App\Livewire\NationScreen::class)
-            ->assertSee('国を興す')
-            ->set('nationName', '画面試験国')
-            ->call('createNation')
-            ->assertSee('新たな国が興った！')
-            ->assertSee('施設のレベル上げは現在停止中です。')
-            ->assertSee('宣戦布告は停止中です。');
+        $component = Livewire::test(\App\Livewire\NationScreen::class)
+            ->assertSee('白銀王国')
+            ->assertSee('国王：所属冒険者')
+            ->assertSee('28,540')
+            ->assertSee('12勝 4敗 0分')
+            ->assertSee('平時')
+            ->assertSee('要塞の状態')
+            ->assertSee('魔導砲')
+            ->assertSee('68%')
+            ->assertSee('data-nation-membership-state="member"', false)
+            ->assertDontSee('wire:click="donate"', false)
+            ->call('showNotImplemented', 'donation')
+            ->assertSet('pendingFeature', '国家資材の納品')
+            ->assertSee('国家資材の納品は準備中です');
+
+        $component
+            ->call('showNotImplemented', 'fortress')
+            ->call('showNotImplemented', 'war');
+        $this->assertSame(28540, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(6, (int) $nation->facilities()->where('facility_type', 'magic_cannon')->value('level'));
+        $this->assertSame(0, DB::table('nation_resource_transactions')->count());
+        $this->assertSame(0, NationWar::query()->count());
     }
 
     public function test_admin_can_edit_nation_settings_without_enabling_global_player_flag(): void
     {
+        config()->set('features.nation_war_enabled', false);
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin);
         $setting = GameSetting::where('setting_key', 'nation_war.sorties_per_day')->firstOrFail();
 
         Livewire::test(\App\Livewire\Admin\NationWarSettingsManager::class)
+            ->assertSee('画面プレビュー ON')
+            ->assertSee('国家ゲーム OFF')
             ->set('values.'.$setting->id, '12')
             ->call('save')
             ->assertHasNoErrors();
 
         $this->assertSame('12', GameSetting::whereKey($setting->id)->value('value'));
         $this->assertFalse((bool) config('features.nation_war_enabled', false));
+    }
+
+    public function test_disabled_nation_war_lifecycle_does_not_advance_existing_rows(): void
+    {
+        config()->set('features.nation_war_enabled', false);
+        $attacker = app(NationService::class)->create($this->character('停止中攻撃国王'), '停止中攻撃国');
+        $defender = app(NationService::class)->create($this->character('停止中防衛国王'), '停止中防衛国');
+        $war = NationWar::create([
+            'declaring_nation_id' => $attacker->id,
+            'defending_nation_id' => $defender->id,
+            'status' => 'reserved',
+            'declared_at' => now()->subDays(3),
+            'preparation_starts_at' => now()->subDays(3),
+            'starts_at' => now()->subMinute(),
+            'ends_at' => now()->addDays(5),
+        ]);
+
+        $this->assertSame(
+            ['activated' => 0, 'resolved' => 0, 'rebuilt' => 0],
+            app(NationWarLifecycleService::class)->run(),
+        );
+        $this->assertSame('reserved', $war->fresh()->status);
+        $this->assertSame(0, $war->facilities()->count());
     }
 
     public function test_donation_decrements_inventory_and_records_balanced_ledger_atomically(): void
@@ -105,6 +194,7 @@ final class NationFoundationTest extends TestCase
 
     public function test_facility_upgrade_and_war_declaration_are_closed_by_default(): void
     {
+        config()->set('features.nation_war_enabled', false);
         $attacker = $this->character('攻撃国王');
         $defender = $this->character('防衛国王');
         $nation = app(NationService::class)->create($attacker, '攻撃国');
