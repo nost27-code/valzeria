@@ -120,7 +120,7 @@ Purpose: canonical game rules. Keep concise.
 
 ## Nation war (production OFF)
 
-- `NATION_WAR_ENABLED=false`では国家タブを従来の「準備中」のままにする。内部をONにしても`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を初期値とし、基準Dが0/未校正なら宣戦を拒否する。Dは基準Characterが防御0施設へ魔導砲なしで30Tに与える実測総damageで、推測値を設定しない。
+- `NATION_WAR_ENABLED=false`では国家タブを従来の「準備中」のままにし、素材の入手可否も変更しない。`WEV0030`（瘴気の骨片）の敵dropは、別途明示された有効化までは非活性を維持する。内部をONにしても`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を初期値とし、基準Dが0/未校正なら宣戦を拒否する。Dは基準Characterが防御0施設へ魔導砲なしで30Tに与える実測総damageで、推測値を設定しない。
 - 国家は最大100人で、1Characterは1国家のみ。役職は国王/宰相/軍務官/兵站官/国民。建国時に城壁・魔導砲・兵站所・要塞工廠・本陣をLv1、耐久100%で作る。対象40都市素材は低位1pt/高位3ptを初期換算値とする。
 - 国家戦は建国7日保護、敗戦3日保護、1国家につき進行中1件+次戦予約1件、宣戦から準備3日、戦争5日。active Nは宣戦時点の所属者のうち直近7日で実戦したCharacterをsnapshotする。
 - 出撃は通常装備/能力/戦技を使う独立全快HP/SPの最大30Tで通常HP/SPを更新しない。1日10回、開始時探索力15、戦死は合計2回消費する。修復/再建後も判定用`min_hp`は戻さない。
