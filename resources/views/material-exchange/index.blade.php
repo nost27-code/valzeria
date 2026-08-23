@@ -156,7 +156,7 @@
                 style="display: none;"
                 class="sticky bottom-4 z-20 mt-6 rounded-lg border border-amber-200 bg-white/95 p-3 shadow-lg backdrop-blur"
             >
-                <form method="POST" action="{{ route('material-exchange.bulk') }}" id="material-exchange-bulk-form" class="flex flex-col sm:flex-row sm:items-center gap-3">
+                <form method="POST" action="{{ route('material-exchange.bulk') }}" id="material-exchange-bulk-form" data-submit-lock="off" class="flex flex-col sm:flex-row sm:items-center gap-3">
                     @csrf
                     <input type="hidden" name="use_bank" :value="bankPaymentFor(selectedTotalGoldCost()) > 0 ? 1 : 0">
                     <template x-for="recipeId in selectedRecipeIds" :key="recipeId">
@@ -213,7 +213,7 @@
                     x-transition
                     class="relative z-10 inline-block w-full max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all"
                 >
-                    <form method="POST" action="{{ route('material-exchange.exchange') }}" id="material-exchange-form">
+                    <form method="POST" action="{{ route('material-exchange.exchange') }}" id="material-exchange-form" data-submit-lock="off">
                         @csrf
                         <input type="hidden" name="recipe_id" :value="selected?.id">
                         <input type="hidden" name="quantity" :value="selected?.quantity || 1">
@@ -335,6 +335,7 @@
                     return;
                 }
                 window.__valzeriaMaterialExchangeAsyncBound = true;
+                const materialExchangeRequestTimeoutMs = 30000;
 
                 function showMaterialExchangeMessage(text, isSuccess) {
                     document.querySelectorAll('.material-exchange-message').forEach((message) => {
@@ -360,6 +361,10 @@
 
                     const root = form.closest('[x-data]');
                     const alpine = root && window.Alpine ? window.Alpine.$data(root) : null;
+                    if (form.dataset.materialExchangeSubmitting === 'true') {
+                        return;
+                    }
+
                     if (form.id === 'material-exchange-bulk-form'
                         && alpine
                         && alpine.bankPaymentFor(alpine.selectedTotalGoldCost()) > 0
@@ -367,9 +372,17 @@
                         return;
                     }
 
+                    form.dataset.materialExchangeSubmitting = 'true';
+                    form.setAttribute('aria-busy', 'true');
                     if (alpine) {
                         alpine.isSubmitting = true;
                     }
+
+                    const requestController = new AbortController();
+                    const requestTimeout = window.setTimeout(
+                        () => requestController.abort(),
+                        materialExchangeRequestTimeoutMs
+                    );
 
                     try {
                         const response = await fetch(form.action, {
@@ -379,6 +392,7 @@
                                 'X-Requested-With': 'XMLHttpRequest',
                             },
                             body: new FormData(form),
+                            signal: requestController.signal,
                         });
                         const data = await response.json();
 
@@ -411,8 +425,14 @@
                             alpine.recipeQuantities = {};
                         }
                     } catch (error) {
-                        showMaterialExchangeMessage(error.message || '交換に失敗しました。', false);
+                        const message = error?.name === 'AbortError'
+                            ? '交換処理が長引いています。画面を再読み込みし、所持品を確認してからもう一度お試しください。'
+                            : (error?.message || '交換に失敗しました。');
+                        showMaterialExchangeMessage(message, false);
                     } finally {
+                        window.clearTimeout(requestTimeout);
+                        delete form.dataset.materialExchangeSubmitting;
+                        form.removeAttribute('aria-busy');
                         if (alpine) {
                             alpine.isSubmitting = false;
                         }

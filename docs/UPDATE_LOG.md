@@ -8,6 +8,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Fixed
 
+- 回復アイテムを大量に素材調合した際、処理中のまま完了しないことがある問題を修正しました。通信が長引いた場合も、所持品の確認と再試行を案内します。
+
 - 下部メニューの「国家」アイコンを、ほかのメニューアイコンと同じ見た目の大きさに調整しました。
 
 ### Added

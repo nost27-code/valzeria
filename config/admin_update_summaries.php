@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-material-exchange-processing-fix',
+        'date' => '2026-08-23',
+        'category' => 'fixed',
+        'title' => '大量の素材調合が完了しない問題を修正',
+        'detail' => '回復アイテムを大量に素材調合した際、処理中のまま完了しないことがある問題を修正しました。通信が長引いた場合も、所持品の確認と再試行を案内します。',
+    ],
+    [
         'id' => '2026-08-23-nation-tab-icon-size-fix',
         'date' => '2026-08-23',
         'category' => 'fixed',

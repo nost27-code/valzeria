@@ -33,6 +33,7 @@ class MaterialExchangeService
     private const CROSS_CATEGORY_RATE = 5;
     private const CITY_MATERIAL_PATH_STONE_RATE = 10;
     private const ENEMY_TO_FRAGMENT_RATE = 5;
+    private const BREWED_ITEM_INSERT_CHUNK_SIZE = 50;
 
     private const FRAGMENT_SYNTHESIS_RECIPES = [
         [
@@ -266,8 +267,10 @@ class MaterialExchangeService
         ],
     ];
 
-    public function __construct(private readonly BankService $bankService)
-    {
+    public function __construct(
+        private readonly BankService $bankService,
+        private readonly EquipmentDiscoveryService $equipmentDiscoveryService,
+    ) {
     }
 
     public function recipes(Character $character): array
@@ -463,6 +466,10 @@ class MaterialExchangeService
             $targetRow->increment('quantity', $recipe['target_quantity'] * $quantity);
         } else {
             $totalTargetQuantity = (int) $recipe['target_quantity'] * $quantity;
+            $createdAt = now();
+            $createdItemIds = [];
+            $itemRows = [];
+
             for ($i = 0; $i < $totalTargetQuantity; $i++) {
                 if (($recipe['target_kind'] ?? null) === 'random_item') {
                     $targetItem = $this->randomRecoveryItem();
@@ -472,7 +479,8 @@ class MaterialExchangeService
                     throw new RuntimeException('交換先アイテムが見つかりません。');
                 }
 
-                CharacterItem::create([
+                $createdItemIds[(int) $targetItem->id] = true;
+                $itemRows[] = [
                     'character_id' => $character->id,
                     'item_id' => $targetItem->id,
                     'is_equipped' => false,
@@ -481,7 +489,18 @@ class MaterialExchangeService
                     'enhance_level' => 0,
                     'equipped_slot' => null,
                     'acquired_from' => 'brewing',
-                ]);
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
+                ];
+            }
+
+            foreach (array_chunk($itemRows, self::BREWED_ITEM_INSERT_CHUNK_SIZE) as $itemRowChunk) {
+                CharacterItem::query()->insert($itemRowChunk);
+            }
+
+            // Bulk insert bypasses CharacterItem::created, so preserve its discovery side effect once per item.
+            foreach (array_keys($createdItemIds) as $createdItemId) {
+                $this->equipmentDiscoveryService->record((int) $character->id, $createdItemId);
             }
         }
 
