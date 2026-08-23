@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-exclusive-character-icon-set-033',
+        'date' => '2026-08-23',
+        'category' => 'internal',
+        'title' => 'ねこむ専用の限定キャラアイコンを追加',
+        'detail' => 'ねこむさんの追加限定キャラアイコンを、既存の専用セットを残したまま通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-23-job-art-replacement-wave-2b',
         'date' => '2026-08-23',
         'category' => 'balance',

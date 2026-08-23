@@ -59,6 +59,39 @@ class CharacterIconSetTest extends TestCase
         ], $service->resolvedPaths($character));
     }
 
+    public function test_character_can_own_and_select_multiple_exclusive_icon_sets(): void
+    {
+        $character = $this->createCharacter('追加セット所有者');
+        $service = app(CharacterIconSetService::class);
+
+        $service->grant($character, 'exclusive_030');
+        $service->grant($character, 'exclusive_033');
+        $character->refresh();
+
+        $this->assertSame(
+            '/images/chara/exclusive/exclusive_033/01_normal.webp',
+            $character->icon_path
+        );
+        $this->assertDatabaseHas('character_icon_entitlements', [
+            'character_id' => $character->id,
+            'icon_set_key' => 'exclusive_030',
+            'revoked_at' => null,
+        ]);
+        $this->assertDatabaseHas('character_icon_entitlements', [
+            'character_id' => $character->id,
+            'icon_set_key' => 'exclusive_033',
+            'revoked_at' => null,
+        ]);
+        $this->assertTrue($service->canSelect(
+            $character,
+            '/images/chara/exclusive/exclusive_030/01_normal.webp'
+        ));
+        $this->assertTrue($service->canSelect(
+            $character,
+            '/images/chara/exclusive/exclusive_033/01_normal.webp'
+        ));
+    }
+
     public function test_new_exclusive_icon_sets_have_complete_four_pose_assets(): void
     {
         $setKeys = [
@@ -89,6 +122,7 @@ class CharacterIconSetTest extends TestCase
             'exclusive_030',
             'exclusive_031',
             'exclusive_032',
+            'exclusive_033',
         ];
 
         foreach ($setKeys as $setKey) {
