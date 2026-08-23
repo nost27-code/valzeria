@@ -632,6 +632,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/tools/weapon-appraisal', \App\Livewire\Admin\WeaponAppraisalTool::class)->name('admin.tools.weapon-appraisal');
     Route::get('/admin/route-health', \App\Livewire\Admin\RouteHealthCheck::class)->name('admin.route-health');
     Route::get('/admin/six-heroes', \App\Livewire\Admin\SixHeroOperationsManager::class)->name('admin.six-heroes');
+    Route::get('/admin/nation-war', \App\Livewire\Admin\NationWarSettingsManager::class)->name('admin.nation-war');
     Route::get('/admin/security-anomalies', \App\Livewire\Admin\SecurityAnomalyManager::class)->name('admin.security-anomalies');
     Route::get('/admin/tools', \App\Livewire\Admin\ToolCollection::class)->name('admin.tools');
 });

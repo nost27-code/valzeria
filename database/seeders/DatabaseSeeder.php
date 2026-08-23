@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             Phase1Seeder::class,
             EnemySeeder::class,
             EnemyDropsSeeder::class,
+            NationMaterialConversionRateSeeder::class,
             DropEquipmentAdditionsSeeder::class,
             DropWeaponEvolutionSeeder::class,
             AreaDiscoveryLinkSeeder::class,

@@ -312,12 +312,13 @@ class BattleService
             // 先攻後攻判定（AGI比較＋乱数）
             $playerSpeed = $playerActor->effectiveAgi() + rand(0, 5);
             $enemySpeed = $enemyActor->effectiveAgi() + rand(0, 5);
-            $playerFirst = $this->jobArtV2ProgressionService->adjustInitiative(
-                $playerActor,
-                $enemyActor,
-                $playerSpeed >= $enemySpeed,
-                static fn (): bool => ($playerActor->effectiveAgi() + rand(0, 5)) >= ($enemyActor->effectiveAgi() + rand(0, 5)),
-            );
+            $playerFirst = (bool) ($options['force_player_first'] ?? false)
+                || $this->jobArtV2ProgressionService->adjustInitiative(
+                    $playerActor,
+                    $enemyActor,
+                    $playerSpeed >= $enemySpeed,
+                    static fn (): bool => ($playerActor->effectiveAgi() + rand(0, 5)) >= ($enemyActor->effectiveAgi() + rand(0, 5)),
+                );
             
             if ($playerFirst) {
                 $this->executeAction($playerActor, $enemyActor, $state);
@@ -457,6 +458,11 @@ class BattleService
         $spr = max(1, (int) round($spr * $durability['def_spr']));
         $str = max(1, (int) round($str * $durability['atk_mag']));
         $mag = max(1, (int) round($mag * $durability['atk_mag']));
+
+        if ((bool) $enemy->getAttribute('force_zero_defense')) {
+            $def = 0;
+            $spr = 0;
+        }
 
         $regionDepth = app(RegionDepthDungeonService::class);
         if ($enemy->getAttribute('region_depth_dungeon_key')) {

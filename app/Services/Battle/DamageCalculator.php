@@ -484,6 +484,23 @@ class DamageCalculator
         return ($attackPower * $attackPower) / ($attackPower + ($coefficient * $effectiveDefense));
     }
 
+    /**
+     * 現行のPvE敵→プレイヤー式を逆算し、乱数100%時に目標ダメージとなる攻撃値を返す。
+     * 国家戦魔導砲でも同じ正式式を使うための逆関数。
+     */
+    public function attackPowerForPveEnemyTargetDamage(int $targetDamage, int $defense): int
+    {
+        $targetDamage = max(1, $targetDamage);
+        $defense = max(0, $defense);
+        if (! (bool) $this->battleConfig('pve_enemy_percentage_defense.enabled', true)) {
+            return max(1, (int) ceil(($defense / 2) + $targetDamage));
+        }
+        $coefficient = max(0.0, (float) $this->battleConfig('pve_enemy_percentage_defense.defense_coefficient', 3.5));
+        $discriminant = ($targetDamage * $targetDamage) + (4 * $targetDamage * $coefficient * $defense);
+
+        return max(1, (int) ceil(($targetDamage + sqrt($discriminant)) / 2));
+    }
+
     private function battleConfig(string $key, mixed $default): mixed
     {
         $container = Container::getInstance();

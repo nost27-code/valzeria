@@ -22,4 +22,10 @@ return [
         env('SIX_HERO_UI_ENABLED', false),
         FILTER_VALIDATE_BOOL,
     ),
+
+    // Keep the nation foundation hidden until operations explicitly enables it.
+    'nation_war_enabled' => filter_var(
+        env('NATION_WAR_ENABLED', false),
+        FILTER_VALIDATE_BOOL,
+    ),
 ];

@@ -94,6 +94,7 @@
                     ['route' => 'admin.player-controls', 'label' => '輝石付与・プレイヤー調整', 'abbr' => 'C'],
                     ['route' => 'admin.action-logs', 'label' => '行動ログ', 'abbr' => 'L'],
                     ['route' => 'admin.six-heroes', 'label' => '六英雄運用', 'abbr' => '6H'],
+                    ['route' => 'admin.nation-war', 'label' => '国家戦運用', 'abbr' => 'NW'],
                     ['route' => 'admin.public-logs', 'label' => '公開ログ管理', 'abbr' => 'O'],
                     ['route' => 'admin.chat', 'label' => '管理人チャット', 'abbr' => 'Q'],
                     ['route' => 'admin.private-chat-logs', 'label' => '個人チャットログ', 'abbr' => 'D'],

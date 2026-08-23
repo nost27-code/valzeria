@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Internal
+
+- 建国・国民・5つの要塞施設・40素材の国家資材納品、国家戦の宣戦予約・出撃・魔導砲・修復再建・戦史を扱う基礎を配備しました。プレイヤー向け国家画面、宣戦布告、施設LvアップはOFFのままです。
+
 ### Fixed
 
 - 回復アイテムを大量に素材調合した際、処理中のまま完了しないことがある問題を修正しました。通信が長引いた場合も、所持品の確認と再試行を案内します。

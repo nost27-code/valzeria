@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-nation-war-foundation-off',
+        'date' => '2026-08-23',
+        'category' => 'internal',
+        'title' => '建国・国家戦の基礎を追加',
+        'detail' => '国家・国民・要塞施設・国家資材納品と、国家戦の宣戦予約・出撃・魔導砲・修復再建・戦史の基礎を追加しました。プレイヤー向け国家画面、宣戦布告、施設LvアップはOFFのままです。',
+    ],
+    [
         'id' => '2026-08-23-valmon-equipment-feed-sorting',
         'date' => '2026-08-23',
         'category' => 'changed',

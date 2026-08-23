@@ -5,9 +5,10 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-23
 Branch: main
 
-## Main navigation / nation placeholder
+## Main navigation / nation foundation（本番コード配備・公開OFF）
 
-- home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`の紋章を使う。タップ時は専用パネルへ「準備中」だけを表示し、重い`MainScreen`、チャンプ、週間勝利カードは表示しない。国家機能、専用Route、DBは未実装
+- home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`の紋章を使う。`NATION_WAR_ENABLED=false`では従来の専用「準備中」パネルだけを表示する。明示ON時は`NationScreen`へ切り替え、建国、最大100人の所属、5施設、40都市素材の納品・国家資材台帳、国家/要塞/国民/戦争概要を表示する
+- 国家戦は専用tablesと`app/Services/Nation/`へ分離し、宣戦・予約・3日準備・5日戦争・敗戦保護、参加者snapshot、永続施設耐久、城壁lock、通常戦技を再利用する30T出撃、探索力/回数、魔導砲、修復/再建、判定/KO、戦史/資材返還を扱う。`nation_war.declaration_enabled=false`と`nation.facility_upgrades_enabled=false`が初期値で、`nation_war.reference_damage=0`（未校正）でも宣戦を拒否する
 
 ## Six Heroes / 六極殿（本番コード配備・公開OFF）
 

@@ -150,6 +150,28 @@ class ExplorationStaminaService
         });
     }
 
+    /** 国家戦など、探索モードにかかわらず探索力を必ず消費する用途。 */
+    public function consumeRequired(Character $character, int $cost, string $errorMessage): array
+    {
+        if (! $this->schemaReady()) {
+            return ['ok' => false, 'consumed' => 0, 'stamina' => null, 'error' => '探索力の保存領域が未準備です。'];
+        }
+        $cost = max(1, $cost);
+
+        return DB::transaction(function () use ($character, $cost, $errorMessage): array {
+            $locked = Character::query()->whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $this->recover($locked);
+            $current = max(0, (int) $locked->explore_stamina);
+            if ($current < $cost) {
+                $character->setRawAttributes($locked->getAttributes(), true);
+                return ['ok' => false, 'consumed' => 0, 'stamina' => $this->summary($locked), 'error' => $errorMessage];
+            }
+            $locked->update(['explore_stamina' => $current - $cost, 'explore_stamina_updated_at' => now()]);
+            $character->setRawAttributes($locked->getAttributes(), true);
+            return ['ok' => true, 'consumed' => $cost, 'stamina' => $this->summary($locked)];
+        });
+    }
+
     public function refundForExplore(Character $character, int $amount, mixed $updatedAt = null): array
     {
         if ($amount <= 0 || !$this->schemaReady()) {

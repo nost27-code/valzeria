@@ -12,7 +12,11 @@
             data-main-tab-panel="{{ $location }}"
         >
             @if($location === 'nation')
-                @include('livewire.nation-preparation')
+                @if(config('features.nation_war_enabled', false))
+                    <livewire:nation-screen :key="'main-tab-panel-nation'" />
+                @else
+                    @include('livewire.nation-preparation')
+                @endif
             @elseif(in_array($location, $loadedTabLocations, true))
                 <livewire:main-screen
                     :fixed-location="$location"
