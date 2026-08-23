@@ -36,9 +36,9 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
         }
     }
 
-    public function test_catalog_contains_exactly_the_fifty_five_frozen_natural_keys(): void
+    public function test_catalog_contains_exactly_the_sixty_one_frozen_natural_keys(): void
     {
-        $this->assertCount(55, self::roleArtProvider());
+        $this->assertCount(61, self::roleArtProvider());
     }
 
     public function test_same_named_special_skill_is_not_treated_as_a_job_art(): void
@@ -136,6 +136,12 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
     public static function roleArtProvider(): array
     {
         return [
+            'wave 2-B pierce finisher' => [2, 9, '穿貫', 'pierce_single_high_penetration_finisher'],
+            'wave 2-B hunt producer' => [3, 1, '影狩りの構え', 'hunt_speed_debuff_producer'],
+            'wave 2-B hunt combo' => [3, 5, '急所狙い', 'hunt_critical_combo'],
+            'wave 2-B aim producer' => [4, 1, '精密射撃', 'aim_precision_producer'],
+            'wave 2-B break producer' => [5, 1, '崩し打ち', 'break_defense_debuff_producer'],
+            'wave 2-B break combo' => [5, 5, '連環崩打', 'break_chain_debuff_combo'],
             'field silence producer' => [29, 1, '静寂の帳', 'field_silence_producer'],
             'break low hp finisher' => [5, 9, '大崩拳', 'break_desperate_finisher'],
             'eclipse low hp finisher' => [9, 9, '蝕みの終端', 'eclipse_attrition_finisher'],

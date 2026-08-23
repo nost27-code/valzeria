@@ -34,7 +34,7 @@ final class JobArtV2CanonicalSelfBuffRuntimeAuditTest extends TestCase
             static fn (Skill $skill): bool => $catalog->hasSelfBuff($skill),
         ));
 
-        $this->assertCount(32, $canonicalArts, 'A new canonical self buff must enter this runtime audit.');
+        $this->assertCount(28, $canonicalArts, 'A new canonical self buff must enter this runtime audit.');
         $sharedTemplateArts = [];
 
         foreach ($canonicalArts as $source) {
@@ -125,7 +125,7 @@ final class JobArtV2CanonicalSelfBuffRuntimeAuditTest extends TestCase
             }
         }
 
-        $this->assertCount(20, $sharedTemplateArts, 'Shared-template arts must stay inside the canonical runtime audit.');
+        $this->assertCount(16, $sharedTemplateArts, 'Shared-template arts must stay inside the canonical runtime audit.');
     }
 
     public function test_shared_self_buff_is_wired_to_battle_state_in_every_route(): void

@@ -53,6 +53,75 @@ final class JobArtV2RoleEffectCatalog
 
     /** @var array<string, array<string, mixed>> */
     private const ARTS = [
+        // Replacement wave 2-B: existing route, roll-delta, and timed-debuff primitives only.
+        '2:9:穿貫' => [
+            'role_key' => 'pierce_single_high_penetration_finisher',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'damage_stat_route' => [
+                'attack_stat' => 'str',
+                'defense_stat' => 'def',
+                'damage_category' => 'physical',
+                'defense_ignore_percent' => 50,
+            ],
+            'effect_texts' => ['相手の防御を50%無視して物理ダメージを与える'],
+        ],
+        '3:1:影狩りの構え' => [
+            'role_key' => 'hunt_speed_debuff_producer',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'structured_debuff' => [
+                'enemy_spd_down_percent' => 15,
+                'duration_turns' => 3,
+            ],
+            'effect_texts' => ['3ターンの間、相手の敏捷を-15%する'],
+        ],
+        '3:5:急所狙い' => [
+            'role_key' => 'hunt_critical_combo',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'critical_delta_points' => 15,
+            'critical_mode' => 'existing_roll_delta',
+            'effect_texts' => ['この攻撃の会心率を+15ポイントする'],
+        ],
+        '4:1:精密射撃' => [
+            'role_key' => 'aim_precision_producer',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'accuracy_delta_points' => 15,
+            'preserve_legacy_sure_hit' => true,
+            'critical_delta_points' => 10,
+            'critical_mode' => 'existing_roll_delta',
+            'effect_texts' => ['この攻撃の命中率を+15ポイントする', 'この攻撃の会心率を+10ポイントする'],
+        ],
+        '5:1:崩し打ち' => [
+            'role_key' => 'break_defense_debuff_producer',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'structured_debuff' => [
+                'enemy_def_down_percent' => 15,
+                'duration_turns' => 3,
+            ],
+            'effect_texts' => ['3ターンの間、相手の防御を-15%する'],
+        ],
+        '5:5:連環崩打' => [
+            'role_key' => 'break_chain_debuff_combo',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'structured_debuff' => [
+                'enemy_def_down_percent' => 15,
+                'enemy_spr_down_percent' => 15,
+                'duration_turns' => 3,
+            ],
+            'effect_texts' => ['3ターンの間、相手の防御と精神を-15%する'],
+        ],
+
         // First replacement wave: seven repeat-safe lineage identities.
         '29:1:静寂の帳' => [
             'role_key' => 'field_silence_producer',

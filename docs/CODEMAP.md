@@ -46,6 +46,13 @@ The older Job-art sections and architecture-table notes below are historical des
 - Dedicated icons: `public/images/job_art/job_art_006_05.webp`, `job_art_017_09.webp`, `job_art_019_09.webp`, and `job_art_033_09.webp`; `JobArtController::jobArtIconPath()` appends the file update time as a cache version
 - Contracts: `tests/Feature/SecondJobArtReplacementWave2AMigrationTest.php`, `tests/Unit/JobArtV2ReplacementWave2ATest.php`, and the CrownBalance/canonical-self-buff/card-description/role-effect audits
 
+## Job-art v2 replacement wave 2-B
+
+- Master/display authority: `database/data/job_arts.json`, `database/data/job_art_flavor_rewrites.json`, `app/Services/JobArtV2PrototypeCatalog.php`, `app/Services/JobArtV2CardDescriptionCatalog.php`, `app/Services/JobArtV2RoleEffectCatalog.php`, `app/Services/JobArtV2CrownBalanceCatalog.php`, `app/Services/JobArtV2CDesignCatalog.php`, `app/Services/JobArtV2CDesignClassificationCatalog.php`
+- Existing-row migration: `database/migrations/2026_08_23_120000_replace_job_arts_wave2_2b.php`; it updates only natural keys 2:9, 3:1, 3:5, 4:1, 5:1, and 5:5 while preserving `skills.id`
+- Runtime boundary: existing penetration, structured debuff, total-power hit splitting, accuracy, and existing-critical-roll metadata are reused; no new runtime service, RNG, selection, or activation-rate change is introduced
+- Contracts: `tests/Feature/SecondJobArtReplacementWave2BMigrationTest.php`, `tests/Unit/JobArtV2ReplacementWave2BTest.php`, and the CrownBalance/canonical-self-buff/card-description/role-effect/C-design audits
+
 ## Job-art v2 role diversity pass (historical)
 
 `JobArtV2RoleEffectCatalog` is the exact `(job_id, learn_rank, name)` authority for the 34 explicitly ruled arts; it never owns master power or hit count. `JobArtV2CrownBalanceCatalog` owns card-canonical self-buff stats and duration. `JobArtV2RoleEffectService` applies their execution-time replacement semantics, owns battle-only timed/prepared lifecycle, and applies canonical self buffs as removable timed effects without mutating raw stats. `JobArtStatBuffLogFormatter` formats actual stat modifiers, rates, and duration with canonical Japanese player-facing labels for both role and progression effects. Canonical entries refresh by natural key; only uncatalogued legacy self buffs retain the raw-stat power-tier fallback. `JobArtV2TimedEffectState` and `JobArtV2PreparedEffectState` live on `BattleActor`; `BattleState` holds the source-action role context. `JobArtV2CleanseService` is the shared structured cleanse boundary, while existing `JobArtV2DefenseService`, `JobArtV2FieldService`, `JobArtV2ResourceService`, and `DamageApplicationService` remain the guard, field, resource, and HP-application authorities.

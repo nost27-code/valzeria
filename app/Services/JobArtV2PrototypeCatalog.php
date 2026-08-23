@@ -85,6 +85,7 @@ class JobArtV2PrototypeCatalog
         ],
         2 => [
             5 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.25],
+            9 => ['penetration_type' => 'physical_def', 'penetration_rate' => 0.50],
         ],
         6 => [
             1 => ['field_operation' => 'deploy', 'field_selection_mode' => 'fixed', 'field_key' => 'star_light', 'field_duration_rounds' => 5],

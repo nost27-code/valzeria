@@ -8,6 +8,8 @@ Job Art first replacement wave: `2026_08_17_150000_replace_first_wave_job_arts.p
 
 Job Art replacement wave 2-A: `2026_08_20_120000_replace_job_arts_wave2_2a.php`は`skills`の自然キー6:5・17:9・19:9・33:9だけを一意性確認後に更新する。対象キーが1件もないfresh installではSeederへ委ねてno-opとし、1件以上存在する環境では4件すべてが一意でなければtransaction全体を停止する。既存`skills.id`と戦技枠参照を維持し、schema変更はない。
 
+Job Art replacement wave 2-B: `2026_08_23_120000_replace_job_arts_wave2_2b.php`は`skills`の自然キー2:9・3:1・3:5・4:1・5:1・5:5だけを一意性確認後に更新する。対象キーが1件もないfresh installではSeederへ委ねてno-opとし、1件以上存在する環境では6件すべてが一意でなければtransaction全体を停止する。既存`skills.id`と戦技枠・preset参照を維持し、schema変更はない。
+
 | Entity/Table | Purpose | Key fields | Used by | Notes |
 |---|---|---|---|---|
 | six_hero_seasons / six_hero_rankings / six_hero_daily_usages / six_hero_battle_logs / six_hero_champions | 六英雄の月次Season、6Room独立順位、Room別日次公式戦回数、公式戦監査、月次英雄/空位の永久snapshot | Seasonは`season_key` uniqueと`ranking_initialized_at`/`finalized_at`、RankingはSeason×Room×CharacterおよびSeason×Room×rank unique、usageはCharacter×日付 uniqueとRoom別JSON、ChampionはSeason×Room unique・非FKのimmutable identity snapshot | Six Hero lifecycle/ranking/battle/hall/operations services | rankは順位奪取transactionの一時負値に対応するsigned integer。日次上限はRoomごとに5でtotalはRoom別合計。ChampionはCharacter削除後もsnapshot名・IDを保持し、確定済み履歴の唯一の正本とする。Season・Ranking・BattleLogの競技時刻はMariaDB 10.5互換の`DATETIME`で保持する。 |

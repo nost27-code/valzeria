@@ -37,23 +37,23 @@
   {
     "job_id": 2,
     "learn_rank": 9,
-    "name": "巨人断ち",
-    "activation_phrase": "「勝利へ至る力を解き放つ――巨人断ち！」",
-    "activation_description": "{user}は高まる戦気を一気に解放し、《{skill}》で{target}を打ち抜いた。その余勢を己の力へ変えた！"
+    "name": "穿貫",
+    "activation_phrase": "「この一撃で、守りを穿つ――穿貫！」",
+    "activation_description": "{user}は一点へ力を凝縮し、《{skill}》で{target}の守りを貫いた！"
   },
   {
     "job_id": 3,
     "learn_rank": 1,
-    "name": "すり抜け",
-    "activation_phrase": "「視線の外へ――今だ。」",
-    "activation_description": "{user}は《{skill}》で気配を薄め、狩猟の印を刻みながら次の一撃へ備えた！"
+    "name": "影狩りの構え",
+    "activation_phrase": "「影を踏む――影狩りの構え！」",
+    "activation_description": "{user}は《{skill}》から鋭く踏み込み、{target}へ狩猟印を刻んで動きを鈍らせた！"
   },
   {
     "job_id": 3,
     "learn_rank": 5,
-    "name": "不意打ち",
-    "activation_phrase": "「その隙は見逃さない――不意打ち！」",
-    "activation_description": "{user}の武器に揺らめく残像が宿る。《{skill}》の一撃が{target}を打ち抜いた。その余勢を己の力へ変えた！"
+    "name": "急所狙い",
+    "activation_phrase": "「見えた――そこが急所だ！」",
+    "activation_description": "{user}は《{skill}》で{target}の急所へ狙い澄ました一撃を放った！"
   },
   {
     "job_id": 3,
@@ -65,9 +65,9 @@
   {
     "job_id": 4,
     "learn_rank": 1,
-    "name": "足止め矢",
-    "activation_phrase": "「狙いは定まった――足止め矢！」",
-    "activation_description": "獲物を捉える照準が閃き、{user}は《{skill}》の矢撃を{target}へ叩き込んだ。残る張り詰めた狩気が{target}の勢いを削いだ！"
+    "name": "精密射撃",
+    "activation_phrase": "「照準よし――精密射撃！」",
+    "activation_description": "{user}は呼吸を止め、《{skill}》の一矢を{target}の急所へ放った！"
   },
   {
     "job_id": 4,
@@ -86,16 +86,16 @@
   {
     "job_id": 5,
     "learn_rank": 1,
-    "name": "気合拳",
-    "activation_phrase": "「呼吸をひとつに整える――気合拳！」",
-    "activation_description": "{user}は研ぎ澄まされた闘気を拳へ集め、《{skill}》の拳撃で{target}を打ち砕いた。その余勢を己の力へ変えた！"
+    "name": "崩し打ち",
+    "activation_phrase": "「守りの芯を、崩す！」",
+    "activation_description": "{user}は《{skill}》を{target}の構えへ叩き込み、その守りを崩した！"
   },
   {
     "job_id": 5,
     "learn_rank": 5,
-    "name": "連打",
-    "activation_phrase": "「拳にすべてを乗せる――連打！」",
-    "activation_description": "{user}は一息に《{skill}》を放ち、研ぎ澄まされた闘気をまとった三連撃を{target}へ叩き込んだ！"
+    "name": "連環崩打",
+    "activation_phrase": "「崩れをつなぐ――連環崩打！」",
+    "activation_description": "{user}は《{skill}》の三連撃を{target}へ叩き込み、守りと精神を揺さぶった！"
   },
   {
     "job_id": 5,

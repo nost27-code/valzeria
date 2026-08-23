@@ -105,7 +105,7 @@ class JobArtV2BattleHudServiceTest extends TestCase
         $currentProducer = $this->art(62, 1);
         $foreignProducer = $this->art(3, 1);
         $foreignFinisher = $this->art(3, 9);
-        $foreignProducer->name = 'すり抜け';
+        $foreignProducer->name = '影狩りの構え';
         $foreignFinisher->name = 'ファントムロブ';
         $actor->jobArts = [$currentProducer, $foreignProducer, $foreignFinisher];
         $actor->jobArtOrigins[(int) $currentProducer->id] = 'current';

@@ -39,7 +39,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
         $this->assertCount(192, $catalog);
         $this->assertSame($masterKeys, array_keys($catalog));
         $this->assertSame(
-            '322d60f4aef0e7ec9a3ec2f13e33bec3b5ec4783a565c83f018d3bd7c73c689d',
+            'c7ce22d15e6cbf62c481ae26c121382e04f932d820113debe7bf5f61ca948dd7',
             hash('sha256', json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)),
         );
         $this->assertNotContains('', array_map('trim', $catalog));
