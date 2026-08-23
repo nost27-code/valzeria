@@ -40,4 +40,32 @@ class MainTabPanelCacheViewTest extends TestCase
         $this->assertStringNotContainsString("#[On('changeTab')]", $source);
         $this->assertStringContainsString('public bool $embedded = false;', $source);
     }
+
+    public function test_nation_tab_hides_shared_competition_panels(): void
+    {
+        $source = file_get_contents(resource_path('views/components/layouts/app.blade.php'));
+
+        $this->assertIsString($source);
+        $this->assertStringContainsString('data-shared-competition-panels', $source);
+        $this->assertStringContainsString("x-show=\"currentLocation !== 'nation'\"", $source);
+        $this->assertStringContainsString("style=\"{{ \$currentLocation !== 'nation' ? '' : 'display: none;' }}\"", $source);
+        $this->assertMatchesRegularExpression(
+            '/data-shared-competition-panels>.*<livewire:champ-card \/>.*<livewire:star-tree-tower-ranking-widget \/>.*<\/div>/s',
+            $source,
+        );
+    }
+
+    public function test_bottom_navigation_places_nation_between_market_and_colosseum(): void
+    {
+        $source = file_get_contents(resource_path('views/livewire/nav-menu.blade.php'));
+
+        $this->assertIsString($source);
+        $this->assertMatchesRegularExpression(
+            "/'guild'.*'nation'.*'colosseum'/s",
+            $source,
+        );
+        $this->assertStringContainsString("'label' => '国家'", $source);
+        $this->assertStringContainsString("'image' => 'icon/icon_305.webp'", $source);
+        $this->assertStringContainsString("'grid-cols-6'", $source);
+    }
 }

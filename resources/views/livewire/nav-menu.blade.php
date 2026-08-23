@@ -5,6 +5,7 @@
             'dungeon'   => ['label' => '探索',    'icon' => '🧭', 'image' => 'tabs/tab_dungeon.webp'],
             'home'      => ['label' => '冒険者',  'icon' => '👤', 'image' => 'tabs/tab_home.webp'],
             'guild'     => ['label' => '商店街', 'icon' => '⚖️', 'image' => 'tabs/tab_guild.webp'],
+            'nation'    => ['label' => '国家',   'icon' => '🏳️', 'image' => 'icon/icon_305.webp'],
             'colosseum' => ['label' => '闘技場', 'icon' => '🛡️', 'image' => 'tabs/tab_colosseum.webp'],
         ];
     @endphp
@@ -12,7 +13,7 @@
     <div class="fixed inset-x-0 bottom-0 z-40 border-t border-[#d4af37]/40 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
          style="padding-bottom: env(safe-area-inset-bottom)"
          data-bottom-navigation>
-        <div class="grid {{ count($bottomNavs) === 5 ? 'grid-cols-5' : 'grid-cols-4' }}">
+        <div class="grid {{ count($bottomNavs) === 6 ? 'grid-cols-6' : 'grid-cols-5' }}">
             @foreach($bottomNavs as $key => $nav)
                 <button type="button"
                         @click="pending = '{{ $key }}'; window.dispatchEvent(new CustomEvent('main-tab-selected', { detail: { location: '{{ $key }}' } })); $dispatch('changeTab', { newLocation: '{{ $key }}' })"

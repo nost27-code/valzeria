@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-nation-tab-placeholder',
+        'date' => '2026-08-23',
+        'category' => 'added',
+        'title' => '下部メニューに国家タブと準備中画面を追加',
+        'detail' => '下部メニューの商店街と闘技場の間に、紋章付きの「国家」タブを追加しました。タップすると準備中画面へ切り替わります。',
+    ],
+    [
         'id' => '2026-08-23-training-ground-direct-pvp-feedback',
         'date' => '2026-08-23',
         'category' => 'changed',

@@ -19,6 +19,7 @@ class MainScreenShell extends Component
         'dungeon',
         'home',
         'guild',
+        'nation',
         'colosseum',
     ];
 

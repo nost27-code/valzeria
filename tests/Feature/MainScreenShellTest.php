@@ -23,6 +23,8 @@ class MainScreenShellTest extends TestCase
             ->assertSet('initialLocation', 'home')
             ->assertSet('loadedTabLocations', ['home'])
             ->assertSeeHtml('data-main-tab-panel="home"')
+            ->assertSeeHtml('data-main-tab-panel="nation"')
+            ->assertSeeHtml('data-nation-preparation')
             ->assertSeeHtml('data-main-tab-panel="colosseum"');
     }
 
@@ -49,6 +51,18 @@ class MainScreenShellTest extends TestCase
             ->assertSet('currentLocation', 'home');
     }
 
+    public function test_shell_switches_to_the_nation_preparation_tab(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        Livewire::test(MainScreenShell::class)
+            ->dispatch('changeTab', newLocation: 'nation')
+            ->assertSet('currentLocation', 'nation')
+            ->assertSet('loadedTabLocations', ['home', 'nation'])
+            ->assertSeeHtml('data-nation-preparation')
+            ->assertSee('準備中');
+    }
+
     public function test_shell_keeps_the_legacy_colosseum_tab_when_six_heroes_is_off(): void
     {
         config(['features.six_hero_ui_enabled' => false]);
@@ -64,7 +78,7 @@ class MainScreenShellTest extends TestCase
 
         Livewire::test(MainScreenShell::class)
             ->assertSet('currentLocation', 'colosseum')
-            ->assertSet('cachedTabLocations', ['town', 'dungeon', 'home', 'guild', 'colosseum'])
+            ->assertSet('cachedTabLocations', ['town', 'dungeon', 'home', 'guild', 'nation', 'colosseum'])
             ->assertSeeHtml('data-main-tab-panel="colosseum"')
             ->assertSeeHtml('data-legacy-arena-home-tab')
             ->assertDontSeeHtml('data-six-hero-home-tab');

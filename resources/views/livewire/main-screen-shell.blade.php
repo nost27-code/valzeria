@@ -11,7 +11,9 @@
             style="{{ $currentLocation === $location ? '' : 'display: none;' }}"
             data-main-tab-panel="{{ $location }}"
         >
-            @if(in_array($location, $loadedTabLocations, true))
+            @if($location === 'nation')
+                @include('livewire.nation-preparation')
+            @elseif(in_array($location, $loadedTabLocations, true))
                 <livewire:main-screen
                     :fixed-location="$location"
                     :key="'main-tab-panel-'.$location"

@@ -5,6 +5,10 @@ Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + hum
 Last updated: 2026-08-23
 Branch: main
 
+## Main navigation / nation placeholder
+
+- home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`の紋章を使う。タップ時は専用パネルへ「準備中」だけを表示し、重い`MainScreen`、チャンプ、週間勝利カードは表示しない。国家機能、専用Route、DBは未実装
+
 ## Six Heroes / 六極殿（本番コード配備・公開OFF）
 
 - 六英雄戦は6つの独立Room、Room別月次Ranking、各Room1日5回の公式戦、相性確認、月次英雄・空位確定、翌月順位引継ぎ、殿堂・冠・連覇、管理診断まで実装済み
