@@ -27,6 +27,7 @@ use App\Services\Nation\NationWarRepairService;
 use App\Services\Nation\NationWarService;
 use App\Services\Nation\NationWarBattleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Livewire\Livewire;
 
@@ -43,6 +44,15 @@ final class NationFoundationTest extends TestCase
         $this->assertSame('king', $nation->memberships()->first()->role);
         $this->assertEqualsCanonicalizing(NationFacility::TYPES, $nation->facilities()->pluck('facility_type')->all());
         $this->assertTrue($nation->facilities()->get()->every(fn (NationFacility $facility) => $facility->level === 1 && $facility->condition_bps === 10000));
+    }
+
+    public function test_miasma_bone_drops_remain_disabled_while_nation_war_is_off(): void
+    {
+        $materialId = DB::table('materials')->where('material_code', 'WEV0030')->value('id');
+
+        $this->assertFalse((bool) config('features.nation_war_enabled', false));
+        $this->assertNotNull($materialId);
+        $this->assertSame(0, DB::table('material_drops')->where('material_id', $materialId)->where('is_active', true)->count());
     }
 
     public function test_nation_screen_can_be_previewed_locally_while_declaration_and_upgrades_remain_off(): void
