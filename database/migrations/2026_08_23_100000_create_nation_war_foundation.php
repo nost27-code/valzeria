@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('nations', function (Blueprint $table): void {
+        $this->createIfMissing('nations', function (Blueprint $table): void {
             $table->id();
             $table->string('name', 40)->unique();
             $table->text('description')->nullable();
@@ -18,22 +18,22 @@ return new class extends Migration
             $table->unsignedInteger('war_wins')->default(0);
             $table->unsignedInteger('war_losses')->default(0);
             $table->unsignedInteger('war_draws')->default(0);
-            $table->timestamp('founded_at');
-            $table->timestamp('loss_protected_until')->nullable();
+            $table->dateTime('founded_at');
+            $table->dateTime('loss_protected_until')->nullable();
             $table->timestamps();
         });
 
-        Schema::create('nation_memberships', function (Blueprint $table): void {
+        $this->createIfMissing('nation_memberships', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
             $table->foreignId('character_id')->unique()->constrained()->cascadeOnDelete();
             $table->string('role', 32)->default('citizen');
-            $table->timestamp('joined_at');
+            $table->dateTime('joined_at');
             $table->timestamps();
             $table->index(['nation_id', 'role']);
         });
 
-        Schema::create('nation_facilities', function (Blueprint $table): void {
+        $this->createIfMissing('nation_facilities', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
             $table->string('facility_type', 32);
@@ -43,7 +43,7 @@ return new class extends Migration
             $table->unique(['nation_id', 'facility_type']);
         });
 
-        Schema::create('nation_material_conversion_rates', function (Blueprint $table): void {
+        $this->createIfMissing('nation_material_conversion_rates', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('material_id')->unique()->constrained()->cascadeOnDelete();
             $table->unsignedInteger('points_per_unit');
@@ -51,16 +51,16 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('nation_wars', function (Blueprint $table): void {
+        $this->createIfMissing('nation_wars', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('declaring_nation_id')->constrained('nations')->cascadeOnDelete();
             $table->foreignId('defending_nation_id')->constrained('nations')->cascadeOnDelete();
             $table->string('status', 24)->default('reserved');
-            $table->timestamp('declared_at');
-            $table->timestamp('preparation_starts_at');
-            $table->timestamp('starts_at');
-            $table->timestamp('ends_at');
-            $table->timestamp('resolved_at')->nullable();
+            $table->dateTime('declared_at');
+            $table->dateTime('preparation_starts_at');
+            $table->dateTime('starts_at');
+            $table->dateTime('ends_at');
+            $table->dateTime('resolved_at')->nullable();
             $table->foreignId('winner_nation_id')->nullable()->constrained('nations')->nullOnDelete();
             $table->string('resolution_type', 24)->nullable();
             $table->json('resolution_snapshot')->nullable();
@@ -70,7 +70,7 @@ return new class extends Migration
             $table->index(['defending_nation_id', 'status']);
         });
 
-        Schema::create('nation_resource_transactions', function (Blueprint $table): void {
+        $this->createIfMissing('nation_resource_transactions', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
             $table->foreignId('character_id')->nullable()->constrained()->nullOnDelete();
@@ -86,7 +86,7 @@ return new class extends Migration
             $table->index(['nation_id', 'created_at']);
         });
 
-        Schema::create('nation_war_sides', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_sides', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
@@ -99,17 +99,17 @@ return new class extends Migration
             $table->unique(['nation_war_id', 'nation_id']);
         });
 
-        Schema::create('nation_war_participants', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_participants', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
             $table->foreignId('character_id')->constrained()->cascadeOnDelete();
-            $table->timestamp('frozen_at');
+            $table->dateTime('frozen_at');
             $table->timestamps();
             $table->unique(['nation_war_id', 'character_id']);
         });
 
-        Schema::create('nation_war_facilities', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_facilities', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
@@ -120,14 +120,14 @@ return new class extends Migration
             $table->unsignedBigInteger('current_hp');
             $table->unsignedBigInteger('min_hp');
             $table->string('status', 24)->default('active');
-            $table->timestamp('destroyed_at')->nullable();
-            $table->timestamp('rebuild_completes_at')->nullable();
+            $table->dateTime('destroyed_at')->nullable();
+            $table->dateTime('rebuild_completes_at')->nullable();
             $table->unsignedTinyInteger('rebuild_count')->default(0);
             $table->timestamps();
             $table->unique(['nation_war_id', 'nation_id', 'facility_type'], 'nation_war_facilities_unique');
         });
 
-        Schema::create('nation_war_daily_sorties', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_daily_sorties', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('character_id')->constrained()->cascadeOnDelete();
@@ -138,7 +138,7 @@ return new class extends Migration
             $table->unique(['nation_war_id', 'character_id', 'sortie_date'], 'nation_war_daily_sorties_unique');
         });
 
-        Schema::create('nation_war_sortie_logs', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_sortie_logs', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('attacking_nation_id')->constrained('nations')->cascadeOnDelete();
@@ -158,7 +158,7 @@ return new class extends Migration
             $table->index(['nation_war_id', 'created_at']);
         });
 
-        Schema::create('nation_war_auto_repair_settings', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_auto_repair_settings', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
@@ -170,7 +170,7 @@ return new class extends Migration
             $table->unique(['nation_war_id', 'nation_id', 'facility_type'], 'nation_war_auto_repair_unique');
         });
 
-        Schema::create('nation_war_auto_rebuild_settings', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_auto_rebuild_settings', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('nation_id')->constrained()->cascadeOnDelete();
@@ -180,7 +180,7 @@ return new class extends Migration
             $table->unique(['nation_war_id', 'nation_id', 'facility_type'], 'nation_war_auto_rebuild_unique');
         });
 
-        Schema::create('nation_war_histories', function (Blueprint $table): void {
+        $this->createIfMissing('nation_war_histories', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('nation_war_id')->unique()->constrained('nation_wars')->cascadeOnDelete();
             $table->foreignId('declaring_nation_id')->constrained('nations')->cascadeOnDelete();
@@ -188,7 +188,7 @@ return new class extends Migration
             $table->foreignId('winner_nation_id')->nullable()->constrained('nations')->nullOnDelete();
             $table->string('resolution_type', 24);
             $table->json('summary');
-            $table->timestamp('resolved_at');
+            $table->dateTime('resolved_at');
             $table->timestamps();
         });
 
@@ -218,6 +218,13 @@ return new class extends Migration
                 ['setting_key' => $setting['setting_key']],
                 [...$setting, 'created_at' => now(), 'updated_at' => now()],
             );
+        }
+    }
+
+    private function createIfMissing(string $table, \Closure $definition): void
+    {
+        if (! Schema::hasTable($table)) {
+            Schema::create($table, $definition);
         }
     }
 
