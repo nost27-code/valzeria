@@ -45,6 +45,31 @@ class ValmonEquipmentFeedProtectionTest extends TestCase
             ->assertSee('data-material-feed-rarity="R"', false);
     }
 
+    public function test_equipment_feed_candidates_expose_sort_controls_and_metadata(): void
+    {
+        [$user, $character] = $this->createCharacterAndValmon();
+        $enhancedItem = $this->createEquipment($character, '強化済み餌ソート試験剣');
+        $enhancedItem->enhance_level = 7;
+        $enhancedItem->save();
+        $this->createEquipment($character, '未強化餌ソート試験剣');
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('valmons.index'))
+            ->assertOk()
+            ->assertSee('id="equipment-feed-sort"', false)
+            ->assertSee('ランクが低い順')
+            ->assertSee('ランクが高い順')
+            ->assertSee('強化値が低い順')
+            ->assertSee('強化値が高い順')
+            ->assertSee('data-equipment-feed-card', false)
+            ->assertSee('data-feed-rank="G"', false)
+            ->assertSee('data-feed-enhance-level="7"', false)
+            ->assertSee('data-feed-name="強化済み餌ソート試験剣 +7"', false)
+            ->assertSee('valzeria.valmons.equipment-feed.sort', false)
+            ->assertSee('x-model="selectedEquipmentIds"', false);
+    }
+
     public function test_market_listed_equipment_is_not_shown_as_a_feed_candidate(): void
     {
         [$user, $character, $valmon] = $this->createCharacterAndValmon();

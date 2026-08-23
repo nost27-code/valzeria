@@ -50,6 +50,7 @@
     materialFeedCategory: 'all',
     materialFeedRarity: 'all',
     materialFeedSort: 'feed_exp_desc',
+    equipmentFeedSort: 'feed_exp_desc',
     selectedBackground: @js(old('profile_ranch_background', $selectedRanchBackground)),
     selectedEquipmentIds: [],
     maxBulkEquipmentFeed: 500,
@@ -91,9 +92,59 @@
         });
         cards.forEach((card) => grid.appendChild(card));
     },
+    sortEquipmentFeedCards() {
+        const grid = this.$refs.equipmentFeedGrid;
+        if (!grid) return;
+
+        const rankOrder = { G: 1, F: 2, E: 3, D: 4, C: 5, B: 6, A: 7, S: 8, SS: 9, SSS: 10, EPIC: 11 };
+        const compareText = (a, b) => String(a).localeCompare(String(b), 'ja');
+        const cards = Array.from(grid.querySelectorAll('[data-equipment-feed-card]'));
+        const defaultOrder = (left, right) => Number(left.dataset.feedDefaultOrder) - Number(right.dataset.feedDefaultOrder);
+
+        cards.sort((left, right) => {
+            if (this.equipmentFeedSort === 'rank_asc') {
+                return (rankOrder[left.dataset.feedRank] ?? 999) - (rankOrder[right.dataset.feedRank] ?? 999) || defaultOrder(left, right);
+            }
+            if (this.equipmentFeedSort === 'rank_desc') {
+                return (rankOrder[right.dataset.feedRank] ?? -1) - (rankOrder[left.dataset.feedRank] ?? -1) || defaultOrder(left, right);
+            }
+            if (this.equipmentFeedSort === 'enhance_asc') {
+                return Number(left.dataset.feedEnhanceLevel) - Number(right.dataset.feedEnhanceLevel) || defaultOrder(left, right);
+            }
+            if (this.equipmentFeedSort === 'enhance_desc') {
+                return Number(right.dataset.feedEnhanceLevel) - Number(left.dataset.feedEnhanceLevel) || defaultOrder(left, right);
+            }
+            if (this.equipmentFeedSort === 'name_asc') {
+                return compareText(left.dataset.feedName, right.dataset.feedName) || defaultOrder(left, right);
+            }
+
+            return Number(right.dataset.feedExp) - Number(left.dataset.feedExp) || defaultOrder(left, right);
+        });
+        cards.forEach((card) => grid.appendChild(card));
+
+        try {
+            window.localStorage.setItem('valzeria.valmons.equipment-feed.sort', this.equipmentFeedSort);
+        } catch (error) {
+            // 保存領域が利用できない場合も、現在の表示内では並び替えを継続する。
+        }
+    },
     init() {
-        this.$nextTick(() => this.sortMaterialFeedCards());
+        let savedEquipmentFeedSort = null;
+        try {
+            savedEquipmentFeedSort = window.localStorage.getItem('valzeria.valmons.equipment-feed.sort');
+        } catch (error) {
+            // 保存領域が利用できない環境では、獲得EXPが多い順で表示する。
+        }
+        if (['feed_exp_desc', 'rank_asc', 'rank_desc', 'enhance_asc', 'enhance_desc', 'name_asc'].includes(savedEquipmentFeedSort)) {
+            this.equipmentFeedSort = savedEquipmentFeedSort;
+        }
+
+        this.$nextTick(() => {
+            this.sortMaterialFeedCards();
+            this.sortEquipmentFeedCards();
+        });
         this.$watch('materialFeedSort', () => this.$nextTick(() => this.sortMaterialFeedCards()));
+        this.$watch('equipmentFeedSort', () => this.$nextTick(() => this.sortEquipmentFeedCards()));
     },
     openFeedConfirm(name, exp, formId, highRank = false) {
         if (this.feedSubmitting) return;
@@ -692,13 +743,41 @@
                             </div>
                         @endif
 
-                        <div class="grid gap-3 md:grid-cols-2">
+                        @if($equipment->count() > 1)
+                            <div class="rounded-xl border border-red-100 bg-red-50/70 p-3">
+                                <label for="equipment-feed-sort" class="block">
+                                    <span class="mb-1 block text-[11px] font-black text-red-800">並び替え</span>
+                                    <select
+                                        id="equipment-feed-sort"
+                                        x-model="equipmentFeedSort"
+                                        class="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100 sm:w-auto"
+                                    >
+                                        <option value="feed_exp_desc">獲得EXPが多い順</option>
+                                        <option value="rank_asc">ランクが低い順</option>
+                                        <option value="rank_desc">ランクが高い順</option>
+                                        <option value="enhance_asc">強化値が低い順</option>
+                                        <option value="enhance_desc">強化値が高い順</option>
+                                        <option value="name_asc">名前順</option>
+                                    </select>
+                                </label>
+                            </div>
+                        @endif
+
+                        <div x-ref="equipmentFeedGrid" class="grid gap-3 md:grid-cols-2">
                             @forelse($equipment as $row)
                                 @php
                                     $rowRank = $equipmentRankOf($row);
                                     $equipmentIcon = $row->item?->iconImagePath();
                                 @endphp
-                                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-feed-rank="{{ $rowRank }}">
+                                <div
+                                    class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                                    data-equipment-feed-card
+                                    data-feed-rank="{{ $rowRank }}"
+                                    data-feed-enhance-level="{{ (int) $row->enhance_level }}"
+                                    data-feed-exp="{{ (int) $row->feed_exp }}"
+                                    data-feed-name="{{ $row->displayName(false) }}"
+                                    data-feed-default-order="{{ $loop->index }}"
+                                >
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="flex min-w-0 items-start gap-3">
                                             <input type="checkbox"

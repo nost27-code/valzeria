@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-23-valmon-equipment-feed-sorting',
+        'date' => '2026-08-23',
+        'category' => 'changed',
+        'title' => '装備餌やりの並び替えを追加',
+        'detail' => 'ヴァルモンへ装備を与える画面で、獲得EXP・ランク・強化値・名前による並び替えができるようにしました。選択中の装備は並び替えても維持されます。',
+    ],
+    [
         'id' => '2026-08-23-material-exchange-processing-fix',
         'date' => '2026-08-23',
         'category' => 'fixed',
