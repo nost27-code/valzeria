@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-champ-battle-speed-initiative',
+        'date' => '2026-08-24',
+        'category' => 'balance',
+        'title' => 'チャンプ戦の先行判定へ敏捷を反映',
+        'detail' => 'チャンプ戦では各ラウンド開始時に双方の実効敏捷を比較し、高い側が先に行動するようにしました。同値は挑戦者が先行し、双方1回ずつの行動と戦技による次ラウンド先行・再抽選は維持します。',
+    ],
+    [
         'id' => '2026-08-24-six-hero-public-log-top-three',
         'date' => '2026-08-24',
         'category' => 'changed',

@@ -593,13 +593,6 @@ class ChampBattleService
             $log[] = "<span class=\"text-orange-700 font-bold\">【連勝疲労】{$champ->defense_count}連勝中の疲労で、チャンプの戦闘能力が {$champFatigue['percent']}% 低下している！</span>";
         }
 
-        $challengerFirst = (bool) random_int(0, 1);
-        if ($challengerFirst) {
-            $log[] = "<br><span class=\"text-blue-600 font-bold\">【先制】挑戦者が先手を取った！</span>";
-        } else {
-            $log[] = "<br><span class=\"text-rose-600 font-bold\">【先制】チャンプが先手を取った！</span>";
-        }
-
         $usesRoleInitiative = (bool) config('battle.job_art_v2.resources', false)
             && ($this->jobArtBattleSupport->usesRoleEffects($attacker)
                 || $this->jobArtBattleSupport->usesRoleEffects($defender));
@@ -607,7 +600,7 @@ class ChampBattleService
         for ($turn = 1; $turn <= self::MAX_TURNS; $turn++) {
             $jobArtState->turnCount = $turn;
             $log[] = "<br><br>--- ターン {$turn} ---";
-            $turnChallengerFirst = $challengerFirst;
+            $turnChallengerFirst = $this->challengerActsFirstBySpeed($attacker, $defender);
             if ($usesRoleInitiative) {
                 $turnChallengerFirst = $this->jobArtBattleSupport->adjustInitiative(
                     $attacker,
@@ -616,6 +609,9 @@ class ChampBattleService
                     static fn (): bool => (bool) random_int(0, 1),
                 );
             }
+            $firstActor = $turnChallengerFirst ? $attacker : $defender;
+            $orderClass = $turnChallengerFirst ? 'text-blue-600' : 'text-rose-600';
+            $log[] = "<span class=\"{$orderClass} font-bold\">【行動順】".e($firstActor->name).'が先に動く！</span>';
             $actors = $turnChallengerFirst
                 ? [[$attacker, $defender], [$defender, $attacker]]
                 : [[$defender, $attacker], [$attacker, $defender]];
@@ -718,6 +714,11 @@ class ChampBattleService
             'job_art_v2_hud' => $this->jobArtBattleSupport->battleHud($jobArtState),
             'job_art_usage' => $jobArtState->jobArtUsageFor($attacker),
         ];
+    }
+
+    private function challengerActsFirstBySpeed(BattleActor $challenger, BattleActor $champ): bool
+    {
+        return $challenger->effectiveAgi() >= $champ->effectiveAgi();
     }
 
     private function isChallengerVictory(bool $champIsDead, ?bool $lastActionWasByChallenger): bool
