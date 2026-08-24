@@ -5,6 +5,7 @@ Purpose: canonical game rules. Keep concise.
 - プレイヤー向けの能力表記は、HP / SP / 攻撃 / 防御 / 魔力 / 精神 / 敏捷 / 運に統一する。英字略称とDB・計算用の内部キーは表示しない。
 - 闘技場の公開切替: `SIX_HERO_UI_ENABLED=false`では従来闘技場の画面・Ranking・プレイヤー/NPC対戦・NPC自動順位戦を維持する。明示ON時はhome下部Navigationの同じ「闘技場」タブで六英雄戦を公開し、2026年8月中は通常闘技場との切替を許可する。2026-09-01 00:00（app timezone）以降は通常闘技場の画面・対戦Route・NPC自動順位戦を停止し、六英雄戦だけを表示する。既存ArenaのDB履歴と共通PvP計算は削除しない。
 - 六英雄戦: 封魔・封刃・灼命・神速・逆刻・奇跡の6Roomは完全に独立した月次Rankingとし、総合Rankingを作らない。公式戦は各Roomごとにapp timezone基準で1日5回、最新順位の直上3人だけへ挑戦でき、勝利時は相手順位を奪う。相性確認は同Season・同Room登録者なら順位不問・回数無制限で、順位・公式戦績・日次回数・BattleLogを変更しない。「現在の六英雄」見出しの「遊び方」は独立modalで開き、共通競技ルールと6Roomそれぞれの特殊な戦闘計算を説明する。
+- 六英雄戦の公開ログ: 公式戦で勝利して実際に順位が上がった場合、新順位1位は首位交代の「六極速報」だけ、新順位2位・3位は「六極殿」のランク上昇を全体チャットへ流す。4位以下、敗北、競合等で `rankChanged=false`、相性確認、expired/failedの公式戦は流さない。
 - 六英雄戦の月次確定: 2026年8月はプレシーズンとして公式戦・順位変動を行うが、英雄・空位のChampion snapshotは作らない。8月Seasonはpending解消後にsnapshot 0件で確定し、最終順位を9月へdense carryoverする。月間英雄の永久記録は2026年9月Seasonから開始し、Room登録者8人以上、Room内有効公式戦10戦以上、最終rank 1の3条件を満たす時だけ英雄、未達は空位としてSeason×Roomのimmutable Champion snapshotへ保存する。締切前に正式開始した公式戦は締切後完了でも旧Seasonへ反映し、pendingが残る間はfinalizeを待機せず保留する。翌月は直前暦月の確定順位をRoomごとにdense carryoverし、月間戦績をリセットする。
 
 ## Combat

@@ -35,7 +35,7 @@ final class SixHeroRankingPublicLogServiceTest extends TestCase
         ]);
     }
 
-    public function test_rank_up_to_thirtieth_publishes_a_ranking_notice(): void
+    public function test_rank_up_to_third_publishes_a_ranking_notice(): void
     {
         [$attacker, $defender] = $this->characters();
 
@@ -43,18 +43,18 @@ final class SixHeroRankingPublicLogServiceTest extends TestCase
             SixHeroRoomKey::SEAL_MAGIC,
             $attacker,
             $defender,
-            $this->rankChange(oldRank: 33, newRank: 30),
+            $this->rankChange(oldRank: 6, newRank: 3),
         );
 
         $this->assertDatabaseHas('public_logs', [
             'type' => 'arena',
             'character_id' => $attacker->id,
             'importance' => 2,
-            'message' => "【六極殿】封魔の間で、{$attacker->name}さんが{$defender->name}さんを破り、33位から30位へ駆け上がりました！",
+            'message' => "【六極殿】封魔の間で、{$attacker->name}さんが{$defender->name}さんを破り、6位から3位へ駆け上がりました！",
         ]);
     }
 
-    public function test_rank_below_top_thirty_loss_and_unchanged_rank_are_not_published(): void
+    public function test_fourth_place_or_lower_loss_and_unchanged_rank_are_not_published(): void
     {
         [$attacker, $defender] = $this->characters();
         $service = $this->service();
@@ -63,7 +63,7 @@ final class SixHeroRankingPublicLogServiceTest extends TestCase
             SixHeroRoomKey::MIRACLE,
             $attacker,
             $defender,
-            $this->rankChange(oldRank: 34, newRank: 31),
+            $this->rankChange(oldRank: 7, newRank: 4),
         );
         $service->publish(
             SixHeroRoomKey::MIRACLE,

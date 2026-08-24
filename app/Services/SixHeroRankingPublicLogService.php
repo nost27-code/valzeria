@@ -7,7 +7,7 @@ use App\Models\Character;
 
 final class SixHeroRankingPublicLogService
 {
-    private const PUBLIC_RANK_UP_LOG_MAX_RANK = 30;
+    private const PUBLIC_RANK_UP_LOG_MAX_RANK = 3;
 
     public function __construct(
         private readonly PublicLogService $publicLogService,
