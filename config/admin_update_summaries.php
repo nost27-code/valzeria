@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-six-hero-rules-guide-modal',
+        'date' => '2026-08-24',
+        'category' => 'changed',
+        'title' => '六英雄戦の特殊ルール案内を拡充',
+        'detail' => '「現在の六英雄」の遊び方から、共通の競技ルールと6つの間それぞれの特殊な戦闘計算を確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-24-adventurer-card-avatar-size',
         'date' => '2026-08-24',
         'category' => 'changed',

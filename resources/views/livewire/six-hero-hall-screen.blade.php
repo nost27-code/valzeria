@@ -1,4 +1,10 @@
-<div class="space-y-5 text-slate-800" data-six-hero-hall data-color-scheme="light">
+<div
+    class="space-y-5 text-slate-800"
+    x-data="{ sixHeroGuideOpen: false }"
+    x-on:keydown.escape.window="sixHeroGuideOpen = false"
+    data-six-hero-hall
+    data-color-scheme="light"
+>
     @if($battleNotice !== '')
         <div class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold leading-relaxed text-amber-800" role="status" data-battle-notice>
             {{ $battleNotice }}
@@ -13,7 +19,20 @@
                     <h2 class="mt-1 text-2xl font-black text-slate-900">現在の六英雄</h2>
                     <p class="mt-1 text-[11px] font-bold leading-relaxed text-slate-500">進行中の各間で現在1位の冒険者です。月末確定後の英雄記録とは分けて表示しています。</p>
                 </div>
-                <span class="self-start rounded-full border border-amber-300 bg-white px-3 py-1 text-[10px] font-black text-amber-800">現在首位</span>
+                <div class="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                    <span class="rounded-full border border-amber-300 bg-white px-3 py-1 text-[10px] font-black text-amber-800">現在首位</span>
+                    <button
+                        type="button"
+                        x-on:click="sixHeroGuideOpen = true"
+                        x-bind:aria-expanded="sixHeroGuideOpen.toString()"
+                        class="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-amber-400 bg-white px-3 py-1 text-[11px] font-black text-amber-800 shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                        aria-haspopup="dialog"
+                        data-six-hero-rules-button
+                    >
+                        <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white" aria-hidden="true">?</span>
+                        遊び方
+                    </button>
+                </div>
             </div>
 
             <div class="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:items-start" data-six-hero-top-layout>
@@ -228,22 +247,6 @@
             @endif
         </section>
     @else
-        <details class="rounded-xl border border-slate-300 bg-white shadow-xl" data-six-hero-rules>
-            <summary class="cursor-pointer px-4 py-4 text-sm font-black text-amber-800 sm:px-5">六英雄戦の遊び方</summary>
-            <div class="border-t border-slate-300 px-4 py-4 sm:px-5">
-                <ul class="grid gap-2 text-xs font-bold leading-relaxed text-slate-700 sm:grid-cols-2">
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">六つの間は、それぞれ独立したランキングです。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">複数の間へ同時に参加できます。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">公式戦で挑める相手は、自分の直上3人です。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">格上への公式戦に勝つと、相手の順位を奪います。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">公式戦は各間ごとに1日{{ $attemptLimit }}戦です。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">相性確認は回数無制限です。PvP用戦技セット・この間の特殊ルール・現在の相手ビルドで戦い、順位や公式戦績には影響しません。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">自分の戦技の発動順や資源循環は、街の冒険者訓練所で確認できます。</li>
-                    <li class="rounded-lg bg-slate-50 px-3 py-2">順位は翌月へ引き継がれ、月間公式戦績はリセットされます。</li>
-                </ul>
-            </div>
-        </details>
-
         <section class="rounded-xl border border-slate-300 bg-white shadow-xl">
             <div class="border-b border-slate-300 px-4 py-4 sm:px-5">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -466,6 +469,91 @@
                 @endif
             </div>
         </section>
+    @endif
+
+    @if(! $screenError && ($ready ?? false) && isset($rooms))
+        <div
+            x-cloak
+            x-show="sixHeroGuideOpen"
+            x-transition.opacity
+            x-on:click.self="sixHeroGuideOpen = false"
+            class="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/50 px-3 py-4 backdrop-blur-sm sm:py-6"
+            role="presentation"
+            data-six-hero-rules-modal
+        >
+            <section
+                class="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-amber-300 bg-white shadow-2xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="six-hero-rules-title"
+            >
+                <div class="flex shrink-0 items-start justify-between gap-4 border-b border-amber-200 bg-amber-50 px-4 py-4 sm:px-5">
+                    <div>
+                        <div class="text-[10px] font-black tracking-[0.18em] text-amber-700">六つの間を知る</div>
+                        <h2 id="six-hero-rules-title" class="mt-1 text-xl font-black text-slate-950">六英雄戦の遊び方</h2>
+                        <p class="mt-1 text-xs font-bold leading-relaxed text-slate-600">共通ルールと、各間で変わる戦闘計算を確認できます。</p>
+                    </div>
+                    <button
+                        type="button"
+                        x-on:click="sixHeroGuideOpen = false"
+                        class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-black text-slate-600 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                        aria-label="遊び方を閉じる"
+                        data-six-hero-rules-close
+                    >×</button>
+                </div>
+
+                <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
+                    <section aria-labelledby="six-hero-common-rules-title">
+                        <h3 id="six-hero-common-rules-title" class="text-base font-black text-slate-950">競技の基本</h3>
+                        <ul class="mt-3 grid gap-x-5 gap-y-2 text-xs font-bold leading-relaxed text-slate-700 sm:grid-cols-2">
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>六つの間は、それぞれ独立したランキングです。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>複数の間へ同時に参加できます。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>公式戦で挑める相手は、自分の直上3人です。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>格上への公式戦に勝つと、相手の順位を奪います。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>公式戦は各間ごとに1日{{ $attemptLimit }}戦です。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>相性確認は回数無制限です。PvP用戦技セット・この間の特殊ルール・現在の相手ビルドで戦い、順位や公式戦回数に影響しません。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>冒険者訓練所では、自由な条件でビルドを試せます。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>順位は翌月へ引き継がれ、公式戦績は月ごとにリセットされます。</span></li>
+                        </ul>
+                    </section>
+
+                    <section aria-labelledby="six-hero-special-rules-title">
+                        <div class="border-t border-slate-200 pt-5">
+                            <h3 id="six-hero-special-rules-title" class="text-base font-black text-slate-950">六つの間の特殊ルール</h3>
+                            <p class="mt-1 text-xs font-bold leading-relaxed text-slate-600">同じ攻撃や戦技でも、間によって有利になる能力や計算が変わります。</p>
+                        </div>
+
+                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                            @foreach($rooms as $room)
+                                <article
+                                    class="rounded-lg border p-3 {{ $room['accentClasses'] }}"
+                                    data-six-hero-rule-room="{{ $room['key'] }}"
+                                >
+                                    <h4 class="text-sm font-black text-slate-950">{{ $room['label'] }}</h4>
+                                    <p class="mt-1 text-xs font-black leading-relaxed text-slate-800">{{ $room['ruleGuide']['summary'] }}</p>
+                                    <ul class="mt-2 space-y-1.5 text-[11px] font-bold leading-relaxed text-slate-700">
+                                        @foreach($room['ruleGuide']['points'] as $point)
+                                            <li class="flex gap-1.5">
+                                                <span class="shrink-0 text-amber-700" aria-hidden="true">・</span>
+                                                <span>{{ $point }}</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </article>
+                            @endforeach
+                        </div>
+                    </section>
+                </div>
+
+                <div class="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-5">
+                    <button
+                        type="button"
+                        x-on:click="sixHeroGuideOpen = false"
+                        class="w-full rounded-lg bg-amber-400 px-4 py-3 text-sm font-black text-slate-950 shadow-sm transition hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                    >閉じる</button>
+                </div>
+            </section>
+        </div>
     @endif
 
     @if($battleConfirmation !== [])

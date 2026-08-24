@@ -350,6 +350,10 @@ final class SixHeroHallScreenTest extends TestCase
         $this->assertStringContainsString('在位 19日目', $html);
         $this->assertStringContainsString('data-six-hero-top-layout', $html);
         $this->assertStringContainsString('lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)]', $html);
+        $this->assertStringContainsString('data-six-hero-rules-button', $html);
+        $this->assertStringContainsString('data-six-hero-rules-modal', $html);
+        $this->assertStringContainsString('x-show="sixHeroGuideOpen"', $html);
+        $this->assertSame(6, substr_count($html, 'data-six-hero-rule-room='));
         $this->assertSame(6, substr_count($html, 'data-current-six-hero-room='));
         $this->assertSame(6, substr_count($html, 'data-current-six-hero-character-id='));
         $this->assertSame(6, substr_count($html, 'data-current-six-hero-room-label'));
@@ -372,6 +376,13 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertSee('各間ごとに1日5戦です')
             ->assertSee('相性確認は回数無制限')
             ->assertSee('冒険者訓練所')
+            ->assertSee('魔力が0扱い')
+            ->assertSee('攻撃が0扱い')
+            ->assertSee('開始時は、攻撃50%')
+            ->assertSee('最大+60%')
+            ->assertSee('敏捷が低い側が先手')
+            ->assertSee('運の1.25倍')
+            ->assertSee('運を二重には使いません')
             ->assertDontSee('登録者8人以上・有効公式戦10戦以上')
             ->assertDontSee('Room内有効公式戦')
             ->assertSee('順位は翌月へ引き継がれ')

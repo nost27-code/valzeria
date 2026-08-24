@@ -177,6 +177,7 @@ final class SixHeroHallScreenService
             'key' => $room->value,
             'label' => $room->label(),
             'description' => SixHeroRoomUiCatalog::description($room),
+            'ruleGuide' => SixHeroRoomUiCatalog::ruleGuide($room),
             'accentClasses' => SixHeroRoomUiCatalog::accentClasses($room),
             'chamberPosition' => SixHeroRoomUiCatalog::chamberPosition($room),
             'leader' => $leader,

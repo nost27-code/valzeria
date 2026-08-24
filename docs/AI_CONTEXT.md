@@ -18,6 +18,7 @@ Branch: main
 - 戦闘計算は副作用なしの`PvPBattleService::resolveBattle()`へ統一し、通常闘技場は`NullPvPRoomRule`、六英雄戦だけfreshな6種RoomRuleを注入する。通常闘技場の順位・ログ副作用は既存facadeに残す
 - 永続化は`SixHeroSeason`、Room別`SixHeroRanking`、Room別日次使用回数、公式BattleLog、確定済み`SixHeroChampion` snapshot。管理画面とCLIは同じ`SixHeroOperationsService`を読み取り正本とし、安全な既存処理の再試行だけを許可する
 - 冒険者カードでは装飾付きカード本体をコメント欄で閉じ、その下・お気に入り武器の直前に独立した「六英雄戦績」枠を置く。現在月のRoom別順位・挑戦勝敗・防衛勝敗と、確定済みの英雄回数・制覇Room・冠・連覇を同じ枠で確認できる
+- 六極殿の「現在の六英雄」見出し右側に「遊び方」を置き、独立modalで競技の共通ルールと6Roomそれぞれの特殊な戦闘計算を表示する
 
 ## Job-art / exploration live metrics
 
