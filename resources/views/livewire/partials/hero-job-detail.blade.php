@@ -134,8 +134,9 @@
 
                 <div class="rounded-2xl border border-amber-300 bg-white/95 p-5 shadow-md sm:p-6">
                     <h3 class="flex items-center gap-2 border-b border-amber-200 pb-3 text-lg font-black text-blue-950">
-                        <span class="text-amber-500">⚔</span> 適正武器
+                        <span class="text-amber-500">⚔</span> 装備適性
                     </h3>
+                    <div class="mt-4 text-xs font-black tracking-wide text-blue-700">適正武器</div>
                     <div class="mt-4 flex flex-wrap gap-2">
                         @forelse($detailJobCombatGuide['weapon_labels'] ?? [] as $weaponLabel)
                             <span class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-900">{{ $weaponLabel }}</span>
@@ -143,8 +144,16 @@
                             <span class="text-sm font-bold text-slate-400">未設定</span>
                         @endforelse
                     </div>
+                    <div class="mt-5 text-xs font-black tracking-wide text-blue-700">適正防具</div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        @forelse($detailJobCombatGuide['armor_labels'] ?? [] as $armorLabel)
+                            <span class="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm font-black text-blue-900">{{ $armorLabel }}</span>
+                        @empty
+                            <span class="text-sm font-bold text-slate-400">未設定</span>
+                        @endforelse
+                    </div>
                     <p class="mt-4 text-xs font-bold leading-6 text-slate-500">
-                        {{ ($detailJobCombatGuide['non_proficient_enabled'] ?? false) ? '適正武器は装備効果100%。適性外は武器種ごとに効果が下がります。' : '現在は適正武器のみ装備できます。' }}
+                        {{ ($detailJobCombatGuide['non_proficient_enabled'] ?? false) ? '適正武器・適正防具は装備効果100%。適性外は装備効果が下がります。' : '現在は適正のある武器・防具のみ装備できます。' }}
                     </p>
                 </div>
             </section>

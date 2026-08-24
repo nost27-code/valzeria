@@ -579,7 +579,7 @@
 
                     @if(!empty($detailJobCombatGuide))
                         <section>
-                            <h4 class="text-sm font-extrabold text-slate-900">戦い方と適正武器</h4>
+                            <h4 class="text-sm font-extrabold text-slate-900">戦い方と装備適性</h4>
                             <div class="mt-2 grid gap-2">
                                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                                     <div class="text-[10px] font-extrabold tracking-wide text-slate-500">通常攻撃</div>
@@ -598,11 +598,21 @@
                                     <span class="text-xs font-bold text-slate-400">未設定</span>
                                 @endforelse
                             </div>
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span class="text-xs font-extrabold text-slate-700">適正防具：</span>
+                                @forelse($detailJobCombatGuide['armor_labels'] as $armorLabel)
+                                    <span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700">
+                                        {{ $armorLabel }}
+                                    </span>
+                                @empty
+                                    <span class="text-xs font-bold text-slate-400">未設定</span>
+                                @endforelse
+                            </div>
                             <p class="mt-2 text-[11px] font-bold leading-relaxed text-slate-500">
                                 @if($detailJobCombatGuide['non_proficient_enabled'])
-                                    適正武器は装備効果100%。適性外は武器種ごとに効果が下がります。
+                                    適正武器・適正防具は装備効果100%。適性外は装備効果が下がります。
                                 @else
-                                    現在は適正武器のみ装備できます。
+                                    現在は適正のある武器・防具のみ装備できます。
                                 @endif
                                 奥義は表示された能力を参照します。
                             </p>

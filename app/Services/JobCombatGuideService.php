@@ -18,6 +18,7 @@ class JobCombatGuideService
      *     job_name: string,
      *     normal_attack_reference: string,
      *     weapon_labels: list<string>,
+     *     armor_labels: list<string>,
      *     non_proficient_enabled: bool
      * }
      */
@@ -27,6 +28,7 @@ class JobCombatGuideService
             'job_name' => (string) $job->name,
             'normal_attack_reference' => $this->normalAttackReference((string) $job->normal_attack_type),
             'weapon_labels' => $this->equipmentPermissionService->nativeWeaponCategoryLabels((int) $job->id),
+            'armor_labels' => $this->equipmentPermissionService->nativeArmorCategoryLabels((int) $job->id),
             'non_proficient_enabled' => $this->equipmentPermissionService->isNonProficientPenaltyEnabled(),
         ];
     }
@@ -36,6 +38,7 @@ class JobCombatGuideService
      *     job_name: string,
      *     normal_attack_reference: string,
      *     weapon_labels: list<string>,
+     *     armor_labels: list<string>,
      *     non_proficient_enabled: bool,
      *     job_art_damage_references: array<int, string>
      * }

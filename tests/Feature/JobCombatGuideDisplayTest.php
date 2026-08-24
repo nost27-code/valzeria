@@ -170,6 +170,15 @@ class JobCombatGuideDisplayTest extends TestCase
         config(['equipment_proficiency.non_proficient.enabled' => true]);
         config(['battle.job_art_v2.loadout_v2' => true]);
         [$user, $character, $merchant] = $this->merchantPlayer();
+        DB::table('job_armor_permissions')->insertOrIgnore(array_map(
+            fn (string $category): array => [
+                'job_id' => $merchant->id,
+                'armor_category' => $category,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            ['robe', 'clothes'],
+        ));
 
         Skill::query()->updateOrCreate([
             'job_id' => $merchant->id,
@@ -196,8 +205,13 @@ class JobCombatGuideDisplayTest extends TestCase
             ->test(JobChange::class)
             ->call('showJobDetail', $merchant->id)
             ->assertSet('showingJobDetail', true)
-            ->assertSee('戦い方と適正武器')
+            ->assertSee('戦い方と装備適性')
             ->assertSee('通常攻撃')
+            ->assertSee('適正防具：')
+            ->assertSee('服・旅装')
+            ->assertSee('ローブ・法衣')
+            ->assertSet('detailJobCombatGuide.armor_labels.0', '服・旅装')
+            ->assertSet('detailJobCombatGuide.armor_labels.1', 'ローブ・法衣')
             ->assertDontSee('廃止確認用の固有必殺技')
             ->assertSee('金貨投げ')
             ->assertSee('Cost 1')
@@ -274,6 +288,17 @@ class JobCombatGuideDisplayTest extends TestCase
             ->assertSee('英雄職の間')
             ->assertSee('暁の勇者')
             ->assertSee('成長する能力')
+            ->assertSee('装備適性')
+            ->assertSee('適正防具')
+            ->assertSee('服・旅装')
+            ->assertSee('鎧・重鎧')
+            ->assertSet('detailJobCombatGuide.armor_labels', [
+                '服・旅装',
+                'ローブ・法衣',
+                '外套・マント',
+                '革鎧・軽鎧',
+                '鎧・重鎧',
+            ])
             ->assertSee('覚える奥義')
             ->assertSee('マスター恩恵')
             ->assertSee('images/jobbadge/jobbadge_070.webp', false)

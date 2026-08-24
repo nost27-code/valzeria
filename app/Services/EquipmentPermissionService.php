@@ -11,6 +11,7 @@ class EquipmentPermissionService
     private array $canEquipCache = [];
     private array $representativeJobNamesCache = [];
     private array $nativeWeaponCategoryLabelsCache = [];
+    private array $nativeArmorCategoryLabelsCache = [];
     private array $nativeCategoryKeysCache = [];
 
     private const WEAPON_LABELS = [
@@ -266,6 +267,37 @@ class EquipmentPermissionService
 
         return $this->nativeWeaponCategoryLabelsCache[$jobId] = array_map(
             fn (string $category): string => self::WEAPON_LABELS[$category] ?? $category,
+            $orderedCategories,
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function nativeArmorCategoryLabels(?int $jobId): array
+    {
+        if (!$jobId) {
+            return [];
+        }
+
+        if (array_key_exists($jobId, $this->nativeArmorCategoryLabelsCache)) {
+            return $this->nativeArmorCategoryLabelsCache[$jobId];
+        }
+
+        $categories = $this->nativeCategoryKeys($jobId, 'armor');
+
+        $categorySet = array_fill_keys($categories, true);
+        $orderedCategories = array_values(array_filter(
+            array_keys(self::ARMOR_LABELS),
+            fn (string $category): bool => isset($categorySet[$category]),
+        ));
+        $orderedCategories = array_merge(
+            $orderedCategories,
+            array_values(array_diff($categories, $orderedCategories)),
+        );
+
+        return $this->nativeArmorCategoryLabelsCache[$jobId] = array_map(
+            fn (string $category): string => self::ARMOR_LABELS[$category] ?? $category,
             $orderedCategories,
         );
     }

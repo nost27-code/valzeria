@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-job-armor-proficiency-display',
+        'date' => '2026-08-24',
+        'category' => 'changed',
+        'title' => '転職前に適正防具を確認できるよう改善',
+        'detail' => '神殿の通常職詳細と英雄職の間に、職業ごとの適正防具を表示するようにしました。適正武器とあわせて、転職前に装備の相性を確認できます。',
+    ],
+    [
         'id' => '2026-08-24-competitive-speed-extra-action',
         'date' => '2026-08-24',
         'category' => 'balance',
