@@ -1,6 +1,10 @@
 <?php
 
 return [
+    // 2026-08 is a playable preseason. Rankings carry into September, but
+    // permanent hero / vacancy snapshots begin with the September Season.
+    'champion_recording_starts_from_season' => '2026-09',
+
     'operations' => [
         'expected_database_product' => strtolower((string) env(
             'SIX_HERO_EXPECTED_DATABASE_PRODUCT',

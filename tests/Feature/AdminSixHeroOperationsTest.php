@@ -33,6 +33,7 @@ final class AdminSixHeroOperationsTest extends TestCase
             'six_heroes.operations.stale_battle_minutes' => 30,
             'six_heroes.operations.failed_battle_window_hours' => 24,
             'six_heroes.operations.battle_list_limit' => 20,
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
         ]);
         Carbon::setTestNow(Carbon::parse('2026-09-15 12:00:00', 'Asia/Tokyo'));
     }

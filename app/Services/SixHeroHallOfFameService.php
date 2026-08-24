@@ -6,6 +6,7 @@ use App\Enums\SixHeroRoomKey;
 use App\Models\Character;
 use App\Models\SixHeroChampion;
 use App\Models\SixHeroSeason;
+use App\Support\SixHeroCompetitionRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -21,6 +22,11 @@ final class SixHeroHallOfFameService
     {
         $finalizedSeason = SixHeroSeason::query()->findOrFail($season->getKey());
         if ($finalizedSeason->finalized_at === null) {
+            return collect();
+        }
+        if (! SixHeroCompetitionRules::recordsChampionHistory(
+            (string) $finalizedSeason->season_key,
+        )) {
             return collect();
         }
 

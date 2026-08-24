@@ -48,7 +48,7 @@ final class SixHeroSeasonFinalizationService
                     alreadyFinalized: true,
                     pendingBattles: false,
                     pendingBattleCount: 0,
-                    champions: $this->finalizedChampions($lockedSeason),
+                    champions: $this->finalizedResults($lockedSeason),
                 );
             }
 
@@ -78,8 +78,12 @@ final class SixHeroSeasonFinalizationService
             }
 
             $champions = collect();
-            foreach (SixHeroRoomKey::cases() as $room) {
-                $champions->push($this->createRoomSnapshot($lockedSeason, $room));
+            if (SixHeroCompetitionRules::recordsChampionHistory(
+                (string) $lockedSeason->season_key,
+            )) {
+                foreach (SixHeroRoomKey::cases() as $room) {
+                    $champions->push($this->createRoomSnapshot($lockedSeason, $room));
+                }
             }
 
             $lockedSeason->forceFill(['finalized_at' => $current])->save();
@@ -220,8 +224,20 @@ final class SixHeroSeasonFinalizationService
     /**
      * @return Collection<int, SixHeroChampion>
      */
-    private function finalizedChampions(SixHeroSeason $season): Collection
+    private function finalizedResults(SixHeroSeason $season): Collection
     {
+        if (! SixHeroCompetitionRules::recordsChampionHistory(
+            (string) $season->season_key,
+        )) {
+            if (SixHeroChampion::query()->where('season_id', $season->id)->exists()) {
+                throw new LogicException(
+                    "Preseason {$season->season_key} must not have Champion snapshots.",
+                );
+            }
+
+            return collect();
+        }
+
         $byRoom = SixHeroChampion::query()
             ->where('season_id', $season->id)
             ->get()

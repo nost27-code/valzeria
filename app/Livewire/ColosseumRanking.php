@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\ArenaNpcRanking;
 use App\Models\Character;
 use App\Services\ArenaNpcRankingService;
+use App\Support\SixHeroCompetitionRules;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -20,11 +21,16 @@ class ColosseumRanking extends Component
 
     public function mount(): void
     {
-        session(['current_location' => 'colosseum']);
+        abort_if(
+            (bool) config('features.six_hero_ui_enabled', false)
+                && ! SixHeroCompetitionRules::legacyArenaAvailable(),
+            404,
+        );
 
-        if ((bool) config('features.six_hero_ui_enabled', false)) {
-            $this->redirectRoute('home', navigate: true);
-        }
+        session([
+            'current_location' => 'colosseum',
+            'colosseum_mode' => ArenaHub::MODE_LEGACY,
+        ]);
     }
 
     public function openPlayerModal(int $characterId): void

@@ -28,7 +28,10 @@ final class SixHeroSeasonFinalizationServiceTest extends TestCase
     {
         parent::setUp();
 
-        config(['app.timezone' => 'Asia/Tokyo']);
+        config([
+            'app.timezone' => 'Asia/Tokyo',
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
+        ]);
         Carbon::setTestNow(Carbon::parse('2026-09-01 00:10:00', 'Asia/Tokyo'));
     }
 
@@ -164,6 +167,24 @@ final class SixHeroSeasonFinalizationServiceTest extends TestCase
         $this->assertSame(0, $emptyRoom->registered_count);
         $this->assertSame(0, $emptyRoom->official_battle_count);
         $this->assertVacantStats($emptyRoom);
+    }
+
+    public function test_august_preseason_finalizes_without_permanent_champion_or_vacancy_snapshots(): void
+    {
+        config(['six_heroes.champion_recording_starts_from_season' => '2026-09']);
+        $season = $this->season();
+
+        $first = $this->service()->finalizeSeason($season);
+        $second = $this->service()->finalizeSeason($season->fresh());
+
+        $this->assertTrue($first->finalized);
+        $this->assertFalse($first->alreadyFinalized);
+        $this->assertCount(0, $first->champions);
+        $this->assertTrue($second->finalized);
+        $this->assertTrue($second->alreadyFinalized);
+        $this->assertCount(0, $second->champions);
+        $this->assertNotNull($season->fresh()->finalized_at);
+        $this->assertDatabaseCount('six_hero_champions', 0);
     }
 
     public function test_finalization_is_fully_idempotent_and_preserves_the_first_snapshot_and_timestamp(): void

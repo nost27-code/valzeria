@@ -13,6 +13,7 @@ use App\Services\CharacterIconSetService;
 use App\Services\PvPBattleService;
 use App\Services\StorageCapacityService;
 use App\Services\CooldownSettingService;
+use App\Support\SixHeroCompetitionRules;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
@@ -28,7 +29,11 @@ class ColosseumScreen extends Component
 
     public function mount()
     {
-        abort_if((bool) config('features.six_hero_ui_enabled', false), 404);
+        abort_if(
+            (bool) config('features.six_hero_ui_enabled', false)
+                && ! SixHeroCompetitionRules::legacyArenaAvailable(),
+            404,
+        );
 
         $this->character = Auth::user()->characters()->first();
         if (!$this->character) {

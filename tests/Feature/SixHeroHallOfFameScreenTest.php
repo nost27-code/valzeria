@@ -27,6 +27,7 @@ final class SixHeroHallOfFameScreenTest extends TestCase
         config([
             'app.timezone' => 'Asia/Tokyo',
             'features.six_hero_ui_enabled' => true,
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
         ]);
         Carbon::setTestNow(Carbon::parse('2026-08-19 12:00:00', 'Asia/Tokyo'));
     }
@@ -147,6 +148,26 @@ final class SixHeroHallOfFameScreenTest extends TestCase
             ->assertSee('2026年7月期')
             ->assertSee('前月の記録はありません。')
             ->assertDontSee('六月の代替禁止英雄');
+    }
+
+    public function test_finalized_august_preseason_is_shown_as_unrecorded_without_substituting_older_history(): void
+    {
+        config(['six_heroes.champion_recording_starts_from_season' => '2026-09']);
+        Carbon::setTestNow(Carbon::parse('2026-09-15 12:00:00', 'Asia/Tokyo'));
+        $this->season('2026-09', finalized: false, initialized: true);
+        $this->season('2026-08', finalized: true);
+        $older = $this->season('2026-07');
+        $olderHero = $this->character('七月の代替禁止英雄');
+        $this->champions($older, [
+            SixHeroRoomKey::DIVINE_SPEED->value => $olderHero,
+        ]);
+
+        $this->hallComponent($this->character('九月閲覧者'))
+            ->assertSee('2026年8月期')
+            ->assertSee('記録対象外')
+            ->assertSee('8月はプレシーズン')
+            ->assertSee('月間英雄の記録は9月より開始')
+            ->assertDontSee('七月の代替禁止英雄');
     }
 
     public function test_room_history_and_character_achievements_show_vacancies_crowns_and_streaks_from_finalized_snapshots(): void

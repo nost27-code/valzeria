@@ -321,6 +321,10 @@ final class SixHeroHallScreenService
         if ($previousSeason !== null) {
             if ($previousSeason->finalized_at === null) {
                 $previousStatus = 'pending';
+            } elseif (! SixHeroCompetitionRules::recordsChampionHistory(
+                (string) $previousSeason->season_key,
+            )) {
+                $previousStatus = 'unrecorded';
             } else {
                 $previousStatus = 'finalized';
                 $previousResults = $this->hallOfFameService

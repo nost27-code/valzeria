@@ -457,7 +457,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/colosseum/ranking', \App\Livewire\ColosseumRanking::class)->name('colosseum.ranking');
         Route::get('/six-heroes', function () {
             abort_unless((bool) config('features.six_hero_ui_enabled', false), 404);
-            session(['current_location' => 'colosseum']);
+            session([
+                'current_location' => 'colosseum',
+                'colosseum_mode' => \App\Livewire\ArenaHub::MODE_SIX_HEROES,
+            ]);
             $room = \App\Enums\SixHeroRoomKey::tryFrom((string) request()->query('room', ''));
 
             return redirect()->route('home', $room ? ['room' => $room->value] : []);

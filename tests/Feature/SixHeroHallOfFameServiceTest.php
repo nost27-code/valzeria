@@ -24,7 +24,10 @@ final class SixHeroHallOfFameServiceTest extends TestCase
     {
         parent::setUp();
 
-        config(['app.timezone' => 'Asia/Tokyo']);
+        config([
+            'app.timezone' => 'Asia/Tokyo',
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
+        ]);
     }
 
     public function test_season_results_are_six_fixed_order_snapshots_and_only_finalized_seasons_are_visible(): void

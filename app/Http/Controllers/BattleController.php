@@ -967,7 +967,7 @@ class BattleController extends Controller
      */
     public function randomPvp(Request $request, \App\Services\PvPBattleService $pvpService, ArenaNpcBattleService $npcBattleService)
     {
-        $this->abortIfLegacyArenaDisabled();
+        $this->rememberLegacyArena();
 
         $attacker = Auth::user()->currentCharacter();
         if (!$attacker) {
@@ -1046,7 +1046,7 @@ class BattleController extends Controller
         $result = $pvpService->executeBattle($attacker, $defender);
 
         // 戻ったときに闘技場タブを維持する
-        session(['current_location' => 'colosseum']);
+        $this->rememberLegacyArena();
 
         // バトル結果と必要な情報を View に渡すためセッションに保存
         $battleData = [
@@ -1113,7 +1113,7 @@ class BattleController extends Controller
      */
     public function pvp(Request $request, int $targetCharacterId, \App\Services\PvPBattleService $pvpService)
     {
-        $this->abortIfLegacyArenaDisabled();
+        $this->rememberLegacyArena();
 
         $attacker = Auth::user()->currentCharacter();
         if (!$attacker) {
@@ -1564,7 +1564,7 @@ class BattleController extends Controller
      */
     public function showPvpResult(Request $request)
     {
-        $this->abortIfLegacyArenaDisabled();
+        $this->rememberLegacyArena();
 
         $battleData = session('battleData');
 
@@ -1586,8 +1586,17 @@ class BattleController extends Controller
         return view('battle.pvp_result', $battleData);
     }
 
-    private function abortIfLegacyArenaDisabled(): void
+    private function rememberLegacyArena(): void
     {
-        abort_if((bool) config('features.six_hero_ui_enabled', false), 404);
+        abort_if(
+            (bool) config('features.six_hero_ui_enabled', false)
+                && ! \App\Support\SixHeroCompetitionRules::legacyArenaAvailable(),
+            404,
+        );
+
+        session([
+            'current_location' => 'colosseum',
+            'colosseum_mode' => \App\Livewire\ArenaHub::MODE_LEGACY,
+        ]);
     }
 }

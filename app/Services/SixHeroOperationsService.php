@@ -588,8 +588,14 @@ final class SixHeroOperationsService
             ->selectRaw('COUNT(DISTINCT champions.room_key) as room_count')
             ->get();
         $invalid = $finalized->filter(
-            static fn (object $row): bool => (int) $row->champion_count !== $expected
-                || (int) $row->room_count !== $expected,
+            static function (object $row) use ($expected): bool {
+                $expectedForSeason = SixHeroCompetitionRules::recordsChampionHistory(
+                    (string) $row->season_key,
+                ) ? $expected : 0;
+
+                return (int) $row->champion_count !== $expectedForSeason
+                    || (int) $row->room_count !== $expectedForSeason;
+            },
         );
         $unknownRoomRows = SixHeroChampion::query()
             ->whereNotIn('room_key', $this->roomValues())
@@ -605,7 +611,7 @@ final class SixHeroOperationsService
             return $this->fail(
                 'champions',
                 '確定Champion',
-                '確定Seasonの6件snapshotまたは確定境界に不整合があります。',
+                '記録対象Seasonの6件snapshot、プレシーズンの0件snapshot、または確定境界に不整合があります。',
                 [
                     'finalized_season_count' => $finalized->count(),
                     'invalid_season_count' => $invalid->count(),
@@ -621,7 +627,7 @@ final class SixHeroOperationsService
             '確定Champion',
             $finalized->isEmpty()
                 ? '確定済みSeasonはまだありません。'
-                : "確定済み{$finalized->count()}Seasonすべてに6件あります。",
+                : "確定済み{$finalized->count()}SeasonのChampion snapshot件数は記録対象境界と一致しています。",
             [
                 'finalized_season_count' => $finalized->count(),
                 'invalid_season_count' => 0,

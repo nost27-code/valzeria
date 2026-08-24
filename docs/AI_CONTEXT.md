@@ -10,10 +10,11 @@ Branch: main
 - home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`の紋章を使う。`NATION_SCREEN_ENABLED=true`では未所属/所属の読取専用`NationScreen`を表示し、検索・建国・加入・納品・施設強化・宣戦など全操作を「準備中」モーダルで停止する。falseへ戻すと従来の専用「準備中」パネルを表示する
 - 国家戦は専用tablesと`app/Services/Nation/`へ分離し、宣戦・予約・3日準備・5日戦争・敗戦保護、参加者snapshot、永続施設耐久、城壁lock、通常戦技を再利用する30T出撃、探索力/回数、魔導砲、修復/再建、判定/KO、戦史/資材返還を扱う。`NATION_WAR_ENABLED=false`では毎分lifecycleもno-opとし、`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持する。`nation_war.reference_damage=0`（未校正）でも宣戦を拒否する。素材の入手可否は変更せず、`WEV0030`の敵dropも非活性を維持する
 
-## Six Heroes / 六極殿（本番コード配備・公開OFF）
+## Six Heroes / 六極殿（本番公開）
 
 - 六英雄戦は6つの独立Room、Room別月次Ranking、各Room1日5回の公式戦、相性確認、月次英雄・空位確定、翌月順位引継ぎ、殿堂・冠・連覇、管理診断まで実装済み
-- `SIX_HERO_UI_ENABLED`のコード既定値と本番設定はOFF。OFFではhomeの「闘技場」タブ、旧対戦Route、旧Ranking、NPC自動順位戦を従来どおり使う。明示ON時だけ同じタブを六極殿へ切り替え、旧プレイヤー対戦RouteとNPC自動順位戦を停止する
+- `SIX_HERO_UI_ENABLED`のコード既定値はOFF、本番設定はON。2026年8月中はhomeの「闘技場」タブ内で六英雄戦と通常闘技場を切り替えられ、旧対戦Route・Ranking・NPC自動順位戦も維持する。2026-09-01 00:00以降はON時の通常闘技場導線・対戦Route・NPC自動順位戦を停止し、六英雄戦だけを表示する。緊急時にflagをOFFへ戻すと従来闘技場へ復帰する
+- 2026年8月は公式戦・順位変動を行うプレシーズンだが、英雄・空位の永久snapshotは作らない。8月最終順位は9月へ引き継ぎ、英雄・空位・殿堂・冠・連覇の記録は2026年9月Seasonから開始する
 - 戦闘計算は副作用なしの`PvPBattleService::resolveBattle()`へ統一し、通常闘技場は`NullPvPRoomRule`、六英雄戦だけfreshな6種RoomRuleを注入する。通常闘技場の順位・ログ副作用は既存facadeに残す
 - 永続化は`SixHeroSeason`、Room別`SixHeroRanking`、Room別日次使用回数、公式BattleLog、確定済み`SixHeroChampion` snapshot。管理画面とCLIは同じ`SixHeroOperationsService`を読み取り正本とし、安全な既存処理の再試行だけを許可する
 

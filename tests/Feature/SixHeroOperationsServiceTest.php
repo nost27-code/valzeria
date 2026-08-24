@@ -33,6 +33,7 @@ final class SixHeroOperationsServiceTest extends TestCase
             'six_heroes.operations.stale_battle_minutes' => 30,
             'six_heroes.operations.failed_battle_window_hours' => 24,
             'six_heroes.operations.battle_list_limit' => 20,
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
         ]);
         Carbon::setTestNow(Carbon::parse('2026-09-15 12:00:00', 'Asia/Tokyo'));
     }
@@ -159,6 +160,26 @@ final class SixHeroOperationsServiceTest extends TestCase
 
         $this->assertSame(
             SixHeroHealthCheckItem::STATUS_PASS,
+            $operations->healthReport()->item('champions')->status,
+        );
+    }
+
+    public function test_finalized_august_preseason_requires_zero_champion_rows(): void
+    {
+        config(['six_heroes.champion_recording_starts_from_season' => '2026-09']);
+        $this->season('2026-09', initialized: true);
+        $preseason = $this->season('2026-08', finalized: true);
+        $operations = app(SixHeroOperationsService::class);
+
+        $this->assertSame(
+            SixHeroHealthCheckItem::STATUS_PASS,
+            $operations->healthReport()->item('champions')->status,
+        );
+
+        $this->vacancy($preseason, SixHeroRoomKey::DIVINE_SPEED);
+
+        $this->assertSame(
+            SixHeroHealthCheckItem::STATUS_FAIL,
             $operations->healthReport()->item('champions')->status,
         );
     }

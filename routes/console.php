@@ -21,7 +21,9 @@ Schedule::command('shops:expire-eggs')->everyFiveMinutes()->withoutOverlapping()
 Schedule::command('market:generate-npc-listings --limit=6')->everySixHours()->withoutOverlapping();
 Schedule::command('npc-requests:expire')->hourly();
 Schedule::command('npc-requests:generate')->dailyAt('05:00');
-if (! (bool) config('features.six_hero_ui_enabled', false)) {
+if (! (bool) config('features.six_hero_ui_enabled', false)
+    || \App\Support\SixHeroCompetitionRules::legacyArenaAvailable()
+) {
     Schedule::command('arena:npc-auto-battles --battles=2')->dailyAt('07:20')->withoutOverlapping();
     Schedule::command('arena:npc-auto-battles --battles=1')->dailyAt('15:20')->withoutOverlapping();
     Schedule::command('arena:npc-auto-battles --battles=2')->dailyAt('22:20')->withoutOverlapping();

@@ -22,7 +22,7 @@
                         <img
                             src="{{ \App\Support\SixHeroRoomUiCatalog::chambersImageUrl() }}"
                             alt=""
-                            class="absolute left-1/2 top-0 h-full w-[116%] max-w-none -translate-x-1/2 object-fill"
+                            class="absolute inset-0 h-full w-full object-fill"
                             data-current-six-heroes-image
                         >
 
@@ -137,6 +137,8 @@
                             <span class="text-[9px] font-black text-emerald-700">確定済</span>
                         @elseif($previousSixHeroes['status'] === 'pending')
                             <span class="text-[9px] font-black text-amber-700">結果確定中</span>
+                        @elseif($previousSixHeroes['status'] === 'unrecorded')
+                            <span class="text-[9px] font-black text-slate-500">記録対象外</span>
                         @endif
                     </div>
                     <span class="text-xs font-black text-slate-600" aria-hidden="true">▼</span>
@@ -196,6 +198,11 @@
                     <div class="px-4 py-5 text-center sm:px-5">
                         <div class="text-sm font-black text-amber-800">結果確定中</div>
                         <p class="mt-1 text-[10px] font-bold leading-relaxed text-slate-500">直前暦月の公式戦結果を確定しています。以前の月を代わりに表示することはありません。</p>
+                    </div>
+                @elseif($previousSixHeroes['status'] === 'unrecorded')
+                    <div class="px-4 py-5 text-center text-xs font-bold leading-relaxed text-slate-600 sm:px-5">
+                        8月はプレシーズンのため、英雄・空位の記録はありません。<br>
+                        月間英雄の記録は9月より開始します。
                     </div>
                 @else
                     <div class="px-4 py-5 text-center text-xs font-bold text-slate-500 sm:px-5">前月の記録はありません。</div>

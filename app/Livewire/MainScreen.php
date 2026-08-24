@@ -765,7 +765,7 @@ class MainScreen extends Component
                 'icon_image' => 'icon/icon_005.webp',
                 'icon' => '⚔️',
                 'desc' => (bool) config('features.six_hero_ui_enabled', false)
-                    ? '六つの特殊ルールで月間順位を競う'
+                    ? '六極殿と通常闘技場で順位を競う'
                     : '上位ランカーへ挑み、順位を競う',
                 'action' => '開く',
                 'tab' => 'colosseum',
@@ -1008,11 +1008,11 @@ class MainScreen extends Component
                 'facilities' => [] // renderで上書き
             ],
             'colosseum' => [
-                'title' => (bool) config('features.six_hero_ui_enabled', false) ? '六極殿' : '闘技場',
+                'title' => '闘技場',
                 'description' => (bool) config('features.six_hero_ui_enabled', false)
-                    ? '六つの間、それぞれの頂を目指す月次競技。'
+                    ? '六極殿の月間競技と、通常闘技場の通算ランキングに挑めます。'
                     : '上位ランカーへ挑み、闘技場の頂点を目指す。',
-                'news_title' => (bool) config('features.six_hero_ui_enabled', false) ? '六極殿' : '闘技場',
+                'news_title' => '闘技場',
                 'news' => [],
                 'facilities' => [],
             ],

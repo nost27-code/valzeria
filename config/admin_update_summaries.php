@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-six-heroes-preseason-release',
+        'date' => '2026-08-24',
+        'category' => 'added',
+        'title' => '六英雄戦をプレシーズン公開',
+        'detail' => '闘技場タブで、6つの特殊ルールを競う六英雄戦を公開しました。8月は通常闘技場と並行開催し、順位を9月へ引き継ぎます。英雄・空位・殿堂の記録は9月から始まります。',
+    ],
+    [
         'id' => '2026-08-24-exclusive-character-icon-set-034',
         'date' => '2026-08-24',
         'category' => 'internal',

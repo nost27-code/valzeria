@@ -19,7 +19,10 @@ final class SixHeroSeasonFinalizationCommandTest extends TestCase
     {
         parent::setUp();
 
-        config(['app.timezone' => 'Asia/Tokyo']);
+        config([
+            'app.timezone' => 'Asia/Tokyo',
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
+        ]);
         Carbon::setTestNow(Carbon::parse('2026-09-01 00:10:00', 'Asia/Tokyo'));
     }
 
@@ -82,6 +85,23 @@ final class SixHeroSeasonFinalizationCommandTest extends TestCase
             ->expectsOutput('確定対象の六英雄戦Seasonはありません。')
             ->assertSuccessful();
         $this->assertDatabaseCount('six_hero_champions', 12);
+    }
+
+    public function test_august_preseason_command_reports_no_hero_history_and_keeps_snapshots_empty(): void
+    {
+        config(['six_heroes.champion_recording_starts_from_season' => '2026-09']);
+        $season = $this->season(
+            '2026-08',
+            '2026-08-01 00:00:00',
+            '2026-09-01 00:00:00',
+        );
+
+        $this->artisan('six-heroes:finalize-ended-seasons')
+            ->expectsOutput('2026-08: プレシーズン順位を確定しました（英雄記録なし）。')
+            ->assertSuccessful();
+
+        $this->assertNotNull($season->fresh()->finalized_at);
+        $this->assertDatabaseCount('six_hero_champions', 0);
     }
 
     public function test_command_and_scheduler_delegate_to_the_shared_service_without_waiting(): void

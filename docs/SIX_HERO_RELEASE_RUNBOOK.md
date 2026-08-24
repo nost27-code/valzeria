@@ -1,6 +1,6 @@
 # 六英雄戦 本番公開・運用Runbook
 
-最終更新: 2026-08-21
+最終更新: 2026-08-24
 
 ## 目的と停止条件
 
@@ -135,8 +135,8 @@ php artisan six-heroes:release-check
 認証済みのテストCharacterで次を確認します。
 
 - home下部Navigationに「闘技場」が表示され、タップすると同じ`/home`内へライト表示の六極殿が開く
-- `/six-heroes`と旧`/colosseum/ranking`がhomeの「闘技場」タブへ互換redirectする
-- 旧通常闘技場のプレイヤー対戦Routeが404で、NPC自動順位戦がSchedulerへ登録されていない
+- 2026年8月中は六英雄戦／通常闘技場の切替タブが表示され、旧`/colosseum/ranking`・プレイヤー対戦Route・NPC自動順位戦も利用できる
+- 2026-09-01 00:00以降は通常闘技場の切替タブと対戦Routeが閉じ、NPC自動順位戦がSchedulerへ登録されない
 - 6Room、現在首位、自分の順位、選択Roomの残り公式戦、前月英雄/空位、歴代英雄が表示される
 - 未登録Roomへ既存参加登録Service経由で登録できる
 - 相性確認で順位、公式counter、DailyUsage、BattleLogが変化しない
@@ -179,15 +179,20 @@ php artisan six-heroes:health-check
 - 共通PvP戦闘処理と基本ゲームループのerror率
 - DB/CPU/query latencyと相性確認の利用量
 
-### 最初の月末
+### 8月末（プレシーズン終了）
 
 - 締切前に開始した公式戦が締切後も旧Seasonへ反映される
 - `started` / `resolved`が残る間はfinalizeが保留される
-- pending解消後、各RoomのChampion/空位がちょうど6件作成される
-- `character_id_snapshot`と`character_name_snapshot`が非空位英雄に保存される
+- pending解消後、2026年8月Seasonは確定済みになり、Champion/空位snapshotが0件のままである
 - 翌月Rankingが6Roomまとめて一度だけ初期化され、前月順位をdenseに引き継ぐ
 - 月間counterが0、rank 1以外の`first_place_since`がnullである
 - carryover二重生成、Champion二重生成、rank欠番・重複・負rankがない
+
+### 9月末（英雄記録の初回確定）
+
+- pending解消後、各RoomのChampion/空位がちょうど6件作成される
+- `character_id_snapshot`と`character_name_snapshot`が非空位英雄に保存される
+- 前月の六英雄、歴代英雄、冠、連覇へ9月分だけが記録され、8月分を代替生成しない
 
 月末処理は待機loopや手動強制確定を使わず、既存Schedulerまたは管理画面の安全な再試行だけを使用します。
 

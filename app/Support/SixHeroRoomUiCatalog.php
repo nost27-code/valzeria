@@ -36,12 +36,12 @@ final class SixHeroRoomUiCatalog
     public static function chamberPosition(SixHeroRoomKey $room): array
     {
         return match ($room) {
-            SixHeroRoomKey::BURNING_LIFE => ['x' => 50, 'y' => 25],
-            SixHeroRoomKey::SEAL_MAGIC => ['x' => 17, 'y' => 42],
-            SixHeroRoomKey::DIVINE_SPEED => ['x' => 83, 'y' => 42],
-            SixHeroRoomKey::MIRACLE => ['x' => 17, 'y' => 70],
-            SixHeroRoomKey::REVERSE_TIME => ['x' => 83, 'y' => 70],
-            SixHeroRoomKey::SEAL_BLADE => ['x' => 50, 'y' => 86],
+            SixHeroRoomKey::BURNING_LIFE => ['x' => 50, 'y' => 24],
+            SixHeroRoomKey::SEAL_MAGIC => ['x' => 20, 'y' => 35],
+            SixHeroRoomKey::DIVINE_SPEED => ['x' => 80, 'y' => 35],
+            SixHeroRoomKey::MIRACLE => ['x' => 15, 'y' => 69],
+            SixHeroRoomKey::REVERSE_TIME => ['x' => 85, 'y' => 69],
+            SixHeroRoomKey::SEAL_BLADE => ['x' => 50, 'y' => 88],
         };
     }
 

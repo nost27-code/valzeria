@@ -28,7 +28,10 @@ final class SixHeroRankingInitializationServiceTest extends TestCase
     {
         parent::setUp();
 
-        config(['app.timezone' => 'Asia/Tokyo']);
+        config([
+            'app.timezone' => 'Asia/Tokyo',
+            'six_heroes.champion_recording_starts_from_season' => '2026-01',
+        ]);
         Carbon::setTestNow(Carbon::parse('2026-09-01 00:10:00', 'Asia/Tokyo'));
     }
 
@@ -129,6 +132,35 @@ final class SixHeroRankingInitializationServiceTest extends TestCase
                 $this->rankingsFor($previous, SixHeroRoomKey::SEAL_MAGIC)->firstOrFail(),
             ),
         );
+    }
+
+    public function test_september_carries_rankings_from_finalized_august_preseason_without_champion_snapshots(): void
+    {
+        config(['six_heroes.champion_recording_starts_from_season' => '2026-09']);
+        $previous = $this->season('2026-08');
+        $target = $this->season('2026-09');
+        $character = $this->characters(1)->firstOrFail();
+        $this->ranking(
+            $previous,
+            SixHeroRoomKey::DIVINE_SPEED,
+            $character,
+            4,
+            [3, 2, 1, 4],
+        );
+
+        $result = app(SixHeroRankingInitializationService::class)
+            ->initialize($target);
+
+        $this->assertTrue($result->initialized);
+        $this->assertNotNull($previous->fresh()->finalized_at);
+        $this->assertDatabaseCount('six_hero_champions', 0);
+        $copied = $this->rankingsFor($target, SixHeroRoomKey::DIVINE_SPEED)
+            ->firstOrFail();
+        $this->assertSame($character->id, $copied->character_id);
+        $this->assertSame(1, $copied->rank);
+        $this->assertSame([0, 0, 0, 0], $this->counters($copied));
+        $this->assertTrue($copied->registered_at->equalTo($target->starts_at));
+        $this->assertTrue($copied->first_place_since->equalTo($target->starts_at));
     }
 
     public function test_missing_exact_previous_month_initializes_empty_without_skipping_back(): void

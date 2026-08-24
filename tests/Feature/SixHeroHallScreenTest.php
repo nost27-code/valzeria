@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\SixHeroRoomKey;
 use App\Http\Middleware\CheckCharacterSelected;
+use App\Livewire\ArenaHub;
 use App\Livewire\MainScreenShell;
 use App\Livewire\NavMenu;
 use App\Livewire\SixHeroHallScreen;
@@ -85,7 +86,8 @@ final class SixHeroHallScreenTest extends TestCase
         $this->actingAs($viewer->user)
             ->get(route('six-heroes.index'))
             ->assertRedirect(route('home'))
-            ->assertSessionHas('current_location', 'colosseum');
+            ->assertSessionHas('current_location', 'colosseum')
+            ->assertSessionHas('colosseum_mode', ArenaHub::MODE_SIX_HEROES);
 
         $this->actingAs($viewer->user)
             ->get(route('home'))
@@ -118,9 +120,11 @@ final class SixHeroHallScreenTest extends TestCase
         session(['current_location' => 'colosseum']);
         Livewire::test(MainScreenShell::class)
             ->assertSet('currentLocation', 'colosseum')
+            ->assertSeeHtml('data-arena-hub')
             ->assertSeeHtml('data-legacy-arena-home-tab')
             ->assertSee('ランク戦に挑む')
-            ->assertDontSeeHtml('data-six-hero-home-tab');
+            ->assertDontSeeHtml('data-six-hero-home-tab')
+            ->assertDontSeeHtml('data-arena-mode-switcher');
 
         config(['features.six_hero_ui_enabled' => true]);
         Livewire::test(NavMenu::class)
@@ -128,27 +132,75 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertSee('闘技場');
 
         $this->readySeason();
+        session()->forget('colosseum_mode');
         session(['current_location' => 'colosseum']);
         Livewire::test(MainScreenShell::class)
             ->assertSet('currentLocation', 'colosseum')
+            ->assertSeeHtml('data-arena-mode-switcher')
             ->assertSeeHtml('data-six-hero-home-tab')
             ->assertSeeHtml('data-six-hero-hall')
             ->assertDontSeeHtml('data-legacy-arena-home-tab')
             ->assertSeeHtml('data-color-scheme="light"');
+
+        Livewire::test(ArenaHub::class)
+            ->assertSet('mode', ArenaHub::MODE_SIX_HEROES)
+            ->assertSee('六英雄戦')
+            ->assertSee('通常闘技場')
+            ->assertSee('8月はプレシーズンとして競技を行いますが、英雄記録の対象外です。')
+            ->assertSee('月間英雄の記録は9月より開始し、通常闘技場は8月末で停止します。')
+            ->assertSeeHtml('data-arena-schedule-notice')
+            ->call('selectMode', ArenaHub::MODE_LEGACY)
+            ->assertSet('mode', ArenaHub::MODE_LEGACY)
+            ->assertSeeHtml('data-legacy-arena-home-tab')
+            ->assertDontSeeHtml('data-six-hero-home-tab')
+            ->assertSessionHas('colosseum_mode', ArenaHub::MODE_LEGACY);
     }
 
-    public function test_legacy_arena_battle_endpoints_are_retired(): void
+    public function test_legacy_arena_battle_endpoints_remain_available_while_six_heroes_is_enabled(): void
     {
         $viewer = $this->character('旧闘技場確認者');
+        session(['current_character_id' => $viewer->id]);
         $this->withoutMiddleware(CheckCharacterSelected::class);
         $this->actingAs($viewer->user);
 
+        $this->post('/battle/pvp-random')
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('error', '闘技場ランキングに参加していません。')
+            ->assertSessionHas('colosseum_mode', ArenaHub::MODE_LEGACY);
+        $this->post('/battle/pvp/'.$viewer->id)
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('error', '自分自身とは戦えません。')
+            ->assertSessionHas('colosseum_mode', ArenaHub::MODE_LEGACY);
+        $this->get('/battle/pvp-result')
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('colosseum_mode', ArenaHub::MODE_LEGACY);
+        $this->get('/colosseum/ranking')
+            ->assertOk()
+            ->assertSee('闘技場ランキング')
+            ->assertSessionHas('current_location', 'colosseum')
+            ->assertSessionHas('colosseum_mode', ArenaHub::MODE_LEGACY);
+    }
+
+    public function test_legacy_arena_is_hidden_and_closed_after_august_while_six_heroes_stays_available(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-01 00:00:00', 'Asia/Tokyo'));
+        $viewer = $this->character('九月闘技場確認者');
+        session([
+            'current_character_id' => $viewer->id,
+            'colosseum_mode' => ArenaHub::MODE_LEGACY,
+        ]);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
+        $this->actingAs($viewer->user);
+
+        Livewire::test(ArenaHub::class)
+            ->assertSet('mode', ArenaHub::MODE_SIX_HEROES)
+            ->assertSeeHtml('data-six-hero-home-tab')
+            ->assertDontSeeHtml('data-legacy-arena-home-tab')
+            ->assertDontSeeHtml('data-arena-mode-switcher');
         $this->post('/battle/pvp-random')->assertNotFound();
         $this->post('/battle/pvp/'.$viewer->id)->assertNotFound();
         $this->get('/battle/pvp-result')->assertNotFound();
-        $this->get('/colosseum/ranking')
-            ->assertRedirect(route('home'))
-            ->assertSessionHas('current_location', 'colosseum');
+        $this->get('/colosseum/ranking')->assertNotFound();
     }
 
     public function test_legacy_arena_battle_endpoints_remain_available_while_the_feature_flag_is_off(): void
@@ -172,17 +224,19 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertRedirect(route('home'));
     }
 
-    public function test_home_tab_uses_the_light_six_hero_screen_and_legacy_npc_updates_follow_the_feature_flag(): void
+    public function test_home_tab_uses_the_light_six_hero_screen_and_legacy_npc_updates_continue_during_coexistence(): void
     {
         $mainScreen = (string) file_get_contents(resource_path('views/livewire/main-screen.blade.php'));
+        $arenaHub = (string) file_get_contents(resource_path('views/livewire/arena-hub.blade.php'));
         $hallScreen = (string) file_get_contents(resource_path('views/livewire/six-hero-hall-screen.blade.php'));
         $rankingScreen = (string) file_get_contents(resource_path('views/livewire/six-hero-room-ranking.blade.php'));
         $battleResult = (string) file_get_contents(resource_path('views/six-heroes/battle-result.blade.php'));
         $styles = (string) file_get_contents(resource_path('css/app.css'));
         $schedule = (string) file_get_contents(base_path('routes/console.php'));
 
-        $this->assertStringContainsString('<livewire:six-hero-hall-screen />', $mainScreen);
-        $this->assertStringContainsString('<livewire:colosseum-screen />', $mainScreen);
+        $this->assertStringContainsString('<livewire:arena-hub />', $mainScreen);
+        $this->assertStringContainsString('<livewire:six-hero-hall-screen', $arenaHub);
+        $this->assertStringContainsString('<livewire:colosseum-screen', $arenaHub);
         $this->assertStringContainsString('data-color-scheme="light"', $hallScreen);
         $this->assertStringNotContainsString('data-battle-result-modal', $hallScreen);
         $this->assertStringContainsString('data-six-hero-battle-result-page', $battleResult);
@@ -204,7 +258,7 @@ final class SixHeroHallScreenTest extends TestCase
             $this->assertStringNotContainsString('text-slate-300', $lightScreen);
             $this->assertStringNotContainsString('text-amber-200', $lightScreen);
         }
-        $this->assertStringContainsString("if (! (bool) config('features.six_hero_ui_enabled', false))", $schedule);
+        $this->assertStringContainsString('SixHeroCompetitionRules::legacyArenaAvailable()', $schedule);
         $this->assertSame(3, substr_count($schedule, 'arena:npc-auto-battles'));
 
         foreach (SixHeroRoomKey::cases() as $room) {
@@ -289,7 +343,7 @@ final class SixHeroHallScreenTest extends TestCase
         $this->assertStringContainsString('images/six_heroes/six_hero_chambers.webp', $html);
         $this->assertMatchesRegularExpression('/six_hero_chambers\.webp\?v=\d+/', $html);
         $this->assertStringContainsString('class="relative aspect-[3/4] w-full"', $html);
-        $this->assertStringContainsString('w-[116%]', $html);
+        $this->assertStringContainsString('absolute inset-0 h-full w-full object-fill', $html);
         $this->assertStringNotContainsString('max-w-[360px]', $html);
         $this->assertStringContainsString('w-[21%]', $html);
         $this->assertStringContainsString('bg-white/75 shadow-sm ring-1 ring-white/90', $html);

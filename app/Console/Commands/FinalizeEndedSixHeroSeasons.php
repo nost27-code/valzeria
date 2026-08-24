@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\SixHeroSeasonFinalizationResult;
 use App\Services\SixHeroSeasonFinalizationService;
+use App\Support\SixHeroCompetitionRules;
 use Illuminate\Console\Command;
 use LogicException;
 
@@ -49,6 +50,12 @@ final class FinalizeEndedSixHeroSeasons extends Command
 
         if ($result->alreadyFinalized) {
             $this->warn("{$key}: 確定済みです。");
+
+            return;
+        }
+
+        if (! SixHeroCompetitionRules::recordsChampionHistory((string) $key)) {
+            $this->info("{$key}: プレシーズン順位を確定しました（英雄記録なし）。");
 
             return;
         }
