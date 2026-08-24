@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-six-hero-room-crowns',
+        'date' => '2026-08-24',
+        'category' => 'changed',
+        'title' => '六英雄戦の首位表示をRoom色へ統一',
+        'detail' => '六つの間へ紫・赤・橙・緑・青・黄の専用色を割り当て、現在1位の冒険者には該当Room色の王冠を表示するようにしました。六部屋図とRoom選択の色も同じ対応へ統一しています。',
+    ],
+    [
         'id' => '2026-08-24-six-hero-rules-guide-modal',
         'date' => '2026-08-24',
         'category' => 'changed',

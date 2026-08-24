@@ -1605,15 +1605,31 @@
                     <div class="flex min-w-0 flex-1 flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
                         @forelse($onlinePlayers as $player)
+                            @php
+                                $sixHeroCrowns = $player['six_hero_crowns'] ?? [];
+                                $sixHeroCrownRooms = implode('・', array_column($sixHeroCrowns, 'room_label'));
+                            @endphp
                             <a href="#"
                                x-on:click.prevent="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $player['id'] }} })"
                                @if($player['is_six_hero_top_ranker'] ?? false)
                                    data-six-hero-top-ranker="{{ (int) $player['id'] }}"
-                                   aria-label="六極殿 現在首位 {{ $player['name'] }}"
-                                   title="六極殿の現在首位"
+                                   aria-label="六英雄戦 現在首位（{{ $sixHeroCrownRooms }}） {{ $player['name'] }}"
+                                   title="六英雄戦 現在首位：{{ $sixHeroCrownRooms }}"
                                @endif
-                               class="hover:underline hover:text-blue-800">
-                                @if($player['is_six_hero_top_ranker'] ?? false)<span aria-hidden="true">👑</span>@endif{{ $player['name'] }}
+                               class="inline-flex items-center hover:underline hover:text-blue-800">
+                                @if($player['is_six_hero_top_ranker'] ?? false)
+                                    <span aria-hidden="true" class="mr-0.5 inline-flex shrink-0 items-center gap-px">
+                                        @foreach($sixHeroCrowns as $crown)
+                                            <img
+                                                src="{{ $crown['asset_url'] }}"
+                                                alt=""
+                                                class="h-4 w-4 object-contain drop-shadow-[0_1px_1px_rgba(15,23,42,0.3)] sm:h-[18px] sm:w-[18px]"
+                                                data-six-hero-crown="{{ $crown['room_key'] }}"
+                                            >
+                                        @endforeach
+                                    </span>
+                                @endif
+                                <span>{{ $player['name'] }}</span>
                             </a>
                             @if(!$loop->last)
                                 <span class="text-gray-300 mx-1">|</span>

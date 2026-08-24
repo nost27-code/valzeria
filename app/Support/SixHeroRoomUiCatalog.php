@@ -80,12 +80,29 @@ final class SixHeroRoomUiCatalog
     {
         return match ($room) {
             SixHeroRoomKey::SEAL_MAGIC => 'border-violet-300 bg-violet-50',
-            SixHeroRoomKey::SEAL_BLADE => 'border-rose-300 bg-rose-50',
+            SixHeroRoomKey::SEAL_BLADE => 'border-red-300 bg-red-50',
             SixHeroRoomKey::BURNING_LIFE => 'border-orange-300 bg-orange-50',
-            SixHeroRoomKey::DIVINE_SPEED => 'border-cyan-300 bg-cyan-50',
-            SixHeroRoomKey::REVERSE_TIME => 'border-indigo-300 bg-indigo-50',
-            SixHeroRoomKey::MIRACLE => 'border-amber-300 bg-amber-50',
+            SixHeroRoomKey::DIVINE_SPEED => 'border-green-300 bg-green-50',
+            SixHeroRoomKey::REVERSE_TIME => 'border-blue-300 bg-blue-50',
+            SixHeroRoomKey::MIRACLE => 'border-yellow-300 bg-yellow-50',
         };
+    }
+
+    public static function crownImagePath(SixHeroRoomKey $room): string
+    {
+        return match ($room) {
+            SixHeroRoomKey::SEAL_MAGIC => '/images/six_heroes/crown_001.webp',
+            SixHeroRoomKey::SEAL_BLADE => '/images/six_heroes/crown_002.webp',
+            SixHeroRoomKey::BURNING_LIFE => '/images/six_heroes/crown_003.webp',
+            SixHeroRoomKey::DIVINE_SPEED => '/images/six_heroes/crown_004.webp',
+            SixHeroRoomKey::REVERSE_TIME => '/images/six_heroes/crown_005.webp',
+            SixHeroRoomKey::MIRACLE => '/images/six_heroes/crown_006.webp',
+        };
+    }
+
+    public static function crownImageUrl(SixHeroRoomKey $room): string
+    {
+        return self::versionedAssetUrl(self::crownImagePath($room));
     }
 
     /** @return array{x: int, y: int} */
@@ -103,9 +120,14 @@ final class SixHeroRoomUiCatalog
 
     public static function chambersImageUrl(): string
     {
-        $absolutePath = public_path(ltrim(self::CHAMBERS_IMAGE_PATH, '/'));
+        return self::versionedAssetUrl(self::CHAMBERS_IMAGE_PATH);
+    }
+
+    private static function versionedAssetUrl(string $path): string
+    {
+        $absolutePath = public_path(ltrim($path, '/'));
         $version = is_file($absolutePath) ? (string) filemtime($absolutePath) : '1';
 
-        return asset(self::CHAMBERS_IMAGE_PATH).'?v='.$version;
+        return asset($path).'?v='.$version;
     }
 }

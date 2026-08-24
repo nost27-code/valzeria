@@ -13,6 +13,7 @@ use App\Services\Battle\RoomRules\SealMagicPvPRoomRule;
 use App\Services\Battle\PvPBattleExecutionContext;
 use App\Services\Battle\SixHeroBattleContextFactory;
 use App\Services\Battle\SixHeroRoomRuleResolver;
+use App\Support\SixHeroRoomUiCatalog;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -56,6 +57,25 @@ final class SixHeroRoomRegistryTest extends TestCase
         }
 
         $this->assertCount(count(SixHeroRoomKey::cases()), $expected);
+    }
+
+    public function test_room_visuals_use_the_assigned_crown_and_accent_colors(): void
+    {
+        $expected = [
+            SixHeroRoomKey::SEAL_MAGIC->value => ['crown_001.webp', 'border-violet-300 bg-violet-50'],
+            SixHeroRoomKey::SEAL_BLADE->value => ['crown_002.webp', 'border-red-300 bg-red-50'],
+            SixHeroRoomKey::BURNING_LIFE->value => ['crown_003.webp', 'border-orange-300 bg-orange-50'],
+            SixHeroRoomKey::DIVINE_SPEED->value => ['crown_004.webp', 'border-green-300 bg-green-50'],
+            SixHeroRoomKey::REVERSE_TIME->value => ['crown_005.webp', 'border-blue-300 bg-blue-50'],
+            SixHeroRoomKey::MIRACLE->value => ['crown_006.webp', 'border-yellow-300 bg-yellow-50'],
+        ];
+
+        foreach (SixHeroRoomKey::cases() as $room) {
+            [$crownFile, $accentClasses] = $expected[$room->value];
+
+            $this->assertStringEndsWith($crownFile, SixHeroRoomUiCatalog::crownImagePath($room));
+            $this->assertSame($accentClasses, SixHeroRoomUiCatalog::accentClasses($room));
+        }
     }
 
     public function test_resolver_returns_a_fresh_rule_instance_for_every_resolution(): void

@@ -29,7 +29,9 @@ use App\Services\WeeklyWinRankingService;
 use App\Support\CharacterIconCatalog;
 use App\Support\CityVisualCatalog;
 use App\Support\JobRankCatalog;
+use App\Support\SixHeroRoomUiCatalog;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
@@ -310,10 +312,10 @@ class CityHeader extends Component
     private function onlinePlayers(): array
     {
         $sixHeroUiEnabled = (bool) config('features.six_hero_ui_enabled', false);
-        $cacheKey = 'city_header_online_players_v5_'.($sixHeroUiEnabled ? 'enabled' : 'disabled');
+        $cacheKey = 'city_header_online_players_v6_'.($sixHeroUiEnabled ? 'enabled' : 'disabled');
 
         return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
-            $sixHeroTopRankerIds = $this->currentSixHeroTopRankerIds();
+            $sixHeroCrownsByCharacter = $this->currentSixHeroCrownsByCharacter();
 
             return Character::visibleToPublic()
                 // visibleToPublic() の全公開面除外とは分け、現在の冒険者だけから運営テスト用を隠す。
@@ -325,17 +327,24 @@ class CityHeader extends Component
                 ->orderBy('last_seen_at', 'desc')
                 ->take(20)
                 ->get(['id', 'name'])
-                ->map(fn (Character $char): array => [
-                    'id' => (int) $char->id,
-                    'name' => $char->name,
-                    'is_six_hero_top_ranker' => isset($sixHeroTopRankerIds[(int) $char->id]),
-                ])
+                ->map(function (Character $char) use ($sixHeroCrownsByCharacter): array {
+                    $crowns = $sixHeroCrownsByCharacter[(int) $char->id] ?? [];
+
+                    return [
+                        'id' => (int) $char->id,
+                        'name' => $char->name,
+                        'is_six_hero_top_ranker' => $crowns !== [],
+                        'six_hero_crowns' => $crowns,
+                    ];
+                })
                 ->toArray();
         });
     }
 
-    /** @return array<int, true> */
-    private function currentSixHeroTopRankerIds(): array
+    /**
+     * @return array<int, list<array{room_key: string, room_label: string, asset_url: string}>>
+     */
+    private function currentSixHeroCrownsByCharacter(): array
     {
         if (
             ! (bool) config('features.six_hero_ui_enabled', false)
@@ -353,12 +362,31 @@ class CityHeader extends Component
             return [];
         }
 
+        $roomOrder = collect(SixHeroRoomKey::cases())
+            ->mapWithKeys(fn (SixHeroRoomKey $room, int $index): array => [$room->value => $index]);
+
         return SixHeroRanking::query()
             ->where('season_id', $seasonId)
             ->where('rank', 1)
-            ->distinct()
-            ->pluck('character_id')
-            ->mapWithKeys(fn (int $characterId): array => [$characterId => true])
+            ->get(['character_id', 'room_key'])
+            ->groupBy(fn (SixHeroRanking $ranking): int => (int) $ranking->character_id)
+            ->mapWithKeys(function (Collection $rankings, int $characterId) use ($roomOrder): array {
+                $crowns = $rankings
+                    ->sortBy(fn (SixHeroRanking $ranking): int => (int) $roomOrder->get($ranking->room_key->value, 999))
+                    ->map(function (SixHeroRanking $ranking): array {
+                        $room = $ranking->room_key;
+
+                        return [
+                            'room_key' => $room->value,
+                            'room_label' => $room->label(),
+                            'asset_url' => SixHeroRoomUiCatalog::crownImageUrl($room),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return [$characterId => $crowns];
+            })
             ->all();
     }
 

@@ -163,6 +163,16 @@ final class SixHeroProfileAchievementTest extends TestCase
         $this->ranking(
             $season,
             SixHeroRoomKey::MIRACLE,
+            $leader,
+            rank: 1,
+            challengeWins: 0,
+            challengeLosses: 0,
+            defenseWins: 0,
+            defenseLosses: 0,
+        );
+        $this->ranking(
+            $season,
+            SixHeroRoomKey::MIRACLE,
             $ordinary,
             rank: 2,
             challengeWins: 0,
@@ -175,16 +185,19 @@ final class SixHeroProfileAchievementTest extends TestCase
             ->withSession(['current_character_id' => $viewer->id]);
 
         Livewire::test(CityHeader::class)
-            ->assertSee('👑')
             ->assertSeeHtml('data-six-hero-top-ranker="'.$leader->id.'"')
-            ->assertSeeHtml('aria-label="六極殿 現在首位 '.$leader->name.'"')
+            ->assertSeeHtml('aria-label="六英雄戦 現在首位（神速の間・奇跡の間） '.$leader->name.'"')
+            ->assertSeeHtml('data-six-hero-crown="divine_speed"')
+            ->assertSeeHtml('crown_004.webp')
+            ->assertSeeHtml('data-six-hero-crown="miracle"')
+            ->assertSeeHtml('crown_006.webp')
             ->assertDontSeeHtml('data-six-hero-top-ranker="'.$ordinary->id.'"');
 
         config(['features.six_hero_ui_enabled' => false]);
 
         Livewire::test(CityHeader::class)
-            ->assertDontSee('👑')
-            ->assertDontSeeHtml('data-six-hero-top-ranker');
+            ->assertDontSeeHtml('data-six-hero-top-ranker')
+            ->assertDontSeeHtml('data-six-hero-crown');
     }
 
     private function ranking(

@@ -19,6 +19,7 @@ Branch: main
 - 永続化は`SixHeroSeason`、Room別`SixHeroRanking`、Room別日次使用回数、公式BattleLog、確定済み`SixHeroChampion` snapshot。管理画面とCLIは同じ`SixHeroOperationsService`を読み取り正本とし、安全な既存処理の再試行だけを許可する
 - 冒険者カードでは装飾付きカード本体をコメント欄で閉じ、その下・お気に入り武器の直前に独立した「六英雄戦績」枠を置く。現在月のRoom別順位・挑戦勝敗・防衛勝敗と、確定済みの英雄回数・制覇Room・冠・連覇を同じ枠で確認できる
 - 六極殿の「現在の六英雄」見出し右側に「遊び方」を置き、独立modalで競技の共通ルールと6Roomそれぞれの特殊な戦闘計算を表示する
+- Room色は封魔=紫・封刃=赤・灼命=橙・神速=緑・逆刻=青・奇跡=黄。六部屋図・Room選択・現在首位王冠で共通利用し、街ヘッダの「現在の冒険者」では各Roomのrank 1へ対応色王冠を表示する。複数Room首位は王冠をenum定義順に並べる
 
 ## Job-art / exploration live metrics
 
