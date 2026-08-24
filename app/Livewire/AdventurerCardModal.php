@@ -69,7 +69,6 @@ class AdventurerCardModal extends Component
         }
 
         $this->playerInfo['adventure_records'] = $payload['adventure_records'];
-        $this->playerInfo['card_records'] = $payload['card_records'];
         $this->playerInfo['adventure_records_loaded'] = true;
     }
 

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-adventurer-card-profile-layout',
+        'date' => '2026-08-25',
+        'category' => 'changed',
+        'title' => '冒険者カード上部の情報配置を整理',
+        'detail' => '冒険者カードの所属をキャラクターの下へ移し、闘技場順位・冒険回数・冒険日数を上部から外して、一言コメントを見やすい位置へ移動しました。',
+    ],
+    [
         'id' => '2026-08-25-high-rank-bow-proficiency',
         'date' => '2026-08-25',
         'category' => 'balance',

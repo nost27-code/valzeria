@@ -85,7 +85,7 @@ class CityHeader extends Component
         $this->playerInfo = null;
     }
 
-    /** @return array{adventure_records: array<int, array{label: string, value: string, unit: string}>, card_records: array<string, array{value: string, unit: string}>}|null */
+    /** @return array{adventure_records: array<int, array{label: string, value: string, unit: string}>}|null */
     public function adventureRecordPayload(int $characterId): ?array
     {
         $character = Character::query()->find($characterId);
@@ -97,7 +97,6 @@ class CityHeader extends Component
 
         return [
             'adventure_records' => $adventureRecords,
-            'card_records' => $this->cardRecords($adventureRecords),
         ];
     }
 
@@ -523,7 +522,6 @@ class CityHeader extends Component
             'valmon_case' => asset($cardAssets['valmon_case']),
             'adventure_records_loaded' => false,
             'adventure_records' => [],
-            'card_records' => $this->emptyCardRecords(),
             'six_hero_current_record' => $this->sixHeroCurrentRecord($character),
             'six_hero_achievement' => $this->sixHeroAchievement($character),
             'valmon_badges' => $this->valmonBadges($character),
@@ -810,24 +808,6 @@ class CityHeader extends Component
         }
 
         return $badges;
-    }
-
-    private function cardRecords(array $adventureRecords): array
-    {
-        $byLabel = collect($adventureRecords)->keyBy('label');
-
-        return [
-            'battles' => $byLabel->get('戦闘回数', ['value' => '0', 'unit' => '回']),
-            'days' => $byLabel->get('冒険日数', ['value' => '0', 'unit' => '日']),
-        ];
-    }
-
-    private function emptyCardRecords(): array
-    {
-        return [
-            'battles' => ['value' => '—', 'unit' => ''],
-            'days' => ['value' => '—', 'unit' => ''],
-        ];
     }
 
     private function statBreakdown(array $stats, string $key): array

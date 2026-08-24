@@ -634,16 +634,6 @@
                 inset 0 1px 2px rgba(15,23,42,.14),
                 0 1px 0 rgba(255,255,255,.66);
         }
-        .adventurer-card-hero.is-support-pass .adventurer-card-badge {
-            border-color: rgba(245, 158, 11, .38);
-            background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(254,243,199,.78));
-            box-shadow:
-                0 8px 18px rgba(92, 64, 17, .12),
-                inset 0 0 0 1px rgba(255, 255, 255, .62);
-        }
-        .adventurer-card-hero.is-support-pass .adventurer-card-badge:nth-child(odd) {
-            background: linear-gradient(180deg, rgba(255,251,235,.94), rgba(255,237,213,.82));
-        }
         .adventurer-card-pass-record {
             border-color: rgba(245, 158, 11, .34) !important;
             background: linear-gradient(135deg, rgba(255,251,235,.96), rgba(254,243,199,.72)) !important;
@@ -801,12 +791,42 @@
             font-weight: 900;
             box-shadow: 0 4px 10px rgba(92, 64, 17, .08);
         }
-        .adventurer-card-vitals {
+        .adventurer-card-summary {
             position: relative;
             z-index: 2;
             display: grid;
+            grid-template-columns: 124px minmax(0, 1fr);
+            align-items: start;
+            gap: 10px;
+            margin: -2px 36px 0 30px;
+        }
+        .adventurer-card-affiliation {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            margin-top: 80px;
+            padding: 0;
+            text-align: center;
+        }
+        .adventurer-card-affiliation-label {
+            color: #8a5a0d;
+            font-size: 9px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .adventurer-card-affiliation-name {
+            max-width: 100%;
+            color: #1e293b;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .adventurer-card-vitals {
+            display: grid;
             gap: 6px;
-            margin: -2px 36px 0 164px;
         }
         .adventurer-card-vital-row {
             display: grid;
@@ -828,31 +848,10 @@
             height: 100%;
             border-radius: inherit;
         }
-        .adventurer-card-badges {
-            position: relative;
-            z-index: 2;
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 5px;
-            padding: 16px 54px 18px;
-        }
-        .adventurer-card-badge {
-            min-height: 48px;
-            border-radius: 9px;
-            border: 1px solid rgba(201, 153, 50, .28);
-            background: rgba(255,255,255,.76);
-            box-shadow: 0 5px 12px rgba(92, 64, 17, .08);
-        }
-        .adventurer-card-badge-icon {
-            width: 20px;
-            height: 20px;
-            object-fit: contain;
-            filter: drop-shadow(0 2px 3px rgba(15,23,42,.18));
-        }
         .adventurer-card-comment {
             position: relative;
             z-index: 2;
-            margin: 0 60px 20px;
+            margin: 8px 60px 20px;
             padding: 0 4px;
         }
         .adventurer-card-comment-head {
@@ -889,6 +888,7 @@
         }
         .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-comment-head,
         .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-comment-edit,
+        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-affiliation-label,
         .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-equipped-title {
             color: #1e3a8a;
         }
@@ -1024,16 +1024,6 @@
             box-shadow:
                 inset 0 1px 2px rgba(15,23,42,.14),
                 0 1px 0 rgba(255,255,255,.66);
-        }
-        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badge {
-            border-color: rgba(59, 130, 246, .30);
-            background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(219,234,254,.80));
-            box-shadow:
-                0 8px 18px rgba(30, 64, 175, .10),
-                inset 0 0 0 1px rgba(255, 255, 255, .62);
-        }
-        .adventurer-card-hero.is-support-pass-blue-gold .adventurer-card-badge:nth-child(odd) {
-            background: linear-gradient(180deg, rgba(239,246,255,.94), rgba(224,242,254,.78));
         }
         .adventurer-card-inner.is-support-pass-blue-gold-card .adventurer-card-section {
             position: relative;
@@ -1179,17 +1169,14 @@
                 font-size: 12px;
                 padding: 0;
             }
-            .adventurer-card-vitals {
-                margin-left: 134px;
+            .adventurer-card-summary {
+                grid-template-columns: 108px minmax(0, 1fr);
+                gap: 4px;
+                margin-left: 22px;
                 margin-right: 28px;
-                margin-top: -2px;
             }
-            .adventurer-card-badges {
-                gap: 5px;
-                padding: 14px 44px 16px;
-            }
-            .adventurer-card-badge {
-                min-height: 46px;
+            .adventurer-card-affiliation {
+                margin-top: 72px;
             }
             .adventurer-card-comment {
                 margin-inline: 50px;
@@ -1761,66 +1748,41 @@
                             </div>
                         </div>
 
-                        <div class="adventurer-card-vitals">
-                            <template x-if="playerInfo.weekly_win_badge">
-                                <div class="adventurer-card-weekly-honor">
-                                    <img src="{{ asset('images/icon/icon_223.webp') }}" alt="">
-                                    <span class="adventurer-card-weekly-honor-name" x-text="playerInfo.weekly_win_badge.label"></span>
-                                    <span class="shrink-0 text-[9px] text-amber-700"
-                                          x-text="`先週 ${playerInfo.weekly_win_badge.rank}位・${playerInfo.weekly_win_badge.wins}勝`"></span>
-                                </div>
-                            </template>
-                            <div class="adventurer-card-equipped-title">
-                                <span x-text="playerInfo.equipped_title"></span>
+                        <div class="adventurer-card-summary">
+                            <div class="adventurer-card-affiliation" data-adventurer-card-affiliation>
+                                <span class="adventurer-card-affiliation-label">所属</span>
+                                <span class="adventurer-card-affiliation-name" x-text="playerInfo.guild"></span>
                             </div>
-                            <div class="adventurer-card-vital-row">
-                                <span class="text-emerald-600">HP</span>
-                                <div class="adventurer-card-vital-bar">
-                                    <div class="adventurer-card-vital-fill bg-emerald-500" :style="`width: ${Math.max(0, Math.min(100, playerInfo.hp_percent || 0))}%`"></div>
-                                </div>
-                                <span class="text-slate-700"><span x-text="playerInfo.hp"></span>/<span x-text="playerInfo.max_hp"></span></span>
-                            </div>
-                            <div class="adventurer-card-vital-row">
-                                <span class="text-blue-600">SP</span>
-                                <div class="adventurer-card-vital-bar">
-                                    <div class="adventurer-card-vital-fill bg-blue-500" :style="`width: ${Math.max(0, Math.min(100, playerInfo.sp_percent || 0))}%`"></div>
-                                </div>
-                                <span class="text-slate-700"><span x-text="playerInfo.sp"></span>/<span x-text="playerInfo.max_sp"></span></span>
-                            </div>
-                        </div>
-
-                        <div class="adventurer-card-badges">
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <div class="min-w-0">
-                                    <div class="text-[9px] font-black text-[#8a5a0d]">所属</div>
-                                    <div class="truncate text-xs font-black leading-tight text-slate-800" x-text="playerInfo.guild"></div>
-                                </div>
-                            </div>
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <div class="min-w-0">
-                                    <div class="text-[9px] font-black text-[#8a5a0d]">闘技場順位</div>
-                                    <div class="truncate text-xs font-black leading-tight text-slate-800" x-text="playerInfo.arena_rank"></div>
-                                </div>
-                            </div>
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <div class="min-w-0">
-                                    <div class="text-[9px] font-black text-[#8a5a0d]">冒険回数</div>
-                                    <div class="truncate text-xs font-black leading-tight text-slate-800">
-                                        <span x-text="playerInfo.card_records.battles.value"></span><span class="text-[9px] text-orange-700" x-text="playerInfo.card_records.battles.unit"></span>
+                            <div class="adventurer-card-vitals">
+                                <template x-if="playerInfo.weekly_win_badge">
+                                    <div class="adventurer-card-weekly-honor">
+                                        <img src="{{ asset('images/icon/icon_223.webp') }}" alt="">
+                                        <span class="adventurer-card-weekly-honor-name" x-text="playerInfo.weekly_win_badge.label"></span>
+                                        <span class="shrink-0 text-[9px] text-amber-700"
+                                              x-text="`先週 ${playerInfo.weekly_win_badge.rank}位・${playerInfo.weekly_win_badge.wins}勝`"></span>
                                     </div>
+                                </template>
+                                <div class="adventurer-card-equipped-title">
+                                    <span x-text="playerInfo.equipped_title"></span>
                                 </div>
-                            </div>
-                            <div class="adventurer-card-badge flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center">
-                                <div class="min-w-0">
-                                    <div class="text-[9px] font-black text-[#8a5a0d]">冒険日数</div>
-                                    <div class="truncate text-xs font-black leading-tight text-slate-800">
-                                        <span x-text="playerInfo.card_records.days.value"></span><span class="text-[9px] text-orange-700" x-text="playerInfo.card_records.days.unit"></span>
+                                <div class="adventurer-card-vital-row">
+                                    <span class="text-emerald-600">HP</span>
+                                    <div class="adventurer-card-vital-bar">
+                                        <div class="adventurer-card-vital-fill bg-emerald-500" :style="`width: ${Math.max(0, Math.min(100, playerInfo.hp_percent || 0))}%`"></div>
                                     </div>
+                                    <span class="text-slate-700"><span x-text="playerInfo.hp"></span>/<span x-text="playerInfo.max_hp"></span></span>
+                                </div>
+                                <div class="adventurer-card-vital-row">
+                                    <span class="text-blue-600">SP</span>
+                                    <div class="adventurer-card-vital-bar">
+                                        <div class="adventurer-card-vital-fill bg-blue-500" :style="`width: ${Math.max(0, Math.min(100, playerInfo.sp_percent || 0))}%`"></div>
+                                    </div>
+                                    <span class="text-slate-700"><span x-text="playerInfo.sp"></span>/<span x-text="playerInfo.max_sp"></span></span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="adventurer-card-comment">
+                        <div class="adventurer-card-comment" data-adventurer-card-comment>
                             <div class="adventurer-card-comment-head">
                                 <span>一言コメント</span>
                                 <a x-show="playerInfo && playerInfo.is_self"

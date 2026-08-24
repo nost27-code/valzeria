@@ -88,9 +88,9 @@ class AdventurerCardModalIsolationTest extends TestCase
         $component = Livewire::test(AdventurerCardModal::class)
             ->dispatch('open-adventurer-card', characterId: $target->id)
             ->assertSet('playerInfo.adventure_records_loaded', false)
-            ->assertSet('playerInfo.adventure_records', [])
-            ->assertSet('playerInfo.card_records.battles.value', '—');
+            ->assertSet('playerInfo.adventure_records', []);
 
+        $this->assertArrayNotHasKey('card_records', $component->get('playerInfo'));
         $this->assertSame([], $battleQueries);
 
         $component
