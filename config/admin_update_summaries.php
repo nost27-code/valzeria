@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-exclusive-character-icon-set-034',
+        'date' => '2026-08-24',
+        'category' => 'internal',
+        'title' => '桜色の猫専用の限定キャラアイコンを追加',
+        'detail' => '桜色の猫さんの限定キャラアイコンを、通常・勝利・戦闘・敗北の4ポーズで追加しました。',
+    ],
+    [
         'id' => '2026-08-23-nation-screen-preview',
         'date' => '2026-08-23',
         'category' => 'added',
