@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-adventurer-card-avatar-size',
+        'date' => '2026-08-24',
+        'category' => 'changed',
+        'title' => '冒険者カードのアイコン表示を拡大',
+        'detail' => '冒険者カードのキャラクターアイコンを、六英雄戦での見え方に近づけてひと回り大きく表示するようにしました。',
+    ],
+    [
         'id' => '2026-08-24-six-hero-profile-section-layout',
         'date' => '2026-08-24',
         'category' => 'fixed',
