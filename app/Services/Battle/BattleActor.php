@@ -61,6 +61,9 @@ class BattleActor
     public bool $gutsReady = false;
     public bool $gutsJustTriggered = false;
 
+    /** 敏捷による追加行動の連続不発回数。戦闘ごとに0から数える。 */
+    public int $extraActionMissCount = 0;
+
     /** @var array<string, int> 戦闘終了時に破棄する奥義v2試作用リソース。 */
     private array $resources = [];
 

@@ -1257,7 +1257,7 @@ final class PvPRoomRuleLoopHarness extends PvPRoomRuleBattleHarness
         parent::__construct($statusService, $damageCalculator, $jobArtBattleSupport, $damageApplicationService);
     }
 
-    protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+    protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state, bool $tickCooldowns = true): void
     {
         $this->actionActors[] = $attacker->name;
         $this->eventRule->events[] = "execute:{$attacker->name}";
@@ -1269,7 +1269,7 @@ final class PvPSpeedRoomRuleLoopHarness extends PvPRoomRuleBattleHarness
     /** @var list<string> */
     public array $actionActors = [];
 
-    protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+    protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state, bool $tickCooldowns = true): void
     {
         $this->actionActors[] = $attacker->name;
         $defender->takeDamage($defender->hp);

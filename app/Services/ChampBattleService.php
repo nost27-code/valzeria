@@ -22,6 +22,7 @@ use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
 use App\Services\Battle\JobArtHitPower;
+use App\Services\Battle\SpeedExtraActionService;
 use App\Support\CharacterIconCatalog;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
@@ -90,7 +91,13 @@ class ChampBattleService
         private LevelService $levelService,
         private JobArtBattleSupportService $jobArtBattleSupport,
         private ?DamageApplicationService $configuredDamageApplicationService = null,
+        private ?SpeedExtraActionService $configuredSpeedExtraActionService = null,
     ) {
+    }
+
+    private function speedExtraActionService(): SpeedExtraActionService
+    {
+        return $this->configuredSpeedExtraActionService ??= app(SpeedExtraActionService::class);
     }
 
     private function applyResolvedDamage(
@@ -617,14 +624,25 @@ class ChampBattleService
                 : [[$defender, $attacker], [$attacker, $defender]];
 
             $battleEnded = false;
-            foreach ($actors as [$actor, $target]) {
-                if ($actor->isDead() || $target->isDead()) {
-                    continue;
-                }
-
+            // 通常行動と追加行動で同じ解決処理を使い、片方だけ挙動がずれることを防ぐ。
+            $performAction = function (
+                BattleActor $actor,
+                BattleActor $target,
+                bool $tickCooldowns = true,
+            ) use (
+                &$log,
+                &$upsetDamageUsed,
+                &$totalDamage,
+                &$lastActionWasByChallenger,
+                $challenger,
+                $champ,
+                $levelGap,
+                $jobArtState,
+                $attacker,
+            ): bool {
                 $actorLevel = $actor->isPlayer ? (int) $challenger->level : (int) $champ->level;
                 $targetLevel = $actor->isPlayer ? (int) $champ->level : (int) $challenger->level;
-                $action = $this->champAction($actor, $target, $actorLevel, $targetLevel, $jobArtState);
+                $action = $this->champAction($actor, $target, $actorLevel, $targetLevel, $jobArtState, $tickCooldowns);
                 $damage = $action['damage'];
                 $upsetDamage = 0;
 
@@ -674,10 +692,34 @@ class ChampBattleService
 
                 if ($actor->isDead() || $target->isDead()) {
                     $lastActionWasByChallenger = $actor === $attacker;
+
+                    return true;
+                }
+
+                return false;
+            };
+
+            foreach ($actors as [$actor, $target]) {
+                if ($actor->isDead() || $target->isDead()) {
+                    continue;
+                }
+
+                if ($performAction($actor, $target)) {
                     $battleEnded = true;
                     break;
                 }
             }
+
+            if (! $battleEnded) {
+                $battleEnded = $this->resolveSpeedExtraAction(
+                    $jobArtState,
+                    $attacker,
+                    $defender,
+                    $log,
+                    $performAction,
+                );
+            }
+
             $this->jobArtBattleSupport->endRound($jobArtState);
             if ($battleEnded) {
                 break;
@@ -726,17 +768,53 @@ class ChampBattleService
         return $champIsDead && $lastActionWasByChallenger === true;
     }
 
+    /**
+     * 双方の通常行動が終わったあと、敏捷差による追加行動を1ラウンド1回だけ解決する。
+     * turnCountは進めず、endRound()もここでは呼ばない。
+     *
+     * @param  array<int, string>  $log
+     * @param  \Closure(BattleActor, BattleActor, bool): bool  $performAction
+     * @return bool 追加行動で決着したか
+     */
+    private function resolveSpeedExtraAction(
+        BattleState $jobArtState,
+        BattleActor $attacker,
+        BattleActor $defender,
+        array &$log,
+        \Closure $performAction,
+    ): bool {
+        if ($attacker->isDead() || $defender->isDead()) {
+            return false;
+        }
+
+        foreach ([[$attacker, $defender], [$defender, $attacker]] as [$actor, $target]) {
+            if (! $this->speedExtraActionService()->shouldGrantExtraAction($actor, $target)) {
+                continue;
+            }
+
+            $log[] = $this->speedExtraActionService()->activationLog($actor);
+
+            // 追加行動から追加行動は発生させず、cooldownもここでは進めない。
+            return $performAction($actor, $target, false);
+        }
+
+        return false;
+    }
+
     private function champAction(
         BattleActor $attacker,
         BattleActor $defender,
         int $attackerLevel,
         int $defenderLevel,
-        BattleState $jobArtState
+        BattleState $jobArtState,
+        bool $tickCooldowns = true,
     ): array
     {
         $this->jobArtBattleSupport->beginAction($attacker, $jobArtState);
 
-        $this->jobArtBattleSupport->tickCooldowns($jobArtState, $attacker);
+        if ($tickCooldowns) {
+            $this->jobArtBattleSupport->tickCooldowns($jobArtState, $attacker);
+        }
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $jobArtState);
         if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse($attacker, $jobArtState, $jobArt)) {
             $openingLog = $this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt);

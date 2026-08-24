@@ -132,7 +132,7 @@ class PvPBattleServiceTurnLimitTest extends TestCase
                 parent::__construct($statusService, $damageCalculator, $jobArtBattleSupport);
             }
 
-            protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+            protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state, bool $tickCooldowns = true): void
             {
                 $this->observedBattleTypes[] = $state->battleType;
 

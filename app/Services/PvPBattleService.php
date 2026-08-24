@@ -24,6 +24,7 @@ use App\Services\Battle\NullPvPRoomRule;
 use App\Services\Battle\PvPBattleExecutionContext;
 use App\Services\Battle\PvPBattleResolution;
 use App\Services\Battle\PvPRoomRuleInterface;
+use App\Services\Battle\SpeedExtraActionService;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
@@ -40,6 +41,7 @@ class PvPBattleService
     protected DamageCalculator $damageCalculator;
     protected JobArtBattleSupportService $jobArtBattleSupport;
     protected DamageApplicationService $damageApplicationService;
+    protected SpeedExtraActionService $speedExtraActionService;
 
     /** @var \WeakMap<BattleState, PvPRoomRuleInterface>|null */
     private ?\WeakMap $roomRules = null;
@@ -51,12 +53,14 @@ class PvPBattleService
         DamageCalculator $damageCalculator,
         JobArtBattleSupportService $jobArtBattleSupport,
         ?DamageApplicationService $damageApplicationService = null,
+        ?SpeedExtraActionService $speedExtraActionService = null,
     )
     {
         $this->statusService = $statusService;
         $this->damageCalculator = $damageCalculator;
         $this->jobArtBattleSupport = $jobArtBattleSupport;
         $this->damageApplicationService = $damageApplicationService ?? app(DamageApplicationService::class);
+        $this->speedExtraActionService = $speedExtraActionService ?? app(SpeedExtraActionService::class);
         $this->roomRules = new \WeakMap();
         $this->nullRoomRule = new NullPvPRoomRule();
     }
@@ -357,6 +361,7 @@ class PvPBattleService
                 $this->addTurnActionHeading($state, $attackerActor, $attackerActor, false);
                 $this->executeActionWithRoomRule($attackerActor, $defenderActor, $state);
             }
+            $this->resolveSpeedExtraAction($state, $attackerActor, $defenderActor);
             $this->jobArtBattleSupport->endRound($state);
         }
 
@@ -418,6 +423,48 @@ class PvPBattleService
             $attackerSpeed,
             $defenderSpeed,
             $defaultAttackerFirst,
+        );
+    }
+
+    /**
+     * 双方の通常行動が終わったあと、敏捷差による追加行動を1ラウンド1回だけ解決する。
+     * turnCountは進めず、endRound()もここでは呼ばない。
+     */
+    protected function resolveSpeedExtraAction(
+        BattleState $state,
+        BattleActor $attackerActor,
+        BattleActor $defenderActor,
+    ): void {
+        if ($attackerActor->isDead() || $defenderActor->isDead()) {
+            return;
+        }
+
+        foreach ([[$attackerActor, $defenderActor], [$defenderActor, $attackerActor]] as [$actor, $opponent]) {
+            if (! $this->speedExtraActionService->shouldGrantExtraAction($actor, $opponent)) {
+                continue;
+            }
+
+            $state->addLog($this->speedExtraActionService->activationLog($actor));
+            $this->addExtraActionHeading($state, $actor, $attackerActor);
+            $this->executeActionWithRoomRule($actor, $opponent, $state, false);
+
+            // 追加行動から追加行動は発生させない。
+            return;
+        }
+    }
+
+    private function addExtraActionHeading(
+        BattleState $state,
+        BattleActor $actor,
+        BattleActor $challenger,
+    ): void {
+        $isChallenger = $actor === $challenger;
+        $perspectiveLabel = $isChallenger ? 'あなた' : '対戦相手';
+        $colorClass = $isChallenger ? 'text-blue-700' : 'text-rose-700';
+        $actorName = e($actor->name);
+
+        $state->addLog(
+            "<span class=\"{$colorClass} font-extrabold\">⚡ 追加行動　{$actorName}（{$perspectiveLabel}）の行動</span>",
         );
     }
 
@@ -564,12 +611,18 @@ class PvPBattleService
         BattleActor $actor,
         BattleActor $opponent,
         BattleState $state,
+        bool $tickCooldowns = true,
     ): void {
-        $this->executeAction($actor, $opponent, $state);
+        $this->executeAction($actor, $opponent, $state, $tickCooldowns);
         $this->roomRuleFor($state)->onActionEnd($actor, $opponent, $state);
     }
 
-    protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+    protected function executeAction(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        bool $tickCooldowns = true,
+    ): void
     {
         $this->ensureRoomRuleAssociation($state);
         $this->jobArtBattleSupport->beginAction($attacker, $state);
@@ -579,7 +632,9 @@ class PvPBattleService
         $attacker->damageReductionRate = 0;
 
         $usedSkill = false;
-        $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
+        if ($tickCooldowns) {
+            $this->jobArtBattleSupport->tickCooldowns($state, $attacker);
+        }
         $jobArt = $this->jobArtBattleSupport->selectForTurn($attacker, $state);
         if ($jobArt && $this->jobArtBattleSupport->consumeAndMarkUse(
             $attacker,

@@ -258,7 +258,7 @@ class PvPBattleEngineSeparationTest extends TestCase
                 return true;
             }
 
-            protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+            protected function executeAction(BattleActor $attacker, BattleActor $defender, BattleState $state, bool $tickCooldowns = true): void
             {
                 $this->observedBattleTypes[] = $state->battleType;
                 $this->observedMinimumDamageGuarantees[] = $state->rankBattleMinimumDamageGuaranteeEnabled;
