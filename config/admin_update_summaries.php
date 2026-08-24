@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-24-six-hero-profile-section-layout',
+        'date' => '2026-08-24',
+        'category' => 'fixed',
+        'title' => '六英雄戦績を独立した枠へ整理',
+        'detail' => '冒険者カードの六英雄情報をカード本体から分離し、お気に入り武器の直前に独立した「六英雄戦績」枠として表示するようにしました。',
+    ],
+    [
         'id' => '2026-08-24-six-heroes-preseason-release',
         'date' => '2026-08-24',
         'category' => 'added',

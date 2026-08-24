@@ -107,8 +107,10 @@ final class SixHeroProfileAchievementTest extends TestCase
             ->assertSee('今期の六極殿戦績')
             ->assertSee('挑戦')
             ->assertSee('防衛')
-            ->assertSee('六英雄実績')
+            ->assertSee('六英雄戦績')
+            ->assertSee('確定済みの六英雄実績')
             ->assertSee('六極殿で詳しく見る')
+            ->assertSeeHtml('data-profile-six-hero-section')
             ->assertSeeHtml('data-profile-six-hero-current-record')
             ->assertSeeHtml('data-profile-six-hero-achievement');
 
@@ -125,10 +127,18 @@ final class SixHeroProfileAchievementTest extends TestCase
             ->call('openPlayerModal', $target->id)
             ->assertSet('playerInfo.six_hero_current_record', null)
             ->assertSet('playerInfo.six_hero_achievement', null)
+            ->assertDontSeeHtml('data-profile-six-hero-section')
             ->assertDontSee('今期の六極殿戦績')
             ->assertDontSeeHtml('data-profile-six-hero-current-record')
-            ->assertDontSee('六英雄実績')
+            ->assertDontSee('確定済みの六英雄実績')
             ->assertDontSeeHtml('data-profile-six-hero-achievement');
+
+        $profileView = file_get_contents(resource_path('views/livewire/city-header.blade.php'));
+        $sixHeroSectionPosition = strpos($profileView, 'data-profile-six-hero-section');
+        $favoriteWeaponsPosition = strpos($profileView, 'playerInfo.favorite_weapons_enabled');
+        $this->assertIsInt($sixHeroSectionPosition);
+        $this->assertIsInt($favoriteWeaponsPosition);
+        $this->assertLessThan($favoriteWeaponsPosition, $sixHeroSectionPosition);
     }
 
     public function test_online_players_mark_only_current_room_leaders_as_top_rankers(): void
