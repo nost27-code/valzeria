@@ -183,7 +183,7 @@ final class SixHeroOfficialBattleServiceTest extends TestCase
             'type' => 'arena',
             'character_id' => $characters[3]->id,
             'importance' => 2,
-            'message' => "【六極殿】神速の間で、{$characters[3]->name}さんが{$characters[1]->name}さんを破り、4位から2位へ駆け上がりました！",
+            'message' => "【六英雄】神速の間で、{$characters[3]->name}さんが{$characters[1]->name}さんを破り、4位から2位へ駆け上がりました！",
         ]);
     }
 

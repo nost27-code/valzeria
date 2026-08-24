@@ -31,7 +31,7 @@ final class SixHeroRankingPublicLogServiceTest extends TestCase
             'type' => 'arena',
             'character_id' => $attacker->id,
             'importance' => 3,
-            'message' => "【六極速報】神速の間で、{$attacker->name}さんが{$defender->name}さんを破り、現在首位を奪取しました！",
+            'message' => "【六英雄速報】神速の間で、{$attacker->name}さんが{$defender->name}さんを破り、現在首位を奪取しました！",
         ]);
     }
 
@@ -50,7 +50,7 @@ final class SixHeroRankingPublicLogServiceTest extends TestCase
             'type' => 'arena',
             'character_id' => $attacker->id,
             'importance' => 2,
-            'message' => "【六極殿】封魔の間で、{$attacker->name}さんが{$defender->name}さんを破り、6位から3位へ駆け上がりました！",
+            'message' => "【六英雄】封魔の間で、{$attacker->name}さんが{$defender->name}さんを破り、6位から3位へ駆け上がりました！",
         ]);
     }
 

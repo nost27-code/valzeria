@@ -26,7 +26,7 @@ final class SixHeroRankingPublicLogService
         if ($rankChange->attackerNewRank === 1) {
             $this->publicLogService->addLog(
                 'arena',
-                "【六極速報】{$room->label()}で、{$attacker->name}さんが{$defender->name}さんを破り、現在首位を奪取しました！",
+                "【六英雄速報】{$room->label()}で、{$attacker->name}さんが{$defender->name}さんを破り、現在首位を奪取しました！",
                 $attacker,
                 3,
             );
@@ -36,7 +36,7 @@ final class SixHeroRankingPublicLogService
 
         $this->publicLogService->addLog(
             'arena',
-            "【六極殿】{$room->label()}で、{$attacker->name}さんが{$defender->name}さんを破り、{$rankChange->attackerOldRank}位から{$rankChange->attackerNewRank}位へ駆け上がりました！",
+            "【六英雄】{$room->label()}で、{$attacker->name}さんが{$defender->name}さんを破り、{$rankChange->attackerOldRank}位から{$rankChange->attackerNewRank}位へ駆け上がりました！",
             $attacker,
             2,
         );
