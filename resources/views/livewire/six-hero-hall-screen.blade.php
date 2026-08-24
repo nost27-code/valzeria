@@ -521,6 +521,7 @@
                         <div class="border-t border-slate-200 pt-5">
                             <h3 id="six-hero-special-rules-title" class="text-base font-black text-slate-950">六つの間の特殊ルール</h3>
                             <p class="mt-1 text-xs font-bold leading-relaxed text-slate-600">同じ攻撃や戦技でも、間によって有利になる能力や計算が変わります。</p>
+                            <p class="mt-1 text-[11px] font-medium leading-relaxed text-amber-700">※ 現在はバランス調整を検討中のため、特殊ルールによる能力・ダメージの変化は控えめに設定しています。</p>
                         </div>
 
                         <div class="mt-3 grid gap-3 sm:grid-cols-2">

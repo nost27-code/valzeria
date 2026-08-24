@@ -369,6 +369,7 @@ final class SixHeroHallScreenTest extends TestCase
             ->assertDontSee('現在の英雄')
             ->assertDontSee('月間英雄：')
             ->assertSee('六英雄戦の遊び方')
+            ->assertSee('特殊ルールによる能力・ダメージの変化は控えめに設定しています')
             ->assertSee('それぞれ独立したランキングです')
             ->assertSee('複数の間へ同時に参加できます')
             ->assertSee('自分の直上3人です')
