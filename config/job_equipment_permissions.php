@@ -14,7 +14,7 @@ return [
         ],
         52 => [
             'name' => '蒼天竜騎士',
-            'weapons' => ['spear', 'sword', 'axe'],
+            'weapons' => ['spear', 'sword', 'axe', 'bow'],
             'armors' => ['light_armor', 'heavy_armor'],
         ],
         53 => [
@@ -64,7 +64,7 @@ return [
         ],
         62 => [
             'name' => '竜冠槍将',
-            'weapons' => ['spear', 'sword', 'axe'],
+            'weapons' => ['spear', 'sword', 'axe', 'bow'],
             'armors' => ['light_armor', 'heavy_armor'],
         ],
         63 => [
@@ -109,7 +109,7 @@ return [
         ],
         71 => [
             'name' => '黒月の執行者',
-            'weapons' => ['dagger', 'katana', 'sword', 'gun'],
+            'weapons' => ['dagger', 'katana', 'sword', 'gun', 'bow'],
             'armors' => ['clothes', 'cloak', 'light_armor'],
         ],
         72 => [
@@ -204,7 +204,7 @@ return [
         ],
         90 => [
             'name' => '雷霆武神',
-            'weapons' => ['fist', 'axe', 'spear', 'katana'],
+            'weapons' => ['fist', 'axe', 'spear', 'katana', 'bow'],
             'armors' => ['clothes', 'cloak', 'light_armor', 'heavy_armor'],
         ],
         91 => [

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-high-rank-bow-proficiency',
+        'date' => '2026-08-25',
+        'category' => 'balance',
+        'title' => '上位四職へ弓の装備適性を追加',
+        'detail' => '蒼天竜騎士、竜冠槍将、黒月の執行者、雷霆武神が弓を適性武器として扱えるようになりました。これまでの適性武器も引き続き利用できます。',
+    ],
+    [
         'id' => '2026-08-24-job-armor-proficiency-display',
         'date' => '2026-08-24',
         'category' => 'changed',
