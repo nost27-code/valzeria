@@ -579,6 +579,7 @@ class CityHeader extends Component
                     'key' => $room->value,
                     'label' => $room->label(),
                     'rank' => (int) $ranking->rank,
+                    'rankTone' => $this->sixHeroRankTone((int) $ranking->rank),
                     'isLeader' => (int) $ranking->rank === 1,
                     'challengeWins' => (int) $ranking->official_attack_wins,
                     'challengeLosses' => (int) $ranking->official_attack_losses,
@@ -594,6 +595,49 @@ class CityHeader extends Component
             'currentCrownCount' => $rooms->where('isLeader', true)->count(),
             'rooms' => $rooms->all(),
         ];
+    }
+
+    /** @return array{band: string, background: string, border: string, text: string} */
+    private function sixHeroRankTone(int $rank): array
+    {
+        return match (true) {
+            $rank === 1 => [
+                'band' => 'first',
+                'background' => '#fff4d6',
+                'border' => '#d7a521',
+                'text' => '#8f5100',
+            ],
+            $rank <= 3 => [
+                'band' => 'top-three',
+                'background' => '#fff8e8',
+                'border' => '#e6c66b',
+                'text' => '#765816',
+            ],
+            $rank <= 6 => [
+                'band' => 'top-six',
+                'background' => '#fffaf0',
+                'border' => '#e8d9a4',
+                'text' => '#665326',
+            ],
+            $rank <= 10 => [
+                'band' => 'top-ten',
+                'background' => '#f3f8fd',
+                'border' => '#c8d5e6',
+                'text' => '#344f70',
+            ],
+            $rank <= 20 => [
+                'band' => 'top-twenty',
+                'background' => '#f8fafc',
+                'border' => '#d7dee8',
+                'text' => '#44536a',
+            ],
+            default => [
+                'band' => 'standard',
+                'background' => '#ffffff',
+                'border' => '#e1e5eb',
+                'text' => '#4a5568',
+            ],
+        };
     }
 
     private function versionedProfileAsset(string $path): string

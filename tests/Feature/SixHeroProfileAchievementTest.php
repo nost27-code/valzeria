@@ -144,10 +144,55 @@ final class SixHeroProfileAchievementTest extends TestCase
 
         $currentRecordView = substr($profileView, $currentRecordPosition, $detailsLinkPosition - $currentRecordPosition);
         $this->assertStringContainsString('grid-cols-3', $currentRecordView);
+        $this->assertStringContainsString(':data-rank-band="room.rankTone.band"', $currentRecordView);
+        $this->assertStringContainsString('room.rankTone.background', $currentRecordView);
+        $this->assertStringContainsString('room.rankTone.border', $currentRecordView);
+        $this->assertStringContainsString('room.rankTone.text', $currentRecordView);
         $this->assertStringNotContainsString('room.challengeWins', $currentRecordView);
         $this->assertStringNotContainsString('room.challengeLosses', $currentRecordView);
         $this->assertStringNotContainsString('room.defenseWins', $currentRecordView);
         $this->assertStringNotContainsString('room.defenseLosses', $currentRecordView);
+    }
+
+    public function test_current_room_rankings_use_six_subtle_color_bands(): void
+    {
+        $viewer = $this->character('順位色閲覧者');
+        $target = $this->character('順位色対象者');
+        $season = $this->season('2026-08');
+        $ranks = [1, 2, 4, 7, 11, 21];
+        $expectedBands = ['first', 'top-three', 'top-six', 'top-ten', 'top-twenty', 'standard'];
+
+        foreach (SixHeroRoomKey::cases() as $index => $room) {
+            $this->ranking(
+                $season,
+                $room,
+                $target,
+                rank: $ranks[$index],
+                challengeWins: 0,
+                challengeLosses: 0,
+                defenseWins: 0,
+                defenseLosses: 0,
+            );
+        }
+
+        $this->actingAs($viewer->user)
+            ->withSession(['current_character_id' => $viewer->id]);
+
+        $component = Livewire::test(CityHeader::class, ['modalOnly' => true])
+            ->call('openPlayerModal', $target->id);
+
+        foreach ($expectedBands as $index => $band) {
+            $component
+                ->assertSet("playerInfo.six_hero_current_record.rooms.{$index}.rank", $ranks[$index])
+                ->assertSet("playerInfo.six_hero_current_record.rooms.{$index}.rankTone.band", $band);
+        }
+
+        $rooms = $component->get('playerInfo')['six_hero_current_record']['rooms'];
+        foreach ($rooms as $room) {
+            $this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $room['rankTone']['background']);
+            $this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $room['rankTone']['border']);
+            $this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $room['rankTone']['text']);
+        }
     }
 
     public function test_online_players_mark_only_current_room_leaders_as_top_rankers(): void

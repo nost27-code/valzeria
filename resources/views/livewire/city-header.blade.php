@@ -1822,9 +1822,10 @@
                                                 <div class="grid grid-cols-3 gap-1.5" data-profile-six-hero-room-grid>
                                                     <template x-for="room in playerInfo.six_hero_current_record.rooms" :key="`current-six-hero-${room.key}`">
                                                         <div class="flex min-h-[58px] min-w-0 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center"
-                                                             :class="room.isLeader ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white/90'">
+                                                             :data-rank-band="room.rankTone.band"
+                                                             :style="`border-color: ${room.rankTone.border}; background-color: ${room.rankTone.background};`">
                                                             <div class="w-full truncate text-[9px] font-black text-slate-800" x-text="room.label"></div>
-                                                            <div class="mt-0.5 text-sm font-black" :class="room.isLeader ? 'text-amber-700' : 'text-slate-700'" x-text="`${room.rank}位`"></div>
+                                                            <div class="mt-0.5 text-sm font-black" :style="`color: ${room.rankTone.text};`" x-text="`${room.rank}位`"></div>
                                                             <div x-show="room.isLeader" class="text-[8px] font-black text-amber-700">現在首位</div>
                                                         </div>
                                                     </template>

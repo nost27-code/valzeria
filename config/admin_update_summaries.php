@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-six-hero-profile-rank-colors',
+        'date' => '2026-08-25',
+        'category' => 'changed',
+        'title' => '六英雄順位を段階色で見やすく調整',
+        'detail' => '冒険者カードの六英雄戦績で、1位から21位以下までを6段階の淡い金色・クリーム・水色・白で表示し、現在の順位帯を見分けやすくしました。順位や対戦結果の計算は変更していません。',
+    ],
+    [
         'id' => '2026-08-25-six-hero-speed-breakthrough',
         'date' => '2026-08-25',
         'category' => 'balance',
