@@ -122,7 +122,7 @@ final class SixHeroBattleResultPresenter
                 $resolution->defenderHp,
                 $resolution->defenderMaxHp,
             ),
-            'logs' => $this->safeStyledBattleLogs($resolution->result->logs),
+            'logs' => $this->styledBattleLogs($resolution->result->logs),
         ];
     }
 
@@ -230,7 +230,7 @@ final class SixHeroBattleResultPresenter
      * @param  array<int, mixed>  $logs
      * @return array<int, string>
      */
-    private function safeStyledBattleLogs(array $logs): array
+    public function styledBattleLogs(array $logs): array
     {
         $safeLogs = [];
 

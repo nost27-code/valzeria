@@ -101,16 +101,7 @@
                     </div>
                 </section>
 
-                <section class="rounded-lg border border-slate-200 bg-white" data-battle-log aria-labelledby="six-hero-battle-log-title">
-                    <h2 id="six-hero-battle-log-title" class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800">戦闘ログ</h2>
-                    <div class="space-y-3 px-3 py-4 sm:px-4">
-                        @forelse($battleLogs as $log)
-                            <p class="battle-log-entry whitespace-pre-line break-words font-mono text-sm leading-loose text-slate-700 sm:text-base" data-battle-log-line>{!! $log !!}</p>
-                        @empty
-                            <p class="font-bold text-rose-700">戦闘ログを表示できませんでした。</p>
-                        @endforelse
-                    </div>
-                </section>
+                <x-six-hero-battle-log :logs="$battleLogs" />
 
                 <section class="text-center" data-battle-outcome>
                     <div class="text-3xl font-black {{ $battleResult['attackerWon'] ? 'text-emerald-700' : 'text-rose-700' }}">

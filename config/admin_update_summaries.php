@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-admin-six-hero-battle-log-style',
+        'date' => '2026-08-25',
+        'category' => 'internal',
+        'title' => '六英雄戦の検証ログを実戦表示へ統一',
+        'detail' => '管理者の六英雄戦シミュレーターで、サンプル戦闘ログのフォント・文字サイズ・色・強調・セリフを、実際の六英雄戦と同じ表示で確認できるようにしました。戦闘計算は変更していません。',
+    ],
+    [
         'id' => '2026-08-25-nation-member-cap-twenty',
         'date' => '2026-08-25',
         'category' => 'balance',

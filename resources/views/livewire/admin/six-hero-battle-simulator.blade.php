@@ -227,15 +227,12 @@
                 </div>
             </div>
 
-            <div class="rounded-md bg-slate-950 p-4 text-slate-100">
-                <h3 class="text-lg font-black">サンプル1戦の全ログ</h3>
-                <p class="mt-1 text-xs font-bold text-slate-400">実際に適用されたダメージ・回復・強化・弱体を生成順で表示します。</p>
-                <div class="mt-4 max-h-[560px] overflow-auto rounded bg-black/30 p-4 text-sm leading-relaxed">
-                    @foreach($sampleLogs as $line)
-                        <div class="mb-2 whitespace-pre-wrap">{{ $line }}</div>
-                    @endforeach
-                </div>
-            </div>
+            <x-six-hero-battle-log
+                :logs="$sampleLogs"
+                title="サンプル1戦の全ログ"
+                title-id="admin-six-hero-sample-battle-log-title"
+                description="実際の六英雄戦と同じフォント・文字サイズ・色・強調で、ダメージ・回復・強化・弱体・セリフを生成順で表示します。"
+            />
         </div>
     @endif
 </section>

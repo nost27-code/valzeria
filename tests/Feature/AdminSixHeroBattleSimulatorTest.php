@@ -94,7 +94,10 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
             ->assertSet('summary.a_nominal_rate', 15.0)
             ->assertSet('summary.a_final_hp_median', 300.0)
             ->assertSee('サンプル1戦の全ログ')
-            ->assertSee('検証ダメージ 321');
+            ->assertSee('実際の六英雄戦と同じフォント・文字サイズ・色・強調')
+            ->assertSeeHtml('<span class="text-rose-700 font-black text-lg">検証ダメージ 321</span>')
+            ->assertSeeHtml('class="battle-log-entry whitespace-pre-line break-words font-mono text-sm leading-loose text-slate-700 sm:text-base"')
+            ->assertDontSeeHtml('<script>unsafeLog()</script>');
 
         $this->assertCount(4, $contexts);
         foreach ($contexts as $context) {
@@ -247,7 +250,7 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
     {
         $result = new BattleResult;
         $result->result = $attackerWon ? 'victory' : 'defeat';
-        $result->logs = ['検証ダメージ 321'];
+        $result->logs = ['<script>unsafeLog()</script><span class="text-rose-700 font-black text-lg">検証ダメージ 321</span>'];
         $result->playerMpAfter = 80;
 
         return new PvPBattleResolution(

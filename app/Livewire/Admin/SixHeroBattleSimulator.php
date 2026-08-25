@@ -7,6 +7,7 @@ use App\Models\Character;
 use App\Services\Admin\SixHeroBattleSimulatorService;
 use App\Services\Battle\DamageCalculator;
 use App\Services\CharacterStatusService;
+use App\Services\SixHeroBattleResultPresenter;
 use App\Support\SixHeroCompetitionRules;
 use App\Support\SixHeroRoomUiCatalog;
 use Illuminate\Database\Eloquent\Builder;
@@ -77,8 +78,10 @@ final class SixHeroBattleSimulator extends Component
         $this->clearResults();
     }
 
-    public function runSimulation(SixHeroBattleSimulatorService $simulator): void
-    {
+    public function runSimulation(
+        SixHeroBattleSimulatorService $simulator,
+        SixHeroBattleResultPresenter $presenter,
+    ): void {
         $validated = $this->validate([
             'selectedAttackerId' => ['required', 'integer', 'exists:characters,id'],
             'selectedDefenderId' => [
@@ -137,7 +140,7 @@ final class SixHeroBattleSimulator extends Component
                     ];
 
                     if ($sampleLogs === []) {
-                        $sampleLogs = $this->cleanLogs($resolution->result->logs);
+                        $sampleLogs = $presenter->styledBattleLogs($resolution->result->logs);
                     }
                 }
             }
@@ -317,8 +320,8 @@ final class SixHeroBattleSimulator extends Component
     }
 
     /**
-     * @param array<string, mixed> $samples
-     * @param list<array<string, int|string|float>> $runs
+     * @param  array<string, mixed>  $samples
+     * @param  list<array<string, int|string|float>>  $runs
      * @return array<string, int|float>
      */
     private function summarizeCombatantMetrics(array $samples, array $runs, string $side): array
@@ -384,20 +387,6 @@ final class SixHeroBattleSimulator extends Component
     private function percent(int $value, int $total): float
     {
         return $total > 0 ? round($value / $total * 100, 1) : 0.0;
-    }
-
-    /** @param list<string> $logs @return list<string> */
-    private function cleanLogs(array $logs): array
-    {
-        return collect($logs)
-            ->map(static function (string $log): string {
-                $plain = str_ireplace(['<br>', '<br/>', '<br />'], "\n", $log);
-
-                return trim(html_entity_decode(strip_tags($plain), ENT_QUOTES | ENT_HTML5));
-            })
-            ->filter()
-            ->values()
-            ->all();
     }
 
     private function clearResults(): void
