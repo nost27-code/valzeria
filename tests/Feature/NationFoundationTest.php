@@ -233,7 +233,7 @@ final class NationFoundationTest extends TestCase
         $this->actingAs($character->user);
 
         Livewire::test(NationScreen::class)
-            ->assertSee('国家レベル')
+            ->assertSee('国家Lv')
             ->assertSee('Lv1')
             ->assertSee('国家資材管理')
             ->call('showResourceManagement')
