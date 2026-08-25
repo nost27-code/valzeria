@@ -8,6 +8,12 @@ use LogicException;
 
 final class SixHeroCompetitionRules
 {
+    /** 六英雄戦では通常攻撃を表示威力100%の基準行動として扱う。 */
+    public const NORMAL_ATTACK_POWER = 100;
+
+    /** 六英雄戦の基準ダメージを従来式の50%へ抑える。 */
+    public const BASE_DAMAGE_MULTIPLIER = 0.5;
+
     /** Maximum official battles in one Room per app-timezone day. */
     public const DAILY_OFFICIAL_ATTEMPT_LIMIT = 5;
 

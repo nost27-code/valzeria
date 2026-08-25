@@ -10,6 +10,9 @@ final readonly class PvPBattleExecutionContext
         public ?PvPRoomRuleInterface $roomRule = null,
         public bool $rankBattleMinimumDamageGuaranteeEnabled = true,
         public bool $rankBattleDamageCapEnabled = true,
+        public float $rankBattleBaseDamageMultiplier = 1.0,
+        public int $rankBattleNormalAttackPower = 125,
+        public bool $speedBreakthroughEnabled = false,
     ) {}
 
     public static function arena(): self
@@ -20,6 +23,9 @@ final readonly class PvPBattleExecutionContext
             roomRule: null,
             rankBattleMinimumDamageGuaranteeEnabled: true,
             rankBattleDamageCapEnabled: true,
+            rankBattleBaseDamageMultiplier: 1.0,
+            rankBattleNormalAttackPower: 125,
+            speedBreakthroughEnabled: false,
         );
     }
 
@@ -31,6 +37,9 @@ final readonly class PvPBattleExecutionContext
             roomRule: null,
             rankBattleMinimumDamageGuaranteeEnabled: true,
             rankBattleDamageCapEnabled: true,
+            rankBattleBaseDamageMultiplier: 1.0,
+            rankBattleNormalAttackPower: 125,
+            speedBreakthroughEnabled: false,
         );
     }
 }

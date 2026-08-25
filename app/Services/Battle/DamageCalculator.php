@@ -197,6 +197,8 @@ class DamageCalculator
         int $hitCount = 1,
         bool $minimumDamageGuaranteeEnabled = true,
         bool $damageCapEnabled = true,
+        float $baseDamageMultiplier = 1.0,
+        float $additionalDefenseIgnoreRate = 0.0,
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
         $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr());
@@ -206,6 +208,9 @@ class DamageCalculator
         $effectiveDefense = $attackType === 'magical'
             ? ($spr * 0.72) + ($def * 0.28)
             : ($def * 0.72) + ($spr * 0.28);
+        if ($additionalDefenseIgnoreRate > 0.0) {
+            $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
+        }
 
         $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
             - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
@@ -218,7 +223,8 @@ class DamageCalculator
             )
             : 1;
 
-        $baseDamage = max($minimumDamage, $statDamage + $pressureDamage);
+        $baseDamage = max($minimumDamage, $statDamage + $pressureDamage)
+            * max(0.0, $baseDamageMultiplier);
 
         if ($isCritical) {
             $baseDamage *= self::RANK_BATTLE_CRITICAL_MULTIPLIER;
@@ -258,6 +264,9 @@ class DamageCalculator
         int $skillPower,
         int $hitCount = 1,
         bool $isCritical = false,
+        bool $minimumDamageGuaranteeEnabled = true,
+        float $baseDamageMultiplier = 1.0,
+        float $additionalDefenseIgnoreRate = 0.0,
     ): int {
         $total = 0;
         foreach (JobArtHitPower::split($skillPower, $hitCount) as $hitPower) {
@@ -269,6 +278,9 @@ class DamageCalculator
                 $hitPower,
                 max(1, $hitCount),
                 $isCritical,
+                $minimumDamageGuaranteeEnabled,
+                $baseDamageMultiplier,
+                $additionalDefenseIgnoreRate,
             );
         }
 
@@ -283,6 +295,9 @@ class DamageCalculator
         int $skillPower,
         int $hitCount,
         bool $isCritical,
+        bool $minimumDamageGuaranteeEnabled,
+        float $baseDamageMultiplier,
+        float $additionalDefenseIgnoreRate,
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
         if ($battleType === 'champ') {
@@ -317,15 +332,21 @@ class DamageCalculator
             $effectiveDefense = $attackType === 'magical'
                 ? ($spr * 0.72) + ($def * 0.28)
                 : ($def * 0.72) + ($spr * 0.28);
+            if ($additionalDefenseIgnoreRate > 0.0) {
+                $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
+            }
             $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
                 - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
             $pressureDamage = max(0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE;
-            $minimumDamage = max(
-                1,
-                $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
-                $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
-            );
-            $damage = max($minimumDamage, $statDamage + $pressureDamage);
+            $minimumDamage = $minimumDamageGuaranteeEnabled
+                ? max(
+                    1,
+                    $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
+                    $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
+                )
+                : 1;
+            $damage = max($minimumDamage, $statDamage + $pressureDamage)
+                * max(0.0, $baseDamageMultiplier);
             if ($isCritical) {
                 $damage *= self::RANK_BATTLE_CRITICAL_MULTIPLIER;
             }
@@ -337,7 +358,9 @@ class DamageCalculator
             }
 
             $resolved = max(1, (int) floor($damage));
-            $resolved = max($resolved, $this->rankBattleNormalDamageFloor($defender));
+            if ($minimumDamageGuaranteeEnabled) {
+                $resolved = max($resolved, $this->rankBattleNormalDamageFloor($defender));
+            }
 
             return $this->applyDisplayedPower($resolved, $skillPower);
         }

@@ -143,6 +143,8 @@ class PvPJobArtDamageTypeTest extends TestCase
                 int $hitCount = 1,
                 bool $minimumDamageGuaranteeEnabled = true,
                 bool $damageCapEnabled = true,
+                float $baseDamageMultiplier = 1.0,
+                float $additionalDefenseIgnoreRate = 0.0,
             ): int {
                 $this->calls[] = [
                     'damage_type' => $attackType,
@@ -158,7 +160,7 @@ class PvPJobArtDamageTypeTest extends TestCase
         $support = $this->createMock(JobArtBattleSupportService::class);
         $support->method('isFieldOnlyArt')->willReturn(false);
         $support->method('defenseOverrides')->willReturn(['def' => null, 'spr' => null]);
-        $support->method('damageStatOverrides')->willReturn(['attack' => null, 'def' => null, 'spr' => null]);
+        $support->method('damageStatOverrides')->willReturn(['attack' => null, 'def' => null, 'spr' => null, 'applied_ignore_rate' => 0.0]);
         $support->method('modifyFieldDamage')->willReturnArgument(2);
         $support->method('modifyJobArtDamage')->willReturnArgument(3);
         $support->method('usesDamageApplication')->willReturn(false);

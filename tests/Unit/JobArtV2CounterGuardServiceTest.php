@@ -823,6 +823,8 @@ final class RecordingCounterDamageCalculator extends DamageCalculator
         int $hitCount = 1,
         bool $minimumDamageGuaranteeEnabled = true,
         bool $damageCapEnabled = true,
+        float $baseDamageMultiplier = 1.0,
+        float $additionalDefenseIgnoreRate = 0.0,
     ): int {
         $this->calls[] = ['route' => 'rank', 'power' => $skillPower];
 

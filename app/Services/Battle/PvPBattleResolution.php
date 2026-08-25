@@ -12,6 +12,10 @@ final readonly class PvPBattleResolution
         public int $attackerMaxHp,
         public int $defenderHp,
         public int $defenderMaxHp,
+        /** @var array<string, mixed> */
+        public array $attackerMetrics = [],
+        /** @var array<string, mixed> */
+        public array $defenderMetrics = [],
     ) {}
 
     public function attackerHpRatio(): float

@@ -13,6 +13,7 @@ use App\Services\Battle\RoomRules\SealMagicPvPRoomRule;
 use App\Services\Battle\PvPBattleExecutionContext;
 use App\Services\Battle\SixHeroBattleContextFactory;
 use App\Services\Battle\SixHeroRoomRuleResolver;
+use App\Support\SixHeroCompetitionRules;
 use App\Support\SixHeroRoomUiCatalog;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -109,18 +110,25 @@ final class SixHeroRoomRegistryTest extends TestCase
         $this->assertSame(SixHeroRoomKey::class, $parameterType->getName());
     }
 
-    public function test_six_hero_context_disables_rank_battle_minimum_guarantees_and_damage_caps(): void
+    public function test_six_hero_context_uses_its_dedicated_rank_battle_damage_policy(): void
     {
         $factory = new SixHeroBattleContextFactory(new SixHeroRoomRuleResolver());
 
         foreach (SixHeroRoomKey::cases() as $room) {
-            $context = $factory->make($room);
-
-            $this->assertFalse($context->rankBattleMinimumDamageGuaranteeEnabled, $room->value);
-            $this->assertFalse($context->rankBattleDamageCapEnabled, $room->value);
+            foreach ([$factory->make($room), $factory->makeOfficial($room), $factory->makePractice($room)] as $context) {
+                $this->assertFalse($context->rankBattleMinimumDamageGuaranteeEnabled, $room->value);
+                $this->assertFalse($context->rankBattleDamageCapEnabled, $room->value);
+                $this->assertSame(SixHeroCompetitionRules::BASE_DAMAGE_MULTIPLIER, $context->rankBattleBaseDamageMultiplier, $room->value);
+                $this->assertSame(SixHeroCompetitionRules::NORMAL_ATTACK_POWER, $context->rankBattleNormalAttackPower, $room->value);
+                $this->assertTrue($context->speedBreakthroughEnabled, $room->value);
+            }
         }
 
-        $this->assertTrue(PvPBattleExecutionContext::arena()->rankBattleMinimumDamageGuaranteeEnabled);
-        $this->assertTrue(PvPBattleExecutionContext::arena()->rankBattleDamageCapEnabled);
+        $arena = PvPBattleExecutionContext::arena();
+        $this->assertTrue($arena->rankBattleMinimumDamageGuaranteeEnabled);
+        $this->assertTrue($arena->rankBattleDamageCapEnabled);
+        $this->assertSame(1.0, $arena->rankBattleBaseDamageMultiplier);
+        $this->assertSame(125, $arena->rankBattleNormalAttackPower);
+        $this->assertFalse($arena->speedBreakthroughEnabled);
     }
 }

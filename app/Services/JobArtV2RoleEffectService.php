@@ -504,11 +504,11 @@ final class JobArtV2RoleEffectService
         );
     }
 
-    /** @return array{attack: ?int, def: ?int, spr: ?int} */
+    /** @return array{attack: ?int, def: ?int, spr: ?int, applied_ignore_rate: float} */
     public function damageStatOverrides(BattleActor $attacker, BattleActor $defender, Skill $skill): array
     {
         if (! $skill->isJobArt() || ! $this->enabledFor($attacker)) {
-            return ['attack' => null, 'def' => null, 'spr' => null];
+            return ['attack' => null, 'def' => null, 'spr' => null, 'applied_ignore_rate' => 0.0];
         }
 
         $attackStat = $skill->getAttribute('job_art_v2_attack_stat');
@@ -522,11 +522,12 @@ final class JobArtV2RoleEffectService
         if ($defense !== null && $ignoreRate > 0.0) {
             $defense = (int) floor($defense * (1 - $ignoreRate));
         }
+        $appliedIgnoreRate = $defense !== null ? $ignoreRate : 0.0;
 
         return match ($defenseStat) {
-            'def' => ['attack' => $attack, 'def' => $defense, 'spr' => $defense],
-            'spr' => ['attack' => $attack, 'def' => $defense, 'spr' => $defense],
-            default => ['attack' => $attack, 'def' => null, 'spr' => null],
+            'def' => ['attack' => $attack, 'def' => $defense, 'spr' => $defense, 'applied_ignore_rate' => $appliedIgnoreRate],
+            'spr' => ['attack' => $attack, 'def' => $defense, 'spr' => $defense, 'applied_ignore_rate' => $appliedIgnoreRate],
+            default => ['attack' => $attack, 'def' => null, 'spr' => null, 'applied_ignore_rate' => 0.0],
         };
     }
 
@@ -856,6 +857,9 @@ final class JobArtV2RoleEffectService
             $state->battleType,
             $power,
             $hitCount,
+            minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+            baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            additionalDefenseIgnoreRate: $state->speedBreakthroughAdditionalRateForEstimate(),
         );
         $magical = $this->damageCalculator->estimateJobArtDamage(
             $actor,
@@ -864,6 +868,9 @@ final class JobArtV2RoleEffectService
             $state->battleType,
             $power,
             $hitCount,
+            minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+            baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            additionalDefenseIgnoreRate: $state->speedBreakthroughAdditionalRateForEstimate(),
         );
         // Compare the same pre-application point used by real Job Art damage:
         // route calculation first, current action's field snapshot second.

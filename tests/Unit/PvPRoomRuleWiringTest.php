@@ -155,6 +155,7 @@ final class PvPRoomRuleWiringTest extends TestCase
         $state = new BattleState($attacker, $defender, 'pvp');
         $state->rankBattleMinimumDamageGuaranteeEnabled = false;
         $state->rankBattleDamageCapEnabled = false;
+        $state->rankBattleBaseDamageMultiplier = 0.5;
         $rule = new SpyPvPRoomRule();
         $rule->damageStatReplacements = ['attack' => 10, 'def' => 20, 'spr' => 30];
         $service->bindRule($state, $rule);
@@ -177,6 +178,7 @@ final class PvPRoomRuleWiringTest extends TestCase
             $this->assertSame(30, $call['spr']);
             $this->assertFalse($call['minimum_damage_guarantee_enabled']);
             $this->assertFalse($call['damage_cap_enabled']);
+            $this->assertSame(0.5, $call['base_damage_multiplier']);
         }
         $this->assertSame(['attack' => null, 'def' => null, 'spr' => null], $rule->damageStatCalls[0]['incoming']);
         $this->assertSame(['attack' => null, 'def' => null, 'spr' => null], $rule->damageStatCalls[1]['incoming']);
@@ -192,6 +194,74 @@ final class PvPRoomRuleWiringTest extends TestCase
         $this->assertSame($physicalSkill, $rule->damageStatCalls[2]['skill']);
         $this->assertSame($magicalSkill, $rule->damageStatCalls[3]['skill']);
         $this->assertSame($hybridSkill, $rule->damageStatCalls[4]['skill']);
+    }
+
+    public function test_speed_breakthrough_snapshot_and_log_are_reused_for_every_hit_in_one_action(): void
+    {
+        $support = new PvPRoomRuleJobArtSupportStub();
+        $calculator = new PvPRoomRuleDamageCalculatorSpy();
+        $calculator->mutateAttackerAgiAfterFirstCall = true;
+        $service = $this->harness($support, $calculator);
+        [$attacker, $defender] = $this->actors(
+            defenderHp: 10_000,
+            attackerAgi: 154,
+            defenderAgi: 100,
+        );
+        $state = new BattleState($attacker, $defender, 'pvp');
+        $state->speedBreakthroughEnabled = true;
+        $state->beginCompetitiveAction($attacker, $defender);
+        $state->snapshotSpeedBreakthrough($attacker, $defender, 0.30);
+        $skill = $this->skill('active', 'MULTI_HIT', 'physical', 7_050, [
+            'hit_count' => 3,
+            'power' => 300,
+            'power_multiplier' => 3.0,
+        ]);
+
+        $service->runSkill($attacker, $defender, $state, $skill);
+
+        $this->assertCount(3, $calculator->rankDamageCalls);
+        $this->assertSame(
+            [0.30, 0.30, 0.30],
+            array_column($calculator->rankDamageCalls, 'additional_defense_ignore_rate'),
+        );
+        $this->assertSame(1, $attacker->agi, 'The calculator spy changed agility after hit 1.');
+        $this->assertCount(
+            1,
+            array_filter($state->logs, static fn (string $log): bool => str_contains($log, '【敏捷突破】')),
+        );
+    }
+
+    public function test_speed_breakthrough_does_not_add_to_an_existing_fifty_percent_ignore(): void
+    {
+        $support = new PvPRoomRuleJobArtSupportStub();
+        $support->existingDamageStatOverrides = [
+            'attack' => 100,
+            'def' => 50,
+            'spr' => 50,
+            'applied_ignore_rate' => 0.50,
+        ];
+        $calculator = new PvPRoomRuleDamageCalculatorSpy();
+        $service = $this->harness($support, $calculator);
+        [$attacker, $defender] = $this->actors(defenderHp: 10_000, attackerAgi: 154, defenderAgi: 100);
+        $state = new BattleState($attacker, $defender, 'pvp');
+        $state->speedBreakthroughEnabled = true;
+        $state->beginCompetitiveAction($attacker, $defender);
+        $state->snapshotSpeedBreakthrough($attacker, $defender, 0.30);
+
+        $service->runSkill(
+            $attacker,
+            $defender,
+            $state,
+            $this->skill('job_art', 'PHYSICAL_DAMAGE', 'physical', 7_051),
+            HitResult::HIT,
+        );
+
+        $this->assertSame(0.0, $calculator->rankDamageCalls[0]['additional_defense_ignore_rate']);
+        $this->assertCount(
+            0,
+            array_filter($state->logs, static fn (string $log): bool => str_contains($log, '【敏捷突破】')),
+        );
+        $this->assertSame(0.50, $state->competitiveMetricsFor($attacker)['speed_rates'][0]['combined_ignore_rate']);
     }
 
     public function test_seal_rules_cover_all_five_damage_paths_without_treating_hybrid_as_str(): void
@@ -1280,8 +1350,9 @@ final class PvPRoomRuleDamageCalculatorSpy extends DamageCalculator
 {
     public int $damage = 100;
     public bool $useRealCalculation = false;
+    public bool $mutateAttackerAgiAfterFirstCall = false;
 
-    /** @var list<array{attack_type:string,skill_power:int,attack:?int,def:?int,spr:?int,is_skill:bool,hit_count:int,minimum_damage_guarantee_enabled:bool,damage_cap_enabled:bool}> */
+    /** @var list<array{attack_type:string,skill_power:int,attack:?int,def:?int,spr:?int,is_skill:bool,hit_count:int,minimum_damage_guarantee_enabled:bool,damage_cap_enabled:bool,base_damage_multiplier:float,additional_defense_ignore_rate:float}> */
     public array $rankDamageCalls = [];
 
     /** @var list<array{attacker:int,defender:int}> */
@@ -1326,6 +1397,8 @@ final class PvPRoomRuleDamageCalculatorSpy extends DamageCalculator
         int $hitCount = 1,
         bool $minimumDamageGuaranteeEnabled = true,
         bool $damageCapEnabled = true,
+        float $baseDamageMultiplier = 1.0,
+        float $additionalDefenseIgnoreRate = 0.0,
     ): int {
         $this->rankDamageCalls[] = [
             'attack_type' => $attackType,
@@ -1337,7 +1410,13 @@ final class PvPRoomRuleDamageCalculatorSpy extends DamageCalculator
             'hit_count' => $hitCount,
             'minimum_damage_guarantee_enabled' => $minimumDamageGuaranteeEnabled,
             'damage_cap_enabled' => $damageCapEnabled,
+            'base_damage_multiplier' => $baseDamageMultiplier,
+            'additional_defense_ignore_rate' => $additionalDefenseIgnoreRate,
         ];
+
+        if ($this->mutateAttackerAgiAfterFirstCall && count($this->rankDamageCalls) === 1) {
+            $attacker->agi = 1;
+        }
 
         if ($this->useRealCalculation) {
             return parent::calculateRankBattleDamage(
@@ -1354,6 +1433,8 @@ final class PvPRoomRuleDamageCalculatorSpy extends DamageCalculator
                 $hitCount,
                 $minimumDamageGuaranteeEnabled,
                 $damageCapEnabled,
+                $baseDamageMultiplier,
+                $additionalDefenseIgnoreRate,
             );
         }
 
@@ -1370,8 +1451,8 @@ final class PvPRoomRuleJobArtSupportStub extends JobArtBattleSupportService
     public ?int $jobArtDamageResult = null;
     public int $completedHpHeals = 0;
 
-    /** @var array{attack:?int,def:?int,spr:?int} */
-    public array $existingDamageStatOverrides = ['attack' => null, 'def' => null, 'spr' => null];
+    /** @var array{attack:?int,def:?int,spr:?int,applied_ignore_rate?:float} */
+    public array $existingDamageStatOverrides = ['attack' => null, 'def' => null, 'spr' => null, 'applied_ignore_rate' => 0.0];
 
     /** @var list<bool> */
     public array $adjustInitiativeInputs = [];

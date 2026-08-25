@@ -920,7 +920,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame('magical', $execution->damage_type);
         $this->assertSame(25, $execution->getAttribute('job_art_v2_defense_ignore_percent'));
         $this->assertSame(
-            ['attack' => 180, 'def' => 150, 'spr' => 150],
+            ['attack' => 180, 'def' => 150, 'spr' => 150, 'applied_ignore_rate' => 0.25],
             $service->damageStatOverrides($actor, $target, $execution),
         );
         $this->assertSame(200, $target->def, 'The target master/runtime stat must not be mutated.');
@@ -1241,7 +1241,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame('MAGICAL_DAMAGE', $execution->effect_template);
         $this->assertSame('magical', $execution->damage_type);
         $this->assertSame(
-            ['attack' => 180, 'def' => 80, 'spr' => 80],
+            ['attack' => 180, 'def' => 80, 'spr' => 80, 'applied_ignore_rate' => 0.0],
             $service->damageStatOverrides($actor, $target, $execution),
         );
         $this->assertSame(1_000, $service->modifyJobArtDamage($actor, $state, $execution, 1_000));

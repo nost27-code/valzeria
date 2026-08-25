@@ -532,7 +532,7 @@ class JobArtBattleSupportService
         return $this->jobArtV2RoleEffectService->modifyJobArtDamage($actor, $state, $skill, $damage);
     }
 
-    /** @return array{attack: ?int, def: ?int, spr: ?int} */
+    /** @return array{attack: ?int, def: ?int, spr: ?int, applied_ignore_rate: float} */
     public function damageStatOverrides(BattleActor $attacker, BattleActor $defender, Skill $skill): array
     {
         return $this->jobArtV2RoleEffectService->damageStatOverrides($attacker, $defender, $skill);

@@ -143,6 +143,7 @@ final class JobArtV2ReplacementWave2BTest extends TestCase
                         $resolvedDef = $statOverrides['def'] ?? $penetrationOverrides['def'];
                         $this->assertSame(50, $penetrationOverrides['def'], $label.' penetration fallback');
                         $this->assertSame(50, $statOverrides['def'], $label.' role route');
+                        $this->assertSame(0.50, $statOverrides['applied_ignore_rate'], $label.' applied ignore rate');
                         $this->assertSame(50, $resolvedDef, $label.' runtime composition must resolve once, not cumulatively');
                     }
                     if ($key === 'hunt_start') {
@@ -242,6 +243,7 @@ final class JobArtV2ReplacementWave2BTest extends TestCase
 
         $this->assertSame(50, $penetrationOverrides['def']);
         $this->assertSame(50, $statOverrides['def']);
+        $this->assertSame(0.50, $statOverrides['applied_ignore_rate']);
         $this->assertSame(50, $statOverrides['def'] ?? $penetrationOverrides['def']);
     }
 

@@ -38,7 +38,7 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
             ->assertSee('現在適用されるランク戦ダメージ式')
             ->assertSee('順位・挑戦回数・戦績・HP/SP・戦闘ログDBは更新しません')
             ->assertSee('攻撃能力×0.56', escape: false)
-            ->assertSee('通常攻撃の表示威力は125%')
+            ->assertSee('通常攻撃は表示威力100%')
             ->assertSee('通常戦闘シミュレーション');
     }
 
@@ -60,17 +60,18 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
         $pvpBattleService = Mockery::mock(PvPBattleService::class);
         $pvpBattleService->shouldNotReceive('executeBattle');
         $pvpBattleService->shouldReceive('resolveBattle')
-            ->twice()
+            ->times(4)
             ->andReturnUsing(function (
                 Character $actualAttacker,
                 Character $actualDefender,
                 PvPBattleExecutionContext $context,
             ) use (&$contexts, $attacker, $defender): PvPBattleResolution {
-                $this->assertTrue($actualAttacker->is($attacker));
-                $this->assertTrue($actualDefender->is($defender));
                 $contexts[] = $context;
+                $isAToB = count($contexts) <= 2;
+                $this->assertTrue($actualAttacker->is($isAToB ? $attacker : $defender));
+                $this->assertTrue($actualDefender->is($isAToB ? $defender : $attacker));
 
-                return $this->resolution(count($contexts) === 1);
+                return $this->resolution(in_array(count($contexts), [1, 3], true));
             });
         $this->app->instance(PvPBattleService::class, $pvpBattleService);
 
@@ -82,21 +83,33 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
             ->set('simulationCount', 2)
             ->call('runSimulation')
             ->assertHasNoErrors()
-            ->assertSet('summary.total', 2)
-            ->assertSet('summary.attacker_wins', 1)
-            ->assertSet('summary.defender_wins', 1)
-            ->assertSet('summary.attacker_win_rate', 50.0)
+            ->assertSet('summary.total', 4)
+            ->assertSet('summary.a_wins', 2)
+            ->assertSet('summary.b_wins', 2)
+            ->assertSet('summary.a_to_b_a_win_rate', 50.0)
+            ->assertSet('summary.b_to_a_a_win_rate', 50.0)
+            ->assertSet('summary.bidirectional_a_win_rate', 50.0)
+            ->assertSet('summary.a_avg_actions', 9.0)
+            ->assertSet('summary.a_avg_extra_actions', 1.5)
+            ->assertSet('summary.a_nominal_rate', 15.0)
+            ->assertSet('summary.a_final_hp_median', 300.0)
             ->assertSee('サンプル1戦の全ログ')
             ->assertSee('検証ダメージ 321');
 
-        $this->assertCount(2, $contexts);
+        $this->assertCount(4, $contexts);
         foreach ($contexts as $context) {
             $this->assertSame('奇跡の間', $context->displayLabel);
             $this->assertSame('champ', $context->jobArtContext);
             $this->assertFalse($context->rankBattleMinimumDamageGuaranteeEnabled);
             $this->assertFalse($context->rankBattleDamageCapEnabled);
+            $this->assertSame(0.5, $context->rankBattleBaseDamageMultiplier);
+            $this->assertSame(100, $context->rankBattleNormalAttackPower);
+            $this->assertTrue($context->speedBreakthroughEnabled);
         }
-        $this->assertNotSame($contexts[0]->roomRule, $contexts[1]->roomRule);
+        $this->assertCount(
+            4,
+            collect($contexts)->map(static fn (PvPBattleExecutionContext $context): int => spl_object_id($context->roomRule))->unique(),
+        );
         $this->assertDatabaseCount('six_hero_rankings', 0);
         $this->assertDatabaseCount('six_hero_daily_usages', 0);
         $this->assertDatabaseCount('six_hero_battle_logs', 0);
@@ -202,6 +215,9 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
 
         $this->assertSame(SixHeroRoomKey::DIVINE_SPEED, $result->room);
         $this->assertGreaterThan(0, $result->resolution->turnCount);
+        $this->assertGreaterThan(0, $result->resolution->attackerMetrics['action_count']);
+        $this->assertArrayHasKey('normal_damage', $result->resolution->attackerMetrics);
+        $this->assertArrayHasKey('speed_rates', $result->resolution->attackerMetrics);
         $this->assertNotSame([], $result->resolution->result->logs);
         $this->assertStringContainsString(
             '【神速の間】',
@@ -242,6 +258,30 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
             attackerMaxHp: 1000,
             defenderHp: $attackerWon ? 0 : 600,
             defenderMaxHp: 1200,
+            attackerMetrics: [
+                'action_count' => 10,
+                'extra_action_count' => 2,
+                'normal_damage' => [100, 200],
+                'skill_damage' => [300],
+                'speed_rates' => [[
+                    'nominal_rate' => 0.30,
+                    'existing_ignore_rate' => 0.0,
+                    'combined_ignore_rate' => 0.30,
+                    'additional_ignore_rate' => 0.30,
+                ]],
+            ],
+            defenderMetrics: [
+                'action_count' => 8,
+                'extra_action_count' => 1,
+                'normal_damage' => [80],
+                'skill_damage' => [240],
+                'speed_rates' => [[
+                    'nominal_rate' => 0.0,
+                    'existing_ignore_rate' => 0.0,
+                    'combined_ignore_rate' => 0.0,
+                    'additional_ignore_rate' => 0.0,
+                ]],
+            ],
         );
     }
 }

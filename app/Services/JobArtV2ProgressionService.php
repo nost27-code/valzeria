@@ -1716,8 +1716,28 @@ final class JobArtV2ProgressionService
     ): void {
         $power = max(0, (int) $executionSkill->power);
         $hits = max(1, (int) $executionSkill->hit_count);
-        $physical = $this->damageCalculator->estimateJobArtDamage($actor, $target, 'physical', $state->battleType, $power, $hits);
-        $magical = $this->damageCalculator->estimateJobArtDamage($actor, $target, 'magical', $state->battleType, $power, $hits);
+        $physical = $this->damageCalculator->estimateJobArtDamage(
+            $actor,
+            $target,
+            'physical',
+            $state->battleType,
+            $power,
+            $hits,
+            minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+            baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            additionalDefenseIgnoreRate: $state->speedBreakthroughAdditionalRateForEstimate(),
+        );
+        $magical = $this->damageCalculator->estimateJobArtDamage(
+            $actor,
+            $target,
+            'magical',
+            $state->battleType,
+            $power,
+            $hits,
+            minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
+            baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            additionalDefenseIgnoreRate: $state->speedBreakthroughAdditionalRateForEstimate(),
+        );
         $masterRoute = (string) $sourceSkill->damage_type === 'magical' ? 'magical' : 'physical';
         $route = $physical === $magical ? $masterRoute : ($magical > $physical ? 'magical' : 'physical');
         $this->replaceTemplate($executionSkill, $route === 'magical' ? 'MAGICAL_DAMAGE' : 'PHYSICAL_DAMAGE', false);

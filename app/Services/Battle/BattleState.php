@@ -43,6 +43,9 @@ class BattleState
     public string $battleType;
     public bool $rankBattleMinimumDamageGuaranteeEnabled = true;
     public bool $rankBattleDamageCapEnabled = true;
+    public float $rankBattleBaseDamageMultiplier = 1.0;
+    public int $rankBattleNormalAttackPower = 125;
+    public bool $speedBreakthroughEnabled = false;
     public array $enemyActionUseTurns = [];
     public array $enemyActionUseCounts = [];
     public ?int $pendingEnemyActionId = null;
@@ -54,6 +57,28 @@ class BattleState
 
     private int $sourceActionSequence = 0;
     private ?int $currentSourceActionId = null;
+
+    private int $competitiveActionSequence = 0;
+    private ?int $currentCompetitiveActionId = null;
+
+    /**
+     * @var array<int, array{
+     *     actor_key: string,
+     *     target_key: string,
+     *     damage_category: string|null,
+     *     damage: int,
+     *     nominal_rate: float|null,
+     *     rates: array{nominal_rate: float, existing_ignore_rate: float, combined_ignore_rate: float, additional_ignore_rate: float}|null,
+     *     breakthrough_log_claimed: bool
+     * }>
+     */
+    private array $competitiveActions = [];
+
+    /** @var array<string, int> */
+    private array $competitiveActionCounts = [];
+
+    /** @var array<string, int> */
+    private array $competitiveExtraActionCounts = [];
 
     /** @var array<int, array<string, mixed>> source_action_id単位の役割効果スナップショット。 */
     private array $jobArtV2RoleActionContexts = [];
@@ -221,6 +246,200 @@ class BattleState
     public function currentSourceActionId(): ?int
     {
         return $this->currentSourceActionId;
+    }
+
+    public function beginCompetitiveAction(BattleActor $actor, BattleActor $target): void
+    {
+        $actorKey = $this->actorKey($actor);
+        $this->competitiveActionCounts[$actorKey] = ($this->competitiveActionCounts[$actorKey] ?? 0) + 1;
+        $this->currentCompetitiveActionId = ++$this->competitiveActionSequence;
+        $this->competitiveActions[$this->currentCompetitiveActionId] = [
+            'actor_key' => $this->actorKey($actor),
+            'target_key' => $this->actorKey($target),
+            'damage_category' => null,
+            'damage' => 0,
+            'nominal_rate' => null,
+            'rates' => null,
+            'breakthrough_log_claimed' => false,
+        ];
+    }
+
+    public function recordCompetitiveExtraAction(BattleActor $actor): void
+    {
+        $actorKey = $this->actorKey($actor);
+        $this->competitiveExtraActionCounts[$actorKey] = ($this->competitiveExtraActionCounts[$actorKey] ?? 0) + 1;
+    }
+
+    public function competitiveActionCountFor(BattleActor $actor): int
+    {
+        return $this->competitiveActionCounts[$this->actorKey($actor)] ?? 0;
+    }
+
+    public function competitiveExtraActionCountFor(BattleActor $actor): int
+    {
+        return $this->competitiveExtraActionCounts[$this->actorKey($actor)] ?? 0;
+    }
+
+    public function snapshotSpeedBreakthrough(
+        BattleActor $actor,
+        BattleActor $target,
+        float $nominalRate,
+    ): void {
+        $action = $this->currentCompetitiveAction($actor, $target);
+        if ($action === null || $this->currentCompetitiveActionId === null) {
+            return;
+        }
+
+        $this->competitiveActions[$this->currentCompetitiveActionId]['nominal_rate'] = $nominalRate;
+    }
+
+    public function speedBreakthroughNominalRate(
+        BattleActor $actor,
+        BattleActor $target,
+    ): float {
+        $action = $this->currentCompetitiveAction($actor, $target);
+
+        return $this->speedBreakthroughEnabled
+            ? (float) ($action['nominal_rate'] ?? 0.0)
+            : 0.0;
+    }
+
+    /**
+     * 物理／魔法の経路選択比較では既存無視率E=0のため、追加率はsnapshotしたSと等しい。
+     */
+    public function speedBreakthroughAdditionalRateForEstimate(): float
+    {
+        if (! $this->speedBreakthroughEnabled || $this->currentCompetitiveActionId === null) {
+            return 0.0;
+        }
+
+        return (float) ($this->competitiveActions[$this->currentCompetitiveActionId]['nominal_rate'] ?? 0.0);
+    }
+
+    /** @param array{nominal_rate: float, existing_ignore_rate: float, combined_ignore_rate: float, additional_ignore_rate: float} $rates */
+    public function recordSpeedBreakthroughRates(
+        BattleActor $actor,
+        BattleActor $target,
+        array $rates,
+    ): void {
+        $action = $this->currentCompetitiveAction($actor, $target);
+        if ($action === null
+            || $this->currentCompetitiveActionId === null
+            || $action['rates'] !== null
+        ) {
+            return;
+        }
+
+        $this->competitiveActions[$this->currentCompetitiveActionId]['rates'] = $rates;
+    }
+
+    /** @return array{nominal_rate: float, existing_ignore_rate: float, combined_ignore_rate: float, additional_ignore_rate: float}|null */
+    public function speedBreakthroughRates(
+        BattleActor $actor,
+        BattleActor $target,
+    ): ?array {
+        $action = $this->currentCompetitiveAction($actor, $target);
+
+        return $action['rates'] ?? null;
+    }
+
+    public function claimSpeedBreakthroughLog(BattleActor $actor, BattleActor $target): bool
+    {
+        $action = $this->currentCompetitiveAction($actor, $target);
+        if ($action === null
+            || $this->currentCompetitiveActionId === null
+            || $action['breakthrough_log_claimed']
+        ) {
+            return false;
+        }
+
+        $this->competitiveActions[$this->currentCompetitiveActionId]['breakthrough_log_claimed'] = true;
+
+        return true;
+    }
+
+    public function markCompetitiveDamageAction(
+        BattleActor $actor,
+        BattleActor $target,
+        DamageSourceType $sourceType,
+    ): void {
+        $action = $this->currentCompetitiveAction($actor, $target);
+        if ($action === null || $this->currentCompetitiveActionId === null) {
+            return;
+        }
+
+        $this->competitiveActions[$this->currentCompetitiveActionId]['damage_category'] = $sourceType === DamageSourceType::NORMAL_ATTACK
+            ? 'normal'
+            : 'skill';
+    }
+
+    public function recordCompetitiveDamage(
+        BattleActor $actor,
+        BattleActor $target,
+        int $actualHpLoss,
+    ): void {
+        $action = $this->currentCompetitiveAction($actor, $target);
+        if ($action === null || $this->currentCompetitiveActionId === null) {
+            return;
+        }
+
+        $this->competitiveActions[$this->currentCompetitiveActionId]['damage'] += max(0, $actualHpLoss);
+    }
+
+    /**
+     * @return array{
+     *     normal_damage: list<int>,
+     *     skill_damage: list<int>,
+     *     speed_rates: list<array{nominal_rate: float, existing_ignore_rate: float, combined_ignore_rate: float, additional_ignore_rate: float}>
+     * }
+     */
+    public function competitiveMetricsFor(BattleActor $actor): array
+    {
+        $actorKey = $this->actorKey($actor);
+        $normalDamage = [];
+        $skillDamage = [];
+        $speedRates = [];
+
+        foreach ($this->competitiveActions as $action) {
+            if ($action['actor_key'] !== $actorKey) {
+                continue;
+            }
+
+            if ($action['damage_category'] === 'normal') {
+                $normalDamage[] = $action['damage'];
+            } elseif ($action['damage_category'] === 'skill') {
+                $skillDamage[] = $action['damage'];
+            }
+            if ($action['rates'] !== null) {
+                $speedRates[] = $action['rates'];
+            }
+        }
+
+        return [
+            'normal_damage' => $normalDamage,
+            'skill_damage' => $skillDamage,
+            'speed_rates' => $speedRates,
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function currentCompetitiveAction(
+        BattleActor $actor,
+        BattleActor $target,
+    ): ?array {
+        if ($this->currentCompetitiveActionId === null) {
+            return null;
+        }
+
+        $action = $this->competitiveActions[$this->currentCompetitiveActionId] ?? null;
+        if ($action === null
+            || $action['actor_key'] !== $this->actorKey($actor)
+            || $action['target_key'] !== $this->actorKey($target)
+        ) {
+            return null;
+        }
+
+        return $action;
     }
 
     /** @param \Closure(BattleActor, BattleState, \App\Models\Skill, int, bool): int $resolver */

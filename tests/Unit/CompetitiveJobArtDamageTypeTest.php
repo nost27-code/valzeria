@@ -147,6 +147,8 @@ class CompetitiveJobArtDamageTypeTest extends TestCase
                 int $hitCount = 1,
                 bool $minimumDamageGuaranteeEnabled = true,
                 bool $damageCapEnabled = true,
+                float $baseDamageMultiplier = 1.0,
+                float $additionalDefenseIgnoreRate = 0.0,
             ): int {
                 $this->attackTypes[] = $attackType;
 

@@ -25,6 +25,7 @@ use App\Services\Battle\PvPBattleExecutionContext;
 use App\Services\Battle\PvPBattleResolution;
 use App\Services\Battle\PvPRoomRuleInterface;
 use App\Services\Battle\SpeedExtraActionService;
+use App\Services\Battle\SpeedBreakthroughService;
 use App\Support\JobArtEffectCatalog;
 use Illuminate\Support\Facades\DB;
 
@@ -42,6 +43,7 @@ class PvPBattleService
     protected JobArtBattleSupportService $jobArtBattleSupport;
     protected DamageApplicationService $damageApplicationService;
     protected SpeedExtraActionService $speedExtraActionService;
+    protected SpeedBreakthroughService $speedBreakthroughService;
 
     /** @var \WeakMap<BattleState, PvPRoomRuleInterface>|null */
     private ?\WeakMap $roomRules = null;
@@ -54,6 +56,7 @@ class PvPBattleService
         JobArtBattleSupportService $jobArtBattleSupport,
         ?DamageApplicationService $damageApplicationService = null,
         ?SpeedExtraActionService $speedExtraActionService = null,
+        ?SpeedBreakthroughService $speedBreakthroughService = null,
     )
     {
         $this->statusService = $statusService;
@@ -61,6 +64,7 @@ class PvPBattleService
         $this->jobArtBattleSupport = $jobArtBattleSupport;
         $this->damageApplicationService = $damageApplicationService ?? app(DamageApplicationService::class);
         $this->speedExtraActionService = $speedExtraActionService ?? app(SpeedExtraActionService::class);
+        $this->speedBreakthroughService = $speedBreakthroughService ?? app(SpeedBreakthroughService::class);
         $this->roomRules = new \WeakMap();
         $this->nullRoomRule = new NullPvPRoomRule();
     }
@@ -196,6 +200,9 @@ class PvPBattleService
 
         $hpAfter = $target->hp;
         $actualHpLoss = max(0, $hpBefore - $hpAfter);
+        if ($source !== null) {
+            $state->recordCompetitiveDamage($source, $target, $actualHpLoss);
+        }
         if ($actualHpLoss > 0) {
             $this->roomRuleFor($state)->onActualHpLoss(
                 $source,
@@ -306,6 +313,10 @@ class PvPBattleService
         $state = new BattleState($attackerActor, $defenderActor, 'pvp');
         $state->rankBattleMinimumDamageGuaranteeEnabled = $context->rankBattleMinimumDamageGuaranteeEnabled;
         $state->rankBattleDamageCapEnabled = $context->rankBattleDamageCapEnabled;
+        $state->rankBattleBaseDamageMultiplier = $context->rankBattleBaseDamageMultiplier;
+        $state->rankBattleNormalAttackPower = $context->rankBattleNormalAttackPower;
+        $state->speedBreakthroughEnabled = $context->speedBreakthroughEnabled === true
+            && config('battle.speed_breakthrough.enabled') === true;
         $this->associateRoomRule(
             $state,
             $context->roomRule ?? ($this->nullRoomRule ??= new NullPvPRoomRule()),
@@ -401,6 +412,8 @@ class PvPBattleService
             attackerMaxHp: $attackerActor->maxHp,
             defenderHp: $defenderActor->hp,
             defenderMaxHp: $defenderActor->maxHp,
+            attackerMetrics: $this->battleMetricsFor($state, $attackerActor),
+            defenderMetrics: $this->battleMetricsFor($state, $defenderActor),
         );
     }
 
@@ -444,6 +457,7 @@ class PvPBattleService
                 continue;
             }
 
+            $state->recordCompetitiveExtraAction($actor);
             $state->addLog($this->speedExtraActionService->activationLog($actor));
             $this->addExtraActionHeading($state, $actor, $attackerActor);
             $this->executeActionWithRoomRule($actor, $opponent, $state, false);
@@ -626,6 +640,14 @@ class PvPBattleService
     {
         $this->ensureRoomRuleAssociation($state);
         $this->jobArtBattleSupport->beginAction($attacker, $state);
+        $state->beginCompetitiveAction($attacker, $defender);
+        if ($state->speedBreakthroughEnabled) {
+            $state->snapshotSpeedBreakthrough(
+                $attacker,
+                $defender,
+                $this->speedBreakthroughService->nominalRate($attacker, $defender),
+            );
+        }
 
         try {
         $attacker->isDefending = false;
@@ -660,7 +682,7 @@ class PvPBattleService
         }
 
         if (!$usedSkill) {
-            $this->executeNormalAttack($attacker, $defender, $state, self::PVP_NORMAL_POWER_MULTIPLIER);
+            $this->executeNormalAttack($attacker, $defender, $state, $state->rankBattleNormalAttackPower);
         }
         } finally {
             $this->jobArtBattleSupport->finishAction($attacker, $state);
@@ -673,6 +695,7 @@ class PvPBattleService
     protected function executeNormalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
         $this->jobArtBattleSupport->markNormalAttackAction($attacker, $state);
+        $state->markCompetitiveDamageAction($attacker, $defender, DamageSourceType::NORMAL_ATTACK);
 
         if (!$this->damageCalculator->isHit(
             $attacker,
@@ -700,6 +723,7 @@ class PvPBattleService
             null,
             ['attack' => null, 'def' => null, 'spr' => null],
         );
+        $breakthroughRates = $this->speedBreakthroughRates($attacker, $defender, $state, 0.0);
         $damage = $this->damageCalculator->calculateRankBattleDamage(
             $attacker,
             $defender,
@@ -712,6 +736,8 @@ class PvPBattleService
             $statOverrides['spr'],
             minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
             damageCapEnabled: $state->rankBattleDamageCapEnabled,
+            baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
         );
         $damage = $this->jobArtBattleSupport->modifyFieldDamage($attacker, $state, $damage, DamageSourceType::NORMAL_ATTACK);
         $damageResult = $this->applyResolvedDamage(
@@ -737,6 +763,7 @@ class PvPBattleService
 
     protected function executePhysicalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
+        $state->markCompetitiveDamageAction($attacker, $defender, DamageSourceType::NORMAL_ATTACK);
         if (!$this->damageCalculator->isHit(
             $attacker,
             $defender,
@@ -761,6 +788,7 @@ class PvPBattleService
             null,
             ['attack' => null, 'def' => null, 'spr' => null],
         );
+        $breakthroughRates = $this->speedBreakthroughRates($attacker, $defender, $state, 0.0);
         $damage = $this->damageCalculator->calculateRankBattleDamage(
             $attacker,
             $defender,
@@ -773,6 +801,8 @@ class PvPBattleService
             $statOverrides['spr'],
             minimumDamageGuaranteeEnabled: $state->rankBattleMinimumDamageGuaranteeEnabled,
             damageCapEnabled: $state->rankBattleDamageCapEnabled,
+            baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+            additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
         );
         $damage = $this->jobArtBattleSupport->modifyFieldDamage($attacker, $state, $damage, DamageSourceType::NORMAL_ATTACK);
         $damageResult = $this->applyResolvedDamage(
@@ -807,6 +837,11 @@ class PvPBattleService
     ): void
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
+        $state->markCompetitiveDamageAction(
+            $attacker,
+            $defender,
+            $skill->isJobArt() ? DamageSourceType::JOB_ART : DamageSourceType::JOB_SKILL,
+        );
         $damageType = $this->resolveSkillDamageType($attacker, $skill);
         $damageClass = $damageType === 'magical' ? 'text-purple-600' : 'text-red-600';
         if ($addOpeningLog) {
@@ -855,6 +890,7 @@ class PvPBattleService
 
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
             $statOverrides = $this->jobArtBattleSupport->damageStatOverrides($attacker, $defender, $skill);
+            $existingIgnoreRate = (float) ($statOverrides['applied_ignore_rate'] ?? 0.0);
             $statOverrides = [
                 'attack' => $statOverrides['attack'],
                 'def' => $statOverrides['def'] ?? $overrides['def'],
@@ -886,6 +922,12 @@ class PvPBattleService
                 $overrideAtk = $statOverrides['attack'];
                 $overrideDef = $statOverrides['def'];
                 $overrideSpr = $statOverrides['spr'];
+                $breakthroughRates = $this->speedBreakthroughRates(
+                    $attacker,
+                    $defender,
+                    $state,
+                    $existingIgnoreRate,
+                );
                 if (in_array($damageType, ['physical', 'gold', 'drop', 'support'], true)) {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
                         $attacker,
@@ -901,6 +943,8 @@ class PvPBattleService
                         $hitCount,
                         $state->rankBattleMinimumDamageGuaranteeEnabled,
                         $state->rankBattleDamageCapEnabled,
+                        baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+                        additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
                     );
                 } elseif ($damageType === 'magical') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
@@ -917,6 +961,8 @@ class PvPBattleService
                         $hitCount,
                         $state->rankBattleMinimumDamageGuaranteeEnabled,
                         $state->rankBattleDamageCapEnabled,
+                        baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+                        additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
                     );
                 } elseif ($damageType === 'hybrid') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
@@ -933,6 +979,8 @@ class PvPBattleService
                         $hitCount,
                         $state->rankBattleMinimumDamageGuaranteeEnabled,
                         $state->rankBattleDamageCapEnabled,
+                        baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
+                        additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
                     );
                 }
             }
@@ -1284,6 +1332,64 @@ class PvPBattleService
 
         $actor->gutsJustTriggered = false;
         $state->addLog("<span class=\"text-orange-700 font-extrabold\">{$actor->name} は不屈の精神で致死ダメージを耐えた！（HP1）</span>");
+    }
+
+    /**
+     * @return array{
+     *     nominal_rate: float,
+     *     existing_ignore_rate: float,
+     *     combined_ignore_rate: float,
+     *     additional_ignore_rate: float
+     * }
+     */
+    private function speedBreakthroughRates(
+        BattleActor $attacker,
+        BattleActor $defender,
+        BattleState $state,
+        float $existingIgnoreRate,
+    ): array {
+        $none = [
+            'nominal_rate' => 0.0,
+            'existing_ignore_rate' => $existingIgnoreRate,
+            'combined_ignore_rate' => $existingIgnoreRate,
+            'additional_ignore_rate' => 0.0,
+        ];
+        if (! $state->speedBreakthroughEnabled) {
+            return $none;
+        }
+
+        $snapshot = $state->speedBreakthroughRates($attacker, $defender);
+        if ($snapshot !== null) {
+            return $snapshot;
+        }
+
+        $rates = $this->speedBreakthroughService->rates(
+            $state->speedBreakthroughNominalRate($attacker, $defender),
+            $existingIgnoreRate,
+        );
+        $state->recordSpeedBreakthroughRates($attacker, $defender, $rates);
+
+        if ($rates['additional_ignore_rate'] >= 0.01
+            && $state->claimSpeedBreakthroughLog($attacker, $defender)
+        ) {
+            $rate = number_format($rates['additional_ignore_rate'] * 100, 1);
+            $state->addLog(
+                "<span class=\"text-cyan-700 font-bold\">【敏捷突破】{$attacker->name} の速さが {$defender->name} の守りを突き抜けた！（守りをさらに{$rate}%突破）</span>",
+            );
+        }
+
+        return $rates;
+    }
+
+    /** @return array<string, mixed> */
+    private function battleMetricsFor(BattleState $state, BattleActor $actor): array
+    {
+        $metrics = $state->competitiveMetricsFor($actor);
+
+        return array_merge($metrics, [
+            'action_count' => $state->competitiveActionCountFor($actor),
+            'extra_action_count' => $state->competitiveExtraActionCountFor($actor),
+        ]);
     }
 
     private function affinityLog(BattleActor $attacker, BattleActor $defender): string

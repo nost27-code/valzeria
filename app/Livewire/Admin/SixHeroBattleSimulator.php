@@ -7,7 +7,7 @@ use App\Models\Character;
 use App\Services\Admin\SixHeroBattleSimulatorService;
 use App\Services\Battle\DamageCalculator;
 use App\Services\CharacterStatusService;
-use App\Services\PvPBattleService;
+use App\Support\SixHeroCompetitionRules;
 use App\Support\SixHeroRoomUiCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -98,31 +98,47 @@ final class SixHeroBattleSimulator extends Component
         $defender = $this->battleCharacter((int) $validated['selectedDefenderId']);
         $runs = [];
         $sampleLogs = [];
+        $metricSamples = $this->emptyMetricSamples();
 
         try {
-            for ($index = 1; $index <= $this->simulationCount; $index++) {
-                $resolution = $simulator
-                    ->simulate($room, $attacker, $defender)
-                    ->resolution;
-                $runs[] = [
-                    'index' => $index,
-                    'winner' => $resolution->attackerWon ? '挑戦側' : '防衛側',
-                    'turns' => $resolution->turnCount,
-                    'attacker_hp' => $resolution->attackerHp,
-                    'attacker_hp_rate' => $this->percent(
-                        $resolution->attackerHp,
-                        $resolution->attackerMaxHp,
-                    ),
-                    'defender_hp' => $resolution->defenderHp,
-                    'defender_hp_rate' => $this->percent(
-                        $resolution->defenderHp,
-                        $resolution->defenderMaxHp,
-                    ),
-                    'attacker_won' => $resolution->attackerWon ? 1 : 0,
-                ];
+            foreach ([
+                ['key' => 'a_to_b', 'label' => 'A→B', 'attacker' => $attacker, 'defender' => $defender, 'a_is_attacker' => true],
+                ['key' => 'b_to_a', 'label' => 'B→A', 'attacker' => $defender, 'defender' => $attacker, 'a_is_attacker' => false],
+            ] as $direction) {
+                for ($index = 1; $index <= $this->simulationCount; $index++) {
+                    $resolution = $simulator
+                        ->simulate($room, $direction['attacker'], $direction['defender'])
+                        ->resolution;
+                    $aWon = $direction['a_is_attacker']
+                        ? $resolution->attackerWon
+                        : ! $resolution->attackerWon;
+                    $aHp = $direction['a_is_attacker'] ? $resolution->attackerHp : $resolution->defenderHp;
+                    $aMaxHp = $direction['a_is_attacker'] ? $resolution->attackerMaxHp : $resolution->defenderMaxHp;
+                    $bHp = $direction['a_is_attacker'] ? $resolution->defenderHp : $resolution->attackerHp;
+                    $bMaxHp = $direction['a_is_attacker'] ? $resolution->defenderMaxHp : $resolution->attackerMaxHp;
+                    $aMetrics = $direction['a_is_attacker'] ? $resolution->attackerMetrics : $resolution->defenderMetrics;
+                    $bMetrics = $direction['a_is_attacker'] ? $resolution->defenderMetrics : $resolution->attackerMetrics;
+                    $this->mergeMetricSamples($metricSamples['a'], $aMetrics);
+                    $this->mergeMetricSamples($metricSamples['b'], $bMetrics);
 
-                if ($sampleLogs === []) {
-                    $sampleLogs = $this->cleanLogs($resolution->result->logs);
+                    $runs[] = [
+                        'index' => $index,
+                        'direction' => $direction['label'],
+                        'direction_key' => $direction['key'],
+                        'winner' => $aWon ? 'A' : 'B',
+                        'turns' => $resolution->turnCount,
+                        'a_hp' => $aHp,
+                        'a_max_hp' => $aMaxHp,
+                        'a_hp_rate' => $this->percent($aHp, $aMaxHp),
+                        'b_hp' => $bHp,
+                        'b_max_hp' => $bMaxHp,
+                        'b_hp_rate' => $this->percent($bHp, $bMaxHp),
+                        'a_won' => $aWon ? 1 : 0,
+                    ];
+
+                    if ($sampleLogs === []) {
+                        $sampleLogs = $this->cleanLogs($resolution->result->logs);
+                    }
                 }
             }
         } catch (Throwable $exception) {
@@ -138,7 +154,7 @@ final class SixHeroBattleSimulator extends Component
 
         $this->runs = $runs;
         $this->sampleLogs = $sampleLogs;
-        $this->summary = $this->summarizeRuns($runs);
+        $this->summary = $this->summarizeRuns($runs, $metricSamples);
     }
 
     public function render(
@@ -167,7 +183,9 @@ final class SixHeroBattleSimulator extends Component
             'selectedRoom' => $room,
             'selectedRoomRule' => SixHeroRoomUiCatalog::ruleGuide($room),
             'formula' => $damageCalculator->rankBattleFormulaParameters(),
-            'normalAttackPower' => PvPBattleService::PVP_NORMAL_POWER_MULTIPLIER,
+            'baseDamageMultiplier' => SixHeroCompetitionRules::BASE_DAMAGE_MULTIPLIER,
+            'normalAttackPower' => SixHeroCompetitionRules::NORMAL_ATTACK_POWER,
+            'speedBreakthroughEnabled' => config('battle.speed_breakthrough.enabled') === true,
         ]);
     }
 
@@ -230,24 +248,137 @@ final class SixHeroBattleSimulator extends Component
 
     /**
      * @param  list<array<string, int|string|float>>  $runs
+     * @param  array{a: array<string, mixed>, b: array<string, mixed>}  $metricSamples
      * @return array<string, int|float>
      */
-    private function summarizeRuns(array $runs): array
+    private function summarizeRuns(array $runs, array $metricSamples): array
     {
         $collection = collect($runs);
         $total = $collection->count();
-        $attackerWins = (int) $collection->sum('attacker_won');
+        $aWins = (int) $collection->sum('a_won');
+        $aToB = $collection->where('direction_key', 'a_to_b');
+        $bToA = $collection->where('direction_key', 'b_to_a');
+        $aToBRate = $this->percent((int) $aToB->sum('a_won'), $aToB->count());
+        $bToARate = $this->percent((int) $bToA->sum('a_won'), $bToA->count());
+        $aSummary = $this->summarizeCombatantMetrics($metricSamples['a'], $runs, 'a');
+        $bSummary = $this->summarizeCombatantMetrics($metricSamples['b'], $runs, 'b');
+        $aOutput = $aSummary['damage_per_action'] * $aSummary['avg_actions'];
+        $bOutput = $bSummary['damage_per_action'] * $bSummary['avg_actions'];
+        $hpRatio = $bSummary['avg_max_hp'] > 0
+            ? $aSummary['avg_max_hp'] / $bSummary['avg_max_hp']
+            : 0.0;
+        $aBalance = $bOutput > 0 && $hpRatio > 0
+            ? ($aOutput / $bOutput) / $hpRatio
+            : 0.0;
+
+        return array_merge([
+            'total' => $total,
+            'per_direction' => $aToB->count(),
+            'a_wins' => $aWins,
+            'b_wins' => $total - $aWins,
+            'a_to_b_a_win_rate' => $aToBRate,
+            'b_to_a_a_win_rate' => $bToARate,
+            'bidirectional_a_win_rate' => round(($aToBRate + $bToARate) / 2, 1),
+            'avg_turns' => round((float) $collection->avg('turns'), 1),
+            'a_balance' => round($aBalance, 3),
+            'b_balance' => $aBalance > 0 ? round(1 / $aBalance, 3) : 0.0,
+        ], $this->prefixSummary('a', $aSummary), $this->prefixSummary('b', $bSummary));
+    }
+
+    /** @return array{a: array<string, mixed>, b: array<string, mixed>} */
+    private function emptyMetricSamples(): array
+    {
+        $side = [
+            'action_count' => 0,
+            'extra_action_count' => 0,
+            'normal_damage' => [],
+            'skill_damage' => [],
+            'nominal_rate' => [],
+            'existing_ignore_rate' => [],
+            'combined_ignore_rate' => [],
+            'additional_ignore_rate' => [],
+        ];
+
+        return ['a' => $side, 'b' => $side];
+    }
+
+    /** @param array<string, mixed> $samples @param array<string, mixed> $metrics */
+    private function mergeMetricSamples(array &$samples, array $metrics): void
+    {
+        $samples['action_count'] += (int) ($metrics['action_count'] ?? 0);
+        $samples['extra_action_count'] += (int) ($metrics['extra_action_count'] ?? 0);
+        $samples['normal_damage'] = array_merge($samples['normal_damage'], (array) ($metrics['normal_damage'] ?? []));
+        $samples['skill_damage'] = array_merge($samples['skill_damage'], (array) ($metrics['skill_damage'] ?? []));
+        foreach ((array) ($metrics['speed_rates'] ?? []) as $rates) {
+            foreach (['nominal_rate', 'existing_ignore_rate', 'combined_ignore_rate', 'additional_ignore_rate'] as $key) {
+                $samples[$key][] = (float) ($rates[$key] ?? 0.0);
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $samples
+     * @param list<array<string, int|string|float>> $runs
+     * @return array<string, int|float>
+     */
+    private function summarizeCombatantMetrics(array $samples, array $runs, string $side): array
+    {
+        $battleCount = count($runs);
+        $normalDamage = (array) $samples['normal_damage'];
+        $skillDamage = (array) $samples['skill_damage'];
+        $totalDamage = array_sum($normalDamage) + array_sum($skillDamage);
+        $actionCount = (int) $samples['action_count'];
 
         return [
-            'total' => $total,
-            'attacker_wins' => $attackerWins,
-            'defender_wins' => $total - $attackerWins,
-            'attacker_win_rate' => $this->percent($attackerWins, $total),
-            'defender_win_rate' => $this->percent($total - $attackerWins, $total),
-            'avg_turns' => round((float) $collection->avg('turns'), 1),
-            'avg_attacker_hp_rate' => round((float) $collection->avg('attacker_hp_rate'), 1),
-            'avg_defender_hp_rate' => round((float) $collection->avg('defender_hp_rate'), 1),
+            'avg_actions' => $battleCount > 0 ? round($actionCount / $battleCount, 2) : 0.0,
+            'avg_extra_actions' => $battleCount > 0 ? round((int) $samples['extra_action_count'] / $battleCount, 2) : 0.0,
+            'nominal_rate' => round($this->average((array) $samples['nominal_rate']) * 100, 1),
+            'existing_ignore_rate' => round($this->average((array) $samples['existing_ignore_rate']) * 100, 1),
+            'combined_ignore_rate' => round($this->average((array) $samples['combined_ignore_rate']) * 100, 1),
+            'additional_ignore_rate' => round($this->average((array) $samples['additional_ignore_rate']) * 100, 1),
+            'normal_damage_avg' => round($this->average($normalDamage), 1),
+            'normal_damage_median' => round($this->median($normalDamage), 1),
+            'skill_damage_avg' => round($this->average($skillDamage), 1),
+            'skill_damage_median' => round($this->median($skillDamage), 1),
+            'final_hp_avg' => round($this->average(array_column($runs, $side.'_hp')), 1),
+            'final_hp_median' => round($this->median(array_column($runs, $side.'_hp')), 1),
+            'final_hp_rate_avg' => round($this->average(array_column($runs, $side.'_hp_rate')), 1),
+            'avg_max_hp' => $this->average(array_column($runs, $side.'_max_hp')),
+            'damage_per_action' => $actionCount > 0 ? $totalDamage / $actionCount : 0.0,
         ];
+    }
+
+    /** @param array<string, int|float> $summary @return array<string, int|float> */
+    private function prefixSummary(string $prefix, array $summary): array
+    {
+        $prefixed = [];
+        foreach ($summary as $key => $value) {
+            $prefixed[$prefix.'_'.$key] = $value;
+        }
+
+        return $prefixed;
+    }
+
+    /** @param list<int|float> $values */
+    private function average(array $values): float
+    {
+        return $values === [] ? 0.0 : array_sum($values) / count($values);
+    }
+
+    /** @param list<int|float> $values */
+    private function median(array $values): float
+    {
+        if ($values === []) {
+            return 0.0;
+        }
+
+        sort($values, SORT_NUMERIC);
+        $count = count($values);
+        $middle = intdiv($count, 2);
+
+        return $count % 2 === 1
+            ? $values[$middle]
+            : ($values[$middle - 1] + $values[$middle]) / 2;
     }
 
     private function percent(int $value, int $total): float

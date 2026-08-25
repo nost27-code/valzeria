@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'speed_breakthrough' => [
+        'enabled' => env('PVP_SPEED_BREAKTHROUGH_ENABLED', false),
+    ],
+
     'beginner_defeat_protection' => [
         'battle_limit' => 100,
     ],

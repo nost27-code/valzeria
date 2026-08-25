@@ -37,7 +37,7 @@ final class SixHeroBattleSimulatorService
             resolution: $this->pvpBattleService->resolveBattle(
                 $attacker,
                 $defender,
-                $this->battleContextFactory->make($room),
+                $this->battleContextFactory->makePractice($room),
             ),
             room: $room,
         );
