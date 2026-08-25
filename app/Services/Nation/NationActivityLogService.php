@@ -47,6 +47,7 @@ final class NationActivityLogService
             'recruitment_disabled' => "{$actor}が国民募集を停止した。",
             'recruitment_message_changed' => "{$actor}が募集文を変更した。",
             'emblem_changed' => "{$actor}が国家紋章を変更した。",
+            'header_background_changed' => "{$actor}が国家ヘッダ背景を変更した。",
             'ruler_transferred' => "{$actor}が{$target}へ統治者の地位を譲った。",
             'dissolution_requested' => "{$actor}が国家解散を申請した。",
             'dissolution_canceled' => "{$actor}が国家解散を取り消した。",

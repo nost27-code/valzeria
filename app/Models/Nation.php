@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\NationType;
 use App\Services\Nation\NationEmblemCatalog;
+use App\Services\Nation\NationHeaderBackgroundCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -103,5 +104,10 @@ class Nation extends Model
     public function getEmblemAttribute(): array
     {
         return app(NationEmblemCatalog::class)->get($this->emblem_key);
+    }
+
+    public function getHeaderBackgroundAttribute(): array
+    {
+        return app(NationHeaderBackgroundCatalog::class)->get($this->header_background_key);
     }
 }

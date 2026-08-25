@@ -12,6 +12,7 @@ final class NationProfileService
         private readonly NationRoleService $roles,
         private readonly NationActivityLogService $activityLogs,
         private readonly NationEmblemCatalog $emblems,
+        private readonly NationHeaderBackgroundCatalog $headerBackgrounds,
     ) {}
 
     public function update(
@@ -56,6 +57,35 @@ final class NationProfileService
             }
             if ($previous['emblem_key'] !== $emblemKey) {
                 $this->activityLogs->record($nation, 'emblem_changed', $actorCharacter, null, ['emblem_key' => $emblemKey]);
+            }
+
+            return $nation->fresh();
+        }, 3);
+    }
+
+    public function updateHeaderBackground(NationMembership $actor, string $headerBackgroundKey): Nation
+    {
+        throw_unless(
+            $this->headerBackgrounds->exists($headerBackgroundKey),
+            \DomainException::class,
+            '選択した国家ヘッダ背景は使用できません。',
+        );
+
+        return DB::transaction(function () use ($actor, $headerBackgroundKey): Nation {
+            $nation = Nation::whereKey($actor->nation_id)->lockForUpdate()->firstOrFail();
+            throw_unless($nation->status === Nation::STATUS_ACTIVE, \DomainException::class, '解散手続き中の国家設定は変更できません。');
+            $lockedActor = NationMembership::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            $this->roles->authorize($lockedActor, 'manage_profile');
+
+            if ($nation->header_background_key !== $headerBackgroundKey) {
+                $nation->update(['header_background_key' => $headerBackgroundKey]);
+                $this->activityLogs->record(
+                    $nation,
+                    'header_background_changed',
+                    $lockedActor->character,
+                    null,
+                    ['header_background_key' => $headerBackgroundKey],
+                );
             }
 
             return $nation->fresh();

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-header-background-selection',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家TOPのヘッダと背景選択を刷新',
+        'detail' => '自国の国家TOPを、選んだ風景を背景に国家名・紋章・統治者・国民数・国家Lv・募集状態がひと目で分かるヘッダへ変更しました。統治者は国家TOPから20種の背景を選べます。',
+    ],
+    [
         'id' => '2026-08-26-nation-chat-unread-history-modal',
         'date' => '2026-08-26',
         'category' => 'changed',

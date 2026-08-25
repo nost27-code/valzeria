@@ -22,6 +22,7 @@ use App\Services\CharacterNotificationService;
 use App\Services\GameSettingService;
 use App\Services\Nation\NationDissolutionService;
 use App\Services\Nation\NationEmblemCatalog;
+use App\Services\Nation\NationHeaderBackgroundCatalog;
 use App\Services\Nation\NationJoinApplicationService;
 use App\Services\Nation\NationMembershipCooldownService;
 use App\Services\Nation\NationMembershipService;
@@ -88,6 +89,27 @@ final class NationCommunityTest extends TestCase
 
         $this->assertSame($emblems['nation_crest_001'], $catalog->get('green_castle'));
         $this->assertSame($emblems['nation_crest_002'], $catalog->get('blue_shield'));
+    }
+
+    public function test_header_background_catalog_exposes_all_20_numbered_webp_files(): void
+    {
+        $catalog = app(NationHeaderBackgroundCatalog::class);
+        $backgrounds = $catalog->all();
+
+        $this->assertCount(20, $backgrounds);
+        $this->assertSame('nation_header_bg_001', array_key_first($backgrounds));
+        $this->assertSame('nation_header_bg_020', array_key_last($backgrounds));
+        $this->assertSame('images/nation/bg/nation-header-bg_001.webp', $backgrounds['nation_header_bg_001']['path']);
+        $this->assertSame('images/nation/bg/nation-header-bg_020.webp', $backgrounds['nation_header_bg_020']['path']);
+
+        foreach ($backgrounds as $key => $background) {
+            $path = public_path($background['path']);
+            $this->assertLessThanOrEqual(32, strlen($key));
+            $this->assertFileExists($path);
+            $this->assertSame([600, 232], array_slice(getimagesize($path), 0, 2));
+        }
+
+        $this->assertSame($backgrounds['nation_header_bg_001'], $catalog->get('invalid-background'));
     }
 
     public function test_upgrade_migration_normalizes_known_suffix_and_backfills_king_to_ruler(): void
@@ -570,6 +592,40 @@ SQL);
         $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'emblem_changed']);
     }
 
+    public function test_only_ruler_can_update_the_header_background_and_the_change_is_audited(): void
+    {
+        $ruler = $this->character('背景変更統治者');
+        $nation = app(NationService::class)->create($ruler, '背景変更国');
+        $citizenCharacter = $this->character('背景変更国民');
+        $citizen = NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $citizenCharacter->id,
+            'role' => 'citizen',
+            'joined_at' => now(),
+        ]);
+        $rulerMembership = NationMembership::where('character_id', $ruler->id)->firstOrFail();
+        $profiles = app(NationProfileService::class);
+
+        $this->assertSame('nation_header_bg_001', $nation->fresh()->header_background_key);
+        $this->assertDomainFailure(
+            fn () => $profiles->updateHeaderBackground($citizen, 'nation_header_bg_020'),
+            '役職権限',
+        );
+        $this->assertDomainFailure(
+            fn () => $profiles->updateHeaderBackground($rulerMembership, 'invalid-background'),
+            '使用できません',
+        );
+
+        $profiles->updateHeaderBackground($rulerMembership, 'nation_header_bg_020');
+
+        $this->assertSame('nation_header_bg_020', $nation->fresh()->header_background_key);
+        $this->assertDatabaseHas('nation_activity_logs', [
+            'nation_id' => $nation->id,
+            'actor_character_id' => $ruler->id,
+            'event_type' => 'header_background_changed',
+        ]);
+    }
+
     public function test_ruler_transfer_is_atomic_same_nation_only_and_keeps_exactly_one_ruler(): void
     {
         $ruler = $this->character('旧統治者');
@@ -711,7 +767,8 @@ SQL);
             ->assertHasNoErrors()
             ->assertSet('showFoundingConfirmationModal', false)
             ->assertSee('画面国公国')
-            ->assertSee('国民数：1 / 20人')
+            ->assertSee('国民数')
+            ->assertSee('1 / 20人')
             ->assertSee('統治者メニュー')
             ->assertSee('届いた加入申請を確認・審査する')
             ->assertSee('国民の役職変更や追放を行う')
@@ -725,6 +782,28 @@ SQL);
             ->call('showHome');
         $nation = Nation::where('name', '画面国')->firstOrFail();
         $this->assertSame('nation_crest_080', $nation->emblem_key);
+
+        $nationScreen
+            ->assertSeeHtml('data-nation-home-header')
+            ->assertSee('images/nation/bg/nation-header-bg_001.webp', false)
+            ->assertSeeHtml('data-nation-header-background-open')
+            ->call('openHeaderBackgroundModal')
+            ->assertSet('showHeaderBackgroundModal', true)
+            ->assertSeeHtml('data-nation-header-background-modal')
+            ->assertSee('全20種から選べます')
+            ->assertSee('背景 No.020')
+            ->call('selectHeaderBackground', 'invalid-background')
+            ->assertHasErrors(['profileHeaderBackgroundKey'])
+            ->assertSet('showHeaderBackgroundModal', true)
+            ->call('selectHeaderBackground', 'nation_header_bg_020')
+            ->assertSet('profileHeaderBackgroundKey', 'nation_header_bg_020')
+            ->assertHasNoErrors('profileHeaderBackgroundKey')
+            ->call('saveHeaderBackground')
+            ->assertSet('showHeaderBackgroundModal', false)
+            ->assertHasNoErrors()
+            ->assertSee('国家ヘッダ背景を更新しました。')
+            ->assertSee('images/nation/bg/nation-header-bg_020.webp', false);
+        $this->assertSame('nation_header_bg_020', $nation->fresh()->header_background_key);
 
         $applicant = $this->character('画面申請者');
         $this->actingAs($applicant->user);

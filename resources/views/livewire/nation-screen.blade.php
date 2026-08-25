@@ -221,22 +221,76 @@
         @php
             $nation = $membership->nation;
         @endphp
-        <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5">
-            <div class="flex items-start gap-4">
-                <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" class="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28">
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs font-black tracking-[0.2em] text-blue-700">MY NATION</p>
-                    <h1 class="break-words text-2xl font-black text-stone-950">{{ $nation->display_name }}</h1>
-                    <p class="mt-1 text-sm font-bold text-stone-600">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>
-                    <p class="mt-0.5 text-sm font-bold text-stone-600">国民数：{{ $nation->memberships->count() }} / {{ $maxMembers }}人</p>
-                    @if($developmentEnabled && $developmentProgress)
-                        <p class="mt-0.5 text-sm font-black text-amber-700">国家Lv{{ $developmentProgress['level'] }}</p>
-                    @endif
-                    <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</span>
+        <section
+            class="relative overflow-hidden rounded-2xl border-2 border-[#d4af37] bg-slate-900 shadow-lg"
+            data-nation-home-header
+            data-nation-header-background="{{ $nation->header_background_key }}"
+        >
+            <img src="{{ asset($nation->header_background['path']) }}" alt="" width="600" height="232" class="absolute inset-0 h-full w-full object-cover" aria-hidden="true">
+            <div class="absolute inset-0 bg-gradient-to-b from-slate-950/25 via-slate-950/15 to-slate-950/85" aria-hidden="true"></div>
+            <div class="pointer-events-none absolute inset-1 rounded-xl border border-amber-200/70 shadow-[inset_0_0_24px_rgba(15,23,42,0.7)]" aria-hidden="true"></div>
+
+            @if($page === 'home' && $membership->isRuler())
+                <button
+                    type="button"
+                    wire:click="openHeaderBackgroundModal"
+                    class="absolute right-3 top-3 z-20 min-h-10 rounded-full border border-amber-200/80 bg-slate-950/75 px-3 text-xs font-black text-amber-50 shadow-lg backdrop-blur-sm transition hover:bg-slate-900"
+                    data-nation-header-background-open
+                >
+                    背景を変更
+                </button>
+            @endif
+
+            <div class="relative z-10 flex min-h-[330px] flex-col px-3 pb-4 pt-14 sm:min-h-[340px] sm:px-7 sm:pb-6 sm:pt-6">
+                <div class="mx-auto w-full max-w-xl text-center">
+                    <div class="inline-flex items-center gap-2 text-amber-100 drop-shadow-lg">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4 17-1-9 5 4 4-7 4 7 5-4-1 9H4Zm0 0h16v3H4v-3Z"/></svg>
+                        <span class="text-[11px] font-black tracking-[0.3em] sm:text-xs">MY NATION</span>
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4 17-1-9 5 4 4-7 4 7 5-4-1 9H4Zm0 0h16v3H4v-3Z"/></svg>
+                    </div>
+                    <h1 class="mt-2 break-words rounded-full border border-amber-200/80 bg-slate-950/75 px-4 py-2 text-2xl font-black tracking-[0.08em] text-amber-50 shadow-xl backdrop-blur-[2px] sm:text-4xl" style="text-shadow: 0 2px 4px rgba(0, 0, 0, .9);">
+                        {{ $nation->display_name }}
+                    </h1>
+                </div>
+
+                <div class="mt-auto grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6">
+                    <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" class="h-28 w-28 object-contain drop-shadow-[0_5px_8px_rgba(0,0,0,0.75)] sm:h-48 sm:w-48">
+                    <div class="overflow-hidden rounded-xl border border-amber-200/70 bg-slate-950/75 shadow-xl backdrop-blur-[2px]">
+                        <dl class="grid grid-cols-2 text-amber-50">
+                            <div class="min-w-0 border-b border-r border-amber-100/20 px-2 py-2.5 sm:px-4 sm:py-3">
+                                <dt class="flex items-center gap-1 text-[10px] font-bold text-amber-100/80 sm:text-xs">
+                                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 16h14l1-9-5 4-3-7-3 7-5-4 1 9Zm0 2h14v2H5v-2Z"/></svg>
+                                    {{ $nation->ruler_title }}
+                                </dt>
+                                <dd class="mt-1 truncate text-xs font-black sm:text-base">{{ $nation->rulerMembership?->character?->name ?? '不明' }}</dd>
+                            </div>
+                            <div class="border-b border-amber-100/20 px-2 py-2.5 sm:px-4 sm:py-3">
+                                <dt class="flex items-center gap-1 text-[10px] font-bold text-amber-100/80 sm:text-xs">
+                                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM1 21v-3c0-3 3-5 7-5s7 2 7 5v3H1Zm14.5 0v-3c0-1.5-.6-2.8-1.7-3.8.7-.1 1.4-.2 2.2-.2 4 0 7 2 7 5v2h-7.5Z"/></svg>
+                                    国民数
+                                </dt>
+                                <dd class="mt-1 text-xs font-black sm:text-base">{{ $nation->memberships->count() }} / {{ $maxMembers }}人</dd>
+                            </div>
+                            <div class="border-r border-amber-100/20 px-2 py-2.5 sm:px-4 sm:py-3">
+                                @if($developmentEnabled && $developmentProgress)
+                                    <dt class="text-[10px] font-bold text-amber-100/80 sm:text-xs">国家レベル</dt>
+                                    <dd class="mt-1 text-sm font-black text-amber-300 sm:text-lg">Lv{{ $developmentProgress['level'] }}</dd>
+                                @else
+                                    <dt class="text-[10px] font-bold text-amber-100/80 sm:text-xs">国号</dt>
+                                    <dd class="mt-1 text-xs font-black sm:text-base">{{ $nation->nation_type_label }}</dd>
+                                @endif
+                            </div>
+                            <div class="flex items-center justify-center px-1.5 py-2 sm:px-3 sm:py-3">
+                                <span class="inline-flex max-w-full items-center rounded-full px-2 py-1 text-center text-[10px] font-black sm:px-3 sm:text-xs {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}">
+                                    {{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}
+                                </span>
+                            </div>
+                        </dl>
+                    </div>
                 </div>
             </div>
             @if($nation->status === \App\Models\Nation::STATUS_DISBAND_PENDING)
-                <div class="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800"><p class="font-black">国家解散の待機中です</p><p class="mt-1">{{ $nation->dissolution_effective_at?->format('Y/m/d H:i') }}以降に論理解散されます。</p><p class="mt-1">一般国民は解散完了時に、加入待機時間なしで自動的に無所属になります。</p>@if($membership->isRuler())<button type="button" wire:click="cancelDissolution" class="mt-2 min-h-10 w-full rounded-lg border border-rose-300 bg-white font-black text-rose-700">解散申請を取り消す</button>@endif</div>
+                <div class="relative z-10 m-3 mt-0 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800 sm:m-4 sm:mt-0"><p class="font-black">国家解散の待機中です</p><p class="mt-1">{{ $nation->dissolution_effective_at?->format('Y/m/d H:i') }}以降に論理解散されます。</p><p class="mt-1">一般国民は解散完了時に、加入待機時間なしで自動的に無所属になります。</p>@if($membership->isRuler())<button type="button" wire:click="cancelDissolution" class="mt-2 min-h-10 w-full rounded-lg border border-rose-300 bg-white font-black text-rose-700">解散申請を取り消す</button>@endif</div>
             @endif
         </section>
 
@@ -661,6 +715,46 @@
                     <button type="button" wire:click="donateMaterials" wire:loading.attr="disabled" wire:target="donateMaterials" class="min-h-11 rounded-lg bg-emerald-600 px-3 text-sm font-black text-white disabled:opacity-50">
                         <span wire:loading.remove wire:target="donateMaterials">納品を確定する</span>
                         <span wire:loading wire:target="donateMaterials">納品しています…</span>
+                    </button>
+                </footer>
+            </section>
+        </div>
+    @endif
+
+    @if($showHeaderBackgroundModal && $membership?->isRuler() && $page === 'home')
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="nation-header-background-modal-title" data-nation-header-background-modal wire:click.self="closeHeaderBackgroundModal" wire:keydown.escape.window="closeHeaderBackgroundModal">
+            <section class="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div>
+                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION HEADER</p>
+                        <h2 id="nation-header-background-modal-title" class="text-lg font-black text-stone-950">国家ヘッダの背景を選ぶ</h2>
+                        <p class="mt-0.5 text-xs font-bold text-stone-500">全20種から選べます</p>
+                    </div>
+                    <button type="button" wire:click="closeHeaderBackgroundModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家ヘッダ背景の選択を閉じる">×</button>
+                </header>
+                <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                        @foreach($headerBackgrounds as $backgroundKey => $background)
+                            <button
+                                type="button"
+                                wire:click="selectHeaderBackground('{{ $backgroundKey }}')"
+                                wire:key="nation-header-background-{{ $backgroundKey }}"
+                                aria-pressed="{{ $profileHeaderBackgroundKey === $backgroundKey ? 'true' : 'false' }}"
+                                class="overflow-hidden rounded-xl border-2 bg-stone-950 text-left shadow-sm transition {{ $profileHeaderBackgroundKey === $backgroundKey ? 'border-amber-500 ring-2 ring-amber-200' : 'border-transparent hover:border-amber-300' }}"
+                                data-nation-header-background-option="{{ $backgroundKey }}"
+                            >
+                                <img src="{{ asset($background['path']) }}" alt="{{ $background['alt'] }}" width="600" height="232" loading="lazy" class="aspect-[600/232] w-full object-cover">
+                                <span class="block px-2 py-1.5 text-[11px] font-black {{ $profileHeaderBackgroundKey === $backgroundKey ? 'bg-amber-100 text-amber-900' : 'bg-white text-stone-700' }}">{{ $background['label'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                    @error('profileHeaderBackgroundKey')<p class="mt-3 text-xs font-bold text-rose-700">{{ $message }}</p>@enderror
+                </div>
+                <footer class="grid shrink-0 grid-cols-2 gap-2 border-t border-stone-200 bg-white p-4">
+                    <button type="button" wire:click="closeHeaderBackgroundModal" class="min-h-11 rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700">キャンセル</button>
+                    <button type="button" wire:click="saveHeaderBackground" wire:loading.attr="disabled" wire:target="saveHeaderBackground" class="min-h-11 rounded-lg bg-blue-700 px-3 text-sm font-black text-white disabled:opacity-50">
+                        <span wire:loading.remove wire:target="saveHeaderBackground">この背景に変更</span>
+                        <span wire:loading wire:target="saveHeaderBackground">変更しています…</span>
                     </button>
                 </footer>
             </section>

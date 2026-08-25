@@ -16,6 +16,7 @@ use App\Services\Nation\NationDevelopmentLevelService;
 use App\Services\Nation\NationDevelopmentService;
 use App\Services\Nation\NationDissolutionService;
 use App\Services\Nation\NationEmblemCatalog;
+use App\Services\Nation\NationHeaderBackgroundCatalog;
 use App\Services\Nation\NationJoinApplicationService;
 use App\Services\Nation\NationMembershipCooldownService;
 use App\Services\Nation\NationMembershipService;
@@ -81,6 +82,10 @@ final class NationScreen extends Component
 
     public string $profileEmblemKey = NationEmblemCatalog::DEFAULT_KEY;
 
+    public string $profileHeaderBackgroundKey = NationHeaderBackgroundCatalog::DEFAULT_KEY;
+
+    public bool $showHeaderBackgroundModal = false;
+
     public string $dissolutionConfirmation = '';
 
     public string $nationChatMessage = '';
@@ -140,6 +145,74 @@ final class NationScreen extends Component
     public function closeActivityLogModal(): void
     {
         $this->showActivityLogModal = false;
+    }
+
+    public function openHeaderBackgroundModal(): void
+    {
+        if ($this->page !== 'home') {
+            return;
+        }
+
+        $membership = $this->rulerOrError();
+        if (! $membership) {
+            return;
+        }
+
+        $this->profileHeaderBackgroundKey = app(NationHeaderBackgroundCatalog::class)
+            ->selectableKey($membership->nation->header_background_key);
+        $this->resetErrorBag('profileHeaderBackgroundKey');
+        $this->showHeaderBackgroundModal = true;
+    }
+
+    public function selectHeaderBackground(string $headerBackgroundKey): void
+    {
+        if (! $this->showHeaderBackgroundModal) {
+            return;
+        }
+
+        if (! app(NationHeaderBackgroundCatalog::class)->exists($headerBackgroundKey)) {
+            $this->addError('profileHeaderBackgroundKey', '選択した国家ヘッダ背景は使用できません。');
+
+            return;
+        }
+
+        $this->profileHeaderBackgroundKey = $headerBackgroundKey;
+        $this->resetErrorBag('profileHeaderBackgroundKey');
+    }
+
+    public function closeHeaderBackgroundModal(): void
+    {
+        $this->showHeaderBackgroundModal = false;
+        $this->resetErrorBag('profileHeaderBackgroundKey');
+    }
+
+    public function saveHeaderBackground(): void
+    {
+        if (! $this->showHeaderBackgroundModal) {
+            return;
+        }
+
+        $validated = $this->validate([
+            'profileHeaderBackgroundKey' => [
+                'required',
+                Rule::in(array_keys(app(NationHeaderBackgroundCatalog::class)->all())),
+            ],
+        ]);
+        $membership = $this->rulerOrError();
+        if (! $membership) {
+            return;
+        }
+
+        $nation = $this->perform(
+            fn () => app(NationProfileService::class)->updateHeaderBackground(
+                $membership,
+                $validated['profileHeaderBackgroundKey'],
+            ),
+            '国家ヘッダ背景を更新しました。',
+        );
+        if ($nation) {
+            $this->showHeaderBackgroundModal = false;
+        }
     }
 
     public function showNationList(): void
@@ -693,6 +766,7 @@ final class NationScreen extends Component
         $character = $this->character();
         $membership = $this->currentMembership();
         $emblemCatalog = app(NationEmblemCatalog::class);
+        $headerBackgroundCatalog = app(NationHeaderBackgroundCatalog::class);
         $maxMembers = app(NationCommunitySettingsService::class)->maxMembers();
         $developmentEnabled = (bool) config('features.nation_development_enabled', false);
         $levelService = app(NationDevelopmentLevelService::class);
@@ -852,6 +926,7 @@ final class NationScreen extends Component
             'foundingNationTypeOption' => NationType::tryFrom($this->foundingNationType) ?? NationType::KINGDOM,
             'emblems' => $emblemCatalog->all(),
             'foundingEmblem' => $emblemCatalog->get($this->foundingEmblemKey),
+            'headerBackgrounds' => $headerBackgroundCatalog->all(),
             'maxMembers' => $maxMembers,
             'activeNationCount' => $activeNationCount,
             'cooldowns' => app(NationMembershipCooldownService::class),
@@ -905,6 +980,7 @@ final class NationScreen extends Component
         $this->showFoundingConfirmationModal = false;
         $this->showDonationConfirmationModal = false;
         $this->showActivityLogModal = false;
+        $this->showHeaderBackgroundModal = false;
         $this->confirmedDonation = [];
         $this->actionMessage = null;
         $this->resetErrorBag();

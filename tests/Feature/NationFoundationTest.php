@@ -206,7 +206,8 @@ final class NationFoundationTest extends TestCase
 
         Livewire::test(NationScreen::class)
             ->assertSee('白銀王国')
-            ->assertSee('国王：所属冒険者')
+            ->assertSee('国王')
+            ->assertSee('所属冒険者')
             ->assertSee('統治者メニュー')
             ->assertSee('国家紹介')
             ->assertSee('国民一覧')
@@ -232,7 +233,8 @@ final class NationFoundationTest extends TestCase
         $this->actingAs($character->user);
 
         Livewire::test(NationScreen::class)
-            ->assertSee('国家Lv1')
+            ->assertSee('国家レベル')
+            ->assertSee('Lv1')
             ->assertSee('国家資材管理')
             ->call('showResourceManagement')
             ->assertSet('page', 'resources')
