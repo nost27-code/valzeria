@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-exclusive-character-icon-035',
+        'date' => '2026-08-25',
+        'category' => 'internal',
+        'title' => 'リンダ専用キャラアイコンを追加',
+        'detail' => 'リンダさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-08-25-nation-community-overview-guide',
         'date' => '2026-08-25',
         'category' => 'changed',
