@@ -125,6 +125,7 @@ Purpose: canonical game rules. Keep concise.
 ## Nation community (production ON) / nation war (production OFF)
 
 - 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。コミュニティをONにしても、国家資材管理・要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新、国家戦Service呼出、画面遷移を行わない。
+- 未所属の国家TOPはactive国家をID順の循環対象とし、active国家集合が変わらない間は同日固定の最大3国を日替わりで紹介する。建国・解散でactive国家集合が変わった場合は、同日中でも新しい集合から再選定する。国家数が変わらない1周期では、各国家の表示回数と1〜3枠の表示位置を均等にする。専用の全国家一覧は募集ON、威信、ID順を維持し、ピックアップ外の国家にも常時到達できるようにする。
 - 国家の国民上限は`nation.max_members`を正本とし、現在の初期値は20人（将来の国家発展・運営調整で拡張可能）、1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
 - 建国時は募集ON、ruler 1人、城壁・魔導砲・兵站所・要塞工廠・本陣をLv1/耐久100%で同一transaction作成する。国家紹介は任意・200文字以内、募集文と加入申請の一言は100文字以内。国家紋章は`nation_crest_001`〜`nation_crest_080`から選び、建国後はrulerだけが変更できる。
 - 加入は申請とruler承認を必須とし、申請時と承認時の両方で無所属、cooldown、active国家、現在の`nation.max_members`未満を確認する。申請時は統治者、承認時は申請者へ通知ベルの未読通知を作る。募集OFF後も既存pendingは審査できる。rulerだけが申請審査、追放、役職、紹介/募集/紋章、統治者譲渡、解散を管理し、譲渡transactionはrulerを常に1人に保つ。

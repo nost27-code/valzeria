@@ -157,7 +157,17 @@
             @endif
 
             <section class="rounded-2xl border border-[#d4af37] bg-white p-3 shadow-sm sm:p-4" data-nation-list>
-                <div class="flex items-center justify-between gap-3 border-b border-stone-200 pb-3"><h2 class="text-base font-black text-stone-900">{{ $page === 'nation-list' ? '国家を探す' : '国家一覧' }}</h2>@if($page !== 'nation-list')<button type="button" wire:click="showNationList" class="min-h-10 rounded-lg border border-stone-300 bg-white px-3 text-xs font-black text-stone-700">一覧を見る</button>@endif</div>
+                <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
+                    <div>
+                        <h2 class="text-base font-black text-stone-900">{{ $page === 'nation-list' ? '国家を探す' : '国家ピックアップ' }}</h2>
+                        @if($page !== 'nation-list' && $activeNationCount > 0)
+                            <p class="mt-1 text-[11px] font-bold text-stone-500">
+                                {{ $activeNationCount > 3 ? '全'.number_format($activeNationCount).'国から日替わりで3国を紹介しています' : '現在の全'.number_format($activeNationCount).'国を紹介しています' }}
+                            </p>
+                        @endif
+                    </div>
+                    @if($page !== 'nation-list')<button type="button" wire:click="showNationList" class="min-h-10 shrink-0 rounded-lg border border-stone-300 bg-white px-3 text-xs font-black text-stone-700">全国家を見る</button>@endif
+                </div>
                 <div class="divide-y divide-stone-100">
                     @forelse($nations as $nation)
                         <article class="flex gap-3 py-3">

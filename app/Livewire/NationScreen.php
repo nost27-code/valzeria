@@ -20,6 +20,7 @@ use App\Services\Nation\NationMembershipService;
 use App\Services\Nation\NationProfileService;
 use App\Services\Nation\NationRulerTransferService;
 use App\Services\Nation\NationService;
+use App\Services\Nation\NationShowcaseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -570,9 +571,19 @@ final class NationScreen extends Component
             ->orderByDesc('recruitment_enabled')
             ->orderByDesc('prestige')
             ->orderBy('id');
-        $nations = $this->page === 'nation-list'
-            ? $nationQuery->paginate(10, ['*'], 'nationPage')
-            : $nationQuery->limit(3)->get();
+        $activeNationCount = 0;
+        if ($this->page === 'nation-list') {
+            $nations = $nationQuery->paginate(10, ['*'], 'nationPage');
+        } else {
+            $showcase = app(NationShowcaseService::class)->dailySelection();
+            $showcaseOrder = array_flip($showcase['nation_ids']);
+            $activeNationCount = $showcase['total'];
+            $nations = $nationQuery
+                ->whereIn('id', $showcase['nation_ids'])
+                ->get()
+                ->sortBy(static fn (Nation $nation): int => $showcaseOrder[$nation->id] ?? PHP_INT_MAX)
+                ->values();
+        }
 
         $selectedNation = null;
         $joinEligibility = null;
@@ -667,6 +678,7 @@ final class NationScreen extends Component
             'emblems' => $emblemCatalog->all(),
             'foundingEmblem' => $emblemCatalog->get($this->foundingEmblemKey),
             'maxMembers' => $maxMembers,
+            'activeNationCount' => $activeNationCount,
             'cooldowns' => app(NationMembershipCooldownService::class),
             'minimumMembershipHours' => app(NationCommunitySettingsService::class)->minimumMembershipHours(),
             'leaveJoinCooldownHours' => app(NationCommunitySettingsService::class)->leaveJoinCooldownHours(),

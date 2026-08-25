@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-nation-showcase-fair-rotation',
+        'date' => '2026-08-25',
+        'category' => 'fixed',
+        'title' => '国家TOPの紹介枠を日替わり表示へ変更',
+        'detail' => '国家TOPで同じ3国だけが継続表示される状態を改め、全国家から日替わりで3国を紹介するようにしました。「全国家を見る」から、紹介枠以外の国家もいつでも確認できます。',
+    ],
+    [
         'id' => '2026-08-25-admin-six-hero-battle-log-style',
         'date' => '2026-08-25',
         'category' => 'internal',

@@ -30,6 +30,7 @@ use App\Services\Nation\NationRoleService;
 use App\Services\Nation\NationRulerTransferService;
 use App\Services\Nation\NationService;
 use App\Services\Nation\NationWarService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -789,6 +790,66 @@ SQL);
             ->assertSee('国家への所属は必須ではなく、無所属でもこれまで通り冒険を楽しめます。')
             ->assertSee('一部の機能は現在準備中です。')
             ->assertDontSeeHtml('data-nation-list-home-button');
+    }
+
+    public function test_nation_home_rotates_three_daily_showcases_and_full_list_keeps_every_nation_visible(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $this->travelTo(CarbonImmutable::create(2026, 1, 1, 12, 0, 0, 'Asia/Tokyo'));
+
+        $viewer = $this->character('公平表示閲覧者');
+        $nations = [];
+        foreach (['公平一', '公平二', '公平三', '公平四', '公平五'] as $index => $nationName) {
+            $nations[] = app(NationService::class)->create($this->character('公平統治者'.($index + 1)), $nationName);
+        }
+        $nations[0]->update(['recruitment_enabled' => false, 'prestige' => 999]);
+        $nations[1]->update(['recruitment_enabled' => true, 'prestige' => 10]);
+        $nations[2]->update(['recruitment_enabled' => true, 'prestige' => 20]);
+        $nations[3]->update(['recruitment_enabled' => false, 'prestige' => 1000]);
+        $nations[4]->update(['recruitment_enabled' => true, 'prestige' => 20]);
+        $this->actingAs($viewer->user);
+
+        Livewire::test(NationScreen::class)
+            ->assertSee('国家ピックアップ')
+            ->assertSee('全5国から日替わりで3国を紹介しています')
+            ->assertSee('全国家を見る')
+            ->assertSee('公平一王国')
+            ->assertSee('公平二王国')
+            ->assertSee('公平三王国')
+            ->assertDontSee('公平四王国')
+            ->assertDontSee('公平五王国');
+
+        $this->travel(1)->days();
+
+        $fullList = Livewire::test(NationScreen::class)
+            ->assertDontSee('公平一王国')
+            ->assertSee('公平二王国')
+            ->assertSee('公平三王国')
+            ->assertSee('公平四王国')
+            ->assertDontSee('公平五王国')
+            ->call('showNationList')
+            ->assertSee('国家を探す')
+            ->assertSee('公平一王国')
+            ->assertSee('公平二王国')
+            ->assertSee('公平三王国')
+            ->assertSee('公平四王国')
+            ->assertSee('公平五王国');
+        $listHtml = $fullList->html();
+        $positions = array_map(
+            static fn (string $name): int|false => strpos($listHtml, $name),
+            ['公平三王国', '公平五王国', '公平二王国', '公平四王国', '公平一王国'],
+        );
+        $sortedPositions = $positions;
+        sort($sortedPositions, SORT_NUMERIC);
+        $this->assertSame($sortedPositions, $positions);
+
+        $nations[4]->update(['status' => Nation::STATUS_DISBAND_PENDING]);
+
+        Livewire::test(NationScreen::class)
+            ->assertSee('全4国から日替わりで3国を紹介しています')
+            ->assertDontSee('公平五王国')
+            ->call('showNationList')
+            ->assertDontSee('公平五王国');
     }
 
     private function character(string $name): Character
