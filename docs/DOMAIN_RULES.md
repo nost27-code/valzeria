@@ -125,9 +125,9 @@ Purpose: canonical game rules. Keep concise.
 ## Nation community (production ON) / nation war (production OFF)
 
 - 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。コミュニティをONにしても、国家資材管理・要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新、国家戦Service呼出、画面遷移を行わない。
-- 国家は最大100人、1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
+- 国家の国民上限は`nation.max_members`を正本とし、現在の初期値は20人（将来の国家発展・運営調整で拡張可能）、1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
 - 建国時は募集ON、ruler 1人、城壁・魔導砲・兵站所・要塞工廠・本陣をLv1/耐久100%で同一transaction作成する。国家紹介は任意・200文字以内、募集文と加入申請の一言は100文字以内。国家紋章は`nation_crest_001`〜`nation_crest_080`から選び、建国後はrulerだけが変更できる。
-- 加入は申請とruler承認を必須とし、申請時と承認時の両方で無所属、cooldown、active国家、100人未満を確認する。申請時は統治者、承認時は申請者へ通知ベルの未読通知を作る。募集OFF後も既存pendingは審査できる。rulerだけが申請審査、追放、役職、紹介/募集/紋章、統治者譲渡、解散を管理し、譲渡transactionはrulerを常に1人に保つ。
+- 加入は申請とruler承認を必須とし、申請時と承認時の両方で無所属、cooldown、active国家、現在の`nation.max_members`未満を確認する。申請時は統治者、承認時は申請者へ通知ベルの未読通知を作る。募集OFF後も既存pendingは審査できる。rulerだけが申請審査、追放、役職、紹介/募集/紋章、統治者譲渡、解散を管理し、譲渡transactionはrulerを常に1人に保つ。
 - 初期制限は同国申請却下/取消24時間、加入後自主脱退不可24時間、自主脱退後の全国家加入72時間、追放後の全国家加入24時間、追放元国家7日、解散実行rulerの再建国7日。値は`nation.*` GameSettingを正本とする。戦争participant snapshotに含まれる国民は準備開始から終戦まで脱退・追放不可。
 - 国家解散は完成国家名の再入力後、初期24時間の`disband_pending`を経て`disbanded`へ論理更新する。待機中は募集、新規申請、宣戦、自主脱退を拒否し、pending申請を取消する。期限内はrulerが取消可能。完了時は所属を解除するが一般国民へ自主脱退cooldownを付けず、国家row・戦史・資材台帳・操作履歴は物理削除しない。
 - 国家チャットは所属dashboardと常設チャットの国家タブに表示し、自国の現在国民だけが閲覧・送信できる。本文100文字以内、最新50件。`public_logs`へ流さず、同じ送信要求は1件へ収束させる。過去発言は元国家の履歴として残すが、脱退・追放・解散完了後は閲覧・送信できない。

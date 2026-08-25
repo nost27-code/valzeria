@@ -10,7 +10,7 @@ final class NationCommunitySettingsService
 
     public function maxMembers(): int
     {
-        return max(1, min(100, $this->settings->getInt('nation.max_members', 100)));
+        return max(1, min(100, $this->settings->getInt('nation.max_members', 20)));
     }
 
     public function applicationRetryHours(): int

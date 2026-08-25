@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Balance
+
+- 国家の国民上限の初期設定を100人から20人へ調整しました。少数の大国家へ集中しすぎず、複数の国家が生まれやすい環境を目指すための初期調整です。
+
 ### Internal
 
 - 建国・国民・5つの要塞施設・40素材の国家資材納品、国家戦の宣戦予約・出撃・魔導砲・修復再建・戦史を扱う基礎を配備しました。プレイヤー向け国家画面、宣戦布告、施設LvアップはOFFのままで、素材の入手可否も従来から変更しません。

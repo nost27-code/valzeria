@@ -118,7 +118,7 @@ final class NationCommunityTest extends TestCase
         $this->assertTrue(Schema::hasTable('nation_join_applications'));
         $this->assertTrue(Schema::hasTable('nation_membership_cooldowns'));
         $this->assertTrue(Schema::hasTable('nation_activity_logs'));
-        $this->assertDatabaseHas('game_settings', ['setting_key' => 'nation.max_members', 'value' => '100']);
+        $this->assertDatabaseHas('game_settings', ['setting_key' => 'nation.max_members', 'value' => '20']);
         $this->assertTrue(collect(DB::select("PRAGMA foreign_key_list('nations')"))->contains(
             fn (object $foreignKey): bool => $foreignKey->from === 'dissolution_requested_by_character_id'
                 && $foreignKey->table === 'characters'
@@ -423,7 +423,7 @@ SQL);
         ]);
         $this->assertDomainFailure(fn () => $service->approve($ruler, $capacityApplication), '定員');
 
-        app(GameSettingService::class)->set('nation.max_members', '100');
+        app(GameSettingService::class)->set('nation.max_members', '20');
         $memberElsewhere = $this->character('承認前に他国所属');
         $otherApplication = $service->submit($memberElsewhere, $nation);
         $otherNation = app(NationService::class)->create($this->character('別国統治者'), '別所属国');
@@ -709,6 +709,7 @@ SQL);
             ->assertHasNoErrors()
             ->assertSet('showFoundingConfirmationModal', false)
             ->assertSee('画面国公国')
+            ->assertSee('国民数：1 / 20人')
             ->assertSee('統治者メニュー')
             ->assertSee('届いた加入申請を確認・審査する')
             ->assertSee('国民の役職変更や追放を行う')

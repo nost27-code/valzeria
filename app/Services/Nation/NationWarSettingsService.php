@@ -27,7 +27,7 @@ final class NationWarSettingsService
     public function __construct(private readonly GameSettingService $settings) {}
     public function featureEnabled(): bool { return (bool) config('features.nation_war_enabled', false); }
     public function facilityUpgradesEnabled(): bool { return $this->settings->getBool('nation.facility_upgrades_enabled', false); }
-    public function maxMembers(): int { return max(1, min(100, $this->settings->getInt('nation.max_members', 100))); }
+    public function maxMembers(): int { return max(1, min(100, $this->settings->getInt('nation.max_members', 20))); }
     public function foundedProtectionDays(): int { return max(0, $this->settings->getInt('nation.founded_protection_days', 7)); }
     public function declarationEnabled(): bool { return $this->settings->getBool('nation_war.declaration_enabled', false); }
     public function referenceDamage(): int { return max(0, $this->settings->getInt('nation_war.reference_damage', 0)); }

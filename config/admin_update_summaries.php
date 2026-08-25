@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-nation-member-cap-twenty',
+        'date' => '2026-08-25',
+        'category' => 'balance',
+        'title' => '国家コミュニティの初期上限を20人に調整',
+        'detail' => '少数の大国家へ国民が集中しすぎず、複数の国家が生まれやすい環境を目指し、1国家の国民上限の初期設定を100人から20人へ調整しました。',
+    ],
+    [
         'id' => '2026-08-25-exclusive-character-icon-035',
         'date' => '2026-08-25',
         'category' => 'internal',
