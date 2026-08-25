@@ -130,7 +130,7 @@ final class NationFoundationTest extends TestCase
         Livewire::test(NationScreen::class)
             ->assertSee('国家を探す')
             ->assertSee('建国する')
-            ->assertSee('国家一覧')
+            ->assertSee('国家ピックアップ')
             ->assertSee('蒼天騎士国')
             ->assertSee('国家とは？')
             ->assertSee('data-nation-membership-state="unaffiliated"', false)
