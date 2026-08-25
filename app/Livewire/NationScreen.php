@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -89,6 +90,10 @@ final class NationScreen extends Component
     public string $donationRequestId = '';
 
     public bool $showDonationConfirmationModal = false;
+
+    /** @var array{material_id:int,quantity:int,request_id:string,name:string,remaining_quantity:int,points:int,development_exp:int}|array{} */
+    #[Locked]
+    public array $confirmedDonation = [];
 
     public function mount(): void
     {
@@ -255,6 +260,7 @@ final class NationScreen extends Component
 
     public function openDonationConfirmation(): void
     {
+        $this->confirmedDonation = [];
         if ($this->page !== 'resources' || ! config('features.nation_development_enabled', false)) {
             return;
         }
@@ -272,31 +278,42 @@ final class NationScreen extends Component
             return;
         }
 
+        $this->confirmedDonation = [
+            'material_id' => (int) $material->material_id,
+            'quantity' => $validated['donationQuantity'],
+            'request_id' => $validated['donationRequestId'],
+            'name' => (string) $material->name,
+            'remaining_quantity' => (int) $material->quantity - $validated['donationQuantity'],
+            'points' => $validated['donationQuantity'] * (int) $material->points_per_unit,
+            'development_exp' => $validated['donationQuantity'] * (int) $material->development_exp_per_unit,
+        ];
         $this->showDonationConfirmationModal = true;
     }
 
     public function closeDonationConfirmation(): void
     {
         $this->showDonationConfirmationModal = false;
+        $this->confirmedDonation = [];
     }
 
     public function donateMaterials(): void
     {
-        if (! $this->showDonationConfirmationModal || $this->page !== 'resources') {
+        if (! $this->showDonationConfirmationModal || $this->page !== 'resources' || $this->confirmedDonation === []) {
             return;
         }
 
-        $validated = $this->validateDonationInput();
+        $confirmed = $this->confirmedDonation;
         $this->showDonationConfirmationModal = false;
         $transaction = $this->perform(
             fn () => app(NationResourceService::class)->donate(
                 $this->character(),
-                $validated['donationMaterialId'],
-                $validated['donationQuantity'],
-                $validated['donationRequestId'],
+                $confirmed['material_id'],
+                $confirmed['quantity'],
+                $confirmed['request_id'],
             ),
             '国家へ資材を納品しました。',
         );
+        $this->confirmedDonation = [];
         if ($transaction) {
             $this->actionMessage = '国家へ資材を納品しました。国家資材 +'.number_format((int) $transaction->points_delta)
                 .'pt / 国家発展EXP +'.number_format((int) $transaction->development_exp_delta);
@@ -845,6 +862,7 @@ final class NationScreen extends Component
         $this->showFoundingEmblemModal = false;
         $this->showFoundingConfirmationModal = false;
         $this->showDonationConfirmationModal = false;
+        $this->confirmedDonation = [];
         $this->actionMessage = null;
         $this->resetErrorBag();
         if (! $keepSelection) {

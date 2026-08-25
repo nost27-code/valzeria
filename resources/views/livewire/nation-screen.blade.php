@@ -616,10 +616,7 @@
         </div>
     @endif
 
-    @if($showDonationConfirmationModal && $membership && $page === 'resources' && $donationPreview)
-        @php
-            $confirmedDonationQuantity = max(0, (int) $donationQuantity);
-        @endphp
+    @if($showDonationConfirmationModal && $membership && $page === 'resources' && $confirmedDonation !== [])
         <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="donation-confirmation-modal-title" data-nation-donation-confirmation wire:click.self="closeDonationConfirmation" wire:keydown.escape.window="closeDonationConfirmation">
             <section class="w-full max-w-md overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
                 <header class="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
@@ -631,12 +628,12 @@
                 </header>
                 <div class="p-4">
                     <div class="rounded-xl bg-stone-50 p-3">
-                        <p class="text-base font-black text-stone-950">{{ $donationPreview->name }}</p>
+                        <p class="text-base font-black text-stone-950">{{ $confirmedDonation['name'] }}</p>
                         <div class="mt-2 grid grid-cols-2 gap-2 text-sm font-bold text-stone-700">
-                            <p>納品数 <strong class="float-right text-stone-950">{{ number_format($confirmedDonationQuantity) }}個</strong></p>
-                            <p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format(max(0, $donationPreview->quantity - $confirmedDonationQuantity)) }}個</strong></p>
-                            <p>国家資材 <strong class="float-right text-slate-950">+{{ number_format($confirmedDonationQuantity * $donationPreview->points_per_unit) }}pt</strong></p>
-                            <p>国家発展EXP <strong class="float-right text-amber-800">+{{ number_format($confirmedDonationQuantity * $donationPreview->development_exp_per_unit) }}</strong></p>
+                            <p>納品数 <strong class="float-right text-stone-950">{{ number_format($confirmedDonation['quantity']) }}個</strong></p>
+                            <p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format($confirmedDonation['remaining_quantity']) }}個</strong></p>
+                            <p>国家資材 <strong class="float-right text-slate-950">+{{ number_format($confirmedDonation['points']) }}pt</strong></p>
+                            <p>国家発展EXP <strong class="float-right text-amber-800">+{{ number_format($confirmedDonation['development_exp']) }}</strong></p>
                         </div>
                     </div>
                     <p class="mt-3 text-xs font-bold leading-relaxed text-rose-700">納品した素材は返却できません。装備進化・素材交換・NPC調達に使う予定がないか、残数を確認してください。</p>

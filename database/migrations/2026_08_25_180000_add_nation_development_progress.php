@@ -41,6 +41,14 @@ return new class extends Migration
 
     public function down(): void
     {
+        $hasDevelopmentLedger = Schema::hasColumn('nation_resource_transactions', 'development_exp_delta')
+            && DB::table('nation_resource_transactions')->where('development_exp_delta', '<>', 0)->exists();
+        $hasDevelopmentCache = Schema::hasColumn('nations', 'development_exp')
+            && DB::table('nations')->where('development_exp', '<>', 0)->exists();
+        if ($hasDevelopmentLedger || $hasDevelopmentCache) {
+            throw new RuntimeException('国家発展EXPが記録済みのためrollbackできません。機能flagをOFFにし、forward migrationで復旧してください。');
+        }
+
         Schema::table('nation_resource_transactions', function (Blueprint $table): void {
             $table->dropIndex('nation_resource_contribution_covering');
             $table->dropColumn('development_exp_delta');

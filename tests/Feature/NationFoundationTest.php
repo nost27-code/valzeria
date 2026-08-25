@@ -6,6 +6,7 @@ use App\Livewire\Admin\NationWarSettingsManager;
 use App\Livewire\NationScreen;
 use App\Models\Character;
 use App\Models\CharacterMaterial;
+use App\Models\Enemy;
 use App\Models\GameSetting;
 use App\Models\Material;
 use App\Models\Nation;
@@ -21,6 +22,7 @@ use App\Models\NationWarSide;
 use App\Models\User;
 use App\Services\AccountDeletionService;
 use App\Services\Battle\BattleActor;
+use App\Services\DropService;
 use App\Services\GameSettingService;
 use App\Services\Nation\NationDevelopmentLevelService;
 use App\Services\Nation\NationDevelopmentService;
@@ -41,6 +43,7 @@ use Database\Seeders\EnemySeeder;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -90,6 +93,24 @@ final class NationFoundationTest extends TestCase
 
         $migration->up();
         $this->assertMiasmaBoneDropsAreActive();
+
+        $enemy = Enemy::query()->where('area_id', 50)->where('name', '死霊兵')->firstOrFail();
+        $materialId = (int) Material::query()->where('material_code', 'WEV0030')->value('id');
+        DB::table('material_drops')
+            ->where('enemy_id', $enemy->id)
+            ->where('material_id', $materialId)
+            ->update(['drop_rate' => 100]);
+        app(GameSettingService::class)->set('drop.material_rate_multiplier', '0');
+
+        $drops = app(DropService::class)->rollBattleDrops(
+            $this->character('瘴気の骨片抽選者'),
+            $enemy,
+            trackExplorationLoot: false,
+            rollMonsterMark: false,
+        );
+
+        $this->assertSame(1, collect($drops['materials'])->where('material_code', 'WEV0030')->count());
+        $this->assertSame('miasma_bone', collect($drops['materials'])->firstWhere('material_code', 'WEV0030')['kind']);
     }
 
     private function assertMiasmaBoneDropsAreActive(): void
@@ -182,6 +203,9 @@ final class NationFoundationTest extends TestCase
         $material = Material::create(['material_code' => 'TEST_UI_DONATION_MAT', 'name' => '画面納品試験資材', 'category' => 'city', 'rarity' => 'R']);
         NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
         CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
+        $otherMaterial = Material::create(['material_code' => 'TEST_UI_OTHER_DONATION_MAT', 'name' => '差し替え試験資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $otherMaterial->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $otherMaterial->id, 'quantity' => 10]);
         $this->actingAs($character->user);
 
         Livewire::test(NationScreen::class)
@@ -195,8 +219,12 @@ final class NationFoundationTest extends TestCase
             ->set('donationQuantity', 4)
             ->call('openDonationConfirmation')
             ->assertSet('showDonationConfirmationModal', true)
+            ->assertSet('confirmedDonation.material_id', $material->id)
+            ->assertSet('confirmedDonation.quantity', 4)
             ->assertSee('納品後の残数')
             ->assertSee('6個')
+            ->set('donationMaterialId', $otherMaterial->id)
+            ->set('donationQuantity', 1)
             ->call('donateMaterials')
             ->assertSet('showDonationConfirmationModal', false)
             ->assertSee('国家資材 +12pt / 国家発展EXP +8')
@@ -204,8 +232,26 @@ final class NationFoundationTest extends TestCase
             ->assertSee('8 EXP');
 
         $this->assertSame(6, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
+        $this->assertSame(10, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $otherMaterial->id)->value('quantity'));
         $this->assertSame(12, (int) $nation->fresh()->treasury_points);
         $this->assertSame(8, (int) $nation->fresh()->development_exp);
+    }
+
+    public function test_development_migration_refuses_to_drop_recorded_progress(): void
+    {
+        $nation = app(NationService::class)->create($this->character('発展履歴保全国王'), '発展履歴保全国');
+        $nation->update(['development_exp' => 1]);
+        $migration = require database_path('migrations/2026_08_25_180000_add_nation_development_progress.php');
+
+        try {
+            $migration->down();
+            $this->fail('発展実績を破壊するrollbackを拒否する必要があります。');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('rollbackできません', $exception->getMessage());
+        }
+
+        $this->assertTrue(Schema::hasColumn('nations', 'development_exp'));
+        $this->assertTrue(Schema::hasColumn('nation_resource_transactions', 'development_exp_delta'));
     }
 
     public function test_unaffiliated_players_see_only_nation_level_not_development_exp(): void

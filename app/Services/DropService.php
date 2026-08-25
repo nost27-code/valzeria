@@ -16,6 +16,7 @@ use Illuminate\Support\Collection;
 class DropService
 {
     private const CROWN_PROOF_MATERIAL_CODE = 'MAT_FERDIA_CROWN_PROOF';
+    private const MIASMA_BONE_MATERIAL_CODE = 'WEV0030';
     private const RANKS_BLOCKED_FROM_NORMAL_DROP = ['S', 'SS', 'SSS', 'EPIC'];
     private const EQUIPMENT_FRAGMENT_CODE = 'MAT_EQUIPMENT_FRAGMENT';
     private const FINE_EQUIPMENT_FRAGMENT_CODE = 'MAT_FINE_EQUIPMENT_FRAGMENT';
@@ -167,6 +168,11 @@ class DropService
             $result['materials'][] = $depthBranchMaterial;
         }
 
+        $miasmaBone = $this->rollMiasmaBoneDrop($character, $enemy, $trackExplorationLoot);
+        if ($miasmaBone) {
+            $result['materials'][] = $miasmaBone;
+        }
+
         if ($this->rollPercent($rates['material'])) {
             $material = $this->rollMaterialBySpec($character, $enemy, $trackExplorationLoot, $commonMaterialWeightMultiplier);
             if ($material) {
@@ -232,6 +238,11 @@ class DropService
             $drops[] = $branchMaterial;
         }
 
+        $miasmaBone = $this->rollMiasmaBoneDrop($character, $enemy);
+        if ($miasmaBone) {
+            $drops[] = $miasmaBone;
+        }
+
         if (!$this->rollPercent($this->dropRates($enemy)['material'])) {
             return $drops;
         }
@@ -294,6 +305,25 @@ class DropService
             $drops[] = $this->grantMaterial($character, $row->material, 'felderia_material', $enemy, $trackExplorationLoot);
         }
         return $drops;
+    }
+
+    /** 瘴気の骨片は通常素材枠の候補weightにせず、敵別drop_rateを独立確率として扱う。 */
+    private function rollMiasmaBoneDrop(Character $character, Enemy $enemy, bool $trackExplorationLoot = true): ?array
+    {
+        $drop = MaterialDrop::query()
+            ->where('enemy_id', $enemy->id)
+            ->where('is_active', true)
+            ->where('drop_first_clear_only', false)
+            ->where('drop_rate', '>', 0)
+            ->whereHas('material', fn ($query) => $query->where('material_code', self::MIASMA_BONE_MATERIAL_CODE))
+            ->with('material')
+            ->first();
+
+        if (! $drop?->material || ! $this->rollPercent((float) $drop->drop_rate)) {
+            return null;
+        }
+
+        return $this->grantMaterial($character, $drop->material, 'miasma_bone', $enemy, $trackExplorationLoot);
     }
 
     public function dropRates(Enemy $enemy): array
@@ -551,6 +581,9 @@ class DropService
             ->filter(function (MaterialDrop $drop) {
                 $material = $drop->material;
                 if (!$material) {
+                    return false;
+                }
+                if ((string) $material->material_code === self::MIASMA_BONE_MATERIAL_CODE) {
                     return false;
                 }
                 // branch_evolution は rollConfiguredBranchEvolutionMaterial で別途処理
