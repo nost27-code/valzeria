@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-exclusive-character-icon-036',
+        'date' => '2026-08-26',
+        'category' => 'internal',
+        'title' => 'ルメア専用キャラアイコンを追加',
+        'detail' => 'ルメアさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-08-26-job-art-wave2c-phase1',
         'date' => '2026-08-26',
         'category' => 'balance',
