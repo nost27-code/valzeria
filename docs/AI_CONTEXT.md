@@ -7,8 +7,8 @@ Branch: main
 
 ## Main navigation / nation community
 
-- home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`を使う。`NATION_COMMUNITY_ENABLED=true`ではタブ初回選択時に`NationScreen`をmountし、建国、国家一覧/詳細、募集、加入申請/承認/却下/取消、脱退/追放、役職、統治者譲渡、紹介/募集文/紋章、待機付き論理解散、操作履歴を利用できる。未所属TOPは`icon_306.webp`、国家紋章は`nation-crest_001.webp`〜`080.webp`から選ぶ。本番は2026-08-25にMariaDB 10.5.13のmigration/readback gateを通過し、community flagをONで公開した
-- 1Characterは1国家、1国家は最大100人。内部統治者roleは`ruler`、表示名は基礎国家名+国号、統治者名は国号から導出する。加入申請時は統治者へ、承認時は申請者へ通知ベルの未読通知を作る。加入・脱退・追放・再建国の待機時間は`nation.*` GameSettingを正本とする。解散待機中は一般国民の自主脱退を拒否し、解散完了時にcooldownなしで無所属へ戻す
+- home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`を使う。`NATION_COMMUNITY_ENABLED=true`ではタブ初回選択時に`NationScreen`をmountし、建国、国家一覧/詳細、募集、加入申請/承認/却下/取消、脱退/追放、役職、統治者譲渡、紹介/募集文/紋章、待機付き論理解散、操作履歴を利用できる。未所属TOPは`icon_306.webp`、国家紋章は`nation-crest_001.webp`〜`080.webp`から選ぶ。「国家を探す」専用画面はTOP案内枠を重ねず、一覧とTOPへ戻る導線だけを表示する。本番は2026-08-25にMariaDB 10.5.13のmigration/readback gateを通過し、community flagをONで公開した
+- 1Characterは1国家、1国家は最大100人。内部統治者roleは`ruler`、表示名は基礎国家名+国号、統治者名は国号から導出する。加入申請時は統治者へ申請一覧へのURL付き通知、承認時は申請者へ未読通知を作る。既存のURLなし加入申請通知も通知種別から申請一覧へ遷移する。承認ボタンは確認modalを開き、確定時だけ既存のtransaction/row lock付きServiceで加入させる。加入・脱退・追放・再建国の待機時間は`nation.*` GameSettingを正本とする。解散待機中は一般国民の自主脱退を拒否し、解散完了時にcooldownなしで無所属へ戻す
 - 国家チャットは所属dashboardと常設`ChatLog`の国家タブで同じ`nation_chat_messages`を使う。現在所属する同一国家の国民だけが100文字以内で送信し、最新50件を閲覧できる。全体/個人チャットの`public_logs`へは流さず、脱退・追放・解散完了後は閲覧・送信できない。冒険者カードは「所属国家」に正式国家名を表示し、無所属者は「無所属」と表示する
 - `国家資材管理`・`要塞強化`・`宣戦布告`・`戦争方針設定`は引き続き準備中modalだけを開く。国家戦は専用tablesと`app/Services/Nation/`へ分離されているが、`NATION_WAR_ENABLED=false`、`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`、`nation_war.reference_damage=0`（未校正）を維持する。毎分lifecycleはOFF中no-opで、素材の入手可否も変えず`WEV0030`敵dropを非活性のままにする
 

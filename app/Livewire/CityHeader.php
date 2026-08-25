@@ -155,6 +155,10 @@ class CityHeader extends Component
             return redirect()->to($notification->url);
         }
 
+        if ($notification->type === 'nation_join_application_submitted') {
+            return redirect()->route('nation.applications');
+        }
+
         return null;
     }
 

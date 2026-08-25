@@ -137,7 +137,8 @@
                 </div>
             </section>
         @else
-            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5">
+            @if($page !== 'nation-list')
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-home-hero>
                 <div class="flex items-center gap-3 sm:gap-5">
                     <img src="{{ asset('images/icon/icon_306.webp') }}" alt="国家" width="128" height="128" class="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28">
                     <div class="min-w-0"><p class="text-xs font-black tracking-[0.22em] text-emerald-700">NATION</p><h1 class="mt-0.5 text-2xl font-black text-stone-950">国家</h1><p class="mt-1 text-sm font-bold leading-relaxed text-stone-600">国を興し、仲間を集め、要塞を築き、他国との戦いに備えよう。</p></div>
@@ -153,6 +154,7 @@
                     <button type="button" wire:click="showCreate" class="min-h-12 rounded-xl border border-amber-700 bg-gradient-to-b from-amber-400 to-amber-600 px-3 py-2.5 text-sm font-black text-white shadow-sm"><span aria-hidden="true">🏰</span> 建国する</button>
                 </div>
             </section>
+            @endif
 
             <section class="rounded-2xl border border-[#d4af37] bg-white p-3 shadow-sm sm:p-4" data-nation-list>
                 <div class="flex items-center justify-between gap-3 border-b border-stone-200 pb-3"><h2 class="text-base font-black text-stone-900">{{ $page === 'nation-list' ? '国家を探す' : '国家一覧' }}</h2>@if($page !== 'nation-list')<button type="button" wire:click="showNationList" class="min-h-10 rounded-lg border border-stone-300 bg-white px-3 text-xs font-black text-stone-700">一覧を見る</button>@endif</div>
@@ -242,7 +244,7 @@
                                 <time class="shrink-0 text-xs font-bold text-stone-500">{{ $application->requested_at?->format('m/d H:i') }}</time>
                             </div>
                             <p class="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-sm font-bold text-stone-700">{{ $application->message ?: '一言はありません。' }}</p>
-                            <div class="mt-3 grid grid-cols-2 gap-2"><button type="button" wire:click="approveApplication({{ $application->id }})" wire:loading.attr="disabled" class="min-h-11 rounded-lg bg-emerald-600 text-sm font-black text-white disabled:opacity-50">承認</button><button type="button" wire:click="rejectApplication({{ $application->id }})" wire:loading.attr="disabled" class="min-h-11 rounded-lg border border-rose-300 bg-white text-sm font-black text-rose-700 disabled:opacity-50">却下</button></div>
+                            <div class="mt-3 grid grid-cols-2 gap-2"><button type="button" wire:click="openApplicationApprovalConfirmation({{ $application->id }})" wire:loading.attr="disabled" wire:target="openApplicationApprovalConfirmation({{ $application->id }})" class="min-h-11 rounded-lg bg-emerald-600 text-sm font-black text-white disabled:opacity-50">承認</button><button type="button" wire:click="rejectApplication({{ $application->id }})" wire:loading.attr="disabled" class="min-h-11 rounded-lg border border-rose-300 bg-white text-sm font-black text-rose-700 disabled:opacity-50">却下</button></div>
                         </article>
                     @empty
                         <p class="py-7 text-center text-sm font-bold text-stone-500">現在、加入申請はありません。</p>
@@ -469,8 +471,10 @@
     @endif
 
     @if($confirmationAction)
-        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" data-nation-confirmation wire:click.self="closeConfirmation"><div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-            @if($confirmationAction === 'leave')
+        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" data-nation-confirmation @if($confirmationAction === 'approve-application') data-nation-application-approval-confirmation @endif wire:click.self="closeConfirmation"><div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            @if($confirmationAction === 'approve-application')
+                <h2 class="text-xl font-black text-stone-950">{{ $confirmationApplication?->character?->name ?? 'この冒険者' }}を国民として承認しますか？</h2><p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">承認すると、{{ $confirmationApplication?->nation?->display_name ?? $membership?->nation?->display_name ?? 'この国家' }}へ直ちに加入します。</p>
+            @elseif($confirmationAction === 'leave')
                 <h2 class="text-xl font-black text-stone-950">{{ $membership?->nation?->display_name }}を脱退しますか？</h2><p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">脱退後{{ $leaveJoinCooldownHours }}時間は、ほかの国家へ加入申請できません。</p>
             @elseif($confirmationAction === 'expel')
                 <h2 class="text-xl font-black text-stone-950">{{ $confirmationTarget?->character?->name ?? 'この国民' }}を追放しますか？</h2><p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">追放された冒険者は{{ $expelJoinCooldownHours }}時間すべての国家へ申請できず、{{ $membership?->nation?->display_name ?? 'この国家' }}へは{{ $expelSameNationCooldownDays }}日間再申請できません。</p>
@@ -479,7 +483,7 @@
             @else
                 <h2 class="text-xl font-black text-rose-800">{{ $membership?->nation?->display_name ?? '国家' }}を解散しますか？</h2><p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">{{ $dissolutionWaitHours }}時間の待機後に論理解散します。確認のため完成国家名を入力してください。</p><input wire:model="dissolutionConfirmation" class="mt-3 min-h-11 w-full rounded-lg border border-rose-300 px-3 font-bold" placeholder="{{ $membership?->nation?->display_name ?? '' }}">@error('dissolutionConfirmation')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
             @endif
-            <div class="mt-5 grid grid-cols-2 gap-2"><button type="button" wire:click="closeConfirmation" class="min-h-11 rounded-lg border border-stone-300 bg-white font-black text-stone-700">戻る</button><button type="button" wire:click="confirmAction" wire:loading.attr="disabled" wire:target="confirmAction" class="min-h-11 rounded-lg bg-rose-700 font-black text-white disabled:opacity-50">実行する</button></div>
+            <div class="mt-5 grid grid-cols-2 gap-2"><button type="button" wire:click="closeConfirmation" class="min-h-11 rounded-lg border border-stone-300 bg-white font-black text-stone-700">戻る</button><button type="button" wire:click="confirmAction" wire:loading.attr="disabled" wire:target="confirmAction" class="min-h-11 rounded-lg font-black text-white disabled:opacity-50 {{ $confirmationAction === 'approve-application' ? 'bg-emerald-600' : 'bg-rose-700' }}">{{ $confirmationAction === 'approve-application' ? '承認する' : '実行する' }}</button></div>
         </div></div>
     @endif
 </div>

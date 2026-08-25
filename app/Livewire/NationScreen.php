@@ -81,6 +81,10 @@ final class NationScreen extends Component
     public function mount(): void
     {
         $this->rotateNationChatRequestId();
+
+        if (session()->pull('nation_initial_page') === 'applications') {
+            $this->showApplications();
+        }
     }
 
     public function boot(): void
@@ -282,19 +286,30 @@ final class NationScreen extends Component
         );
     }
 
-    public function approveApplication(int $applicationId): void
+    public function openApplicationApprovalConfirmation(int $applicationId): void
     {
-        $application = NationJoinApplication::find($applicationId);
+        if ($this->page !== 'applications') {
+            return;
+        }
+
+        $membership = $this->rulerOrError();
+        if (! $membership) {
+            return;
+        }
+
+        $application = NationJoinApplication::query()
+            ->whereKey($applicationId)
+            ->where('nation_id', $membership->nation_id)
+            ->where('status', NationJoinApplication::STATUS_PENDING)
+            ->first();
         if (! $application) {
             $this->addError('nationAction', '加入申請が見つかりません。');
 
             return;
         }
 
-        $this->perform(
-            fn () => app(NationJoinApplicationService::class)->approve($this->character(), $application),
-            '加入申請を承認しました。',
-        );
+        $this->confirmationAction = 'approve-application';
+        $this->confirmationTargetId = $application->id;
     }
 
     public function rejectApplication(int $applicationId): void
@@ -426,6 +441,23 @@ final class NationScreen extends Component
                 $this->page = 'home';
                 $this->closeConfirmation();
             }
+
+            return;
+        }
+
+        if ($action === 'approve-application') {
+            $this->closeConfirmation();
+            $application = $targetId ? NationJoinApplication::find($targetId) : null;
+            if (! $application) {
+                $this->addError('nationAction', '加入申請が見つかりません。');
+
+                return;
+            }
+
+            $this->perform(
+                fn () => app(NationJoinApplicationService::class)->approve($this->character(), $application),
+                '加入申請を承認しました。',
+            );
 
             return;
         }
@@ -608,8 +640,11 @@ final class NationScreen extends Component
             }
         }
 
-        $confirmationTarget = $this->confirmationTargetId
+        $confirmationTarget = $this->confirmationAction !== 'approve-application' && $this->confirmationTargetId
             ? NationMembership::with(['character', 'nation'])->find($this->confirmationTargetId)
+            : null;
+        $confirmationApplication = $this->confirmationAction === 'approve-application' && $this->confirmationTargetId
+            ? NationJoinApplication::with(['character', 'nation'])->find($this->confirmationTargetId)
             : null;
 
         return view('livewire.nation-screen', [
@@ -626,6 +661,7 @@ final class NationScreen extends Component
             'activityDescriptions' => $activityDescriptions,
             'nationChatMessages' => $nationChatMessages,
             'confirmationTarget' => $confirmationTarget,
+            'confirmationApplication' => $confirmationApplication,
             'nationTypes' => NationType::cases(),
             'foundingNationTypeOption' => NationType::tryFrom($this->foundingNationType) ?? NationType::KINGDOM,
             'emblems' => $emblemCatalog->all(),

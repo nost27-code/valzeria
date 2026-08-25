@@ -223,6 +223,8 @@ final class NationJoinApplicationService
             type: 'nation_join_application_submitted',
             title: '【国家】加入申請が届きました',
             body: $body,
+            actionLabel: '加入申請を見る',
+            actionUrl: route('nation.applications'),
             payload: [
                 'nation_id' => $nation->id,
                 'nation_join_application_id' => $application->id,

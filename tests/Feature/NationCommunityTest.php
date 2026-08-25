@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\NationType;
+use App\Http\Middleware\CheckCharacterSelected;
+use App\Livewire\CityHeader;
+use App\Livewire\MainScreenShell;
 use App\Livewire\NationScreen;
 use App\Models\Character;
+use App\Models\CharacterNotification;
 use App\Models\Nation;
 use App\Models\NationActivityLog;
 use App\Models\NationFacility;
@@ -294,6 +298,12 @@ SQL);
             'read_at' => null,
         ]);
         $this->assertSame(1, app(CharacterNotificationService::class)->unreadCount($ruler));
+        $rulerNotification = DB::table('character_notifications')
+            ->where('character_id', $ruler->id)
+            ->where('type', 'nation_join_application_submitted')
+            ->sole();
+        $this->assertSame('加入申請を見る', $rulerNotification->action_label);
+        $this->assertSame(route('nation.applications'), $rulerNotification->url);
         $this->assertDatabaseMissing('character_notifications', [
             'character_id' => $applicant->id,
             'type' => 'nation_join_application_approved',
@@ -316,6 +326,41 @@ SQL);
             ->where('character_id', $applicant->id)
             ->where('type', 'nation_join_application_approved')
             ->count());
+    }
+
+    public function test_notification_destination_opens_the_ruler_join_applications_screen(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('通知遷移統治者');
+        $nation = app(NationService::class)->create($ruler, '通知遷移');
+        $applicant = $this->character('通知遷移申請者');
+        app(NationJoinApplicationService::class)->submit($applicant, $nation, '確認をお願いします。');
+        $notification = CharacterNotification::query()
+            ->where('character_id', $ruler->id)
+            ->where('type', 'nation_join_application_submitted')
+            ->sole();
+        $notification->forceFill(['url' => null])->save();
+
+        session(['current_character_id' => $ruler->id]);
+        $this->actingAs($ruler->user);
+
+        Livewire::test(CityHeader::class, ['modalOnly' => true])
+            ->call('openNotification', $notification->id)
+            ->assertRedirect(route('nation.applications'));
+        $this->assertNotNull($notification->fresh()->read_at);
+
+        $this->withoutMiddleware(CheckCharacterSelected::class)
+            ->get(route('nation.applications'))
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('current_location', 'nation')
+            ->assertSessionHas('nation_initial_page', 'applications');
+
+        Livewire::test(MainScreenShell::class)
+            ->assertSet('currentLocation', 'nation')
+            ->assertSeeHtml('wire:name="nation-screen"')
+            ->assertSeeHtml('data-nation-applications')
+            ->assertSee($applicant->name);
+        $this->assertNull(session('nation_initial_page'));
     }
 
     public function test_only_ruler_can_reject_and_rejection_blocks_same_nation_for_24_hours(): void
@@ -689,13 +734,23 @@ SQL);
         $application = NationJoinApplication::where('character_id', $applicant->id)->firstOrFail();
 
         $this->actingAs($ruler->user);
-        Livewire::test(NationScreen::class)
+        $approvalScreen = Livewire::test(NationScreen::class)
             ->call('showApplications')
             ->assertSee('画面申請者')
             ->assertSeeHtml('data-nation-application-profile-link="'.$applicant->id.'"')
             ->assertSeeHtml('aria-label="画面申請者の冒険者カードを見る"')
             ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
-            ->call('approveApplication', $application->id)
+            ->call('openApplicationApprovalConfirmation', $application->id)
+            ->assertSet('confirmationAction', 'approve-application')
+            ->assertSet('confirmationTargetId', $application->id)
+            ->assertSeeHtml('data-nation-application-approval-confirmation')
+            ->assertSee('画面申請者を国民として承認しますか？')
+            ->assertHasNoErrors();
+        $this->assertDatabaseMissing('nation_memberships', ['nation_id' => $nation->id, 'character_id' => $applicant->id]);
+        $approvalScreen
+            ->call('confirmAction')
+            ->assertSet('confirmationAction', null)
+            ->assertSet('confirmationTargetId', null)
             ->assertHasNoErrors();
         $this->assertDatabaseHas('nation_memberships', ['nation_id' => $nation->id, 'character_id' => $applicant->id, 'role' => 'citizen']);
 
@@ -707,7 +762,7 @@ SQL);
         $this->assertSame($logCount, NationActivityLog::count());
     }
 
-    public function test_nation_list_has_a_bottom_button_that_returns_to_nation_home(): void
+    public function test_nation_list_hides_home_hero_and_has_buttons_that_return_home(): void
     {
         config()->set('features.nation_community_enabled', true);
         $character = $this->character('国家一覧閲覧者');
@@ -716,10 +771,12 @@ SQL);
         Livewire::test(NationScreen::class)
             ->call('showNationList')
             ->assertSet('page', 'nation-list')
+            ->assertDontSeeHtml('data-nation-home-hero')
             ->assertSeeHtml('data-nation-list-home-button')
             ->assertSee('国家トップへ戻る')
             ->call('showHome')
             ->assertSet('page', 'home')
+            ->assertSeeHtml('data-nation-home-hero')
             ->assertDontSeeHtml('data-nation-list-home-button');
     }
 

@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-08-25-nation-application-notification-confirmation',
+        'date' => '2026-08-25',
+        'category' => 'changed',
+        'title' => '国家加入申請の通知導線と承認確認を改善',
+        'detail' => '統治者が加入申請の通知を押すと申請一覧へ移動するようにし、承認前には申請者名と加入先を確認できる画面を表示するようにしました。',
+    ],
+    [
+        'id' => '2026-08-25-nation-list-hero-card-removal',
+        'date' => '2026-08-25',
+        'category' => 'changed',
+        'title' => '国家一覧画面の重複した案内枠を整理',
+        'detail' => '「国家を探す」の一覧画面では国家TOPと同じ案内枠を省き、国家一覧をすぐ確認できるようにしました。国家TOPへ戻るボタンは維持しています。',
+    ],
+    [
         'id' => '2026-08-25-six-hero-profile-rank-colors',
         'date' => '2026-08-25',
         'category' => 'changed',

@@ -302,6 +302,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/tavern/roster', [TavernController::class, 'roster'])->name('tavern.roster');
         Route::get('/tavern/roster/{npc}', [TavernController::class, 'rosterDetail'])->name('tavern.roster.detail');
         Route::get('/home', MainScreenShell::class)->name('home');
+        Route::get('/nation/applications', function () {
+            abort_unless((bool) config('features.nation_community_enabled', false), 404);
+            session([
+                'current_location' => 'nation',
+                'nation_initial_page' => 'applications',
+            ]);
+
+            return redirect()->route('home');
+        })->name('nation.applications');
         Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::get('/profile/favorite-weapons', [ProfileController::class, 'favoriteWeapons'])->name('profile.favorite-weapons');
         Route::post('/profile/edit', [ProfileController::class, 'update'])->name('profile.update');
