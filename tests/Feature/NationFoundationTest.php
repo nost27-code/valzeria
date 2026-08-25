@@ -34,6 +34,10 @@ use App\Services\Nation\NationWarLifecycleService;
 use App\Services\Nation\NationWarRebuildService;
 use App\Services\Nation\NationWarRepairService;
 use App\Services\Nation\NationWarService;
+use Database\Seeders\AllDungeonsSeeder;
+use Database\Seeders\CitySeeder;
+use Database\Seeders\EnemyDropsSeeder;
+use Database\Seeders\EnemySeeder;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -57,14 +61,62 @@ final class NationFoundationTest extends TestCase
         $this->assertTrue($nation->facilities()->get()->every(fn (NationFacility $facility) => $facility->level === 1 && $facility->condition_bps === 10000));
     }
 
-    public function test_miasma_bone_drops_remain_disabled_while_nation_war_is_off(): void
+    public function test_miasma_bone_drops_are_active_even_while_nation_war_is_off(): void
     {
         config()->set('features.nation_war_enabled', false);
-        $materialId = DB::table('materials')->where('material_code', 'WEV0030')->value('id');
+        $this->seed([
+            CitySeeder::class,
+            AllDungeonsSeeder::class,
+            EnemySeeder::class,
+            EnemyDropsSeeder::class,
+        ]);
+
+        $this->assertMiasmaBoneDropsAreActive();
+
+        DB::table('material_drops')
+            ->whereIn('material_id', DB::table('materials')->where('material_code', 'WEV0030')->select('id'))
+            ->update(['is_active' => false]);
+
+        $migration = require database_path('migrations/2026_08_25_190000_enable_miasma_bone_drops.php');
+        $migration->up();
+
+        $this->assertMiasmaBoneDropsAreActive();
+
+        $migration->down();
+        $this->assertSame(0, DB::table('material_drops')
+            ->whereIn('material_id', DB::table('materials')->where('material_code', 'WEV0030')->select('id'))
+            ->where('is_active', true)
+            ->count());
+
+        $migration->up();
+        $this->assertMiasmaBoneDropsAreActive();
+    }
+
+    private function assertMiasmaBoneDropsAreActive(): void
+    {
+        $drops = DB::table('material_drops')
+            ->join('materials', 'materials.id', '=', 'material_drops.material_id')
+            ->join('enemies', 'enemies.id', '=', 'material_drops.enemy_id')
+            ->where('materials.material_code', 'WEV0030')
+            ->where('material_drops.is_active', true)
+            ->get([
+                'enemies.area_id',
+                'enemies.name',
+                'material_drops.drop_rate',
+                'material_drops.drop_first_clear_only',
+            ]);
 
         $this->assertFalse((bool) config('features.nation_war_enabled', false));
-        $this->assertNotNull($materialId);
-        $this->assertSame(0, DB::table('material_drops')->where('material_id', $materialId)->where('is_active', true)->count());
+        $this->assertCount(14, $drops);
+        $this->assertEqualsCanonicalizing([
+            '50:死霊兵', '50:黒骨犬', '51:呪い騎士', '51:吸血コウモリ',
+            '52:冥界の番犬', '52:門番デーモン', '53:魔神神殿兵', '53:魔神封印守',
+            '54:魔王軍兵', '54:魔王軍弓兵', '55:瘴気スライム', '55:毒霧の悪魔',
+            '56:奈落の影', '56:深淵騎士',
+        ], $drops->map(fn ($drop): string => "{$drop->area_id}:{$drop->name}")->all());
+        $this->assertTrue($drops->every(
+            fn ($drop): bool => (float) $drop->drop_rate === 18.0 && ! (bool) $drop->drop_first_clear_only,
+        ));
     }
 
     public function test_nation_screen_shows_unaffiliated_community_actions_and_keeps_war_actions_in_pending_modal(): void

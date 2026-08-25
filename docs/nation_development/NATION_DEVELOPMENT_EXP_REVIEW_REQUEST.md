@@ -111,7 +111,7 @@ MariaDBには`INCLUDE`がないため、貢献集計用に次のcovering index�
 - ローカル/テストは既定ON
 - 本番は明示ONまでOFF
 - `NATION_WAR_ENABLED`、宣戦、施設Lvアップ、基準Dは変更しない
-- `WEV0030`の敵dropは非活性のまま維持する
+- `WEV0030`の敵dropは後続裁定により国家戦flagから独立して有効化する
 
 ## 7. ローカル確認
 

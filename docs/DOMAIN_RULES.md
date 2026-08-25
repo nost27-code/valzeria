@@ -138,7 +138,7 @@ Purpose: canonical game rules. Keep concise.
 - 国家Lvは施設Lv・耐久・戦争結果から独立した恒久的な累計納品実績で、次Lv必要EXPは`500×現在Lv`、Lv Nの累計閾値は`250×N×(N-1)`、表示上限はLv50/612,500EXPとする。Lv50後も生の国家発展EXPと個人貢献を保持し、国家資材消費・返却、施設強化・損傷・破壊、国家戦、脱退・追放・役職変更では増減させない。Phase 1ではLvによる能力補正・施設解放を設けず表示と名誉値だけに使う。
 - 国家外の冒険者には国家Lvだけを表示し、現在国民には累計EXP、次Lv進捗、現在国家での個人貢献と貢献一覧を表示する。アカウント削除で台帳の`character_id`がNULLになった貢献は「退会した冒険者」へ集約し、国家合計から除外しない。台帳SUMを正、`nations.development_exp`を読取cacheとし、保守コマンドは既定で照合だけ、明示`--repair`時だけ台帳合計へ復元する。
 - 納品確認では納品後の所持数を明示し、対象素材が装備進化・素材交換・NPC調達にも使われることを警告する。進化経路ごとに必要数が異なるため「進化に必要な残量」は自動算出しない。
-- `NATION_WAR_ENABLED=false`では宣戦・出撃等を公開せず、毎分lifecycleもno-opとする。`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持し、基準Dが0/未校正なら宣戦を拒否する。素材の入手可否は変更せず、`WEV0030`敵dropも非活性を維持する。
+- `NATION_WAR_ENABLED=false`では宣戦・出撃等を公開せず、毎分lifecycleもno-opとする。`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持し、基準Dが0/未校正なら宣戦を拒否する。`WEV0030`（瘴気の骨片）の敵dropは国家戦flagから独立し、魔界都市ネクロムのarea 50〜56にいる指定14体の通常敵で18%、通常撃破、初回限定なしを正本とする。ヴァルモンの素材発見候補には含めない。
 - 国家戦は建国7日保護、敗戦3日保護、1国家につき進行中1件+次戦予約1件、宣戦から準備3日、戦争5日。active Nは宣戦時点の所属者のうち直近7日で実戦したCharacterをsnapshotする。出撃は通常装備/能力/戦技を使う独立全快HP/SPの最大30Tで通常HP/SPを更新しない。1日10回、開始時探索力15、戦死は合計2回消費し、修復/再建後も判定用`min_hp`は戻さない。
 
 ## Balance

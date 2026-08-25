@@ -11,7 +11,7 @@ Branch: main
 - 1Characterは1国家、1国家の現在の初期上限は20人。定員は`nation.max_members`を正本とし、一覧・詳細・所属dashboardの表示と申請時・承認時の判定で共通利用する。内部統治者roleは`ruler`、表示名は基礎国家名+国号、統治者名は国号から導出する。加入申請時は統治者へ申請一覧へのURL付き通知、承認時は申請者へ未読通知を作る。既存のURLなし加入申請通知も通知種別から申請一覧へ遷移する。承認ボタンは確認modalを開き、確定時だけ既存のtransaction/row lock付きServiceで加入させる。加入・脱退・追放・再建国の待機時間は`nation.*` GameSettingを正本とする。解散待機中は一般国民の自主脱退を拒否し、解散完了時にcooldownなしで無所属へ戻す
 - 国家チャットは所属dashboardと常設`ChatLog`の国家タブで同じ`nation_chat_messages`を使う。現在所属する同一国家の国民だけが100文字以内で送信し、最新50件を閲覧できる。全体/個人チャットの`public_logs`へは流さず、脱退・追放・解散完了後は閲覧・送信できない。冒険者カードは「所属国家」に正式国家名を表示し、無所属者は「無所属」と表示する
 - 国家発展は`NATION_DEVELOPMENT_ENABLED`でcommunity/warから分離する。ON時は現在国民が40都市素材を確認modal付きで納品でき、低位素材は1個=国家資材1pt/国家発展EXP1、高位素材は1個=3pt/2EXPを同一transactionで加算する。国家Lvは累計EXPから整数閾値走査で導出し、次Lv必要EXPは`500×現在Lv`、表示上限Lv50（累計612,500）だが生EXPは上限後も保持する。国家外にはLvだけ、国民にはEXP進捗・現在国での個人貢献・退会者分を匿名集約した貢献一覧を表示する。`nations.development_exp`は台帳合計の読取cacheで、`nation:audit-development`が照合し、明示`--repair`時だけ復元する。本番は明示ONまでOFF
-- `要塞強化`・`宣戦布告`・`戦争方針設定`は引き続き準備中modalだけを開く。国家戦は専用tablesと`app/Services/Nation/`へ分離されているが、`NATION_WAR_ENABLED=false`、`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`、`nation_war.reference_damage=0`（未校正）を維持する。毎分lifecycleはOFF中no-opで、素材の入手可否も変えず`WEV0030`敵dropを非活性のままにする
+- `要塞強化`・`宣戦布告`・`戦争方針設定`は引き続き準備中modalだけを開く。国家戦は専用tablesと`app/Services/Nation/`へ分離されているが、`NATION_WAR_ENABLED=false`、`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`、`nation_war.reference_damage=0`（未校正）を維持する。毎分lifecycleはOFF中no-op。`WEV0030`（瘴気の骨片）の敵dropは国家戦flagから独立し、魔界都市ネクロムのarea 50〜56にいる指定14体の通常敵で18%を有効とする
 
 ## Six Heroes / 六極殿（本番公開）
 

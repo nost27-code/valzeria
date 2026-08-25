@@ -53,8 +53,7 @@ class EnemyDropsSeeder extends Seeder
         '星樹氷晶',
         '精錬核',
     ];
-    private const REMOVED_UNUSED_MATERIAL_CODES = ['CITY_08_MATERIAL', 'WEV0029', 'WEV0030'];
-    private const REMOVED_UNUSED_MATERIAL_NAMES = ['瘴気の骨片'];
+    private const REMOVED_UNUSED_MATERIAL_CODES = ['CITY_08_MATERIAL', 'WEV0029'];
     private const STALE_BRANCH_PATH_CODES = [
         'MAT_BR_WPN_HOLY_PATH',
         'MAT_BR_WPN_DARK_PATH',
@@ -153,6 +152,22 @@ class EnemyDropsSeeder extends Seeder
         'MAT_COMMON_OLD_BADGE' => [
             ['area_id' => 1, 'enemy_name' => '草原コウモリ', 'drop_rate' => 18],
             ['area_id' => 1, 'enemy_name' => '見習い盗賊', 'drop_rate' => 20],
+        ],
+        'WEV0030' => [
+            ['area_id' => 50, 'enemy_name' => '死霊兵', 'drop_rate' => 18],
+            ['area_id' => 50, 'enemy_name' => '黒骨犬', 'drop_rate' => 18],
+            ['area_id' => 51, 'enemy_name' => '呪い騎士', 'drop_rate' => 18],
+            ['area_id' => 51, 'enemy_name' => '吸血コウモリ', 'drop_rate' => 18],
+            ['area_id' => 52, 'enemy_name' => '冥界の番犬', 'drop_rate' => 18],
+            ['area_id' => 52, 'enemy_name' => '門番デーモン', 'drop_rate' => 18],
+            ['area_id' => 53, 'enemy_name' => '魔神神殿兵', 'drop_rate' => 18],
+            ['area_id' => 53, 'enemy_name' => '魔神封印守', 'drop_rate' => 18],
+            ['area_id' => 54, 'enemy_name' => '魔王軍兵', 'drop_rate' => 18],
+            ['area_id' => 54, 'enemy_name' => '魔王軍弓兵', 'drop_rate' => 18],
+            ['area_id' => 55, 'enemy_name' => '瘴気スライム', 'drop_rate' => 18],
+            ['area_id' => 55, 'enemy_name' => '毒霧の悪魔', 'drop_rate' => 18],
+            ['area_id' => 56, 'enemy_name' => '奈落の影', 'drop_rate' => 18],
+            ['area_id' => 56, 'enemy_name' => '深淵騎士', 'drop_rate' => 18],
         ],
     ];
 
@@ -428,8 +443,7 @@ class EnemyDropsSeeder extends Seeder
         }
 
         $materialName = trim($data['レアドロップ品'] ?? '');
-        if (in_array($materialCode, self::REMOVED_UNUSED_MATERIAL_CODES, true)
-            || in_array($materialName, self::REMOVED_UNUSED_MATERIAL_NAMES, true)) {
+        if (in_array($materialCode, self::REMOVED_UNUSED_MATERIAL_CODES, true)) {
             return;
         }
         if ($this->isDirectDropDisabledEnhanceMaterial($materialCode, $materialName)) {
