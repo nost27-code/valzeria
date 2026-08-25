@@ -786,6 +786,9 @@ SQL);
         $nationScreen
             ->assertSeeHtml('data-nation-home-header')
             ->assertSeeHtml('data-nation-header-summary-row')
+            ->assertSeeHtml('data-nation-header-stat-row="ruler"')
+            ->assertSeeHtml('data-nation-header-stat-row="members"')
+            ->assertSeeHtml('data-nation-header-stat-row="development"')
             ->assertDontSee('min-h-[330px]', false)
             ->assertSee('images/nation/bg/nation-header-bg_001.webp', false)
             ->assertSeeHtml('data-nation-header-background-open')

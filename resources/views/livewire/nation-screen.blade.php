@@ -258,34 +258,41 @@
                         <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" class="h-20 w-20 object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.75)] sm:h-28 sm:w-28">
                     </div>
                     <div class="min-w-0 flex-1 overflow-hidden rounded-xl border border-amber-200/70 bg-slate-950/75 shadow-xl backdrop-blur-[2px]">
-                        <dl class="grid grid-cols-2 text-amber-50">
-                            <div class="min-w-0 border-b border-r border-amber-100/20 px-2 py-1.5 sm:px-3 sm:py-2">
-                                <dt class="flex items-center gap-1 text-[10px] font-bold text-amber-100/80 sm:text-xs">
+                        <dl class="divide-y divide-amber-100/20 text-amber-50">
+                            <div class="flex min-w-0 items-center justify-between gap-2 px-2 py-1.5 sm:px-3 sm:py-2" data-nation-header-stat-row="ruler">
+                                <dt class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-100/80 sm:text-xs">
                                     <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 16h14l1-9-5 4-3-7-3 7-5-4 1 9Zm0 2h14v2H5v-2Z"/></svg>
                                     {{ $nation->ruler_title }}
                                 </dt>
-                                <dd class="mt-0.5 truncate text-xs font-black sm:text-sm">{{ $nation->rulerMembership?->character?->name ?? '不明' }}</dd>
+                                <dd class="min-w-0 truncate text-right text-xs font-black sm:text-sm">{{ $nation->rulerMembership?->character?->name ?? '不明' }}</dd>
                             </div>
-                            <div class="border-b border-amber-100/20 px-2 py-1.5 sm:px-3 sm:py-2">
-                                <dt class="flex items-center gap-1 text-[10px] font-bold text-amber-100/80 sm:text-xs">
+                            <div class="flex items-center justify-between gap-2 px-2 py-1.5 sm:px-3 sm:py-2" data-nation-header-stat-row="members">
+                                <dt class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-100/80 sm:text-xs">
                                     <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM1 21v-3c0-3 3-5 7-5s7 2 7 5v3H1Zm14.5 0v-3c0-1.5-.6-2.8-1.7-3.8.7-.1 1.4-.2 2.2-.2 4 0 7 2 7 5v2h-7.5Z"/></svg>
                                     国民数
                                 </dt>
-                                <dd class="mt-0.5 whitespace-nowrap text-xs font-black sm:text-sm">{{ $nation->memberships->count() }} / {{ $maxMembers }}人</dd>
+                                <dd class="whitespace-nowrap text-right text-xs font-black sm:text-sm">{{ $nation->memberships->count() }} / {{ $maxMembers }}人</dd>
                             </div>
-                            <div class="border-r border-amber-100/20 px-2 py-1.5 sm:px-3 sm:py-2">
+                            <div class="flex items-center justify-between gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2" data-nation-header-stat-row="development">
                                 @if($developmentEnabled && $developmentProgress)
-                                    <dt class="text-[10px] font-bold text-amber-100/80 sm:text-xs">国家レベル</dt>
-                                    <dd class="mt-0.5 text-sm font-black text-amber-300 sm:text-base">Lv{{ $developmentProgress['level'] }}</dd>
+                                    <dt class="shrink-0 text-[10px] font-bold text-amber-100/80 sm:text-xs">国家レベル</dt>
+                                    <dd class="flex min-w-0 items-center justify-end gap-1 sm:gap-1.5">
+                                        <span class="shrink-0 text-sm font-black text-amber-300 sm:text-base">Lv{{ $developmentProgress['level'] }}</span>
+                                        <span class="inline-flex min-w-0 items-center rounded-full px-1.5 py-1 text-center text-[9px] font-black sm:px-2.5 sm:text-[11px] {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}">
+                                            <span class="sm:hidden">{{ $nation->recruitment_enabled ? '募集中' : '停止' }}</span>
+                                            <span class="hidden sm:inline">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</span>
+                                        </span>
+                                    </dd>
                                 @else
-                                    <dt class="text-[10px] font-bold text-amber-100/80 sm:text-xs">国号</dt>
-                                    <dd class="mt-0.5 text-xs font-black sm:text-sm">{{ $nation->nation_type_label }}</dd>
+                                    <dt class="shrink-0 text-[10px] font-bold text-amber-100/80 sm:text-xs">国号</dt>
+                                    <dd class="flex min-w-0 items-center justify-end gap-1 sm:gap-1.5">
+                                        <span class="truncate text-right text-xs font-black sm:text-sm">{{ $nation->nation_type_label }}</span>
+                                        <span class="inline-flex shrink-0 items-center rounded-full px-1.5 py-1 text-center text-[9px] font-black sm:px-2.5 sm:text-[11px] {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}">
+                                            <span class="sm:hidden">{{ $nation->recruitment_enabled ? '募集中' : '停止' }}</span>
+                                            <span class="hidden sm:inline">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</span>
+                                        </span>
+                                    </dd>
                                 @endif
-                            </div>
-                            <div class="flex items-center justify-center px-1 py-1.5 sm:px-2 sm:py-2">
-                                <span class="inline-flex max-w-full items-center rounded-full px-1.5 py-1 text-center text-[9px] font-black sm:px-2.5 sm:text-[11px] {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}">
-                                    {{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}
-                                </span>
                             </div>
                         </dl>
                     </div>
