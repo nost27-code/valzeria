@@ -10,6 +10,7 @@ use App\Models\Nation;
 use App\Models\NationFacility;
 use App\Models\NationMaterialConversionRate;
 use App\Models\NationMembership;
+use App\Models\NationResourceTransaction;
 use App\Models\NationWar;
 use App\Models\NationWarFacility;
 use App\Models\NationWarParticipant;
@@ -27,6 +28,7 @@ use App\Services\Nation\NationWarRebuildService;
 use App\Services\Nation\NationWarRepairService;
 use App\Services\Nation\NationWarService;
 use App\Services\Nation\NationWarBattleService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -169,6 +171,80 @@ final class NationFoundationTest extends TestCase
         $this->assertSame(12, (int) $transaction->balance_after);
         $this->assertSame($transaction->id, app(NationResourceService::class)->donate($character, $material->id, 4, 'nation-test-donation')->id);
         $this->assertSame(6, CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
+    }
+
+    public function test_donation_rejects_an_idempotency_key_reused_for_another_payload(): void
+    {
+        $character = $this->character('冪等納品者');
+        app(NationService::class)->create($character, '冪等国');
+        $material = Material::create(['material_code' => 'TEST_IDEMPOTENT_MAT', 'name' => '冪等試験資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
+        $service = app(NationResourceService::class);
+        $service->donate($character, $material->id, 4, 'nation-test-payload-match');
+
+        try {
+            $service->donate($character, $material->id, 3, 'nation-test-payload-match');
+            $this->fail('異なる数量での冪等キー再利用を拒否する必要があります。');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('異なる納品内容', $exception->getMessage());
+        }
+
+        $this->assertSame(6, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
+        $this->assertSame(1, NationResourceTransaction::where('idempotency_key', 'nation-test-payload-match')->count());
+    }
+
+    public function test_donation_lock_queries_follow_the_documented_order(): void
+    {
+        $character = $this->character('ロック順納品者');
+        app(NationService::class)->create($character, 'ロック順国');
+        $material = Material::create(['material_code' => 'TEST_LOCK_ORDER_MAT', 'name' => 'ロック順試験資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 1, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 2]);
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        app(NationResourceService::class)->donate($character, $material->id, 1, 'nation-test-lock-order');
+
+        $nationIndex = collect($queries)->search(fn (string $sql): bool => str_contains($sql, 'from "nations"'));
+        $membershipIndex = collect($queries)->search(fn (string $sql, int $index): bool => $index > $nationIndex && str_contains($sql, 'from "nation_memberships"'));
+        $rateIndex = collect($queries)->search(fn (string $sql, int $index): bool => $index > $membershipIndex && str_contains($sql, 'from "nation_material_conversion_rates"'));
+        $stockIndex = collect($queries)->search(fn (string $sql, int $index): bool => $index > $rateIndex && str_contains($sql, 'from "character_materials"'));
+
+        $this->assertSame(
+            ['nations', 'nation_memberships', 'nation_material_conversion_rates', 'character_materials'],
+            NationResourceService::DONATION_LOCK_ORDER,
+        );
+        $this->assertIsInt($nationIndex);
+        $this->assertIsInt($membershipIndex);
+        $this->assertIsInt($rateIndex);
+        $this->assertIsInt($stockIndex);
+        $this->assertTrue($nationIndex < $membershipIndex && $membershipIndex < $rateIndex && $rateIndex < $stockIndex);
+    }
+
+    public function test_spend_rolls_back_balance_when_ledger_insert_fails_without_an_outer_transaction(): void
+    {
+        if (DB::getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('この失敗注入はSQLiteの一時triggerを使用します。');
+        }
+
+        $nation = app(NationService::class)->create($this->character('単独消費国王'), '単独消費国');
+        $nation->update(['treasury_points' => 100]);
+        DB::statement("CREATE TRIGGER fail_nation_spend BEFORE INSERT ON nation_resource_transactions WHEN NEW.transaction_type = 'forced_failure' BEGIN SELECT RAISE(ABORT, 'forced ledger failure'); END");
+
+        try {
+            app(NationResourceService::class)->spend($nation, 40, 'forced_failure');
+            $this->fail('台帳作成失敗を送出する必要があります。');
+        } catch (\Throwable $exception) {
+            $this->assertStringContainsString('forced ledger failure', $exception->getMessage());
+        } finally {
+            DB::statement('DROP TRIGGER IF EXISTS fail_nation_spend');
+        }
+
+        $this->assertSame(100, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(0, NationResourceTransaction::where('transaction_type', 'forced_failure')->count());
     }
 
     public function test_facility_upgrade_and_war_declaration_are_closed_by_default(): void

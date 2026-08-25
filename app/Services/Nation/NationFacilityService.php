@@ -22,9 +22,12 @@ final class NationFacilityService
         throw_unless($actor->nation_id === $facility->nation_id, \DomainException::class, '自国の施設ではありません。');
 
         return DB::transaction(function () use ($facility): NationFacility {
-            $locked = NationFacility::whereKey($facility->id)->lockForUpdate()->firstOrFail();
+            $nation = Nation::whereKey($facility->nation_id)->lockForUpdate()->firstOrFail();
+            $locked = NationFacility::whereKey($facility->id)
+                ->where('nation_id', $nation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
             throw_if($locked->level >= 10, \DomainException::class, '施設はすでに最大Lvです。');
-            $nation = Nation::whereKey($locked->nation_id)->lockForUpdate()->firstOrFail();
             app(NationResourceService::class)->spend($nation, $this->upgradeCost($locked), 'facility_upgrade', ['facility_type' => $locked->facility_type, 'from_level' => $locked->level]);
             $locked->increment('level');
             return $locked->refresh();
