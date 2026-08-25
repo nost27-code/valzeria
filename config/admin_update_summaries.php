@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-nation-community-overview-guide',
+        'date' => '2026-08-25',
+        'category' => 'changed',
+        'title' => '国家コミュニティの遊び方を案内',
+        'detail' => '国家TOPの「国家とは？」で、仲間との納品・国家戦・共同目標・戦績など今後楽しめる遊びと、国家への所属は必須ではないことを確認できるようにしました。',
+    ],
+    [
         'id' => '2026-08-25-nation-application-notification-confirmation',
         'date' => '2026-08-25',
         'category' => 'changed',

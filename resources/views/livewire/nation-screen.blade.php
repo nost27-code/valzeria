@@ -190,15 +190,19 @@
             @endif
 
             @if($page !== 'nation-list')
-                <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm">
+                <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm" data-nation-about>
                     <h2 class="text-base font-black text-amber-900">国家とは？</h2>
-                    <p class="mt-1 text-xs font-bold leading-relaxed text-stone-600">冒険者たちが集まり、それぞれの役職を担いながら歩む大きな共同体です。</p>
-                    <div class="mt-3 grid grid-cols-2 gap-2 text-sm font-black text-stone-700">
-                        <div class="rounded-lg bg-amber-50 px-3 py-2">🏰 国を興す</div>
-                        <div class="rounded-lg bg-amber-50 px-3 py-2">👥 国民を集める</div>
-                        <div class="rounded-lg bg-amber-50 px-3 py-2">🪶 役職を担う</div>
-                        <div class="rounded-lg bg-amber-50 px-3 py-2">📜 歴史を刻む</div>
-                    </div>
+                    <p class="mt-2 text-sm font-bold leading-relaxed text-stone-700">国家は、冒険者同士で協力して活動するためのコミュニティです。</p>
+                    <p class="mt-3 text-sm font-black text-stone-800">国家に所属すると、</p>
+                    <ul class="mt-2 space-y-1.5 text-sm font-bold text-stone-700">
+                        <li class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"></span><span>国家への納品・物資の共有</span></li>
+                        <li class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"></span><span>国家同士の戦いへの参加</span></li>
+                        <li class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"></span><span>国家の発展・共同目標</span></li>
+                        <li class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span class="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"></span><span>国家戦績・ランキング</span></li>
+                    </ul>
+                    <p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">など、<strong class="font-black text-amber-900">仲間と協力する新たな遊び</strong>に参加できます。</p>
+                    <p class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-bold leading-relaxed text-emerald-900">国家への所属は必須ではなく、無所属でもこれまで通り冒険を楽しめます。</p>
+                    <p class="mt-2 text-xs font-bold leading-relaxed text-stone-500">※国家への納品・国家戦・戦績・ランキングなど、一部の機能は現在準備中です。</p>
                 </section>
             @endif
         @endif

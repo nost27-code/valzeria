@@ -772,11 +772,21 @@ SQL);
             ->call('showNationList')
             ->assertSet('page', 'nation-list')
             ->assertDontSeeHtml('data-nation-home-hero')
+            ->assertDontSeeHtml('data-nation-about')
             ->assertSeeHtml('data-nation-list-home-button')
             ->assertSee('国家トップへ戻る')
             ->call('showHome')
             ->assertSet('page', 'home')
             ->assertSeeHtml('data-nation-home-hero')
+            ->assertSeeHtml('data-nation-about')
+            ->assertSee('国家は、冒険者同士で協力して活動するためのコミュニティです。')
+            ->assertSee('国家への納品・物資の共有')
+            ->assertSee('国家同士の戦いへの参加')
+            ->assertSee('国家の発展・共同目標')
+            ->assertSee('国家戦績・ランキング')
+            ->assertSee('仲間と協力する新たな遊び')
+            ->assertSee('国家への所属は必須ではなく、無所属でもこれまで通り冒険を楽しめます。')
+            ->assertSee('一部の機能は現在準備中です。')
             ->assertDontSeeHtml('data-nation-list-home-button');
     }
 
