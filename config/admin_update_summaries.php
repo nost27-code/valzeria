@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-admin-six-hero-battle-simulator',
+        'date' => '2026-08-25',
+        'category' => 'internal',
+        'title' => '六英雄戦の管理者対戦検証を追加',
+        'detail' => '管理者の戦闘シミュレーションで、任意の2キャラクターと六極殿の間を選び、現在の能力・装備・PvP戦技セット・部屋ルール・ダメージ計算を使った複数回対戦を確認できるようにしました。順位、挑戦回数、戦績、HP/SPは更新しません。',
+    ],
+    [
         'id' => '2026-08-25-adventurer-card-profile-layout',
         'date' => '2026-08-25',
         'category' => 'changed',

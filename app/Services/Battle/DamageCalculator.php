@@ -22,6 +22,30 @@ class DamageCalculator
     private const RANK_BATTLE_VARIANCE_MAX = 104;
 
     /**
+     * 管理者の検証画面へ、実際のランク戦damage式と同じ係数を公開する。
+     *
+     * @return array{
+     *     attack_rate: float,
+     *     defense_rate: float,
+     *     pressure_rate: float,
+     *     critical_multiplier: float,
+     *     variance_min: int,
+     *     variance_max: int
+     * }
+     */
+    public function rankBattleFormulaParameters(): array
+    {
+        return [
+            'attack_rate' => self::RANK_BATTLE_ATTACK_RATE,
+            'defense_rate' => self::RANK_BATTLE_DEFENSE_RATE,
+            'pressure_rate' => self::RANK_BATTLE_PRESSURE_RATE,
+            'critical_multiplier' => self::RANK_BATTLE_CRITICAL_MULTIPLIER,
+            'variance_min' => self::RANK_BATTLE_VARIANCE_MIN,
+            'variance_max' => self::RANK_BATTLE_VARIANCE_MAX,
+        ];
+    }
+
+    /**
      * 命中判定
      * @return bool 命中したかどうか
      */

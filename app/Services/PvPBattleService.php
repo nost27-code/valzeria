@@ -34,7 +34,7 @@ class PvPBattleService
     private const PVP_MIN_HIT_RATE = 84;
     private const PVP_MAX_HIT_RATE = 97;
     private const PVP_TURN_SPEED_RANDOM = 2;
-    private const PVP_NORMAL_POWER_MULTIPLIER = 125;
+    public const PVP_NORMAL_POWER_MULTIPLIER = 125;
     private const PUBLIC_RANK_UP_LOG_MAX_RANK = 50;
 
     protected CharacterStatusService $statusService;

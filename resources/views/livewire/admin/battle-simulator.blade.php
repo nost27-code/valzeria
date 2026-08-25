@@ -3,11 +3,18 @@
         <div>
             <p class="text-xs font-black tracking-[0.24em] text-amber-600">BATTLE SIMULATOR</p>
             <h1 class="mt-2 text-3xl font-black text-slate-950">戦闘シミュレーション</h1>
-            <p class="mt-2 text-sm font-bold text-slate-500">実プレイヤーのキャラデータを使って、敵との勝率や残HPを確認します。英雄試練の調整用に、マスター済み冠位職への仮想切替もできます。</p>
+            <p class="mt-2 text-sm font-bold text-slate-500">実プレイヤーのキャラデータを使って、六英雄戦または敵との勝率や残HPを確認します。英雄試練の調整用に、マスター済み冠位職への仮想切替もできます。</p>
         </div>
         <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-800">
             実行結果はDBへ保存されません
         </div>
+    </div>
+
+    <livewire:admin.six-hero-battle-simulator />
+
+    <div class="mb-4 border-b border-slate-300 pb-3">
+        <h2 class="text-xl font-black text-slate-950">通常戦闘シミュレーション</h2>
+        <p class="mt-1 text-xs font-bold text-slate-500">キャラクター対モンスターの既存検証です。</p>
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
