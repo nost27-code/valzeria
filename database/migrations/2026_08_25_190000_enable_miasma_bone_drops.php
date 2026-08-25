@@ -54,6 +54,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        $this->guardAgainstPartialDevelopmentRollback();
+
         if (! $this->hasRequiredTables()) {
             return;
         }
@@ -67,6 +69,21 @@ return new class extends Migration
             ->where('material_id', $materialId)
             ->whereIn('enemy_id', $this->targetEnemyIds())
             ->update(['is_active' => false, 'updated_at' => now()]);
+    }
+
+    /** 同一batchの国家発展migrationより先に戻るため、発展実績後の部分rollbackを入口で止める。 */
+    private function guardAgainstPartialDevelopmentRollback(): void
+    {
+        $hasDevelopmentLedger = Schema::hasTable('nation_resource_transactions')
+            && Schema::hasColumn('nation_resource_transactions', 'development_exp_delta')
+            && DB::table('nation_resource_transactions')->where('development_exp_delta', '<>', 0)->exists();
+        $hasDevelopmentCache = Schema::hasTable('nations')
+            && Schema::hasColumn('nations', 'development_exp')
+            && DB::table('nations')->where('development_exp', '<>', 0)->exists();
+
+        if ($hasDevelopmentLedger || $hasDevelopmentCache) {
+            throw new RuntimeException('国家発展EXPが記録済みのためbatch rollbackできません。NATION_DEVELOPMENT_ENABLED=falseで納品を停止し、forward migrationで復旧してください。');
+        }
     }
 
     /** @return list<int> */

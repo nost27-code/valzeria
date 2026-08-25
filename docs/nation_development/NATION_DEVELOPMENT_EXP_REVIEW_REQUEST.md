@@ -112,6 +112,7 @@ MariaDBには`INCLUDE`がないため、貢献集計用に次のcovering index�
 - 本番は明示ONまでOFF
 - `NATION_WAR_ENABLED`、宣戦、施設Lvアップ、基準Dは変更しない
 - `WEV0030`の敵dropは後続裁定により国家戦flagから独立して有効化する
+- 発展実績の記録後は通常の`migrate:rollback`を実行しない。同一release batchの入口でも実績を検知して部分rollbackを拒否し、障害時は発展flag OFFとforward migrationで復旧する
 
 ## 7. ローカル確認
 

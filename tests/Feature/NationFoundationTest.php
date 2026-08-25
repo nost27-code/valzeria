@@ -113,6 +113,29 @@ final class NationFoundationTest extends TestCase
         $this->assertSame('miasma_bone', collect($drops['materials'])->firstWhere('material_code', 'WEV0030')['kind']);
     }
 
+    public function test_miasma_bone_down_stops_batch_rollback_before_changes_after_development_progress(): void
+    {
+        config()->set('features.nation_war_enabled', false);
+        $this->seed([
+            CitySeeder::class,
+            AllDungeonsSeeder::class,
+            EnemySeeder::class,
+            EnemyDropsSeeder::class,
+        ]);
+        $nation = app(NationService::class)->create($this->character('rollback保全国王'), 'rollback保全国');
+        $nation->update(['development_exp' => 1]);
+        $migration = require database_path('migrations/2026_08_25_190000_enable_miasma_bone_drops.php');
+
+        try {
+            $migration->down();
+            $this->fail('同一batchの後続migrationだけを先に戻すrollbackを拒否する必要があります。');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('batch rollbackできません', $exception->getMessage());
+        }
+
+        $this->assertMiasmaBoneDropsAreActive();
+    }
+
     private function assertMiasmaBoneDropsAreActive(): void
     {
         $drops = DB::table('material_drops')
