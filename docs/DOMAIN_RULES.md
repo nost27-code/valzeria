@@ -122,7 +122,7 @@ Purpose: canonical game rules. Keep concise.
 - Equipment drops: 装備ドロップの公開ログはSSS/EPIC、または銘抽選で「逸品」になった装備を対象にする。通常のAランク装備獲得だけでは全体チャットへ流さない。
 - Forbidden data: private user data, secrets, internal IDs unless safe.
 
-## Nation community (release candidate / production OFF) / nation war (production OFF)
+## Nation community (production ON) / nation war (production OFF)
 
 - 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。コミュニティをONにしても、国家資材管理・要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新、国家戦Service呼出、画面遷移を行わない。
 - 国家は最大100人、1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
