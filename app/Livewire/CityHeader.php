@@ -21,8 +21,6 @@ use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
 use App\Services\SchemaStateService;
-use App\Services\SixHeroHallOfFameService;
-use App\Services\SixHeroHallPresenter;
 use App\Services\SupportPassService;
 use App\Services\TownUpdateService;
 use App\Services\WeeklyWinRankingService;
@@ -523,7 +521,6 @@ class CityHeader extends Component
             'adventure_records_loaded' => false,
             'adventure_records' => [],
             'six_hero_current_record' => $this->sixHeroCurrentRecord($character),
-            'six_hero_achievement' => $this->sixHeroAchievement($character),
             'valmon_badges' => $this->valmonBadges($character),
             'stats' => [
                 'str' => $this->statBreakdown($stats, 'str'),
@@ -596,17 +593,6 @@ class CityHeader extends Component
             'currentCrownCount' => $rooms->where('isLeader', true)->count(),
             'rooms' => $rooms->all(),
         ];
-    }
-
-    private function sixHeroAchievement(Character $character): ?array
-    {
-        if (! (bool) config('features.six_hero_ui_enabled', false)) {
-            return null;
-        }
-
-        return app(SixHeroHallPresenter::class)->characterSummary(
-            app(SixHeroHallOfFameService::class)->characterSummary($character),
-        );
     }
 
     private function versionedProfileAsset(string $path): string

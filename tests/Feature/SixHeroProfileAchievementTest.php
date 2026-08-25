@@ -38,7 +38,7 @@ final class SixHeroProfileAchievementTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_existing_adventurer_card_shows_the_viewed_characters_compact_derived_achievements(): void
+    public function test_existing_adventurer_card_shows_current_rankings_without_confirmed_achievement_summary(): void
     {
         $viewer = $this->character('プロフィール閲覧者');
         $target = $this->character('プロフィール対象英雄');
@@ -95,50 +95,59 @@ final class SixHeroProfileAchievementTest extends TestCase
             ->call('openPlayerModal', $target->id)
             ->assertSet('isPlayerModalOpen', true)
             ->assertSet('playerInfo.id', $target->id)
-            ->assertSet('playerInfo.six_hero_achievement.heroCount', 3)
-            ->assertSet('playerInfo.six_hero_achievement.conqueredRoomCount', 2)
-            ->assertSet('playerInfo.six_hero_achievement.maxCrownsInSeason', 2)
-            ->assertSet('playerInfo.six_hero_achievement.maxCrownLabel', '二冠')
             ->assertSet('playerInfo.six_hero_current_record.currentCrownCount', 1)
             ->assertSet('playerInfo.six_hero_current_record.rooms.0.rank', 1)
             ->assertSet('playerInfo.six_hero_current_record.rooms.0.challengeWins', 7)
             ->assertSet('playerInfo.six_hero_current_record.rooms.1.rank', 4)
             ->assertSet('playerInfo.six_hero_current_record.rooms.1.defenseWins', 2)
-            ->assertSee('今期の六極殿戦績')
-            ->assertSee('挑戦')
-            ->assertSee('防衛')
+            ->assertSee('今期の六英雄戦績')
+            ->assertDontSee('今期の六極殿戦績')
+            ->assertDontSee('挑戦')
+            ->assertDontSee('防衛')
             ->assertSee('六英雄戦績')
-            ->assertSee('確定済みの六英雄実績')
+            ->assertDontSee('確定済みの六英雄実績')
+            ->assertDontSee('英雄獲得')
+            ->assertDontSee('まだ六英雄の記録はありません。')
             ->assertSee('六極殿で詳しく見る')
             ->assertSeeHtml('data-profile-six-hero-section')
             ->assertSeeHtml('data-profile-six-hero-current-record')
-            ->assertSeeHtml('data-profile-six-hero-achievement');
+            ->assertSeeHtml('data-profile-six-hero-room-grid')
+            ->assertDontSeeHtml('data-profile-six-hero-achievement');
 
-        $summary = $component->get('playerInfo')['six_hero_achievement'];
-        $roomCounts = collect($summary['rooms'])->pluck('heroCount', 'key')->all();
-        $this->assertSame(2, $roomCounts[SixHeroRoomKey::DIVINE_SPEED->value]);
-        $this->assertSame(1, $roomCounts[SixHeroRoomKey::MIRACLE->value]);
-        $this->assertSame(0, $roomCounts[SixHeroRoomKey::SEAL_MAGIC->value]);
+        $this->assertArrayNotHasKey('six_hero_achievement', $component->get('playerInfo'));
         $this->assertSame($before, $this->competitionSnapshot());
 
         config(['features.six_hero_ui_enabled' => false]);
 
-        Livewire::test(CityHeader::class, ['modalOnly' => true])
+        $disabledComponent = Livewire::test(CityHeader::class, ['modalOnly' => true])
             ->call('openPlayerModal', $target->id)
             ->assertSet('playerInfo.six_hero_current_record', null)
-            ->assertSet('playerInfo.six_hero_achievement', null)
             ->assertDontSeeHtml('data-profile-six-hero-section')
-            ->assertDontSee('今期の六極殿戦績')
+            ->assertDontSee('今期の六英雄戦績')
             ->assertDontSeeHtml('data-profile-six-hero-current-record')
             ->assertDontSee('確定済みの六英雄実績')
             ->assertDontSeeHtml('data-profile-six-hero-achievement');
 
+        $this->assertArrayNotHasKey('six_hero_achievement', $disabledComponent->get('playerInfo'));
+
         $profileView = file_get_contents(resource_path('views/livewire/city-header.blade.php'));
         $sixHeroSectionPosition = strpos($profileView, 'data-profile-six-hero-section');
+        $currentRecordPosition = strpos($profileView, 'data-profile-six-hero-current-record');
+        $detailsLinkPosition = strpos($profileView, '六極殿で詳しく見る');
         $favoriteWeaponsPosition = strpos($profileView, 'playerInfo.favorite_weapons_enabled');
         $this->assertIsInt($sixHeroSectionPosition);
+        $this->assertIsInt($currentRecordPosition);
+        $this->assertIsInt($detailsLinkPosition);
         $this->assertIsInt($favoriteWeaponsPosition);
         $this->assertLessThan($favoriteWeaponsPosition, $sixHeroSectionPosition);
+        $this->assertLessThan($detailsLinkPosition, $currentRecordPosition);
+
+        $currentRecordView = substr($profileView, $currentRecordPosition, $detailsLinkPosition - $currentRecordPosition);
+        $this->assertStringContainsString('grid-cols-3', $currentRecordView);
+        $this->assertStringNotContainsString('room.challengeWins', $currentRecordView);
+        $this->assertStringNotContainsString('room.challengeLosses', $currentRecordView);
+        $this->assertStringNotContainsString('room.defenseWins', $currentRecordView);
+        $this->assertStringNotContainsString('room.defenseLosses', $currentRecordView);
     }
 
     public function test_online_players_mark_only_current_room_leaders_as_top_rankers(): void

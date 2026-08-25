@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-25-six-hero-profile-record-layout',
+        'date' => '2026-08-25',
+        'category' => 'changed',
+        'title' => '冒険者カードの六英雄戦績を整理',
+        'detail' => '冒険者カードの今期戦績を「六英雄」表記へ統一し、6つの間を順位中心の2行3列で表示しました。挑戦・防衛の勝敗と確定済み実績は外し、六極殿への導線は維持しています。',
+    ],
+    [
         'id' => '2026-08-25-admin-six-hero-battle-simulator',
         'date' => '2026-08-25',
         'category' => 'internal',
