@@ -3,7 +3,7 @@
 - 初版作成日: 2026-08-25
 - 最終更新日: 2026-08-25
 - 対象: 都市素材の国家納品、国家発展EXP、国家レベル
-- 文書状態: レビュー完了 / 実装済み / 本番公開前
+- 文書状態: レビュー完了 / 実装済み / 2026-08-26本番公開
 - 対象DBMS: MariaDB 10.5.13以上
 
 ## 1. レビュー結果
@@ -109,7 +109,7 @@ MariaDBには`INCLUDE`がないため、貢献集計用に次のcovering index�
 
 - `NATION_DEVELOPMENT_ENABLED`を国家コミュニティ・国家戦から分離する
 - ローカル/テストは既定ON
-- 本番は明示ONまでOFF
+- 本番は`NATION_DEVELOPMENT_ENABLED=true`で公開し、国家戦はOFFを維持する
 - `NATION_WAR_ENABLED`、宣戦、施設Lvアップ、基準Dは変更しない
 - `WEV0030`の敵dropは後続裁定により国家戦flagから独立して有効化する
 - 発展実績の記録後は通常の`migrate:rollback`を実行しない。同一release batchの入口でも実績を検知して部分rollbackを拒否し、障害時は発展flag OFFとforward migrationで復旧する
@@ -117,15 +117,14 @@ MariaDBには`INCLUDE`がないため、貢献集計用に次のcovering index�
 ## 7. ローカル確認
 
 - SQLiteの空DBへ全migration・Seederを適用し、国家発展migrationと40素材の換算率を確認
-- 国家関連58テスト・865 assertionsを通過
+- 国家関連63テスト・924 assertionsを通過
 - ブラウザを390×844のスマホ指定幅にして、国家資材画面、確認modal、納品後の素材残数・国家資材・発展EXP・個人貢献の更新を確認
 - ブラウザconsoleのwarning/errorは0件
 
 ## 8. 未確認
 
-- MariaDB 10.5.13以上でのmigration実行
-- MariaDB実接続でのshared lockと同時納品競合
+- MariaDB実接続での同時納品競合
 - PC幅の最終目視
-- 本番flag ONと公開後の実納品
+- 公開後の本番実納品
 
 これらはリリース前確認として扱い、この文書の実装裁定を変更するものではありません。
