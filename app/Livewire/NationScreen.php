@@ -36,6 +36,10 @@ final class NationScreen extends Component
 {
     use WithPagination;
 
+    private const ACTIVITY_LOG_PREVIEW_LIMIT = 5;
+
+    private const ACTIVITY_LOG_MODAL_LIMIT = 100;
+
     private const COMING_SOON_FEATURES = [
         'resource-management' => '国家資材管理',
         'fortress-upgrade' => '要塞強化',
@@ -91,6 +95,8 @@ final class NationScreen extends Component
 
     public bool $showDonationConfirmationModal = false;
 
+    public bool $showActivityLogModal = false;
+
     /** @var array{material_id:int,quantity:int,request_id:string,name:string,remaining_quantity:int,points:int,development_exp:int}|array{} */
     #[Locked]
     public array $confirmedDonation = [];
@@ -99,6 +105,7 @@ final class NationScreen extends Component
     {
         $this->rotateNationChatRequestId();
         $this->rotateDonationRequestId();
+        app(NationChatService::class)->markRead($this->character());
 
         if (session()->pull('nation_initial_page') === 'applications') {
             $this->showApplications();
@@ -113,6 +120,26 @@ final class NationScreen extends Component
     public function showHome(): void
     {
         $this->navigate('home');
+    }
+
+    public function markNationChatRead(): void
+    {
+        app(NationChatService::class)->markRead($this->character());
+        $this->dispatch('nationChatSeen');
+    }
+
+    public function openActivityLogModal(): void
+    {
+        if (! $this->rulerOrError()) {
+            return;
+        }
+
+        $this->showActivityLogModal = true;
+    }
+
+    public function closeActivityLogModal(): void
+    {
+        $this->showActivityLogModal = false;
     }
 
     public function showNationList(): void
@@ -645,6 +672,7 @@ final class NationScreen extends Component
         if ($message) {
             $this->nationChatMessage = '';
             $this->rotateNationChatRequestId();
+            $this->markNationChatRead();
         }
     }
 
@@ -721,6 +749,8 @@ final class NationScreen extends Component
         $leaveEligibility = null;
         $activityDescriptions = [];
         $activityLogs = collect();
+        $activityLogModalEntries = collect();
+        $activityLogTotal = 0;
         $nationChatMessages = collect();
         $developmentProgress = null;
         $personalContribution = 0;
@@ -766,12 +796,20 @@ final class NationScreen extends Component
                     );
                 }
 
+                $activityLogTotal = $membership->nation->activityLogs()->count();
                 $activityLogs = $membership->nation->activityLogs()
                     ->with(['actor', 'target'])
                     ->latest('id')
-                    ->limit(20)
+                    ->limit(self::ACTIVITY_LOG_PREVIEW_LIMIT)
                     ->get();
-                foreach ($activityLogs as $log) {
+                if ($this->showActivityLogModal) {
+                    $activityLogModalEntries = $membership->nation->activityLogs()
+                        ->with(['actor', 'target'])
+                        ->latest('id')
+                        ->limit(self::ACTIVITY_LOG_MODAL_LIMIT)
+                        ->get();
+                }
+                foreach ($activityLogs->concat($activityLogModalEntries)->unique('id') as $log) {
                     $activityDescriptions[$log->id] = app(NationActivityLogService::class)->description($log);
                 }
             }
@@ -795,7 +833,11 @@ final class NationScreen extends Component
             'applicationPowers' => $applicationPowers,
             'leaveEligibility' => $leaveEligibility,
             'activityLogs' => $activityLogs,
+            'activityLogModalEntries' => $activityLogModalEntries,
             'activityDescriptions' => $activityDescriptions,
+            'activityLogTotal' => $activityLogTotal,
+            'activityLogPreviewLimit' => self::ACTIVITY_LOG_PREVIEW_LIMIT,
+            'activityLogModalLimit' => self::ACTIVITY_LOG_MODAL_LIMIT,
             'nationChatMessages' => $nationChatMessages,
             'developmentEnabled' => $developmentEnabled,
             'developmentProgress' => $developmentProgress,
@@ -862,6 +904,7 @@ final class NationScreen extends Component
         $this->showFoundingEmblemModal = false;
         $this->showFoundingConfirmationModal = false;
         $this->showDonationConfirmationModal = false;
+        $this->showActivityLogModal = false;
         $this->confirmedDonation = [];
         $this->actionMessage = null;
         $this->resetErrorBag();

@@ -36,6 +36,9 @@
                                     {{ (int) $marketActionCount > 9 ? '9+' : (int) $marketActionCount }}
                                 </span>
                             @endif
+                            @if($key === 'nation' && ($hasUnreadNationChat ?? false))
+                                <span data-nation-chat-unread-dot class="absolute right-0 top-0 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white" aria-label="未読の国家チャットがあります"></span>
+                            @endif
                         </span>
                     @else
                         <span class="relative text-2xl leading-none transition-all duration-200"
@@ -45,6 +48,9 @@
                                 <span class="absolute -right-2 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white">
                                     {{ (int) $marketActionCount > 9 ? '9+' : (int) $marketActionCount }}
                                 </span>
+                            @endif
+                            @if($key === 'nation' && ($hasUnreadNationChat ?? false))
+                                <span data-nation-chat-unread-dot class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white" aria-label="未読の国家チャットがあります"></span>
                             @endif
                         </span>
                     @endif

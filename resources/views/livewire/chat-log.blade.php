@@ -9,6 +9,9 @@
     @open-chat-settings-modal.window="settingsModalOpen = true"
     class="relative w-full bg-white rounded-xl shadow-[0_8px_22px_rgba(126,96,28,0.18)] border border-[#d4af37] flex flex-col shrink-0 {{ $isExpanded ? 'h-[330px] md:h-[380px]' : 'h-[250px] md:h-[280px]' }} overflow-hidden font-sans"
 >
+    @if($nationUnreadPollingEnabled)
+        <span class="sr-only" aria-hidden="true" wire:poll.15s="pollNationUnread"></span>
+    @endif
     <!-- タブ -->
     <div class="flex items-stretch border-b border-gray-200 bg-gray-50 text-[11px] font-sans font-bold text-gray-500 shrink-0">
         <div class="flex min-w-0 flex-1 overflow-x-auto">

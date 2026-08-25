@@ -16,12 +16,85 @@ final class NationChatService
 
     public const RECENT_MESSAGE_LIMIT = 50;
 
+    public const READ_STATE_COLUMN = 'last_read_nation_chat_message_id';
+
     public function canUse(Character $character): bool
     {
+        return $this->canUseCharacterId((int) $character->id);
+    }
+
+    public function canUseCharacterId(int $characterId): bool
+    {
         return NationMembership::query()
-            ->where('character_id', $character->id)
+            ->where('character_id', $characterId)
             ->whereHas('nation', fn ($query) => $query->whereIn('status', [Nation::STATUS_ACTIVE, Nation::STATUS_DISBAND_PENDING]))
             ->exists();
+    }
+
+    public function hasUnread(Character $character): bool
+    {
+        return $this->hasUnreadForCharacterId((int) $character->id);
+    }
+
+    public function hasUnreadForCharacterId(int $characterId): bool
+    {
+        $membership = NationMembership::query()
+            ->where('character_id', $characterId)
+            ->first(['id', 'nation_id', self::READ_STATE_COLUMN]);
+        if (! $membership) {
+            return false;
+        }
+
+        return NationChatMessage::query()
+            ->where('nation_id', $membership->nation_id)
+            ->when(
+                $membership->{self::READ_STATE_COLUMN} !== null,
+                fn ($query) => $query->where('id', '>', $membership->{self::READ_STATE_COLUMN}),
+            )
+            ->where(function ($query) use ($characterId): void {
+                $query->whereNull('character_id')
+                    ->orWhere('character_id', '<>', $characterId);
+            })
+            ->exists();
+    }
+
+    public function markRead(Character $character): void
+    {
+        $this->markReadForCharacterId((int) $character->id);
+    }
+
+    public function markReadForCharacterId(int $characterId): void
+    {
+        $membership = NationMembership::query()
+            ->where('character_id', $characterId)
+            ->first(['id', 'nation_id']);
+        if (! $membership) {
+            return;
+        }
+
+        $latestMessageId = $this->latestMessageIdForNation((int) $membership->nation_id);
+        if ($latestMessageId === null) {
+            return;
+        }
+
+        NationMembership::query()
+            ->whereKey($membership->id)
+            ->where('nation_id', $membership->nation_id)
+            ->where('character_id', $characterId)
+            ->where(function ($query) use ($latestMessageId): void {
+                $query->whereNull(self::READ_STATE_COLUMN)
+                    ->orWhere(self::READ_STATE_COLUMN, '<', $latestMessageId);
+            })
+            ->update([self::READ_STATE_COLUMN => $latestMessageId]);
+    }
+
+    public function latestMessageIdForNation(int $nationId): ?int
+    {
+        $latestMessageId = NationChatMessage::query()
+            ->where('nation_id', $nationId)
+            ->max('id');
+
+        return $latestMessageId === null ? null : (int) $latestMessageId;
     }
 
     public function send(Character $character, string $message, string $requestId): NationChatMessage

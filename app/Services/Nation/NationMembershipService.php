@@ -20,6 +20,7 @@ final class NationMembershipService
         private readonly NationRoleService $roles,
         private readonly NationMembershipCooldownService $cooldowns,
         private readonly NationActivityLogService $activityLogs,
+        private readonly NationChatService $nationChat,
     ) {}
 
     public function join(Character $character, Nation $nation): NationMembership
@@ -35,12 +36,16 @@ final class NationMembershipService
         throw_if(NationMembership::where('character_id', $character->id)->exists(), \DomainException::class, '申請者はすでに国家へ所属しています。');
         throw_if($nation->memberships()->count() >= $this->settings->maxMembers(), \DomainException::class, 'この国家は定員に達しています。');
 
-        return NationMembership::create([
+        $attributes = [
             'nation_id' => $nation->id,
             'character_id' => $character->id,
             'role' => 'citizen',
             'joined_at' => now(),
-        ]);
+        ];
+        $attributes[NationChatService::READ_STATE_COLUMN] = $this->nationChat
+            ->latestMessageIdForNation((int) $nation->id);
+
+        return NationMembership::create($attributes);
     }
 
     public function changeRole(NationMembership $actor, NationMembership $target, string $role): void

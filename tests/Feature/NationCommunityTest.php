@@ -765,6 +765,41 @@ SQL);
         $this->assertSame($logCount, NationActivityLog::count());
     }
 
+    public function test_ruler_sees_only_five_recent_activity_logs_until_opening_the_history_modal(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('履歴確認統治者');
+        $nation = app(NationService::class)->create($ruler, '履歴確認国');
+        foreach (range(1, 8) as $number) {
+            NationActivityLog::query()->create([
+                'nation_id' => $nation->id,
+                'actor_character_id' => $ruler->id,
+                'event_type' => 'description_changed',
+                'metadata' => ['sequence' => $number],
+                'created_at' => now()->addSeconds($number),
+            ]);
+        }
+        $this->actingAs($ruler->user);
+
+        $screen = Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-activity-log-preview')
+            ->assertSeeHtml('data-nation-activity-log-open')
+            ->assertDontSeeHtml('data-nation-activity-log-modal');
+        $this->assertSame(5, substr_count($screen->html(), 'data-nation-activity-log-preview-item'));
+
+        $screen
+            ->call('openActivityLogModal')
+            ->assertSet('showActivityLogModal', true)
+            ->assertSeeHtml('data-nation-activity-log-modal');
+        $this->assertSame(5, substr_count($screen->html(), 'data-nation-activity-log-preview-item'));
+        $this->assertSame(9, substr_count($screen->html(), 'data-nation-activity-log-modal-item'));
+
+        $screen
+            ->call('closeActivityLogModal')
+            ->assertSet('showActivityLogModal', false)
+            ->assertDontSeeHtml('data-nation-activity-log-modal');
+    }
+
     public function test_nation_list_hides_home_hero_and_has_buttons_that_return_home(): void
     {
         config()->set('features.nation_community_enabled', true);

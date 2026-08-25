@@ -3,13 +3,17 @@
 namespace Tests\Feature;
 
 use App\Livewire\ChatLog;
+use App\Livewire\MainScreenShell;
+use App\Livewire\NavMenu;
 use App\Livewire\NationScreen;
 use App\Models\Character;
 use App\Models\NationMembership;
 use App\Models\User;
 use App\Services\Nation\NationChatService;
+use App\Services\Nation\NationMembershipService;
 use App\Services\Nation\NationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -205,7 +209,9 @@ final class NationChatTest extends TestCase
         $outsider = $this->character('常設チャット無所属');
         $this->actingAs($outsider->user);
 
-        Livewire::test(ChatLog::class)
+        $outsiderChat = Livewire::test(ChatLog::class)
+            ->assertSet('nationUnreadPollingEnabled', false)
+            ->assertDontSeeHtml('wire:poll.15s="pollNationUnread"')
             ->call('setTab', 'nation')
             ->assertSet('activeTab', 'nation')
             ->assertSee('国家へ所属すると、自国の国民だけで会話できます。')
@@ -216,15 +222,75 @@ final class NationChatTest extends TestCase
             ->assertHasErrors(['message']);
 
         $this->assertDatabaseCount('nation_chat_messages', 0);
+        app(NationService::class)->create($outsider, '常設チャット加入後');
+        $outsiderChat
+            ->call('pollForUpdates')
+            ->assertSet('nationUnreadPollingEnabled', true)
+            ->assertSeeHtml('wire:poll.15s="pollNationUnread"');
 
         config()->set('features.nation_community_enabled', false);
 
         Livewire::test(ChatLog::class)
             ->assertDontSeeHtml('data-chat-nation-tab')
+            ->assertSet('nationUnreadPollingEnabled', false)
+            ->assertDontSeeHtml('wire:poll.15s="pollNationUnread"')
             ->set('activeTab', 'nation')
             ->assertSet('activeTab', 'all')
             ->call('setTab', 'nation')
             ->assertSet('activeTab', 'all');
+    }
+
+    public function test_other_members_messages_light_the_nation_nav_dot_until_nation_chat_is_opened(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('未読確認統治者');
+        $nation = app(NationService::class)->create($ruler, '未読確認国');
+        $chat = app(NationChatService::class);
+        $oldMessage = $chat->send($ruler, '加入前の発言', (string) Str::uuid());
+        $citizen = $this->character('未読確認国民');
+        $membership = DB::transaction(
+            fn () => app(NationMembershipService::class)->createApprovedMembership($citizen, $nation),
+        );
+
+        $this->assertSame($oldMessage->id, $membership->last_read_nation_chat_message_id);
+        $this->assertFalse($chat->hasUnread($citizen));
+
+        $chat->send($citizen, '自分の発言', (string) Str::uuid());
+        $this->assertFalse($chat->hasUnread($citizen));
+        $this->actingAs($citizen->user);
+        $bottomChat = Livewire::test(ChatLog::class)
+            ->assertSet('nationUnreadState', false)
+            ->assertSet('nationUnreadPollingEnabled', true)
+            ->assertSeeHtml('wire:poll.15s="pollNationUnread"');
+
+        $newMessage = $chat->send($ruler, '国王からの新着', (string) Str::uuid());
+        $this->assertTrue($chat->hasUnread($citizen));
+        $bottomChat
+            ->call('pollNationUnread')
+            ->assertSet('nationUnreadState', true)
+            ->assertDispatched('nationChatUnreadChanged');
+
+        Livewire::test(NavMenu::class)
+            ->assertSeeHtml('data-nation-chat-unread-dot');
+
+        $bottomChat
+            ->call('setTab', 'nation')
+            ->assertSet('activeTab', 'nation');
+
+        $this->assertFalse($chat->hasUnread($citizen));
+        $this->assertSame(
+            $newMessage->id,
+            NationMembership::query()->findOrFail($membership->id)->last_read_nation_chat_message_id,
+        );
+        Livewire::test(NavMenu::class)
+            ->assertDontSeeHtml('data-nation-chat-unread-dot');
+
+        $chat->send($ruler, '国家タブで確認する新着', (string) Str::uuid());
+        $this->assertTrue($chat->hasUnread($citizen));
+        Livewire::test(MainScreenShell::class)
+            ->call('changeLocation', 'nation')
+            ->assertSet('currentLocation', 'nation');
+        $this->assertFalse($chat->hasUnread($citizen));
     }
 
     private function character(string $name): Character

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-chat-unread-history-modal',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家チャットの未読通知と操作履歴を改善',
+        'detail' => '自国の国民から新しい国家チャットが届くと、下部の国家ボタンに赤い通知ドットが表示されるようにしました。国家操作履歴は最新5件を見やすく表示し、過去の履歴はモーダルから確認できます。',
+    ],
+    [
         'id' => '2026-08-26-exclusive-character-icon-036',
         'date' => '2026-08-26',
         'category' => 'internal',

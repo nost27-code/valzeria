@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Services\HomeActionService;
+use App\Services\Nation\NationChatService;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -45,6 +46,18 @@ class NavMenu extends Component
         // Re-render only. The badge count itself is calculated in render().
     }
 
+    #[On('nationChatSeen')]
+    public function refreshNationChatBadge(): void
+    {
+        // Re-render only. The unread state itself is calculated in render().
+    }
+
+    #[On('nationChatUnreadChanged')]
+    public function refreshNationChatUnreadState(): void
+    {
+        // Re-render only. ChatLog polls the lightweight unread query.
+    }
+
     private function normalizeLocation(?string $location): string
     {
         $location = $location === 'job' ? 'town' : ($location ?: 'home');
@@ -55,12 +68,16 @@ class NavMenu extends Component
                 : $location;
     }
 
-    public function render(HomeActionService $homeActionService)
+    public function render(HomeActionService $homeActionService, NationChatService $nationChatService)
     {
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
 
         return view('livewire.nav-menu', [
             'marketActionCount' => $character ? $homeActionService->marketActionCount($character) : 0,
+            'hasUnreadNationChat' => $character
+                && $this->currentLocation !== 'nation'
+                && (bool) config('features.nation_community_enabled', false)
+                && $nationChatService->hasUnread($character),
         ]);
     }
 }

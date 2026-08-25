@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Services\ExplorationStateService;
 use App\Services\HomeActionService;
 use App\Services\MapExplorationItemService;
+use App\Services\Nation\NationChatService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -136,6 +137,10 @@ class MainScreenShell extends Component
         if ($this->character && $newLocation === 'guild') {
             app(HomeActionService::class)->markDeliverableNpcRequestsSeen($this->character);
             $this->dispatch('marketActionsSeen');
+        }
+        if ($this->character && $newLocation === 'nation') {
+            app(NationChatService::class)->markRead($this->character);
+            $this->dispatch('nationChatSeen');
         }
     }
 

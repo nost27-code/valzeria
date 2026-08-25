@@ -15,7 +15,10 @@ class NationMembership extends Model
 
     protected function casts(): array
     {
-        return ['joined_at' => 'datetime'];
+        return [
+            'joined_at' => 'datetime',
+            'last_read_nation_chat_message_id' => 'integer',
+        ];
     }
 
     public function nation(): BelongsTo

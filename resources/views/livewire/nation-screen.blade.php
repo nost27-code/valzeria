@@ -434,7 +434,7 @@
                 @if($nation->recruitment_message)<div class="mt-3 rounded-xl bg-blue-50 p-3"><p class="text-xs font-black text-blue-900">国民への募集文</p><p class="mt-1 whitespace-pre-line text-sm font-bold text-blue-800">{{ $nation->recruitment_message }}</p></div>@endif
             </section>
 
-            <section wire:poll.60s class="overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-sm" aria-label="国家チャット" data-nation-chat>
+            <section wire:poll.60s="markNationChatRead" class="overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-sm" aria-label="国家チャット" data-nation-chat>
                 <div class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-4 py-3">
                     <div>
                         <h2 class="text-base font-black text-stone-900">国家チャット</h2>
@@ -509,7 +509,25 @@
             @endunless
 
             @if($membership->isRuler() && $activityLogs->isNotEmpty())
-                <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"><h2 class="text-base font-black text-stone-900">国家操作履歴</h2><div class="mt-2 divide-y divide-stone-100">@foreach($activityLogs as $log)<div class="py-2"><p class="text-xs font-bold text-stone-700">{{ $activityDescriptions[$log->id] }}</p><time class="mt-0.5 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time></div>@endforeach</div></section>
+                <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm" data-nation-activity-log-preview>
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-base font-black text-stone-900">国家操作履歴</h2>
+                        <span class="text-[11px] font-bold text-stone-400">最新{{ $activityLogs->count() }}件</span>
+                    </div>
+                    <div class="mt-2 divide-y divide-stone-100">
+                        @foreach($activityLogs as $log)
+                            <div class="py-2" data-nation-activity-log-preview-item>
+                                <p class="text-xs font-bold text-stone-700">{{ $activityDescriptions[$log->id] }}</p>
+                                <time class="mt-0.5 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time>
+                            </div>
+                        @endforeach
+                    </div>
+                    @if($activityLogTotal > $activityLogPreviewLimit)
+                        <button type="button" wire:click="openActivityLogModal" class="mt-3 min-h-11 w-full rounded-xl border border-stone-300 bg-stone-50 text-sm font-black text-stone-700 hover:bg-stone-100" data-nation-activity-log-open>
+                            過去の履歴を見る
+                        </button>
+                    @endif
+                </section>
             @endif
 
             @if($developmentEnabled)
@@ -644,6 +662,37 @@
                         <span wire:loading.remove wire:target="donateMaterials">納品を確定する</span>
                         <span wire:loading wire:target="donateMaterials">納品しています…</span>
                     </button>
+                </footer>
+            </section>
+        </div>
+    @endif
+
+    @if($showActivityLogModal && $membership?->isRuler())
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="nation-activity-log-modal-title" data-nation-activity-log-modal wire:click.self="closeActivityLogModal" wire:keydown.escape.window="closeActivityLogModal">
+            <section class="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div>
+                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION HISTORY</p>
+                        <h2 id="nation-activity-log-modal-title" class="text-lg font-black text-stone-950">国家操作履歴</h2>
+                    </div>
+                    <button type="button" wire:click="closeActivityLogModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家操作履歴を閉じる">×</button>
+                </header>
+                <div class="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto overscroll-contain px-4">
+                    @foreach($activityLogModalEntries as $log)
+                        <div class="py-3" data-nation-activity-log-modal-item>
+                            <p class="text-sm font-bold leading-relaxed text-stone-700">{{ $activityDescriptions[$log->id] }}</p>
+                            <time class="mt-1 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time>
+                        </div>
+                    @endforeach
+                </div>
+                <footer class="shrink-0 border-t border-stone-200 bg-stone-50 px-4 py-3 text-center">
+                    <p class="text-[11px] font-bold text-stone-500">
+                        @if($activityLogTotal > $activityLogModalLimit)
+                            全{{ number_format($activityLogTotal) }}件のうち、直近{{ number_format($activityLogModalLimit) }}件を表示しています。
+                        @else
+                            全{{ number_format($activityLogTotal) }}件を表示しています。
+                        @endif
+                    </p>
                 </footer>
             </section>
         </div>

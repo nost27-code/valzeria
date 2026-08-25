@@ -15,6 +15,7 @@ use App\Services\EquipmentService;
 use App\Services\BeginnerMissionService;
 use App\Services\StorageCapacityService;
 use App\Services\HomeActionService;
+use App\Services\Nation\NationChatService;
 use App\Services\JobArtService;
 use App\Services\StarTreeTowerService;
 use App\Services\ExplorationStateService;
@@ -219,6 +220,10 @@ class MainScreen extends Component
         if ($this->character && $newLocation === 'guild') {
             app(HomeActionService::class)->markDeliverableNpcRequestsSeen($this->character);
             $this->dispatch('marketActionsSeen');
+        }
+        if ($this->character && $newLocation === 'nation') {
+            app(NationChatService::class)->markRead($this->character);
+            $this->dispatch('nationChatSeen');
         }
     }
 

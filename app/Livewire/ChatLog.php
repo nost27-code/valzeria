@@ -22,6 +22,10 @@ class ChatLog extends Component
     public ?int $currentCharacterId = null;
     #[Locked]
     public ?string $logsVersion = null;
+    #[Locked]
+    public ?bool $nationUnreadState = null;
+    #[Locked]
+    public bool $nationUnreadPollingEnabled = false;
 
     const LOG_STEP = 50;
     const LOG_MAX  = 500;
@@ -104,6 +108,13 @@ class ChatLog extends Component
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
         $this->currentCharacterId = $character?->id;
         $this->allTabVisibility = $this->storedAllTabVisibility($character);
+        $nationChatService = app(NationChatService::class);
+        $this->nationUnreadPollingEnabled = (bool) ($character
+            && $this->nationChatEnabled()
+            && $nationChatService->canUse($character));
+        $this->nationUnreadState = $this->nationUnreadPollingEnabled
+            ? $nationChatService->hasUnread($character)
+            : false;
         $this->rotateNationChatRequestId();
     }
 
@@ -115,6 +126,14 @@ class ChatLog extends Component
         }
 
         $this->activeTab = $tab;
+        if ($tab === 'nation') {
+            $character = auth()->check() ? auth()->user()->currentCharacter() : null;
+            if ($character) {
+                app(NationChatService::class)->markRead($character);
+                $this->nationUnreadState = false;
+                $this->dispatch('nationChatSeen');
+            }
+        }
     }
 
     public function toggleExpanded()
@@ -132,10 +151,21 @@ class ChatLog extends Component
         $this->isExpanded = true;
     }
 
-    public function pollForUpdates(PublicLogService $logService): void
+    public function pollForUpdates(PublicLogService $logService, ?NationChatService $nationChatService = null): void
     {
+        $nationChatService ??= app(NationChatService::class);
+        $wasNationUnreadPollingEnabled = $this->nationUnreadPollingEnabled;
+        $this->nationUnreadPollingEnabled = (bool) ($this->currentCharacterId
+            && $this->nationChatEnabled()
+            && $nationChatService->canUseCharacterId($this->currentCharacterId));
+
         // 国家チャットは専用tableのため、pollごとに再描画して最新50件を取得する。
         if ($this->activeTab === 'nation') {
+            if ($this->currentCharacterId) {
+                $nationChatService->markReadForCharacterId($this->currentCharacterId);
+                $this->dispatch('nationChatSeen');
+            }
+
             return;
         }
 
@@ -145,13 +175,40 @@ class ChatLog extends Component
         }
 
         $version = $this->currentLogsVersion($logService);
-        if ($this->logsVersion === $version) {
+        if ($this->logsVersion === $version
+            && $wasNationUnreadPollingEnabled === $this->nationUnreadPollingEnabled) {
             $this->skipRender();
 
             return;
         }
 
         $this->logsVersion = $version;
+    }
+
+    public function pollNationUnread(?NationChatService $nationChatService = null): void
+    {
+        $nationChatService ??= app(NationChatService::class);
+        $wasNationUnreadPollingEnabled = $this->nationUnreadPollingEnabled;
+        $this->nationUnreadPollingEnabled = (bool) ($this->currentCharacterId
+            && $this->nationChatEnabled()
+            && $nationChatService->canUseCharacterId($this->currentCharacterId));
+        $hasUnread = (bool) ($this->nationUnreadPollingEnabled
+            && $nationChatService->hasUnreadForCharacterId($this->currentCharacterId));
+
+        if ($this->activeTab === 'nation' && $this->currentCharacterId) {
+            $nationChatService->markReadForCharacterId($this->currentCharacterId);
+            $hasUnread = false;
+        }
+
+        if ($this->nationUnreadState === $hasUnread
+            && $wasNationUnreadPollingEnabled === $this->nationUnreadPollingEnabled) {
+            $this->skipRender();
+
+            return;
+        }
+
+        $this->nationUnreadState = $hasUnread;
+        $this->dispatch('nationChatUnreadChanged');
     }
 
     public function setAllTabVisibility(string $key, bool $enabled): void
