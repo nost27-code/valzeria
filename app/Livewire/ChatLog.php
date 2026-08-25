@@ -4,8 +4,10 @@ namespace App\Livewire;
 
 use App\Models\Character;
 use App\Models\PublicLog;
+use App\Services\Nation\NationChatService;
 use App\Services\PublicLogService;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -95,17 +97,20 @@ class ChatLog extends Component
     public ?int $receiverId = null;
     public ?int $editingLogId = null;
     public string $editingMessage = '';
+    public string $nationChatRequestId = '';
 
     public function mount(): void
     {
         $character = auth()->check() ? auth()->user()->currentCharacter() : null;
         $this->currentCharacterId = $character?->id;
         $this->allTabVisibility = $this->storedAllTabVisibility($character);
+        $this->rotateNationChatRequestId();
     }
 
     public function setTab($tab)
     {
-        if (!in_array($tab, ['all', 'system', 'chat', 'private', 'drop', 'info'], true)) {
+        if (!in_array($tab, ['all', 'system', 'chat', 'nation', 'private', 'drop', 'info'], true)
+            || ($tab === 'nation' && ! $this->nationChatEnabled())) {
             $tab = 'all';
         }
 
@@ -119,12 +124,21 @@ class ChatLog extends Component
 
     public function loadMore()
     {
+        if ($this->activeTab === 'nation') {
+            return;
+        }
+
         $this->logLimit = min(self::LOG_MAX, $this->logLimit + self::LOG_STEP);
         $this->isExpanded = true;
     }
 
     public function pollForUpdates(PublicLogService $logService): void
     {
+        // 国家チャットは専用tableのため、pollごとに再描画して最新50件を取得する。
+        if ($this->activeTab === 'nation') {
+            return;
+        }
+
         // 個人タブは受信者候補も更新対象なので、従来どおり全体を再描画する。
         if ($this->shouldLoadReceivers()) {
             return;
@@ -159,14 +173,47 @@ class ChatLog extends Component
         }
     }
 
-    public function sendMessage(PublicLogService $logService)
+    public function sendMessage(PublicLogService $logService, ?NationChatService $nationChatService = null)
     {
-        $this->validate([
+        $validated = $this->validate([
             'message' => 'required|string|max:100',
+        ], [
+            'message.required' => 'メッセージを入力してください。',
+            'message.max' => 'メッセージは100文字以内で入力してください。',
         ]);
 
         $character = auth()->user()->currentCharacter();
         if (!$character) {
+            return;
+        }
+
+        if ($this->activeTab === 'nation') {
+            if (! $this->nationChatEnabled()) {
+                $this->activeTab = 'all';
+                $this->addError('message', '国家チャットは現在利用できません。');
+
+                return;
+            }
+
+            $this->validate([
+                'nationChatRequestId' => ['required', 'uuid'],
+            ], [
+                'nationChatRequestId.required' => '送信情報を更新するため、画面を再読み込みしてください。',
+                'nationChatRequestId.uuid' => '送信情報を更新するため、画面を再読み込みしてください。',
+            ]);
+
+            try {
+                ($nationChatService ?? app(NationChatService::class))
+                    ->send($character, $validated['message'], $this->nationChatRequestId);
+            } catch (\DomainException $exception) {
+                $this->addError('message', $exception->getMessage());
+
+                return;
+            }
+
+            $this->message = '';
+            $this->rotateNationChatRequestId();
+
             return;
         }
 
@@ -258,10 +305,44 @@ class ChatLog extends Component
         $this->receiverId = $targetId;
     }
 
-    public function render(PublicLogService $logService)
+    public function render(PublicLogService $logService, ?NationChatService $nationChatService = null)
     {
         // 初期表示の「すべて」は表示条件をSQLへ渡し、必要な件数だけ取得する。
         $characterId = auth()->check() ? $this->currentCharacterId : null;
+        $character = $characterId ? Character::query()->find($characterId) : null;
+        $nationChatEnabled = $this->nationChatEnabled();
+        if ($this->activeTab === 'nation' && ! $nationChatEnabled) {
+            $this->activeTab = 'all';
+        }
+
+        if ($this->activeTab === 'nation') {
+            $nationChatService ??= app(NationChatService::class);
+            $nationChatAvailable = $character && $nationChatService->canUse($character);
+            $systemLogs = $nationChatAvailable
+                ? $nationChatService->recentFor($character)
+                    ->map(fn ($message): array => [
+                        'id' => 'nation-'.$message->id,
+                        'type' => 'nation',
+                        'message' => (string) $message->message,
+                        'reply_prefix' => '【'.($message->character?->name ?? '不明な冒険者').'】',
+                        'reply_id' => null,
+                        'is_sender' => (int) $message->character_id === (int) $characterId,
+                        'can_edit' => false,
+                        'is_edited' => false,
+                        'time' => $message->created_at?->format('H:i') ?? date('H:i'),
+                    ])
+                    ->all()
+                : [];
+
+            return view('livewire.chat-log', [
+                'systemLogs' => $systemLogs,
+                'availableReceivers' => [],
+                'allTabFilterOptions' => $this->allTabFilterOptions(),
+                'nationChatEnabled' => $nationChatEnabled,
+                'nationChatAvailable' => (bool) $nationChatAvailable,
+            ]);
+        }
+
         $displayLimit = $this->logLimit;
         $fetchLimit = $displayLimit <= 15 ? 50 : min(2000, $displayLimit * 4);
         if ($this->activeTab === 'all') {
@@ -390,6 +471,8 @@ class ChatLog extends Component
             'systemLogs' => $systemLogs,
             'availableReceivers' => $availableReceivers,
             'allTabFilterOptions' => $this->allTabFilterOptions(),
+            'nationChatEnabled' => $nationChatEnabled,
+            'nationChatAvailable' => false,
         ]);
     }
 
@@ -403,6 +486,10 @@ class ChatLog extends Component
 
     private function shouldLoadReceivers(): bool
     {
+        if ($this->activeTab === 'nation') {
+            return false;
+        }
+
         return $this->chatTarget === 'private'
             || $this->activeTab === 'private';
     }
@@ -510,6 +597,17 @@ class ChatLog extends Component
     private function canPersistAllTabVisibility(): bool
     {
         return Schema::hasColumn('characters', 'chat_all_tab_visibility');
+    }
+
+    private function nationChatEnabled(): bool
+    {
+        return (bool) config('features.nation_community_enabled', false)
+            && Schema::hasTable('nation_chat_messages');
+    }
+
+    private function rotateNationChatRequestId(): void
+    {
+        $this->nationChatRequestId = (string) Str::uuid();
     }
 
     private function allTabFilterOptions(): array

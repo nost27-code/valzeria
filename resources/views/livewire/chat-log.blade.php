@@ -15,6 +15,9 @@
             <button wire:click="setTab('all')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'all' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">全体</button>
             <button wire:click="setTab('system')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'system' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">システム</button>
             <button wire:click="setTab('chat')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'chat' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">チャット</button>
+            @if($nationChatEnabled)
+                <button data-chat-nation-tab wire:click="setTab('nation')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'nation' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">国家</button>
+            @endif
             <button wire:click="setTab('private')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'private' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent' }}">個人(手紙)</button>
             <button wire:click="setTab('drop')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'drop' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">レアドロップ</button>
             <button wire:click="setTab('info')" class="px-5 py-2 whitespace-nowrap {{ $activeTab === 'info' ? 'bg-white text-[#1e40af] border-t-2 border-[#1e40af]' : 'hover:bg-white border-t-2 border-transparent text-gray-400' }}">お知らせ</button>
@@ -128,6 +131,15 @@
 
     <!-- ログ表示部 -->
     <div class="p-3 flex-grow overflow-y-auto space-y-1 text-[11px] bg-white font-sans leading-relaxed">
+        @if($activeTab === 'nation' && ! $nationChatAvailable)
+            <div data-chat-nation-unavailable class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 font-bold text-blue-800">
+                国家へ所属すると、自国の国民だけで会話できます。
+            </div>
+        @elseif($activeTab === 'nation' && $systemLogs === [])
+            <div data-chat-nation-empty class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 font-bold text-gray-500">
+                まだ国家チャットの発言はありません。
+            </div>
+        @endif
         @foreach($systemLogs as $log)
             <div class="flex" wire:key="chat-log-{{ $log['id'] }}">
                 <span class="text-gray-400 w-10 shrink-0">{{ $log['time'] }}</span>
@@ -135,6 +147,7 @@
                     @if(str_contains($log['message'] ?? '', '【星樹の塔】') && str_contains($log['message'] ?? '', '100階を踏破しました')) text-pink-600 font-black
                     @elseif($log['type'] == 'system' || $log['type'] == 'newcomer') text-orange-600 font-bold
                     @elseif($log['type'] == 'chat') text-green-700 font-bold
+                    @elseif($log['type'] == 'nation') text-blue-700 font-bold
                     @elseif($log['type'] == 'private')
                         @if(isset($log['is_sender']) && $log['is_sender']) text-slate-900 font-bold
                         @else text-pink-600 font-bold
@@ -196,7 +209,7 @@
                 </span>
             </div>
         @endforeach
-        @if($logLimit < \App\Livewire\ChatLog::LOG_MAX)
+        @if($activeTab !== 'nation' && $logLimit < \App\Livewire\ChatLog::LOG_MAX)
             <div class="pt-1">
                 <button wire:click="loadMore" class="w-full text-center text-[10px] font-bold text-[#1e40af] hover:underline py-0.5">
                     もっとよむ（現在 {{ $logLimit }} 件 / 最大{{ \App\Livewire\ChatLog::LOG_MAX }}件）
@@ -205,32 +218,45 @@
         @endif
     </div>
     <!-- チャット入力欄 -->
-    <form wire:submit="sendMessage" class="bg-gray-50 border-t border-gray-200 p-2 flex items-center gap-1.5 shrink-0 min-w-0">
-        <select wire:model.live="chatTarget" class="w-[4.75rem] shrink-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700">
-            <option value="all">全体</option>
-            <option value="private">個人</option>
-        </select>
+    @if($activeTab !== 'nation' || $nationChatAvailable)
+        <form wire:submit="sendMessage" class="bg-gray-50 border-t border-gray-200 p-2 flex items-center gap-1.5 shrink-0 min-w-0">
+            @if($activeTab === 'nation')
+                <span data-chat-nation-target class="w-[4.75rem] shrink-0 rounded border border-blue-200 bg-blue-50 px-2 py-1.5 text-center text-[11px] font-black text-blue-800">国家</span>
+            @else
+                <select wire:model.live="chatTarget" class="w-[4.75rem] shrink-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700">
+                    <option value="all">全体</option>
+                    <option value="private">個人</option>
+                </select>
 
-        @if($chatTarget === 'private')
-            <select wire:model="receiverId" class="w-[7rem] sm:w-[8.25rem] shrink-0 min-w-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700 truncate">
-                @foreach($availableReceivers as $receiver)
-                    <option value="{{ $receiver->id }}">{{ $receiver->name }}</option>
-                @endforeach
-            </select>
-        @endif
+                @if($chatTarget === 'private')
+                    <select wire:model="receiverId" class="w-[7rem] sm:w-[8.25rem] shrink-0 min-w-0 font-sans text-[11px] border-gray-300 rounded py-1.5 pl-2 pr-6 bg-white focus:ring-[#1e40af] text-gray-700 truncate">
+                        @foreach($availableReceivers as $receiver)
+                            <option value="{{ $receiver->id }}">{{ $receiver->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
+            @endif
 
-        <input type="text" id="chat-message-input" wire:model="message" placeholder="メッセージ"
-            required maxlength="100"
-            class="min-w-0 basis-0 flex-1 border-gray-300 rounded focus:border-[#1e40af] focus:ring-[#1e40af] text-[11px] py-1.5 px-3">
-            
-        <button type="submit"
-                wire:loading.attr="disabled"
-                wire:target="sendMessage"
-                aria-label="送信"
-                title="送信"
-                class="w-10 h-9 shrink-0 bg-[#1e40af] text-white rounded-lg text-lg font-bold shadow hover:bg-[#1e3a8a] flex items-center justify-center disabled:cursor-wait disabled:opacity-60">
-            <span wire:loading.remove wire:target="sendMessage" aria-hidden="true">➤</span>
-            <span wire:loading wire:target="sendMessage" class="submit-lock-spinner" aria-hidden="true"></span>
-        </button>
-    </form>
+            <input type="text" id="chat-message-input" wire:model="message" placeholder="{{ $activeTab === 'nation' ? '国家へメッセージ' : 'メッセージ' }}"
+                required maxlength="100"
+                class="min-w-0 basis-0 flex-1 border-gray-300 rounded focus:border-[#1e40af] focus:ring-[#1e40af] text-[11px] py-1.5 px-3">
+
+            <button type="submit"
+                    wire:loading.attr="disabled"
+                    wire:target="sendMessage"
+                    aria-label="送信"
+                    title="送信"
+                    class="w-10 h-9 shrink-0 bg-[#1e40af] text-white rounded-lg text-lg font-bold shadow hover:bg-[#1e3a8a] flex items-center justify-center disabled:cursor-wait disabled:opacity-60">
+                <span wire:loading.remove wire:target="sendMessage" aria-hidden="true">➤</span>
+                <span wire:loading wire:target="sendMessage" class="submit-lock-spinner" aria-hidden="true"></span>
+            </button>
+        </form>
+        @error('message')
+            <div class="shrink-0 border-t border-red-100 bg-red-50 px-3 py-1 text-[10px] font-bold text-red-700">{{ $message }}</div>
+        @enderror
+    @else
+        <div data-chat-nation-disabled class="shrink-0 border-t border-gray-200 bg-gray-50 px-3 py-2 text-center text-[11px] font-bold text-gray-500">
+            国家へ所属すると送信できます。
+        </div>
+    @endif
 </div>

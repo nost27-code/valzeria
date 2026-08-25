@@ -18,6 +18,7 @@ class MainScreenShellTest extends TestCase
         parent::setUp();
 
         config()->set('features.nation_screen_enabled', false);
+        config()->set('features.nation_community_enabled', false);
         config()->set('features.nation_war_enabled', false);
     }
 
@@ -71,9 +72,10 @@ class MainScreenShellTest extends TestCase
             ->assertSee('準備中');
     }
 
-    public function test_shell_shows_the_read_only_nation_screen_while_nation_war_is_off(): void
+    public function test_shell_shows_the_nation_community_screen_while_nation_war_is_off(): void
     {
         config()->set('features.nation_screen_enabled', true);
+        config()->set('features.nation_community_enabled', true);
         config()->set('features.nation_war_enabled', false);
         $user = User::factory()->create();
         $character = Character::query()->create([
@@ -94,6 +96,7 @@ class MainScreenShellTest extends TestCase
     public function test_shell_does_not_mount_the_nation_screen_before_the_tab_is_selected(): void
     {
         config()->set('features.nation_screen_enabled', true);
+        config()->set('features.nation_community_enabled', true);
         $user = User::factory()->create();
         $character = Character::query()->create([
             'user_id' => $user->id,

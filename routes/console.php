@@ -61,3 +61,7 @@ Schedule::command('nation-war:lifecycle')
     ->everyMinute()
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(10);
+Schedule::command('nation:process-dissolutions')
+    ->everyMinute()
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(10);

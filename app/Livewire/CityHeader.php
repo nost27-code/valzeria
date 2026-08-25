@@ -55,6 +55,7 @@ class CityHeader extends Component
         $character = Character::with([
             'arenaRanking',
             'jobClass',
+            'nationMembership.nation',
             'user',
             'valmons.master',
         ])->find($characterId);
@@ -489,7 +490,7 @@ class CityHeader extends Component
             'arena_rank_number' => $arenaRank,
             'arena_rank_trophy' => $arenaRank && $arenaRank <= 3 ? asset('images/icon/icon_100' . $arenaRank . '.webp') : null,
             'weekly_win_badge' => app(WeeklyWinRankingService::class)->latestBadgeFor($character),
-            'guild' => '未実装',
+            'guild' => $character->nationMembership?->nation?->display_name ?? '無所属',
             'state' => '滞在中',
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),
             'hp' => $currentHp,

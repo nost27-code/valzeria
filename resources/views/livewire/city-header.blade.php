@@ -1750,7 +1750,7 @@
 
                         <div class="adventurer-card-summary">
                             <div class="adventurer-card-affiliation" data-adventurer-card-affiliation>
-                                <span class="adventurer-card-affiliation-label">所属</span>
+                                <span class="adventurer-card-affiliation-label">所属国家</span>
                                 <span class="adventurer-card-affiliation-name" x-text="playerInfo.guild"></span>
                             </div>
                             <div class="adventurer-card-vitals">

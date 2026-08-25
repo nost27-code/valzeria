@@ -332,4 +332,19 @@ class Character extends Model
     {
         return $this->hasMany(CharacterRegionDungeonRecord::class);
     }
+
+    public function nationMembership()
+    {
+        return $this->hasOne(NationMembership::class);
+    }
+
+    public function nationJoinApplications()
+    {
+        return $this->hasMany(NationJoinApplication::class);
+    }
+
+    public function nationMembershipCooldown()
+    {
+        return $this->hasOne(NationMembershipCooldown::class);
+    }
 }

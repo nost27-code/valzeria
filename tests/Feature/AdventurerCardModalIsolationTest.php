@@ -7,6 +7,7 @@ use App\Livewire\CityHeader;
 use App\Models\Character;
 use App\Models\JobClass;
 use App\Models\User;
+use App\Services\Nation\NationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +114,21 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->assertSet('includeStyles', true)
             ->assertSee('<style>', false)
             ->assertSee('.adventurer-card-modal', false);
+    }
+
+    public function test_adventurer_card_displays_the_full_nation_name(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, '国家表示テスト');
+        app(NationService::class)->create($character, 'ヴァルゼリア');
+
+        $this->actingAs($user)
+            ->withSession(['current_character_id' => $character->id]);
+
+        Livewire::test(AdventurerCardModal::class)
+            ->dispatch('open-adventurer-card', characterId: $character->id)
+            ->assertSet('playerInfo.guild', 'ヴァルゼリア王国')
+            ->assertSee('所属国家');
     }
 
     public function test_job_badge_details_are_loaded_only_after_the_tier_is_opened(): void

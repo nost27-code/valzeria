@@ -13,7 +13,7 @@
         >
             @if($location === 'nation')
                 @if(in_array($location, $loadedTabLocations, true))
-                    @if(config('features.nation_screen_enabled', true))
+                    @if(config('features.nation_community_enabled', false))
                         <livewire:nation-screen :key="'main-tab-panel-nation'" />
                     @else
                         @include('livewire.nation-preparation')

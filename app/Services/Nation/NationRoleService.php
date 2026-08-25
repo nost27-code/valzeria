@@ -7,13 +7,18 @@ use App\Models\NationMembership;
 final class NationRoleService
 {
     private const PERMISSIONS = [
-        'manage_members' => ['king', 'chancellor'],
-        'manage_roles' => ['king'],
-        'declare_war' => ['king', 'chancellor'],
-        'allocate_war_resources' => ['king', 'chancellor', 'logistics_officer'],
-        'upgrade_facilities' => ['king', 'chancellor', 'logistics_officer'],
-        'repair_facilities' => ['king', 'chancellor', 'logistics_officer'],
-        'set_war_operations' => ['king', 'chancellor', 'marshal', 'logistics_officer'],
+        'manage_members' => ['ruler'],
+        'manage_roles' => ['ruler'],
+        'manage_profile' => ['ruler'],
+        'manage_recruitment' => ['ruler'],
+        'manage_emblem' => ['ruler'],
+        'transfer_rulership' => ['ruler'],
+        'dissolve_nation' => ['ruler'],
+        'declare_war' => ['ruler', 'chancellor'],
+        'allocate_war_resources' => ['ruler', 'chancellor', 'logistics_officer'],
+        'upgrade_facilities' => ['ruler', 'chancellor', 'logistics_officer'],
+        'repair_facilities' => ['ruler', 'chancellor', 'logistics_officer'],
+        'set_war_operations' => ['ruler', 'chancellor', 'marshal', 'logistics_officer'],
     ];
 
     public function allows(NationMembership $membership, string $permission): bool

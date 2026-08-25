@@ -1,0 +1,762 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\NationType;
+use App\Livewire\NationScreen;
+use App\Models\Character;
+use App\Models\Nation;
+use App\Models\NationActivityLog;
+use App\Models\NationFacility;
+use App\Models\NationJoinApplication;
+use App\Models\NationMembership;
+use App\Models\NationMembershipCooldown;
+use App\Models\NationWar;
+use App\Models\NationWarParticipant;
+use App\Models\User;
+use App\Services\CharacterNotificationService;
+use App\Services\GameSettingService;
+use App\Services\Nation\NationDissolutionService;
+use App\Services\Nation\NationEmblemCatalog;
+use App\Services\Nation\NationJoinApplicationService;
+use App\Services\Nation\NationMembershipCooldownService;
+use App\Services\Nation\NationMembershipService;
+use App\Services\Nation\NationProfileService;
+use App\Services\Nation\NationRoleService;
+use App\Services\Nation\NationRulerTransferService;
+use App\Services\Nation\NationService;
+use App\Services\Nation\NationWarService;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+final class NationCommunityTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_remaining_cooldown_label_rounds_up_without_float_deprecation(): void
+    {
+        $this->travelTo(now()->startOfMinute());
+        $deprecations = [];
+        set_error_handler(static function (int $severity, string $message) use (&$deprecations): bool {
+            if ($severity !== E_DEPRECATED) {
+                return false;
+            }
+
+            $deprecations[] = $message;
+
+            return true;
+        });
+
+        try {
+            $label = app(NationMembershipCooldownService::class)
+                ->remainingLabel(now()->addHours(72)->subMicrosecond());
+        } finally {
+            restore_error_handler();
+            $this->travelBack();
+        }
+
+        $this->assertSame([], $deprecations);
+        $this->assertSame('3日', $label);
+    }
+
+    public function test_emblem_catalog_exposes_all_80_numbered_webp_files(): void
+    {
+        $catalog = app(NationEmblemCatalog::class);
+        $emblems = $catalog->all();
+
+        $this->assertCount(80, $emblems);
+        $this->assertSame('nation_crest_001', array_key_first($emblems));
+        $this->assertSame('nation_crest_080', array_key_last($emblems));
+        $this->assertSame('images/nation/nation-crest_001.webp', $emblems['nation_crest_001']['path']);
+        $this->assertSame('images/nation/nation-crest_080.webp', $emblems['nation_crest_080']['path']);
+
+        foreach ($emblems as $key => $emblem) {
+            $path = public_path($emblem['path']);
+            $this->assertLessThanOrEqual(32, strlen($key));
+            $this->assertFileExists($path);
+            $this->assertSame([128, 128], array_slice(getimagesize($path), 0, 2));
+        }
+
+        $this->assertSame($emblems['nation_crest_001'], $catalog->get('green_castle'));
+        $this->assertSame($emblems['nation_crest_002'], $catalog->get('blue_shield'));
+    }
+
+    public function test_upgrade_migration_normalizes_known_suffix_and_backfills_king_to_ruler(): void
+    {
+        $character = $this->character('既存統治者');
+        $migration = require database_path('migrations/2026_08_24_090000_create_nation_community_foundation.php');
+        $migration->down();
+        $this->assertFalse(Schema::hasTable('nation_join_applications'));
+
+        $nationId = DB::table('nations')->insertGetId([
+            'name' => '黎明帝国',
+            'founded_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('nation_memberships')->insert([
+            'nation_id' => $nationId,
+            'character_id' => $character->id,
+            'role' => 'king',
+            'joined_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $migration->up();
+
+        $this->assertDatabaseHas('nations', ['id' => $nationId, 'name' => '黎明', 'nation_type' => 'empire']);
+        $this->assertDatabaseHas('nation_memberships', ['nation_id' => $nationId, 'role' => 'ruler']);
+        $this->assertTrue(Schema::hasTable('nation_join_applications'));
+        $this->assertTrue(Schema::hasTable('nation_membership_cooldowns'));
+        $this->assertTrue(Schema::hasTable('nation_activity_logs'));
+        $this->assertDatabaseHas('game_settings', ['setting_key' => 'nation.max_members', 'value' => '100']);
+        $this->assertTrue(collect(DB::select("PRAGMA foreign_key_list('nations')"))->contains(
+            fn (object $foreignKey): bool => $foreignKey->from === 'dissolution_requested_by_character_id'
+                && $foreignKey->table === 'characters'
+                && strtoupper((string) $foreignKey->on_delete) === 'SET NULL',
+        ));
+    }
+
+    public function test_upgrade_preflight_keeps_legacy_schema_untouched_on_normalized_name_collision(): void
+    {
+        $firstRuler = $this->character('既存第一統治者');
+        $secondRuler = $this->character('既存第二統治者');
+        $migration = require database_path('migrations/2026_08_24_090000_create_nation_community_foundation.php');
+        $migration->down();
+
+        foreach ([
+            ['name' => '黎明王国', 'character_id' => $firstRuler->id],
+            ['name' => '黎明帝国', 'character_id' => $secondRuler->id],
+        ] as $legacy) {
+            $nationId = DB::table('nations')->insertGetId([
+                'name' => $legacy['name'],
+                'founded_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            DB::table('nation_memberships')->insert([
+                'nation_id' => $nationId,
+                'character_id' => $legacy['character_id'],
+                'role' => 'king',
+                'joined_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        try {
+            $migration->up();
+            $this->fail('国号除去後に重複する既存国家名をmigrationが受け入れました。');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('基礎国家名が重複します', $exception->getMessage());
+        }
+
+        $this->assertFalse(Schema::hasColumn('nations', 'nation_type'));
+        $this->assertFalse(Schema::hasTable('nation_join_applications'));
+        $this->assertFalse(Schema::hasTable('nation_membership_cooldowns'));
+        $this->assertFalse(Schema::hasTable('nation_activity_logs'));
+
+        DB::table('nation_memberships')->delete();
+        DB::table('nations')->delete();
+        $migration->up();
+    }
+
+    public function test_upgrade_rerun_restores_an_index_after_partial_ddl(): void
+    {
+        $migration = require database_path('migrations/2026_08_24_090000_create_nation_community_foundation.php');
+
+        Schema::table('nation_membership_cooldowns', function (Blueprint $table): void {
+            $table->dropIndex('nation_membership_cooldowns_ruler_refound_blocked_until_index');
+        });
+        $this->assertFalse(Schema::hasIndex('nation_membership_cooldowns', ['ruler_refound_blocked_until']));
+
+        $migration->up();
+
+        $this->assertTrue(Schema::hasIndex('nation_membership_cooldowns', ['ruler_refound_blocked_until']));
+    }
+
+    public function test_all_five_nation_types_create_one_ruler_and_five_facilities(): void
+    {
+        $expected = [
+            'kingdom' => ['王国', '国王'],
+            'empire' => ['帝国', '皇帝'],
+            'duchy' => ['公国', '大公'],
+            'republic' => ['共和国', '執政官'],
+            'knight_state' => ['騎士国', '騎士団長'],
+        ];
+
+        foreach ($expected as $type => [$suffix, $title]) {
+            $baseName = '試験'.array_search($type, NationType::values(), true);
+            $nation = app(NationService::class)->create($this->character($title), $baseName, null, $type);
+
+            $this->assertSame($baseName.$suffix, $nation->display_name);
+            $this->assertSame($title, $nation->ruler_title);
+            $this->assertTrue((bool) $nation->recruitment_enabled);
+            $this->assertSame(1, $nation->memberships()->where('role', 'ruler')->count());
+            $this->assertSame(5, $nation->facilities()->count());
+            $this->assertEqualsCanonicalizing(NationFacility::TYPES, $nation->facilities()->pluck('facility_type')->all());
+        }
+    }
+
+    public function test_founding_rejects_duplicate_base_name_members_and_pending_applicants(): void
+    {
+        app(NationService::class)->create($this->character('先の建国者'), '白銀', null, 'kingdom');
+        $this->assertDomainFailure(
+            fn () => app(NationService::class)->create($this->character('後の建国者'), '白銀', null, 'empire'),
+            'すでに使われています',
+        );
+
+        $member = $this->character('所属済み');
+        app(NationService::class)->create($member, '所属国');
+        $this->assertDomainFailure(fn () => app(NationService::class)->create($member, '二重国'), 'すでに国家へ所属');
+
+        $applicant = $this->character('申請中');
+        $target = app(NationService::class)->create($this->character('申請先統治者'), '申請先');
+        app(NationJoinApplicationService::class)->submit($applicant, $target);
+        $this->assertDomainFailure(fn () => app(NationService::class)->create($applicant, '申請中建国'), '加入申請中');
+    }
+
+    public function test_founding_name_unique_race_returns_domain_message_without_partial_rows(): void
+    {
+        if (DB::getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('SQLite fault injection only; MariaDB concurrency is covered by the release gate.');
+        }
+
+        $founder = $this->character('競合建国者');
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER simulate_nation_name_unique_race
+BEFORE INSERT ON nations
+WHEN NEW.name = '競合国'
+BEGIN
+    SELECT RAISE(ABORT, 'UNIQUE constraint failed: nations.name');
+END
+SQL);
+
+        try {
+            $this->assertDomainFailure(
+                fn () => app(NationService::class)->create($founder, '競合国'),
+                'その国家名はすでに使われています。',
+            );
+        } finally {
+            DB::unprepared('DROP TRIGGER IF EXISTS simulate_nation_name_unique_race');
+        }
+
+        $this->assertDatabaseMissing('nations', ['name' => '競合国']);
+        $this->assertDatabaseMissing('nation_memberships', ['character_id' => $founder->id]);
+        $this->assertSame(0, NationFacility::count());
+    }
+
+    public function test_join_application_requires_recruitment_one_pending_capacity_and_retry_window(): void
+    {
+        $first = app(NationService::class)->create($this->character('第一統治者'), '第一');
+        $second = app(NationService::class)->create($this->character('第二統治者'), '第二');
+        $applicant = $this->character('申請者');
+        $service = app(NationJoinApplicationService::class);
+
+        $application = $service->submit($applicant, $first, 'よろしくお願いします');
+        $this->assertSame(NationJoinApplication::STATUS_PENDING, $application->status);
+        $this->assertSame('よろしくお願いします', $application->message);
+        $this->assertDomainFailure(fn () => $service->submit($applicant, $second), '別の加入申請');
+
+        $service->cancel($applicant, $application);
+        $this->assertSame(NationJoinApplication::STATUS_CANCELED, $application->fresh()->status);
+        $this->assertDomainFailure(fn () => $service->submit($applicant, $first), '再申請待機');
+        $this->travel(25)->hours();
+        $this->assertSame(NationJoinApplication::STATUS_PENDING, $service->submit($applicant, $first)->status);
+
+        $first->update(['recruitment_enabled' => false]);
+        $this->assertDomainFailure(fn () => $service->submit($this->character('募集停止申請者'), $first), '募集を停止');
+
+        app(GameSettingService::class)->set('nation.max_members', '1');
+        $this->assertDomainFailure(fn () => $service->submit($this->character('満員申請者'), $second), '定員');
+    }
+
+    public function test_join_application_notifies_ruler_and_approval_notifies_applicant(): void
+    {
+        $ruler = $this->character('通知統治者');
+        $nation = app(NationService::class)->create($ruler, '通知');
+        $applicant = $this->character('通知申請者');
+        $service = app(NationJoinApplicationService::class);
+
+        $application = $service->submit($applicant, $nation, '加入を希望します。');
+
+        $this->assertDatabaseHas('character_notifications', [
+            'character_id' => $ruler->id,
+            'category' => 'nation',
+            'type' => 'nation_join_application_submitted',
+            'title' => '【国家】加入申請が届きました',
+            'body' => "{$applicant->name}さんから{$nation->display_name}への加入申請が届きました。\n一言：加入を希望します。",
+            'read_at' => null,
+        ]);
+        $this->assertSame(1, app(CharacterNotificationService::class)->unreadCount($ruler));
+        $this->assertDatabaseMissing('character_notifications', [
+            'character_id' => $applicant->id,
+            'type' => 'nation_join_application_approved',
+        ]);
+
+        $service->approve($ruler, $application);
+
+        $this->assertDatabaseHas('character_notifications', [
+            'character_id' => $applicant->id,
+            'category' => 'nation',
+            'type' => 'nation_join_application_approved',
+            'title' => '【国家】加入申請が承認されました',
+            'body' => "{$nation->display_name}への加入申請が承認され、国民になりました。",
+            'read_at' => null,
+        ]);
+        $this->assertSame(1, app(CharacterNotificationService::class)->unreadCount($applicant));
+
+        $this->assertDomainFailure(fn () => $service->approve($ruler, $application), 'すでに処理');
+        $this->assertSame(1, DB::table('character_notifications')
+            ->where('character_id', $applicant->id)
+            ->where('type', 'nation_join_application_approved')
+            ->count());
+    }
+
+    public function test_only_ruler_can_reject_and_rejection_blocks_same_nation_for_24_hours(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '審査国');
+        $citizen = $this->character('一般国民');
+        NationMembership::create(['nation_id' => $nation->id, 'character_id' => $citizen->id, 'role' => 'citizen', 'joined_at' => now()->subDays(2)]);
+        $applicant = $this->character('申請者');
+        $service = app(NationJoinApplicationService::class);
+        $application = $service->submit($applicant, $nation);
+
+        $this->assertDomainFailure(fn () => $service->reject($citizen, $application), '役職権限');
+        $service->reject($ruler, $application);
+        $this->assertSame(NationJoinApplication::STATUS_REJECTED, $application->fresh()->status);
+        $this->assertNull(NationMembership::where('character_id', $applicant->id)->first());
+        $this->assertTrue($application->fresh()->retry_after->isFuture());
+        $this->assertDomainFailure(fn () => $service->submit($applicant, $nation), '再申請待機');
+    }
+
+    public function test_approval_rechecks_membership_capacity_cooldown_and_is_double_submit_safe(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '承認国');
+        $applicant = $this->character('承認対象');
+        $service = app(NationJoinApplicationService::class);
+        $application = $service->submit($applicant, $nation);
+        $reviewer = $this->character('承認権限なし');
+        $reviewerMembership = NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $reviewer->id,
+            'role' => 'citizen',
+            'joined_at' => now()->subDays(2),
+        ]);
+        $this->assertDomainFailure(fn () => $service->approve($reviewer, $application), '役職権限');
+        $reviewerMembership->delete();
+        NationMembershipCooldown::create([
+            'character_id' => $applicant->id,
+            'global_join_blocked_until' => now()->addDay(),
+            'reason' => 'left',
+        ]);
+        $this->assertDomainFailure(fn () => $service->approve($ruler, $application), '待機期間');
+        NationMembershipCooldown::where('character_id', $applicant->id)->delete();
+
+        $membership = $service->approve($ruler, $application);
+        $this->assertSame('citizen', $membership->role);
+        $this->assertSame(NationJoinApplication::STATUS_APPROVED, $application->fresh()->status);
+        $this->assertSame(1, NationMembership::where('character_id', $applicant->id)->count());
+        $this->assertDomainFailure(fn () => $service->approve($ruler, $application), 'すでに処理');
+        $this->assertSame(1, NationMembership::where('character_id', $applicant->id)->count());
+
+        $capacityApplicant = $this->character('定員再確認対象');
+        app(GameSettingService::class)->set('nation.max_members', '3');
+        $capacityApplication = $service->submit($capacityApplicant, $nation);
+        NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $this->character('定員到達国民')->id,
+            'role' => 'citizen',
+            'joined_at' => now(),
+        ]);
+        $this->assertDomainFailure(fn () => $service->approve($ruler, $capacityApplication), '定員');
+
+        app(GameSettingService::class)->set('nation.max_members', '100');
+        $memberElsewhere = $this->character('承認前に他国所属');
+        $otherApplication = $service->submit($memberElsewhere, $nation);
+        $otherNation = app(NationService::class)->create($this->character('別国統治者'), '別所属国');
+        NationMembership::create([
+            'nation_id' => $otherNation->id,
+            'character_id' => $memberElsewhere->id,
+            'role' => 'citizen',
+            'joined_at' => now(),
+        ]);
+        $this->assertDomainFailure(fn () => $service->approve($ruler, $otherApplication), 'すでに国家へ所属');
+    }
+
+    public function test_minimum_stay_ruler_and_war_participant_rules_protect_voluntary_leave(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '脱退国');
+        $citizen = $this->character('一般国民');
+        $membership = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $citizen->id, 'role' => 'citizen', 'joined_at' => now()]);
+        $service = app(NationMembershipService::class);
+
+        $this->assertDomainFailure(fn () => $service->leave($ruler), '統治者');
+        $this->assertDomainFailure(fn () => $service->leave($citizen), '加入から');
+        $membership->update(['joined_at' => now()->subHours(25)]);
+
+        $enemy = app(NationService::class)->create($this->character('相手統治者'), '相手国');
+        $war = $this->war($nation, $enemy, 'preparing');
+        NationWarParticipant::create(['nation_war_id' => $war->id, 'nation_id' => $nation->id, 'character_id' => $citizen->id, 'frozen_at' => now()]);
+        $this->assertDomainFailure(fn () => $service->leave($citizen), '終戦まで脱退');
+
+        $newcomer = $this->character('戦争開始後の新規国民');
+        NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $newcomer->id,
+            'role' => 'citizen',
+            'joined_at' => now()->subHours(25),
+        ]);
+        $service->leave($newcomer);
+        $this->assertNull(NationMembership::where('character_id', $newcomer->id)->first());
+
+        $war->update(['status' => 'resolved', 'resolved_at' => now()]);
+        $service->leave($citizen);
+        $this->assertNull(NationMembership::where('character_id', $citizen->id)->first());
+        $this->assertTrue(NationMembershipCooldown::where('character_id', $citizen->id)->firstOrFail()->global_join_blocked_until->isFuture());
+    }
+
+    public function test_only_ruler_can_expel_non_ruler_and_expulsion_applies_both_cooldowns(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '追放国');
+        $citizen = $this->character('追放対象');
+        $target = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $citizen->id, 'role' => 'chancellor', 'joined_at' => now()->subDays(2)]);
+        $other = $this->character('権限なし');
+        $otherMembership = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $other->id, 'role' => 'citizen', 'joined_at' => now()->subDays(2)]);
+        $service = app(NationMembershipService::class);
+
+        $this->assertDomainFailure(fn () => $service->expel($otherMembership, $target), '役職権限');
+        $this->assertDomainFailure(fn () => $service->expel(NationMembership::where('character_id', $ruler->id)->firstOrFail(), NationMembership::where('character_id', $ruler->id)->firstOrFail()), '統治者を追放');
+        $service->expel(NationMembership::where('character_id', $ruler->id)->firstOrFail(), $target);
+
+        $this->assertNull(NationMembership::where('character_id', $citizen->id)->first());
+        $cooldown = NationMembershipCooldown::where('character_id', $citizen->id)->firstOrFail();
+        $this->assertTrue($cooldown->global_join_blocked_until->isFuture());
+        $this->assertSame($nation->id, $cooldown->same_nation_id);
+        $this->assertGreaterThan(6, now()->diffInDays($cooldown->same_nation_blocked_until));
+    }
+
+    public function test_war_participant_cannot_be_expelled_until_war_ends(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '戦時追放国');
+        $citizen = $this->character('戦時国民');
+        $target = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $citizen->id, 'role' => 'citizen', 'joined_at' => now()->subDays(2)]);
+        $enemy = app(NationService::class)->create($this->character('敵統治者'), '敵国');
+        $war = $this->war($nation, $enemy, 'active');
+        NationWarParticipant::create(['nation_war_id' => $war->id, 'nation_id' => $nation->id, 'character_id' => $citizen->id, 'frozen_at' => now()]);
+
+        $this->assertDomainFailure(
+            fn () => app(NationMembershipService::class)->expel(NationMembership::where('character_id', $ruler->id)->firstOrFail(), $target),
+            '終戦まで追放',
+        );
+    }
+
+    public function test_role_changes_are_ruler_only_and_cannot_assign_or_remove_ruler_normally(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '役職国');
+        $citizen = $this->character('役職対象');
+        $target = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $citizen->id, 'role' => 'citizen', 'joined_at' => now()]);
+        $actor = NationMembership::where('character_id', $ruler->id)->firstOrFail();
+        $service = app(NationMembershipService::class);
+
+        $service->changeRole($actor, $target, 'marshal');
+        $this->assertSame('marshal', $target->fresh()->role);
+        $service->changeRole($actor, $target, 'citizen');
+        $this->assertSame('citizen', $target->fresh()->role);
+        $this->assertDomainFailure(fn () => $service->changeRole($actor, $target, 'ruler'), '指定された役職');
+        $this->assertDomainFailure(fn () => $service->changeRole($actor, $actor, 'citizen'), '統治者の交代');
+        $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'role_assigned']);
+        $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'role_removed']);
+    }
+
+    public function test_ruler_migration_keeps_existing_war_role_permissions_but_community_management_is_ruler_only(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '権限国');
+        $chancellorCharacter = $this->character('宰相');
+        $chancellor = NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $chancellorCharacter->id,
+            'role' => 'chancellor',
+            'joined_at' => now(),
+        ]);
+        $rulerMembership = NationMembership::where('character_id', $ruler->id)->firstOrFail();
+        $roles = app(NationRoleService::class);
+
+        $this->assertTrue($roles->allows($rulerMembership, 'manage_members'));
+        $this->assertTrue($roles->allows($rulerMembership, 'declare_war'));
+        $this->assertTrue($roles->allows($chancellor, 'declare_war'));
+        $this->assertTrue($roles->allows($chancellor, 'allocate_war_resources'));
+        $this->assertFalse($roles->allows($chancellor, 'manage_members'));
+        $this->assertFalse($roles->allows($chancellor, 'manage_roles'));
+    }
+
+    public function test_profile_updates_are_audited_and_recruitment_off_does_not_block_existing_review(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '紹介国');
+        $applicant = $this->character('既存申請者');
+        $application = app(NationJoinApplicationService::class)->submit($applicant, $nation);
+        $actor = NationMembership::where('character_id', $ruler->id)->firstOrFail();
+
+        app(NationProfileService::class)->update($actor, '新しい紹介', false, '募集停止中', 'nation_crest_080');
+        $nation->refresh();
+        $this->assertSame('新しい紹介', $nation->description);
+        $this->assertFalse($nation->recruitment_enabled);
+        $this->assertSame('nation_crest_080', $nation->emblem_key);
+        $this->assertDomainFailure(fn () => app(NationJoinApplicationService::class)->submit($this->character('新規申請者'), $nation), '募集を停止');
+
+        app(NationJoinApplicationService::class)->approve($ruler, $application);
+        $this->assertNotNull(NationMembership::where('character_id', $applicant->id)->first());
+        $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'description_changed']);
+        $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'recruitment_disabled']);
+        $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'emblem_changed']);
+    }
+
+    public function test_ruler_transfer_is_atomic_same_nation_only_and_keeps_exactly_one_ruler(): void
+    {
+        $ruler = $this->character('旧統治者');
+        $nation = app(NationService::class)->create($ruler, '譲渡国', null, 'empire');
+        $successor = $this->character('新統治者');
+        $target = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $successor->id, 'role' => 'marshal', 'joined_at' => now()]);
+        $outsiderNation = app(NationService::class)->create($this->character('外部統治者'), '外部国');
+        $outsider = NationMembership::where('nation_id', $outsiderNation->id)->firstOrFail();
+        $service = app(NationRulerTransferService::class);
+
+        $this->assertDomainFailure(fn () => $service->transfer($ruler, $outsider), '同じ国家');
+        $service->transfer($ruler, $target);
+        $this->assertSame('citizen', NationMembership::where('character_id', $ruler->id)->value('role'));
+        $this->assertSame('ruler', NationMembership::where('character_id', $successor->id)->value('role'));
+        $this->assertSame(1, NationMembership::where('nation_id', $nation->id)->where('role', 'ruler')->count());
+        $this->assertDomainFailure(fn () => $service->transfer($ruler, $target), '役職権限');
+    }
+
+    public function test_dissolution_can_be_canceled_then_logically_disbands_without_member_leave_cooldown(): void
+    {
+        $ruler = $this->character('解散統治者');
+        $nation = app(NationService::class)->create($ruler, '解散国', null, 'republic');
+        $citizen = $this->character('解散国民');
+        $citizenMembership = NationMembership::create(['nation_id' => $nation->id, 'character_id' => $citizen->id, 'role' => 'citizen', 'joined_at' => now()->subDays(2)]);
+        $applicant = $this->character('解散時申請者');
+        $application = app(NationJoinApplicationService::class)->submit($applicant, $nation);
+        $service = app(NationDissolutionService::class);
+
+        $this->assertDomainFailure(fn () => $service->request($citizen, '解散国共和国'), '役職権限');
+        $service->request($ruler, '解散国共和国');
+        $this->assertSame(Nation::STATUS_DISBAND_PENDING, $nation->fresh()->status);
+        $this->assertFalse($nation->fresh()->recruitment_enabled);
+        $this->assertSame(NationJoinApplication::STATUS_CANCELED, $application->fresh()->status);
+        $leaveEligibility = app(NationMembershipService::class)->leaveEligibility($citizenMembership->fresh());
+        $this->assertFalse($leaveEligibility['allowed']);
+        $this->assertStringContainsString('解散完了時に待機時間なしで自動的に無所属', $leaveEligibility['reason']);
+        $this->assertDomainFailure(
+            fn () => app(NationMembershipService::class)->leave($citizen),
+            '解散完了時に待機時間なしで自動的に無所属',
+        );
+        $this->assertDatabaseHas('nation_memberships', ['id' => $citizenMembership->id]);
+        $this->assertDatabaseMissing('nation_membership_cooldowns', ['character_id' => $citizen->id]);
+        $this->actingAs($citizen->user);
+        Livewire::test(NationScreen::class)
+            ->assertSee('一般国民は解散完了時に、加入待機時間なしで自動的に無所属になります。')
+            ->assertSee('国家解散の待機中は自主脱退できません。');
+        $service->cancel($ruler);
+        $this->assertSame(Nation::STATUS_ACTIVE, $nation->fresh()->status);
+        $this->assertTrue($nation->fresh()->recruitment_enabled);
+        $this->assertTrue(app(NationMembershipService::class)->leaveEligibility($citizenMembership->fresh())['allowed']);
+
+        $service->request($ruler, '解散国共和国');
+        $this->travel(25)->hours();
+        $this->assertSame(1, $service->processDue());
+        $this->assertSame(Nation::STATUS_DISBANDED, $nation->fresh()->status);
+        $this->assertNotNull($nation->fresh()->disbanded_at);
+        $this->assertSame(0, NationMembership::where('nation_id', $nation->id)->count());
+        $this->assertNull(NationMembershipCooldown::where('character_id', $citizen->id)->value('global_join_blocked_until'));
+        $this->assertTrue(NationMembershipCooldown::where('character_id', $ruler->id)->firstOrFail()->ruler_refound_blocked_until->isFuture());
+        $this->assertDomainFailure(fn () => app(NationService::class)->create($ruler, '再建国'), '再建国待機');
+        $this->assertDatabaseHas('nations', ['id' => $nation->id, 'status' => Nation::STATUS_DISBANDED]);
+        $this->assertDatabaseHas('nation_activity_logs', ['nation_id' => $nation->id, 'event_type' => 'nation_disbanded']);
+    }
+
+    public function test_live_or_reserved_war_blocks_dissolution_and_pending_nation_cannot_declare(): void
+    {
+        $ruler = $this->character('統治者');
+        $nation = app(NationService::class)->create($ruler, '戦争国');
+        $enemy = app(NationService::class)->create($this->character('敵統治者'), '戦争敵国');
+        $war = $this->war($nation, $enemy, 'reserved');
+        $service = app(NationDissolutionService::class);
+
+        $this->assertDomainFailure(fn () => $service->request($ruler, $nation->display_name), '国家戦');
+        $war->update(['status' => 'resolved', 'resolved_at' => now()]);
+        $service->request($ruler, $nation->display_name);
+        $this->assertSame(Nation::STATUS_DISBAND_PENDING, $nation->fresh()->status);
+
+        config()->set('features.nation_war_enabled', true);
+        app(GameSettingService::class)->set('nation_war.declaration_enabled', '1');
+        app(GameSettingService::class)->set('nation_war.reference_damage', '1000');
+        $nation->update(['founded_at' => now()->subDays(8)]);
+        $enemy->update(['founded_at' => now()->subDays(8)]);
+        $this->assertDomainFailure(
+            fn () => app(NationWarService::class)->declare(
+                NationMembership::where('character_id', $ruler->id)->firstOrFail(),
+                $enemy,
+            ),
+            '解散手続き中',
+        );
+    }
+
+    public function test_livewire_supports_founding_application_approval_and_coming_soon_without_backend_write(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('画面統治者');
+        $this->actingAs($ruler->user);
+
+        $nationScreen = Livewire::test(NationScreen::class)
+            ->assertSee('images/icon/icon_306.webp', false)
+            ->call('showCreate')
+            ->assertSet('showFoundingEmblemModal', false)
+            ->assertSee('紋章を選ぶ')
+            ->assertDontSee('全80種から選べます')
+            ->call('openFoundingEmblemModal')
+            ->assertSet('showFoundingEmblemModal', true)
+            ->assertSee('全80種から選べます')
+            ->assertSee('No.080')
+            ->call('selectFoundingEmblem', 'invalid-emblem')
+            ->assertHasErrors(['foundingEmblemKey'])
+            ->assertSet('showFoundingEmblemModal', true)
+            ->call('selectFoundingEmblem', 'nation_crest_080')
+            ->assertSet('showFoundingEmblemModal', false)
+            ->assertSet('foundingEmblemKey', 'nation_crest_080')
+            ->assertHasNoErrors('foundingEmblemKey')
+            ->call('openFoundingConfirmation')
+            ->assertHasErrors(['foundingName'])
+            ->assertSet('showFoundingConfirmationModal', false)
+            ->set('foundingName', '画面国')
+            ->set('foundingNationType', 'duchy')
+            ->set('foundingDescription', str_repeat('国', 201))
+            ->call('openFoundingConfirmation')
+            ->assertHasErrors(['foundingDescription'])
+            ->assertSet('showFoundingConfirmationModal', false)
+            ->set('foundingDescription', '画面から建国しました。')
+            ->call('openFoundingConfirmation')
+            ->assertHasNoErrors()
+            ->assertSet('showFoundingConfirmationModal', true)
+            ->assertSee('この内容で建国しますか？')
+            ->assertSee('画面国公国')
+            ->assertSee('画面から建国しました。')
+            ->call('closeFoundingConfirmation')
+            ->assertSet('showFoundingConfirmationModal', false);
+        $nationScreen->call('createNation');
+        $this->assertDatabaseMissing('nations', ['name' => '画面国']);
+        $nationScreen
+            ->call('openFoundingConfirmation')
+            ->call('createNation')
+            ->assertHasNoErrors()
+            ->assertSet('showFoundingConfirmationModal', false)
+            ->assertSee('画面国公国')
+            ->assertSee('統治者メニュー')
+            ->assertSee('届いた加入申請を確認・審査する')
+            ->assertSee('国民の役職変更や追放を行う')
+            ->assertSee('国家戦に備える資材を確認・管理する')
+            ->assertSee('data-nation-ruler-menu', false)
+            ->assertSee('data-nation-upcoming-menu', false);
+        $nationScreen
+            ->call('showMemberManagement')
+            ->assertSee('現在、役職による権限変更は未実装です。')
+            ->assertSee('この画面で実際に利用できる管理操作は追放です。')
+            ->call('showHome');
+        $nation = Nation::where('name', '画面国')->firstOrFail();
+        $this->assertSame('nation_crest_080', $nation->emblem_key);
+
+        $applicant = $this->character('画面申請者');
+        $this->actingAs($applicant->user);
+        Livewire::test(NationScreen::class)
+            ->call('showNationDetail', $nation->id)
+            ->set('joinMessage', '参加希望です。')
+            ->call('submitJoinApplication')
+            ->assertHasNoErrors()
+            ->assertSee('加入申請中');
+        $application = NationJoinApplication::where('character_id', $applicant->id)->firstOrFail();
+
+        $this->actingAs($ruler->user);
+        Livewire::test(NationScreen::class)
+            ->call('showApplications')
+            ->assertSee('画面申請者')
+            ->assertSeeHtml('data-nation-application-profile-link="'.$applicant->id.'"')
+            ->assertSeeHtml('aria-label="画面申請者の冒険者カードを見る"')
+            ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
+            ->call('approveApplication', $application->id)
+            ->assertHasNoErrors();
+        $this->assertDatabaseHas('nation_memberships', ['nation_id' => $nation->id, 'character_id' => $applicant->id, 'role' => 'citizen']);
+
+        $logCount = NationActivityLog::count();
+        Livewire::test(NationScreen::class)
+            ->call('showNotImplemented', 'declare-war')
+            ->assertSet('pendingFeature', '宣戦布告')
+            ->assertSee('この機能は現在準備中です。');
+        $this->assertSame($logCount, NationActivityLog::count());
+    }
+
+    public function test_nation_list_has_a_bottom_button_that_returns_to_nation_home(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $character = $this->character('国家一覧閲覧者');
+        $this->actingAs($character->user);
+
+        Livewire::test(NationScreen::class)
+            ->call('showNationList')
+            ->assertSet('page', 'nation-list')
+            ->assertSeeHtml('data-nation-list-home-button')
+            ->assertSee('国家トップへ戻る')
+            ->call('showHome')
+            ->assertSet('page', 'home')
+            ->assertDontSeeHtml('data-nation-list-home-button');
+    }
+
+    private function character(string $name): Character
+    {
+        $user = User::factory()->create();
+
+        return Character::create([
+            'user_id' => $user->id,
+            'name' => $name,
+            'level' => 50,
+            'last_battle_at' => now(),
+            'explore_stamina' => 250,
+            'explore_stamina_max' => 250,
+        ]);
+    }
+
+    private function war(Nation $attacker, Nation $defender, string $status): NationWar
+    {
+        return NationWar::create([
+            'declaring_nation_id' => $attacker->id,
+            'defending_nation_id' => $defender->id,
+            'status' => $status,
+            'declared_at' => now(),
+            'preparation_starts_at' => now(),
+            'starts_at' => now()->addDays(3),
+            'ends_at' => now()->addDays(8),
+        ]);
+    }
+
+    private function assertDomainFailure(\Closure $action, string $messagePart): void
+    {
+        try {
+            $action();
+            $this->fail('DomainException was not thrown.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString($messagePart, $exception->getMessage());
+        }
+    }
+}

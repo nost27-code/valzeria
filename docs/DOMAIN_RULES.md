@@ -122,12 +122,17 @@ Purpose: canonical game rules. Keep concise.
 - Equipment drops: 装備ドロップの公開ログはSSS/EPIC、または銘抽選で「逸品」になった装備を対象にする。通常のAランク装備獲得だけでは全体チャットへ流さない。
 - Forbidden data: private user data, secrets, internal IDs unless safe.
 
-## Nation war (production OFF)
+## Nation community (release candidate / production OFF) / nation war (production OFF)
 
-- `NATION_SCREEN_ENABLED=true`では国家タブを初めて開いた時に未所属/所属の読取専用画面を表示し、検索・建国・加入・納品・施設強化・宣戦など全操作を「準備中」で停止する。falseでは従来の専用「準備中」パネルへ戻す。`NATION_WAR_ENABLED=false`では毎分lifecycleもno-opとし、`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持する。素材の入手可否も変更しない。`WEV0030`（瘴気の骨片）の敵dropは、別途明示された有効化までは非活性を維持する。基準Dが0/未校正なら宣戦を拒否する。Dは基準Characterが防御0施設へ魔導砲なしで30Tに与える実測総damageで、推測値を設定しない。
-- 国家は最大100人で、1Characterは1国家のみ。役職は国王/宰相/軍務官/兵站官/国民。建国時に城壁・魔導砲・兵站所・要塞工廠・本陣をLv1、耐久100%で作る。対象40都市素材は低位1pt/高位3ptを初期換算値とする。
-- 国家戦は建国7日保護、敗戦3日保護、1国家につき進行中1件+次戦予約1件、宣戦から準備3日、戦争5日。active Nは宣戦時点の所属者のうち直近7日で実戦したCharacterをsnapshotする。
-- 出撃は通常装備/能力/戦技を使う独立全快HP/SPの最大30Tで通常HP/SPを更新しない。1日10回、開始時探索力15、戦死は合計2回消費する。修復/再建後も判定用`min_hp`は戻さない。
+- 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。コミュニティをONにしても、国家資材管理・要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新、国家戦Service呼出、画面遷移を行わない。
+- 国家は最大100人、1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
+- 建国時は募集ON、ruler 1人、城壁・魔導砲・兵站所・要塞工廠・本陣をLv1/耐久100%で同一transaction作成する。国家紹介は任意・200文字以内、募集文と加入申請の一言は100文字以内。国家紋章は`nation_crest_001`〜`nation_crest_080`から選び、建国後はrulerだけが変更できる。
+- 加入は申請とruler承認を必須とし、申請時と承認時の両方で無所属、cooldown、active国家、100人未満を確認する。申請時は統治者、承認時は申請者へ通知ベルの未読通知を作る。募集OFF後も既存pendingは審査できる。rulerだけが申請審査、追放、役職、紹介/募集/紋章、統治者譲渡、解散を管理し、譲渡transactionはrulerを常に1人に保つ。
+- 初期制限は同国申請却下/取消24時間、加入後自主脱退不可24時間、自主脱退後の全国家加入72時間、追放後の全国家加入24時間、追放元国家7日、解散実行rulerの再建国7日。値は`nation.*` GameSettingを正本とする。戦争participant snapshotに含まれる国民は準備開始から終戦まで脱退・追放不可。
+- 国家解散は完成国家名の再入力後、初期24時間の`disband_pending`を経て`disbanded`へ論理更新する。待機中は募集、新規申請、宣戦、自主脱退を拒否し、pending申請を取消する。期限内はrulerが取消可能。完了時は所属を解除するが一般国民へ自主脱退cooldownを付けず、国家row・戦史・資材台帳・操作履歴は物理削除しない。
+- 国家チャットは所属dashboardと常設チャットの国家タブに表示し、自国の現在国民だけが閲覧・送信できる。本文100文字以内、最新50件。`public_logs`へ流さず、同じ送信要求は1件へ収束させる。過去発言は元国家の履歴として残すが、脱退・追放・解散完了後は閲覧・送信できない。
+- `NATION_WAR_ENABLED=false`では宣戦・出撃等を公開せず、毎分lifecycleもno-opとする。`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持し、基準Dが0/未校正なら宣戦を拒否する。素材の入手可否は変更せず、`WEV0030`敵dropも非活性を維持する。対象40都市素材は低位1pt/高位3ptを初期換算値とする。
+- 国家戦は建国7日保護、敗戦3日保護、1国家につき進行中1件+次戦予約1件、宣戦から準備3日、戦争5日。active Nは宣戦時点の所属者のうち直近7日で実戦したCharacterをsnapshotする。出撃は通常装備/能力/戦技を使う独立全快HP/SPの最大30Tで通常HP/SPを更新しない。1日10回、開始時探索力15、戦死は合計2回消費し、修復/再建後も判定用`min_hp`は戻さない。
 
 ## Balance
 
