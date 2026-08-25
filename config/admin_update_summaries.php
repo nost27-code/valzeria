@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-showcase-bottom-all-link',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家ピックアップの一覧導線を改善',
+        'detail' => '国家ピックアップを最後まで確認した後も全国家一覧へ進みやすいよう、紹介枠の最下部に現在の国家数を表示した「全国家を見る」ボタンを追加しました。右上の一覧ボタンも引き続き利用できます。',
+    ],
+    [
         'id' => '2026-08-26-nation-header-background-selection',
         'date' => '2026-08-26',
         'category' => 'changed',

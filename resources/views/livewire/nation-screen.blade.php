@@ -188,6 +188,16 @@
                     @endforelse
                 </div>
                 @if($page === 'nation-list' && method_exists($nations, 'links'))<div class="mt-3">{{ $nations->links() }}</div>@endif
+                @if($page !== 'nation-list')
+                    <button
+                        type="button"
+                        wire:click="showNationList"
+                        data-nation-showcase-all-button
+                        class="mt-3 min-h-11 w-full rounded-xl border border-blue-800 bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                    >
+                        全国家（{{ number_format($activeNationCount) }}国）を見る
+                    </button>
+                @endif
             </section>
 
             @if($page === 'nation-list')
