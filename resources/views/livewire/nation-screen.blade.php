@@ -248,42 +248,42 @@
                         <span class="text-[10px] font-black tracking-[0.26em] sm:text-[11px]">MY NATION</span>
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4 17-1-9 5 4 4-7 4 7 5-4-1 9H4Zm0 0h16v3H4v-3Z"/></svg>
                     </div>
-                    <h1 class="mt-1 break-words rounded-full border border-amber-200/80 bg-slate-950/75 px-3 py-1.5 text-xl font-black tracking-[0.08em] text-amber-50 shadow-xl backdrop-blur-[2px] sm:text-2xl" style="text-shadow: 0 2px 4px rgba(0, 0, 0, .9);">
+                    <h1 class="mx-auto mt-1 w-fit max-w-[72%] break-words rounded-full border border-amber-200/80 bg-slate-950/75 px-4 py-1 text-xl font-black tracking-[0.08em] text-amber-50 shadow-xl backdrop-blur-[2px] sm:max-w-[60%] sm:px-5 sm:text-2xl" style="text-shadow: 0 2px 4px rgba(0, 0, 0, .9);" data-nation-nameplate>
                         {{ $nation->display_name }}
                     </h1>
                 </div>
 
-                <div class="mt-2 flex flex-nowrap items-center gap-2 sm:mt-3 sm:gap-4" data-nation-header-summary-row>
-                    <div class="flex w-20 shrink-0 justify-center sm:w-28">
-                        <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" class="h-20 w-20 object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.75)] sm:h-28 sm:w-28">
+                <div class="mt-2 flex flex-nowrap items-center justify-center gap-2 sm:mt-3 sm:gap-4" data-nation-header-summary-row>
+                    <div class="flex w-[4.5rem] shrink-0 justify-center sm:w-24">
+                        <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" class="h-[4.5rem] w-[4.5rem] object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.75)] sm:h-24 sm:w-24">
                     </div>
-                    <div class="min-w-0 flex-1 overflow-hidden rounded-xl border border-amber-200/70 bg-slate-950/75 shadow-xl backdrop-blur-[2px]">
+                    <div class="w-[11rem] max-w-[11rem] min-w-0 shrink overflow-hidden rounded-xl border border-amber-200/70 bg-slate-950/75 shadow-xl backdrop-blur-[2px] sm:w-64 sm:max-w-64">
                         <dl class="grid grid-cols-2 text-amber-50" data-nation-header-stats-grid>
-                            <div class="flex min-w-0 items-center gap-1 border-b border-r border-amber-100/20 px-1.5 py-2 sm:px-3 sm:py-2.5" data-nation-header-stat-cell="ruler">
-                                <dt class="flex shrink-0 items-center gap-0.5 text-[9px] font-bold text-amber-100/80 sm:gap-1 sm:text-xs">
+                            <div class="flex min-w-0 items-center gap-0.5 border-b border-r border-amber-100/20 px-1 py-1 sm:gap-1 sm:px-2 sm:py-1.5" data-nation-header-stat-cell="ruler">
+                                <dt class="flex shrink-0 items-center gap-0.5 text-[9px] font-bold text-amber-100/80 sm:text-[11px]">
                                     <svg class="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 16h14l1-9-5 4-3-7-3 7-5-4 1 9Zm0 2h14v2H5v-2Z"/></svg>
                                     {{ $nation->ruler_title }}
                                 </dt>
-                                <dd class="ml-auto min-w-0 truncate text-right text-[11px] font-black sm:text-sm">{{ $nation->rulerMembership?->character?->name ?? '不明' }}</dd>
+                                <dd class="ml-auto min-w-0 truncate text-right text-[10px] font-black sm:text-xs">{{ $nation->rulerMembership?->character?->name ?? '不明' }}</dd>
                             </div>
-                            <div class="flex min-w-0 items-center gap-1 border-b border-amber-100/20 px-1.5 py-2 sm:px-3 sm:py-2.5" data-nation-header-stat-cell="members">
-                                <dt class="flex shrink-0 items-center gap-0.5 text-[9px] font-bold text-amber-100/80 sm:gap-1 sm:text-xs">
+                            <div class="flex min-w-0 items-center gap-0.5 border-b border-amber-100/20 px-1 py-1 sm:gap-1 sm:px-2 sm:py-1.5" data-nation-header-stat-cell="members">
+                                <dt class="flex shrink-0 items-center gap-0.5 text-[9px] font-bold text-amber-100/80 sm:text-[11px]">
                                     <svg class="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM1 21v-3c0-3 3-5 7-5s7 2 7 5v3H1Zm14.5 0v-3c0-1.5-.6-2.8-1.7-3.8.7-.1 1.4-.2 2.2-.2 4 0 7 2 7 5v2h-7.5Z"/></svg>
                                     国民数
                                 </dt>
-                                <dd class="ml-auto min-w-0 truncate whitespace-nowrap text-right text-[11px] font-black sm:text-sm">{{ $nation->memberships->count() }} / {{ $maxMembers }}人</dd>
+                                <dd class="ml-auto min-w-0 truncate whitespace-nowrap text-right text-[10px] font-black sm:text-xs">{{ $nation->memberships->count() }} / {{ $maxMembers }}人</dd>
                             </div>
-                            <div class="flex min-w-0 items-center gap-1 border-r border-amber-100/20 px-1.5 py-2 sm:px-3 sm:py-2.5" data-nation-header-stat-cell="development">
+                            <div class="flex min-w-0 items-center gap-0.5 border-r border-amber-100/20 px-1 py-1 sm:gap-1 sm:px-2 sm:py-1.5" data-nation-header-stat-cell="development">
                                 @if($developmentEnabled && $developmentProgress)
-                                    <dt class="shrink-0 text-[9px] font-bold text-amber-100/80 sm:text-xs">国家レベル</dt>
-                                    <dd class="ml-auto shrink-0 text-xs font-black text-amber-300 sm:text-base">Lv{{ $developmentProgress['level'] }}</dd>
+                                    <dt class="shrink-0 text-[9px] font-bold text-amber-100/80 sm:text-[11px]">国家レベル</dt>
+                                    <dd class="ml-auto shrink-0 text-[11px] font-black text-amber-300 sm:text-sm">Lv{{ $developmentProgress['level'] }}</dd>
                                 @else
-                                    <dt class="shrink-0 text-[9px] font-bold text-amber-100/80 sm:text-xs">国号</dt>
-                                    <dd class="ml-auto min-w-0 truncate text-right text-[11px] font-black sm:text-sm">{{ $nation->nation_type_label }}</dd>
+                                    <dt class="shrink-0 text-[9px] font-bold text-amber-100/80 sm:text-[11px]">国号</dt>
+                                    <dd class="ml-auto min-w-0 truncate text-right text-[10px] font-black sm:text-xs">{{ $nation->nation_type_label }}</dd>
                                 @endif
                             </div>
-                            <div class="flex items-center justify-center px-1 py-1.5 sm:px-2 sm:py-2" data-nation-header-stat-cell="recruitment">
-                                <span class="inline-flex max-w-full items-center rounded-full px-1.5 py-1 text-center text-[9px] font-black sm:px-2.5 sm:text-[11px] {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}">
+                            <div class="flex items-center justify-center px-1 py-1 sm:px-2 sm:py-1.5" data-nation-header-stat-cell="recruitment">
+                                <span class="inline-flex max-w-full items-center rounded-full px-1.5 py-0.5 text-center text-[8px] font-black sm:px-2 sm:text-[10px] {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}">
                                     {{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}
                                 </span>
                             </div>

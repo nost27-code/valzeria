@@ -785,6 +785,7 @@ SQL);
 
         $nationScreen
             ->assertSeeHtml('data-nation-home-header')
+            ->assertSeeHtml('data-nation-nameplate')
             ->assertSeeHtml('data-nation-header-summary-row')
             ->assertSeeHtml('data-nation-header-stats-grid')
             ->assertSeeHtml('data-nation-header-stat-cell="ruler"')
