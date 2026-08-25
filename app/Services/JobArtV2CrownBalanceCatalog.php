@@ -18,7 +18,7 @@ final class JobArtV2CrownBalanceCatalog
 
     /** @var array<string, array<string, mixed>> */
     private const ARTS = [
-        '1:5:連斬' => ['hit_count' => 2],
+        '1:5:受け返し' => [],
         '1:9:剣気解放' => ['buffs' => ['str' => 35,'def' => 20],'duration' => 5],
         '2:5:二段穿ち' => ['hit_count' => 2],
         '2:9:穿貫' => [],
@@ -47,7 +47,7 @@ final class JobArtV2CrownBalanceCatalog
         '15:5:ガーディアンブロウ' => ['reduction' => 16],
         '15:9:不落要塞' => ['reduction' => 30],
         '16:9:傭兵団の総攻撃' => ['debuffs' => ['def' => 20, 'spr' => 20], 'duration' => 4],
-        '17:1:煙玉' => ['debuffs' => ['agi' => 10],'duration' => 3],
+        '17:1:影伏せ' => [],
         '17:5:影縫い' => ['debuffs' => ['agi' => 15],'duration' => 3],
         '18:1:マーキング' => ['debuffs' => ['def' => 10, 'spr' => 10], 'duration' => 3],
         '19:1:マナピック' => ['mp_recover_percent' => 0, 'sp_pressure_rate' => 0.02],

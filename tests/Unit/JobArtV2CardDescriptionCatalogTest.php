@@ -39,7 +39,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
         $this->assertCount(192, $catalog);
         $this->assertSame($masterKeys, array_keys($catalog));
         $this->assertSame(
-            '1c6380f74c1d7d26df49f91f18d5d53e5c5716c000f4bac2243538f5c7b283fb',
+            'bb8ea5a84828a1dc0c2c17450d48c4bd300507a07cfef414af93e009b6bf2e0b',
             hash('sha256', json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)),
         );
         $this->assertNotContains('', array_map('trim', $catalog));
@@ -121,7 +121,7 @@ class JobArtV2CardDescriptionCatalogTest extends TestCase
         $presenter = app(JobArtV2LoadoutPresenter::class);
         $catalog = app(JobArtV2CardDescriptionCatalog::class);
         $current = $this->masterArt(59, 1, '戦線把握', 'current');
-        $sameLineage = $this->masterArt(1, 5, '連斬', 'inherited');
+        $sameLineage = $this->masterArt(1, 5, '受け返し', 'inherited');
 
         $this->assertSame(
             $catalog->defaultDescription($current),

@@ -293,7 +293,7 @@ final class JobArtV2CrownUltimateInteractionTest extends TestCase
     {
         [$actor] = $this->battle(60);
         $command = $this->art(59, 5, '勝機の戦陣');
-        $counter = $this->art(1, 5, '連斬');
+        $counter = $this->art(1, 5, '受け返し');
         $actor->jobArts = [$command, $counter];
         $actor->jobArtOrigins[(int) $command->id] = 'inherited';
         $actor->jobArtOrigins[(int) $counter->id] = 'inherited';

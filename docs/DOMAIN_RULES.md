@@ -10,6 +10,8 @@ Purpose: canonical game rules. Keep concise.
 
 ## Combat
 
+- 戦技差し替え第2弾2-C Phase 1: 1:5受け返しは剣勢4消費・威力145%の単発物理攻撃とし、直前の自分の行動終了後から今回の行動開始までに受け流しへ成功していた場合だけ最終damageを1.35倍にする。受け流しsnapshotは今回の行動開始時に消費し、自分の別行動を1回挟んだ後へ持ち越さない。17:1影伏せは狩猟印4獲得・威力100%の単発物理攻撃後、次に実行する封狩系譜Rank5/9の最終damageを1.20倍にする準備効果を1 charge付与し、発動後の自分の行動機会4回以内に対象戦技を使わなければ失効する。現在職・継承と通常PvE/boss/tower/PvP/champ/NPC arenaで同じ完全効果を使う。既存の`parry_success_since_previous_own_action`条件と`prepared_effect`だけを使用し、新しいruntime primitive、追加RNG、`JobArtV2SelectionService`、基礎発動率50%/55%/60%を変更しない。2件は自然キー更新で既存`skills.id`とslot/preset参照を維持する。
+
 - 戦技差し替え第2弾2-B: 穿貫は威力225%の単発物理攻撃で防御50%無視、影狩りの構えは威力90%の単発物理攻撃後に敏捷-15%を3ラウンド、急所狙いは威力145%の単発物理攻撃へ既存会心率+15ポイント、精密射撃は威力90%の単発物理攻撃へ命中率+15ポイント・既存会心率+10ポイントを付与し、PvP/champ/NPC arenaでは差し替え前の基礎必中を維持する。穿貫の防御無視はmasterの`def_ignore_percent`、role metadataの`damage_stat_route.defense_ignore_percent`、prototype catalogの`penetration_rate`を50%で同期し、role/penetrationの各runtime cap 0.50内で加算せず単一解決する。50%を超える再調整は両capを含む別裁定とする。崩し打ちは威力90%の単発物理攻撃後に防御-15%を3ラウンド、連環崩打は合計威力145%の3Hit後に防御/精神-15%を3ラウンドとする。既存の防御無視、構造化弱体、総威力分割、命中補正、既存会心抽選への補正だけを使用し、新しいruntime primitiveや追加RNGを設けない。競技3経路には戦技会心抽選を新設せず、会心補正は既存抽選のある通常PvE・boss・towerだけで消費する。会心率上限と会心倍率は現行値を維持し、基礎発動率50%/55%/60%、循環候補、1行動1候補1抽選、`JobArtV2SelectionService`を変更しない。6件は自然キー更新で既存`skills.id`とslot/preset参照を維持する。
 
 - 国家戦の出撃ログは長期戦況の可読性と保存量のための明示例外とし、個別出撃の全行ログを永続保存せず、攻撃者、対象施設、適用damage、turn、魔導砲命中/直撃、戦死/撤退、攻撃前後HPの要約を時系列で保存する。通常探索・闘技場・チャンプ・六英雄等の全ログ表示規則は変更しない。

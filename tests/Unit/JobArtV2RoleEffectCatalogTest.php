@@ -36,9 +36,9 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
         }
     }
 
-    public function test_catalog_contains_exactly_the_sixty_one_frozen_natural_keys(): void
+    public function test_catalog_contains_exactly_the_sixty_three_frozen_natural_keys(): void
     {
-        $this->assertCount(61, self::roleArtProvider());
+        $this->assertCount(63, self::roleArtProvider());
     }
 
     public function test_same_named_special_skill_is_not_treated_as_a_job_art(): void
@@ -136,6 +136,8 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
     public static function roleArtProvider(): array
     {
         return [
+            'wave 2-C phase 1 counter combo' => [1, 5, '受け返し', 'counter_parry_riposte_combo'],
+            'wave 2-C phase 1 hunt producer' => [17, 1, '影伏せ', 'hunt_shadow_ambush_preparation'],
             'wave 2-B pierce finisher' => [2, 9, '穿貫', 'pierce_single_high_penetration_finisher'],
             'wave 2-B hunt producer' => [3, 1, '影狩りの構え', 'hunt_speed_debuff_producer'],
             'wave 2-B hunt combo' => [3, 5, '急所狙い', 'hunt_critical_combo'],
@@ -204,6 +206,13 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
     public static function fixedValueProvider(): array
     {
         return [
+            'riposte condition' => [1, 5, '受け返し', 'conditional_damage_multiplier.condition', 'parry_success_since_previous_own_action'],
+            'riposte multiplier' => [1, 5, '受け返し', 'conditional_damage_multiplier.multiplier', 1.35],
+            'shadow ambush charge' => [17, 1, '影伏せ', 'prepared_effect.charges', 1],
+            'shadow ambush opportunities' => [17, 1, '影伏せ', 'prepared_effect.action_opportunities', 4],
+            'shadow ambush multiplier' => [17, 1, '影伏せ', 'prepared_effect.damage_multiplier', 1.20],
+            'shadow ambush lineage' => [17, 1, '影伏せ', 'prepared_effect.trigger.lineage_key', 'hunt'],
+            'shadow ambush ranks' => [17, 1, '影伏せ', 'prepared_effect.trigger.learn_ranks', [5, 9]],
             'silence field key' => [29, 1, '静寂の帳', 'field.field_key', 'silence'],
             'silence field duration' => [29, 1, '静寂の帳', 'field.duration_rounds', 5],
             'silence no self apply' => [29, 1, '静寂の帳', 'field.apply_new_field_to_source_action', false],

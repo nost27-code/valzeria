@@ -53,6 +53,38 @@ final class JobArtV2RoleEffectCatalog
 
     /** @var array<string, array<string, mixed>> */
     private const ARTS = [
+        // Replacement wave 2-C phase 1: existing conditional and prepared-effect primitives only.
+        '1:5:受け返し' => [
+            'role_key' => 'counter_parry_riposte_combo',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'conditional_damage_multiplier' => [
+                'condition' => 'parry_success_since_previous_own_action',
+                'multiplier' => 1.35,
+            ],
+            'effect_texts' => ['直前の自分の行動後に受け流しへ成功していた場合、最終ダメージを1.35倍にする'],
+        ],
+        '17:1:影伏せ' => [
+            'role_key' => 'hunt_shadow_ambush_preparation',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'PHYSICAL_DAMAGE',
+            'prepared_effect' => [
+                'key' => 'hunt_shadow_ambush',
+                'charges' => 1,
+                'action_opportunities' => 4,
+                'trigger' => ['lineage_key' => 'hunt', 'learn_ranks' => [5, 9]],
+                'damage_multiplier' => 1.20,
+                'consume_on_execution' => true,
+                'consume_results' => ['hit', 'miss', 'evade'],
+                'retain_on_activation_failure' => true,
+                'retain_on_ineligible_action' => true,
+                'stack_group' => 'hunt_shadow_ambush',
+            ],
+            'effect_texts' => ['次に使う封狩系譜の連携または奥義の最終ダメージを1.20倍にする（1回・最大4回の自分の行動機会）'],
+        ],
+
         // Replacement wave 2-B: existing route, roll-delta, and timed-debuff primitives only.
         '2:9:穿貫' => [
             'role_key' => 'pierce_single_high_penetration_finisher',

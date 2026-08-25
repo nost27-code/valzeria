@@ -9,9 +9,9 @@
   {
     "job_id": 1,
     "learn_rank": 5,
-    "name": "連斬",
-    "activation_phrase": "「次の一太刀で決める――連斬！」",
-    "activation_description": "{user}は一息に《{skill}》を放ち、澄み切った剣気をまとった二連撃を{target}へ叩き込んだ！"
+    "name": "受け返し",
+    "activation_phrase": "「その剣筋、返してみせる――受け返し！」",
+    "activation_description": "{user}は相手の剣筋を見極め、《{skill}》の一撃を{target}へ返した！"
   },
   {
     "job_id": 1,
@@ -338,9 +338,9 @@
   {
     "job_id": 17,
     "learn_rank": 1,
-    "name": "煙玉",
-    "activation_phrase": "「視線の外へ回る――煙玉！」",
-    "activation_description": "{user}の狩猟の印が戦場を走り、《{skill}》で{target}の勝機を奪った！"
+    "name": "影伏せ",
+    "activation_phrase": "「影へ伏せ、次の一手を待つ――影伏せ！」",
+    "activation_description": "{user}は《{skill}》で気配を影へ沈め、次の狩りへつながる一撃を{target}へ放った！"
   },
   {
     "job_id": 17,

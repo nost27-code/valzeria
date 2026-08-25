@@ -20,6 +20,8 @@ class JobArtV2RoleDiversityPresentationTest extends TestCase
 {
     /** @var list<array{int, int, string}> */
     private const ROLE_ARTS = [
+        [1, 5, '受け返し'],
+        [17, 1, '影伏せ'],
         [11, 1, '納刀'],
         [13, 1, '闘争本能'],
         [28, 1, '剣気集中'],

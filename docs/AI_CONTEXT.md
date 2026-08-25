@@ -65,6 +65,11 @@ Branch: main
 - `2026_08_23_120000_replace_job_arts_wave2_2b.php`は6件の自然キーだけをtransaction内で更新し、既存`skills.id`と戦技枠・preset参照を維持する。既存の防御無視・弱体・Hit分割・命中補正・会心補正metadataだけを使い、新しいruntime primitive、追加RNG、`JobArtV2SelectionService`の変更は入れない
 - 基礎発動率50%/55%/60%は別リリースの現行仕様を維持し、2-Bでは変更しない。PvP/champ/NPC arenaには戦技会心抽選を新設せず、会心補正metadataは既存抽選のある通常PvE・boss・towerだけで消費する。2026-08-23に本番公開
 
+## Job-art v2 replacement wave 2-C phase 1 (production)
+
+- 既存IDを維持した2-C Phase 1は、1:5受け返し（物理145%単発、直前の自分の行動後に受け流し成功なら最終damage×1.35）と17:1影伏せ（物理100%単発後、次の封狩Rank5/9を×1.20・1回・最大4回の自分の行動機会）を正とする
+- `2026_08_25_180000_replace_job_arts_wave2_2c_phase1.php`は自然キー1:5・17:1だけをtransaction内で更新し、既存`skills.id`と戦技枠・preset参照を維持する。既存の`parry_success_since_previous_own_action`と`prepared_effect`だけを使い、新runtime、追加RNG、`JobArtV2SelectionService`、基礎発動率50%/55%/60%は変更しない。2026-08-26に本番公開
+
 ## Job-art v2 pre-release canonical state (historical)
 
 - 戦技v2コードは現行マスタ94職・Rank1/5/9の282戦技を対象とする。v2有効時に現在職による対応外判定や旧マスタ説明への職別fallbackは設けない。プレイヤー自身に主系譜・副系譜・出張の所属は持たせず、習得済み戦技は現在職に関係なく編成でき、カードに記載された効果と威力を100%適用する
