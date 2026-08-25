@@ -37,6 +37,13 @@ return [
         FILTER_VALIDATE_BOOL,
     ),
 
+    // Nation donations and development levels are released separately from war.
+    // Local/testing may use the default; production requires an explicit env flag.
+    'nation_development_enabled' => filter_var(
+        env('NATION_DEVELOPMENT_ENABLED', $defaultsEnabled),
+        FILTER_VALIDATE_BOOL,
+    ),
+
     // Keep nation gameplay disabled until operations explicitly enables it.
     'nation_war_enabled' => filter_var(
         env('NATION_WAR_ENABLED', false),

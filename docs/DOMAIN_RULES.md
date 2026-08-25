@@ -126,7 +126,7 @@ Purpose: canonical game rules. Keep concise.
 
 ## Nation community (production ON) / nation war (production OFF)
 
-- 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。コミュニティをONにしても、国家資材管理・要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新、国家戦Service呼出、画面遷移を行わない。
+- 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家発展は`NATION_DEVELOPMENT_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。国家発展OFF時の国家資材管理と、国家戦OFF時の要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新や国家戦Service呼出を行わない。
 - 未所属の国家TOPはactive国家をID順の循環対象とし、active国家集合が変わらない間は同日固定の最大3国を日替わりで紹介する。建国・解散でactive国家集合が変わった場合は、同日中でも新しい集合から再選定する。国家数が変わらない1周期では、各国家の表示回数と1〜3枠の表示位置を均等にする。専用の全国家一覧は募集ON、威信、ID順を維持し、ピックアップ外の国家にも常時到達できるようにする。
 - 国家の国民上限は`nation.max_members`を正本とし、現在の初期値は20人（将来の国家発展・運営調整で拡張可能）、1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
 - 建国時は募集ON、ruler 1人、城壁・魔導砲・兵站所・要塞工廠・本陣をLv1/耐久100%で同一transaction作成する。国家紹介は任意・200文字以内、募集文と加入申請の一言は100文字以内。国家紋章は`nation_crest_001`〜`nation_crest_080`から選び、建国後はrulerだけが変更できる。
@@ -134,7 +134,11 @@ Purpose: canonical game rules. Keep concise.
 - 初期制限は同国申請却下/取消24時間、加入後自主脱退不可24時間、自主脱退後の全国家加入72時間、追放後の全国家加入24時間、追放元国家7日、解散実行rulerの再建国7日。値は`nation.*` GameSettingを正本とする。戦争participant snapshotに含まれる国民は準備開始から終戦まで脱退・追放不可。
 - 国家解散は完成国家名の再入力後、初期24時間の`disband_pending`を経て`disbanded`へ論理更新する。待機中は募集、新規申請、宣戦、自主脱退を拒否し、pending申請を取消する。期限内はrulerが取消可能。完了時は所属を解除するが一般国民へ自主脱退cooldownを付けず、国家row・戦史・資材台帳・操作履歴は物理削除しない。
 - 国家チャットは所属dashboardと常設チャットの国家タブに表示し、自国の現在国民だけが閲覧・送信できる。本文100文字以内、最新50件。`public_logs`へ流さず、同じ送信要求は1件へ収束させる。過去発言は元国家の履歴として残すが、脱退・追放・解散完了後は閲覧・送信できない。
-- `NATION_WAR_ENABLED=false`では宣戦・出撃等を公開せず、毎分lifecycleもno-opとする。`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持し、基準Dが0/未校正なら宣戦を拒否する。素材の入手可否は変更せず、`WEV0030`敵dropも非活性を維持する。対象40都市素材は低位1pt/高位3ptを初期換算値とする。
+- 国家発展ON時は現在国民だけが自国へ対象40都市素材を納品できる。低位20種は1個=国家資材1pt/国家発展EXP1、高位20種は1個=国家資材3pt/国家発展EXP2とし、日次・週次上限は設けない。素材減算、国家資材加算、国家発展EXP加算、immutable台帳を同一transactionで確定する。換算率は納品中shared lockし、台帳へ当時の`development_exp_delta`を保存する。冪等キー再利用はCharacter・素材・数量が前回と一致するときだけ前回結果を返し、不一致は拒否する。
+- 国家Lvは施設Lv・耐久・戦争結果から独立した恒久的な累計納品実績で、次Lv必要EXPは`500×現在Lv`、Lv Nの累計閾値は`250×N×(N-1)`、表示上限はLv50/612,500EXPとする。Lv50後も生の国家発展EXPと個人貢献を保持し、国家資材消費・返却、施設強化・損傷・破壊、国家戦、脱退・追放・役職変更では増減させない。Phase 1ではLvによる能力補正・施設解放を設けず表示と名誉値だけに使う。
+- 国家外の冒険者には国家Lvだけを表示し、現在国民には累計EXP、次Lv進捗、現在国家での個人貢献と貢献一覧を表示する。アカウント削除で台帳の`character_id`がNULLになった貢献は「退会した冒険者」へ集約し、国家合計から除外しない。台帳SUMを正、`nations.development_exp`を読取cacheとし、保守コマンドは既定で照合だけ、明示`--repair`時だけ台帳合計へ復元する。
+- 納品確認では納品後の所持数を明示し、対象素材が装備進化・素材交換・NPC調達にも使われることを警告する。進化経路ごとに必要数が異なるため「進化に必要な残量」は自動算出しない。
+- `NATION_WAR_ENABLED=false`では宣戦・出撃等を公開せず、毎分lifecycleもno-opとする。`nation_war.declaration_enabled=false`、`nation.facility_upgrades_enabled=false`を維持し、基準Dが0/未校正なら宣戦を拒否する。素材の入手可否は変更せず、`WEV0030`敵dropも非活性を維持する。
 - 国家戦は建国7日保護、敗戦3日保護、1国家につき進行中1件+次戦予約1件、宣戦から準備3日、戦争5日。active Nは宣戦時点の所属者のうち直近7日で実戦したCharacterをsnapshotする。出撃は通常装備/能力/戦技を使う独立全快HP/SPの最大30Tで通常HP/SPを更新しない。1日10回、開始時探索力15、戦死は合計2回消費し、修復/再建後も判定用`min_hp`は戻さない。
 
 ## Balance

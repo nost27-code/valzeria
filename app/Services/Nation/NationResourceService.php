@@ -8,7 +8,9 @@ use App\Models\Nation;
 use App\Models\NationMaterialConversionRate;
 use App\Models\NationMembership;
 use App\Models\NationResourceTransaction;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,6 +35,7 @@ final class NationResourceService
 
     public function donate(Character $character, int $materialId, int $quantity, ?string $idempotencyKey = null): NationResourceTransaction
     {
+        throw_unless(config('features.nation_development_enabled', false), \DomainException::class, '国家資材納品は現在準備中です。');
         throw_if($quantity < 1, \DomainException::class, '納品数は1以上で指定してください。');
 
         if ($idempotencyKey) {
@@ -68,15 +71,18 @@ final class NationResourceService
                 throw_if(! $stock || $stock->quantity < $quantity, \DomainException::class, '素材の所持数が足りません。');
 
                 $points = $quantity * (int) $rate->points_per_unit;
+                $developmentExp = $quantity * (int) $rate->development_exp_per_unit;
                 $stock->quantity -= $quantity;
                 $stock->save();
                 $nation->treasury_points += $points;
+                $nation->development_exp += $developmentExp;
                 $nation->save();
 
                 return NationResourceTransaction::create([
                     'nation_id' => $nation->id, 'character_id' => $character->id, 'material_id' => $materialId,
                     'transaction_type' => 'donation', 'quantity' => $quantity, 'points_delta' => $points,
-                    'balance_after' => $nation->treasury_points, 'idempotency_key' => $idempotencyKey,
+                    'balance_after' => $nation->treasury_points, 'development_exp_delta' => $developmentExp,
+                    'idempotency_key' => $idempotencyKey,
                 ]);
             }, 3);
         } catch (QueryException $exception) {
@@ -127,6 +133,24 @@ final class NationResourceService
         }, 3);
     }
 
+    /** @return Collection<int, object{material_id:int,material_code:string,name:string,quantity:int,points_per_unit:int,development_exp_per_unit:int}> */
+    public function donatableMaterials(Character $character): Collection
+    {
+        return $this->donatableMaterialQuery($character)
+            ->where('character_materials.quantity', '>', 0)
+            ->orderBy('materials.name')
+            ->orderBy('materials.id')
+            ->get();
+    }
+
+    /** @return object{material_id:int,material_code:string,name:string,quantity:int,points_per_unit:int,development_exp_per_unit:int}|null */
+    public function donatableMaterial(Character $character, int $materialId): ?object
+    {
+        return $this->donatableMaterialQuery($character)
+            ->where('character_materials.material_id', $materialId)
+            ->first();
+    }
+
     private function matchingDonation(
         NationResourceTransaction $transaction,
         Character $character,
@@ -141,5 +165,22 @@ final class NationResourceService
         throw_unless($matches, \DomainException::class, '同じ送信キーが異なる納品内容で再利用されました。画面を更新して、もう一度お試しください。');
 
         return $transaction;
+    }
+
+    private function donatableMaterialQuery(Character $character): Builder
+    {
+        return DB::table('character_materials')
+            ->join('materials', 'materials.id', '=', 'character_materials.material_id')
+            ->join('nation_material_conversion_rates', 'nation_material_conversion_rates.material_id', '=', 'character_materials.material_id')
+            ->where('character_materials.character_id', $character->id)
+            ->where('nation_material_conversion_rates.is_active', true)
+            ->select([
+                'character_materials.material_id',
+                'materials.material_code',
+                'materials.name',
+                'character_materials.quantity',
+                'nation_material_conversion_rates.points_per_unit',
+                'nation_material_conversion_rates.development_exp_per_unit',
+            ]);
     }
 }

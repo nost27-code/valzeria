@@ -85,6 +85,7 @@
                         <h1 class="break-words text-2xl font-black text-stone-950">{{ $selectedNation->display_name }}</h1>
                         <p class="mt-1 text-sm font-black text-stone-600">{{ $selectedNation->ruler_title }}：{{ $selectedNation->rulerMembership?->character?->name ?? '不明' }}</p>
                         <p class="mt-1 text-sm font-bold text-stone-600">国民数：{{ $selectedNation->memberships_count }} / {{ $maxMembers }}人</p>
+                        @if($developmentEnabled)<p class="mt-0.5 text-sm font-black text-amber-700">国家Lv{{ $nationLevels[$selectedNation->id] ?? 1 }}</p>@endif
                         <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black {{ $selectedNation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600' }}">
                             {{ $selectedNation->recruitment_enabled ? '国民募集中' : '募集停止' }}
                         </span>
@@ -173,7 +174,7 @@
                         <article class="flex gap-3 py-3">
                             <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" loading="lazy" class="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20">
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="truncate text-base font-black text-stone-950">{{ $nation->display_name }}</h3><p class="mt-0.5 text-xs font-bold text-stone-500">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p></div><div class="shrink-0 text-right"><div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/{{ $maxMembers }}人</div><div class="text-[11px] font-black {{ $nation->recruitment_enabled ? 'text-emerald-600' : 'text-stone-500' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</div></div></div>
+                                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="truncate text-base font-black text-stone-950">{{ $nation->display_name }}</h3><p class="mt-0.5 text-xs font-bold text-stone-500">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>@if($developmentEnabled)<p class="mt-0.5 text-xs font-black text-amber-700">国家Lv{{ $nationLevels[$nation->id] ?? 1 }}</p>@endif</div><div class="shrink-0 text-right"><div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/{{ $maxMembers }}人</div><div class="text-[11px] font-black {{ $nation->recruitment_enabled ? 'text-emerald-600' : 'text-stone-500' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</div></div></div>
                                 <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-blue-700">{{ $nation->recruitment_message ?: '募集文はまだありません。' }}</p>
                                 <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
                                 <button type="button" wire:click="showNationDetail({{ $nation->id }})" class="mt-2 min-h-9 w-full rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-700">詳細を見る</button>
@@ -212,7 +213,7 @@
                     </ul>
                     <p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">など、<strong class="font-black text-amber-900">仲間と協力する新たな遊び</strong>に参加できます。</p>
                     <p class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-bold leading-relaxed text-emerald-900">国家への所属は必須ではなく、無所属でもこれまで通り冒険を楽しめます。</p>
-                    <p class="mt-2 text-xs font-bold leading-relaxed text-stone-500">※国家への納品・国家戦・戦績・ランキングなど、一部の機能は現在準備中です。</p>
+                    <p class="mt-2 text-xs font-bold leading-relaxed text-stone-500">※{{ $developmentEnabled ? '国家戦・戦績・ランキングなど' : '国家への納品・国家戦・戦績・ランキングなど' }}、一部の機能は現在準備中です。</p>
                 </section>
             @endif
         @endif
@@ -223,14 +224,126 @@
         <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5">
             <div class="flex items-start gap-4">
                 <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" class="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28">
-                <div class="min-w-0 flex-1"><p class="text-xs font-black tracking-[0.2em] text-blue-700">MY NATION</p><h1 class="break-words text-2xl font-black text-stone-950">{{ $nation->display_name }}</h1><p class="mt-1 text-sm font-bold text-stone-600">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p><p class="mt-0.5 text-sm font-bold text-stone-600">国民数：{{ $nation->memberships->count() }} / {{ $maxMembers }}人</p><span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</span></div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-black tracking-[0.2em] text-blue-700">MY NATION</p>
+                    <h1 class="break-words text-2xl font-black text-stone-950">{{ $nation->display_name }}</h1>
+                    <p class="mt-1 text-sm font-bold text-stone-600">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>
+                    <p class="mt-0.5 text-sm font-bold text-stone-600">国民数：{{ $nation->memberships->count() }} / {{ $maxMembers }}人</p>
+                    @if($developmentEnabled && $developmentProgress)
+                        <p class="mt-0.5 text-sm font-black text-amber-700">国家Lv{{ $developmentProgress['level'] }}</p>
+                    @endif
+                    <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</span>
+                </div>
             </div>
             @if($nation->status === \App\Models\Nation::STATUS_DISBAND_PENDING)
                 <div class="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800"><p class="font-black">国家解散の待機中です</p><p class="mt-1">{{ $nation->dissolution_effective_at?->format('Y/m/d H:i') }}以降に論理解散されます。</p><p class="mt-1">一般国民は解散完了時に、加入待機時間なしで自動的に無所属になります。</p>@if($membership->isRuler())<button type="button" wire:click="cancelDissolution" class="mt-2 min-h-10 w-full rounded-lg border border-rose-300 bg-white font-black text-rose-700">解散申請を取り消す</button>@endif</div>
             @endif
         </section>
 
-        @if($page === 'applications' && $membership->isRuler())
+        @if($page === 'resources' && $developmentEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-resource-management>
+                <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
+                    <div>
+                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION DEVELOPMENT</p>
+                        <h2 class="text-xl font-black text-stone-950">国家資材管理</h2>
+                    </div>
+                    <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900">国家Lv{{ $developmentProgress['level'] }}</span>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div class="rounded-xl bg-slate-50 p-3">
+                        <p class="text-xs font-bold text-slate-500">国家資材</p>
+                        <p class="mt-1 text-xl font-black text-slate-950">{{ number_format($nation->treasury_points) }}<span class="ml-1 text-xs">pt</span></p>
+                    </div>
+                    <div class="rounded-xl bg-amber-50 p-3">
+                        <p class="text-xs font-bold text-amber-700">あなたの貢献度</p>
+                        <p class="mt-1 text-xl font-black text-amber-950">{{ number_format($personalContribution) }}<span class="ml-1 text-xs">EXP</span></p>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-xl border border-amber-200 bg-white p-3">
+                    <div class="flex items-center justify-between gap-3 text-xs font-black text-stone-700">
+                        <span>国家発展EXP {{ number_format($developmentProgress['total_exp']) }}</span>
+                        @if($developmentProgress['is_max'])
+                            <span class="text-amber-700">Lv{{ $developmentProgress['max_level'] }} MAX</span>
+                        @else
+                            <span>次まで {{ number_format($developmentProgress['exp_to_next']) }}</span>
+                        @endif
+                    </div>
+                    <div class="mt-2 h-3 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ intdiv($developmentProgress['progress_bps'], 100) }}">
+                        <div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style="width: {{ $developmentProgress['progress_bps'] / 100 }}%"></div>
+                    </div>
+                    @if($developmentProgress['is_max'])
+                        <p class="mt-2 text-xs font-bold leading-relaxed text-stone-600">Lvは上限ですが、国家発展EXPと納品実績は引き続き蓄積されます。</p>
+                    @endif
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5" data-nation-donation-form>
+                <h2 class="text-lg font-black text-stone-950">都市素材を納品する</h2>
+                <p class="mt-1 text-sm font-bold leading-relaxed text-stone-600">納品した素材は国家資材となり、同時に国家発展EXPが加算されます。</p>
+                <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-relaxed text-rose-800">
+                    都市素材は装備進化・素材交換・NPC調達にも使用します。納品すると返却できないため、納品後の残数を必ず確認してください。
+                </div>
+
+                @if($donatableMaterials->isNotEmpty())
+                    <form wire:submit="openDonationConfirmation" class="mt-4 space-y-4">
+                        <label class="block">
+                            <span class="text-sm font-black text-stone-800">納品する素材</span>
+                            <select wire:model.live="donationMaterialId" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 px-3 text-sm font-bold">
+                                @foreach($donatableMaterials as $material)
+                                    <option value="{{ $material->material_id }}">{{ $material->name }}（所持 {{ number_format($material->quantity) }}個 / 1個={{ $material->points_per_unit }}pt・{{ $material->development_exp_per_unit }}EXP）</option>
+                                @endforeach
+                            </select>
+                            @error('donationMaterialId')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-black text-stone-800">納品数</span>
+                            <input type="number" wire:model.live="donationQuantity" min="1" max="{{ $donationPreview?->quantity ?? 1 }}" inputmode="numeric" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 px-3 text-base font-bold">
+                            @error('donationQuantity')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
+                        </label>
+                        @if($donationPreview)
+                            @php
+                                $previewQuantity = max(0, (int) $donationQuantity);
+                            @endphp
+                            <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                                <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">納品後</span><strong class="mt-1 block text-sm text-stone-900">{{ number_format(max(0, $donationPreview->quantity - $previewQuantity)) }}個</strong></div>
+                                <div class="rounded-lg bg-slate-50 p-2"><span class="block text-slate-500">国家資材</span><strong class="mt-1 block text-sm text-slate-900">+{{ number_format($previewQuantity * $donationPreview->points_per_unit) }}pt</strong></div>
+                                <div class="rounded-lg bg-amber-50 p-2"><span class="block text-amber-700">発展EXP</span><strong class="mt-1 block text-sm text-amber-900">+{{ number_format($previewQuantity * $donationPreview->development_exp_per_unit) }}</strong></div>
+                            </div>
+                        @endif
+                        <button type="submit" wire:loading.attr="disabled" wire:target="openDonationConfirmation" class="min-h-12 w-full rounded-xl bg-emerald-600 px-4 font-black text-white shadow-sm disabled:opacity-50">
+                            <span wire:loading.remove wire:target="openDonationConfirmation">納品内容を確認する</span>
+                            <span wire:loading wire:target="openDonationConfirmation">確認しています…</span>
+                        </button>
+                    </form>
+                @else
+                    <p class="mt-4 rounded-xl bg-stone-50 px-3 py-6 text-center text-sm font-bold text-stone-500">現在、納品できる都市素材を所持していません。</p>
+                @endif
+            </section>
+
+            <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5" data-nation-contributions>
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-lg font-black text-stone-950">国家発展への貢献</h2>
+                    <span class="text-xs font-black text-amber-700">合計 {{ number_format($contributionRows->sum('development_exp')) }} EXP</span>
+                </div>
+                <p class="mt-1 text-xs font-bold leading-relaxed text-stone-500">現在の国家へ納品した発展EXPです。アカウント削除後の記録は「退会した冒険者」にまとめます。</p>
+                <div class="mt-3 divide-y divide-stone-100">
+                    @forelse($contributionRows as $contribution)
+                        <div class="flex items-center justify-between gap-3 py-2.5">
+                            @if($contribution['character_id'])
+                                <button type="button" x-on:click="Livewire.dispatch('open-adventurer-card', { characterId: {{ $contribution['character_id'] }} })" class="min-w-0 truncate text-left text-sm font-black text-blue-800 underline decoration-blue-300 underline-offset-2">{{ $contribution['name'] }}</button>
+                            @else
+                                <span class="min-w-0 truncate text-sm font-black text-stone-600">{{ $contribution['name'] }}</span>
+                            @endif
+                            <strong class="shrink-0 text-sm font-black text-amber-800">{{ number_format($contribution['development_exp']) }} EXP</strong>
+                        </div>
+                    @empty
+                        <p class="py-5 text-center text-sm font-bold text-stone-500">まだ納品実績はありません。</p>
+                    @endforelse
+                </div>
+            </section>
+        @elseif($page === 'applications' && $membership->isRuler())
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm" data-nation-applications>
                 <h2 class="text-xl font-black text-stone-950">加入申請</h2>
                 <div class="mt-3 divide-y divide-stone-100">
@@ -399,16 +512,39 @@
                 <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"><h2 class="text-base font-black text-stone-900">国家操作履歴</h2><div class="mt-2 divide-y divide-stone-100">@foreach($activityLogs as $log)<div class="py-2"><p class="text-xs font-bold text-stone-700">{{ $activityDescriptions[$log->id] }}</p><time class="mt-0.5 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time></div>@endforeach</div></section>
             @endif
 
+            @if($developmentEnabled)
+                @php
+                    $developmentMenuGroups = [[
+                        'key' => 'development',
+                        'label' => '発展',
+                        'items' => [[
+                            'key' => 'resource-management',
+                            'action' => 'showResourceManagement',
+                            'icon' => '📦',
+                            'title' => '国家資材管理',
+                            'description' => '都市素材を納品し、国家を発展させる',
+                        ]],
+                    ]];
+                @endphp
+                <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" aria-label="国家発展メニュー" data-nation-development-menu>
+                    <div class="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                        <h2 class="text-base font-black text-slate-950">国家発展</h2>
+                        <span class="text-xs font-black text-amber-700">Lv{{ $developmentProgress['level'] }}</span>
+                    </div>
+                    @include('livewire.partials.nation-menu-groups', ['menuGroups' => $developmentMenuGroups])
+                </section>
+            @endif
+
             @php
                 $upcomingNationMenuGroups = [[
                     'key' => 'development-war',
                     'label' => '発展・戦争',
-                    'items' => [
-                        ['key' => 'resource-management', 'action' => "showNotImplemented('resource-management')", 'icon' => '📦', 'title' => '国家資材管理', 'description' => '国家戦に備える資材を確認・管理する'],
+                    'items' => array_values(array_filter([
+                        $developmentEnabled ? null : ['key' => 'resource-management', 'action' => 'showResourceManagement', 'icon' => '📦', 'title' => '国家資材管理', 'description' => '国家戦に備える資材を確認・管理する'],
                         ['key' => 'fortress-upgrade', 'action' => "showNotImplemented('fortress-upgrade')", 'icon' => '🏰', 'title' => '要塞強化', 'description' => '国家要塞の施設と強化状況を確認する'],
                         ['key' => 'declare-war', 'action' => "showNotImplemented('declare-war')", 'icon' => '⚔️', 'title' => '宣戦布告', 'description' => '他国との国家戦を申し込む'],
                         ['key' => 'war-strategy', 'action' => "showNotImplemented('war-strategy')", 'icon' => '📜', 'title' => '戦争方針設定', 'description' => '国家戦での作戦方針を整える'],
-                    ],
+                    ])),
                 ]];
             @endphp
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" aria-label="今後の国家機能" data-nation-upcoming-menu>
@@ -474,6 +610,42 @@
                     <button type="button" wire:click="createNation" wire:loading.attr="disabled" wire:target="createNation" class="min-h-11 rounded-lg border border-amber-700 bg-gradient-to-b from-amber-400 to-amber-600 px-3 text-sm font-black text-white disabled:opacity-50">
                         <span wire:loading.remove wire:target="createNation">建国を確定する</span>
                         <span wire:loading wire:target="createNation">建国しています…</span>
+                    </button>
+                </footer>
+            </section>
+        </div>
+    @endif
+
+    @if($showDonationConfirmationModal && $membership && $page === 'resources' && $donationPreview)
+        @php
+            $confirmedDonationQuantity = max(0, (int) $donationQuantity);
+        @endphp
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="donation-confirmation-modal-title" data-nation-donation-confirmation wire:click.self="closeDonationConfirmation" wire:keydown.escape.window="closeDonationConfirmation">
+            <section class="w-full max-w-md overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div>
+                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">CONTRIBUTE</p>
+                        <h2 id="donation-confirmation-modal-title" class="text-lg font-black text-stone-950">この素材を納品しますか？</h2>
+                    </div>
+                    <button type="button" wire:click="closeDonationConfirmation" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="納品確認を閉じる">×</button>
+                </header>
+                <div class="p-4">
+                    <div class="rounded-xl bg-stone-50 p-3">
+                        <p class="text-base font-black text-stone-950">{{ $donationPreview->name }}</p>
+                        <div class="mt-2 grid grid-cols-2 gap-2 text-sm font-bold text-stone-700">
+                            <p>納品数 <strong class="float-right text-stone-950">{{ number_format($confirmedDonationQuantity) }}個</strong></p>
+                            <p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format(max(0, $donationPreview->quantity - $confirmedDonationQuantity)) }}個</strong></p>
+                            <p>国家資材 <strong class="float-right text-slate-950">+{{ number_format($confirmedDonationQuantity * $donationPreview->points_per_unit) }}pt</strong></p>
+                            <p>国家発展EXP <strong class="float-right text-amber-800">+{{ number_format($confirmedDonationQuantity * $donationPreview->development_exp_per_unit) }}</strong></p>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs font-bold leading-relaxed text-rose-700">納品した素材は返却できません。装備進化・素材交換・NPC調達に使う予定がないか、残数を確認してください。</p>
+                </div>
+                <footer class="grid grid-cols-2 gap-2 border-t border-stone-200 bg-white p-4">
+                    <button type="button" wire:click="closeDonationConfirmation" class="min-h-11 rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700">戻る</button>
+                    <button type="button" wire:click="donateMaterials" wire:loading.attr="disabled" wire:target="donateMaterials" class="min-h-11 rounded-lg bg-emerald-600 px-3 text-sm font-black text-white disabled:opacity-50">
+                        <span wire:loading.remove wire:target="donateMaterials">納品を確定する</span>
+                        <span wire:loading wire:target="donateMaterials">納品しています…</span>
                     </button>
                 </footer>
             </section>

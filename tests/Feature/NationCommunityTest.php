@@ -664,6 +664,7 @@ SQL);
     public function test_livewire_supports_founding_application_approval_and_coming_soon_without_backend_write(): void
     {
         config()->set('features.nation_community_enabled', true);
+        config()->set('features.nation_development_enabled', false);
         $ruler = $this->character('画面統治者');
         $this->actingAs($ruler->user);
 

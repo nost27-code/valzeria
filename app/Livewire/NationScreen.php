@@ -12,12 +12,15 @@ use App\Services\CharacterStatusService;
 use App\Services\Nation\NationActivityLogService;
 use App\Services\Nation\NationChatService;
 use App\Services\Nation\NationCommunitySettingsService;
+use App\Services\Nation\NationDevelopmentLevelService;
+use App\Services\Nation\NationDevelopmentService;
 use App\Services\Nation\NationDissolutionService;
 use App\Services\Nation\NationEmblemCatalog;
 use App\Services\Nation\NationJoinApplicationService;
 use App\Services\Nation\NationMembershipCooldownService;
 use App\Services\Nation\NationMembershipService;
 use App\Services\Nation\NationProfileService;
+use App\Services\Nation\NationResourceService;
 use App\Services\Nation\NationRulerTransferService;
 use App\Services\Nation\NationService;
 use App\Services\Nation\NationShowcaseService;
@@ -79,9 +82,18 @@ final class NationScreen extends Component
 
     public string $nationChatRequestId = '';
 
+    public ?int $donationMaterialId = null;
+
+    public int $donationQuantity = 1;
+
+    public string $donationRequestId = '';
+
+    public bool $showDonationConfirmationModal = false;
+
     public function mount(): void
     {
         $this->rotateNationChatRequestId();
+        $this->rotateDonationRequestId();
 
         if (session()->pull('nation_initial_page') === 'applications') {
             $this->showApplications();
@@ -219,6 +231,78 @@ final class NationScreen extends Component
             return;
         }
         $this->navigate('dissolution');
+    }
+
+    public function showResourceManagement(): void
+    {
+        if (! config('features.nation_development_enabled', false)) {
+            $this->showNotImplemented('resource-management');
+
+            return;
+        }
+        if (! $this->currentMembership()) {
+            $this->addError('nationAction', '国家へ所属していません。');
+
+            return;
+        }
+
+        $materials = app(NationResourceService::class)->donatableMaterials($this->character());
+        $this->donationMaterialId = $materials->first()?->material_id;
+        $this->donationQuantity = 1;
+        $this->showDonationConfirmationModal = false;
+        $this->navigate('resources');
+    }
+
+    public function openDonationConfirmation(): void
+    {
+        if ($this->page !== 'resources' || ! config('features.nation_development_enabled', false)) {
+            return;
+        }
+
+        $validated = $this->validateDonationInput();
+        $material = app(NationResourceService::class)->donatableMaterial($this->character(), $validated['donationMaterialId']);
+        if (! $material) {
+            $this->addError('donationMaterialId', '納品できる素材が見つかりません。');
+
+            return;
+        }
+        if ((int) $material->quantity < $validated['donationQuantity']) {
+            $this->addError('donationQuantity', '素材の所持数が足りません。');
+
+            return;
+        }
+
+        $this->showDonationConfirmationModal = true;
+    }
+
+    public function closeDonationConfirmation(): void
+    {
+        $this->showDonationConfirmationModal = false;
+    }
+
+    public function donateMaterials(): void
+    {
+        if (! $this->showDonationConfirmationModal || $this->page !== 'resources') {
+            return;
+        }
+
+        $validated = $this->validateDonationInput();
+        $this->showDonationConfirmationModal = false;
+        $transaction = $this->perform(
+            fn () => app(NationResourceService::class)->donate(
+                $this->character(),
+                $validated['donationMaterialId'],
+                $validated['donationQuantity'],
+                $validated['donationRequestId'],
+            ),
+            '国家へ資材を納品しました。',
+        );
+        if ($transaction) {
+            $this->actionMessage = '国家へ資材を納品しました。国家資材 +'.number_format((int) $transaction->points_delta)
+                .'pt / 国家発展EXP +'.number_format((int) $transaction->development_exp_delta);
+            $this->donationQuantity = 1;
+            $this->rotateDonationRequestId();
+        }
     }
 
     public function createNation(): void
@@ -565,6 +649,8 @@ final class NationScreen extends Component
         $membership = $this->currentMembership();
         $emblemCatalog = app(NationEmblemCatalog::class);
         $maxMembers = app(NationCommunitySettingsService::class)->maxMembers();
+        $developmentEnabled = (bool) config('features.nation_development_enabled', false);
+        $levelService = app(NationDevelopmentLevelService::class);
         $nationQuery = Nation::active()
             ->withCount('memberships')
             ->with(['rulerMembership.character'])
@@ -584,6 +670,10 @@ final class NationScreen extends Component
                 ->sortBy(static fn (Nation $nation): int => $showcaseOrder[$nation->id] ?? PHP_INT_MAX)
                 ->values();
         }
+        $nationRows = method_exists($nations, 'items') ? $nations->items() : $nations->all();
+        $nationLevels = collect($nationRows)
+            ->mapWithKeys(fn (Nation $nation): array => [$nation->id => $levelService->levelFor((int) $nation->development_exp)])
+            ->all();
 
         $selectedNation = null;
         $joinEligibility = null;
@@ -598,6 +688,7 @@ final class NationScreen extends Component
                 ])
                 ->find($this->selectedNationId);
             if ($selectedNation) {
+                $nationLevels[$selectedNation->id] = $levelService->levelFor((int) $selectedNation->development_exp);
                 $joinEligibility = app(NationJoinApplicationService::class)->eligibility($character, $selectedNation);
             }
         }
@@ -614,6 +705,11 @@ final class NationScreen extends Component
         $activityDescriptions = [];
         $activityLogs = collect();
         $nationChatMessages = collect();
+        $developmentProgress = null;
+        $personalContribution = 0;
+        $contributionRows = collect();
+        $donatableMaterials = collect();
+        $donationPreview = null;
         if ($membership) {
             $membership->load([
                 'nation.rulerMembership.character',
@@ -622,6 +718,19 @@ final class NationScreen extends Component
                     ->orderBy('joined_at'),
             ]);
             $leaveEligibility = app(NationMembershipService::class)->leaveEligibility($membership);
+            if ($developmentEnabled) {
+                $development = app(NationDevelopmentService::class);
+                $developmentProgress = $levelService->progress((int) $membership->nation->development_exp);
+                $personalContribution = $development->personalContribution($membership->nation, $character);
+                if ($this->page === 'resources') {
+                    $resources = app(NationResourceService::class);
+                    $donatableMaterials = $resources->donatableMaterials($character);
+                    $contributionRows = $development->contributionRows($membership->nation);
+                    if ($this->donationMaterialId) {
+                        $donationPreview = $resources->donatableMaterial($character, $this->donationMaterialId);
+                    }
+                }
+            }
             if ($this->page === 'home') {
                 $nationChatMessages = app(NationChatService::class)->recentFor($character);
             }
@@ -671,6 +780,13 @@ final class NationScreen extends Component
             'activityLogs' => $activityLogs,
             'activityDescriptions' => $activityDescriptions,
             'nationChatMessages' => $nationChatMessages,
+            'developmentEnabled' => $developmentEnabled,
+            'developmentProgress' => $developmentProgress,
+            'personalContribution' => $personalContribution,
+            'contributionRows' => $contributionRows,
+            'donatableMaterials' => $donatableMaterials,
+            'donationPreview' => $donationPreview,
+            'nationLevels' => $nationLevels,
             'confirmationTarget' => $confirmationTarget,
             'confirmationApplication' => $confirmationApplication,
             'nationTypes' => NationType::cases(),
@@ -728,6 +844,7 @@ final class NationScreen extends Component
         $this->page = $page;
         $this->showFoundingEmblemModal = false;
         $this->showFoundingConfirmationModal = false;
+        $this->showDonationConfirmationModal = false;
         $this->actionMessage = null;
         $this->resetErrorBag();
         if (! $keepSelection) {
@@ -770,5 +887,26 @@ final class NationScreen extends Component
     private function rotateNationChatRequestId(): void
     {
         $this->nationChatRequestId = (string) Str::uuid();
+    }
+
+    /** @return array{donationMaterialId:int,donationQuantity:int,donationRequestId:string} */
+    private function validateDonationInput(): array
+    {
+        return $this->validate([
+            'donationMaterialId' => ['required', 'integer'],
+            'donationQuantity' => ['required', 'integer', 'min:1'],
+            'donationRequestId' => ['required', 'uuid'],
+        ], [
+            'donationMaterialId.required' => '納品する素材を選んでください。',
+            'donationQuantity.required' => '納品数を入力してください。',
+            'donationQuantity.min' => '納品数は1以上で指定してください。',
+            'donationRequestId.required' => '納品情報を更新するため、画面を再読み込みしてください。',
+            'donationRequestId.uuid' => '納品情報を更新するため、画面を再読み込みしてください。',
+        ]);
+    }
+
+    private function rotateDonationRequestId(): void
+    {
+        $this->donationRequestId = (string) Str::uuid();
     }
 }

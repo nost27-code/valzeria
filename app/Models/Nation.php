@@ -23,6 +23,8 @@ class Nation extends Model
     protected function casts(): array
     {
         return [
+            'treasury_points' => 'integer',
+            'development_exp' => 'integer',
             'founded_at' => 'datetime',
             'loss_protected_until' => 'datetime',
             'recruitment_enabled' => 'boolean',

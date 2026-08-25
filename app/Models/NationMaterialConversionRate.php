@@ -8,6 +8,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NationMaterialConversionRate extends Model
 {
     protected $guarded = [];
-    protected function casts(): array { return ['is_active' => 'boolean']; }
-    public function material(): BelongsTo { return $this->belongsTo(Material::class); }
+
+    protected function casts(): array
+    {
+        return [
+            'points_per_unit' => 'integer',
+            'development_exp_per_unit' => 'integer',
+            'is_active' => 'boolean',
+        ];
+    }
+
+    public function material(): BelongsTo
+    {
+        return $this->belongsTo(Material::class);
+    }
 }

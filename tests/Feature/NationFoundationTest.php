@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Admin\NationWarSettingsManager;
+use App\Livewire\NationScreen;
 use App\Models\Character;
 use App\Models\CharacterMaterial;
 use App\Models\GameSetting;
@@ -12,27 +14,31 @@ use App\Models\NationMaterialConversionRate;
 use App\Models\NationMembership;
 use App\Models\NationResourceTransaction;
 use App\Models\NationWar;
+use App\Models\NationWarDailySortie;
 use App\Models\NationWarFacility;
 use App\Models\NationWarParticipant;
 use App\Models\NationWarSide;
 use App\Models\User;
-use App\Services\GameSettingService;
+use App\Services\AccountDeletionService;
 use App\Services\Battle\BattleActor;
+use App\Services\GameSettingService;
+use App\Services\Nation\NationDevelopmentLevelService;
+use App\Services\Nation\NationDevelopmentService;
 use App\Services\Nation\NationFacilityService;
 use App\Services\Nation\NationResourceService;
 use App\Services\Nation\NationService;
+use App\Services\Nation\NationWarBattleService;
+use App\Services\Nation\NationWarCannonService;
 use App\Services\Nation\NationWarHpCalculator;
 use App\Services\Nation\NationWarLifecycleService;
-use App\Services\Nation\NationWarCannonService;
 use App\Services\Nation\NationWarRebuildService;
 use App\Services\Nation\NationWarRepairService;
 use App\Services\Nation\NationWarService;
-use App\Services\Nation\NationWarBattleService;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
 use Livewire\Livewire;
+use Tests\TestCase;
 
 final class NationFoundationTest extends TestCase
 {
@@ -69,7 +75,7 @@ final class NationFoundationTest extends TestCase
         app(NationService::class)->create($otherFounder, '蒼天', '仲間と歩む国です。', 'knight_state');
         $this->actingAs($character->user);
 
-        Livewire::test(\App\Livewire\NationScreen::class)
+        Livewire::test(NationScreen::class)
             ->assertSee('国家を探す')
             ->assertSee('建国する')
             ->assertSee('国家一覧')
@@ -87,6 +93,7 @@ final class NationFoundationTest extends TestCase
     public function test_nation_screen_shows_member_community_dashboard_while_war_actions_remain_closed(): void
     {
         config()->set('features.nation_community_enabled', true);
+        config()->set('features.nation_development_enabled', false);
         $character = $this->character('所属冒険者');
         $nation = app(NationService::class)->create($character, '白銀', '静かな北国です。', 'kingdom');
         $nation->update([
@@ -101,7 +108,7 @@ final class NationFoundationTest extends TestCase
         ]);
         $this->actingAs($character->user);
 
-        Livewire::test(\App\Livewire\NationScreen::class)
+        Livewire::test(NationScreen::class)
             ->assertSee('白銀王国')
             ->assertSee('国王：所属冒険者')
             ->assertSee('統治者メニュー')
@@ -109,9 +116,79 @@ final class NationFoundationTest extends TestCase
             ->assertSee('国民一覧')
             ->assertSee('data-nation-membership-state="member"', false)
             ->assertDontSee('wire:click="donate"', false)
-            ->call('showNotImplemented', 'resource-management')
+            ->call('showResourceManagement')
             ->assertSet('pendingFeature', '国家資材管理')
             ->assertSee('この機能は現在準備中です。');
+    }
+
+    public function test_member_can_confirm_and_donate_materials_from_the_development_screen(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        config()->set('features.nation_development_enabled', true);
+        $character = $this->character('発展納品者');
+        $nation = app(NationService::class)->create($character, '発展確認国');
+        $material = Material::create(['material_code' => 'TEST_UI_DONATION_MAT', 'name' => '画面納品試験資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
+        $this->actingAs($character->user);
+
+        Livewire::test(NationScreen::class)
+            ->assertSee('国家Lv1')
+            ->assertSee('国家資材管理')
+            ->call('showResourceManagement')
+            ->assertSet('page', 'resources')
+            ->assertSee('都市素材は装備進化・素材交換・NPC調達にも使用します。')
+            ->assertSee('画面納品試験資材')
+            ->set('donationMaterialId', $material->id)
+            ->set('donationQuantity', 4)
+            ->call('openDonationConfirmation')
+            ->assertSet('showDonationConfirmationModal', true)
+            ->assertSee('納品後の残数')
+            ->assertSee('6個')
+            ->call('donateMaterials')
+            ->assertSet('showDonationConfirmationModal', false)
+            ->assertSee('国家資材 +12pt / 国家発展EXP +8')
+            ->assertSee('あなたの貢献度')
+            ->assertSee('8 EXP');
+
+        $this->assertSame(6, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
+        $this->assertSame(12, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(8, (int) $nation->fresh()->development_exp);
+    }
+
+    public function test_unaffiliated_players_see_only_nation_level_not_development_exp(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        config()->set('features.nation_development_enabled', true);
+        $viewer = $this->character('国家探索者');
+        $founder = $this->character('国家Lv公開者');
+        $nation = app(NationService::class)->create($founder, '公開発展');
+        $nation->update(['development_exp' => 95000]);
+        $this->actingAs($viewer->user);
+
+        Livewire::test(NationScreen::class)
+            ->assertSee('公開発展王国')
+            ->assertSee('国家Lv20')
+            ->assertDontSee('95,000');
+    }
+
+    public function test_donation_service_stays_closed_when_the_development_flag_is_off(): void
+    {
+        config()->set('features.nation_development_enabled', false);
+        $character = $this->character('停止中納品者');
+        $nation = app(NationService::class)->create($character, '停止中納品国');
+        $material = Material::create(['material_code' => 'TEST_DISABLED_DONATION_MAT', 'name' => '停止中納品資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 2]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('国家資材納品は現在準備中です。');
+        try {
+            app(NationResourceService::class)->donate($character, $material->id, 1, 'nation-disabled-donation');
+        } finally {
+            $this->assertSame(2, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
+            $this->assertSame(0, (int) $nation->fresh()->development_exp);
+        }
     }
 
     public function test_admin_can_edit_nation_settings_without_enabling_global_player_flag(): void
@@ -121,7 +198,7 @@ final class NationFoundationTest extends TestCase
         $this->actingAs($admin);
         $setting = GameSetting::where('setting_key', 'nation_war.sorties_per_day')->firstOrFail();
 
-        Livewire::test(\App\Livewire\Admin\NationWarSettingsManager::class)
+        Livewire::test(NationWarSettingsManager::class)
             ->assertSee('画面プレビュー ON')
             ->assertSee('国家ゲーム OFF')
             ->set('values.'.$setting->id, '12')
@@ -160,7 +237,7 @@ final class NationFoundationTest extends TestCase
         $character = $this->character('納品者');
         $nation = app(NationService::class)->create($character, '納品国');
         $material = Material::create(['material_code' => 'TEST_NATION_MAT', 'name' => '試験資材', 'category' => 'city', 'rarity' => 'R']);
-        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'is_active' => true]);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
         CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
 
         $transaction = app(NationResourceService::class)->donate($character, $material->id, 4, 'nation-test-donation');
@@ -169,6 +246,8 @@ final class NationFoundationTest extends TestCase
         $this->assertSame(12, (int) $nation->fresh()->treasury_points);
         $this->assertSame(12, (int) $transaction->points_delta);
         $this->assertSame(12, (int) $transaction->balance_after);
+        $this->assertSame(8, (int) $nation->fresh()->development_exp);
+        $this->assertSame(8, (int) $transaction->development_exp_delta);
         $this->assertSame($transaction->id, app(NationResourceService::class)->donate($character, $material->id, 4, 'nation-test-donation')->id);
         $this->assertSame(6, CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
     }
@@ -178,7 +257,7 @@ final class NationFoundationTest extends TestCase
         $character = $this->character('冪等納品者');
         app(NationService::class)->create($character, '冪等国');
         $material = Material::create(['material_code' => 'TEST_IDEMPOTENT_MAT', 'name' => '冪等試験資材', 'category' => 'city', 'rarity' => 'R']);
-        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'is_active' => true]);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
         CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
         $service = app(NationResourceService::class);
         $service->donate($character, $material->id, 4, 'nation-test-payload-match');
@@ -199,7 +278,7 @@ final class NationFoundationTest extends TestCase
         $character = $this->character('ロック順納品者');
         app(NationService::class)->create($character, 'ロック順国');
         $material = Material::create(['material_code' => 'TEST_LOCK_ORDER_MAT', 'name' => 'ロック順試験資材', 'category' => 'city', 'rarity' => 'R']);
-        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 1, 'is_active' => true]);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
         CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 2]);
         $queries = [];
         DB::listen(function (QueryExecuted $query) use (&$queries): void {
@@ -247,6 +326,111 @@ final class NationFoundationTest extends TestCase
         $this->assertSame(0, NationResourceTransaction::where('transaction_type', 'forced_failure')->count());
     }
 
+    public function test_nation_level_uses_integer_thresholds_and_keeps_excess_exp_at_level_fifty(): void
+    {
+        $levels = app(NationDevelopmentLevelService::class);
+
+        $this->assertSame(1, $levels->levelFor(0));
+        $this->assertSame(1, $levels->levelFor(499));
+        $this->assertSame(2, $levels->levelFor(500));
+        $this->assertSame(19, $levels->levelFor(94028));
+        $this->assertSame(20, $levels->levelFor(95000));
+        $this->assertSame(49, $levels->levelFor(612499));
+        $this->assertSame(50, $levels->levelFor(612500));
+        $this->assertSame(50, $levels->levelFor(900000));
+        $this->assertSame(612500, $levels->cumulativeExpForLevel(50));
+        $this->assertSame(900000, $levels->progress(900000)['total_exp']);
+        $this->assertTrue($levels->progress(900000)['is_max']);
+
+        for ($level = 2; $level <= 50; $level++) {
+            $threshold = $levels->cumulativeExpForLevel($level);
+            $this->assertSame($level - 1, $levels->levelFor($threshold - 1));
+            $this->assertSame($level, $levels->levelFor($threshold));
+        }
+    }
+
+    public function test_existing_urban_material_rates_keep_resource_points_and_use_one_or_two_development_exp(): void
+    {
+        $low = NationMaterialConversionRate::query()
+            ->where('points_per_unit', 1)
+            ->where('development_exp_per_unit', 1)
+            ->count();
+        $high = NationMaterialConversionRate::query()
+            ->where('points_per_unit', 3)
+            ->where('development_exp_per_unit', 2)
+            ->count();
+
+        $this->assertSame(20, $low);
+        $this->assertSame(20, $high);
+        $this->assertSame(40, NationMaterialConversionRate::where('is_active', true)->count());
+    }
+
+    public function test_spending_and_crediting_resources_do_not_change_development_exp(): void
+    {
+        $nation = app(NationService::class)->create($this->character('発展維持国王'), '発展維持国');
+        $nation->update(['treasury_points' => 100, 'development_exp' => 50]);
+        $resources = app(NationResourceService::class);
+
+        $spent = $resources->spend($nation, 30, 'facility_upgrade');
+        $credited = $resources->credit($nation, 10, 'war_pool_refund');
+
+        $this->assertSame(80, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(50, (int) $nation->fresh()->development_exp);
+        $this->assertSame(0, (int) $spent->development_exp_delta);
+        $this->assertSame(0, (int) $credited->development_exp_delta);
+    }
+
+    public function test_contribution_rows_keep_deleted_character_exp_as_an_anonymous_row(): void
+    {
+        $ruler = $this->character('現役納品者');
+        $nation = app(NationService::class)->create($ruler, '貢献集計国');
+        $retired = $this->character('退会予定納品者');
+        NationMembership::create([
+            'nation_id' => $nation->id,
+            'character_id' => $retired->id,
+            'role' => 'citizen',
+            'joined_at' => now(),
+        ]);
+        $material = Material::create(['material_code' => 'TEST_CONTRIBUTION_MAT', 'name' => '貢献試験資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $ruler->id, 'material_id' => $material->id, 'quantity' => 2]);
+        CharacterMaterial::create(['character_id' => $retired->id, 'material_id' => $material->id, 'quantity' => 3]);
+        $resources = app(NationResourceService::class);
+        $resources->donate($ruler, $material->id, 1, 'nation-current-contribution');
+        $resources->donate($retired, $material->id, 2, 'nation-retired-contribution');
+
+        app(AccountDeletionService::class)->deleteUser($retired->user);
+
+        $development = app(NationDevelopmentService::class);
+        $rows = $development->contributionRows($nation);
+        $this->assertSame(6, $development->ledgerTotal($nation));
+        $this->assertSame(6, (int) $nation->fresh()->development_exp);
+        $this->assertSame(2, $development->personalContribution($nation, $ruler));
+        $this->assertSame(6, $rows->sum('development_exp'));
+        $this->assertSame(['退会した冒険者', '現役納品者'], $rows->pluck('name')->all());
+        $this->assertNull(NationResourceTransaction::where('idempotency_key', 'nation-retired-contribution')->value('character_id'));
+    }
+
+    public function test_nation_development_audit_detects_and_repairs_cache_drift(): void
+    {
+        $character = $this->character('監査納品者');
+        $nation = app(NationService::class)->create($character, '監査国');
+        $material = Material::create(['material_code' => 'TEST_AUDIT_MAT', 'name' => '監査試験資材', 'category' => 'city', 'rarity' => 'R']);
+        NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 3]);
+        app(NationResourceService::class)->donate($character, $material->id, 2, 'nation-audit-contribution');
+        $nation->update(['development_exp' => 999]);
+
+        $this->artisan('nation:audit-development', ['--nation-id' => [$nation->id]])
+            ->expectsOutputToContain('MISMATCH')
+            ->assertFailed();
+
+        $this->artisan('nation:audit-development', ['--nation-id' => [$nation->id], '--repair' => true])
+            ->expectsOutputToContain('REPAIRED')
+            ->assertSuccessful();
+        $this->assertSame(2, (int) $nation->fresh()->development_exp);
+    }
+
     public function test_facility_upgrade_and_war_declaration_are_closed_by_default(): void
     {
         config()->set('features.nation_war_enabled', false);
@@ -256,10 +440,18 @@ final class NationFoundationTest extends TestCase
         $defenderNation = app(NationService::class)->create($defender, '防衛国');
         $membership = NationMembership::where('character_id', $attacker->id)->firstOrFail();
 
-        try { app(NationFacilityService::class)->upgrade($membership, $nation->facilities()->first()); $this->fail('upgrade should be disabled'); }
-        catch (\DomainException $exception) { $this->assertStringContainsString('停止中', $exception->getMessage()); }
-        try { app(NationWarService::class)->declare($membership, $defenderNation); $this->fail('declaration should be disabled'); }
-        catch (\DomainException $exception) { $this->assertStringContainsString('準備中', $exception->getMessage()); }
+        try {
+            app(NationFacilityService::class)->upgrade($membership, $nation->facilities()->first());
+            $this->fail('upgrade should be disabled');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('停止中', $exception->getMessage());
+        }
+        try {
+            app(NationWarService::class)->declare($membership, $defenderNation);
+            $this->fail('declaration should be disabled');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('準備中', $exception->getMessage());
+        }
     }
 
     public function test_uncalibrated_reference_damage_blocks_declaration_even_if_switch_is_on(): void
@@ -269,7 +461,8 @@ final class NationFoundationTest extends TestCase
         $defender = $this->character('未校正防衛国王');
         $nation = app(NationService::class)->create($attacker, '未校正攻撃国');
         $defenderNation = app(NationService::class)->create($defender, '未校正防衛国');
-        $nation->update(['founded_at' => now()->subDays(8)]); $defenderNation->update(['founded_at' => now()->subDays(8)]);
+        $nation->update(['founded_at' => now()->subDays(8)]);
+        $defenderNation->update(['founded_at' => now()->subDays(8)]);
         app(GameSettingService::class)->set('nation_war.declaration_enabled', '1');
 
         $this->expectException(\DomainException::class);
@@ -288,7 +481,9 @@ final class NationFoundationTest extends TestCase
         $attackerNation = app(NationService::class)->create($attacker, '予約攻撃国');
         $defenderNation = app(NationService::class)->create($defender, '予約防衛国');
         $nextNation = app(NationService::class)->create($nextDefender, '次戦防衛国');
-        foreach ([$attackerNation, $defenderNation, $nextNation] as $nation) $nation->update(['founded_at' => now()->subDays(8)]);
+        foreach ([$attackerNation, $defenderNation, $nextNation] as $nation) {
+            $nation->update(['founded_at' => now()->subDays(8)]);
+        }
         $membership = NationMembership::where('character_id', $attacker->id)->firstOrFail();
 
         $war = app(NationWarService::class)->declare($membership, $defenderNation);
@@ -301,8 +496,12 @@ final class NationFoundationTest extends TestCase
         $this->assertCount(2, $reservation->participants);
         $this->assertCount(0, $reservation->facilities);
 
-        try { app(NationWarService::class)->declare($membership, $nextNation); $this->fail('second reservation should fail'); }
-        catch (\DomainException $exception) { $this->assertStringContainsString('予約', $exception->getMessage()); }
+        try {
+            app(NationWarService::class)->declare($membership, $nextNation);
+            $this->fail('second reservation should fail');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('予約', $exception->getMessage());
+        }
     }
 
     public function test_facility_hp_uses_d_level_ratio_active_members_and_persistent_condition(): void
@@ -346,14 +545,15 @@ final class NationFoundationTest extends TestCase
         NationWarParticipant::create(['nation_war_id' => $war->id, 'nation_id' => $nation->id, 'character_id' => $character->id, 'frozen_at' => now()->subDays(4)]);
         $target = $this->warFacility($war, $enemy, 'wall', 1000000, 1000000);
         $character->refresh();
-        $normalHp = (int) $character->current_hp; $normalSp = (int) $character->current_mp;
+        $normalHp = (int) $character->current_hp;
+        $normalSp = (int) $character->current_mp;
 
         $result = app(NationWarBattleService::class)->sortie($character, $war, $target->id, 0);
 
         $this->assertSame(235, (int) $character->fresh()->explore_stamina);
         $this->assertSame($normalHp, (int) $character->fresh()->current_hp);
         $this->assertSame($normalSp, (int) $character->fresh()->current_mp);
-        $this->assertSame(1, (int) \App\Models\NationWarDailySortie::where('nation_war_id', $war->id)->where('character_id', $character->id)->value('sortie_count'));
+        $this->assertSame(1, (int) NationWarDailySortie::where('nation_war_id', $war->id)->where('character_id', $character->id)->value('sortie_count'));
         $this->assertGreaterThan(0, $result['damage_applied']);
         $this->assertSame(30, $result['battle']->turnCount);
     }
@@ -379,6 +579,7 @@ final class NationFoundationTest extends TestCase
     private function character(string $name): Character
     {
         $user = User::factory()->create();
+
         return Character::create(['user_id' => $user->id, 'name' => $name, 'last_battle_at' => now(), 'explore_stamina' => 250, 'explore_stamina_max' => 250]);
     }
 
