@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-menu-back-button',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家メニュー各画面に戻る導線を追加',
+        'detail' => '加入申請や国民管理、国家資材管理などの画面から、国家トップへ戻れるボタンを追加しました。',
+    ],
+    [
         'id' => '2026-08-26-city-header-online-all',
         'date' => '2026-08-26',
         'category' => 'fixed',

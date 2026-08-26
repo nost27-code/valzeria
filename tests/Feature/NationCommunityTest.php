@@ -901,6 +901,25 @@ SQL);
             ->assertDontSeeHtml('data-nation-activity-log-modal');
     }
 
+    public function test_internal_nation_menu_page_has_a_button_that_returns_to_nation_home(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('国家戻る確認統治者');
+        app(NationService::class)->create($ruler, '国家戻る確認国');
+        $this->actingAs($ruler->user);
+
+        Livewire::test(NationScreen::class)
+            ->assertSet('page', 'home')
+            ->assertDontSeeHtml('data-nation-menu-back')
+            ->call('showApplications')
+            ->assertSet('page', 'applications')
+            ->assertSeeHtml('data-nation-menu-back')
+            ->assertSee('国家トップへ戻る')
+            ->call('showHome')
+            ->assertSet('page', 'home')
+            ->assertDontSeeHtml('data-nation-menu-back');
+    }
+
     public function test_nation_list_hides_home_hero_and_has_buttons_that_return_home(): void
     {
         config()->set('features.nation_community_enabled', true);

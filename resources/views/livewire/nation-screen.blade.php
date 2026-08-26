@@ -325,6 +325,35 @@
             @endif
         </section>
 
+        @if(in_array($page, [
+            'resources',
+            'benefits',
+            'goals',
+            'wanted-materials',
+            'achievements',
+            'decorations',
+            'analytics',
+            'timeline',
+            'war-presets',
+            'applications',
+            'members',
+            'profile',
+            'transfer',
+            'dissolution',
+        ], true))
+            <div class="flex justify-start" data-nation-menu-back>
+                <button
+                    type="button"
+                    wire:click="showHome"
+                    wire:loading.attr="disabled"
+                    wire:target="showHome"
+                    class="inline-flex min-h-10 items-center rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-[0.98] disabled:opacity-50"
+                >
+                    ‹ 国家トップへ戻る
+                </button>
+            </div>
+        @endif
+
         @if($page === 'resources' && $developmentEnabled)
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-resource-management>
                 <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
