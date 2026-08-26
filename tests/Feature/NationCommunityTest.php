@@ -908,6 +908,7 @@ SQL);
         $this->actingAs($character->user);
 
         Livewire::test(NationScreen::class)
+            ->assertDontSeeHtml('data-nation-view-tabs')
             ->call('showNationList')
             ->assertSet('page', 'nation-list')
             ->assertDontSeeHtml('data-nation-home-hero')
@@ -946,14 +947,22 @@ SQL);
         $this->actingAs($member->user);
 
         $screen = Livewire::test(NationScreen::class)
-            ->assertSeeHtml('data-nation-member-browse-button')
-            ->assertSee('他国の情報を見る')
+            ->assertSeeHtml('data-nation-view-tabs')
+            ->assertSeeHtml('data-nation-view-tab="self"')
+            ->assertSeeHtml('data-nation-view-tab="other"')
+            ->assertSeeHtml('data-nation-active-view="self"')
+            ->assertSee('自国')
+            ->assertSee('他国')
+            ->assertDontSeeHtml('data-nation-member-browse-button')
             ->call('showNationList')
             ->assertSet('page', 'nation-list')
             ->assertHasNoErrors('nationAction')
+            ->assertSeeHtml('data-nation-active-view="other"')
+            ->assertDontSeeHtml('data-nation-list-home-button')
             ->assertSee($otherNation->display_name)
             ->call('showNationDetail', $otherNation->id)
             ->assertSet('page', 'detail')
+            ->assertSeeHtml('data-nation-active-view="other"')
             ->assertSeeHtml('data-nation-detail')
             ->assertSee($otherNation->display_name)
             ->assertSee('所属者にも公開する国家紹介')
@@ -973,6 +982,7 @@ SQL);
         $screen
             ->call('showHome')
             ->assertSet('page', 'home')
+            ->assertSeeHtml('data-nation-active-view="self"')
             ->assertSeeHtml('data-nation-home-header')
             ->assertSee($ownNation->display_name);
     }

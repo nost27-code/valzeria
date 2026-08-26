@@ -13,7 +13,47 @@
         <div class="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-black text-rose-800" role="alert">{{ $message }}</div>
     @enderror
 
-    @if($page !== 'home')
+    @if($membership)
+        @php
+            $isOtherNationView = in_array($page, ['nation-list', 'detail'], true);
+        @endphp
+        <div
+            class="rounded-xl border border-amber-200 bg-amber-50/70 p-1.5 shadow-sm"
+            role="tablist"
+            aria-label="国家情報の切り替え"
+            data-nation-view-tabs
+            data-nation-active-view="{{ $isOtherNationView ? 'other' : 'self' }}"
+        >
+            <div class="grid grid-cols-2 gap-1.5">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected="{{ $isOtherNationView ? 'false' : 'true' }}"
+                    wire:click="showHome"
+                    wire:loading.attr="disabled"
+                    wire:target="showHome,showNationList"
+                    class="min-h-11 min-w-0 rounded-lg px-3 text-sm font-black transition active:scale-[0.98] disabled:opacity-50 {{ $isOtherNationView ? 'bg-white text-stone-700 ring-1 ring-inset ring-amber-200 hover:bg-amber-50' : 'bg-[#8a5a00] text-white shadow' }}"
+                    data-nation-view-tab="self"
+                >
+                    自国
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected="{{ $isOtherNationView ? 'true' : 'false' }}"
+                    wire:click="showNationList"
+                    wire:loading.attr="disabled"
+                    wire:target="showHome,showNationList"
+                    class="min-h-11 min-w-0 rounded-lg px-3 text-sm font-black transition active:scale-[0.98] disabled:opacity-50 {{ $isOtherNationView ? 'bg-blue-700 text-white shadow' : 'bg-white text-stone-700 ring-1 ring-inset ring-amber-200 hover:bg-amber-50' }}"
+                    data-nation-view-tab="other"
+                >
+                    他国
+                </button>
+            </div>
+        </div>
+    @endif
+
+    @if($page !== 'home' && !$membership)
         <button type="button" wire:click="showHome" class="min-h-10 rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700 shadow-sm">
             ‹ 国家トップへ戻る
         </button>
@@ -209,7 +249,7 @@
                 @endif
             </section>
 
-            @if($page === 'nation-list')
+            @if($page === 'nation-list' && !$membership)
                 <div class="flex justify-center pt-1">
                     <button
                         type="button"
@@ -262,12 +302,6 @@
                 <div class="relative z-10 m-3 mt-0 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800 sm:m-4 sm:mt-0"><p class="font-black">国家解散の待機中です</p><p class="mt-1">{{ $nation->dissolution_effective_at?->format('Y/m/d H:i') }}以降に論理解散されます。</p><p class="mt-1">一般国民は解散完了時に、加入待機時間なしで自動的に無所属になります。</p>@if($membership->isRuler())<button type="button" wire:click="cancelDissolution" class="mt-2 min-h-10 w-full rounded-lg border border-rose-300 bg-white font-black text-rose-700">解散申請を取り消す</button>@endif</div>
             @endif
         </section>
-
-        @if($page === 'home')
-            <button type="button" wire:click="showNationList" class="min-h-11 w-full rounded-xl border border-blue-800 bg-blue-600 px-4 text-sm font-black text-white shadow-sm hover:bg-blue-700" data-nation-member-browse-button>
-                他国の情報を見る
-            </button>
-        @endif
 
         @if($page === 'resources' && $developmentEnabled)
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-resource-management>
