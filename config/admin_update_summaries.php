@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-material-batch-donation',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家資材を複数まとめて納品可能に',
+        'detail' => '国家資材の納品で、画像付きの素材一覧から複数種類と個数を選び、一度にまとめて納品できるようにしました。確認画面では素材ごとの納品数・納品後の残数と、合計の国家資材pt・国家発展EXPを確認できます。',
+    ],
+    [
         'id' => '2026-08-26-standard-character-poses-twenty-three',
         'date' => '2026-08-26',
         'category' => 'added',

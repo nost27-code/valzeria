@@ -92,17 +92,18 @@ final class NationScreen extends Component
 
     public string $nationChatRequestId = '';
 
-    public ?int $donationMaterialId = null;
-
-    public int $donationQuantity = 1;
+    /** @var array<int|string, int> */
+    public array $donationQuantities = [];
 
     public string $donationRequestId = '';
+
+    public bool $showDonationMaterialModal = false;
 
     public bool $showDonationConfirmationModal = false;
 
     public bool $showActivityLogModal = false;
 
-    /** @var array{material_id:int,quantity:int,request_id:string,name:string,remaining_quantity:int,points:int,development_exp:int}|array{} */
+    /** @var array{request_id:string,items:list<array{material_id:int,quantity:int,name:string,remaining_quantity:int,points:int,development_exp:int}>,material_count:int,total_quantity:int,points:int,development_exp:int}|array{} */
     #[Locked]
     public array $confirmedDonation = [];
 
@@ -351,11 +352,66 @@ final class NationScreen extends Component
             return;
         }
 
-        $materials = app(NationResourceService::class)->donatableMaterials($this->character());
-        $this->donationMaterialId = $materials->first()?->material_id;
-        $this->donationQuantity = 1;
+        $this->donationQuantities = [];
+        $this->showDonationMaterialModal = false;
         $this->showDonationConfirmationModal = false;
         $this->navigate('resources');
+    }
+
+    public function openDonationMaterialModal(): void
+    {
+        if ($this->page !== 'resources' || ! config('features.nation_development_enabled', false)) {
+            return;
+        }
+
+        $this->resetErrorBag(['donationQuantities', 'donationQuantities.*']);
+        $this->showDonationMaterialModal = true;
+    }
+
+    public function closeDonationMaterialModal(): void
+    {
+        $this->showDonationMaterialModal = false;
+    }
+
+    public function selectDonationMaterial(int $materialId): void
+    {
+        $material = $this->donatableMaterialForSelection($materialId);
+        if (! $material) {
+            return;
+        }
+
+        $materialId = (int) $material->material_id;
+        if ((int) ($this->donationQuantities[$materialId] ?? 0) < 1) {
+            $this->donationQuantities[$materialId] = 1;
+        }
+    }
+
+    public function incrementDonationQuantity(int $materialId): void
+    {
+        $material = $this->donatableMaterialForSelection($materialId);
+        if (! $material) {
+            return;
+        }
+
+        $materialId = (int) $material->material_id;
+        $currentQuantity = max(0, (int) ($this->donationQuantities[$materialId] ?? 0));
+        $this->donationQuantities[$materialId] = min((int) $material->quantity, $currentQuantity + 1);
+    }
+
+    public function decrementDonationQuantity(int $materialId): void
+    {
+        $currentQuantity = max(0, (int) ($this->donationQuantities[$materialId] ?? 0));
+        if ($currentQuantity < 1) {
+            return;
+        }
+
+        if ($currentQuantity === 1) {
+            unset($this->donationQuantities[$materialId]);
+
+            return;
+        }
+
+        $this->donationQuantities[$materialId] = $currentQuantity - 1;
     }
 
     public function openDonationConfirmation(): void
@@ -366,27 +422,60 @@ final class NationScreen extends Component
         }
 
         $validated = $this->validateDonationInput();
-        $material = app(NationResourceService::class)->donatableMaterial($this->character(), $validated['donationMaterialId']);
-        if (! $material) {
-            $this->addError('donationMaterialId', '納品できる素材が見つかりません。');
+        $selectedQuantities = [];
+        foreach ($validated['donationQuantities'] as $materialId => $quantity) {
+            $materialIdText = (string) $materialId;
+            if (preg_match('/^[1-9][0-9]*$/D', $materialIdText) !== 1) {
+                $this->addError('donationQuantities', '納品する素材が不正です。');
 
-            return;
+                return;
+            }
+            $selectedQuantities[(int) $materialIdText] = (int) $quantity;
         }
-        if ((int) $material->quantity < $validated['donationQuantity']) {
-            $this->addError('donationQuantity', '素材の所持数が足りません。');
+        ksort($selectedQuantities, SORT_NUMERIC);
 
-            return;
+        $materials = app(NationResourceService::class)->donatableMaterials($this->character())->keyBy('material_id');
+        $items = [];
+        $totalQuantity = 0;
+        $totalPoints = 0;
+        $totalDevelopmentExp = 0;
+        foreach ($selectedQuantities as $materialId => $quantity) {
+            $material = $materials->get($materialId);
+            if (! $material) {
+                $this->addError('donationQuantities', '納品できない素材が含まれています。');
+
+                return;
+            }
+            if ((int) $material->quantity < $quantity) {
+                $this->addError('donationQuantities', $material->name.'の所持数が足りません。');
+
+                return;
+            }
+
+            $points = $quantity * (int) $material->points_per_unit;
+            $developmentExp = $quantity * (int) $material->development_exp_per_unit;
+            $items[] = [
+                'material_id' => $materialId,
+                'quantity' => $quantity,
+                'name' => (string) $material->name,
+                'remaining_quantity' => (int) $material->quantity - $quantity,
+                'points' => $points,
+                'development_exp' => $developmentExp,
+            ];
+            $totalQuantity += $quantity;
+            $totalPoints += $points;
+            $totalDevelopmentExp += $developmentExp;
         }
 
         $this->confirmedDonation = [
-            'material_id' => (int) $material->material_id,
-            'quantity' => $validated['donationQuantity'],
             'request_id' => $validated['donationRequestId'],
-            'name' => (string) $material->name,
-            'remaining_quantity' => (int) $material->quantity - $validated['donationQuantity'],
-            'points' => $validated['donationQuantity'] * (int) $material->points_per_unit,
-            'development_exp' => $validated['donationQuantity'] * (int) $material->development_exp_per_unit,
+            'items' => $items,
+            'material_count' => count($items),
+            'total_quantity' => $totalQuantity,
+            'points' => $totalPoints,
+            'development_exp' => $totalDevelopmentExp,
         ];
+        $this->showDonationMaterialModal = false;
         $this->showDonationConfirmationModal = true;
     }
 
@@ -404,20 +493,19 @@ final class NationScreen extends Component
 
         $confirmed = $this->confirmedDonation;
         $this->showDonationConfirmationModal = false;
-        $transaction = $this->perform(
-            fn () => app(NationResourceService::class)->donate(
-                $this->character(),
-                $confirmed['material_id'],
-                $confirmed['quantity'],
-                $confirmed['request_id'],
-            ),
+        $donations = [];
+        foreach ($confirmed['items'] as $item) {
+            $donations[$item['material_id']] = $item['quantity'];
+        }
+        $transactions = $this->perform(
+            fn () => app(NationResourceService::class)->donateBatch($this->character(), $donations, $confirmed['request_id']),
             '国家へ資材を納品しました。',
         );
         $this->confirmedDonation = [];
-        if ($transaction) {
-            $this->actionMessage = '国家へ資材を納品しました。国家資材 +'.number_format((int) $transaction->points_delta)
-                .'pt / 国家発展EXP +'.number_format((int) $transaction->development_exp_delta);
-            $this->donationQuantity = 1;
+        if ($transactions) {
+            $this->actionMessage = '国家へ資材を納品しました。国家資材 +'.number_format($confirmed['points'])
+                .'pt / 国家発展EXP +'.number_format($confirmed['development_exp']);
+            $this->donationQuantities = [];
             $this->rotateDonationRequestId();
         }
     }
@@ -830,7 +918,13 @@ final class NationScreen extends Component
         $personalContribution = 0;
         $contributionRows = collect();
         $donatableMaterials = collect();
-        $donationPreview = null;
+        $donationPreviews = collect();
+        $donationSummary = [
+            'material_count' => 0,
+            'total_quantity' => 0,
+            'points' => 0,
+            'development_exp' => 0,
+        ];
         if ($membership) {
             $membership->load([
                 'nation.rulerMembership.character',
@@ -847,8 +941,17 @@ final class NationScreen extends Component
                     $resources = app(NationResourceService::class);
                     $donatableMaterials = $resources->donatableMaterials($character);
                     $contributionRows = $development->contributionRows($membership->nation);
-                    if ($this->donationMaterialId) {
-                        $donationPreview = $resources->donatableMaterial($character, $this->donationMaterialId);
+                    foreach ($donatableMaterials as $material) {
+                        $selectedQuantity = max(0, (int) ($this->donationQuantities[$material->material_id] ?? 0));
+                        if ($selectedQuantity < 1) {
+                            continue;
+                        }
+
+                        $donationPreviews->push($material);
+                        $donationSummary['material_count']++;
+                        $donationSummary['total_quantity'] += $selectedQuantity;
+                        $donationSummary['points'] += $selectedQuantity * (int) $material->points_per_unit;
+                        $donationSummary['development_exp'] += $selectedQuantity * (int) $material->development_exp_per_unit;
                     }
                 }
             }
@@ -918,7 +1021,8 @@ final class NationScreen extends Component
             'personalContribution' => $personalContribution,
             'contributionRows' => $contributionRows,
             'donatableMaterials' => $donatableMaterials,
-            'donationPreview' => $donationPreview,
+            'donationPreviews' => $donationPreviews,
+            'donationSummary' => $donationSummary,
             'nationLevels' => $nationLevels,
             'confirmationTarget' => $confirmationTarget,
             'confirmationApplication' => $confirmationApplication,
@@ -978,6 +1082,7 @@ final class NationScreen extends Component
         $this->page = $page;
         $this->showFoundingEmblemModal = false;
         $this->showFoundingConfirmationModal = false;
+        $this->showDonationMaterialModal = false;
         $this->showDonationConfirmationModal = false;
         $this->showActivityLogModal = false;
         $this->showHeaderBackgroundModal = false;
@@ -1026,17 +1131,20 @@ final class NationScreen extends Component
         $this->nationChatRequestId = (string) Str::uuid();
     }
 
-    /** @return array{donationMaterialId:int,donationQuantity:int,donationRequestId:string} */
+    /** @return array{donationQuantities:array<int|string,int>,donationRequestId:string} */
     private function validateDonationInput(): array
     {
         return $this->validate([
-            'donationMaterialId' => ['required', 'integer'],
-            'donationQuantity' => ['required', 'integer', 'min:1'],
+            'donationQuantities' => ['required', 'array', 'min:1', 'max:40'],
+            'donationQuantities.*' => ['required', 'integer', 'min:1'],
             'donationRequestId' => ['required', 'uuid'],
         ], [
-            'donationMaterialId.required' => '納品する素材を選んでください。',
-            'donationQuantity.required' => '納品数を入力してください。',
-            'donationQuantity.min' => '納品数は1以上で指定してください。',
+            'donationQuantities.required' => '納品する素材を1種類以上選んでください。',
+            'donationQuantities.min' => '納品する素材を1種類以上選んでください。',
+            'donationQuantities.max' => '納品する素材は40種類以内で選んでください。',
+            'donationQuantities.*.required' => '納品数を入力してください。',
+            'donationQuantities.*.integer' => '納品数は整数で指定してください。',
+            'donationQuantities.*.min' => '納品数は1以上で指定してください。',
             'donationRequestId.required' => '納品情報を更新するため、画面を再読み込みしてください。',
             'donationRequestId.uuid' => '納品情報を更新するため、画面を再読み込みしてください。',
         ]);
@@ -1045,5 +1153,23 @@ final class NationScreen extends Component
     private function rotateDonationRequestId(): void
     {
         $this->donationRequestId = (string) Str::uuid();
+    }
+
+    private function donatableMaterialForSelection(int $materialId): ?object
+    {
+        if ($this->page !== 'resources' || ! config('features.nation_development_enabled', false)) {
+            return null;
+        }
+
+        $material = app(NationResourceService::class)->donatableMaterial($this->character(), $materialId);
+        if (! $material || (int) $material->quantity < 1) {
+            $this->addError('donationQuantities', '納品できる素材が見つかりません。');
+
+            return null;
+        }
+
+        $this->resetErrorBag(['donationQuantities', 'donationQuantities.*']);
+
+        return $material;
     }
 }

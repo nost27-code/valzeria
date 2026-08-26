@@ -302,34 +302,58 @@
 
                 @if($donatableMaterials->isNotEmpty())
                     <form wire:submit="openDonationConfirmation" class="mt-4 space-y-4">
-                        <label class="block">
+                        <div>
                             <span class="text-sm font-black text-stone-800">納品する素材</span>
-                            <select wire:model.live="donationMaterialId" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 px-3 text-sm font-bold">
-                                @foreach($donatableMaterials as $material)
-                                    <option value="{{ $material->material_id }}">{{ $material->name }}（所持 {{ number_format($material->quantity) }}個 / 1個={{ $material->points_per_unit }}pt・{{ $material->development_exp_per_unit }}EXP）</option>
+                            <button type="button" wire:click="openDonationMaterialModal" class="mt-1 flex min-h-16 w-full items-center gap-3 rounded-xl border border-stone-300 bg-white px-3 py-2 text-left shadow-sm transition hover:border-amber-400 hover:bg-amber-50/40" data-nation-material-picker-open>
+                                @if($donationPreviews->isNotEmpty())
+                                    <span class="flex w-20 shrink-0 -space-x-5" aria-hidden="true">
+                                        @foreach($donationPreviews->take(3) as $material)
+                                            @php
+                                                $selectedMaterialIcon = \App\Models\Material::iconImagePathFor($material->material_code, $material->name) ?? 'images/icon/icon_011.webp';
+                                            @endphp
+                                            <img src="{{ asset($selectedMaterialIcon) }}" alt="" width="160" height="160" class="h-10 w-10 rounded-full border-2 border-white bg-stone-50 object-contain">
+                                        @endforeach
+                                    </span>
+                                @else
+                                    <img src="{{ asset('images/icon/icon_011.webp') }}" alt="" width="160" height="160" class="h-12 w-12 shrink-0 object-contain" aria-hidden="true">
+                                @endif
+                                <span class="min-w-0 flex-1">
+                                    @if($donationSummary['material_count'] > 0)
+                                        <strong class="block text-sm font-black text-stone-950">{{ number_format($donationSummary['material_count']) }}種類・合計{{ number_format($donationSummary['total_quantity']) }}個を選択中</strong>
+                                        <span class="mt-0.5 block text-xs font-bold text-stone-500">複数の素材をまとめて納品できます</span>
+                                    @else
+                                        <strong class="block text-sm font-black text-stone-950">素材を選ぶ</strong>
+                                        <span class="mt-0.5 block text-xs font-bold text-stone-500">画像付きの一覧から複数選択できます</span>
+                                    @endif
+                                </span>
+                                <span class="shrink-0 text-xs font-black text-blue-700">{{ $donationSummary['material_count'] > 0 ? '追加・変更' : '一覧を開く' }} ›</span>
+                            </button>
+                            @error('donationQuantities')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
+                            @error('donationQuantities.*')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
+                        </div>
+                        @if($donationPreviews->isNotEmpty())
+                            <div class="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 bg-white" data-nation-selected-materials>
+                                @foreach($donationPreviews as $material)
+                                    @php
+                                        $selectedQuantity = max(0, (int) ($donationQuantities[$material->material_id] ?? 0));
+                                        $selectedMaterialIcon = \App\Models\Material::iconImagePathFor($material->material_code, $material->name) ?? 'images/icon/icon_011.webp';
+                                    @endphp
+                                    <div class="flex items-center gap-2 px-3 py-2" data-nation-selected-material="{{ $material->material_id }}">
+                                        <img src="{{ asset($selectedMaterialIcon) }}" alt="" width="160" height="160" class="h-9 w-9 shrink-0 object-contain" aria-hidden="true">
+                                        <strong class="min-w-0 flex-1 truncate text-xs font-black text-stone-900">{{ $material->name }}</strong>
+                                        <span class="shrink-0 text-xs font-bold text-stone-600">{{ number_format($selectedQuantity) }}個</span>
+                                        <span class="shrink-0 text-[11px] font-bold text-stone-400">残り{{ number_format(max(0, (int) $material->quantity - $selectedQuantity)) }}個</span>
+                                    </div>
                                 @endforeach
-                            </select>
-                            @error('donationMaterialId')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-black text-stone-800">納品数</span>
-                            <input type="number" wire:model.live="donationQuantity" min="1" max="{{ $donationPreview?->quantity ?? 1 }}" inputmode="numeric" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 px-3 text-base font-bold">
-                            @error('donationQuantity')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
-                        </label>
-                        @if($donationPreview)
-                            @php
-                                $previewQuantity = max(0, (int) $donationQuantity);
-                            @endphp
-                            <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
-                                <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">納品後</span><strong class="mt-1 block text-sm text-stone-900">{{ number_format(max(0, $donationPreview->quantity - $previewQuantity)) }}個</strong></div>
-                                <div class="rounded-lg bg-slate-50 p-2"><span class="block text-slate-500">国家資材</span><strong class="mt-1 block text-sm text-slate-900">+{{ number_format($previewQuantity * $donationPreview->points_per_unit) }}pt</strong></div>
-                                <div class="rounded-lg bg-amber-50 p-2"><span class="block text-amber-700">発展EXP</span><strong class="mt-1 block text-sm text-amber-900">+{{ number_format($previewQuantity * $donationPreview->development_exp_per_unit) }}</strong></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-center text-xs font-bold sm:grid-cols-4">
+                                <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">素材種類</span><strong class="mt-1 block text-sm text-stone-900">{{ number_format($donationSummary['material_count']) }}種類</strong></div>
+                                <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">納品数</span><strong class="mt-1 block text-sm text-stone-900">{{ number_format($donationSummary['total_quantity']) }}個</strong></div>
+                                <div class="rounded-lg bg-slate-50 p-2"><span class="block text-slate-500">国家資材</span><strong class="mt-1 block text-sm text-slate-900">+{{ number_format($donationSummary['points']) }}pt</strong></div>
+                                <div class="rounded-lg bg-amber-50 p-2"><span class="block text-amber-700">発展EXP</span><strong class="mt-1 block text-sm text-amber-900">+{{ number_format($donationSummary['development_exp']) }}</strong></div>
                             </div>
                         @endif
-                        <button type="submit" wire:loading.attr="disabled" wire:target="openDonationConfirmation" class="min-h-12 w-full rounded-xl bg-emerald-600 px-4 font-black text-white shadow-sm disabled:opacity-50">
-                            <span wire:loading.remove wire:target="openDonationConfirmation">納品内容を確認する</span>
-                            <span wire:loading wire:target="openDonationConfirmation">確認しています…</span>
-                        </button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="openDonationConfirmation" @disabled($donationSummary['material_count'] < 1) class="min-h-12 w-full rounded-xl bg-emerald-600 px-4 font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"><span wire:loading.remove wire:target="openDonationConfirmation">納品内容を確認する</span><span wire:loading wire:target="openDonationConfirmation">確認しています…</span></button>
                     </form>
                 @else
                     <p class="mt-4 rounded-xl bg-stone-50 px-3 py-6 text-center text-sm font-bold text-stone-500">現在、納品できる都市素材を所持していません。</p>
@@ -648,32 +672,86 @@
         </div>
     @endif
 
+    @if($showDonationMaterialModal && $membership && $page === 'resources')
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="donation-material-modal-title" data-nation-material-modal wire:click.self="closeDonationMaterialModal" wire:keydown.escape.window="closeDonationMaterialModal">
+            <section class="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div>
+                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">MATERIAL</p>
+                        <h2 id="donation-material-modal-title" class="text-lg font-black text-stone-950">納品する素材を選ぶ</h2>
+                        <p class="mt-0.5 text-xs font-bold text-stone-500">複数の素材を選び、－／＋で個数を調整できます</p>
+                    </div>
+                    <button type="button" wire:click="closeDonationMaterialModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="素材選択を閉じる">×</button>
+                </header>
+                <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                        @foreach($donatableMaterials as $material)
+                            @php
+                                $tileDonationQuantity = max(0, (int) ($donationQuantities[$material->material_id] ?? 0));
+                                $isSelectedDonationMaterial = $tileDonationQuantity > 0;
+                                $materialIcon = \App\Models\Material::iconImagePathFor($material->material_code, $material->name) ?? 'images/icon/icon_011.webp';
+                            @endphp
+                            <article wire:key="nation-donation-material-{{ $material->material_id }}" class="overflow-hidden rounded-xl border-2 bg-white shadow-sm {{ $isSelectedDonationMaterial ? 'border-amber-500 ring-2 ring-amber-100' : 'border-stone-200' }}" data-nation-material-tile="{{ $material->material_id }}" data-selected="{{ $isSelectedDonationMaterial ? 'true' : 'false' }}">
+                                <button type="button" wire:click="selectDonationMaterial({{ $material->material_id }})" class="flex w-full flex-col items-center px-2 pb-2 pt-3 text-center">
+                                    <img src="{{ asset($materialIcon) }}" alt="{{ $material->name }}" width="160" height="160" loading="lazy" class="h-14 w-14 object-contain sm:h-16 sm:w-16">
+                                    <strong class="mt-1 line-clamp-2 min-h-10 text-xs font-black leading-5 text-stone-950">{{ $material->name }}</strong>
+                                    <span class="mt-0.5 text-[11px] font-bold text-stone-500">所持 {{ number_format($material->quantity) }}個</span>
+                                    <span class="text-[10px] font-bold text-amber-700">1個={{ $material->points_per_unit }}pt・{{ $material->development_exp_per_unit }}EXP</span>
+                                </button>
+                                <div class="grid grid-cols-[2.5rem_1fr_2.5rem] items-center border-t border-stone-200 bg-stone-50 p-1.5">
+                                    <button type="button" wire:click="decrementDonationQuantity({{ $material->material_id }})" @disabled(!$isSelectedDonationMaterial || $tileDonationQuantity < 1) class="min-h-10 rounded-lg border border-stone-300 bg-white text-xl font-black text-stone-700 disabled:cursor-not-allowed disabled:opacity-40" aria-label="{{ $material->name }}の納品数を1個減らす">−</button>
+                                    <strong class="text-center text-base font-black text-stone-950" data-nation-material-quantity>{{ number_format($tileDonationQuantity) }}</strong>
+                                    <button type="button" wire:click="incrementDonationQuantity({{ $material->material_id }})" @disabled($isSelectedDonationMaterial && $tileDonationQuantity >= (int) $material->quantity) class="min-h-10 rounded-lg bg-emerald-600 text-xl font-black text-white disabled:cursor-not-allowed disabled:opacity-40" aria-label="{{ $material->name }}の納品数を1個増やす">＋</button>
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+                </div>
+                <footer class="shrink-0 border-t border-stone-200 bg-white p-4">
+                    @if($donationSummary['material_count'] > 0)
+                        <p class="mb-2 text-center text-xs font-bold text-stone-600"><strong class="text-stone-950">{{ number_format($donationSummary['material_count']) }}種類・合計{{ number_format($donationSummary['total_quantity']) }}個</strong>を選択中</p>
+                    @else
+                        <p class="mb-2 text-center text-xs font-bold text-stone-500">納品する素材を1種類以上選択してください</p>
+                    @endif
+                    <button type="button" wire:click="closeDonationMaterialModal" @disabled($donationSummary['material_count'] < 1) class="min-h-11 w-full rounded-xl bg-blue-700 px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50">選択を反映する</button>
+                </footer>
+            </section>
+        </div>
+    @endif
+
     @if($showDonationConfirmationModal && $membership && $page === 'resources' && $confirmedDonation !== [])
-        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="donation-confirmation-modal-title" data-nation-donation-confirmation wire:click.self="closeDonationConfirmation" wire:keydown.escape.window="closeDonationConfirmation">
+        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="donation-confirmation-modal-title" data-nation-donation-confirmation wire:click.self="closeDonationConfirmation" wire:keydown.escape.window="closeDonationConfirmation">
             <section class="w-full max-w-md overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
                 <header class="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
                     <div>
                         <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">CONTRIBUTE</p>
-                        <h2 id="donation-confirmation-modal-title" class="text-lg font-black text-stone-950">この素材を納品しますか？</h2>
+                        <h2 id="donation-confirmation-modal-title" class="text-lg font-black text-stone-950">選んだ{{ number_format($confirmedDonation['material_count']) }}種類の素材を納品しますか？</h2>
                     </div>
                     <button type="button" wire:click="closeDonationConfirmation" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="納品確認を閉じる">×</button>
                 </header>
                 <div class="p-4">
-                    <div class="rounded-xl bg-stone-50 p-3">
-                        <p class="text-base font-black text-stone-950">{{ $confirmedDonation['name'] }}</p>
-                        <div class="mt-2 grid grid-cols-2 gap-2 text-sm font-bold text-stone-700">
-                            <p>納品数 <strong class="float-right text-stone-950">{{ number_format($confirmedDonation['quantity']) }}個</strong></p>
-                            <p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format($confirmedDonation['remaining_quantity']) }}個</strong></p>
-                            <p>国家資材 <strong class="float-right text-slate-950">+{{ number_format($confirmedDonation['points']) }}pt</strong></p>
-                            <p>国家発展EXP <strong class="float-right text-amber-800">+{{ number_format($confirmedDonation['development_exp']) }}</strong></p>
-                        </div>
+                    <div class="max-h-56 divide-y divide-stone-200 overflow-y-auto overscroll-contain rounded-xl bg-stone-50 px-3" data-nation-donation-confirmation-items>
+                        @foreach($confirmedDonation['items'] as $item)
+                            <div class="py-2.5" data-nation-donation-confirmation-item="{{ $item['material_id'] }}">
+                                <p class="text-sm font-black text-stone-950">{{ $item['name'] }}</p>
+                                <div class="mt-1 grid grid-cols-2 gap-2 text-xs font-bold text-stone-600">
+                                    <p>納品数 <strong class="float-right text-stone-950">{{ number_format($item['quantity']) }}個</strong></p>
+                                    <p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format($item['remaining_quantity']) }}個</strong></p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                        <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">合計納品数</span><strong class="mt-1 block text-sm text-stone-950">{{ number_format($confirmedDonation['total_quantity']) }}個</strong></div>
+                        <div class="rounded-lg bg-slate-50 p-2"><span class="block text-slate-500">国家資材</span><strong class="mt-1 block text-sm text-slate-950">+{{ number_format($confirmedDonation['points']) }}pt</strong></div>
+                        <div class="rounded-lg bg-amber-50 p-2"><span class="block text-amber-700">発展EXP</span><strong class="mt-1 block text-sm text-amber-800">+{{ number_format($confirmedDonation['development_exp']) }}</strong></div>
                     </div>
                     <p class="mt-3 text-xs font-bold leading-relaxed text-rose-700">納品した素材は返却できません。装備進化・素材交換・NPC調達に使う予定がないか、残数を確認してください。</p>
                 </div>
                 <footer class="grid grid-cols-2 gap-2 border-t border-stone-200 bg-white p-4">
                     <button type="button" wire:click="closeDonationConfirmation" class="min-h-11 rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700">戻る</button>
                     <button type="button" wire:click="donateMaterials" wire:loading.attr="disabled" wire:target="donateMaterials" class="min-h-11 rounded-lg bg-emerald-600 px-3 text-sm font-black text-white disabled:opacity-50">
-                        <span wire:loading.remove wire:target="donateMaterials">納品を確定する</span>
+                        <span wire:loading.remove wire:target="donateMaterials">まとめて納品する</span>
                         <span wire:loading wire:target="donateMaterials">納品しています…</span>
                     </button>
                 </footer>

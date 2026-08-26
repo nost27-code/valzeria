@@ -225,11 +225,11 @@ final class NationFoundationTest extends TestCase
         $character = $this->character('発展納品者');
         $nation = app(NationService::class)->create($character, '発展確認国');
         $material = Material::create(['material_code' => 'TEST_UI_DONATION_MAT', 'name' => '画面納品試験資材', 'category' => 'city', 'rarity' => 'R']);
+        $secondMaterial = Material::create(['material_code' => 'TEST_UI_DONATION_MAT_2', 'name' => '画面納品試験資材その二', 'category' => 'city', 'rarity' => 'N']);
         NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
+        NationMaterialConversionRate::create(['material_id' => $secondMaterial->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
         CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
-        $otherMaterial = Material::create(['material_code' => 'TEST_UI_OTHER_DONATION_MAT', 'name' => '差し替え試験資材', 'category' => 'city', 'rarity' => 'R']);
-        NationMaterialConversionRate::create(['material_id' => $otherMaterial->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
-        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $otherMaterial->id, 'quantity' => 10]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $secondMaterial->id, 'quantity' => 5]);
         $this->actingAs($character->user);
 
         Livewire::test(NationScreen::class)
@@ -239,27 +239,57 @@ final class NationFoundationTest extends TestCase
             ->call('showResourceManagement')
             ->assertSet('page', 'resources')
             ->assertSee('都市素材は装備進化・素材交換・NPC調達にも使用します。')
+            ->assertSet('donationQuantities', [])
+            ->assertSeeHtml('data-nation-material-picker-open')
+            ->assertDontSeeHtml('wire:model.live="donationMaterialId"')
+            ->call('openDonationMaterialModal')
+            ->assertSet('showDonationMaterialModal', true)
+            ->assertSeeHtml('data-nation-material-modal')
+            ->assertSeeHtml('data-nation-material-tile="'.$material->id.'"')
             ->assertSee('画面納品試験資材')
-            ->set('donationMaterialId', $material->id)
-            ->set('donationQuantity', 4)
+            ->assertSee('所持 10個')
+            ->assertSee('1個=3pt・2EXP')
+            ->call('incrementDonationQuantity', $material->id)
+            ->assertSet('donationQuantities.'.$material->id, 1)
+            ->call('incrementDonationQuantity', $material->id)
+            ->assertSet('donationQuantities.'.$material->id, 2)
+            ->call('decrementDonationQuantity', $material->id)
+            ->assertSet('donationQuantities.'.$material->id, 1)
+            ->call('decrementDonationQuantity', $material->id)
+            ->assertSet('donationQuantities', [])
+            ->call('incrementDonationQuantity', $material->id)
+            ->call('incrementDonationQuantity', $material->id)
+            ->call('incrementDonationQuantity', $material->id)
+            ->call('incrementDonationQuantity', $material->id)
+            ->assertSet('donationQuantities.'.$material->id, 4)
+            ->set('donationQuantities.'.$material->id, 10)
+            ->call('incrementDonationQuantity', $material->id)
+            ->assertSet('donationQuantities.'.$material->id, 10)
+            ->set('donationQuantities.'.$material->id, 4)
+            ->call('incrementDonationQuantity', $secondMaterial->id)
+            ->call('incrementDonationQuantity', $secondMaterial->id)
+            ->assertSet('donationQuantities.'.$secondMaterial->id, 2)
+            ->assertSee('2種類・合計6個を選択中')
+            ->call('closeDonationMaterialModal')
+            ->assertSet('showDonationMaterialModal', false)
             ->call('openDonationConfirmation')
             ->assertSet('showDonationConfirmationModal', true)
-            ->assertSet('confirmedDonation.material_id', $material->id)
-            ->assertSet('confirmedDonation.quantity', 4)
+            ->assertSee('選んだ2種類の素材を納品しますか？')
+            ->assertSee('画面納品試験資材その二')
             ->assertSee('納品後の残数')
             ->assertSee('6個')
-            ->set('donationMaterialId', $otherMaterial->id)
-            ->set('donationQuantity', 1)
             ->call('donateMaterials')
             ->assertSet('showDonationConfirmationModal', false)
-            ->assertSee('国家資材 +12pt / 国家発展EXP +8')
+            ->assertSet('donationQuantities', [])
+            ->assertSee('国家資材 +14pt / 国家発展EXP +10')
             ->assertSee('あなたの貢献度')
-            ->assertSee('8 EXP');
+            ->assertSee('10 EXP');
 
         $this->assertSame(6, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
-        $this->assertSame(10, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $otherMaterial->id)->value('quantity'));
-        $this->assertSame(12, (int) $nation->fresh()->treasury_points);
-        $this->assertSame(8, (int) $nation->fresh()->development_exp);
+        $this->assertSame(3, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $secondMaterial->id)->value('quantity'));
+        $this->assertSame(14, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(10, (int) $nation->fresh()->development_exp);
+        $this->assertSame(2, NationResourceTransaction::where('nation_id', $nation->id)->where('transaction_type', 'donation')->count());
     }
 
     public function test_development_migration_refuses_to_drop_recorded_progress(): void
@@ -373,6 +403,81 @@ final class NationFoundationTest extends TestCase
         $this->assertSame(8, (int) $transaction->development_exp_delta);
         $this->assertSame($transaction->id, app(NationResourceService::class)->donate($character, $material->id, 4, 'nation-test-donation')->id);
         $this->assertSame(6, CharacterMaterial::where('character_id', $character->id)->where('material_id', $material->id)->value('quantity'));
+    }
+
+    public function test_batch_donation_is_atomic_and_idempotent_across_multiple_materials(): void
+    {
+        $character = $this->character('一括納品者');
+        $nation = app(NationService::class)->create($character, '一括納品国');
+        $highMaterial = Material::create(['material_code' => 'TEST_BATCH_HIGH', 'name' => '一括高位素材', 'category' => 'city', 'rarity' => 'R']);
+        $lowMaterial = Material::create(['material_code' => 'TEST_BATCH_LOW', 'name' => '一括低位素材', 'category' => 'city', 'rarity' => 'N']);
+        NationMaterialConversionRate::create(['material_id' => $highMaterial->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
+        NationMaterialConversionRate::create(['material_id' => $lowMaterial->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $highMaterial->id, 'quantity' => 5]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $lowMaterial->id, 'quantity' => 4]);
+        $requestId = '11111111-1111-4111-8111-111111111111';
+
+        $transactions = app(NationResourceService::class)->donateBatch($character, [
+            $lowMaterial->id => 3,
+            $highMaterial->id => 2,
+        ], $requestId);
+
+        $this->assertCount(2, $transactions);
+        $this->assertSame(3, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $highMaterial->id)->value('quantity'));
+        $this->assertSame(1, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $lowMaterial->id)->value('quantity'));
+        $this->assertSame(9, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(7, (int) $nation->fresh()->development_exp);
+        $this->assertSame([$requestId, $requestId.':'.$lowMaterial->id], $transactions->pluck('idempotency_key')->all());
+
+        $retry = app(NationResourceService::class)->donateBatch($character, [
+            $highMaterial->id => 2,
+            $lowMaterial->id => 3,
+        ], $requestId);
+        $this->assertSame($transactions->pluck('id')->all(), $retry->pluck('id')->all());
+        $this->assertSame(9, (int) $nation->fresh()->treasury_points);
+
+        try {
+            app(NationResourceService::class)->donateBatch($character, [
+                $highMaterial->id => 1,
+                $lowMaterial->id => 3,
+            ], $requestId);
+            $this->fail('A batch request key must not be reusable with a different payload.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('異なる納品内容', $exception->getMessage());
+        }
+
+        $this->assertSame(3, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $highMaterial->id)->value('quantity'));
+        $this->assertSame(1, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $lowMaterial->id)->value('quantity'));
+        $this->assertSame(2, NationResourceTransaction::where('nation_id', $nation->id)->where('transaction_type', 'donation')->count());
+    }
+
+    public function test_batch_donation_rolls_back_every_material_when_one_stock_is_insufficient(): void
+    {
+        $character = $this->character('一括不足者');
+        $nation = app(NationService::class)->create($character, '一括不足国');
+        $firstMaterial = Material::create(['material_code' => 'TEST_BATCH_ROLLBACK_A', 'name' => '一括巻戻素材A', 'category' => 'city', 'rarity' => 'R']);
+        $secondMaterial = Material::create(['material_code' => 'TEST_BATCH_ROLLBACK_B', 'name' => '一括巻戻素材B', 'category' => 'city', 'rarity' => 'R']);
+        foreach ([$firstMaterial, $secondMaterial] as $material) {
+            NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
+        }
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $firstMaterial->id, 'quantity' => 5]);
+        CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $secondMaterial->id, 'quantity' => 1]);
+
+        try {
+            app(NationResourceService::class)->donateBatch($character, [
+                $firstMaterial->id => 2,
+                $secondMaterial->id => 2,
+            ], '22222222-2222-4222-8222-222222222222');
+            $this->fail('Insufficient stock must roll back the whole batch.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('所持数が足りません', $exception->getMessage());
+        }
+
+        $this->assertSame(5, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $firstMaterial->id)->value('quantity'));
+        $this->assertSame(1, (int) CharacterMaterial::where('character_id', $character->id)->where('material_id', $secondMaterial->id)->value('quantity'));
+        $this->assertSame(0, (int) $nation->fresh()->treasury_points);
+        $this->assertSame(0, (int) $nation->fresh()->development_exp);
+        $this->assertSame(0, NationResourceTransaction::where('nation_id', $nation->id)->count());
     }
 
     public function test_donation_rejects_an_idempotency_key_reused_for_another_payload(): void

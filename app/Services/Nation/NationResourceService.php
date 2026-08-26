@@ -12,6 +12,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * 国家資材を変更するtransactionでは、次の順でrow lockを取得する。
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\DB;
  *
  * 所属確認用の最初のqueryはnation_idを解決する非lock snapshotであり、
  * 国家row取得後にmembershipをlockして所属が変わっていないことを再検証する。
+ * 複数素材は換算率・在庫のどちらもmaterial_id昇順でlockする。
  */
 final class NationResourceService
 {
@@ -97,6 +99,113 @@ final class NationResourceService
         }
     }
 
+    /**
+     * @param  array<int|string, int|string>  $donations  material_id => quantity
+     * @return Collection<int, NationResourceTransaction>
+     */
+    public function donateBatch(Character $character, array $donations, string $idempotencyKey): Collection
+    {
+        throw_unless(config('features.nation_development_enabled', false), \DomainException::class, '国家資材納品は現在準備中です。');
+        throw_unless(Str::isUuid($idempotencyKey), \DomainException::class, '納品情報を更新して、もう一度お試しください。');
+
+        $normalized = $this->normalizeDonationBatch($donations);
+        $existing = $this->existingBatchDonations($idempotencyKey);
+        if ($existing->isNotEmpty()) {
+            return $this->matchingBatchDonations($existing, $character, $normalized, $idempotencyKey);
+        }
+
+        try {
+            return DB::transaction(function () use ($character, $normalized, $idempotencyKey): Collection {
+                $membershipSnapshot = NationMembership::where('character_id', $character->id)->first();
+                throw_unless($membershipSnapshot, \DomainException::class, '国家へ所属していません。');
+
+                $nation = Nation::whereKey($membershipSnapshot->nation_id)->lockForUpdate()->firstOrFail();
+                $membership = NationMembership::whereKey($membershipSnapshot->id)
+                    ->where('nation_id', $nation->id)
+                    ->where('character_id', $character->id)
+                    ->lockForUpdate()
+                    ->first();
+                throw_unless($membership, \DomainException::class, '所属国家が変更されました。画面を更新して、もう一度お試しください。');
+
+                $existing = $this->existingBatchDonations($idempotencyKey);
+                if ($existing->isNotEmpty()) {
+                    return $this->matchingBatchDonations($existing, $character, $normalized, $idempotencyKey);
+                }
+
+                $materialIds = array_keys($normalized);
+                $rates = NationMaterialConversionRate::query()
+                    ->whereIn('material_id', $materialIds)
+                    ->where('is_active', true)
+                    ->orderBy('material_id')
+                    ->sharedLock()
+                    ->get()
+                    ->keyBy('material_id');
+                throw_unless($rates->count() === count($normalized), \DomainException::class, '国家資材へ換算できない素材が含まれています。');
+
+                $stocks = CharacterMaterial::query()
+                    ->where('character_id', $character->id)
+                    ->whereIn('material_id', $materialIds)
+                    ->orderBy('material_id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('material_id');
+                foreach ($normalized as $materialId => $quantity) {
+                    $stock = $stocks->get($materialId);
+                    throw_if(! $stock || (int) $stock->quantity < $quantity, \DomainException::class, '素材の所持数が足りません。');
+                }
+
+                $transactionData = [];
+                $idempotencyKeys = $this->batchIdempotencyKeys($normalized, $idempotencyKey);
+                $balanceAfter = (int) $nation->treasury_points;
+                $totalPoints = 0;
+                $totalDevelopmentExp = 0;
+
+                foreach ($normalized as $materialId => $quantity) {
+                    $rate = $rates->get($materialId);
+                    $stock = $stocks->get($materialId);
+                    $points = $quantity * (int) $rate->points_per_unit;
+                    $developmentExp = $quantity * (int) $rate->development_exp_per_unit;
+
+                    $stock->quantity -= $quantity;
+                    $stock->save();
+
+                    $balanceAfter += $points;
+                    $totalPoints += $points;
+                    $totalDevelopmentExp += $developmentExp;
+                    $transactionData[] = [
+                        'nation_id' => $nation->id,
+                        'character_id' => $character->id,
+                        'material_id' => $materialId,
+                        'transaction_type' => 'donation',
+                        'quantity' => $quantity,
+                        'points_delta' => $points,
+                        'balance_after' => $balanceAfter,
+                        'development_exp_delta' => $developmentExp,
+                        'idempotency_key' => $idempotencyKeys[$materialId],
+                        'metadata' => [
+                            'batch_request_id' => $idempotencyKey,
+                            'batch_size' => count($normalized),
+                        ],
+                    ];
+                }
+
+                $nation->treasury_points += $totalPoints;
+                $nation->development_exp += $totalDevelopmentExp;
+                $nation->save();
+
+                return collect($transactionData)
+                    ->map(static fn (array $attributes): NationResourceTransaction => NationResourceTransaction::create($attributes));
+            }, 3);
+        } catch (QueryException $exception) {
+            $existing = $this->existingBatchDonations($idempotencyKey);
+            if ($existing->isNotEmpty()) {
+                return $this->matchingBatchDonations($existing, $character, $normalized, $idempotencyKey);
+            }
+
+            throw $exception;
+        }
+    }
+
     public function spend(Nation $nation, int $points, string $type, array $metadata = [], ?int $warId = null): NationResourceTransaction
     {
         throw_if($points < 1, \DomainException::class, '消費ポイントが不正です。');
@@ -165,6 +274,82 @@ final class NationResourceService
         throw_unless($matches, \DomainException::class, '同じ送信キーが異なる納品内容で再利用されました。画面を更新して、もう一度お試しください。');
 
         return $transaction;
+    }
+
+    /**
+     * @param  array<int, int>  $donations
+     * @return Collection<int, NationResourceTransaction>
+     */
+    private function matchingBatchDonations(Collection $transactions, Character $character, array $donations, string $idempotencyKey): Collection
+    {
+        $idempotencyKeys = $this->batchIdempotencyKeys($donations, $idempotencyKey);
+        $transactionsByKey = $transactions->keyBy('idempotency_key');
+        $matched = collect();
+
+        foreach ($donations as $materialId => $quantity) {
+            $transaction = $transactionsByKey->get($idempotencyKeys[$materialId]);
+            $matches = $transaction instanceof NationResourceTransaction
+                && $transaction->transaction_type === 'donation'
+                && (int) $transaction->character_id === (int) $character->id
+                && (int) $transaction->material_id === $materialId
+                && (int) $transaction->quantity === $quantity;
+            throw_unless($matches, \DomainException::class, '同じ送信キーが異なる納品内容で再利用されました。画面を更新して、もう一度お試しください。');
+            $matched->push($transaction);
+        }
+
+        throw_unless($transactions->count() === $matched->count(), \DomainException::class, '同じ送信キーが異なる納品内容で再利用されました。画面を更新して、もう一度お試しください。');
+
+        return $matched;
+    }
+
+    /** @return Collection<int, NationResourceTransaction> */
+    private function existingBatchDonations(string $idempotencyKey): Collection
+    {
+        return NationResourceTransaction::query()
+            ->where(function ($query) use ($idempotencyKey): void {
+                $query->where('idempotency_key', $idempotencyKey)
+                    ->orWhere('idempotency_key', 'like', $idempotencyKey.':%');
+            })
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @param  array<int, int>  $donations
+     * @return array<int, string>
+     */
+    private function batchIdempotencyKeys(array $donations, string $idempotencyKey): array
+    {
+        $keys = [];
+        foreach (array_keys($donations) as $index => $materialId) {
+            $keys[$materialId] = $index === 0 ? $idempotencyKey : $idempotencyKey.':'.$materialId;
+        }
+
+        return $keys;
+    }
+
+    /**
+     * @param  array<int|string, int|string>  $donations
+     * @return array<int, int>
+     */
+    private function normalizeDonationBatch(array $donations): array
+    {
+        $normalized = [];
+        foreach ($donations as $materialId => $quantity) {
+            $materialIdText = (string) $materialId;
+            $quantityText = (string) $quantity;
+            $validMaterialId = preg_match('/^[1-9][0-9]*$/D', $materialIdText) === 1;
+            $validQuantity = preg_match('/^[1-9][0-9]*$/D', $quantityText) === 1;
+            throw_unless($validMaterialId && $validQuantity, \DomainException::class, '納品する素材または個数が不正です。');
+
+            $normalized[(int) $materialIdText] = (int) $quantityText;
+        }
+
+        throw_if($normalized === [], \DomainException::class, '納品する素材を1種類以上選んでください。');
+        throw_if(count($normalized) > 40, \DomainException::class, '納品する素材は40種類以内で選んでください。');
+        ksort($normalized, SORT_NUMERIC);
+
+        return $normalized;
     }
 
     private function donatableMaterialQuery(Character $character): Builder
