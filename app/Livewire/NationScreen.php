@@ -37,6 +37,8 @@ final class NationScreen extends Component
 {
     use WithPagination;
 
+    private const MEMBER_PREVIEW_LIMIT = 9;
+
     private const ACTIVITY_LOG_PREVIEW_LIMIT = 5;
 
     private const ACTIVITY_LOG_MODAL_LIMIT = 100;
@@ -85,6 +87,8 @@ final class NationScreen extends Component
     public string $profileHeaderBackgroundKey = NationHeaderBackgroundCatalog::DEFAULT_KEY;
 
     public bool $showHeaderBackgroundModal = false;
+
+    public bool $showMemberListModal = false;
 
     public string $dissolutionConfirmation = '';
 
@@ -185,6 +189,21 @@ final class NationScreen extends Component
     {
         $this->showHeaderBackgroundModal = false;
         $this->resetErrorBag('profileHeaderBackgroundKey');
+    }
+
+    public function openMemberListModal(): void
+    {
+        $nation = $this->memberListNation();
+        if (! $nation || $nation->memberships()->count() <= self::MEMBER_PREVIEW_LIMIT) {
+            return;
+        }
+
+        $this->showMemberListModal = true;
+    }
+
+    public function closeMemberListModal(): void
+    {
+        $this->showMemberListModal = false;
     }
 
     public function saveHeaderBackground(): void
@@ -1030,6 +1049,7 @@ final class NationScreen extends Component
             'headerBackgrounds' => $headerBackgroundCatalog->all(),
             'maxMembers' => $maxMembers,
             'activeNationCount' => $activeNationCount,
+            'memberPreviewLimit' => self::MEMBER_PREVIEW_LIMIT,
             'cooldowns' => app(NationMembershipCooldownService::class),
             'minimumMembershipHours' => app(NationCommunitySettingsService::class)->minimumMembershipHours(),
             'leaveJoinCooldownHours' => app(NationCommunitySettingsService::class)->leaveJoinCooldownHours(),
@@ -1074,6 +1094,19 @@ final class NationScreen extends Component
         return $nation;
     }
 
+    private function memberListNation(): ?Nation
+    {
+        if ($this->page === 'home') {
+            return $this->currentMembership()?->nation;
+        }
+
+        if ($this->page === 'detail' && $this->selectedNationId) {
+            return Nation::active()->find($this->selectedNationId);
+        }
+
+        return null;
+    }
+
     private function navigate(string $page, bool $keepSelection = false): void
     {
         $this->page = $page;
@@ -1083,6 +1116,7 @@ final class NationScreen extends Component
         $this->showDonationConfirmationModal = false;
         $this->showActivityLogModal = false;
         $this->showHeaderBackgroundModal = false;
+        $this->showMemberListModal = false;
         $this->confirmedDonation = [];
         $this->actionMessage = null;
         $this->resetErrorBag();

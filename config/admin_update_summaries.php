@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-member-icon-grid',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家の国民一覧をアイコン表示に変更',
+        'detail' => '国家TOPと国家詳細の国民一覧を、冒険者のキャラアイコンが並ぶ3列表示へ変更しました。10人以上の国家では「国民をすべて見る」から全員を確認でき、名前やアイコンを押すと冒険者カードを開けます。',
+    ],
+    [
         'id' => '2026-08-26-header-character-pose-cycle',
         'date' => '2026-08-26',
         'category' => 'changed',

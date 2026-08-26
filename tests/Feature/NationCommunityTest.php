@@ -977,6 +977,81 @@ SQL);
             ->assertSee($ownNation->display_name);
     }
 
+    public function test_nation_member_preview_uses_three_column_icons_and_opens_all_members_modal(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('一覧国王');
+        $nation = app(NationService::class)->create($ruler, '一覧確認');
+
+        for ($number = 1; $number <= 9; $number++) {
+            $citizen = $this->character(sprintf('一覧国民%02d', $number));
+            $citizen->update(['icon_path' => sprintf('/images/chara/chara_%03d.webp', $number + 1)]);
+            NationMembership::create([
+                'nation_id' => $nation->id,
+                'character_id' => $citizen->id,
+                'role' => 'citizen',
+                'joined_at' => now()->addMinutes($number),
+            ]);
+        }
+
+        $this->actingAs($ruler->user);
+        $screen = Livewire::test(NationScreen::class)
+            ->assertSet('showMemberListModal', false)
+            ->assertSeeHtml('data-nation-member-grid')
+            ->assertSeeHtml('data-nation-member-card="'.$ruler->id.'"')
+            ->assertSee('一覧国民08')
+            ->assertDontSee('一覧国民09')
+            ->assertSee('国民をすべて見る（10人）')
+            ->assertSeeHtml('data-nation-member-list-open');
+
+        $this->assertSame(9, substr_count($screen->html(), 'data-nation-member-card='));
+
+        $screen
+            ->call('openMemberListModal')
+            ->assertSet('showMemberListModal', true)
+            ->assertSeeHtml('data-nation-member-list-modal')
+            ->assertSee('一覧確認王国・全10人')
+            ->assertSee('一覧国民09')
+            ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
+            ->call('closeMemberListModal')
+            ->assertSet('showMemberListModal', false)
+            ->assertDontSeeHtml('data-nation-member-list-modal');
+
+        $outsider = $this->character('一覧閲覧者');
+        $this->actingAs($outsider->user);
+        Livewire::test(NationScreen::class)
+            ->call('showNationDetail', $nation->id)
+            ->assertSeeHtml('data-nation-member-grid')
+            ->assertSee('国民をすべて見る（10人）')
+            ->call('openMemberListModal')
+            ->assertSet('showMemberListModal', true)
+            ->assertSee('一覧国民09')
+            ->call('showNationList')
+            ->assertSet('showMemberListModal', false)
+            ->assertDontSeeHtml('data-nation-member-list-modal');
+
+        $nineMemberRuler = $this->character('九人国王');
+        $nineMemberNation = app(NationService::class)->create($nineMemberRuler, '九人確認');
+        for ($number = 1; $number <= 8; $number++) {
+            NationMembership::create([
+                'nation_id' => $nineMemberNation->id,
+                'character_id' => $this->character(sprintf('九人国民%02d', $number))->id,
+                'role' => 'citizen',
+                'joined_at' => now()->addMinutes($number),
+            ]);
+        }
+
+        $this->actingAs($nineMemberRuler->user);
+        $nineMemberScreen = Livewire::test(NationScreen::class)
+            ->assertSee('九人国民08')
+            ->assertDontSeeHtml('data-nation-member-list-open')
+            ->call('openMemberListModal')
+            ->assertSet('showMemberListModal', false)
+            ->assertDontSeeHtml('data-nation-member-list-modal');
+
+        $this->assertSame(9, substr_count($nineMemberScreen->html(), 'data-nation-member-card='));
+    }
+
     public function test_nation_home_rotates_three_daily_showcases_and_full_list_keeps_every_nation_visible(): void
     {
         config()->set('features.nation_community_enabled', true);

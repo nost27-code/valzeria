@@ -132,15 +132,22 @@
             </section>
 
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                <h2 class="text-base font-black text-stone-900">国民一覧</h2>
-                <div class="mt-2 divide-y divide-stone-100">
-                    @foreach($selectedNation->memberships as $nationMember)
-                        <div class="flex items-center justify-between gap-3 py-2.5 text-sm">
-                            <div class="min-w-0"><p class="truncate font-black text-stone-800">{{ $nationMember->character?->name ?? '不明' }}</p><p class="text-xs font-bold text-stone-500">{{ $nationMember->roleLabel($selectedNation) }}</p></div>
-                            <div class="shrink-0 text-right text-xs font-bold text-stone-500">Lv{{ $nationMember->character?->level ?? 1 }}<br>{{ $nationMember->joined_at?->format('Y/m/d') }}</div>
-                        </div>
-                    @endforeach
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-base font-black text-stone-900">国民一覧</h2>
+                    <span class="text-xs font-black text-stone-500">{{ $selectedNation->memberships->count() }}人</span>
                 </div>
+                <div class="mt-3">
+                    @include('livewire.partials.nation-member-grid', [
+                        'memberships' => $selectedNation->memberships,
+                        'nation' => $selectedNation,
+                        'limit' => $memberPreviewLimit,
+                    ])
+                </div>
+                @if($selectedNation->memberships->count() > $memberPreviewLimit)
+                    <button type="button" wire:click="openMemberListModal" class="mt-3 min-h-11 w-full rounded-xl border border-amber-300 bg-amber-50 text-sm font-black text-amber-900 shadow-sm" data-nation-member-list-open>
+                        国民をすべて見る（{{ $selectedNation->memberships->count() }}人）
+                    </button>
+                @endif
             </section>
         @else
             @if($page !== 'nation-list')
@@ -547,7 +554,22 @@
             @endif
 
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                <h2 class="text-base font-black text-stone-900">国民一覧</h2><div class="mt-2 divide-y divide-stone-100">@foreach($nation->memberships as $nationMember)<div class="flex items-center justify-between gap-3 py-2.5"><div class="min-w-0"><p class="truncate text-sm font-black text-stone-800">{{ $nationMember->character?->name ?? '不明' }}</p><p class="text-xs font-bold text-stone-500">{{ $nationMember->roleLabel($nation) }}</p></div><div class="shrink-0 text-right text-xs font-bold text-stone-500">Lv{{ $nationMember->character?->level ?? 1 }}<br>{{ $nationMember->joined_at?->format('Y/m/d') }}</div></div>@endforeach</div>
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-base font-black text-stone-900">国民一覧</h2>
+                    <span class="text-xs font-black text-stone-500">{{ $nation->memberships->count() }}人</span>
+                </div>
+                <div class="mt-3">
+                    @include('livewire.partials.nation-member-grid', [
+                        'memberships' => $nation->memberships,
+                        'nation' => $nation,
+                        'limit' => $memberPreviewLimit,
+                    ])
+                </div>
+                @if($nation->memberships->count() > $memberPreviewLimit)
+                    <button type="button" wire:click="openMemberListModal" class="mt-3 min-h-11 w-full rounded-xl border border-amber-300 bg-amber-50 text-sm font-black text-amber-900 shadow-sm" data-nation-member-list-open>
+                        国民をすべて見る（{{ $nation->memberships->count() }}人）
+                    </button>
+                @endif
             </section>
 
             @unless($membership->isRuler())
@@ -833,6 +855,33 @@
                             全{{ number_format($activityLogTotal) }}件を表示しています。
                         @endif
                     </p>
+                </footer>
+            </section>
+        </div>
+    @endif
+
+    @php
+        $memberListNation = $page === 'detail' ? $selectedNation : ($page === 'home' ? $membership?->nation : null);
+    @endphp
+    @if($showMemberListModal && $memberListNation)
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="nation-member-list-modal-title" data-nation-member-list-modal wire:click.self="closeMemberListModal" wire:keydown.escape.window="closeMemberListModal">
+            <section class="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div class="min-w-0">
+                        <h2 id="nation-member-list-modal-title" class="text-lg font-black text-stone-950">国民一覧</h2>
+                        <p class="mt-0.5 truncate text-xs font-bold text-stone-500">{{ $memberListNation->display_name }}・全{{ $memberListNation->memberships->count() }}人</p>
+                    </div>
+                    <button type="button" wire:click="closeMemberListModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国民一覧を閉じる">×</button>
+                </header>
+                <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+                    @include('livewire.partials.nation-member-grid', [
+                        'memberships' => $memberListNation->memberships,
+                        'nation' => $memberListNation,
+                        'showJoinedAt' => true,
+                    ])
+                </div>
+                <footer class="shrink-0 border-t border-stone-200 bg-white p-4">
+                    <button type="button" wire:click="closeMemberListModal" class="min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700">閉じる</button>
                 </footer>
             </section>
         </div>
