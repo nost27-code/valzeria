@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-27-nation-member-capacity-guide',
+        'date' => '2026-08-27',
+        'category' => 'changed',
+        'title' => '国家Lvごとの国民数上限を案内',
+        'detail' => '国家TOP・他国詳細・自国TOPに、国家Lv1の20人からLv50の40人までの国民数上限を確認できる折りたたみ案内を追加しました。',
+    ],
+    [
         'id' => '2026-08-27-exclusive-character-icon-038',
         'date' => '2026-08-27',
         'category' => 'internal',

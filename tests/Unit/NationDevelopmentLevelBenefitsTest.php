@@ -55,4 +55,21 @@ final class NationDevelopmentLevelBenefitsTest extends TestCase
         $this->assertSame(15, $service->nextBenefitAfterLevel(14)['level']);
         $this->assertNull($service->nextBenefitAfterLevel(50));
     }
+
+    public function test_member_capacity_ranges_are_derived_from_the_approved_benefits(): void
+    {
+        $this->assertSame([
+            ['from_level' => 1, 'to_level' => 4, 'member_capacity' => 20],
+            ['from_level' => 5, 'to_level' => 9, 'member_capacity' => 22],
+            ['from_level' => 10, 'to_level' => 14, 'member_capacity' => 24],
+            ['from_level' => 15, 'to_level' => 19, 'member_capacity' => 26],
+            ['from_level' => 20, 'to_level' => 24, 'member_capacity' => 28],
+            ['from_level' => 25, 'to_level' => 29, 'member_capacity' => 30],
+            ['from_level' => 30, 'to_level' => 34, 'member_capacity' => 32],
+            ['from_level' => 35, 'to_level' => 39, 'member_capacity' => 34],
+            ['from_level' => 40, 'to_level' => 44, 'member_capacity' => 36],
+            ['from_level' => 45, 'to_level' => 49, 'member_capacity' => 38],
+            ['from_level' => 50, 'to_level' => 50, 'member_capacity' => 40],
+        ], app(NationDevelopmentLevelService::class)->memberCapacityRanges());
+    }
 }

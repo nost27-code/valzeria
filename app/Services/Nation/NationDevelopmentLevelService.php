@@ -81,6 +81,37 @@ final class NationDevelopmentLevelService
         return $this->benefitsForLevel($this->levelFor($experience))['member_capacity'];
     }
 
+    /** @return list<array{from_level:int,to_level:int,member_capacity:int}> */
+    public function memberCapacityRanges(): array
+    {
+        $ranges = [];
+        $fromLevel = 1;
+        $capacity = $this->benefitsForLevel(1)['member_capacity'];
+
+        for ($level = 2; $level <= $this->maxLevel(); $level++) {
+            $levelCapacity = $this->benefitsForLevel($level)['member_capacity'];
+            if ($levelCapacity === $capacity) {
+                continue;
+            }
+
+            $ranges[] = [
+                'from_level' => $fromLevel,
+                'to_level' => $level - 1,
+                'member_capacity' => $capacity,
+            ];
+            $fromLevel = $level;
+            $capacity = $levelCapacity;
+        }
+
+        $ranges[] = [
+            'from_level' => $fromLevel,
+            'to_level' => $this->maxLevel(),
+            'member_capacity' => $capacity,
+        ];
+
+        return $ranges;
+    }
+
     public function facilityLevelCapForExperience(int $experience): int
     {
         return $this->benefitsForLevel($this->levelFor($experience))['facility_level_cap'];

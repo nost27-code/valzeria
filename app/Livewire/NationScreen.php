@@ -1237,6 +1237,7 @@ final class NationScreen extends Component
             $this->page = 'home';
         }
         $developmentLevelService = app(NationDevelopmentLevelService::class);
+        $nationMemberCapacityRanges = $developmentLevelService->memberCapacityRanges();
         $nationQuery = Nation::active()
             ->publiclyVisible()
             ->withCount('memberships')
@@ -1534,6 +1535,7 @@ final class NationScreen extends Component
             'developmentBenefits' => $developmentBenefits,
             'nextDevelopmentBenefit' => $nextDevelopmentBenefit,
             'developmentBenefitMilestones' => $developmentBenefitMilestones,
+            'nationMemberCapacityRanges' => $nationMemberCapacityRanges,
             'personalContribution' => $personalContribution,
             'activeGoals' => $activeGoals,
             'goalHistory' => $goalHistory,

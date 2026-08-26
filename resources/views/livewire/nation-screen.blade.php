@@ -145,6 +145,10 @@
                     </div>
                 @endif
 
+                <div class="mt-3">
+                    @include('livewire.partials.nation-member-capacity-guide')
+                </div>
+
                 @if(!$membership)
                     <div class="mt-4">
                         @if($joinEligibility['pending'] && (int) $joinEligibility['pending']->nation_id === (int) $selectedNation->id)
@@ -299,6 +303,9 @@
                     <p class="mt-3 text-sm font-bold leading-relaxed text-stone-700">など、<strong class="font-black text-amber-900">仲間と協力する新たな遊び</strong>に参加できます。</p>
                     <p class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-bold leading-relaxed text-emerald-900">国家への所属は必須ではなく、無所属でもこれまで通り冒険を楽しめます。</p>
                     <p class="mt-2 text-xs font-bold leading-relaxed text-stone-500">※{{ $developmentEnabled ? '国家戦・戦績・ランキングなど' : '国家への納品・国家戦・戦績・ランキングなど' }}、一部の機能は現在準備中です。</p>
+                    <div class="mt-3">
+                        @include('livewire.partials.nation-member-capacity-guide')
+                    </div>
                 </section>
             @endif
         @endif
@@ -768,6 +775,9 @@
                 <div class="border-t border-stone-100 px-4 py-3">
                     <p class="line-clamp-2 whitespace-pre-line text-sm font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
                     @if($nation->recruitment_message)<p class="mt-2 line-clamp-1 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800"><span class="font-black">募集：</span>{{ $nation->recruitment_message }}</p>@endif
+                </div>
+                <div class="border-t border-stone-100 px-4 py-3">
+                    @include('livewire.partials.nation-member-capacity-guide')
                 </div>
                 @if($developmentEnabled && $levelBenefitsEnabled && $activeGoals->isNotEmpty())
                     @php

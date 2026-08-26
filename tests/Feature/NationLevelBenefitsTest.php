@@ -327,6 +327,32 @@ final class NationLevelBenefitsTest extends TestCase
         $screen->assertHasNoErrors();
     }
 
+    public function test_member_capacity_guide_is_visible_from_public_detail_and_own_home_even_when_development_ui_is_off(): void
+    {
+        config()->set('features.nation_development_enabled', false);
+        $ruler = $this->character('定員案内国王');
+        $nation = app(NationService::class)->create($ruler, '定員案内国');
+
+        $this->actingAs($ruler->user);
+        Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-capacity-guide')
+            ->assertSee('国家Lvと国民数上限')
+            ->assertSee('Lv1〜4')
+            ->assertSee('20人')
+            ->assertSee('Lv50')
+            ->assertSee('40人');
+
+        $visitor = $this->character('定員案内閲覧者');
+        $this->actingAs($visitor->user);
+        Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-capacity-guide')
+            ->call('showNationDetail', $nation->id)
+            ->assertSeeHtml('data-nation-capacity-guide')
+            ->assertSee('現在の開放上限は国家Lv50の40人です。')
+            ->assertSee('国家Lvに応じて開放される機能を予定しています。')
+            ->assertSee('現在準備中のため、公開までしばらくお待ちください。');
+    }
+
     public function test_war_milestones_and_existing_achievements_are_recorded_idempotently(): void
     {
         $ruler = $this->character('復元国王');
