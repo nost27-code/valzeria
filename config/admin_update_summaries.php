@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-header-character-pose-cycle',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '左上キャラアイコンで4ポーズ切替',
+        'detail' => '画面左上のキャラクターアイコンをタップすると、対応キャラクターは通常・勝利・戦闘・敗北の順にポーズを切り替えられるようにしました。切替はその画面内だけで、選択中のアイコン設定は変更しません。',
+    ],
+    [
         'id' => '2026-08-26-nation-member-public-browsing',
         'date' => '2026-08-26',
         'category' => 'changed',

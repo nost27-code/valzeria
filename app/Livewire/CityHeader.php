@@ -11,6 +11,7 @@ use App\Models\JobClass;
 use App\Models\SixHeroRanking;
 use App\Models\SixHeroSeason;
 use App\Models\ValmonMaster;
+use App\Services\CharacterIconSetService;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
@@ -409,6 +410,14 @@ class CityHeader extends Component
     private function topPlayerBar(Character $character): array
     {
         $character->loadMissing('jobClass');
+        $resolvedPosePaths = app(CharacterIconSetService::class)->resolvedPaths($character);
+        $headerPosePaths = collect(['normal', 'victory', 'battle', 'defeat'])
+            ->map(fn (string $scene): string => CharacterIconCatalog::versionedAsset(
+                $resolvedPosePaths[$scene] ?? $resolvedPosePaths['normal']
+            ))
+            ->unique()
+            ->values()
+            ->all();
         $stats = app(CharacterStatusService::class)->getFinalStatsUsingLoadedRelations($character);
         $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base ?? 1));
         $maxSp = max(1, (int) ($stats['max_mp'] ?? $character->mp_base ?? 1));
@@ -434,6 +443,7 @@ class CityHeader extends Component
             'job_rank' => $jobRank,
             'power' => app(CharacterPowerService::class)->fromFinalStats($stats),
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),
+            'pose_paths' => $headerPosePaths,
             'profile_frame_image' => asset($profileService->frameImageForTheme($profileFrameTheme)),
             'hp' => $currentHp,
             'max_hp' => $maxHp,

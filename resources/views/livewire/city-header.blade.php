@@ -1204,7 +1204,29 @@
 
                 {{-- アイコン (2行にまたがる) --}}
                 <div class="row-span-2 flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
-                    <img src="{{ $topPlayer['icon'] }}" alt="{{ $topPlayer['name'] }}" class="h-full w-full object-contain drop-shadow-sm">
+                    @php
+                        $headerPosePaths = array_values(array_unique($topPlayer['pose_paths'] ?? [$topPlayer['icon']]));
+                    @endphp
+                    @if(count($headerPosePaths) > 1)
+                        <button
+                            type="button"
+                            x-data="{ poseIndex: 0, posePaths: @js($headerPosePaths) }"
+                            @click.stop="poseIndex = (poseIndex + 1) % posePaths.length"
+                            class="flex h-full w-full cursor-pointer items-center justify-center transition active:scale-90"
+                            aria-label="{{ $topPlayer['name'] }}の表示ポーズを切り替える"
+                            title="タップでポーズを切り替える（この画面内のみ）"
+                            data-header-character-pose-toggle
+                        >
+                            <img
+                                src="{{ $headerPosePaths[0] }}"
+                                x-bind:src="posePaths[poseIndex]"
+                                alt="{{ $topPlayer['name'] }}"
+                                class="h-full w-full object-contain drop-shadow-sm"
+                            >
+                        </button>
+                    @else
+                        <img src="{{ $headerPosePaths[0] }}" alt="{{ $topPlayer['name'] }}" class="h-full w-full object-contain drop-shadow-sm">
+                    @endif
                 </div>
 
                 {{-- 名前/レベル/職/戦力 --}}

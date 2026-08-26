@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\ChampCard;
+use App\Livewire\CityHeader;
 use App\Livewire\ColosseumRanking;
 use App\Models\ArenaRanking;
 use App\Models\ChampState;
@@ -276,6 +277,31 @@ class CharacterIconSetTest extends TestCase
             'character_id' => $owner->id,
             'icon_set_key' => 'exclusive_000',
             'arena_showcase_scene' => 'battle',
+        ]);
+    }
+
+    public function test_header_icon_exposes_number_ordered_pose_paths_for_local_switching(): void
+    {
+        config(['features.six_hero_ui_enabled' => false]);
+        $character = $this->createCharacter('ヘッダーポーズ確認', '/images/chara/chara_004.webp');
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id]);
+
+        Livewire::test(CityHeader::class)
+            ->assertSeeHtml('data-header-character-pose-toggle')
+            ->assertSeeInOrder([
+                '01_normal.webp',
+                '02_victory.webp',
+                '03_battle.webp',
+                '04_defeat.webp',
+            ], escape: false)
+            ->assertSeeHtml('x-bind:src="posePaths[poseIndex]"')
+            ->assertDontSeeHtml('wire:click="cycleHeaderPose"');
+
+        $this->assertDatabaseHas('characters', [
+            'id' => $character->id,
+            'icon_path' => '/images/chara/chara_004.webp',
         ]);
     }
 
