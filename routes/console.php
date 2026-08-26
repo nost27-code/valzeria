@@ -65,3 +65,7 @@ Schedule::command('nation:process-dissolutions')
     ->everyMinute()
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(10);
+Schedule::command('nation:unlock-anniversary-achievements')
+    ->dailyAt('00:20')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(10);

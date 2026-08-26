@@ -22,12 +22,16 @@ final class NationWarJudgmentService
             $resolution = $winnerId ? ($reason === 'ko' ? 'ko' : 'judgment') : 'draw';
             $snapshot = ['attacker' => $attacker, 'defender' => $defender];
             $locked->update(['status' => 'resolved', 'winner_nation_id' => $winnerId, 'resolution_type' => $resolution, 'resolution_snapshot' => $snapshot, 'resolved_at' => now()]);
-            NationWarHistory::updateOrCreate(['nation_war_id' => $locked->id], [
+            $history = NationWarHistory::updateOrCreate(['nation_war_id' => $locked->id], [
                 'declaring_nation_id' => $locked->declaring_nation_id, 'defending_nation_id' => $locked->defending_nation_id,
                 'winner_nation_id' => $winnerId, 'resolution_type' => $resolution, 'summary' => $snapshot, 'resolved_at' => now(),
             ]);
             $this->applyNationResults($locked, $winnerId);
             $this->persistConditions($facilities);
+            if (app(NationLevelBenefitSettingsService::class)->enabled()) {
+                app(NationTimelineService::class)->recordWarResolved($history);
+                app(NationAchievementService::class)->recordWarResolved($history);
+            }
             foreach ($locked->sides()->get() as $side) app(NationWarService::class)->refundUnusedPool($side);
             return $locked->refresh();
         }, 3);

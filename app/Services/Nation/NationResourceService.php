@@ -74,18 +74,33 @@ final class NationResourceService
 
                 $points = $quantity * (int) $rate->points_per_unit;
                 $developmentExp = $quantity * (int) $rate->development_exp_per_unit;
+                $previousDevelopmentExp = (int) $nation->development_exp;
                 $stock->quantity -= $quantity;
                 $stock->save();
                 $nation->treasury_points += $points;
                 $nation->development_exp += $developmentExp;
                 $nation->save();
 
-                return NationResourceTransaction::create([
+                $transaction = NationResourceTransaction::create([
                     'nation_id' => $nation->id, 'character_id' => $character->id, 'material_id' => $materialId,
                     'transaction_type' => 'donation', 'quantity' => $quantity, 'points_delta' => $points,
                     'balance_after' => $nation->treasury_points, 'development_exp_delta' => $developmentExp,
                     'idempotency_key' => $idempotencyKey,
                 ]);
+
+                if (app(NationLevelBenefitSettingsService::class)->enabled()) {
+                    $previousLevel = app(NationDevelopmentLevelService::class)->levelFor($previousDevelopmentExp);
+                    $currentLevel = app(NationDevelopmentLevelService::class)->levelFor((int) $nation->development_exp);
+                    app(NationTimelineService::class)->recordDevelopmentLevelUps(
+                        $nation,
+                        $previousDevelopmentExp,
+                        (int) $nation->development_exp,
+                        $character,
+                    );
+                    app(NationAchievementService::class)->recordDonationAndLevelUps($nation, $previousLevel, $currentLevel);
+                }
+
+                return $transaction;
             }, 3);
         } catch (QueryException $exception) {
             if ($idempotencyKey) {
@@ -189,9 +204,22 @@ final class NationResourceService
                     ];
                 }
 
+                $previousDevelopmentExp = (int) $nation->development_exp;
                 $nation->treasury_points += $totalPoints;
                 $nation->development_exp += $totalDevelopmentExp;
                 $nation->save();
+
+                if (app(NationLevelBenefitSettingsService::class)->enabled()) {
+                    $previousLevel = app(NationDevelopmentLevelService::class)->levelFor($previousDevelopmentExp);
+                    $currentLevel = app(NationDevelopmentLevelService::class)->levelFor((int) $nation->development_exp);
+                    app(NationTimelineService::class)->recordDevelopmentLevelUps(
+                        $nation,
+                        $previousDevelopmentExp,
+                        (int) $nation->development_exp,
+                        $character,
+                    );
+                    app(NationAchievementService::class)->recordDonationAndLevelUps($nation, $previousLevel, $currentLevel);
+                }
 
                 return collect($transactionData)
                     ->map(static fn (array $attributes): NationResourceTransaction => NationResourceTransaction::create($attributes));
@@ -245,8 +273,14 @@ final class NationResourceService
     /** @return Collection<int, object{material_id:int,material_code:string,name:string,quantity:int,points_per_unit:int,development_exp_per_unit:int}> */
     public function donatableMaterials(Character $character): Collection
     {
-        return $this->donatableMaterialQuery($character)
-            ->where('character_materials.quantity', '>', 0)
+        $query = $this->donatableMaterialQuery($character)
+            ->where('character_materials.quantity', '>', 0);
+        if (app(NationLevelBenefitSettingsService::class)->enabled()) {
+            $query->orderByRaw('CASE WHEN nation_wanted_materials.id IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('nation_wanted_materials.display_order');
+        }
+
+        return $query
             ->orderBy('materials.name')
             ->orderBy('materials.id')
             ->get();
@@ -354,7 +388,7 @@ final class NationResourceService
 
     private function donatableMaterialQuery(Character $character): Builder
     {
-        return DB::table('character_materials')
+        $query = DB::table('character_materials')
             ->join('materials', 'materials.id', '=', 'character_materials.material_id')
             ->join('nation_material_conversion_rates', 'nation_material_conversion_rates.material_id', '=', 'character_materials.material_id')
             ->where('character_materials.character_id', $character->id)
@@ -367,5 +401,16 @@ final class NationResourceService
                 'nation_material_conversion_rates.points_per_unit',
                 'nation_material_conversion_rates.development_exp_per_unit',
             ]);
+
+        if (app(NationLevelBenefitSettingsService::class)->enabled()) {
+            $nationId = NationMembership::where('character_id', $character->id)->value('nation_id');
+            $query->leftJoin('nation_wanted_materials', function ($join) use ($nationId): void {
+                $join->on('nation_wanted_materials.material_id', '=', 'character_materials.material_id')
+                    ->where('nation_wanted_materials.nation_id', '=', $nationId)
+                    ->where('nation_wanted_materials.is_active', '=', true);
+            })->addSelect('nation_wanted_materials.purpose_note as wanted_purpose_note');
+        }
+
+        return $query;
     }
 }

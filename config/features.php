@@ -44,6 +44,13 @@ return [
         FILTER_VALIDATE_BOOL,
     ),
 
+    // Nation level benefits other than the level-based member capacity remain
+    // hidden until operations explicitly enables them in production.
+    'nation_level_benefits_enabled' => filter_var(
+        env('NATION_LEVEL_BENEFITS_ENABLED', $defaultsEnabled),
+        FILTER_VALIDATE_BOOL,
+    ),
+
     // Keep nation gameplay disabled until operations explicitly enables it.
     'nation_war_enabled' => filter_var(
         env('NATION_WAR_ENABLED', false),

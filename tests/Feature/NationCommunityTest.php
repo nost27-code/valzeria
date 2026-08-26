@@ -141,7 +141,7 @@ final class NationCommunityTest extends TestCase
         $this->assertTrue(Schema::hasTable('nation_join_applications'));
         $this->assertTrue(Schema::hasTable('nation_membership_cooldowns'));
         $this->assertTrue(Schema::hasTable('nation_activity_logs'));
-        $this->assertDatabaseHas('game_settings', ['setting_key' => 'nation.max_members', 'value' => '20']);
+        $this->assertDatabaseHas('game_settings', ['setting_key' => 'nation.max_members', 'value' => '100']);
         $this->assertTrue(collect(DB::select("PRAGMA foreign_key_list('nations')"))->contains(
             fn (object $foreignKey): bool => $foreignKey->from === 'dissolution_requested_by_character_id'
                 && $foreignKey->table === 'characters'

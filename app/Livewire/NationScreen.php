@@ -5,26 +5,42 @@ namespace App\Livewire;
 use App\Enums\NationType;
 use App\Models\Character;
 use App\Models\Nation;
+use App\Models\NationAchievement;
+use App\Models\NationFacility;
+use App\Models\NationGoal;
 use App\Models\NationJoinApplication;
+use App\Models\NationMaterialConversionRate;
 use App\Models\NationMembership;
+use App\Models\NationWarPreparationPreset;
 use App\Services\CharacterPowerService;
 use App\Services\CharacterStatusService;
+use App\Services\Nation\NationAchievementService;
 use App\Services\Nation\NationActivityLogService;
 use App\Services\Nation\NationChatService;
 use App\Services\Nation\NationCommunitySettingsService;
+use App\Services\Nation\NationDecorationCatalog;
+use App\Services\Nation\NationDecorationService;
 use App\Services\Nation\NationDevelopmentLevelService;
 use App\Services\Nation\NationDevelopmentService;
 use App\Services\Nation\NationDissolutionService;
+use App\Services\Nation\NationDonationAnalyticsService;
 use App\Services\Nation\NationEmblemCatalog;
+use App\Services\Nation\NationGoalService;
 use App\Services\Nation\NationHeaderBackgroundCatalog;
 use App\Services\Nation\NationJoinApplicationService;
+use App\Services\Nation\NationLevelBenefitSettingsService;
 use App\Services\Nation\NationMembershipCooldownService;
 use App\Services\Nation\NationMembershipService;
 use App\Services\Nation\NationProfileService;
 use App\Services\Nation\NationResourceService;
+use App\Services\Nation\NationRoleService;
 use App\Services\Nation\NationRulerTransferService;
 use App\Services\Nation\NationService;
 use App\Services\Nation\NationShowcaseService;
+use App\Services\Nation\NationTimelineService;
+use App\Services\Nation\NationWantedMaterialService;
+use App\Services\Nation\NationWarPreparationPresetService;
+use App\Services\Nation\NationWarSettingsService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -119,6 +135,43 @@ final class NationScreen extends Component
     public bool $showDonationConfirmationModal = false;
 
     public bool $showActivityLogModal = false;
+
+    public string $goalTitle = '';
+
+    public string $goalDescription = '';
+
+    public string $goalMetricType = 'material_quantity';
+
+    public ?int $goalMaterialId = null;
+
+    public string $goalFacilityType = '';
+
+    public ?int $goalTargetValue = null;
+
+    public string $goalDeadlineAt = '';
+
+    /** @var array<int, int|string|null> */
+    public array $wantedMaterialIds = [];
+
+    /** @var array<int, string> */
+    public array $wantedMaterialNotes = [];
+
+    /** @var list<string> */
+    public array $showcaseAchievementKeys = [];
+
+    /** @var array<string, string|null> */
+    public array $decorationSettings = [];
+
+    public string $warPresetName = '';
+
+    public int $warPresetPoolPoints = 0;
+
+    public int $warPresetFacilityPoints = 0;
+
+    public int $warPresetReservePoints = 0;
+
+    /** @var list<string> */
+    public array $warPresetFacilityPriority = [];
 
     /** @var array{request_id:string,items:list<array{material_id:int,quantity:int,name:string,remaining_quantity:int,points:int,development_exp:int}>,material_count:int,total_quantity:int,points:int,development_exp:int}|array{} */
     #[Locked]
@@ -392,6 +445,248 @@ final class NationScreen extends Component
         $this->navigate('resources');
     }
 
+    public function showDevelopmentBenefits(): void
+    {
+        if ($this->levelBenefitsEnabledOrError() && $this->memberOrError()) {
+            $this->navigate('benefits');
+        }
+    }
+
+    public function showNationGoals(): void
+    {
+        if ($this->levelBenefitsEnabledOrError() && $this->memberOrError()) {
+            $this->navigate('goals');
+        }
+    }
+
+    public function createNationGoal(): void
+    {
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $goal = $this->perform(fn () => app(NationGoalService::class)->create($membership, [
+            'title' => $this->goalTitle,
+            'description' => $this->goalDescription,
+            'metric_type' => $this->goalMetricType,
+            'material_id' => $this->goalMaterialId,
+            'facility_type' => $this->goalFacilityType,
+            'target_value' => $this->goalTargetValue,
+            'deadline_at' => $this->goalDeadlineAt,
+        ]), '共同目標を設定しました。');
+        if ($goal) {
+            $this->goalTitle = '';
+            $this->goalDescription = '';
+            $this->goalTargetValue = null;
+            $this->goalDeadlineAt = '';
+        }
+    }
+
+    public function completeManualGoal(int $goalId): void
+    {
+        $membership = $this->memberOrError();
+        $goal = NationGoal::find($goalId);
+        if (! $membership || ! $goal) {
+            return;
+        }
+        $this->perform(fn () => app(NationGoalService::class)->completeManual($membership, $goal), '共同目標を達成済みにしました。');
+    }
+
+    public function cancelNationGoal(int $goalId): void
+    {
+        $membership = $this->memberOrError();
+        $goal = NationGoal::find($goalId);
+        if (! $membership || ! $goal) {
+            return;
+        }
+        $this->perform(fn () => app(NationGoalService::class)->cancel($membership, $goal), '共同目標を取り下げました。');
+    }
+
+    public function showWantedMaterials(): void
+    {
+        if (! $this->levelBenefitsEnabledOrError()) {
+            return;
+        }
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $wanted = app(NationWantedMaterialService::class)->activeFor($membership->nation);
+        $this->wantedMaterialIds = $wanted->pluck('material_id')->map(static fn ($id): int => (int) $id)->all();
+        $this->wantedMaterialNotes = $wanted->pluck('purpose_note')->map(static fn ($note): string => (string) $note)->all();
+        $level = app(NationDevelopmentLevelService::class)->levelFor((int) $membership->nation->development_exp);
+        $slots = app(NationDevelopmentLevelService::class)->benefitsForLevel($level)['wanted_material_slots'];
+        while (count($this->wantedMaterialIds) < $slots) {
+            $this->wantedMaterialIds[] = null;
+            $this->wantedMaterialNotes[] = '';
+        }
+        $this->navigate('wanted-materials');
+    }
+
+    public function saveWantedMaterials(): void
+    {
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $materials = [];
+        foreach ($this->wantedMaterialIds as $index => $materialId) {
+            if ((int) $materialId < 1) {
+                continue;
+            }
+            $materials[] = [
+                'material_id' => (int) $materialId,
+                'purpose_note' => (string) ($this->wantedMaterialNotes[$index] ?? ''),
+            ];
+        }
+        $this->perform(fn () => app(NationWantedMaterialService::class)->replace($membership, $materials), '募集素材を更新しました。');
+    }
+
+    public function showNationAchievements(): void
+    {
+        if (! $this->levelBenefitsEnabledOrError()) {
+            return;
+        }
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $this->showcaseAchievementKeys = app(NationAchievementService::class)
+            ->displayedFor($membership->nation)
+            ->pluck('achievement_key')
+            ->all();
+        $this->navigate('achievements');
+    }
+
+    public function saveAchievementShowcase(): void
+    {
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $this->perform(
+            fn () => app(NationAchievementService::class)->setShowcase($membership, $this->showcaseAchievementKeys),
+            '国家実績の展示を更新しました。',
+        );
+    }
+
+    public function showNationDecorations(): void
+    {
+        if (! $this->levelBenefitsEnabledOrError()) {
+            return;
+        }
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $this->decorationSettings = is_array($membership->nation->decoration_settings)
+            ? $membership->nation->decoration_settings
+            : [];
+        $this->navigate('decorations');
+    }
+
+    public function saveNationDecorations(): void
+    {
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $this->perform(
+            fn () => app(NationDecorationService::class)->save($membership, $this->decorationSettings),
+            '国家装飾を更新しました。',
+        );
+    }
+
+    public function showDonationAnalytics(): void
+    {
+        if ($this->levelBenefitsEnabledOrError() && $this->memberOrError()) {
+            $this->navigate('analytics');
+        }
+    }
+
+    public function showNationTimeline(): void
+    {
+        if ($this->levelBenefitsEnabledOrError() && $this->memberOrError()) {
+            $this->navigate('timeline');
+        }
+    }
+
+    public function showWarPreparationPresets(): void
+    {
+        if (! $this->levelBenefitsEnabledOrError()) {
+            return;
+        }
+        if (! app(NationWarSettingsService::class)->featureEnabled()) {
+            $this->showNotImplemented('war-strategy');
+
+            return;
+        }
+        if ($this->memberOrError()) {
+            $this->warPresetFacilityPriority = NationFacility::TYPES;
+            $this->navigate('war-presets');
+        }
+    }
+
+    public function saveWarPreparationPreset(): void
+    {
+        $membership = $this->memberOrError();
+        if (! $membership) {
+            return;
+        }
+        $preset = $this->perform(fn () => app(NationWarPreparationPresetService::class)->save($membership, [
+            'name' => $this->warPresetName,
+            'pool_contribution_points' => $this->warPresetPoolPoints,
+            'facility_upgrade_limit_points' => $this->warPresetFacilityPoints,
+            'facility_priority' => $this->warPresetFacilityPriority,
+            'repair_reserve_warning_points' => $this->warPresetReservePoints,
+        ]), '戦争準備プリセットを保存しました。');
+        if ($preset) {
+            $this->warPresetName = '';
+            $this->warPresetPoolPoints = 0;
+            $this->warPresetFacilityPoints = 0;
+            $this->warPresetReservePoints = 0;
+        }
+    }
+
+    public function moveWarPresetFacilityPriority(string $facilityType, string $direction): void
+    {
+        if ($this->page !== 'war-presets'
+            || ! in_array($facilityType, NationFacility::TYPES, true)
+            || ! in_array($direction, ['up', 'down'], true)) {
+            return;
+        }
+
+        $priority = array_values(array_unique(array_filter(
+            array_map('strval', $this->warPresetFacilityPriority),
+            static fn (string $type): bool => in_array($type, NationFacility::TYPES, true),
+        )));
+        foreach (NationFacility::TYPES as $type) {
+            if (! in_array($type, $priority, true)) {
+                $priority[] = $type;
+            }
+        }
+        $index = array_search($facilityType, $priority, true);
+        if ($index === false) {
+            return;
+        }
+        $targetIndex = $direction === 'up' ? $index - 1 : $index + 1;
+        if (! isset($priority[$targetIndex])) {
+            return;
+        }
+        [$priority[$index], $priority[$targetIndex]] = [$priority[$targetIndex], $priority[$index]];
+        $this->warPresetFacilityPriority = $priority;
+    }
+
+    public function deleteWarPreparationPreset(int $presetId): void
+    {
+        $membership = $this->memberOrError();
+        $preset = NationWarPreparationPreset::find($presetId);
+        if (! $membership || ! $preset) {
+            return;
+        }
+        $this->perform(fn () => app(NationWarPreparationPresetService::class)->delete($membership, $preset), '戦争準備プリセットを削除しました。');
+    }
+
     public function openDonationMaterialModal(): void
     {
         if ($this->page !== 'resources' || ! config('features.nation_development_enabled', false)) {
@@ -537,6 +832,10 @@ final class NationScreen extends Component
         );
         $this->confirmedDonation = [];
         if ($transactions) {
+            $membership = $this->currentMembership();
+            if ($membership && app(NationLevelBenefitSettingsService::class)->enabled()) {
+                app(NationGoalService::class)->sync($membership->nation);
+            }
             $this->actionMessage = '国家へ資材を納品しました。国家資材 +'.number_format($confirmed['points'])
                 .'pt / 国家発展EXP +'.number_format($confirmed['development_exp']);
             $this->donationQuantities = [];
@@ -889,9 +1188,24 @@ final class NationScreen extends Component
         $membership = $this->currentMembership();
         $emblemCatalog = app(NationEmblemCatalog::class);
         $headerBackgroundCatalog = app(NationHeaderBackgroundCatalog::class);
-        $maxMembers = app(NationCommunitySettingsService::class)->maxMembers();
+        $communitySettings = app(NationCommunitySettingsService::class);
+        $maxMembers = $communitySettings->maxMembers();
         $developmentEnabled = (bool) config('features.nation_development_enabled', false);
-        $levelService = app(NationDevelopmentLevelService::class);
+        $levelBenefitsEnabled = $developmentEnabled
+            && app(NationLevelBenefitSettingsService::class)->enabled();
+        if (! $levelBenefitsEnabled && in_array($this->page, [
+            'benefits',
+            'goals',
+            'wanted-materials',
+            'achievements',
+            'decorations',
+            'analytics',
+            'timeline',
+            'war-presets',
+        ], true)) {
+            $this->page = 'home';
+        }
+        $developmentLevelService = app(NationDevelopmentLevelService::class);
         $nationQuery = Nation::active()
             ->withCount('memberships')
             ->with(['rulerMembership.character'])
@@ -911,10 +1225,6 @@ final class NationScreen extends Component
                 ->sortBy(static fn (Nation $nation): int => $showcaseOrder[$nation->id] ?? PHP_INT_MAX)
                 ->values();
         }
-        $nationRows = method_exists($nations, 'items') ? $nations->items() : $nations->all();
-        $nationLevels = collect($nationRows)
-            ->mapWithKeys(fn (Nation $nation): array => [$nation->id => $levelService->levelFor((int) $nation->development_exp)])
-            ->all();
 
         $selectedNation = null;
         $joinEligibility = null;
@@ -929,14 +1239,13 @@ final class NationScreen extends Component
                 ])
                 ->find($this->selectedNationId);
             if ($selectedNation) {
-                $nationLevels[$selectedNation->id] = $levelService->levelFor((int) $selectedNation->development_exp);
                 $selectedNation->setRelation(
                     'memberships',
                     $this->sortMemberships($selectedNation->memberships),
                 );
-                if (! $membership) {
-                    $joinEligibility = app(NationJoinApplicationService::class)->eligibility($character, $selectedNation);
-                }
+            }
+            if ($selectedNation && ! $membership) {
+                $joinEligibility = app(NationJoinApplicationService::class)->eligibility($character, $selectedNation);
             }
         }
 
@@ -965,6 +1274,33 @@ final class NationScreen extends Component
             'points' => 0,
             'development_exp' => 0,
         ];
+        $developmentBenefits = null;
+        $nextDevelopmentBenefit = null;
+        $developmentBenefitMilestones = collect();
+        $activeGoals = collect();
+        $goalHistory = null;
+        $wantedMaterials = collect();
+        $allAchievements = collect();
+        $displayedAchievements = collect();
+        $donationAnalytics = null;
+        $donationMaterialBreakdown = collect();
+        $donationTierSummary = null;
+        $donationDailyTrend = collect();
+        $donationWeeklyTrend = collect();
+        $wantedMaterialProgress = collect();
+        $timelineEntries = collect();
+        $timelineDescriptions = [];
+        $warPreparationPresets = collect();
+        $canManageGoals = false;
+        $canManageWantedMaterials = false;
+        $canManageShowcase = false;
+        $canManageDecorations = false;
+        $canManageWarPresets = false;
+        $selectedNationGoals = collect();
+        $selectedNationWantedMaterials = collect();
+        $selectedNationAchievements = collect();
+        $selectedNationTimeline = collect();
+        $selectedNationTimelineDescriptions = [];
         if ($membership) {
             $membership->load([
                 'nation.rulerMembership.character',
@@ -981,8 +1317,67 @@ final class NationScreen extends Component
             $leaveEligibility = app(NationMembershipService::class)->leaveEligibility($membership);
             if ($developmentEnabled) {
                 $development = app(NationDevelopmentService::class);
-                $developmentProgress = $levelService->progress((int) $membership->nation->development_exp);
+                $developmentProgress = $developmentLevelService->progress((int) $membership->nation->development_exp);
+                $maxMembers = $communitySettings->maxMembersFor($membership->nation);
                 $personalContribution = $development->personalContribution($membership->nation, $character);
+                if ($levelBenefitsEnabled) {
+                    $developmentBenefits = $developmentLevelService->benefitsForLevel($developmentProgress['level']);
+                    $nextDevelopmentBenefit = $developmentLevelService->nextBenefitAfterLevel($developmentProgress['level']);
+                    $developmentBenefitMilestones = collect(config('nation_development.benefit_milestones', []))
+                        ->mapWithKeys(fn (array $benefit, int|string $level): array => [
+                            (int) $level => [
+                                ...$developmentLevelService->benefitsForLevel((int) $level),
+                                'label' => (string) ($benefit['label'] ?? ''),
+                            ],
+                        ]);
+                    $roles = app(NationRoleService::class);
+                    $canManageGoals = $roles->allows($membership, 'manage_nation_goals');
+                    $canManageWantedMaterials = $roles->allows($membership, 'manage_wanted_materials');
+                    $canManageShowcase = $roles->allows($membership, 'manage_showcase');
+                    $canManageDecorations = $roles->allows($membership, 'manage_decorations');
+                    $canManageWarPresets = $roles->allows($membership, 'manage_war_presets');
+
+                    if (in_array($this->page, ['home', 'goals'], true)) {
+                        $activeGoals = app(NationGoalService::class)->activeWithProgress($membership->nation);
+                    }
+                    if ($this->page === 'goals') {
+                        $goalHistory = app(NationGoalService::class)->historyQuery($membership->nation)
+                            ->paginate(20, ['*'], 'goalHistoryPage');
+                    }
+                    if (in_array($this->page, ['home', 'resources', 'wanted-materials', 'analytics'], true)) {
+                        $wantedMaterials = app(NationWantedMaterialService::class)->activeFor($membership->nation);
+                    }
+                    if (in_array($this->page, ['home', 'achievements'], true)) {
+                        $displayedAchievements = app(NationAchievementService::class)->displayedFor($membership->nation);
+                    }
+                    if ($this->page === 'achievements') {
+                        $allAchievements = NationAchievement::where('nation_id', $membership->nation_id)
+                            ->orderByDesc('unlocked_at')
+                            ->orderByDesc('id')
+                            ->get();
+                    }
+                    if ($this->page === 'analytics' && $developmentProgress['level'] >= 20) {
+                        $analytics = app(NationDonationAnalyticsService::class);
+                        $donationAnalytics = $analytics->summary($membership->nation);
+                        if ($developmentProgress['level'] >= 35) {
+                            $donationMaterialBreakdown = $analytics->materialBreakdown($membership->nation);
+                            $donationTierSummary = $analytics->tierSummary($membership->nation);
+                            $donationDailyTrend = $analytics->dailyTrend($membership->nation);
+                            $donationWeeklyTrend = $analytics->weeklyTrend($membership->nation);
+                            $wantedMaterialProgress = $analytics->wantedMaterialProgress($membership->nation);
+                        }
+                    }
+                    if (in_array($this->page, ['home', 'timeline'], true)) {
+                        $timeline = app(NationTimelineService::class);
+                        $timelineEntries = $timeline->entries($membership->nation, $this->page === 'timeline' ? 100 : 5);
+                        foreach ($timelineEntries as $entry) {
+                            $timelineDescriptions[$entry->id] = $timeline->description($entry);
+                        }
+                    }
+                    if ($this->page === 'war-presets' && app(NationWarSettingsService::class)->featureEnabled()) {
+                        $warPreparationPresets = app(NationWarPreparationPresetService::class)->forNation($membership->nation);
+                    }
+                }
                 if ($this->page === 'resources') {
                     $resources = app(NationResourceService::class);
                     $donatableMaterials = $resources->donatableMaterials($character);
@@ -1045,6 +1440,44 @@ final class NationScreen extends Component
             ? NationJoinApplication::with(['character', 'nation'])->find($this->confirmationTargetId)
             : null;
 
+        $nationLevels = [];
+        $nationCapacities = [];
+        if ($developmentEnabled) {
+            foreach ($nations as $listedNation) {
+                $nationLevels[$listedNation->id] = $developmentLevelService->levelFor((int) $listedNation->development_exp);
+                $nationCapacities[$listedNation->id] = $communitySettings->maxMembersFor($listedNation);
+            }
+            if ($selectedNation) {
+                $nationLevels[$selectedNation->id] = $developmentLevelService->levelFor((int) $selectedNation->development_exp);
+                $nationCapacities[$selectedNation->id] = $communitySettings->maxMembersFor($selectedNation);
+                if ($levelBenefitsEnabled && $this->page === 'detail') {
+                    $selectedNationGoals = app(NationGoalService::class)->activeWithProgress($selectedNation);
+                    $selectedNationWantedMaterials = app(NationWantedMaterialService::class)->activeFor($selectedNation);
+                    $selectedNationAchievements = app(NationAchievementService::class)->displayedFor($selectedNation);
+                    $selectedTimelineService = app(NationTimelineService::class);
+                    $selectedNationTimeline = $selectedTimelineService->entries($selectedNation, 5);
+                    foreach ($selectedNationTimeline as $entry) {
+                        $selectedNationTimelineDescriptions[$entry->id] = $selectedTimelineService->description($entry);
+                    }
+                }
+            }
+            if ($membership) {
+                $nationLevels[$membership->nation_id] = $developmentLevelService->levelFor((int) $membership->nation->development_exp);
+                $nationCapacities[$membership->nation_id] = $communitySettings->maxMembersFor($membership->nation);
+            }
+        } else {
+            foreach ($nations as $listedNation) {
+                $nationCapacities[$listedNation->id] = $communitySettings->maxMembersFor($listedNation);
+            }
+            if ($selectedNation) {
+                $nationCapacities[$selectedNation->id] = $communitySettings->maxMembersFor($selectedNation);
+            }
+            if ($membership) {
+                $nationCapacities[$membership->nation_id] = $communitySettings->maxMembersFor($membership->nation);
+                $maxMembers = $nationCapacities[$membership->nation_id];
+            }
+        }
+
         return view('livewire.nation-screen', [
             'character' => $character,
             'membership' => $membership,
@@ -1062,14 +1495,57 @@ final class NationScreen extends Component
             'activityLogPreviewLimit' => self::ACTIVITY_LOG_PREVIEW_LIMIT,
             'activityLogModalLimit' => self::ACTIVITY_LOG_MODAL_LIMIT,
             'nationChatMessages' => $nationChatMessages,
-            'developmentEnabled' => $developmentEnabled,
             'developmentProgress' => $developmentProgress,
+            'levelBenefitsEnabled' => $levelBenefitsEnabled,
+            'developmentBenefits' => $developmentBenefits,
+            'nextDevelopmentBenefit' => $nextDevelopmentBenefit,
+            'developmentBenefitMilestones' => $developmentBenefitMilestones,
             'personalContribution' => $personalContribution,
+            'activeGoals' => $activeGoals,
+            'goalHistory' => $goalHistory,
+            'wantedMaterials' => $wantedMaterials,
+            'allAchievements' => $allAchievements,
+            'displayedAchievements' => $displayedAchievements,
+            'achievementCatalog' => app(NationAchievementService::class)->catalog(),
+            'decorationCatalog' => app(NationDecorationCatalog::class),
+            'decorationTypeLabels' => [
+                'outer_frame' => '外枠',
+                'name_plate' => '国家名プレート',
+                'header_ornament' => 'ヘッダ装飾',
+                'emblem_frame' => '紋章枠',
+                'level_badge' => '徽章',
+                'divider' => '飾り罫',
+            ],
+            'nationFacilityTypeLabels' => [
+                'wall' => '城壁',
+                'magic_cannon' => '魔導砲',
+                'logistics' => '兵站所',
+                'arsenal' => '要塞工廠',
+                'headquarters' => '本陣',
+            ],
+            'donationAnalytics' => $donationAnalytics,
+            'donationMaterialBreakdown' => $donationMaterialBreakdown,
+            'donationTierSummary' => $donationTierSummary,
+            'donationDailyTrend' => $donationDailyTrend,
+            'donationWeeklyTrend' => $donationWeeklyTrend,
+            'wantedMaterialProgress' => $wantedMaterialProgress,
+            'timelineEntries' => $timelineEntries,
+            'timelineDescriptions' => $timelineDescriptions,
+            'warPreparationPresets' => $warPreparationPresets,
+            'selectedNationGoals' => $selectedNationGoals,
+            'selectedNationWantedMaterials' => $selectedNationWantedMaterials,
+            'selectedNationAchievements' => $selectedNationAchievements,
+            'selectedNationTimeline' => $selectedNationTimeline,
+            'selectedNationTimelineDescriptions' => $selectedNationTimelineDescriptions,
+            'canManageGoals' => $canManageGoals,
+            'canManageWantedMaterials' => $canManageWantedMaterials,
+            'canManageShowcase' => $canManageShowcase,
+            'canManageDecorations' => $canManageDecorations,
+            'canManageWarPresets' => $canManageWarPresets,
             'contributionRows' => $contributionRows,
             'donatableMaterials' => $donatableMaterials,
             'donationPreviews' => $donationPreviews,
             'donationSummary' => $donationSummary,
-            'nationLevels' => $nationLevels,
             'confirmationTarget' => $confirmationTarget,
             'confirmationApplication' => $confirmationApplication,
             'nationTypes' => NationType::cases(),
@@ -1079,6 +1555,16 @@ final class NationScreen extends Component
             'headerBackgrounds' => $headerBackgroundCatalog->all(),
             'maxMembers' => $maxMembers,
             'activeNationCount' => $activeNationCount,
+            'developmentEnabled' => $developmentEnabled,
+            'nationLevels' => $nationLevels,
+            'nationCapacities' => $nationCapacities,
+            'nationMaterialOptions' => NationMaterialConversionRate::query()
+                ->with('material')
+                ->where('is_active', true)
+                ->orderBy('material_id')
+                ->get()
+                ->filter(fn (NationMaterialConversionRate $rate): bool => $rate->material !== null)
+                ->values(),
             'memberPreviewLimit' => self::MEMBER_PREVIEW_LIMIT,
             'memberSortOptions' => self::MEMBER_SORT_OPTIONS,
             'cooldowns' => app(NationMembershipCooldownService::class),
@@ -1113,6 +1599,30 @@ final class NationScreen extends Component
         }
 
         return $membership;
+    }
+
+    private function memberOrError(): ?NationMembership
+    {
+        $membership = $this->currentMembership();
+        if (! $membership) {
+            $this->addError('nationAction', '国家へ所属していません。');
+
+            return null;
+        }
+
+        return $membership;
+    }
+
+    private function levelBenefitsEnabledOrError(): bool
+    {
+        if (config('features.nation_development_enabled', false)
+            && app(NationLevelBenefitSettingsService::class)->enabled()) {
+            return true;
+        }
+
+        $this->addError('nationAction', '国家Lv特典は現在準備中です。');
+
+        return false;
     }
 
     private function selectedActiveNation(): ?Nation
@@ -1255,13 +1765,12 @@ final class NationScreen extends Component
     private function validateDonationInput(): array
     {
         return $this->validate([
-            'donationQuantities' => ['required', 'array', 'min:1', 'max:40'],
+            'donationQuantities' => ['required', 'array', 'min:1'],
             'donationQuantities.*' => ['required', 'integer', 'min:1'],
             'donationRequestId' => ['required', 'uuid'],
         ], [
             'donationQuantities.required' => '納品する素材を1種類以上選んでください。',
             'donationQuantities.min' => '納品する素材を1種類以上選んでください。',
-            'donationQuantities.max' => '納品する素材は40種類以内で選んでください。',
             'donationQuantities.*.required' => '納品数を入力してください。',
             'donationQuantities.*.integer' => '納品数は整数で指定してください。',
             'donationQuantities.*.min' => '納品数は1以上で指定してください。',

@@ -34,7 +34,7 @@ final class NationMembershipService
     public function createApprovedMembership(Character $character, Nation $nation): NationMembership
     {
         throw_if(NationMembership::where('character_id', $character->id)->exists(), \DomainException::class, '申請者はすでに国家へ所属しています。');
-        throw_if($nation->memberships()->count() >= $this->settings->maxMembers(), \DomainException::class, 'この国家は定員に達しています。');
+        throw_if($nation->memberships()->count() >= $this->settings->maxMembersFor($nation), \DomainException::class, 'この国家は定員に達しています。');
 
         $attributes = [
             'nation_id' => $nation->id,

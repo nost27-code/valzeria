@@ -26,6 +26,7 @@ class Nation extends Model
         return [
             'treasury_points' => 'integer',
             'development_exp' => 'integer',
+            'decoration_settings' => 'array',
             'founded_at' => 'datetime',
             'loss_protected_until' => 'datetime',
             'recruitment_enabled' => 'boolean',
@@ -74,6 +75,26 @@ class Nation extends Model
     public function resourceTransactions(): HasMany
     {
         return $this->hasMany(NationResourceTransaction::class);
+    }
+
+    public function goals(): HasMany
+    {
+        return $this->hasMany(NationGoal::class);
+    }
+
+    public function wantedMaterials(): HasMany
+    {
+        return $this->hasMany(NationWantedMaterial::class);
+    }
+
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(NationAchievement::class);
+    }
+
+    public function warPreparationPresets(): HasMany
+    {
+        return $this->hasMany(NationWarPreparationPreset::class);
     }
 
     public function dissolutionRequester(): BelongsTo

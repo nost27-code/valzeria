@@ -106,7 +106,7 @@ final class NationJoinApplicationService
             $applicant = Character::whereKey($lockedApplication->character_id)->lockForUpdate()->firstOrFail();
             throw_if(NationMembership::where('character_id', $applicant->id)->exists(), \DomainException::class, '申請者はすでに国家へ所属しています。');
             $this->cooldowns->assertCanJoin($applicant, $nation);
-            throw_if($nation->memberships()->count() >= $this->settings->maxMembers(), \DomainException::class, 'この国家は定員に達しています。');
+            throw_if($nation->memberships()->count() >= $this->settings->maxMembersFor($nation), \DomainException::class, 'この国家は定員に達しています。');
 
             $membership = $this->memberships->createApprovedMembership($applicant, $nation);
             $lockedApplication->update([
@@ -126,6 +126,10 @@ final class NationJoinApplicationService
 
             $this->activityLogs->record($nation, 'join_application_approved', $actor, $applicant);
             $this->activityLogs->record($nation, 'member_joined', $actor, $applicant);
+            if (app(NationLevelBenefitSettingsService::class)->enabled()) {
+                app(NationTimelineService::class)->recordMemberCountMilestone($nation, $actor, $applicant);
+                app(NationAchievementService::class)->recordMemberJoined($nation);
+            }
             $this->notifyApplicantOfApproval($nation, $applicant, $lockedApplication);
 
             return $membership->load(['nation', 'character']);
@@ -178,7 +182,7 @@ final class NationJoinApplicationService
         if (! $nation->recruitment_enabled) {
             return ['allowed' => false, 'reason' => 'この国家は国民募集を停止しています。', 'blocked_until' => null, 'pending' => null];
         }
-        if ($nation->memberships()->count() >= $this->settings->maxMembers()) {
+        if ($nation->memberships()->count() >= $this->settings->maxMembersFor($nation)) {
             return ['allowed' => false, 'reason' => 'この国家は定員に達しています。', 'blocked_until' => null, 'pending' => null];
         }
 
@@ -198,7 +202,7 @@ final class NationJoinApplicationService
     {
         throw_unless($nation->status === Nation::STATUS_ACTIVE, \DomainException::class, 'この国家は現在加入を受け付けていません。');
         throw_unless($nation->recruitment_enabled, \DomainException::class, 'この国家は国民募集を停止しています。');
-        throw_if($nation->memberships()->count() >= $this->settings->maxMembers(), \DomainException::class, 'この国家は定員に達しています。');
+        throw_if($nation->memberships()->count() >= $this->settings->maxMembersFor($nation), \DomainException::class, 'この国家は定員に達しています。');
     }
 
     private function notifyRulerOfApplication(

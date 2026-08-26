@@ -19,6 +19,11 @@ final class NationRoleService
         'upgrade_facilities' => ['ruler', 'chancellor', 'logistics_officer'],
         'repair_facilities' => ['ruler', 'chancellor', 'logistics_officer'],
         'set_war_operations' => ['ruler', 'chancellor', 'marshal', 'logistics_officer'],
+        'manage_nation_goals' => ['ruler', 'chancellor', 'logistics_officer'],
+        'manage_wanted_materials' => ['ruler', 'chancellor', 'logistics_officer'],
+        'manage_decorations' => ['ruler'],
+        'manage_showcase' => ['ruler'],
+        'manage_war_presets' => ['ruler', 'chancellor', 'logistics_officer'],
     ];
 
     public function allows(NationMembership $membership, string $permission): bool

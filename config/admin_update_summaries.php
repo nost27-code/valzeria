@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-level-member-capacity',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家Lvに応じて国民定員を拡張',
+        'detail' => '国家の国民定員が、国家Lv1の20人から段階的に増え、国家Lv50で40人まで広がるようになりました。加入申請時と承認時の両方で、現在の国家Lvに応じた定員を確認します。',
+    ],
+    [
         'id' => '2026-08-26-nation-member-sort',
         'date' => '2026-08-26',
         'category' => 'changed',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Nation;
 
+use App\Models\Nation;
 use App\Services\GameSettingService;
 
 final class NationCommunitySettingsService
@@ -10,7 +11,17 @@ final class NationCommunitySettingsService
 
     public function maxMembers(): int
     {
-        return max(1, min(100, $this->settings->getInt('nation.max_members', 20)));
+        $absoluteCap = (int) config('nation_development.system_absolute_member_cap', 100);
+
+        return max(1, min($absoluteCap, $this->settings->getInt('nation.max_members', $absoluteCap)));
+    }
+
+    public function maxMembersFor(Nation $nation): int
+    {
+        $levelCapacity = app(NationDevelopmentLevelService::class)
+            ->memberCapacityForExperience((int) $nation->development_exp);
+
+        return min($levelCapacity, $this->maxMembers());
     }
 
     public function applicationRetryHours(): int

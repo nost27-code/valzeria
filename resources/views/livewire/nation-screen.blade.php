@@ -125,7 +125,7 @@
                 @include('livewire.partials.nation-profile-header', [
                     'nation' => $selectedNation,
                     'memberCount' => $selectedNation->memberships_count,
-                    'maxMembers' => $maxMembers,
+                    'maxMembers' => $nationCapacities[$selectedNation->id] ?? $maxMembers,
                     'developmentEnabled' => $developmentEnabled,
                     'developmentLevel' => $developmentEnabled ? ($nationLevels[$selectedNation->id] ?? 1) : null,
                     'headerEyebrow' => 'NATION',
@@ -171,6 +171,28 @@
                 @endif
             </section>
 
+            @if($developmentEnabled && $levelBenefitsEnabled && ($selectedNationGoals->isNotEmpty() || $selectedNationWantedMaterials->isNotEmpty() || $selectedNationAchievements->isNotEmpty()))
+                <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm" data-nation-public-development>
+                    @if($selectedNationGoals->isNotEmpty())<h2 class="text-base font-black text-stone-900">共同目標</h2><div class="mt-2 space-y-2">@foreach($selectedNationGoals as $goalRow)<div class="rounded-xl bg-emerald-50 p-3"><p class="text-sm font-black text-emerald-950">{{ $goalRow['goal']->title }}</p>@if($goalRow['progress_bps'] !== null)<p class="mt-1 text-xs font-bold text-emerald-800">{{ number_format($goalRow['current']) }} / {{ number_format($goalRow['target']) }}</p>@endif</div>@endforeach</div>@endif
+                    @if($selectedNationWantedMaterials->isNotEmpty())<h2 class="mt-4 text-base font-black text-stone-900">募集中の都市素材</h2><div class="mt-2 flex flex-wrap gap-2">@foreach($selectedNationWantedMaterials as $wanted)<span class="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-900" title="{{ $wanted->purpose_note }}">{{ $wanted->material?->name }}</span>@endforeach</div>@endif
+                    @if($selectedNationAchievements->isNotEmpty())
+                        <h2 class="mt-4 text-base font-black text-stone-900">国家実績</h2>
+                        <div class="mt-2 grid gap-2 sm:grid-cols-3">
+                            @foreach($selectedNationAchievements as $achievement)
+                                @php
+                                    $achievementInfo = $achievementCatalog[$achievement->achievement_key] ?? ['name' => '国家実績', 'description' => ''];
+                                @endphp
+                                <div class="rounded-xl bg-amber-50 p-3"><p class="text-sm font-black text-amber-950">◆ {{ $achievementInfo['name'] }}</p><p class="mt-1 text-[11px] font-bold text-amber-800">{{ $achievementInfo['description'] }}</p></div>
+                            @endforeach
+                        </div>
+                    @endif
+                </section>
+            @endif
+
+            @if($developmentEnabled && $levelBenefitsEnabled && $selectedNationTimeline->isNotEmpty())
+                <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm" data-nation-public-timeline><h2 class="text-base font-black text-stone-900">国家年表</h2><div class="mt-2 divide-y divide-stone-100">@foreach($selectedNationTimeline as $entry)<div class="py-2"><p class="text-xs font-black text-stone-700">{{ $selectedNationTimelineDescriptions[$entry->id] }}</p><time class="text-[10px] font-bold text-stone-400">{{ $entry->created_at?->format('Y/m/d') }}</time></div>@endforeach</div></section>
+            @endif
+
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div class="flex items-center justify-between gap-3">
                     <h2 class="text-base font-black text-stone-900">国民一覧</h2>
@@ -199,22 +221,22 @@
             </section>
         @else
             @if($page !== 'nation-list')
-            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-home-hero>
-                <div class="flex items-center gap-3 sm:gap-5">
-                    <img src="{{ asset('images/icon/icon_306.webp') }}" alt="国家" width="128" height="128" class="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28">
-                    <div class="min-w-0"><p class="text-xs font-black tracking-[0.22em] text-emerald-700">NATION</p><h1 class="mt-0.5 text-2xl font-black text-stone-950">国家</h1><p class="mt-1 text-sm font-bold leading-relaxed text-stone-600">国を興し、仲間を集め、要塞を築き、他国との戦いに備えよう。</p></div>
-                </div>
-                @if($ownPendingApplication)
-                    <div class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
-                        <p class="text-sm font-black text-sky-900">{{ $ownPendingApplication->nation->display_name }}へ加入申請中</p>
-                        <div class="mt-2 grid grid-cols-2 gap-2"><button type="button" wire:click="showNationDetail({{ $ownPendingApplication->nation_id }})" class="min-h-10 rounded-lg border border-sky-300 bg-white text-xs font-black text-sky-800">国家詳細</button><button type="button" wire:click="cancelJoinApplication({{ $ownPendingApplication->id }})" class="min-h-10 rounded-lg border border-rose-300 bg-white text-xs font-black text-rose-700">申請取消</button></div>
+                <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-home-hero>
+                    <div class="flex items-center gap-3 sm:gap-5">
+                        <img src="{{ asset('images/icon/icon_306.webp') }}" alt="国家" width="128" height="128" class="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28">
+                        <div class="min-w-0"><p class="text-xs font-black tracking-[0.22em] text-emerald-700">NATION</p><h1 class="mt-0.5 text-2xl font-black text-stone-950">国家</h1><p class="mt-1 text-sm font-bold leading-relaxed text-stone-600">国を興し、仲間を集め、要塞を築き、他国との戦いに備えよう。</p></div>
                     </div>
-                @endif
-                <div class="mt-4 grid grid-cols-2 gap-3">
-                    <button type="button" wire:click="showNationList" class="min-h-12 rounded-xl border border-blue-800 bg-gradient-to-b from-blue-500 to-blue-700 px-3 py-2.5 text-sm font-black text-white shadow-sm"><span aria-hidden="true">🔍</span> 国家を探す</button>
-                    <button type="button" wire:click="showCreate" class="min-h-12 rounded-xl border border-amber-700 bg-gradient-to-b from-amber-400 to-amber-600 px-3 py-2.5 text-sm font-black text-white shadow-sm"><span aria-hidden="true">🏰</span> 建国する</button>
-                </div>
-            </section>
+                    @if($ownPendingApplication)
+                        <div class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
+                            <p class="text-sm font-black text-sky-900">{{ $ownPendingApplication->nation->display_name }}へ加入申請中</p>
+                            <div class="mt-2 grid grid-cols-2 gap-2"><button type="button" wire:click="showNationDetail({{ $ownPendingApplication->nation_id }})" class="min-h-10 rounded-lg border border-sky-300 bg-white text-xs font-black text-sky-800">国家詳細</button><button type="button" wire:click="cancelJoinApplication({{ $ownPendingApplication->id }})" class="min-h-10 rounded-lg border border-rose-300 bg-white text-xs font-black text-rose-700">申請取消</button></div>
+                        </div>
+                    @endif
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <button type="button" wire:click="showNationList" class="min-h-12 rounded-xl border border-blue-800 bg-gradient-to-b from-blue-500 to-blue-700 px-3 py-2.5 text-sm font-black text-white shadow-sm"><span aria-hidden="true">🔍</span> 国家を探す</button>
+                        <button type="button" wire:click="showCreate" class="min-h-12 rounded-xl border border-amber-700 bg-gradient-to-b from-amber-400 to-amber-600 px-3 py-2.5 text-sm font-black text-white shadow-sm"><span aria-hidden="true">🏰</span> 建国する</button>
+                    </div>
+                </section>
             @endif
 
             <section class="rounded-2xl border border-[#d4af37] bg-white p-3 shadow-sm sm:p-4" data-nation-list>
@@ -222,9 +244,7 @@
                     <div>
                         <h2 class="text-base font-black text-stone-900">{{ $page === 'nation-list' ? '国家を探す' : '国家ピックアップ' }}</h2>
                         @if($page !== 'nation-list' && $activeNationCount > 0)
-                            <p class="mt-1 text-[11px] font-bold text-stone-500">
-                                {{ $activeNationCount > 3 ? '全'.number_format($activeNationCount).'国から日替わりで3国を紹介しています' : '現在の全'.number_format($activeNationCount).'国を紹介しています' }}
-                            </p>
+                            <p class="mt-1 text-[11px] font-bold text-stone-500">{{ $activeNationCount > 3 ? '全'.number_format($activeNationCount).'国から日替わりで3国を紹介しています' : '現在の全'.number_format($activeNationCount).'国を紹介しています' }}</p>
                         @endif
                     </div>
                     @if($page !== 'nation-list')<button type="button" wire:click="showNationList" class="min-h-10 shrink-0 rounded-lg border border-stone-300 bg-white px-3 text-xs font-black text-stone-700">全国家を見る</button>@endif
@@ -234,7 +254,7 @@
                         <article class="flex gap-3 py-3">
                             <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" loading="lazy" class="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20">
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="truncate text-base font-black text-stone-950">{{ $nation->display_name }}</h3><p class="mt-0.5 text-xs font-bold text-stone-500">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>@if($developmentEnabled)<p class="mt-0.5 text-xs font-black text-amber-700">国家Lv{{ $nationLevels[$nation->id] ?? 1 }}</p>@endif</div><div class="shrink-0 text-right"><div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/{{ $maxMembers }}人</div><div class="text-[11px] font-black {{ $nation->recruitment_enabled ? 'text-emerald-600' : 'text-stone-500' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</div></div></div>
+                                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="truncate text-base font-black text-stone-950">{{ $nation->display_name }}</h3><p class="mt-0.5 text-xs font-bold text-stone-500">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>@if($developmentEnabled)<p class="mt-0.5 text-xs font-black text-amber-700">国家Lv{{ $nationLevels[$nation->id] ?? 1 }}</p>@endif</div><div class="shrink-0 text-right"><div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/{{ $nationCapacities[$nation->id] ?? $maxMembers }}人</div><div class="text-[11px] font-black {{ $nation->recruitment_enabled ? 'text-emerald-600' : 'text-stone-500' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</div></div></div>
                                 <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-blue-700">{{ $nation->recruitment_message ?: '募集文はまだありません。' }}</p>
                                 <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
                                 <button type="button" wire:click="showNationDetail({{ $nation->id }})" class="mt-2 min-h-9 w-full rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-700">詳細を見る</button>
@@ -246,12 +266,7 @@
                 </div>
                 @if($page === 'nation-list' && method_exists($nations, 'links'))<div class="mt-3">{{ $nations->links() }}</div>@endif
                 @if($page !== 'nation-list')
-                    <button
-                        type="button"
-                        wire:click="showNationList"
-                        data-nation-showcase-all-button
-                        class="mt-3 min-h-11 w-full rounded-xl border border-blue-800 bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
-                    >
+                    <button type="button" wire:click="showNationList" data-nation-showcase-all-button class="mt-3 min-h-11 w-full rounded-xl border border-blue-800 bg-blue-600 px-4 text-sm font-black text-white shadow-sm hover:bg-blue-700">
                         全国家（{{ number_format($activeNationCount) }}国）を見る
                     </button>
                 @endif
@@ -290,7 +305,6 @@
     @else
         @php
             $nation = $membership->nation;
-            $nationMemberCount = $nation->memberships->count();
         @endphp
         <section
             class="relative overflow-hidden rounded-2xl border-2 border-[#d4af37] bg-slate-900 shadow-lg"
@@ -299,7 +313,7 @@
         >
             @include('livewire.partials.nation-profile-header', [
                 'nation' => $nation,
-                'memberCount' => $nationMemberCount,
+                'memberCount' => $nation->memberships->count(),
                 'maxMembers' => $maxMembers,
                 'developmentEnabled' => $developmentEnabled,
                 'developmentLevel' => $developmentEnabled && $developmentProgress ? $developmentProgress['level'] : null,
@@ -314,49 +328,44 @@
         @if($page === 'resources' && $developmentEnabled)
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-resource-management>
                 <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
-                    <div>
-                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION DEVELOPMENT</p>
-                        <h2 class="text-xl font-black text-stone-950">国家資材管理</h2>
-                    </div>
+                    <div><p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION DEVELOPMENT</p><h2 class="text-xl font-black text-stone-950">国家資材管理</h2></div>
                     <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900">国家Lv{{ $developmentProgress['level'] }}</span>
                 </div>
-
                 <div class="mt-4 grid grid-cols-2 gap-3">
-                    <div class="rounded-xl bg-slate-50 p-3">
-                        <p class="text-xs font-bold text-slate-500">国家資材</p>
-                        <p class="mt-1 text-xl font-black text-slate-950">{{ number_format($nation->treasury_points) }}<span class="ml-1 text-xs">pt</span></p>
-                    </div>
-                    <div class="rounded-xl bg-amber-50 p-3">
-                        <p class="text-xs font-bold text-amber-700">あなたの貢献度</p>
-                        <p class="mt-1 text-xl font-black text-amber-950">{{ number_format($personalContribution) }}<span class="ml-1 text-xs">EXP</span></p>
-                    </div>
+                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-xs font-bold text-slate-500">国家資材</p><p class="mt-1 text-xl font-black text-slate-950">{{ number_format($nation->treasury_points) }}<span class="ml-1 text-xs">pt</span></p></div>
+                    <div class="rounded-xl bg-amber-50 p-3"><p class="text-xs font-bold text-amber-700">あなたの貢献度</p><p class="mt-1 text-xl font-black text-amber-950">{{ number_format($personalContribution) }}<span class="ml-1 text-xs">EXP</span></p></div>
                 </div>
-
                 <div class="mt-4 rounded-xl border border-amber-200 bg-white p-3">
                     <div class="flex items-center justify-between gap-3 text-xs font-black text-stone-700">
                         <span>国家発展EXP {{ number_format($developmentProgress['total_exp']) }}</span>
-                        @if($developmentProgress['is_max'])
-                            <span class="text-amber-700">Lv{{ $developmentProgress['max_level'] }} MAX</span>
-                        @else
-                            <span>次まで {{ number_format($developmentProgress['exp_to_next']) }}</span>
-                        @endif
+                        @if($developmentProgress['is_max'])<span class="text-amber-700">Lv{{ $developmentProgress['max_level'] }} MAX</span>@else<span>次まで {{ number_format($developmentProgress['exp_to_next']) }}</span>@endif
                     </div>
-                    <div class="mt-2 h-3 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ intdiv($developmentProgress['progress_bps'], 100) }}">
-                        <div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style="width: {{ $developmentProgress['progress_bps'] / 100 }}%"></div>
-                    </div>
-                    @if($developmentProgress['is_max'])
-                        <p class="mt-2 text-xs font-bold leading-relaxed text-stone-600">Lvは上限ですが、国家発展EXPと納品実績は引き続き蓄積されます。</p>
-                    @endif
+                    <div class="mt-2 h-3 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ intdiv($developmentProgress['progress_bps'], 100) }}"><div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style="width: {{ $developmentProgress['progress_bps'] / 100 }}%"></div></div>
+                    @if($developmentProgress['is_max'])<p class="mt-2 text-xs font-bold leading-relaxed text-stone-600">Lvは上限ですが、国家発展EXPと納品実績は引き続き蓄積されます。</p>@endif
                 </div>
             </section>
 
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5" data-nation-donation-form>
                 <h2 class="text-lg font-black text-stone-950">都市素材を納品する</h2>
                 <p class="mt-1 text-sm font-bold leading-relaxed text-stone-600">納品した素材は国家資材となり、同時に国家発展EXPが加算されます。</p>
-                <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-relaxed text-rose-800">
-                    都市素材は装備進化・素材交換・NPC調達にも使用します。納品すると返却できないため、納品後の残数を必ず確認してください。
-                </div>
-
+                <details class="group mt-3 overflow-hidden rounded-xl border border-sky-200 bg-sky-50/70" data-nation-development-help>
+                    <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-black text-sky-900">
+                        <span>ptとEXPについて</span>
+                        <span class="text-xs transition-transform group-open:rotate-180" aria-hidden="true">▼</span>
+                    </summary>
+                    <div class="border-t border-sky-200 px-3 py-3 text-xs font-bold leading-relaxed text-slate-700">
+                        <p><strong class="block text-sky-900">国家資材pt：</strong>国家の国庫に貯まります。国家戦の準備では、本部・魔導砲・城壁などの強化や修復に割り振って使用します。割り振った分のptは消費されます。平時から納品して、コツコツ貯めておけます。</p>
+                        <p class="mt-3"><strong class="block text-amber-800">国家発展EXP：</strong>国家Lvを上げる経験値です。国家Lvが上がると、国民数の上限拡張や新しい機能の開放につながります。戦争や施設損傷では減らず、国家の成長記録として残り続けます。</p>
+                        <div class="mt-3 rounded-lg bg-white/80 px-3 py-2">
+                            <p class="font-black text-slate-900">納品で得られるptとEXP</p>
+                            <ol class="mt-1 list-decimal space-y-1 pl-5">
+                                <li>低位素材：1個＝国家資材1pt＋発展1EXP</li>
+                                <li>高位素材：1個＝国家資材3pt＋発展2EXP</li>
+                            </ol>
+                        </div>
+                    </div>
+                </details>
+                <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-relaxed text-rose-800">都市素材は装備進化・素材交換・NPC調達にも使用します。納品すると返却できないため、納品後の残数を必ず確認してください。</div>
                 @if($donatableMaterials->isNotEmpty())
                     <form wire:submit="openDonationConfirmation" class="mt-4 space-y-4">
                         <div>
@@ -418,19 +427,12 @@
             </section>
 
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5" data-nation-contributions>
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="text-lg font-black text-stone-950">国家発展への貢献</h2>
-                    <span class="text-xs font-black text-amber-700">合計 {{ number_format($contributionRows->sum('development_exp')) }} EXP</span>
-                </div>
+                <div class="flex items-center justify-between gap-3"><h2 class="text-lg font-black text-stone-950">国家発展への貢献</h2><span class="text-xs font-black text-amber-700">合計 {{ number_format($contributionRows->sum('development_exp')) }} EXP</span></div>
                 <p class="mt-1 text-xs font-bold leading-relaxed text-stone-500">現在の国家へ納品した発展EXPです。アカウント削除後の記録は「退会した冒険者」にまとめます。</p>
                 <div class="mt-3 divide-y divide-stone-100">
                     @forelse($contributionRows as $contribution)
                         <div class="flex items-center justify-between gap-3 py-2.5">
-                            @if($contribution['character_id'])
-                                <button type="button" x-on:click="Livewire.dispatch('open-adventurer-card', { characterId: {{ $contribution['character_id'] }} })" class="min-w-0 truncate text-left text-sm font-black text-blue-800 underline decoration-blue-300 underline-offset-2">{{ $contribution['name'] }}</button>
-                            @else
-                                <span class="min-w-0 truncate text-sm font-black text-stone-600">{{ $contribution['name'] }}</span>
-                            @endif
+                            @if($contribution['character_id'])<button type="button" x-on:click="Livewire.dispatch('open-adventurer-card', { characterId: {{ $contribution['character_id'] }} })" class="min-w-0 truncate text-left text-sm font-black text-blue-800 underline decoration-blue-300 underline-offset-2">{{ $contribution['name'] }}</button>@else<span class="min-w-0 truncate text-sm font-black text-stone-600">{{ $contribution['name'] }}</span>@endif
                             <strong class="shrink-0 text-sm font-black text-amber-800">{{ number_format($contribution['development_exp']) }} EXP</strong>
                         </div>
                     @empty
@@ -438,9 +440,131 @@
                     @endforelse
                 </div>
             </section>
+        @elseif($page === 'benefits' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-benefits>
+                <h2 class="text-xl font-black text-stone-950">国家Lv特典</h2>
+                <p class="mt-1 text-sm font-bold text-stone-600">国家発展EXPを貯めると、国民定員や国家運営機能、施設Lv上限が段階的に開放されます。</p>
+                <div class="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-3">
+                    <div class="rounded-xl bg-amber-50 p-3"><span class="block text-xs font-bold text-amber-700">現在</span><strong class="mt-1 block text-lg text-amber-950">国家Lv{{ $developmentProgress['level'] }}</strong></div>
+                    <div class="rounded-xl bg-sky-50 p-3"><span class="block text-xs font-bold text-sky-700">国民定員</span><strong class="mt-1 block text-lg text-sky-950">{{ $maxMembers }}人</strong></div>
+                    <div class="rounded-xl bg-emerald-50 p-3"><span class="block text-xs font-bold text-emerald-700">施設Lv上限</span><strong class="mt-1 block text-lg text-emerald-950">Lv{{ $developmentBenefits['facility_level_cap'] }}</strong></div>
+                </div>
+                @if($nextDevelopmentBenefit)
+                    <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950"><p class="font-black">次の開放：国家Lv{{ $nextDevelopmentBenefit['level'] }}</p><p class="mt-1">{{ $nextDevelopmentBenefit['label'] }}</p><p class="mt-1 text-xs">あと {{ number_format(max(0, $nextDevelopmentBenefit['cumulative_exp'] - $developmentProgress['total_exp'])) }} EXP</p></div>
+                @else
+                    <div class="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-black text-amber-950">すべての国家Lv特典を開放しています。</div>
+                @endif
+                <div class="mt-4 overflow-x-auto rounded-xl border border-stone-200">
+                    <table class="w-full min-w-[34rem] text-left text-xs font-bold"><thead class="bg-stone-100 text-stone-600"><tr><th class="p-2">Lv</th><th class="p-2">定員</th><th class="p-2">施設上限</th><th class="p-2">主な開放</th></tr></thead><tbody class="divide-y divide-stone-100">@foreach($developmentBenefitMilestones as $benefitLevel => $benefit)<tr class="{{ $developmentProgress['level'] >= $benefitLevel ? 'bg-white' : 'bg-stone-50 text-stone-400' }}"><td class="p-2 font-black">{{ $benefitLevel }}</td><td class="p-2">{{ $benefit['member_capacity'] }}人</td><td class="p-2">Lv{{ $benefit['facility_level_cap'] }}</td><td class="p-2">{{ $benefit['label'] }}</td></tr>@endforeach</tbody></table>
+                </div>
+            </section>
+        @elseif($page === 'goals' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-goals>
+                <div class="flex items-center justify-between gap-3"><h2 class="text-xl font-black text-stone-950">共同目標</h2><span class="text-xs font-black text-amber-700">同時 {{ $developmentBenefits['goal_slots'] }}件</span></div>
+                <p class="mt-1 text-xs font-bold text-stone-500">達成記録を国民で共有する機能です。資材・EXP・能力等の追加報酬はありません。</p>
+                <div class="mt-3 space-y-3">
+                    @forelse($activeGoals as $goalRow)
+                        @php
+                            $goal = $goalRow['goal'];
+                        @endphp
+                        <article class="rounded-xl border border-stone-200 bg-stone-50 p-3" data-nation-goal="{{ $goal->id }}"><div class="flex items-start justify-between gap-2"><div><h3 class="font-black text-stone-900">{{ $goal->title }}</h3><p class="mt-1 text-xs font-bold text-stone-500">{{ $goal->description }}</p></div>@if($goal->deadline_at)<time class="shrink-0 text-[11px] font-bold text-stone-500">期限 {{ $goal->deadline_at->format('m/d H:i') }}</time>@endif</div>
+                            @if($goalRow['progress_bps'] !== null)<div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200"><div class="h-full bg-emerald-500" style="width: {{ $goalRow['progress_bps'] / 100 }}%"></div></div><p class="mt-1 text-right text-xs font-black text-stone-600">{{ number_format($goalRow['current']) }} / {{ number_format($goalRow['target']) }}</p>@else<p class="mt-2 text-xs font-bold text-sky-700">掲示型の目標です。</p>@endif
+                            @if($canManageGoals)<div class="mt-2 flex gap-2">@if($goal->metric_type === 'manual')<button type="button" wire:click="completeManualGoal({{ $goal->id }})" class="min-h-9 flex-1 rounded-lg bg-emerald-600 text-xs font-black text-white">達成にする</button>@endif<button type="button" wire:click="cancelNationGoal({{ $goal->id }})" class="min-h-9 flex-1 rounded-lg border border-rose-300 bg-white text-xs font-black text-rose-700">取り下げ</button></div>@endif
+                        </article>
+                    @empty<p class="rounded-xl bg-stone-50 p-5 text-center text-sm font-bold text-stone-500">進行中の共同目標はありません。</p>@endforelse
+                </div>
+                @if($canManageGoals && $activeGoals->count() < $developmentBenefits['goal_slots'])
+                    <form wire:submit="createNationGoal" class="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                        <h3 class="font-black text-amber-950">新しい共同目標</h3>
+                        <input type="text" wire:model="goalTitle" maxlength="60" placeholder="目標名" class="min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold">
+                        <textarea wire:model="goalDescription" maxlength="200" rows="2" placeholder="説明（任意）" class="w-full rounded-lg border-stone-300 text-sm font-bold"></textarea>
+                        <select wire:model.live="goalMetricType" class="min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold"><option value="material_quantity">指定素材の納品数</option><option value="development_exp">納品で得た発展EXP</option><option value="donation_points">納品で得た国家資材pt</option><option value="member_count">現在の国民数</option><option value="facility_level">施設Lv</option><option value="manual">掲示型（手動達成）</option></select>
+                        @if($goalMetricType === 'material_quantity')<select wire:model="goalMaterialId" class="min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold"><option value="">素材を選択</option>@foreach($nationMaterialOptions as $rate)<option value="{{ $rate->material_id }}">{{ $rate->material->name }}</option>@endforeach</select>@endif
+                        @if($goalMetricType === 'facility_level')<select wire:model="goalFacilityType" class="min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold"><option value="">全施設（最も低いLv）</option><option value="wall">城壁</option><option value="magic_cannon">魔導砲</option><option value="logistics">兵站所</option><option value="arsenal">要塞工廠</option><option value="headquarters">本陣</option></select>@endif
+                        @if($goalMetricType !== 'manual')<input type="number" min="1" wire:model="goalTargetValue" placeholder="目標値" class="min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold">@endif
+                        <label class="block text-xs font-black text-stone-600">期限（任意）<input type="datetime-local" wire:model="goalDeadlineAt" class="mt-1 min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold"></label>
+                        <button type="submit" class="min-h-11 w-full rounded-lg bg-amber-600 text-sm font-black text-white">共同目標を設定する</button>
+                    </form>
+                @endif
+                @if($goalHistory && $goalHistory->count())<div class="mt-5 border-t border-stone-200 pt-4"><h3 class="font-black text-stone-900">過去の共同目標</h3><div class="mt-2 divide-y divide-stone-100">@foreach($goalHistory as $pastGoal)<div class="py-2 text-xs font-bold"><span class="font-black text-stone-800">{{ $pastGoal->title }}</span><span class="ml-2 text-stone-500">{{ match($pastGoal->status) {'completed' => '達成', 'expired' => '未達成・締切済み', default => '取り下げ'} }}</span></div>@endforeach</div>{{ $goalHistory->links() }}</div>@endif
+            </section>
+        @elseif($page === 'wanted-materials' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-wanted-materials>
+                <h2 class="text-xl font-black text-stone-950">募集素材</h2><p class="mt-1 text-xs font-bold text-stone-500">現在集めたい都市素材を最大{{ $developmentBenefits['wanted_material_slots'] }}種類まで表示します。指定によるpt・EXP・ドロップ率の増加はありません。</p>
+                @if($canManageWantedMaterials)<form wire:submit="saveWantedMaterials" class="mt-4 space-y-3">@foreach($wantedMaterialIds as $index => $materialId)<div class="rounded-xl border border-stone-200 bg-stone-50 p-3"><select wire:model="wantedMaterialIds.{{ $index }}" class="min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold"><option value="">設定しない</option>@foreach($nationMaterialOptions as $rate)<option value="{{ $rate->material_id }}">{{ $rate->material->name }}（{{ $rate->points_per_unit }}pt・{{ $rate->development_exp_per_unit }}EXP）</option>@endforeach</select><input type="text" maxlength="100" wire:model="wantedMaterialNotes.{{ $index }}" placeholder="用途コメント（任意）" class="mt-2 min-h-10 w-full rounded-lg border-stone-300 text-sm font-bold"></div>@endforeach<button type="submit" class="min-h-11 w-full rounded-lg bg-blue-700 text-sm font-black text-white">募集素材を保存する</button></form>@else<p class="mt-3 rounded-xl bg-stone-50 p-3 text-sm font-bold text-stone-600">設定は統治者・宰相・兵站官が変更できます。</p>@endif
+            </section>
+        @elseif($page === 'achievements' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-achievements>
+                <div class="flex items-center justify-between gap-3"><h2 class="text-xl font-black text-stone-950">国家実績</h2><span class="text-xs font-black text-amber-700">展示 {{ $developmentBenefits['showcase_slots'] }}枠</span></div>
+                @if($allAchievements->isEmpty())<p class="mt-4 rounded-xl bg-stone-50 p-5 text-center text-sm font-bold text-stone-500">まだ獲得した国家実績はありません。</p>@else
+                    <form wire:submit="saveAchievementShowcase" class="mt-3 space-y-2">
+                        @foreach($allAchievements as $achievement)
+                            @php
+                                $achievementInfo = $achievementCatalog[$achievement->achievement_key] ?? ['name' => '国家実績', 'description' => ''];
+                            @endphp
+                            <label class="flex items-start gap-3 rounded-xl border border-stone-200 p-3"><input type="checkbox" value="{{ $achievement->achievement_key }}" wire:model="showcaseAchievementKeys" @disabled(!$canManageShowcase || $developmentBenefits['showcase_slots'] < 1) class="mt-1 rounded text-amber-600"><span><strong class="block text-sm text-stone-900">{{ $achievementInfo['name'] }}</strong><span class="mt-0.5 block text-xs font-bold text-stone-500">{{ $achievementInfo['description'] }}</span><time class="mt-1 block text-[11px] font-bold text-stone-400">{{ $achievement->unlocked_at?->format('Y/m/d') }}</time></span></label>
+                        @endforeach
+                        @if($canManageShowcase && $developmentBenefits['showcase_slots'] > 0)<button type="submit" class="min-h-11 w-full rounded-lg bg-amber-600 text-sm font-black text-white">展示を保存する</button>@endif
+                    </form>
+                @endif
+            </section>
+        @elseif($page === 'decorations' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-decorations>
+                <h2 class="text-xl font-black text-stone-950">国家装飾</h2><p class="mt-1 text-xs font-bold text-stone-500">既存の紋章80種・背景20種はLvに関係なく利用できます。ここでは国家Lvで増える装飾だけを選びます。</p>
+                @if($canManageDecorations)<form wire:submit="saveNationDecorations" class="mt-4 space-y-3">@foreach(\App\Services\Nation\NationDecorationCatalog::TYPES as $decorationType)<label class="block text-sm font-black text-stone-700">{{ $decorationTypeLabels[$decorationType] }}<select wire:model="decorationSettings.{{ $decorationType }}" class="mt-1 min-h-11 w-full rounded-lg border-stone-300 text-sm font-bold"><option value="">使用しない</option>@foreach($decorationCatalog->forType($decorationType) as $key => $item)<option value="{{ $key }}" @disabled($developmentProgress['level'] < $item['required_level'])>{{ $item['name'] }}（Lv{{ $item['required_level'] }}）{{ $developmentProgress['level'] < $item['required_level'] ? '・未開放' : '' }}</option>@endforeach</select></label>@endforeach<button type="submit" class="min-h-11 w-full rounded-lg bg-amber-600 text-sm font-black text-white">装飾を保存する</button></form>@else<p class="mt-3 rounded-xl bg-stone-50 p-3 text-sm font-bold text-stone-600">国家装飾は統治者が変更できます。</p>@endif
+            </section>
+        @elseif($page === 'analytics' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-analytics>
+                <h2 class="text-xl font-black text-stone-950">納品集計・分析</h2>
+                @if($developmentProgress['level'] < 20)<p class="mt-3 rounded-xl bg-stone-50 p-5 text-center text-sm font-bold text-stone-600">週間・月間納品集計は国家Lv20で開放されます。</p>@else
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">@foreach(['seven_days'=>'過去7日','thirty_days'=>'過去30日'] as $periodKey => $periodLabel)@php
+                        $period = $donationAnalytics[$periodKey];
+                    @endphp<article class="rounded-xl border border-stone-200 bg-stone-50 p-3"><h3 class="font-black text-stone-900">{{ $periodLabel }}</h3><dl class="mt-2 grid grid-cols-2 gap-2 text-xs"><div><dt class="text-stone-500">納品数</dt><dd class="font-black">{{ number_format($period['current']['quantity']) }}個</dd></div><div><dt class="text-stone-500">参加国民</dt><dd class="font-black">{{ number_format($period['current']['participants']) }}人</dd></div><div><dt class="text-stone-500">国家資材</dt><dd class="font-black">{{ number_format($period['current']['points']) }}pt</dd></div><div><dt class="text-stone-500">発展EXP</dt><dd class="font-black">{{ number_format($period['current']['development_exp']) }}</dd></div></dl><p class="mt-2 text-[11px] font-bold text-stone-500">前期間比：納品数 {{ $period['changes']['quantity'] >= 0 ? '+' : '' }}{{ number_format($period['changes']['quantity']) }}個</p></article>@endforeach</div>
+                    @if($developmentProgress['level'] < 35)
+                        <p class="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-900">素材別内訳・推移は国家Lv35で開放されます。</p>
+                    @else
+                        <div class="mt-5">
+                            <h3 class="font-black text-stone-900">素材別内訳（過去30日）</h3>
+                            @if($donationTierSummary['total_quantity'] > 0)
+                                <div class="mt-2 rounded-xl bg-stone-50 p-3 text-xs font-bold text-stone-700">
+                                    <div class="flex items-center justify-between gap-3"><span>低位 {{ number_format($donationTierSummary['low_quantity']) }}個（{{ number_format($donationTierSummary['low_bps'] / 100, 1) }}%）</span><span>高位 {{ number_format($donationTierSummary['high_quantity']) }}個（{{ number_format($donationTierSummary['high_bps'] / 100, 1) }}%）</span></div>
+                                    <div class="mt-2 flex h-2 overflow-hidden rounded-full bg-stone-200"><span class="bg-sky-400" style="width: {{ $donationTierSummary['low_bps'] / 100 }}%"></span><span class="bg-amber-500" style="width: {{ $donationTierSummary['high_bps'] / 100 }}%"></span></div>
+                                </div>
+                            @endif
+                            <div class="mt-2 divide-y divide-stone-100 rounded-xl border border-stone-200">@forelse($donationMaterialBreakdown as $row)<div class="flex items-center justify-between gap-3 p-3 text-xs"><span class="min-w-0 truncate font-black text-stone-800">{{ $row['name'] }} <small class="text-stone-400">{{ $row['tier'] === 'high' ? '高位' : '低位' }}</small></span><span class="shrink-0 font-bold text-stone-600">{{ number_format($row['quantity']) }}個 / {{ number_format($row['points']) }}pt / {{ number_format($row['development_exp']) }}EXP</span></div>@empty<p class="p-5 text-center text-sm font-bold text-stone-500">期間内の納品はありません。</p>@endforelse</div>
+                        </div>
+                        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                            <section class="rounded-xl border border-stone-200 p-3"><h3 class="font-black text-stone-900">日別推移（過去30日）</h3><div class="mt-2 max-h-48 divide-y divide-stone-100 overflow-y-auto">@forelse($donationDailyTrend->reverse()->values() as $row)<div class="flex justify-between gap-2 py-2 text-xs font-bold"><span>{{ $row['date'] }}</span><span>{{ number_format($row['quantity']) }}個 / {{ number_format($row['points']) }}pt</span></div>@empty<p class="py-4 text-center text-xs font-bold text-stone-500">納品記録はありません。</p>@endforelse</div></section>
+                            <section class="rounded-xl border border-stone-200 p-3"><h3 class="font-black text-stone-900">週別推移（過去8週）</h3><div class="mt-2 max-h-48 divide-y divide-stone-100 overflow-y-auto">@forelse($donationWeeklyTrend->reverse()->values() as $row)<div class="flex justify-between gap-2 py-2 text-xs font-bold"><span>{{ $row['week_start'] }}〜</span><span>{{ number_format($row['quantity']) }}個 / {{ number_format($row['development_exp']) }}EXP</span></div>@empty<p class="py-4 text-center text-xs font-bold text-stone-500">納品記録はありません。</p>@endforelse</div></section>
+                        </div>
+                        <div class="mt-5"><h3 class="font-black text-stone-900">募集素材の納品状況（過去30日）</h3><div class="mt-2 divide-y divide-stone-100 rounded-xl border border-stone-200">@forelse($wantedMaterialProgress as $row)<div class="flex items-center justify-between gap-3 p-3 text-xs"><span class="min-w-0"><strong class="block text-stone-800">{{ $row['name'] }}</strong>@if($row['purpose_note'])<span class="block truncate font-bold text-stone-500">{{ $row['purpose_note'] }}</span>@endif</span><span class="shrink-0 font-black text-sky-700">{{ number_format($row['quantity_30d']) }}個</span></div>@empty<p class="p-4 text-center text-xs font-bold text-stone-500">募集素材は設定されていません。</p>@endforelse</div></div>
+                    @endif
+                @endif
+            </section>
+        @elseif($page === 'timeline' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-timeline>
+                <h2 class="text-xl font-black text-stone-950">国家年表</h2><p class="mt-1 text-xs font-bold text-stone-500">国家の節目だけを公開史として残します。追放・申請却下等の操作履歴とは別です。</p>
+                @if($developmentProgress['level'] < 15)<p class="mt-3 rounded-xl bg-stone-50 p-5 text-center text-sm font-bold text-stone-600">国家年表の表示は国家Lv15で開放されます。節目の記録は開放前から続いています。</p>@else<div class="mt-4 space-y-3">@forelse($timelineEntries as $entry)<article class="relative border-l-2 border-amber-400 pl-4"><span class="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-amber-500"></span><p class="text-sm font-black text-stone-800">{{ $timelineDescriptions[$entry->id] }}</p><time class="text-[11px] font-bold text-stone-400">{{ $entry->created_at?->format('Y/m/d H:i') }}</time></article>@empty<p class="rounded-xl bg-stone-50 p-5 text-center text-sm font-bold text-stone-500">まだ年表に表示する節目はありません。</p>@endforelse</div>@endif
+            </section>
+        @elseif($page === 'war-presets' && $developmentEnabled && $levelBenefitsEnabled)
+            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-war-presets>
+                <h2 class="text-xl font-black text-stone-950">戦争準備プリセット</h2><p class="mt-1 text-xs font-bold text-stone-500">保存だけでは国家資材を消費しません。割合予算や施設の自動連続強化は行いません。</p>
+                <div class="mt-3 space-y-2">@foreach($warPreparationPresets as $preset)<article class="rounded-xl border border-stone-200 bg-stone-50 p-3"><div class="flex items-center justify-between gap-2"><h3 class="font-black text-stone-900">{{ $preset->name }}</h3>@if($canManageWarPresets)<button type="button" wire:click="deleteWarPreparationPreset({{ $preset->id }})" class="text-xs font-black text-rose-700">削除</button>@endif</div><p class="mt-1 text-xs font-bold text-stone-600">プール {{ number_format($preset->pool_contribution_points) }}pt / 施設強化上限 {{ number_format($preset->facility_upgrade_limit_points) }}pt / 修復警告 {{ number_format($preset->repair_reserve_warning_points) }}pt</p><p class="mt-1 text-[11px] font-bold text-stone-500">施設優先順：{{ collect($preset->facility_priority)->map(fn ($type) => $nationFacilityTypeLabels[$type] ?? $type)->implode(' → ') }}</p></article>@endforeach</div>
+                @if($canManageWarPresets && $warPreparationPresets->count() < $developmentBenefits['war_preset_slots'])
+                    <form wire:submit="saveWarPreparationPreset" class="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-stone-200 p-3">
+                        <input type="text" maxlength="60" wire:model="warPresetName" placeholder="プリセット名" class="col-span-2 min-h-11 rounded-lg border-stone-300 text-sm font-bold">
+                        <label class="text-xs font-black text-stone-600">プール拠出予定pt<input type="number" min="0" wire:model="warPresetPoolPoints" class="mt-1 min-h-10 w-full rounded-lg border-stone-300 text-sm font-bold"></label>
+                        <label class="text-xs font-black text-stone-600">施設強化上限pt<input type="number" min="0" wire:model="warPresetFacilityPoints" class="mt-1 min-h-10 w-full rounded-lg border-stone-300 text-sm font-bold"></label>
+                        <label class="col-span-2 text-xs font-black text-stone-600">修復用温存の警告ラインpt<input type="number" min="0" wire:model="warPresetReservePoints" class="mt-1 min-h-10 w-full rounded-lg border-stone-300 text-sm font-bold"></label>
+                        <fieldset class="col-span-2 rounded-lg bg-stone-50 p-2"><legend class="px-1 text-xs font-black text-stone-600">施設強化の優先順</legend><div class="space-y-1">@foreach($warPresetFacilityPriority as $priorityIndex => $facilityType)<div class="flex items-center gap-2 rounded-lg bg-white px-2 py-1.5 text-xs font-black text-stone-700"><span class="w-5 text-center text-stone-400">{{ $priorityIndex + 1 }}</span><span class="min-w-0 flex-1">{{ $nationFacilityTypeLabels[$facilityType] ?? $facilityType }}</span><button type="button" wire:click="moveWarPresetFacilityPriority('{{ $facilityType }}', 'up')" @disabled($loop->first) class="min-h-8 min-w-8 rounded border border-stone-200 disabled:opacity-30" aria-label="{{ $nationFacilityTypeLabels[$facilityType] ?? $facilityType }}を上へ">↑</button><button type="button" wire:click="moveWarPresetFacilityPriority('{{ $facilityType }}', 'down')" @disabled($loop->last) class="min-h-8 min-w-8 rounded border border-stone-200 disabled:opacity-30" aria-label="{{ $nationFacilityTypeLabels[$facilityType] ?? $facilityType }}を下へ">↓</button></div>@endforeach</div></fieldset>
+                        <button type="submit" class="col-span-2 min-h-11 rounded-lg bg-blue-700 text-sm font-black text-white">保存する</button>
+                    </form>
+                @endif
+            </section>
         @elseif($page === 'applications' && $membership->isRuler())
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm" data-nation-applications>
                 <h2 class="text-xl font-black text-stone-950">加入申請</h2>
+                <p class="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-xs font-black text-sky-900">現在 {{ $nation->memberships->count() }} / {{ $maxMembers }}人・残り {{ max(0, $maxMembers - $nation->memberships->count()) }}枠</p>
                 <div class="mt-3 divide-y divide-stone-100">
                     @forelse($pendingApplications as $application)
                         <article class="py-4">
@@ -477,7 +601,11 @@
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm" data-nation-member-management>
                 <h2 class="text-xl font-black text-stone-950">国民・役職管理</h2>
                 <p class="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-relaxed text-amber-900">
-                    現在、役職による権限変更は未実装です。宰相・元帥・兵站官への変更は肩書き表示のみで、この画面で実際に利用できる管理操作は追放です。
+                    @if($levelBenefitsEnabled)
+                        宰相と兵站官は共同目標・募集素材・戦争準備プリセットを管理できます。元帥の国家戦権限は国家戦公開後に有効になります。役職変更・追放・国家紹介・装飾・実績展示は統治者のみ行えます。
+                    @else
+                        現在、役職による権限変更は未実装です。この画面で実際に利用できる管理操作は追放です。
+                    @endif
                 </p>
                 <div class="mt-3 divide-y divide-stone-100">
                     @foreach($nation->memberships as $nationMember)
@@ -528,6 +656,24 @@
                 <h2 class="text-base font-black text-stone-900">国家紹介</h2><p class="mt-2 whitespace-pre-line text-sm font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
                 @if($nation->recruitment_message)<div class="mt-3 rounded-xl bg-blue-50 p-3"><p class="text-xs font-black text-blue-900">国民への募集文</p><p class="mt-1 whitespace-pre-line text-sm font-bold text-blue-800">{{ $nation->recruitment_message }}</p></div>@endif
             </section>
+
+            @if($developmentEnabled && $levelBenefitsEnabled && $activeGoals->isNotEmpty())
+                <section class="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm" data-nation-home-goals><div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">共同目標</h2><button type="button" wire:click="showNationGoals" class="text-xs font-black text-blue-700">すべて見る</button></div><div class="mt-2 space-y-2">@foreach($activeGoals as $goalRow)<div class="rounded-xl bg-emerald-50 p-3"><p class="text-sm font-black text-emerald-950">{{ $goalRow['goal']->title }}</p>@if($goalRow['progress_bps'] !== null)<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100"><div class="h-full bg-emerald-500" style="width: {{ $goalRow['progress_bps'] / 100 }}%"></div></div><p class="mt-1 text-right text-[11px] font-bold text-emerald-800">{{ number_format($goalRow['current']) }} / {{ number_format($goalRow['target']) }}</p>@endif</div>@endforeach</div></section>
+            @endif
+
+            @if($developmentEnabled && $levelBenefitsEnabled && $wantedMaterials->isNotEmpty())
+                <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm" data-nation-home-wanted><div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">募集中の都市素材</h2><button type="button" wire:click="showWantedMaterials" class="text-xs font-black text-blue-700">設定を見る</button></div><div class="mt-2 flex flex-wrap gap-2">@foreach($wantedMaterials as $wanted)<span class="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-900" title="{{ $wanted->purpose_note }}">{{ $wanted->material?->name }}</span>@endforeach</div></section>
+            @endif
+
+            @if($developmentEnabled && $levelBenefitsEnabled && $displayedAchievements->isNotEmpty())
+                <section class="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm" data-nation-home-achievements><h2 class="text-base font-black text-stone-900">国家実績</h2><div class="mt-2 grid gap-2 sm:grid-cols-3">@foreach($displayedAchievements as $achievement)@php
+                    $achievementInfo = $achievementCatalog[$achievement->achievement_key] ?? ['name' => '国家実績', 'description' => ''];
+                @endphp<div class="rounded-xl bg-amber-50 p-3"><p class="text-sm font-black text-amber-950">◆ {{ $achievementInfo['name'] }}</p><p class="mt-1 text-[11px] font-bold text-amber-800">{{ $achievementInfo['description'] }}</p></div>@endforeach</div></section>
+            @endif
+
+            @if($developmentEnabled && $levelBenefitsEnabled && $developmentProgress['level'] >= 15 && $timelineEntries->isNotEmpty())
+                <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm" data-nation-home-timeline><div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">国家年表</h2><button type="button" wire:click="showNationTimeline" class="text-xs font-black text-blue-700">年表を見る</button></div><div class="mt-2 divide-y divide-stone-100">@foreach($timelineEntries as $entry)<div class="py-2"><p class="text-xs font-black text-stone-700">{{ $timelineDescriptions[$entry->id] }}</p><time class="text-[10px] font-bold text-stone-400">{{ $entry->created_at?->format('Y/m/d') }}</time></div>@endforeach</div></section>
+            @endif
 
             <section wire:poll.60s="markNationChatRead" class="overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-sm" aria-label="国家チャット" data-nation-chat>
                 <div class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-4 py-3">
@@ -600,11 +746,11 @@
                     <h2 class="text-base font-black text-stone-900">国民一覧</h2>
                     <span class="text-xs font-black text-stone-500">{{ $nation->memberships->count() }}人</span>
                 </div>
-                <label class="mt-3 flex items-center justify-end gap-2 text-xs font-bold text-stone-600">
+                <label class="mt-3 flex items-center justify-end gap-2 text-xs font-black text-stone-600">
                     <span>並び順</span>
                     <select wire:model.live="memberSort" class="min-h-10 max-w-[13rem] rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-800 focus:border-amber-500 focus:ring-amber-500" data-nation-member-sort>
-                        @foreach($memberSortOptions as $value => $label)
-                            <option value="{{ $value }}">{{ $label }}</option>
+                        @foreach($memberSortOptions as $memberSortKey => $memberSortLabel)
+                            <option value="{{ $memberSortKey }}">{{ $memberSortLabel }}</option>
                         @endforeach
                     </select>
                 </label>
@@ -628,45 +774,42 @@
 
             @if($membership->isRuler() && $activityLogs->isNotEmpty())
                 <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm" data-nation-activity-log-preview>
-                    <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-base font-black text-stone-900">国家操作履歴</h2>
-                        <span class="text-[11px] font-bold text-stone-400">最新{{ $activityLogs->count() }}件</span>
-                    </div>
-                    <div class="mt-2 divide-y divide-stone-100">
-                        @foreach($activityLogs as $log)
-                            <div class="py-2" data-nation-activity-log-preview-item>
-                                <p class="text-xs font-bold text-stone-700">{{ $activityDescriptions[$log->id] }}</p>
-                                <time class="mt-0.5 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time>
-                            </div>
-                        @endforeach
-                    </div>
-                    @if($activityLogTotal > $activityLogPreviewLimit)
-                        <button type="button" wire:click="openActivityLogModal" class="mt-3 min-h-11 w-full rounded-xl border border-stone-300 bg-stone-50 text-sm font-black text-stone-700 hover:bg-stone-100" data-nation-activity-log-open>
-                            過去の履歴を見る
-                        </button>
-                    @endif
+                    <div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">国家操作履歴</h2><span class="text-[11px] font-bold text-stone-400">最新{{ $activityLogs->count() }}件</span></div>
+                    <div class="mt-2 divide-y divide-stone-100">@foreach($activityLogs as $log)<div class="py-2" data-nation-activity-log-preview-item><p class="text-xs font-bold text-stone-700">{{ $activityDescriptions[$log->id] }}</p><time class="mt-0.5 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time></div>@endforeach</div>
+                    @if($activityLogTotal > $activityLogPreviewLimit)<button type="button" wire:click="openActivityLogModal" class="mt-3 min-h-11 w-full rounded-xl border border-stone-300 bg-stone-50 text-sm font-black text-stone-700 hover:bg-stone-100" data-nation-activity-log-open>過去の履歴を見る</button>@endif
                 </section>
             @endif
 
             @if($developmentEnabled)
                 @php
-                    $developmentMenuGroups = [[
-                        'key' => 'development',
-                        'label' => '発展',
-                        'items' => [[
-                            'key' => 'resource-management',
-                            'action' => 'showResourceManagement',
-                            'icon' => '📦',
-                            'title' => '国家資材管理',
-                            'description' => '都市素材を納品し、国家を発展させる',
-                        ]],
-                    ]];
+                    $developmentMenuGroups = [
+                        [
+                            'key' => 'growth',
+                            'label' => '成長',
+                            'items' => array_values(array_filter([
+                                $levelBenefitsEnabled ? ['key' => 'benefits', 'action' => 'showDevelopmentBenefits', 'icon' => '📈', 'title' => '国家Lv特典', 'description' => '現在の特典と次の開放を確認する'] : null,
+                                ['key' => 'resource-management', 'action' => 'showResourceManagement', 'icon' => '📦', 'title' => '国家資材管理', 'description' => '都市素材を納品し、国家を発展させる'],
+                                $levelBenefitsEnabled ? ['key' => 'analytics', 'action' => 'showDonationAnalytics', 'icon' => '📊', 'title' => '納品集計・分析', 'description' => $developmentProgress['level'] >= 20 ? '週間・月間の納品状況を確認する' : '国家Lv20で週間・月間集計を開放'] : null,
+                            ])),
+                        ],
+                    ];
+                    if ($levelBenefitsEnabled) {
+                        $developmentMenuGroups[] = [
+                            'key' => 'community-development',
+                            'label' => '共同運営',
+                            'items' => [
+                                ['key' => 'goals', 'action' => 'showNationGoals', 'icon' => '🎯', 'title' => '共同目標', 'description' => '国民で共有する目標と進捗を確認する'],
+                                ['key' => 'wanted-materials', 'action' => 'showWantedMaterials', 'icon' => '🧱', 'title' => '募集素材', 'description' => '国家が集めたい都市素材を確認する'],
+                                ['key' => 'achievements', 'action' => 'showNationAchievements', 'icon' => '🏅', 'title' => '国家実績', 'description' => '恒久実績と紹介への展示を確認する'],
+                                ['key' => 'decorations', 'action' => 'showNationDecorations', 'icon' => '✨', 'title' => '国家装飾', 'description' => '国家Lvで開放した装飾を選ぶ'],
+                                ['key' => 'timeline', 'action' => 'showNationTimeline', 'icon' => '📜', 'title' => '国家年表', 'description' => $developmentProgress['level'] >= 15 ? '国家の節目を公開史として振り返る' : '国家Lv15で表示を開放'],
+                                ['key' => 'war-presets', 'action' => 'showWarPreparationPresets', 'icon' => '🗂️', 'title' => '戦争準備プリセット', 'description' => $developmentProgress['level'] >= 20 ? '固定ptの準備計画を保存する' : '国家Lv20・国家戦公開後に利用可能'],
+                            ],
+                        ];
+                    }
                 @endphp
                 <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" aria-label="国家発展メニュー" data-nation-development-menu>
-                    <div class="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                        <h2 class="text-base font-black text-slate-950">国家発展</h2>
-                        <span class="text-xs font-black text-amber-700">Lv{{ $developmentProgress['level'] }}</span>
-                    </div>
+                    <div class="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-3"><h2 class="text-base font-black text-slate-950">国家発展</h2><span class="text-xs font-black text-amber-700">Lv{{ $developmentProgress['level'] }}</span></div>
                     @include('livewire.partials.nation-menu-groups', ['menuGroups' => $developmentMenuGroups])
                 </section>
             @endif
@@ -769,12 +912,15 @@
                             @php
                                 $tileDonationQuantity = max(0, (int) ($donationQuantities[$material->material_id] ?? 0));
                                 $isSelectedDonationMaterial = $tileDonationQuantity > 0;
+                                $isWantedDonationMaterial = filled($material->wanted_purpose_note ?? null);
                                 $materialIcon = \App\Models\Material::iconImagePathFor($material->material_code, $material->name) ?? 'images/icon/icon_011.webp';
                             @endphp
                             <article wire:key="nation-donation-material-{{ $material->material_id }}" class="overflow-hidden rounded-xl border-2 bg-white shadow-sm {{ $isSelectedDonationMaterial ? 'border-amber-500 ring-2 ring-amber-100' : 'border-stone-200' }}" data-nation-material-tile="{{ $material->material_id }}" data-selected="{{ $isSelectedDonationMaterial ? 'true' : 'false' }}">
                                 <button type="button" wire:click="selectDonationMaterial({{ $material->material_id }})" class="flex w-full flex-col items-center px-2 pb-2 pt-3 text-center">
                                     <img src="{{ asset($materialIcon) }}" alt="{{ $material->name }}" width="160" height="160" loading="lazy" class="h-14 w-14 object-contain sm:h-16 sm:w-16">
+                                    @if($isWantedDonationMaterial)<span class="mt-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">国家募集中</span>@endif
                                     <strong class="mt-1 line-clamp-2 min-h-10 text-xs font-black leading-5 text-stone-950">{{ $material->name }}</strong>
+                                    @if($isWantedDonationMaterial)<span class="line-clamp-2 text-[10px] font-bold text-sky-700">{{ $material->wanted_purpose_note }}</span>@endif
                                     <span class="mt-0.5 text-[11px] font-bold text-stone-500">所持 {{ number_format($material->quantity) }}個</span>
                                     <span class="text-[10px] font-bold text-amber-700">1個={{ $material->points_per_unit }}pt・{{ $material->development_exp_per_unit }}EXP</span>
                                 </button>
@@ -802,39 +948,20 @@
     @if($showDonationConfirmationModal && $membership && $page === 'resources' && $confirmedDonation !== [])
         <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="donation-confirmation-modal-title" data-nation-donation-confirmation wire:click.self="closeDonationConfirmation" wire:keydown.escape.window="closeDonationConfirmation">
             <section class="w-full max-w-md overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
-                <header class="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
-                    <div>
-                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">CONTRIBUTE</p>
-                        <h2 id="donation-confirmation-modal-title" class="text-lg font-black text-stone-950">選んだ{{ number_format($confirmedDonation['material_count']) }}種類の素材を納品しますか？</h2>
-                    </div>
-                    <button type="button" wire:click="closeDonationConfirmation" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="納品確認を閉じる">×</button>
-                </header>
+                <header class="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3"><div><p class="text-[11px] font-black tracking-[0.16em] text-amber-700">CONTRIBUTE</p><h2 id="donation-confirmation-modal-title" class="text-lg font-black text-stone-950">選んだ{{ number_format($confirmedDonation['material_count']) }}種類の素材を納品しますか？</h2></div><button type="button" wire:click="closeDonationConfirmation" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="納品確認を閉じる">×</button></header>
                 <div class="p-4">
                     <div class="max-h-56 divide-y divide-stone-200 overflow-y-auto overscroll-contain rounded-xl bg-stone-50 px-3" data-nation-donation-confirmation-items>
                         @foreach($confirmedDonation['items'] as $item)
                             <div class="py-2.5" data-nation-donation-confirmation-item="{{ $item['material_id'] }}">
                                 <p class="text-sm font-black text-stone-950">{{ $item['name'] }}</p>
-                                <div class="mt-1 grid grid-cols-2 gap-2 text-xs font-bold text-stone-600">
-                                    <p>納品数 <strong class="float-right text-stone-950">{{ number_format($item['quantity']) }}個</strong></p>
-                                    <p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format($item['remaining_quantity']) }}個</strong></p>
-                                </div>
+                                <div class="mt-1 grid grid-cols-2 gap-2 text-xs font-bold text-stone-600"><p>納品数 <strong class="float-right text-stone-950">{{ number_format($item['quantity']) }}個</strong></p><p>納品後の残数 <strong class="float-right text-stone-950">{{ number_format($item['remaining_quantity']) }}個</strong></p></div>
                             </div>
                         @endforeach
                     </div>
-                    <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-bold">
-                        <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">合計納品数</span><strong class="mt-1 block text-sm text-stone-950">{{ number_format($confirmedDonation['total_quantity']) }}個</strong></div>
-                        <div class="rounded-lg bg-slate-50 p-2"><span class="block text-slate-500">国家資材</span><strong class="mt-1 block text-sm text-slate-950">+{{ number_format($confirmedDonation['points']) }}pt</strong></div>
-                        <div class="rounded-lg bg-amber-50 p-2"><span class="block text-amber-700">発展EXP</span><strong class="mt-1 block text-sm text-amber-800">+{{ number_format($confirmedDonation['development_exp']) }}</strong></div>
-                    </div>
+                    <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-bold"><div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">合計納品数</span><strong class="mt-1 block text-sm text-stone-950">{{ number_format($confirmedDonation['total_quantity']) }}個</strong></div><div class="rounded-lg bg-slate-50 p-2"><span class="block text-slate-500">国家資材</span><strong class="mt-1 block text-sm text-slate-950">+{{ number_format($confirmedDonation['points']) }}pt</strong></div><div class="rounded-lg bg-amber-50 p-2"><span class="block text-amber-700">発展EXP</span><strong class="mt-1 block text-sm text-amber-800">+{{ number_format($confirmedDonation['development_exp']) }}</strong></div></div>
                     <p class="mt-3 text-xs font-bold leading-relaxed text-rose-700">納品した素材は返却できません。装備進化・素材交換・NPC調達に使う予定がないか、残数を確認してください。</p>
                 </div>
-                <footer class="grid grid-cols-2 gap-2 border-t border-stone-200 bg-white p-4">
-                    <button type="button" wire:click="closeDonationConfirmation" class="min-h-11 rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700">戻る</button>
-                    <button type="button" wire:click="donateMaterials" wire:loading.attr="disabled" wire:target="donateMaterials" class="min-h-11 rounded-lg bg-emerald-600 px-3 text-sm font-black text-white disabled:opacity-50">
-                        <span wire:loading.remove wire:target="donateMaterials">まとめて納品する</span>
-                        <span wire:loading wire:target="donateMaterials">納品しています…</span>
-                    </button>
-                </footer>
+                <footer class="grid grid-cols-2 gap-2 border-t border-stone-200 bg-white p-4"><button type="button" wire:click="closeDonationConfirmation" class="min-h-11 rounded-lg border border-stone-300 bg-white px-3 text-sm font-black text-stone-700">戻る</button><button type="button" wire:click="donateMaterials" wire:loading.attr="disabled" wire:target="donateMaterials" class="min-h-11 rounded-lg bg-emerald-600 px-3 text-sm font-black text-white disabled:opacity-50"><span wire:loading.remove wire:target="donateMaterials">まとめて納品する</span><span wire:loading wire:target="donateMaterials">納品しています…</span></button></footer>
             </section>
         </div>
     @endif
@@ -882,30 +1009,9 @@
     @if($showActivityLogModal && $membership?->isRuler())
         <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="nation-activity-log-modal-title" data-nation-activity-log-modal wire:click.self="closeActivityLogModal" wire:keydown.escape.window="closeActivityLogModal">
             <section class="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
-                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
-                    <div>
-                        <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION HISTORY</p>
-                        <h2 id="nation-activity-log-modal-title" class="text-lg font-black text-stone-950">国家操作履歴</h2>
-                    </div>
-                    <button type="button" wire:click="closeActivityLogModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家操作履歴を閉じる">×</button>
-                </header>
-                <div class="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto overscroll-contain px-4">
-                    @foreach($activityLogModalEntries as $log)
-                        <div class="py-3" data-nation-activity-log-modal-item>
-                            <p class="text-sm font-bold leading-relaxed text-stone-700">{{ $activityDescriptions[$log->id] }}</p>
-                            <time class="mt-1 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time>
-                        </div>
-                    @endforeach
-                </div>
-                <footer class="shrink-0 border-t border-stone-200 bg-stone-50 px-4 py-3 text-center">
-                    <p class="text-[11px] font-bold text-stone-500">
-                        @if($activityLogTotal > $activityLogModalLimit)
-                            全{{ number_format($activityLogTotal) }}件のうち、直近{{ number_format($activityLogModalLimit) }}件を表示しています。
-                        @else
-                            全{{ number_format($activityLogTotal) }}件を表示しています。
-                        @endif
-                    </p>
-                </footer>
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3"><div><p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION HISTORY</p><h2 id="nation-activity-log-modal-title" class="text-lg font-black text-stone-950">国家操作履歴</h2></div><button type="button" wire:click="closeActivityLogModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家操作履歴を閉じる">×</button></header>
+                <div class="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto overscroll-contain px-4">@foreach($activityLogModalEntries as $log)<div class="py-3" data-nation-activity-log-modal-item><p class="text-sm font-bold leading-relaxed text-stone-700">{{ $activityDescriptions[$log->id] }}</p><time class="mt-1 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time></div>@endforeach</div>
+                <footer class="shrink-0 border-t border-stone-200 bg-stone-50 px-4 py-3 text-center"><p class="text-[11px] font-bold text-stone-500">@if($activityLogTotal > $activityLogModalLimit)全{{ number_format($activityLogTotal) }}件のうち、直近{{ number_format($activityLogModalLimit) }}件を表示しています。@else全{{ number_format($activityLogTotal) }}件を表示しています。@endif</p></footer>
             </section>
         </div>
     @endif
@@ -923,14 +1029,14 @@
                     </div>
                     <button type="button" wire:click="closeMemberListModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国民一覧を閉じる">×</button>
                 </header>
-                <label class="flex shrink-0 items-center justify-end gap-2 border-b border-stone-100 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-600">
-                    <span>並び順</span>
+                <div class="flex shrink-0 items-center justify-end gap-2 border-b border-stone-200 bg-stone-50 px-4 py-2">
+                    <label for="nation-member-modal-sort" class="text-xs font-black text-stone-600">並び順</label>
                     <select id="nation-member-modal-sort" wire:model.live="memberSort" class="min-h-10 max-w-[13rem] rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-800 focus:border-amber-500 focus:ring-amber-500" data-nation-member-modal-sort>
-                        @foreach($memberSortOptions as $value => $label)
-                            <option value="{{ $value }}">{{ $label }}</option>
+                        @foreach($memberSortOptions as $memberSortKey => $memberSortLabel)
+                            <option value="{{ $memberSortKey }}">{{ $memberSortLabel }}</option>
                         @endforeach
                     </select>
-                </label>
+                </div>
                 <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
                     @include('livewire.partials.nation-member-grid', [
                         'memberships' => $memberListNation->memberships,
