@@ -101,6 +101,43 @@ class CharacterIconCatalogTest extends TestCase
         }
     }
 
+    public function test_new_standard_four_pose_icons_are_permanently_selectable_and_visible(): void
+    {
+        $numbers = [
+            9, 33, 36, 37, 53, 65, 75, 97, 102, 104, 105, 116,
+            142, 153, 154, 157, 159, 163, 165, 166, 168, 169, 171,
+        ];
+        $selectablePaths = CharacterIconCatalog::paths();
+
+        foreach ($numbers as $number) {
+            $iconPath = sprintf('/images/chara/chara_%03d.webp', $number);
+            $poseDirectory = sprintf('/images/chara/poses/chara_%03d', $number);
+            $paths = CharacterIconCatalog::pathsForStandardIcon($iconPath);
+
+            $this->assertContains($iconPath, $selectablePaths);
+            $this->assertTrue(CharacterIconCatalog::isSelectable($iconPath));
+            $this->assertNotNull($paths);
+            $this->assertSame($paths, app(CharacterIconSetService::class)->resolvedPaths(
+                new Character(['icon_path' => $iconPath]),
+            ));
+            $this->assertStringContainsString(
+                $poseDirectory.'/01_normal.webp?v=',
+                CharacterIconCatalog::versionedAsset($iconPath),
+            );
+
+            foreach ($paths as $scene => $path) {
+                $absolutePath = public_path(ltrim($path, '/'));
+
+                $this->assertFileExists($absolutePath, "{$iconPath} の {$scene} 画像がありません。");
+                $imageSize = getimagesize($absolutePath);
+                $this->assertIsArray($imageSize, "{$iconPath} の {$scene} 画像を読み取れません。");
+                $this->assertSame(128, $imageSize[0]);
+                $this->assertSame(128, $imageSize[1]);
+                $this->assertSame('image/webp', $imageSize['mime'] ?? null);
+            }
+        }
+    }
+
     public function test_configured_exclusive_icon_paths_are_versioned_but_not_publicly_selectable(): void
     {
         $path = '/images/chara/exclusive/exclusive_000/01_normal.webp';

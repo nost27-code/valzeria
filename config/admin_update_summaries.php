@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-standard-character-poses-twenty-three',
+        'date' => '2026-08-26',
+        'category' => 'added',
+        'title' => '通常キャラ画像23種に4ポーズを追加',
+        'detail' => '通常キャラ画像23種に、通常・勝利・戦闘・敗北の4ポーズを追加しました。キャラアイコン選択画面へ常設し、選択後は場面に応じた姿で表示されます。',
+    ],
+    [
         'id' => '2026-08-26-nation-showcase-bottom-all-link',
         'date' => '2026-08-26',
         'category' => 'changed',
