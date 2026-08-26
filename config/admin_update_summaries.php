@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-compact-home',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家TOPを短く使いやすい構成へ整理',
+        'detail' => '国家TOPによく使う操作をまとめ、国家概要・最新3件のチャット・最新2件の操作履歴を中心に表示するよう変更しました。全チャットと管理・発展メニューはモーダルから確認できます。',
+    ],
+    [
         'id' => '2026-08-26-nation-menu-back-button',
         'date' => '2026-08-26',
         'category' => 'changed',

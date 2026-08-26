@@ -64,6 +64,10 @@ final class NationLevelBenefitsTest extends TestCase
 
         $this->actingAs($ruler->user);
         Livewire::test(NationScreen::class)
+            ->assertSee('国家資材')
+            ->assertSeeHtml('data-nation-menu-open')
+            ->call('openNationMenuModal')
+            ->assertSeeHtml('data-nation-menu-modal')
             ->assertSee('国家資材管理')
             ->assertDontSee('国家Lv特典')
             ->assertDontSee('共同目標')
@@ -275,6 +279,9 @@ final class NationLevelBenefitsTest extends TestCase
         $this->actingAs($ruler->user);
 
         $screen = Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-menu-open')
+            ->call('openNationMenuModal')
+            ->assertSeeHtml('data-nation-menu-modal')
             ->assertSee('国家Lv特典')
             ->call('showDevelopmentBenefits')
             ->assertSet('page', 'benefits')

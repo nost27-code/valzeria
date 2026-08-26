@@ -681,28 +681,126 @@
                 @endif
             </section>
         @else
-            <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                <h2 class="text-base font-black text-stone-900">国家紹介</h2><p class="mt-2 whitespace-pre-line text-sm font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
-                @if($nation->recruitment_message)<div class="mt-3 rounded-xl bg-blue-50 p-3"><p class="text-xs font-black text-blue-900">国民への募集文</p><p class="mt-1 whitespace-pre-line text-sm font-bold text-blue-800">{{ $nation->recruitment_message }}</p></div>@endif
+            @php
+                $pendingCount = $membership->isRuler() ? $pendingApplications->count() : 0;
+                $rulerMenuGroups = $membership->isRuler() ? [
+                    [
+                        'key' => 'operations',
+                        'label' => '運営',
+                        'items' => [
+                            ['key' => 'applications', 'action' => 'showApplications', 'icon' => '📨', 'title' => '加入申請', 'description' => '届いた加入申請を確認・審査する', 'badge' => $pendingCount > 0 ? "{$pendingCount}件" : null],
+                            ['key' => 'members', 'action' => 'showMemberManagement', 'icon' => '👥', 'title' => '国民・役職管理', 'description' => '国民の役職変更や追放を行う'],
+                            ['key' => 'profile', 'action' => 'showProfileSettings', 'icon' => '📝', 'title' => '紹介・募集', 'description' => '国家紹介・募集文・紋章を編集する'],
+                        ],
+                    ],
+                    [
+                        'key' => 'authority',
+                        'label' => '統治',
+                        'items' => [
+                            ['key' => 'transfer', 'action' => 'showTransfer', 'icon' => '👑', 'title' => '統治者譲渡', 'description' => '国民へ統治者の地位を譲る'],
+                            ['key' => 'dissolution', 'action' => 'showDissolution', 'icon' => '⚠️', 'title' => '国家解散', 'description' => '国家の解散申請・取消を行う', 'tone' => 'danger'],
+                        ],
+                    ],
+                ] : [];
+                $developmentMenuGroups = $developmentEnabled ? [
+                    [
+                        'key' => 'growth',
+                        'label' => '成長',
+                        'items' => array_values(array_filter([
+                            $levelBenefitsEnabled ? ['key' => 'benefits', 'action' => 'showDevelopmentBenefits', 'icon' => '📈', 'title' => '国家Lv特典', 'description' => '現在の特典と次の開放を確認する'] : null,
+                            ['key' => 'resource-management', 'action' => 'showResourceManagement', 'icon' => '📦', 'title' => '国家資材管理', 'description' => '都市素材を納品し、国家を発展させる'],
+                            $levelBenefitsEnabled ? ['key' => 'analytics', 'action' => 'showDonationAnalytics', 'icon' => '📊', 'title' => '納品集計・分析', 'description' => $developmentProgress['level'] >= 20 ? '週間・月間の納品状況を確認する' : '国家Lv20で週間・月間集計を開放'] : null,
+                        ])),
+                    ],
+                ] : [];
+                if ($developmentEnabled && $levelBenefitsEnabled) {
+                    $developmentMenuGroups[] = [
+                        'key' => 'community-development',
+                        'label' => '共同運営',
+                        'items' => [
+                            ['key' => 'goals', 'action' => 'showNationGoals', 'icon' => '🎯', 'title' => '共同目標', 'description' => '国民で共有する目標と進捗を確認する'],
+                            ['key' => 'wanted-materials', 'action' => 'showWantedMaterials', 'icon' => '🧱', 'title' => '募集素材', 'description' => '国家が集めたい都市素材を確認する'],
+                            ['key' => 'achievements', 'action' => 'showNationAchievements', 'icon' => '🏅', 'title' => '国家実績', 'description' => '恒久実績と紹介への展示を確認する'],
+                            ['key' => 'decorations', 'action' => 'showNationDecorations', 'icon' => '✨', 'title' => '国家装飾', 'description' => '国家Lvで開放した装飾を選ぶ'],
+                            ['key' => 'timeline', 'action' => 'showNationTimeline', 'icon' => '📜', 'title' => '国家年表', 'description' => $developmentProgress['level'] >= 15 ? '国家の節目を公開史として振り返る' : '国家Lv15で表示を開放'],
+                            ['key' => 'war-presets', 'action' => 'showWarPreparationPresets', 'icon' => '🗂️', 'title' => '戦争準備プリセット', 'description' => $developmentProgress['level'] >= 20 ? '固定ptの準備計画を保存する' : '国家Lv20・国家戦公開後に利用可能'],
+                        ],
+                    ];
+                }
+                $upcomingNationMenuGroups = [[
+                    'key' => 'development-war',
+                    'label' => '発展・戦争',
+                    'items' => array_values(array_filter([
+                        $developmentEnabled ? null : ['key' => 'resource-management', 'action' => 'showResourceManagement', 'icon' => '📦', 'title' => '国家資材管理', 'description' => '国家戦に備える資材を確認・管理する'],
+                        ['key' => 'fortress-upgrade', 'action' => "showNotImplemented('fortress-upgrade')", 'icon' => '🏰', 'title' => '要塞強化', 'description' => '国家要塞の施設と強化状況を確認する'],
+                        ['key' => 'declare-war', 'action' => "showNotImplemented('declare-war')", 'icon' => '⚔️', 'title' => '宣戦布告', 'description' => '他国との国家戦を申し込む'],
+                        ['key' => 'war-strategy', 'action' => "showNotImplemented('war-strategy')", 'icon' => '📜', 'title' => '戦争方針設定', 'description' => '国家戦での作戦方針を整える'],
+                    ])),
+                ]];
+            @endphp
+
+            <section class="rounded-2xl border border-amber-200 bg-amber-50/40 p-3 shadow-sm" aria-label="よく使う操作" data-nation-home-shortcuts>
+                <div class="mb-2 flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-black text-stone-900">よく使う操作</h2>
+                    @if($pendingCount > 0)<span class="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-black text-white">加入申請 {{ $pendingCount }}件</span>@endif
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    @if($membership->isRuler())
+                        <button type="button" wire:click="showApplications" class="relative min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="applications"><span aria-hidden="true">📨</span> 加入申請@if($pendingCount > 0)<span class="ml-1 text-rose-600">{{ $pendingCount }}件</span>@endif</button>
+                    @elseif($developmentEnabled && $levelBenefitsEnabled)
+                        <button type="button" wire:click="showNationGoals" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="goals"><span aria-hidden="true">🎯</span> 共同目標</button>
+                    @endif
+                    <button type="button" wire:click="showResourceManagement" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="resources"><span aria-hidden="true">📦</span> 国家資材</button>
+                    @if($membership->isRuler())
+                        <button type="button" wire:click="showMemberManagement" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="members"><span aria-hidden="true">👥</span> 国民管理</button>
+                    @elseif($developmentEnabled && $levelBenefitsEnabled)
+                        <button type="button" wire:click="showWantedMaterials" class="min-h-12 rounded-xl border border-amber-200 bg-white px-2 py-2 text-xs font-black text-stone-800 shadow-sm" data-nation-shortcut="wanted-materials"><span aria-hidden="true">🧱</span> 募集素材</button>
+                    @endif
+                    <button type="button" wire:click="openNationMenuModal" class="min-h-12 rounded-xl bg-stone-900 px-2 py-2 text-xs font-black text-white shadow-sm" data-nation-menu-open><span aria-hidden="true">☰</span> 全メニュー</button>
+                </div>
             </section>
 
-            @if($developmentEnabled && $levelBenefitsEnabled && $activeGoals->isNotEmpty())
-                <section class="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm" data-nation-home-goals><div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">共同目標</h2><button type="button" wire:click="showNationGoals" class="text-xs font-black text-blue-700">すべて見る</button></div><div class="mt-2 space-y-2">@foreach($activeGoals as $goalRow)<div class="rounded-xl bg-emerald-50 p-3"><p class="text-sm font-black text-emerald-950">{{ $goalRow['goal']->title }}</p>@if($goalRow['progress_bps'] !== null)<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100"><div class="h-full bg-emerald-500" style="width: {{ $goalRow['progress_bps'] / 100 }}%"></div></div><p class="mt-1 text-right text-[11px] font-bold text-emerald-800">{{ number_format($goalRow['current']) }} / {{ number_format($goalRow['target']) }}</p>@endif</div>@endforeach</div></section>
-            @endif
-
-            @if($developmentEnabled && $levelBenefitsEnabled && $wantedMaterials->isNotEmpty())
-                <section class="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm" data-nation-home-wanted><div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">募集中の都市素材</h2><button type="button" wire:click="showWantedMaterials" class="text-xs font-black text-blue-700">設定を見る</button></div><div class="mt-2 flex flex-wrap gap-2">@foreach($wantedMaterials as $wanted)<span class="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-900" title="{{ $wanted->purpose_note }}">{{ $wanted->material?->name }}</span>@endforeach</div></section>
-            @endif
-
-            @if($developmentEnabled && $levelBenefitsEnabled && $displayedAchievements->isNotEmpty())
-                <section class="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm" data-nation-home-achievements><h2 class="text-base font-black text-stone-900">国家実績</h2><div class="mt-2 grid gap-2 sm:grid-cols-3">@foreach($displayedAchievements as $achievement)@php
-                    $achievementInfo = $achievementCatalog[$achievement->achievement_key] ?? ['name' => '国家実績', 'description' => ''];
-                @endphp<div class="rounded-xl bg-amber-50 p-3"><p class="text-sm font-black text-amber-950">◆ {{ $achievementInfo['name'] }}</p><p class="mt-1 text-[11px] font-bold text-amber-800">{{ $achievementInfo['description'] }}</p></div>@endforeach</div></section>
-            @endif
-
-            @if($developmentEnabled && $levelBenefitsEnabled && $developmentProgress['level'] >= 15 && $timelineEntries->isNotEmpty())
-                <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm" data-nation-home-timeline><div class="flex items-center justify-between gap-3"><h2 class="text-base font-black text-stone-900">国家年表</h2><button type="button" wire:click="showNationTimeline" class="text-xs font-black text-blue-700">年表を見る</button></div><div class="mt-2 divide-y divide-stone-100">@foreach($timelineEntries as $entry)<div class="py-2"><p class="text-xs font-black text-stone-700">{{ $timelineDescriptions[$entry->id] }}</p><time class="text-[10px] font-bold text-stone-400">{{ $entry->created_at?->format('Y/m/d') }}</time></div>@endforeach</div></section>
-            @endif
+            <section class="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" data-nation-home-overview>
+                <div class="flex items-center justify-between gap-3 px-4 py-3">
+                    <h2 class="text-base font-black text-stone-900">国家概要</h2>
+                    @if($membership->isRuler())<button type="button" wire:click="showProfileSettings" class="text-xs font-black text-blue-700">紹介を編集</button>@endif
+                </div>
+                <div class="border-t border-stone-100 px-4 py-3">
+                    <p class="line-clamp-2 whitespace-pre-line text-sm font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
+                    @if($nation->recruitment_message)<p class="mt-2 line-clamp-1 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800"><span class="font-black">募集：</span>{{ $nation->recruitment_message }}</p>@endif
+                </div>
+                @if($developmentEnabled && $levelBenefitsEnabled && $activeGoals->isNotEmpty())
+                    @php
+                        $homeGoal = $activeGoals->first();
+                    @endphp
+                    <div class="border-t border-stone-100 px-4 py-3" data-nation-home-goals>
+                        <div class="flex items-center justify-between gap-3"><p class="text-xs font-black text-emerald-900">🎯 共同目標</p><button type="button" wire:click="showNationGoals" class="text-xs font-black text-blue-700">すべて見る</button></div>
+                        <p class="mt-1 truncate text-sm font-black text-stone-800">{{ $homeGoal['goal']->title }}</p>
+                        @if($homeGoal['progress_bps'] !== null)<div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-emerald-100"><div class="h-full bg-emerald-500" style="width: {{ $homeGoal['progress_bps'] / 100 }}%"></div></div><p class="mt-1 text-right text-[10px] font-bold text-emerald-800">{{ number_format($homeGoal['current']) }} / {{ number_format($homeGoal['target']) }}</p>@endif
+                    </div>
+                @endif
+                @if($developmentEnabled && $levelBenefitsEnabled && $wantedMaterials->isNotEmpty())
+                    <div class="border-t border-stone-100 px-4 py-3" data-nation-home-wanted>
+                        <div class="flex items-center justify-between gap-3"><p class="text-xs font-black text-sky-900">🧱 募集中の都市素材</p><button type="button" wire:click="showWantedMaterials" class="text-xs font-black text-blue-700">設定を見る</button></div>
+                        <div class="mt-2 flex flex-wrap gap-1.5">@foreach($wantedMaterials->take(3) as $wanted)<span class="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-black text-sky-900" title="{{ $wanted->purpose_note }}">{{ $wanted->material?->name }}</span>@endforeach @if($wantedMaterials->count() > 3)<span class="rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-black text-stone-600">ほか{{ $wantedMaterials->count() - 3 }}種</span>@endif</div>
+                    </div>
+                @endif
+                @if($developmentEnabled && $levelBenefitsEnabled && $displayedAchievements->isNotEmpty())
+                    <div class="border-t border-stone-100 px-4 py-3" data-nation-home-achievements>
+                        <div class="flex items-center justify-between gap-3"><p class="text-xs font-black text-amber-900">🏅 展示中の国家実績</p><button type="button" wire:click="showNationAchievements" class="text-xs font-black text-blue-700">実績を見る</button></div>
+                        <p class="mt-1 truncate text-sm font-bold text-stone-700">{{ $displayedAchievements->take(3)->map(fn ($achievement) => ($achievementCatalog[$achievement->achievement_key] ?? ['name' => '国家実績'])['name'])->join('・') }}</p>
+                    </div>
+                @endif
+                @if($developmentEnabled && $levelBenefitsEnabled && $developmentProgress['level'] >= 15 && $timelineEntries->isNotEmpty())
+                    @php
+                        $latestTimelineEntry = $timelineEntries->first();
+                    @endphp
+                    <div class="border-t border-stone-100 px-4 py-3" data-nation-home-timeline>
+                        <div class="flex items-center justify-between gap-3"><p class="text-xs font-black text-stone-700">📜 最新の国家年表</p><button type="button" wire:click="showNationTimeline" class="text-xs font-black text-blue-700">年表を見る</button></div>
+                        <p class="mt-1 text-xs font-black text-stone-700">{{ $timelineDescriptions[$latestTimelineEntry->id] }}</p><time class="text-[10px] font-bold text-stone-400">{{ $latestTimelineEntry->created_at?->format('Y/m/d') }}</time>
+                    </div>
+                @endif
+            </section>
 
             <section wire:poll.60s="markNationChatRead" class="overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-sm" aria-label="国家チャット" data-nation-chat>
                 <div class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-4 py-3">
@@ -710,11 +808,15 @@
                         <h2 class="text-base font-black text-stone-900">国家チャット</h2>
                         <p class="mt-0.5 text-[11px] font-bold text-stone-500">自国の国民だけが閲覧・送信できます</p>
                     </div>
-                    <span class="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-black text-blue-800">最新50件</span>
+                    @if($nationChatMessages->count() > $nationChatPreviewLimit)
+                        <button type="button" wire:click="openNationChatModal" class="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-black text-blue-800" data-nation-chat-open>全{{ $nationChatMessages->count() }}件を見る</button>
+                    @else
+                        <span class="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-black text-blue-800">最新{{ $nationChatMessages->count() }}件</span>
+                    @endif
                 </div>
-                <div class="max-h-72 divide-y divide-stone-100 overflow-y-auto px-4" aria-live="polite">
-                    @forelse($nationChatMessages as $chatMessage)
-                        <article wire:key="nation-chat-message-{{ $chatMessage->id }}" class="py-2.5">
+                <div class="divide-y divide-stone-100 px-4" aria-live="polite" data-nation-chat-preview>
+                    @forelse($nationChatMessages->take($nationChatPreviewLimit) as $chatMessage)
+                        <article wire:key="nation-chat-preview-message-{{ $chatMessage->id }}" class="py-2.5" data-nation-chat-preview-item>
                             <div class="flex items-center justify-between gap-3">
                                 <p class="min-w-0 truncate text-xs font-black text-blue-800">{{ $chatMessage->character?->name ?? '退会した冒険者' }}</p>
                                 <time class="shrink-0 text-[10px] font-bold text-stone-400" title="{{ $chatMessage->created_at?->format('Y/m/d H:i') }}">{{ $chatMessage->created_at?->format('m/d H:i') }}</time>
@@ -737,38 +839,6 @@
                     @error('nationChatRequestId')<p class="mt-1.5 text-xs font-bold text-rose-700">{{ $message }}</p>@enderror
                 </form>
             </section>
-
-            @if($membership->isRuler())
-                @php
-                    $pendingCount = $pendingApplications->count();
-                    $rulerMenuGroups = [
-                        [
-                            'key' => 'operations',
-                            'label' => '運営',
-                            'items' => [
-                                ['key' => 'applications', 'action' => 'showApplications', 'icon' => '📨', 'title' => '加入申請', 'description' => '届いた加入申請を確認・審査する', 'badge' => $pendingCount > 0 ? "{$pendingCount}件" : null],
-                                ['key' => 'members', 'action' => 'showMemberManagement', 'icon' => '👥', 'title' => '国民・役職管理', 'description' => '国民の役職変更や追放を行う'],
-                                ['key' => 'profile', 'action' => 'showProfileSettings', 'icon' => '📝', 'title' => '紹介・募集', 'description' => '国家紹介・募集文・紋章を編集する'],
-                            ],
-                        ],
-                        [
-                            'key' => 'authority',
-                            'label' => '統治',
-                            'items' => [
-                                ['key' => 'transfer', 'action' => 'showTransfer', 'icon' => '👑', 'title' => '統治者譲渡', 'description' => '国民へ統治者の地位を譲る'],
-                                ['key' => 'dissolution', 'action' => 'showDissolution', 'icon' => '⚠️', 'title' => '国家解散', 'description' => '国家の解散申請・取消を行う', 'tone' => 'danger'],
-                            ],
-                        ],
-                    ];
-                @endphp
-                <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" aria-label="統治者メニュー" data-nation-ruler-menu>
-                    <div class="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                        <h2 class="text-base font-black text-slate-950">統治者メニュー</h2>
-                        <span class="text-xs font-bold text-slate-400">詳細・管理</span>
-                    </div>
-                    @include('livewire.partials.nation-menu-groups', ['menuGroups' => $rulerMenuGroups])
-                </section>
-            @endif
 
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div class="flex items-center justify-between gap-3">
@@ -809,59 +879,6 @@
                 </section>
             @endif
 
-            @if($developmentEnabled)
-                @php
-                    $developmentMenuGroups = [
-                        [
-                            'key' => 'growth',
-                            'label' => '成長',
-                            'items' => array_values(array_filter([
-                                $levelBenefitsEnabled ? ['key' => 'benefits', 'action' => 'showDevelopmentBenefits', 'icon' => '📈', 'title' => '国家Lv特典', 'description' => '現在の特典と次の開放を確認する'] : null,
-                                ['key' => 'resource-management', 'action' => 'showResourceManagement', 'icon' => '📦', 'title' => '国家資材管理', 'description' => '都市素材を納品し、国家を発展させる'],
-                                $levelBenefitsEnabled ? ['key' => 'analytics', 'action' => 'showDonationAnalytics', 'icon' => '📊', 'title' => '納品集計・分析', 'description' => $developmentProgress['level'] >= 20 ? '週間・月間の納品状況を確認する' : '国家Lv20で週間・月間集計を開放'] : null,
-                            ])),
-                        ],
-                    ];
-                    if ($levelBenefitsEnabled) {
-                        $developmentMenuGroups[] = [
-                            'key' => 'community-development',
-                            'label' => '共同運営',
-                            'items' => [
-                                ['key' => 'goals', 'action' => 'showNationGoals', 'icon' => '🎯', 'title' => '共同目標', 'description' => '国民で共有する目標と進捗を確認する'],
-                                ['key' => 'wanted-materials', 'action' => 'showWantedMaterials', 'icon' => '🧱', 'title' => '募集素材', 'description' => '国家が集めたい都市素材を確認する'],
-                                ['key' => 'achievements', 'action' => 'showNationAchievements', 'icon' => '🏅', 'title' => '国家実績', 'description' => '恒久実績と紹介への展示を確認する'],
-                                ['key' => 'decorations', 'action' => 'showNationDecorations', 'icon' => '✨', 'title' => '国家装飾', 'description' => '国家Lvで開放した装飾を選ぶ'],
-                                ['key' => 'timeline', 'action' => 'showNationTimeline', 'icon' => '📜', 'title' => '国家年表', 'description' => $developmentProgress['level'] >= 15 ? '国家の節目を公開史として振り返る' : '国家Lv15で表示を開放'],
-                                ['key' => 'war-presets', 'action' => 'showWarPreparationPresets', 'icon' => '🗂️', 'title' => '戦争準備プリセット', 'description' => $developmentProgress['level'] >= 20 ? '固定ptの準備計画を保存する' : '国家Lv20・国家戦公開後に利用可能'],
-                            ],
-                        ];
-                    }
-                @endphp
-                <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" aria-label="国家発展メニュー" data-nation-development-menu>
-                    <div class="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-3"><h2 class="text-base font-black text-slate-950">国家発展</h2><span class="text-xs font-black text-amber-700">Lv{{ $developmentProgress['level'] }}</span></div>
-                    @include('livewire.partials.nation-menu-groups', ['menuGroups' => $developmentMenuGroups])
-                </section>
-            @endif
-
-            @php
-                $upcomingNationMenuGroups = [[
-                    'key' => 'development-war',
-                    'label' => '発展・戦争',
-                    'items' => array_values(array_filter([
-                        $developmentEnabled ? null : ['key' => 'resource-management', 'action' => 'showResourceManagement', 'icon' => '📦', 'title' => '国家資材管理', 'description' => '国家戦に備える資材を確認・管理する'],
-                        ['key' => 'fortress-upgrade', 'action' => "showNotImplemented('fortress-upgrade')", 'icon' => '🏰', 'title' => '要塞強化', 'description' => '国家要塞の施設と強化状況を確認する'],
-                        ['key' => 'declare-war', 'action' => "showNotImplemented('declare-war')", 'icon' => '⚔️', 'title' => '宣戦布告', 'description' => '他国との国家戦を申し込む'],
-                        ['key' => 'war-strategy', 'action' => "showNotImplemented('war-strategy')", 'icon' => '📜', 'title' => '戦争方針設定', 'description' => '国家戦での作戦方針を整える'],
-                    ])),
-                ]];
-            @endphp
-            <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" aria-label="今後の国家機能" data-nation-upcoming-menu>
-                <div class="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                    <h2 class="text-base font-black text-slate-950">今後の国家機能</h2>
-                    <span class="text-xs font-bold text-slate-400">準備中</span>
-                </div>
-                @include('livewire.partials.nation-menu-groups', ['menuGroups' => $upcomingNationMenuGroups])
-            </section>
         @endif
     @endif
 
@@ -1041,6 +1058,57 @@
                 <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3"><div><p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION HISTORY</p><h2 id="nation-activity-log-modal-title" class="text-lg font-black text-stone-950">国家操作履歴</h2></div><button type="button" wire:click="closeActivityLogModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家操作履歴を閉じる">×</button></header>
                 <div class="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto overscroll-contain px-4">@foreach($activityLogModalEntries as $log)<div class="py-3" data-nation-activity-log-modal-item><p class="text-sm font-bold leading-relaxed text-stone-700">{{ $activityDescriptions[$log->id] }}</p><time class="mt-1 block text-[11px] font-bold text-stone-400">{{ $log->created_at?->format('Y/m/d H:i') }}</time></div>@endforeach</div>
                 <footer class="shrink-0 border-t border-stone-200 bg-stone-50 px-4 py-3 text-center"><p class="text-[11px] font-bold text-stone-500">@if($activityLogTotal > $activityLogModalLimit)全{{ number_format($activityLogTotal) }}件のうち、直近{{ number_format($activityLogModalLimit) }}件を表示しています。@else全{{ number_format($activityLogTotal) }}件を表示しています。@endif</p></footer>
+            </section>
+        </div>
+    @endif
+
+    @if($showNationChatModal && $membership && $page === 'home')
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="nation-chat-modal-title" data-nation-chat-modal wire:click.self="closeNationChatModal" wire:keydown.escape.window="closeNationChatModal">
+            <section class="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div><p class="text-[11px] font-black tracking-[0.16em] text-blue-700">NATION CHAT</p><h2 id="nation-chat-modal-title" class="text-lg font-black text-stone-950">国家チャット</h2></div>
+                    <button type="button" wire:click="closeNationChatModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家チャットを閉じる">×</button>
+                </header>
+                <div class="min-h-0 flex-1 divide-y divide-stone-100 overflow-y-auto overscroll-contain px-4">
+                    @forelse($nationChatMessages as $chatMessage)
+                        <article wire:key="nation-chat-modal-message-{{ $chatMessage->id }}" class="py-3" data-nation-chat-modal-item>
+                            <div class="flex items-center justify-between gap-3"><p class="min-w-0 truncate text-xs font-black text-blue-800">{{ $chatMessage->character?->name ?? '退会した冒険者' }}</p><time class="shrink-0 text-[10px] font-bold text-stone-400">{{ $chatMessage->created_at?->format('m/d H:i') }}</time></div>
+                            <p class="mt-1 break-words whitespace-pre-wrap text-sm font-bold leading-relaxed text-stone-700">{{ $chatMessage->message }}</p>
+                        </article>
+                    @empty
+                        <p class="py-8 text-center text-sm font-bold text-stone-500">まだ発言はありません。</p>
+                    @endforelse
+                </div>
+                <footer class="shrink-0 border-t border-stone-200 bg-stone-50 px-4 py-3 text-center"><p class="text-[11px] font-bold text-stone-500">最新{{ $nationChatMessages->count() }}件を表示しています。</p></footer>
+            </section>
+        </div>
+    @endif
+
+    @if($showNationMenuModal && $membership && $page === 'home')
+        <div class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="nation-menu-modal-title" data-nation-menu-modal wire:click.self="closeNationMenuModal" wire:keydown.escape.window="closeNationMenuModal">
+            <section class="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#d4af37] bg-white shadow-2xl">
+                <header class="flex shrink-0 items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+                    <div><p class="text-[11px] font-black tracking-[0.16em] text-amber-700">NATION MENU</p><h2 id="nation-menu-modal-title" class="text-lg font-black text-stone-950">国家メニュー</h2></div>
+                    <button type="button" wire:click="closeNationMenuModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家メニューを閉じる">×</button>
+                </header>
+                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-4">
+                    @if($membership->isRuler())
+                        <section aria-label="統治者メニュー" data-nation-ruler-menu>
+                            <div class="mb-2 flex items-center justify-between gap-3"><h3 class="text-base font-black text-slate-950">統治者メニュー</h3><span class="text-xs font-bold text-slate-400">詳細・管理</span></div>
+                            @include('livewire.partials.nation-menu-groups', ['menuGroups' => $rulerMenuGroups])
+                        </section>
+                    @endif
+                    @if($developmentEnabled)
+                        <section class="border-t border-stone-200 pt-4" aria-label="国家発展メニュー" data-nation-development-menu>
+                            <div class="mb-2 flex items-center justify-between gap-3"><h3 class="text-base font-black text-slate-950">国家発展</h3><span class="text-xs font-black text-amber-700">Lv{{ $developmentProgress['level'] }}</span></div>
+                            @include('livewire.partials.nation-menu-groups', ['menuGroups' => $developmentMenuGroups])
+                        </section>
+                    @endif
+                    <section class="border-t border-stone-200 pt-4" aria-label="今後の国家機能" data-nation-upcoming-menu>
+                        <div class="mb-2 flex items-center justify-between gap-3"><h3 class="text-base font-black text-slate-950">今後の国家機能</h3><span class="text-xs font-bold text-slate-400">準備中</span></div>
+                        @include('livewire.partials.nation-menu-groups', ['menuGroups' => $upcomingNationMenuGroups])
+                    </section>
+                </div>
             </section>
         </div>
     @endif

@@ -116,6 +116,32 @@ final class NationChatTest extends TestCase
         $this->assertSame('発言6', $messages->last()->message);
     }
 
+    public function test_nation_home_shows_three_chat_messages_and_opens_the_full_chat_modal(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('チャット短縮統治者');
+        app(NationService::class)->create($ruler, 'チャット短縮国');
+        $service = app(NationChatService::class);
+        foreach (range(1, 5) as $number) {
+            $service->send($ruler, "短縮確認{$number}", (string) Str::uuid());
+        }
+        $this->actingAs($ruler->user);
+
+        $screen = Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-chat-preview')
+            ->assertSeeHtml('data-nation-chat-open')
+            ->assertDontSeeHtml('data-nation-chat-modal');
+        $this->assertSame(3, substr_count($screen->html(), 'data-nation-chat-preview-item'));
+
+        $screen->call('openNationChatModal')
+            ->assertSet('showNationChatModal', true)
+            ->assertSeeHtml('data-nation-chat-modal');
+        $this->assertSame(5, substr_count($screen->html(), 'data-nation-chat-modal-item'));
+
+        $screen->call('closeNationChatModal')
+            ->assertSet('showNationChatModal', false);
+    }
+
     public function test_nation_screen_sends_escaped_messages_and_does_not_expose_them_to_other_nations(): void
     {
         config()->set('features.nation_community_enabled', true);

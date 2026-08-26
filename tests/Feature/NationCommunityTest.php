@@ -769,12 +769,21 @@ SQL);
             ->assertSee('画面国公国')
             ->assertSee('国民数')
             ->assertSee('1 / 20人')
+            ->assertSeeHtml('data-nation-home-shortcuts')
+            ->assertSeeHtml('data-nation-home-overview')
+            ->assertSeeHtml('data-nation-menu-open')
+            ->assertDontSeeHtml('data-nation-menu-modal')
+            ->call('openNationMenuModal')
+            ->assertSet('showNationMenuModal', true)
+            ->assertSeeHtml('data-nation-menu-modal')
             ->assertSee('統治者メニュー')
             ->assertSee('届いた加入申請を確認・審査する')
             ->assertSee('国民の役職変更や追放を行う')
             ->assertSee('国家戦に備える資材を確認・管理する')
             ->assertSee('data-nation-ruler-menu', false)
-            ->assertSee('data-nation-upcoming-menu', false);
+            ->assertSee('data-nation-upcoming-menu', false)
+            ->call('closeNationMenuModal')
+            ->assertSet('showNationMenuModal', false);
         $nationScreen
             ->call('showMemberManagement')
             ->assertSee('現在、役職による権限変更は未実装です。')
@@ -866,7 +875,7 @@ SQL);
         $this->assertSame($logCount, NationActivityLog::count());
     }
 
-    public function test_ruler_sees_only_five_recent_activity_logs_until_opening_the_history_modal(): void
+    public function test_ruler_sees_only_two_recent_activity_logs_until_opening_the_history_modal(): void
     {
         config()->set('features.nation_community_enabled', true);
         $ruler = $this->character('履歴確認統治者');
@@ -886,13 +895,13 @@ SQL);
             ->assertSeeHtml('data-nation-activity-log-preview')
             ->assertSeeHtml('data-nation-activity-log-open')
             ->assertDontSeeHtml('data-nation-activity-log-modal');
-        $this->assertSame(5, substr_count($screen->html(), 'data-nation-activity-log-preview-item'));
+        $this->assertSame(2, substr_count($screen->html(), 'data-nation-activity-log-preview-item'));
 
         $screen
             ->call('openActivityLogModal')
             ->assertSet('showActivityLogModal', true)
             ->assertSeeHtml('data-nation-activity-log-modal');
-        $this->assertSame(5, substr_count($screen->html(), 'data-nation-activity-log-preview-item'));
+        $this->assertSame(2, substr_count($screen->html(), 'data-nation-activity-log-preview-item'));
         $this->assertSame(9, substr_count($screen->html(), 'data-nation-activity-log-modal-item'));
 
         $screen

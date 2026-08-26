@@ -66,7 +66,9 @@ final class NationScreen extends Component
         'name_asc' => '名前順',
     ];
 
-    private const ACTIVITY_LOG_PREVIEW_LIMIT = 5;
+    private const NATION_CHAT_PREVIEW_LIMIT = 3;
+
+    private const ACTIVITY_LOG_PREVIEW_LIMIT = 2;
 
     private const ACTIVITY_LOG_MODAL_LIMIT = 100;
 
@@ -116,6 +118,10 @@ final class NationScreen extends Component
     public bool $showHeaderBackgroundModal = false;
 
     public bool $showMemberListModal = false;
+
+    public bool $showNationChatModal = false;
+
+    public bool $showNationMenuModal = false;
 
     public string $memberSort = self::MEMBER_SORT_DEFAULT;
 
@@ -216,6 +222,30 @@ final class NationScreen extends Component
     public function closeActivityLogModal(): void
     {
         $this->showActivityLogModal = false;
+    }
+
+    public function openNationChatModal(): void
+    {
+        if ($this->page === 'home' && $this->currentMembership()) {
+            $this->showNationChatModal = true;
+        }
+    }
+
+    public function closeNationChatModal(): void
+    {
+        $this->showNationChatModal = false;
+    }
+
+    public function openNationMenuModal(): void
+    {
+        if ($this->page === 'home' && $this->currentMembership()) {
+            $this->showNationMenuModal = true;
+        }
+    }
+
+    public function closeNationMenuModal(): void
+    {
+        $this->showNationMenuModal = false;
     }
 
     public function openHeaderBackgroundModal(): void
@@ -1173,6 +1203,7 @@ final class NationScreen extends Component
     public function showNotImplemented(string $feature): void
     {
         if (array_key_exists($feature, self::COMING_SOON_FEATURES)) {
+            $this->showNationMenuModal = false;
             $this->pendingFeature = self::COMING_SOON_FEATURES[$feature];
         }
     }
@@ -1369,7 +1400,7 @@ final class NationScreen extends Component
                     }
                     if (in_array($this->page, ['home', 'timeline'], true)) {
                         $timeline = app(NationTimelineService::class);
-                        $timelineEntries = $timeline->entries($membership->nation, $this->page === 'timeline' ? 100 : 5);
+                        $timelineEntries = $timeline->entries($membership->nation, $this->page === 'timeline' ? 100 : 1);
                         foreach ($timelineEntries as $entry) {
                             $timelineDescriptions[$entry->id] = $timeline->description($entry);
                         }
@@ -1495,6 +1526,7 @@ final class NationScreen extends Component
             'activityLogPreviewLimit' => self::ACTIVITY_LOG_PREVIEW_LIMIT,
             'activityLogModalLimit' => self::ACTIVITY_LOG_MODAL_LIMIT,
             'nationChatMessages' => $nationChatMessages,
+            'nationChatPreviewLimit' => self::NATION_CHAT_PREVIEW_LIMIT,
             'developmentProgress' => $developmentProgress,
             'levelBenefitsEnabled' => $levelBenefitsEnabled,
             'developmentBenefits' => $developmentBenefits,
@@ -1716,6 +1748,8 @@ final class NationScreen extends Component
         $this->showActivityLogModal = false;
         $this->showHeaderBackgroundModal = false;
         $this->showMemberListModal = false;
+        $this->showNationChatModal = false;
+        $this->showNationMenuModal = false;
         $this->confirmedDonation = [];
         $this->actionMessage = null;
         $this->resetErrorBag();
