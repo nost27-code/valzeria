@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-member-public-browsing',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '所属中も他国の公開情報を閲覧可能に',
+        'detail' => '国家に所属している冒険者も、自国TOPの「他国の情報を見る」から全国家の一覧と、国家紹介・募集文・統治者・国民一覧などの公開情報を確認できるようにしました。所属中は他国への加入申請操作を表示しません。',
+    ],
+    [
         'id' => '2026-08-26-nation-material-batch-donation',
         'date' => '2026-08-26',
         'category' => 'changed',

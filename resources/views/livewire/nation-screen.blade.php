@@ -19,7 +19,7 @@
         </button>
     @endif
 
-    @if(!$membership)
+    @if(!$membership || $page === 'nation-list' || ($page === 'detail' && $selectedNation))
         @if($page === 'create')
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-create>
                 <p class="text-xs font-black tracking-[0.2em] text-amber-700">FOUND A NATION</p>
@@ -105,28 +105,30 @@
                     </div>
                 @endif
 
-                <div class="mt-4">
-                    @if($joinEligibility['pending'] && (int) $joinEligibility['pending']->nation_id === (int) $selectedNation->id)
-                        <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">
-                            <p class="text-sm font-black text-sky-900">加入申請中</p>
-                            <button type="button" wire:click="cancelJoinApplication({{ $joinEligibility['pending']->id }})" wire:loading.attr="disabled" class="mt-2 min-h-11 w-full rounded-lg border border-sky-300 bg-white text-sm font-black text-sky-800 disabled:opacity-50">申請を取り消す</button>
-                        </div>
-                    @elseif($joinEligibility['allowed'])
-                        <label class="block text-sm font-black text-stone-800">申請時の一言（任意）
-                            <textarea wire:model="joinMessage" maxlength="100" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm font-bold" placeholder="始めたばかりですが、よろしくお願いします！"></textarea>
-                        </label>
-                        @error('joinMessage')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
-                        <button type="button" wire:click="submitJoinApplication" wire:loading.attr="disabled" wire:target="submitJoinApplication" class="mt-2 min-h-12 w-full rounded-xl border border-blue-800 bg-blue-600 font-black text-white disabled:opacity-50">加入申請を送る</button>
-                    @else
-                        <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm font-bold text-stone-700">
-                            <p class="font-black">加入申請できません</p>
-                            <p class="mt-1">{{ $joinEligibility['reason'] }}</p>
-                            @if($joinEligibility['blocked_until'])
-                                <p class="mt-1 text-xs text-stone-500">残り {{ $cooldowns->remainingLabel($joinEligibility['blocked_until']) }}</p>
-                            @endif
-                        </div>
-                    @endif
-                </div>
+                @if(!$membership)
+                    <div class="mt-4">
+                        @if($joinEligibility['pending'] && (int) $joinEligibility['pending']->nation_id === (int) $selectedNation->id)
+                            <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                                <p class="text-sm font-black text-sky-900">加入申請中</p>
+                                <button type="button" wire:click="cancelJoinApplication({{ $joinEligibility['pending']->id }})" wire:loading.attr="disabled" class="mt-2 min-h-11 w-full rounded-lg border border-sky-300 bg-white text-sm font-black text-sky-800 disabled:opacity-50">申請を取り消す</button>
+                            </div>
+                        @elseif($joinEligibility['allowed'])
+                            <label class="block text-sm font-black text-stone-800">申請時の一言（任意）
+                                <textarea wire:model="joinMessage" maxlength="100" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm font-bold" placeholder="始めたばかりですが、よろしくお願いします！"></textarea>
+                            </label>
+                            @error('joinMessage')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
+                            <button type="button" wire:click="submitJoinApplication" wire:loading.attr="disabled" wire:target="submitJoinApplication" class="mt-2 min-h-12 w-full rounded-xl border border-blue-800 bg-blue-600 font-black text-white disabled:opacity-50">加入申請を送る</button>
+                        @else
+                            <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm font-bold text-stone-700">
+                                <p class="font-black">加入申請できません</p>
+                                <p class="mt-1">{{ $joinEligibility['reason'] }}</p>
+                                @if($joinEligibility['blocked_until'])
+                                    <p class="mt-1 text-xs text-stone-500">残り {{ $cooldowns->remainingLabel($joinEligibility['blocked_until']) }}</p>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                @endif
             </section>
 
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
@@ -253,6 +255,12 @@
                 <div class="relative z-10 m-3 mt-0 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800 sm:m-4 sm:mt-0"><p class="font-black">国家解散の待機中です</p><p class="mt-1">{{ $nation->dissolution_effective_at?->format('Y/m/d H:i') }}以降に論理解散されます。</p><p class="mt-1">一般国民は解散完了時に、加入待機時間なしで自動的に無所属になります。</p>@if($membership->isRuler())<button type="button" wire:click="cancelDissolution" class="mt-2 min-h-10 w-full rounded-lg border border-rose-300 bg-white font-black text-rose-700">解散申請を取り消す</button>@endif</div>
             @endif
         </section>
+
+        @if($page === 'home')
+            <button type="button" wire:click="showNationList" class="min-h-11 w-full rounded-xl border border-blue-800 bg-blue-600 px-4 text-sm font-black text-white shadow-sm hover:bg-blue-700" data-nation-member-browse-button>
+                他国の情報を見る
+            </button>
+        @endif
 
         @if($page === 'resources' && $developmentEnabled)
             <section class="rounded-2xl border border-[#d4af37] bg-white p-4 shadow-sm sm:p-5" data-nation-resource-management>

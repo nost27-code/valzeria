@@ -931,6 +931,52 @@ SQL);
             ->assertDontSeeHtml('data-nation-list-home-button');
     }
 
+    public function test_member_can_browse_other_nations_without_join_application_controls(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $member = $this->character('所属中閲覧者');
+        $ownNation = app(NationService::class)->create($member, '所属国');
+        $otherRuler = $this->character('他国統治者');
+        $otherNation = app(NationService::class)->create($otherRuler, '公開国');
+        $otherNation->update([
+            'description' => '所属者にも公開する国家紹介',
+            'recruitment_enabled' => true,
+            'recruitment_message' => '公開中の募集文',
+        ]);
+        $this->actingAs($member->user);
+
+        $screen = Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-member-browse-button')
+            ->assertSee('他国の情報を見る')
+            ->call('showNationList')
+            ->assertSet('page', 'nation-list')
+            ->assertHasNoErrors('nationAction')
+            ->assertSee($otherNation->display_name)
+            ->call('showNationDetail', $otherNation->id)
+            ->assertSet('page', 'detail')
+            ->assertSeeHtml('data-nation-detail')
+            ->assertSee($otherNation->display_name)
+            ->assertSee('所属者にも公開する国家紹介')
+            ->assertSee('公開中の募集文')
+            ->assertSee('他国統治者')
+            ->assertDontSee('加入申請を送る')
+            ->assertDontSee('加入申請できません');
+
+        $screen
+            ->call('submitJoinApplication')
+            ->assertHasErrors('nationAction');
+        $this->assertDatabaseMissing('nation_join_applications', [
+            'character_id' => $member->id,
+            'nation_id' => $otherNation->id,
+        ]);
+
+        $screen
+            ->call('showHome')
+            ->assertSet('page', 'home')
+            ->assertSeeHtml('data-nation-home-header')
+            ->assertSee($ownNation->display_name);
+    }
+
     public function test_nation_home_rotates_three_daily_showcases_and_full_list_keeps_every_nation_visible(): void
     {
         config()->set('features.nation_community_enabled', true);

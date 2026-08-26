@@ -218,11 +218,6 @@ final class NationScreen extends Component
 
     public function showNationList(): void
     {
-        if ($this->currentMembership()) {
-            $this->addError('nationAction', '所属中は自国の画面を利用してください。');
-
-            return;
-        }
         $this->navigate('nation-list');
     }
 
@@ -884,7 +879,7 @@ final class NationScreen extends Component
 
         $selectedNation = null;
         $joinEligibility = null;
-        if (! $membership && $this->selectedNationId) {
+        if ($this->selectedNationId) {
             $selectedNation = Nation::active()
                 ->withCount('memberships')
                 ->with([
@@ -896,7 +891,9 @@ final class NationScreen extends Component
                 ->find($this->selectedNationId);
             if ($selectedNation) {
                 $nationLevels[$selectedNation->id] = $levelService->levelFor((int) $selectedNation->development_exp);
-                $joinEligibility = app(NationJoinApplicationService::class)->eligibility($character, $selectedNation);
+                if (! $membership) {
+                    $joinEligibility = app(NationJoinApplicationService::class)->eligibility($character, $selectedNation);
+                }
             }
         }
 
