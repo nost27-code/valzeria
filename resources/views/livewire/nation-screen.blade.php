@@ -176,6 +176,14 @@
                     <h2 class="text-base font-black text-stone-900">国民一覧</h2>
                     <span class="text-xs font-black text-stone-500">{{ $selectedNation->memberships->count() }}人</span>
                 </div>
+                <label class="mt-3 flex items-center justify-end gap-2 text-xs font-bold text-stone-600">
+                    <span>並び順</span>
+                    <select wire:model.live="memberSort" class="min-h-10 max-w-48 rounded-lg border border-stone-300 bg-white px-2 text-xs font-bold text-stone-800" data-nation-member-sort>
+                        @foreach($memberSortOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <div class="mt-3">
                     @include('livewire.partials.nation-member-grid', [
                         'memberships' => $selectedNation->memberships,
@@ -592,6 +600,14 @@
                     <h2 class="text-base font-black text-stone-900">国民一覧</h2>
                     <span class="text-xs font-black text-stone-500">{{ $nation->memberships->count() }}人</span>
                 </div>
+                <label class="mt-3 flex items-center justify-end gap-2 text-xs font-bold text-stone-600">
+                    <span>並び順</span>
+                    <select wire:model.live="memberSort" class="min-h-10 max-w-[13rem] rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-800 focus:border-amber-500 focus:ring-amber-500" data-nation-member-sort>
+                        @foreach($memberSortOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <div class="mt-3">
                     @include('livewire.partials.nation-member-grid', [
                         'memberships' => $nation->memberships,
@@ -907,6 +923,14 @@
                     </div>
                     <button type="button" wire:click="closeMemberListModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国民一覧を閉じる">×</button>
                 </header>
+                <label class="flex shrink-0 items-center justify-end gap-2 border-b border-stone-100 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-600">
+                    <span>並び順</span>
+                    <select id="nation-member-modal-sort" wire:model.live="memberSort" class="min-h-10 max-w-[13rem] rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-800 focus:border-amber-500 focus:ring-amber-500" data-nation-member-modal-sort>
+                        @foreach($memberSortOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
                     @include('livewire.partials.nation-member-grid', [
                         'memberships' => $memberListNation->memberships,

@@ -992,9 +992,11 @@ SQL);
         config()->set('features.nation_community_enabled', true);
         $ruler = $this->character('一覧国王');
         $nation = app(NationService::class)->create($ruler, '一覧確認');
+        $citizenIds = [];
 
         for ($number = 1; $number <= 9; $number++) {
             $citizen = $this->character(sprintf('一覧国民%02d', $number));
+            $citizenIds[$number] = $citizen->id;
             $citizen->update(['icon_path' => sprintf('/images/chara/chara_%03d.webp', $number + 1)]);
             NationMembership::create([
                 'nation_id' => $nation->id,
@@ -1007,7 +1009,9 @@ SQL);
         $this->actingAs($ruler->user);
         $screen = Livewire::test(NationScreen::class)
             ->assertSet('showMemberListModal', false)
+            ->assertSet('memberSort', 'ruler_joined')
             ->assertSeeHtml('data-nation-member-grid')
+            ->assertSeeHtml('data-nation-member-sort')
             ->assertSeeHtml('data-nation-member-card="'.$ruler->id.'"')
             ->assertSee('一覧国民08')
             ->assertDontSee('一覧国民09')
@@ -1017,21 +1021,41 @@ SQL);
         $this->assertSame(9, substr_count($screen->html(), 'data-nation-member-card='));
 
         $screen
+            ->set('memberSort', 'joined_desc')
+            ->assertDontSeeHtml('data-nation-member-card="'.$ruler->id.'"');
+
+        $expectedNewestFirst = array_values(array_reverse($citizenIds));
+        $this->assertSame($expectedNewestFirst, $this->nationMemberCardIds($screen->html()));
+
+        $screen
             ->call('openMemberListModal')
             ->assertSet('showMemberListModal', true)
             ->assertSeeHtml('data-nation-member-list-modal')
+            ->assertSeeHtml('data-nation-member-modal-sort')
             ->assertSee('一覧確認王国・全10人')
             ->assertSee('一覧国民09')
             ->assertSee("Livewire.dispatch('open-adventurer-card'", false)
+            ->assertSet('memberSort', 'joined_desc');
+
+        $allCards = $this->nationMemberCardIds($screen->html());
+        $this->assertSame($expectedNewestFirst, array_slice($allCards, 0, 9));
+        $this->assertSame([...$expectedNewestFirst, $ruler->id], array_slice($allCards, 9));
+
+        $screen
             ->call('closeMemberListModal')
             ->assertSet('showMemberListModal', false)
             ->assertDontSeeHtml('data-nation-member-list-modal');
+
+        $screen
+            ->set('memberSort', 'not-supported')
+            ->assertSet('memberSort', 'ruler_joined');
 
         $outsider = $this->character('一覧閲覧者');
         $this->actingAs($outsider->user);
         Livewire::test(NationScreen::class)
             ->call('showNationDetail', $nation->id)
             ->assertSeeHtml('data-nation-member-grid')
+            ->assertSeeHtml('data-nation-member-sort')
             ->assertSee('国民をすべて見る（10人）')
             ->call('openMemberListModal')
             ->assertSet('showMemberListModal', true)
@@ -1060,6 +1084,58 @@ SQL);
             ->assertDontSeeHtml('data-nation-member-list-modal');
 
         $this->assertSame(9, substr_count($nineMemberScreen->html(), 'data-nation-member-card='));
+    }
+
+    public function test_nation_member_list_can_be_sorted_by_level_and_name(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $ruler = $this->character('SortDelta');
+        $ruler->update(['level' => 40]);
+        $nation = app(NationService::class)->create($ruler, '並び替え確認');
+
+        $members = collect([
+            ['name' => 'SortCharlie', 'level' => 70],
+            ['name' => 'SortAlpha', 'level' => 20],
+            ['name' => 'SortBravo', 'level' => 50],
+        ])->map(function (array $member, int $index) use ($nation): Character {
+            $character = $this->character($member['name']);
+            $character->update(['level' => $member['level']]);
+            NationMembership::create([
+                'nation_id' => $nation->id,
+                'character_id' => $character->id,
+                'role' => 'citizen',
+                'joined_at' => now()->addMinutes($index + 1),
+            ]);
+
+            return $character;
+        })->keyBy('name');
+
+        $this->actingAs($ruler->user);
+        $screen = Livewire::test(NationScreen::class);
+
+        $screen->set('memberSort', 'level_desc');
+        $this->assertSame([
+            $members['SortCharlie']->id,
+            $members['SortBravo']->id,
+            $ruler->id,
+            $members['SortAlpha']->id,
+        ], $this->nationMemberCardIds($screen->html()));
+
+        $screen->set('memberSort', 'level_asc');
+        $this->assertSame([
+            $members['SortAlpha']->id,
+            $ruler->id,
+            $members['SortBravo']->id,
+            $members['SortCharlie']->id,
+        ], $this->nationMemberCardIds($screen->html()));
+
+        $screen->set('memberSort', 'name_asc');
+        $this->assertSame([
+            $members['SortAlpha']->id,
+            $members['SortBravo']->id,
+            $members['SortCharlie']->id,
+            $ruler->id,
+        ], $this->nationMemberCardIds($screen->html()));
     }
 
     public function test_nation_home_rotates_three_daily_showcases_and_full_list_keeps_every_nation_visible(): void
@@ -1122,6 +1198,14 @@ SQL);
             ->assertDontSee('公平五王国')
             ->call('showNationList')
             ->assertDontSee('公平五王国');
+    }
+
+    /** @return list<int> */
+    private function nationMemberCardIds(string $html): array
+    {
+        preg_match_all('/data-nation-member-card="(\d+)"/', $html, $cards);
+
+        return array_map('intval', $cards[1]);
     }
 
     private function character(string $name): Character

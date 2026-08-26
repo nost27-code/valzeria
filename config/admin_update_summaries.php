@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-nation-member-sort',
+        'date' => '2026-08-26',
+        'category' => 'changed',
+        'title' => '国家の国民一覧に並び替えを追加',
+        'detail' => '国家TOPと国家詳細の国民一覧を、国王優先・加入順、加入が新しい順、Lvが高い順、Lvが低い順、名前順で切り替えられるようにしました。先頭9人と全員表示には同じ並び順が反映されます。',
+    ],
+    [
         'id' => '2026-08-26-nation-member-icon-grid',
         'date' => '2026-08-26',
         'category' => 'changed',

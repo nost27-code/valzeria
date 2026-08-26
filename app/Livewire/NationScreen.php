@@ -25,6 +25,7 @@ use App\Services\Nation\NationResourceService;
 use App\Services\Nation\NationRulerTransferService;
 use App\Services\Nation\NationService;
 use App\Services\Nation\NationShowcaseService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -38,6 +39,16 @@ final class NationScreen extends Component
     use WithPagination;
 
     private const MEMBER_PREVIEW_LIMIT = 9;
+
+    private const MEMBER_SORT_DEFAULT = 'ruler_joined';
+
+    private const MEMBER_SORT_OPTIONS = [
+        'ruler_joined' => '国王優先・加入順',
+        'joined_desc' => '加入が新しい順',
+        'level_desc' => 'Lvが高い順',
+        'level_asc' => 'Lvが低い順',
+        'name_asc' => '名前順',
+    ];
 
     private const ACTIVITY_LOG_PREVIEW_LIMIT = 5;
 
@@ -89,6 +100,8 @@ final class NationScreen extends Component
     public bool $showHeaderBackgroundModal = false;
 
     public bool $showMemberListModal = false;
+
+    public string $memberSort = self::MEMBER_SORT_DEFAULT;
 
     public string $dissolutionConfirmation = '';
 
@@ -204,6 +217,13 @@ final class NationScreen extends Component
     public function closeMemberListModal(): void
     {
         $this->showMemberListModal = false;
+    }
+
+    public function updatedMemberSort(string $memberSort): void
+    {
+        if (! array_key_exists($memberSort, self::MEMBER_SORT_OPTIONS)) {
+            $this->memberSort = self::MEMBER_SORT_DEFAULT;
+        }
     }
 
     public function saveHeaderBackground(): void
@@ -910,6 +930,10 @@ final class NationScreen extends Component
                 ->find($this->selectedNationId);
             if ($selectedNation) {
                 $nationLevels[$selectedNation->id] = $levelService->levelFor((int) $selectedNation->development_exp);
+                $selectedNation->setRelation(
+                    'memberships',
+                    $this->sortMemberships($selectedNation->memberships),
+                );
                 if (! $membership) {
                     $joinEligibility = app(NationJoinApplicationService::class)->eligibility($character, $selectedNation);
                 }
@@ -948,6 +972,12 @@ final class NationScreen extends Component
                     ->orderByRaw("CASE WHEN role = 'ruler' THEN 0 ELSE 1 END")
                     ->orderBy('joined_at'),
             ]);
+            if ($this->page === 'home') {
+                $membership->nation->setRelation(
+                    'memberships',
+                    $this->sortMemberships($membership->nation->memberships),
+                );
+            }
             $leaveEligibility = app(NationMembershipService::class)->leaveEligibility($membership);
             if ($developmentEnabled) {
                 $development = app(NationDevelopmentService::class);
@@ -1050,6 +1080,7 @@ final class NationScreen extends Component
             'maxMembers' => $maxMembers,
             'activeNationCount' => $activeNationCount,
             'memberPreviewLimit' => self::MEMBER_PREVIEW_LIMIT,
+            'memberSortOptions' => self::MEMBER_SORT_OPTIONS,
             'cooldowns' => app(NationMembershipCooldownService::class),
             'minimumMembershipHours' => app(NationCommunitySettingsService::class)->minimumMembershipHours(),
             'leaveJoinCooldownHours' => app(NationCommunitySettingsService::class)->leaveJoinCooldownHours(),
@@ -1105,6 +1136,64 @@ final class NationScreen extends Component
         }
 
         return null;
+    }
+
+    /**
+     * @param  Collection<int, NationMembership>  $memberships
+     * @return Collection<int, NationMembership>
+     */
+    private function sortMemberships(Collection $memberships): Collection
+    {
+        $sort = array_key_exists($this->memberSort, self::MEMBER_SORT_OPTIONS)
+            ? $this->memberSort
+            : self::MEMBER_SORT_DEFAULT;
+
+        return $memberships->sort(function (NationMembership $left, NationMembership $right) use ($sort): int {
+            $leftCharacter = $left->character;
+            $rightCharacter = $right->character;
+
+            if ($sort === 'ruler_joined') {
+                $comparison = ((int) ! $left->isRuler()) <=> ((int) ! $right->isRuler());
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+
+                $comparison = ($left->joined_at?->getTimestamp() ?? PHP_INT_MAX)
+                    <=> ($right->joined_at?->getTimestamp() ?? PHP_INT_MAX);
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+            } elseif ($sort === 'joined_desc') {
+                $comparison = ($right->joined_at?->getTimestamp() ?? PHP_INT_MIN)
+                    <=> ($left->joined_at?->getTimestamp() ?? PHP_INT_MIN);
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+            } else {
+                $comparison = ((int) ($leftCharacter === null)) <=> ((int) ($rightCharacter === null));
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+
+                if ($sort === 'level_desc') {
+                    $comparison = ((int) ($rightCharacter?->level ?? 0)) <=> ((int) ($leftCharacter?->level ?? 0));
+                } elseif ($sort === 'level_asc') {
+                    $comparison = ((int) ($leftCharacter?->level ?? PHP_INT_MAX)) <=> ((int) ($rightCharacter?->level ?? PHP_INT_MAX));
+                } else {
+                    $comparison = 0;
+                }
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+
+                $comparison = strnatcasecmp((string) $leftCharacter?->name, (string) $rightCharacter?->name);
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+            }
+
+            return (int) $left->id <=> (int) $right->id;
+        })->values();
     }
 
     private function navigate(string $page, bool $keepSelection = false): void
