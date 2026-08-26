@@ -39,7 +39,7 @@ class CityHeader extends Component
 {
     private const ADVENTURE_RECORDS_CACHE_MINUTES = 10;
 
-    /** 本番確認用。現在の冒険者一覧だけから除外するテストアカウント */
+    /** 本番確認用。直近5分の全冒険者一覧だけから除外するテストアカウント */
     private const HIDDEN_ONLINE_TEST_USER_ID = 1;
 
     private const HIDDEN_ONLINE_TEST_CHARACTER_ID = 5;
@@ -315,20 +315,19 @@ class CityHeader extends Component
     private function onlinePlayers(): array
     {
         $sixHeroUiEnabled = (bool) config('features.six_hero_ui_enabled', false);
-        $cacheKey = 'city_header_online_players_v6_'.($sixHeroUiEnabled ? 'enabled' : 'disabled');
+        $cacheKey = 'city_header_online_players_v7_'.($sixHeroUiEnabled ? 'enabled' : 'disabled');
 
         return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
             $sixHeroCrownsByCharacter = $this->currentSixHeroCrownsByCharacter();
 
             return Character::visibleToPublic()
-                // visibleToPublic() の全公開面除外とは分け、現在の冒険者だけから運営テスト用を隠す。
+                // visibleToPublic() の全公開面除外とは分け、直近5分の全冒険者だけから運営テスト用を隠す。
                 ->where(function ($query): void {
                     $query->where('id', '!=', self::HIDDEN_ONLINE_TEST_CHARACTER_ID)
                         ->orWhere('user_id', '!=', self::HIDDEN_ONLINE_TEST_USER_ID);
                 })
                 ->where('last_seen_at', '>=', now()->subMinutes(5))
                 ->orderBy('last_seen_at', 'desc')
-                ->take(20)
                 ->get(['id', 'name'])
                 ->map(function (Character $char) use ($sixHeroCrownsByCharacter): array {
                     $crowns = $sixHeroCrownsByCharacter[(int) $char->id] ?? [];

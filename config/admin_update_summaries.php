@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-26-city-header-online-all',
+        'date' => '2026-08-26',
+        'category' => 'fixed',
+        'title' => '現在の冒険者を全員分正しく表示',
+        'detail' => '街ヘッダーの見出しを「直近5分の全冒険者」に変更し、対象の人数と名前を全員分表示するよう修正しました。21人以上でも人数や名前が20人で止まることはありません。',
+    ],
+    [
         'id' => '2026-08-26-nation-level-member-capacity',
         'date' => '2026-08-26',
         'category' => 'changed',

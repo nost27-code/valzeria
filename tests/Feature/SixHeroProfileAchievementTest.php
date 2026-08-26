@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -252,6 +253,36 @@ final class SixHeroProfileAchievementTest extends TestCase
         Livewire::test(CityHeader::class)
             ->assertDontSeeHtml('data-six-hero-top-ranker')
             ->assertDontSeeHtml('data-six-hero-crown');
+    }
+
+    public function test_online_player_count_and_name_list_include_all_recent_players(): void
+    {
+        Cache::flush();
+        config(['features.six_hero_ui_enabled' => false]);
+
+        $viewer = $this->character('オンライン人数確認者');
+        $onlinePlayers = collect(range(1, 21))
+            ->map(function (int $index): Character {
+                $character = $this->character(sprintf('オンライン冒険者%02d', $index));
+                $character->forceFill([
+                    'last_seen_at' => now()->subSeconds($index),
+                ])->saveQuietly();
+
+                return $character;
+            });
+
+        $this->actingAs($viewer->user)
+            ->withSession(['current_character_id' => $viewer->id]);
+
+        $lastSeenIndex = collect(Schema::getIndexes('characters'))
+            ->firstWhere('name', 'characters_last_seen_at_index');
+
+        $this->assertSame(['last_seen_at'], $lastSeenIndex['columns'] ?? null);
+
+        Livewire::test(CityHeader::class)
+            ->assertSee('直近5分の全冒険者：（21人）')
+            ->assertSee($onlinePlayers->first()->name)
+            ->assertSee($onlinePlayers->last()->name);
     }
 
     private function ranking(

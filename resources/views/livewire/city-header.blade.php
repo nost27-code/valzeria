@@ -1609,7 +1609,7 @@
             </div>
 
             <div class="relative mt-0.5 w-full min-w-0 px-2.5 pb-2 text-[10px] font-bold leading-4 sm:px-3 sm:pb-2.5 sm:text-[11px]">
-                <div class="text-gray-700">現在の冒険者：（{{ count($onlinePlayers) }}人）</div>
+                <div class="text-gray-700">直近5分の全冒険者：（{{ count($onlinePlayers) }}人）</div>
                 <div class="flex min-w-0 items-start gap-1.5">
                     <div class="flex min-w-0 flex-1 flex-wrap items-center overflow-hidden text-[#1e40af] font-medium transition-all md:max-h-none md:overflow-visible"
                          :class="playersExpanded ? 'max-h-32 overflow-y-auto' : 'max-h-8'">
