@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-27-hidden-test-nation-support',
+        'date' => '2026-08-27',
+        'category' => 'internal',
+        'title' => '非表示テスト国家の運用に対応',
+        'detail' => '所属中の国家画面を本番で安全に確認できるよう、公開一覧・他人の冒険者カード・加入申請・国家戦には現れない運営確認用国家へ対応しました。',
+    ],
+    [
         'id' => '2026-08-26-nation-compact-home',
         'date' => '2026-08-26',
         'category' => 'changed',

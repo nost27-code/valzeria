@@ -960,6 +960,66 @@ SQL);
             ->assertDontSeeHtml('data-nation-list-home-button');
     }
 
+    public function test_hidden_nation_is_available_to_its_member_but_absent_from_public_discovery(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $hiddenRuler = $this->character('非表示国王');
+        $hiddenNation = app(NationService::class)->create($hiddenRuler, '非表示確認');
+        $hiddenNation->update([
+            'is_hidden' => true,
+            'recruitment_enabled' => false,
+        ]);
+        $publicRuler = $this->character('公開国王');
+        $publicNation = app(NationService::class)->create($publicRuler, '公開確認');
+
+        $this->actingAs($hiddenRuler->user);
+        Livewire::test(NationScreen::class)
+            ->assertSeeHtml('data-nation-home-header')
+            ->assertSee($hiddenNation->display_name);
+
+        $outsider = $this->character('非表示確認閲覧者');
+        $this->actingAs($outsider->user);
+        Livewire::test(NationScreen::class)
+            ->assertSee($publicNation->display_name)
+            ->assertDontSee($hiddenNation->display_name)
+            ->call('showNationList')
+            ->assertSee($publicNation->display_name)
+            ->assertDontSee($hiddenNation->display_name)
+            ->call('showNationDetail', $hiddenNation->id)
+            ->assertHasErrors('nationAction')
+            ->assertDontSeeHtml('data-nation-detail');
+
+        $this->assertSame(1, app(\App\Services\Nation\NationShowcaseService::class)->dailySelection()['total']);
+
+        $eligibility = app(NationJoinApplicationService::class)->eligibility($outsider, $hiddenNation->fresh());
+        $this->assertFalse($eligibility['allowed']);
+        $this->assertSame('この国家は現在加入を受け付けていません。', $eligibility['reason']);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('この国家は現在加入を受け付けていません。');
+        app(NationJoinApplicationService::class)->submit($outsider, $hiddenNation->fresh());
+    }
+
+    public function test_hidden_nation_migration_defaults_to_public_and_refuses_unsafe_rollback(): void
+    {
+        $publicNation = app(NationService::class)->create($this->character('既定公開国王'), '既定公開');
+        $this->assertFalse($publicNation->fresh()->is_hidden);
+
+        $hiddenNation = app(NationService::class)->create($this->character('巻戻し防止国王'), '巻戻し防止');
+        $hiddenNation->update(['is_hidden' => true]);
+        $migration = require database_path('migrations/2026_08_26_130000_add_is_hidden_to_nations.php');
+
+        try {
+            $migration->down();
+            $this->fail('hidden nation should block the migration rollback');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('非表示国家が存在するため', $exception->getMessage());
+        }
+
+        $this->assertTrue(Schema::hasColumn('nations', 'is_hidden'));
+        $this->assertTrue($hiddenNation->fresh()->is_hidden);
+    }
+
     public function test_member_can_browse_other_nations_without_join_application_controls(): void
     {
         config()->set('features.nation_community_enabled', true);

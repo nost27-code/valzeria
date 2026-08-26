@@ -460,6 +460,11 @@ class CityHeader extends Component
     private function profileFor(Character $character): array
     {
         $viewerCharacter = auth()->check() ? auth()->user()->currentCharacter() : null;
+        $nation = $character->nationMembership?->nation;
+        $isSelf = $viewerCharacter && (int) $viewerCharacter->id === (int) $character->id;
+        $nationDisplayName = $nation && (! $nation->is_hidden || $isSelf)
+            ? $nation->display_name
+            : '無所属';
         $stats = app(CharacterStatusService::class)->getFinalStats($character);
         $equippedItems = app(EquipmentService::class)->getEquippedItems($character);
         $weapon = $equippedItems['weapon'] ?? null;
@@ -493,7 +498,7 @@ class CityHeader extends Component
 
         return [
             'id' => (int) $character->id,
-            'is_self' => $viewerCharacter && (int) $viewerCharacter->id === (int) $character->id,
+            'is_self' => $isSelf,
             'name' => $character->name,
             'level' => (int) $character->level,
             'job' => $character->jobClass?->name ?? '冒険者',
@@ -503,7 +508,7 @@ class CityHeader extends Component
             'arena_rank_number' => $arenaRank,
             'arena_rank_trophy' => $arenaRank && $arenaRank <= 3 ? asset('images/icon/icon_100' . $arenaRank . '.webp') : null,
             'weekly_win_badge' => app(WeeklyWinRankingService::class)->latestBadgeFor($character),
-            'guild' => $character->nationMembership?->nation?->display_name ?? '無所属',
+            'guild' => $nationDisplayName,
             'state' => '滞在中',
             'icon' => CharacterIconCatalog::versionedAsset($character->icon_path),
             'hp' => $currentHp,

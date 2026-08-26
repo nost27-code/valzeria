@@ -31,6 +31,11 @@ final class NationWarService
                 \DomainException::class,
                 '解散手続き中または解散済みの国家は国家戦を開始できません。',
             );
+            throw_if(
+                $attacker->is_hidden || $lockedDefender->is_hidden,
+                \DomainException::class,
+                'この国家は国家戦へ参加できません。',
+            );
             throw_if($attacker->id === $lockedDefender->id, \DomainException::class, '自国へ宣戦布告できません。');
             $protectionDays = $settings->foundedProtectionDays();
             throw_if($attacker->founded_at->gt(now()->subDays($protectionDays)) || $lockedDefender->founded_at->gt(now()->subDays($protectionDays)), \DomainException::class, "建国から{$protectionDays}日間は国家戦を開始できません。");

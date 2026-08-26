@@ -102,6 +102,7 @@ final class NationJoinApplicationService
             throw_unless($actorMembership && (int) $actorMembership->nation_id === (int) $nation->id, \DomainException::class, 'この加入申請を処理する権限がありません。');
             $this->roles->authorize($actorMembership, 'manage_members');
             throw_unless($nation->status === Nation::STATUS_ACTIVE, \DomainException::class, 'この国家は加入を受け付けられません。');
+            throw_if($nation->is_hidden, \DomainException::class, 'この国家は加入を受け付けられません。');
 
             $applicant = Character::whereKey($lockedApplication->character_id)->lockForUpdate()->firstOrFail();
             throw_if(NationMembership::where('character_id', $applicant->id)->exists(), \DomainException::class, '申請者はすでに国家へ所属しています。');
@@ -176,7 +177,7 @@ final class NationJoinApplicationService
             ];
         }
 
-        if ($nation->status !== Nation::STATUS_ACTIVE) {
+        if ($nation->status !== Nation::STATUS_ACTIVE || $nation->is_hidden) {
             return ['allowed' => false, 'reason' => 'この国家は現在加入を受け付けていません。', 'blocked_until' => null, 'pending' => null];
         }
         if (! $nation->recruitment_enabled) {
@@ -201,6 +202,7 @@ final class NationJoinApplicationService
     private function assertAcceptingApplications(Nation $nation): void
     {
         throw_unless($nation->status === Nation::STATUS_ACTIVE, \DomainException::class, 'この国家は現在加入を受け付けていません。');
+        throw_if($nation->is_hidden, \DomainException::class, 'この国家は現在加入を受け付けていません。');
         throw_unless($nation->recruitment_enabled, \DomainException::class, 'この国家は国民募集を停止しています。');
         throw_if($nation->memberships()->count() >= $this->settings->maxMembersFor($nation), \DomainException::class, 'この国家は定員に達しています。');
     }

@@ -704,6 +704,26 @@ final class NationFoundationTest extends TestCase
         app(NationWarService::class)->declare(NationMembership::where('character_id', $attacker->id)->firstOrFail(), $defenderNation);
     }
 
+    public function test_hidden_nation_cannot_participate_in_nation_war(): void
+    {
+        config()->set('features.nation_war_enabled', true);
+        app(GameSettingService::class)->set('nation_war.declaration_enabled', '1');
+        app(GameSettingService::class)->set('nation_war.reference_damage', '1000');
+        $attacker = $this->character('非表示戦争攻撃国王');
+        $defender = $this->character('非表示戦争防衛国王');
+        $attackerNation = app(NationService::class)->create($attacker, '非表示戦争攻撃国');
+        $defenderNation = app(NationService::class)->create($defender, '非表示戦争防衛国');
+        $attackerNation->update(['is_hidden' => true, 'founded_at' => now()->subDays(8)]);
+        $defenderNation->update(['founded_at' => now()->subDays(8)]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('この国家は国家戦へ参加できません。');
+        app(NationWarService::class)->declare(
+            NationMembership::where('character_id', $attacker->id)->firstOrFail(),
+            $defenderNation,
+        );
+    }
+
     public function test_calibrated_declaration_freezes_active_members_and_allows_one_next_war_reservation(): void
     {
         config()->set('features.nation_war_enabled', true);

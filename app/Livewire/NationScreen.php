@@ -399,7 +399,7 @@ final class NationScreen extends Component
 
     public function showNationDetail(int $nationId): void
     {
-        $nation = Nation::active()->find($nationId);
+        $nation = Nation::active()->publiclyVisible()->find($nationId);
         if (! $nation) {
             $this->addError('nationAction', '国家が見つかりません。');
 
@@ -1238,6 +1238,7 @@ final class NationScreen extends Component
         }
         $developmentLevelService = app(NationDevelopmentLevelService::class);
         $nationQuery = Nation::active()
+            ->publiclyVisible()
             ->withCount('memberships')
             ->with(['rulerMembership.character'])
             ->orderByDesc('recruitment_enabled')
@@ -1261,6 +1262,7 @@ final class NationScreen extends Component
         $joinEligibility = null;
         if ($this->selectedNationId) {
             $selectedNation = Nation::active()
+                ->publiclyVisible()
                 ->withCount('memberships')
                 ->with([
                     'rulerMembership.character',
@@ -1659,7 +1661,9 @@ final class NationScreen extends Component
 
     private function selectedActiveNation(): ?Nation
     {
-        $nation = $this->selectedNationId ? Nation::active()->find($this->selectedNationId) : null;
+        $nation = $this->selectedNationId
+            ? Nation::active()->publiclyVisible()->find($this->selectedNationId)
+            : null;
         if (! $nation) {
             $this->addError('nationAction', '国家が見つかりません。');
         }
@@ -1674,7 +1678,7 @@ final class NationScreen extends Component
         }
 
         if ($this->page === 'detail' && $this->selectedNationId) {
-            return Nation::active()->find($this->selectedNationId);
+            return Nation::active()->publiclyVisible()->find($this->selectedNationId);
         }
 
         return null;

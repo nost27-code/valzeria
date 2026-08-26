@@ -16,6 +16,7 @@ final class NationShowcaseService
     public function dailySelection(?CarbonInterface $day = null): array
     {
         $nationIds = Nation::active()
+            ->publiclyVisible()
             ->orderBy('id')
             ->pluck('id')
             ->map(static fn (mixed $id): int => (int) $id)

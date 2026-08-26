@@ -128,6 +128,7 @@ Purpose: canonical game rules. Keep concise.
 
 - 国家コミュニティ公開は`NATION_COMMUNITY_ENABLED`、国家発展は`NATION_DEVELOPMENT_ENABLED`、国家戦は`NATION_WAR_ENABLED`で分離する。国家発展OFF時の国家資材管理と、国家戦OFF時の要塞強化・宣戦布告・戦争方針設定は準備中modalだけを開き、DB更新や国家戦Service呼出を行わない。
 - 未所属の国家TOPはactive国家をID順の循環対象とし、active国家集合が変わらない間は同日固定の最大3国を日替わりで紹介する。建国・解散でactive国家集合が変わった場合は、同日中でも新しい集合から再選定する。国家数が変わらない1周期では、各国家の表示回数と1〜3枠の表示位置を均等にする。専用の全国家一覧は募集ON、威信、ID順を維持し、ピックアップ外の国家にも常時到達できるようにする。
+- 運営確認用の非表示国家は`nations.is_hidden=true`で明示し、公開ピックアップ・全国家一覧・直接詳細・他人の冒険者カード・加入申請・国家戦から除外する。現在国民本人は自国画面と自分の冒険者カードで所属を確認できる。既存国家と通常建国は`false`を既定とし、非表示化は通常プレイヤー操作へ提供しない。
 - 国家の国民定員は国家Lvから導出し、Lv1〜4は20人、以後Lv5ごとに2人ずつ増え、Lv50で40人とする。`nation.max_members`は全国家共通の緊急上限（初期100人）として扱い、実効定員はLv定員との小さい方とする。1Characterは1国家、pending加入申請も1国家まで。国家名は1〜40文字の基礎名を一意に保持し、kingdom/empire/duchy/republic/knight_stateから選んだ国号を表示時に連結する。内部統治者roleは`ruler`、表示は国王/皇帝/大公/執政官/騎士団長。通常roleは宰相`chancellor`、元帥`marshal`、兵站官`logistics_officer`、国民`citizen`。
 - 建国時は募集ON、ruler 1人、城壁・魔導砲・兵站所・要塞工廠・本陣をLv1/耐久100%で同一transaction作成する。国家紹介は任意・200文字以内、募集文と加入申請の一言は100文字以内。国家紋章は`nation_crest_001`〜`nation_crest_080`から選び、建国後はrulerだけが変更できる。所属国家TOPの背景は`nation_header_bg_001`〜`nation_header_bg_020`から選び、国家単位で保持する。既定は`001`とし、変更できるのはrulerだけとする。
 - 国民一覧は国王優先・加入順を既定とし、加入が新しい順、Lvが高い順、Lvが低い順、名前順へ切り替えられる。先頭9人の国家画面と全員modalは同じ並び順を使う。

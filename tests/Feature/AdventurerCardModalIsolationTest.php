@@ -131,6 +131,27 @@ class AdventurerCardModalIsolationTest extends TestCase
             ->assertSee('所属国家');
     }
 
+    public function test_hidden_nation_name_is_visible_only_on_the_members_own_card(): void
+    {
+        $memberUser = User::factory()->create();
+        $member = $this->createCharacter($memberUser, '非表示国家所属者');
+        $nation = app(NationService::class)->create($member, '非表示テスト');
+        $nation->update(['is_hidden' => true, 'recruitment_enabled' => false]);
+
+        $this->actingAs($memberUser)
+            ->withSession(['current_character_id' => $member->id]);
+        Livewire::test(AdventurerCardModal::class)
+            ->dispatch('open-adventurer-card', characterId: $member->id)
+            ->assertSet('playerInfo.guild', '非表示テスト王国');
+
+        $viewer = $this->createCharacter(User::factory()->create(), '外部閲覧者');
+        $this->actingAs($viewer->user)
+            ->withSession(['current_character_id' => $viewer->id]);
+        Livewire::test(AdventurerCardModal::class)
+            ->dispatch('open-adventurer-card', characterId: $member->id)
+            ->assertSet('playerInfo.guild', '無所属');
+    }
+
     public function test_job_badge_details_are_loaded_only_after_the_tier_is_opened(): void
     {
         config()->set('job_master_badges.enabled', true);

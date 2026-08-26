@@ -30,6 +30,7 @@ class Nation extends Model
             'founded_at' => 'datetime',
             'loss_protected_until' => 'datetime',
             'recruitment_enabled' => 'boolean',
+            'is_hidden' => 'boolean',
             'dissolution_requested_at' => 'datetime',
             'dissolution_effective_at' => 'datetime',
             'dissolution_recruitment_was_enabled' => 'boolean',
@@ -40,6 +41,11 @@ class Nation extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query->where('is_hidden', false);
     }
 
     public function memberships(): HasMany
