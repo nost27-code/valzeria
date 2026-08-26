@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-27-exclusive-character-icon-037',
+        'date' => '2026-08-27',
+        'category' => 'internal',
+        'title' => 'ルーゼン専用キャラアイコンを追加',
+        'detail' => 'ルーゼンさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-08-27-hidden-test-nation-support',
         'date' => '2026-08-27',
         'category' => 'internal',
