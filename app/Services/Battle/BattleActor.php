@@ -4,6 +4,7 @@ namespace App\Services\Battle;
 
 use App\Services\JobArtV2PreparedEffectState;
 use App\Services\JobArtV2ProgressionState;
+use App\Services\JobArtV2Rank5CycleState;
 use App\Services\JobArtV2TimedEffectState;
 use App\Services\JobArtV2UltimateCounterplayState;
 
@@ -90,6 +91,9 @@ class BattleActor
 
     /** FIX_NOWの系譜進行状態。戦闘終了時に破棄する。 */
     private ?JobArtV2ProgressionState $jobArtV2ProgressionState = null;
+
+    /** Rank5 v6の同一奥義周期内使用済み状態。戦闘終了時に破棄する。 */
+    private ?JobArtV2Rank5CycleState $jobArtV2Rank5CycleState = null;
 
     /** 直前の自分の行動終了後から、直接物理攻撃を受領したか。 */
     private bool $physicalAttackReceivedSinceOwnAction = false;
@@ -393,6 +397,16 @@ class BattleActor
     public function existingJobArtV2ProgressionState(): ?JobArtV2ProgressionState
     {
         return $this->jobArtV2ProgressionState;
+    }
+
+    public function jobArtV2Rank5CycleState(): JobArtV2Rank5CycleState
+    {
+        return $this->jobArtV2Rank5CycleState ??= new JobArtV2Rank5CycleState();
+    }
+
+    public function existingJobArtV2Rank5CycleState(): ?JobArtV2Rank5CycleState
+    {
+        return $this->jobArtV2Rank5CycleState;
     }
 
     public function markPhysicalAttackReceivedSinceOwnAction(): void

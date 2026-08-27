@@ -10,6 +10,8 @@ final class JobArtV2CounterStanceState
         public int $remainingRounds,
         public readonly int $appliedRound,
         public readonly float $parryRate = 0.20,
+        public readonly float $guardAfterParryRate = 0.0,
+        public readonly float $counterDamageMultiplierAfterParry = 1.0,
     ) {
         $this->lastProcessedRound = $appliedRound;
     }

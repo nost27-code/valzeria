@@ -42,6 +42,7 @@ return [
         'ultimate_counterplay' => env('BATTLE_JOB_ART_ULTIMATE_COUNTERPLAY', false),
         // 282奥義の台詞・攻撃描写rewrite。戦闘v2の他flagとは独立し、既定OFF。
         'flavor_rewrite' => env('BATTLE_JOB_ART_FLAVOR_REWRITE', false),
+        'rank5_v6' => env('BATTLE_JOB_ART_RANK5_V6', false),
     ],
 
     /*

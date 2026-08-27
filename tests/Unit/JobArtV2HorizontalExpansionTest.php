@@ -129,7 +129,7 @@ class JobArtV2HorizontalExpansionTest extends TestCase
         $this->assertSame(0.45, $catalog->artResourceMetadataForJobRank(66, 9)['guard_rate']);
     }
 
-    public function test_existing_master_effects_are_reused_without_inferred_lineage_effects(): void
+    public function test_existing_rank_one_and_nine_powers_are_preserved_around_rank5_v6_master_values(): void
     {
         $rows = json_decode((string) file_get_contents(base_path('database/data/job_arts.json')), true, 512, JSON_THROW_ON_ERROR);
         $byJobRank = [];
@@ -141,9 +141,14 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             }
         }
 
+        $expectedPowerByJob = [
+            61 => [1 => 225, 5 => 203, 9 => 355],
+            64 => [1 => 225, 5 => 220, 9 => 355],
+        ];
+
         foreach ([61, 64] as $jobId) {
             $this->assertSame([1, 5, 9], array_keys($byJobRank[$jobId]));
-            foreach ([1 => 225, 5 => 285, 9 => 355] as $rank => $masterPower) {
+            foreach ($expectedPowerByJob[$jobId] as $rank => $masterPower) {
                 $this->assertSame('PHYSICAL_DAMAGE', $byJobRank[$jobId][$rank]['effect_template']);
                 $this->assertSame($masterPower, (int) $byJobRank[$jobId][$rank]['power_hint']);
                 $this->assertSame('NONE', $byJobRank[$jobId][$rank]['limit_group']);

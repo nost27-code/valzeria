@@ -81,6 +81,18 @@ class JobArtV2FeatureGate
             && $this->catalog->supportsCurrentJob($actor->currentJobId);
     }
 
+    public function usesRank5V6(BattleActor $actor): bool
+    {
+        return (bool) config('battle.job_art_v2.rank5_v6', false)
+            && $this->usesResources($actor);
+    }
+
+    public function usesRank5V6ForCurrentJob(?int $jobId): bool
+    {
+        return (bool) config('battle.job_art_v2.rank5_v6', false)
+            && $this->usesResourcesForCurrentJob($jobId);
+    }
+
     public function usesFields(BattleState $state): bool
     {
         return (bool) config('battle.job_art_v2.dynamic_single', false)

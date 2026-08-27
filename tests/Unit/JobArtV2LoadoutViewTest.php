@@ -237,6 +237,12 @@ class JobArtV2LoadoutViewTest extends TestCase
             'maxSlots' => 5,
             'maxCost' => 9,
         ])->render();
+        $rank5V6Html = view('job-arts.partials.system-guide', [
+            'lineageGuides' => collect(app(JobArtV2LineageGuideCatalog::class)->all()),
+            'maxSlots' => 5,
+            'maxCost' => 9,
+            'rank5V6Enabled' => true,
+        ])->render();
 
         $this->assertIsString($page);
         $this->assertStringContainsString("job-arts.partials.system-guide", $page);
@@ -257,7 +263,8 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('相手に次の1行動が渡る', $html);
         $this->assertStringContainsString('双方が敏捷の高い順に行動', $html);
         $this->assertStringContainsString('50ターン終了時', $html);
-        $this->assertStringContainsString('最大体力に対する残り体力の割合を比べます', $html);
+        $this->assertStringContainsString('最大HPに対する残りHPの割合を比べます', $html);
+        $this->assertStringNotContainsString('最大体力', $html);
         $this->assertStringContainsString('挑戦者の割合が防衛者より高ければ挑戦者の判定勝利', $html);
         $this->assertStringContainsString('同じ割合または防衛者の方が高ければ防衛成功', $html);
         $this->assertStringContainsString('チャンプ戦だけは最大100ターン', $html);
@@ -267,6 +274,11 @@ class JobArtV2LoadoutViewTest extends TestCase
         $this->assertStringContainsString('最大5枠、合計Costは9まで', $html);
         $this->assertStringContainsString('奥義は1セットにつき1つまで', $html);
         $this->assertStringContainsString('同じ戦技を複数枠へ入れることもできません', $html);
+        $this->assertStringContainsString('原則として連携は4、奥義は12を使います', $html);
+        $this->assertStringContainsString('連携は資源を消費せず', $rank5V6Html);
+        $this->assertStringContainsString('固定セット順に1枚目は4、2枚目は8、3枚目は12', $rank5V6Html);
+        $this->assertStringContainsString('4枚目以降は資源上限を超えるため発動しません', $rank5V6Html);
+        $this->assertStringNotContainsString('原則として連携は4、奥義は12を使います', $rank5V6Html);
     }
 
     public function test_active_lineage_summary_and_temporary_preset_highlight_are_player_facing(): void

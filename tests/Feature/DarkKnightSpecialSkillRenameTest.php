@@ -39,7 +39,7 @@ class DarkKnightSpecialSkillRenameTest extends TestCase
         $this->assertSame('攻撃依存の2.20倍物理攻撃。敵攻撃を10%低下', $specialSkill['description'] ?? null);
         $this->assertSame('暗黒剣', $jobArt['name'] ?? null);
         $this->assertSame('physical', $jobArt['damage_type'] ?? null);
-        $this->assertSame(185, (int) ($jobArt['power_hint'] ?? 0));
+        $this->assertSame(100, (int) ($jobArt['power_hint'] ?? 0));
         $this->assertSame(0.35, (float) ($jobArt['drain_hp_rate'] ?? 0));
         $this->assertSame(5, (int) ($jobArt['self_damage_percent'] ?? 0));
     }
@@ -189,8 +189,15 @@ class DarkKnightSpecialSkillRenameTest extends TestCase
         ));
     }
 
-    public function test_dark_sword_uses_physical_damage_and_keeps_drain_and_recoil(): void
+    public function test_fresh_seeded_rank5_v6_dark_sword_uses_100_percent_physical_drain_and_recoil_while_runtime_gate_is_off(): void
     {
+        config([
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+            'battle.job_art_v2.rank5_v6' => false,
+        ]);
         app(JobArtSeeder::class)->runForJobIds([30]);
 
         $jobArt = Skill::query()
@@ -198,6 +205,7 @@ class DarkKnightSpecialSkillRenameTest extends TestCase
             ->where('skill_type', 'job_art')
             ->where('learn_rank', 5)
             ->firstOrFail();
+        $jobArt->setAttribute('sure_hit', true);
         $attacker = $this->battleActor('暗黒騎士', true, 10_000, 30, 1_000, 100);
         $attacker->hp = 5_000;
         $attacker->mag = 1;
@@ -210,10 +218,10 @@ class DarkKnightSpecialSkillRenameTest extends TestCase
 
         $this->assertSame('暗黒剣', $jobArt->name);
         $this->assertSame('physical', $jobArt->damage_type);
-        $this->assertSame(1.85, (float) $jobArt->power_multiplier);
+        $this->assertSame(1.0, (float) $jobArt->power_multiplier);
         $this->assertSame(0.35, (float) $jobArt->drain_hp_rate);
         $this->assertSame(5, (int) $jobArt->self_damage_percent);
-        $this->assertGreaterThan(1_000, 1_000_000 - $defender->hp);
+        $this->assertGreaterThanOrEqual(800, 1_000_000 - $defender->hp);
         $this->assertGreaterThan(5_000, $attacker->hp);
         $this->assertTrue(collect($state->logs)->contains(
             fn (string $log): bool => str_contains(strip_tags($log), '吸収'),

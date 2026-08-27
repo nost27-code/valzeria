@@ -12,6 +12,8 @@ Job Art replacement wave 2-B: `2026_08_23_120000_replace_job_arts_wave2_2b.php`�
 
 Job Art replacement wave 2-C Phase 1: `2026_08_25_180000_replace_job_arts_wave2_2c_phase1.php`は`skills`の自然キー1:5・17:1だけを一意性確認後に更新する。対象キーが1件もないfresh installではSeederへ委ねてno-opとし、1件以上存在する環境では2件すべてが一意でなければtransaction全体を停止する。既存`skills.id`と戦技枠・preset参照を維持し、schema変更はない。
 
+Job Art Rank5 v6.1: `2026_08_26_120000_redefine_rank5_job_arts_v6.php`は`database/data/job_art_rank5_v6_1_migration.json`のold/new正本を使い、94件の自然キー `(job_id, learn_rank=5, skill_type=job_art)` をtransaction内で更新する。既存`skills.id`、戦技枠、preset参照、schemaは変更しない。`up()`/`down()`とも対象件数・一意性を検査し、fresh installの英雄職Rank5 bootstrap行だけは後続Seederへ委ねる。旧support行の`hit_count=0`を含めてdown値を生成元から復元する。47:5はGold 10・通常素材8・レア素材5・SP回復8の列を明示し、84:5は`MAGICAL_DAMAGE_REWARD`・reward分類・Gold/通常素材各2を維持する。old/newは全94件で同じfield集合を持つ。実装時点ではローカルDB未適用で、`BATTLE_JOB_ART_RANK5_V6`もOFFのまま。
+
 | Entity/Table | Purpose | Key fields | Used by | Notes |
 |---|---|---|---|---|
 | six_hero_seasons / six_hero_rankings / six_hero_daily_usages / six_hero_battle_logs / six_hero_champions | 六英雄の月次Season、6Room独立順位、Room別日次公式戦回数、公式戦監査、月次英雄/空位の永久snapshot | Seasonは`season_key` uniqueと`ranking_initialized_at`/`finalized_at`、RankingはSeason×Room×CharacterおよびSeason×Room×rank unique、usageはCharacter×日付 uniqueとRoom別JSON、ChampionはSeason×Room unique・非FKのimmutable identity snapshot | Six Hero lifecycle/ranking/battle/hall/operations services | rankは順位奪取transactionの一時負値に対応するsigned integer。日次上限はRoomごとに5でtotalはRoom別合計。ChampionはCharacter削除後もsnapshot名・IDを保持し、確定済み履歴の唯一の正本とする。2026年8月のプレシーズンは確定済みでもChampion 0件を正常とし、Rankingだけを9月へ継承する。2026年9月以降の確定Seasonは6Room分のChampion snapshotを必須とする。Season・Ranking・BattleLogの競技時刻はMariaDB 10.5互換の`DATETIME`で保持する。 |

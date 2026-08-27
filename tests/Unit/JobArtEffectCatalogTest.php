@@ -199,6 +199,19 @@ class JobArtEffectCatalogTest extends TestCase
         $this->assertSame([], JobArtMasterValidator::validateRows($rows));
     }
 
+    public function test_validator_rejects_a_malformed_rank5_v6_row(): void
+    {
+        $rows = json_decode((string) file_get_contents(__DIR__ . '/../../database/data/job_arts.json'), true);
+        $row = collect($rows)->firstWhere(fn (array $candidate): bool =>
+            (int) $candidate['job_id'] === 8 && (int) $candidate['learn_rank'] === 5
+        );
+        $row['gold_bonus_percent'] = 2;
+
+        $problems = JobArtMasterValidator::validateRows([$row]);
+
+        $this->assertStringContainsString('報酬補正が正本と一致しません', implode("\n", $problems));
+    }
+
     public function test_damage_reward_job_arts_use_explicit_low_reward_bonuses(): void
     {
         $rows = json_decode((string) file_get_contents(__DIR__ . '/../../database/data/job_arts.json'), true);
@@ -209,9 +222,11 @@ class JobArtEffectCatalogTest extends TestCase
                 continue;
             }
 
-            $expected = $expectedByRank[(int) $row['learn_rank']];
-            $this->assertSame($expected, (int) ($row['gold_bonus_percent'] ?? -1), (string) $row['name']);
-            $this->assertSame($expected, (int) ($row['drop_bonus_percent'] ?? -1), (string) $row['name']);
+            $expected = (int) $row['job_id'] === 20 && (int) $row['learn_rank'] === 5
+                ? [0, 6]
+                : array_fill(0, 2, $expectedByRank[(int) $row['learn_rank']]);
+            $this->assertSame($expected[0], (int) ($row['gold_bonus_percent'] ?? -1), (string) $row['name']);
+            $this->assertSame($expected[1], (int) ($row['drop_bonus_percent'] ?? -1), (string) $row['name']);
         }
     }
 
@@ -225,7 +240,9 @@ class JobArtEffectCatalogTest extends TestCase
                 continue;
             }
 
-            $expected = $expectedByRank[(int) $row['learn_rank']];
+            $expected = (int) $row['job_id'] === 8 && (int) $row['learn_rank'] === 5
+                ? 7
+                : $expectedByRank[(int) $row['learn_rank']];
             $this->assertSame($expected, (int) ($row['gold_bonus_percent'] ?? -1), (string) $row['name']);
             $this->assertSame(0, (int) ($row['drop_bonus_percent'] ?? -1), (string) $row['name']);
         }

@@ -125,7 +125,16 @@ final class JobArtV2CanonicalSelfBuffRuntimeAuditTest extends TestCase
             }
         }
 
-        $this->assertCount(16, $sharedTemplateArts, 'Shared-template arts must stay inside the canonical runtime audit.');
+        $this->assertCount(11, $sharedTemplateArts, 'Shared-template arts must stay inside the canonical runtime audit.');
+        foreach (['11:5:', '12:5:', '44:5:', '46:5:', '50:5:'] as $rank5IdentityPrefix) {
+            $this->assertFalse(
+                array_any(
+                    array_keys($sharedTemplateArts),
+                    static fn (string $identity): bool => str_starts_with($identity, $rank5IdentityPrefix),
+                ),
+                $rank5IdentityPrefix.' must not fall back to the permanent shared self-buff template.',
+            );
+        }
     }
 
     public function test_shared_self_buff_is_wired_to_battle_state_in_every_route(): void

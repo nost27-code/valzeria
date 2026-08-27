@@ -116,6 +116,13 @@ final class JobArtV2FieldService
             ),
             'lock' => $this->lockPrimary($actor, $state, (int) $skill->id, $sourceActionId),
             'echo_previous_overwritten' => $this->holdPreviousOverwrittenField($actor, $state, (int) $skill->id, $sourceActionId),
+            'redeploy_last_overwritten' => $this->redeployLastOverwrittenField(
+                $actor,
+                $state,
+                (int) $skill->id,
+                $sourceActionId,
+                max(1, (int) ($metadata['field_duration_rounds'] ?? self::BASE_DURATION)),
+            ),
             'overlay' => $this->allowsFieldOperation($actor, $skill)
                 ? $this->createOverlay($actor, $state, (string) $metadata['field_key'], (int) $skill->id, $sourceActionId)
                 : FieldOperationResult::unchanged('unsupported_art'),
@@ -537,6 +544,28 @@ final class JobArtV2FieldService
         $state->replaceFieldEcho($actor, $echo);
 
         return $this->emit($state, $state->actorKey($actor), FieldEvent::ECHO_CREATED, $echo, $sourceActionId);
+    }
+
+    private function redeployLastOverwrittenField(
+        BattleActor $actor,
+        BattleState $state,
+        int $sourceSkillId,
+        int $sourceActionId,
+        int $duration,
+    ): FieldOperationResult {
+        $previous = $state->lastOverwrittenFieldFor($actor);
+        if ($previous === null) {
+            return FieldOperationResult::unchanged('no_overwritten_field');
+        }
+
+        return $this->deployPrimary(
+            $actor,
+            $state,
+            $previous->key,
+            $sourceSkillId,
+            $sourceActionId,
+            $duration,
+        );
     }
 
     private function damageScope(Skill $skill): string

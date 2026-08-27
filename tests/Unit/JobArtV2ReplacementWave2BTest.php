@@ -65,7 +65,8 @@ final class JobArtV2ReplacementWave2BTest extends TestCase
             $key = $case['job_id'].':'.$case['rank'];
             $this->assertSame($case['name'], $row['name']);
             $this->assertIsInt($row['power_hint'], $key.' power_hint must be an explicit damage power.');
-            $this->assertSame($case['power'], $this->powerFromHint($row['power_hint'] ?? null));
+            $expectedMasterPower = $case['rank'] === 5 ? 100 : $case['power'];
+            $this->assertSame($expectedMasterPower, $this->powerFromHint($row['power_hint'] ?? null));
             $this->assertSame($case['sp'], $row['sp_cost_fixed'] ?? null, $key.' fixed SP must be explicit in the master.');
             $this->assertSame($expectedRates[$key], (int) $row['activation_rate'], $key.' activation rate');
         }

@@ -46,7 +46,10 @@ final class JobArtV2DefenseService
         }
 
         $lineage = $metadata['lineage_key'] ?? null;
-        if ($lineage === 'counter' && (int) $skill->learn_rank === 1
+        $supportsCounterStance = (int) $skill->learn_rank === 1
+            || ($this->featureGate->usesRank5V6($actor) && (int) $skill->learn_rank === 5);
+        if ($lineage === 'counter'
+            && $supportsCounterStance
             && isset($metadata['counter_stance_rounds'], $metadata['parry_rate'])
         ) {
             $event = $actor->counterStanceState() === null
@@ -56,6 +59,8 @@ final class JobArtV2DefenseService
                 remainingRounds: max(1, (int) $metadata['counter_stance_rounds']),
                 appliedRound: $state->turnCount,
                 parryRate: max(0.0, min(1.0, (float) $metadata['parry_rate'])),
+                guardAfterParryRate: max(0.0, min(1.0, (float) ($metadata['guard_after_parry_rate'] ?? 0.0))),
+                counterDamageMultiplierAfterParry: max(1.0, (float) ($metadata['counter_damage_multiplier_after_parry'] ?? 1.0)),
             ));
             $state->recordCounterStanceEvent(
                 actor: $actor,
@@ -80,7 +85,13 @@ final class JobArtV2DefenseService
             }
         }
 
-        $this->applyGuard($actor, $state, max(0.0, min(1.0, (float) $metadata['guard_rate'])));
+        $this->applyGuard(
+            $actor,
+            $state,
+            max(0.0, min(1.0, (float) $metadata['guard_rate'])),
+            (bool) ($metadata['cleanse_on_guard_mitigation'] ?? false),
+            (bool) ($metadata['guard_expires_next_own_action'] ?? false),
+        );
     }
 
     public function resolveDamage(
@@ -175,6 +186,16 @@ final class JobArtV2DefenseService
                 $resolution->target->markParrySucceededSinceOwnAction();
                 $this->resourceService->recordParrySuccess($resolution->target, $state);
                 $state->addLog('<span class="text-cyan-700 font-extrabold">'.e($resolution->target->name).' は剣冠の構えで攻撃を受け流した！</span>');
+                if (($stance?->guardAfterParryRate ?? 0.0) > 0.0) {
+                    $this->applyGuard($resolution->target, $state, $stance->guardAfterParryRate, false, true);
+                }
+                if (($stance?->counterDamageMultiplierAfterParry ?? 1.0) > 1.0) {
+                    $progression = $resolution->target->jobArtV2ProgressionState();
+                    $progression->rank5V6CounterDamageMultiplier = max(
+                        $progression->rank5V6CounterDamageMultiplier,
+                        $stance->counterDamageMultiplierAfterParry,
+                    );
+                }
                 $this->applyRoyalSwordCounter($state, $resolution, $result);
             }
         }
@@ -294,6 +315,11 @@ final class JobArtV2DefenseService
             } else {
                 $resolution->target->replaceJobArtV2GuardState(null);
                 $guardRate = $guard->rate;
+                if ($guard->cleanseOnMitigation) {
+                    $state->updateJobArtV2RoleAction($resolution->sourceActionId, [
+                        'rank5_v6_guard_cleanse' => true,
+                    ]);
+                }
             }
             $trace = new DamageTrace(
                 sourceActionId: $resolution->sourceActionId,
@@ -331,16 +357,40 @@ final class JobArtV2DefenseService
                     $trace->preventedDamage,
                 );
             }
+            $guardCleanse = (bool) ($state->jobArtV2RoleAction($resolution->sourceActionId)['rank5_v6_guard_cleanse'] ?? false);
+            if ($guardCleanse && $state->claimJobArtV2RoleEffect(
+                $resolution->target,
+                'rank5_v6_guard_cleanse',
+                $resolution->sourceActionId,
+            )) {
+                $cleanse = ($this->cleanseService ?? app(JobArtV2CleanseService::class))
+                    ->cleanse($resolution->target, $state, $resolution->sourceActionId, false);
+                if ($cleanse->success) {
+                    $state->addLog('<span class="text-emerald-700 font-bold">'.e($resolution->target->name).' は軽減に成功し、有害状態を1種浄化した！</span>');
+                    $this->resourceService->recordCleanseSuccess($resolution->target, $state);
+                }
+            }
         }
 
         return $after;
     }
 
-    public function applyGuard(BattleActor $actor, BattleState $state, float $rate): void
+    public function applyGuard(
+        BattleActor $actor,
+        BattleState $state,
+        float $rate,
+        bool $cleanseOnMitigation = false,
+        bool $expiresAtNextOwnAction = false,
+    ): void
     {
         $previous = $actor->jobArtV2GuardState();
         if ($previous === null || $rate >= $previous->rate) {
-            $actor->replaceJobArtV2GuardState(new JobArtV2GuardState($rate));
+            $actor->replaceJobArtV2GuardState(new JobArtV2GuardState(
+                $rate,
+                1,
+                $cleanseOnMitigation || ($previous?->cleanseOnMitigation ?? false),
+                $expiresAtNextOwnAction || ($previous?->expiresAtNextOwnAction ?? false),
+            ));
         }
 
         $active = $actor->jobArtV2GuardState();

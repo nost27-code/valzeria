@@ -85,6 +85,27 @@ final class JobArtV2ProgressionService
         $multiplier = 1.0;
         $attributes = [];
 
+        if ($this->featureGate->usesRank5V6($actor)) {
+            if ($actorState->rank5V6CommittedDamageMultiplier > 1.0) {
+                $multiplier *= $actorState->rank5V6CommittedDamageMultiplier;
+                $actorState->rank5V6CommittedDamageMultiplier = 1.0;
+            }
+
+            $lineageKey = $this->lineageCatalog->forArt($skill)['lineage_key'] ?? null;
+            if ($lineageKey === 'counter' && $actorState->rank5V6CounterDamageMultiplier > 1.0) {
+                $multiplier *= $actorState->rank5V6CounterDamageMultiplier;
+                $actorState->rank5V6CounterDamageMultiplier = 1.0;
+            }
+
+            if ((int) $skill->job_id === 14
+                && (int) $skill->learn_rank === 5
+                && (float) ($state->jobArtV2RoleAction($sourceActionId)['progression_hp_rate_at_action_start'] ?? 1.0) <= 0.50
+            ) {
+                $multiplier *= 1.25;
+                $attributes['rank5_v6_low_hp_multiplier'] = true;
+            }
+        }
+
         // These states are created by exact crown finishers, but intentionally
         // apply to later arts regardless of whether the later art itself owns
         // ProgressionCatalog metadata. Otherwise ordinary cards could never
@@ -331,6 +352,24 @@ final class JobArtV2ProgressionService
         $sameLineage = $this->isCurrentOrSameLineage($actor, $skill);
         $jobId = (int) $skill->job_id;
         $rank = (int) $skill->learn_rank;
+
+        if ($this->featureGate->usesRank5V6($actor) && $rank === 5) {
+            if ($jobId === 3 && $landed) {
+                $this->addHuntingMark($target, $actor);
+            } elseif ($jobId === 12) {
+                $actorState->rank5V6NextArtActivationBonus = 20;
+                $actorState->rank5V6DifferentCategoryFrom = $artStage;
+            } elseif ($jobId === 77) {
+                $this->extendShortestPositiveTimedEffect($actor, $state, 2);
+            } elseif ($jobId === 87) {
+                $actorState->rank5V6NextArtActivationBonus = 25;
+                $actorState->rank5V6NextArtDamageMultiplier = 1.10;
+                $actorState->rank5V6DifferentCategoryFrom = null;
+            } elseif ($jobId === 91 && $landed && $this->resourceCatalog->resourcesForActor($target) !== []) {
+                $this->applyGoldCorrosion($target->jobArtV2ProgressionState(), $this->actorKey($actor), $actor, 1, $sourceActionId);
+            }
+        }
+
         if ($sameLineage && $jobId === 69 && $rank === 1) {
             $actorState->initiativeRerollNextRound = true;
         }
@@ -650,6 +689,19 @@ final class JobArtV2ProgressionService
         }
 
         $progression = $actor->jobArtV2ProgressionState();
+        if ($progression->rank5V6DifferentCategoryFrom !== null) {
+            $indexed = [];
+            foreach ($candidates as $index => $candidate) {
+                $indexed[] = [
+                    'skill' => $candidate,
+                    'priority' => $this->artStage($candidate) !== $progression->rank5V6DifferentCategoryFrom ? 1 : 0,
+                    'index' => $index,
+                ];
+            }
+            usort($indexed, static fn (array $left, array $right): int => ($right['priority'] <=> $left['priority']) ?: ($left['index'] <=> $right['index']));
+            $candidates = array_values(array_map(static fn (array $row): Skill => $row['skill'], $indexed));
+        }
+
         if ($progression->royalFormation !== null) {
             $indexed = [];
             foreach ($candidates as $index => $candidate) {
@@ -688,6 +740,9 @@ final class JobArtV2ProgressionService
         }
 
         $progression = $actor->jobArtV2ProgressionState();
+        if ($progression->rank5V6NextArtActivationBonus > 0) {
+            $baseRate = min(100.0, $baseRate + $progression->rank5V6NextArtActivationBonus);
+        }
         $formalCommandPrepared = $this->isCurrentOrSameLineage($actor, $skill)
             && $progression->commandActivationRemainingOpportunities > 0
             && $progression->commandActivationTargetLineage === ($this->lineageCatalog->forArt($skill)['lineage_key'] ?? null)
@@ -721,13 +776,27 @@ final class JobArtV2ProgressionService
         return min(100.0, $baseRate + $progression->commandActivationBonus);
     }
 
-    public function finishActivationAttempt(BattleActor $actor, Skill $skill): void
+    public function finishActivationAttempt(BattleActor $actor, Skill $skill, bool $activated = false): void
     {
         if (! $this->enabledFor($actor)) {
             return;
         }
 
         $progression = $actor->jobArtV2ProgressionState();
+        if ($progression->rank5V6NextArtActivationBonus > 0
+            || $progression->rank5V6NextArtDamageMultiplier > 1.0
+            || $progression->rank5V6DifferentCategoryFrom !== null
+        ) {
+            if ($activated && $progression->rank5V6NextArtDamageMultiplier > 1.0) {
+                $progression->rank5V6CommittedDamageMultiplier = max(
+                    $progression->rank5V6CommittedDamageMultiplier,
+                    $progression->rank5V6NextArtDamageMultiplier,
+                );
+            }
+            $progression->rank5V6NextArtActivationBonus = 0;
+            $progression->rank5V6NextArtDamageMultiplier = 1.0;
+            $progression->rank5V6DifferentCategoryFrom = null;
+        }
         if ($progression->commandActivationRemainingOpportunities > 0
             && $progression->commandActivationTargetLineage === ($this->lineageCatalog->forArt($skill)['lineage_key'] ?? null)
             && in_array((int) $skill->learn_rank, $progression->commandActivationTargetRanks, true)
@@ -1485,6 +1554,31 @@ final class JobArtV2ProgressionService
         if ($progression->royalFormation !== null && ! $createdRoyalFormation) {
             $progression->royalFormation['previous_category'] = $category;
         }
+    }
+
+    private function extendShortestPositiveTimedEffect(
+        BattleActor $actor,
+        BattleState $state,
+        int $rounds,
+    ): bool {
+        $positive = array_values(array_filter(
+            $actor->jobArtV2TimedEffects(),
+            static fn (JobArtV2TimedEffectState $effect): bool => ! $effect->isExpired()
+                && array_filter($effect->statModifiers, static fn (float $value): bool => $value > 0.0) !== [],
+        ));
+        usort($positive, static fn (JobArtV2TimedEffectState $a, JobArtV2TimedEffectState $b): int =>
+            ($a->remainingRounds <=> $b->remainingRounds)
+            ?: ($a->appliedRound <=> $b->appliedRound)
+            ?: strcmp($a->key, $b->key));
+        $effect = $positive[0] ?? null;
+        if ($effect === null) {
+            return false;
+        }
+
+        $effect->remainingRounds += max(0, $rounds);
+        $state->addLog('<span class="text-indigo-700 font-bold">'.e($actor->name).' の強化《'.e($effect->key).'》が '.e((string) $rounds).'ラウンド延長された！</span>');
+
+        return true;
     }
 
     private function shortenAlchemyTimedEffects(BattleActor $actor, BattleActor $target, BattleState $state): void

@@ -227,6 +227,9 @@ final class JobArtV2RoleEffectService
         // PvE/PvP/NPC already clear this in their route, while Champ did not;
         // clear it at the common v2 lifecycle boundary so every route agrees.
         $actor->damageReductionRate = 0;
+        if ($actor->jobArtV2GuardState()?->expiresAtNextOwnAction) {
+            $actor->replaceJobArtV2GuardState(null);
+        }
         $physicalAttackReceived = $actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot();
         $parrySucceeded = $actor->consumeParrySucceededSinceOwnActionSnapshot();
         $damageMitigated = $actor->consumeDamageMitigatedSinceOwnActionSnapshot();
@@ -665,6 +668,20 @@ final class JobArtV2RoleEffectService
         // 効果を常にすべて実行する。portable は旧分類との互換情報として
         // catalog に残すが、実行可否の判定には使用しない。
         $roleMetadata = $this->catalog->forArt($skill);
+        if ($this->featureGate->usesRank5V6($actor)) {
+            $rank5V6Metadata = $this->catalog->rank5V6MetadataForArt($skill);
+            if ($rank5V6Metadata !== null) {
+                $roleMetadata = array_replace_recursive($roleMetadata ?? [], $rank5V6Metadata);
+            }
+        }
+        if ($this->featureGate->usesRank5V6($actor)
+            && (int) $skill->job_id === 56
+            && (int) $skill->learn_rank === 5
+        ) {
+            // v6.1の《聖域結界》は旧版の能力上昇を引き継がず、
+            // DefenseServiceが管理する一時軽減へ完全に置き換える。
+            $roleMetadata = [];
+        }
         // Spreadsheet-canonical self buffs are valid runtime effects even
         // when the older role catalog had no entry for that exact art. An
         // empty metadata scaffold lets completeJobArtCast apply the canonical
@@ -1166,10 +1183,15 @@ final class JobArtV2RoleEffectService
     /** @param array<string, mixed> $definition */
     private function hpHealAmount(BattleActor $actor, BattleState $state, Skill $skill, array $definition): int
     {
+        $executionPower = (int) ($state->jobArtV2RoleAction()['execution_power'] ?? 0);
+        if ($executionPower <= 0) {
+            $executionPower = $this->fallbackExecutionPower($actor, $skill);
+        }
+
         return match ($definition['formula'] ?? null) {
             'existing_spr' => max(1, (int) floor(
                 $actor->effectiveSpr()
-                * (($state->jobArtV2RoleAction()['execution_power'] ?? $this->fallbackExecutionPower($actor, $skill)) / 100)
+                * ($executionPower / 100)
                 * ($this->balances()->healSprPercent($skill) !== null
                     ? 1.0
                     : max(0.0, (float) ($definition['multiplier'] ?? 1.0))),

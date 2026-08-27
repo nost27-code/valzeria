@@ -189,6 +189,12 @@ class JobArtV2ResourceService
         $this->battleHud->markJobArt($actor, $state, $skill);
 
         $art = $this->catalog->forActorArt($actor, $skill);
+        if ($art !== null
+            && $this->featureGate->usesRank5V6($actor)
+            && (int) $skill->learn_rank === 9
+        ) {
+            $actor->jobArtV2Rank5CycleState()->clearResource((string) $art['resource_key']);
+        }
         if ($art === null || !$this->catalog->usesBattleResource($actor, $skill)) {
             if (! $this->lineageEffectsSuppressed($state)) {
                 $this->fieldService->applyJobArtCast($actor, $state, $skill);

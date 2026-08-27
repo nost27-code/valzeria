@@ -20,7 +20,7 @@ class JobArtV2PowerBalanceTest extends TestCase
         $this->enablePrototypePowerChain();
     }
 
-    public function test_ten_lineage_fixture_matches_the_frozen_crown_master_pairs(): void
+    public function test_ten_lineage_fixture_matches_rank5_v6_and_preserved_rank9_master_pairs(): void
     {
         $rows = json_decode((string) file_get_contents(base_path('database/data/job_arts.json')), true, 512, JSON_THROW_ON_ERROR);
         $pairs = [];
@@ -32,10 +32,23 @@ class JobArtV2PowerBalanceTest extends TestCase
             }
         }
 
+        $rankFivePowers = [
+            60 => 200,
+            61 => 203,
+            62 => 200,
+            63 => 209,
+            64 => 220,
+            65 => 209,
+            66 => 181,
+            67 => 212,
+            68 => 212,
+            69 => 212,
+        ];
+
         $this->assertCount(10, JobArtV2BalanceFixture::lineages());
         foreach (JobArtV2BalanceFixture::lineages() as $lineage => $fixture) {
             $jobId = (int) $fixture['job_id'];
-            $this->assertSame(285, (int) ($pairs[$jobId][5]['power_hint'] ?? 0), $lineage);
+            $this->assertSame($rankFivePowers[$jobId], (int) ($pairs[$jobId][5]['power_hint'] ?? 0), $lineage);
             $this->assertSame($jobId === 67 ? 315 : 355, (int) ($pairs[$jobId][9]['power_hint'] ?? 0), $lineage);
             if (in_array($jobId, [67, 69], true)) {
                 $this->assertNull($pairs[$jobId][9]['max_uses_per_battle'] ?? null, $lineage);

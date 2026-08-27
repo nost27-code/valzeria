@@ -28,6 +28,14 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 
 The older Job-art sections and architecture-table notes below are historical design boundaries. Do not use their current-job, main/sub-lineage, portable, inherited-rate, or normalized-SP descriptions as the current specification.
 
+## Job-art Rank5 v6.1 redesign (local, default OFF)
+
+- Gate and canonical metadata: `config/battle.php`, `.env.example`, `.env.local.example`, `app/Services/JobArtV2FeatureGate.php`, `app/Services/JobArtV2Rank5V6Catalog.php`
+- Cycle/selection: `app/Services/JobArtV2Rank5CycleState.php`, `app/Services/Battle/BattleActor.php`, `app/Services/JobArtV2SelectionService.php`, `app/Services/JobArtV2ResourceService.php`, `app/Services/JobArtV2PrototypeCatalog.php`
+- Effects/display: `app/Services/JobArtV2CrownBalanceCatalog.php`, `app/Services/JobArtV2CardDescriptionCatalog.php`, `app/Services/JobArtV2ProgressionService.php`, `app/Services/JobArtV2DefenseService.php`, `app/Services/JobArtV2FieldService.php`, `app/Services/JobArtV2RoleEffectCatalog.php`, `app/Services/JobArtV2RoleEffectService.php`, `app/Services/JobArtV2LoadoutPresenter.php`, `app/Http/Controllers/JobArtController.php`, `resources/views/job-arts/index.blade.php`, `resources/views/job-arts/partials/system-guide.blade.php`
+- Master/migration: `database/data/job_arts.json`, `database/data/job_art_rank5_v6_1_migration.json`, `database/migrations/2026_08_26_120000_redefine_rank5_job_arts_v6.php`, `database/seeders/JobArtSeeder.php`, `app/Support/JobArtMasterValidator.php`, `scripts/verify/generate-rank5-v6-catalog.ps1`
+- Contracts: `tests/Unit/JobArtV2Rank5V6Test.php`, `tests/Feature/Rank5V6MigrationTest.php`。実装時点ではflag OFF・migration未適用で、ONとDB反映は同じ明示承認境界で行う
+
 ## Job-art v2 crown alchemist resource balance
 
 `JobArtV2PrototypeCatalog` owns 金冠錬符のHIT時触媒+4と金冠ミダスフィールドの触媒8pt条件、`JobArtV2CardDescriptionCatalog` and `database/data/job_arts.json` own the displayed/master 225% and 315% powers, and `JobArtV2ProgressionService` owns battle-only 金蝕 charges. `JobArtV2ResourceService` and `BattleState` apply field gain modifiers and 金蝕 once per actor/resource/source action, then consume one 金蝕 charge for the whole action even when multiple active resources gain. The engine behavior remains dormant while its production flags are OFF; the shared Rank9 power and targeted DB row are already 315.

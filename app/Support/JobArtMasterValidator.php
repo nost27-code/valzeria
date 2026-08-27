@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Services\JobArtV2Rank5V6Catalog;
+
 class JobArtMasterValidator
 {
     private const DAMAGE_KEYWORDS = ['ダメージ'];
@@ -34,6 +36,12 @@ class JobArtMasterValidator
                     $name,
                     $template ?: '(空)'
                 );
+                continue;
+            }
+
+            $rank5V6Spec = self::rank5V6SpecForRow($row);
+            if ($rank5V6Spec !== null) {
+                array_push($problems, ...self::validateRank5V6Row($row, $rank5V6Spec));
                 continue;
             }
 
@@ -241,6 +249,89 @@ class JobArtMasterValidator
                     );
                 }
             }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * Rank5 v6.1 effects are implemented by the versioned runtime catalogs and
+     * services rather than by the legacy effect_template heuristics below.
+     * Match the complete natural key so malformed or unrelated rows continue
+     * through the stricter legacy checks.
+     *
+     * @return array{name:string,power:?int,trigger_mode:string,effect_text:string}|null
+     */
+    private static function rank5V6SpecForRow(array $row): ?array
+    {
+        if ((int) ($row['learn_rank'] ?? 0) !== 5
+            || (string) ($row['skill_type'] ?? '') !== 'job_art'
+        ) {
+            return null;
+        }
+
+        $spec = (new JobArtV2Rank5V6Catalog)->all()[(int) ($row['job_id'] ?? 0)] ?? null;
+
+        return $spec !== null && $spec['name'] === (string) ($row['name'] ?? '') ? $spec : null;
+    }
+
+    /**
+     * @param  array{name:string,power:?int,trigger_mode:string,effect_text:string}  $spec
+     * @return list<string>
+     */
+    private static function validateRank5V6Row(array $row, array $spec): array
+    {
+        $problems = [];
+        $jobId = (int) $row['job_id'];
+        $name = (string) $row['name'];
+        $expectedPower = $spec['power'] ?? 0;
+
+        if ((int) ($row['power_hint'] ?? 0) !== $expectedPower) {
+            $problems[] = sprintf(
+                'job_id=%d %s: Rank5 v6.1 の power_hint は %d で指定してください',
+                $jobId,
+                $name,
+                $expectedPower,
+            );
+        }
+
+        if ((string) ($row['memo'] ?? '') !== $spec['effect_text']) {
+            $problems[] = sprintf('job_id=%d %s: Rank5 v6.1 の memo が正本と一致しません', $jobId, $name);
+        }
+
+        $attackless = $spec['power'] === null;
+        $hitCount = (int) ($row['hit_count'] ?? JobArtEffectCatalog::hitCount((string) $row['effect_template']));
+        $damageType = array_key_exists('damage_type', $row) ? (string) $row['damage_type'] : null;
+
+        if ($attackless && ($hitCount !== 0 || $damageType !== 'support')) {
+            $problems[] = sprintf(
+                'job_id=%d %s: 攻撃なしRank5は hit_count=0 / damage_type=support で指定してください',
+                $jobId,
+                $name,
+            );
+        } elseif (! $attackless && ($hitCount < 1 || $damageType === 'support')) {
+            $problems[] = sprintf('job_id=%d %s: 攻撃Rank5のダメージ経路が不正です', $jobId, $name);
+        }
+
+        if ($damageType !== null && ! in_array($damageType, ['physical', 'magical', 'support'], true)) {
+            $problems[] = sprintf('job_id=%d %s: Rank5 v6.1 の damage_type が不正です', $jobId, $name);
+        }
+
+        $rewardExpectation = match ($jobId) {
+            8 => [7, 0],
+            20 => [0, 6],
+            default => null,
+        };
+        if ($rewardExpectation !== null
+            && [(int) ($row['gold_bonus_percent'] ?? 0), (int) ($row['drop_bonus_percent'] ?? 0)] !== $rewardExpectation
+        ) {
+            $problems[] = sprintf('job_id=%d %s: Rank5 v6.1 の報酬補正が正本と一致しません', $jobId, $name);
+        }
+
+        if (in_array($jobId, [8, 20, 31, 57, 77, 91], true)
+            && (int) ($row['mp_recover_percent'] ?? 0) !== 0
+        ) {
+            $problems[] = sprintf('job_id=%d %s: Rank5 v6.1 ではSP回復を設定しません', $jobId, $name);
         }
 
         return $problems;

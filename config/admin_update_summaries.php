@@ -9,6 +9,13 @@ return [
         'detail' => '失敗作さん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
     ],
     [
+        'id' => '2026-08-27-rank5-v6-staging-readiness',
+        'date' => '2026-08-27',
+        'category' => 'internal',
+        'title' => 'Rank5連携再設計の検証環境を準備',
+        'detail' => '94職のRank5連携を10系譜それぞれの特徴が伝わる効果へ再設計し、段階的に確認できる検証環境を準備しました。本番では引き続き従来の効果を使用します。',
+    ],
+    [
         'id' => '2026-08-27-pvp-pure-defense-reference',
         'date' => '2026-08-27',
         'category' => 'balance',

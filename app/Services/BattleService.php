@@ -1693,7 +1693,10 @@ class BattleService
         $skillId = (int) $skill->id;
         $rate = (float) ($attacker->jobArtRates[$skillId] ?? 1.0);
         $basePower = $this->jobArtV2PowerResolver->forExecution($attacker, $sourceSkill, $state);
-        $power = max(0, (int) round(($basePower ?: 100) * $rate));
+        $effectiveBasePower = $basePower === 0 && ! $this->jobArtV2FeatureGate->usesRank5V6($attacker)
+            ? 100
+            : $basePower;
+        $power = max(0, (int) round($effectiveBasePower * $rate));
 
         if ((float) $skill->luk_power_rate > 0) {
             $power += max(0, (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate * $rate));

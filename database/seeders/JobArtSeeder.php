@@ -92,9 +92,11 @@ class JobArtSeeder extends Seeder
                     'sort_order' => (int) ($row['sort_order'] ?? 0),
                     'memo' => $row['memo'] ?? null,
                     'description' => $row['memo'] ?? null,
-                    'damage_type' => $template === 'DRAIN'
-                        ? JobArtEffectCatalog::drainDamageType($row['damage_type'] ?? null)
-                        : JobArtEffectCatalog::damageType($template),
+                    'damage_type' => isset($row['damage_type'])
+                        ? (string) $row['damage_type']
+                        : ($template === 'DRAIN'
+                            ? JobArtEffectCatalog::drainDamageType(null)
+                            : JobArtEffectCatalog::damageType($template)),
                     'power_multiplier' => max(0, $power / 100),
                     'hit_count' => (int) ($row['hit_count'] ?? JobArtEffectCatalog::hitCount($template)),
                     'hybrid_scaling' => $row['hybrid_scaling'] ?? 'average',

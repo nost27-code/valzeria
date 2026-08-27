@@ -49,7 +49,10 @@ final class JobArtV2ReplacementWave2CPhase1Test extends TestCase
             $this->assertSame($case['name'], $row['name']);
             $this->assertSame('PHYSICAL_DAMAGE', $row['effect_template']);
             $this->assertSame('attack', $row['art_category']);
-            $this->assertSame($case['power'], $row['power_hint']);
+            $this->assertSame(
+                $case['job_id'] === 1 && $case['rank'] === 5 ? 100 : $case['power'],
+                $row['power_hint'],
+            );
             $this->assertSame($case['sp'], $row['sp_cost_fixed'] ?? null);
             $this->assertSame(1, $row['hit_count'] ?? 1);
         }

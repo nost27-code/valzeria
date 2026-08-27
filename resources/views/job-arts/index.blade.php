@@ -1,5 +1,6 @@
 @php
     $jobArtV2UiEnabled = (bool) ($jobArtV2UiEnabled ?? false);
+    $rank5V6Enabled = (bool) ($rank5V6Enabled ?? false);
     $jobArtTerm = $jobArtV2UiEnabled ? '戦技' : '奥義';
     $pageTitle = $jobArtV2UiEnabled ? '戦技セット' : '奥義セット';
     $lineageGuides = collect($lineageGuides ?? []);
@@ -163,6 +164,7 @@
                                 'maxSlots' => $maxSlots,
                                 'maxCost' => $maxCost,
                                 'compact' => true,
+                                'rank5V6Enabled' => $rank5V6Enabled,
                             ])
                         </div>
                     </div>
@@ -407,7 +409,11 @@
                         <section data-job-art-lineage-guide="all">
                             <div class="text-[11px] font-black text-slate-800">10系譜の共通ルール</div>
                             <p class="mt-1 text-[11px] font-bold leading-relaxed text-slate-600">
-                                多くの系譜は、始動で系譜リソースを+4、連携で-4、奥義で-12します。例外は各系譜・各戦技の説明に数値で表示します。奥義は12ある時、セット順より先に発動判定を行います。
+                                @if($rank5V6Enabled)
+                                    多くの系譜は、始動で系譜リソースを+4します。連携は資源を消費せず、同じ系譜の固定セット順に1枚目は4、2枚目は8、3枚目は12で候補になり、4枚目以降は資源上限を超えるため発動しません。奥義は12を使い、その系譜の連携使用状況をリセットします。
+                                @else
+                                    多くの系譜は、始動で系譜リソースを+4、連携で-4、奥義で-12します。例外は各系譜・各戦技の説明に数値で表示します。奥義は12ある時、セット順より先に発動判定を行います。
+                                @endif
                             </p>
                             <p class="mt-1 text-[10px] font-bold leading-relaxed text-slate-500">
                                 系譜を選ぶと、通常攻撃などで増える条件と、その系譜ならではの戦い方を確認できます。

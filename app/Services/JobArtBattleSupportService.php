@@ -469,7 +469,10 @@ class JobArtBattleSupportService
             return $this->suppressCompetitiveRewardBonuses($state, $executionSkill);
         }
         $basePower = $this->jobArtV2PowerResolver->forExecution($actor, $skill, $state);
-        $power = max(0, (int) round(($basePower ?: 100) * $rate));
+        $effectiveBasePower = $basePower === 0 && ! $this->jobArtV2FeatureGate->usesRank5V6($actor)
+            ? 100
+            : $basePower;
+        $power = max(0, (int) round($effectiveBasePower * $rate));
         $executionSkill->power = $power;
         $executionSkill->power_multiplier = max(0, $power / 100);
         if ($state !== null && $defender !== null) {

@@ -79,6 +79,15 @@ final class JobArtV2ProgressionState
     public bool $commandGuaranteeNextArt = false;
     public bool $commandPrioritizeCurrentArt = false;
 
+    /** Rank5 v6 の次戦技制御。戦闘中だけ保持し、発動抽選1回で消費する。 */
+    public int $rank5V6NextArtActivationBonus = 0;
+    public float $rank5V6NextArtDamageMultiplier = 1.0;
+    public float $rank5V6CommittedDamageMultiplier = 1.0;
+    public ?string $rank5V6DifferentCategoryFrom = null;
+
+    /** 受け流し成功後、次に使用する反撃系戦技へ適用する1回分の倍率。 */
+    public float $rank5V6CounterDamageMultiplier = 1.0;
+
     public bool $initiativeRerollNextRound = false;
     public bool $initiativeForceFirstNextRound = false;
 

@@ -12,6 +12,11 @@ use App\Models\Skill;
  */
 final class JobArtV2CardDescriptionCatalog
 {
+    public function __construct(
+        private readonly ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
+    ) {
+    }
+
     /** @var array<string, string> */
     private const DESCRIPTIONS = array (
   '1:1:見切りの呼吸' => '剣勢を+4し、相手に威力90%の物理ダメージを与える。その後、1ラウンドの間、受け流し率を+25%する。',
@@ -260,6 +265,13 @@ HITした場合、5ターンの間「王戦陣形」を展開する。王戦陣�
 
     public function defaultDescription(Skill $skill): ?string
     {
+        if ($this->rank5V6Enabled()) {
+            $description = ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->effectText($skill);
+            if ($description !== null) {
+                return $description;
+            }
+        }
+
         $description = self::DESCRIPTIONS[$this->identityKey($skill)] ?? null;
 
         return $description !== null ? $this->normalizeLineBreaks($description) : null;
@@ -276,6 +288,13 @@ HITした場合、5ターンの間「王戦陣形」を展開する。王戦陣�
      */
     public function basePower(Skill $skill): ?int
     {
+        if ($this->rank5V6Enabled()) {
+            $spec = ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->forSkill($skill);
+            if ($spec !== null) {
+                return $spec['power'];
+            }
+        }
+
         $description = $this->defaultDescription($skill);
         if ($description === null
             || preg_match('/(?:合計)?威力(\d+)%/u', $description, $matches) !== 1
@@ -300,5 +319,14 @@ HITした場合、5ターンの間「王戦陣形」を展開する。王戦陣�
     private function identityKey(Skill $skill): string
     {
         return (int) $skill->job_id.':'.(int) $skill->learn_rank.':'.trim((string) $skill->name);
+    }
+
+    private function rank5V6Enabled(): bool
+    {
+        return (bool) config('battle.job_art_v2.rank5_v6', false)
+            && (bool) config('battle.job_art_v2.dynamic_single', false)
+            && (bool) config('battle.job_art_v2.hit_resolution', false)
+            && (bool) config('battle.job_art_v2.damage_application', false)
+            && (bool) config('battle.job_art_v2.resources', false);
     }
 }

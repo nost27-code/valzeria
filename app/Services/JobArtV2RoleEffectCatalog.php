@@ -965,6 +965,31 @@ final class JobArtV2RoleEffectCatalog
             : $metadata;
     }
 
+    /** @return array<string, mixed>|null */
+    public function rank5V6MetadataForArt(Skill $skill): ?array
+    {
+        if (! $skill->isJobArt()
+            || (int) $skill->job_id !== 47
+            || (int) $skill->learn_rank !== 5
+            || trim((string) $skill->name) !== '霊薬の加護'
+        ) {
+            return null;
+        }
+
+        return [
+            'role_key' => 'transmute_rank5_restorative_reward',
+            'portable' => true,
+            'suppress_legacy_effect' => true,
+            'replacement_template' => 'V2_ROLE_EFFECT_ONLY',
+            'heal' => [
+                'hp' => ['formula' => 'existing_spr', 'multiplier' => 1.20],
+                'sp' => ['formula' => 'max_sp_rate', 'rate' => 0.08],
+            ],
+            'reward' => ['gold' => 'preserve_master', 'drop' => 'preserve_master'],
+            'effect_texts' => ['基礎回復量の120%を回復'],
+        ];
+    }
+
     public function replacementTemplate(Skill $skill): ?string
     {
         $template = $this->forArt($skill)['replacement_template'] ?? null;

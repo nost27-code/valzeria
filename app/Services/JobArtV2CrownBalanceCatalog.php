@@ -117,6 +117,7 @@ final class JobArtV2CrownBalanceCatalog
 
     public function __construct(
         private readonly JobArtV2CardDescriptionCatalog $descriptionCatalog,
+        private readonly JobArtV2Rank5V6Catalog $rank5V6Catalog,
     ) {}
 
     /** @return array<string, mixed>|null */
@@ -130,6 +131,22 @@ final class JobArtV2CrownBalanceCatalog
         $basePower = $this->descriptionCatalog->basePower($skill);
         if ($basePower !== null) {
             $metadata['power'] = $basePower;
+        }
+        if ($this->rank5V6Enabled() && $this->rank5V6Catalog->forSkill($skill) !== null) {
+            $metadata['_rank5_v6'] = true;
+            $jobId = (int) $skill->job_id;
+            if (in_array($jobId, [3, 11, 12, 44, 46, 50, 56], true)) {
+                unset($metadata['buffs'], $metadata['dynamic_buff'], $metadata['duration']);
+            }
+            if ($jobId === 36) {
+                $metadata['debuffs'] = ['mag' => 15];
+            }
+            if ($jobId === 7) {
+                $metadata['heal_spr'] = 150;
+            }
+            if ($this->rank5V6Catalog->isAttackless($skill)) {
+                $metadata['power'] = 0;
+            }
         }
 
         return $metadata !== [] ? $metadata : null;
@@ -158,6 +175,9 @@ final class JobArtV2CrownBalanceCatalog
         }
         if (isset($metadata['reduction'])) {
             $copy->damage_reduction_percent = (int) $metadata['reduction'];
+        }
+        if ($this->rank5V6Enabled() && $this->rank5V6Catalog->forSkill($skill) !== null) {
+            $this->applyRank5V6Execution($copy, $skill);
         }
         if (array_key_exists('mp_recover_percent', $metadata)) {
             $copy->mp_recover_percent = (int) $metadata['mp_recover_percent'];
@@ -203,6 +223,8 @@ final class JobArtV2CrownBalanceCatalog
             'enemy_mag_down_percent',
             'enemy_spr_down_percent',
             'enemy_spd_down_percent',
+            'effect_template',
+            'damage_type',
         ] as $attribute) {
             if ($balanced->getAttribute($attribute) !== null) {
                 $skill->setAttribute($attribute, $balanced->getAttribute($attribute));
@@ -235,6 +257,8 @@ final class JobArtV2CrownBalanceCatalog
             'enemy_mag_down_percent',
             'enemy_spr_down_percent',
             'enemy_spd_down_percent',
+            'effect_template',
+            'damage_type',
         ] as $attribute) {
             if ($balanced->getAttribute($attribute) !== null) {
                 $skill->setAttribute($attribute, $balanced->getAttribute($attribute));
@@ -325,5 +349,65 @@ final class JobArtV2CrownBalanceCatalog
     private function identity(Skill $skill): string
     {
         return implode(':', [(int) $skill->job_id, (int) $skill->learn_rank, (string) $skill->name]);
+    }
+
+    private function applyRank5V6Execution(Skill $copy, Skill $source): void
+    {
+        $power = $this->rank5V6Catalog->powerFor($source);
+        if ($power !== null) {
+            $copy->power = $power;
+            $copy->power_multiplier = $power / 100;
+        }
+
+        if ($this->rank5V6Catalog->isAttackless($source)) {
+            $copy->power = 0;
+            $copy->power_multiplier = 0;
+            $copy->hit_count = 0;
+            $copy->damage_type = 'support';
+        }
+
+        $jobId = (int) $source->job_id;
+        if (in_array($jobId, [8, 20, 31, 57, 77, 91], true)) {
+            $copy->mp_recover_percent = 0;
+        }
+        if ($jobId === 8) {
+            $copy->effect_template = 'PHYSICAL_DAMAGE_GOLD_REWARD';
+            $copy->hit_count = 1;
+            $copy->damage_type = 'physical';
+        } elseif ($jobId === 20) {
+            $copy->effect_template = 'PHYSICAL_DAMAGE_REWARD';
+            $copy->hit_count = 1;
+            $copy->damage_type = 'physical';
+        } elseif (in_array($jobId, [11, 44, 50], true)) {
+            $copy->effect_template = 'PHYSICAL_DAMAGE';
+            $copy->hit_count = 1;
+            $copy->damage_type = 'physical';
+        } elseif ($jobId === 12) {
+            $copy->effect_template = 'V2_ROLE_EFFECT_ONLY';
+            $copy->hit_count = 0;
+            $copy->damage_type = 'support';
+        } elseif ($jobId === 29) {
+            $copy->effect_template = 'MAGICAL_DAMAGE';
+            $copy->hit_count = 1;
+            $copy->damage_type = 'magical';
+        } elseif ($jobId === 31) {
+            $copy->hit_count = 4;
+            $copy->damage_type = 'physical';
+        } elseif ($jobId === 46) {
+            $copy->effect_template = 'MAGICAL_DAMAGE';
+            $copy->hit_count = 1;
+            $copy->damage_type = 'magical';
+        } elseif (in_array($jobId, [57, 77, 84, 91], true)) {
+            $copy->damage_type = 'magical';
+        }
+    }
+
+    private function rank5V6Enabled(): bool
+    {
+        return (bool) config('battle.job_art_v2.rank5_v6', false)
+            && (bool) config('battle.job_art_v2.dynamic_single', false)
+            && (bool) config('battle.job_art_v2.hit_resolution', false)
+            && (bool) config('battle.job_art_v2.damage_application', false)
+            && (bool) config('battle.job_art_v2.resources', false);
     }
 }

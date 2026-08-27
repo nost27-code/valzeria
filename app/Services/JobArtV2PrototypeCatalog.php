@@ -74,6 +74,9 @@ class JobArtV2PrototypeCatalog
         9 => ['resource_role' => 'finisher', 'resource_gain_points' => 0, 'resource_cost_points' => 12, 'minimum_resource_points' => 12],
     ];
 
+    /** @var list<int> */
+    private const RANK5_V6_REACTIVE_JOBS = [15, 28, 48, 49, 54, 64, 85, 93];
+
     /**
      * 凍結済みの個別差分だけを置く。個別差分がない戦技はmaster効果をv2規則で実行する。
      *
@@ -331,6 +334,54 @@ class JobArtV2PrototypeCatalog
             self::ART_OVERRIDES[$jobId][$rank] ?? [],
         );
 
+        if ($rank === 5 && $this->rank5V6Enabled()) {
+            $profile['resource_role'] = 'consumer';
+            $profile['resource_gain_points'] = 0;
+            $profile['resource_cost_points'] = 0;
+            $profile['minimum_resource_points'] = max(4, (int) ($profile['minimum_resource_points'] ?? 0));
+            $profile['link_trigger_mode'] = in_array($jobId, self::RANK5_V6_REACTIVE_JOBS, true)
+                ? 'reactive'
+                : 'scheduled';
+            $profile = array_merge($profile, match ($jobId) {
+                7, 10 => [
+                    'guard_rate' => 0.15,
+                    'guard_expires_next_own_action' => true,
+                ],
+                11 => [
+                    'counter_stance_rounds' => 1,
+                    'parry_rate' => 0.20,
+                    'guard_after_parry_rate' => 0.15,
+                ],
+                44, 56 => [
+                    'guard_rate' => 0.25,
+                    'cleanse_on_guard_mitigation' => true,
+                    'guard_expires_next_own_action' => true,
+                ],
+                46 => [
+                    'field_operation' => 'extend',
+                    'field_extend_rounds' => 3,
+                ],
+                50 => [
+                    'counter_stance_rounds' => 1,
+                    'parry_rate' => 0.20,
+                    'counter_damage_multiplier_after_parry' => 1.20,
+                ],
+                60 => [
+                    'counter_stance_rounds' => 1,
+                    'parry_rate' => 0.20,
+                ],
+                84 => [
+                    'field_operation' => 'redeploy_last_overwritten',
+                    'field_duration_rounds' => 5,
+                ],
+                93 => [
+                    'counter_stance_rounds' => 1,
+                    'parry_rate' => 0.20,
+                ],
+                default => [],
+            });
+        }
+
         return array_merge([
             'lineage_key' => $lineage['lineage_key'],
             'lineage_name' => $lineage['lineage_name'],
@@ -395,5 +446,14 @@ class JobArtV2PrototypeCatalog
     private function lineages(): JobArtLineageCatalog
     {
         return $this->lineageCatalog;
+    }
+
+    private function rank5V6Enabled(): bool
+    {
+        return (bool) config('battle.job_art_v2.rank5_v6', false)
+            && (bool) config('battle.job_art_v2.dynamic_single', false)
+            && (bool) config('battle.job_art_v2.hit_resolution', false)
+            && (bool) config('battle.job_art_v2.damage_application', false)
+            && (bool) config('battle.job_art_v2.resources', false);
     }
 }

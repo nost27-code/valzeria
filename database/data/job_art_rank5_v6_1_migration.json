@@ -1,0 +1,1240 @@
+{
+  "old": {
+    "1:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "物理威力145%。直前の自分の行動後に受け流し成功なら最終ダメージ1.35倍",
+      "description": "物理威力145%。直前の自分の行動後に受け流し成功なら最終ダメージ1.35倍"
+    },
+    "2:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "合計物理威力145%の2回攻撃。2Hitとも物理DEFを25%無視",
+      "description": "合計物理威力145%の2回攻撃。2Hitとも物理DEFを25%無視"
+    },
+    "3:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "物理威力145%。急所を狙う",
+      "description": "物理威力145%。急所を狙う"
+    },
+    "4:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "単体中ダメージ＋自身の戦闘力を上昇（戦闘中）",
+      "description": "単体中ダメージ＋自身の戦闘力を上昇（戦闘中）"
+    },
+    "5:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "合計物理威力145%の3回攻撃。敵の防御と精神を15%低下（戦闘中）",
+      "description": "合計物理威力145%の3回攻撃。敵の防御と精神を15%低下（戦闘中）"
+    },
+    "6:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "星印を4消費して魔法威力145%。天測の場を5ラウンド展開（この攻撃には非適用）",
+      "description": "星印を4消費して魔法威力145%。天測の場を5ラウンド展開（この攻撃には非適用）"
+    },
+    "7:5": {
+      "power": 150,
+      "power_multiplier": 1.5,
+      "memo": "HPを中回復",
+      "description": "HPを中回復",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "8:5": {
+      "power": 145,
+      "power_multiplier": 1.45,
+      "memo": "探索勝利時のGold補正が上昇（戦闘中）",
+      "description": "探索勝利時のGold補正が上昇（戦闘中）",
+      "effect_template": "REWARD_GOLD",
+      "art_category": "reward",
+      "limit_group": "REWARD",
+      "hit_count": 1,
+      "damage_type": "support",
+      "gold_bonus_percent": 7,
+      "drop_bonus_percent": 0
+    },
+    "9:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "ATK+MAGの高い方を参照する単体攻撃",
+      "description": "ATK+MAGの高い方を参照する単体攻撃"
+    },
+    "10:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体中ダメージ＋最大HPの6%回復",
+      "description": "単体中ダメージ＋最大HPの6%回復"
+    },
+    "11:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体中ダメージ＋自身の戦闘力を上昇（戦闘中）",
+      "description": "単体中ダメージ＋自身の戦闘力を上昇（戦闘中）",
+      "effect_template": "DAMAGE_BUFF",
+      "hit_count": 1,
+      "damage_type": "physical"
+    },
+    "12:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "自身の戦闘力を中上昇（戦闘中）",
+      "description": "自身の戦闘力を中上昇（戦闘中）",
+      "hit_count": 0,
+      "damage_type": "support",
+      "effect_template": "SELF_BUFF"
+    },
+    "13:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "3回攻撃",
+      "description": "3回攻撃"
+    },
+    "14:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体大ダメージ＋反動で最大HPの8%を消費",
+      "description": "単体大ダメージ＋反動で最大HPの8%を消費"
+    },
+    "15:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体中ダメージ＋次の被ダメージを小軽減",
+      "description": "単体中ダメージ＋次の被ダメージを小軽減"
+    },
+    "16:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体中ダメージ。撃破時Gold/素材率小補正",
+      "description": "単体中ダメージ。撃破時Gold/素材率小補正"
+    },
+    "17:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体攻撃＋敵SPD低下（戦闘中）",
+      "description": "単体攻撃＋敵SPD低下（戦闘中）"
+    },
+    "18:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体大ダメージ＋自身の戦闘力を上昇（戦闘中）",
+      "description": "単体大ダメージ＋自身の戦闘力を上昇（戦闘中）"
+    },
+    "19:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "HP/SP吸収＋敵SPR低下（戦闘中）",
+      "description": "HP/SP吸収＋敵SPR低下（戦闘中）"
+    },
+    "20:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "通常探索勝利時DROP/GOLD小補正。戦闘中のランダムバフはなし",
+      "description": "通常探索勝利時DROP/GOLD小補正。戦闘中のランダムバフはなし",
+      "effect_template": "REWARD_MIXED",
+      "art_category": "reward",
+      "limit_group": "REWARD",
+      "hit_count": 1,
+      "damage_type": "support",
+      "gold_bonus_percent": 8,
+      "drop_bonus_percent": 6
+    },
+    "21:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "ATK+SPR参照の単体攻撃。魔法型/不死系にボーナス",
+      "description": "ATK+SPR参照の単体攻撃。魔法型/不死系にボーナス"
+    },
+    "22:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "単体中ダメージ＋自身の戦闘力を小上昇（戦闘中）",
+      "description": "単体中ダメージ＋自身の戦闘力を小上昇（戦闘中）"
+    },
+    "23:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "自身の戦闘力を中上昇（戦闘中）",
+      "description": "自身の戦闘力を中上昇（戦闘中）",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "24:5": {
+      "power": 57,
+      "power_multiplier": 0.57,
+      "memo": "単体中魔法＋最大HPの5%回復",
+      "description": "単体中魔法＋最大HPの5%回復"
+    },
+    "25:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "HP/SPを中回復",
+      "description": "HP/SPを中回復",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "26:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "中魔法ダメージ＋ランダム弱体",
+      "description": "中魔法ダメージ＋ランダム弱体"
+    },
+    "27:5": {
+      "power": 64,
+      "power_multiplier": 0.64,
+      "memo": "複合攻撃＋最大HPの8%回復",
+      "description": "複合攻撃＋最大HPの8%回復"
+    },
+    "28:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "回避補正を一部無視する単体大ダメージ",
+      "description": "回避補正を一部無視する単体大ダメージ"
+    },
+    "29:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "MAG/SPR参照バリア＋SPR上昇",
+      "description": "MAG/SPR参照バリア＋SPR上昇",
+      "effect_template": "GUARD_BARRIER",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "30:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "ATK依存の1.85倍物理攻撃。与ダメージの35%を吸収し、反動で最大HP5%ダメージ",
+      "description": "ATK依存の1.85倍物理攻撃。与ダメージの35%を吸収し、反動で最大HP5%ダメージ"
+    },
+    "31:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "LUK依存多段攻撃＋通常探索勝利時Gold小補正",
+      "description": "LUK依存多段攻撃＋通常探索勝利時Gold小補正"
+    },
+    "32:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "一時回避状態後、単体大ダメージ",
+      "description": "一時回避状態後、単体大ダメージ"
+    },
+    "33:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "SPD依存の3〜5回攻撃",
+      "description": "SPD依存の3〜5回攻撃"
+    },
+    "34:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "単体攻撃＋敵の守りを低下（戦闘中）",
+      "description": "単体攻撃＋敵の守りを低下（戦闘中）"
+    },
+    "35:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "MAG参照大ダメージ。敵SPRを一部無視",
+      "description": "MAG参照大ダメージ。敵SPRを一部無視"
+    },
+    "36:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "単体大ダメージ＋敵MAG低下（戦闘中）",
+      "description": "単体大ダメージ＋敵MAG低下（戦闘中）"
+    },
+    "37:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "SPD/LUK参照攻撃。敵回避補正を一部無視",
+      "description": "SPD/LUK参照攻撃。敵回避補正を一部無視"
+    },
+    "38:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "HP/SPを中回復",
+      "description": "HP/SPを中回復",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "95:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中複合ダメージ。ATK/MAGの高い方を参照。",
+      "description": "敵単体に中複合ダメージ。ATK/MAGの高い方を参照。"
+    },
+    "96:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "97:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。"
+    },
+    "98:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "99:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "44:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "effect_template": "DAMAGE_BUFF",
+      "hit_count": 1,
+      "damage_type": "physical"
+    },
+    "45:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "46:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "effect_template": "MAGICAL_DAMAGE_BUFF",
+      "hit_count": 1,
+      "damage_type": "magical"
+    },
+    "47:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "勝利時のGold/Drop判定に小効果。",
+      "description": "勝利時のGold/Drop判定に小効果。",
+      "hit_count": 0,
+      "damage_type": "support",
+      "gold_bonus_percent": 0,
+      "drop_bonus_percent": 0,
+      "rare_bonus_percent": 0,
+      "mp_recover_percent": 0
+    },
+    "48:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "49:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。"
+    },
+    "50:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "effect_template": "DAMAGE_BUFF",
+      "hit_count": 1,
+      "damage_type": "physical"
+    },
+    "51:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "52:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "53:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "54:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。",
+      "description": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。"
+    },
+    "55:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "56:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "57:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。"
+    },
+    "58:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "59:5": {
+      "power": 255,
+      "power_multiplier": 2.55,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "60:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "61:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "62:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "63:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "64:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。",
+      "description": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。"
+    },
+    "65:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "66:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "67:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。"
+    },
+    "68:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "69:5": {
+      "power": 285,
+      "power_multiplier": 2.85,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "70:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中複合ダメージ。ATK/MAGの高い方を参照。",
+      "description": "敵単体に中複合ダメージ。ATK/MAGの高い方を参照。"
+    },
+    "71:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "72:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "73:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "74:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。"
+    },
+    "75:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "76:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "77:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "78:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "79:5": {
+      "power": 315,
+      "power_multiplier": 3.15,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "80:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "81:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "82:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "83:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。",
+      "description": "敵単体に中技巧ダメージ。SPD/LUKが高いほど会心寄り。"
+    },
+    "84:5": {
+      "power": 360,
+      "power_multiplier": 3.6,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "effect_template": "MAGICAL_DAMAGE_REWARD",
+      "art_category": "reward",
+      "limit_group": "REWARD",
+      "damage_type": "magical",
+      "gold_bonus_percent": 2,
+      "drop_bonus_percent": 2,
+      "reward_scope": "mixed"
+    },
+    "85:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "86:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "87:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "88:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "89:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "90:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中物理ダメージ。ATK参照。",
+      "description": "敵単体に中物理ダメージ。ATK参照。"
+    },
+    "91:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中魔法ダメージ。MAG参照。",
+      "description": "敵単体に中魔法ダメージ。MAG参照。"
+    },
+    "92:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "93:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。",
+      "description": "敵単体に中聖属性ダメージ。自身に防御/精神の短時間上昇。"
+    },
+    "94:5": {
+      "power": 400,
+      "power_multiplier": 4,
+      "memo": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。",
+      "description": "敵単体に中特殊ダメージ。勝利時のGold/Drop/回復補助に小効果。"
+    }
+  },
+  "new": {
+    "1:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "威力100%の物理ダメージ。直前の自分の行動後に受け流しへ成功していた場合、最終ダメージを×1.35する",
+      "description": "威力100%の物理ダメージ。直前の自分の行動後に受け流しへ成功していた場合、最終ダメージを×1.35する"
+    },
+    "2:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "2Hitとも相手の防御を25%無視。会心判定は各HIT",
+      "description": "2Hitとも相手の防御を25%無視。会心判定は各HIT"
+    },
+    "3:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "会心率+15pt。標的印を1段階付与",
+      "description": "会心率+15pt。標的印を1段階付与"
+    },
+    "4:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "命中率を最大+12pt。対奥義/大技予告中の相手にHITでSPを最大SPの3%削る",
+      "description": "命中率を最大+12pt。対奥義/大技予告中の相手にHITでSPを最大SPの3%削る"
+    },
+    "5:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "3Hit。HITで崩し印を1段階付与（1行動につき最大1段階）",
+      "description": "3Hit。HITで崩し印を1段階付与（1行動につき最大1段階）"
+    },
+    "6:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "天測の場を5ラウンド展開（この攻撃には非適用）",
+      "description": "天測の場を5ラウンド展開（この攻撃には非適用）"
+    },
+    "7:5": {
+      "power": 0,
+      "power_multiplier": 0,
+      "memo": "攻撃なし。精神150%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを15%軽減する（1回）",
+      "description": "攻撃なし。精神150%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを15%軽減する（1回）",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "8:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "通常探索勝利時のGold+7%",
+      "description": "通常探索勝利時のGold+7%",
+      "effect_template": "PHYSICAL_DAMAGE_GOLD_REWARD",
+      "art_category": "reward",
+      "limit_group": "REWARD",
+      "hit_count": 1,
+      "damage_type": "physical",
+      "gold_bonus_percent": 7,
+      "drop_bonus_percent": 0
+    },
+    "9:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "攻撃/魔力の高い方を参照する複合ダメージ。最大HP3%を非致死消費し最終ダメージ×1.15",
+      "description": "攻撃/魔力の高い方を参照する複合ダメージ。最大HP3%を非致死消費し最終ダメージ×1.15"
+    },
+    "10:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "威力100%の物理ダメージ。最大HP7%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを15%軽減する（1回）",
+      "description": "威力100%の物理ダメージ。最大HP7%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを15%軽減する（1回）"
+    },
+    "11:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "受け流し率+20%。受け流しに成功した場合、次の自分の行動開始まで被ダメージ15%軽減",
+      "description": "受け流し率+20%。受け流しに成功した場合、次の自分の行動開始まで被ダメージ15%軽減",
+      "effect_template": "PHYSICAL_DAMAGE",
+      "hit_count": 1,
+      "damage_type": "physical"
+    },
+    "12:5": {
+      "power": 0,
+      "power_multiplier": 0,
+      "memo": "攻撃なし。次に使用する戦技の発動率+20pt。その戦技を、直前に成功した戦技と異なる区分（始動／連携／奥義）から優先して選ぶ",
+      "description": "攻撃なし。次に使用する戦技の発動率+20pt。その戦技を、直前に成功した戦技と異なる区分（始動／連携／奥義）から優先して選ぶ",
+      "hit_count": 0,
+      "damage_type": "support",
+      "effect_template": "V2_ROLE_EFFECT_ONLY"
+    },
+    "13:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "3Hit。直前の自分の行動後に物理攻撃を受けていた場合、最終ダメージ×1.20",
+      "description": "3Hit。直前の自分の行動後に物理攻撃を受けていた場合、最終ダメージ×1.20"
+    },
+    "14:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "反動で最大HPの8%のダメージを受ける。行動開始時のHPが50%以下なら最終ダメージを×1.25する",
+      "description": "反動で最大HPの8%のダメージを受ける。行動開始時のHPが50%以下なら最終ダメージを×1.25する"
+    },
+    "15:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "被ダメージ16%軽減。対奥義/大技予告中は専用防御35%軽減へ切替",
+      "description": "被ダメージ16%軽減。対奥義/大技予告中は専用防御35%軽減へ切替"
+    },
+    "16:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "探索報酬に小補正。相手の防御を20%無視",
+      "description": "探索報酬に小補正。相手の防御を20%無視"
+    },
+    "17:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "相手敏捷-15%(3T)。標的印を1段階付与",
+      "description": "相手敏捷-15%(3T)。標的印を1段階付与"
+    },
+    "18:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "命中率+10pt、会心率+10pt",
+      "description": "命中率+10pt、会心率+10pt"
+    },
+    "19:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "与ダメージの30%を吸収。相手精神-12%(3T)。相手SPを最大SPの3%削る",
+      "description": "与ダメージの30%を吸収。相手精神-12%(3T)。相手SPを最大SPの3%削る"
+    },
+    "20:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "通常素材枠の抽選率+6pt",
+      "description": "通常素材枠の抽選率+6pt",
+      "effect_template": "PHYSICAL_DAMAGE_REWARD",
+      "art_category": "reward",
+      "limit_group": "REWARD",
+      "hit_count": 1,
+      "damage_type": "physical",
+      "gold_bonus_percent": 0,
+      "drop_bonus_percent": 6
+    },
+    "21:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "相手の精神参照。魔法型/不死系に最終ダメージ×1.20",
+      "description": "相手の精神参照。魔法型/不死系に最終ダメージ×1.20"
+    },
+    "22:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "物理経路と魔法経路を比較し高い方で1回与える",
+      "description": "物理経路と魔法経路を比較し高い方で1回与える"
+    },
+    "23:5": {
+      "power": 0,
+      "power_multiplier": 0,
+      "memo": "攻撃なし。現在の場を3ターン延長（上限8）",
+      "description": "攻撃なし。現在の場を3ターン延長（上限8）",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "24:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "最大HP6%分HP回復。現在の場を2ラウンド延長（上限8）",
+      "description": "最大HP6%分HP回復。現在の場を2ラウンド延長（上限8）"
+    },
+    "25:5": {
+      "power": 0,
+      "power_multiplier": 0,
+      "memo": "精神110%分HP回復。最大SP10%回復。有害状態を優先順に最大1種浄化",
+      "description": "精神110%分HP回復。最大SP10%回復。有害状態を優先順に最大1種浄化",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "26:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "相手防御/精神-15%(3T)。相手の強化のうち残り最長の1件を2ターン短縮",
+      "description": "相手防御/精神-15%(3T)。相手の強化のうち残り最長の1件を2ターン短縮"
+    },
+    "27:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "最大HP9%分HP回復。次に使用する戦技の発動率+15pt",
+      "description": "最大HP9%分HP回復。次に使用する戦技の発動率+15pt"
+    },
+    "28:5": {
+      "power": 102,
+      "power_multiplier": 1.02,
+      "memo": "対奥義/大技を20%軽減。1以上軽減した場合、次の反撃系戦技を×1.20",
+      "description": "対奥義/大技を20%軽減。1以上軽減した場合、次の反撃系戦技を×1.20"
+    },
+    "29:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "次の自分の行動開始まで被ダメージ18%軽減",
+      "description": "次の自分の行動開始まで被ダメージ18%軽減",
+      "effect_template": "MAGICAL_DAMAGE",
+      "hit_count": 1,
+      "damage_type": "magical"
+    },
+    "30:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "与ダメージの35%を吸収。自傷5%。対奥義予告中にHITで冥蝕反噬を付与",
+      "description": "与ダメージの35%を吸収。自傷5%。対奥義予告中にHITで冥蝕反噬を付与"
+    },
+    "31:5": {
+      "power": 104,
+      "power_multiplier": 1.04,
+      "memo": "4Hit。探索報酬に小補正",
+      "description": "4Hit。探索報酬に小補正"
+    },
+    "32:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "相手の防御を30%無視。対奥義/大技予告中は×1.15かつ防御50%無視",
+      "description": "相手の防御を30%無視。対奥義/大技予告中は×1.15かつ防御50%無視"
+    },
+    "33:5": {
+      "power": 102,
+      "power_multiplier": 1.02,
+      "memo": "5Hit。対奥義予告中にHITかつ崩し印があれば準備効果を1件解除",
+      "description": "5Hit。対奥義予告中にHITかつ崩し印があれば準備効果を1件解除"
+    },
+    "34:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "相手防御/精神-15%(3T)。標的印を1段階付与",
+      "description": "相手防御/精神-15%(3T)。標的印を1段階付与"
+    },
+    "35:5": {
+      "power": 105,
+      "power_multiplier": 1.05,
+      "memo": "相手の精神を15%無視",
+      "description": "相手の精神を15%無視"
+    },
+    "36:5": {
+      "power": 100,
+      "power_multiplier": 1,
+      "memo": "相手の魔力を−15%する（3ターン）。次の自分の行動開始まで被ダメージ15%軽減",
+      "description": "相手の魔力を−15%する（3ターン）。次の自分の行動開始まで被ダメージ15%軽減"
+    },
+    "37:5": {
+      "power": 105,
+      "power_multiplier": 1.05,
+      "memo": "2Hit。標的印を1段階付与",
+      "description": "2Hit。標的印を1段階付与"
+    },
+    "38:5": {
+      "power": 0,
+      "power_multiplier": 0,
+      "memo": "精神110%分HP回復＋最大SP10%回復。残存割合が低い側を×1.5",
+      "description": "精神110%分HP回復＋最大SP10%回復。残存割合が低い側を×1.5",
+      "hit_count": 0,
+      "damage_type": "support"
+    },
+    "95:5": {
+      "power": 240,
+      "power_multiplier": 2.4,
+      "memo": "複合ダメージ。受け流し率+15%。この戦闘で受け流しに成功していれば最終ダメージ×1.25",
+      "description": "複合ダメージ。受け流し率+15%。この戦闘で受け流しに成功していれば最終ダメージ×1.25"
+    },
+    "96:5": {
+      "power": 244,
+      "power_multiplier": 2.44,
+      "memo": "最大HP3%を非致死消費。与えたダメージの30%分HPを回復",
+      "description": "最大HP3%を非致死消費。与えたダメージの30%分HPを回復"
+    },
+    "97:5": {
+      "power": 229,
+      "power_multiplier": 2.29,
+      "memo": "最大SP5%分SPを回復。次に受ける直接攻撃のダメージを30%軽減",
+      "description": "最大SP5%分SPを回復。次に受ける直接攻撃のダメージを30%軽減"
+    },
+    "98:5": {
+      "power": 248,
+      "power_multiplier": 2.48,
+      "memo": "2Hit。相手の防御を20%無視。会心が1回でも発生した場合、貫通構えを形成する",
+      "description": "2Hit。相手の防御を20%無視。会心が1回でも発生した場合、貫通構えを形成する"
+    },
+    "99:5": {
+      "power": 244,
+      "power_multiplier": 2.44,
+      "memo": "崩し印を1段階付与。相手のターン制強化のうち残り最長の1件を3ターン短縮",
+      "description": "崩し印を1段階付与。相手のターン制強化のうち残り最長の1件を3ターン短縮"
+    },
+    "44:5": {
+      "power": 155,
+      "power_multiplier": 1.55,
+      "memo": "次の自分の行動開始まで被ダメージ25%軽減。実際に1以上軽減した場合、有害状態を1種浄化する",
+      "description": "次の自分の行動開始まで被ダメージ25%軽減。実際に1以上軽減した場合、有害状態を1種浄化する",
+      "effect_template": "PHYSICAL_DAMAGE",
+      "hit_count": 1,
+      "damage_type": "physical"
+    },
+    "45:5": {
+      "power": 165,
+      "power_multiplier": 1.65,
+      "memo": "魔力参照。相手の防御を25%無視",
+      "description": "魔力参照。相手の防御を25%無視"
+    },
+    "46:5": {
+      "power": 158,
+      "power_multiplier": 1.58,
+      "memo": "現在の場を3ラウンド延長（上限8）。不変律を得る（次にターン制効果が短縮・解除される時、1回だけ無効にする）",
+      "description": "現在の場を3ラウンド延長（上限8）。不変律を得る（次にターン制効果が短縮・解除される時、1回だけ無効にする）",
+      "effect_template": "MAGICAL_DAMAGE",
+      "hit_count": 1,
+      "damage_type": "magical"
+    },
+    "47:5": {
+      "power": 0,
+      "power_multiplier": 0,
+      "memo": "攻撃なし。精神120%分、自分のHPを回復し、最大SP8%分、自分のSPを回復する。通常探索勝利時のGold獲得量を10%増やし、通常素材枠の抽選率を8ポイント、レア素材枠の抽選率を5ポイント上げる",
+      "description": "攻撃なし。精神120%分、自分のHPを回復し、最大SP8%分、自分のSPを回復する。通常探索勝利時のGold獲得量を10%増やし、通常素材枠の抽選率を8ポイント、レア素材枠の抽選率を5ポイント上げる",
+      "hit_count": 0,
+      "damage_type": "support",
+      "gold_bonus_percent": 10,
+      "drop_bonus_percent": 8,
+      "rare_bonus_percent": 5,
+      "mp_recover_percent": 8
+    },
+    "48:5": {
+      "power": 164,
+      "power_multiplier": 1.64,
+      "memo": "相手の奥義/大技が発動可能になる時点を1行動分遅らせる（1予告1回）",
+      "description": "相手の奥義/大技が発動可能になる時点を1行動分遅らせる（1予告1回）"
+    },
+    "49:5": {
+      "power": 167,
+      "power_multiplier": 1.67,
+      "memo": "対奥義予告中にHITで、相手の次2回の資源獲得を各-1。探索報酬に小補正",
+      "description": "対奥義予告中にHITで、相手の次2回の資源獲得を各-1。探索報酬に小補正"
+    },
+    "50:5": {
+      "power": 185,
+      "power_multiplier": 1.85,
+      "memo": "受け流し率+20%。受け流しに成功した場合、次に使用する反撃系戦技の最終ダメージを×1.20する",
+      "description": "受け流し率+20%。受け流しに成功した場合、次に使用する反撃系戦技の最終ダメージを×1.20する",
+      "effect_template": "PHYSICAL_DAMAGE",
+      "hit_count": 1,
+      "damage_type": "physical"
+    },
+    "51:5": {
+      "power": 196,
+      "power_multiplier": 1.96,
+      "memo": "最大HP5%を非致死消費して最終ダメージ×1.15。獄炎ナイトメアの自傷履歴に加算",
+      "description": "最大HP5%を非致死消費して最終ダメージ×1.15。獄炎ナイトメアの自傷履歴に加算"
+    },
+    "52:5": {
+      "power": 182,
+      "power_multiplier": 1.82,
+      "memo": "蒼天構え中なら相手の防御を35%無視し、蒼天構えを1ターン延長",
+      "description": "蒼天構え中なら相手の防御を35%無視し、蒼天構えを1ターン延長"
+    },
+    "53:5": {
+      "power": 176,
+      "power_multiplier": 1.76,
+      "memo": "現在の場を2ターン延長。対奥義予告中なら封式の場を展開",
+      "description": "現在の場を2ターン延長。対奥義予告中なら封式の場を展開"
+    },
+    "54:5": {
+      "power": 184,
+      "power_multiplier": 1.84,
+      "memo": "標的印1段階以上で発動可。標的印を1段階消費。直前の行動種類を3ターン封じる",
+      "description": "標的印1段階以上で発動可。標的印を1段階消費。直前の行動種類を3ターン封じる"
+    },
+    "55:5": {
+      "power": 200,
+      "power_multiplier": 2,
+      "memo": "照準8pt以上でのみ発動可。命中率+5pt",
+      "description": "照準8pt以上でのみ発動可。命中率+5pt"
+    },
+    "56:5": {
+      "power": 182,
+      "power_multiplier": 1.82,
+      "memo": "次の自分の行動開始まで被ダメージ25%軽減。実際に1以上軽減した場合、有害状態を1種浄化する",
+      "description": "次の自分の行動開始まで被ダメージ25%軽減。実際に1以上軽減した場合、有害状態を1種浄化する"
+    },
+    "57:5": {
+      "power": 194,
+      "power_multiplier": 1.94,
+      "memo": "探索報酬に小補正",
+      "description": "探索報酬に小補正"
+    },
+    "58:5": {
+      "power": 196,
+      "power_multiplier": 1.96,
+      "memo": "3Hit。崩し印は1行動につき最大1段階まで",
+      "description": "3Hit。崩し印は1行動につき最大1段階まで"
+    },
+    "59:5": {
+      "power": 191,
+      "power_multiplier": 1.91,
+      "memo": "次の指揮系戦技を直前と異なる区分から優先し、発動率+20pt",
+      "description": "次の指揮系戦技を直前と異なる区分から優先し、発動率+20pt"
+    },
+    "60:5": {
+      "power": 200,
+      "power_multiplier": 2,
+      "memo": "受け流しの構え中なら最終ダメージ×1.20。受け流し率+20%",
+      "description": "受け流しの構え中なら最終ダメージ×1.20。受け流し率+20%"
+    },
+    "61:5": {
+      "power": 203,
+      "power_multiplier": 2.03,
+      "memo": "最大HP3%を非致死消費。行動開始時HP50%以下なら最終ダメージ×1.25",
+      "description": "最大HP3%を非致死消費。行動開始時HP50%以下なら最終ダメージ×1.25"
+    },
+    "62:5": {
+      "power": 200,
+      "power_multiplier": 2,
+      "memo": "貫通構え中なら相手の防御を35%無視し、貫通構えを再形成",
+      "description": "貫通構え中なら相手の防御を35%無視し、貫通構えを再形成"
+    },
+    "63:5": {
+      "power": 209,
+      "power_multiplier": 2.09,
+      "memo": "現在の場を2ラウンド延長（上限8）。場がない場合は星光の場を4ラウンド展開",
+      "description": "現在の場を2ラウンド延長（上限8）。場がない場合は星光の場を4ラウンド展開"
+    },
+    "64:5": {
+      "power": 220,
+      "power_multiplier": 2.2,
+      "memo": "標的印1段階以上で発動可。標的印を1段階消費。封じ対象の読み替えを1回",
+      "description": "標的印1段階以上で発動可。標的印を1段階消費。封じ対象の読み替えを1回"
+    },
+    "65:5": {
+      "power": 209,
+      "power_multiplier": 2.09,
+      "memo": "命中率+10pt。HITで相手の最大SP3%分、現在SPを削る",
+      "description": "命中率+10pt。HITで相手の最大SP3%分、現在SPを削る"
+    },
+    "66:5": {
+      "power": 181,
+      "power_multiplier": 1.81,
+      "memo": "有害状態を全浄化。浄化成功で聖護+1。次の直接攻撃を35%軽減",
+      "description": "有害状態を全浄化。浄化成功で聖護+1。次の直接攻撃を35%軽減"
+    },
+    "67:5": {
+      "power": 212,
+      "power_multiplier": 2.12,
+      "memo": "相手が次の2回の行動で系譜資源を獲得しなかった場合、触媒+2",
+      "description": "相手が次の2回の行動で系譜資源を獲得しなかった場合、触媒+2"
+    },
+    "68:5": {
+      "power": 212,
+      "power_multiplier": 2.12,
+      "memo": "この戦技で付与した崩し印が浄化された場合、残心として保持",
+      "description": "この戦技で付与した崩し印が浄化された場合、残心として保持"
+    },
+    "69:5": {
+      "power": 212,
+      "power_multiplier": 2.12,
+      "memo": "次に使用する指揮系戦技の発動率+20pt",
+      "description": "次に使用する指揮系戦技の発動率+20pt"
+    },
+    "70:5": {
+      "power": 218,
+      "power_multiplier": 2.18,
+      "memo": "複合ダメージ。受け流し率+15%。受け流しに成功した場合、次の自分の行動開始まで被ダメージ20%軽減",
+      "description": "複合ダメージ。受け流し率+15%。受け流しに成功した場合、次の自分の行動開始まで被ダメージ20%軽減"
+    },
+    "71:5": {
+      "power": 221,
+      "power_multiplier": 2.21,
+      "memo": "最大HP3%を非致死消費。この戦闘の累計自傷が最大HP15%を超えていれば最終ダメージ×1.25",
+      "description": "最大HP3%を非致死消費。この戦闘の累計自傷が最大HP15%を超えていれば最終ダメージ×1.25"
+    },
+    "72:5": {
+      "power": 221,
+      "power_multiplier": 2.21,
+      "memo": "現在の場を2ラウンド延長。場が天測なら、この攻撃の命中率+15pt・会心率+10pt",
+      "description": "現在の場を2ラウンド延長。場が天測なら、この攻撃の命中率+15pt・会心率+10pt"
+    },
+    "73:5": {
+      "power": 218,
+      "power_multiplier": 2.18,
+      "memo": "相手の防御を20%無視。貫通構え/蒼天構え中なら40%無視へ引き上げ、構えを1ターン延長",
+      "description": "相手の防御を20%無視。貫通構え/蒼天構え中なら40%無視へ引き上げ、構えを1ターン延長"
+    },
+    "74:5": {
+      "power": 218,
+      "power_multiplier": 2.18,
+      "memo": "命中+10pt/会心+10pt。HITで相手の最大SP4%分、現在SPを削る。探索報酬に小補正",
+      "description": "命中+10pt/会心+10pt。HITで相手の最大SP4%分、現在SPを削る。探索報酬に小補正"
+    },
+    "75:5": {
+      "power": 214,
+      "power_multiplier": 2.14,
+      "memo": "次に使用する戦技の発動率+15pt。その戦技が奥義なら、その奥義の最終ダメージを×1.15",
+      "description": "次に使用する戦技の発動率+15pt。その戦技が奥義なら、その奥義の最終ダメージを×1.15"
+    },
+    "76:5": {
+      "power": 221,
+      "power_multiplier": 2.21,
+      "memo": "標的印を1段階付与。標的印が2段階以上なら相手の敏捷と運を-15%(3T)",
+      "description": "標的印を1段階付与。標的印が2段階以上なら相手の敏捷と運を-15%(3T)"
+    },
+    "77:5": {
+      "power": 231,
+      "power_multiplier": 2.31,
+      "memo": "自分のターン制強化のうち残り最短の1件を2ターン延長",
+      "description": "自分のターン制強化のうち残り最短の1件を2ターン延長"
+    },
+    "78:5": {
+      "power": 218,
+      "power_multiplier": 2.18,
+      "memo": "3Hit。崩し印を1段階付与。崩し印が2段階以上なら相手の解除可能な強化を1件解除",
+      "description": "3Hit。崩し印を1段階付与。崩し印が2段階以上なら相手の解除可能な強化を1件解除"
+    },
+    "79:5": {
+      "power": 221,
+      "power_multiplier": 2.21,
+      "memo": "被ダメージ15%軽減。1以上軽減した場合、3ターンの間 防御と精神を+20%",
+      "description": "被ダメージ15%軽減。1以上軽減した場合、3ターンの間 防御と精神を+20%"
+    },
+    "80:5": {
+      "power": 248,
+      "power_multiplier": 2.48,
+      "memo": "次に使用する戦技の発動率+15pt。その戦技が始動なら、その始動の最終ダメージを×1.25",
+      "description": "次に使用する戦技の発動率+15pt。その戦技が始動なら、その始動の最終ダメージを×1.25"
+    },
+    "81:5": {
+      "power": 248,
+      "power_multiplier": 2.48,
+      "memo": "命中+10pt/会心+10pt。MISSした場合、次に使用する照準系戦技の命中率を+25pt",
+      "description": "命中+10pt/会心+10pt。MISSした場合、次に使用する照準系戦技の命中率を+25pt"
+    },
+    "82:5": {
+      "power": 229,
+      "power_multiplier": 2.29,
+      "memo": "精神150%分HP回復。有害状態を最大2種浄化し、浄化に成功した場合 3ターンの間 精神を+25%",
+      "description": "精神150%分HP回復。有害状態を最大2種浄化し、浄化に成功した場合 3ターンの間 精神を+25%"
+    },
+    "83:5": {
+      "power": 244,
+      "power_multiplier": 2.44,
+      "memo": "標的印を1段階付与。HITで相手が直前に使用した行動の種類を2ターン封じる",
+      "description": "標的印を1段階付与。HITで相手が直前に使用した行動の種類を2ターン封じる"
+    },
+    "84:5": {
+      "power": 244,
+      "power_multiplier": 2.44,
+      "memo": "威力244%の魔法ダメージ。直前に上書きされた自分の場を5ラウンドで再展開する。通常探索勝利時のGold獲得量を2%増やし、通常素材枠の抽選率を2ポイント上げる",
+      "description": "威力244%の魔法ダメージ。直前に上書きされた自分の場を5ラウンドで再展開する。通常探索勝利時のGold獲得量を2%増やし、通常素材枠の抽選率を2ポイント上げる",
+      "effect_template": "MAGICAL_DAMAGE_REWARD",
+      "art_category": "reward",
+      "limit_group": "REWARD",
+      "damage_type": "magical",
+      "gold_bonus_percent": 2,
+      "drop_bonus_percent": 2,
+      "reward_scope": "mixed"
+    },
+    "85:5": {
+      "power": 295,
+      "power_multiplier": 2.95,
+      "memo": "主場がある時のみ発動可。現在の場を2ラウンドロックする",
+      "description": "主場がある時のみ発動可。現在の場を2ラウンドロックする"
+    },
+    "86:5": {
+      "power": 271,
+      "power_multiplier": 2.71,
+      "memo": "最大HP3%を非致死消費。行動開始時HP40%以下なら最終ダメージ×1.30",
+      "description": "最大HP3%を非致死消費。行動開始時HP40%以下なら最終ダメージ×1.30"
+    },
+    "87:5": {
+      "power": 267,
+      "power_multiplier": 2.67,
+      "memo": "次に使用する戦技の発動率を+25ptし、その戦技の最終ダメージを×1.10する",
+      "description": "次に使用する戦技の発動率を+25ptし、その戦技の最終ダメージを×1.10する"
+    },
+    "88:5": {
+      "power": 267,
+      "power_multiplier": 2.67,
+      "memo": "相手の防御を30%無視。貫通構えを形成。既に構え中なら50%無視へ引き上げ",
+      "description": "相手の防御を30%無視。貫通構えを形成。既に構え中なら50%無視へ引き上げ"
+    },
+    "89:5": {
+      "power": 262,
+      "power_multiplier": 2.62,
+      "memo": "標的印を2段階付与。標的印が3段階なら相手の全能力を-10%(3T)",
+      "description": "標的印を2段階付与。標的印が3段階なら相手の全能力を-10%(3T)"
+    },
+    "90:5": {
+      "power": 267,
+      "power_multiplier": 2.67,
+      "memo": "4Hit。崩し印を1段階付与。崩し印が3段階なら相手の強化をすべて解除し崩し印を3段階消費",
+      "description": "4Hit。崩し印を1段階付与。崩し印が3段階なら相手の強化をすべて解除し崩し印を3段階消費"
+    },
+    "91:5": {
+      "power": 288,
+      "power_multiplier": 2.88,
+      "memo": "《金蝕》を1回付与",
+      "description": "《金蝕》を1回付与"
+    },
+    "92:5": {
+      "power": 249,
+      "power_multiplier": 2.49,
+      "memo": "精神180%分HP回復。被ダメージ20%軽減。1以上軽減した場合、4ターンの間 防御と精神を+25%",
+      "description": "精神180%分HP回復。被ダメージ20%軽減。1以上軽減した場合、4ターンの間 防御と精神を+25%"
+    },
+    "93:5": {
+      "power": 278,
+      "power_multiplier": 2.78,
+      "memo": "受け流し率+20%。相手が奥義/大技予告中なら、その行動を25%軽減する準備を得る",
+      "description": "受け流し率+20%。相手が奥義/大技予告中なら、その行動を25%軽減する準備を得る"
+    },
+    "94:5": {
+      "power": 262,
+      "power_multiplier": 2.62,
+      "memo": "命中+15pt/会心+15pt。HITで相手の最大SP5%分、現在SPを削る。探索報酬に小補正",
+      "description": "命中+15pt/会心+15pt。HITで相手の最大SP5%分、現在SPを削る。探索報酬に小補正"
+    }
+  }
+}

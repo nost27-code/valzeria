@@ -20,6 +20,8 @@ class JobArtV2SelectionService
     private readonly JobArtV2DeckRoleResolver $deckRoleResolver;
     private readonly JobArtV2UltimateCounterplayService $ultimateCounterplayService;
     private readonly JobArtV2CrownBalanceCatalog $crownBalanceCatalog;
+    private readonly JobArtV2FeatureGate $featureGate;
+    private readonly JobArtV2Rank5V6Catalog $rank5V6Catalog;
 
     public function __construct(
         private readonly JobArtV2RandomSource $random,
@@ -37,6 +39,8 @@ class JobArtV2SelectionService
         ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
         ?JobArtV2UltimateCounterplayService $ultimateCounterplayService = null,
         ?JobArtV2CrownBalanceCatalog $crownBalanceCatalog = null,
+        ?JobArtV2FeatureGate $featureGate = null,
+        ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
     ) {
         $this->resourceService = $resourceService ?? app(JobArtV2ResourceService::class);
         $this->fieldService = $fieldService ?? app(JobArtV2FieldService::class);
@@ -51,6 +55,8 @@ class JobArtV2SelectionService
             ?? app(JobArtV2UltimateCounterplayService::class);
         $this->crownBalanceCatalog = $crownBalanceCatalog
             ?? app(JobArtV2CrownBalanceCatalog::class);
+        $this->featureGate = $featureGate ?? app(JobArtV2FeatureGate::class);
+        $this->rank5V6Catalog = $rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class);
     }
 
     public function selectForTurn(
@@ -75,6 +81,7 @@ class JobArtV2SelectionService
                 continue;
             }
 
+            $this->markRank5V6Attempted($actor, $skill);
             $activationRate = $this->progressionService->activationRate($actor, $skill, $this->fieldService->activationRate(
                 $actor,
                 $state,
@@ -85,7 +92,7 @@ class JobArtV2SelectionService
                 ),
             ));
             $activated = $this->random->percentRoll() <= $activationRate;
-            $this->progressionService->finishActivationAttempt($actor, $skill);
+            $this->progressionService->finishActivationAttempt($actor, $skill, $activated);
             if ($rankNinePrioritized && (int) $skill->learn_rank === 9) {
                 $actor->markJobArtV2UltimatePriorityAttempted((int) $skill->id);
             }
@@ -147,6 +154,11 @@ class JobArtV2SelectionService
 
         if (!$this->canActivateRecoveryArt($actor, $skill)) {
             return 'blocked_by_support_condition';
+        }
+
+        $rank5V6Block = $this->rank5V6BlockReason($actor, $state, $skill);
+        if ($rank5V6Block !== null) {
+            return $rank5V6Block;
         }
 
         return $this->ultimateCounterplayService->eligibilityBlockReason($actor, $state, $skill)
@@ -440,5 +452,72 @@ class JobArtV2SelectionService
         }
 
         return $actor->isJobArtV2UltimatePriorityPending();
+    }
+
+    private function rank5V6BlockReason(BattleActor $actor, BattleState $state, Skill $skill): ?string
+    {
+        if (! $this->featureGate->usesRank5V6($actor) || $this->rank5V6Catalog->forSkill($skill) === null) {
+            return null;
+        }
+
+        $art = $this->resourceCatalog->forActorArt($actor, $skill);
+        if ($art === null) {
+            return null;
+        }
+
+        $resourceKey = (string) $art['resource_key'];
+        if ($actor->jobArtV2Rank5CycleState()->hasUsed($resourceKey, (int) $skill->id)) {
+            return 'blocked_by_rank5_cycle';
+        }
+
+        if ($this->rank5V6Catalog->isReactive($skill)) {
+            if (in_array((int) $skill->job_id, [15, 28, 48, 49, 93], true)
+                && ! $this->ultimateCounterplayService->isResponseCandidate($actor, $state, $skill)
+            ) {
+                return 'blocked_by_reactive_condition';
+            }
+
+            $required = max((int) ($art['minimum_resource_points'] ?? 4), 4);
+
+            return $actor->getResource($resourceKey) < $required
+                ? JobArtV2ResourceService::BLOCKED_BY_RESOURCE
+                : null;
+        }
+
+        $ordinal = 0;
+        foreach ($actor->jobArts as $candidate) {
+            if (! $candidate instanceof Skill
+                || $this->rank5V6Catalog->forSkill($candidate) === null
+                || $this->rank5V6Catalog->isReactive($candidate)
+            ) {
+                continue;
+            }
+            $candidateArt = $this->resourceCatalog->forActorArt($actor, $candidate);
+            if (($candidateArt['resource_key'] ?? null) !== $resourceKey) {
+                continue;
+            }
+            $ordinal++;
+            if ((int) $candidate->id === (int) $skill->id) {
+                break;
+            }
+        }
+
+        $required = max((int) ($art['minimum_resource_points'] ?? 4), 4 * max(1, $ordinal));
+
+        return $actor->getResource($resourceKey) < $required
+            ? JobArtV2ResourceService::BLOCKED_BY_RESOURCE
+            : null;
+    }
+
+    private function markRank5V6Attempted(BattleActor $actor, Skill $skill): void
+    {
+        if (! $this->featureGate->usesRank5V6($actor) || $this->rank5V6Catalog->forSkill($skill) === null) {
+            return;
+        }
+
+        $art = $this->resourceCatalog->forActorArt($actor, $skill);
+        if ($art !== null) {
+            $actor->jobArtV2Rank5CycleState()->markUsed((string) $art['resource_key'], (int) $skill->id);
+        }
     }
 }

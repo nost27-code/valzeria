@@ -8,6 +8,7 @@ use App\Services\JobArtService;
 use App\Services\CharacterStatusService;
 use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtV2BattleRules;
+use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2LoadoutPresenter;
 use App\Services\JobArtV2LoadoutDiagnosisService;
 use App\Services\JobArtV2LineageGuideCatalog;
@@ -30,6 +31,7 @@ class JobArtController extends Controller
         JobArtService $jobArtService,
         JobArtV2SpCostCalculator $spCostCalculator,
         JobArtV2BattleRules $battleRules,
+        JobArtV2FeatureGate $featureGate,
         JobArtV2LoadoutPresenter $loadoutPresenter,
         JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
         JobArtV2LineageGuideCatalog $lineageGuideCatalog,
@@ -152,6 +154,7 @@ class JobArtController extends Controller
             'maxCost' => $jobArtService->maxCost(),
             'currentJobId' => $currentJobId,
             'jobArtV2UiEnabled' => $jobArtV2UiEnabled,
+            'rank5V6Enabled' => $featureGate->usesRank5V6ForCurrentJob($currentJobId),
             'recommendedBattleStyles' => $recommendedBattleStyles,
             'jobArtPresetUiEnabled' => $jobArtPresetUiEnabled,
             'jobArtPresets' => $jobArtPresets,

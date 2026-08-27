@@ -234,6 +234,19 @@ final class JobArtV2LoadoutPresenter
         $progressionCatalog = $this->progressionCatalog ?? app(JobArtV2ProgressionCatalog::class);
         $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
         $roleEffectMetadata = $roleCatalog->forArt($skill);
+        $usesRank5V6 = $this->featureGate->usesRank5V6ForCurrentJob($currentJobId);
+        $rank5V6RoleMetadata = $usesRank5V6
+            ? $roleCatalog->rank5V6MetadataForArt($skill)
+            : null;
+        if ($rank5V6RoleMetadata !== null) {
+            $roleEffectMetadata = array_replace_recursive($roleEffectMetadata ?? [], $rank5V6RoleMetadata);
+        }
+        $usesRank5V6RoleReplacement = $usesRank5V6
+            && (int) $skill->job_id === 56
+            && (int) $skill->learn_rank === 5;
+        if ($usesRank5V6RoleReplacement) {
+            $roleEffectMetadata = null;
+        }
         $progressionMechanicsAllowed = $deckRoleResolution?->active === true
             ? $formalCDesignLineage
             : ($isTrustedCurrentOrigin || $isSameLineageInherited);
@@ -263,6 +276,9 @@ final class JobArtV2LoadoutPresenter
             ?? (is_string($cDesignEffectMetadata['replacement_template'] ?? null)
                 ? (string) $cDesignEffectMetadata['replacement_template']
                 : null)
+            ?? (is_string($rank5V6RoleMetadata['replacement_template'] ?? null)
+                ? (string) $rank5V6RoleMetadata['replacement_template']
+                : null)
             ?? $this->effectSemanticsResolver->replacementEffectTemplateForDisplay($currentJobId, $skill)
             ?? ($resourcesEnabled && $roleCatalog->isPortable($skill)
                 ? $roleCatalog->replacementTemplate($skill)
@@ -272,19 +288,25 @@ final class JobArtV2LoadoutPresenter
             $displayEffectTemplate = 'MAGICAL_DAMAGE';
         }
         $legacyEffectCopySuppressed = $displayEffectTemplate !== (string) $skill->effect_template
-            || ($resourcesEnabled && $roleCatalog->isPortable($skill) && $roleCatalog->suppressesLegacyEffect($skill));
+            || ($resourcesEnabled
+                && ($roleCatalog->isPortable($skill) || $rank5V6RoleMetadata !== null)
+                && ((bool) ($roleEffectMetadata['suppress_legacy_effect'] ?? false)));
         $semanticsJobId = $formalCDesignLineage ? (int) $skill->job_id : $currentJobId;
         $effectTexts = $resourcesEnabled && ($isTrustedCurrentOrigin || $formalCDesignLineage)
             ? $this->effectTexts($semanticsJobId, $skill, $metadata ?? [])
             : [];
         if ($resourcesEnabled) {
-            if ($roleCatalog->isPortable($skill)
+            if (! $usesRank5V6RoleReplacement
+                && ($roleCatalog->isPortable($skill) || $rank5V6RoleMetadata !== null)
                 && (! $techCDesignCard
                     || ($this->cDesignCatalog ?? app(JobArtV2CDesignCatalog::class))->allowsTechBaseRoleMetadata($skill))
             ) {
                 $effectTexts = array_values(array_unique([
                     ...$effectTexts,
-                    ...$roleCatalog->effectTexts($skill),
+                    ...array_values(array_filter(
+                        $roleEffectMetadata['effect_texts'] ?? [],
+                        static fn (mixed $text): bool => is_string($text) && $text !== '',
+                    )),
                 ]));
             }
             $effectTexts = array_values(array_unique([
@@ -1596,12 +1618,13 @@ final class JobArtV2LoadoutPresenter
         string $originKey,
     ): array {
         $heal = is_array($metadata['heal'] ?? null) ? $metadata['heal'] : null;
-        if (($heal['formula'] ?? null) !== 'existing_spr') {
+        $definition = is_array($heal['hp'] ?? null) ? $heal['hp'] : $heal;
+        if (($definition['formula'] ?? null) !== 'existing_spr') {
             return $effectTexts;
         }
 
         $executionPower = max(0, (int) ($effectivePower ?: 100));
-        $healPercent = $executionPower * max(0.0, (float) ($heal['multiplier'] ?? 1.0));
+        $healPercent = $executionPower * max(0.0, (float) ($definition['multiplier'] ?? 1.0));
         $healCopy = '精神の'.$this->compactNumber($healPercent).'%分、自分のHPを回復する';
 
         foreach ($effectTexts as $index => $effectText) {
