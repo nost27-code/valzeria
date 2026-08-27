@@ -208,9 +208,7 @@ class DamageCalculator
         $def = $overrideDef ?? $defender->effectiveDef();
         $spr = $overrideSpr ?? $defender->effectiveSpr();
 
-        $effectiveDefense = $attackType === 'magical'
-            ? ($spr * 0.72) + ($def * 0.28)
-            : ($def * 0.72) + ($spr * 0.28);
+        $effectiveDefense = $this->rankBattleEffectiveDefense($attackType, $def, $spr);
         if ($additionalDefenseIgnoreRate > 0.0) {
             $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
         }
@@ -314,9 +312,7 @@ class DamageCalculator
             $attackPower = $attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr();
             $def = $defender->effectiveDef();
             $spr = $defender->effectiveSpr();
-            $effectiveDefense = $attackType === 'magical'
-                ? ($spr * 0.72) + ($def * 0.28)
-                : ($def * 0.72) + ($spr * 0.28);
+            $effectiveDefense = $this->rankBattleEffectiveDefense($attackType, $def, $spr);
             if ($additionalDefenseIgnoreRate > 0.0) {
                 $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
             }
@@ -360,6 +356,11 @@ class DamageCalculator
             1,
             intdiv($normalEquivalentDamage * max(0, $skillPower), 100),
         );
+    }
+
+    private function rankBattleEffectiveDefense(string $attackType, int $def, int $spr): float
+    {
+        return (float) ($attackType === 'magical' ? $spr : $def);
     }
 
     private function rankBattleRecommendedBaseDamage(float $attackPower, float $effectiveDefense): float

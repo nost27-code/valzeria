@@ -150,6 +150,38 @@ final class SpeedBreakthroughServiceTest extends TestCase
         $this->assertSame($withoutBreakthroughArgument, $explicitZeroBreakthrough);
     }
 
+    public function test_speed_breakthrough_reduces_only_the_selected_physical_defense(): void
+    {
+        $attacker = $this->actor('攻撃側', 154, str: 5_000);
+        $lowSpiritDefender = $this->actor('防御側', 100, def: 9_000, spr: 1);
+        $highSpiritDefender = $this->actor('防御側', 100, def: 9_000, spr: 50_000);
+        $calculator = new DamageCalculator();
+
+        mt_srand(250_827);
+        $withoutBreakthrough = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $lowSpiritDefender,
+            'physical',
+        );
+        mt_srand(250_827);
+        $lowSpiritDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $lowSpiritDefender,
+            'physical',
+            additionalDefenseIgnoreRate: 0.30,
+        );
+        mt_srand(250_827);
+        $highSpiritDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $highSpiritDefender,
+            'physical',
+            additionalDefenseIgnoreRate: 0.30,
+        );
+
+        $this->assertGreaterThan($withoutBreakthrough, $lowSpiritDamage);
+        $this->assertSame($lowSpiritDamage, $highSpiritDamage);
+    }
+
     private function service(): SpeedBreakthroughService
     {
         return new SpeedBreakthroughService();

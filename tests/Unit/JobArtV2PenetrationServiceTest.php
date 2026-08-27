@@ -186,7 +186,7 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $this->assertLessThanOrEqual((int) ceil($actual * 0.41), $reduced);
     }
 
-    public function test_pvp_penetration_uses_blended_defense_without_hp_floors_or_caps(): void
+    public function test_pvp_penetration_uses_physical_defense_without_hp_floors_or_caps(): void
     {
         $attacker = $this->actor(62, 10, 10, 1000, 10_000);
         $rankFive = $this->art(5);
@@ -196,7 +196,7 @@ class JobArtV2PenetrationServiceTest extends TestCase
 
         $standard = $this->actor(null, 1000, 400, 10, 10_000);
         $r5 = $this->service()->defenseOverrides($attacker, $standard, $rankFive);
-        $this->assertSame(580.0, ($r5['def'] * 0.72) + ($standard->effectiveSpr() * 0.28));
+        $this->assertSame(650, $r5['def']);
 
         $highDefense = $this->actor(null, 10_000, 400, 10, 10_000);
         mt_srand(6201);
@@ -295,6 +295,18 @@ class JobArtV2PenetrationServiceTest extends TestCase
         $this->assertSame(120, $defender->def);
         $this->assertSame(101, $defender->spr);
         $this->assertSame($expectedNext, mt_rand());
+
+        $calculator = new DamageCalculator;
+        mt_srand(29_026);
+        $normalDamage = $calculator->calculateRankBattleDamage($attacker, $defender, 'magical');
+        mt_srand(29_026);
+        $penetratedDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'magical',
+            overrideSpr: $overrides['spr'],
+        );
+        $this->assertGreaterThan($normalDamage, $penetratedDamage);
 
         config(['battle.job_art_v2.resources' => false]);
         $this->assertSame(

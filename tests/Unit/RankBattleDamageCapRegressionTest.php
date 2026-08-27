@@ -214,7 +214,7 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $attacker = $this->actor(str: 1_000);
         $defender = $this->actor(def: 10_000, maxHp: 1_000_000);
 
-        $effectiveDefense = (10_000 * 0.72) + (10_000 * 0.28);
+        $effectiveDefense = 10_000;
         $rawDamage = (1_000 * 0.56) - ($effectiveDefense * 0.30);
         $softBoundary = 1_000 * 0.18 * min(1.0, (1.267 * 1_000) / $effectiveDefense);
         mt_srand(20_260_827);
@@ -227,13 +227,29 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $this->assertSame((int) floor($softBoundary * $variance), $damage);
     }
 
-    public function test_magical_damage_uses_spirit_weighted_blended_defense(): void
+    public function test_physical_damage_uses_only_defense(): void
     {
         $calculator = new DamageCalculator();
         $attacker = $this->actor(str: 5_000);
-        $defender = $this->actor(def: 1_000, spr: 9_000);
+        $lowSpiritDefender = $this->actor(def: 9_000, spr: 1_000);
+        $highSpiritDefender = $this->actor(def: 9_000, spr: 50_000);
 
-        $effectiveDefense = (9_000 * 0.72) + (1_000 * 0.28);
+        mt_srand(20_260_827);
+        $lowSpiritDamage = $calculator->calculateRankBattleDamage($attacker, $lowSpiritDefender, 'physical');
+        mt_srand(20_260_827);
+        $highSpiritDamage = $calculator->calculateRankBattleDamage($attacker, $highSpiritDefender, 'physical');
+
+        $this->assertSame($lowSpiritDamage, $highSpiritDamage);
+    }
+
+    public function test_magical_damage_uses_only_spirit(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 5_000);
+        $lowDefenseDefender = $this->actor(def: 1_000, spr: 9_000);
+        $highDefenseDefender = $this->actor(def: 50_000, spr: 9_000);
+
+        $effectiveDefense = 9_000;
         $rawDamage = (5_000 * 0.56)
             - ($effectiveDefense * 0.30)
             + (max(0, 5_000 - $effectiveDefense) * 0.16);
@@ -242,12 +258,67 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $variance = rand(96, 104) / 100;
         mt_srand(20_260_827);
 
-        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'magical');
+        $lowDefenseDamage = $calculator->calculateRankBattleDamage($attacker, $lowDefenseDefender, 'magical');
+        mt_srand(20_260_827);
+        $highDefenseDamage = $calculator->calculateRankBattleDamage($attacker, $highDefenseDefender, 'magical');
 
         $this->assertSame(
             (int) floor(max(1, $rawDamage, $softBoundary) * $variance),
-            $damage,
+            $lowDefenseDamage,
         );
+        $this->assertSame($lowDefenseDamage, $highDefenseDamage);
+    }
+
+    public function test_physical_damage_uses_only_the_defense_override(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 5_000);
+        $defender = $this->actor(def: 1_000, spr: 1_000);
+
+        mt_srand(20_260_827);
+        $lowSpiritOverrideDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'physical',
+            overrideDef: 9_000,
+            overrideSpr: 1,
+        );
+        mt_srand(20_260_827);
+        $highSpiritOverrideDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'physical',
+            overrideDef: 9_000,
+            overrideSpr: 50_000,
+        );
+
+        $this->assertSame($lowSpiritOverrideDamage, $highSpiritOverrideDamage);
+    }
+
+    public function test_magical_damage_uses_only_the_spirit_override(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 5_000);
+        $defender = $this->actor(def: 1_000, spr: 1_000);
+
+        mt_srand(20_260_827);
+        $lowDefenseOverrideDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'magical',
+            overrideDef: 1,
+            overrideSpr: 9_000,
+        );
+        mt_srand(20_260_827);
+        $highDefenseOverrideDamage = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'magical',
+            overrideDef: 50_000,
+            overrideSpr: 9_000,
+        );
+
+        $this->assertSame($lowDefenseOverrideDamage, $highDefenseOverrideDamage);
     }
 
     public function test_duel_damage_keeps_the_existing_champ_formula(): void
@@ -295,7 +366,7 @@ class RankBattleDamageCapRegressionTest extends TestCase
     {
         $calculator = new DamageCalculator();
         $attacker = $this->actor(str: 1_000);
-        $defender = $this->actor(def: 10_000, maxHp: 1_000_000);
+        $defender = $this->actor(def: 10_000, maxHp: 1_000_000, spr: 1);
         $expected = (int) floor(1_000 * 0.18 * ((1.267 * 1_000) / 10_000));
 
         $damage = $calculator->estimateJobArtDamage(
