@@ -66,6 +66,14 @@ final class NationScreen extends Component
         'name_asc' => '名前順',
     ];
 
+    private const DONATION_MATERIAL_SORT_DEFAULT = 'quantity_desc';
+
+    private const DONATION_MATERIAL_SORT_OPTIONS = [
+        'quantity_desc' => '所持数が多い順',
+        'wanted_first' => '国家募集中を優先',
+        'name_asc' => '素材名順',
+    ];
+
     private const NATION_CHAT_PREVIEW_LIMIT = 3;
 
     private const ACTIVITY_LOG_PREVIEW_LIMIT = 2;
@@ -124,6 +132,8 @@ final class NationScreen extends Component
     public bool $showNationMenuModal = false;
 
     public string $memberSort = self::MEMBER_SORT_DEFAULT;
+
+    public string $donationMaterialSort = self::DONATION_MATERIAL_SORT_DEFAULT;
 
     public string $dissolutionConfirmation = '';
 
@@ -306,6 +316,13 @@ final class NationScreen extends Component
     {
         if (! array_key_exists($memberSort, self::MEMBER_SORT_OPTIONS)) {
             $this->memberSort = self::MEMBER_SORT_DEFAULT;
+        }
+    }
+
+    public function updatedDonationMaterialSort(string $donationMaterialSort): void
+    {
+        if (! array_key_exists($donationMaterialSort, self::DONATION_MATERIAL_SORT_OPTIONS)) {
+            $this->donationMaterialSort = self::DONATION_MATERIAL_SORT_DEFAULT;
         }
     }
 
@@ -771,6 +788,32 @@ final class NationScreen extends Component
         }
 
         $this->donationQuantities[$materialId] = $currentQuantity - 1;
+    }
+
+    public function setDonationQuantity(int $materialId, mixed $quantity): void
+    {
+        $material = $this->donatableMaterialForSelection($materialId);
+        if (! $material) {
+            return;
+        }
+
+        $quantityText = is_int($quantity) || is_string($quantity)
+            ? trim((string) $quantity)
+            : '';
+        if ($quantityText === '' || preg_match('/^[0-9]+$/D', $quantityText) !== 1) {
+            unset($this->donationQuantities[$materialId]);
+
+            return;
+        }
+
+        $normalizedQuantity = min((int) $material->quantity, (int) $quantityText);
+        if ($normalizedQuantity < 1) {
+            unset($this->donationQuantities[$materialId]);
+
+            return;
+        }
+
+        $this->donationQuantities[(int) $material->material_id] = $normalizedQuantity;
     }
 
     public function openDonationConfirmation(): void
@@ -1414,7 +1457,7 @@ final class NationScreen extends Component
                 }
                 if ($this->page === 'resources') {
                     $resources = app(NationResourceService::class);
-                    $donatableMaterials = $resources->donatableMaterials($character);
+                    $donatableMaterials = $this->sortDonatableMaterials($resources->donatableMaterials($character));
                     $contributionRows = $development->contributionRows($membership->nation);
                     foreach ($donatableMaterials as $material) {
                         $selectedQuantity = max(0, (int) ($this->donationQuantities[$material->material_id] ?? 0));
@@ -1603,6 +1646,7 @@ final class NationScreen extends Component
                 ->values(),
             'memberPreviewLimit' => self::MEMBER_PREVIEW_LIMIT,
             'memberSortOptions' => self::MEMBER_SORT_OPTIONS,
+            'donationMaterialSortOptions' => self::DONATION_MATERIAL_SORT_OPTIONS,
             'cooldowns' => app(NationMembershipCooldownService::class),
             'minimumMembershipHours' => app(NationCommunitySettingsService::class)->minimumMembershipHours(),
             'leaveJoinCooldownHours' => app(NationCommunitySettingsService::class)->leaveJoinCooldownHours(),
@@ -1741,6 +1785,33 @@ final class NationScreen extends Component
             }
 
             return (int) $left->id <=> (int) $right->id;
+        })->values();
+    }
+
+    /** @param Collection<int, object> $materials */
+    private function sortDonatableMaterials(Collection $materials): Collection
+    {
+        $sort = array_key_exists($this->donationMaterialSort, self::DONATION_MATERIAL_SORT_OPTIONS)
+            ? $this->donationMaterialSort
+            : self::DONATION_MATERIAL_SORT_DEFAULT;
+
+        if ($sort === 'wanted_first') {
+            return $materials->values();
+        }
+
+        return $materials->sort(function (object $left, object $right) use ($sort): int {
+            if ($sort === 'quantity_desc') {
+                $comparison = ((int) $right->quantity) <=> ((int) $left->quantity);
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+            }
+
+            $comparison = strcmp((string) $left->name, (string) $right->name);
+
+            return $comparison !== 0
+                ? $comparison
+                : ((int) $left->material_id <=> (int) $right->material_id);
         })->values();
     }
 

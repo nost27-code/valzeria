@@ -958,11 +958,19 @@
                     <div>
                         <p class="text-[11px] font-black tracking-[0.16em] text-amber-700">MATERIAL</p>
                         <h2 id="donation-material-modal-title" class="text-lg font-black text-stone-950">納品する素材を選ぶ</h2>
-                        <p class="mt-0.5 text-xs font-bold text-stone-500">複数の素材を選び、－／＋で個数を調整できます</p>
+                        <p class="mt-0.5 text-xs font-bold text-stone-500">複数の素材を選び、－／＋または数量欄への入力で個数を調整できます</p>
                     </div>
                     <button type="button" wire:click="closeDonationMaterialModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="素材選択を閉じる">×</button>
                 </header>
                 <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+                    <label class="mb-3 flex items-center justify-end gap-2 text-xs font-black text-stone-600">
+                        <span>並び順</span>
+                        <select wire:model.live="donationMaterialSort" class="min-h-10 max-w-[13rem] rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-800 focus:border-amber-500 focus:ring-amber-500" data-nation-material-sort>
+                            @foreach($donationMaterialSortOptions as $sortValue => $sortLabel)
+                                <option value="{{ $sortValue }}">{{ $sortLabel }}</option>
+                            @endforeach
+                        </select>
+                    </label>
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                         @foreach($donatableMaterials as $material)
                             @php
@@ -982,7 +990,21 @@
                                 </button>
                                 <div class="grid grid-cols-[2.5rem_1fr_2.5rem] items-center border-t border-stone-200 bg-stone-50 p-1.5">
                                     <button type="button" wire:click="decrementDonationQuantity({{ $material->material_id }})" @disabled(!$isSelectedDonationMaterial || $tileDonationQuantity < 1) class="min-h-10 rounded-lg border border-stone-300 bg-white text-xl font-black text-stone-700 disabled:cursor-not-allowed disabled:opacity-40" aria-label="{{ $material->name }}の納品数を1個減らす">−</button>
-                                    <strong class="text-center text-base font-black text-stone-950" data-nation-material-quantity>{{ number_format($tileDonationQuantity) }}</strong>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="{{ (int) $material->quantity }}"
+                                        step="1"
+                                        inputmode="numeric"
+                                        value="{{ $tileDonationQuantity }}"
+                                        wire:input.debounce.250ms="setDonationQuantity({{ $material->material_id }}, $event.target.value)"
+                                        @focus="$event.target.select()"
+                                        @click="$event.target.select()"
+                                        aria-label="{{ $material->name }}の納品数"
+                                        class="h-10 min-w-0 w-full border-0 bg-transparent px-1 text-center text-base font-black text-stone-950 [appearance:textfield] focus:ring-2 focus:ring-amber-500 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        data-nation-material-quantity
+                                        data-nation-material-quantity-input="{{ $material->material_id }}"
+                                    >
                                     <button type="button" wire:click="incrementDonationQuantity({{ $material->material_id }})" @disabled($isSelectedDonationMaterial && $tileDonationQuantity >= (int) $material->quantity) class="min-h-10 rounded-lg bg-emerald-600 text-xl font-black text-white disabled:cursor-not-allowed disabled:opacity-40" aria-label="{{ $material->name }}の納品数を1個増やす">＋</button>
                                 </div>
                             </article>

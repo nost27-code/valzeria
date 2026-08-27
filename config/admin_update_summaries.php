@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-27-nation-donation-sort-quantity-input',
+        'date' => '2026-08-27',
+        'category' => 'changed',
+        'title' => '国家納品の素材順と数量入力を改善',
+        'detail' => '国家納品の素材を所持数が多い順で確認でき、国家募集中優先・素材名順にも切り替えられるようにしました。納品数は－／＋のほか、数量欄へ直接入力できます。',
+    ],
+    [
         'id' => '2026-08-27-nation-member-capacity-guide',
         'date' => '2026-08-27',
         'category' => 'changed',

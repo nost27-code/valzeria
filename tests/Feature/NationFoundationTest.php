@@ -230,8 +230,8 @@ final class NationFoundationTest extends TestCase
         config()->set('features.nation_development_enabled', true);
         $character = $this->character('発展納品者');
         $nation = app(NationService::class)->create($character, '発展確認国');
-        $material = Material::create(['material_code' => 'TEST_UI_DONATION_MAT', 'name' => '画面納品試験資材', 'category' => 'city', 'rarity' => 'R']);
-        $secondMaterial = Material::create(['material_code' => 'TEST_UI_DONATION_MAT_2', 'name' => '画面納品試験資材その二', 'category' => 'city', 'rarity' => 'N']);
+        $material = Material::create(['material_code' => 'TEST_UI_DONATION_MAT', 'name' => 'Z画面納品試験資材', 'category' => 'city', 'rarity' => 'R']);
+        $secondMaterial = Material::create(['material_code' => 'TEST_UI_DONATION_MAT_2', 'name' => 'A画面納品試験資材その二', 'category' => 'city', 'rarity' => 'N']);
         NationMaterialConversionRate::create(['material_id' => $material->id, 'points_per_unit' => 3, 'development_exp_per_unit' => 2, 'is_active' => true]);
         NationMaterialConversionRate::create(['material_id' => $secondMaterial->id, 'points_per_unit' => 1, 'development_exp_per_unit' => 1, 'is_active' => true]);
         CharacterMaterial::create(['character_id' => $character->id, 'material_id' => $material->id, 'quantity' => 10]);
@@ -250,11 +250,27 @@ final class NationFoundationTest extends TestCase
             ->assertDontSeeHtml('wire:model.live="donationMaterialId"')
             ->call('openDonationMaterialModal')
             ->assertSet('showDonationMaterialModal', true)
+            ->assertSet('donationMaterialSort', 'quantity_desc')
             ->assertSeeHtml('data-nation-material-modal')
+            ->assertSeeHtml('data-nation-material-sort')
+            ->assertSee('所持数が多い順')
+            ->assertSee('数量欄への入力で個数を調整できます')
             ->assertSeeHtml('data-nation-material-tile="'.$material->id.'"')
-            ->assertSee('画面納品試験資材')
+            ->assertSeeHtml('data-nation-material-quantity-input="'.$material->id.'"')
+            ->assertSee('Z画面納品試験資材')
             ->assertSee('所持 10個')
             ->assertSee('1個=3pt・2EXP')
+            ->assertViewHas('donatableMaterials', fn ($materials): bool => $materials->pluck('material_id')->all() === [$material->id, $secondMaterial->id])
+            ->set('donationMaterialSort', 'name_asc')
+            ->assertViewHas('donatableMaterials', fn ($materials): bool => $materials->pluck('material_id')->all() === [$secondMaterial->id, $material->id])
+            ->set('donationMaterialSort', 'invalid')
+            ->assertSet('donationMaterialSort', 'quantity_desc')
+            ->call('setDonationQuantity', $material->id, '7')
+            ->assertSet('donationQuantities.'.$material->id, 7)
+            ->call('setDonationQuantity', $material->id, '100')
+            ->assertSet('donationQuantities.'.$material->id, 10)
+            ->call('setDonationQuantity', $material->id, '')
+            ->assertSet('donationQuantities', [])
             ->call('incrementDonationQuantity', $material->id)
             ->assertSet('donationQuantities.'.$material->id, 1)
             ->call('incrementDonationQuantity', $material->id)
@@ -281,7 +297,7 @@ final class NationFoundationTest extends TestCase
             ->call('openDonationConfirmation')
             ->assertSet('showDonationConfirmationModal', true)
             ->assertSee('選んだ2種類の素材を納品しますか？')
-            ->assertSee('画面納品試験資材その二')
+            ->assertSee('A画面納品試験資材その二')
             ->assertSee('納品後の残数')
             ->assertSee('6個')
             ->call('donateMaterials')
