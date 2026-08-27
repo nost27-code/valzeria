@@ -125,8 +125,8 @@ final class SixHeroRoomRegistryTest extends TestCase
         }
 
         $arena = PvPBattleExecutionContext::arena();
-        $this->assertTrue($arena->rankBattleMinimumDamageGuaranteeEnabled);
-        $this->assertTrue($arena->rankBattleDamageCapEnabled);
+        $this->assertFalse($arena->rankBattleMinimumDamageGuaranteeEnabled);
+        $this->assertFalse($arena->rankBattleDamageCapEnabled);
         $this->assertSame(1.0, $arena->rankBattleBaseDamageMultiplier);
         $this->assertSame(125, $arena->rankBattleNormalAttackPower);
         $this->assertFalse($arena->speedBreakthroughEnabled);

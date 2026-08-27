@@ -156,7 +156,7 @@
                         </section>
 
                         <section class="rounded-xl border border-amber-200 bg-white p-3 shadow-sm" data-job-art-system-guide-pvp>
-                            <h3 class="text-sm font-black text-slate-950">PvPの奥義予告と100ターン判定</h3>
+                            <h3 class="text-sm font-black text-slate-950">PvPの奥義予告とターン判定</h3>
                             <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                 <article class="rounded-lg bg-amber-50 p-3">
                                     <h4 class="text-xs font-black text-amber-950">奥義は予告してから発動</h4>
@@ -170,9 +170,9 @@
                                 </article>
 
                                 <article class="rounded-lg bg-slate-100 p-3">
-                                    <h4 class="text-xs font-black text-slate-950">ランク戦は最大100ターン</h4>
+                                    <h4 class="text-xs font-black text-slate-950">ランク戦は最大50ターン</h4>
                                     <p class="mt-2 text-[10px] font-bold leading-relaxed text-slate-700">
-                                        1ターン内で双方が敏捷の高い順に行動し、どちらかを倒せばその時点で決着します。100ターン終了時に双方が生存している場合、最大HPに対する残りHPの割合を比べます。挑戦者の割合が防衛者より高ければ挑戦者の判定勝利、同じ割合または防衛者の方が高ければ防衛成功になります。
+                                        1ターン内で双方が敏捷の高い順に行動し、どちらかを倒せばその時点で決着します。50ターン終了時に双方が生存している場合、最大体力に対する残り体力の割合を比べます。挑戦者の割合が防衛者より高ければ挑戦者の判定勝利、同じ割合または防衛者の方が高ければ防衛成功になります。チャンプ戦だけは最大100ターンで、実際に倒した時だけ交代します。
                                     </p>
                                 </article>
                             </div>

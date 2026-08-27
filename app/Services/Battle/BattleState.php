@@ -16,7 +16,8 @@ use App\Services\Battle\ParryResult;
 class BattleState
 {
     private const DEFAULT_MAX_TURNS = 50;
-    public const PVP_MAX_TURNS = 100;
+    public const PVP_MAX_TURNS = 50;
+    public const CHAMP_MAX_TURNS = 100;
 
     public BattleActor $player;
     public BattleActor $enemy;
@@ -41,8 +42,8 @@ class BattleState
     public bool $valmonAssistRolled = false;
     public bool $valmonAssistUsed = false;
     public string $battleType;
-    public bool $rankBattleMinimumDamageGuaranteeEnabled = true;
-    public bool $rankBattleDamageCapEnabled = true;
+    public bool $rankBattleMinimumDamageGuaranteeEnabled = false;
+    public bool $rankBattleDamageCapEnabled = false;
     public float $rankBattleBaseDamageMultiplier = 1.0;
     public int $rankBattleNormalAttackPower = 125;
     public bool $speedBreakthroughEnabled = false;
@@ -177,9 +178,15 @@ class BattleState
         $this->enemy = $enemy;
         $this->battleType = $battleType;
         $this->currentFieldSnapshot = FieldSnapshot::empty();
-        $this->maxTurns = $battleType === 'pvp'
-            ? self::PVP_MAX_TURNS
-            : self::DEFAULT_MAX_TURNS;
+        $this->maxTurns = match ($battleType) {
+            'pvp' => self::PVP_MAX_TURNS,
+            'champ' => self::CHAMP_MAX_TURNS,
+            default => self::DEFAULT_MAX_TURNS,
+        };
+        if ($battleType === 'champ') {
+            $this->rankBattleMinimumDamageGuaranteeEnabled = true;
+            $this->rankBattleDamageCapEnabled = true;
+        }
     }
 
     public function addLog(string $message): void

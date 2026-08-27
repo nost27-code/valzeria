@@ -9,17 +9,16 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * 武器のランク比例補正で攻撃が大きく伸びても、ランク戦の通常攻撃基準の
- * ダメージを最大HP割合で打ち止めにせず、表示威力を線形適用する回帰テスト。
+ * チャンプ戦を除くPvPの推奨式が、最大HP比例の下限・上限へ依存しないことを確認する。
  */
 class RankBattleDamageCapRegressionTest extends TestCase
 {
     #[DataProvider('displayPowerCases')]
     public function test_rank_battle_skill_uses_the_displayed_power_without_compression(int $power): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 2_500, def: 100, luk: 10, maxHp: 20_000);
-        $defender = $this->actor(str: 100, def: 0, luk: 10, maxHp: 20_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 2_500, def: 100, maxHp: 20_000);
+        $defender = $this->actor(str: 100, def: 0, maxHp: 20_000);
 
         mt_srand(20_260_822);
         $normal = $calculator->calculateRankBattleDamage(
@@ -55,12 +54,12 @@ class RankBattleDamageCapRegressionTest extends TestCase
 
     public function test_rank_battle_skill_scales_uncapped_normal_attack_damage(): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 50_000, luk: 10, maxHp: 100_000);
-        $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 50_000, maxHp: 100_000);
+        $defender = $this->actor(def: 500, maxHp: 100_000);
 
         mt_srand(20_260_822);
-        $normal = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, false);
+        $normal = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical');
         mt_srand(20_260_822);
         $skill = $calculator->calculateRankBattleDamage(
             $attacker,
@@ -77,35 +76,23 @@ class RankBattleDamageCapRegressionTest extends TestCase
 
     public function test_duel_skill_uses_the_displayed_power_from_the_same_normal_attack_base(): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 2_000, def: 2_000, luk: 10, maxHp: 20_000);
-        $defender = $this->actor(str: 100, def: 2_000, luk: 10, maxHp: 20_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 2_000, def: 2_000, maxHp: 20_000);
+        $defender = $this->actor(str: 100, def: 2_000, maxHp: 20_000);
 
         mt_srand(20_260_822);
-        $normal = $calculator->calculateDuelDamage($attacker, $defender, 'physical', 100, false);
+        $normal = $calculator->calculateDuelDamage($attacker, $defender, 'physical');
         mt_srand(20_260_822);
-        $skill = $calculator->calculateDuelDamage($attacker, $defender, 'physical', 320, false);
+        $skill = $calculator->calculateDuelDamage($attacker, $defender, 'physical', 320);
 
         $this->assertSame(intdiv($normal * 320, 100), $skill);
     }
 
-    public function test_normal_attack_damage_is_not_capped_at_eighteen_percent_of_target_hp(): void
-    {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 50_000, luk: 10); // 武器比例補正で極端に伸びた想定
-        $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
-
-        mt_srand(20_260_823);
-        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, false);
-
-        $this->assertGreaterThan((int) floor(100_000 * 0.18), $damage);
-    }
-
     public function test_critical_normal_attack_damage_is_not_capped_at_twenty_two_percent_of_target_hp(): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 50_000, luk: 10);
-        $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 50_000);
+        $defender = $this->actor(def: 500, maxHp: 100_000);
 
         mt_srand(20_260_824);
         $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, true);
@@ -115,9 +102,9 @@ class RankBattleDamageCapRegressionTest extends TestCase
 
     public function test_multi_hit_skill_scales_uncapped_normal_damage_by_total_displayed_power(): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 50_000, luk: 10);
-        $defender = $this->actor(def: 500, luk: 10, maxHp: 100_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 50_000);
+        $defender = $this->actor(def: 500, maxHp: 100_000);
 
         $hitCount = 3;
         $actualTotal = 0;
@@ -125,9 +112,21 @@ class RankBattleDamageCapRegressionTest extends TestCase
         foreach (JobArtHitPower::split(250, $hitCount) as $index => $hitPower) {
             $seed = 20_260_830 + $index;
             mt_srand($seed);
-            $normalEquivalent = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, false);
+            $normalEquivalent = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical');
             mt_srand($seed);
-            $actual = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', $hitPower, false, 1.0, null, null, null, true, $hitCount);
+            $actual = $calculator->calculateRankBattleDamage(
+                $attacker,
+                $defender,
+                'physical',
+                $hitPower,
+                false,
+                1.0,
+                null,
+                null,
+                null,
+                true,
+                $hitCount,
+            );
             $expected = intdiv($normalEquivalent * $hitPower, 100);
 
             $this->assertSame($expected, $actual);
@@ -139,22 +138,22 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $this->assertGreaterThan((int) floor(100_000 * 0.18 * 2.5), $actualTotal);
     }
 
-    public function test_normal_attack_damage_still_respects_floor_when_atk_is_small(): void
+    public function test_damage_can_fall_below_the_former_four_percent_hp_floor(): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 1, luk: 10);
-        $defender = $this->actor(def: 10_000, luk: 10, maxHp: 100_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 1);
+        $defender = $this->actor(def: 10_000, maxHp: 100_000);
 
-        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical', 100, false);
+        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical');
 
-        $this->assertGreaterThanOrEqual((int) floor(100_000 * 0.04), $damage);
+        $this->assertLessThan((int) floor(100_000 * 0.04), $damage);
     }
 
-    public function test_rank_battle_accepts_room_rule_damage_options(): void
+    public function test_rank_battle_keeps_accepting_legacy_room_rule_damage_options(): void
     {
-        $calculator = new DamageCalculator;
-        $attacker = $this->actor(str: 1, luk: 10);
-        $defender = $this->actor(def: 10_000, luk: 10, maxHp: 100_000);
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 1);
+        $defender = $this->actor(def: 10_000, maxHp: 100_000);
 
         $damage = $calculator->calculateRankBattleDamage(
             $attacker,
@@ -167,16 +166,167 @@ class RankBattleDamageCapRegressionTest extends TestCase
         $this->assertSame(1, $damage);
     }
 
-    private function actor(int $str = 10, int $def = 10, int $luk = 10, int $maxHp = 1000): BattleActor
+    public function test_extreme_attack_can_exceed_the_former_maximum_hp_cap(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 50_000);
+        $defender = $this->actor(def: 500, maxHp: 100);
+
+        mt_srand(20_260_827);
+        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical');
+
+        $this->assertGreaterThan((int) floor($defender->maxHp * 0.22), $damage);
+    }
+
+    public function test_damage_does_not_change_when_only_the_defenders_maximum_hp_changes(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 8_000);
+        $lowHpDefender = $this->actor(def: 10_000, maxHp: 1_000);
+        $highHpDefender = $this->actor(def: 10_000, maxHp: 1_000_000);
+
+        mt_srand(20_260_827);
+        $lowHpDamage = $calculator->calculateRankBattleDamage($attacker, $lowHpDefender, 'physical');
+        mt_srand(20_260_827);
+        $highHpDamage = $calculator->calculateRankBattleDamage($attacker, $highHpDefender, 'physical');
+
+        $this->assertSame($lowHpDamage, $highHpDamage);
+    }
+
+    public function test_higher_defense_reduces_damage_with_the_same_random_roll(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 10_000);
+        $defender = $this->actor(def: 10_000);
+        $fortifiedDefender = $this->actor(def: 11_000);
+
+        mt_srand(20_260_827);
+        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical');
+        mt_srand(20_260_827);
+        $fortifiedDamage = $calculator->calculateRankBattleDamage($attacker, $fortifiedDefender, 'physical');
+
+        $this->assertLessThan($damage, $fortifiedDamage);
+    }
+
+    public function test_soft_attack_relative_boundary_is_used_when_raw_damage_is_too_low(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 1_000);
+        $defender = $this->actor(def: 10_000, maxHp: 1_000_000);
+
+        $effectiveDefense = (10_000 * 0.72) + (10_000 * 0.28);
+        $rawDamage = (1_000 * 0.56) - ($effectiveDefense * 0.30);
+        $softBoundary = 1_000 * 0.18 * min(1.0, (1.267 * 1_000) / $effectiveDefense);
+        mt_srand(20_260_827);
+        $variance = rand(96, 104) / 100;
+        mt_srand(20_260_827);
+
+        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'physical');
+
+        $this->assertLessThan($softBoundary, $rawDamage);
+        $this->assertSame((int) floor($softBoundary * $variance), $damage);
+    }
+
+    public function test_magical_damage_uses_spirit_weighted_blended_defense(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 5_000);
+        $defender = $this->actor(def: 1_000, spr: 9_000);
+
+        $effectiveDefense = (9_000 * 0.72) + (1_000 * 0.28);
+        $rawDamage = (5_000 * 0.56)
+            - ($effectiveDefense * 0.30)
+            + (max(0, 5_000 - $effectiveDefense) * 0.16);
+        $softBoundary = 5_000 * 0.18 * min(1.0, (1.267 * 5_000) / $effectiveDefense);
+        mt_srand(20_260_827);
+        $variance = rand(96, 104) / 100;
+        mt_srand(20_260_827);
+
+        $damage = $calculator->calculateRankBattleDamage($attacker, $defender, 'magical');
+
+        $this->assertSame(
+            (int) floor(max(1, $rawDamage, $softBoundary) * $variance),
+            $damage,
+        );
+    }
+
+    public function test_duel_damage_keeps_the_existing_champ_formula(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 1_000);
+        $defender = $this->actor(def: 1_000);
+
+        mt_srand(20_260_827);
+        $variance = rand(90, 110) / 100;
+        mt_srand(20_260_827);
+
+        $damage = $calculator->calculateDuelDamage($attacker, $defender, 'physical');
+
+        $this->assertSame((int) floor(500 * $variance), $damage);
+    }
+
+    public function test_legacy_policy_arguments_no_longer_change_rank_battle_damage(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 8_000);
+        $defender = $this->actor(def: 10_000, maxHp: 100_000);
+
+        mt_srand(20_260_827);
+        $legacyFlagsEnabled = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'physical',
+            minimumDamageGuaranteeEnabled: true,
+            damageCapEnabled: true,
+        );
+        mt_srand(20_260_827);
+        $legacyFlagsDisabled = $calculator->calculateRankBattleDamage(
+            $attacker,
+            $defender,
+            'physical',
+            minimumDamageGuaranteeEnabled: false,
+            damageCapEnabled: false,
+        );
+
+        $this->assertSame($legacyFlagsEnabled, $legacyFlagsDisabled);
+    }
+
+    public function test_job_art_route_estimate_uses_the_same_soft_boundary(): void
+    {
+        $calculator = new DamageCalculator();
+        $attacker = $this->actor(str: 1_000);
+        $defender = $this->actor(def: 10_000, maxHp: 1_000_000);
+        $expected = (int) floor(1_000 * 0.18 * ((1.267 * 1_000) / 10_000));
+
+        $damage = $calculator->estimateJobArtDamage(
+            $attacker,
+            $defender,
+            'physical',
+            'pvp',
+            100,
+        );
+
+        $this->assertSame($expected, $damage);
+    }
+
+    private function actor(
+        int $str = 10,
+        int $def = 10,
+        int $luk = 10,
+        int $maxHp = 1_000,
+        ?int $spr = null,
+    ): BattleActor
     {
         return new BattleActor('テストアクター', true, [
             'max_hp' => $maxHp,
             'hp' => $maxHp,
+            'max_mp' => 100,
+            'mp' => 100,
             'str' => $str,
             'def' => $def,
             'agi' => 10,
-            'mag' => 10,
-            'spr' => $def,
+            'mag' => $str,
+            'spr' => $spr ?? $def,
             'luk' => $luk,
         ]);
     }

@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class PvPBattleServiceTurnLimitTest extends TestCase
 {
-    public function test_equal_remaining_hp_ratio_keeps_the_defense_result_after_one_hundred_turns(): void
+    public function test_equal_remaining_hp_ratio_keeps_the_defense_result_after_fifty_turns(): void
     {
         $service = $this->service(
             challengerMaxHp: 2_000,
@@ -28,10 +28,10 @@ class PvPBattleServiceTurnLimitTest extends TestCase
         );
 
         $this->assertSame('defeat', $result->result);
-        $this->assertCount(200, $service->observedBattleTypes);
+        $this->assertCount(100, $service->observedBattleTypes);
         $this->assertSame(['pvp'], array_values(array_unique($service->observedBattleTypes)));
-        $this->assertStringContainsString('--- ターン 100 ---', implode("\n", $result->logs));
-        $this->assertStringNotContainsString('--- ターン 101 ---', implode("\n", $result->logs));
+        $this->assertStringContainsString('--- ターン 50 ---', implode("\n", $result->logs));
+        $this->assertStringNotContainsString('--- ターン 51 ---', implode("\n", $result->logs));
         $this->assertStringContainsString('防衛に成功した', implode("\n", $result->logs));
     }
 
@@ -50,7 +50,7 @@ class PvPBattleServiceTurnLimitTest extends TestCase
         );
 
         $this->assertSame('victory', $result->result);
-        $this->assertCount(200, $service->observedBattleTypes);
+        $this->assertCount(100, $service->observedBattleTypes);
         $this->assertStringContainsString('判定勝利', implode("\n", $result->logs));
     }
 
@@ -69,7 +69,7 @@ class PvPBattleServiceTurnLimitTest extends TestCase
         );
 
         $this->assertSame('defeat', $result->result);
-        $this->assertCount(200, $service->observedBattleTypes);
+        $this->assertCount(100, $service->observedBattleTypes);
         $this->assertStringContainsString('防衛に成功した', implode("\n", $result->logs));
     }
 
@@ -106,8 +106,8 @@ class PvPBattleServiceTurnLimitTest extends TestCase
         $jobArtSupport = Mockery::mock(JobArtBattleSupportService::class);
         $jobArtSupport->shouldReceive('attachBossSet')->twice();
         $jobArtSupport->shouldReceive('registerHpHealingResolver')->once();
-        $jobArtSupport->shouldReceive('usesRoleEffects')->times(200)->andReturnFalse();
-        $jobArtSupport->shouldReceive('endRound')->times(100)->andReturn([]);
+        $jobArtSupport->shouldReceive('usesRoleEffects')->times(100)->andReturnFalse();
+        $jobArtSupport->shouldReceive('endRound')->times(50)->andReturn([]);
         $jobArtSupport->shouldReceive('battleHud')->once()->andReturnNull();
 
         DB::shouldReceive('transaction')->once()->andReturnNull();

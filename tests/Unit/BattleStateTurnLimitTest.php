@@ -31,18 +31,24 @@ class BattleStateTurnLimitTest extends TestCase
         }
     }
 
-    public function test_pvp_battle_ends_at_the_hundredth_turn(): void
+    public function test_pvp_battle_ends_at_the_fiftieth_turn(): void
     {
         $state = $this->state('pvp');
 
         $this->assertSame('pvp', $state->battleType);
-        $this->assertSame(100, $state->maxTurns);
+        $this->assertSame(50, $state->maxTurns);
 
-        $state->turnCount = 99;
+        $state->turnCount = 49;
         $this->assertFalse($state->isBattleEnded());
 
-        $state->turnCount = 100;
+        $state->turnCount = 50;
         $this->assertTrue($state->isBattleEnded());
+    }
+
+    public function test_champ_battle_keeps_its_hundred_turn_constant(): void
+    {
+        $this->assertSame(100, BattleState::CHAMP_MAX_TURNS);
+        $this->assertSame(100, $this->state('champ')->maxTurns);
     }
 
     private function state(string $battleType = 'pve'): BattleState

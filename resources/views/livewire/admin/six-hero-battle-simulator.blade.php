@@ -37,13 +37,15 @@
         <div class="rounded-md border border-indigo-200 bg-slate-950 p-4 text-slate-100">
             <div class="text-sm font-black text-indigo-200">現在適用されるランク戦ダメージ式</div>
             <div class="mt-3 overflow-x-auto rounded bg-black/30 p-3 font-mono text-xs leading-relaxed text-slate-100">
-                基準 = max(1, 攻撃能力×{{ $formula['attack_rate'] }} − 混合防御×{{ $formula['defense_rate'] }} + max(0, 攻撃能力−混合防御)×{{ $formula['pressure_rate'] }})<br>
+                生damage = 攻撃能力×{{ $formula['attack_rate'] }} − 混合防御×{{ $formula['defense_rate'] }} + max(0, 攻撃能力−混合防御)×{{ $formula['pressure_rate'] }}<br>
+                緩和境界 = 攻撃能力×{{ $formula['soft_min_attack_rate'] }}×min(1, {{ $formula['soft_min_balance_ratio'] }}×攻撃能力÷max(1, 混合防御))<br>
+                基準 = max(1, 生damage, 緩和境界)<br>
                 damage = 基準 × {{ $baseDamageMultiplier }} × 表示威力÷100 × 会心等 × 乱数{{ $formula['variance_min'] }}〜{{ $formula['variance_max'] }}%
             </div>
             <ul class="mt-3 space-y-1 text-xs font-bold leading-relaxed text-slate-300">
                 <li>通常攻撃は表示威力{{ $normalAttackPower }}%。戦技は表示合計威力を線形適用します。</li>
                 <li>会心時は基礎{{ $formula['critical_multiplier'] }}倍。防御・軽減・部屋補正・戦技固有効果も現行処理順で適用します。</li>
-                <li>六英雄戦ではHP割合の最低保証とダメージ上限を使わず、最終最低値1だけを維持します。</li>
+                <li>最大HP比例の最低保証とダメージ上限は使いません。攻撃能力に応じた緩和境界と最終最低値1だけを維持します。</li>
                 <li>敏捷突破: {{ $speedBreakthroughEnabled ? '有効' : '無効（フラグOFF）' }}</li>
             </ul>
         </div>

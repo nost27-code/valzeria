@@ -513,6 +513,10 @@
                             <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>公式戦は各間ごとに1日{{ $attemptLimit }}戦です。</span></li>
                             <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>相性確認は回数無制限です。PvP用戦技セット・この間の特殊ルール・現在の相手ビルドで戦い、順位や公式戦回数に影響しません。</span></li>
                             <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>冒険者訓練所では、自由な条件でビルドを試せます。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>対戦は最大50ターンです。双方が生存している場合は、最大体力に対する残り体力の割合で勝敗を判定します。同率なら防衛成功です。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>通常攻撃は威力100%の基準行動です。基準ダメージは従来の対人戦の半分に抑えています。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>戦技の合計ダメージは表示合計威力に比例します。威力320%なら通常攻撃基準の約3.2倍となり、多段でも合計威力は変わりません。</span></li>
+                            <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>最大HPに応じた最低保証ダメージとダメージ上限はありません。</span></li>
                             <li class="flex gap-2"><span class="text-amber-600" aria-hidden="true">●</span><span>順位は翌月へ引き継がれ、公式戦績は月ごとにリセットされます。</span></li>
                         </ul>
                     </section>

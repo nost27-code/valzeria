@@ -38,6 +38,8 @@ final class AdminSixHeroBattleSimulatorTest extends TestCase
             ->assertSee('現在適用されるランク戦ダメージ式')
             ->assertSee('順位・挑戦回数・戦績・HP/SP・戦闘ログDBは更新しません')
             ->assertSee('攻撃能力×0.56', escape: false)
+            ->assertSee('緩和境界')
+            ->assertSee('1.267')
             ->assertSee('通常攻撃は表示威力100%')
             ->assertSee('通常戦闘シミュレーション');
     }

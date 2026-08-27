@@ -14,9 +14,8 @@ class DamageCalculator
     private const RANK_BATTLE_ATTACK_RATE = 0.56;
     private const RANK_BATTLE_DEFENSE_RATE = 0.30;
     private const RANK_BATTLE_PRESSURE_RATE = 0.16;
-    private const RANK_BATTLE_MIN_HP_RATE = 0.045;
-    private const RANK_BATTLE_MIN_ATTACK_RATE = 0.18;
-    private const RANK_BATTLE_NORMAL_FLOOR_RATE = 0.04;
+    private const RANK_BATTLE_SOFT_MIN_ATTACK_RATE = 0.18;
+    private const RANK_BATTLE_SOFT_MIN_BALANCE_RATIO = 1.267;
     private const RANK_BATTLE_CRITICAL_MULTIPLIER = 1.50;
     private const RANK_BATTLE_VARIANCE_MIN = 96;
     private const RANK_BATTLE_VARIANCE_MAX = 104;
@@ -28,6 +27,8 @@ class DamageCalculator
      *     attack_rate: float,
      *     defense_rate: float,
      *     pressure_rate: float,
+     *     soft_min_attack_rate: float,
+     *     soft_min_balance_ratio: float,
      *     critical_multiplier: float,
      *     variance_min: int,
      *     variance_max: int
@@ -39,6 +40,8 @@ class DamageCalculator
             'attack_rate' => self::RANK_BATTLE_ATTACK_RATE,
             'defense_rate' => self::RANK_BATTLE_DEFENSE_RATE,
             'pressure_rate' => self::RANK_BATTLE_PRESSURE_RATE,
+            'soft_min_attack_rate' => self::RANK_BATTLE_SOFT_MIN_ATTACK_RATE,
+            'soft_min_balance_ratio' => self::RANK_BATTLE_SOFT_MIN_BALANCE_RATIO,
             'critical_multiplier' => self::RANK_BATTLE_CRITICAL_MULTIPLIER,
             'variance_min' => self::RANK_BATTLE_VARIANCE_MIN,
             'variance_max' => self::RANK_BATTLE_VARIANCE_MAX,
@@ -212,18 +215,7 @@ class DamageCalculator
             $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
         }
 
-        $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
-            - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
-        $pressureDamage = max(0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE;
-        $minimumDamage = $minimumDamageGuaranteeEnabled
-            ? max(
-                1,
-                $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
-                $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
-            )
-            : 1;
-
-        $baseDamage = max($minimumDamage, $statDamage + $pressureDamage)
+        $baseDamage = $this->rankBattleRecommendedBaseDamage($attackPower, $effectiveDefense)
             * max(0.0, $baseDamageMultiplier);
 
         if ($isCritical) {
@@ -241,13 +233,6 @@ class DamageCalculator
 
         $variance = rand(self::RANK_BATTLE_VARIANCE_MIN, self::RANK_BATTLE_VARIANCE_MAX) / 100;
         $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
-
-        if ($minimumDamageGuaranteeEnabled) {
-            $normalEquivalentDamage = max(
-                $normalEquivalentDamage,
-                $this->rankBattleNormalDamageFloor($defender),
-            );
-        }
 
         return $this->applyDisplayedPower($normalEquivalentDamage, $skillPower);
     }
@@ -335,17 +320,7 @@ class DamageCalculator
             if ($additionalDefenseIgnoreRate > 0.0) {
                 $effectiveDefense *= 1 - min(0.50, $additionalDefenseIgnoreRate);
             }
-            $statDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
-                - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE);
-            $pressureDamage = max(0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE;
-            $minimumDamage = $minimumDamageGuaranteeEnabled
-                ? max(
-                    1,
-                    $defender->maxHp * self::RANK_BATTLE_MIN_HP_RATE,
-                    $attackPower * self::RANK_BATTLE_MIN_ATTACK_RATE,
-                )
-                : 1;
-            $damage = max($minimumDamage, $statDamage + $pressureDamage)
+            $damage = $this->rankBattleRecommendedBaseDamage($attackPower, $effectiveDefense)
                 * max(0.0, $baseDamageMultiplier);
             if ($isCritical) {
                 $damage *= self::RANK_BATTLE_CRITICAL_MULTIPLIER;
@@ -357,12 +332,7 @@ class DamageCalculator
                 $damage *= (1 - ($defender->damageReductionRate / 100));
             }
 
-            $resolved = max(1, (int) floor($damage));
-            if ($minimumDamageGuaranteeEnabled) {
-                $resolved = max($resolved, $this->rankBattleNormalDamageFloor($defender));
-            }
-
-            return $this->applyDisplayedPower($resolved, $skillPower);
+            return $this->applyDisplayedPower(max(1, (int) floor($damage)), $skillPower);
         }
 
         $attackPower = $attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr();
@@ -392,9 +362,19 @@ class DamageCalculator
         );
     }
 
-    private function rankBattleNormalDamageFloor(BattleActor $defender): int
+    private function rankBattleRecommendedBaseDamage(float $attackPower, float $effectiveDefense): float
     {
-        return max(1, (int) floor($defender->maxHp * self::RANK_BATTLE_NORMAL_FLOOR_RATE));
+        $rawDamage = ($attackPower * self::RANK_BATTLE_ATTACK_RATE)
+            - ($effectiveDefense * self::RANK_BATTLE_DEFENSE_RATE)
+            + (max(0.0, $attackPower - $effectiveDefense) * self::RANK_BATTLE_PRESSURE_RATE);
+        $softBoundary = $attackPower
+            * self::RANK_BATTLE_SOFT_MIN_ATTACK_RATE
+            * min(
+                1.0,
+                (self::RANK_BATTLE_SOFT_MIN_BALANCE_RATIO * $attackPower) / max(1.0, $effectiveDefense),
+            );
+
+        return max(1.0, $rawDamage, $softBoundary);
     }
 
     /**

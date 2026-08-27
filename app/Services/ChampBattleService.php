@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\DB;
 class ChampBattleService
 {
     private const MATERIAL_CODE = 'MAT_CHAMP_CHALLENGER_FRAGMENT';
-    private const MAX_TURNS = BattleState::PVP_MAX_TURNS;
+    private const MAX_TURNS = BattleState::CHAMP_MAX_TURNS;
     private const PVP_HIT_AGI_FACTOR = 0.15;
     private const PVP_MIN_HIT_RATE = 75;
     private const PVP_MAX_HIT_RATE = 98;

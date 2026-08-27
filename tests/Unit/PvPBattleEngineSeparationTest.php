@@ -39,13 +39,13 @@ class PvPBattleEngineSeparationTest extends TestCase
 
         $this->assertSame('victory', $resolution->result->result);
         $this->assertTrue($resolution->attackerWon);
-        $this->assertSame(100, $resolution->turnCount);
-        $this->assertSame(600, $resolution->attackerHp);
+        $this->assertSame(50, $resolution->turnCount);
+        $this->assertSame(800, $resolution->attackerHp);
         $this->assertSame(1_000, $resolution->attackerMaxHp);
-        $this->assertSame(1_000, $resolution->defenderHp);
+        $this->assertSame(1_500, $resolution->defenderHp);
         $this->assertSame(2_000, $resolution->defenderMaxHp);
-        $this->assertEqualsWithDelta(0.6, $resolution->attackerHpRatio(), 0.000_001);
-        $this->assertEqualsWithDelta(0.5, $resolution->defenderHpRatio(), 0.000_001);
+        $this->assertEqualsWithDelta(0.8, $resolution->attackerHpRatio(), 0.000_001);
+        $this->assertEqualsWithDelta(0.75, $resolution->defenderHpRatio(), 0.000_001);
         $this->assertSame(['pvp'], array_values(array_unique($service->observedBattleTypes)));
         $this->assertSame($attackerAttributes, $attacker->getAttributes());
         $this->assertSame($defenderAttributes, $defender->getAttributes());
@@ -197,8 +197,8 @@ class PvPBattleEngineSeparationTest extends TestCase
             ->twice()
             ->withArgs(static fn (BattleActor $actor, Character $character, string $context): bool => $context === 'champ');
         $jobArtSupport->shouldReceive('registerHpHealingResolver')->once();
-        $jobArtSupport->shouldReceive('usesRoleEffects')->times(200)->andReturnFalse();
-        $jobArtSupport->shouldReceive('endRound')->times(100)->andReturn([]);
+        $jobArtSupport->shouldReceive('usesRoleEffects')->times(100)->andReturnFalse();
+        $jobArtSupport->shouldReceive('endRound')->times(50)->andReturn([]);
         $jobArtSupport->shouldReceive('battleHud')->once()->andReturnNull();
 
         return new class(
