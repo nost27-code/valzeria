@@ -162,12 +162,9 @@ class ReleaseReadinessService
         if ($actual === null) {
             return false;
         }
-        if (is_float($expected)) {
-            return is_numeric($actual) && abs((float) $actual - $expected) < 0.000001;
-        }
-        if (is_int($expected)) {
-            return (is_int($actual) || (is_string($actual) && preg_match('/^-?\d+$/D', $actual) === 1))
-                && (int) $actual === $expected;
+        if (is_int($expected) || is_float($expected)) {
+            return is_numeric($actual)
+                && abs((float) $actual - (float) $expected) < 0.000001;
         }
         if (is_bool($expected)) {
             return (bool) $actual === $expected;

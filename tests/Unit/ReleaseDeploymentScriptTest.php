@@ -77,6 +77,28 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('deploy_write_public_htaccess', $source);
         $this->assertStringContainsString('server_staged_zip', $source);
         $this->assertStringContainsString('共有領域へ置いたZIPからのデプロイはステージング専用です。', $source);
+        $this->assertStringContainsString("'valzeria:preflight-pending-migrations'", $source);
+        $this->assertStringContainsString("'valzeria:validate-master-data'", $source);
+        $this->assertStringContainsString("'valzeria:validate-release-readiness'", $source);
+        $serverMaintenancePosition = strpos($source, "if (\$mode === 'maintenance_required')");
+        $serverMaintenanceEndPosition = strpos($source, '}', $serverMaintenancePosition);
+        $serverPreflightPosition = strpos($source, "'valzeria:preflight-pending-migrations'");
+        $serverMigratePosition = strpos($source, "Artisan::call(\$migrationCommand");
+        $this->assertIsInt($serverMaintenancePosition);
+        $this->assertIsInt($serverMaintenanceEndPosition);
+        $this->assertIsInt($serverPreflightPosition);
+        $this->assertIsInt($serverMigratePosition);
+        $this->assertTrue($serverMaintenancePosition < $serverMaintenanceEndPosition);
+        $this->assertTrue($serverMaintenanceEndPosition < $serverPreflightPosition);
+        $this->assertTrue($serverMaintenancePosition < $serverPreflightPosition);
+        $this->assertTrue($serverPreflightPosition < $serverMigratePosition);
+        $serverMaintenanceBlock = substr(
+            $source,
+            $serverMaintenancePosition,
+            $serverMaintenanceEndPosition - $serverMaintenancePosition,
+        );
+        $this->assertStringContainsString("\$preflightParameters['--allow-enemy-merge'] = true;", $serverMaintenanceBlock);
+        $this->assertStringContainsString("\$preflightParameters['--allow-rank5-v6-master-rewrite'] = true;", $serverMaintenanceBlock);
         $this->assertFileExists(base_path('scripts/deploy/remote-release.sh'));
         $remoteSource = file_get_contents(base_path('scripts/deploy/remote-release.sh'));
         $this->assertStringContainsString('restored the previous release', $remoteSource);
@@ -87,6 +109,27 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('valzeria:preflight-pending-migrations', $remoteSource);
         $this->assertStringContainsString('--allow-enemy-merge', $remoteSource);
         $this->assertStringContainsString('--allow-rank5-v6-master-rewrite', $remoteSource);
+        $remoteMaintenancePosition = strpos(
+            $remoteSource,
+            'if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" ]]; then',
+        );
+        $remoteMaintenanceEndPosition = strpos($remoteSource, "\n    fi", $remoteMaintenancePosition);
+        $remotePreflightPosition = strpos($remoteSource, 'valzeria:preflight-pending-migrations');
+        $this->assertIsInt($remoteMaintenancePosition);
+        $this->assertIsInt($remoteMaintenanceEndPosition);
+        $this->assertIsInt($remotePreflightPosition);
+        $this->assertTrue($remoteMaintenancePosition < $remoteMaintenanceEndPosition);
+        $this->assertTrue($remoteMaintenanceEndPosition < $remotePreflightPosition);
+        $this->assertTrue($remoteMaintenancePosition < $remotePreflightPosition);
+        $remoteMaintenanceBlock = substr(
+            $remoteSource,
+            $remoteMaintenancePosition,
+            $remoteMaintenanceEndPosition - $remoteMaintenancePosition,
+        );
+        $this->assertStringContainsString(
+            'preflight_args+=(--allow-enemy-merge --allow-rank5-v6-master-rewrite)',
+            $remoteMaintenanceBlock,
+        );
         $this->assertStringContainsString('valzeria:validate-release-readiness --all', $remoteSource);
         $this->assertStringNotContainsString('"$DEPLOY_PHP_BINARY" "$release_dir/artisan" cache:clear', $remoteSource);
         $this->assertFileExists(base_path('app/Console/Commands/PreflightPendingMigrations.php'));

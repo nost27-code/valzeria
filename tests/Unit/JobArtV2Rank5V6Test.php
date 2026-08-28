@@ -466,6 +466,28 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertSame(100, $display['effective_power']);
     }
 
+    public function test_job29_role_effect_execution_reapplies_the_rank5_v6_power(): void
+    {
+        $source = $this->masterArt(29);
+        [$actor, $state] = $this->battle(29, [$source], 'holy_guard', 4);
+        $execution = app(JobArtV2CrownBalanceCatalog::class)->applyToExecution($source);
+
+        $this->beginAction($actor, $state);
+        app(JobArtV2RoleEffectService::class)->applyForExecution(
+            $actor,
+            $state->enemy,
+            $state,
+            $source,
+            $execution,
+        );
+
+        $this->assertSame(100, (int) $execution->power);
+        $this->assertSame(1.0, (float) $execution->power_multiplier);
+        $this->assertSame('MAGICAL_DAMAGE', (string) $execution->effect_template);
+        $this->assertSame('magical', (string) $execution->damage_type);
+        $this->assertSame(100, $state->jobArtV2RoleAction()['execution_power']);
+    }
+
     public function test_reactive_rank_five_still_requires_four_lineage_resource_points(): void
     {
         $skill = $this->masterArt(85);

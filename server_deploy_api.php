@@ -441,6 +441,20 @@ try {
     }
     Illuminate\Support\Facades\Artisan::call('view:clear');
     if ($mode !== 'none') {
+        if (!$bootstrapEmpty && !$resetStagingDatabase) {
+            $preflightParameters = ['--no-interaction' => true];
+            if ($mode === 'maintenance_required') {
+                $preflightParameters['--allow-enemy-merge'] = true;
+                $preflightParameters['--allow-rank5-v6-master-rewrite'] = true;
+            }
+            $preflightStatus = Illuminate\Support\Facades\Artisan::call(
+                'valzeria:preflight-pending-migrations',
+                $preflightParameters,
+            );
+            if ($preflightStatus !== 0) {
+                throw new RuntimeException('migration実行前チェックに失敗しました。');
+            }
+        }
         if ($resetStagingDatabase) {
             $wipeStatus = Illuminate\Support\Facades\Artisan::call('db:wipe', ['--force' => true]);
             if ($wipeStatus !== 0) {
@@ -471,6 +485,20 @@ try {
     }
     if (($initialMigration && $bootstrapEmpty) || $resetStagingDatabase) {
         Illuminate\Support\Facades\Artisan::call('cache:clear');
+    }
+    $masterValidationStatus = Illuminate\Support\Facades\Artisan::call(
+        'valzeria:validate-master-data',
+        ['--no-interaction' => true],
+    );
+    if ($masterValidationStatus !== 0) {
+        throw new RuntimeException('master data検証に失敗しました。');
+    }
+    $readinessStatus = Illuminate\Support\Facades\Artisan::call(
+        'valzeria:validate-release-readiness',
+        ['--all' => true, '--no-interaction' => true],
+    );
+    if ($readinessStatus !== 0) {
+        throw new RuntimeException('release readiness検証に失敗しました。');
     }
     Illuminate\Support\Facades\Artisan::call('config:cache');
     Illuminate\Support\Facades\Artisan::call('event:cache');

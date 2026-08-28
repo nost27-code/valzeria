@@ -128,4 +128,24 @@ class ReleaseReadinessServiceTest extends TestCase
             implode(PHP_EOL, $disabled),
         );
     }
+
+    public function test_rank5_v6_master_comparison_accepts_mariadb_decimal_strings(): void
+    {
+        $service = app(ReleaseReadinessService::class);
+        $matches = \Closure::bind(
+            function (mixed $actual, mixed $expected): bool {
+                return $this->rank5V6ValueMatches($actual, $expected);
+            },
+            $service,
+            ReleaseReadinessService::class,
+        );
+        $this->assertNotNull($matches);
+
+        $this->assertTrue($matches('1.00', 1));
+        $this->assertTrue($matches('0.00', 0));
+        $this->assertTrue($matches('1.65', 1.65));
+        $this->assertTrue($matches('100', 100));
+        $this->assertFalse($matches('1.01', 1));
+        $this->assertFalse($matches('not-numeric', 1));
+    }
 }
