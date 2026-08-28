@@ -139,7 +139,6 @@ class ReleaseReadinessServiceTest extends TestCase
             $service,
             ReleaseReadinessService::class,
         );
-        $this->assertNotNull($matches);
 
         $this->assertTrue($matches('1.00', 1));
         $this->assertTrue($matches('0.00', 0));

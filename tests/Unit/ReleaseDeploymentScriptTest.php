@@ -77,14 +77,21 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('deploy_write_public_htaccess', $source);
         $this->assertStringContainsString('server_staged_zip', $source);
         $this->assertStringContainsString('共有領域へ置いたZIPからのデプロイはステージング専用です。', $source);
+        $this->assertStringContainsString('VALZERIA_LEGACY_DEPLOY_CONTRACT_VERSION = 2', $source);
+        $this->assertStringContainsString("header('X-Valzeria-Deploy-Contract: ' . VALZERIA_LEGACY_DEPLOY_CONTRACT_VERSION)", $source);
+        $serverContractHeaderPosition = strpos($source, "header('X-Valzeria-Deploy-Contract:");
+        $serverMethodGuardPosition = strpos($source, "if (\$_SERVER['REQUEST_METHOD'] !== 'POST')");
+        $this->assertIsInt($serverContractHeaderPosition);
+        $this->assertIsInt($serverMethodGuardPosition);
+        $this->assertTrue($serverContractHeaderPosition < $serverMethodGuardPosition);
         $this->assertStringContainsString("'valzeria:preflight-pending-migrations'", $source);
         $this->assertStringContainsString("'valzeria:validate-master-data'", $source);
         $this->assertStringContainsString("'valzeria:validate-release-readiness'", $source);
         $serverMaintenancePosition = strpos($source, "if (\$mode === 'maintenance_required')");
+        $this->assertIsInt($serverMaintenancePosition);
         $serverMaintenanceEndPosition = strpos($source, '}', $serverMaintenancePosition);
         $serverPreflightPosition = strpos($source, "'valzeria:preflight-pending-migrations'");
         $serverMigratePosition = strpos($source, "Artisan::call(\$migrationCommand");
-        $this->assertIsInt($serverMaintenancePosition);
         $this->assertIsInt($serverMaintenanceEndPosition);
         $this->assertIsInt($serverPreflightPosition);
         $this->assertIsInt($serverMigratePosition);
@@ -113,9 +120,9 @@ class ReleaseDeploymentScriptTest extends TestCase
             $remoteSource,
             'if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" ]]; then',
         );
+        $this->assertIsInt($remoteMaintenancePosition);
         $remoteMaintenanceEndPosition = strpos($remoteSource, "\n    fi", $remoteMaintenancePosition);
         $remotePreflightPosition = strpos($remoteSource, 'valzeria:preflight-pending-migrations');
-        $this->assertIsInt($remoteMaintenancePosition);
         $this->assertIsInt($remoteMaintenanceEndPosition);
         $this->assertIsInt($remotePreflightPosition);
         $this->assertTrue($remoteMaintenancePosition < $remoteMaintenanceEndPosition);
@@ -146,6 +153,13 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('.env.production.local', $source);
         $this->assertStringContainsString("'none', 'backward_compatible', 'maintenance_required'", $source);
         $this->assertStringContainsString('X-Deploy-Signature', $source);
+        $this->assertStringContainsString("require_once __DIR__ . '/scripts/deploy/LegacyDeployEndpointGuard.php'", $source);
+        $this->assertStringContainsString('LegacyDeployEndpointGuard::assertMigrationRequestIsSafe', $source);
+        $localContractGuardPosition = strpos($source, 'LegacyDeployEndpointGuard::assertMigrationRequestIsSafe');
+        $localUploadPosition = strpos($source, '$cfile = new CURLFile');
+        $this->assertIsInt($localContractGuardPosition);
+        $this->assertIsInt($localUploadPosition);
+        $this->assertTrue($localContractGuardPosition < $localUploadPosition);
         $this->assertStringNotContainsString('$vendorIncludes', $source);
     }
 
@@ -165,6 +179,14 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('reset_staging_database', $serverSource);
         $this->assertStringContainsString('STAGING_DEPLOY_RESET_DATABASE', $stagingSource);
         $this->assertFileExists(base_path('local_deploy_staged_zip.php'));
+        $stagedZipSource = file_get_contents(base_path('local_deploy_staged_zip.php'));
+        $this->assertStringContainsString("require_once __DIR__ . '/scripts/deploy/LegacyDeployEndpointGuard.php'", $stagedZipSource);
+        $this->assertStringContainsString('LegacyDeployEndpointGuard::assertMigrationRequestIsSafe', $stagedZipSource);
+        $stagedContractGuardPosition = strpos($stagedZipSource, 'LegacyDeployEndpointGuard::assertMigrationRequestIsSafe');
+        $stagedUploadPosition = strpos($stagedZipSource, '$ch = curl_init()');
+        $this->assertIsInt($stagedContractGuardPosition);
+        $this->assertIsInt($stagedUploadPosition);
+        $this->assertTrue($stagedContractGuardPosition < $stagedUploadPosition);
     }
 
     public function test_github_actions_keep_staging_and_production_separate(): void

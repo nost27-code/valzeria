@@ -83,3 +83,9 @@ XserverのCLI PHPは古い `php`（PHP 5.4）を指すため、ワークフロ�
 ## 旧方式の扱い
 
 `server_deploy_api.php` と `local_deploy*.php` は、SSH経路でステージングの初回リリースとスモークテストが成功済みでも、本番の初回リリースとスモークテストが成功するまで削除しない。成功後に秘密鍵・許可IP・公開APIを撤去する計画を別途実施する。
+
+旧ZIP経路で`backward_compatible`または`maintenance_required`を指定する場合、対象コミット側のクライアントは先にHTTPSの`X-Valzeria-Deploy-Contract`を確認し、version 2未満または確認不能なら送信を中止する。これにより、新しいpreflightを持つ`server_deploy_api.php`が公開側へ更新される前の1回だけmigrationが無検査で進むことを防ぐ。
+
+- 推奨: GitHub Actionsから`remote-release.sh`を使う。
+- 旧ZIP経路を更新する必要がある場合: `DEPLOY_MIGRATION_MODE=none`でAPIを先行更新し、契約version 2を確認できてから必要なmigration modeで再実行する。
+- `none`を含む旧APIの全deployで、対象releaseのmaster検証とrelease readinessは公開切替前に必須とする。緊急修正でもこの検査は迂回せず、検査自体の障害は別の最小hotfixとして扱う。

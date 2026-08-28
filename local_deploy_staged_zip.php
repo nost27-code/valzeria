@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/scripts/deploy/LegacyDeployEndpointGuard.php';
+
 /**
  * Staging-only trigger for a ZIP that an operator has placed in the private
  * staging shared directory. The ZIP itself never passes through PHP upload.
@@ -34,6 +36,16 @@ if ($deploySecret === '') {
 $migrationMode = (string) (getenv('DEPLOY_MIGRATION_MODE') ?: 'backward_compatible');
 if (!in_array($migrationMode, ['none', 'backward_compatible', 'maintenance_required'], true)) {
     fwrite(STDERR, "エラー: DEPLOY_MIGRATION_MODE は none / backward_compatible / maintenance_required を指定してください。\n");
+    exit(1);
+}
+
+try {
+    \Valzeria\Deploy\LegacyDeployEndpointGuard::assertMigrationRequestIsSafe(
+        $serverApiUrl,
+        $migrationMode,
+    );
+} catch (RuntimeException $error) {
+    fwrite(STDERR, "エラー: {$error->getMessage()}\n");
     exit(1);
 }
 

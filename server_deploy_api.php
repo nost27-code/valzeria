@@ -18,6 +18,7 @@ const VALZERIA_MAX_ZIP_FILES = 16000;
 const VALZERIA_MAX_ZIP_BYTES = 220000000;
 const VALZERIA_MAX_ZIP_RATIO = 100;
 const VALZERIA_SIGNATURE_TTL_SECONDS = 300;
+const VALZERIA_LEGACY_DEPLOY_CONTRACT_VERSION = 2;
 
 $publicHtmlDir = __DIR__;
 // A staging endpoint has an explicit marker in its public directory and keeps
@@ -33,6 +34,8 @@ $currentLink = $baseDir . '/' . $deploymentPrefix . '_current';
 $auditLog = $sharedDir . '/deployments.log';
 
 header('Content-Type: text/plain; charset=UTF-8');
+header('X-Valzeria-Deploy-Contract: ' . VALZERIA_LEGACY_DEPLOY_CONTRACT_VERSION);
+header('Cache-Control: no-store');
 
 function deploy_fail(int $status, string $message): never
 {
@@ -486,6 +489,9 @@ try {
     if (($initialMigration && $bootstrapEmpty) || $resetStagingDatabase) {
         Illuminate\Support\Facades\Artisan::call('cache:clear');
     }
+    // Code-only releases also fail closed when shared flags or master data are
+    // inconsistent. Emergency releases use the same readiness contract as the
+    // primary SSH release path rather than silently bypassing it here.
     $masterValidationStatus = Illuminate\Support\Facades\Artisan::call(
         'valzeria:validate-master-data',
         ['--no-interaction' => true],

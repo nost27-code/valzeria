@@ -1,4 +1,7 @@
 <?php
+
+require_once __DIR__ . '/scripts/deploy/LegacyDeployEndpointGuard.php';
+
 /**
  * ローカル側送信スクリプト
  *
@@ -51,6 +54,17 @@ if ($deploySecret === '') {
 if (!in_array($migrationMode, ['none', 'backward_compatible', 'maintenance_required'], true)) {
     fwrite(STDERR, "エラー: DEPLOY_MIGRATION_MODE は none / backward_compatible / maintenance_required を指定してください。\n");
     exit(1);
+}
+if (getenv('DEPLOY_BUILD_ONLY') !== '1') {
+    try {
+        \Valzeria\Deploy\LegacyDeployEndpointGuard::assertMigrationRequestIsSafe(
+            $serverApiUrl,
+            $migrationMode,
+        );
+    } catch (RuntimeException $error) {
+        fwrite(STDERR, "エラー: {$error->getMessage()}\n");
+        exit(1);
+    }
 }
 
 $sourceDir = __DIR__;
