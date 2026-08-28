@@ -101,6 +101,36 @@ class CharacterIconCatalogTest extends TestCase
         }
     }
 
+    public function test_20260828_standard_icons_have_complete_four_pose_assets(): void
+    {
+        $numbers = [
+            164, 176, 179, 181, 185, 186, 187, 188, 189, 190, 191, 194,
+            197, 203, 208, 209, 210, 214, 218, 219, 221, 222, 223,
+            230, 233, 243, 244, 247, 251, 253, 259, 261, 262, 264,
+        ];
+
+        foreach ($numbers as $number) {
+            $iconPath = sprintf('/images/chara/chara_%03d.webp', $number);
+            $paths = CharacterIconCatalog::pathsForStandardIcon($iconPath);
+
+            $this->assertNotNull($paths);
+            $this->assertSame($paths, app(CharacterIconSetService::class)->resolvedPaths(
+                new Character(['icon_path' => $iconPath]),
+            ));
+
+            foreach ($paths as $scene => $path) {
+                $absolutePath = public_path(ltrim($path, '/'));
+
+                $this->assertFileExists($absolutePath, "{$iconPath} の {$scene} 画像がありません。");
+                $imageSize = getimagesize($absolutePath);
+                $this->assertIsArray($imageSize, "{$iconPath} の {$scene} 画像を読み取れません。");
+                $this->assertSame(128, $imageSize[0]);
+                $this->assertSame(128, $imageSize[1]);
+                $this->assertSame('image/webp', $imageSize['mime'] ?? null);
+            }
+        }
+    }
+
     public function test_new_standard_four_pose_icons_are_permanently_selectable_and_visible(): void
     {
         $numbers = [
