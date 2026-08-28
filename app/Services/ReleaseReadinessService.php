@@ -10,6 +10,14 @@ class ReleaseReadinessService
     /** @var array<int, int> */
     private const REQUIRED_JOB_EXP_LEVELS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 
+    /** @var array<string, string> */
+    private const RANK5_V6_REQUIRED_FLAGS = [
+        'dynamic_single' => 'BATTLE_JOB_ART_DYNAMIC_SINGLE',
+        'hit_resolution' => 'BATTLE_JOB_ART_HIT_RESOLUTION',
+        'damage_application' => 'BATTLE_JOB_ART_DAMAGE_APPLICATION',
+        'resources' => 'BATTLE_JOB_ART_RESOURCES',
+    ];
+
     /** @return array<int, string> */
     public function issues(bool $includeDisabled = false): array
     {
@@ -44,6 +52,7 @@ class ReleaseReadinessService
     private function databaseReferenceIssues(): array
     {
         $issues = $this->coreGameDataIssues();
+        array_push($issues, ...$this->rank5V6Issues());
 
         if (Schema::hasTable('items') && Schema::hasTable('cities') && Schema::hasColumn('items', 'unlock_city_id')) {
             $invalid = DB::table('items')
@@ -57,6 +66,114 @@ class ReleaseReadinessService
         }
 
         return $issues;
+    }
+
+    /** @return array<int, string> */
+    private function rank5V6Issues(): array
+    {
+        if (! (bool) config('battle.job_art_v2.rank5_v6', false)) {
+            return [];
+        }
+
+        $issues = [];
+        $missingFlags = [];
+        foreach (self::RANK5_V6_REQUIRED_FLAGS as $configKey => $environmentKey) {
+            if (! (bool) config("battle.job_art_v2.{$configKey}", false)) {
+                $missingFlags[] = $environmentKey;
+            }
+        }
+        if ($missingFlags !== []) {
+            $issues[] = 'Rank5 v6.1 flagがONですが、依存flagがOFFです（' . implode('、', $missingFlags) . '）。';
+        }
+
+        if (! Schema::hasTable('skills')) {
+            $issues[] = 'Rank5 v6.1 flagがONですが、skillsテーブルがありません。';
+
+            return $issues;
+        }
+
+        try {
+            $payload = json_decode(
+                (string) file_get_contents(database_path('data/job_art_rank5_v6_1_migration.json')),
+                true,
+                flags: JSON_THROW_ON_ERROR,
+            );
+        } catch (\Throwable) {
+            $issues[] = 'Rank5 v6.1のmaster検証データを読み込めません。';
+
+            return $issues;
+        }
+
+        $expectedRows = $payload['new'] ?? null;
+        if (! is_array($expectedRows) || count($expectedRows) !== 94) {
+            $issues[] = 'Rank5 v6.1のmaster検証データが94件ではありません。';
+
+            return $issues;
+        }
+
+        $jobIds = array_map(
+            static fn (string $key): int => (int) explode(':', $key, 2)[0],
+            array_keys($expectedRows),
+        );
+        $actualRows = DB::table('skills')
+            ->where('skill_type', 'job_art')
+            ->where('learn_rank', 5)
+            ->whereIn('job_id', $jobIds)
+            ->get();
+        $actualByKey = [];
+        foreach ($actualRows as $row) {
+            $key = ((int) $row->job_id) . ':' . ((int) $row->learn_rank);
+            $actualByKey[$key][] = (array) $row;
+        }
+
+        $availableColumns = array_fill_keys(Schema::getColumnListing('skills'), true);
+        $mismatchCount = 0;
+        foreach ($expectedRows as $naturalKey => $expected) {
+            $matches = $actualByKey[$naturalKey] ?? [];
+            if (count($matches) !== 1) {
+                $mismatchCount++;
+                continue;
+            }
+
+            $actual = $matches[0];
+            foreach ($expected as $column => $expectedValue) {
+                if (! isset($availableColumns[$column])
+                    || ! array_key_exists($column, $actual)
+                    || ! $this->rank5V6ValueMatches($actual[$column], $expectedValue)
+                ) {
+                    $mismatchCount++;
+                    break;
+                }
+            }
+        }
+
+        if ($mismatchCount > 0) {
+            $issues[] = "Rank5 v6.1 flagがONですが、skillsのRank5 masterが新仕様と一致しません（不一致{$mismatchCount}件）。";
+        }
+
+        return $issues;
+    }
+
+    private function rank5V6ValueMatches(mixed $actual, mixed $expected): bool
+    {
+        if ($expected === null) {
+            return $actual === null;
+        }
+        if ($actual === null) {
+            return false;
+        }
+        if (is_float($expected)) {
+            return is_numeric($actual) && abs((float) $actual - $expected) < 0.000001;
+        }
+        if (is_int($expected)) {
+            return (is_int($actual) || (is_string($actual) && preg_match('/^-?\d+$/D', $actual) === 1))
+                && (int) $actual === $expected;
+        }
+        if (is_bool($expected)) {
+            return (bool) $actual === $expected;
+        }
+
+        return (string) $actual === (string) $expected;
     }
 
     /** @return array<int, string> */

@@ -4,6 +4,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function ConvertTo-PhpSingleQuotedLiteral([string] $Value) {
+    return $Value.Replace('\', '\\').Replace("'", "\'")
+}
+
 $specPath = (Resolve-Path -LiteralPath $SpecPath).Path
 $targetPath = Join-Path $PSScriptRoot '..\..\app\Services\JobArtV2Rank5V6Catalog.php'
 $tiers = @('基本', '中級', '上級', '超級', '冠位', '英雄', '伝説', '神話')
@@ -25,7 +30,7 @@ foreach ($line in Get-Content -LiteralPath $specPath) {
         Name = $columns[5].Trim()
         Trigger = if ($columns[6] -match '反応') { 'reactive' } else { 'scheduled' }
         Power = if ($powerText -eq '—') { $null } else { [int] $powerText }
-        Effect = $columns[9].Trim().Replace("'", "\\'")
+        Effect = ConvertTo-PhpSingleQuotedLiteral $columns[9].Trim()
     }
 }
 
@@ -44,7 +49,7 @@ $finalEffectByJob = @{
 }
 foreach ($row in $rows) {
     if ($finalEffectByJob.ContainsKey([int] $row.JobId)) {
-        $row.Effect = $finalEffectByJob[[int] $row.JobId].Replace("'", "\'")
+        $row.Effect = ConvertTo-PhpSingleQuotedLiteral $finalEffectByJob[[int] $row.JobId]
     }
 }
 
@@ -62,7 +67,7 @@ $lines.Add('    /** @var array<int, array{name:string,power:?int,trigger_mode:st
 $lines.Add('    private const SPECS = [')
 foreach ($row in $rows) {
     $power = if ($null -eq $row.Power) { 'null' } else { [string] $row.Power }
-    $name = $row.Name.Replace("'", "\\'")
+    $name = ConvertTo-PhpSingleQuotedLiteral $row.Name
     $lines.Add("        $($row.JobId) => ['name' => '$name', 'power' => $power, 'trigger_mode' => '$($row.Trigger)', 'effect_text' => '$($row.Effect)'],")
 }
 $lines.Add('    ];')

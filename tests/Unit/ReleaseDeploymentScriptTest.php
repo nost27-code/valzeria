@@ -86,6 +86,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString("realpath('\${escaped_current_link}')", $remoteSource);
         $this->assertStringContainsString('valzeria:preflight-pending-migrations', $remoteSource);
         $this->assertStringContainsString('--allow-enemy-merge', $remoteSource);
+        $this->assertStringContainsString('--allow-rank5-v6-master-rewrite', $remoteSource);
         $this->assertStringContainsString('valzeria:validate-release-readiness --all', $remoteSource);
         $this->assertStringNotContainsString('"$DEPLOY_PHP_BINARY" "$release_dir/artisan" cache:clear', $remoteSource);
         $this->assertFileExists(base_path('app/Console/Commands/PreflightPendingMigrations.php'));

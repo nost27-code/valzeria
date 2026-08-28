@@ -372,8 +372,14 @@ class JobArtV2SelectionService
 
         if ($this->roleEffectService->enabledFor($actor)) {
             $roleMetadata = $this->roleEffectCatalog->forArt($skill);
+            $rank5V6RoleMetadata = $this->featureGate->usesRank5V6($actor)
+                ? $this->roleEffectCatalog->rank5V6MetadataForArt($skill)
+                : null;
+            if ($rank5V6RoleMetadata !== null) {
+                $roleMetadata = array_replace_recursive($roleMetadata ?? [], $rank5V6RoleMetadata);
+            }
             if ($this->allowsRoleMetadata($actor, $skill)
-                && $this->roleEffectCatalog->isPortable($skill)
+                && ($this->roleEffectCatalog->isPortable($skill) || $rank5V6RoleMetadata !== null)
             ) {
                 if ($this->roleEffectService->supportEffectCanBeMeaningful($actor, $skill)) {
                     return true;

@@ -7,9 +7,11 @@ use Illuminate\Console\Command;
 
 class PreflightPendingMigrations extends Command
 {
-    protected $signature = 'valzeria:preflight-pending-migrations {--allow-enemy-merge : 旧敵データ統合を承認済みとして通過させる}';
+    protected $signature = 'valzeria:preflight-pending-migrations
+                            {--allow-enemy-merge : 旧敵データ統合を承認済みとして通過させる}
+                            {--allow-rank5-v6-master-rewrite : Rank5 v6.1の94件master更新をmaintenance中に行うことを承認する}';
 
-    protected $description = '未適用migrationの外部キー違反と敵データ統合影響を読み取り専用で検査します。';
+    protected $description = '未適用migrationの外部キー違反、敵データ統合、Rank5マスタ更新の影響を読み取り専用で検査します。';
 
     public function handle(PendingMigrationPreflightService $preflight): int
     {
@@ -36,6 +38,12 @@ class PreflightPendingMigrations extends Command
 
         if ($hasMergeTargets && !$this->option('allow-enemy-merge')) {
             $this->error('旧敵データの統合が発生します。件数を確認してから --allow-enemy-merge を付けて再実行してください。');
+
+            return self::FAILURE;
+        }
+
+        if ($result['rank5V6MasterRewritePending'] && ! $this->option('allow-rank5-v6-master-rewrite')) {
+            $this->error('Rank5 v6.1の94件master更新はmaintenance_requiredで実行してください。');
 
             return self::FAILURE;
         }

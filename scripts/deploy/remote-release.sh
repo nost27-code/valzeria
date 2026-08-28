@@ -103,7 +103,7 @@ done
 if [[ "$DEPLOY_MIGRATION_MODE" != "none" ]]; then
     preflight_args=()
     if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" ]]; then
-        preflight_args+=(--allow-enemy-merge)
+        preflight_args+=(--allow-enemy-merge --allow-rank5-v6-master-rewrite)
     fi
     if [[ "${#preflight_args[@]}" -gt 0 ]]; then
         "$DEPLOY_PHP_BINARY" "$release_dir/artisan" valzeria:preflight-pending-migrations "${preflight_args[@]}" --no-interaction

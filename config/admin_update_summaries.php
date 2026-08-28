@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-28-rank5-v6-release-safety',
+        'date' => '2026-08-28',
+        'category' => 'internal',
+        'title' => 'Rank5連携の公開前検証を強化',
+        'detail' => '霊薬の加護の発動候補判定と賢者の結界の表示威力を修正し、公開前に必要な設定と94職分の戦技データを自動確認するようにしました。本番では引き続き従来の効果を使用します。',
+    ],
+    [
         'id' => '2026-08-28-exclusive-character-icon-036-refresh',
         'date' => '2026-08-28',
         'category' => 'internal',

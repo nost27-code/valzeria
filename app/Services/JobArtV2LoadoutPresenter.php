@@ -24,6 +24,7 @@ final class JobArtV2LoadoutPresenter
         private readonly ?JobArtV2CDesignClassificationCatalog $cDesignClassificationCatalog = null,
         private readonly ?JobArtV2UltimateCounterplayCatalog $ultimateCounterplayCatalog = null,
         private readonly ?JobArtV2CardDescriptionCatalog $cardDescriptionCatalog = null,
+        private readonly ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
     ) {}
 
     public function enabledForCurrentJob(?int $currentJobId): bool
@@ -238,6 +239,9 @@ final class JobArtV2LoadoutPresenter
         $rank5V6RoleMetadata = $usesRank5V6
             ? $roleCatalog->rank5V6MetadataForArt($skill)
             : null;
+        $rank5V6Spec = $usesRank5V6
+            ? ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->forSkill($skill)
+            : null;
         if ($rank5V6RoleMetadata !== null) {
             $roleEffectMetadata = array_replace_recursive($roleEffectMetadata ?? [], $rank5V6RoleMetadata);
         }
@@ -339,7 +343,9 @@ final class JobArtV2LoadoutPresenter
         }
 
         $displayPower = $this->powerResolver->forDisplay($currentJobId, $skill, $loadoutSkills);
-        $effectivePower = $resourcesEnabled && $roleCatalog->isPortable($skill)
+        $effectivePower = $resourcesEnabled
+            && $rank5V6Spec === null
+            && $roleCatalog->isPortable($skill)
             ? ($roleCatalog->executionPower($skill) ?? $displayPower)
             : $displayPower;
         $effectiveHitCount = $progressionCatalog->hitCountForDisplay($skill, $progressionMechanicsAllowed);

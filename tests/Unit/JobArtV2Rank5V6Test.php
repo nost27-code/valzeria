@@ -439,6 +439,33 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertStringContainsString('レア素材枠の抽選率を5ポイント', $display['card_description']);
     }
 
+    public function test_job47_remains_selectable_when_recovery_is_not_needed_because_rewards_are_meaningful(): void
+    {
+        foreach ([[1, 1000], [100, 1000]] as [$hp, $mp]) {
+            $skill = $this->masterArt(47);
+            [$actor, $state] = $this->battle(47, [$skill], 'catalyst', 4);
+            $actor->hp = $hp;
+            $actor->mp = $mp;
+
+            $selection = $this->selection([1])->selectForTurn($actor, $state);
+
+            $this->assertSame((int) $skill->id, $selection->candidateSkillId, "HP {$hp} / SP {$mp}");
+            $this->assertTrue($selection->activated, "HP {$hp} / SP {$mp}");
+            $this->assertArrayNotHasKey((int) $skill->id, $selection->blockedReasons, "HP {$hp} / SP {$mp}");
+        }
+    }
+
+    public function test_job29_presenter_uses_the_rank5_v6_power_instead_of_the_legacy_role_power(): void
+    {
+        $skill = $this->masterArt(29);
+        $skill->setAttribute('job_art_origin', 'current');
+
+        $display = app(JobArtV2LoadoutPresenter::class)->forArt(29, $skill, [$skill]);
+
+        $this->assertNotNull($display);
+        $this->assertSame(100, $display['effective_power']);
+    }
+
     public function test_reactive_rank_five_still_requires_four_lineage_resource_points(): void
     {
         $skill = $this->masterArt(85);

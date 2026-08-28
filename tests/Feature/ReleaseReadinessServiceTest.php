@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\ReleaseReadinessService;
+use Database\Seeders\JobArtSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -69,5 +70,62 @@ class ReleaseReadinessServiceTest extends TestCase
         $issues = app(ReleaseReadinessService::class)->contentIssues('hero_trials');
 
         $this->assertContains('英雄試練 dawn_hero の試練場マスタがありません。', $issues);
+    }
+
+    public function test_rank5_v6_release_readiness_requires_all_runtime_dependencies(): void
+    {
+        config([
+            'extra_content.contents' => [],
+            'battle.job_art_v2.rank5_v6' => true,
+            'battle.job_art_v2.dynamic_single' => false,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+        ]);
+
+        $issues = app(ReleaseReadinessService::class)->issues();
+
+        $this->assertContains(
+            'Rank5 v6.1 flagがONですが、依存flagがOFFです（BATTLE_JOB_ART_DYNAMIC_SINGLE）。',
+            $issues,
+        );
+    }
+
+    public function test_rank5_v6_release_readiness_requires_the_new_master_when_enabled(): void
+    {
+        config([
+            'extra_content.contents' => [],
+            'battle.job_art_v2.rank5_v6' => true,
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+        ]);
+        $this->seed(JobArtSeeder::class);
+
+        $ready = app(ReleaseReadinessService::class)->issues();
+        $this->assertFalse(
+            collect($ready)->contains(static fn (string $issue): bool => str_contains($issue, 'Rank5 v6.1')),
+            implode(PHP_EOL, $ready),
+        );
+
+        DB::table('skills')
+            ->where('job_id', 47)
+            ->where('learn_rank', 5)
+            ->where('skill_type', 'job_art')
+            ->update(['power' => 220]);
+
+        $mismatched = app(ReleaseReadinessService::class)->issues();
+        $this->assertContains(
+            'Rank5 v6.1 flagがONですが、skillsのRank5 masterが新仕様と一致しません（不一致1件）。',
+            $mismatched,
+        );
+
+        config(['battle.job_art_v2.rank5_v6' => false]);
+        $disabled = app(ReleaseReadinessService::class)->issues();
+        $this->assertFalse(
+            collect($disabled)->contains(static fn (string $issue): bool => str_contains($issue, 'Rank5 v6.1')),
+            implode(PHP_EOL, $disabled),
+        );
     }
 }
