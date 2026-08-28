@@ -48,9 +48,9 @@ class CharacterIconUsageAnalyticsTest extends TestCase
         $rows = collect($summary['rows'])->keyBy('number');
 
         $this->assertSame(5, $summary['total_characters']);
-        $this->assertSame(267, $summary['selectable_icon_count']);
+        $this->assertSame(270, $summary['selectable_icon_count']);
         $this->assertSame(2, $summary['used_icon_count']);
-        $this->assertSame(265, $summary['unused_icon_count']);
+        $this->assertSame(268, $summary['unused_icon_count']);
         $this->assertSame(1, $summary['exclusive_character_count']);
         $this->assertSame(1, $summary['unrecognized_character_count']);
         $this->assertSame(1, $rows[1]['count']);
@@ -63,7 +63,7 @@ class CharacterIconUsageAnalyticsTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $player = User::factory()->create(['role' => 'user']);
-        $this->createCharacter($player, '/images/chara/chara_267.webp');
+        $this->createCharacter($player, '/images/chara/chara_270.webp');
 
         Livewire::actingAs($admin)
             ->test(AdminDashboard::class)
@@ -73,7 +73,7 @@ class CharacterIconUsageAnalyticsTest extends TestCase
             ->assertSee('集計キャラクター')
             ->assertSee('#001')
             ->call('setCharacterIconUsageFilter', 'used')
-            ->assertSee('#267')
+            ->assertSee('#270')
             ->assertSee('1人')
             ->call('setCharacterIconUsageFilter', 'all')
             ->call('nextCharacterIconUsagePage')

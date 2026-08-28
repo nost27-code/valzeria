@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-28-standard-character-poses-nineteen',
+        'date' => '2026-08-28',
+        'category' => 'added',
+        'title' => '通常キャラ画像19種を4ポーズ化',
+        'detail' => '通常キャラ画像19種に、通常・勝利・戦闘・敗北の4ポーズを追加しました。このうち3種は新しい選択肢として加わり、キャラ画像を全270種から選べるようになりました。',
+    ],
+    [
         'id' => '2026-08-28-standard-character-poses-thirty-four',
         'date' => '2026-08-28',
         'category' => 'added',

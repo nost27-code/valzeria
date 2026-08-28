@@ -10,20 +10,20 @@ use Tests\TestCase;
 
 class CharacterIconCatalogTest extends TestCase
 {
-    public function test_new_character_icons_are_selectable_through_267(): void
+    public function test_new_character_icons_are_selectable_through_270(): void
     {
         $paths = CharacterIconCatalog::paths();
 
         $this->assertContains('/images/chara/chara_156.webp', $paths);
-        $this->assertContains('/images/chara/chara_267.webp', $paths);
-        $this->assertTrue(CharacterIconCatalog::isSelectable('/images/chara/chara_267.webp'));
-        $this->assertSame('/images/chara/chara_267.webp', CharacterIconCatalog::normalize('images/chara/chara_267.webp'));
+        $this->assertContains('/images/chara/chara_270.webp', $paths);
+        $this->assertTrue(CharacterIconCatalog::isSelectable('/images/chara/chara_270.webp'));
+        $this->assertSame('/images/chara/chara_270.webp', CharacterIconCatalog::normalize('images/chara/chara_270.webp'));
     }
 
-    public function test_character_icons_after_267_remain_unselectable(): void
+    public function test_character_icons_after_270_remain_unselectable(): void
     {
-        $this->assertNotContains('/images/chara/chara_268.webp', CharacterIconCatalog::paths());
-        $this->assertSame(CharacterIconCatalog::DEFAULT_ICON, CharacterIconCatalog::normalize('/images/chara/chara_268.webp'));
+        $this->assertNotContains('/images/chara/chara_271.webp', CharacterIconCatalog::paths());
+        $this->assertSame(CharacterIconCatalog::DEFAULT_ICON, CharacterIconCatalog::normalize('/images/chara/chara_271.webp'));
     }
 
     public function test_standard_icon_resolves_optional_four_pose_paths_with_safe_fallbacks(): void
@@ -128,6 +128,48 @@ class CharacterIconCatalogTest extends TestCase
                 $this->assertSame(128, $imageSize[1]);
                 $this->assertSame('image/webp', $imageSize['mime'] ?? null);
             }
+        }
+    }
+
+    public function test_20260828_additional_standard_icons_have_complete_four_pose_assets(): void
+    {
+        $numbers = [
+            32, 41, 54, 70, 82, 100, 108, 117, 121, 124, 125, 131,
+            134, 151, 160, 246, 268, 269, 270,
+        ];
+        $selectablePaths = CharacterIconCatalog::paths();
+
+        foreach ($numbers as $number) {
+            $iconPath = sprintf('/images/chara/chara_%03d.webp', $number);
+            $paths = CharacterIconCatalog::pathsForStandardIcon($iconPath);
+
+            $this->assertContains($iconPath, $selectablePaths);
+            $this->assertTrue(CharacterIconCatalog::isSelectable($iconPath));
+            $this->assertNotNull($paths);
+            $this->assertSame($paths, app(CharacterIconSetService::class)->resolvedPaths(
+                new Character(['icon_path' => $iconPath]),
+            ));
+
+            foreach ($paths as $scene => $path) {
+                $absolutePath = public_path(ltrim($path, '/'));
+
+                $this->assertFileExists($absolutePath, "{$iconPath} の {$scene} 画像がありません。");
+                $imageSize = getimagesize($absolutePath);
+                $this->assertIsArray($imageSize, "{$iconPath} の {$scene} 画像を読み取れません。");
+                $this->assertSame(128, $imageSize[0]);
+                $this->assertSame(128, $imageSize[1]);
+                $this->assertSame('image/webp', $imageSize['mime'] ?? null);
+            }
+        }
+
+        foreach ([268, 269, 270] as $number) {
+            $basePath = public_path(sprintf('images/chara/chara_%03d.webp', $number));
+            $imageSize = getimagesize($basePath);
+
+            $this->assertIsArray($imageSize);
+            $this->assertSame(96, $imageSize[0]);
+            $this->assertSame(96, $imageSize[1]);
+            $this->assertSame('image/webp', $imageSize['mime'] ?? null);
         }
     }
 

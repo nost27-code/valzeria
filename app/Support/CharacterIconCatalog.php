@@ -10,7 +10,7 @@ class CharacterIconCatalog
     public const SCENES = ['normal', 'battle', 'victory', 'defeat'];
 
     private const ADMIN_ICON = '/images/chara/admin/chara_admin.webp';
-    private const MAX_ICON_NUMBER = 267;
+    private const MAX_ICON_NUMBER = 270;
 
     /**
      * @return array<int, string>
