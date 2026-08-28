@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-28-character-icon-picker-loading',
+        'date' => '2026-08-28',
+        'category' => 'fixed',
+        'title' => 'キャラアイコン一覧の表示を安定化',
+        'detail' => 'キャラクターアイコン変更画面で、多数の画像を一度に読み込まず、表示する範囲に合わせて順次読み込むようにしました。スマートフォンでも一覧の画像が欠けにくくなります。',
+    ],
+    [
         'id' => '2026-08-28-town-update-long-detail-collapse',
         'date' => '2026-08-28',
         'category' => 'changed',

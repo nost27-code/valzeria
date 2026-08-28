@@ -1546,7 +1546,15 @@
                         @foreach($characterIconPaths as $iconPath)
                             <div class="relative cursor-pointer group" wire:click="updateIcon('{{ $iconPath }}')" wire:loading.class="pointer-events-none opacity-60" wire:target="updateIcon">
                                 <div class="w-24 h-24 md:w-32 md:h-32 rounded-lg border-2 border-transparent group-hover:border-[#d4af37] overflow-hidden shadow-sm group-hover:shadow-md transition-all p-2 bg-gray-50 flex items-center justify-center">
-                                    <img src="{{ \App\Support\CharacterIconCatalog::versionedAsset($iconPath) }}" alt="キャラクターアイコン" class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300">
+                                    <img
+                                        src="{{ \App\Support\CharacterIconCatalog::versionedAsset($iconPath) }}"
+                                        alt="キャラクターアイコン"
+                                        width="128"
+                                        height="128"
+                                        loading="lazy"
+                                        decoding="async"
+                                        class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                    >
                                 </div>
                                 @if($character && $character->icon_path === $iconPath)
                                     <div class="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md border border-white">
