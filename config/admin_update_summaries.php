@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-28-town-update-long-detail-collapse',
+        'date' => '2026-08-28',
+        'category' => 'changed',
+        'title' => '長い街の更新履歴を読みやすく表示',
+        'detail' => '街の更新履歴で、長い本文を最初の6行に省略して表示し、「続きを読む」から全文を開閉できるようにしました。短い更新内容はこれまでどおり全文を表示します。',
+    ],
+    [
         'id' => '2026-08-28-standard-character-poses-nineteen',
         'date' => '2026-08-28',
         'category' => 'added',

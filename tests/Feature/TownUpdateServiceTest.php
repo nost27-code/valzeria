@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Admin\TopUpdateManager;
+use App\Livewire\CityHeader;
 use App\Models\GameSetting;
 use App\Models\TopUpdate;
 use App\Services\TownUpdateService;
@@ -234,6 +235,34 @@ class TownUpdateServiceTest extends TestCase
         $updates = app(TownUpdateService::class)->published();
 
         $this->assertSame(['DBから取得するお知らせ'], $updates->pluck('body')->all());
+    }
+
+    public function test_only_long_update_details_are_rendered_as_collapsible(): void
+    {
+        $shortDetail = str_repeat('短', 160);
+        $longDetail = str_repeat('長', 161);
+
+        $shortUpdate = TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => '短い更新内容',
+            'detail' => $shortDetail,
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+        $longUpdate = TopUpdate::query()->create([
+            'published_on' => '2026-07-31',
+            'body' => '長い更新内容',
+            'detail' => $longDetail,
+            'sort_order' => 20,
+            'is_active' => true,
+        ]);
+
+        Livewire::test(CityHeader::class)
+            ->assertSee($shortDetail)
+            ->assertSee($longDetail)
+            ->assertSeeHtml('data-town-update-collapsible="'.$longUpdate->id.'"')
+            ->assertSeeHtml('aria-controls="town-update-detail-'.$longUpdate->id.'"')
+            ->assertDontSeeHtml('data-town-update-collapsible="'.$shortUpdate->id.'"');
     }
 
     public function test_imported_candidate_is_deleted_and_is_not_recreated(): void

@@ -1692,7 +1692,37 @@
                                 </time>
                                 <h3 class="mt-1 text-sm font-black leading-relaxed text-slate-900">{{ $update->body }}</h3>
                                 @if(filled($update->detail))
-                                    <p class="mt-1.5 whitespace-pre-line text-xs font-bold leading-relaxed text-slate-600">{{ $update->detail }}</p>
+                                    @php
+                                        $townUpdateDetail = trim((string) $update->detail);
+                                        $townUpdateCompactDetail = preg_replace('/\s+/u', '', $townUpdateDetail) ?? $townUpdateDetail;
+                                        $townUpdateShouldCollapse = mb_strlen($townUpdateCompactDetail) > 160
+                                            || substr_count($townUpdateDetail, "\n") >= 5;
+                                        $townUpdateDetailId = 'town-update-detail-' . $update->getKey();
+                                    @endphp
+
+                                    @if($townUpdateShouldCollapse)
+                                        <div class="mt-1.5"
+                                             x-data="{ expanded: false }"
+                                             data-town-update-collapsible="{{ $update->getKey() }}">
+                                            <p id="{{ $townUpdateDetailId }}"
+                                               class="whitespace-pre-line text-xs font-bold leading-relaxed text-slate-600"
+                                               :style="expanded ? '' : 'display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden;'">{{ $townUpdateDetail }}</p>
+                                            <button type="button"
+                                                    class="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs font-black text-amber-800 transition hover:bg-amber-100 active:scale-[0.99]"
+                                                    aria-expanded="false"
+                                                    :aria-expanded="expanded"
+                                                    aria-controls="{{ $townUpdateDetailId }}"
+                                                    @click="expanded = !expanded"
+                                                    data-town-update-toggle>
+                                                <span x-text="expanded ? '折りたたむ' : '続きを読む'">続きを読む</span>
+                                                <span class="transition-transform duration-200"
+                                                      :class="expanded ? 'rotate-180' : ''"
+                                                      aria-hidden="true">▼</span>
+                                            </button>
+                                        </div>
+                                    @else
+                                        <p class="mt-1.5 whitespace-pre-line text-xs font-bold leading-relaxed text-slate-600">{{ $townUpdateDetail }}</p>
+                                    @endif
                                 @endif
                             </article>
                         @endforeach
