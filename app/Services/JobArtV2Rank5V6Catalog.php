@@ -23,7 +23,7 @@ final class JobArtV2Rank5V6Catalog
         12 => ['name' => '勝利の采配', 'power' => null, 'trigger_mode' => 'scheduled', 'effect_text' => '攻撃なし。次に使用する戦技の発動率+20pt。その戦技を、直前に成功した戦技と異なる区分（始動／連携／奥義）から優先して選ぶ'],
         13 => ['name' => '闘技連斬', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '3Hit。直前の自分の行動後に物理攻撃を受けていた場合、最終ダメージ×1.20'],
         14 => ['name' => '暴走撃', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '反動で最大HPの8%のダメージを受ける。行動開始時のHPが50%以下なら最終ダメージを×1.25する'],
-        15 => ['name' => 'ガーディアンブロウ', 'power' => 100, 'trigger_mode' => 'reactive', 'effect_text' => '受けるダメージを20%軽減する。奥義または大技の予告中に発動した場合は、20%軽減の代わりに、その予告行動のダメージを35%軽減する'],
+        15 => ['name' => 'ガーディアンブロウ', 'power' => 100, 'trigger_mode' => 'reactive', 'effect_text' => '次の自分の行動開始まで、受けるダメージを20%軽減する。奥義または大技の予告中に発動した場合は、20%軽減の代わりに、その予告行動のダメージを35%軽減する'],
         16 => ['name' => '戦利の一撃', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '探索報酬に小補正。相手の防御を20%無視'],
         17 => ['name' => '影縫い', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '相手敏捷-15%(3T)。標的印を1段階付与'],
         18 => ['name' => 'クリティカルショット', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '命中率+10pt、会心率+10pt'],

@@ -374,6 +374,9 @@ final class JobArtV2CrownBalanceCatalog
         }
 
         $jobId = (int) $source->job_id;
+        if ($jobId === 15) {
+            $copy->setAttribute('job_art_v2_guard_until_next_own_action', true);
+        }
         if (in_array($jobId, [8, 20, 31, 57, 77, 91], true)) {
             $copy->mp_recover_percent = 0;
         }

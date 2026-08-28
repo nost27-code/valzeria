@@ -2154,9 +2154,18 @@ class BattleService
 
     private function applyGuardBarrier(BattleActor $attacker, BattleState $state, Skill $skill, float $rate = 1.0): void
     {
+        if ($this->jobArtV2UltimateCounterplayService
+            ->standardGuardReplacedForCurrentAction($attacker, $state, $skill)
+        ) {
+            return;
+        }
+
         $reduction = $this->jobArtGuardReduction($skill, $rate);
         $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
-        $state->addLog("<span class=\"text-blue-700 font-bold\">{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！</span>");
+        $message = (bool) $skill->getAttribute('job_art_v2_guard_until_next_own_action')
+            ? "{$attacker->name} は次の自分の行動開始まで、受けるダメージを {$reduction}% 軽減する！"
+            : "{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！";
+        $state->addLog("<span class=\"text-blue-700 font-bold\">{$message}</span>");
     }
 
     private function jobArtGuardReduction(Skill $skill, float $rate = 1.0): int

@@ -224,7 +224,8 @@ final class JobArtV2UltimateCounterplayService
         }
 
         if ($effect === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD) {
-            // 通常の20%軽減との二重適用を避け、予告された奥義専用へ置換する。
+            // GuardStateはここで外し、DAMAGE_GUARD_BARRIER由来の通常軽減は
+            // standardGuardReplacedForCurrentAction() を通じて同じactionだけ抑止する。
             $actor->replaceJobArtV2GuardState(null);
             $actorState->ultimateGuard = new JobArtV2UltimateGuardState(
                 targetActorKey: $state->actorKey($target),
@@ -510,6 +511,27 @@ final class JobArtV2UltimateCounterplayService
         return $this->currentActionLineageEffectsSuppressed($actor, $state);
     }
 
+    public function standardGuardReplacedForCurrentAction(
+        BattleActor $actor,
+        BattleState $state,
+        Skill $skill,
+    ): bool {
+        $sourceActionId = $state->currentSourceActionId();
+        if ($sourceActionId === null) {
+            return false;
+        }
+
+        $context = $state->jobArtV2RoleAction($sourceActionId);
+        $guard = $actor->existingJobArtV2UltimateCounterplayState()?->ultimateGuard;
+
+        return ($context['actor_key'] ?? null) === $state->actorKey($actor)
+            && ($context['ultimate_counterplay_response_effect'] ?? null)
+                === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD
+            && $guard !== null
+            && $guard->responseSkillId === (int) $skill->id
+            && $guard->targetActorKey === ($context['ultimate_counterplay_target_key'] ?? null);
+    }
+
     /** 現在actionの後段（場補正など）から、奥義masterを受け取らずに参照する中央gate。 */
     public function currentActionLineageEffectsSuppressed(BattleActor $actor, BattleState $state): bool
     {
@@ -626,6 +648,9 @@ final class JobArtV2UltimateCounterplayService
                 effect: $effect,
                 responseSkillId: (int) $skill->id,
             );
+            if ($effect === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD) {
+                $state->addLog('<span class="text-blue-700 font-bold">'.e($actor->name).' は敵の大技を受け切る構えを取った！（35%軽減）</span>');
+            }
         }
         if ($effect === JobArtV2UltimateCounterplayCatalog::READINESS_DELAY) {
             if (empty($state->enemyTelegraphContext['delayed'])) {

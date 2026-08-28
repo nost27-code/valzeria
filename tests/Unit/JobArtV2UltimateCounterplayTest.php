@@ -8,6 +8,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
+use App\Services\BattleService;
 use App\Services\JobArtV2BattleRules;
 use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2BattleHudService;
@@ -215,6 +216,146 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertNull($guard->jobArtV2UltimateCounterplayState()->ultimateGuard);
         $this->assertSame(0.35, $state->damageTrace($guard, $sourceActionId)?->guardRate);
         $service->finishAction($owner, $state);
+    }
+
+    public function test_guard_barrier_template_is_replaced_in_the_actual_pvp_response_path(): void
+    {
+        config(['battle.job_art_v2.rank5_v6' => true]);
+
+        [$owner] = $this->actors();
+        $rankFive = $this->guardBarrierArt();
+        $guard = $this->actor('guard', 66, [$this->guardArt(1), $rankFive, $this->guardArt(9)]);
+        $guard->configureResource('holy_guard', 12);
+        $guard->setResource('holy_guard', 4);
+        $state = new BattleState($owner, $guard, 'pvp');
+        $service = app(JobArtV2UltimateCounterplayService::class);
+        $defense = app(JobArtV2DefenseService::class);
+        $this->forcePreparing($owner, $state, 'command', 'command_points');
+        $owner->setResource('command_points', 12);
+
+        $this->beginAction($guard, $state);
+        $this->executeJobArtAction($guard, $owner, $state, $rankFive);
+
+        $this->assertSame(0, $guard->damageReductionRate);
+        $this->assertSame(0.35, $guard->jobArtV2UltimateCounterplayState()->ultimateGuard?->rate);
+        $responseLogs = implode("\n", $state->logs);
+        $this->assertStringNotContainsString('次の被ダメージを 20% 軽減', $responseLogs);
+        $this->assertSame(1, substr_count($responseLogs, '（35%軽減）'));
+        $service->finishAction($guard, $state);
+
+        $this->beginAction($owner, $state);
+        $service->beginJobArtCast($owner, $state, $this->commandArt(9));
+        $sourceActionId = $state->currentSourceActionId();
+        $resolution = new DirectAttackResolution(
+            $sourceActionId,
+            $owner,
+            $guard,
+            HitResult::HIT,
+            'physical',
+            true,
+            BattleActionType::JOB_ART,
+        );
+
+        $this->assertSame(65, $defense->resolveDamage($state, $resolution, 100));
+        $this->assertSame(32, $defense->resolveDamage($state, $resolution, 50));
+        $this->assertNull($guard->jobArtV2UltimateCounterplayState()->ultimateGuard);
+        $this->assertSame(0, $guard->damageReductionRate);
+
+        $this->beginAction($owner, $state);
+        $nextResolution = new DirectAttackResolution(
+            $state->currentSourceActionId(),
+            $owner,
+            $guard,
+            HitResult::HIT,
+            'physical',
+            true,
+            BattleActionType::NORMAL_ATTACK,
+        );
+        $this->assertSame(100, $defense->resolveDamage($state, $nextResolution, 100));
+    }
+
+    public function test_guard_barrier_template_keeps_twenty_percent_without_a_telegraph(): void
+    {
+        config(['battle.job_art_v2.rank5_v6' => true]);
+
+        [$owner] = $this->actors();
+        $rankFive = $this->guardBarrierArt();
+        $guard = $this->actor('guard', 66, [$this->guardArt(1), $rankFive, $this->guardArt(9)]);
+        $guard->configureResource('holy_guard', 12);
+        $guard->setResource('holy_guard', 4);
+        $state = new BattleState($owner, $guard, 'pvp');
+
+        $this->beginAction($guard, $state);
+        $this->executeJobArtAction($guard, $owner, $state, $rankFive);
+
+        $this->assertSame(20, $guard->damageReductionRate);
+        $this->assertNull($guard->existingJobArtV2UltimateCounterplayState()?->ultimateGuard);
+        $normalLogs = implode("\n", $state->logs);
+        $this->assertStringContainsString('次の自分の行動開始まで、受けるダメージを 20% 軽減', $normalLogs);
+        $this->assertSame(1, substr_count($normalLogs, '受けるダメージを 20% 軽減'));
+    }
+
+    public function test_ultimate_guard_also_replaces_the_legacy_sixteen_percent_barrier(): void
+    {
+        config(['battle.job_art_v2.rank5_v6' => false]);
+
+        [$owner] = $this->actors();
+        $rankFive = $this->guardBarrierArt();
+        $guard = $this->actor('guard', 66, [$this->guardArt(1), $rankFive, $this->guardArt(9)]);
+        $guard->configureResource('holy_guard', 12);
+        $guard->setResource('holy_guard', 4);
+        $state = new BattleState($owner, $guard, 'pvp');
+        $this->forcePreparing($owner, $state, 'command', 'command_points');
+        $owner->setResource('command_points', 12);
+
+        $this->beginAction($guard, $state);
+        $this->executeJobArtAction($guard, $owner, $state, $rankFive);
+
+        $this->assertSame(0, $guard->damageReductionRate);
+        $this->assertSame(0.35, $guard->jobArtV2UltimateCounterplayState()->ultimateGuard?->rate);
+        $this->assertStringNotContainsString('次の被ダメージを 16% 軽減', implode("\n", $state->logs));
+    }
+
+    public function test_guard_barrier_template_is_replaced_in_the_actual_pve_telegraph_path(): void
+    {
+        config(['battle.job_art_v2.rank5_v6' => true]);
+
+        $rankFive = $this->guardBarrierArt();
+        $guard = $this->actor('guard', 66, [$this->guardArt(1), $rankFive, $this->guardArt(9)]);
+        $guard->configureResource('holy_guard', 12);
+        $guard->setResource('holy_guard', 4);
+        $enemy = $this->enemyActor('boss', 48);
+        $state = $this->pveTelegraph($guard, $enemy, canBeGuarded: true);
+        $service = app(JobArtV2UltimateCounterplayService::class);
+        $defense = app(JobArtV2DefenseService::class);
+
+        $this->beginAction($guard, $state);
+        $this->executeJobArtAction($guard, $enemy, $state, $rankFive);
+
+        $this->assertSame(0, $guard->damageReductionRate);
+        $this->assertSame(0.35, $guard->jobArtV2UltimateCounterplayState()->ultimateGuard?->rate);
+        $responseLogs = implode("\n", $state->logs);
+        $this->assertStringNotContainsString('次の被ダメージを 20% 軽減', $responseLogs);
+        $this->assertStringContainsString('敵の大技を受け切る構えを取った！（35%軽減）', $responseLogs);
+        $this->assertSame(1, substr_count($responseLogs, '（35%軽減）'));
+
+        $service->markPveTelegraphExecuting($state, true);
+        $this->beginAction($enemy, $state);
+        $resolution = new DirectAttackResolution(
+            $state->currentSourceActionId(),
+            $enemy,
+            $guard,
+            HitResult::HIT,
+            'physical',
+            true,
+            BattleActionType::JOB_ART,
+        );
+
+        $this->assertSame(65, $defense->resolveDamage($state, $resolution, 100));
+        $this->assertSame(32, $defense->resolveDamage($state, $resolution, 50));
+        $service->completePveTelegraphedEnemyAction($state);
+        $this->assertNull($guard->jobArtV2UltimateCounterplayState()->ultimateGuard);
+        $this->assertSame(0, $guard->damageReductionRate);
     }
 
     public function test_command_delays_readiness_for_exactly_one_owner_action_and_only_once_per_cycle(): void
@@ -926,6 +1067,17 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         });
     }
 
+    private function guardBarrierArt(): Skill
+    {
+        $skill = $this->guardArt(5);
+        $skill->effect_template = 'DAMAGE_GUARD_BARRIER';
+        $skill->damage_type = 'physical';
+        $skill->damage_reduction_percent = 16;
+        $skill->sure_hit = true;
+
+        return $skill;
+    }
+
     private function pierceArt(int $rank): Skill
     {
         return $this->art(6200 + $rank, 62, $rank, match ($rank) {
@@ -959,6 +1111,21 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
             'actor_key' => $state->actorKey($actor),
             'source_action_id' => $sourceActionId,
         ]);
+    }
+
+    private function executeJobArtAction(
+        BattleActor $actor,
+        BattleActor $target,
+        BattleState $state,
+        Skill $skill,
+    ): void {
+        (new \ReflectionMethod(BattleService::class, 'executeJobArtAction'))->invoke(
+            app(BattleService::class),
+            $actor,
+            $target,
+            $state,
+            $skill,
+        );
     }
 
     private function action(
