@@ -12,6 +12,7 @@ use App\Services\Battle\HitResult;
 use App\Services\BattleService;
 use App\Services\CharacterStatusService;
 use App\Services\JobArtService;
+use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2BattleRules;
 use App\Services\JobArtV2CrownBalanceCatalog;
 use App\Services\JobArtV2DefenseService;
@@ -191,6 +192,45 @@ class JobArtV2Rank5V6Test extends TestCase
         $actor->setResource('sword_momentum', 8);
         $ready = $service->selectForTurn($actor, $state);
         $this->assertSame(1105, $ready->candidateSkillId);
+    }
+
+    public function test_rank_five_is_reached_by_natural_rotation_without_a_manual_cursor(): void
+    {
+        $starter = $this->art(201, 2, 1, '挑発撃');
+        $rankFive = $this->art(205, 2, 5, '二段穿ち');
+        [$actor, $state] = $this->battle(2, [$starter, $rankFive], 'dragon_force', 4);
+        $service = $this->selection([1, 1]);
+
+        $first = $service->selectForTurn($actor, $state);
+        $this->assertTrue(app(JobArtV2FeatureGate::class)->usesRank5V6($actor));
+        $this->assertSame(1, $actor->jobArtV2SelectionCursor(2));
+        $second = $service->selectForTurn($actor, $state);
+
+        $this->assertSame(201, $first->candidateSkillId);
+        $this->assertSame(205, $second->candidateSkillId);
+        $this->assertSame(205, $second->skill?->id);
+    }
+
+    public function test_successfully_selected_rank_five_commits_before_the_cycle_gate_closes(): void
+    {
+        $rankFive = $this->art(205, 2, 5, '二段穿ち');
+        [$actor, $state] = $this->battle(2, [$rankFive], 'dragon_force', 4);
+        $selection = $this->selection([1]);
+
+        $selected = $selection->selectForTurn($actor, $state);
+        $this->assertSame(205, $selected->skill?->id);
+
+        $this->beginAction($actor, $state);
+        $this->assertTrue(app(JobArtBattleSupportService::class)->consumeAndMarkUse(
+            $actor,
+            $state,
+            $selected->skill,
+        ));
+        $this->assertTrue($actor->jobArtV2Rank5CycleState()->hasUsed('dragon_force', 205));
+
+        $blocked = $selection->selectForTurn($actor, $state);
+        $this->assertNull($blocked->candidateSkillId);
+        $this->assertSame('blocked_by_rank5_cycle', $blocked->blockedReasons[205]);
     }
 
     public function test_rank_nine_clears_only_the_same_resource_cycle_after_commit(): void

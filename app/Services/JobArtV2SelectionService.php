@@ -81,7 +81,6 @@ class JobArtV2SelectionService
                 continue;
             }
 
-            $this->markRank5V6Attempted($actor, $skill);
             $activationRate = $this->progressionService->activationRate($actor, $skill, $this->fieldService->activationRate(
                 $actor,
                 $state,
@@ -92,6 +91,9 @@ class JobArtV2SelectionService
                 ),
             ));
             $activated = $this->random->percentRoll() <= $activationRate;
+            if (! $activated) {
+                $this->markRank5V6Attempted($actor, $skill);
+            }
             $this->progressionService->finishActivationAttempt($actor, $skill, $activated);
             if ($rankNinePrioritized && (int) $skill->learn_rank === 9) {
                 $actor->markJobArtV2UltimatePriorityAttempted((int) $skill->id);
@@ -130,6 +132,11 @@ class JobArtV2SelectionService
     public function isEligible(BattleActor $actor, BattleState $state, Skill $skill, int|string $stateKey): bool
     {
         return $this->eligibilityFailureReason($actor, $state, $skill, $stateKey) === null;
+    }
+
+    public function commitSuccessfulSelection(BattleActor $actor, Skill $skill): void
+    {
+        $this->markRank5V6Attempted($actor, $skill);
     }
 
     public function eligibilityFailureReason(

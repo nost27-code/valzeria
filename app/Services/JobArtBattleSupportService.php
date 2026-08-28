@@ -367,6 +367,7 @@ class JobArtBattleSupportService
             return false;
         }
 
+        $this->jobArtV2SelectionService->commitSuccessfulSelection($actor, $skill);
         $actor->mp -= $this->spCost($actor, $skill);
         $state->jobArtUseCounts[$stateKey] = (int) ($state->jobArtUseCounts[$stateKey] ?? 0) + 1;
         $state->recordJobArtActivation($actor, $skill);
