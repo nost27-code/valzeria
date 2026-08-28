@@ -38,12 +38,16 @@ if ($rows.Count -ne 94 -or ($rows.JobId | Sort-Object -Unique).Count -ne 94) {
     throw "Rank5 specification rows must be 94; got $($rows.Count)."
 }
 
-# These four effects were finalized after the v6.1 table was generated.
+# These effects were finalized after the v6.1 table was generated.
 # Keep the approved rulings here so every generated runtime/master/migration
 # artifact is reproducible from the reviewed v6.1 source document.
 $finalEffectByJob = @{
-    7 = '攻撃なし。精神150%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを15%軽減する（1回）'
-    10 = '威力100%の物理ダメージ。最大HP7%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを15%軽減する（1回）'
+    7 = '攻撃なし。精神150%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを20%軽減する（1回）'
+    10 = '威力100%の物理ダメージ。最大HP7%分、自分のHPを回復する。その後、次の自分の行動開始まで、次に受ける直接攻撃のダメージを20%軽減する（1回）'
+    11 = '受け流し率+20%。受け流しに成功した場合、次の自分の行動開始まで、次に受ける直接攻撃のダメージを20%軽減する（1回）'
+    15 = '受けるダメージを20%軽減する。奥義または大技の予告中に発動した場合は、20%軽減の代わりに、その予告行動のダメージを35%軽減する'
+    29 = '次の自分の行動開始まで、受けるダメージを20%軽減する'
+    36 = '相手の魔力を−15%する（3ターン）。次の自分の行動開始まで、受けるダメージを20%軽減する'
     47 = '攻撃なし。精神120%分、自分のHPを回復し、最大SP8%分、自分のSPを回復する。通常探索勝利時のGold獲得量を10%増やし、通常素材枠の抽選率を8ポイント、レア素材枠の抽選率を5ポイント上げる'
     84 = '威力244%の魔法ダメージ。直前に上書きされた自分の場を5ラウンドで再展開する。通常探索勝利時のGold獲得量を2%増やし、通常素材枠の抽選率を2ポイント上げる'
 }

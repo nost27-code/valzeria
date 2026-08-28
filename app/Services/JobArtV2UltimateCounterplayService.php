@@ -224,7 +224,7 @@ final class JobArtV2UltimateCounterplayService
         }
 
         if ($effect === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD) {
-            // 通常の16%軽減との二重適用を避け、予告された奥義専用へ置換する。
+            // 通常の20%軽減との二重適用を避け、予告された奥義専用へ置換する。
             $actor->replaceJobArtV2GuardState(null);
             $actorState->ultimateGuard = new JobArtV2UltimateGuardState(
                 targetActorKey: $state->actorKey($target),

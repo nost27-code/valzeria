@@ -68,6 +68,24 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
         }
     }
 
+    public function test_rank5_v6_guard_overrides_require_the_complete_natural_key(): void
+    {
+        $catalog = new JobArtV2RoleEffectCatalog;
+
+        foreach ([
+            [29, '賢者の結界'],
+            [36, '神罰の槌'],
+        ] as [$jobId, $name]) {
+            $metadata = $catalog->rank5V6MetadataForArt($this->art($jobId, 5, $name));
+            $this->assertNotNull($metadata, $name);
+            $this->assertSame(20, $metadata['next_action_damage_reduction_percent'], $name);
+        }
+
+        $this->assertNull($catalog->rank5V6MetadataForArt($this->art(29, 1, '賢者の結界')));
+        $this->assertNull($catalog->rank5V6MetadataForArt($this->art(29, 5, '賢者の結界・別名')));
+        $this->assertNull($catalog->rank5V6MetadataForArt($this->art(36, 5, '神罰の槌', skillType: 'special')));
+    }
+
     public function test_master_power_and_hit_count_do_not_change_catalog_resolution(): void
     {
         $catalog = new JobArtV2RoleEffectCatalog;

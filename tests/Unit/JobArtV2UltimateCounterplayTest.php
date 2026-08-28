@@ -178,7 +178,7 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertSame([], $owner->jobArtV2ProgressionState()->sealReservations);
     }
 
-    public function test_guard_replaces_sixteen_percent_and_reduces_all_hits_of_only_the_targeted_ultimate(): void
+    public function test_guard_replaces_twenty_percent_and_reduces_all_hits_of_only_the_targeted_ultimate(): void
     {
         [$owner, $guard] = $this->actors();
         $guard->currentJobId = 66;
@@ -191,7 +191,7 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $owner->setResource('command_points', 12);
 
         $this->beginAction($guard, $state);
-        $guard->replaceJobArtV2GuardState(new JobArtV2GuardState(0.16));
+        $guard->replaceJobArtV2GuardState(new JobArtV2GuardState(0.20));
         $service->beginJobArtCast($guard, $state, $this->guardArt(5));
         $this->assertNull($guard->jobArtV2GuardState());
         $this->assertSame(0.35, $guard->jobArtV2UltimateCounterplayState()->ultimateGuard?->rate);

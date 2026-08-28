@@ -344,13 +344,13 @@ class JobArtV2PrototypeCatalog
                 : 'scheduled';
             $profile = array_merge($profile, match ($jobId) {
                 7, 10 => [
-                    'guard_rate' => 0.15,
+                    'guard_rate' => 0.20,
                     'guard_expires_next_own_action' => true,
                 ],
                 11 => [
                     'counter_stance_rounds' => 1,
                     'parry_rate' => 0.20,
-                    'guard_after_parry_rate' => 0.15,
+                    'guard_after_parry_rate' => 0.20,
                 ],
                 44, 56 => [
                     'guard_rate' => 0.25,

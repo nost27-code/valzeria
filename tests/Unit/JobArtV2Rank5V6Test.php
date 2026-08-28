@@ -343,7 +343,7 @@ class JobArtV2Rank5V6Test extends TestCase
         }
     }
 
-    public function test_jobs7_and10_apply_one_15_percent_guard_until_the_next_own_action(): void
+    public function test_jobs7_and10_apply_one_20_percent_guard_until_the_next_own_action(): void
     {
         $defense = app(JobArtV2DefenseService::class);
 
@@ -351,12 +351,12 @@ class JobArtV2Rank5V6Test extends TestCase
             $skill = $this->masterArt($jobId);
             [$actor, $state] = $this->battle($jobId, [$skill], 'holy_guard', 4);
             $metadata = app(JobArtV2PrototypeCatalog::class)->artResourceMetadataForJobRank($jobId, 5);
-            $this->assertSame(0.15, $metadata['guard_rate'], "job {$jobId}");
+            $this->assertSame(0.20, $metadata['guard_rate'], "job {$jobId}");
             $this->assertTrue($metadata['guard_expires_next_own_action'], "job {$jobId}");
 
             $this->beginAction($actor, $state);
             $defense->applyJobArtCast($actor, $state, $skill);
-            $this->assertSame(0.15, $actor->jobArtV2GuardState()?->rate, "job {$jobId}");
+            $this->assertSame(0.20, $actor->jobArtV2GuardState()?->rate, "job {$jobId}");
 
             app(JobArtV2ResourceService::class)->beginAction($state->enemy, $state);
             $resolution = new DirectAttackResolution(
@@ -368,7 +368,7 @@ class JobArtV2Rank5V6Test extends TestCase
                 true,
                 BattleActionType::NORMAL_ATTACK,
             );
-            $this->assertSame(85, $defense->resolveDamage($state, $resolution, 100), "job {$jobId}");
+            $this->assertSame(80, $defense->resolveDamage($state, $resolution, 100), "job {$jobId}");
             $this->assertNull($actor->jobArtV2GuardState(), "job {$jobId} consumed");
 
             $this->beginAction($actor, $state);
@@ -486,6 +486,48 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertSame('MAGICAL_DAMAGE', (string) $execution->effect_template);
         $this->assertSame('magical', (string) $execution->damage_type);
         $this->assertSame(100, $state->jobArtV2RoleAction()['execution_power']);
+
+        app(JobArtV2RoleEffectService::class)->completeJobArtCast(
+            $actor,
+            $state->enemy,
+            $state,
+            $source,
+            HitResult::HIT,
+        );
+        $this->assertSame(20, $actor->damageReductionRate);
+
+        $this->beginAction($actor, $state);
+        $this->assertSame(0, $actor->damageReductionRate);
+    }
+
+    public function test_jobs15_29_and36_use_the_approved_guard_rates_only_while_rank5_v6_is_enabled(): void
+    {
+        $balances = app(JobArtV2CrownBalanceCatalog::class);
+        $roles = app(JobArtV2RoleEffectService::class);
+
+        $job15 = $balances->applyToExecution($this->masterArt(15));
+        $this->assertSame(20, (int) $job15->damage_reduction_percent);
+
+        foreach ([29, 36] as $jobId) {
+            $skill = $this->masterArt($jobId);
+            [$actor, $state] = $this->battle($jobId, [$skill], 'holy_guard', 4);
+            $this->beginAction($actor, $state);
+            $roles->completeJobArtCast($actor, $state->enemy, $state, $skill, HitResult::HIT);
+            $this->assertSame(20, $actor->damageReductionRate, "job {$jobId}");
+        }
+
+        config(['battle.job_art_v2.rank5_v6' => false]);
+
+        $legacyJob15 = $balances->applyToExecution($this->masterArt(15));
+        $legacyJob29 = $balances->applyToExecution($this->masterArt(29));
+        $this->assertSame(16, (int) $legacyJob15->damage_reduction_percent);
+        $this->assertSame(18, (int) $legacyJob29->damage_reduction_percent);
+
+        $job36 = $this->masterArt(36);
+        [$actor, $state] = $this->battle(36, [$job36], 'holy_guard', 4);
+        $this->beginAction($actor, $state);
+        $roles->completeJobArtCast($actor, $state->enemy, $state, $job36, HitResult::HIT);
+        $this->assertSame(0, $actor->damageReductionRate);
     }
 
     public function test_reactive_rank_five_still_requires_four_lineage_resource_points(): void
@@ -637,7 +679,7 @@ class JobArtV2Rank5V6Test extends TestCase
         $balances = app(JobArtV2CrownBalanceCatalog::class);
 
         $this->assertSame(0.20, $prototype->artResourceMetadataForJobRank(11, 5)['parry_rate']);
-        $this->assertSame(0.15, $prototype->artResourceMetadataForJobRank(11, 5)['guard_after_parry_rate']);
+        $this->assertSame(0.20, $prototype->artResourceMetadataForJobRank(11, 5)['guard_after_parry_rate']);
         $this->assertSame(0.25, $prototype->artResourceMetadataForJobRank(44, 5)['guard_rate']);
         $this->assertTrue($prototype->artResourceMetadataForJobRank(44, 5)['cleanse_on_guard_mitigation']);
         $this->assertSame(3, $prototype->artResourceMetadataForJobRank(46, 5)['field_extend_rounds']);
@@ -744,7 +786,7 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertSame(1.0, $actor->jobArtV2ProgressionState()->rank5V6CounterDamageMultiplier);
     }
 
-    public function test_job11_parry_arms_a_15_percent_guard_until_the_next_own_action(): void
+    public function test_job11_parry_arms_a_20_percent_guard_until_the_next_own_action(): void
     {
         [$actor, $state] = $this->battle(11, [], 'sword_momentum', 4);
         $skill = $this->art(1105, 11, 5, '居合斬り');
@@ -777,7 +819,7 @@ class JobArtV2Rank5V6Test extends TestCase
             BattleActionType::NORMAL_ATTACK,
         );
         $this->assertSame(0, $defense->resolveDamage($state, $resolution, 100));
-        $this->assertSame(0.15, $actor->jobArtV2GuardState()?->rate);
+        $this->assertSame(0.20, $actor->jobArtV2GuardState()?->rate);
 
         $this->beginAction($actor, $state);
         $this->assertNull($actor->jobArtV2GuardState());

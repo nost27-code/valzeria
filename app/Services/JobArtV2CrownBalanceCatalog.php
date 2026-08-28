@@ -141,6 +141,13 @@ final class JobArtV2CrownBalanceCatalog
             if ($jobId === 36) {
                 $metadata['debuffs'] = ['mag' => 15];
             }
+            if ($jobId === 15) {
+                $metadata['reduction'] = 20;
+            }
+            if ($jobId === 29) {
+                // v6.1ではRoleEffect側の20%へ一本化し、旧18%を二重表示しない。
+                unset($metadata['reduction']);
+            }
             if ($jobId === 7) {
                 $metadata['heal_spr'] = 150;
             }

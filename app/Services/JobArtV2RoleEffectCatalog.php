@@ -968,26 +968,36 @@ final class JobArtV2RoleEffectCatalog
     /** @return array<string, mixed>|null */
     public function rank5V6MetadataForArt(Skill $skill): ?array
     {
-        if (! $skill->isJobArt()
-            || (int) $skill->job_id !== 47
-            || (int) $skill->learn_rank !== 5
-            || trim((string) $skill->name) !== '霊薬の加護'
-        ) {
+        if (! $skill->isJobArt() || (int) $skill->learn_rank !== 5) {
             return null;
         }
 
-        return [
-            'role_key' => 'transmute_rank5_restorative_reward',
-            'portable' => true,
-            'suppress_legacy_effect' => true,
-            'replacement_template' => 'V2_ROLE_EFFECT_ONLY',
-            'heal' => [
-                'hp' => ['formula' => 'existing_spr', 'multiplier' => 1.20],
-                'sp' => ['formula' => 'max_sp_rate', 'rate' => 0.08],
+        return match ($this->key($skill)) {
+            '29:5:賢者の結界' => [
+                'next_action_damage_reduction_percent' => 20,
+                'effect_texts' => ['次の自分の行動開始まで、受けるダメージを20%軽減する'],
             ],
-            'reward' => ['gold' => 'preserve_master', 'drop' => 'preserve_master'],
-            'effect_texts' => ['基礎回復量の120%を回復'],
-        ];
+            '36:5:神罰の槌' => [
+                'role_key' => 'guard_divine_hammer_protection',
+                'portable' => true,
+                'suppress_legacy_effect' => false,
+                'next_action_damage_reduction_percent' => 20,
+                'effect_texts' => ['次の自分の行動開始まで、受けるダメージを20%軽減する'],
+            ],
+            '47:5:霊薬の加護' => [
+                'role_key' => 'transmute_rank5_restorative_reward',
+                'portable' => true,
+                'suppress_legacy_effect' => true,
+                'replacement_template' => 'V2_ROLE_EFFECT_ONLY',
+                'heal' => [
+                    'hp' => ['formula' => 'existing_spr', 'multiplier' => 1.20],
+                    'sp' => ['formula' => 'max_sp_rate', 'rate' => 0.08],
+                ],
+                'reward' => ['gold' => 'preserve_master', 'drop' => 'preserve_master'],
+                'effect_texts' => ['基礎回復量の120%を回復'],
+            ],
+            default => null,
+        };
     }
 
     public function replacementTemplate(Skill $skill): ?string
