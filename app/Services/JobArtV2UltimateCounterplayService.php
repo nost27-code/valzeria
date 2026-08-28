@@ -224,8 +224,8 @@ final class JobArtV2UltimateCounterplayService
         }
 
         if ($effect === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD) {
-            // GuardStateはここで外し、DAMAGE_GUARD_BARRIER由来の通常軽減は
-            // standardGuardReplacedForCurrentAction() を通じて同じactionだけ抑止する。
+            // GuardStateはここで外し、同じactionで成立した専用guardが
+            // standardGuardReplacedForCurrentAction() を通じて通常barrierを抑止する。
             $actor->replaceJobArtV2GuardState(null);
             $actorState->ultimateGuard = new JobArtV2UltimateGuardState(
                 targetActorKey: $state->actorKey($target),
@@ -523,11 +523,15 @@ final class JobArtV2UltimateCounterplayService
 
         $context = $state->jobArtV2RoleAction($sourceActionId);
         $guard = $actor->existingJobArtV2UltimateCounterplayState()?->ultimateGuard;
+        $responseEffect = $context['ultimate_counterplay_response_effect'] ?? null;
 
         return ($context['actor_key'] ?? null) === $state->actorKey($actor)
-            && ($context['ultimate_counterplay_response_effect'] ?? null)
-                === JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD
+            && in_array($responseEffect, [
+                JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT,
+                JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD,
+            ], true)
             && $guard !== null
+            && $guard->effect === $responseEffect
             && $guard->responseSkillId === (int) $skill->id
             && $guard->targetActorKey === ($context['ultimate_counterplay_target_key'] ?? null);
     }

@@ -295,6 +295,25 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertSame(1, substr_count($normalLogs, '受けるダメージを 20% 軽減'));
     }
 
+    public function test_counter_intercept_dedicated_guard_replaces_a_future_standard_barrier(): void
+    {
+        config(['battle.job_art_v2.rank5_v6' => true]);
+
+        [$owner] = $this->actors();
+        $rankFive = $this->counterInterceptBarrierArt();
+        $guard = $this->actor('interceptor', 28, [$rankFive]);
+        $state = new BattleState($owner, $guard, 'pvp');
+        $this->forcePreparing($owner, $state, 'command', 'command_points');
+        $owner->setResource('command_points', 12);
+
+        $this->beginAction($guard, $state);
+        $this->executeJobArtAction($guard, $owner, $state, $rankFive);
+
+        $this->assertSame(0, $guard->damageReductionRate);
+        $this->assertSame(0.20, $guard->jobArtV2UltimateCounterplayState()->ultimateGuard?->rate);
+        $this->assertStringNotContainsString('次の被ダメージを 16% 軽減', implode("\n", $state->logs));
+    }
+
     public function test_ultimate_guard_also_replaces_the_legacy_sixteen_percent_barrier(): void
     {
         config(['battle.job_art_v2.rank5_v6' => false]);
@@ -1070,6 +1089,17 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
     private function guardBarrierArt(): Skill
     {
         $skill = $this->guardArt(5);
+        $skill->effect_template = 'DAMAGE_GUARD_BARRIER';
+        $skill->damage_type = 'physical';
+        $skill->damage_reduction_percent = 16;
+        $skill->sure_hit = true;
+
+        return $skill;
+    }
+
+    private function counterInterceptBarrierArt(): Skill
+    {
+        $skill = $this->art(2805, 28, 5, '無拍子');
         $skill->effect_template = 'DAMAGE_GUARD_BARRIER';
         $skill->damage_type = 'physical';
         $skill->damage_reduction_percent = 16;

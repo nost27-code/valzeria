@@ -353,6 +353,13 @@ final class JobArtV2CrownBalanceCatalog
         return is_numeric($value) ? max(0, min(50, (int) $value)) : null;
     }
 
+    public function guardUntilNextOwnAction(Skill $skill): bool
+    {
+        return $this->rank5V6Enabled()
+            && (int) $skill->job_id === 15
+            && $this->rank5V6Catalog->forSkill($skill) !== null;
+    }
+
     private function identity(Skill $skill): string
     {
         return implode(':', [(int) $skill->job_id, (int) $skill->learn_rank, (string) $skill->name]);
@@ -374,9 +381,6 @@ final class JobArtV2CrownBalanceCatalog
         }
 
         $jobId = (int) $source->job_id;
-        if ($jobId === 15) {
-            $copy->setAttribute('job_art_v2_guard_until_next_own_action', true);
-        }
         if (in_array($jobId, [8, 20, 31, 57, 77, 91], true)) {
             $copy->mp_recover_percent = 0;
         }

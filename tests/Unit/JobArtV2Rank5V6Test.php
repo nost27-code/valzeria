@@ -530,6 +530,20 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertSame(0, $actor->damageReductionRate);
     }
 
+    public function test_job15_guard_duration_is_catalog_driven_without_a_phantom_skill_attribute(): void
+    {
+        $balances = app(JobArtV2CrownBalanceCatalog::class);
+        $execution = $balances->applyToExecution($this->masterArt(15));
+
+        $this->assertTrue($balances->guardUntilNextOwnAction($execution));
+        $this->assertArrayNotHasKey('job_art_v2_guard_until_next_own_action', $execution->getAttributes());
+        $this->assertArrayNotHasKey('job_art_v2_guard_until_next_own_action', $execution->toArray());
+
+        config(['battle.job_art_v2.rank5_v6' => false]);
+        $legacy = $balances->applyToExecution($this->masterArt(15));
+        $this->assertFalse($balances->guardUntilNextOwnAction($legacy));
+    }
+
     public function test_reactive_rank_five_still_requires_four_lineage_resource_points(): void
     {
         $skill = $this->masterArt(85);

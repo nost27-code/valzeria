@@ -2162,7 +2162,7 @@ class BattleService
 
         $reduction = $this->jobArtGuardReduction($skill, $rate);
         $attacker->damageReductionRate = max($attacker->damageReductionRate, $reduction);
-        $message = (bool) $skill->getAttribute('job_art_v2_guard_until_next_own_action')
+        $message = $this->jobArtV2CrownBalanceCatalog->guardUntilNextOwnAction($skill)
             ? "{$attacker->name} は次の自分の行動開始まで、受けるダメージを {$reduction}% 軽減する！"
             : "{$attacker->name} は次の被ダメージを {$reduction}% 軽減する！";
         $state->addLog("<span class=\"text-blue-700 font-bold\">{$message}</span>");
