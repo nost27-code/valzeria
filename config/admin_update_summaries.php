@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-28-exclusive-character-icon-036-refresh',
+        'date' => '2026-08-28',
+        'category' => 'internal',
+        'title' => 'ルメア専用キャラアイコンを更新',
+        'detail' => 'ルメアさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを新しいデザインへ更新しました。',
+    ],
+    [
         'id' => '2026-08-27-exclusive-character-icon-039',
         'date' => '2026-08-27',
         'category' => 'internal',
