@@ -1553,6 +1553,16 @@
                                         height="128"
                                         loading="lazy"
                                         decoding="async"
+                                        x-data="{ retryCount: 0 }"
+                                        x-on:error="
+                                            if (retryCount < 2) {
+                                                retryCount++;
+                                                const image = $el;
+                                                const retryUrl = new URL(image.src, window.location.href);
+                                                retryUrl.searchParams.set('retry', retryCount);
+                                                window.setTimeout(() => { image.src = retryUrl.toString(); }, retryCount * 1000);
+                                            }
+                                        "
                                         class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                                     >
                                 </div>

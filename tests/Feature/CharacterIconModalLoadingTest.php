@@ -27,6 +27,10 @@ class CharacterIconModalLoadingTest extends TestCase
             ->call('openIconModal')
             ->assertSet('isIconModalOpen', true)
             ->assertSee('loading="lazy"', false)
-            ->assertSee('decoding="async"', false);
+            ->assertSee('decoding="async"', false)
+            ->assertSee('width="128"', false)
+            ->assertSee('height="128"', false)
+            ->assertSee('x-on:error', false)
+            ->assertSee('retryCount < 2', false);
     }
 }
