@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-29-job-art-sp-output-production-release',
+        'date' => '2026-08-29',
+        'category' => 'balance',
+        'title' => '最大SPを活かす戦技出力を追加',
+        'detail' => '戦技セットの通常戦・ボス戦・対人戦ごとに「なし／低い／標準／高い／MAX」を選べるようにしました。高い出力ほど追加SPを消費して直接攻撃の威力が上がり、最大SPの高い構成ほど同じ出力でも威力を伸ばせます。チャンプ戦では挑戦者・チャンプ双方が対人戦設定を使用します。',
+    ],
+    [
         'id' => '2026-08-29-rank5-v6-production-release',
         'date' => '2026-08-29',
         'category' => 'balance',

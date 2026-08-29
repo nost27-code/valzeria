@@ -49,7 +49,7 @@ return [
             // Rank5 v6.1を前提に校正したため、rank5_v6を含むcore flag鎖が
             // 1つでもOFFなら可変費・威力補正を適用しない。
             'enabled' => env('BATTLE_JOB_ART_SP_POWER_SCALING', false),
-            // チャンプは挑戦者／防衛者のSP永続境界が非対称なため別裁定までOFF。
+            // チャンプだけを緊急停止できるよう、主flagとは別の運用flagを維持する。
             'champ_enabled' => env('BATTLE_JOB_ART_SP_POWER_SCALING_CHAMP', false),
             'outputs' => [
                 'none' => ['stage' => 0, 'cap_bps' => 0],

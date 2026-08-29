@@ -182,6 +182,60 @@ class JobArtV2SpPowerScalingServiceTest extends TestCase
         $this->assertSame(2_500, $actor->spOutputBudgetRemaining());
     }
 
+    public function test_champ_uses_each_side_pvp_output_and_resets_only_the_budget_between_defenses(): void
+    {
+        config(['battle.job_art_v2.sp_power_scaling.champ_enabled' => true]);
+
+        $skill = $this->damageArt(rank: 5, jobId: 1);
+        $challenger = $this->actor('low');
+        $challenger->configureSpOutput(
+            powerReference: 10_000,
+            eligible: true,
+            context: 'champ',
+            budgetEnabled: true,
+            initialBudget: 2_500,
+        );
+        $defender = $this->actor('max');
+        $defender->configureSpOutput(
+            powerReference: 10_000,
+            eligible: true,
+            context: 'champ',
+            budgetEnabled: true,
+            initialBudget: 2_500,
+        );
+
+        $challengerResult = $this->costs->commitForActor($challenger, $skill);
+        $defenderResult = $this->costs->commitForActor($defender, $skill);
+
+        $this->assertNotNull($challengerResult);
+        $this->assertNotNull($defenderResult);
+        $this->assertSame(50, $challengerResult->variableCost);
+        $this->assertSame(500, $defenderResult->variableCost);
+        $this->assertSame(2_450, $challenger->spOutputBudgetRemaining());
+        $this->assertSame(2_000, $defender->spOutputBudgetRemaining());
+
+        $defender->mp -= $defenderResult->totalCost;
+        $persistedMp = $defender->mp;
+        $nextDefense = $this->actor('max');
+        $nextDefense->mp = $persistedMp;
+        $nextDefense->configureSpOutput(
+            powerReference: 10_000,
+            eligible: true,
+            context: 'champ',
+            budgetEnabled: true,
+            initialBudget: 2_500,
+        );
+
+        $this->assertSame(9_494, $nextDefense->mp);
+        $this->assertSame(2_500, $nextDefense->spOutputBudgetRemaining());
+
+        $nextDefenseResult = $this->costs->commitForActor($nextDefense, $skill);
+
+        $this->assertNotNull($nextDefenseResult);
+        $this->assertSame(500, $nextDefenseResult->variableCost);
+        $this->assertSame(2_000, $nextDefense->spOutputBudgetRemaining());
+    }
+
     public function test_non_damage_effects_receive_neither_variable_cost_nor_power_bonus(): void
     {
         foreach (['HEAL', 'HEAL_CLEANSE', 'GUARD_BARRIER', 'SELF_BUFF', 'ENEMY_DEBUFF', 'REWARD_MIXED'] as $template) {
