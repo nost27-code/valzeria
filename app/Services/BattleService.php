@@ -705,6 +705,7 @@ class BattleService
                 if ($scaling === null) {
                     $jobArt = null;
                 } else {
+                    $this->jobArtV2SelectionService->commitSuccessfulSelection($attacker, $jobArt);
                     $attacker->mp -= $scaling->totalCost;
                     if ($scaling->powerScalingApplies) {
                         $label = app(JobArtV2StrategyService::class)->outputLabels()[$scaling->outputKey] ?? $scaling->outputKey;

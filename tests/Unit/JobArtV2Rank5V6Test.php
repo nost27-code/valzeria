@@ -233,6 +233,63 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertSame('blocked_by_rank5_cycle', $blocked->blockedReasons[205]);
     }
 
+    public function test_battle_service_commits_a_successful_rank_five_before_the_next_action(): void
+    {
+        $rankFive = $this->art(205, 2, 5, '二段穿ち');
+        [$actor, $state] = $this->battle(2, [$rankFive], 'dragon_force', 4);
+        $selection = $this->selection([1, 1]);
+        $service = new BattleService(
+            app(CharacterStatusService::class),
+            app(DamageCalculator::class),
+            app(JobArtService::class),
+            app(JobArtV2FeatureGate::class),
+            $selection,
+            app(JobArtV2SpCostCalculator::class),
+        );
+        $action = new \ReflectionMethod(BattleService::class, 'executeAction');
+
+        $action->invoke($service, $actor, $state->enemy, $state);
+
+        $this->assertTrue($actor->jobArtV2Rank5CycleState()->hasUsed('dragon_force', 205));
+        $this->assertSame(1, $state->jobArtUseCounts[205] ?? 0);
+
+        $action->invoke($service, $actor, $state->enemy, $state);
+
+        $this->assertSame(1, $state->jobArtUseCounts[205] ?? 0);
+    }
+
+    public function test_battle_service_does_not_commit_rank_five_when_sp_cost_commit_fails(): void
+    {
+        $rankFive = $this->art(205, 2, 5, '二段穿ち');
+        [$actor, $state] = $this->battle(2, [$rankFive], 'dragon_force', 4);
+        $selection = $this->selection([1]);
+        $failedSpCommit = new class(
+            app(JobArtV2FeatureGate::class),
+            app(JobArtV2PrototypeCatalog::class),
+        ) extends JobArtV2SpCostCalculator {
+            public function commitForActor(
+                BattleActor $actor,
+                Skill $skill,
+            ): ?\App\Services\JobArtV2SpPowerScalingResult {
+                return null;
+            }
+        };
+        $service = new BattleService(
+            app(CharacterStatusService::class),
+            app(DamageCalculator::class),
+            app(JobArtService::class),
+            app(JobArtV2FeatureGate::class),
+            $selection,
+            $failedSpCommit,
+        );
+        $action = new \ReflectionMethod(BattleService::class, 'executeAction');
+
+        $action->invoke($service, $actor, $state->enemy, $state);
+
+        $this->assertFalse($actor->jobArtV2Rank5CycleState()->hasUsed('dragon_force', 205));
+        $this->assertSame(0, $state->jobArtUseCounts[205] ?? 0);
+    }
+
     public function test_rank_nine_clears_only_the_same_resource_cycle_after_commit(): void
     {
         $rankFive = $this->art(105, 1, 5, '受け返し');

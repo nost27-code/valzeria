@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-30-rank5-success-cycle-fix',
+        'date' => '2026-08-30',
+        'category' => 'fixed',
+        'title' => 'Rank5連携の同一周期での再発動を修正',
+        'detail' => '通常探索・ボス戦・星梯の塔で、発動に成功したRank5連携が同じ系譜の奥義成立前に繰り返し発動することがある問題を修正しました。',
+    ],
+    [
         'id' => '2026-08-30-job-art-sp-output-card-costs',
         'date' => '2026-08-30',
         'category' => 'changed',
