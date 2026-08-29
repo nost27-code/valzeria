@@ -155,6 +155,33 @@ class JobArtV2SpPowerScalingServiceTest extends TestCase
         $this->assertTrue($result->activated);
     }
 
+    public function test_champ_output_stays_fixed_only_until_the_dedicated_gate_is_enabled(): void
+    {
+        $actor = $this->actor('max', budget: 2_500);
+        $actor->configureSpOutput(
+            powerReference: 10_000,
+            eligible: true,
+            context: 'champ',
+            budgetEnabled: true,
+            initialBudget: 2_500,
+        );
+        $skill = $this->damageArt(rank: 5, jobId: 1);
+
+        $disabled = $this->costs->scalingForActor($actor, $skill);
+        $this->assertSame(0, $disabled->variableCost);
+        $this->assertSame(6, $disabled->totalCost);
+        $this->assertSame(0, $disabled->bonusBps);
+        $this->assertSame(2_500, $actor->spOutputBudgetRemaining());
+
+        config(['battle.job_art_v2.sp_power_scaling.champ_enabled' => true]);
+
+        $enabled = $this->costs->scalingForActor($actor, $skill);
+        $this->assertSame(500, $enabled->variableCost);
+        $this->assertSame(506, $enabled->totalCost);
+        $this->assertSame(2_000, $enabled->bonusBps);
+        $this->assertSame(2_500, $actor->spOutputBudgetRemaining());
+    }
+
     public function test_non_damage_effects_receive_neither_variable_cost_nor_power_bonus(): void
     {
         foreach (['HEAL', 'HEAL_CLEANSE', 'GUARD_BARRIER', 'SELF_BUFF', 'ENEMY_DEBUFF', 'REWARD_MIXED'] as $template) {

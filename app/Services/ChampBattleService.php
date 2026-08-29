@@ -561,7 +561,7 @@ class ChampBattleService
         $challengerJob = $challenger->relationLoaded('currentJob')
             ? $challenger->currentJob
             : $challenger->currentJob()->first();
-        $this->jobArtBattleSupport->attachBossSet($attacker, $challenger, 'champ');
+        $this->jobArtBattleSupport->attachBossSet($attacker, $challenger, 'champ', 'champ', true);
 
         $defender = new BattleActor($champ->player_name, false, [
             'hp' => max(0, (int) $champ->current_hp),
@@ -581,7 +581,7 @@ class ChampBattleService
             ? Character::query()->find($champ->character_id)
             : null;
         if ($champCharacter) {
-            $this->jobArtBattleSupport->attachBossSet($defender, $champCharacter, 'champ');
+            $this->jobArtBattleSupport->attachBossSet($defender, $champCharacter, 'champ', 'champ', true);
         }
 
         $affinityMultiplier = BattleTypeAffinity::multiplier($challengerAffinity, $champAffinity);
