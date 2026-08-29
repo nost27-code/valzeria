@@ -8,6 +8,7 @@ use App\Services\GameHealthCheckService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use ReflectionMethod;
+use RuntimeException;
 use Tests\TestCase;
 
 class GameHealthEndpointTest extends TestCase
@@ -96,6 +97,52 @@ class GameHealthEndpointTest extends TestCase
         $this->assertSame($originalCharacter->id, session('current_character_id'));
         $this->assertSame(123, session('target_area_id'));
         $this->assertSame('material_source', session('target_area_purpose'));
+    }
+
+    public function test_failed_probe_still_restores_auth_session_and_request_attribute(): void
+    {
+        $originalUser = User::factory()->create();
+        $originalCharacter = Character::query()->create([
+            'user_id' => $originalUser->id,
+            'name' => '例外確認中の冒険者',
+            'icon_path' => '/images/chara/chara_001.webp',
+        ]);
+        $probeUser = User::factory()->create();
+        Character::query()->create([
+            'user_id' => $probeUser->id,
+            'name' => '例外確認用の冒険者',
+            'icon_path' => '/images/chara/chara_002.webp',
+        ]);
+        $this->actingAs($originalUser);
+        session()->put([
+            'current_character_id' => $originalCharacter->id,
+            'target_area_id' => 456,
+            'target_area_purpose' => 'focus',
+        ]);
+        request()->attributes->set(GameHealthCheckService::REQUEST_ATTRIBUTE, 'original');
+        $withProbeUser = new ReflectionMethod(GameHealthCheckService::class, 'withProbeUser');
+
+        try {
+            $withProbeUser->invoke(
+                app(GameHealthCheckService::class),
+                $probeUser,
+                function (): void {
+                    request()->attributes->set(GameHealthCheckService::REQUEST_ATTRIBUTE, 'probe');
+                    session()->forget(['target_area_id', 'target_area_purpose']);
+
+                    throw new RuntimeException('probe failed');
+                },
+            );
+            $this->fail('The probe exception was not propagated.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('probe failed', $exception->getMessage());
+        }
+
+        $this->assertSame($originalUser->id, Auth::id());
+        $this->assertSame($originalCharacter->id, session('current_character_id'));
+        $this->assertSame(456, session('target_area_id'));
+        $this->assertSame('focus', session('target_area_purpose'));
+        $this->assertSame('original', request()->attributes->get(GameHealthCheckService::REQUEST_ATTRIBUTE));
     }
 
     private function healthCheck(bool $ok): GameHealthCheckService
