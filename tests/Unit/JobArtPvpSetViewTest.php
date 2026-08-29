@@ -63,6 +63,28 @@ class JobArtPvpSetViewTest extends TestCase
         $this->assertStringContainsString('JobArtService::V2_MAX_SLOTS', $mainScreen);
     }
 
+    public function test_sp_output_switch_updates_each_equipped_art_cost_and_rolls_back_on_failure(): void
+    {
+        $view = file_get_contents(resource_path('views/job-arts/index.blade.php'));
+        $slotCard = file_get_contents(resource_path('views/job-arts/partials/slot-card.blade.php'));
+        $costPartial = file_get_contents(resource_path('views/job-arts/partials/sp-output-card-cost.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertIsString($slotCard);
+        $this->assertIsString($costPartial);
+        $this->assertMatchesRegularExpression(
+            '/if \(!form \|\| assignmentPending\) return;.*?setAssignmentPending\(true\);.*?updateSpOutputCardCosts\(slotContext, outputRadio\.value\);/s',
+            $view,
+        );
+        $this->assertStringContainsString('updateSpOutputCardCosts(slotContext, outputRadio.value);', $view);
+        $this->assertStringContainsString('updateSpOutputCardCosts(slotContext, previousOutput);', $view);
+        $this->assertStringContainsString('.finally(() => setAssignmentPending(false));', $view);
+        $this->assertStringContainsString("'spOutputCardCosts' => \$spOutputCardCostsByContext[\$slotContext] ?? []", $view);
+        $this->assertStringContainsString("@include('job-arts.partials.sp-output-card-cost'", $slotCard);
+        $this->assertStringContainsString('data-job-art-sp-output-total', $costPartial);
+        $this->assertStringContainsString('data-job-art-sp-output-breakdown', $costPartial);
+    }
+
     public function test_home_menu_uses_job_art_name_and_five_slot_copy(): void
     {
         $mainScreen = file_get_contents(app_path('Livewire/MainScreen.php'));

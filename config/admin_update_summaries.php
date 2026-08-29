@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-30-job-art-sp-output-card-costs',
+        'date' => '2026-08-30',
+        'category' => 'changed',
+        'title' => '戦技ごとの消費SPを見やすく表示',
+        'detail' => '戦技出力を選ぶと、セット中の各戦技カードに固定SP・追加SP・合計の基準消費SPを表示するようにしました。出力を切り替えると各カードの数値も更新され、対象外の戦技は固定SPだけを表示します。',
+    ],
+    [
         'id' => '2026-08-29-job-art-sp-output-production-release',
         'date' => '2026-08-29',
         'category' => 'balance',

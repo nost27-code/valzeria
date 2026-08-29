@@ -47,6 +47,9 @@
     };
     $isUltimate = (bool) ($v2Display['is_ultimate'] ?? false);
     $jobArtIconPath = $hasArt ? (string) ($slotArt->getAttribute('job_art_icon_path') ?? '') : '';
+    $spOutputUiEnabled = (bool) ($spOutputUiEnabled ?? false);
+    $selectedSpOutput = (string) ($selectedSpOutput ?? 'none');
+    $artSpOutputCosts = $hasArt ? (array) (($spOutputCardCosts ?? [])[$selectedId] ?? []) : [];
 @endphp
 
 <div
@@ -130,6 +133,13 @@
                     </button>
                 </div>
             </div>
+
+            @if($spOutputUiEnabled && $artSpOutputCosts !== [])
+                @include('job-arts.partials.sp-output-card-cost', [
+                    'artSpOutputCosts' => $artSpOutputCosts,
+                    'selectedSpOutput' => $selectedSpOutput,
+                ])
+            @endif
 
             @if($jobArtV2CardDetailsEnabled ?? false)
             <button

@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\JobArtController;
+use App\Models\Character;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
@@ -10,6 +12,7 @@ use App\Services\JobArtV2RandomSource;
 use App\Services\JobArtV2SelectionService;
 use App\Services\JobArtV2SpCostCalculator;
 use App\Services\JobArtV2SpPowerScalingService;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class JobArtV2SpPowerScalingServiceTest extends TestCase
@@ -392,9 +395,151 @@ class JobArtV2SpPowerScalingServiceTest extends TestCase
             ],
         ])->render();
 
-        $this->assertStringContainsString('追加消費SP: 500', $html);
-        $this->assertStringContainsString('合計消費SP: 506', $html);
+        $this->assertStringContainsString('セット内の追加SP: 500', $html);
+        $this->assertStringContainsString('セット内の合計SP: 506', $html);
         $this->assertStringContainsString('攻撃威力: +20%', $html);
+        $this->assertStringContainsString('各戦技の合計消費SPは、下の戦技カードで確認できます', $html);
+    }
+
+    public function test_card_cost_matrix_keeps_exact_costs_for_eligible_and_excluded_arts(): void
+    {
+        $previews = [
+            'none' => [
+                'label' => 'なし',
+                'rows' => [
+                    ['skill_id' => 101, 'eligible' => true, 'fixed' => 6, 'variable' => 0, 'total' => 6],
+                    ['skill_id' => 202, 'eligible' => false, 'fixed' => 36, 'variable' => 0, 'total' => 36],
+                ],
+            ],
+            'max' => [
+                'label' => 'MAX',
+                'rows' => [
+                    ['skill_id' => 101, 'eligible' => true, 'fixed' => 6, 'variable' => 500, 'total' => 506],
+                    ['skill_id' => 202, 'eligible' => false, 'fixed' => 36, 'variable' => 0, 'total' => 36],
+                ],
+            ],
+        ];
+
+        $costs = (new ReflectionMethod(JobArtController::class, 'spOutputCardCosts'))
+            ->invoke(new JobArtController, $previews);
+
+        $this->assertSame([
+            'label' => 'MAX',
+            'eligible' => true,
+            'fixed' => 6,
+            'variable' => 500,
+            'total' => 506,
+        ], $costs[101]['max']);
+        $this->assertSame([
+            'label' => 'MAX',
+            'eligible' => false,
+            'fixed' => 36,
+            'variable' => 0,
+            'total' => 36,
+        ], $costs[202]['max']);
+    }
+
+    public function test_card_cost_matrix_matches_all_five_outputs_for_each_rank_at_ten_thousand_sp(): void
+    {
+        $skills = collect([1, 5, 9])->map(function (int $rank): Skill {
+            $skill = $this->damageArt(rank: $rank, jobId: 1);
+            $skill->setAttribute('id', 100 + $rank);
+
+            return $skill;
+        });
+        $labels = [
+            'none' => 'なし',
+            'low' => '低い',
+            'standard' => '標準',
+            'high' => '高い',
+            'max' => 'MAX',
+        ];
+        $previews = (new ReflectionMethod(JobArtController::class, 'spOutputPreviews'))->invoke(
+            new JobArtController,
+            new Character(['current_job_id' => 1]),
+            $skills,
+            10_000,
+            $labels,
+            $this->costs,
+            $this->scaling,
+            'normal',
+            false,
+        );
+        $costs = (new ReflectionMethod(JobArtController::class, 'spOutputCardCosts'))
+            ->invoke(new JobArtController, $previews);
+
+        $this->assertSame([4, 29, 79, 154, 254], array_column($costs[101], 'total'));
+        $this->assertSame([6, 56, 156, 306, 506], array_column($costs[105], 'total'));
+        $this->assertSame([8, 83, 233, 458, 758], array_column($costs[109], 'total'));
+    }
+
+    public function test_preview_rows_include_fixed_only_arts_without_polluting_output_ranges(): void
+    {
+        $damage = $this->damageArt(rank: 5, jobId: 1);
+        $damage->setAttribute('id', 101);
+        $support = $this->art(rank: 5, jobId: 1, template: 'HEAL');
+        $support->setAttribute('id', 202);
+
+        $previews = (new ReflectionMethod(JobArtController::class, 'spOutputPreviews'))->invoke(
+            new JobArtController,
+            new Character(['current_job_id' => 1]),
+            collect([$damage, $support]),
+            10_000,
+            ['max' => 'MAX'],
+            $this->costs,
+            $this->scaling,
+            'normal',
+            false,
+        );
+
+        $this->assertSame(1, $previews['max']['eligible_count']);
+        $this->assertSame(500, $previews['max']['variable_min']);
+        $this->assertSame(500, $previews['max']['variable_max']);
+        $this->assertCount(2, $previews['max']['rows']);
+        $this->assertSame([
+            'skill_id' => 202,
+            'skill_name' => 'SP出力テスト Rank5',
+            'rank' => 5,
+            'eligible' => false,
+            'fixed' => 6,
+            'variable' => 0,
+            'total' => 6,
+            'bonus_bps' => 0,
+        ], collect($previews['max']['rows'])->firstWhere('skill_id', 202));
+    }
+
+    public function test_equipped_art_cost_display_shows_selected_output_total_and_breakdown(): void
+    {
+        $costs = [
+            'none' => ['label' => 'なし', 'eligible' => true, 'fixed' => 6, 'variable' => 0, 'total' => 6],
+            'max' => ['label' => 'MAX', 'eligible' => true, 'fixed' => 6, 'variable' => 500, 'total' => 506],
+        ];
+
+        $html = view('job-arts.partials.sp-output-card-cost', [
+            'artSpOutputCosts' => $costs,
+            'selectedSpOutput' => 'max',
+        ])->render();
+
+        $this->assertStringContainsString('data-job-art-sp-output-cost-label>MAX</span>', $html);
+        $this->assertStringContainsString('時の合計消費SP', $html);
+        $this->assertStringContainsString('>506<', $html);
+        $this->assertStringContainsString('固定 6 ＋ 追加 500', $html);
+        $this->assertStringContainsString('data-job-art-sp-output-costs=', $html);
+    }
+
+    public function test_excluded_art_cost_display_stays_fixed_only(): void
+    {
+        $html = view('job-arts.partials.sp-output-card-cost', [
+            'artSpOutputCosts' => [
+                'max' => ['label' => 'MAX', 'eligible' => false, 'fixed' => 36, 'variable' => 0, 'total' => 36],
+            ],
+            'selectedSpOutput' => 'max',
+        ])->render();
+
+        $this->assertStringContainsString('data-job-art-sp-output-cost-label>MAX</span>', $html);
+        $this->assertStringContainsString('時の合計消費SP', $html);
+        $this->assertStringContainsString('>36<', $html);
+        $this->assertStringContainsString('固定 36のみ（戦技出力対象外）', $html);
     }
 
     private function enableScaling(): void

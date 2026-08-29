@@ -126,6 +126,9 @@ class JobArtController extends Controller
                 ),
             ])
             ->all();
+        $spOutputCardCostsByContext = collect($spOutputPreviewsByContext)
+            ->map(fn (array $previews): array => $this->spOutputCardCosts($previews))
+            ->all();
         $loadoutDiagnosesByContext = collect($jobArtService->slotContexts())
             ->mapWithKeys(fn (string $slotContext): array => [
                 $slotContext => $loadoutDiagnosisService->diagnose(
@@ -181,6 +184,7 @@ class JobArtController extends Controller
             'spOutputLabels' => $spOutputLabels,
             'spOutputUiEnabledByContext' => $spOutputUiEnabledByContext,
             'spOutputPreviewsByContext' => $spOutputPreviewsByContext,
+            'spOutputCardCostsByContext' => $spOutputCardCostsByContext,
             'loadoutDiagnosesByContext' => $loadoutDiagnosesByContext,
             'jobArtV2CardDetailsEnabled' => (bool) config('battle.job_art_v2.loadout_card_details', false),
             'slotConditionLabels' => $jobArtService->slotConditionLabels(),
@@ -403,6 +407,20 @@ class JobArtController extends Controller
             $contextTotalCost = $jobArtService->totalCost($selectedSkills);
             $currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
             $jobArtV2UiEnabled = $loadoutPresenter->enabledForCurrentJob($currentJobId);
+            $contextStrategy = $jobArtService->contextStrategy($character, $slotContext);
+            $spOutputUiEnabled = app(JobArtV2FeatureGate::class)
+                ->usesSpPowerScalingForCurrentJob($currentJobId, $slotContext);
+            $spOutputPreviews = $this->spOutputPreviews(
+                $character,
+                $selectedSkills,
+                $maxSp,
+                $jobArtService->spOutputLabels(),
+                $spCostCalculator,
+                $spPowerScalingService,
+                $slotContext,
+                $slotContext === JobArtService::PVP_SLOT_CONTEXT,
+            );
+            $spOutputCardCosts = $this->spOutputCardCosts($spOutputPreviews);
 
             $slotsHtml = '';
             for ($slotNo = 1; $slotNo <= $jobArtService->maxSlots(); $slotNo++) {
@@ -425,6 +443,9 @@ class JobArtController extends Controller
                     'currentJobId' => $currentJobId,
                     'jobArtV2UiEnabled' => $jobArtV2UiEnabled,
                     'jobArtV2CardDetailsEnabled' => (bool) config('battle.job_art_v2.loadout_card_details', false),
+                    'spOutputUiEnabled' => $spOutputUiEnabled,
+                    'spOutputCardCosts' => $spOutputCardCosts,
+                    'selectedSpOutput' => (string) ($contextStrategy['sp_output'] ?? 'none'),
                 ])->render();
             }
             $diagnosis = $loadoutDiagnosisService->diagnose(
@@ -455,20 +476,10 @@ class JobArtController extends Controller
                 )->render(),
                 'sp_output_html' => view('job-arts.partials.sp-output-settings', [
                     'slotContext' => $slotContext,
-                    'contextStrategies' => $jobArtService->contextStrategies($character),
+                    'contextStrategies' => [$slotContext => $contextStrategy],
                     'spOutputLabels' => $jobArtService->spOutputLabels(),
-                    'spOutputUiEnabled' => app(JobArtV2FeatureGate::class)
-                        ->usesSpPowerScalingForCurrentJob($currentJobId, $slotContext),
-                    'spOutputPreviews' => $this->spOutputPreviews(
-                        $character,
-                        $selectedSkills,
-                        $maxSp,
-                        $jobArtService->spOutputLabels(),
-                        $spCostCalculator,
-                        $spPowerScalingService,
-                        $slotContext,
-                        $slotContext === JobArtService::PVP_SLOT_CONTEXT,
-                    ),
+                    'spOutputUiEnabled' => $spOutputUiEnabled,
+                    'spOutputPreviews' => $spOutputPreviews,
                 ])->render(),
                 'selected_slot_by_skill' => $selectedSlots
                     ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no])
@@ -844,17 +855,18 @@ class JobArtController extends Controller
         string $slotContext,
         bool $budgetEnabled,
     ): array {
-        $eligibleSkills = collect($skills)
-            ->filter(fn ($skill): bool => $skill instanceof Skill && $spPowerScalingService->isEligibleArt($skill))
+        $skills = collect($skills)
+            ->filter(fn ($skill): bool => $skill instanceof Skill)
             ->values();
         $previews = [];
 
         foreach ($outputLabels as $outputKey => $label) {
-            $rows = $eligibleSkills->map(function (Skill $skill) use (
+            $rows = $skills->map(function (Skill $skill) use (
                 $character,
                 $maxSp,
                 $outputKey,
                 $spCostCalculator,
+                $spPowerScalingService,
                 $slotContext,
             ): array {
                 $scaling = $spCostCalculator->scalingForCharacter(
@@ -869,19 +881,24 @@ class JobArtController extends Controller
                     'skill_id' => (int) $skill->id,
                     'skill_name' => (string) $skill->name,
                     'rank' => (int) $skill->learn_rank,
+                    'eligible' => $spPowerScalingService->isEligibleArt($skill),
                     'fixed' => $scaling->discountedFixedCost,
                     'variable' => $scaling->variableCost,
                     'total' => $scaling->totalCost,
                     'bonus_bps' => $scaling->bonusBps,
                 ];
             })->all();
-            $variables = array_column($rows, 'variable');
-            $totals = array_column($rows, 'total');
+            $eligibleRows = array_values(array_filter(
+                $rows,
+                static fn (array $row): bool => (bool) ($row['eligible'] ?? false),
+            ));
+            $variables = array_column($eligibleRows, 'variable');
+            $totals = array_column($eligibleRows, 'total');
             $bonus = $spPowerScalingService->bonusPartsFor($maxSp, (string) $outputKey);
 
             $previews[(string) $outputKey] = [
                 'label' => (string) $label,
-                'eligible_count' => count($rows),
+                'eligible_count' => count($eligibleRows),
                 'variable_min' => $variables === [] ? 0 : min($variables),
                 'variable_max' => $variables === [] ? 0 : max($variables),
                 'total_min' => $totals === [] ? 0 : min($totals),
@@ -895,5 +912,33 @@ class JobArtController extends Controller
         }
 
         return $previews;
+    }
+
+    /**
+     * @param  array<string,array<string,mixed>>  $previews
+     * @return array<int,array<string,array{label:string,eligible:bool,fixed:int,variable:int,total:int}>>
+     */
+    private function spOutputCardCosts(array $previews): array
+    {
+        $costs = [];
+
+        foreach ($previews as $outputKey => $preview) {
+            foreach ((array) ($preview['rows'] ?? []) as $row) {
+                $skillId = (int) ($row['skill_id'] ?? 0);
+                if ($skillId <= 0) {
+                    continue;
+                }
+
+                $costs[$skillId][(string) $outputKey] = [
+                    'label' => (string) ($preview['label'] ?? $outputKey),
+                    'eligible' => (bool) ($row['eligible'] ?? false),
+                    'fixed' => max(0, (int) ($row['fixed'] ?? 0)),
+                    'variable' => max(0, (int) ($row['variable'] ?? 0)),
+                    'total' => max(0, (int) ($row['total'] ?? 0)),
+                ];
+            }
+        }
+
+        return $costs;
     }
 }

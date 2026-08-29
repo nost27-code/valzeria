@@ -332,6 +332,9 @@
                                     'maxCost' => $maxCost,
                                     'jobArtV2UiEnabled' => $jobArtV2UiEnabled,
                                     'jobArtV2CardDetailsEnabled' => $jobArtV2CardDetailsEnabled,
+                                    'spOutputUiEnabled' => $spOutputUiEnabledByContext[$slotContext] ?? false,
+                                    'spOutputCardCosts' => $spOutputCardCostsByContext[$slotContext] ?? [],
+                                    'selectedSpOutput' => (string) data_get($contextStrategies, "{$slotContext}.sp_output", 'none'),
                                 ])
                             @endfor
                         </div>
@@ -873,6 +876,35 @@
                 if (!context || typeof html !== 'string') return;
                 const container = root.querySelector('[data-job-art-sp-output-container="' + context + '"]');
                 if (container) container.outerHTML = html;
+            };
+
+            const updateSpOutputCardCosts = (context, outputKey) => {
+                if (!context || !outputKey) return;
+
+                root.querySelectorAll('[data-job-art-slot-card][data-slot-context="' + context + '"] [data-job-art-sp-output-cost]').forEach((element) => {
+                    let costs = {};
+                    try {
+                        costs = JSON.parse(element.getAttribute('data-job-art-sp-output-costs') || '{}');
+                    } catch (error) {
+                        return;
+                    }
+
+                    const cost = costs[outputKey] || costs.none;
+                    if (!cost) return;
+
+                    const label = element.querySelector('[data-job-art-sp-output-cost-label]');
+                    const total = element.querySelector('[data-job-art-sp-output-total]');
+                    const breakdown = element.querySelector('[data-job-art-sp-output-breakdown]');
+                    if (label) label.textContent = cost.label || outputKey;
+                    if (total) total.textContent = Number(cost.total || 0).toLocaleString('ja-JP');
+                    if (breakdown) {
+                        const fixed = Number(cost.fixed || 0).toLocaleString('ja-JP');
+                        const variable = Number(cost.variable || 0).toLocaleString('ja-JP');
+                        breakdown.textContent = cost.eligible
+                            ? '固定 ' + fixed + ' ＋ 追加 ' + variable
+                            : '固定 ' + fixed + 'のみ（戦技出力対象外）';
+                    }
+                });
             };
 
             const targetBanner = root.querySelector('[data-job-art-target-banner]');
@@ -1460,12 +1492,14 @@
                 const outputRadio = event.target.closest('[data-job-art-sp-output-radio]');
                 if (outputRadio) {
                     const form = outputRadio.closest('[data-job-art-sp-output]');
-                    if (!form) return;
+                    if (!form || assignmentPending) return;
                     const previousOutput = form.dataset.savedOutput || 'none';
                     const status = form.querySelector('[data-job-art-sp-output-status]');
+                    const slotContext = form.querySelector('input[name="slot_context"]')?.value || '';
                     const formData = new FormData(form);
                     formData.set('sp_output', outputRadio.value);
-                    form.querySelectorAll('input, button').forEach((control) => { control.disabled = true; });
+                    setAssignmentPending(true);
+                    updateSpOutputCardCosts(slotContext, outputRadio.value);
                     if (status) {
                         status.textContent = '保存中…';
                         status.classList.remove('hidden', 'text-emerald-600', 'text-rose-600');
@@ -1485,6 +1519,7 @@
                             const payload = await response.json().catch(() => ({}));
                             if (!response.ok) throw new Error(payload.message || 'SP出力を保存できませんでした。');
                             form.dataset.savedOutput = outputRadio.value;
+                            updateSpOutputCardCosts(slotContext, outputRadio.value);
                             if (status) {
                                 status.textContent = '保存しました';
                                 status.classList.remove('text-slate-500', 'text-rose-600');
@@ -1494,15 +1529,14 @@
                         .catch((error) => {
                             const previousRadio = form.querySelector('[data-job-art-sp-output-radio][value="' + previousOutput + '"]');
                             if (previousRadio) previousRadio.checked = true;
+                            updateSpOutputCardCosts(slotContext, previousOutput);
                             if (status) {
                                 status.textContent = error.message || '保存できませんでした';
                                 status.classList.remove('text-slate-500', 'text-emerald-600');
                                 status.classList.add('text-rose-600');
                             }
                         })
-                        .finally(() => {
-                            form.querySelectorAll('input, button').forEach((control) => { control.disabled = false; });
-                        });
+                        .finally(() => setAssignmentPending(false));
                     return;
                 }
 
