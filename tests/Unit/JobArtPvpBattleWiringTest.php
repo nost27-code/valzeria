@@ -16,7 +16,7 @@ class JobArtPvpBattleWiringTest extends TestCase
         $this->assertIsString($champ);
         $this->assertIsString($arenaNpc);
         $this->assertSame(2, preg_match_all("/attachBossSet\\([^;]+, 'champ', 'pvp', true\\);/", $pvp));
-        $this->assertSame(2, preg_match_all("/attachBossSet\\([^;]+, 'champ'\\);/", $champ));
+        $this->assertSame(2, preg_match_all("/attachBossSet\\([^;]+, 'champ', 'champ', true\\);/", $champ));
         $this->assertSame(1, preg_match_all("/attachBossSet\\([^;]+, 'champ', 'arena_npc', true\\);/", $arenaNpc));
         $this->assertStringContainsString("new BattleState(\$attackerActor, \$defenderActor, 'pvp')", $pvp);
         $this->assertStringContainsString("new \\App\\Services\\Battle\\BattleState(\$attacker, \$defender, 'champ')", $champ);

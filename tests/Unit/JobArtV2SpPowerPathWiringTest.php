@@ -23,7 +23,7 @@ class JobArtV2SpPowerPathWiringTest extends TestCase
         $this->assertStringContainsString("'sp_output_budget_enabled' => true", $nationWar);
     }
 
-    public function test_pve_prediction_tower_and_champ_do_not_share_the_competitive_budget(): void
+    public function test_pve_prediction_and_tower_skip_the_budget_while_champ_budgets_both_sides(): void
     {
         $training = $this->source('app/Services/TrainingGroundBattleService.php');
         $tower = $this->source('app/Services/TowerBattleService.php');
@@ -34,8 +34,11 @@ class JobArtV2SpPowerPathWiringTest extends TestCase
             '/configureSpOutput\([^;]+?\'tower\',\s*false,\s*\(int\) \$run->tower_max_mp,/s',
             $tower,
         );
-        $this->assertSame(2, preg_match_all("/attachBossSet\\([^;]+, 'champ'\\);/", $champ));
-        $this->assertStringNotContainsString("'champ', true", $champ);
+        $this->assertSame(2, preg_match_all(
+            "/attachBossSet\\([^;]+, 'champ', 'champ', true\\);/",
+            $champ,
+        ));
+        $this->assertSame(0, preg_match_all("/attachBossSet\\([^;]+, 'champ'\\);/", $champ));
     }
 
     public function test_every_secondary_player_versus_player_entrypoint_delegates_to_the_budgeted_service(): void
