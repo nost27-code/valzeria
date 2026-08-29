@@ -251,6 +251,7 @@ class JobArtV2Rank5V6Test extends TestCase
         $action->invoke($service, $actor, $state->enemy, $state);
 
         $this->assertTrue($actor->jobArtV2Rank5CycleState()->hasUsed('dragon_force', 205));
+        $this->assertSame(994, $actor->mp);
         $this->assertSame(1, $state->jobArtUseCounts[205] ?? 0);
 
         $action->invoke($service, $actor, $state->enemy, $state);
@@ -258,7 +259,7 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertSame(1, $state->jobArtUseCounts[205] ?? 0);
     }
 
-    public function test_battle_service_does_not_commit_rank_five_when_sp_cost_commit_fails(): void
+    public function test_battle_service_does_not_commit_rank_five_when_sp_becomes_insufficient_after_selection(): void
     {
         $rankFive = $this->art(205, 2, 5, '二段穿ち');
         [$actor, $state] = $this->battle(2, [$rankFive], 'dragon_force', 4);
@@ -271,7 +272,9 @@ class JobArtV2Rank5V6Test extends TestCase
                 BattleActor $actor,
                 Skill $skill,
             ): ?\App\Services\JobArtV2SpPowerScalingResult {
-                return null;
+                $actor->mp = 0;
+
+                return parent::commitForActor($actor, $skill);
             }
         };
         $service = new BattleService(
@@ -288,6 +291,55 @@ class JobArtV2Rank5V6Test extends TestCase
 
         $this->assertFalse($actor->jobArtV2Rank5CycleState()->hasUsed('dragon_force', 205));
         $this->assertSame(0, $state->jobArtUseCounts[205] ?? 0);
+    }
+
+    public function test_battle_service_does_not_commit_rank_five_when_output_budget_becomes_insufficient_after_selection(): void
+    {
+        config(['battle.job_art_v2.sp_power_scaling.enabled' => true]);
+        $rankFive = $this->art(205, 2, 5, '二段穿ち');
+        [$actor, $state] = $this->battle(2, [$rankFive], 'dragon_force', 4);
+        $actor->jobArtStrategy = [
+            'mode' => 'custom',
+            'sp_policy' => 'aggressive',
+            'sp_output' => 'max',
+            'settings' => ['sp_output' => 'max'],
+        ];
+        $actor->configureSpOutput(
+            powerReference: 1_000,
+            eligible: true,
+            context: 'normal',
+            budgetEnabled: true,
+            initialBudget: 100,
+        );
+        $selection = $this->selection([1]);
+        $failedBudgetCommit = new class(
+            app(JobArtV2FeatureGate::class),
+            app(JobArtV2PrototypeCatalog::class),
+        ) extends JobArtV2SpCostCalculator {
+            public function commitForActor(
+                BattleActor $actor,
+                Skill $skill,
+            ): ?\App\Services\JobArtV2SpPowerScalingResult {
+                $actor->spendSpOutputBudget($actor->spOutputBudgetRemaining() ?? 0);
+
+                return parent::commitForActor($actor, $skill);
+            }
+        };
+        $service = new BattleService(
+            app(CharacterStatusService::class),
+            app(DamageCalculator::class),
+            app(JobArtService::class),
+            app(JobArtV2FeatureGate::class),
+            $selection,
+            $failedBudgetCommit,
+        );
+        $action = new \ReflectionMethod(BattleService::class, 'executeAction');
+
+        $action->invoke($service, $actor, $state->enemy, $state);
+
+        $this->assertFalse($actor->jobArtV2Rank5CycleState()->hasUsed('dragon_force', 205));
+        $this->assertSame(0, $state->jobArtUseCounts[205] ?? 0);
+        $this->assertSame(0, $actor->spOutputBudgetRemaining());
     }
 
     public function test_rank_nine_clears_only_the_same_resource_cycle_after_commit(): void

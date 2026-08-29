@@ -108,14 +108,10 @@ class GameHealthCheckService
         $this->withProbeUser($user, function () use ($location): void {
             request()->attributes->set(self::REQUEST_ATTRIBUTE, $location);
             $component = app(MainScreen::class);
-            $component->mount();
+            $component->mount($location);
             $view = app()->call([$component, 'render']);
             if ($view instanceof View) {
-                $view->with([
-                    'currentLocation' => $component->currentLocation,
-                    'isIconModalOpen' => $component->isIconModalOpen,
-                    'isNameModalOpen' => $component->isNameModalOpen,
-                ]);
+                $view->with(get_object_vars($component));
             }
             $rendered = $view instanceof View ? $view->render() : '';
 
@@ -147,12 +143,33 @@ class GameHealthCheckService
     {
         $guard = Auth::guard();
         $originalUser = $guard->user();
+        $session = session();
+        $sessionKeys = ['current_character_id', 'target_area_id', 'target_area_purpose'];
+        $originalSession = array_intersect_key($session->all(), array_flip($sessionKeys));
+        $attributes = request()->attributes;
+        $hadProbeAttribute = $attributes->has(self::REQUEST_ATTRIBUTE);
+        $originalProbeAttribute = $attributes->get(self::REQUEST_ATTRIBUTE);
+        $probeCharacterId = $user->characters()->orderBy('id')->value('id');
 
         try {
+            if ($probeCharacterId !== null) {
+                $session->put('current_character_id', $probeCharacterId);
+            }
             $guard->setUser($user);
             $callback();
         } finally {
-            request()->attributes->remove(self::REQUEST_ATTRIBUTE);
+            foreach ($sessionKeys as $key) {
+                if (array_key_exists($key, $originalSession)) {
+                    $session->put($key, $originalSession[$key]);
+                } else {
+                    $session->forget($key);
+                }
+            }
+            if ($hadProbeAttribute) {
+                $attributes->set(self::REQUEST_ATTRIBUTE, $originalProbeAttribute);
+            } else {
+                $attributes->remove(self::REQUEST_ATTRIBUTE);
+            }
             if ($originalUser instanceof User) {
                 $guard->setUser($originalUser);
             } else {

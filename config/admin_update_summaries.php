@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-30-game-health-probe-fix',
+        'date' => '2026-08-30',
+        'category' => 'internal',
+        'title' => 'ゲーム稼働監視の誤判定とセッション影響を修正',
+        'detail' => 'ホームと探索の稼働確認を正しく行い、確認時に選択中の冒険者や探索先の状態へ影響しないよう修正しました。',
+    ],
+    [
         'id' => '2026-08-30-rank5-success-cycle-fix',
         'date' => '2026-08-30',
         'category' => 'fixed',
