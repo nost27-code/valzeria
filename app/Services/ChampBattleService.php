@@ -904,11 +904,19 @@ class ChampBattleService
         }
 
         $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
+        $lukPowerContribution = 0;
         if ((float) $skill->luk_power_rate > 0) {
-            $totalPower += (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
+            $lukPowerContribution = (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate);
+            $totalPower += $lukPowerContribution;
         }
+        $this->jobArtBattleSupport->addDamageOnlyPower($skill, $lukPowerContribution);
+        $totalPowerCenti = $skill->isJobArt()
+            ? $this->jobArtBattleSupport->actionPowerCenti($skill)
+            : null;
         $hitPowers = $skill->isJobArt()
-            ? JobArtHitPower::split($totalPower, $hitCount)
+            ? ($totalPowerCenti === null
+                ? JobArtHitPower::split($totalPower, $hitCount)
+                : JobArtHitPower::splitCenti($totalPowerCenti, $hitCount))
             : array_fill(0, $hitCount, $totalPower);
         $dealsDamage = ! $skill->isJobArt()
             || JobArtEffectCatalog::dealsDamage((string) $skill->effect_template);
@@ -918,7 +926,10 @@ class ChampBattleService
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
         for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
             $damage = 0;
-            $skillPowerInt = $hitPowers[$i];
+            $skillPowerCenti = $totalPowerCenti === null ? null : $hitPowers[$i];
+            $skillPowerInt = $skillPowerCenti === null
+                ? $hitPowers[$i]
+                : intdiv($skillPowerCenti + 50, 100);
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
             $statOverrides = $this->jobArtBattleSupport->damageStatOverrides($attacker, $defender, $skill);
             $overrideAtk = $statOverrides['attack'];
@@ -937,6 +948,7 @@ class ChampBattleService
                         $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
+                        skillPowerCenti: $skillPowerCenti,
                     );
                 } elseif ($damageType === 'magical') {
                     $damage = $this->damageCalculator->calculateDuelDamage(
@@ -949,6 +961,7 @@ class ChampBattleService
                         $overrideAtk,
                         $overrideDef,
                         $overrideSpr,
+                        skillPowerCenti: $skillPowerCenti,
                     );
                 } elseif ($damageType === 'hybrid') {
                     $hybridAtk = $attacker->hybridAttackPower(
@@ -965,6 +978,7 @@ class ChampBattleService
                         $hybridAtk,
                         $overrideDef,
                         $overrideSpr,
+                        skillPowerCenti: $skillPowerCenti,
                     );
                 }
             }
@@ -1078,7 +1092,8 @@ class ChampBattleService
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
-            $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
+            $drainBaseDamage = $this->jobArtBattleSupport->drainDamageBeforeSpOutput($skill, $totalDamage);
+            $heal = max(1, (int) floor($drainBaseDamage * (float) $skill->drain_hp_rate));
             $actualHeal = $this->jobArtBattleSupport->applyFieldHpHeal($attacker, $state, $heal);
             $logs[] = "<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$actualHeal} 回復した！</span>";
         }

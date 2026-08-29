@@ -1399,6 +1399,7 @@ final class PvPRoomRuleDamageCalculatorSpy extends DamageCalculator
         bool $damageCapEnabled = true,
         float $baseDamageMultiplier = 1.0,
         float $additionalDefenseIgnoreRate = 0.0,
+        ?int $skillPowerCenti = null,
     ): int {
         $this->rankDamageCalls[] = [
             'attack_type' => $attackType,
@@ -1471,8 +1472,14 @@ final class PvPRoomRuleJobArtSupportStub extends JobArtBattleSupportService
         $this->testHealingResolvers = new \WeakMap();
     }
 
-    public function attachBossSet(BattleActor $actor, Character $character, string $context = 'champ'): void
-    {
+    public function attachBossSet(
+        BattleActor $actor,
+        Character $character,
+        string $context = 'champ',
+        ?string $spExecutionContext = null,
+        bool $spOutputBudgetEnabled = false,
+        ?int $spPowerReference = null,
+    ): void {
     }
 
     public function registerHpHealingResolver(BattleState $state, \Closure $resolver): void

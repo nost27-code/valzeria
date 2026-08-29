@@ -285,7 +285,7 @@ class PvPBattleService
         $attackerActor->jobKey = $attackerJob?->key;
         $attackerActor->battleTypeWeights = BattleTypeAffinity::normalize($this->battleTypeWeights($attackerJob));
         $attackerActor->normalAttackType = $this->normalAttackType($attackerJob);
-        $this->jobArtBattleSupport->attachBossSet($attackerActor, $attackerChar, 'champ');
+        $this->jobArtBattleSupport->attachBossSet($attackerActor, $attackerChar, 'champ', 'pvp', true);
 
         // ディフェンダーアクターの生成
         $defenderStats = $this->statusService->getFinalStats($defenderChar);
@@ -308,7 +308,7 @@ class PvPBattleService
         $defenderActor->jobKey = $defenderJob?->key;
         $defenderActor->battleTypeWeights = BattleTypeAffinity::normalize($this->battleTypeWeights($defenderJob));
         $defenderActor->normalAttackType = $this->normalAttackType($defenderJob);
-        $this->jobArtBattleSupport->attachBossSet($defenderActor, $defenderChar, 'champ');
+        $this->jobArtBattleSupport->attachBossSet($defenderActor, $defenderChar, 'champ', 'pvp', true);
 
         $state = new BattleState($attackerActor, $defenderActor, 'pvp');
         $state->rankBattleMinimumDamageGuaranteeEnabled = $context->rankBattleMinimumDamageGuaranteeEnabled;
@@ -861,6 +861,7 @@ class PvPBattleService
         }
 
         $totalPower = max(0, (int) round((float) $skill->power_multiplier * 100));
+        $lukPowerContribution = 0;
         if ((float) $skill->luk_power_rate > 0) {
             $lukPowerContribution = (int) floor(
                 $attacker->effectiveLuk() * (float) $skill->luk_power_rate,
@@ -874,8 +875,14 @@ class PvPBattleService
             );
             $totalPower += $lukPowerContribution;
         }
+        $this->jobArtBattleSupport->addDamageOnlyPower($skill, $lukPowerContribution);
+        $totalPowerCenti = $skill->isJobArt()
+            ? $this->jobArtBattleSupport->actionPowerCenti($skill)
+            : null;
         $hitPowers = $skill->isJobArt()
-            ? JobArtHitPower::split($totalPower, $hitCount)
+            ? ($totalPowerCenti === null
+                ? JobArtHitPower::split($totalPower, $hitCount)
+                : JobArtHitPower::splitCenti($totalPowerCenti, $hitCount))
             : array_fill(0, $hitCount, $totalPower);
         $dealsDamage = ! $skill->isJobArt()
             || JobArtEffectCatalog::dealsDamage((string) $skill->effect_template);
@@ -886,7 +893,10 @@ class PvPBattleService
             // This route has no existing Job Art critical roll. Role-diversity
             // bonuses may adjust an existing roll, but must not add RNG here.
             $isCrit = false;
-            $skillPowerInt = $hitPowers[$i];
+            $skillPowerCenti = $totalPowerCenti === null ? null : $hitPowers[$i];
+            $skillPowerInt = $skillPowerCenti === null
+                ? $hitPowers[$i]
+                : intdiv($skillPowerCenti + 50, 100);
 
             $overrides = $this->jobArtBattleSupport->defenseOverrides($attacker, $defender, $state, $skill);
             $statOverrides = $this->jobArtBattleSupport->damageStatOverrides($attacker, $defender, $skill);
@@ -945,6 +955,7 @@ class PvPBattleService
                         $state->rankBattleDamageCapEnabled,
                         baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
                         additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
+                        skillPowerCenti: $skillPowerCenti,
                     );
                 } elseif ($damageType === 'magical') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
@@ -963,6 +974,7 @@ class PvPBattleService
                         $state->rankBattleDamageCapEnabled,
                         baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
                         additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
+                        skillPowerCenti: $skillPowerCenti,
                     );
                 } elseif ($damageType === 'hybrid') {
                     $damage = $this->damageCalculator->calculateRankBattleDamage(
@@ -981,6 +993,7 @@ class PvPBattleService
                         $state->rankBattleDamageCapEnabled,
                         baseDamageMultiplier: $state->rankBattleBaseDamageMultiplier,
                         additionalDefenseIgnoreRate: $breakthroughRates['additional_ignore_rate'],
+                        skillPowerCenti: $skillPowerCenti,
                     );
                 }
             }
@@ -1117,7 +1130,8 @@ class PvPBattleService
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
-            $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate));
+            $drainBaseDamage = $this->jobArtBattleSupport->drainDamageBeforeSpOutput($skill, $totalDamage);
+            $heal = max(1, (int) floor($drainBaseDamage * (float) $skill->drain_hp_rate));
             $actualHeal = $this->applyResolvedHealing(
                 $attacker,
                 $attacker,

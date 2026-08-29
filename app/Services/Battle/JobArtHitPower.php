@@ -25,4 +25,16 @@ final class JobArtHitPower
 
         return $powers;
     }
+
+    /**
+     * Split action-total power expressed in hundredths of one displayed-power
+     * point. Keeping this unit through hit allocation prevents the SP-output
+     * bonus from being rounded once per hit.
+     *
+     * @return list<int>
+     */
+    public static function splitCenti(int $totalPowerCenti, int $hitCount): array
+    {
+        return self::split($totalPowerCenti, $hitCount);
+    }
 }

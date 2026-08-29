@@ -150,7 +150,8 @@ class DamageCalculator
         float $affinityMultiplier = 1.0,
         ?int $overrideAtk = null,
         ?int $overrideDef = null,
-        ?int $overrideSpr = null
+        ?int $overrideSpr = null,
+        ?int $skillPowerCenti = null,
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
         $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr());
@@ -183,7 +184,9 @@ class DamageCalculator
         $variance = rand(self::DUEL_VARIANCE_MIN, self::DUEL_VARIANCE_MAX) / 100;
         $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
 
-        return $this->applyDisplayedPower($normalEquivalentDamage, $skillPower);
+        return $skillPowerCenti === null
+            ? $this->applyDisplayedPower($normalEquivalentDamage, $skillPower)
+            : $this->applyDisplayedPowerCenti($normalEquivalentDamage, $skillPowerCenti);
     }
 
     public function calculateRankBattleDamage(
@@ -202,6 +205,7 @@ class DamageCalculator
         bool $damageCapEnabled = true,
         float $baseDamageMultiplier = 1.0,
         float $additionalDefenseIgnoreRate = 0.0,
+        ?int $skillPowerCenti = null,
     ): int {
         $attackType = $attackType === 'magical' ? 'magical' : 'physical';
         $attackPower = $overrideAtk ?? ($attackType === 'magical' ? $attacker->effectiveMag() : $attacker->effectiveStr());
@@ -232,7 +236,9 @@ class DamageCalculator
         $variance = rand(self::RANK_BATTLE_VARIANCE_MIN, self::RANK_BATTLE_VARIANCE_MAX) / 100;
         $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
 
-        return $this->applyDisplayedPower($normalEquivalentDamage, $skillPower);
+        return $skillPowerCenti === null
+            ? $this->applyDisplayedPower($normalEquivalentDamage, $skillPower)
+            : $this->applyDisplayedPowerCenti($normalEquivalentDamage, $skillPowerCenti);
     }
 
     /**
@@ -358,6 +364,14 @@ class DamageCalculator
         );
     }
 
+    private function applyDisplayedPowerCenti(int $normalEquivalentDamage, int $skillPowerCenti): int
+    {
+        return max(
+            1,
+            intdiv($normalEquivalentDamage * max(0, $skillPowerCenti), 10_000),
+        );
+    }
+
     private function rankBattleEffectiveDefense(string $attackType, int $def, int $spr): float
     {
         return (float) ($attackType === 'magical' ? $spr : $def);
@@ -381,7 +395,7 @@ class DamageCalculator
     /**
      * 物理ダメージ計算
      */
-    public function calculatePhysicalDamage(BattleActor $attacker, BattleActor $defender, int $skillPower = 100, bool $isCritical = false, ?int $overrideAtk = null, ?int $overrideDef = null): int
+    public function calculatePhysicalDamage(BattleActor $attacker, BattleActor $defender, int $skillPower = 100, bool $isCritical = false, ?int $overrideAtk = null, ?int $overrideDef = null, ?int $skillPowerCenti = null): int
     {
         $atk = $overrideAtk ?? $attacker->effectiveStr();
         $def = $overrideDef ?? $defender->effectiveDef();
@@ -391,7 +405,7 @@ class DamageCalculator
                 $def = $this->effectivePercentageDefense($defender, 'physical');
             }
 
-            return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical);
+            return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical, $skillPowerCenti);
         }
 
         if ($isCritical) {
@@ -402,7 +416,9 @@ class DamageCalculator
         if ($baseDamage < 1) $baseDamage = 1;
 
         // スキル威力補正
-        $baseDamage = $baseDamage * ($skillPower / 100);
+        $baseDamage = $skillPowerCenti === null
+            ? $baseDamage * ($skillPower / 100)
+            : $baseDamage * ($skillPowerCenti / 10_000);
 
         // クリティカル補正
         if ($isCritical) {
@@ -426,7 +442,7 @@ class DamageCalculator
     /**
      * 魔法ダメージ計算
      */
-    public function calculateMagicalDamage(BattleActor $attacker, BattleActor $defender, int $skillPower = 100, bool $isCritical = false, ?int $overrideAtk = null, ?int $overrideDef = null): int
+    public function calculateMagicalDamage(BattleActor $attacker, BattleActor $defender, int $skillPower = 100, bool $isCritical = false, ?int $overrideAtk = null, ?int $overrideDef = null, ?int $skillPowerCenti = null): int
     {
         $atk = $overrideAtk ?? $attacker->effectiveMag();
         $def = $overrideDef ?? $defender->effectiveSpr();
@@ -436,7 +452,7 @@ class DamageCalculator
                 $def = $this->effectivePercentageDefense($defender, 'magical');
             }
 
-            return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical);
+            return $this->calculatePveEnemyPercentageDamage($atk, $def, $defender, $skillPower, $isCritical, $skillPowerCenti);
         }
 
         if ($isCritical) {
@@ -446,7 +462,9 @@ class DamageCalculator
         $baseDamage = $atk - ($def / 2);
         if ($baseDamage < 1) $baseDamage = 1;
 
-        $baseDamage = $baseDamage * ($skillPower / 100);
+        $baseDamage = $skillPowerCenti === null
+            ? $baseDamage * ($skillPower / 100)
+            : $baseDamage * ($skillPowerCenti / 10_000);
 
         if ($isCritical) {
             $baseDamage *= 1.5;
@@ -480,7 +498,7 @@ class DamageCalculator
             : $defender->effectivePercentageDef();
     }
 
-    private function calculatePveEnemyPercentageDamage(int $attackPower, float $defense, BattleActor $defender, int $skillPower, bool $isCritical): int
+    private function calculatePveEnemyPercentageDamage(int $attackPower, float $defense, BattleActor $defender, int $skillPower, bool $isCritical, ?int $skillPowerCenti = null): int
     {
         $attackPower = max(1, $attackPower);
         $effectiveDefense = max(0.0, $defense);
@@ -491,7 +509,9 @@ class DamageCalculator
         $coefficient = max(0.0, (float) $this->battleConfig('pve_enemy_percentage_defense.defense_coefficient', 3.5));
         $baseDamage = $this->calculatePveEnemyPercentageBaseDamage($attackPower, $effectiveDefense, $coefficient);
 
-        $damage = $baseDamage * ($skillPower / 100);
+        $damage = $skillPowerCenti === null
+            ? $baseDamage * ($skillPower / 100)
+            : $baseDamage * ($skillPowerCenti / 10_000);
         if ($isCritical) {
             $damage *= 1.5;
         }

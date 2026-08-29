@@ -385,6 +385,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/job-arts/slot', [JobArtController::class, 'slotSet'])->name('job-arts.slot-set');
         Route::post('/job-arts/reorder', [JobArtController::class, 'reorder'])->name('job-arts.reorder');
         Route::post('/job-arts/policy', [JobArtController::class, 'policy'])->name('job-arts.policy');
+        Route::post('/job-arts/sp-output', [JobArtController::class, 'spOutput'])->name('job-arts.sp-output');
+        Route::post('/job-arts/strategy', [JobArtController::class, 'strategy'])->name('job-arts.strategy');
         Route::post('/job-arts/starter-presets/{style}/apply', [JobArtPresetController::class, 'applyStarter'])->name('job-arts.starter-presets.apply');
         Route::post('/job-arts/presets', [JobArtPresetController::class, 'store'])->name('job-arts.presets.store');
         Route::post('/job-arts/presets/{preset}/apply', [JobArtPresetController::class, 'apply'])->name('job-arts.presets.apply');

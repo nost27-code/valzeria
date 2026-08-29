@@ -23,14 +23,20 @@ class JobArtService
 
     private readonly JobArtV2SlotConditionCatalog $slotConditionCatalog;
     private readonly JobArtV2DeckRoleResolver $deckRoleResolver;
+    private readonly JobArtV2StrategyService $strategyService;
+    private readonly JobArtV2FeatureGate $featureGate;
 
     public function __construct(
         ?JobArtV2SlotConditionCatalog $slotConditionCatalog = null,
         ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        ?JobArtV2StrategyService $strategyService = null,
+        ?JobArtV2FeatureGate $featureGate = null,
     ) {
         // Keep direct construction used by legacy tests and small CLI tools compatible.
         $this->slotConditionCatalog = $slotConditionCatalog ?? app(JobArtV2SlotConditionCatalog::class);
         $this->deckRoleResolver = $deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class);
+        $this->strategyService = $strategyService ?? app(JobArtV2StrategyService::class);
+        $this->featureGate = $featureGate ?? app(JobArtV2FeatureGate::class);
     }
 
     /** @return array<string, string> */
@@ -124,18 +130,79 @@ class JobArtService
 
     public function contextSpPolicy(Character $character, string $slotContext): string
     {
-        $slotContext = $this->normalizeSlotContext($slotContext);
-        if (! Schema::hasTable('character_job_art_context_settings')) {
-            return 'aggressive';
+        return $this->contextStrategy($character, $slotContext)['sp_policy'];
+    }
+
+    /** @return array<string, array{mode:string,sp_policy:string,sp_output:string,settings:array<string,string>}> */
+    public function contextStrategies(Character $character): array
+    {
+        return collect($this->slotContexts())
+            ->mapWithKeys(fn (string $context): array => [
+                $context => $this->contextStrategy($character, $context),
+            ])
+            ->all();
+    }
+
+    /** @return array{mode:string,sp_policy:string,sp_output:string,settings:array<string,string>} */
+    public function contextStrategy(Character $character, string $slotContext): array
+    {
+        if ($slotContext === self::PVP_SLOT_CONTEXT && ! $this->pvpSetEnabled()) {
+            return $this->strategyService->resolve(
+                JobArtV2StrategyService::MODE_CUSTOM,
+                ['sp_output' => JobArtV2StrategyService::OUTPUT_NONE],
+                'aggressive',
+            );
         }
 
-        $policy = $character->jobArtContextSettings()
-            ->where('battle_context', $slotContext)
-            ->value('sp_policy');
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        if (! Schema::hasTable('character_job_art_context_settings')) {
+            return $this->strategyService->resolve(
+                JobArtV2StrategyService::MODE_CUSTOM,
+                ['sp_output' => JobArtV2StrategyService::OUTPUT_NONE],
+                'aggressive',
+            );
+        }
 
-        return $policy === null
-            ? 'aggressive'
-            : $this->normalizeActivationPolicy((string) $policy);
+        $setting = $character->jobArtContextSettings()
+            ->where('battle_context', $slotContext)
+            ->first();
+        $spPolicy = $this->normalizeActivationPolicy((string) ($setting?->sp_policy ?: 'aggressive'));
+        $hasStrategyColumns = Schema::hasColumn('character_job_art_context_settings', 'strategy_mode')
+            && Schema::hasColumn('character_job_art_context_settings', 'strategy_settings');
+        $detailedStrategyEnabled = $this->featureGate->usesDetailedStrategyForCurrentJob(
+            $character->current_job_id !== null ? (int) $character->current_job_id : null,
+        );
+        $storedSettings = $hasStrategyColumns && is_array($setting?->strategy_settings)
+            ? $setting->strategy_settings
+            : [];
+
+        return $this->strategyService->resolve(
+            $hasStrategyColumns && $detailedStrategyEnabled
+                ? (string) ($setting?->strategy_mode ?: JobArtV2StrategyService::MODE_CUSTOM)
+                : JobArtV2StrategyService::MODE_CUSTOM,
+            $detailedStrategyEnabled
+                ? $storedSettings
+                : ['sp_output' => $storedSettings['sp_output'] ?? JobArtV2StrategyService::OUTPUT_NONE],
+            $spPolicy,
+        );
+    }
+
+    /** @return array<string,string> */
+    public function strategyModeLabels(): array
+    {
+        return $this->strategyService->modeLabels();
+    }
+
+    /** @return array<string,string> */
+    public function spOutputLabels(): array
+    {
+        return $this->strategyService->outputLabels();
+    }
+
+    /** @return array<string,array{label:string,description:string,options:array<string,string>}> */
+    public function strategySettingDefinitions(): array
+    {
+        return $this->strategyService->settingDefinitions();
     }
 
     public function saveContextSpPolicy(Character $character, string $slotContext, string $policy): void
@@ -148,10 +215,106 @@ class JobArtService
             ]);
         }
 
+        $values = ['sp_policy' => $policy];
+        if (Schema::hasColumn('character_job_art_context_settings', 'strategy_mode')) {
+            // The legacy SP-policy control is still an explicit player choice,
+            // so it must not be hidden by the automatic strategy defaults.
+            $values['strategy_mode'] = JobArtV2StrategyService::MODE_CUSTOM;
+        }
+
         $character->jobArtContextSettings()->updateOrCreate(
             ['battle_context' => $slotContext],
-            ['sp_policy' => $policy],
+            $values,
         );
+    }
+
+    public function saveContextSpOutput(Character $character, string $slotContext, string $output): bool
+    {
+        $currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
+        if (! $this->featureGate->usesSpPowerScalingForCurrentJob($currentJobId, $slotContext)) {
+            return false;
+        }
+
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        $output = $this->strategyService->validateOutput($output);
+        if (! Schema::hasTable('character_job_art_context_settings')
+            || ! Schema::hasColumn('character_job_art_context_settings', 'strategy_settings')
+        ) {
+            throw ValidationException::withMessages([
+                'sp_output' => 'SP出力を保存する準備が完了していません。',
+            ]);
+        }
+
+        $setting = $character->jobArtContextSettings()->firstOrNew([
+            'battle_context' => $slotContext,
+        ]);
+        $settings = is_array($setting->strategy_settings) ? $setting->strategy_settings : [];
+        $settings['sp_output'] = $output;
+        $setting->fill([
+            'sp_policy' => $setting->sp_policy ?: 'aggressive',
+            'strategy_mode' => $setting->strategy_mode ?: JobArtV2StrategyService::MODE_CUSTOM,
+            'strategy_settings' => $settings,
+        ]);
+        $setting->save();
+
+        return true;
+    }
+
+    /** @param array<string,mixed> $settings */
+    public function saveContextStrategy(
+        Character $character,
+        string $slotContext,
+        string $mode,
+        string $spPolicy,
+        array $settings,
+    ): void {
+        $currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
+        if (! $this->featureGate->usesDetailedStrategyForCurrentJob($currentJobId)) {
+            throw ValidationException::withMessages([
+                'strategy_mode' => '戦略設定は現在利用できません。',
+            ]);
+        }
+
+        $slotContext = $this->normalizeSlotContext($slotContext);
+        $mode = $this->strategyService->validateMode($mode);
+        $spPolicy = $this->normalizeActivationPolicyStrict($spPolicy);
+        $validated = $this->strategyService->validateCustomSettings($settings);
+        if (! Schema::hasTable('character_job_art_context_settings')
+            || ! Schema::hasColumn('character_job_art_context_settings', 'strategy_mode')
+            || ! Schema::hasColumn('character_job_art_context_settings', 'strategy_settings')
+        ) {
+            throw ValidationException::withMessages([
+                'strategy_mode' => '戦略設定を保存する準備が完了していません。',
+            ]);
+        }
+
+        $existing = $character->jobArtContextSettings()
+            ->where('battle_context', $slotContext)
+            ->first();
+        $validated['sp_output'] = $this->strategyService->normalizeOutput(
+            data_get($existing?->strategy_settings, 'sp_output'),
+        );
+
+        $character->jobArtContextSettings()->updateOrCreate(
+            ['battle_context' => $slotContext],
+            [
+                'sp_policy' => $spPolicy,
+                'strategy_mode' => $mode,
+                'strategy_settings' => $validated,
+            ],
+        );
+    }
+
+    /** @return array{mode:string,sp_policy:string,sp_output:string,settings:array<string,string>} */
+    public function battleStrategy(Character $character, string $battleContext): array
+    {
+        if (in_array($battleContext, ['champ', 'pvp', 'arena_npc'], true)
+            && ! $this->pvpSetEnabled()
+        ) {
+            return $this->contextStrategy($character, self::PVP_SLOT_CONTEXT);
+        }
+
+        return $this->contextStrategy($character, $this->battleSlotContext($battleContext));
     }
 
     public function availableArts(Character $character, string $context = 'pve'): Collection
@@ -225,6 +388,9 @@ class JobArtService
         $contextSpPolicy = $usesV2Loadout
             ? $this->contextSpPolicy($character, $slotContext)
             : null;
+        $contextStrategy = $usesV2Loadout
+            ? $this->contextStrategy($character, $slotContext)
+            : null;
 
         $slots = $character->jobArtSlots()
             ->with('skill.jobClass')
@@ -248,7 +414,7 @@ class JobArtService
 
         return $this->evaluateLoadoutSlots($character, $slots)
             ->filter(fn (CharacterJobArtSlot $slot): bool => (bool) $slot->getAttribute('job_art_active'))
-            ->map(function (CharacterJobArtSlot $slot) use ($usesV2Loadout, $contextSpPolicy): Skill {
+            ->map(function (CharacterJobArtSlot $slot) use ($usesV2Loadout, $contextSpPolicy, $contextStrategy): Skill {
                 $skill = $slot->skill;
 
                 $skill->setAttribute('slot_no', (int) $slot->slot_no);
@@ -266,6 +432,7 @@ class JobArtService
                         ? JobArtV2SlotConditionCatalog::ALWAYS
                         : (string) $slot->getAttribute('job_art_slot_condition'),
                 ));
+                $skill->setAttribute('job_art_strategy', $contextStrategy);
                 return $skill;
             })
             ->values();

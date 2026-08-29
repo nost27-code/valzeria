@@ -15,6 +15,7 @@ use App\Services\JobArtV2LineageGuideCatalog;
 use App\Services\JobArtV2ResourceCatalog;
 use App\Services\JobArtV2SlotConditionCatalog;
 use App\Services\JobArtV2SpCostCalculator;
+use App\Services\JobArtV2SpPowerScalingService;
 use App\Services\JobArtV2StarterPresetService;
 use App\Services\JobArtPresetService;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class JobArtController extends Controller
         Request $request,
         JobArtService $jobArtService,
         JobArtV2SpCostCalculator $spCostCalculator,
+        JobArtV2SpPowerScalingService $spPowerScalingService,
         JobArtV2BattleRules $battleRules,
         JobArtV2FeatureGate $featureGate,
         JobArtV2LoadoutPresenter $loadoutPresenter,
@@ -99,6 +101,31 @@ class JobArtController extends Controller
             $filter = 'available';
         }
         $contextSpPolicies = $jobArtService->contextSpPolicies($character);
+        $contextStrategies = $jobArtService->contextStrategies($character);
+        $detailedStrategyUiEnabled = $featureGate->usesDetailedStrategyForCurrentJob($currentJobId);
+        $spOutputLabels = $jobArtService->spOutputLabels();
+        $spOutputUiEnabledByContext = collect($jobArtService->slotContexts())
+            ->mapWithKeys(fn (string $slotContext): array => [
+                $slotContext => $featureGate->usesSpPowerScalingForCurrentJob(
+                    $currentJobId,
+                    $slotContext,
+                ),
+            ])
+            ->all();
+        $spOutputPreviewsByContext = collect($jobArtService->slotContexts())
+            ->mapWithKeys(fn (string $slotContext): array => [
+                $slotContext => $this->spOutputPreviews(
+                    $character,
+                    $selectedSkillsByContext[$slotContext] ?? collect(),
+                    $maxSp,
+                    $spOutputLabels,
+                    $spCostCalculator,
+                    $spPowerScalingService,
+                    $slotContext,
+                    $slotContext === JobArtService::PVP_SLOT_CONTEXT,
+                ),
+            ])
+            ->all();
         $loadoutDiagnosesByContext = collect($jobArtService->slotContexts())
             ->mapWithKeys(fn (string $slotContext): array => [
                 $slotContext => $loadoutDiagnosisService->diagnose(
@@ -147,6 +174,13 @@ class JobArtController extends Controller
                 $currentJobId,
             ),
             'contextSpPolicies' => $contextSpPolicies,
+            'contextStrategies' => $contextStrategies,
+            'detailedStrategyUiEnabled' => $detailedStrategyUiEnabled,
+            'strategyModeLabels' => $jobArtService->strategyModeLabels(),
+            'strategySettingDefinitions' => $jobArtService->strategySettingDefinitions(),
+            'spOutputLabels' => $spOutputLabels,
+            'spOutputUiEnabledByContext' => $spOutputUiEnabledByContext,
+            'spOutputPreviewsByContext' => $spOutputPreviewsByContext,
             'loadoutDiagnosesByContext' => $loadoutDiagnosesByContext,
             'jobArtV2CardDetailsEnabled' => (bool) config('battle.job_art_v2.loadout_card_details', false),
             'slotConditionLabels' => $jobArtService->slotConditionLabels(),
@@ -299,6 +333,7 @@ class JobArtController extends Controller
         JobArtV2LoadoutPresenter $loadoutPresenter,
         JobArtV2SlotConditionCatalog $slotConditionCatalog,
         JobArtV2LoadoutDiagnosisService $loadoutDiagnosisService,
+        JobArtV2SpPowerScalingService $spPowerScalingService,
         JobArtV2ResourceCatalog $resourceCatalog,
         JobArtLineageCatalog $lineageCatalog,
     )
@@ -418,6 +453,23 @@ class JobArtController extends Controller
                     'job-arts.partials.active-lineages',
                     compact('activeLineages'),
                 )->render(),
+                'sp_output_html' => view('job-arts.partials.sp-output-settings', [
+                    'slotContext' => $slotContext,
+                    'contextStrategies' => $jobArtService->contextStrategies($character),
+                    'spOutputLabels' => $jobArtService->spOutputLabels(),
+                    'spOutputUiEnabled' => app(JobArtV2FeatureGate::class)
+                        ->usesSpPowerScalingForCurrentJob($currentJobId, $slotContext),
+                    'spOutputPreviews' => $this->spOutputPreviews(
+                        $character,
+                        $selectedSkills,
+                        $maxSp,
+                        $jobArtService->spOutputLabels(),
+                        $spCostCalculator,
+                        $spPowerScalingService,
+                        $slotContext,
+                        $slotContext === JobArtService::PVP_SLOT_CONTEXT,
+                    ),
+                ])->render(),
                 'selected_slot_by_skill' => $selectedSlots
                     ->mapWithKeys(fn ($slot): array => [(int) $slot->skill_id => (int) $slot->slot_no])
                     ->all(),
@@ -681,5 +733,167 @@ class JobArtController extends Controller
             ->with('message', isset($data['slot_context'])
                 ? 'SP方針を保存しました。'
                 : $this->displayTerm($character) . '発動方針を保存しました。');
+    }
+
+    public function spOutput(Request $request, JobArtService $jobArtService)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (! $character) {
+            return redirect()->route('character.select');
+        }
+
+        $data = $request->validate([
+            'slot_context' => ['required', 'string', Rule::in($jobArtService->slotContexts())],
+            'sp_output' => ['required', 'string', Rule::in(array_keys($jobArtService->spOutputLabels()))],
+        ]);
+
+        try {
+            $saved = $jobArtService->saveContextSpOutput(
+                $character,
+                (string) $data['slot_context'],
+                (string) $data['sp_output'],
+            );
+        } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => collect($e->errors())->flatten()->first() ?: 'SP出力を保存できませんでした。',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        if (! $saved) {
+            $message = 'この戦闘セットではSP出力を利用できません。';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->withErrors(['sp_output' => $message])->withInput();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'SP出力を保存しました。',
+                'slot_context' => (string) $data['slot_context'],
+                'sp_output' => (string) $data['sp_output'],
+            ]);
+        }
+
+        return redirect()->route('job-arts.index', ['context' => $data['slot_context']])
+            ->with('message', 'SP出力を保存しました。');
+    }
+
+    public function strategy(Request $request, JobArtService $jobArtService)
+    {
+        $character = Auth::user()->currentCharacter();
+        if (! $character) {
+            return redirect()->route('character.select');
+        }
+
+        $data = $request->validate([
+            'slot_context' => ['required', 'string', Rule::in($jobArtService->slotContexts())],
+            'strategy_mode' => ['required', 'string'],
+            'sp_policy' => ['required', 'string'],
+            'strategy_settings' => ['required', 'array'],
+        ]);
+
+        try {
+            $jobArtService->saveContextStrategy(
+                $character,
+                (string) $data['slot_context'],
+                (string) $data['strategy_mode'],
+                (string) $data['sp_policy'],
+                (array) $data['strategy_settings'],
+            );
+        } catch (ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => collect($e->errors())->flatten()->first() ?: '戦略を保存できませんでした。',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => '戦略を保存しました。',
+                'slot_context' => (string) $data['slot_context'],
+            ]);
+        }
+
+        return redirect()->route('job-arts.index', ['context' => $data['slot_context']])
+            ->with('message', '戦略を保存しました。');
+    }
+
+    /**
+     * @param iterable<Skill> $skills
+     * @param array<string,string> $outputLabels
+     * @return array<string,array<string,mixed>>
+     */
+    private function spOutputPreviews(
+        Character $character,
+        iterable $skills,
+        int $maxSp,
+        array $outputLabels,
+        JobArtV2SpCostCalculator $spCostCalculator,
+        JobArtV2SpPowerScalingService $spPowerScalingService,
+        string $slotContext,
+        bool $budgetEnabled,
+    ): array {
+        $eligibleSkills = collect($skills)
+            ->filter(fn ($skill): bool => $skill instanceof Skill && $spPowerScalingService->isEligibleArt($skill))
+            ->values();
+        $previews = [];
+
+        foreach ($outputLabels as $outputKey => $label) {
+            $rows = $eligibleSkills->map(function (Skill $skill) use (
+                $character,
+                $maxSp,
+                $outputKey,
+                $spCostCalculator,
+                $slotContext,
+            ): array {
+                $scaling = $spCostCalculator->scalingForCharacter(
+                    $character,
+                    $skill,
+                    $maxSp,
+                    (string) $outputKey,
+                    $slotContext,
+                );
+
+                return [
+                    'skill_id' => (int) $skill->id,
+                    'skill_name' => (string) $skill->name,
+                    'rank' => (int) $skill->learn_rank,
+                    'fixed' => $scaling->discountedFixedCost,
+                    'variable' => $scaling->variableCost,
+                    'total' => $scaling->totalCost,
+                    'bonus_bps' => $scaling->bonusBps,
+                ];
+            })->all();
+            $variables = array_column($rows, 'variable');
+            $totals = array_column($rows, 'total');
+            $bonus = $spPowerScalingService->bonusPartsFor($maxSp, (string) $outputKey);
+
+            $previews[(string) $outputKey] = [
+                'label' => (string) $label,
+                'eligible_count' => count($rows),
+                'variable_min' => $variables === [] ? 0 : min($variables),
+                'variable_max' => $variables === [] ? 0 : max($variables),
+                'total_min' => $totals === [] ? 0 : min($totals),
+                'total_max' => $totals === [] ? 0 : max($totals),
+                'bonus_bps' => $bonus['total'],
+                'rows' => $rows,
+                'budget_initial' => $budgetEnabled
+                    ? $spPowerScalingService->initialBudgetFor($maxSp)
+                    : null,
+            ];
+        }
+
+        return $previews;
     }
 }

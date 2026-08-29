@@ -53,6 +53,7 @@ class BattleService
     protected JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog;
     protected JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService;
     protected JobArtFlavorTextService $jobArtFlavorTextService;
+    protected JobArtBattleSupportService $jobArtBattleSupport;
 
     public function __construct(
         CharacterStatusService $statusService,
@@ -79,6 +80,7 @@ class BattleService
         ?JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog = null,
         ?JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService = null,
         ?JobArtFlavorTextService $jobArtFlavorTextService = null,
+        ?JobArtBattleSupportService $jobArtBattleSupport = null,
     ) {
         $this->statusService = $statusService;
         $this->damageCalculator = $damageCalculator;
@@ -105,6 +107,7 @@ class BattleService
         $this->jobArtV2UltimateCounterplayService = $jobArtV2UltimateCounterplayService
             ?? app(JobArtV2UltimateCounterplayService::class);
         $this->jobArtFlavorTextService = $jobArtFlavorTextService ?? app(JobArtFlavorTextService::class);
+        $this->jobArtBattleSupport = $jobArtBattleSupport ?? app(JobArtBattleSupportService::class);
     }
 
     protected function applyResolvedDamage(
@@ -265,6 +268,13 @@ class BattleService
             $playerActor->jobArtPolicies[(int) $art->id] = (string) ($art->getAttribute('job_art_activation_policy') ?: $playerActor->jobArtActivationPolicy);
             $playerActor->jobArtConditions[(int) $art->id] = (string) ($art->getAttribute('job_art_slot_condition') ?: JobArtV2SlotConditionCatalog::ALWAYS);
         }
+        $this->jobArtBattleSupport->configureSpOutput(
+            $playerActor,
+            $character,
+            $jobArtBattleContext,
+            $jobArtBattleContext === 'boss' ? 'boss' : 'normal',
+            (bool) ($options['sp_output_budget_enabled'] ?? false),
+        );
 
         $result->enemyStatDisplay = [
             'danger_rate' => $enemyStats['danger_rate'],
@@ -691,8 +701,27 @@ class BattleService
             if ($jobArt && (!$this->jobArtV2ResourceService->enabledFor($attacker)
                 || $this->jobArtV2SelectionService->isEligible($attacker, $state, $jobArt, (int) $jobArt->id)
             )) {
-                $spCost = $this->jobArtSpCost($attacker, $jobArt);
-                $attacker->mp -= $spCost;
+                $scaling = $this->jobArtV2SpCostCalculator->commitForActor($attacker, $jobArt);
+                if ($scaling === null) {
+                    $jobArt = null;
+                } else {
+                    $attacker->mp -= $scaling->totalCost;
+                    if ($scaling->powerScalingApplies) {
+                        $label = app(JobArtV2StrategyService::class)->outputLabels()[$scaling->outputKey] ?? $scaling->outputKey;
+                        $budget = $attacker->spOutputBudgetRemaining();
+                        $budgetText = $budget === null ? '' : '／出力予算 残り'.number_format($budget);
+                        $state->addLog(
+                            '<span class="text-cyan-700 font-bold">SP出力 '.e($label)
+                            .'：'.number_format($scaling->totalCost).'消費（固定'
+                            .number_format($scaling->discountedFixedCost).'＋追加'
+                            .number_format($scaling->variableCost).'）'.$budgetText.'</span>',
+                        );
+                    }
+                }
+            } elseif ($jobArt !== null) {
+                $jobArt = null;
+            }
+            if ($jobArt !== null) {
                 $this->executeJobArtAction($attacker, $defender, $state, $jobArt);
                 $usedSkill = true;
             }
@@ -975,6 +1004,7 @@ class BattleService
         int $hitIndex = 1,
         int $hitCount = 1,
         ?Skill $jobArtSkill = null,
+        ?int $powerCenti = null,
     ): void
     {
         if (!$skipHitCheck && !$this->isPveAttackHit($attacker, $defender, $state)) {
@@ -996,6 +1026,7 @@ class BattleService
             $isCrit,
             $statOverrides['attack'],
             $statOverrides['def'] ?? $overrideDef,
+            $powerCenti,
         );
         $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $damage = $this->jobArtV2FieldService->modifyDamage($attacker, $state, $damage, $sourceType);
@@ -1414,6 +1445,7 @@ class BattleService
         int $hitIndex = 1,
         int $hitCount = 1,
         ?Skill $jobArtSkill = null,
+        ?int $powerCenti = null,
     ): void
     {
         // 魔法も回避される可能性がある前提（命中判定）
@@ -1432,6 +1464,7 @@ class BattleService
             false,
             $statOverrides['attack'],
             $statOverrides['spr'] ?? $overrideSpr,
+            $powerCenti,
         );
         $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
         $damage = $this->jobArtV2FieldService->modifyDamage($attacker, $state, $damage, $sourceType);
@@ -1698,15 +1731,16 @@ class BattleService
             : $basePower;
         $power = max(0, (int) round($effectiveBasePower * $rate));
 
-        if ((float) $skill->luk_power_rate > 0) {
-            $power += max(0, (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate * $rate));
-        }
+        $lukPowerContribution = (float) $skill->luk_power_rate > 0
+            ? max(0, (int) floor($attacker->effectiveLuk() * (float) $skill->luk_power_rate * $rate))
+            : 0;
         if ($usesRoleEffects) {
             // Keep the runtime-scaled power on the v2 execution clone only.
             // Legacy uses the master Skill plus its separate inheritance rate.
             $skill->power = $power;
             $skill->power_multiplier = max(0, $power / 100);
             $this->jobArtV2RoleEffectService->applyForExecution($attacker, $defender, $state, $sourceSkill, $skill);
+            $skill = $this->jobArtBattleSupport->applyCommittedSpPower($attacker, $sourceSkill, $skill);
             $this->jobArtV2PowerResolver->applyFinalDamageModifiers(
                 $attacker,
                 $sourceSkill,
@@ -1720,7 +1754,14 @@ class BattleService
                 $sourceSkill,
                 $skill,
             );
+        } else {
+            $skill = $this->jobArtBattleSupport->applyCommittedSpPower($attacker, $sourceSkill, $skill);
         }
+        $this->jobArtBattleSupport->addDamageOnlyPower($skill, $lukPowerContribution);
+        $power = $this->jobArtBattleSupport->actionPowerCenti($skill) === null
+            ? max(0, (int) $skill->power + $lukPowerContribution)
+            : max(0, (int) $skill->power);
+        $attacker->clearCommittedJobArtSpScaling((int) $sourceSkill->id);
         $template = (string) $skill->effect_template;
 
         $state->jobArtUseCounts[$skillId] = (int) ($state->jobArtUseCounts[$skillId] ?? 0) + 1;
@@ -1871,18 +1912,25 @@ class BattleService
         bool $skipHitCheck = false,
     ): void {
         $hits = max(1, (int) $skill->hit_count);
-        $hitPowers = JobArtHitPower::split($power, $hits);
+        $totalPowerCenti = $this->jobArtBattleSupport->actionPowerCenti($skill);
+        $hitPowers = $totalPowerCenti === null
+            ? JobArtHitPower::split($power, $hits)
+            : JobArtHitPower::splitCenti($totalPowerCenti, $hits);
         $overrides = $this->jobArtDefenseOverrides($attacker, $defender, $state, $skill);
         $overrideDef = $overrides['def'];
         $overrideSpr = $overrides['spr'];
 
         foreach ($hitPowers as $i => $hitPower) {
+            $hitPowerCenti = $totalPowerCenti === null ? null : $hitPower;
+            $displayHitPower = $hitPowerCenti === null
+                ? $hitPower
+                : intdiv($hitPowerCenti + 50, 100);
             if ($damageType === 'magical') {
                 $this->executeMagicalAttack(
                     $attacker,
                     $defender,
                     $state,
-                    $hitPower,
+                    $displayHitPower,
                     $overrideSpr,
                     $skipHitCheck,
                     DamageSourceType::JOB_ART,
@@ -1891,13 +1939,14 @@ class BattleService
                     $i + 1,
                     $hits,
                     $skill,
+                    $hitPowerCenti,
                 );
             } else {
                 $this->executePhysicalAttack(
                     $attacker,
                     $defender,
                     $state,
-                    $hitPower,
+                    $displayHitPower,
                     $overrideDef,
                     null,
                     $skipHitCheck,
@@ -1907,6 +1956,7 @@ class BattleService
                     $i + 1,
                     $hits,
                     $skill,
+                    $hitPowerCenti,
                 );
             }
 
@@ -2000,7 +2050,10 @@ class BattleService
     private function executeHybridJobArtAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, Skill $skill, int $power, bool $skipHitCheck = false): void
     {
         $hits = max(1, (int) $skill->hit_count);
-        $hitPowers = JobArtHitPower::split($power, $hits);
+        $totalPowerCenti = $this->jobArtBattleSupport->actionPowerCenti($skill);
+        $hitPowers = $totalPowerCenti === null
+            ? JobArtHitPower::split($power, $hits)
+            : JobArtHitPower::splitCenti($totalPowerCenti, $hits);
         $hybridAtk = $attacker->hybridAttackPower(
             (string) $skill->hybrid_scaling,
             $this->jobArtV2RoleEffectService->enabledFor($attacker),
@@ -2014,7 +2067,19 @@ class BattleService
                 continue;
             }
 
-            $damage = $this->damageCalculator->calculatePhysicalDamage($attacker, $defender, $hitPower, false, $hybridAtk, $overrideDef);
+            $hitPowerCenti = $totalPowerCenti === null ? null : $hitPower;
+            $displayHitPower = $hitPowerCenti === null
+                ? $hitPower
+                : intdiv($hitPowerCenti + 50, 100);
+            $damage = $this->damageCalculator->calculatePhysicalDamage(
+                $attacker,
+                $defender,
+                $displayHitPower,
+                false,
+                $hybridAtk,
+                $overrideDef,
+                $hitPowerCenti,
+            );
             $damage = $this->applyPveKillerDamage($damage, $attacker, $defender, $state);
             $damage = $this->jobArtV2FieldService->modifyDamage($attacker, $state, $damage, DamageSourceType::JOB_ART);
             $damage = $this->jobArtV2RoleEffectService->modifyJobArtDamage($attacker, $state, $skill, $damage);
@@ -2293,7 +2358,8 @@ class BattleService
         }
 
         if ($template === 'DRAIN' && $totalDamage > 0 && (float) $skill->drain_hp_rate > 0) {
-            $heal = max(1, (int) floor($totalDamage * (float) $skill->drain_hp_rate * $rate));
+            $drainBaseDamage = $this->jobArtBattleSupport->drainDamageBeforeSpOutput($skill, $totalDamage);
+            $heal = max(1, (int) floor($drainBaseDamage * (float) $skill->drain_hp_rate * $rate));
             $actualHeal = $this->jobArtV2FieldService->applyHpHeal($attacker, $state, $heal);
             $state->addLog("<span class=\"text-emerald-600 font-bold\">与えた力を吸収し、HPが {$actualHeal} 回復した！</span>");
         }

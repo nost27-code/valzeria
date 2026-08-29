@@ -2,8 +2,8 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-28
-Branch: codex/nation-header-backgrounds
+Last updated: 2026-08-29
+Branch: main
 
 ## Main navigation / nation community
 
@@ -49,6 +49,7 @@ Branch: codex/nation-header-backgrounds
 - 戦技セット上部から初心者向け解説モーダルを開ける。系譜と0〜12の戦闘内リソース、5枠の循環候補順と1行動1候補1抽選、10系譜の直接・共通獲得、PvP奥義予告、最大50ターン、最大5枠・Cost9・奥義1枚等の制限をまとめる。行動順のプレイヤー向け表記は「敏捷」とし、英字能力名を使わない
 - チャンプ戦を除くプレイヤーPvPとNPCランク戦は、50ターン終了時に双方が生存していれば残り体力÷最大体力の割合を比較する。挑戦者の割合が高い時だけ判定勝利とし、同率または防衛側が高い場合は防衛成功。チャンプ戦はこの割合判定を使わず、最大100ターン以内の実際の撃破だけで交代する
 - PvPセットが有効な時は`REWARD`区分の戦技も設定・発動できる。PvP・チャンプ戦・NPC闘技場では攻撃・回復・強化・弱体などの戦闘効果を維持し、実行用戦技と`BattleState`のGold・drop・rare・material報酬補正だけを必ず0にする。通常探索・ボスの報酬効果と、各対戦にもともとある固定報酬は変更しない
+- 戦技出力は公開前の既定OFF機能。通常/ボス/PvPごとに`none/low/standard/high/max`を保存し、「おまかせ／こだわり設定」と独立して使う。ON時は戦闘開始時の装備込み最大SP `M0` を参照し、割引後の固定SPへRank別追加消費を足す。追加消費率はRank1=`0/0.25/0.75/1.50/2.50%`、Rank5=`0/0.50/1.50/3.00/5.00%`、Rank9=`0/0.75/2.25/4.50/7.50%`。最大SP10,000時はカード固有runtimeを含む基準powerが1以上の直接damageだけを`0/5/10/15/20%`強化し、基準power 0は固定費だけとする。10,000超は逓減、MAXは最終+30%を上限とする。SP回復・HP→SP変換戦技は対象外で、回復・軽減・強化・弱体・浄化・報酬・吸収回復量を増幅しない。対象となる非永続対戦の追加消費予算は`M0×25%`、不足時は候補を拒否し下位出力へ自動変更しない。探索予測用の対enemy訓練は通常探索と同じく予算なし、対人模擬戦は予算あり。チャンプ適用は別flagで既定OFF。出力の全依存flagが揃わない間は保存POSTも拒否し、通常POSTはPRGで画面へ戻す。プレビューも現在職サポートを含むruntime同等gateでfail-closedする。詳細戦術は`BATTLE_JOB_ART_DETAILED_STRATEGY=false`の独立flag配下とし、OFF時は保存済み戦術を候補順・奥義発動率へ適用せず、従来設定を維持する。Rank5 v6 flagとは独立して利用できることを回帰テストで固定し、282戦技のSP出力除外47件は自然キー単位で監査する
 
 ## Job-art v2 first replacement wave
 
@@ -81,7 +82,7 @@ Branch: codex/nation-header-backgrounds
 - v2有効時の金冠錬師は、金冠錬符がHIT時触媒+4・金蝕1回、金冠ミダスフィールドが触媒8pt・power315・HIT時金蝕2回。金蝕は次の系譜資源獲得行動で各獲得量-1（最低1）、最大2・非加算更新で、複数資源でも1行動につき1回だけ消費する。同一行動・同一資源の場補正も1回だけとし、指揮の通常攻撃HIT+4と非戦技手番+1に天測がある場合は合計+6
 - 選択は前回判定位置の次から5枠を巡る循環cursor方式。現在使用できない戦技は飛ばし、最初に見つかった候補へ発動抽選を1回だけ行う。不発時に同一行動中の別戦技を再抽選しない。奥義準備と対奥義/予告大技の応答は専用flag配下にある
 - v2奥義は資源が必要量へ達した周期の初回候補だけ優先し、発動抽選不発後は次の自分の行動を通常の循環候補順へ戻す。同じ資源の奥義を装備した始動は資源上限時も候補に残る。プレイヤーランク戦・チャンプ戦・NPC闘技場の奥義予告は同系譜Rank5連携を前提とせず、資源条件と相手の1行動分の応答機会で成立する
-- `config/battle.php`の戦技v2関連15 flagはすべてコード既定OFF。本番では文言専用の`BATTLE_JOB_ART_FLAVOR_REWRITE`だけをONにし、残る14 engine/UI flagはOFFを維持する。全282戦技のmaster同期や既存slot/preset更新は行わず、従来3枠・Cost5・legacy選択/SP/戦闘効果を維持する。ただし金冠ミダスフィールドのpowerだけは共通戦闘経路と既存DBを315へ同期済みで、金蝕・HIT時触媒・同一行動補正はengine flag ONまで休止する。v2 engineの本番有効化は別タスクでDB backup、残りのmaster同期、全6戦闘経路smokeを経て行う
+- `config/battle.php`の戦技v2関連flagはコード既定OFF。本番では公開済みのv2基盤・UI・文言flagをONにし、`BATTLE_JOB_ART_C_DESIGN_PROTOTYPE`、`BATTLE_JOB_ART_RANK5_V6`、`BATTLE_JOB_ART_SP_POWER_SCALING`、`BATTLE_JOB_ART_SP_POWER_SCALING_CHAMP`、`BATTLE_JOB_ART_DETAILED_STRATEGY`はOFFを維持する。Rank5 v6.1のmaster migrationと戦技出力のschema migrationは公開切替まで適用せず、既存の戦技選択・SP消費・戦闘効果を維持する
 - `BATTLE_JOB_ART_FLAVOR_REWRITE`は戦闘v2の他flagから独立した文言切替。`database/data/job_art_flavor_rewrites.json`に94職282戦技の台詞・発動描写を完全一致 `(job_id, learn_rank, name)` で保持し、2026-08-15から本番ON。通常/ボス/塔/PvP/チャンプ/NPC闘技場の奥義ログと神殿・管理確認画面だけへ適用し、威力・効果・発動条件・RNGは変更しない。OFF時、未一致時、読込失敗時は`skills.activation_phrase` / `activation_description`を維持し、DB同期は行わない
 
 ## Job-art v2 progression / FIX_NOW pass (historical design pass)

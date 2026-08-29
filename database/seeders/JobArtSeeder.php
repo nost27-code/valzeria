@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Skill;
 use App\Support\JobArtEffectCatalog;
+use App\Support\JobArtMasterPowerParser;
 use Illuminate\Database\Seeder;
 
 class JobArtSeeder extends Seeder
@@ -57,7 +58,7 @@ class JobArtSeeder extends Seeder
             }
 
             $powerHint = $row['power_hint'] ?? 0;
-            $power = $this->numericPower($powerHint);
+            $power = JobArtMasterPowerParser::parse($powerHint);
             $template = (string) ($row['effect_template'] ?? '');
 
             Skill::updateOrCreate(
@@ -120,19 +121,6 @@ class JobArtSeeder extends Seeder
                 ]
             );
         }
-    }
-
-    private function numericPower(mixed $value): int
-    {
-        if (is_numeric($value)) {
-            return max(0, (int) $value);
-        }
-
-        if (preg_match('/\d+/', (string) $value, $matches)) {
-            return max(0, (int) $matches[0]);
-        }
-
-        return 100;
     }
 
     private function nullableInt(mixed $value): ?int

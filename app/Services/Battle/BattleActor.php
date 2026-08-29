@@ -5,6 +5,7 @@ namespace App\Services\Battle;
 use App\Services\JobArtV2PreparedEffectState;
 use App\Services\JobArtV2ProgressionState;
 use App\Services\JobArtV2Rank5CycleState;
+use App\Services\JobArtV2SpPowerScalingResult;
 use App\Services\JobArtV2TimedEffectState;
 use App\Services\JobArtV2UltimateCounterplayState;
 
@@ -42,7 +43,22 @@ class BattleActor
     public array $jobArtOrigins = [];
     public array $jobArtPolicies = [];
     public array $jobArtConditions = [];
+    /** @var array<string, mixed> */
+    public array $jobArtStrategy = [];
     public string $jobArtActivationPolicy = 'normal';
+    public bool $spScalingEligible = false;
+    public int $spPowerReference = 0;
+    public string $spPowerScalingContext = 'none';
+    private ?int $spOutputBudgetInitial = null;
+    private ?int $spOutputBudgetRemaining = null;
+    /** @var array<int, JobArtV2SpPowerScalingResult> */
+    private array $pendingJobArtSpScaling = [];
+    /** @var array<int, JobArtV2SpPowerScalingResult> */
+    private array $committedJobArtSpScaling = [];
+    public int $jobArtSpFixedSpent = 0;
+    public int $jobArtSpVariableSpent = 0;
+    public int $jobArtSpScaledCasts = 0;
+    public int $jobArtSpBudgetBlockedCandidates = 0;
     public ?int $currentJobId = null;
     public ?string $jobKey = null;
     public array $battleTypeWeights = ['physical' => 1.0, 'speed' => 0.0, 'magical' => 0.0];
@@ -251,6 +267,93 @@ class BattleActor
             return true;
         }
         return false;
+    }
+
+    public function configureSpOutput(
+        int $powerReference,
+        bool $eligible,
+        string $context,
+        bool $budgetEnabled,
+        int $initialBudget,
+    ): void {
+        $this->spPowerReference = max(0, $powerReference);
+        $this->spScalingEligible = $eligible;
+        $this->spPowerScalingContext = $context;
+        $this->spOutputBudgetInitial = $budgetEnabled ? max(0, $initialBudget) : null;
+        $this->spOutputBudgetRemaining = $this->spOutputBudgetInitial;
+    }
+
+    public function spOutputBudgetInitial(): ?int
+    {
+        return $this->spOutputBudgetInitial;
+    }
+
+    public function spOutputBudgetRemaining(): ?int
+    {
+        return $this->spOutputBudgetRemaining;
+    }
+
+    public function canSpendSpOutputBudget(int $variableCost): bool
+    {
+        return $variableCost <= 0
+            || $this->spOutputBudgetRemaining === null
+            || $this->spOutputBudgetRemaining >= $variableCost;
+    }
+
+    public function spendSpOutputBudget(int $variableCost): bool
+    {
+        $variableCost = max(0, $variableCost);
+        if (! $this->canSpendSpOutputBudget($variableCost)) {
+            return false;
+        }
+
+        if ($this->spOutputBudgetRemaining !== null) {
+            $this->spOutputBudgetRemaining -= $variableCost;
+        }
+
+        return true;
+    }
+
+    public function rememberPendingJobArtSpScaling(int $skillId, JobArtV2SpPowerScalingResult $result): void
+    {
+        $this->pendingJobArtSpScaling[$skillId] = $result;
+    }
+
+    public function pendingJobArtSpScaling(int $skillId): ?JobArtV2SpPowerScalingResult
+    {
+        return $this->pendingJobArtSpScaling[$skillId] ?? null;
+    }
+
+    public function clearPendingJobArtSpScaling(int $skillId): void
+    {
+        unset($this->pendingJobArtSpScaling[$skillId]);
+    }
+
+    public function commitJobArtSpScaling(int $skillId, JobArtV2SpPowerScalingResult $result): bool
+    {
+        if (! $this->spendSpOutputBudget($result->variableCost)) {
+            return false;
+        }
+
+        unset($this->pendingJobArtSpScaling[$skillId]);
+        $this->committedJobArtSpScaling[$skillId] = $result;
+        $this->jobArtSpFixedSpent += $result->discountedFixedCost;
+        $this->jobArtSpVariableSpent += $result->variableCost;
+        if ($result->powerScalingApplies) {
+            $this->jobArtSpScaledCasts++;
+        }
+
+        return true;
+    }
+
+    public function committedJobArtSpScaling(int $skillId): ?JobArtV2SpPowerScalingResult
+    {
+        return $this->committedJobArtSpScaling[$skillId] ?? null;
+    }
+
+    public function clearCommittedJobArtSpScaling(int $skillId): void
+    {
+        unset($this->committedJobArtSpScaling[$skillId]);
     }
 
     public function configureResource(string $resourceKey, int $cap): void

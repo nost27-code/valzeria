@@ -111,6 +111,7 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
                 ?int $overrideAtk = null,
                 ?int $overrideDef = null,
                 ?int $overrideSpr = null,
+                ?int $skillPowerCenti = null,
             ): int {
                 $this->calls++;
                 $this->duelCalls++;
@@ -135,6 +136,7 @@ class CompetitiveSupportJobArtDamageTest extends TestCase
                 bool $damageCapEnabled = true,
                 float $baseDamageMultiplier = 1.0,
                 float $additionalDefenseIgnoreRate = 0.0,
+                ?int $skillPowerCenti = null,
             ): int {
                 $this->calls++;
                 $this->rankCalls++;

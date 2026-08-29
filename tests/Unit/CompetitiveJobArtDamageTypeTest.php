@@ -127,6 +127,7 @@ class CompetitiveJobArtDamageTypeTest extends TestCase
                 ?int $overrideAtk = null,
                 ?int $overrideDef = null,
                 ?int $overrideSpr = null,
+                ?int $skillPowerCenti = null,
             ): int {
                 $this->attackTypes[] = $attackType;
 
@@ -149,6 +150,7 @@ class CompetitiveJobArtDamageTypeTest extends TestCase
                 bool $damageCapEnabled = true,
                 float $baseDamageMultiplier = 1.0,
                 float $additionalDefenseIgnoreRate = 0.0,
+                ?int $skillPowerCenti = null,
             ): int {
                 $this->attackTypes[] = $attackType;
 

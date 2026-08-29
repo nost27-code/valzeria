@@ -32,6 +32,7 @@ class JobArtBattleSupportService
     private readonly JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog;
     private readonly JobArtFlavorTextService $jobArtFlavorTextService;
     private readonly JobArtBattleLogPresenter $jobArtBattleLogPresenter;
+    private readonly JobArtV2SpPowerScalingService $jobArtV2SpPowerScalingService;
 
     public function __construct(
         private readonly JobArtService $jobArtService,
@@ -56,6 +57,7 @@ class JobArtBattleSupportService
         ?JobArtV2CrownBalanceCatalog $jobArtV2CrownBalanceCatalog = null,
         ?JobArtFlavorTextService $jobArtFlavorTextService = null,
         ?JobArtBattleLogPresenter $jobArtBattleLogPresenter = null,
+        ?JobArtV2SpPowerScalingService $jobArtV2SpPowerScalingService = null,
     ) {
         $this->jobArtActionResolver = $jobArtActionResolver ?? app(ActionResolver::class);
         $this->jobArtV2ResourceService = $jobArtV2ResourceService ?? app(JobArtV2ResourceService::class);
@@ -77,14 +79,31 @@ class JobArtBattleSupportService
             ?? app(JobArtV2CrownBalanceCatalog::class);
         $this->jobArtFlavorTextService = $jobArtFlavorTextService ?? app(JobArtFlavorTextService::class);
         $this->jobArtBattleLogPresenter = $jobArtBattleLogPresenter ?? app(JobArtBattleLogPresenter::class);
+        $this->jobArtV2SpPowerScalingService = $jobArtV2SpPowerScalingService
+            ?? app(JobArtV2SpPowerScalingService::class);
     }
 
-    public function attachBossSet(BattleActor $actor, Character $character, string $context = 'champ'): void
+    public function attachBossSet(
+        BattleActor $actor,
+        Character $character,
+        string $context = 'champ',
+        ?string $spExecutionContext = null,
+        bool $spOutputBudgetEnabled = false,
+        ?int $spPowerReference = null,
+    ): void
     {
         $actor->currentJobId = $character->current_job_id !== null ? (int) $character->current_job_id : null;
         $actor->jobArtActivationPolicy = (string) ($character->job_art_activation_policy ?: 'normal');
         $jobArts = $this->jobArtService->battleArtsFor($character, $context);
         $actor->jobArts = $jobArts->all();
+        $this->configureSpOutput(
+            $actor,
+            $character,
+            $context,
+            $spExecutionContext ?? $context,
+            $spOutputBudgetEnabled,
+            $spPowerReference,
+        );
 
         foreach ($jobArts as $art) {
             $actor->jobArtRates[(int) $art->id] = (float) $art->getAttribute('job_art_rate');
@@ -92,6 +111,25 @@ class JobArtBattleSupportService
             $actor->jobArtPolicies[(int) $art->id] = (string) ($art->getAttribute('job_art_activation_policy') ?: $actor->jobArtActivationPolicy);
             $actor->jobArtConditions[(int) $art->id] = (string) ($art->getAttribute('job_art_slot_condition') ?: JobArtV2SlotConditionCatalog::ALWAYS);
         }
+    }
+
+    public function configureSpOutput(
+        BattleActor $actor,
+        Character $character,
+        string $battleContext,
+        string $executionContext,
+        bool $budgetEnabled,
+        ?int $powerReference = null,
+    ): void {
+        $actor->jobArtStrategy = $this->jobArtService->battleStrategy($character, $battleContext);
+        $reference = max(0, $powerReference ?? $actor->maxMp);
+        $actor->configureSpOutput(
+            powerReference: $reference,
+            eligible: true,
+            context: $executionContext,
+            budgetEnabled: $budgetEnabled,
+            initialBudget: $this->jobArtV2SpPowerScalingService->initialBudgetFor($reference),
+        );
     }
 
     public function tickCooldowns(BattleState $state, BattleActor $actor): void
@@ -367,8 +405,13 @@ class JobArtBattleSupportService
             return false;
         }
 
+        $scaling = $this->jobArtV2SpCostCalculator->commitForActor($actor, $skill);
+        if ($scaling === null) {
+            return false;
+        }
+
         $this->jobArtV2SelectionService->commitSuccessfulSelection($actor, $skill);
-        $actor->mp -= $this->spCost($actor, $skill);
+        $actor->mp -= $scaling->totalCost;
         $state->jobArtUseCounts[$stateKey] = (int) ($state->jobArtUseCounts[$stateKey] ?? 0) + 1;
         $state->recordJobArtActivation($actor, $skill);
 
@@ -380,6 +423,20 @@ class JobArtBattleSupportService
 
         if ($activationLog !== null && trim($activationLog) !== '') {
             $state->addLog($activationLog);
+        }
+        // A non-none output can still charge the minimum 1 SP before its
+        // percentage bonus reaches one basis point. Always disclose an actual
+        // variable charge, even when the rounded power bonus is still zero.
+        if ($scaling->variableCost > 0) {
+            $label = app(JobArtV2StrategyService::class)->outputLabels()[$scaling->outputKey] ?? $scaling->outputKey;
+            $budget = $actor->spOutputBudgetRemaining();
+            $budgetText = $budget === null ? '' : '／出力予算 残り'.number_format($budget);
+            $state->addLog(
+                '<span class="text-cyan-700 font-bold">SP出力 '.e($label)
+                .'：'.number_format($scaling->totalCost).'消費（固定'
+                .number_format($scaling->discountedFixedCost).'＋追加'
+                .number_format($scaling->variableCost).'）'.$budgetText.'</span>',
+            );
         }
 
         $this->jobArtV2UltimateCounterplayService->beginJobArtCast($actor, $state, $skill);
@@ -435,6 +492,7 @@ class JobArtBattleSupportService
                 $hpHealingResolver,
             );
         }
+        $actor->clearCommittedJobArtSpScaling((int) $skill->id);
     }
 
     public function skillForExecution(
@@ -448,7 +506,11 @@ class JobArtBattleSupportService
             $baseOnly = $this->jobArtV2UltimateCounterplayService
                 ->baseOnlySkillForExecution($actor, $state, $skill);
             if ($baseOnly !== null) {
-                return $this->suppressCompetitiveRewardBonuses($state, $baseOnly);
+                return $this->applyCommittedSpPower(
+                    $actor,
+                    $skill,
+                    $this->suppressCompetitiveRewardBonuses($state, $baseOnly),
+                );
             }
         }
 
@@ -478,6 +540,10 @@ class JobArtBattleSupportService
         $executionSkill->power_multiplier = max(0, $power / 100);
         if ($state !== null && $defender !== null) {
             $this->jobArtV2RoleEffectService->applyForExecution($actor, $defender, $state, $skill, $executionSkill);
+            // SP output scales the resolved action-total power once. Damage
+            // modifiers that run after power resolution remain in their
+            // established order.
+            $executionSkill = $this->applyCommittedSpPower($actor, $skill, $executionSkill);
             $this->jobArtV2PowerResolver->applyFinalDamageModifiers(
                 $actor,
                 $skill,
@@ -502,9 +568,82 @@ class JobArtBattleSupportService
             }
         }
 
+        if ($state === null || $defender === null) {
+            $executionSkill = $this->applyCommittedSpPower($actor, $skill, $executionSkill);
+        }
+
         return $state !== null
             ? $this->suppressCompetitiveRewardBonuses($state, $executionSkill)
             : $executionSkill;
+    }
+
+    public function applyCommittedSpPower(
+        BattleActor $actor,
+        Skill $sourceSkill,
+        Skill $executionSkill,
+    ): Skill {
+        $scaling = $actor->committedJobArtSpScaling((int) $sourceSkill->id);
+        if ($scaling === null || ! $scaling->powerScalingApplies) {
+            return $executionSkill;
+        }
+
+        $basePower = max(0, (int) $executionSkill->power);
+        $scaledPowerCenti = $scaling->scaledPowerCenti($basePower);
+        $executionSkill->setAttribute('job_art_v2_base_power_centi', $basePower * 100);
+        $executionSkill->setAttribute('job_art_v2_power_centi', $scaledPowerCenti);
+        $executionSkill->setAttribute('job_art_v2_sp_bonus_bps', $scaling->bonusBps);
+        $executionSkill->setAttribute('job_art_v2_sp_variable_cost', $scaling->variableCost);
+        $executionSkill->power = intdiv($scaledPowerCenti + 50, 100);
+        $executionSkill->power_multiplier = $scaledPowerCenti / 10_000;
+
+        return $executionSkill;
+    }
+
+    public function actionPowerCenti(Skill $skill): ?int
+    {
+        $value = $skill->getAttribute('job_art_v2_damage_power_centi')
+            ?? $skill->getAttribute('job_art_v2_power_centi');
+
+        return is_numeric($value) ? max(0, (int) $value) : null;
+    }
+
+    public function addDamageOnlyPower(Skill $skill, int $additionalPower): void
+    {
+        $scaled = $skill->getAttribute('job_art_v2_power_centi');
+        $base = $skill->getAttribute('job_art_v2_base_power_centi');
+        if (! is_numeric($scaled) || ! is_numeric($base)) {
+            return;
+        }
+
+        $additionCenti = max(0, $additionalPower) * 100;
+        $skill->setAttribute('job_art_v2_damage_power_centi', (int) $scaled + $additionCenti);
+        $skill->setAttribute('job_art_v2_damage_base_power_centi', (int) $base + $additionCenti);
+    }
+
+    /**
+     * DRAIN keeps its recovery anchored to damage before the SP-output bonus.
+     * Reversing only the power ratio avoids an additional random roll and does
+     * not alter any route-specific drain-rate semantics.
+     */
+    public function drainDamageBeforeSpOutput(Skill $skill, int $actualDamage): int
+    {
+        $actualDamage = max(0, $actualDamage);
+        $basePowerCenti = $skill->getAttribute('job_art_v2_damage_base_power_centi')
+            ?? $skill->getAttribute('job_art_v2_base_power_centi');
+        $scaledPowerCenti = $skill->getAttribute('job_art_v2_damage_power_centi')
+            ?? $skill->getAttribute('job_art_v2_power_centi');
+        if ($actualDamage === 0
+            || ! is_numeric($basePowerCenti)
+            || ! is_numeric($scaledPowerCenti)
+            || (int) $scaledPowerCenti <= 0
+        ) {
+            return $actualDamage;
+        }
+
+        return max(1, intdiv(
+            $actualDamage * max(0, (int) $basePowerCenti),
+            (int) $scaledPowerCenti,
+        ));
     }
 
     private function suppressCompetitiveRewardBonuses(BattleState $state, Skill $executionSkill): Skill
@@ -614,7 +753,10 @@ class JobArtBattleSupportService
             return false;
         }
 
-        $spRate = $actor->maxMp > 0 ? $actor->mp / $actor->maxMp : 0.0;
+        $usesOutput = $this->jobArtV2FeatureGate->usesSpPowerScaling($actor);
+        $remaining = $usesOutput ? $actor->mp - $spCost : $actor->mp;
+        $denominator = $usesOutput ? $actor->spPowerReference : $actor->maxMp;
+        $spRate = $denominator > 0 ? $remaining / $denominator : 0.0;
 
         return match ($policy) {
             'aggressive' => true,

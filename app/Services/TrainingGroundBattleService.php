@@ -44,6 +44,8 @@ class TrainingGroundBattleService extends BattleService
                 'starting_hp' => $maxHp,
                 'starting_mp' => $maxMp,
                 'job_art_context' => $context,
+                // 通常探索／ボスの予測が目的なので、非永続でも出力予算Kは付けない。
+                'sp_output_budget_enabled' => false,
                 'max_turns' => $maxTurns,
             ]);
         } finally {

@@ -145,6 +145,7 @@ class PvPJobArtDamageTypeTest extends TestCase
                 bool $damageCapEnabled = true,
                 float $baseDamageMultiplier = 1.0,
                 float $additionalDefenseIgnoreRate = 0.0,
+                ?int $skillPowerCenti = null,
             ): int {
                 $this->calls[] = [
                     'damage_type' => $attackType,

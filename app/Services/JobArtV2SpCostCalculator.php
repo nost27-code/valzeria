@@ -24,10 +24,21 @@ class JobArtV2SpCostCalculator
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2PrototypeCatalog $prototypeCatalog,
         private readonly ?JobArtV2ProgressionService $progressionService = null,
+        private readonly ?JobArtV2SpPowerScalingService $spPowerScalingService = null,
     ) {
     }
 
     public function forActor(BattleActor $actor, Skill $skill): int
+    {
+        $pending = $actor->pendingJobArtSpScaling((int) $skill->id);
+        if ($pending !== null) {
+            return $pending->totalCost;
+        }
+
+        return $this->scalingForActor($actor, $skill)->totalCost;
+    }
+
+    public function scalingForActor(BattleActor $actor, Skill $skill): JobArtV2SpPowerScalingResult
     {
         $legacyOrigin = (string) ($actor->jobArtOrigins[(int) $skill->id] ?? 'current');
 
@@ -38,18 +49,72 @@ class JobArtV2SpCostCalculator
             $legacyOrigin,
         );
 
-        return ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+        $discountedFixed = ($this->progressionService ?? app(JobArtV2ProgressionService::class))
             ->adjustedSpCost($actor, $skill, $base);
+
+        return $this->scalingService()->forActor($actor, $skill, $base, $discountedFixed);
+    }
+
+    public function prepareForActor(BattleActor $actor, Skill $skill): JobArtV2SpPowerScalingResult
+    {
+        $result = $this->scalingForActor($actor, $skill);
+        $actor->rememberPendingJobArtSpScaling((int) $skill->id, $result);
+
+        return $result;
+    }
+
+    public function commitForActor(BattleActor $actor, Skill $skill): ?JobArtV2SpPowerScalingResult
+    {
+        $result = $actor->pendingJobArtSpScaling((int) $skill->id)
+            ?? $this->scalingForActor($actor, $skill);
+        if ($actor->mp < $result->totalCost
+            || ! $actor->commitJobArtSpScaling((int) $skill->id, $result)
+        ) {
+            $actor->clearPendingJobArtSpScaling((int) $skill->id);
+
+            return null;
+        }
+
+        return $result;
     }
 
     public function forCharacter(Character $character, Skill $skill, int $maxSp): int
     {
+        return $this->scalingForCharacter(
+            $character,
+            $skill,
+            $maxSp,
+            JobArtV2StrategyService::OUTPUT_NONE,
+        )->totalCost;
+    }
+
+    public function scalingForCharacter(
+        Character $character,
+        Skill $skill,
+        int $maxSp,
+        string $outputKey,
+        string $context = 'normal',
+    ): JobArtV2SpPowerScalingResult {
         $legacyOrigin = (string) ($skill->getAttribute('job_art_origin') ?: 'inherited');
         $currentJobId = $character->current_job_id !== null
             ? (int) $character->current_job_id
             : null;
 
-        return $this->forCurrentJob($skill, $maxSp, $currentJobId, $legacyOrigin);
+        $fixed = $this->forCurrentJob($skill, $maxSp, $currentJobId, $legacyOrigin);
+
+        return $this->scalingService()->forReference(
+            $skill,
+            $currentJobId,
+            $maxSp,
+            $fixed,
+            $outputKey,
+            context: $context,
+        );
+    }
+
+    private function scalingService(): JobArtV2SpPowerScalingService
+    {
+        return $this->spPowerScalingService ?? app(JobArtV2SpPowerScalingService::class);
     }
 
     public function forCurrentJob(

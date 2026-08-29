@@ -22,6 +22,7 @@ class JobArtV2SelectionService
     private readonly JobArtV2CrownBalanceCatalog $crownBalanceCatalog;
     private readonly JobArtV2FeatureGate $featureGate;
     private readonly JobArtV2Rank5V6Catalog $rank5V6Catalog;
+    private readonly JobArtV2StrategyService $strategyService;
 
     public function __construct(
         private readonly JobArtV2RandomSource $random,
@@ -41,6 +42,7 @@ class JobArtV2SelectionService
         ?JobArtV2CrownBalanceCatalog $crownBalanceCatalog = null,
         ?JobArtV2FeatureGate $featureGate = null,
         ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
+        ?JobArtV2StrategyService $strategyService = null,
     ) {
         $this->resourceService = $resourceService ?? app(JobArtV2ResourceService::class);
         $this->fieldService = $fieldService ?? app(JobArtV2FieldService::class);
@@ -57,6 +59,7 @@ class JobArtV2SelectionService
             ?? app(JobArtV2CrownBalanceCatalog::class);
         $this->featureGate = $featureGate ?? app(JobArtV2FeatureGate::class);
         $this->rank5V6Catalog = $rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class);
+        $this->strategyService = $strategyService ?? app(JobArtV2StrategyService::class);
     }
 
     public function selectForTurn(
@@ -72,6 +75,10 @@ class JobArtV2SelectionService
             $stateKey = $stateKeyForSkill($skill);
             $blockedReason = $this->eligibilityFailureReason($actor, $state, $skill, $stateKey);
             if ($blockedReason !== null) {
+                $actor->clearPendingJobArtSpScaling((int) $skill->id);
+                if ($blockedReason === 'blocked_by_output_budget') {
+                    $actor->jobArtSpBudgetBlockedCandidates++;
+                }
                 $blockedReasons[(int) $skill->id] = $blockedReason;
                 $this->logProgressionGateFailure($actor, $state, $skill, $blockedReason);
                 continue;
@@ -81,18 +88,30 @@ class JobArtV2SelectionService
                 continue;
             }
 
-            $activationRate = $this->progressionService->activationRate($actor, $skill, $this->fieldService->activationRate(
+            // Eligibility checks are intentionally pure because candidate ordering may
+            // inspect the same card more than once. Reserve the exact cost only for the
+            // single candidate that will actually receive an activation roll.
+            $this->spCostCalculator->prepareForActor($actor, $skill);
+
+            $guaranteedRate = $this->strategyService->guaranteedUltimateRate(
                 $actor,
-                $state,
-                $this->battleRules->activationRateFor(
-                    $skill,
-                    $actor->currentJobId,
-                    $this->originFor($actor, $skill),
-                ),
-            ));
+                $skill,
+                fn (): bool => $this->isReadyUltimate($actor, $state, $skill),
+            );
+            $activationRate = $guaranteedRate
+                ?? $this->progressionService->activationRate($actor, $skill, $this->fieldService->activationRate(
+                    $actor,
+                    $state,
+                    $this->battleRules->activationRateFor(
+                        $skill,
+                        $actor->currentJobId,
+                        $this->originFor($actor, $skill),
+                    ),
+                ));
             $activated = $this->random->percentRoll() <= $activationRate;
             if (! $activated) {
                 $this->markRank5V6Attempted($actor, $skill);
+                $actor->clearPendingJobArtSpScaling((int) $skill->id);
             }
             $this->progressionService->finishActivationAttempt($actor, $skill, $activated);
             if ($rankNinePrioritized && (int) $skill->learn_rank === 9) {
@@ -153,7 +172,12 @@ class JobArtV2SelectionService
             return 'blocked_by_condition';
         }
 
-        $spCost = $this->spCostCalculator->forActor($actor, $skill);
+        $scaling = $this->spCostCalculator->scalingForActor($actor, $skill);
+        if (! $actor->canSpendSpOutputBudget($scaling->variableCost)) {
+            return 'blocked_by_output_budget';
+        }
+
+        $spCost = $scaling->totalCost;
         $policy = (string) ($actor->jobArtPolicies[(int) $skill->id] ?? $actor->jobArtActivationPolicy);
         if (!$this->canActivateByPolicy($actor, $spCost, $policy)) {
             return 'blocked_by_sp_or_policy';
@@ -193,6 +217,28 @@ class JobArtV2SelectionService
             return $ultimatePriorityCache[$skillId]
                 ??= $this->shouldPrioritizeUltimate($actor, $state, $skill);
         };
+
+        $strategyProfile = $this->strategyService->profileFor($actor);
+        if ($strategyProfile !== null) {
+            $candidates = $this->rotateFromCDesignCursor($actor, $candidates);
+            $candidates = $this->strategyService->orderCandidates(
+                $actor,
+                $state,
+                $candidates,
+                fn (Skill $skill): bool => $shouldPrioritizeUltimate($skill)
+                    && $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill)),
+                fn (Skill $skill): bool => $this->ultimateCounterplayService->isResponseCandidate($actor, $state, $skill)
+                    && $this->isEligible($actor, $state, $skill, $stateKeyForSkill($skill)),
+            );
+            $first = $candidates[0] ?? null;
+
+            return [
+                $candidates,
+                $first instanceof Skill
+                    && $strategyProfile['settings']['ultimate_policy'] !== 'slot_order'
+                    && $shouldPrioritizeUltimate($first),
+            ];
+        }
 
         if (!$this->resourceService->enabledFor($actor)) {
             return [$candidates, false];
@@ -326,7 +372,10 @@ class JobArtV2SelectionService
             return false;
         }
 
-        $spRate = $actor->maxMp > 0 ? $actor->mp / $actor->maxMp : 0.0;
+        $usesOutput = $this->featureGate->usesSpPowerScaling($actor);
+        $remaining = $usesOutput ? $actor->mp - $spCost : $actor->mp;
+        $denominator = $usesOutput ? $actor->spPowerReference : $actor->maxMp;
+        $spRate = $denominator > 0 ? $remaining / $denominator : 0.0;
 
         return match ($policy) {
             'aggressive' => true,

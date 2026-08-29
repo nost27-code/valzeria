@@ -803,6 +803,7 @@ final class RecordingCounterDamageCalculator extends DamageCalculator
         ?int $overrideAtk = null,
         ?int $overrideDef = null,
         ?int $overrideSpr = null,
+        ?int $skillPowerCenti = null,
     ): int {
         $this->calls[] = ['route' => 'duel', 'power' => $skillPower];
 
@@ -825,6 +826,7 @@ final class RecordingCounterDamageCalculator extends DamageCalculator
         bool $damageCapEnabled = true,
         float $baseDamageMultiplier = 1.0,
         float $additionalDefenseIgnoreRate = 0.0,
+        ?int $skillPowerCenti = null,
     ): int {
         $this->calls[] = ['route' => 'rank', 'power' => $skillPower];
 
@@ -838,6 +840,7 @@ final class RecordingCounterDamageCalculator extends DamageCalculator
         bool $isCritical = false,
         ?int $overrideAtk = null,
         ?int $overrideDef = null,
+        ?int $skillPowerCenti = null,
     ): int {
         $this->calls[] = ['route' => 'physical', 'power' => $skillPower];
 

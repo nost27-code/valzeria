@@ -557,6 +557,20 @@ class TowerBattleService extends BattleService
             $actor->jobArtPolicies[(int) $art->id] = (string) ($art->getAttribute('job_art_activation_policy') ?: $actor->jobArtActivationPolicy);
             $actor->jobArtConditions[(int) $art->id] = (string) ($art->getAttribute('job_art_slot_condition') ?: JobArtV2SlotConditionCatalog::ALWAYS);
         }
+        $this->jobArtBattleSupport->configureSpOutput(
+            $actor,
+            $character,
+            'pve',
+            'tower',
+            false,
+            (int) $run->tower_max_mp,
+        );
+        if ($this->jobArtV2FeatureGate->usesSpPowerScaling($actor)) {
+            // SP出力ON時はM0・SP方針・割合回復の3分母をtower runへ統一する。
+            // OFF時は従来のキャラクター最大SP分母をそのまま維持する。
+            $actor->maxMp = max(0, (int) $run->tower_max_mp);
+            $actor->mp = min($actor->maxMp, max(0, (int) $run->tower_current_mp));
+        }
 
         return $actor;
     }

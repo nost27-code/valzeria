@@ -204,44 +204,52 @@
                                         'activeLineages' => $activeLineagesByContext[$slotContext] ?? [],
                                     ])
                                 </div>
-                                <form
-                                    method="POST"
-                                    action="{{ route('job-arts.policy') }}"
-                                    class="border-t border-slate-200 px-3 py-2.5"
-                                    data-job-art-context-sp-policy="{{ $slotContext }}"
-                                    data-saved-policy="{{ $contextSpPolicies[$slotContext] ?? 'aggressive' }}"
-                                    x-data="{ policyHelpOpen: false }"
-                                >
-                                    @csrf
-                                    <input type="hidden" name="slot_context" value="{{ $slotContext }}">
-                                    <div class="flex items-center gap-2 sm:gap-3">
-                                        <div class="flex shrink-0 items-center gap-2">
-                                            <div class="text-xs font-black text-slate-800">SP方針</div>
-                                            <span class="hidden text-[10px] font-black text-emerald-600" data-job-art-context-sp-policy-status aria-live="polite"></span>
+                                @include('job-arts.partials.sp-output-settings', [
+                                    'spOutputUiEnabled' => $spOutputUiEnabledByContext[$slotContext] ?? false,
+                                    'spOutputPreviews' => $spOutputPreviewsByContext[$slotContext] ?? [],
+                                ])
+                                @if($detailedStrategyUiEnabled ?? false)
+                                    @include('job-arts.partials.strategy-settings')
+                                @else
+                                    <form
+                                        method="POST"
+                                        action="{{ route('job-arts.policy') }}"
+                                        class="border-t border-slate-200 px-3 py-2.5"
+                                        data-job-art-context-sp-policy="{{ $slotContext }}"
+                                        data-saved-policy="{{ $contextSpPolicies[$slotContext] ?? 'aggressive' }}"
+                                        x-data="{ policyHelpOpen: false }"
+                                    >
+                                        @csrf
+                                        <input type="hidden" name="slot_context" value="{{ $slotContext }}">
+                                        <div class="flex items-center gap-2 sm:gap-3">
+                                            <div class="flex shrink-0 items-center gap-2">
+                                                <div class="text-xs font-black text-slate-800">SP方針</div>
+                                                <span class="hidden text-[10px] font-black text-emerald-600" data-job-art-context-sp-policy-status aria-live="polite"></span>
+                                            </div>
+                                            <div class="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-lg bg-slate-50 p-1">
+                                                @foreach($activationPolicyLabels as $policyKey => $policyLabel)
+                                                    <label>
+                                                        <input
+                                                            type="radio"
+                                                            name="activation_policy"
+                                                            value="{{ $policyKey }}"
+                                                            class="peer sr-only"
+                                                            data-job-art-context-sp-policy-radio
+                                                            @checked(($contextSpPolicies[$slotContext] ?? 'aggressive') === $policyKey)
+                                                        >
+                                                        <span class="flex min-h-8 cursor-pointer items-center justify-center rounded-md border border-transparent px-1 text-[11px] font-black text-slate-500 transition-colors peer-checked:border-indigo-500 peer-checked:bg-indigo-600 peer-checked:text-white sm:px-3">{{ $policyLabel }}</span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                            <button type="button" @click="policyHelpOpen = !policyHelpOpen" x-bind:aria-expanded="policyHelpOpen.toString()" aria-label="SP方針の説明を表示" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-indigo-700">
+                                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 transition-transform" :class="policyHelpOpen ? 'rotate-180' : ''" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 7.5l5 5 5-5" /></svg>
+                                            </button>
                                         </div>
-                                        <div class="grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-lg bg-slate-50 p-1">
-                                            @foreach($activationPolicyLabels as $policyKey => $policyLabel)
-                                                <label>
-                                                    <input
-                                                        type="radio"
-                                                        name="activation_policy"
-                                                        value="{{ $policyKey }}"
-                                                        class="peer sr-only"
-                                                        data-job-art-context-sp-policy-radio
-                                                        @checked(($contextSpPolicies[$slotContext] ?? 'aggressive') === $policyKey)
-                                                    >
-                                                    <span class="flex min-h-8 cursor-pointer items-center justify-center rounded-md border border-transparent px-1 text-[11px] font-black text-slate-500 transition-colors peer-checked:border-indigo-500 peer-checked:bg-indigo-600 peer-checked:text-white sm:px-3">{{ $policyLabel }}</span>
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                        <button type="button" @click="policyHelpOpen = !policyHelpOpen" x-bind:aria-expanded="policyHelpOpen.toString()" aria-label="SP方針の説明を表示" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-indigo-700">
-                                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 transition-transform" :class="policyHelpOpen ? 'rotate-180' : ''" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 7.5l5 5 5-5" /></svg>
-                                        </button>
-                                    </div>
-                                    <p x-cloak x-show="policyHelpOpen" class="mt-2 rounded-md bg-indigo-50 px-2 py-1.5 text-[10px] font-bold text-indigo-700" data-job-art-context-sp-policy-description>
-                                        {{ $activationPolicyDescriptions[$contextSpPolicies[$slotContext] ?? 'aggressive'] ?? '' }}
-                                    </p>
-                                </form>
+                                        <p x-cloak x-show="policyHelpOpen" class="mt-2 rounded-md bg-indigo-50 px-2 py-1.5 text-[10px] font-bold text-indigo-700" data-job-art-context-sp-policy-description>
+                                            {{ $activationPolicyDescriptions[$contextSpPolicies[$slotContext] ?? 'aggressive'] ?? '' }}
+                                        </p>
+                                    </form>
+                                @endif
 
                                 @if(($jobArtStarterPresetCount ?? 0) > 0)
                                     @include('job-arts.partials.starter-presets', [
@@ -843,6 +851,8 @@
             const SLOT_SET_URL = @json(route('job-arts.slot-set'));
             const REORDER_URL = @json(route('job-arts.reorder'));
             const POLICY_URL = @json(route('job-arts.policy'));
+            const SP_OUTPUT_URL = @json(route('job-arts.sp-output'));
+            const STRATEGY_URL = @json(route('job-arts.strategy'));
             const CSRF_TOKEN = @json(csrf_token());
             const CONTEXT_LABELS = { normal: '通常', boss: 'ボス', pvp: '対人' };
             const SP_POLICY_DESCRIPTIONS = @json($activationPolicyDescriptions);
@@ -857,6 +867,12 @@
                 if (!context || typeof html !== 'string') return;
                 const container = root.querySelector('[data-job-art-active-lineages="' + context + '"]');
                 if (container) container.innerHTML = html;
+            };
+
+            const replaceSpOutput = (context, html) => {
+                if (!context || typeof html !== 'string') return;
+                const container = root.querySelector('[data-job-art-sp-output-container="' + context + '"]');
+                if (container) container.outerHTML = html;
             };
 
             const targetBanner = root.querySelector('[data-job-art-target-banner]');
@@ -877,7 +893,7 @@
                 assignmentPending = pending;
                 root.toggleAttribute('aria-busy', pending);
 
-                root.querySelectorAll('[data-job-art-assign-btn], [data-job-art-open-replace], [data-job-art-replace-slot], [data-job-art-replace-close], [data-job-art-target-btn], [data-job-art-target-unset], [data-job-art-target-cancel], [data-job-art-policy-radio], [data-job-art-context-sp-policy-radio], [data-job-art-drag-handle]').forEach((control) => {
+                root.querySelectorAll('[data-job-art-assign-btn], [data-job-art-open-replace], [data-job-art-replace-slot], [data-job-art-replace-close], [data-job-art-target-btn], [data-job-art-target-unset], [data-job-art-target-cancel], [data-job-art-policy-radio], [data-job-art-context-sp-policy-radio], [data-job-art-sp-output-radio], [data-job-art-drag-handle]').forEach((control) => {
                     control.disabled = pending;
                     control.classList.toggle('is-action-processing', pending);
                 });
@@ -1345,6 +1361,7 @@
                 }
                 replaceDiagnosis(context, payload.diagnosis_html);
                 replaceActiveLineages(context, payload.active_lineages_html);
+                replaceSpOutput(context, payload.sp_output_html);
 
                 if (target && target.context === context && Number(target.slotNo) === Number(slotNo)) {
                     clearTarget();
@@ -1440,6 +1457,55 @@
             });
 
             root.addEventListener('change', (event) => {
+                const outputRadio = event.target.closest('[data-job-art-sp-output-radio]');
+                if (outputRadio) {
+                    const form = outputRadio.closest('[data-job-art-sp-output]');
+                    if (!form) return;
+                    const previousOutput = form.dataset.savedOutput || 'none';
+                    const status = form.querySelector('[data-job-art-sp-output-status]');
+                    const formData = new FormData(form);
+                    formData.set('sp_output', outputRadio.value);
+                    form.querySelectorAll('input, button').forEach((control) => { control.disabled = true; });
+                    if (status) {
+                        status.textContent = '保存中…';
+                        status.classList.remove('hidden', 'text-emerald-600', 'text-rose-600');
+                        status.classList.add('text-slate-500');
+                    }
+
+                    fetch(SP_OUTPUT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': CSRF_TOKEN,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    })
+                        .then(async (response) => {
+                            const payload = await response.json().catch(() => ({}));
+                            if (!response.ok) throw new Error(payload.message || 'SP出力を保存できませんでした。');
+                            form.dataset.savedOutput = outputRadio.value;
+                            if (status) {
+                                status.textContent = '保存しました';
+                                status.classList.remove('text-slate-500', 'text-rose-600');
+                                status.classList.add('text-emerald-600');
+                            }
+                        })
+                        .catch((error) => {
+                            const previousRadio = form.querySelector('[data-job-art-sp-output-radio][value="' + previousOutput + '"]');
+                            if (previousRadio) previousRadio.checked = true;
+                            if (status) {
+                                status.textContent = error.message || '保存できませんでした';
+                                status.classList.remove('text-slate-500', 'text-emerald-600');
+                                status.classList.add('text-rose-600');
+                            }
+                        })
+                        .finally(() => {
+                            form.querySelectorAll('input, button').forEach((control) => { control.disabled = false; });
+                        });
+                    return;
+                }
+
                 const contextPolicyRadio = event.target.closest('[data-job-art-context-sp-policy-radio]');
                 if (contextPolicyRadio) {
                     const form = contextPolicyRadio.closest('[data-job-art-context-sp-policy]');
@@ -1505,6 +1571,50 @@
                 const slotCardSelector = '[data-job-art-slot-card="' + slotContext + '-' + slotNo + '"]';
                 const condition = slotCard ? (slotCard.dataset.condition || 'always') : 'always';
                 assignSkillToSlot(slotContext, slotNo, skillId, radio.value, condition, slotCardSelector);
+            });
+
+            root.addEventListener('submit', (event) => {
+                const form = event.target.closest('[data-job-art-strategy]');
+                if (!form) return;
+                event.preventDefault();
+                const status = form.querySelector('[data-job-art-strategy-status]');
+                const submit = form.querySelector('[data-job-art-strategy-submit]');
+                const formData = new FormData(form);
+                if (submit) submit.disabled = true;
+                if (status) {
+                    status.textContent = '保存中…';
+                    status.classList.remove('hidden', 'text-emerald-600', 'text-rose-600');
+                    status.classList.add('text-slate-500');
+                }
+
+                fetch(STRATEGY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData,
+                })
+                    .then(async (response) => {
+                        const payload = await response.json().catch(() => ({}));
+                        if (!response.ok) throw new Error(payload.message || '戦略を保存できませんでした。');
+                        if (status) {
+                            status.textContent = '保存しました';
+                            status.classList.remove('text-slate-500', 'text-rose-600');
+                            status.classList.add('text-emerald-600');
+                        }
+                    })
+                    .catch((error) => {
+                        if (status) {
+                            status.textContent = error.message || '保存できませんでした';
+                            status.classList.remove('text-slate-500', 'text-emerald-600');
+                            status.classList.add('text-rose-600');
+                        }
+                    })
+                    .finally(() => {
+                        if (submit) submit.disabled = false;
+                    });
             });
 
             root.addEventListener('change', (event) => {

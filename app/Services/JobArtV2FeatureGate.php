@@ -93,6 +93,66 @@ class JobArtV2FeatureGate
             && $this->usesResourcesForCurrentJob($jobId);
     }
 
+    public function usesDetailedStrategy(BattleActor $actor): bool
+    {
+        return (bool) config('battle.job_art_v2.detailed_strategy', false)
+            && $this->usesResources($actor);
+    }
+
+    public function usesDetailedStrategyForCurrentJob(?int $jobId): bool
+    {
+        return (bool) config('battle.job_art_v2.detailed_strategy', false)
+            && $this->usesResourcesForCurrentJob($jobId);
+    }
+
+    /**
+     * Config-only half of the SP-output gate, shared by runtime actors and UI
+     * previews. Current-job support is checked by the caller that has a job.
+     */
+    public function spPowerScalingConfigurationEnabled(string $context = 'normal'): bool
+    {
+        if (! (bool) config('battle.job_art_v2.sp_power_scaling.enabled', false)
+            || ! (bool) config('battle.job_art_v2.dynamic_single', false)
+            || ! (bool) config('battle.job_art_v2.hit_resolution', false)
+            || ! (bool) config('battle.job_art_v2.damage_application', false)
+            || ! (bool) config('battle.job_art_v2.resources', false)
+            || ! (bool) config('battle.job_art_v2.rank5_v6', false)
+        ) {
+            return false;
+        }
+
+        if (in_array($context, ['pvp', 'arena_npc', 'champ'], true)
+            && ! (bool) config('battle.job_art_v2.pvp_set', false)
+        ) {
+            return false;
+        }
+
+        return $context !== 'champ'
+            || (bool) config('battle.job_art_v2.sp_power_scaling.champ_enabled', false);
+    }
+
+    /**
+     * Fixed-cost + variable-output scaling is a fail-closed extension of the
+     * complete v2 damage chain. PvP settings and Champ have additional gates.
+     */
+    public function usesSpPowerScaling(BattleActor $actor): bool
+    {
+        if (! $this->spPowerScalingConfigurationEnabled($actor->spPowerScalingContext)
+            || ! $this->catalog->supportsCurrentJob($actor->currentJobId)
+            || ! $actor->spScalingEligible
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function usesSpPowerScalingForCurrentJob(?int $jobId, string $context = 'normal'): bool
+    {
+        return $this->spPowerScalingConfigurationEnabled($context)
+            && $this->catalog->supportsCurrentJob($jobId);
+    }
+
     public function usesFields(BattleState $state): bool
     {
         return (bool) config('battle.job_art_v2.dynamic_single', false)

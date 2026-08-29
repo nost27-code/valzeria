@@ -38,6 +38,14 @@ class JobArtHitPowerTest extends TestCase
         }
     }
 
+    public function test_centi_power_is_split_without_losing_the_action_total(): void
+    {
+        $actual = JobArtHitPower::splitCenti(22_561, 3);
+
+        $this->assertSame([7_521, 7_520, 7_520], $actual);
+        $this->assertSame(22_561, array_sum($actual));
+    }
+
     public static function splitProvider(): array
     {
         return [

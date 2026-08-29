@@ -124,6 +124,38 @@ class TrainingGroundBattleTest extends TestCase
             ->assertSee('data-initial-job-art-context="pvp"', false);
     }
 
+    public function test_detailed_strategy_partial_is_rendered_only_when_its_flag_is_enabled(): void
+    {
+        config(['view.compiled' => sys_get_temp_dir()]);
+        $this->app->forgetInstance('blade.compiler');
+        $this->app->make('view.engine.resolver')->forget('blade');
+        config([
+            'battle.job_art_v2.loadout_v2' => true,
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+            'battle.job_art_v2.rank5_v6' => false,
+            'battle.job_art_v2.detailed_strategy' => false,
+        ]);
+        $character = $this->character('詳細戦術表示確認者');
+        $character->forceFill(['current_job_id' => 1])->save();
+
+        $this->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->get(route('job-arts.index'))
+            ->assertOk()
+            ->assertDontSee('data-job-art-strategy=', false)
+            ->assertSee('data-job-art-context-sp-policy="normal"', false);
+
+        config(['battle.job_art_v2.detailed_strategy' => true]);
+
+        $this->get(route('job-arts.index'))
+            ->assertOk()
+            ->assertSee('data-job-art-strategy="normal"', false)
+            ->assertDontSee('data-job-art-context-sp-policy="normal"', false);
+    }
+
     public function test_training_ground_uses_the_boss_set_link_while_the_pvp_set_flag_is_off(): void
     {
         config(['battle.job_art_v2.pvp_set' => false]);

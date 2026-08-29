@@ -60,6 +60,8 @@ class JobArtLoadoutV2Test extends TestCase
             $table->unsignedBigInteger('character_id');
             $table->string('battle_context', 20);
             $table->string('sp_policy', 20)->default('aggressive');
+            $table->string('strategy_mode', 20)->default('custom');
+            $table->json('strategy_settings')->nullable();
             $table->timestamps();
             $table->unique(['character_id', 'battle_context']);
         });
@@ -254,6 +256,90 @@ class JobArtLoadoutV2Test extends TestCase
             $this->assertSame('always', $art?->getAttribute('job_art_slot_condition'), $battleContext);
             $this->assertSame($expectedPolicy, $this->service->contextSpPolicy($this->character, $expectedSlotContext));
         }
+    }
+
+    public function test_sp_outputs_are_saved_independently_for_normal_boss_and_pvp(): void
+    {
+        $this->enableSpOutput();
+        config(['battle.job_art_v2.detailed_strategy' => true]);
+
+        $this->service->saveContextSpOutput($this->character, 'normal', 'low');
+        $this->service->saveContextSpOutput($this->character, 'boss', 'standard');
+        $this->service->saveContextSpOutput($this->character, 'pvp', 'max');
+
+        $this->assertSame('low', $this->service->contextStrategy($this->character, 'normal')['sp_output']);
+        $this->assertSame('standard', $this->service->contextStrategy($this->character, 'boss')['sp_output']);
+        $this->assertSame('max', $this->service->contextStrategy($this->character, 'pvp')['sp_output']);
+
+        $this->service->saveContextStrategy(
+            $this->character,
+            'normal',
+            'auto',
+            'aggressive',
+            app(\App\Services\JobArtV2StrategyService::class)->autoSettings(),
+        );
+
+        $this->assertSame('low', $this->service->contextStrategy($this->character, 'normal')['sp_output']);
+        $this->assertSame('standard', $this->service->contextStrategy($this->character, 'boss')['sp_output']);
+        $this->assertSame('max', $this->service->contextStrategy($this->character, 'pvp')['sp_output']);
+    }
+
+    public function test_pvp_set_off_reads_none_and_rejects_output_save_without_throwing(): void
+    {
+        $this->enableSpOutput(pvpSet: false);
+
+        $this->assertSame('none', $this->service->contextStrategy($this->character, 'pvp')['sp_output']);
+        $this->assertFalse($this->service->saveContextSpOutput($this->character, 'pvp', 'max'));
+        $this->assertDatabaseMissing('character_job_art_context_settings', [
+            'character_id' => 1,
+            'battle_context' => 'pvp',
+        ]);
+    }
+
+    public function test_sp_output_save_is_rejected_while_its_full_feature_chain_is_off(): void
+    {
+        $this->enableSpOutput();
+        config(['battle.job_art_v2.sp_power_scaling.enabled' => false]);
+
+        $this->assertFalse($this->service->saveContextSpOutput($this->character, 'normal', 'max'));
+        $this->assertDatabaseMissing('character_job_art_context_settings', [
+            'character_id' => 1,
+            'battle_context' => 'normal',
+        ]);
+    }
+
+    public function test_detailed_strategy_stays_dormant_but_keeps_independent_sp_output(): void
+    {
+        $this->enableSpOutput();
+        DB::table('character_job_art_context_settings')->insert([
+            'character_id' => 1,
+            'battle_context' => 'normal',
+            'sp_policy' => 'aggressive',
+            'strategy_mode' => 'auto',
+            'strategy_settings' => json_encode([
+                'ultimate_policy' => 'ready_guaranteed',
+                'heal_policy' => 'hp_30',
+                'sp_output' => 'max',
+            ], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $resolved = $this->service->contextStrategy($this->character, 'normal');
+
+        $this->assertSame('custom', $resolved['mode']);
+        $this->assertSame('normal_rate', $resolved['settings']['ultimate_policy']);
+        $this->assertSame('slot_order', $resolved['settings']['heal_policy']);
+        $this->assertSame('max', $resolved['sp_output']);
+
+        $this->expectException(ValidationException::class);
+        $this->service->saveContextStrategy(
+            $this->character,
+            'normal',
+            'auto',
+            'aggressive',
+            app(\App\Services\JobArtV2StrategyService::class)->autoSettings(),
+        );
     }
 
     public function test_v2_reorder_preserves_empty_slots_policies_and_conditions(): void
@@ -668,6 +754,21 @@ class JobArtLoadoutV2Test extends TestCase
             'battle.job_art_v2.damage_application' => true,
             'battle.job_art_v2.resources' => true,
             'battle.job_art_v2.c_design_prototype' => true,
+        ]);
+    }
+
+    private function enableSpOutput(bool $pvpSet = true): void
+    {
+        config([
+            'battle.job_art_v2.loadout_v2' => true,
+            'battle.job_art_v2.dynamic_single' => true,
+            'battle.job_art_v2.hit_resolution' => true,
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
+            'battle.job_art_v2.rank5_v6' => true,
+            'battle.job_art_v2.sp_power_scaling.enabled' => true,
+            'battle.job_art_v2.pvp_set' => $pvpSet,
+            'battle.job_art_v2.detailed_strategy' => false,
         ]);
     }
 

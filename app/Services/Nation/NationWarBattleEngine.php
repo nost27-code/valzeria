@@ -41,6 +41,7 @@ final class NationWarBattleEngine extends BattleService
                 'persist_character_state' => false, 'rewards_enabled' => false, 'exploration_support_enabled' => false,
                 'auto_unequip_invalid_items' => false, 'starting_hp' => max(1, (int) $stats['max_hp']),
                 'starting_mp' => max(0, (int) $stats['max_mp']), 'job_art_context' => 'pve',
+                'sp_output_budget_enabled' => true,
                 'max_turns' => app(NationWarSettingsService::class)->maxTurns(), 'force_player_first' => true,
             ]);
         } finally { $this->nationBattle = false; }

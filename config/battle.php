@@ -19,6 +19,8 @@ return [
         'preset_free_limit' => 3,
         'pvp_set' => env('BATTLE_JOB_ART_PVP_SET', false),
         'loadout_v2' => env('BATTLE_JOB_ART_LOADOUT_V2', false),
+        // 候補順・奥義発動率を変える詳細戦術は、SP出力とは独立して公開する。
+        'detailed_strategy' => env('BATTLE_JOB_ART_DETAILED_STRATEGY', false),
         // Keep the compact v2 cards now; the dormant per-card detail controls
         // can be restored without reviving their old runtime conditions.
         'loadout_card_details' => env('BATTLE_JOB_ART_LOADOUT_CARD_DETAILS', false),
@@ -43,6 +45,32 @@ return [
         // 282奥義の台詞・攻撃描写rewrite。戦闘v2の他flagとは独立し、既定OFF。
         'flavor_rewrite' => env('BATTLE_JOB_ART_FLAVOR_REWRITE', false),
         'rank5_v6' => env('BATTLE_JOB_ART_RANK5_V6', false),
+        'sp_power_scaling' => [
+            // Rank5 v6.1を前提に校正したため、rank5_v6を含むcore flag鎖が
+            // 1つでもOFFなら可変費・威力補正を適用しない。
+            'enabled' => env('BATTLE_JOB_ART_SP_POWER_SCALING', false),
+            // チャンプは挑戦者／防衛者のSP永続境界が非対称なため別裁定までOFF。
+            'champ_enabled' => env('BATTLE_JOB_ART_SP_POWER_SCALING_CHAMP', false),
+            'outputs' => [
+                'none' => ['stage' => 0, 'cap_bps' => 0],
+                'low' => ['stage' => 1, 'cap_bps' => 750],
+                'standard' => ['stage' => 2, 'cap_bps' => 1_500],
+                'high' => ['stage' => 3, 'cap_bps' => 2_250],
+                'max' => ['stage' => 4, 'cap_bps' => 3_000],
+            ],
+            // 追加消費率（1bp = 最大SPの0.01%）。出力が高いほど
+            // 威力1%あたりの追加消費が増える逓増表を採用する。
+            'variable_cost_bps' => [
+                1 => ['none' => 0, 'low' => 25, 'standard' => 75, 'high' => 150, 'max' => 250],
+                5 => ['none' => 0, 'low' => 50, 'standard' => 150, 'high' => 300, 'max' => 500],
+                9 => ['none' => 0, 'low' => 75, 'standard' => 225, 'high' => 450, 'max' => 750],
+            ],
+            'linear_limit' => 10_000,
+            'linear_divisor' => 20,
+            'excess_divisor' => 200,
+            // 逓増消費表と組み合わせる非永続戦専用の可変費予算。
+            'output_budget_percent' => 25,
+        ],
     ],
 
     /*

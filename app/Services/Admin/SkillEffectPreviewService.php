@@ -7,6 +7,7 @@ use App\Models\JobClass;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\JobArtHitPower;
+use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2SpCostCalculator;
 use App\Support\JobArtEffectCatalog;
 use App\Support\PlayerStatLabel;
@@ -16,6 +17,7 @@ class SkillEffectPreviewService
 {
     public function __construct(
         private readonly ?JobArtV2SpCostCalculator $jobArtSpCostCalculator = null,
+        private readonly ?JobArtBattleSupportService $jobArtBattleSupport = null,
     ) {
     }
 
@@ -329,7 +331,9 @@ class SkillEffectPreviewService
             $attacker->healHp(max(1, (int) floor($attacker->maxHp * ((int) $skill->heal_percent / 100) * $rate)));
         }
         if ($template === 'DRAIN' && $damage > 0 && (float) $skill->drain_hp_rate > 0) {
-            $attacker->healHp(max(1, (int) floor($damage * (float) $skill->drain_hp_rate * $rate)));
+            $drainBaseDamage = ($this->jobArtBattleSupport ?? app(JobArtBattleSupportService::class))
+                ->drainDamageBeforeSpOutput($skill, $damage);
+            $attacker->healHp(max(1, (int) floor($drainBaseDamage * (float) $skill->drain_hp_rate * $rate)));
         }
         if (in_array($template, ['GUARD_BARRIER', 'DAMAGE_GUARD_BARRIER'], true)) {
             $attacker->damageReductionRate = max($attacker->damageReductionRate, $this->jobArtGuardReduction($skill, $rate));
