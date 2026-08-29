@@ -82,7 +82,7 @@ Branch: main
 - v2有効時の金冠錬師は、金冠錬符がHIT時触媒+4・金蝕1回、金冠ミダスフィールドが触媒8pt・power315・HIT時金蝕2回。金蝕は次の系譜資源獲得行動で各獲得量-1（最低1）、最大2・非加算更新で、複数資源でも1行動につき1回だけ消費する。同一行動・同一資源の場補正も1回だけとし、指揮の通常攻撃HIT+4と非戦技手番+1に天測がある場合は合計+6
 - 選択は前回判定位置の次から5枠を巡る循環cursor方式。現在使用できない戦技は飛ばし、最初に見つかった候補へ発動抽選を1回だけ行う。不発時に同一行動中の別戦技を再抽選しない。奥義準備と対奥義/予告大技の応答は専用flag配下にある
 - v2奥義は資源が必要量へ達した周期の初回候補だけ優先し、発動抽選不発後は次の自分の行動を通常の循環候補順へ戻す。同じ資源の奥義を装備した始動は資源上限時も候補に残る。プレイヤーランク戦・チャンプ戦・NPC闘技場の奥義予告は同系譜Rank5連携を前提とせず、資源条件と相手の1行動分の応答機会で成立する
-- `config/battle.php`の戦技v2関連flagはコード既定OFF。本番では公開済みのv2基盤・UI・文言flagをONにし、`BATTLE_JOB_ART_C_DESIGN_PROTOTYPE`、`BATTLE_JOB_ART_RANK5_V6`、`BATTLE_JOB_ART_SP_POWER_SCALING`、`BATTLE_JOB_ART_SP_POWER_SCALING_CHAMP`、`BATTLE_JOB_ART_DETAILED_STRATEGY`はOFFを維持する。Rank5 v6.1のmaster migrationと戦技出力のschema migrationは公開切替まで適用せず、既存の戦技選択・SP消費・戦闘効果を維持する
+- `config/battle.php`の戦技v2関連flagはコード既定OFF。本番では公開済みのv2基盤・UI・文言flagをONにし、`BATTLE_JOB_ART_C_DESIGN_PROTOTYPE`、`BATTLE_JOB_ART_RANK5_V6`、`BATTLE_JOB_ART_SP_POWER_SCALING`、`BATTLE_JOB_ART_SP_POWER_SCALING_CHAMP`、`BATTLE_JOB_ART_DETAILED_STRATEGY`はOFFを維持する。Rank5 v6.1のmaster migrationと戦技出力のschema migrationは公開切替まで適用せず、既存の戦技選択・SP消費・戦闘効果を維持する。2026-08-29に戦技出力コード`3fa1dac5`を本番へmigrationなしで待機配置し、4つの関連flagがすべてOFF、3本の関連migrationが`Pending`であることを実機読戻し済み
 - `BATTLE_JOB_ART_FLAVOR_REWRITE`は戦闘v2の他flagから独立した文言切替。`database/data/job_art_flavor_rewrites.json`に94職282戦技の台詞・発動描写を完全一致 `(job_id, learn_rank, name)` で保持し、2026-08-15から本番ON。通常/ボス/塔/PvP/チャンプ/NPC闘技場の奥義ログと神殿・管理確認画面だけへ適用し、威力・効果・発動条件・RNGは変更しない。OFF時、未一致時、読込失敗時は`skills.activation_phrase` / `activation_description`を維持し、DB同期は行わない
 
 ## Job-art v2 progression / FIX_NOW pass (historical design pass)
