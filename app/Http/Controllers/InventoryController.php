@@ -8,6 +8,7 @@ use App\Models\CharacterMonsterMark;
 use App\Models\Character;
 use App\Models\PlayerValmonEgg;
 use App\Services\AdventureSupportService;
+use App\Services\ExperienceTalismanService;
 use App\Services\ExplorationStaminaService;
 use App\Services\ExplorationSupportService;
 use App\Services\GoldService;
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
-    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService, StorageCapacityService $storageCapacityService, ExplorationSupportService $explorationSupportService, ItemBookService $itemBookService)
+    public function index(AdventureSupportService $supportService, ExplorationStaminaService $staminaService, GoldService $goldService, StorageCapacityService $storageCapacityService, ExplorationSupportService $explorationSupportService, ItemBookService $itemBookService, ExperienceTalismanService $experienceTalismanService)
     {
         $character = Auth::user()->currentCharacter();
         if (!$character) {
@@ -103,6 +104,7 @@ class InventoryController extends Controller
             ->concat(collect($supportService->ownedConsumablesFor($character)))
             ->values();
         $staminaSummary = $staminaService->summary($character);
+        $experienceTalismanStatus = $experienceTalismanService->statusFor($character);
 
         $keyItems = $keyMaterials
             ->map(fn ($row) => [
@@ -158,6 +160,7 @@ class InventoryController extends Controller
             'equipmentGroups',
             'supportItems',
             'staminaSummary',
+            'experienceTalismanStatus',
             'keyItems',
             'storageSummary'
         ));
@@ -525,6 +528,7 @@ class InventoryController extends Controller
                 'message' => $result['message'],
                 'stamina' => $staminaService->summary($character),
                 'support_items' => $supportService->ownedConsumablesFor($character),
+                'experience_talisman' => app(ExperienceTalismanService::class)->statusFor($character),
             ], $result['success'] ? 200 : 422);
         }
 

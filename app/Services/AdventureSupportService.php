@@ -86,6 +86,7 @@ class AdventureSupportService
     public function ownedConsumablesFor(Character $character): array
     {
         $items = $this->supportItemDefinitions();
+        $experienceTalismanStatus = app(ExperienceTalismanService::class)->statusFor($character);
 
         $itemOrder = array_flip(array_keys($items));
 
@@ -94,11 +95,13 @@ class AdventureSupportService
             ->where('quantity', '>', 0)
             ->whereIn('item_key', $this->supportConsumableKeys()->all())
             ->get()
-            ->map(function (CharacterConsumableItem $row) use ($items) {
+            ->map(function (CharacterConsumableItem $row) use ($items, $character, $experienceTalismanStatus) {
                 $item = $items[$row->item_key] ?? null;
                 if (!$item) {
                     return null;
                 }
+
+                $isExperienceTalisman = $row->item_key === ExperienceTalismanService::ITEM_KEY;
 
                 return [
                     'key' => $row->item_key,
@@ -108,10 +111,17 @@ class AdventureSupportService
                     'icon_image' => $item['icon_image'] ?? null,
                     'effect_type' => $item['effect_type'] ?? null,
                     'effect_value' => (int) ($item['effect_value'] ?? 0),
+                    'eligible_victories' => (int) ($item['eligible_victories'] ?? 0),
+                    'remaining_eligible_victories' => $isExperienceTalisman
+                        ? (int) $experienceTalismanStatus['remaining']
+                        : 0,
                     'quantity' => (int) $row->quantity,
-                    'can_use' => $this->canUseFromInventory($row->item_key, $item),
+                    'can_use' => $this->canUseFromInventory($row->item_key, $item)
+                        && (!$isExperienceTalisman || (int) $character->level < ExperienceTalismanService::MAX_PLAYER_LEVEL),
                     'use_label' => $this->useLabel($row->item_key, $item),
-                    'use_note' => $this->useNote($row->item_key, $item),
+                    'use_note' => $isExperienceTalisman && (int) $character->level >= ExperienceTalismanService::MAX_PLAYER_LEVEL
+                        ? 'Lv255では使用できません。'
+                        : $this->useNote($row->item_key, $item),
                 ];
             })
             ->filter()
@@ -222,6 +232,10 @@ class AdventureSupportService
 
         if (($items[$itemKey]['effect_type'] ?? null) === 'support_pass_activation') {
             return $this->useSupportPassTicket($character, $itemKey, $items[$itemKey]);
+        }
+
+        if (($items[$itemKey]['effect_type'] ?? null) === 'normal_exploration_exp_boost') {
+            return app(ExperienceTalismanService::class)->use($character);
         }
 
         if (($items[$itemKey]['effect_type'] ?? null) !== 'explore_stamina_recovery') {
@@ -695,7 +709,7 @@ class AdventureSupportService
     {
         return collect($this->supportItemDefinitions())
             ->filter(fn (array $item, string $key) => in_array($key, [self::RESCUE_INSURANCE, self::EMERGENCY_RESCUE_REQUEST], true)
-                || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation'], true))
+                || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', 'normal_exploration_exp_boost'], true))
             ->keys()
             ->values();
     }
@@ -703,7 +717,7 @@ class AdventureSupportService
     private function canUseFromInventory(string $key, array $item): bool
     {
         return $key === self::RESCUE_INSURANCE
-            || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation'], true);
+            || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', 'normal_exploration_exp_boost'], true);
     }
 
     private function useLabel(string $key, array $item): string
@@ -712,7 +726,7 @@ class AdventureSupportService
             return '探索前に使用';
         }
 
-        return in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation'], true)
+        return in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'support_pass_activation', 'normal_exploration_exp_boost'], true)
             ? '使用する'
             : '';
     }
@@ -729,6 +743,12 @@ class AdventureSupportService
 
         if (($item['effect_type'] ?? null) === 'support_pass_activation') {
             return '使用すると冒険者支援パスが30日間有効になります。残り期間がある場合は現在の期限から30日延長されます。';
+        }
+
+        if (($item['effect_type'] ?? null) === 'normal_exploration_exp_boost') {
+            $eligibleVictories = number_format(max(1, (int) ($item['eligible_victories'] ?? ExperienceTalismanService::DEFAULT_ELIGIBLE_VICTORIES)));
+
+            return "使用すると通常探索の対象勝利数が{$eligibleVictories}回加算されます。効果倍率は重複しません。";
         }
 
         return '';

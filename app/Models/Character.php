@@ -43,6 +43,7 @@ class Character extends Model
         'explore_stamina' => 'integer',
         'explore_stamina_max' => 'integer',
         'explore_stamina_updated_at' => 'datetime',
+        'experience_talisman_wins_remaining' => 'integer',
         'inn_rescue_streak' => 'integer',
         'kiseki' => 'integer',
         'paid_kiseki' => 'integer',

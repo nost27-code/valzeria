@@ -132,6 +132,16 @@ return [
         ],
     ],
     'inventory_items' => [
+        'experience_talisman' => [
+            'name' => '経験の護符',
+            'category' => '経験支援',
+            'icon_image' => 'images/icon/icon_014.webp',
+            'description' => '使用すると、通常探索の次の50勝で獲得経験値が25%増加します。ボス戦など対象外の戦闘や敗北では残り回数を消費しません。',
+            'effect_type' => 'normal_exploration_exp_boost',
+            'effect_value' => 25,
+            'eligible_victories' => 50,
+            'is_tradable' => false,
+        ],
         'support_pass_30d_ticket' => [
             'name' => '冒険者支援パス30日利用券',
             'category' => '支援アイテム',

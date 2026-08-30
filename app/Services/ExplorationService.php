@@ -13,6 +13,7 @@ use App\Models\Material;
 use App\Models\MaterialDrop;
 use App\Services\Battle\BattleResult;
 use App\Support\CharacterIconCatalog;
+use Illuminate\Support\Facades\DB;
 
 class ExplorationService
 {
@@ -295,6 +296,7 @@ class ExplorationService
         $materialHuntCompletion = null;
         $playerEncounter = null;
         $areaClearStorageReward = null;
+        $experienceTalisman = null;
 
         // 4. 勝敗に応じた処理
         if ($isEventOnly) {
@@ -308,6 +310,7 @@ class ExplorationService
                 $staminaMaxUp = $staminaService->maxForCharacter($character) - $staminaMaxBefore;
             }
             $expGained = $battleResult->exp;
+            $baseBattleExp = $expGained;
             $goldGained = $battleResult->gold;
             $jobExpGained = $battleResult->jobExp;
 
@@ -342,6 +345,17 @@ class ExplorationService
                 }
             }
 
+            $experienceTalismanService = app(ExperienceTalismanService::class);
+            $shouldApplyExperienceTalisman = !$isBossBattle
+                && !$isRegionDepthDungeon
+                && !$isNonCombatEvent
+                && ($specialEvent['type'] ?? null) !== 'secret_realm_lord'
+                && $experienceTalismanService->shouldAttemptNormalExplorationVictory(
+                    $character,
+                    $expGained,
+                    $baseBattleExp
+                );
+
             if (($specialEvent['type'] ?? null) === 'golden_goblin') {
                 $goldenGoblinGold = $this->goldenGoblinGoldReward($area);
                 $goldGained += $goldenGoblinGold;
@@ -349,14 +363,55 @@ class ExplorationService
                 $logText .= "<br><span class=\"text-amber-700 font-bold\">【黄金ゴブリン】きらめく小袋から <span class=\"text-amber-600 font-extrabold\">{$goldenGoblinGold}G</span> を手に入れた！</span>";
             }
 
-            // レベルアップ処理
-            $rewardResult = $this->levelService->addRewardAndCheckLevelUp(
-                $character,
-                $expGained,
-                $goldGained,
-                $jobExpGained,
-                $isRegionDepthDungeon ? (int) ($regionJobExp['cap'] ?? 8) : null
-            );
+            // 護符の残数消費とEXP・Gold・職業EXPの保存を同じtransactionで確定する。
+            if ($shouldApplyExperienceTalisman) {
+                $rewardResolution = DB::transaction(function () use (
+                    $character,
+                    $expGained,
+                    $baseBattleExp,
+                    $goldGained,
+                    $jobExpGained,
+                    $regionJobExp,
+                    $isRegionDepthDungeon,
+                    $experienceTalismanService
+                ): array {
+                    $talismanResult = $experienceTalismanService
+                        ->applyToNormalExplorationVictory($character, $expGained, $baseBattleExp);
+                    $resolvedExp = (int) $talismanResult['total_exp'];
+
+                    return [
+                        'experience_talisman' => $talismanResult,
+                        'exp_gained' => $resolvedExp,
+                        'reward_result' => $this->levelService->addRewardAndCheckLevelUp(
+                            $character,
+                            $resolvedExp,
+                            $goldGained,
+                            $jobExpGained,
+                            $isRegionDepthDungeon ? (int) ($regionJobExp['cap'] ?? 8) : null
+                        ),
+                    ];
+                });
+                $experienceTalismanResult = $rewardResolution['experience_talisman'];
+                $expGained = (int) $rewardResolution['exp_gained'];
+                $rewardResult = $rewardResolution['reward_result'];
+
+                if ($experienceTalismanResult['applied']) {
+                    $experienceTalisman = $experienceTalismanResult;
+                    $battleResult->exp = $expGained;
+                    $bonusExp = (int) $experienceTalismanResult['bonus_exp'];
+                    $remainingWins = (int) $experienceTalismanResult['remaining'];
+                    $logText .= "<br><span class=\"text-violet-700 font-bold\">【経験の護符】旅の経験が実を結び、経験値が+{$bonusExp}増えた！（残り{$remainingWins}勝）</span>";
+                }
+            } else {
+                // レベルアップ処理
+                $rewardResult = $this->levelService->addRewardAndCheckLevelUp(
+                    $character,
+                    $expGained,
+                    $goldGained,
+                    $jobExpGained,
+                    $isRegionDepthDungeon ? (int) ($regionJobExp['cap'] ?? 8) : null
+                );
+            }
             $levelUpCount = $rewardResult['level_up_count'];
             $levelUpDetails = $rewardResult['details'];
             $progression = $rewardResult['progression'] ?? null;
@@ -853,6 +908,7 @@ class ExplorationService
             'exp_gained' => $expGained,
             'gold_gained' => $goldGained,
             'job_exp_gained' => $jobExpGained,
+            ...($experienceTalisman ? ['experience_talisman' => $experienceTalisman] : []),
             'progression' => $progression,
             'enemy_stat_display' => $battleResult->enemyStatDisplay ?? [],
             'level_up_count' => $levelUpCount,

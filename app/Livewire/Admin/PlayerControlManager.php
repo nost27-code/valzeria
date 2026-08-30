@@ -577,9 +577,9 @@ class PlayerControlManager extends Component
                     'name' => $item->name,
                     'meta' => "#{$item->id} / 探索用",
                 ]),
-            'support_item' => collect(config('adventure_support.items', []))
+            'support_item' => collect($this->supportItemDefinitions())
                 ->filter(fn (array $item, string $key) => in_array($key, ['rescue_insurance', 'emergency_rescue_request'], true)
-                    || ($item['effect_type'] ?? null) === 'explore_stamina_recovery')
+                    || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'normal_exploration_exp_boost'], true))
                 ->filter(fn (array $item, string $key) => $keyword === ''
                     || str_contains(mb_strtolower($item['name'] ?? ''), mb_strtolower($keyword))
                     || str_contains(mb_strtolower($key), mb_strtolower($keyword)))
@@ -823,11 +823,11 @@ class PlayerControlManager extends Component
 
     private function grantSupportItem(Character $character): string
     {
-        $items = config('adventure_support.items', []);
+        $items = $this->supportItemDefinitions();
         $item = $items[$this->grantTargetId] ?? null;
         $isConsumableSupport = $item
             && (in_array($this->grantTargetId, ['rescue_insurance', 'emergency_rescue_request'], true)
-                || ($item['effect_type'] ?? null) === 'explore_stamina_recovery');
+                || in_array(($item['effect_type'] ?? null), ['explore_stamina_recovery', 'normal_exploration_exp_boost'], true));
 
         if (!$isConsumableSupport) {
             throw new \InvalidArgumentException('送付対象のサポートアイテムが見つかりません。');
@@ -851,6 +851,14 @@ class PlayerControlManager extends Component
         ]);
 
         return "{$character->name} に {$item['name']} x{$this->grantQuantity} を送付しました。";
+    }
+
+    private function supportItemDefinitions(): array
+    {
+        return array_merge(
+            config('adventure_support.items', []),
+            config('adventure_support.inventory_items', []),
+        );
     }
 
     private function recordItemGrant(Character $character, array $attributes): void

@@ -658,9 +658,36 @@
 
                 <div x-show="storageTab === 'key'" x-transition style="display: none;">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        @if($experienceTalismanStatus['active'])
+                            <div class="sm:col-span-2 rounded-lg border border-violet-200 bg-violet-50 p-4 shadow-sm">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-white">
+                                        <img src="{{ asset($experienceTalismanStatus['icon_image']) }}" alt="" class="h-9 w-9 object-contain">
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <div class="font-black text-violet-950">{{ $experienceTalismanStatus['name'] }}の{{ $experienceTalismanStatus['paused_at_level_cap'] ? '効果保留中' : '効果中' }}</div>
+                                            @if($experienceTalismanStatus['paused_at_level_cap'])
+                                                <span class="rounded-full bg-slate-600 px-2 py-0.5 text-[11px] font-black text-white">Lv255</span>
+                                            @else
+                                                <span class="rounded-full bg-violet-700 px-2 py-0.5 text-[11px] font-black text-white">経験値 +{{ number_format($experienceTalismanStatus['bonus_percent']) }}%</span>
+                                            @endif
+                                        </div>
+                                        <div class="mt-1 text-sm font-black text-violet-800">通常探索の勝利 残り{{ number_format($experienceTalismanStatus['remaining']) }}回</div>
+                                        <div class="mt-1 text-xs font-bold text-violet-600">
+                                            {{ $experienceTalismanStatus['paused_at_level_cap']
+                                                ? 'Lv255では効果が発動せず、残り回数も減りません。'
+                                                : '敗北やボス戦など対象外の戦闘では残り回数を消費しません。' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         @foreach($supportItems as $entry)
                             @php
                                 $isStaminaRecovery = ($entry['effect_type'] ?? null) === 'explore_stamina_recovery';
+                                $isExperienceTalisman = ($entry['effect_type'] ?? null) === 'normal_exploration_exp_boost';
                                 $effectValue = (int) ($entry['effect_value'] ?? 0);
                                 $supportUsePayload = [
                                     ...$entry,
@@ -683,11 +710,15 @@
                                         <div class="font-bold text-slate-800 truncate" title="{{ $entry['name'] }}">{{ $entry['name'] }}</div>
                                         @if($isStaminaRecovery && $effectValue > 0)
                                             <span class="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-black text-sky-700">探索力 +{{ number_format($effectValue) }}</span>
+                                        @elseif($isExperienceTalisman && $effectValue > 0)
+                                            <span class="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-black text-violet-700">経験値 +{{ number_format($effectValue) }}%</span>
                                         @endif
                                     </div>
                                     <div class="text-xs text-slate-500">{{ $entry['category'] }}</div>
                                     @if($isStaminaRecovery && $effectValue > 0)
                                         <div class="text-xs font-bold text-sky-700">使うと探索力が {{ number_format($effectValue) }} 回復</div>
+                                    @elseif($isExperienceTalisman)
+                                        <div class="text-xs font-bold text-violet-700">1個で通常探索の対象勝利数 +{{ number_format($entry['eligible_victories']) }}回</div>
                                     @elseif(!empty($entry['use_note']))
                                         <div class="text-xs text-slate-500 truncate" title="{{ $entry['use_note'] }}">{{ $entry['use_note'] }}</div>
                                     @else
