@@ -3,10 +3,16 @@
 namespace App\Services;
 
 use App\Models\Skill;
+use App\Support\JobArtEffectCatalog;
 
 /** Approved Rank5 v6.1 metadata. Runtime use is always feature-gated. */
 final class JobArtV2Rank5V6Catalog
 {
+    public function __construct(
+        private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
+        private readonly ?JobArtV2DamageSemanticsCatalog $damageSemanticsCatalog = null,
+    ) {}
+
     /** @var array<int, array{name:string,power:?int,trigger_mode:string,effect_text:string}> */
     private const SPECS = [
         1 => ['name' => '受け返し', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '威力100%の物理ダメージ。直前の自分の行動後に受け流しへ成功していた場合、最終ダメージを×1.35する'],
@@ -145,6 +151,32 @@ final class JobArtV2Rank5V6Catalog
         return $this->forSkill($skill)['effect_text'] ?? null;
     }
 
+    public function descriptionFor(Skill $skill): ?string
+    {
+        $spec = $this->forSkill($skill);
+        if ($spec === null) {
+            return null;
+        }
+
+        $effectText = trim((string) $spec['effect_text']);
+        if ($spec['power'] === null || $this->isAttackless($skill)) {
+            $supportEffectText = trim((string) preg_replace('/^攻撃なし。?/u', '', $effectText));
+
+            return '攻撃なし。'.$this->remainingEffectText($supportEffectText);
+        }
+
+        $roleMetadata = ($this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class))->forArt($skill) ?? [];
+        $damageSentence = $this->damageSentence(
+            $skill,
+            (int) $spec['power'],
+            $this->hitCountForDescription($skill, $effectText),
+            $roleMetadata,
+        );
+        $remainingEffectText = $this->remainingEffectText($effectText, $roleMetadata);
+
+        return $damageSentence.$remainingEffectText;
+    }
+
     public function accuracyBonusPoints(Skill $skill): float
     {
         return max(0.0, (float) ($this->forSkill($skill)['accuracy_bonus_points'] ?? 0.0));
@@ -164,5 +196,168 @@ final class JobArtV2Rank5V6Catalog
     public function all(): array
     {
         return self::SPECS;
+    }
+
+    /** @param array<string, mixed> $roleMetadata */
+    private function damageSentence(Skill $skill, int $power, int $hitCount, array $roleMetadata): string
+    {
+        $route = $this->damageRoute($skill, $roleMetadata);
+        if ($route === 'adaptive') {
+            $damage = $hitCount > 1
+                ? "合計威力{$power}%のダメージを{$hitCount}回に分けて与える"
+                : "威力{$power}%のダメージを与える";
+
+            return '自分の攻撃と相手の防御を使う物理経路と、自分の魔力と相手の精神を使う魔力経路を比較し、'
+                ."高い方で相手に{$damage}。";
+        }
+
+        if ($route === 'normal_attack') {
+            return $hitCount > 1
+                ? "相手に通常攻撃と同じ種類（物理／魔力）で、合計威力{$power}%のダメージを{$hitCount}回に分けて与える。"
+                : "相手に通常攻撃と同じ種類（物理／魔力）で、威力{$power}%のダメージを与える。";
+        }
+
+        $statRouteSentence = $this->damageStatRouteSentence($roleMetadata, $route, $power, $hitCount);
+        if ($statRouteSentence !== null) {
+            return $statRouteSentence;
+        }
+
+        $label = match ($route) {
+            'magical' => '魔力',
+            'hybrid' => '複合',
+            default => '物理',
+        };
+
+        return $hitCount > 1
+            ? "相手に合計威力{$power}%の{$label}ダメージを{$hitCount}回に分けて与える。"
+            : "相手に威力{$power}%の{$label}ダメージを与える。";
+    }
+
+    /** @param array<string, mixed> $roleMetadata */
+    private function damageRoute(Skill $skill, array $roleMetadata): string
+    {
+        $semantics = ($this->damageSemanticsCatalog ?? app(JobArtV2DamageSemanticsCatalog::class))
+            ->overrideFor($skill);
+        if (is_string($semantics['damage_category'] ?? null)) {
+            return (string) $semantics['damage_category'];
+        }
+
+        if (is_array($roleMetadata['adaptive_route'] ?? null)) {
+            return 'adaptive';
+        }
+        if ((bool) ($roleMetadata['use_normal_attack_damage_type'] ?? false)) {
+            return 'normal_attack';
+        }
+        if (is_string($roleMetadata['damage_stat_route']['damage_category'] ?? null)) {
+            return (string) $roleMetadata['damage_stat_route']['damage_category'];
+        }
+
+        $replacementTemplate = $roleMetadata['replacement_template'] ?? null;
+        $template = is_string($replacementTemplate) && $replacementTemplate !== ''
+            ? $replacementTemplate
+            : (string) $skill->effect_template;
+        if (JobArtEffectCatalog::usesNormalAttackDamageType($template)) {
+            return 'normal_attack';
+        }
+        if ($template === 'DRAIN') {
+            return JobArtEffectCatalog::drainDamageType($skill->damage_type);
+        }
+
+        return JobArtEffectCatalog::damageType($template);
+    }
+
+    /** @param array<string, mixed> $roleMetadata */
+    private function damageStatRouteSentence(array $roleMetadata, string $route, int $power, int $hitCount): ?string
+    {
+        $statRoute = $roleMetadata['damage_stat_route'] ?? null;
+        if (! is_array($statRoute)) {
+            return null;
+        }
+
+        $attackLabel = $this->playerStatLabel($statRoute['attack_stat'] ?? null);
+        $defenseLabel = $this->playerStatLabel($statRoute['defense_stat'] ?? null);
+        $damageLabel = match ($route) {
+            'physical' => '物理',
+            'magical' => '魔力',
+            default => null,
+        };
+        if ($attackLabel === null || $defenseLabel === null || $damageLabel === null) {
+            return null;
+        }
+
+        $defenseIgnorePercent = max(0, (int) ($statRoute['defense_ignore_percent'] ?? 0));
+        $defenseReference = $defenseIgnorePercent > 0
+            ? "、{$defenseIgnorePercent}%無視した相手の{$defenseLabel}"
+            : "相手の{$defenseLabel}";
+        $damage = $hitCount > 1
+            ? "合計威力{$power}%の{$damageLabel}ダメージを{$hitCount}回に分けて与える"
+            : "威力{$power}%の{$damageLabel}ダメージを与える";
+
+        return "自分の{$attackLabel}と{$defenseReference}を使い、相手に{$damage}。";
+    }
+
+    private function playerStatLabel(mixed $stat): ?string
+    {
+        return match ($stat) {
+            'str' => '攻撃',
+            'def' => '防御',
+            'mag' => '魔力',
+            'spr' => '精神',
+            default => null,
+        };
+    }
+
+    private function hitCountForDescription(Skill $skill, string $effectText): int
+    {
+        if (preg_match('/(\d+)Hit/u', $effectText, $matches) === 1) {
+            return max(1, (int) $matches[1]);
+        }
+
+        $configuredHitCount = (int) $skill->hit_count;
+        if ($configuredHitCount > 0) {
+            return $configuredHitCount;
+        }
+
+        return max(1, JobArtEffectCatalog::hitCount((string) $skill->effect_template));
+    }
+
+    /** @param array<string, mixed> $roleMetadata */
+    private function remainingEffectText(string $effectText, array $roleMetadata = []): string
+    {
+        $replacements = [
+            '/^威力\d+(?:\.\d+)?%の(?:物理|魔法|魔力)ダメージ。/u' => '',
+            '/^攻撃\/魔力の高い方を参照する複合ダメージ。/u' => '自分の攻撃と魔力の高い方を参照する。',
+            '/^物理経路と魔法経路を比較し高い方で1回与える。?/u' => '',
+            '/^複合ダメージ。/u' => '',
+            '/^(\d+)Hitとも/u' => '$1回とも',
+            '/^\d+Hit。/u' => '',
+        ];
+
+        $statRoute = $roleMetadata['damage_stat_route'] ?? null;
+        if (is_array($statRoute)) {
+            $attackLabel = $this->playerStatLabel($statRoute['attack_stat'] ?? null);
+            $defenseLabel = $this->playerStatLabel($statRoute['defense_stat'] ?? null);
+            $defenseIgnorePercent = max(0, (int) ($statRoute['defense_ignore_percent'] ?? 0));
+            if ($attackLabel !== null) {
+                $replacements['/^(?:自分の)?'.preg_quote($attackLabel, '/').'参照。?/u'] = '';
+            }
+            if ($defenseLabel !== null) {
+                $replacements['/^相手の'.preg_quote($defenseLabel, '/').'参照。?/u'] = '';
+            }
+            if ($defenseIgnorePercent > 0 && $defenseLabel !== null) {
+                $replacements['/^相手の'.preg_quote($defenseLabel, '/').'を'.$defenseIgnorePercent.'%無視。?/u'] = '';
+            }
+        }
+
+        $remaining = trim((string) preg_replace(
+            array_keys($replacements),
+            array_values($replacements),
+            $effectText,
+        ));
+        if ($remaining === '') {
+            return '';
+        }
+
+        return str_ends_with($remaining, '。') ? $remaining : $remaining.'。';
     }
 }

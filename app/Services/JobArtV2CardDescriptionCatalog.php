@@ -266,7 +266,7 @@ HITした場合、5ターンの間「王戦陣形」を展開する。王戦陣�
     public function defaultDescription(Skill $skill): ?string
     {
         if ($this->rank5V6Enabled()) {
-            $description = ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->effectText($skill);
+            $description = ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->descriptionFor($skill);
             if ($description !== null) {
                 return $description;
             }

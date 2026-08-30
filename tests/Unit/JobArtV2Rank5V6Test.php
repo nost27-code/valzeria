@@ -14,6 +14,7 @@ use App\Services\CharacterStatusService;
 use App\Services\JobArtService;
 use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2BattleRules;
+use App\Services\JobArtV2CardDescriptionCatalog;
 use App\Services\JobArtV2CrownBalanceCatalog;
 use App\Services\JobArtV2DefenseService;
 use App\Services\JobArtV2FeatureGate;
@@ -149,6 +150,76 @@ class JobArtV2Rank5V6Test extends TestCase
                 }
             }
         }
+    }
+
+    public function test_every_attacking_rank_five_description_shows_power_and_damage_route(): void
+    {
+        $rankFiveCatalog = app(JobArtV2Rank5V6Catalog::class);
+        $descriptions = app(JobArtV2CardDescriptionCatalog::class);
+        $presenter = app(JobArtV2LoadoutPresenter::class);
+        $attackingCount = 0;
+
+        foreach ($rankFiveCatalog->all() as $jobId => $spec) {
+            $skill = $this->masterArt($jobId);
+            $description = $descriptions->defaultDescription($skill);
+            $display = $presenter->forArt($jobId, $skill, [$skill]);
+
+            $this->assertNotNull($description, "job {$jobId} description");
+            $this->assertNotNull($display, "job {$jobId} display");
+            $this->assertSame($description, $display['display_description'], "job {$jobId} displayed description");
+            if ($spec['power'] === null) {
+                $this->assertDoesNotMatchRegularExpression('/(?:合計)?威力\d+%/u', $description, "job {$jobId}");
+                $this->assertStringStartsWith('攻撃なし。', $description, "job {$jobId}");
+                continue;
+            }
+
+            $attackingCount++;
+            $this->assertMatchesRegularExpression(
+                '/(?:合計)?威力'.preg_quote((string) $spec['power'], '/').'%/u',
+                $description,
+                "job {$jobId} power",
+            );
+            $this->assertMatchesRegularExpression(
+                '/(?:物理ダメージ|魔力ダメージ|複合ダメージ|通常攻撃と同じ種類（物理／魔力）|物理経路.+魔力経路)/u',
+                $description,
+                "job {$jobId} damage route",
+            );
+            $this->assertStringNotContainsString('魔法ダメージ', $description, "job {$jobId} canonical label");
+        }
+
+        $this->assertSame(88, $attackingCount);
+        $this->assertSame(
+            '相手に通常攻撃と同じ種類（物理／魔力）で、合計威力100%のダメージを2回に分けて与える。2回とも相手の防御を25%無視。会心判定は各HIT。',
+            $descriptions->defaultDescription($this->masterArt(2)),
+        );
+        $this->assertSame(
+            '相手に威力100%の魔力ダメージを与える。天測の場を5ラウンド展開（この攻撃には非適用）。',
+            $descriptions->defaultDescription($this->masterArt(6)),
+        );
+        $this->assertSame(
+            '相手に威力100%の複合ダメージを与える。自分の攻撃と魔力の高い方を参照する。最大HP3%を非致死消費し最終ダメージ×1.15。',
+            $descriptions->defaultDescription($this->masterArt(9)),
+        );
+        $this->assertSame(
+            '自分の攻撃と相手の防御を使う物理経路と、自分の魔力と相手の精神を使う魔力経路を比較し、高い方で相手に威力100%のダメージを与える。',
+            $descriptions->defaultDescription($this->masterArt(22)),
+        );
+        $this->assertSame(
+            '自分の攻撃と相手の精神を使い、相手に威力100%の魔力ダメージを与える。魔法型/不死系に最終ダメージ×1.20。',
+            $descriptions->defaultDescription($this->masterArt(21)),
+        );
+        $this->assertSame(
+            '相手に通常攻撃と同じ種類（物理／魔力）で、威力100%のダメージを与える。相手防御/精神-15%(3T)。相手の強化のうち残り最長の1件を2ターン短縮。',
+            $descriptions->defaultDescription($this->masterArt(26)),
+        );
+        $this->assertSame(
+            '自分の魔力と、25%無視した相手の防御を使い、相手に威力165%の魔力ダメージを与える。',
+            $descriptions->defaultDescription($this->masterArt(45)),
+        );
+        $this->assertSame(
+            '相手に威力203%の魔力ダメージを与える。最大HP3%を非致死消費。行動開始時HP50%以下なら最終ダメージ×1.25。',
+            $descriptions->defaultDescription($this->masterArt(61)),
+        );
     }
 
     public function test_aim_rank_five_accuracy_and_critical_values_are_exposed_as_structured_runtime_metadata(): void

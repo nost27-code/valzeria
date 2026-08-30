@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-rank5-damage-description-clarity',
+        'date' => '2026-08-31',
+        'category' => 'fixed',
+        'title' => 'Rank5連携の威力と攻撃種別を明記',
+        'detail' => '調整後のRank5連携について、効果説明に威力倍率と物理・魔力・複合などの攻撃種別を表示するよう修正しました。通常攻撃に連動する戦技や物理・魔力を比較する戦技は判定方法を表示し、攻撃しない戦技は「攻撃なし」と明記します。',
+    ],
+    [
         'id' => '2026-08-31-exclusive-character-icon-040',
         'date' => '2026-08-31',
         'category' => 'internal',
