@@ -5,13 +5,14 @@
 ## 安全設計
 
 - ビルドはGitHubホステッドRunner、SSH転送だけをこのリポジトリ専用のWindowsセルフホストRunnerで行う。
-- ステージングは任意refを実行せず、信頼済みの `main` だけをビルド・転送する。
+- ステージング・本番は任意refを実行せず、workflow dispatch時点の信頼済み `main` SHAを固定してビルド・転送する。dispatch後に`main`が進んでも成果物の実体は変えない。
 - `staging` と `production` はGitHub Environmentsを分け、同名でも別の接続先Secretsを登録する。
 - 本番ワークフローは手動実行のみで、`deploy-production` の確認入力とGitHub Environmentの承認を両方必要にする。
 - SSH秘密鍵と検証済み `known_hosts` はこのPCの実行ユーザー配下だけに置き、GitHub Secretsへ保存しない。
 - Actionsは対象環境のローカル秘密鍵だけを使う非対話SSH接続を先に検証してから、アップロードやDB操作へ進む。
 - ステージングと本番でSSH鍵を分ける。同一XserverのSSHユーザーを使う限りサーバー上のフォルダ権限は分離されないため、本番の実行制御はGitHub Environmentの承認と本番専用ワークフローで行う。
-- アーカイブはWeb公開領域外の `deploy-incoming` に置き、展開・migrationが成功してから `*_current` を原子的に切り替える。
+- ビルド時に実checkout SHAを `.release-sha` へ記録し、dispatch SHAとの一致を確認する。リモートはアーカイブ内のmarkerと転送時の期待SHAが一致しない限りmigrationや `*_current` 切替へ進まない。
+- アーカイブはWeb公開領域外の `deploy-incoming` に置き、展開・SHA照合・migrationが成功してから `*_current` を原子的に切り替える。
 - Viteのハッシュ付きCSS・JSは環境別の共有 `public-build` へ先に追加し、新旧資産を同時に配信できる状態にしてから `*_current` を切り替える。公開直後に新HTMLだけが先行してCSSが404になる状態を防ぐ。
 - Bladeのコンパイル済みファイルは各リリースの `bootstrap/cache/views` に分離する。共有storageに置かないため、切替後に旧テンプレートが残らない。
 
@@ -57,10 +58,12 @@ XserverのCLI PHPは古い `php`（PHP 5.4）を指すため、ワークフロ�
 
 ## 実行方法
 
-- ステージング: セルフホストRunnerを起動し、Actionsの **Deploy staging** を開いてmigration modeを選んで実行する。反映元は `main` 固定。
-- 本番: Actionsの **Deploy production** を開き、確認欄へ `deploy-production` と入力する。GitHub Environmentの承認後、`main` のみを反映する。
+- ステージング: セルフホストRunnerを起動し、Actionsの **Deploy staging** を `main` から開いてmigration modeを選んで実行する。runに記録されたSHAが固定の反映元になる。
+- 本番: Actionsの **Deploy production** を `main` から開き、確認欄へ `deploy-production` と入力する。GitHub Environmentの承認後、runに記録された同一SHAだけを反映する。
 
 通常のコード変更は、ステージングで実プレイ確認した後に本番ワークフローを明示実行する。Seeder・DB全消去・既存プレイヤー向けのデータ補正は、このワークフローに含めない。
+
+既存プレイヤー向けの一括補正を専用workflowで行う場合は、対象runを `main` から実行し、デプロイ済みの40文字SHAを明示入力する。workflow自身のSHA・入力SHA・対象環境のactive `.release-sha` の3つが一致しない限り処理を中止する。称号の一括付与はschema監査、dry-run、apply、付与後dry-runの順で行い、apply中はmaintenance modeにして解除失敗もworkflow失敗として扱う。
 
 ### 緊急ホットフィックス
 

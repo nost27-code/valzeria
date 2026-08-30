@@ -9,6 +9,10 @@ param(
     [string] $MigrationMode,
 
     [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[0-9a-f]{40}$')]
+    [string] $ReleaseSha,
+
+    [Parameter(Mandatory = $true)]
     [string] $ArchivePath
 )
 
@@ -58,8 +62,7 @@ if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
     throw "SSH private key is missing: $keyPath"
 }
 
-$releaseId = if ($env:GITHUB_SHA -match '^[0-9a-f]{40}$') { $env:GITHUB_SHA } else { 'manual' }
-$releaseName = "release-$releaseId.tar.gz"
+$releaseName = "release-$ReleaseSha.tar.gz"
 $incomingDir = "$deployRoot/deploy-incoming"
 $remote = "$sshUser@$sshHost"
 $sshOptions = @('-i', $keyPath, '-p', $sshPort, '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=yes')
@@ -70,5 +73,5 @@ Invoke-CheckedCommand 'ssh.exe' ($sshOptions + @($remote, "mkdir -p '$incomingDi
 Invoke-CheckedCommand 'scp.exe' ($scpOptions + @($archive, "${remote}:$incomingDir/$releaseName"))
 Invoke-CheckedCommand 'scp.exe' ($scpOptions + @($remoteScript, "${remote}:$incomingDir/remote-release.sh"))
 
-$remoteCommand = "chmod 700 '$incomingDir/remote-release.sh' && DEPLOY_ROOT='$deployRoot' DEPLOY_TARGET='$Target' DEPLOY_ARCHIVE='$incomingDir/$releaseName' DEPLOY_MIGRATION_MODE='$MigrationMode' DEPLOY_PHP_BINARY='$phpBinary' bash '$incomingDir/remote-release.sh'"
+$remoteCommand = "chmod 700 '$incomingDir/remote-release.sh' && DEPLOY_ROOT='$deployRoot' DEPLOY_TARGET='$Target' DEPLOY_ARCHIVE='$incomingDir/$releaseName' DEPLOY_MIGRATION_MODE='$MigrationMode' DEPLOY_PHP_BINARY='$phpBinary' DEPLOY_RELEASE_SHA='$ReleaseSha' bash '$incomingDir/remote-release.sh'"
 Invoke-CheckedCommand 'ssh.exe' ($sshOptions + @($remote, $remoteCommand))

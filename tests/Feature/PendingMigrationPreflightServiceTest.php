@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Services\PendingMigrationPreflightService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class PendingMigrationPreflightServiceTest extends TestCase
@@ -39,5 +42,37 @@ class PendingMigrationPreflightServiceTest extends TestCase
         $this->artisan('valzeria:preflight-pending-migrations', [
             '--allow-rank5-v6-master-rewrite' => true,
         ])->assertSuccessful();
+    }
+
+    public function test_character_title_unique_migration_preflight_refuses_existing_duplicates(): void
+    {
+        DB::table('migrations')
+            ->where('migration', '2026_08_30_110000_add_character_title_unique_constraint')
+            ->delete();
+        Schema::table('character_titles', function (Blueprint $table): void {
+            $table->dropUnique('character_titles_character_title_unique');
+        });
+
+        $user = User::factory()->create();
+        $characterId = DB::table('characters')->insertGetId([
+            'user_id' => $user->id,
+            'name' => '称号重複監査用冒険者',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('character_titles')->insert([
+            ['character_id' => $characterId, 'title_id' => 112],
+            ['character_id' => $characterId, 'title_id' => 112],
+        ]);
+
+        $result = app(PendingMigrationPreflightService::class)->inspect();
+
+        $this->assertSame(1, $result['characterTitleDuplicatePairs']);
+        $this->assertTrue(collect($result['blockers'])->contains(
+            static fn (string $blocker): bool => str_contains($blocker, 'プレイヤー所持データを自動削除せず移行を中止します')
+        ));
+        $this->artisan('valzeria:preflight-pending-migrations')
+            ->expectsOutputToContain('称号付与の既存重複: 1組')
+            ->assertFailed();
     }
 }

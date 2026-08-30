@@ -21,6 +21,10 @@ class PreflightPendingMigrations extends Command
         }
 
         $merge = $result['mergeSummary'];
+        $this->line(sprintf(
+            '称号付与の既存重複: %d組',
+            $result['characterTitleDuplicatePairs'],
+        ));
         $hasMergeTargets = $merge['old_enemy_rows'] > 0;
         $this->line(sprintf(
             '旧敵統合の対象: 敵 %d件 / 戦闘ログ %d件 / 印マスタ %d件 / 所持印 %d件',
@@ -36,7 +40,7 @@ class PreflightPendingMigrations extends Command
             return self::FAILURE;
         }
 
-        if ($hasMergeTargets && !$this->option('allow-enemy-merge')) {
+        if ($hasMergeTargets && ! $this->option('allow-enemy-merge')) {
             $this->error('旧敵データの統合が発生します。件数を確認してから --allow-enemy-merge を付けて再実行してください。');
 
             return self::FAILURE;

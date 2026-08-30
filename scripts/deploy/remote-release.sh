@@ -7,6 +7,7 @@ set -Eeuo pipefail
 : "${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 : "${DEPLOY_TARGET:?DEPLOY_TARGET is required}"
 : "${DEPLOY_ARCHIVE:?DEPLOY_ARCHIVE is required}"
+: "${DEPLOY_RELEASE_SHA:?DEPLOY_RELEASE_SHA is required}"
 
 DEPLOY_MIGRATION_MODE="${DEPLOY_MIGRATION_MODE:-none}"
 DEPLOY_PHP_BINARY="${DEPLOY_PHP_BINARY:-php}"
@@ -33,6 +34,11 @@ case "$DEPLOY_MIGRATION_MODE" in
         exit 64
         ;;
 esac
+
+if [[ ! "$DEPLOY_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "DEPLOY_RELEASE_SHA must be a lowercase 40-character Git SHA." >&2
+    exit 64
+fi
 
 DEPLOY_ROOT="$(cd "$DEPLOY_ROOT" && pwd -P)"
 INCOMING_DIR="$DEPLOY_ROOT/deploy-incoming"
@@ -63,7 +69,7 @@ fi
 mkdir -p "$RELEASES_DIR" "$SHARED_BUILD" "$SHARED_STORAGE/app/public" "$SHARED_STORAGE/framework/cache/data" \
     "$SHARED_STORAGE/framework/sessions" "$SHARED_STORAGE/framework/views" "$SHARED_STORAGE/logs"
 
-release_id="$(date -u +%Y%m%d_%H%M%S)_$RANDOM$RANDOM"
+release_id="$(date -u +%Y%m%d_%H%M%S)_${DEPLOY_RELEASE_SHA:0:12}_$RANDOM$RANDOM"
 release_dir="$RELEASES_DIR/$release_id"
 previous_release=""
 maintenance_enabled=0
@@ -90,12 +96,18 @@ rm -rf "$release_dir/storage" "$release_dir/.env"
 ln -s "$SHARED_STORAGE" "$release_dir/storage"
 ln -s "$SHARED_ENV" "$release_dir/.env"
 
-for required in artisan vendor/autoload.php bootstrap/app.php public/index.php public/.htaccess public/build/manifest.json; do
+for required in .release-sha artisan vendor/autoload.php bootstrap/app.php public/index.php public/.htaccess public/build/manifest.json; do
     if [[ ! -f "$release_dir/$required" ]]; then
         echo "Required release file is missing: $required" >&2
         exit 65
     fi
 done
+
+artifact_release_sha="$(cat "$release_dir/.release-sha")"
+if [[ "$artifact_release_sha" != "$DEPLOY_RELEASE_SHA" ]]; then
+    echo "Release artifact SHA does not match DEPLOY_RELEASE_SHA." >&2
+    exit 65
+fi
 
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" config:clear --no-interaction
 "$DEPLOY_PHP_BINARY" "$release_dir/artisan" view:clear --no-interaction

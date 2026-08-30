@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Schema;
 class PendingMigrationPreflightService
 {
     private const ENEMY_MERGE_MIGRATION = '2026_07_10_140000_merge_renamed_enemy_duplicates';
+
     private const RANK5_V6_MASTER_MIGRATION = '2026_08_26_120000_redefine_rank5_job_arts_v6';
+
+    private const CHARACTER_TITLE_UNIQUE_MIGRATION = '2026_08_30_110000_add_character_title_unique_constraint';
 
     /** area_id => [old enemy name => canonical enemy id] */
     private const RENAMED_ENEMIES = [
@@ -23,11 +26,15 @@ class PendingMigrationPreflightService
         70 => ['神殿騎士' => 415, '祭壇の天使' => 416, '星の守護者' => 417, '古代神官' => 418, '雷神ヴォルト' => 419],
     ];
 
-    /** @return array{blockers: array<int, string>, mergeSummary: array{old_enemy_rows: int, battle_logs: int, monster_marks: int, character_marks: int}, rank5V6MasterRewritePending: bool} */
+    /** @return array{blockers: array<int, string>, mergeSummary: array{old_enemy_rows: int, battle_logs: int, monster_marks: int, character_marks: int}, rank5V6MasterRewritePending: bool, characterTitleDuplicatePairs: int} */
     public function inspect(): array
     {
         $blockers = [];
         $rank5V6MasterRewritePending = $this->rank5V6MasterRewriteIsPending();
+        $characterTitleDuplicatePairs = $this->characterTitleDuplicatePairsForPendingMigration();
+        if ($characterTitleDuplicatePairs > 0) {
+            $blockers[] = "character_titles に既存重複が {$characterTitleDuplicatePairs} 組あります。プレイヤー所持データを自動削除せず移行を中止します。";
+        }
 
         if (Schema::hasTable('items') && Schema::hasTable('cities') && Schema::hasColumn('items', 'unlock_city_id')) {
             $invalidUnlockCities = DB::table('items')
@@ -41,28 +48,31 @@ class PendingMigrationPreflightService
         }
 
         $summary = ['old_enemy_rows' => 0, 'battle_logs' => 0, 'monster_marks' => 0, 'character_marks' => 0];
-        if (!$this->enemyMergeIsPending()) {
+        if (! $this->enemyMergeIsPending()) {
             return [
                 'blockers' => $blockers,
                 'mergeSummary' => $summary,
                 'rank5V6MasterRewritePending' => $rank5V6MasterRewritePending,
+                'characterTitleDuplicatePairs' => $characterTitleDuplicatePairs,
             ];
         }
 
-        if (!Schema::hasTable('enemies')) {
+        if (! Schema::hasTable('enemies')) {
             $blockers[] = 'enemies テーブルがありません。';
 
             return [
                 'blockers' => $blockers,
                 'mergeSummary' => $summary,
                 'rank5V6MasterRewritePending' => $rank5V6MasterRewritePending,
+                'characterTitleDuplicatePairs' => $characterTitleDuplicatePairs,
             ];
         }
 
         foreach (self::RENAMED_ENEMIES as $areaId => $mapping) {
             foreach ($mapping as $oldName => $newEnemyId) {
-                if (!DB::table('enemies')->where('id', $newEnemyId)->exists()) {
+                if (! DB::table('enemies')->where('id', $newEnemyId)->exists()) {
                     $blockers[] = "統合先の敵マスタ ID {$newEnemyId}（エリア {$areaId}・{$oldName}）がありません。";
+
                     continue;
                 }
 
@@ -94,13 +104,14 @@ class PendingMigrationPreflightService
             'blockers' => array_values(array_unique($blockers)),
             'mergeSummary' => $summary,
             'rank5V6MasterRewritePending' => $rank5V6MasterRewritePending,
+            'characterTitleDuplicatePairs' => $characterTitleDuplicatePairs,
         ];
     }
 
     private function enemyMergeIsPending(): bool
     {
-        return !Schema::hasTable('migrations')
-            || !DB::table('migrations')->where('migration', self::ENEMY_MERGE_MIGRATION)->exists();
+        return ! Schema::hasTable('migrations')
+            || ! DB::table('migrations')->where('migration', self::ENEMY_MERGE_MIGRATION)->exists();
     }
 
     private function rank5V6MasterRewriteIsPending(): bool
@@ -115,5 +126,24 @@ class PendingMigrationPreflightService
             ->where('skill_type', 'job_art')
             ->where('learn_rank', 5)
             ->exists();
+    }
+
+    private function characterTitleDuplicatePairsForPendingMigration(): int
+    {
+        $migrationRecorded = Schema::hasTable('migrations')
+            && DB::table('migrations')->where('migration', self::CHARACTER_TITLE_UNIQUE_MIGRATION)->exists();
+        if ($migrationRecorded || ! Schema::hasTable('character_titles')) {
+            return 0;
+        }
+
+        return DB::query()
+            ->fromSub(
+                DB::table('character_titles')
+                    ->selectRaw('character_id, title_id, COUNT(*) AS total')
+                    ->groupBy('character_id', 'title_id')
+                    ->havingRaw('COUNT(*) > 1'),
+                'duplicate_character_titles',
+            )
+            ->count();
     }
 }

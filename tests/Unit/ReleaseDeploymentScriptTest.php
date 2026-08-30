@@ -91,7 +91,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertIsInt($serverMaintenancePosition);
         $serverMaintenanceEndPosition = strpos($source, '}', $serverMaintenancePosition);
         $serverPreflightPosition = strpos($source, "'valzeria:preflight-pending-migrations'");
-        $serverMigratePosition = strpos($source, "Artisan::call(\$migrationCommand");
+        $serverMigratePosition = strpos($source, 'Artisan::call($migrationCommand');
         $this->assertIsInt($serverMaintenanceEndPosition);
         $this->assertIsInt($serverPreflightPosition);
         $this->assertIsInt($serverMigratePosition);
@@ -116,6 +116,10 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringContainsString('valzeria:preflight-pending-migrations', $remoteSource);
         $this->assertStringContainsString('--allow-enemy-merge', $remoteSource);
         $this->assertStringContainsString('--allow-rank5-v6-master-rewrite', $remoteSource);
+        $this->assertStringContainsString('${DEPLOY_RELEASE_SHA:?DEPLOY_RELEASE_SHA is required}', $remoteSource);
+        $this->assertStringContainsString('for required in .release-sha artisan', $remoteSource);
+        $this->assertStringContainsString('artifact_release_sha="$(cat "$release_dir/.release-sha")"', $remoteSource);
+        $this->assertStringContainsString('"$artifact_release_sha" != "$DEPLOY_RELEASE_SHA"', $remoteSource);
         $remoteMaintenancePosition = strpos(
             $remoteSource,
             'if [[ "$DEPLOY_MIGRATION_MODE" == "maintenance_required" ]]; then',
@@ -197,6 +201,7 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertNotFalse($staging);
         $this->assertNotFalse($production);
         $this->assertStringContainsString('environment: staging', $staging);
+        $this->assertStringContainsString("github.ref == 'refs/heads/main'", $staging);
         $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $staging);
         $this->assertStringContainsString('actions/upload-artifact@v4', $staging);
         $this->assertStringContainsString('actions/download-artifact@v4', $staging);
@@ -204,19 +209,30 @@ class ReleaseDeploymentScriptTest extends TestCase
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $staging);
         $this->assertStringContainsString('DEPLOY_PHP_BINARY: /usr/bin/php8.4', $staging);
         $this->assertStringNotContainsString('secrets.DEPLOY_PHP_BINARY', $staging);
+        $this->assertStringContainsString('ref: ${{ github.sha }}', $staging);
+        $this->assertStringNotContainsString('ref: main', $staging);
+        $this->assertStringContainsString("printf '%s\\n' \"\$actual_release_sha\" > .release-sha", $staging);
+        $this->assertStringContainsString('-ReleaseSha $env:EXPECTED_RELEASE_SHA', $staging);
         $this->assertStringContainsString('environment: production', $production);
         $this->assertStringContainsString("inputs.confirmation == 'deploy-production'", $production);
+        $this->assertStringContainsString("github.ref == 'refs/heads/main'", $production);
         $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $production);
         $this->assertStringContainsString('-Target production', $production);
         $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $production);
         $this->assertStringContainsString('DEPLOY_PHP_BINARY: /usr/bin/php8.4', $production);
         $this->assertStringNotContainsString('secrets.DEPLOY_PHP_BINARY', $production);
+        $this->assertStringContainsString('ref: ${{ github.sha }}', $production);
+        $this->assertStringNotContainsString('ref: main', $production);
+        $this->assertStringContainsString("printf '%s\\n' \"\$actual_release_sha\" > .release-sha", $production);
+        $this->assertStringContainsString('-ReleaseSha $env:EXPECTED_RELEASE_SHA', $production);
 
         $this->assertFileExists(base_path('scripts/deploy/invoke-remote-release.ps1'));
         $invokeRelease = file_get_contents(base_path('scripts/deploy/invoke-remote-release.ps1'));
         $this->assertStringContainsString('valzeria_staging_deploy', $invokeRelease);
         $this->assertStringContainsString('valzeria_production_deploy', $invokeRelease);
         $this->assertStringContainsString('StrictHostKeyChecking=yes', $invokeRelease);
+        $this->assertStringContainsString("[ValidatePattern('^[0-9a-f]{40}$')]", $invokeRelease);
+        $this->assertStringContainsString("DEPLOY_RELEASE_SHA='\$ReleaseSha'", $invokeRelease);
 
         $resetWorkflow = file_get_contents(base_path('.github/workflows/reset-staging-database.yml'));
         $resetScript = file_get_contents(base_path('scripts/deploy/reset-staging-database.sh'));
@@ -247,6 +263,42 @@ class ReleaseDeploymentScriptTest extends TestCase
             strpos($resetScript, 'sync-staging-master-data.sh" apply'),
             '本番マスタ同期後にSeederを実行して、ステージング専用の追加マスタを復元する。'
         );
+    }
+
+    public function test_new_achievement_title_backfill_workflow_is_guarded_and_self_verifying(): void
+    {
+        $workflow = file_get_contents(base_path('.github/workflows/backfill-new-achievement-titles.yml'));
+
+        $this->assertNotFalse($workflow);
+        $this->assertStringContainsString('environment: ${{ inputs.target }}', $workflow);
+        $this->assertStringContainsString("github.ref == 'refs/heads/main'", $workflow);
+        $this->assertStringContainsString('backfill-new-achievement-titles', $workflow);
+        $this->assertStringContainsString('runs-on: [self-hosted, Windows, X64]', $workflow);
+        $this->assertStringContainsString('DEPLOY_PHP_BINARY: /usr/bin/php8.4', $workflow);
+        $this->assertStringContainsString('valzeria_staging_deploy', $workflow);
+        $this->assertStringContainsString('valzeria_production_deploy', $workflow);
+        $this->assertStringContainsString('StrictHostKeyChecking=yes', $workflow);
+        $this->assertStringNotContainsString('SSH_PRIVATE_KEY', $workflow);
+        $this->assertStringContainsString('INPUT_CONFIRMATION: ${{ inputs.confirmation }}', $workflow);
+        $this->assertStringContainsString('$env:INPUT_CONFIRMATION', $workflow);
+        $this->assertStringNotContainsString('if (\'${{ inputs.confirmation }}\'', $workflow);
+        $this->assertStringContainsString('EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}', $workflow);
+        $this->assertStringContainsString('WORKFLOW_RELEASE_SHA: ${{ github.sha }}', $workflow);
+        $this->assertStringContainsString('Workflow SHA does not match the expected deployed release SHA.', $workflow);
+        $this->assertStringContainsString("grep -Fxq '\$expectedReleaseSha' '\$releaseRoot/.release-sha'", $workflow);
+        $this->assertStringContainsString('VERIFIED_RELEASE_SHA=$expectedReleaseSha', $workflow);
+        $this->assertStringContainsString('schema_audit', $workflow);
+        $this->assertStringContainsString('titles:backfill-new-achievements --audit-schema --json', $workflow);
+        $this->assertStringContainsString('titles:backfill-new-achievements --json', $workflow);
+        $this->assertStringContainsString('titles:backfill-new-achievements --apply --json', $workflow);
+        $this->assertStringContainsString('$artisan down --retry=60', $workflow);
+        $this->assertStringContainsString('$artisan up --no-interaction', $workflow);
+        $this->assertStringNotContainsString('up --no-interaction >/dev/null 2>&1 || true', $workflow);
+        $this->assertStringContainsString('if ! $artisan up --no-interaction; then status=1', $workflow);
+        $this->assertStringContainsString('duplicate_pairs_after', $workflow);
+        $this->assertStringContainsString('duplicate_pairs_before', $workflow);
+        $this->assertStringContainsString('Applied grant count does not match the dry-run count.', $workflow);
+        $this->assertStringContainsString('Eligible new-title grants remain after apply.', $workflow);
     }
 
     public function test_schedule_wrapper_resolves_current_outside_the_releases_directory(): void

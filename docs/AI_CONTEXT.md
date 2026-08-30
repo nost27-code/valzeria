@@ -167,7 +167,7 @@ X = deprecated/removed
 - Auth: Google OAuth, 1 account = 1 character。ゲストプレイ中は共通ヘッダの案内から同じユーザーIDへGoogle連携でき、進行データを引き継げる。冒険者タブの「設定」→「情報確認」では、Google連携とメールアドレス・パスワード登録を別々に判定し、両方利用可能な状態やゲストプレイも確認できる。トップページでは、β版の冒険データを正式版へ引き継ぐ方針を明記する
 - Payment: Stripe (輝石 purchase; paid/free tracked separately)。ゲストは購入不可で、Google連携またはメールアドレス・パスワード登録済みアカウントだけが購入できる
 - Tests: PHPUnit via `php artisan test`
-- Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でビルドし、このPCのリポジトリ専用WindowsセルフホストRunnerがSSH転送と原子的切替だけを行う構成で、ステージング・本番とも原子的リリースと公開確認に成功済み。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
+- Deploy: `php local_deploy.php` / `server_deploy_api.php` は移行期間のフォールバックとして残す。GitHubホステッドRunnerからXserverへの直接SSHは接続拒否を確認済み。標準経路はGitHub側でworkflow dispatch時点の `main` SHAを固定してビルドし、成果物内の `.release-sha` と期待SHAをリモート展開時に照合する。このPCのリポジトリ専用WindowsセルフホストRunnerはSSH転送と原子的切替だけを行い、リリース後のデータ補正workflowもactive releaseの同じSHA markerへ一致しなければ停止する。ステージング・本番とも原子的リリースと公開確認に成功済み。手順は `docs/GITHUB_ACTIONS_DEPLOY.md` を正とする。
 
 ## Product summary
 

@@ -1,0 +1,157 @@
+name: Backfill new achievement titles
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target environment
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      mode:
+        description: Run mode
+        required: true
+        default: schema_audit
+        type: choice
+        options:
+          - schema_audit
+          - dry_run
+          - apply
+      confirmation:
+        description: Type backfill-new-achievement-titles to confirm
+        required: true
+        type: string
+      release_sha:
+        description: Exact deployed 40-character Git SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: new-achievement-title-backfill-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    name: Backfill new achievement titles on ${{ inputs.target }}
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: [self-hosted, Windows, X64]
+    environment: ${{ inputs.target }}
+    env:
+      DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
+      DEPLOY_PHP_BINARY: /usr/bin/php8.4
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      INPUT_CONFIRMATION: ${{ inputs.confirmation }}
+      INPUT_MODE: ${{ inputs.mode }}
+      INPUT_TARGET: ${{ inputs.target }}
+      EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
+      WORKFLOW_RELEASE_SHA: ${{ github.sha }}
+    steps:
+      - name: Dry-run, apply, and verify new title grants
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ($env:INPUT_CONFIRMATION -ne 'backfill-new-achievement-titles') {
+            throw 'Confirmation text is invalid.'
+          }
+          $expectedReleaseSha = $env:EXPECTED_RELEASE_SHA
+          if ($expectedReleaseSha -notmatch '^[0-9a-f]{40}$') {
+            throw 'Release SHA is invalid.'
+          }
+          if ($env:WORKFLOW_RELEASE_SHA -ne $expectedReleaseSha) {
+            throw 'Workflow SHA does not match the expected deployed release SHA.'
+          }
+
+          foreach ($name in @('DEPLOY_ROOT', 'DEPLOY_PHP_BINARY', 'SSH_HOST', 'SSH_PORT', 'SSH_USER')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^[A-Za-z0-9_./:-]+$') {
+              throw "$name is missing or invalid."
+            }
+          }
+
+          $target = $env:INPUT_TARGET
+          $mode = $env:INPUT_MODE
+          if ($target -notin @('staging', 'production')) {
+            throw 'Target is invalid.'
+          }
+          if ($mode -notin @('schema_audit', 'dry_run', 'apply')) {
+            throw 'Mode is invalid.'
+          }
+          $keyName = if ($target -eq 'staging') { 'valzeria_staging_deploy' } else { 'valzeria_production_deploy' }
+          $currentName = if ($target -eq 'staging') { 'staging_valzeria_current' } else { 'valzeria_current' }
+          $keyPath = Join-Path $HOME ".ssh\$keyName"
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+            throw "SSH key is missing: $keyName"
+          }
+
+          $sshOptions = @(
+            '-i', $keyPath,
+            '-p', $env:SSH_PORT,
+            '-o', 'BatchMode=yes',
+            '-o', 'IdentitiesOnly=yes',
+            '-o', 'StrictHostKeyChecking=yes'
+          )
+          $remote = "$($env:SSH_USER)@$($env:SSH_HOST)"
+          $releaseRoot = "$($env:DEPLOY_ROOT)/$currentName"
+          $artisan = "$($env:DEPLOY_PHP_BINARY) artisan"
+          $releaseGuard = "test -f '$releaseRoot/.release-sha' && grep -Fxq '$expectedReleaseSha' '$releaseRoot/.release-sha'"
+
+          if ($mode -eq 'apply') {
+            $remoteCommand = "set -Eeuo pipefail; $releaseGuard; cd '$releaseRoot'; trap 'status=`$?; if ! $artisan up --no-interaction; then status=1; fi; exit `$status' EXIT; $artisan down --retry=60 --no-interaction; $artisan titles:backfill-new-achievements --json --no-interaction; $artisan titles:backfill-new-achievements --apply --json --no-interaction; $artisan titles:backfill-new-achievements --json --no-interaction"
+          } elseif ($mode -eq 'schema_audit') {
+            $remoteCommand = "$releaseGuard && cd '$releaseRoot' && $artisan titles:backfill-new-achievements --audit-schema --json --no-interaction"
+          } else {
+            $remoteCommand = "$releaseGuard && cd '$releaseRoot' && $artisan titles:backfill-new-achievements --json --no-interaction"
+          }
+
+          $output = & ssh.exe @sshOptions $remote $remoteCommand
+          $sshExitCode = $LASTEXITCODE
+          $output | ForEach-Object { Write-Output $_ }
+          if ($sshExitCode -ne 0) {
+            throw "New achievement title backfill failed with exit code $sshExitCode."
+          }
+          Write-Output "VERIFIED_RELEASE_SHA=$expectedReleaseSha"
+
+          $summaries = @(
+            $output |
+              Where-Object { $_ -match '^NEW_ACHIEVEMENT_TITLE_BACKFILL=\{.*\}$' } |
+              ForEach-Object { ($_ -replace '^NEW_ACHIEVEMENT_TITLE_BACKFILL=', '') | ConvertFrom-Json }
+          )
+          $expectedSummaries = if ($mode -eq 'apply') { 3 } else { 1 }
+          if ($summaries.Count -ne $expectedSummaries) {
+            throw "Expected $expectedSummaries backfill summaries, received $($summaries.Count)."
+          }
+          if (@($summaries | Where-Object { [int] $_.duplicate_pairs_after -ne 0 }).Count -ne 0) {
+            throw 'Duplicate new-title grants were detected.'
+          }
+
+          if ($mode -eq 'schema_audit') {
+            $audit = $summaries[0]
+            if ($audit.mode -ne 'schema-audit') {
+              throw 'Schema audit returned an unexpected mode.'
+            }
+            if ([int] $audit.duplicate_pairs_before -ne 0) {
+              throw 'Existing duplicate character-title grants must be resolved before migration.'
+            }
+          } elseif ($mode -eq 'apply') {
+            $before = $summaries[0]
+            $applied = $summaries[1]
+            $after = $summaries[2]
+            if ($before.mode -ne 'dry-run' -or $applied.mode -ne 'apply' -or $after.mode -ne 'dry-run') {
+              throw 'Backfill summaries were returned in an unexpected order.'
+            }
+            if ([int] $before.grants_missing_or_applied -ne [int] $applied.grants_missing_or_applied) {
+              throw 'Applied grant count does not match the dry-run count.'
+            }
+            if ([int] $after.grants_missing_or_applied -ne 0) {
+              throw 'Eligible new-title grants remain after apply.'
+            }
+          }

@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Title;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -112,8 +111,8 @@ class TitleSeeder extends Seeder
             [94, 'job_master', 'rare', '魔導を歩む者', '魔法使いをマスターする', '魔法使いとして魔力を磨き、職業を極めよう。', 'job_master', 'job_name', '魔法使い', '職業マスタ', 94, true],
             [95, 'job_master', 'rare', '癒やしの導き手', '僧侶をマスターする', '僧侶として祈りと守りを磨き、職業を極めよう。', 'job_master', 'job_name', '僧侶', '職業マスタ', 95, true],
             [96, 'job_master', 'rare', '商いを知る冒険者', '商人をマスターする', '商人として冒険と商いを重ね、職業を極めよう。', 'job_master', 'job_name', '商人', '職業マスタ', 96, true],
-            [97, 'job_rank', 'epic', '上級職の門を開く者', '初めて上級職に転職する', '複数の職業を極め、上級職への道を開こう。', 'first_rank_job', 'rank', 'Advanced', '職業マスタ/転職条件', 97, true],
-            [98, 'job_rank', 'legendary', '伝説職の継承者', '初めて伝説職に転職する', '限られた冒険者だけが進める伝説職へ到達しよう。', 'first_rank_job', 'rank', 'Legend', '職業マスタ/伝説職条件', 98, true],
+            [97, 'job_rank', 'epic', '上級職の門を開く者', '初めて上級職に転職する', '複数の職業を極め、上級職への道を開こう。', 'first_rank_job', 'rank', 'advanced', '職業マスタ/転職条件', 97, true],
+            [98, 'job_rank', 'legendary', '伝説職の継承者', '初めて伝説職に転職する', '限られた冒険者だけが進める伝説職へ到達しよう。', 'first_rank_job', 'rank', 'legend', '職業マスタ/伝説職条件', 98, true],
             [99, 'job_master', 'legendary', '職を極めし冒険者', '累計10職業をマスターする', 'さまざまな職業を経験し、10の職業を極めよう。', 'job_master_count', 'count', '10', '職業マスタ', 99, true],
             [100, 'job_master', 'mythic', '万職不敗の求道者', '全職業をマスターする', 'ヴァルゼリアに存在するすべての職業を極めよう。', 'all_jobs_master', 'all_jobs', '0', '職業マスタ', 100, true],
             [101, '星樹の塔', 'normal', '星梯の一歩', '星樹の塔10階を踏破した証。', '星樹の塔10階を踏破する', 'tower_floor_clear', 'tower_floor', '10', 'star_tree_tower', 1110, false],
@@ -126,6 +125,27 @@ class TitleSeeder extends Seeder
             [108, '星樹の塔', 'legendary', '天葉の導き手', '星樹の塔80階を踏破した証。', '星樹の塔80階を踏破する', 'tower_floor_clear', 'tower_floor', '80', 'star_tree_tower', 1180, false],
             [109, '星樹の塔', 'legendary', '星梯の極致', '星樹の塔90階を踏破した証。', '星樹の塔90階を踏破する', 'tower_floor_clear', 'tower_floor', '90', 'star_tree_tower', 1190, false],
             [110, '星樹の塔', 'legendary', '星樹の頂に立つ者', '星樹の塔100階を踏破した証。', '星樹の塔100階を踏破する', 'tower_floor_clear', 'tower_floor', '100', 'star_tree_tower', 1200, false],
+            [111, 'ヴァルモン', 'rare', '名相棒', 'Lv100まで育った相棒ヴァルモンと深い絆を結んだ証。', '相棒ヴァルモンをLv100まで育てる', 'valmon_level', 'valmon_level', '100', 'valmon', 950, false],
+            [112, 'level', 'common', '一人前の冒険者', 'Lv30に到達する', '冒険を重ね、Lv30を目指そう。', 'character_level', 'level', '30', 'キャラクターLv', 101, true],
+            [113, 'level', 'mythic', '極限に至りし者', 'Lv255に到達する', '冒険者として歩み続け、最高Lvへ到達しよう。', 'character_level', 'level', '255', 'キャラクターLv', 110, true],
+            [114, 'battle', 'rare', '千勝の戦巧者', '探索の戦いで累計1,000勝する', '勝利を重ね、累計1,000勝を目指そう。', 'battle_win_count', 'count', '1000', 'キャラクター戦績', 102, true],
+            [115, 'battle', 'epic', '常勝の冒険者', '探索の戦いで累計2,000勝する', 'さらに勝利を重ね、累計2,000勝を目指そう。', 'battle_win_count', 'count', '2000', 'キャラクター戦績', 103, true],
+            [116, 'battle', 'legendary', '勝利を極めし者', '探索の戦いで累計3,000勝する', '数多の戦いを制し、累計3,000勝へ到達しよう。', 'battle_win_count', 'count', '3000', 'キャラクター戦績', 104, true],
+            [117, 'job_rank', 'rare', '中級職への一歩', '初めて中級職に転職する', '基本職を極め、中級職への道を開こう。', 'first_rank_job', 'rank', 'middle', '職業マスタ/転職条件', 105, true],
+            [118, 'job_rank', 'epic', '超級の境地に立つ者', '初めて超級職に転職する', '上級職の先にある、超級職へ到達しよう。', 'first_rank_job', 'rank', 'super', '職業マスタ/転職条件', 106, true],
+            [119, 'job_rank', 'legendary', '冠位を戴く者', '初めて冠位職に転職する', '冠位の証を手にし、冠位職へ到達しよう。', 'first_rank_job', 'rank', 'crown', '職業マスタ/転職条件', 107, true],
+            [120, 'job_rank', 'legendary', '英雄の道を歩む者', '初めて英雄職に転職する', '試練を越え、英雄職へ到達しよう。', 'first_rank_job', 'rank', 'hero', '職業マスタ/転職条件', 108, true],
+            [121, 'job_rank', 'mythic', '神話に名を連ねる者', '初めて神話職に転職する', '伝説の先へ進み、神話職へ到達しよう。', 'first_rank_job', 'rank', 'myth', '職業マスタ/転職条件', 109, true],
+            [122, 'equipment', 'common', '鍛冶の心得', '強化値+10以上の装備を所持する', '装備を鍛え、強化値+10を目指そう。', 'equipment_enhance_level', 'enhance_level', '10', '所持装備/強化値', 121, true],
+            [123, 'equipment', 'epic', '百錬の使い手', '強化値+20以上の装備を所持する', 'さらに装備を鍛え、強化値+20へ到達しよう。', 'equipment_enhance_level', 'enhance_level', '20', '所持装備/強化値', 122, true],
+            [124, 'equipment', 'legendary', '極鍛の到達者', '強化値+30の装備を所持する', '最高強化値+30まで装備を鍛え上げよう。', 'equipment_enhance_level', 'enhance_level', '30', '所持装備/強化値', 123, true],
+            [125, 'equipment', 'rare', '良品を見抜く者', '良品以上の装備を所持する', '冒険や鍛冶を通じて、良品以上の装備を手に入れよう。', 'equipment_quality', 'quality', 'good', '所持装備/品質', 124, true],
+            [126, 'equipment', 'legendary', '逸品を携えし者', '逸品の装備を所持する', '希少な逸品の装備を手に入れよう。', 'equipment_quality', 'quality', 'excellent', '所持装備/品質', 125, true],
+            [127, 'equipment', 'rare', '魔物狩りの刃', '種族特攻を持つ武器を所持する', '特定種族への特攻を宿した武器を手に入れよう。', 'weapon_species_killer', 'killer', 'any', '所持武器/種族特攻', 126, true],
+            [128, 'equipment', 'rare', '堅守を纏う者', '種族耐性を持つ防具を所持する', '特定種族への耐性を宿した防具を手に入れよう。', 'armor_species_resist', 'resist', 'any', '所持防具/種族耐性', 127, true],
+            [129, 'equipment', 'epic', '特性を磨く者', '段階III以上の銘・特攻・耐性を持つ装備を所持する', '装備の銘・特攻・耐性のいずれかを段階IIIまで磨こう。', 'equipment_trait_level', 'trait_level', '3', '所持装備/特性段階', 128, true],
+            [130, 'equipment', 'mythic', '特性を極めし者', '段階Vの銘・特攻・耐性を持つ装備を所持する', '装備の銘・特攻・耐性のいずれかを最高段階Vまで磨こう。', 'equipment_trait_level', 'trait_level', '5', '所持装備/特性段階', 129, true],
+            [131, 'equipment', 'mythic', '神工の担い手', '強化値+30・逸品・段階Vの特性を備えた同一装備を所持する', '一つの装備に最高強化、逸品、最高段階の特性をそろえよう。', 'equipment_masterpiece', 'masterpiece', '30:excellent:5', '所持装備/鍛冶到達点', 130, true],
         ];
 
         $insertData = [];

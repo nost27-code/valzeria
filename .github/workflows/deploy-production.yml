@@ -27,12 +27,12 @@ concurrency:
 jobs:
   build:
     name: Build production release
-    if: ${{ inputs.confirmation == 'deploy-production' }}
+    if: ${{ inputs.confirmation == 'deploy-production' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -45,7 +45,15 @@ jobs:
           cache: npm
 
       - name: Build release artifact
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.sha }}
         run: |
+          actual_release_sha="$(git rev-parse HEAD)"
+          if [[ "$actual_release_sha" != "$EXPECTED_RELEASE_SHA" ]]; then
+            echo "Checked-out SHA does not match the dispatched SHA." >&2
+            exit 1
+          fi
+          printf '%s\n' "$actual_release_sha" > .release-sha
           composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
           npm ci
           npm run build
@@ -85,7 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -94,8 +102,11 @@ jobs:
 
       - name: Verify and switch production release
         shell: pwsh
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.sha }}
         run: |
           & .\scripts\deploy\invoke-remote-release.ps1 `
             -Target production `
             -MigrationMode '${{ inputs.migration_mode }}' `
+            -ReleaseSha $env:EXPECTED_RELEASE_SHA `
             -ArchivePath '${{ runner.temp }}\valzeria-release\release.tar.gz'
