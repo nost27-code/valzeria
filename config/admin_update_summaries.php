@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-30-character-icon-effect-guidance',
+        'date' => '2026-08-30',
+        'category' => 'changed',
+        'title' => 'キャラアイコンのエフェクト方針を案内',
+        'detail' => 'キャラアイコン制作ページに、花びら・蝶・光など周囲に浮かぶ演出エフェクトは基本的に描かない方針を追加しました。衣装や髪飾りなど、キャラクター自身の装飾は引き続き相談できます。',
+    ],
+    [
         'id' => '2026-08-30-game-health-probe-fix',
         'date' => '2026-08-30',
         'category' => 'internal',

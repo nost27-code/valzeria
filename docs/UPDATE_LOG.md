@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Changed
+
+- キャラアイコン制作ページに、花びら・蝶・光など周囲に浮かぶ演出エフェクトは基本的に描かない方針を追加しました。衣装や髪飾りなど、キャラクター自身の装飾は引き続き相談できます。
+
 ### Balance
 
 - 戦技出力を選ぶと、セット中の各戦技カードに固定SP・追加SP・合計の基準消費SPを表示するようにしました。出力を切り替えると各カードの数値も更新され、対象外の戦技は固定SPだけを表示します。

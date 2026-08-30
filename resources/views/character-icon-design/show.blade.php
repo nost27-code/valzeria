@@ -50,6 +50,13 @@
                 </p>
             </div>
 
+            <div class="border-b border-amber-200 bg-amber-50 px-4 py-4 sm:px-6">
+                <p class="text-sm font-black text-amber-950">エフェクト表現について</p>
+                <p class="mt-1 text-sm font-bold leading-6 text-amber-900">
+                    キャラクター本体を見やすく、アイコン全体の雰囲気を揃えるため、花びら・蝶・光など、キャラクターの周囲に浮かぶ演出エフェクトは基本的に描かない方針です。衣装・髪飾り・手に持つ小物など、キャラクター自身のデザインに含まれる装飾はご相談いただけます。
+                </p>
+            </div>
+
             <nav class="grid grid-cols-2 gap-2 border-b border-violet-100 bg-slate-50 p-3 sm:p-4" aria-label="キャラアイコン制作の表示切り替え">
                 <a
                     href="{{ route('character-icon-design.show', ['view' => 'new']) }}"
