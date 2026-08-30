@@ -85,6 +85,9 @@ final class JobArtV2ProgressionState
     public float $rank5V6CommittedDamageMultiplier = 1.0;
     public ?string $rank5V6DifferentCategoryFrom = null;
 
+    /** 黒焔魔皇破のMISS後、次の照準系ダメージ戦技へ加える命中ポイント。 */
+    public float $rank5V6NextAimAccuracyBonus = 0.0;
+
     /** 受け流し成功後、次に使用する反撃系戦技へ適用する1回分の倍率。 */
     public float $rank5V6CounterDamageMultiplier = 1.0;
 

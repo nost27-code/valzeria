@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\CompetitiveHitPolicy;
 use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
@@ -31,6 +32,7 @@ final class JobArtV2ProgressionService
         private readonly DamageCalculator $damageCalculator,
         private readonly JobArtStatBuffLogFormatter $statBuffLogFormatter,
         private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        private readonly ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
     ) {}
 
     public function enabledFor(BattleActor $actor): bool
@@ -86,6 +88,15 @@ final class JobArtV2ProgressionService
         $attributes = [];
 
         if ($this->featureGate->usesRank5V6($actor)) {
+            if (($this->competitiveHitPolicy())->supports($state->battleType)
+                && $actorState->rank5V6NextAimAccuracyBonus > 0.0
+                && ($this->lineageCatalog->forArt($skill)['lineage_key'] ?? null) === 'aim'
+                && JobArtEffectCatalog::dealsDamage((string) $skill->effect_template)
+            ) {
+                $attributes['progression_next_aim_accuracy_bonus'] = $actorState->rank5V6NextAimAccuracyBonus;
+                $actorState->rank5V6NextAimAccuracyBonus = 0.0;
+            }
+
             if ($actorState->rank5V6CommittedDamageMultiplier > 1.0) {
                 $multiplier *= $actorState->rank5V6CommittedDamageMultiplier;
                 $actorState->rank5V6CommittedDamageMultiplier = 1.0;
@@ -354,6 +365,18 @@ final class JobArtV2ProgressionService
         $rank = (int) $skill->learn_rank;
 
         if ($this->featureGate->usesRank5V6($actor) && $rank === 5) {
+            $missAccuracyBonus = ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))
+                ->missNextAimAccuracyBonusPoints($skill);
+            if (($this->competitiveHitPolicy())->supports($state->battleType)
+                && $hitResult === HitResult::MISS
+                && $missAccuracyBonus > 0.0
+            ) {
+                $actorState->rank5V6NextAimAccuracyBonus = max(
+                    $actorState->rank5V6NextAimAccuracyBonus,
+                    $missAccuracyBonus,
+                );
+            }
+
             if ($jobId === 3 && $landed) {
                 $this->addHuntingMark($target, $actor);
             } elseif ($jobId === 12) {
@@ -1226,6 +1249,30 @@ final class JobArtV2ProgressionService
         }
 
         return (int) $skill->learn_rank === 5 ? 5.0 : 0.0;
+    }
+
+    public function preparedAccuracyDeltaPoints(
+        BattleActor $actor,
+        Skill $skill,
+        ?BattleState $state = null,
+    ): float {
+        if ($state === null
+            || ! ($this->competitiveHitPolicy())->supports($state->battleType)
+            || ($this->lineageCatalog->forArt($skill)['lineage_key'] ?? null) !== 'aim'
+            || ! JobArtEffectCatalog::dealsDamage((string) $skill->effect_template)
+        ) {
+            return 0.0;
+        }
+
+        return max(
+            0.0,
+            (float) ($state->jobArtV2RoleAction()['progression_next_aim_accuracy_bonus'] ?? 0.0),
+        );
+    }
+
+    private function competitiveHitPolicy(): CompetitiveHitPolicy
+    {
+        return app(CompetitiveHitPolicy::class);
     }
 
     public function huntingMarkCountFor(BattleActor $target, BattleActor $owner): int

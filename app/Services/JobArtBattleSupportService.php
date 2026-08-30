@@ -8,6 +8,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\ActionResolver;
 use App\Services\Battle\HitResult;
+use App\Services\Battle\JobArtHitResolution;
 
 class JobArtBattleSupportService
 {
@@ -33,6 +34,7 @@ class JobArtBattleSupportService
     private readonly JobArtFlavorTextService $jobArtFlavorTextService;
     private readonly JobArtBattleLogPresenter $jobArtBattleLogPresenter;
     private readonly JobArtV2SpPowerScalingService $jobArtV2SpPowerScalingService;
+    private readonly JobArtV2Rank5V6Catalog $jobArtV2Rank5V6Catalog;
 
     public function __construct(
         private readonly JobArtService $jobArtService,
@@ -58,6 +60,7 @@ class JobArtBattleSupportService
         ?JobArtFlavorTextService $jobArtFlavorTextService = null,
         ?JobArtBattleLogPresenter $jobArtBattleLogPresenter = null,
         ?JobArtV2SpPowerScalingService $jobArtV2SpPowerScalingService = null,
+        ?JobArtV2Rank5V6Catalog $jobArtV2Rank5V6Catalog = null,
     ) {
         $this->jobArtActionResolver = $jobArtActionResolver ?? app(ActionResolver::class);
         $this->jobArtV2ResourceService = $jobArtV2ResourceService ?? app(JobArtV2ResourceService::class);
@@ -81,6 +84,8 @@ class JobArtBattleSupportService
         $this->jobArtBattleLogPresenter = $jobArtBattleLogPresenter ?? app(JobArtBattleLogPresenter::class);
         $this->jobArtV2SpPowerScalingService = $jobArtV2SpPowerScalingService
             ?? app(JobArtV2SpPowerScalingService::class);
+        $this->jobArtV2Rank5V6Catalog = $jobArtV2Rank5V6Catalog
+            ?? app(JobArtV2Rank5V6Catalog::class);
     }
 
     public function attachBossSet(
@@ -456,9 +461,10 @@ class JobArtBattleSupportService
         Skill $skill,
         ?HitResult $hitResult = null,
         ?BattleActor $target = null,
+        bool $vitalHit = false,
     ): void
     {
-        $state->completeJobArtActivation($actor, $hitResult);
+        $state->completeJobArtActivation($actor, $hitResult, $vitalHit);
 
         if ($hitResult?->landed()) {
             $this->jobArtV2ResourceService->recordJobArtHit($actor, $state, $skill);
@@ -683,7 +689,12 @@ class JobArtBattleSupportService
 
     public function criticalBonusPoints(BattleActor $actor, Skill $skill): float
     {
-        return $this->jobArtV2RoleEffectService->criticalBonusPoints($actor, $skill);
+        $bonus = $this->jobArtV2RoleEffectService->criticalBonusPoints($actor, $skill);
+        if ($this->jobArtV2FeatureGate->usesRank5V6($actor)) {
+            $bonus = max($bonus, $this->jobArtV2Rank5V6Catalog->criticalBonusPoints($skill));
+        }
+
+        return max(0.0, $bonus);
     }
 
     public function isFieldOnlyArt(BattleActor $actor, BattleState $state, Skill $skill): bool
@@ -719,9 +730,31 @@ class JobArtBattleSupportService
         string $battleType,
         ?BattleState $state = null,
     ): ?HitResult {
-        $result = $this->jobArtActionResolver->resolveJobArt($attacker, $defender, $skill, $battleType, $state);
+        return $this->resolveHitWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            $battleType,
+            $state,
+        )?->hitResult;
+    }
+
+    public function resolveHitWithDetails(
+        BattleActor $attacker,
+        BattleActor $defender,
+        Skill $skill,
+        string $battleType,
+        ?BattleState $state = null,
+    ): ?JobArtHitResolution {
+        $result = $this->jobArtActionResolver->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            $battleType,
+            $state,
+        );
         if ($state !== null) {
-            $this->jobArtV2BattleHudService->recordHitResult($attacker, $state, $result);
+            $this->jobArtV2BattleHudService->recordHitResult($attacker, $state, $result?->hitResult);
         }
 
         return $result;

@@ -33,6 +33,7 @@ class GameplayMetricsTest extends TestCase
             'miss_count' => 1,
             'evade_count' => 0,
             'no_resolution_count' => 0,
+            'vital_hit_count' => 1,
         ]];
 
         $service = app(GameplayMetricService::class);
@@ -68,6 +69,13 @@ class GameplayMetricsTest extends TestCase
         $this->assertSame(1, $analysis['jobArt']['cards']['battles']);
         $this->assertSame(2, $analysis['jobArt']['cards']['activations']);
         $this->assertSame(50.0, $analysis['jobArt']['skillRows'][0]['hit_rate']);
+        $this->assertSame(1, $analysis['jobArt']['skillRows'][0]['vital_hits']);
+        $this->assertSame(100.0, $analysis['jobArt']['skillRows'][0]['vital_hit_rate']);
+        $jobArtMetric = GameplayMetric::query()
+            ->where('metric_type', GameplayMetric::TYPE_JOB_ART_BATTLE)
+            ->sole();
+        $this->assertSame(2, data_get($jobArtMetric->payload, 'version'));
+        $this->assertSame(1, data_get($jobArtMetric->payload, 'skills.0.vital_hit_count'));
         $this->assertSame(2, $analysis['exploration']['cards']['requests']);
         $this->assertSame(51, $analysis['exploration']['cards']['requested_runs']);
         $this->assertSame(41, $analysis['exploration']['cards']['completed_runs']);
@@ -106,13 +114,43 @@ class GameplayMetricsTest extends TestCase
             'payload' => ['version' => 1, 'turn_count' => 2, 'activation_count' => 0, 'skills' => []],
             'created_at' => now(),
         ]);
-        $this->assertDatabaseCount('gameplay_metrics', 2);
-        $this->assertSame(1, app(GameplayAnalyticsService::class)->analyze('all')['jobArt']['cards']['battles']);
+        $legacyArt = $this->createArt();
+        GameplayMetric::query()->create([
+            'character_id' => $similarEmailCharacter->id,
+            'metric_type' => GameplayMetric::TYPE_JOB_ART_BATTLE,
+            'context' => 'pvp',
+            'result' => 'victory',
+            'payload' => [
+                'version' => 1,
+                'turn_count' => 2,
+                'activation_count' => 2,
+                'skills' => [[
+                    'skill_id' => $legacyArt->id,
+                    'name' => $legacyArt->name,
+                    'origin' => 'current',
+                    'activation_count' => 2,
+                    'hit_count' => 1,
+                    'miss_count' => 1,
+                    'evade_count' => 0,
+                    'no_resolution_count' => 0,
+                ]],
+            ],
+            'created_at' => now(),
+        ]);
+        $this->assertDatabaseCount('gameplay_metrics', 3);
+        $analysis = app(GameplayAnalyticsService::class)->analyze('all');
+        $this->assertSame(2, $analysis['jobArt']['cards']['battles']);
+        $this->assertSame(50.0, $analysis['jobArt']['skillRows'][0]['hit_rate']);
+        $this->assertSame(0, $analysis['jobArt']['skillRows'][0]['vital_hits']);
+        $this->assertSame(0.0, $analysis['jobArt']['skillRows'][0]['vital_hit_rate']);
 
         $this->get(route('admin.gameplay-analytics'))->assertRedirect();
         $normalUser = User::factory()->create(['role' => 'user']);
         $this->actingAs($normalUser)->get(route('admin.gameplay-analytics'))->assertRedirect('/admin/login');
-        $this->actingAs($admin)->get(route('admin.gameplay-analytics'))->assertOk()->assertSee('戦技・探索実績');
+        $this->actingAs($admin)->get(route('admin.gameplay-analytics'))
+            ->assertOk()
+            ->assertSee('戦技・探索実績')
+            ->assertSee('急所命中');
     }
 
     public function test_records_each_map_battle_after_a_batch_has_completed(): void
@@ -128,6 +166,7 @@ class GameplayMetricsTest extends TestCase
             'miss_count' => 0,
             'evade_count' => 0,
             'no_resolution_count' => 0,
+            'vital_hit_count' => 0,
         ]];
 
         app(GameplayMetricService::class)->recordJobArtExplorationResult($character, 'map', [

@@ -11,6 +11,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\BattleTypeAffinity;
+use App\Services\Battle\CompetitiveHitPolicy;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
 use App\Services\Battle\DamageApplicationService;
@@ -31,9 +32,6 @@ use Illuminate\Support\Facades\DB;
 
 class PvPBattleService
 {
-    private const PVP_HIT_AGI_FACTOR = 0.08;
-    private const PVP_MIN_HIT_RATE = 84;
-    private const PVP_MAX_HIT_RATE = 97;
     private const PVP_TURN_SPEED_RANDOM = 2;
     public const PVP_NORMAL_POWER_MULTIPLIER = 125;
     private const PUBLIC_RANK_UP_LOG_MAX_RANK = 50;
@@ -44,6 +42,7 @@ class PvPBattleService
     protected DamageApplicationService $damageApplicationService;
     protected SpeedExtraActionService $speedExtraActionService;
     protected SpeedBreakthroughService $speedBreakthroughService;
+    protected CompetitiveHitPolicy $competitiveHitPolicy;
 
     /** @var \WeakMap<BattleState, PvPRoomRuleInterface>|null */
     private ?\WeakMap $roomRules = null;
@@ -57,6 +56,7 @@ class PvPBattleService
         ?DamageApplicationService $damageApplicationService = null,
         ?SpeedExtraActionService $speedExtraActionService = null,
         ?SpeedBreakthroughService $speedBreakthroughService = null,
+        ?CompetitiveHitPolicy $competitiveHitPolicy = null,
     )
     {
         $this->statusService = $statusService;
@@ -65,6 +65,7 @@ class PvPBattleService
         $this->damageApplicationService = $damageApplicationService ?? app(DamageApplicationService::class);
         $this->speedExtraActionService = $speedExtraActionService ?? app(SpeedExtraActionService::class);
         $this->speedBreakthroughService = $speedBreakthroughService ?? app(SpeedBreakthroughService::class);
+        $this->competitiveHitPolicy = $competitiveHitPolicy ?? app(CompetitiveHitPolicy::class);
         $this->roomRules = new \WeakMap();
         $this->nullRoomRule = new NullPvPRoomRule();
     }
@@ -665,7 +666,14 @@ class PvPBattleService
             $this->jobArtBattleSupport->activationLog($attacker, $defender, $jobArt),
         )) {
             $executionSkill = $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $state, $defender);
-            $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $executionSkill, $state->battleType, $state);
+            $hitResolution = $this->jobArtBattleSupport->resolveHitWithDetails(
+                $attacker,
+                $defender,
+                $executionSkill,
+                $state->battleType,
+                $state,
+            );
+            $hitResult = $hitResolution?->hitResult;
             if ($hitResult !== null && !$hitResult->landed()) {
                 $state->addLog($this->jobArtBattleSupport->resolutionFailureLog($jobArt, $hitResult));
             }
@@ -676,8 +684,16 @@ class PvPBattleService
                 $executionSkill,
                 false,
                 $hitResult,
+                $hitResolution?->vitalHit ?? false,
             );
-            $this->jobArtBattleSupport->completeJobArtCast($attacker, $state, $jobArt, $hitResult, $defender);
+            $this->jobArtBattleSupport->completeJobArtCast(
+                $attacker,
+                $state,
+                $jobArt,
+                $hitResult,
+                $defender,
+                $hitResolution?->vitalHit ?? false,
+            );
             $usedSkill = true;
         }
 
@@ -696,14 +712,15 @@ class PvPBattleService
     {
         $this->jobArtBattleSupport->markNormalAttackAction($attacker, $state);
         $state->markCompetitiveDamageAction($attacker, $defender, DamageSourceType::NORMAL_ATTACK);
+        $hitRules = $this->competitiveHitPolicy->rulesFor('pvp');
 
         if (!$this->damageCalculator->isHit(
             $attacker,
             $defender,
             100,
-            self::PVP_HIT_AGI_FACTOR,
-            self::PVP_MIN_HIT_RATE,
-            self::PVP_MAX_HIT_RATE,
+            $hitRules['agi_factor'],
+            $hitRules['min_rate'],
+            $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
@@ -764,13 +781,14 @@ class PvPBattleService
     protected function executePhysicalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $powerMultiplier = 100): void
     {
         $state->markCompetitiveDamageAction($attacker, $defender, DamageSourceType::NORMAL_ATTACK);
+        $hitRules = $this->competitiveHitPolicy->rulesFor('pvp');
         if (!$this->damageCalculator->isHit(
             $attacker,
             $defender,
             100,
-            self::PVP_HIT_AGI_FACTOR,
-            self::PVP_MIN_HIT_RATE,
-            self::PVP_MAX_HIT_RATE,
+            $hitRules['agi_factor'],
+            $hitRules['min_rate'],
+            $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
             $state->addLog("{$attacker->name} の攻撃！……しかし、{$defender->name} はかわした！");
@@ -834,6 +852,7 @@ class PvPBattleService
         Skill $skill,
         bool $addOpeningLog = true,
         ?HitResult $jobArtHitResult = null,
+        bool $vitalHit = false,
     ): void
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
@@ -852,6 +871,9 @@ class PvPBattleService
         }
 
         $applyTargetEffects = $jobArtHitResult === null || $jobArtHitResult->landed();
+        if ($vitalHit && $applyTargetEffects) {
+            $state->addLog('<span class="text-orange-600 font-extrabold">【急所命中！】狙い澄ました一撃が急所を捉えた！</span>');
+        }
         $hitCount = max(1, (int) $skill->hit_count);
         if ((int) $skill->hit_count === 0 && in_array($damageType, ['heal', 'support'], true)) {
             $hitCount = 1; 
@@ -890,9 +912,8 @@ class PvPBattleService
         $totalDamage = 0;
         for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
             $damage = 0;
-            // This route has no existing Job Art critical roll. Role-diversity
-            // bonuses may adjust an existing roll, but must not add RNG here.
-            $isCrit = false;
+            // 急所命中は1行動1回だけ抽選し、多段なら全Hitへ同じ倍率を適用する。
+            $isCrit = $vitalHit;
             $skillPowerCenti = $totalPowerCenti === null ? null : $hitPowers[$i];
             $skillPowerInt = $skillPowerCenti === null
                 ? $hitPowers[$i]

@@ -5,6 +5,33 @@ return [
         'enabled' => env('PVP_SPEED_BREAKTHROUGH_ENABLED', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Competitive hit resolution
+    |--------------------------------------------------------------------------
+    |
+    | Player PvP routes and Champ battles share the same ordinary hit bounds.
+    | Aim-lineage Job Arts may reach the higher cap; raw accuracy above 100%
+    | becomes Vital Hit chance, capped independently per route.
+    |
+    */
+    'competitive_hit' => [
+        'pvp' => [
+            'agi_factor' => 0.08,
+            'min_rate' => 84,
+            'normal_max_rate' => 97,
+            'aim_max_rate' => 99,
+            'vital_hit_max_rate' => 12,
+        ],
+        'champ' => [
+            'agi_factor' => 0.15,
+            'min_rate' => 84,
+            'normal_max_rate' => 97,
+            'aim_max_rate' => 99,
+            'vital_hit_max_rate' => 20,
+        ],
+    ],
+
     'beginner_defeat_protection' => [
         'battle_limit' => 100,
     ],

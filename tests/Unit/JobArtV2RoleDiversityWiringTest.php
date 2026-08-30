@@ -416,16 +416,23 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
         $this->assertSame(HitResult::MISS, $this->resolver($criticalMiss)->resolveJobArt($attacker, $defender, $critical, 'pve'));
         $this->assertSame(10.0, app(JobArtBattleSupportService::class)->criticalBonusPoints($attacker, $critical));
 
-        foreach (['pvp', 'champ', 'arena_npc'] as $context) {
-            $aimSureHit = $this->random([100]);
-            $this->assertSame(HitResult::HIT, $this->resolver($aimSureHit)->resolveJobArt($attacker, $defender, $aim, $context));
-            $this->assertSame(1, $aimSureHit->calls);
+        foreach (['pvp', 'champ'] as $context) {
+            $aimAtCap = $this->random([99, 100]);
+            $aimOverCap = $this->random([100]);
+            $this->assertSame(HitResult::HIT, $this->resolver($aimAtCap)->resolveJobArt($attacker, $defender, $aim, $context));
+            $this->assertSame(HitResult::MISS, $this->resolver($aimOverCap)->resolveJobArt($attacker, $defender, $aim, $context));
+            $this->assertSame(2, $aimAtCap->calls);
+            $this->assertSame(1, $aimOverCap->calls);
 
             $criticalHit = $this->random([96]);
             $criticalMiss = $this->random([97]);
             $this->assertSame(HitResult::HIT, $this->resolver($criticalHit)->resolveJobArt($attacker, $defender, $critical, $context));
             $this->assertSame(HitResult::MISS, $this->resolver($criticalMiss)->resolveJobArt($attacker, $defender, $critical, $context));
         }
+
+        $npcSureHit = $this->random([100]);
+        $this->assertSame(HitResult::HIT, $this->resolver($npcSureHit)->resolveJobArt($attacker, $defender, $aim, 'arena_npc'));
+        $this->assertSame(1, $npcSureHit->calls);
 
         $explicitAccuracy = clone $aim;
         $explicitAccuracy->accuracy = 70;
@@ -495,17 +502,17 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
     public function test_pvp_champ_and_arena_resolve_execution_clone_but_keep_source_identity(): void
     {
         foreach ([
-            [PvPBattleService::class, 'executeAction', '$state->battleType', '$state'],
-            [ChampBattleService::class, 'champAction', "'champ'", '$jobArtState'],
-            [ArenaNpcBattleService::class, 'executeAction', '$state->battleType', '$state'],
-        ] as [$service, $method, $battleType, $state]) {
+            [PvPBattleService::class, 'executeAction', '$state->battleType', '$state', 'resolveHitWithDetails', true],
+            [ChampBattleService::class, 'champAction', "'champ'", '$jobArtState', 'resolveHitWithDetails', true],
+            [ArenaNpcBattleService::class, 'executeAction', '$state->battleType', '$state', 'resolveHit', false],
+        ] as [$service, $method, $battleType, $state, $resolverMethod, $expectsVitalHit]) {
             $source = $this->methodSource($service, $method);
             $this->assertInSourceOrder($source, [
                 '$executionSkill = $this->jobArtBattleSupport->skillForExecution(',
-                '$hitResult = $this->jobArtBattleSupport->resolveHit(',
+                '$this->jobArtBattleSupport->'.$resolverMethod.'(',
             ], "{$service}::{$method}");
             $this->assertStringContainsString(
-                "resolveHit(\$attacker, \$defender, \$executionSkill, {$battleType}, {$state})",
+                $battleType,
                 $source,
                 "{$service}::{$method}",
             );
@@ -516,10 +523,15 @@ class JobArtV2RoleDiversityWiringTest extends TestCase
                 "{$service}::{$method}",
             );
             $this->assertStringContainsString(
-                'completeJobArtCast($attacker, '.$state.', $jobArt, $hitResult, $defender)',
+                'completeJobArtCast(',
                 $source,
                 "{$service}::{$method}",
             );
+            if ($expectsVitalHit) {
+                $this->assertStringContainsString('$hitResolution?->vitalHit ?? false', $source, "{$service}::{$method}");
+            } else {
+                $this->assertStringNotContainsString('vitalHit', $source, "{$service}::{$method}");
+            }
             $this->assertStringContainsString(
                 'activationLog($attacker, $defender, $jobArt)',
                 $source,

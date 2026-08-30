@@ -26,7 +26,7 @@ final class JobArtV2Rank5V6Catalog
         15 => ['name' => 'ガーディアンブロウ', 'power' => 100, 'trigger_mode' => 'reactive', 'effect_text' => '次の自分の行動開始まで、受けるダメージを20%軽減する。奥義または大技の予告中に発動した場合は、20%軽減の代わりに、その予告行動のダメージを35%軽減する'],
         16 => ['name' => '戦利の一撃', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '探索報酬に小補正。相手の防御を20%無視'],
         17 => ['name' => '影縫い', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '相手敏捷-15%(3T)。標的印を1段階付与'],
-        18 => ['name' => 'クリティカルショット', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '命中率+10pt、会心率+10pt'],
+        18 => ['name' => 'クリティカルショット', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '命中率+10pt、会心率+10pt', 'accuracy_bonus_points' => 10, 'critical_bonus_points' => 10],
         19 => ['name' => 'スピリットスティール', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '与ダメージの30%を吸収。相手精神-12%(3T)。相手SPを最大SPの3%削る'],
         20 => ['name' => '掘り出し物', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '通常素材枠の抽選率+6pt'],
         21 => ['name' => '破邪拳', 'power' => 100, 'trigger_mode' => 'scheduled', 'effect_text' => '相手の精神参照。魔法型/不死系に最終ダメージ×1.20'],
@@ -58,7 +58,7 @@ final class JobArtV2Rank5V6Catalog
         52 => ['name' => '蒼天竜槍', 'power' => 182, 'trigger_mode' => 'scheduled', 'effect_text' => '蒼天構え中なら相手の防御を35%無視し、蒼天構えを1ターン延長'],
         53 => ['name' => '星詠みの光', 'power' => 176, 'trigger_mode' => 'scheduled', 'effect_text' => '現在の場を2ターン延長。対奥義予告中なら封式の場を展開'],
         54 => ['name' => '影縫い乱舞', 'power' => 184, 'trigger_mode' => 'reactive', 'effect_text' => '標的印1段階以上で発動可。標的印を1段階消費。直前の行動種類を3ターン封じる'],
-        55 => ['name' => '鋼機魔導砲', 'power' => 200, 'trigger_mode' => 'scheduled', 'effect_text' => '照準8pt以上でのみ発動可。命中率+5pt'],
+        55 => ['name' => '鋼機魔導砲', 'power' => 200, 'trigger_mode' => 'scheduled', 'effect_text' => '照準8pt以上でのみ発動可。命中率+5pt', 'accuracy_bonus_points' => 5],
         56 => ['name' => '聖域結界', 'power' => 182, 'trigger_mode' => 'scheduled', 'effect_text' => '次の自分の行動開始まで被ダメージ25%軽減。実際に1以上軽減した場合、有害状態を1種浄化する'],
         57 => ['name' => '黄金転化', 'power' => 194, 'trigger_mode' => 'scheduled', 'effect_text' => '探索報酬に小補正'],
         58 => ['name' => '雷拳乱舞', 'power' => 196, 'trigger_mode' => 'scheduled', 'effect_text' => '3Hit。崩し印は1行動につき最大1段階まで'],
@@ -68,7 +68,7 @@ final class JobArtV2Rank5V6Catalog
         62 => ['name' => '竜冠穿槍', 'power' => 200, 'trigger_mode' => 'scheduled', 'effect_text' => '貫通構え中なら相手の防御を35%無視し、貫通構えを再形成'],
         63 => ['name' => '星冠天導', 'power' => 209, 'trigger_mode' => 'scheduled', 'effect_text' => '現在の場を2ラウンド延長（上限8）。場がない場合は星光の場を4ラウンド展開'],
         64 => ['name' => '影冠狙撃', 'power' => 220, 'trigger_mode' => 'reactive', 'effect_text' => '標的印1段階以上で発動可。標的印を1段階消費。封じ対象の読み替えを1回'],
-        65 => ['name' => '鋼冠機砲', 'power' => 209, 'trigger_mode' => 'scheduled', 'effect_text' => '命中率+10pt。HITで相手の最大SP3%分、現在SPを削る'],
+        65 => ['name' => '鋼冠機砲', 'power' => 209, 'trigger_mode' => 'scheduled', 'effect_text' => '命中率+10pt。HITで相手の最大SP3%分、現在SPを削る', 'accuracy_bonus_points' => 10],
         66 => ['name' => '聖冠大結界', 'power' => 181, 'trigger_mode' => 'scheduled', 'effect_text' => '有害状態を全浄化。浄化成功で聖護+1。次の直接攻撃を35%軽減'],
         67 => ['name' => '金冠錬成', 'power' => 212, 'trigger_mode' => 'scheduled', 'effect_text' => '相手が次の2回の行動で系譜資源を獲得しなかった場合、触媒+2'],
         68 => ['name' => '雷冠閃拳', 'power' => 212, 'trigger_mode' => 'scheduled', 'effect_text' => 'この戦技で付与した崩し印が浄化された場合、残心として保持'],
@@ -77,14 +77,14 @@ final class JobArtV2Rank5V6Catalog
         71 => ['name' => '黒月執行', 'power' => 221, 'trigger_mode' => 'scheduled', 'effect_text' => '最大HP3%を非致死消費。この戦闘の累計自傷が最大HP15%を超えていれば最終ダメージ×1.25'],
         72 => ['name' => '星天裁光', 'power' => 221, 'trigger_mode' => 'scheduled', 'effect_text' => '現在の場を2ラウンド延長。場が天測なら、この攻撃の命中率+15pt・会心率+10pt'],
         73 => ['name' => '蒼竜覇撃', 'power' => 218, 'trigger_mode' => 'scheduled', 'effect_text' => '相手の防御を20%無視。貫通構え/蒼天構え中なら40%無視へ引き上げ、構えを1ターン延長'],
-        74 => ['name' => '天機戦術', 'power' => 218, 'trigger_mode' => 'scheduled', 'effect_text' => '命中+10pt/会心+10pt。HITで相手の最大SP4%分、現在SPを削る。探索報酬に小補正'],
+        74 => ['name' => '天機戦術', 'power' => 218, 'trigger_mode' => 'scheduled', 'effect_text' => '命中+10pt/会心+10pt。HITで相手の最大SP4%分、現在SPを削る。探索報酬に小補正', 'accuracy_bonus_points' => 10, 'critical_bonus_points' => 10],
         75 => ['name' => '聖域審判', 'power' => 214, 'trigger_mode' => 'scheduled', 'effect_text' => '次に使用する戦技の発動率+15pt。その戦技が奥義なら、その奥義の最終ダメージを×1.15'],
         76 => ['name' => '幻葬魔葬', 'power' => 221, 'trigger_mode' => 'scheduled', 'effect_text' => '標的印を1段階付与。標的印が2段階以上なら相手の敏捷と運を-15%(3T)'],
         77 => ['name' => '時詠み渡り', 'power' => 231, 'trigger_mode' => 'scheduled', 'effect_text' => '自分のターン制強化のうち残り最短の1件を2ターン延長'],
         78 => ['name' => '荒天覇撃', 'power' => 218, 'trigger_mode' => 'scheduled', 'effect_text' => '3Hit。崩し印を1段階付与。崩し印が2段階以上なら相手の解除可能な強化を1件解除'],
         79 => ['name' => '白銀王盾', 'power' => 221, 'trigger_mode' => 'scheduled', 'effect_text' => '被ダメージ15%軽減。1以上軽減した場合、3ターンの間 防御と精神を+20%'],
         80 => ['name' => '天翔剣皇斬', 'power' => 248, 'trigger_mode' => 'scheduled', 'effect_text' => '次に使用する戦技の発動率+15pt。その戦技が始動なら、その始動の最終ダメージを×1.25'],
-        81 => ['name' => '黒焔魔皇破', 'power' => 248, 'trigger_mode' => 'scheduled', 'effect_text' => '命中+10pt/会心+10pt。MISSした場合、次に使用する照準系戦技の命中率を+25pt'],
+        81 => ['name' => '黒焔魔皇破', 'power' => 248, 'trigger_mode' => 'scheduled', 'effect_text' => '命中+10pt/会心+10pt。MISSした場合、次に使用する照準系戦技の命中率を+25pt', 'accuracy_bonus_points' => 10, 'critical_bonus_points' => 10, 'miss_next_aim_accuracy_bonus_points' => 25],
         82 => ['name' => '世界樹の祝福', 'power' => 229, 'trigger_mode' => 'scheduled', 'effect_text' => '精神150%分HP回復。有害状態を最大2種浄化し、浄化に成功した場合 3ターンの間 精神を+25%'],
         83 => ['name' => '影葬王刃', 'power' => 244, 'trigger_mode' => 'scheduled', 'effect_text' => '標的印を1段階付与。HITで相手が直前に使用した行動の種類を2ターン封じる'],
         84 => ['name' => '星海羅針', 'power' => 244, 'trigger_mode' => 'scheduled', 'effect_text' => '威力244%の魔法ダメージ。直前に上書きされた自分の場を5ラウンドで再展開する。通常探索勝利時のGold獲得量を2%増やし、通常素材枠の抽選率を2ポイント上げる'],
@@ -102,13 +102,13 @@ final class JobArtV2Rank5V6Catalog
         91 => ['name' => '虚空導光', 'power' => 288, 'trigger_mode' => 'scheduled', 'effect_text' => '《金蝕》を1回付与'],
         92 => ['name' => '世界樹神歌', 'power' => 249, 'trigger_mode' => 'scheduled', 'effect_text' => '精神180%分HP回復。被ダメージ20%軽減。1以上軽減した場合、4ターンの間 防御と精神を+25%'],
         93 => ['name' => '終焉聖裁', 'power' => 278, 'trigger_mode' => 'reactive', 'effect_text' => '受け流し率+20%。相手が奥義/大技予告中なら、その行動を25%軽減する準備を得る'],
-        94 => ['name' => '天命改変', 'power' => 262, 'trigger_mode' => 'scheduled', 'effect_text' => '命中+15pt/会心+15pt。HITで相手の最大SP5%分、現在SPを削る。探索報酬に小補正'],
+        94 => ['name' => '天命改変', 'power' => 262, 'trigger_mode' => 'scheduled', 'effect_text' => '命中+15pt/会心+15pt。HITで相手の最大SP5%分、現在SPを削る。探索報酬に小補正', 'accuracy_bonus_points' => 15, 'critical_bonus_points' => 15],
     ];
 
     /** @var list<int> */
     private const ATTACKLESS_JOB_IDS = [7, 12, 23, 25, 38, 47];
 
-    /** @return array{name:string,power:?int,trigger_mode:string,effect_text:string}|null */
+    /** @return array{name:string,power:?int,trigger_mode:string,effect_text:string,accuracy_bonus_points?:int,critical_bonus_points?:int,miss_next_aim_accuracy_bonus_points?:int}|null */
     public function forSkill(Skill $skill): ?array
     {
         if (! $skill->isJobArt() || (int) $skill->learn_rank !== 5) {
@@ -145,7 +145,22 @@ final class JobArtV2Rank5V6Catalog
         return $this->forSkill($skill)['effect_text'] ?? null;
     }
 
-    /** @return array<int, array{name:string,power:?int,trigger_mode:string,effect_text:string}> */
+    public function accuracyBonusPoints(Skill $skill): float
+    {
+        return max(0.0, (float) ($this->forSkill($skill)['accuracy_bonus_points'] ?? 0.0));
+    }
+
+    public function criticalBonusPoints(Skill $skill): float
+    {
+        return max(0.0, (float) ($this->forSkill($skill)['critical_bonus_points'] ?? 0.0));
+    }
+
+    public function missNextAimAccuracyBonusPoints(Skill $skill): float
+    {
+        return max(0.0, (float) ($this->forSkill($skill)['miss_next_aim_accuracy_bonus_points'] ?? 0.0));
+    }
+
+    /** @return array<int, array{name:string,power:?int,trigger_mode:string,effect_text:string,accuracy_bonus_points?:int,critical_bonus_points?:int,miss_next_aim_accuracy_bonus_points?:int}> */
     public function all(): array
     {
         return self::SPECS;

@@ -21,10 +21,10 @@ class JobArtUsageTelemetryTest extends TestCase
 
         $state->beginSourceAction();
         $state->recordJobArtActivation($player, $art);
-        $state->completeJobArtActivation($player, HitResult::HIT);
+        $state->completeJobArtActivation($player, HitResult::HIT, true);
         $state->beginSourceAction();
         $state->recordJobArtActivation($player, $art);
-        $state->completeJobArtActivation($player, HitResult::EVADE);
+        $state->completeJobArtActivation($player, HitResult::EVADE, true);
         $state->beginSourceAction();
         $state->recordJobArtActivation($enemy, $art);
         $state->completeJobArtActivation($enemy, null);
@@ -38,6 +38,7 @@ class JobArtUsageTelemetryTest extends TestCase
             'miss_count' => 0,
             'evade_count' => 1,
             'no_resolution_count' => 0,
+            'vital_hit_count' => 1,
         ]], $state->jobArtUsageFor($player));
         $this->assertSame(1, $state->jobArtUsageFor($enemy)[0]['no_resolution_count']);
     }

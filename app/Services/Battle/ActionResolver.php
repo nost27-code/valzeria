@@ -9,9 +9,12 @@ use App\Services\JobArtV2DeckRoleResolver;
 use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2HitRandomSource;
 use App\Services\JobArtV2FieldService;
+use App\Services\JobArtLineageCatalog;
 use App\Services\JobArtV2PrototypeCatalog;
 use App\Services\JobArtV2ProgressionService;
+use App\Services\JobArtV2Rank5V6Catalog;
 use App\Services\JobArtV2RoleEffectCatalog;
+use App\Services\JobArtV2RoleEffectService;
 use App\Support\JobArtEffectCatalog;
 
 class ActionResolver
@@ -28,6 +31,10 @@ class ActionResolver
         private readonly ?JobArtV2RoleEffectCatalog $roleEffectCatalog = null,
         private readonly ?JobArtV2ProgressionService $progressionService = null,
         private readonly ?JobArtV2DeckRoleResolver $deckRoleResolver = null,
+        private readonly ?CompetitiveHitPolicy $competitiveHitPolicy = null,
+        private readonly ?JobArtLineageCatalog $lineageCatalog = null,
+        private readonly ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
+        private readonly ?JobArtV2RoleEffectService $roleEffectService = null,
     ) {
     }
 
@@ -38,6 +45,22 @@ class ActionResolver
         string $battleType,
         ?BattleState $state = null,
     ): ?HitResult {
+        return $this->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            $battleType,
+            $state,
+        )?->hitResult;
+    }
+
+    public function resolveJobArtWithDetails(
+        BattleActor $attacker,
+        BattleActor $defender,
+        Skill $skill,
+        string $battleType,
+        ?BattleState $state = null,
+    ): ?JobArtHitResolution {
         if ($state !== null
             && ($this->fieldService ?? app(JobArtV2FieldService::class))->isFieldOnlyArt($attacker, $state, $skill)
         ) {
@@ -52,36 +75,80 @@ class ActionResolver
             return null;
         }
 
-        if (!$this->isSureHit($skill)) {
-            $hitRate = $this->baseHitChance($attacker, $defender, $skill, $battleType, $state);
-            if ($this->random->percentRoll() > $hitRate) {
-                return HitResult::MISS;
+        $sureHit = $this->isSureHit($skill);
+        $rawHitChance = null;
+        $effectiveHitChance = null;
+        if (! $sureHit) {
+            $chance = $this->hitChance($attacker, $defender, $skill, $battleType, $state);
+            $rawHitChance = $chance['raw'];
+            $effectiveHitChance = $chance['effective'];
+            if ($this->random->percentRoll() > $effectiveHitChance) {
+                return new JobArtHitResolution(
+                    HitResult::MISS,
+                    $rawHitChance,
+                    $effectiveHitChance,
+                    0.0,
+                    0.0,
+                    false,
+                    false,
+                );
             }
         }
 
         $evasionRate = max(0.0, min(100.0, $this->activeEvasion->rate($attacker, $defender, $skill, $battleType)));
         if ($evasionRate > 0.0 && $this->random->percentRoll() <= $evasionRate) {
-            return HitResult::EVADE;
+            return new JobArtHitResolution(
+                HitResult::EVADE,
+                $rawHitChance,
+                $effectiveHitChance,
+                0.0,
+                0.0,
+                false,
+                $sureHit,
+            );
         }
 
-        return HitResult::HIT;
+        $accuracyOverflow = ! $sureHit
+            && $rawHitChance !== null
+            && $this->isCompetitiveAimArt($skill, $battleType)
+                ? max(0.0, $rawHitChance - 100.0)
+                : 0.0;
+        $vitalHitChance = ! $sureHit && $this->isCompetitiveAimArt($skill, $battleType)
+            ? ($this->competitiveHitPolicy ?? app(CompetitiveHitPolicy::class))->vitalHitChance(
+                $battleType,
+                $accuracyOverflow,
+                $this->criticalBonusPoints($attacker, $skill),
+            )
+            : 0.0;
+        $vitalHit = $vitalHitChance > 0.0 && $this->random->percentRoll() <= $vitalHitChance;
+
+        return new JobArtHitResolution(
+            HitResult::HIT,
+            $rawHitChance,
+            $effectiveHitChance,
+            $accuracyOverflow,
+            $vitalHitChance,
+            $vitalHit,
+            $sureHit,
+        );
     }
 
-    private function baseHitChance(
+    /** @return array{raw:float,effective:float} */
+    private function hitChance(
         BattleActor $attacker,
         BattleActor $defender,
         Skill $skill,
         string $battleType,
         ?BattleState $state,
-    ): float {
+    ): array {
         $explicitAccuracy = $this->explicitAccuracy($skill);
-        $roleAccuracyDelta = $this->actionLocalAccuracyDelta($attacker, $skill);
+        $roleAccuracyDelta = $this->actionLocalAccuracyDelta($attacker, $skill, $battleType, $state);
         if ($explicitAccuracy === null
             && ($roleAccuracyDelta <= 0.0 || $this->preservesLegacySureHit($attacker, $skill))
-            && in_array($battleType, ['pvp', 'champ', 'arena_npc'], true)
+            && $battleType === 'arena_npc'
         ) {
-            // These legacy job-art paths do not perform a base hit roll.
-            return 100.0;
+            // NPC rank battles retain their legacy guaranteed base hit.
+            return ['raw' => 100.0, 'effective' => 100.0];
         }
 
         $rules = $this->hitRules($battleType);
@@ -99,7 +166,9 @@ class ActionResolver
             : 0.0;
         $delta += $roleAccuracyDelta;
 
-        $maximum = (float) $rules['max_rate'];
+        $maximum = $this->isCompetitiveAimArt($skill, $battleType)
+            ? (float) $rules['aim_max_rate']
+            : (float) $rules['max_rate'];
         if ($this->featureGate->usesResources($attacker) && $this->allowsRoleMetadata($attacker, $skill)) {
             $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
             $roleMetadata = $roleCatalog->forArt($skill);
@@ -108,7 +177,12 @@ class ActionResolver
             }
         }
 
-        return max((float) $rules['min_rate'], min($maximum, $hitRate + $delta));
+        $raw = $hitRate + $delta;
+
+        return [
+            'raw' => $raw,
+            'effective' => max((float) $rules['min_rate'], min($maximum, $raw)),
+        ];
     }
 
     private function preservesLegacySureHit(BattleActor $attacker, Skill $skill): bool
@@ -125,60 +199,107 @@ class ActionResolver
             && (bool) ($roleMetadata['preserve_legacy_sure_hit'] ?? false);
     }
 
-    private function actionLocalAccuracyDelta(BattleActor $attacker, Skill $skill): float
+    private function actionLocalAccuracyDelta(
+        BattleActor $attacker,
+        Skill $skill,
+        string $battleType,
+        ?BattleState $state = null,
+    ): float
     {
         if (! $this->featureGate->usesResources($attacker)) {
             return 0.0;
         }
 
+        $directDelta = 0.0;
         $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
         $roleMetadata = $roleCatalog->forArt($skill);
         if ($this->allowsRoleMetadata($attacker, $skill)
             && $roleCatalog->isPortable($skill)
             && is_numeric($roleMetadata['accuracy_delta_points'] ?? null)
         ) {
-            return max(0.0, (float) $roleMetadata['accuracy_delta_points']);
+            $directDelta = max($directDelta, (float) $roleMetadata['accuracy_delta_points']);
         }
 
-        $progressionDelta = ($this->progressionService ?? app(JobArtV2ProgressionService::class))
-            ->accuracyDeltaPoints($attacker, $skill);
-        if ($progressionDelta > 0.0) {
-            return $progressionDelta;
+        $progressionService = $this->progressionService ?? app(JobArtV2ProgressionService::class);
+        $directDelta = max($directDelta, $progressionService->accuracyDeltaPoints($attacker, $skill));
+
+        if ((int) $skill->job_id === 65) {
+            $catalog = $this->prototypeCatalog ?? app(JobArtV2PrototypeCatalog::class);
+            $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
+                ->resolveActor($attacker);
+            $trusted = $resolution->active
+                ? in_array(
+                    $resolution->roleFor($skill),
+                    [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
+                    true,
+                ) && $resolution->blockReasonFor($skill) === null
+                    && (int) $skill->job_id === 65
+                    && $catalog->isTrustedArtProfile($skill)
+                : $catalog->isTrustedCurrentJobArt(65, $skill);
+            if ($trusted) {
+                $metadata = $catalog->artResourceMetadata($skill);
+                $directDelta = max(
+                    $directDelta,
+                    max(0.0, (float) ($metadata['accuracy_delta_points'] ?? 0.0)),
+                );
+            }
         }
 
-        if ((int) $skill->job_id !== 65) {
-            return 0.0;
+        $competitivePolicy = $this->competitiveHitPolicy ?? app(CompetitiveHitPolicy::class);
+        if ($competitivePolicy->supports($battleType) && $this->featureGate->usesRank5V6($attacker)) {
+            $directDelta = max(
+                $directDelta,
+                ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->accuracyBonusPoints($skill),
+            );
         }
 
-        $catalog = $this->prototypeCatalog ?? app(JobArtV2PrototypeCatalog::class);
-        $resolution = ($this->deckRoleResolver ?? app(JobArtV2DeckRoleResolver::class))
-            ->resolveActor($attacker);
-        $trusted = $resolution->active
-            ? in_array(
-                $resolution->roleFor($skill),
-                [JobArtV2DeckRole::MAIN, JobArtV2DeckRole::SECONDARY],
-                true,
-            ) && $resolution->blockReasonFor($skill) === null
-                && (int) $skill->job_id === 65
-                && $catalog->isTrustedArtProfile($skill)
-            : $catalog->isTrustedCurrentJobArt(65, $skill);
-        if (! $trusted) {
-            return 0.0;
-        }
-
-        $metadata = $catalog->artResourceMetadata($skill);
-
-        return max(0.0, (float) ($metadata['accuracy_delta_points'] ?? 0.0));
+        return max(0.0, $directDelta)
+            + ($competitivePolicy->supports($battleType)
+                ? $progressionService->preparedAccuracyDeltaPoints($attacker, $skill, $state)
+                : 0.0);
     }
 
-    /** @return array{agi_factor: float, min_rate: int, max_rate: int} */
+    /** @return array{agi_factor:float,min_rate:int,max_rate:int,aim_max_rate:int} */
     private function hitRules(string $battleType): array
     {
+        $competitivePolicy = $this->competitiveHitPolicy ?? app(CompetitiveHitPolicy::class);
+        if ($competitivePolicy->supports($battleType)) {
+            $rules = $competitivePolicy->rulesFor($battleType);
+
+            return [
+                'agi_factor' => $rules['agi_factor'],
+                'min_rate' => $rules['min_rate'],
+                'max_rate' => $rules['normal_max_rate'],
+                'aim_max_rate' => $rules['aim_max_rate'],
+            ];
+        }
+
         return match ($battleType) {
-            'pvp', 'arena_npc' => ['agi_factor' => 0.08, 'min_rate' => 84, 'max_rate' => 97],
-            'champ' => ['agi_factor' => 0.15, 'min_rate' => 75, 'max_rate' => 98],
-            default => ['agi_factor' => 0.5, 'min_rate' => 70, 'max_rate' => 98],
+            'arena_npc' => ['agi_factor' => 0.08, 'min_rate' => 84, 'max_rate' => 97, 'aim_max_rate' => 97],
+            default => ['agi_factor' => 0.5, 'min_rate' => 70, 'max_rate' => 98, 'aim_max_rate' => 98],
         };
+    }
+
+    private function isCompetitiveAimArt(Skill $skill, string $battleType): bool
+    {
+        $policy = $this->competitiveHitPolicy ?? app(CompetitiveHitPolicy::class);
+
+        return $policy->supports($battleType)
+            && (($this->lineageCatalog ?? app(JobArtLineageCatalog::class))->forArt($skill)['lineage_key'] ?? null) === 'aim';
+    }
+
+    private function criticalBonusPoints(BattleActor $actor, Skill $skill): float
+    {
+        $bonus = ($this->roleEffectService ?? app(JobArtV2RoleEffectService::class))
+            ->criticalBonusPoints($actor, $skill);
+        if ($this->featureGate->usesRank5V6($actor)) {
+            $bonus = max(
+                $bonus,
+                ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))->criticalBonusPoints($skill),
+            );
+        }
+
+        return max(0.0, $bonus);
     }
 
     private function isSureHit(Skill $skill): bool

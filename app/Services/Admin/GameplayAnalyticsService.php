@@ -108,6 +108,7 @@ class GameplayAnalyticsService
                     'misses' => 0,
                     'evades' => 0,
                     'no_resolution' => 0,
+                    'vital_hits' => 0,
                     'wins' => 0,
                 ];
                 $skills[$skillId]['battles']++;
@@ -116,6 +117,7 @@ class GameplayAnalyticsService
                 $skills[$skillId]['misses'] += (int) ($usage['miss_count'] ?? 0);
                 $skills[$skillId]['evades'] += (int) ($usage['evade_count'] ?? 0);
                 $skills[$skillId]['no_resolution'] += (int) ($usage['no_resolution_count'] ?? 0);
+                $skills[$skillId]['vital_hits'] += (int) ($usage['vital_hit_count'] ?? 0);
                 $skills[$skillId]['wins'] += $record->result === 'victory' ? 1 : 0;
             }
         }
@@ -125,6 +127,9 @@ class GameplayAnalyticsService
             $resolved = $row['hits'] + $row['misses'] + $row['evades'];
             $row['name'] = (string) ($masterNames[$row['skill_id']] ?? $row['name']);
             $row['hit_rate'] = $resolved > 0 ? round($row['hits'] / $resolved * 100, 1) : null;
+            $row['vital_hit_rate'] = $row['hits'] > 0
+                ? round($row['vital_hits'] / $row['hits'] * 100, 1)
+                : null;
             $row['win_rate'] = $row['battles'] > 0 ? round($row['wins'] / $row['battles'] * 100, 1) : 0.0;
 
             return $row;

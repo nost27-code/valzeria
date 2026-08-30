@@ -373,7 +373,7 @@ final class JobArtV2RoleEffectCatalog
             'replacement_template' => 'PHYSICAL_DAMAGE',
             'accuracy_delta_points' => 12,
             'preserve_legacy_sure_hit' => true,
-            'effect_texts' => ['この攻撃の命中率を最大+12ポイントする（通常の上限まで・元の命中率は低下しない）'],
+            'effect_texts' => ['この攻撃の命中率を+12ポイントする（照準系譜の命中率上限まで）'],
         ],
         '18:5:クリティカルショット' => [
             'role_key' => 'aim_critical_shot',

@@ -14,6 +14,7 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleStatChangeLogFormatter;
 use App\Services\Battle\BattleTypeAffinity;
+use App\Services\Battle\CompetitiveHitPolicy;
 use App\Services\Battle\DamageApplicationRequest;
 use App\Services\Battle\DamageApplicationResult;
 use App\Services\Battle\DamageApplicationService;
@@ -31,9 +32,6 @@ class ChampBattleService
 {
     private const MATERIAL_CODE = 'MAT_CHAMP_CHALLENGER_FRAGMENT';
     private const MAX_TURNS = BattleState::CHAMP_MAX_TURNS;
-    private const PVP_HIT_AGI_FACTOR = 0.15;
-    private const PVP_MIN_HIT_RATE = 75;
-    private const PVP_MAX_HIT_RATE = 98;
     private const UPSET_DAMAGE_MIN_LEVEL_GAP = 10;
     private const UPSET_DAMAGE_BASE_CHANCE = 12;
     private const UPSET_DAMAGE_CHANCE_PER_10_LEVELS = 3;
@@ -92,12 +90,18 @@ class ChampBattleService
         private JobArtBattleSupportService $jobArtBattleSupport,
         private ?DamageApplicationService $configuredDamageApplicationService = null,
         private ?SpeedExtraActionService $configuredSpeedExtraActionService = null,
+        private ?CompetitiveHitPolicy $configuredCompetitiveHitPolicy = null,
     ) {
     }
 
     private function speedExtraActionService(): SpeedExtraActionService
     {
         return $this->configuredSpeedExtraActionService ??= app(SpeedExtraActionService::class);
+    }
+
+    private function competitiveHitPolicy(): CompetitiveHitPolicy
+    {
+        return $this->configuredCompetitiveHitPolicy ??= app(CompetitiveHitPolicy::class);
     }
 
     private function applyResolvedDamage(
@@ -822,7 +826,14 @@ class ChampBattleService
                 $openingLog .= '<br>'.$jobArtLog;
             }
             $executionSkill = $this->jobArtBattleSupport->skillForExecution($attacker, $jobArt, $jobArtState, $defender);
-            $hitResult = $this->jobArtBattleSupport->resolveHit($attacker, $defender, $executionSkill, 'champ', $jobArtState);
+            $hitResolution = $this->jobArtBattleSupport->resolveHitWithDetails(
+                $attacker,
+                $defender,
+                $executionSkill,
+                'champ',
+                $jobArtState,
+            );
+            $hitResult = $hitResolution?->hitResult;
             if ($hitResult !== null && !$hitResult->landed()) {
                 $openingLog .= '<br>' . $this->jobArtBattleSupport->resolutionFailureLog($jobArt, $hitResult);
             }
@@ -834,8 +845,16 @@ class ChampBattleService
                 $jobArtState,
                 $openingLog,
                 $hitResult,
+                $hitResolution?->vitalHit ?? false,
             );
-            $this->jobArtBattleSupport->completeJobArtCast($attacker, $jobArtState, $jobArt, $hitResult, $defender);
+            $this->jobArtBattleSupport->completeJobArtCast(
+                $attacker,
+                $jobArtState,
+                $jobArt,
+                $hitResult,
+                $defender,
+                $hitResolution?->vitalHit ?? false,
+            );
 
             return $result;
         }
@@ -877,6 +896,7 @@ class ChampBattleService
         BattleState $state,
         ?string $openingLog = null,
         ?HitResult $jobArtHitResult = null,
+        bool $vitalHit = false,
     ): array
     {
         $this->jobArtBattleSupport->markSkillAction($attacker, $state, $skill);
@@ -923,6 +943,9 @@ class ChampBattleService
 
         $totalDamage = 0;
         $logs = [$openingLog ?: "<span class=\"text-blue-600 font-bold\">【必殺技】{$attacker->name} の必殺技、{$skill->name} が発動！</span>"];
+        if ($vitalHit && $applyTargetEffects) {
+            $logs[] = '<span class="text-orange-600 font-extrabold">【急所命中！】狙い澄ました一撃が急所を捉えた！</span>';
+        }
         $affinityMultiplier = BattleTypeAffinity::multiplier($attacker->battleTypeWeights, $defender->battleTypeWeights);
         for ($i = 0; $applyTargetEffects && $i < $hitCount; $i++) {
             $damage = 0;
@@ -943,7 +966,7 @@ class ChampBattleService
                         $defender,
                         'physical',
                         $skillPowerInt,
-                        false,
+                        $vitalHit,
                         $affinityMultiplier,
                         $overrideAtk,
                         $overrideDef,
@@ -956,7 +979,7 @@ class ChampBattleService
                         $defender,
                         'magical',
                         $skillPowerInt,
-                        false,
+                        $vitalHit,
                         $affinityMultiplier,
                         $overrideAtk,
                         $overrideDef,
@@ -973,7 +996,7 @@ class ChampBattleService
                         $defender,
                         'physical',
                         $skillPowerInt,
-                        false,
+                        $vitalHit,
                         $affinityMultiplier,
                         $hybridAtk,
                         $overrideDef,
@@ -1330,13 +1353,14 @@ class ChampBattleService
 
     private function attack(BattleActor $attacker, BattleActor $defender, float $affinityMultiplier, BattleState $state): array
     {
+        $hitRules = $this->competitiveHitPolicy()->rulesFor('champ');
         if (!$this->damageCalculator->isHit(
             $attacker,
             $defender,
             100,
-            self::PVP_HIT_AGI_FACTOR,
-            self::PVP_MIN_HIT_RATE,
-            self::PVP_MAX_HIT_RATE,
+            $hitRules['agi_factor'],
+            $hitRules['min_rate'],
+            $hitRules['normal_max_rate'],
             $this->jobArtBattleSupport->fieldAccuracyDelta($attacker, $state),
         )) {
             return [

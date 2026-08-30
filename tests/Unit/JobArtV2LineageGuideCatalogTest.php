@@ -62,6 +62,16 @@ class JobArtV2LineageGuideCatalogTest extends TestCase
         $this->assertStringContainsString('合計+5', $guides['command']['trait']);
     }
 
+    public function test_aim_guide_explains_competitive_accuracy_overflow_and_separate_vital_hit(): void
+    {
+        $aim = app(JobArtV2LineageGuideCatalog::class)->all()['aim'];
+
+        $this->assertStringContainsString('対人戦', $aim['identity']);
+        $this->assertStringContainsString('命中率100%を超えた分', $aim['identity']);
+        $this->assertStringContainsString('急所命中率', $aim['identity']);
+        $this->assertStringContainsString('通常の会心とは別', $aim['trait']);
+    }
+
     public function test_beginner_guide_exposes_exact_direct_and_common_gain_rules(): void
     {
         $guides = app(JobArtV2LineageGuideCatalog::class)->all();

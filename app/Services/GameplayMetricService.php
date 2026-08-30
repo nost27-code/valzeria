@@ -82,7 +82,7 @@ class GameplayMetricService
             'context' => $context,
             'result' => $this->normalizeBattleResult($result),
             'payload' => [
-                'version' => 1,
+                'version' => 2,
                 'turn_count' => max(0, $turnCount),
                 'activation_count' => collect($usage)->sum(fn (array $row): int => (int) ($row['activation_count'] ?? 0)),
                 'skills' => array_values($usage),

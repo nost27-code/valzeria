@@ -54,16 +54,16 @@
                 <div class="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                     <div class="border-b border-slate-100 px-5 py-4">
                         <h3 class="font-black text-slate-950">発動された戦技</h3>
-                        <p class="mt-1 text-xs font-bold text-slate-400">命中率はHIT/MISS/EVADEを返す攻撃型だけを母数にします。支援型は「判定なし」です。</p>
+                        <p class="mt-1 text-xs font-bold text-slate-400">命中率はHIT/MISS/EVADEを返す攻撃型だけを母数にします。急所命中率はHITを母数にし、支援型は「判定なし」です。</p>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-left text-xs">
-                            <thead class="bg-slate-50 font-black text-slate-500"><tr><th class="px-4 py-3">戦技</th><th class="px-3 py-3 text-right">戦闘</th><th class="px-3 py-3 text-right">発動</th><th class="px-3 py-3 text-right">命中率</th><th class="px-3 py-3 text-right">勝率</th></tr></thead>
+                            <thead class="bg-slate-50 font-black text-slate-500"><tr><th class="px-4 py-3">戦技</th><th class="px-3 py-3 text-right">戦闘</th><th class="px-3 py-3 text-right">発動</th><th class="px-3 py-3 text-right">命中率</th><th class="px-3 py-3 text-right">急所命中</th><th class="px-3 py-3 text-right">勝率</th></tr></thead>
                             <tbody class="divide-y divide-slate-100">
                                 @forelse($jobArt['skillRows'] as $row)
-                                    <tr><td class="px-4 py-3 font-black text-slate-900">{{ $row['name'] }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['battles']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['activations']) }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['hit_rate'] === null ? '判定なし' : $row['hit_rate'].'%' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['win_rate'] }}%</td></tr>
+                                    <tr><td class="px-4 py-3 font-black text-slate-900">{{ $row['name'] }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['battles']) }}</td><td class="px-3 py-3 text-right font-bold">{{ number_format($row['activations']) }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['hit_rate'] === null ? '判定なし' : $row['hit_rate'].'%' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['vital_hit_rate'] === null ? '—' : $row['vital_hit_rate'].'%（'.number_format($row['vital_hits']).'回）' }}</td><td class="px-3 py-3 text-right font-bold">{{ $row['win_rate'] }}%</td></tr>
                                 @empty
-                                    <tr><td colspan="5" class="px-4 py-10 text-center font-bold text-slate-400">期間内の戦技発動実績はありません。</td></tr>
+                                    <tr><td colspan="6" class="px-4 py-10 text-center font-bold text-slate-400">期間内の戦技発動実績はありません。</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

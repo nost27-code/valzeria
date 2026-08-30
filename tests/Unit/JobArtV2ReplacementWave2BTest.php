@@ -169,22 +169,54 @@ final class JobArtV2ReplacementWave2BTest extends TestCase
         }
     }
 
-    public function test_precision_shot_preserves_competitive_legacy_base_hit_and_adds_fifteen_points_in_pve(): void
+    public function test_precision_shot_uses_the_aim_cap_and_vital_hit_in_player_competition_but_keeps_npc_rank_sure_hit(): void
     {
-        foreach (['pvp', 'champ', 'arena_npc'] as $battleType) {
+        foreach (['pvp' => 12.0, 'champ' => 15.0] as $battleType => $vitalChance) {
             foreach (['current', 'inherited'] as $origin) {
                 [$actor, $target] = $this->battle($origin === 'current' ? 4 : 62, $battleType);
                 $precision = $this->attach($actor, $this->art(4, 1), $origin);
-                $random = $this->hitRandom([100]);
+                $random = $this->hitRandom([99, (int) $vitalChance]);
                 $label = $battleType.':'.$origin;
-
-                $this->assertSame(
-                    HitResult::HIT,
-                    $this->actionResolver($random)->resolveJobArt($actor, $target, $precision, $battleType),
-                    $label.' keeps the legacy 100% base hit before active evasion.',
+                $resolution = $this->actionResolver($random)->resolveJobArtWithDetails(
+                    $actor,
+                    $target,
+                    $precision,
+                    $battleType,
                 );
-                $this->assertSame(1, $random->calls, $label);
+
+                $this->assertSame(HitResult::HIT, $resolution?->hitResult, $label);
+                $this->assertSame(105.0, $resolution?->rawHitChance, $label);
+                $this->assertSame(99.0, $resolution?->effectiveHitChance, $label);
+                $this->assertSame(5.0, $resolution?->accuracyOverflow, $label);
+                $this->assertSame($vitalChance, $resolution?->vitalHitChance, $label);
+                $this->assertTrue($resolution?->vitalHit ?? false, $label);
+                $this->assertSame(2, $random->calls, $label);
+
+                $missRandom = $this->hitRandom([100]);
+                $this->assertSame(
+                    HitResult::MISS,
+                    $this->actionResolver($missRandom)->resolveJobArt($actor, $target, $precision, $battleType),
+                    $label.' respects the 99% Aim cap.',
+                );
+                $this->assertSame(1, $missRandom->calls, $label.':miss');
             }
+        }
+
+        foreach (['current', 'inherited'] as $origin) {
+            [$actor, $target] = $this->battle($origin === 'current' ? 4 : 62, 'arena_npc');
+            $precision = $this->attach($actor, $this->art(4, 1), $origin);
+            $random = $this->hitRandom([100]);
+            $resolution = $this->actionResolver($random)->resolveJobArtWithDetails(
+                $actor,
+                $target,
+                $precision,
+                'arena_npc',
+            );
+
+            $this->assertSame(HitResult::HIT, $resolution?->hitResult, $origin);
+            $this->assertSame(100.0, $resolution?->effectiveHitChance, $origin);
+            $this->assertSame(0.0, $resolution?->vitalHitChance, $origin);
+            $this->assertSame(1, $random->calls, $origin);
         }
 
         foreach (['pve', 'boss', 'tower'] as $battleType) {
@@ -298,7 +330,7 @@ final class JobArtV2ReplacementWave2BTest extends TestCase
         $vital = $this->art(3, 5);
         $role = app(JobArtV2RoleEffectService::class);
 
-        // Phase 1 consumes these metadata bonuses only through BattleService's existing PvE critical roll.
+        // PvE keeps the existing global critical roll; competitive Aim arts use the separate Vital Hit roll.
         $this->assertSame(10.0, $role->criticalBonusPoints($actor, $precision));
         $actor->jobArts = [$vital];
         $actor->jobArtOrigins[(int) $vital->id] = 'inherited';
@@ -308,7 +340,7 @@ final class JobArtV2ReplacementWave2BTest extends TestCase
         $target->luk = 0;
         $calculator = new DamageCalculator;
         $this->assertSame(30.0, $calculator->criticalChance($actor, $target, 10));
-        // These pin shared legacy caps; competitive Job Art routes still pass false pending a separate ruling.
+        // These pin shared legacy critical caps; Vital Hit intentionally does not use Luck or these caps.
         mt_srand($this->seedForFirstRoll(20));
         $this->assertTrue($calculator->isDuelCritical($actor, $target, 15));
         mt_srand($this->seedForFirstRoll(21));

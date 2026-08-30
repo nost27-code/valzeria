@@ -151,6 +151,26 @@ class JobArtV2Rank5V6Test extends TestCase
         }
     }
 
+    public function test_aim_rank_five_accuracy_and_critical_values_are_exposed_as_structured_runtime_metadata(): void
+    {
+        $catalog = app(JobArtV2Rank5V6Catalog::class);
+        $expected = [
+            18 => [10.0, 10.0, 0.0],
+            55 => [5.0, 0.0, 0.0],
+            65 => [10.0, 0.0, 0.0],
+            74 => [10.0, 10.0, 0.0],
+            81 => [10.0, 10.0, 25.0],
+            94 => [15.0, 15.0, 0.0],
+        ];
+
+        foreach ($expected as $jobId => [$accuracy, $critical, $missBonus]) {
+            $skill = $this->masterArt($jobId);
+            $this->assertSame($accuracy, $catalog->accuracyBonusPoints($skill), "job {$jobId} accuracy");
+            $this->assertSame($critical, $catalog->criticalBonusPoints($skill), "job {$jobId} critical");
+            $this->assertSame($missBonus, $catalog->missNextAimAccuracyBonusPoints($skill), "job {$jobId} miss bonus");
+        }
+    }
+
     public function test_rank_five_profile_keeps_resource_and_uses_fixed_minimum_without_consumption(): void
     {
         $prototype = app(JobArtV2PrototypeCatalog::class);
@@ -819,6 +839,60 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertCount(1, array_filter($state->logs, static fn (string $log): bool => str_contains($log, '2ラウンド延長')));
     }
 
+    public function test_job81_miss_bonus_is_consumed_by_the_next_damaging_aim_art_only(): void
+    {
+        $rankFive = $this->masterArt(81);
+        $aim = $this->art(401, 4, 1, '精密射撃');
+        $nonAim = $this->art(101, 1, 1, '見切りの呼吸');
+        [$actor, $state] = $this->battle(81, [$rankFive, $aim, $nonAim], 'aim', 4, 'pvp');
+        $progression = app(JobArtV2ProgressionService::class);
+
+        $this->beginAction($actor, $state);
+        $progression->completeJobArtCast($actor, $state->enemy, $state, $rankFive, HitResult::MISS);
+        $this->assertSame(25.0, $actor->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus);
+
+        $this->beginAction($actor, $state);
+        $progression->beginJobArtCast($actor, $state, $nonAim);
+        $this->assertSame(25.0, $actor->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus);
+        $this->assertSame(0.0, $progression->preparedAccuracyDeltaPoints($actor, $nonAim, $state));
+
+        $this->beginAction($actor, $state);
+        $progression->beginJobArtCast($actor, $state, $aim);
+        $this->assertSame(0.0, $actor->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus);
+        $this->assertSame(25.0, $progression->preparedAccuracyDeltaPoints($actor, $aim, $state));
+    }
+
+    public function test_job81_hit_or_evade_does_not_arm_the_next_aim_accuracy_bonus(): void
+    {
+        $rankFive = $this->masterArt(81);
+        [$actor, $state] = $this->battle(81, [$rankFive], 'aim', 4, 'pvp');
+        $progression = app(JobArtV2ProgressionService::class);
+
+        foreach ([HitResult::HIT, HitResult::EVADE] as $result) {
+            $this->beginAction($actor, $state);
+            $progression->completeJobArtCast($actor, $state->enemy, $state, $rankFive, $result);
+            $this->assertSame(0.0, $actor->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus, $result->value);
+        }
+    }
+
+    public function test_job81_miss_bonus_is_not_armed_outside_player_competitive_routes(): void
+    {
+        $rankFive = $this->masterArt(81);
+        $progression = app(JobArtV2ProgressionService::class);
+
+        foreach (['pve', 'arena_npc'] as $battleType) {
+            [$actor, $state] = $this->battle(81, [$rankFive], 'aim', 4, $battleType);
+            $this->beginAction($actor, $state);
+            $progression->completeJobArtCast($actor, $state->enemy, $state, $rankFive, HitResult::MISS);
+
+            $this->assertSame(
+                0.0,
+                $actor->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus,
+                $battleType,
+            );
+        }
+    }
+
     public function test_job91_applies_one_gold_corrosion_charge_without_duplicate_state(): void
     {
         [$actor, $state] = $this->battle(91, [], 'catalyst', 4);
@@ -1126,7 +1200,13 @@ class JobArtV2Rank5V6Test extends TestCase
     }
 
     /** @param list<Skill> $arts @return array{BattleActor, BattleState} */
-    private function battle(int $currentJobId, array $arts, string $resourceKey, int $points): array
+    private function battle(
+        int $currentJobId,
+        array $arts,
+        string $resourceKey,
+        int $points,
+        string $battleType = 'pve',
+    ): array
     {
         $actor = $this->actor($currentJobId);
         $actor->jobArts = $arts;
@@ -1137,7 +1217,7 @@ class JobArtV2Rank5V6Test extends TestCase
         $actor->setResource($resourceKey, $points);
         $enemy = new BattleActor('enemy', false, ['hp' => 1000, 'max_hp' => 1000, 'mp' => 100, 'max_mp' => 100]);
 
-        return [$actor, new BattleState($actor, $enemy)];
+        return [$actor, new BattleState($actor, $enemy, $battleType)];
     }
 
     private function actor(int $currentJobId): BattleActor

@@ -102,7 +102,7 @@ class BattleState
     /** @var array<int, BattleActionResult> */
     private array $battleActionResults = [];
 
-    /** @var array<string, array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int}> */
+    /** @var array<string, array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int}> */
     private array $jobArtUsage = [];
 
     /** @var array<string, string> actor/source action => usage key */
@@ -737,6 +737,7 @@ class BattleState
             'miss_count' => 0,
             'evade_count' => 0,
             'no_resolution_count' => 0,
+            'vital_hit_count' => 0,
         ];
         $this->jobArtUsage[$usageKey]['activation_count']++;
 
@@ -744,7 +745,11 @@ class BattleState
         $this->pendingJobArtUsage[$actorKey.':'.$sourceActionId] = $usageKey;
     }
 
-    public function completeJobArtActivation(BattleActor $actor, ?HitResult $hitResult): void
+    public function completeJobArtActivation(
+        BattleActor $actor,
+        ?HitResult $hitResult,
+        bool $vitalHit = false,
+    ): void
     {
         $actorKey = $this->actorKey($actor);
         $sourceActionId = $this->currentSourceActionId ?? $this->sourceActionSequence;
@@ -761,10 +766,13 @@ class BattleState
             null => 'no_resolution_count',
         };
         $this->jobArtUsage[$usageKey][$counter]++;
+        if ($hitResult === HitResult::HIT && $vitalHit) {
+            $this->jobArtUsage[$usageKey]['vital_hit_count']++;
+        }
         unset($this->pendingJobArtUsage[$pendingKey]);
     }
 
-    /** @return list<array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int}> */
+    /** @return list<array{skill_id:int,name:string,origin:string,activation_count:int,hit_count:int,miss_count:int,evade_count:int,no_resolution_count:int,vital_hit_count:int}> */
     public function jobArtUsageFor(BattleActor $actor): array
     {
         $prefix = $this->actorKey($actor).':';

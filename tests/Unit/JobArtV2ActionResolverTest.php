@@ -5,11 +5,15 @@ namespace Tests\Unit;
 use App\Models\Skill;
 use App\Services\Battle\ActionResolver;
 use App\Services\Battle\BattleActor;
+use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageCalculator;
 use App\Services\Battle\HitResult;
+use App\Services\FieldState;
 use App\Services\JobArtV2ActiveEvasionProvider;
+use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2FeatureGate;
 use App\Services\JobArtV2HitRandomSource;
+use App\Services\JobArtV2ProgressionService;
 use App\Services\JobArtV2PrototypeCatalog;
 use Tests\TestCase;
 
@@ -185,7 +189,7 @@ class JobArtV2ActionResolverTest extends TestCase
         $this->assertSame(1, $random->calls);
     }
 
-    public function test_metadata_free_arts_reuse_each_legacy_job_art_hit_chance(): void
+    public function test_metadata_free_arts_use_the_new_competitive_base_chance_and_keep_npc_rank_sure_hit(): void
     {
         $this->enable();
 
@@ -205,7 +209,22 @@ class JobArtV2ActionResolverTest extends TestCase
             }
         }
 
-        foreach (['pvp', 'champ', 'arena_npc'] as $context) {
+        foreach (['pvp', 'champ'] as $context) {
+            foreach ([[90, HitResult::HIT], [91, HitResult::MISS]] as [$roll, $expected]) {
+                $random = $this->random([$roll]);
+                $result = $this->resolver($random)->resolveJobArt(
+                    $this->actor(85),
+                    $this->actor(null, false),
+                    $this->art(),
+                    $context,
+                );
+
+                $this->assertSame($expected, $result, $context.':'.$roll);
+                $this->assertSame(1, $random->calls, $context.':'.$roll);
+            }
+        }
+
+        foreach (['arena_npc'] as $context) {
             $random = $this->random([100]);
             $result = $this->resolver($random)->resolveJobArt(
                 $this->actor(85),
@@ -253,7 +272,7 @@ class JobArtV2ActionResolverTest extends TestCase
             'boss' => 98,
             'tower' => 98,
             'pvp' => 97,
-            'champ' => 98,
+            'champ' => 97,
             'arena_npc' => 97,
         ] as $context => $boundary) {
             $skill = $this->art();
@@ -279,7 +298,243 @@ class JobArtV2ActionResolverTest extends TestCase
         );
     }
 
-    public function test_legacy_guaranteed_base_hit_path_can_still_be_actively_evaded(): void
+    public function test_competitive_ordinary_job_arts_are_bounded_between_eighty_four_and_ninety_seven_percent(): void
+    {
+        $this->enable();
+
+        foreach (['pvp', 'champ'] as $context) {
+            $fast = $this->actor(24);
+            $fast->agi = $fast->baseAgi = 10_000;
+            $slowTarget = $this->actor(null, false);
+            $slowTarget->agi = $slowTarget->baseAgi = 0;
+
+            $this->assertSame(HitResult::HIT, $this->resolver($this->random([97]))->resolveJobArt(
+                $fast,
+                $slowTarget,
+                $this->art(),
+                $context,
+            ), $context.':upper-hit');
+            $this->assertSame(HitResult::MISS, $this->resolver($this->random([98]))->resolveJobArt(
+                $fast,
+                $slowTarget,
+                $this->art(),
+                $context,
+            ), $context.':upper-miss');
+
+            $slow = $this->actor(24);
+            $slow->agi = $slow->baseAgi = 0;
+            $fastTarget = $this->actor(null, false);
+            $fastTarget->agi = $fastTarget->baseAgi = 10_000;
+
+            $this->assertSame(HitResult::HIT, $this->resolver($this->random([84]))->resolveJobArt(
+                $slow,
+                $fastTarget,
+                $this->art(),
+                $context,
+            ), $context.':lower-hit');
+            $this->assertSame(HitResult::MISS, $this->resolver($this->random([85]))->resolveJobArt(
+                $slow,
+                $fastTarget,
+                $this->art(),
+                $context,
+            ), $context.':lower-miss');
+        }
+    }
+
+    public function test_precision_shot_turns_accuracy_over_one_hundred_into_capped_vital_hit_chance(): void
+    {
+        $this->enableAimMetadata();
+        $skill = $this->precisionShot();
+
+        $pvpRandom = $this->random([99, 12]);
+        $pvp = $this->resolver($pvpRandom)->resolveJobArtWithDetails(
+            $this->actor(4),
+            $this->actor(null, false),
+            $skill,
+            'pvp',
+        );
+        $this->assertSame(HitResult::HIT, $pvp?->hitResult);
+        $this->assertSame(105.0, $pvp?->rawHitChance);
+        $this->assertSame(99.0, $pvp?->effectiveHitChance);
+        $this->assertSame(5.0, $pvp?->accuracyOverflow);
+        $this->assertSame(12.0, $pvp?->vitalHitChance, '5 overflow + 10 card bonus is capped at 12% in PvP.');
+        $this->assertTrue($pvp?->vitalHit ?? false);
+        $this->assertSame(2, $pvpRandom->calls);
+
+        $champRandom = $this->random([99, 15]);
+        $champ = $this->resolver($champRandom)->resolveJobArtWithDetails(
+            $this->actor(4),
+            $this->actor(null, false),
+            $skill,
+            'champ',
+        );
+        $this->assertSame(15.0, $champ?->vitalHitChance);
+        $this->assertTrue($champ?->vitalHit ?? false);
+        $this->assertSame(2, $champRandom->calls);
+
+        $failedVital = $this->resolver($this->random([99, 16]))->resolveJobArtWithDetails(
+            $this->actor(4),
+            $this->actor(null, false),
+            $skill,
+            'champ',
+        );
+        $this->assertFalse($failedVital?->vitalHit ?? true);
+    }
+
+    public function test_competitive_aim_art_does_not_roll_vital_hit_after_miss_or_active_evasion(): void
+    {
+        $this->enableAimMetadata();
+        $skill = $this->precisionShot();
+
+        $missRandom = $this->random([100, 1]);
+        $miss = $this->resolver($missRandom)->resolveJobArtWithDetails(
+            $this->actor(4),
+            $this->actor(null, false),
+            $skill,
+            'pvp',
+        );
+        $this->assertSame(HitResult::MISS, $miss?->hitResult);
+        $this->assertFalse($miss?->vitalHit ?? true);
+        $this->assertSame(1, $missRandom->calls);
+
+        $evadeRandom = $this->random([99, 1, 1]);
+        $evaded = $this->resolver($evadeRandom, $this->evasion(100))->resolveJobArtWithDetails(
+            $this->actor(4),
+            $this->actor(null, false),
+            $skill,
+            'pvp',
+        );
+        $this->assertSame(HitResult::EVADE, $evaded?->hitResult);
+        $this->assertFalse($evaded?->vitalHit ?? true);
+        $this->assertSame(2, $evadeRandom->calls);
+    }
+
+    public function test_observation_field_stacks_with_precision_shot_and_reaches_the_champ_vital_cap(): void
+    {
+        $this->enableAimMetadata();
+        config(['battle.job_art_v2.fields' => true]);
+        $attacker = $this->actor(4);
+        $defender = $this->actor(null, false);
+        $state = new BattleState($attacker, $defender, 'champ');
+        $state->replacePrimaryField(new FieldState('observation', 'player', 3, 1, 1, 1));
+        app(JobArtBattleSupportService::class)->beginAction($attacker, $state);
+        $random = $this->random([99, 20]);
+
+        $resolution = $this->resolver($random)->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $this->precisionShot(),
+            'champ',
+            $state,
+        );
+
+        $this->assertSame(HitResult::HIT, $resolution?->hitResult);
+        $this->assertSame(110.0, $resolution?->rawHitChance);
+        $this->assertSame(10.0, $resolution?->accuracyOverflow);
+        $this->assertSame(20.0, $resolution?->vitalHitChance);
+        $this->assertTrue($resolution?->vitalHit ?? false);
+        $this->assertSame(2, $random->calls);
+    }
+
+    public function test_next_aim_accuracy_bonus_stacks_once_with_card_accuracy_before_vital_cap(): void
+    {
+        $this->enableAimMetadata();
+        config(['battle.job_art_v2.rank5_v6' => true]);
+        $attacker = $this->actor(81);
+        $defender = $this->actor(null, false);
+        $state = new BattleState($attacker, $defender, 'pvp');
+        $attacker->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus = 25.0;
+        app(JobArtBattleSupportService::class)->beginAction($attacker, $state);
+        $skill = $this->precisionShot();
+        app(JobArtV2ProgressionService::class)->beginJobArtCast($attacker, $state, $skill);
+        $random = $this->random([99, 12]);
+
+        $resolution = $this->resolver($random)->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            'pvp',
+            $state,
+        );
+
+        $this->assertSame(0.0, $attacker->jobArtV2ProgressionState()->rank5V6NextAimAccuracyBonus);
+        $this->assertSame(130.0, $resolution?->rawHitChance);
+        $this->assertSame(30.0, $resolution?->accuracyOverflow);
+        $this->assertSame(12.0, $resolution?->vitalHitChance);
+        $this->assertTrue($resolution?->vitalHit ?? false);
+    }
+
+    public function test_rank_five_aim_accuracy_metadata_is_limited_to_player_competitive_routes(): void
+    {
+        $this->enableAimMetadata();
+        config(['battle.job_art_v2.rank5_v6' => true]);
+        $skill = new Skill([
+            'job_id' => 81,
+            'learn_rank' => 5,
+            'name' => '黒焔魔皇破',
+            'skill_type' => 'job_art',
+            'effect_template' => 'PHYSICAL_DAMAGE',
+            'hit_count' => 1,
+        ]);
+        $skill->setAttribute('id', 9_815);
+        $attacker = $this->actor(81);
+        $defender = $this->actor(null, false);
+
+        $pvp = $this->resolver($this->random([99, 10]))->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            'pvp',
+        );
+        $this->assertSame(100.0, $pvp?->rawHitChance);
+        $this->assertSame(10.0, $pvp?->vitalHitChance);
+        $this->assertTrue($pvp?->vitalHit ?? false);
+
+        $npc = $this->resolver($this->random([100]))->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            'arena_npc',
+        );
+        $this->assertSame(HitResult::HIT, $npc?->hitResult);
+        $this->assertSame(100.0, $npc?->effectiveHitChance);
+        $this->assertSame(0.0, $npc?->vitalHitChance);
+
+        $pve = $this->resolver($this->random([91]))->resolveJobArtWithDetails(
+            $attacker,
+            $defender,
+            $skill,
+            'pve',
+        );
+        $this->assertSame(HitResult::MISS, $pve?->hitResult);
+        $this->assertSame(90.0, $pve?->rawHitChance);
+    }
+
+    public function test_explicit_sure_hit_never_creates_accuracy_overflow_or_vital_hit(): void
+    {
+        $this->enableAimMetadata();
+        $skill = $this->precisionShot();
+        $skill->setAttribute('sure_hit', true);
+        $random = $this->random([1]);
+
+        $result = $this->resolver($random)->resolveJobArtWithDetails(
+            $this->actor(4),
+            $this->actor(null, false),
+            $skill,
+            'pvp',
+        );
+
+        $this->assertSame(HitResult::HIT, $result?->hitResult);
+        $this->assertTrue($result?->sureHit ?? false);
+        $this->assertNull($result?->rawHitChance);
+        $this->assertNull($result?->effectiveHitChance);
+        $this->assertSame(0.0, $result?->accuracyOverflow);
+        $this->assertSame(0.0, $result?->vitalHitChance);
+        $this->assertFalse($result?->vitalHit ?? true);
+        $this->assertSame(0, $random->calls);
+    }
+
+    public function test_npc_rank_guaranteed_base_hit_path_can_still_be_actively_evaded(): void
     {
         $this->enable();
         $random = $this->random([100, 1]);
@@ -288,7 +543,7 @@ class JobArtV2ActionResolverTest extends TestCase
             $this->actor(24),
             $this->actor(null, false),
             $this->art(),
-            'pvp',
+            'arena_npc',
         );
 
         $this->assertSame(HitResult::EVADE, $result);
@@ -344,7 +599,7 @@ class JobArtV2ActionResolverTest extends TestCase
         $this->assertSame($before, [serialize($attacker), serialize($defender)]);
     }
 
-    public function test_single_and_multi_hit_average_damage_matches_legacy_for_every_context(): void
+    public function test_single_and_multi_hit_average_damage_matches_each_context_base_chance(): void
     {
         $this->enable();
 
@@ -352,7 +607,7 @@ class JobArtV2ActionResolverTest extends TestCase
             foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $context) {
                 foreach ([1, 5] as $hits) {
                     $trials = 10_000;
-                    $legacyChance = in_array($context, ['pvp', 'champ', 'arena_npc'], true) ? 100 : 90;
+                    $legacyChance = $context === 'arena_npc' ? 100 : 90;
                     $legacyRandom = $this->cyclingRandom();
                     $legacyDamage = 0;
                     for ($battle = 0; $battle < $trials; $battle++) {
@@ -389,6 +644,15 @@ class JobArtV2ActionResolverTest extends TestCase
         config([
             'battle.job_art_v2.dynamic_single' => true,
             'battle.job_art_v2.hit_resolution' => true,
+        ]);
+    }
+
+    private function enableAimMetadata(): void
+    {
+        $this->enable();
+        config([
+            'battle.job_art_v2.damage_application' => true,
+            'battle.job_art_v2.resources' => true,
         ]);
     }
 
@@ -474,6 +738,21 @@ class JobArtV2ActionResolverTest extends TestCase
             'hit_count' => 3,
         ]);
         $skill->setAttribute('id', 9001);
+
+        return $skill;
+    }
+
+    private function precisionShot(): Skill
+    {
+        $skill = new Skill([
+            'job_id' => 4,
+            'learn_rank' => 1,
+            'name' => '精密射撃',
+            'skill_type' => 'job_art',
+            'effect_template' => 'PHYSICAL_DAMAGE',
+            'hit_count' => 1,
+        ]);
+        $skill->setAttribute('id', 9401);
 
         return $skill;
     }
