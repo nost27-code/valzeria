@@ -97,6 +97,8 @@ class ActionResolver
 
         $evasionRate = max(0.0, min(100.0, $this->activeEvasion->rate($attacker, $defender, $skill, $battleType)));
         if ($evasionRate > 0.0 && $this->random->percentRoll() <= $evasionRate) {
+            $this->activeEvasion->consumeMarkOnSuccessfulEvasion($attacker, $defender);
+
             return new JobArtHitResolution(
                 HitResult::EVADE,
                 $rawHitChance,

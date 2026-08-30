@@ -60,6 +60,10 @@ class JobArtV2LineageGuideCatalogTest extends TestCase
         ], $guides['guard']['additional_gains']);
         $this->assertSame(['通常攻撃HIT +4', '戦技以外の手番 +1'], $guides['command']['additional_gains']);
         $this->assertStringContainsString('合計+5', $guides['command']['trait']);
+        $this->assertStringContainsString(
+            '能動回避し、成功するとその標的印を1段階消費します',
+            $guides['hunt']['trait'],
+        );
     }
 
     public function test_aim_guide_explains_competitive_accuracy_overflow_and_separate_vital_hit(): void

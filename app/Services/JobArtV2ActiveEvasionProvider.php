@@ -16,4 +16,10 @@ class JobArtV2ActiveEvasionProvider
         return ($this->progressionService ?? app(JobArtV2ProgressionService::class))
             ->activeEvasionRate($attacker, $defender) * 100;
     }
+
+    public function consumeMarkOnSuccessfulEvasion(BattleActor $attacker, BattleActor $defender): bool
+    {
+        return ($this->progressionService ?? app(JobArtV2ProgressionService::class))
+            ->consumeHuntingMarksFor($attacker, $defender, 1);
+    }
 }

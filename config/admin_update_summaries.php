@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-30-hunt-active-evasion-mark-consumption',
+        'date' => '2026-08-30',
+        'category' => 'balance',
+        'title' => '封狩の能動回避成功で標的印を消費',
+        'detail' => '封狩の標的印による能動回避が成功した時、その標的印を1段階消費するよう調整しました。基礎命中でMISSになった時や、能動回避に失敗した時は消費しません。',
+    ],
+    [
         'id' => '2026-08-30-counter-attack-body-damage',
         'date' => '2026-08-30',
         'category' => 'balance',

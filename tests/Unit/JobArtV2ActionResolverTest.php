@@ -133,6 +133,7 @@ class JobArtV2ActionResolverTest extends TestCase
         $this->assertSame(HitResult::MISS, $result);
         $this->assertSame(1, $random->calls);
         $this->assertSame(0, $evasion->calls);
+        $this->assertSame(0, $evasion->consumes);
     }
 
     public function test_active_evasion_is_rolled_only_after_base_hit(): void
@@ -151,6 +152,7 @@ class JobArtV2ActionResolverTest extends TestCase
         $this->assertSame(HitResult::EVADE, $result);
         $this->assertSame(2, $random->calls);
         $this->assertSame(1, $evasion->calls);
+        $this->assertSame(1, $evasion->consumes);
     }
 
     public function test_base_hit_and_failed_active_evasion_returns_hit(): void
@@ -169,6 +171,31 @@ class JobArtV2ActionResolverTest extends TestCase
         $this->assertSame(HitResult::HIT, $result);
         $this->assertSame(2, $random->calls);
         $this->assertSame(1, $evasion->calls);
+        $this->assertSame(0, $evasion->consumes);
+    }
+
+    public function test_successful_active_evasion_consumes_only_the_defenders_target_mark(): void
+    {
+        $this->enableAimMetadata();
+        $attacker = $this->actor(53);
+        $defender = $this->actor(64);
+        $otherHunter = $this->actor(64);
+        $defenderKey = 'actor:' . spl_object_id($defender);
+        $otherHunterKey = 'actor:' . spl_object_id($otherHunter);
+        $state = $attacker->jobArtV2ProgressionState();
+        $state->huntingMarks[$defenderKey] = 2;
+        $state->huntingMarks[$otherHunterKey] = 3;
+
+        $result = $this->resolver($this->random([1, 1]))->resolveJobArt(
+            $attacker,
+            $defender,
+            $this->art(),
+            'pvp',
+        );
+
+        $this->assertSame(HitResult::EVADE, $result);
+        $this->assertSame(1, $state->huntingMarks[$defenderKey]);
+        $this->assertSame(3, $state->huntingMarks[$otherHunterKey]);
     }
 
     public function test_sure_hit_skips_only_the_base_miss_roll(): void
@@ -704,6 +731,8 @@ class JobArtV2ActionResolverTest extends TestCase
         {
             public int $calls = 0;
 
+            public int $consumes = 0;
+
             public function __construct(private readonly float $rate)
             {
             }
@@ -713,6 +742,13 @@ class JobArtV2ActionResolverTest extends TestCase
                 $this->calls++;
 
                 return $this->rate;
+            }
+
+            public function consumeMarkOnSuccessfulEvasion(BattleActor $attacker, BattleActor $defender): bool
+            {
+                $this->consumes++;
+
+                return true;
             }
         };
     }
