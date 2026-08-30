@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-exclusive-character-icon-040',
+        'date' => '2026-08-31',
+        'category' => 'internal',
+        'title' => '白猫専用キャラアイコンを追加',
+        'detail' => '白猫さん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-08-30-hunt-active-evasion-mark-consumption',
         'date' => '2026-08-30',
         'category' => 'balance',
