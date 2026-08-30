@@ -14,6 +14,8 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 称号一覧で、獲得から3日以内の称号に `NEW` を表示するようにしました。新しく手に入れた称号を見つけやすくなります。
+
 - キャラアイコン制作ページに、花びら・蝶・光など周囲に浮かぶ演出エフェクトは基本的に描かない方針を追加しました。衣装や髪飾りなど、キャラクター自身の装飾は引き続き相談できます。
 
 ### Balance

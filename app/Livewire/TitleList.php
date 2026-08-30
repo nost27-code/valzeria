@@ -2,15 +2,19 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
 use App\Models\Title;
-use Illuminate\Support\Facades\Auth;
 use App\Services\TitleService;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Component;
 
 class TitleList extends Component
 {
+    private const NEW_BADGE_DAYS = 3;
+
     public $titles = [];
+
     public $characterTitles = [];
+
     public $summary = [
         'unlocked_count' => 0,
         'total_count' => 0,
@@ -29,14 +33,23 @@ class TitleList extends Component
         if (Auth::check()) {
             $character = Auth::user()->currentCharacter();
             if ($character) {
+                $now = now();
+                $newBadgeCutoff = $now->copy()->subDays(self::NEW_BADGE_DAYS);
+
                 $this->characterTitles = $character->titles()
                     ->get(['title_id', 'is_equipped', 'created_at'])
-                    ->mapWithKeys(fn ($row) => [
-                        $row->title_id => [
-                            'is_equipped' => (bool) $row->is_equipped,
-                            'unlocked_at' => optional($row->created_at)->format('Y/m/d'),
-                        ],
-                    ])
+                    ->mapWithKeys(function ($row) use ($newBadgeCutoff, $now) {
+                        $unlockedAt = $row->created_at;
+
+                        return [
+                            $row->title_id => [
+                                'is_equipped' => (bool) $row->is_equipped,
+                                'unlocked_at' => optional($unlockedAt)->format('Y/m/d'),
+                                'is_new' => $unlockedAt !== null
+                                    && $unlockedAt->betweenIncluded($newBadgeCutoff, $now),
+                            ],
+                        ];
+                    })
                     ->toArray();
             }
         }
@@ -74,7 +87,7 @@ class TitleList extends Component
                 // 左サイドバーに更新を通知
                 $this->dispatch('character-updated');
                 $this->dispatch('titleEquipped');
-                
+
                 session()->flash('message', '称号を変更しました！');
             }
         }

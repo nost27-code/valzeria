@@ -53,6 +53,7 @@
             @php
                 $isUnlocked = isset($characterTitles[$title['id']]);
                 $isEquipped = (bool) ($characterTitles[$title['id']]['is_equipped'] ?? false);
+                $isNew = (bool) ($characterTitles[$title['id']]['is_new'] ?? false);
                 $rarity = strtolower((string) ($title['rarity'] ?? 'common'));
                 $rarityBadgeClass = $rarityClass[$rarity] ?? $rarityClass['common'];
                 $displayName = $isUnlocked ? $title['name'] : '？？？';
@@ -73,6 +74,13 @@
                     <div class="min-w-0 flex-1">
                         <div class="break-words text-sm font-black leading-tight {{ $isUnlocked ? 'text-slate-900' : 'text-slate-400' }}">{{ $displayName }}</div>
                         <div class="mt-1 flex flex-wrap gap-1">
+                            @if($isNew)
+                                <span
+                                    data-title-new-badge="{{ (int) $title['id'] }}"
+                                    title="獲得から3日以内"
+                                    class="rounded border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[10px] font-black leading-none tracking-wide text-white shadow-sm"
+                                >NEW</span>
+                            @endif
                             <span class="rounded border px-1.5 py-0.5 text-[10px] font-black leading-none {{ $rarityBadgeClass }}">{{ $rarityLabels[$rarity] ?? strtoupper($rarity) }}</span>
                             @if($isEquipped)
                                 <span class="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-black leading-none text-amber-800">装備中</span>

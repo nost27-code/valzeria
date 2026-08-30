@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-30-recent-title-new-badge',
+        'date' => '2026-08-30',
+        'category' => 'changed',
+        'title' => '新しく獲得した称号を見つけやすく改善',
+        'detail' => '称号一覧で、獲得から3日以内の称号に「NEW」を表示するようにしました。新しく手に入れた称号をひと目で確認できます。',
+    ],
+    [
         'id' => '2026-08-30-achievement-title-expansion',
         'date' => '2026-08-30',
         'category' => 'added',
