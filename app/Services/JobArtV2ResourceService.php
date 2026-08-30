@@ -392,14 +392,18 @@ class JobArtV2ResourceService
         );
     }
 
-    public function recordPhysicalAttackReceived(BattleActor $actor, BattleState $state): ResourceChangeResult
+    public function recordDirectAttackDamageReceived(
+        BattleActor $actor,
+        BattleState $state,
+        bool $deferLogAfterDamage = true,
+    ): ResourceChangeResult
     {
         return $this->recordConfiguredGain(
             $actor,
             $state,
-            ResourceEvent::PHYSICAL_ATTACK_RECEIVED,
-            'physical_attack_received_gain_points',
-            true,
+            ResourceEvent::DIRECT_ATTACK_DAMAGE_RECEIVED,
+            'direct_attack_damage_received_gain_points',
+            $deferLogAfterDamage,
         );
     }
 

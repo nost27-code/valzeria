@@ -34,10 +34,11 @@ class DamageApplicationService
         }
 
         $hpBefore = $request->targetActor->hp;
+        $gutsReadyBefore = $request->targetActor->gutsReady;
         $request->targetActor->takeDamage($resolvedDamage);
         $hpAfter = $request->targetActor->hp;
 
-        return new DamageApplicationResult(
+        $result = new DamageApplicationResult(
             requestedDamage: $resolvedDamage,
             hpBefore: $hpBefore,
             hpAfter: $hpAfter,
@@ -50,5 +51,21 @@ class DamageApplicationService
             hitIndex: $request->hitIndex,
             hitCount: $request->hitCount,
         );
+
+        if ($defenseService !== null
+            && $request->battleState !== null
+            && $request->directAttackResolution !== null
+        ) {
+            $defenseService->completeDamageApplication(
+                $request->battleState,
+                $request->directAttackResolution,
+                $result,
+                $gutsReadyBefore
+                    && ! $request->targetActor->gutsReady
+                    && $request->targetActor->gutsJustTriggered,
+            );
+        }
+
+        return $result;
     }
 }

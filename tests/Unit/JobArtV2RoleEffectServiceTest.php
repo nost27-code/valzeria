@@ -600,7 +600,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame(1_100, $service->modifyJobArtDamage($actor, $state, $pierceRankFive, 1_000));
     }
 
-    public function test_colosseum_multiplier_uses_and_consumes_the_physical_received_window(): void
+    public function test_colosseum_multiplier_uses_and_consumes_the_direct_attack_damage_window(): void
     {
         [$actor, , $state] = $this->battle(60);
         $service = $this->service();
@@ -610,7 +610,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $service->beginJobArtCast($actor, $state, $art);
         $this->assertSame(1_000, $service->modifyJobArtDamage($actor, $state, $art, 1_000));
 
-        $service->recordPhysicalAttackReceived($actor);
+        $service->recordDirectAttackDamageReceived($actor);
         $this->beginAction($service, $actor, $state);
         $service->beginJobArtCast($actor, $state, $art);
         $this->assertTrue((bool) ($state->jobArtV2RoleAction()['conditional_multiplier_applied'] ?? false));
@@ -1344,7 +1344,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $expected = mt_rand();
         mt_srand(61_001);
         $service->beginAction($actor, $state, $sourceActionId);
-        $service->recordPhysicalAttackReceived($actor);
+        $service->recordDirectAttackDamageReceived($actor);
         $service->markNonJobArtAction($actor);
         $service->applyForExecution($actor, $target, $state, $source, $execution);
         $service->beginJobArtCast($actor, $state, $source);
@@ -1359,7 +1359,7 @@ final class JobArtV2RoleEffectServiceTest extends TestCase
         $this->assertSame($prepared, $actor->jobArtV2PreparedEffect('strict-before-off'));
         $this->assertSame(2, $timed->remainingRounds);
         $this->assertFalse($target->isJobArtV2Appraised());
-        $this->assertFalse($actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot());
+        $this->assertFalse($actor->consumeDirectAttackDamageReceivedSinceOwnActionSnapshot());
         $this->assertSame([], $state->jobArtV2RoleAction());
         $this->assertSame([], $state->logs);
     }

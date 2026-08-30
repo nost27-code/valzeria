@@ -200,7 +200,7 @@ class JobArtV2MixedLineageIntegrationTest extends TestCase
         app(JobArtV2ResourceService::class)->beginAction($counterAttacker, $counterState);
         $parryResolution = $this->directResolution($counterState, $counterAttacker, $counter);
         $this->assertSame(0, $defense->resolveDamage($counterState, $parryResolution, 100));
-        $this->assertSame(2, $counter->getResource('sword_momentum'));
+        $this->assertSame(1, $counter->getResource('sword_momentum'));
     }
 
     public function test_inherited_arts_receive_their_full_written_v2_effects(): void

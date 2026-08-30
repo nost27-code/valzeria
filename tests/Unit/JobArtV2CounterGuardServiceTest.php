@@ -98,7 +98,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertSame(0.25, $actor->counterStanceState()?->parryRate);
     }
 
-    public function test_parry_rolls_once_for_a_multihit_action_and_allows_both_counter_events(): void
+    public function test_parry_rolls_once_for_a_multihit_action_and_only_grants_the_parry_event(): void
     {
         [$counter, $attacker, $state] = $this->battle(60);
         $random = new FixedParryRandomSource([20]);
@@ -114,7 +114,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertSame([0, 0], [$first->requestedDamage, $second->requestedDamage]);
         $this->assertSame(10_000, $counter->hp);
         $this->assertSame(1, $random->calls);
-        $this->assertSame(6, $counter->getResource('sword_momentum'));
+        $this->assertSame(5, $counter->getResource('sword_momentum'));
         $this->assertNotNull($counter->counterStanceState());
 
         $parry = collect($state->parryResults())->last();
@@ -136,46 +136,166 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $hud = app(JobArtV2BattleHudService::class)->present($state);
         $incoming = collect($hud['actions'])->firstWhere('action_kind', 'incoming_attack');
         $this->assertNotNull($incoming);
-        $this->assertSame(2, collect($incoming['changes'])->firstWhere('type', 'resource')['delta']);
+        $this->assertSame(1, collect($incoming['changes'])->firstWhere('type', 'resource')['delta']);
         $this->assertTrue(collect($incoming['changes'])->firstWhere('type', 'parry')['success']);
     }
 
-    public function test_counter_received_event_is_hit_only_direct_physical_and_deduplicated_per_action(): void
+    public function test_counter_received_event_requires_survived_direct_hp_damage_and_is_once_per_action(): void
     {
         [$counter, $attacker, $state] = $this->battle(60);
-        $random = new FixedParryRandomSource([100, 100]);
+        $random = new FixedParryRandomSource([100, 100, 100]);
         $defense = $this->defense($random);
+        $application = new DamageApplicationService($defense);
 
         $this->resources()->beginAction($attacker, $state);
-        $sourceActionId = $state->currentSourceActionId();
-        $physical = new DirectAttackResolution($sourceActionId, $attacker, $counter, HitResult::HIT, 'physical', true, BattleActionType::NORMAL_ATTACK);
-        $this->assertSame(100, $defense->resolveDamage($state, $physical, 100));
-        $this->assertSame(100, $defense->resolveDamage($state, $physical, 100));
+        $this->applyDirect($application, $state, $attacker, $counter, 100, 'physical', HitResult::HIT, 1, 2);
+        $this->assertSame(0, $counter->getResource('sword_momentum'));
+        $this->applyDirect($application, $state, $attacker, $counter, 100, 'physical', HitResult::HIT, 2, 2);
+        $this->assertSame(0, $counter->getResource('sword_momentum'));
+        $defense->completeDirectAttackAction($attacker, $state);
         $this->assertSame(1, $counter->getResource('sword_momentum'));
         $this->resources()->finishAction($attacker, $state);
 
-        foreach ([
-            [HitResult::MISS, 'physical', true, BattleActionType::NORMAL_ATTACK],
-            [HitResult::EVADE, 'physical', true, BattleActionType::NORMAL_ATTACK],
-            [HitResult::HIT, 'magical', true, BattleActionType::NORMAL_ATTACK],
-            [HitResult::HIT, 'physical', false, BattleActionType::CURRENT_JOB_SKILL],
-        ] as [$hitResult, $category, $direct, $actionType]) {
+        $this->resources()->beginAction($attacker, $state);
+        $this->applyDirect($application, $state, $attacker, $counter, 100, 'magical');
+        $defense->completeDirectAttackAction($attacker, $state);
+        $this->assertSame(2, $counter->getResource('sword_momentum'));
+        $this->resources()->finishAction($attacker, $state);
+
+        foreach ([HitResult::MISS, HitResult::EVADE] as $hitResult) {
             $this->resources()->beginAction($attacker, $state);
             $excluded = new DirectAttackResolution(
                 $state->currentSourceActionId(),
                 $attacker,
                 $counter,
                 $hitResult,
-                $category,
-                $direct,
-                $actionType,
+                'physical',
+                true,
+                BattleActionType::NORMAL_ATTACK,
             );
-            $this->assertSame(100, $defense->resolveDamage($state, $excluded, 100));
+            $application->apply(new DamageApplicationRequest(
+                sourceActor: $attacker,
+                targetActor: $counter,
+                resolvedDamage: 100,
+                sourceType: DamageSourceType::NORMAL_ATTACK,
+                sourceId: null,
+                battleType: $state->battleType,
+                hitResult: $hitResult,
+                battleState: $state,
+                directAttackResolution: $excluded,
+            ));
             $this->resources()->finishAction($attacker, $state);
         }
 
-        $this->assertSame(1, $counter->getResource('sword_momentum'));
+        $this->resources()->beginAction($attacker, $state);
+        $application->apply(new DamageApplicationRequest(
+            sourceActor: $attacker,
+            targetActor: $counter,
+            resolvedDamage: 100,
+            sourceType: DamageSourceType::OTHER,
+            sourceId: null,
+            battleType: $state->battleType,
+            hitResult: HitResult::HIT,
+            battleState: $state,
+        ));
+        $this->resources()->finishAction($attacker, $state);
+
+        $this->assertSame(2, $counter->getResource('sword_momentum'));
         $this->assertSame(0, $random->calls);
+    }
+
+    public function test_counter_received_event_excludes_lethal_and_guts_outcomes(): void
+    {
+        foreach ([false, true] as $usesGuts) {
+            [$counter, $attacker, $state] = $this->battle(60);
+            $counter->hp = 50;
+            $counter->gutsReady = $usesGuts;
+            $defense = $this->defense(new FixedParryRandomSource([100]));
+            $application = new DamageApplicationService($defense);
+
+            $this->resources()->beginAction($attacker, $state);
+            $this->applyDirect($application, $state, $attacker, $counter, 100, 'physical');
+            $defense->completeDirectAttackAction($attacker, $state);
+            $this->resources()->finishAction($attacker, $state);
+
+            $this->assertSame($usesGuts ? 1 : 0, $counter->hp);
+            $this->assertSame(0, $counter->getResource('sword_momentum'));
+        }
+    }
+
+    public function test_counter_received_event_excludes_indirect_fixed_self_reflect_and_counter_sources(): void
+    {
+        foreach ([
+            DamageSourceType::DOT,
+            DamageSourceType::SELF_DAMAGE,
+            DamageSourceType::RECOIL,
+            DamageSourceType::COUNTER,
+            DamageSourceType::REFLECT,
+            DamageSourceType::FIXED,
+            DamageSourceType::PURE,
+        ] as $sourceType) {
+            [$counter, $attacker, $state] = $this->battle(60);
+            $application = new DamageApplicationService($this->defense(new FixedParryRandomSource([100])));
+
+            $this->resources()->beginAction($attacker, $state);
+            $application->apply(new DamageApplicationRequest(
+                sourceActor: $attacker,
+                targetActor: $counter,
+                resolvedDamage: 100,
+                sourceType: $sourceType,
+                sourceId: null,
+                battleType: $state->battleType,
+                hitResult: HitResult::HIT,
+                battleState: $state,
+                directAttackResolution: new DirectAttackResolution(
+                    sourceActionId: $state->currentSourceActionId(),
+                    attacker: $attacker,
+                    target: $counter,
+                    hitResult: HitResult::HIT,
+                    damageCategory: 'physical',
+                    direct: true,
+                    actionType: BattleActionType::CURRENT_JOB_SKILL,
+                ),
+            ));
+            $this->resources()->finishAction($attacker, $state);
+
+            $this->assertSame(0, $counter->getResource('sword_momentum'), $sourceType->value);
+        }
+    }
+
+    public function test_counter_received_event_accepts_a_champ_style_aggregated_multihit_result(): void
+    {
+        [$counter, $attacker, $state] = $this->battle(60, null, 'champ');
+        $defense = $this->defense(new FixedParryRandomSource([100]));
+        $application = new DamageApplicationService($defense);
+
+        $this->resources()->beginAction($attacker, $state);
+        $this->applyDirect($application, $state, $attacker, $counter, 300, 'magical', HitResult::HIT, 3, 3);
+        $defense->completeDirectAttackAction($attacker, $state);
+        $this->resources()->finishAction($attacker, $state);
+
+        $this->assertSame(1, $counter->getResource('sword_momentum'));
+    }
+
+    public function test_counter_received_event_finalizes_when_the_last_multihit_attempt_does_not_apply_damage(): void
+    {
+        [$counter, $attacker, $state] = $this->battle(60);
+        $defense = $this->defense(new FixedParryRandomSource([100]));
+        $application = new DamageApplicationService($defense);
+
+        $this->resources()->beginAction($attacker, $state);
+        $this->applyDirect($application, $state, $attacker, $counter, 100, 'physical', HitResult::HIT, 1, 2);
+        $this->assertSame(0, $counter->getResource('sword_momentum'));
+
+        // 2段目がMISS等でdamage適用まで来なくても、1段目の実HP減少を行動終了時に確定する。
+        $state->addDamageLog('1段目で100のダメージ！');
+        $defense->completeDirectAttackAction($attacker, $state);
+        $this->resources()->finishAction($attacker, $state);
+
+        $this->assertSame(1, $counter->getResource('sword_momentum'));
+        $this->assertSame('1段目で100のダメージ！', $state->logs[0]);
+        $this->assertStringContainsString('剣勢 +1', $state->logs[1]);
+        $this->assertSame([], $state->pullDeferredDamageLogs());
     }
 
     public function test_parry_uses_the_twenty_percent_boundary_without_reclassifying_a_failed_hit(): void
@@ -196,10 +316,24 @@ class JobArtV2CounterGuardServiceTest extends TestCase
             BattleActionType::NORMAL_ATTACK,
         );
 
-        $this->assertSame(100, $defense->resolveDamage($state, $resolution, 100));
+        $application = new DamageApplicationService($defense);
+        $result = $application->apply(new DamageApplicationRequest(
+            sourceActor: $attacker,
+            targetActor: $counter,
+            resolvedDamage: 100,
+            sourceType: DamageSourceType::NORMAL_ATTACK,
+            sourceId: null,
+            battleType: $state->battleType,
+            hitResult: HitResult::HIT,
+            battleState: $state,
+            directAttackResolution: $resolution,
+        ));
+        $this->assertSame(100, $result->requestedDamage);
         $this->assertSame(HitResult::HIT, $resolution->hitResult);
         $this->assertSame(1, $random->calls);
         $this->assertFalse($state->parryResult($counter, $state->currentSourceActionId())?->success);
+        $defense->completeDirectAttackAction($attacker, $state);
+        $this->resources()->finishAction($attacker, $state);
         $this->assertSame(5, $counter->getResource('sword_momentum'));
     }
 
@@ -246,7 +380,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
         $this->assertSame([['route' => $expectedDamageRoute, 'power' => 90]], $calculator->calls);
         $this->assertSame(1, $random->calls);
         $this->assertCount(1, $state->parryResults());
-        $this->assertSame(2, $counter->getResource('sword_momentum'), '被物理+1と受け流し+1だけ。反撃damage自体では剣勢を得ない。');
+        $this->assertSame(1, $counter->getResource('sword_momentum'), '完全に受け流したため、受け流し+1だけ。反撃damage自体では剣勢を得ない。');
         $this->assertSame(7, $attacker->getResource('sword_momentum'), '反撃damageではHIT時resource効果を起動しない。');
         $this->assertStringContainsString('王冠剣陣が反撃', implode('|', $state->logs));
 
@@ -620,7 +754,7 @@ class JobArtV2CounterGuardServiceTest extends TestCase
 
         $counterRecommendations = $presenter->recommendationsForCurrentJob(60, [$this->art(60, 1), $this->art(60, 5), $this->art(60, 9)]);
         $guardRecommendations = $presenter->recommendationsForCurrentJob(66, [$this->art(66, 1), $this->art(66, 5), $this->art(66, 9)]);
-        $this->assertStringContainsString('被物理攻撃', $counterRecommendations[0]['job_note']);
+        $this->assertStringContainsString('攻撃本体', $counterRecommendations[0]['job_note']);
         $this->assertStringContainsString('浄化と20%加護', $guardRecommendations[1]['job_note']);
 
         $blade = file_get_contents(resource_path('views/battle/partials/job-art-v2-hud.blade.php'));
@@ -637,6 +771,14 @@ class JobArtV2CounterGuardServiceTest extends TestCase
             $source = file_get_contents(base_path($path));
             $this->assertStringContainsString('DirectAttackResolution::fromDamageSource', $source, $path);
         }
+        $this->assertStringContainsString(
+            '$this->jobArtV2DefenseService->completeDirectAttackAction($attacker, $state);',
+            file_get_contents(base_path('app/Services/BattleService.php')),
+        );
+        $this->assertStringContainsString(
+            '$this->jobArtV2DefenseService->completeDirectAttackAction($actor, $state);',
+            file_get_contents(base_path('app/Services/JobArtBattleSupportService.php')),
+        );
         $this->assertStringContainsString('extends BattleService', file_get_contents(base_path('app/Services/TowerBattleService.php')));
         $this->assertStringContainsString("$"."battleContext = $"."enemy->is_boss ? 'boss' : 'pve'", file_get_contents(base_path('app/Services/BattleService.php')));
         $this->assertStringNotContainsString('job_art_presets', file_get_contents(base_path('app/Services/BattleService.php')));

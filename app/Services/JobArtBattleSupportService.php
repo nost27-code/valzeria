@@ -283,6 +283,7 @@ class JobArtBattleSupportService
 
     public function finishAction(BattleActor $actor, BattleState $state): void
     {
+        $this->jobArtV2DefenseService->completeDirectAttackAction($actor, $state);
         $this->jobArtV2ResourceService->finishAction($actor, $state);
         $this->jobArtV2UltimateCounterplayService->finishAction($actor, $state);
     }

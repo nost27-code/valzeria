@@ -111,8 +111,8 @@ class BattleActor
     /** Rank5 v6の同一奥義周期内使用済み状態。戦闘終了時に破棄する。 */
     private ?JobArtV2Rank5CycleState $jobArtV2Rank5CycleState = null;
 
-    /** 直前の自分の行動終了後から、直接物理攻撃を受領したか。 */
-    private bool $physicalAttackReceivedSinceOwnAction = false;
+    /** 直前の自分の行動終了後から、攻撃本体で1以上のHPダメージを受けて生存したか。 */
+    private bool $directAttackDamageReceivedSinceOwnAction = false;
 
     /** 直前の自分の行動終了後から、受け流しに成功したか。 */
     private bool $parrySucceededSinceOwnAction = false;
@@ -512,15 +512,15 @@ class BattleActor
         return $this->jobArtV2Rank5CycleState;
     }
 
-    public function markPhysicalAttackReceivedSinceOwnAction(): void
+    public function markDirectAttackDamageReceivedSinceOwnAction(): void
     {
-        $this->physicalAttackReceivedSinceOwnAction = true;
+        $this->directAttackDamageReceivedSinceOwnAction = true;
     }
 
-    public function consumePhysicalAttackReceivedSinceOwnActionSnapshot(): bool
+    public function consumeDirectAttackDamageReceivedSinceOwnActionSnapshot(): bool
     {
-        $received = $this->physicalAttackReceivedSinceOwnAction;
-        $this->physicalAttackReceivedSinceOwnAction = false;
+        $received = $this->directAttackDamageReceivedSinceOwnAction;
+        $this->directAttackDamageReceivedSinceOwnAction = false;
 
         return $received;
     }

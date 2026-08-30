@@ -111,6 +111,11 @@ Branch: main
 - current job 63 Rank9は行動開始時snapshotに主場がある場合だけ、本人が実際に発生させた`field_overwritten`回数0/1〜2/3〜4/5以上に応じて基礎powerを1.00/1.05/1.10/1.15倍する。生成・更新・延長・消滅・副場は数えず最大+15%。同系譜継承Rank9は星印12ptを共有できるがこのcurrent-job固有分岐は持ち込まない。最終blocker解消後のrelease candidate判定は`READY`
 - `BATTLE_JOB_ART_PVP_SET`、`PRESETS`、`LOADOUT_V2`、`DYNAMIC_SINGLE`、`NORMALIZED_SP`、`HIT_RESOLUTION`、`DAMAGE_APPLICATION`、`RESOURCES`、`FIELDS`、`PENETRATION`、`PENETRATION_STANCE`はすべて既定OFFを維持する。公開手順・rollback・監視可能性は`docs/JOB_ART_V2_RELEASE_CHECKLIST.md`を正本とする
 
+## 2026-08-30 counter attack-body damage ruling
+
+- 反撃系譜の剣勢+1は、相手の通常攻撃・職業技・戦技による物理・魔力・複合の攻撃本体で実HPを1以上失い、そのsource actionの最後に生存した時だけ1行動1回成立する。多段はsource action終了まで合算し、撃破・踏みとどまり・完全受け流し、DoT・反射・反撃・自傷・反動・固定/割合damageは対象外。受け流し成功+1は別eventなので、完全受け流しは受け流し分だけを得る
+- `DamageApplicationService`のHP適用結果を`BattleState`がsource action単位で集約し、`JobArtV2DefenseService`が剣勢と次行動snapshotを同じ確定結果から記録する。コロッセオブレイクの×1.15はこのsnapshot、受け返しの×1.35は従来どおり受け流しsnapshotを使う。通常PvE・boss・tower・PvP・champ・NPC arenaで共通、DB変更と追加RNGはない
+
 ## PR26 tactical mixed and inherited job-art v2 loadouts (historical boundary)
 
 - PR26時点の既定OFF current-job v2対応は39職。既存12職を維持し、上級18職と超級10職を追加した。当時はcurrent job 63と英雄・伝説・神話の未実装職がlineageだけを解決し、current-job v2をfail closedしていた
@@ -185,7 +190,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 
 ## Architecture notes
 
-- 戦技セットの通常・ボス・PvP各セットには、runtimeと同じ有効資源判定による「有効な系譜」badgeを表示し、枠交換後は非同期で更新する。公式プリセット30件への導線は`battle.job_art_v2.official_preset_highlight_until`まで強調する。資源獲得の計算時点は変えず、被物理・受け流し・実軽減はダメージ表示後、HP代償は代償表示後、浄化成功は浄化表示後に資源ログを出す。チャンプ戦は遅延ログだけでなく通常の戦技資源ログも行動単位で外部ログへ取り込み、通常・ボス・塔・PvP・チャンプ・NPCランク戦の全経路で原因となる出来事の後へそろえる。
+- 戦技セットの通常・ボス・PvP各セットには、runtimeと同じ有効資源判定による「有効な系譜」badgeを表示し、枠交換後は非同期で更新する。公式プリセット30件への導線は`battle.job_art_v2.official_preset_highlight_until`まで強調する。資源獲得の計算時点は変えず、攻撃本体による実HP減少・受け流し・実軽減はダメージ表示後、HP代償は代償表示後、浄化成功は浄化表示後に資源ログを出す。チャンプ戦は遅延ログだけでなく通常の戦技資源ログも行動単位で外部ログへ取り込み、通常・ボス・塔・PvP・チャンプ・NPCランク戦の全経路で原因となる出来事の後へそろえる。
 
 - ホームの「次やること」にある装備進化案内は、装備中アイテムに一致する進化レシピだけを候補化する。合成屋の全候補一覧は従来どおり全レシピを対象とし、ホーム初期表示では全レシピ走査を行わない。素材の実効ドロップ率計算に使う敵別ドロップ一覧は同一リクエスト内で一括取得し、候補ごとの重複DB問い合わせを行わない。
 - ホーム初期表示では `HomeActionPanel`・`LeftSidebar`・`ChampCard`・`ChatLog` を初期HTMLへ直接描画し、別Livewireリクエストの処理順を待たずに表示する。`ChatLog` はバックグラウンドタブでも60秒間隔の更新を維持し、表示対象ログのID・更新日時・本文が変わらない間は一覧の再取得・再描画を省略する。週間番付は30分ごとに先回り更新する取得時刻付きキャッシュを初期HTMLへ直接描画し、右上の更新ボタンでは全体10秒制限付きで最新集計へ更新できる。闘技場番付だけを表示後に取得する。期限超過時も最大6時間は直前表示を返しながらレスポンス後に更新する。各カードの配置順は維持する。共通ヘッダーと左サイドバーは、その表示リクエストで先に取得した現在職・職業履歴・装備中アイテムを能力計算にも再利用し、補給状況は対象3品を一括集計する。チャットの全体タブは保存済み表示条件と個人宛除外をSQLへ適用してから最新50件だけを取得する。`SchemaStateService` は同一リクエスト内のテーブル・カラム存在確認だけをメモ化し、探索・戦闘可否などのプレイヤー状態はキャッシュしない。

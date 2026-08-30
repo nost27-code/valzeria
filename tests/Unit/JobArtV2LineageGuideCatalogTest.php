@@ -48,7 +48,7 @@ class JobArtV2LineageGuideCatalogTest extends TestCase
 
         $this->assertSame([
             '通常攻撃HIT +1',
-            '物理攻撃を受ける +1',
+            '攻撃本体で1以上のダメージを受ける +1',
             '受け流し成功 +1',
         ], $guides['counter']['additional_gains']);
         $this->assertSame(['通常攻撃HIT +1', '実際に自傷 +2'], $guides['eclipse']['additional_gains']);
@@ -92,7 +92,7 @@ class JobArtV2LineageGuideCatalogTest extends TestCase
         )->all());
 
         $this->assertSame(
-            '通常攻撃HIT +1、物理攻撃を受ける +1、受け流し成功 +1。物理攻撃を受け流した場合は計+2',
+            '通常攻撃HIT +1、攻撃本体で1以上のダメージを受ける +1、受け流し成功 +1。攻撃本体は通常攻撃・職業技・戦技による物理・魔力・複合攻撃です。毒などの継続ダメージ、反射、反撃、自傷、反動、固定・割合ダメージは含みません。多段攻撃は1行動につき1回で、撃破された場合と踏みとどまり発動時は増えません。完全に受け流した攻撃は受け流し成功の+1のみです',
             $guides['counter']['common_gain'],
         );
         $this->assertSame(

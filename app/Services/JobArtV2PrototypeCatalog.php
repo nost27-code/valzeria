@@ -56,7 +56,7 @@ class JobArtV2PrototypeCatalog
     /** @var array<string, array<string, int|string>> */
     private const LINEAGE_PROFILES = [
         'field' => ['resource_key' => 'star_mark', 'resource_name' => '星印', 'resource_max_points' => 12, 'normal_attack_hit_gain_points' => 1],
-        'counter' => ['resource_key' => 'sword_momentum', 'resource_name' => '剣勢', 'resource_max_points' => 12, 'normal_attack_hit_gain_points' => 1, 'physical_attack_received_gain_points' => 1, 'parry_success_gain_points' => 1],
+        'counter' => ['resource_key' => 'sword_momentum', 'resource_name' => '剣勢', 'resource_max_points' => 12, 'normal_attack_hit_gain_points' => 1, 'direct_attack_damage_received_gain_points' => 1, 'parry_success_gain_points' => 1],
         'eclipse' => ['resource_key' => 'eclipse', 'resource_name' => '冥蝕', 'resource_max_points' => 12, 'self_damage_gain_points' => 2, 'normal_attack_hit_gain_points' => 1],
         'pierce' => ['resource_key' => 'dragon_force', 'resource_name' => '竜気', 'resource_max_points' => 12, 'normal_attack_hit_gain_points' => 1],
         'hunt' => ['resource_key' => 'hunt', 'resource_name' => '狩猟印', 'resource_max_points' => 12, 'normal_attack_hit_gain_points' => 1],

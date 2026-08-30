@@ -230,14 +230,14 @@ final class JobArtV2RoleEffectService
         if ($actor->jobArtV2GuardState()?->expiresAtNextOwnAction) {
             $actor->replaceJobArtV2GuardState(null);
         }
-        $physicalAttackReceived = $actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot();
+        $directAttackDamageReceived = $actor->consumeDirectAttackDamageReceivedSinceOwnActionSnapshot();
         $parrySucceeded = $actor->consumeParrySucceededSinceOwnActionSnapshot();
         $damageMitigated = $actor->consumeDamageMitigatedSinceOwnActionSnapshot();
         $state->beginJobArtV2RoleAction($sourceActionId, [
             'actor_key' => $state->actorKey($actor),
             'source_action_id' => $sourceActionId,
-            'physical_attack_received_since_own_action' => $physicalAttackReceived,
-            'physical_attack_received_since_previous_own_action' => $physicalAttackReceived,
+            'direct_attack_damage_received_since_own_action' => $directAttackDamageReceived,
+            'direct_attack_damage_received_since_previous_own_action' => $directAttackDamageReceived,
             'parry_success_since_previous_own_action' => $parrySucceeded,
             'damage_mitigated_since_previous_own_action' => $damageMitigated,
             'role_damage_multiplier' => 1.0,
@@ -247,10 +247,10 @@ final class JobArtV2RoleEffectService
         $this->progressionService->beginAction($actor, $state, $sourceActionId);
     }
 
-    public function recordPhysicalAttackReceived(BattleActor $actor): void
+    public function recordDirectAttackDamageReceived(BattleActor $actor): void
     {
         if ($this->enabledFor($actor)) {
-            $actor->markPhysicalAttackReceivedSinceOwnAction();
+            $actor->markDirectAttackDamageReceivedSinceOwnAction();
         }
     }
 
@@ -727,8 +727,8 @@ final class JobArtV2RoleEffectService
         array $roleContext,
     ): bool {
         return match ((string) ($conditional['condition'] ?? '')) {
-            'physical_attack_received_since_previous_own_action' => (bool) (
-                $roleContext['physical_attack_received_since_previous_own_action'] ?? false
+            'direct_attack_damage_received_since_previous_own_action' => (bool) (
+                $roleContext['direct_attack_damage_received_since_previous_own_action'] ?? false
             ),
             'parry_success_since_previous_own_action' => (bool) (
                 $roleContext['parry_success_since_previous_own_action'] ?? false

@@ -128,7 +128,7 @@ class JobArtV2ResourceServiceTest extends TestCase
         $actor->jobArts = [$this->art(60, 1)];
         $service->beginAction($actor, $state);
 
-        $received = $service->recordPhysicalAttackReceived($actor, $state);
+        $received = $service->recordDirectAttackDamageReceived($actor, $state);
         $parried = $service->recordParrySuccess($actor, $state);
 
         $this->assertSame(1, $received->delta);
@@ -198,7 +198,7 @@ class JobArtV2ResourceServiceTest extends TestCase
                 'normal_attack_miss',
                 'non_job_art_action',
                 'hp_sp_conversion_success',
-                'physical_attack_received',
+            'direct_attack_damage_received',
                 'parry_success',
                 'damage_mitigated',
                 'cleanse_success',

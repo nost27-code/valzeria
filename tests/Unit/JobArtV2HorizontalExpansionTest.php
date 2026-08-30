@@ -106,7 +106,7 @@ class JobArtV2HorizontalExpansionTest extends TestCase
             $counter['resource_name'],
             $counter['resource_max_points'],
             $counter['normal_attack_hit_gain_points'],
-            $counter['physical_attack_received_gain_points'],
+            $counter['direct_attack_damage_received_gain_points'],
             $counter['parry_success_gain_points'],
         ]);
         $this->assertSame([4, 0.20], [

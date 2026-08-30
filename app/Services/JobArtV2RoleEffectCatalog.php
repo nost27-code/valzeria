@@ -320,13 +320,16 @@ final class JobArtV2RoleEffectCatalog
             'suppress_legacy_effect' => true,
             'replacement_template' => 'PHYSICAL_DAMAGE',
             'conditional_damage_multiplier' => [
-                'condition' => 'physical_attack_received_since_previous_own_action',
+                'condition' => 'direct_attack_damage_received_since_previous_own_action',
                 'multiplier' => 1.15,
                 'source_action_once' => true,
-                'parried_hit_counts' => true,
+                'actual_hp_loss_required' => true,
+                'target_must_survive' => true,
+                'guts_counts' => false,
+                'parried_hit_counts' => false,
                 'miss_or_evade_counts' => false,
             ],
-            'effect_texts' => ['直前の自分の行動後に物理攻撃を受けていれば最終ダメージ ×1.15'],
+            'effect_texts' => ['直前の自分の行動後に、相手の攻撃本体で1以上のダメージを受けて生き残っていれば最終ダメージ ×1.15'],
         ],
 
         // Hunt: a defensive producer whose existing master reduction remains

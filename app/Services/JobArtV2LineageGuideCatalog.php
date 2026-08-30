@@ -14,9 +14,9 @@ final class JobArtV2LineageGuideCatalog
     private const GUIDES = [
         'counter' => [
             'job_id' => 1,
-            'identity' => '物理攻撃を受けた時や受け流した時にも剣勢を増やし、攻守を切り替えて戦う系譜です。',
-            'trait' => '構え、決着準備、多段攻撃、被物理後の反撃など、剣勢の使い道で戦い方が変わります。',
-            'ultimate' => '継戦強化、多段攻撃、被物理後の条件付き大ダメージなど、奥義ごとに決着方法が異なります。',
+            'identity' => '相手の攻撃本体でダメージを受けた時や受け流した時にも剣勢を増やし、攻守を切り替えて戦う系譜です。',
+            'trait' => '構え、決着準備、多段攻撃、攻撃本体を受けた後の反撃など、剣勢の使い道で戦い方が変わります。',
+            'ultimate' => '継戦強化、多段攻撃、攻撃本体を受けた後の条件付き大ダメージなど、奥義ごとに決着方法が異なります。',
         ],
         'eclipse' => [
             'job_id' => 9,
@@ -142,7 +142,7 @@ final class JobArtV2LineageGuideCatalog
         $labels = [
             'normal_attack_hit_gain_points' => '通常攻撃HIT',
             'normal_attack_miss_gain_points' => '通常攻撃MISS',
-            'physical_attack_received_gain_points' => '物理攻撃を受ける',
+            'direct_attack_damage_received_gain_points' => '攻撃本体で1以上のダメージを受ける',
             'parry_success_gain_points' => '受け流し成功',
             'self_damage_gain_points' => '実際に自傷',
             'damage_mitigated_gain_points' => '実際に1以上軽減',
@@ -182,7 +182,7 @@ final class JobArtV2LineageGuideCatalog
         $text = implode('、', $additionalGains);
 
         return match ($lineageKey) {
-            'counter' => $text.'。物理攻撃を受け流した場合は計+2',
+            'counter' => $text.'。攻撃本体は通常攻撃・職業技・戦技による物理・魔力・複合攻撃です。毒などの継続ダメージ、反射、反撃、自傷、反動、固定・割合ダメージは含みません。多段攻撃は1行動につき1回で、撃破された場合と踏みとどまり発動時は増えません。完全に受け流した攻撃は受け流し成功の+1のみです',
             'command' => $text.'。通常攻撃がHITした場合は計+5',
             default => $text,
         };

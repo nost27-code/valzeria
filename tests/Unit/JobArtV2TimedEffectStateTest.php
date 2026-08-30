@@ -164,17 +164,17 @@ class JobArtV2TimedEffectStateTest extends TestCase
         $this->assertNull($actor->removeJobArtV2PreparedEffect('missing'));
     }
 
-    public function test_physical_attack_received_snapshot_is_consumed_once(): void
+    public function test_direct_attack_damage_received_snapshot_is_consumed_once(): void
     {
         $actor = $this->actor();
 
-        $this->assertFalse($actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot());
+        $this->assertFalse($actor->consumeDirectAttackDamageReceivedSinceOwnActionSnapshot());
 
-        $actor->markPhysicalAttackReceivedSinceOwnAction();
-        $actor->markPhysicalAttackReceivedSinceOwnAction();
+        $actor->markDirectAttackDamageReceivedSinceOwnAction();
+        $actor->markDirectAttackDamageReceivedSinceOwnAction();
 
-        $this->assertTrue($actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot());
-        $this->assertFalse($actor->consumePhysicalAttackReceivedSinceOwnActionSnapshot());
+        $this->assertTrue($actor->consumeDirectAttackDamageReceivedSinceOwnActionSnapshot());
+        $this->assertFalse($actor->consumeDirectAttackDamageReceivedSinceOwnActionSnapshot());
     }
 
     private function actor(): BattleActor

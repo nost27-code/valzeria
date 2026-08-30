@@ -166,6 +166,9 @@ class BattleState
     /** @var array<string, DamageTrace> */
     private array $damageTraces = [];
 
+    /** @var array<string, array{actual_hp_loss:int,guts_triggered:bool}> */
+    private array $directAttackDamageOutcomes = [];
+
     /** @var list<CleanseResult> */
     private array $cleanseResults = [];
 
@@ -669,6 +672,33 @@ class BattleState
     public function damageTraces(): array
     {
         return array_values($this->damageTraces);
+    }
+
+    /** 多段を含む1つの攻撃本体について、行動終了まで実HP減少を集約する。 */
+    public function recordDirectAttackDamageOutcome(
+        BattleActor $target,
+        int $sourceActionId,
+        int $actualHpLoss,
+        bool $gutsTriggered,
+    ): void {
+        $key = $this->defenseResultKey($target, $sourceActionId);
+        $outcome = $this->directAttackDamageOutcomes[$key] ?? [
+            'actual_hp_loss' => 0,
+            'guts_triggered' => false,
+        ];
+        $outcome['actual_hp_loss'] += max(0, $actualHpLoss);
+        $outcome['guts_triggered'] = $outcome['guts_triggered'] || $gutsTriggered;
+        $this->directAttackDamageOutcomes[$key] = $outcome;
+    }
+
+    /** @return array{actual_hp_loss:int,guts_triggered:bool}|null */
+    public function pullDirectAttackDamageOutcome(BattleActor $target, int $sourceActionId): ?array
+    {
+        $key = $this->defenseResultKey($target, $sourceActionId);
+        $outcome = $this->directAttackDamageOutcomes[$key] ?? null;
+        unset($this->directAttackDamageOutcomes[$key]);
+
+        return $outcome;
     }
 
     public function recordCleanseResult(CleanseResult $result): void

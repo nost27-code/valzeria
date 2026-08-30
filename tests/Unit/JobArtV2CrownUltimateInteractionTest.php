@@ -3,12 +3,15 @@
 namespace Tests\Unit;
 
 use App\Models\Skill;
-use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleActionType;
+use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
+use App\Services\Battle\DamageApplicationRequest;
+use App\Services\Battle\DamageApplicationService;
+use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
-use App\Services\JobArtV2DefenseService;
+use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2FieldService;
 use App\Services\JobArtV2ProgressionService;
 use App\Services\JobArtV2ResourceService;
@@ -60,11 +63,23 @@ final class JobArtV2CrownUltimateInteractionTest extends TestCase
             BattleActionType::NORMAL_ATTACK,
         );
 
-        $this->assertSame(80, app(JobArtV2DefenseService::class)->resolveDamage($state, $resolution, 100));
+        $result = app(DamageApplicationService::class)->apply(new DamageApplicationRequest(
+            sourceActor: $target,
+            targetActor: $actor,
+            resolvedDamage: 100,
+            sourceType: DamageSourceType::NORMAL_ATTACK,
+            sourceId: null,
+            battleType: $state->battleType,
+            hitResult: HitResult::HIT,
+            battleState: $state,
+            directAttackResolution: $resolution,
+        ));
+        $this->assertSame(80, $result->requestedDamage);
+        app(JobArtBattleSupportService::class)->finishAction($target, $state);
         $this->assertSame(
             5,
             $actor->getResource('sword_momentum'),
-            '無双残心の+4と、反撃系譜共通の実軽減成功+1をそれぞれ一度だけ得る。',
+            '無双残心の+4と、攻撃本体による実HP減少の+1をそれぞれ一度だけ得る。',
         );
         $this->assertNull($actor->jobArtV2ProgressionState()->musouZanshin);
     }

@@ -82,7 +82,7 @@ final class JobArtV2StarterPresetService
             'normal_attack_hit_gain_points' => '通常攻撃HIT',
             'normal_attack_miss_gain_points' => '通常攻撃MISS',
             'self_damage_gain_points' => '実自傷成立',
-            'physical_attack_received_gain_points' => '直接物理攻撃を受ける',
+            'direct_attack_damage_received_gain_points' => '攻撃本体で1以上のダメージを受ける',
             'parry_success_gain_points' => '受け流し成功（さらに）',
             'damage_mitigated_gain_points' => '実際に1以上軽減',
             'cleanse_success_gain_points' => '浄化成功',

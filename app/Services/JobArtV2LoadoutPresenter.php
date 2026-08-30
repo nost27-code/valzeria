@@ -1815,8 +1815,8 @@ final class JobArtV2LoadoutPresenter
 
         if ($currentJobId === 60) {
             return $style === 'finisher'
-                ? "構え・通常攻撃・被物理攻撃で{$resourceName}を蓄積し、{$finisherMinimum}ptを温存して{$rankNineName}を狙います。"
-                : "受け流しや被物理攻撃で{$resourceName}を回収し、{$consumerMinimum}ptごとに{$rankFiveName}を使います。";
+                ? "構え・通常攻撃・攻撃本体のダメージで{$resourceName}を蓄積し、{$finisherMinimum}ptを温存して{$rankNineName}を狙います。"
+                : "受け流しや攻撃本体のダメージで{$resourceName}を回収し、{$consumerMinimum}ptごとに{$rankFiveName}を使います。";
         }
 
         if ($currentJobId === 66) {

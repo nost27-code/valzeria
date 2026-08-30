@@ -743,6 +743,7 @@ class BattleService
             $this->executeEnemyAction($attacker, $defender, $state);
         }
         } finally {
+            $this->jobArtV2DefenseService->completeDirectAttackAction($attacker, $state);
             $this->jobArtV2ResourceService->finishAction($attacker, $state);
             $this->jobArtV2UltimateCounterplayService->finishAction($attacker, $state);
         }

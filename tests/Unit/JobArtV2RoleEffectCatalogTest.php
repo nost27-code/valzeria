@@ -226,6 +226,9 @@ class JobArtV2RoleEffectCatalogTest extends TestCase
         return [
             'riposte condition' => [1, 5, '受け返し', 'conditional_damage_multiplier.condition', 'parry_success_since_previous_own_action'],
             'riposte multiplier' => [1, 5, '受け返し', 'conditional_damage_multiplier.multiplier', 1.35],
+            'colosseum condition' => [13, 9, 'コロッセオブレイク', 'conditional_damage_multiplier.condition', 'direct_attack_damage_received_since_previous_own_action'],
+            'colosseum multiplier' => [13, 9, 'コロッセオブレイク', 'conditional_damage_multiplier.multiplier', 1.15],
+            'colosseum parry does not count' => [13, 9, 'コロッセオブレイク', 'conditional_damage_multiplier.parried_hit_counts', false],
             'shadow ambush charge' => [17, 1, '影伏せ', 'prepared_effect.charges', 1],
             'shadow ambush opportunities' => [17, 1, '影伏せ', 'prepared_effect.action_opportunities', 4],
             'shadow ambush multiplier' => [17, 1, '影伏せ', 'prepared_effect.damage_multiplier', 1.20],

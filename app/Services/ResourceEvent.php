@@ -11,7 +11,7 @@ enum ResourceEvent: string
     case NORMAL_ATTACK_MISS = 'normal_attack_miss';
     case NON_JOB_ART_ACTION = 'non_job_art_action';
     case HP_SP_CONVERSION_SUCCESS = 'hp_sp_conversion_success';
-    case PHYSICAL_ATTACK_RECEIVED = 'physical_attack_received';
+    case DIRECT_ATTACK_DAMAGE_RECEIVED = 'direct_attack_damage_received';
     case PARRY_SUCCESS = 'parry_success';
     case DAMAGE_MITIGATED = 'damage_mitigated';
     case CLEANSE_SUCCESS = 'cleanse_success';

@@ -7,7 +7,9 @@ use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use App\Services\Battle\BattleTypeAffinity;
 use App\Services\Battle\CleanseResult;
+use App\Services\Battle\DamageApplicationResult;
 use App\Services\Battle\DamageCalculator;
+use App\Services\Battle\DamageSourceType;
 use App\Services\Battle\DamageTrace;
 use App\Services\Battle\DirectAttackResolution;
 use App\Services\Battle\HitResult;
@@ -111,12 +113,6 @@ final class JobArtV2DefenseService
         $this->markIncomingHudAction($state, $resolution);
 
         if ($resolution->damageCategory === 'physical') {
-            // ResourceServiceが、装備中の反撃系譜資源だけへ加算する。
-            $resolution->target->markPhysicalAttackReceivedSinceOwnAction();
-            $this->resourceService->recordPhysicalAttackReceived($resolution->target, $state);
-        }
-
-        if ($resolution->damageCategory === 'physical') {
             $parriedDamage = $this->resolveParry($state, $resolution, $damage);
             if ($parriedDamage === 0) {
                 return 0;
@@ -127,6 +123,49 @@ final class JobArtV2DefenseService
         $damage = $this->resolveGuard($state, $resolution, $damage);
 
         return $this->progression()->absorbHolyWall($resolution->target, $state, $resolution, $damage);
+    }
+
+    public function completeDamageApplication(
+        BattleState $state,
+        DirectAttackResolution $resolution,
+        DamageApplicationResult $result,
+        bool $gutsTriggered,
+    ): void {
+        if (! $resolution->direct
+            || $resolution->attacker === $resolution->target
+            || ! in_array($result->sourceType, [
+                DamageSourceType::NORMAL_ATTACK,
+                DamageSourceType::JOB_SKILL,
+                DamageSourceType::JOB_ART,
+                DamageSourceType::OTHER,
+            ], true)
+            || ! $this->featureGate->usesResources($resolution->target)
+        ) {
+            return;
+        }
+
+        $state->recordDirectAttackDamageOutcome(
+            target: $resolution->target,
+            sourceActionId: $resolution->sourceActionId,
+            actualHpLoss: $resolution->hitResult === HitResult::HIT ? $result->actualHpLoss : 0,
+            gutsTriggered: $gutsTriggered,
+        );
+    }
+
+    public function completeDirectAttackAction(BattleActor $attacker, BattleState $state): void
+    {
+        $sourceActionId = $state->currentSourceActionId();
+        if ($sourceActionId === null) {
+            return;
+        }
+
+        $target = $attacker === $state->player ? $state->enemy : $state->player;
+        $outcome = $state->pullDirectAttackDamageOutcome($target, $sourceActionId);
+        if ($outcome === null) {
+            return;
+        }
+
+        $this->grantDirectAttackDamageReceived($target, $state, $outcome);
     }
 
     /** @return list<array<string, bool|float|int|string>> */
@@ -457,6 +496,28 @@ final class JobArtV2DefenseService
     private function progression(): JobArtV2ProgressionService
     {
         return $this->progressionService ?? app(JobArtV2ProgressionService::class);
+    }
+
+    /** @param array{actual_hp_loss:int,guts_triggered:bool} $outcome */
+    private function grantDirectAttackDamageReceived(
+        BattleActor $target,
+        BattleState $state,
+        array $outcome,
+    ): void {
+        if ($outcome['actual_hp_loss'] < 1
+            || $outcome['guts_triggered']
+            || $target->isDead()
+        ) {
+            return;
+        }
+
+        // ResourceServiceが、装備中の反撃系譜資源だけへ1行動1回で加算する。
+        $target->markDirectAttackDamageReceivedSinceOwnAction();
+        $this->resourceService->recordDirectAttackDamageReceived(
+            $target,
+            $state,
+            false,
+        );
     }
 
     private function calculator(): DamageCalculator

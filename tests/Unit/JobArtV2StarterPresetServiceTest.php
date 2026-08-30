@@ -294,7 +294,7 @@ class JobArtV2StarterPresetServiceTest extends TestCase
         $this->assertSame('剣勢', $counter['resource_name']);
         $this->assertSame([
             ['label' => '通常攻撃HIT', 'points' => 1],
-            ['label' => '直接物理攻撃を受ける', 'points' => 1],
+            ['label' => '攻撃本体で1以上のダメージを受ける', 'points' => 1],
             ['label' => '受け流し成功（さらに）', 'points' => 1],
         ], $counter['gains']);
         $this->assertSame([
