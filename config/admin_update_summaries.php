@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-wind-charm-agility-specialization',
+        'date' => '2026-08-31',
+        'category' => 'balance',
+        'title' => '疾風の羽飾り系を敏捷特化へ調整',
+        'detail' => '「天翔の羽飾り」を含む疾風の羽飾り系について、運の効果量をすべて敏捷へ移しました。各ランク・強化段階で能力値の合計は変わりません。',
+    ],
+    [
         'id' => '2026-08-31-rank5-damage-description-clarity',
         'date' => '2026-08-31',
         'category' => 'fixed',
