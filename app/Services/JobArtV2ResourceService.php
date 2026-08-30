@@ -26,6 +26,7 @@ class JobArtV2ResourceService
         private readonly JobArtV2BattleHudService $battleHud,
         private readonly JobArtV2ConversionService $conversionService,
         private readonly JobArtV2ProgressionService $progressionService,
+        private readonly ?JobArtV2Rank5V6Catalog $rank5V6Catalog = null,
     ) {
     }
 
@@ -515,7 +516,91 @@ class JobArtV2ResourceService
         }
 
         $this->progressionService->finishAction($actor, $state);
+        $this->finishNaturalRankFiveCycles($actor, $state);
+        $target = $actor === $state->player ? $state->enemy : $state->player;
+        $this->finishNaturalRankFiveCycles($target, $state);
         $this->battleHud->finishAction($actor, $state);
+    }
+
+    private function finishNaturalRankFiveCycles(BattleActor $actor, BattleState $state): void
+    {
+        if (! $this->featureGate->usesRank5V6($actor)) {
+            return;
+        }
+
+        $rank5Catalog = $this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class);
+        $cycle = $actor->jobArtV2Rank5CycleState();
+        foreach ($this->catalog->resourcesForActor($actor) as $resource) {
+            $resourceKey = (string) $resource['resource_key'];
+            $cap = max(0, (int) $resource['resource_max_points']);
+            $actor->configureResource($resourceKey, $cap);
+            if ($cap <= 0
+                || $actor->getResource($resourceKey) < $cap
+                || $this->hasEquippedFinisherForResource($actor, $resourceKey)
+            ) {
+                continue;
+            }
+
+            $scheduledSkillIds = [];
+            $reactiveSkillIds = [];
+            $scheduledOrdinal = 0;
+            foreach ($actor->jobArts as $skill) {
+                if (! $skill instanceof Skill || $rank5Catalog->forSkill($skill) === null) {
+                    continue;
+                }
+
+                $art = $this->catalog->forActorArt($actor, $skill);
+                if (($art['resource_key'] ?? null) !== $resourceKey) {
+                    continue;
+                }
+
+                if ($rank5Catalog->isReactive($skill)) {
+                    $reactiveSkillIds[] = (int) $skill->id;
+
+                    continue;
+                }
+
+                $scheduledOrdinal++;
+                $required = $rank5Catalog->requiredResourcePoints(
+                    $skill,
+                    $scheduledOrdinal,
+                    (int) ($art['minimum_resource_points'] ?? 4),
+                );
+                if ($required !== null && $required <= $cap) {
+                    $scheduledSkillIds[] = (int) $skill->id;
+                }
+            }
+
+            if ($scheduledSkillIds !== []) {
+                $cycleComplete = true;
+                foreach ($scheduledSkillIds as $skillId) {
+                    if (! $cycle->hasUsed($resourceKey, $skillId)) {
+                        $cycleComplete = false;
+                        break;
+                    }
+                }
+            } else {
+                $cycleComplete = false;
+                foreach ($reactiveSkillIds as $skillId) {
+                    if ($cycle->hasUsed($resourceKey, $skillId)) {
+                        $cycleComplete = true;
+                        break;
+                    }
+                }
+            }
+
+            if (! $cycleComplete) {
+                continue;
+            }
+
+            $actor->setResource($resourceKey, 0);
+            $cycle->clearResource($resourceKey);
+            $resourceName = (string) $resource['resource_name'];
+            $state->addLog(
+                '<span class="text-sky-700 font-bold">'.e($actor->name).' の '.e($resourceName)
+                .' が満ち、連携の巡りが新たに始まった！（'.e($resourceName).' 0/'.$cap.'）</span>',
+            );
+        }
     }
 
     /** @param array<string, int|float|string|bool> $resource */

@@ -140,6 +140,20 @@ final class JobArtV2Rank5V6Catalog
         return $this->triggerMode($skill) === 'reactive';
     }
 
+    public function requiredResourcePoints(Skill $skill, int $scheduledOrdinal, int $cardMinimum): ?int
+    {
+        if ($this->forSkill($skill) === null) {
+            return null;
+        }
+
+        $cardMinimum = max(0, $cardMinimum);
+        if ($this->isReactive($skill)) {
+            return max($cardMinimum, 4);
+        }
+
+        return max($cardMinimum, 4 * max(1, $scheduledOrdinal));
+    }
+
     public function isAttackless(Skill $skill): bool
     {
         return $this->forSkill($skill) !== null

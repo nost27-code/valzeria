@@ -457,6 +457,162 @@ class JobArtV2Rank5V6Test extends TestCase
         $this->assertTrue($cycle->hasUsed('hunt', 305));
     }
 
+    public function test_ultimate_less_lineage_naturally_cycles_after_reaching_cap_in_every_battle_path(): void
+    {
+        foreach (['pve', 'boss', 'tower', 'pvp', 'champ', 'arena_npc'] as $battleType) {
+            $rankFive = $this->art(105, 1, 5, '受け返し');
+            [$actor, $state] = $this->battle(1, [$rankFive], 'sword_momentum', 12, $battleType);
+            $cycle = $actor->jobArtV2Rank5CycleState();
+            $cycle->markUsed('sword_momentum', 105);
+
+            $this->beginAction($actor, $state);
+            app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+            $this->assertSame(0, $actor->getResource('sword_momentum'), $battleType);
+            $this->assertFalse($cycle->hasUsed('sword_momentum', 105), $battleType);
+            $this->assertTrue(
+                collect($state->logs)->contains(
+                    static fn (string $log): bool => str_contains($log, '連携の巡りが新たに始まった'),
+                ),
+                $battleType,
+            );
+        }
+    }
+
+    public function test_failed_rank_five_attempt_naturally_cycles_after_its_fallback_action(): void
+    {
+        $rankFive = $this->art(105, 1, 5, '受け返し');
+        [$actor, $state] = $this->battle(1, [$rankFive], 'sword_momentum', 12);
+
+        $this->beginAction($actor, $state);
+        $selection = $this->selection([100])->selectForTurn($actor, $state);
+        $this->assertFalse($selection->activated);
+        $this->assertTrue($actor->jobArtV2Rank5CycleState()->hasUsed('sword_momentum', 105));
+
+        app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+        $this->assertSame(0, $actor->getResource('sword_momentum'));
+        $this->assertFalse($actor->jobArtV2Rank5CycleState()->hasUsed('sword_momentum', 105));
+    }
+
+    public function test_passive_gain_to_the_target_can_finish_its_natural_cycle_at_source_action_end(): void
+    {
+        $attacker = new BattleActor('attacker', true, [
+            'hp' => 100,
+            'max_hp' => 100,
+            'mp' => 100,
+            'max_mp' => 100,
+        ]);
+        $target = new BattleActor('target', false, [
+            'hp' => 100,
+            'max_hp' => 100,
+            'mp' => 100,
+            'max_mp' => 100,
+        ]);
+        $target->currentJobId = 1;
+        $rankFive = $this->art(105, 1, 5, '受け返し');
+        $target->jobArts = [$rankFive];
+        $target->jobArtOrigins[105] = 'current';
+        $target->configureResource('sword_momentum', 12);
+        $target->setResource('sword_momentum', 11);
+        $target->jobArtV2Rank5CycleState()->markUsed('sword_momentum', 105);
+        $state = new BattleState($attacker, $target, 'pve');
+        $resources = app(JobArtV2ResourceService::class);
+
+        $this->assertNotNull($resources->beginAction($attacker, $state));
+        $resources->recordDirectAttackDamageReceived($target, $state, false);
+        $this->assertSame(12, $target->getResource('sword_momentum'));
+
+        $resources->finishAction($attacker, $state);
+
+        $this->assertSame(0, $target->getResource('sword_momentum'));
+        $this->assertFalse($target->jobArtV2Rank5CycleState()->hasUsed('sword_momentum', 105));
+    }
+
+    public function test_natural_cycle_waits_until_every_reachable_scheduled_rank_five_was_attempted(): void
+    {
+        $first = $this->art(105, 1, 5, '受け返し');
+        $second = $this->art(1105, 11, 5, '居合斬り');
+        [$actor, $state] = $this->battle(11, [$first, $second], 'sword_momentum', 12);
+        $cycle = $actor->jobArtV2Rank5CycleState();
+        $cycle->markUsed('sword_momentum', 105);
+
+        $this->beginAction($actor, $state);
+        app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+        $this->assertSame(12, $actor->getResource('sword_momentum'));
+        $this->assertTrue($cycle->hasUsed('sword_momentum', 105));
+
+        $cycle->markUsed('sword_momentum', 1105);
+        $this->beginAction($actor, $state);
+        app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+        $this->assertSame(0, $actor->getResource('sword_momentum'));
+        $this->assertSame([], $cycle->usedSkillIds('sword_momentum'));
+    }
+
+    public function test_reactive_rank_five_does_not_block_scheduled_natural_cycle_and_can_cycle_alone(): void
+    {
+        $scheduled = $this->art(105, 1, 5, '受け返し');
+        $reactive = $this->masterArt(28);
+        [$actor, $state] = $this->battle(28, [$scheduled, $reactive], 'sword_momentum', 12);
+        $cycle = $actor->jobArtV2Rank5CycleState();
+        $cycle->markUsed('sword_momentum', 105);
+
+        $this->beginAction($actor, $state);
+        app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+        $this->assertSame(0, $actor->getResource('sword_momentum'));
+
+        [$reactiveActor, $reactiveState] = $this->battle(28, [$reactive], 'sword_momentum', 12);
+        $reactiveActor->jobArtV2Rank5CycleState()->markUsed('sword_momentum', (int) $reactive->id);
+
+        $this->beginAction($reactiveActor, $reactiveState);
+        app(JobArtV2ResourceService::class)->finishAction($reactiveActor, $reactiveState);
+
+        $this->assertSame(0, $reactiveActor->getResource('sword_momentum'));
+    }
+
+    public function test_only_a_same_resource_ultimate_suppresses_natural_cycle(): void
+    {
+        $rankFive = $this->art(105, 1, 5, '受け返し');
+        $counterUltimate = $this->art(109, 1, 9, '剣神一閃');
+        [$actor, $state] = $this->battle(1, [$rankFive, $counterUltimate], 'sword_momentum', 12);
+        $actor->jobArtV2Rank5CycleState()->markUsed('sword_momentum', 105);
+
+        $this->beginAction($actor, $state);
+        app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+        $this->assertSame(12, $actor->getResource('sword_momentum'));
+        $this->assertTrue($actor->jobArtV2Rank5CycleState()->hasUsed('sword_momentum', 105));
+
+        $huntUltimate = $this->art(309, 3, 9, '狩猟の完成');
+        [$mixedActor, $mixedState] = $this->battle(1, [$rankFive, $huntUltimate], 'sword_momentum', 12);
+        $mixedActor->jobArtV2Rank5CycleState()->markUsed('sword_momentum', 105);
+
+        $this->beginAction($mixedActor, $mixedState);
+        app(JobArtV2ResourceService::class)->finishAction($mixedActor, $mixedState);
+
+        $this->assertSame(0, $mixedActor->getResource('sword_momentum'));
+        $this->assertFalse($mixedActor->jobArtV2Rank5CycleState()->hasUsed('sword_momentum', 105));
+    }
+
+    public function test_unreachable_fourth_scheduled_rank_five_does_not_block_first_three_from_natural_cycle(): void
+    {
+        $rankFives = array_map(fn (int $jobId): Skill => $this->masterArt($jobId), [1, 11, 13, 50]);
+        [$actor, $state] = $this->battle(50, $rankFives, 'sword_momentum', 12);
+        $cycle = $actor->jobArtV2Rank5CycleState();
+        foreach (array_slice($rankFives, 0, 3) as $rankFive) {
+            $cycle->markUsed('sword_momentum', (int) $rankFive->id);
+        }
+
+        $this->beginAction($actor, $state);
+        app(JobArtV2ResourceService::class)->finishAction($actor, $state);
+
+        $this->assertSame(0, $actor->getResource('sword_momentum'));
+        $this->assertFalse($cycle->hasUsed('sword_momentum', (int) $rankFives[3]->id));
+    }
+
     public function test_cycle_state_is_battle_memory_only_and_partitioned_by_resource(): void
     {
         $state = new JobArtV2Rank5CycleState();

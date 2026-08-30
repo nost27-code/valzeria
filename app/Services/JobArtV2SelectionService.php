@@ -539,7 +539,11 @@ class JobArtV2SelectionService
                 return 'blocked_by_reactive_condition';
             }
 
-            $required = max((int) ($art['minimum_resource_points'] ?? 4), 4);
+            $required = $this->rank5V6Catalog->requiredResourcePoints(
+                $skill,
+                0,
+                (int) ($art['minimum_resource_points'] ?? 4),
+            ) ?? 4;
 
             return $actor->getResource($resourceKey) < $required
                 ? JobArtV2ResourceService::BLOCKED_BY_RESOURCE
@@ -564,7 +568,11 @@ class JobArtV2SelectionService
             }
         }
 
-        $required = max((int) ($art['minimum_resource_points'] ?? 4), 4 * max(1, $ordinal));
+        $required = $this->rank5V6Catalog->requiredResourcePoints(
+            $skill,
+            $ordinal,
+            (int) ($art['minimum_resource_points'] ?? 4),
+        ) ?? 4;
 
         return $actor->getResource($resourceKey) < $required
             ? JobArtV2ResourceService::BLOCKED_BY_RESOURCE

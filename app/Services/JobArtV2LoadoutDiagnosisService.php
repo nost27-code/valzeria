@@ -13,6 +13,7 @@ final class JobArtV2LoadoutDiagnosisService
         private readonly JobArtV2FeatureGate $featureGate,
         private readonly JobArtV2ResourceCatalog $resourceCatalog,
         private readonly JobArtV2SpCostCalculator $spCostCalculator,
+        private readonly JobArtV2Rank5V6Catalog $rank5V6Catalog,
     ) {}
 
     /**
@@ -43,6 +44,7 @@ final class JobArtV2LoadoutDiagnosisService
         $checks = [];
         $activeSlots = $slots
             ->filter(fn (CharacterJobArtSlot $slot): bool => (bool) $slot->getAttribute('job_art_active'))
+            ->sortBy(fn (CharacterJobArtSlot $slot): int => (int) $slot->slot_no)
             ->values();
         $activeSkills = $activeSlots
             ->pluck('skill')
@@ -70,6 +72,7 @@ final class JobArtV2LoadoutDiagnosisService
         }
 
         $resources = [];
+        $rank5V6Enabled = $this->featureGate->usesRank5V6ForCurrentJob($currentJobId);
         foreach ($activeSkills as $skill) {
             $origin = (string) ($skill->getAttribute('job_art_origin') ?: 'inherited');
             $metadata = $this->resourceCatalog->forCurrentJobArt($currentJobId, $skill, $origin);
@@ -86,6 +89,11 @@ final class JobArtV2LoadoutDiagnosisService
                 'finisher_count' => 0,
                 'required' => 0,
                 'has_passive_gain' => false,
+                'cap' => (int) $metadata['resource_max_points'],
+                'scheduled_rank5_count' => 0,
+                'reactive_rank5_count' => 0,
+                'scheduled_requirements' => [],
+                'unreachable_rank_fives' => [],
             ];
             $resources[$key]['has_passive_gain'] = $resources[$key]['has_passive_gain']
                 || $this->metadataHasPassiveGain($metadata);
@@ -98,10 +106,35 @@ final class JobArtV2LoadoutDiagnosisService
                 );
             } elseif ($role === ResourceRole::CONSUMER) {
                 $resources[$key]['consumer_count']++;
-                $resources[$key]['required'] = max(
-                    $resources[$key]['required'],
-                    (int) ($metadata['minimum_resource_points'] ?? 4),
-                );
+                $required = (int) ($metadata['minimum_resource_points'] ?? 4);
+                if ($rank5V6Enabled && $this->rank5V6Catalog->forSkill($skill) !== null) {
+                    if ($this->rank5V6Catalog->isReactive($skill)) {
+                        $resources[$key]['reactive_rank5_count']++;
+                        $required = $this->rank5V6Catalog->requiredResourcePoints(
+                            $skill,
+                            0,
+                            $required,
+                        ) ?? $required;
+                    } else {
+                        $resources[$key]['scheduled_rank5_count']++;
+                        $required = $this->rank5V6Catalog->requiredResourcePoints(
+                            $skill,
+                            $resources[$key]['scheduled_rank5_count'],
+                            $required,
+                        ) ?? $required;
+                        if ($required > $resources[$key]['cap']) {
+                            $resources[$key]['unreachable_rank_fives'][] = [
+                                'name' => (string) $skill->name,
+                                'required' => $required,
+                            ];
+                        } else {
+                            $resources[$key]['scheduled_requirements'][] = $required;
+                        }
+                    }
+                }
+                if ($required <= $resources[$key]['cap']) {
+                    $resources[$key]['required'] = max($resources[$key]['required'], $required);
+                }
             } elseif ($role === ResourceRole::FINISHER) {
                 $resources[$key]['finisher_count']++;
                 $resources[$key]['required'] = max(
@@ -115,6 +148,21 @@ final class JobArtV2LoadoutDiagnosisService
             $hasSpender = $resource['consumer_count'] > 0 || $resource['finisher_count'] > 0;
             $hasProducer = $resource['producer_count'] > 0 && $resource['producer_gain'] > 0;
             $hasPassiveRoute = $resource['has_passive_gain'];
+            $usesNaturalCycle = $rank5V6Enabled
+                && $resource['consumer_count'] > 0
+                && $resource['finisher_count'] === 0
+                && ($resource['scheduled_rank5_count'] > 0 || $resource['reactive_rank5_count'] > 0);
+
+            if ($resource['unreachable_rank_fives'] !== []) {
+                $unreachable = collect($resource['unreachable_rank_fives'])
+                    ->map(static fn (array $rankFive): string => $rankFive['name'].'（必要'.$rankFive['required'].'）')
+                    ->implode('、');
+                $checks[] = $this->check(
+                    'error',
+                    $resource['name'].'で発動できない連携があります',
+                    $unreachable.'は資源上限'.$resource['cap'].'を超えます。同じ系譜の予定連携は、4・8・12で使える3枚までにしてください。',
+                );
+            }
 
             if ($hasSpender && ! $hasProducer && ! $hasPassiveRoute) {
                 $checks[] = $this->check(
@@ -126,18 +174,32 @@ final class JobArtV2LoadoutDiagnosisService
             }
 
             if ($hasSpender && $hasProducer) {
-                $uses = (int) ceil(max(1, $resource['required']) / max(1, $resource['producer_gain']));
-                $checks[] = $this->check(
-                    'ok',
-                    $resource['name'].'の循環成立',
-                    '始動を約'.$uses.'回成功させると、必要量'.$resource['required'].'へ到達できます。',
-                );
+                $target = $usesNaturalCycle ? $resource['cap'] : $resource['required'];
+                $uses = (int) ceil(max(1, $target) / max(1, $resource['producer_gain']));
+                if ($usesNaturalCycle) {
+                    $detail = $this->naturalCycleDetail($resource, '始動を約'.$uses.'回成功させて');
+                    $checks[] = $this->check('ok', $resource['name'].'の自然循環成立', $detail);
+                } else {
+                    $checks[] = $this->check(
+                        'ok',
+                        $resource['name'].'の循環成立',
+                        '始動を約'.$uses.'回成功させると、必要量'.$resource['required'].'へ到達できます。',
+                    );
+                }
             } elseif ($hasSpender && $hasPassiveRoute) {
-                $checks[] = $this->check(
-                    'warning',
-                    $resource['name'].'は受動獲得頼みです',
-                    '通常攻撃・被弾など、この系譜に設定された行動でも貯められますが、始動を入れる構成より到達は遅めです。',
-                );
+                if ($usesNaturalCycle) {
+                    $checks[] = $this->check(
+                        'warning',
+                        $resource['name'].'は受動獲得で自然循環します',
+                        $this->naturalCycleDetail($resource, '通常攻撃・被弾などで'),
+                    );
+                } else {
+                    $checks[] = $this->check(
+                        'warning',
+                        $resource['name'].'は受動獲得頼みです',
+                        '通常攻撃・被弾など、この系譜に設定された行動でも貯められますが、始動を入れる構成より到達は遅めです。',
+                    );
+                }
             } elseif ($hasProducer && ! $hasSpender) {
                 $checks[] = $this->check(
                     'warning',
@@ -262,5 +324,23 @@ final class JobArtV2LoadoutDiagnosisService
         }
 
         return false;
+    }
+
+    /** @param array<string, mixed> $resource */
+    private function naturalCycleDetail(array $resource, string $gainRoute): string
+    {
+        if ($resource['scheduled_rank5_count'] > 0) {
+            $requirements = implode('/', array_values(array_unique($resource['scheduled_requirements'])));
+            $detail = $gainRoute.$resource['name'].'を'.$resource['cap'].'まで満たし、必要量'.$requirements
+                .'で使える連携を一度ずつ判定すると、自動で0へ戻って次の周期に入ります。';
+            if ($resource['reactive_rank5_count'] > 0) {
+                $detail .= '反応型の連携は、未判定でも自然循環を止めません。';
+            }
+
+            return $detail;
+        }
+
+        return $gainRoute.$resource['name'].'を'.$resource['cap']
+            .'まで満たし、反応型の連携を一度判定すると、自動で0へ戻って次の周期に入ります。';
     }
 }
