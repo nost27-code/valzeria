@@ -451,7 +451,7 @@ final class SixHeroHallScreenTest extends TestCase
         $this->assertStringContainsString('戦績付き冒険者カードを見る', $html);
     }
 
-    public function test_current_leader_portraits_cycle_locally_and_only_the_current_character_label_also_cycles(): void
+    public function test_only_the_current_character_portrait_and_label_cycle_locally(): void
     {
         $this->app->instance(CharacterIconSetService::class, new class extends CharacterIconSetService
         {
@@ -474,10 +474,12 @@ final class SixHeroHallScreenTest extends TestCase
 
         $html = $this->hallComponent($viewer)->html();
 
-        $this->assertSame(2, substr_count($html, 'data-current-six-hero-pose-toggle'));
+        $this->assertSame(1, substr_count($html, 'data-current-six-hero-pose-toggle'));
         $this->assertSame(1, substr_count($html, 'data-current-six-hero-self-pose-toggle'));
-        $this->assertSame(1, substr_count($html, 'data-current-six-hero-profile-trigger'));
-        $this->assertSame(2, substr_count($html, 'x-bind:src="posePaths[poseIndex]"'));
+        $this->assertSame(2, substr_count($html, 'data-current-six-hero-profile-trigger'));
+        $this->assertSame(1, substr_count($html, 'x-bind:src="posePaths[poseIndex]"'));
+        $this->assertSame(0, substr_count($html, "characterId: {$viewer->id}"));
+        $this->assertSame(2, substr_count($html, "characterId: {$otherLeader->id}"));
         $this->assertStringContainsString('01_normal.webp', $html);
         $this->assertStringContainsString('03_battle.webp', $html);
         $this->assertStringContainsString('02_victory.webp', $html);

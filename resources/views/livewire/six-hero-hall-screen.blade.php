@@ -51,11 +51,12 @@
                                 $position = $room['chamberPosition'];
                                 $leaderPosePaths = array_values(array_unique($room['leaderPosePaths'] ?? []));
                                 $leaderHasPoseChoices = count($leaderPosePaths) > 1;
+                                $leaderCanSwitchPose = $room['leaderIsCurrentCharacter'] && $leaderHasPoseChoices;
                                 $leaderTenureDays = $room['leaderTenureDays'] ?? 1;
                             @endphp
                             @if($leader)
                                 <div
-                                    @if($leaderHasPoseChoices)
+                                    @if($leaderCanSwitchPose)
                                         x-data="{ poseIndex: 0, posePaths: @js($leaderPosePaths) }"
                                     @endif
                                     class="group absolute z-10 flex aspect-square w-[21%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition hover:scale-105 focus-within:scale-105 {{ $room['leaderIsCurrentCharacter'] ? 'bg-amber-50/90 shadow-[0_0_22px_rgba(251,191,36,0.95)] ring-2 ring-amber-400' : 'bg-white/75 shadow-sm ring-1 ring-white/90 focus-within:ring-2 focus-within:ring-amber-400' }}"
@@ -67,7 +68,7 @@
                                     @if($room['leaderIsNew']) data-current-six-hero-new @endif
                                     data-current-six-hero-crowns="{{ $room['leaderCrownCount'] }}"
                                 >
-                                    @if($leaderHasPoseChoices)
+                                    @if($leaderCanSwitchPose)
                                         <button
                                             type="button"
                                             x-on:click.stop="poseIndex = (poseIndex + 1) % posePaths.length"
@@ -106,7 +107,7 @@
                                             👑{{ $room['leaderCrownCount'] }}
                                         </span>
                                     @endif
-                                    @if($room['leaderIsCurrentCharacter'] && $leaderHasPoseChoices)
+                                    @if($leaderCanSwitchPose)
                                         <button
                                             type="button"
                                             x-on:click.stop="poseIndex = (poseIndex + 1) % posePaths.length"
