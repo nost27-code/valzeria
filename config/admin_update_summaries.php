@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-item-book-armor-ancient-fragments',
+        'date' => '2026-08-31',
+        'category' => 'fixed',
+        'title' => '防具系の古代片を図鑑で確認可能に',
+        'detail' => 'アイテム図鑑で表示されていなかった重装・魔装・軽装・旅装の古代片を確認できるようにしました。入手方法と進化用途も図鑑から確認できます。',
+    ],
+    [
         'id' => '2026-08-31-monster-mark-area-titles',
         'date' => '2026-08-31',
         'category' => 'added',
