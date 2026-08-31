@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-map-institute-development-admin',
+        'date' => '2026-08-31',
+        'category' => 'internal',
+        'title' => '地図院発展値を管理画面で一覧確認',
+        'detail' => '管理画面の公開地図で、街ごとの地図院発展値累計、積立回数、最終積立日時を確認できるようにしました。入場料分配と発展値そのものの仕様は変更していません。',
+    ],
+    [
         'id' => '2026-08-31-exploration-map-bulk-survey',
         'date' => '2026-08-31',
         'category' => 'added',
