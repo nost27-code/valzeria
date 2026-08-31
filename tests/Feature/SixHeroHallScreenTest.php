@@ -17,6 +17,7 @@ use App\Models\SixHeroRanking;
 use App\Models\SixHeroSeason;
 use App\Models\User;
 use App\Models\ValmonMaster;
+use App\Services\CharacterIconSetService;
 use App\Support\SixHeroRoomUiCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -448,6 +449,42 @@ final class SixHeroHallScreenTest extends TestCase
         $this->assertStringContainsString('NEW', $html);
         $this->assertStringContainsString('👑2', $html);
         $this->assertStringContainsString('戦績付き冒険者カードを見る', $html);
+    }
+
+    public function test_current_leader_portraits_cycle_locally_and_only_the_current_character_label_also_cycles(): void
+    {
+        $this->app->instance(CharacterIconSetService::class, new class extends CharacterIconSetService
+        {
+            public function resolvedPaths(Character $character): array
+            {
+                return [
+                    'normal' => '/images/chara/poses/chara_003/01_normal.webp',
+                    'battle' => '/images/chara/poses/chara_003/03_battle.webp',
+                    'victory' => '/images/chara/poses/chara_003/02_victory.webp',
+                    'defeat' => '/images/chara/poses/chara_003/04_defeat.webp',
+                ];
+            }
+        });
+
+        $season = $this->readySeason();
+        $viewer = $this->character('ポーズ切替本人');
+        $otherLeader = $this->character('ポーズ切替相手');
+        $this->ranking($season, SixHeroRoomKey::SEAL_MAGIC, $viewer, 1);
+        $this->ranking($season, SixHeroRoomKey::BURNING_LIFE, $otherLeader, 1);
+
+        $html = $this->hallComponent($viewer)->html();
+
+        $this->assertSame(2, substr_count($html, 'data-current-six-hero-pose-toggle'));
+        $this->assertSame(1, substr_count($html, 'data-current-six-hero-self-pose-toggle'));
+        $this->assertSame(1, substr_count($html, 'data-current-six-hero-profile-trigger'));
+        $this->assertSame(2, substr_count($html, 'x-bind:src="posePaths[poseIndex]"'));
+        $this->assertStringContainsString('01_normal.webp', $html);
+        $this->assertStringContainsString('03_battle.webp', $html);
+        $this->assertStringContainsString('02_victory.webp', $html);
+        $this->assertStringContainsString('04_defeat.webp', $html);
+        $this->assertStringNotContainsString('wire:click="cycle', $html);
+        $this->assertSame('/images/chara/chara_001.webp', $viewer->fresh()->icon_path);
+        $this->assertSame('/images/chara/chara_001.webp', $otherLeader->fresh()->icon_path);
     }
 
     public function test_remaining_attempts_are_isolated_and_eligibility_progress_is_not_shown(): void

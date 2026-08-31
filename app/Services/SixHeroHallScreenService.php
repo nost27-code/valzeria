@@ -8,6 +8,7 @@ use App\Models\Character;
 use App\Models\SixHeroBattleLog;
 use App\Models\SixHeroRanking;
 use App\Models\SixHeroSeason;
+use App\Support\CharacterIconCatalog;
 use App\Support\SixHeroCompetitionRules;
 use App\Support\SixHeroRoomUiCatalog;
 use Carbon\CarbonImmutable;
@@ -24,6 +25,7 @@ final class SixHeroHallScreenService
         private readonly SixHeroHallOfFameService $hallOfFameService,
         private readonly SixHeroHallPresenter $hallPresenter,
         private readonly SixHeroDailyUsageService $dailyUsageService,
+        private readonly CharacterIconSetService $characterIconSetService,
     ) {}
 
     /**
@@ -55,7 +57,7 @@ final class SixHeroHallScreenService
             ->keyBy(fn (SixHeroRanking $ranking): string => $ranking->room_key->value);
 
         $leadersByRoom = SixHeroRanking::query()
-            ->with('character')
+            ->with('character.iconEntitlements')
             ->where('season_id', $season->id)
             ->where('rank', 1)
             ->get()
@@ -186,6 +188,7 @@ final class SixHeroHallScreenService
             'leaderCrownCount' => $leader === null ? 0 : max(1, $leaderCrownCount),
             'leaderIsCurrentCharacter' => $leader !== null
                 && (int) $leader->character_id === $currentCharacterId,
+            'leaderPosePaths' => $this->leaderPosePaths($leader),
             'myRanking' => $myRanking,
             'registeredCount' => $registeredCount,
             'officialBattleCount' => $officialBattleCount,
@@ -196,6 +199,22 @@ final class SixHeroHallScreenService
                 ? '成立条件を満たしています'
                 : implode('・', $missing),
         ];
+    }
+
+    /** @return list<string> */
+    private function leaderPosePaths(?SixHeroRanking $leader): array {
+        $character = $leader?->character;
+        if ($character === null) {
+            return [];
+        }
+
+        return collect($this->characterIconSetService->resolvedPaths($character))
+            ->map(
+                static fn (string $path): string => CharacterIconCatalog::versionedAsset($path),
+            )
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function leaderTenureDays(?SixHeroRanking $leader): ?int

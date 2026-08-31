@@ -49,26 +49,55 @@
                             @php
                                 $leader = $room['leader']?->character;
                                 $position = $room['chamberPosition'];
+                                $leaderPosePaths = array_values(array_unique($room['leaderPosePaths'] ?? []));
+                                $leaderHasPoseChoices = count($leaderPosePaths) > 1;
+                                $leaderTenureDays = $room['leaderTenureDays'] ?? 1;
                             @endphp
                             @if($leader)
-                                <button
-                                    type="button"
-                                    x-on:click="Livewire.dispatch('open-adventurer-card', { characterId: {{ $leader->id }} })"
-                                    class="group absolute z-10 flex aspect-square w-[21%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition hover:scale-105 focus-visible:scale-105 focus-visible:outline-none {{ $room['leaderIsCurrentCharacter'] ? 'bg-amber-50/90 shadow-[0_0_22px_rgba(251,191,36,0.95)] ring-2 ring-amber-400' : 'bg-white/75 shadow-sm ring-1 ring-white/90 focus-visible:ring-2 focus-visible:ring-amber-400' }}"
+                                <div
+                                    @if($leaderHasPoseChoices)
+                                        x-data="{ poseIndex: 0, posePaths: @js($leaderPosePaths) }"
+                                    @endif
+                                    class="group absolute z-10 flex aspect-square w-[21%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition hover:scale-105 focus-within:scale-105 {{ $room['leaderIsCurrentCharacter'] ? 'bg-amber-50/90 shadow-[0_0_22px_rgba(251,191,36,0.95)] ring-2 ring-amber-400' : 'bg-white/75 shadow-sm ring-1 ring-white/90 focus-within:ring-2 focus-within:ring-amber-400' }}"
                                     style="left: {{ $position['x'] }}%; top: {{ $position['y'] }}%;"
-                                    title="{{ $room['label'] }} 現在首位：{{ $leader->name }}（在位 {{ $room['leaderTenureDays'] ?? 1 }}日目）"
-                                    aria-label="{{ $room['label'] }}の現在首位、{{ $leader->name }}、在位{{ $room['leaderTenureDays'] ?? 1 }}日目の戦績付き冒険者カードを見る"
+                                    title="{{ $room['label'] }} 現在首位：{{ $leader->name }}（在位 {{ $leaderTenureDays }}日目）"
                                     data-current-six-hero-room="{{ $room['key'] }}"
                                     data-current-six-hero-character-id="{{ $leader->id }}"
                                     @if($room['leaderIsCurrentCharacter']) data-current-six-hero-self @endif
                                     @if($room['leaderIsNew']) data-current-six-hero-new @endif
                                     data-current-six-hero-crowns="{{ $room['leaderCrownCount'] }}"
                                 >
-                                    <img
-                                        src="{{ \App\Support\CharacterIconCatalog::versionedAsset($leader->icon_path) }}"
-                                        alt=""
-                                        class="h-full w-full object-contain drop-shadow"
-                                    >
+                                    @if($leaderHasPoseChoices)
+                                        <button
+                                            type="button"
+                                            x-on:click.stop="poseIndex = (poseIndex + 1) % posePaths.length"
+                                            class="absolute inset-0 z-0 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                            aria-label="{{ $leader->name }}の表示ポーズを切り替える（この画面内のみ）"
+                                            title="タップで{{ $leader->name }}のポーズを切り替える（この画面内のみ）"
+                                            data-current-six-hero-pose-toggle
+                                        >
+                                            <img
+                                                src="{{ $leaderPosePaths[0] }}"
+                                                x-bind:src="posePaths[poseIndex]"
+                                                alt=""
+                                                class="h-full w-full object-contain drop-shadow"
+                                            >
+                                        </button>
+                                    @else
+                                        <button
+                                            type="button"
+                                            x-on:click.stop="Livewire.dispatch('open-adventurer-card', { characterId: {{ $leader->id }} })"
+                                            class="absolute inset-0 z-0 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                            aria-label="{{ $leader->name }}の戦績付き冒険者カードを見る"
+                                            data-current-six-hero-profile-trigger
+                                        >
+                                            <img
+                                                src="{{ \App\Support\CharacterIconCatalog::versionedAsset($leader->icon_path) }}"
+                                                alt=""
+                                                class="h-full w-full object-contain drop-shadow"
+                                            >
+                                        </button>
+                                    @endif
                                     @if($room['leaderIsNew'])
                                         <span class="pointer-events-none absolute -left-1 -top-1 rounded-full border border-rose-200 bg-rose-600 px-1.5 py-0.5 text-[8px] font-black tracking-wide text-white shadow">NEW</span>
                                     @endif
@@ -77,12 +106,33 @@
                                             👑{{ $room['leaderCrownCount'] }}
                                         </span>
                                     @endif
-                                    <span class="pointer-events-none absolute left-1/2 top-full z-20 mt-0.5 flex w-max max-w-28 -translate-x-1/2 flex-col items-center rounded-md border border-amber-200/90 bg-white/95 px-1.5 py-0.5 leading-tight shadow-sm">
-                                        <span class="max-w-full truncate text-[8px] font-black text-amber-700" data-current-six-hero-room-label>{{ $room['label'] }}</span>
-                                        <span class="max-w-full truncate text-[9px] font-black text-slate-800">{{ $leader->name }}</span>
-                                        <span class="mt-0.5 text-[8px] font-bold text-amber-800">在位 {{ $room['leaderTenureDays'] ?? 1 }}日目</span>
-                                    </span>
-                                </button>
+                                    @if($room['leaderIsCurrentCharacter'] && $leaderHasPoseChoices)
+                                        <button
+                                            type="button"
+                                            x-on:click.stop="poseIndex = (poseIndex + 1) % posePaths.length"
+                                            class="absolute left-1/2 top-full z-20 mt-0.5 flex w-max max-w-28 -translate-x-1/2 flex-col items-center rounded-md border border-amber-300 bg-white/95 px-1.5 py-0.5 leading-tight shadow-sm transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                            aria-label="{{ $room['label'] }}、{{ $leader->name }}、在位{{ $leaderTenureDays }}日目。表示ポーズを切り替える（この画面内のみ）"
+                                            title="タップでポーズを切り替える（この画面内のみ）"
+                                            data-current-six-hero-self-pose-toggle
+                                        >
+                                            <span class="max-w-full truncate text-[8px] font-black text-amber-700" data-current-six-hero-room-label>{{ $room['label'] }}</span>
+                                            <span class="max-w-full truncate text-[9px] font-black text-slate-800">{{ $leader->name }}</span>
+                                            <span class="mt-0.5 text-[8px] font-bold text-amber-800">在位 {{ $leaderTenureDays }}日目</span>
+                                        </button>
+                                    @else
+                                        <button
+                                            type="button"
+                                            x-on:click.stop="Livewire.dispatch('open-adventurer-card', { characterId: {{ $leader->id }} })"
+                                            class="absolute left-1/2 top-full z-20 mt-0.5 flex w-max max-w-28 -translate-x-1/2 flex-col items-center rounded-md border border-amber-200/90 bg-white/95 px-1.5 py-0.5 leading-tight shadow-sm transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                            aria-label="{{ $room['label'] }}の現在首位、{{ $leader->name }}、在位{{ $leaderTenureDays }}日目の戦績付き冒険者カードを見る"
+                                            data-current-six-hero-profile-trigger
+                                        >
+                                            <span class="max-w-full truncate text-[8px] font-black text-amber-700" data-current-six-hero-room-label>{{ $room['label'] }}</span>
+                                            <span class="max-w-full truncate text-[9px] font-black text-slate-800">{{ $leader->name }}</span>
+                                            <span class="mt-0.5 text-[8px] font-bold text-amber-800">在位 {{ $leaderTenureDays }}日目</span>
+                                        </button>
+                                    @endif
+                                </div>
                             @else
                                 <span
                                     class="absolute z-10 flex aspect-square w-[16%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-dashed border-slate-300 bg-white/75 text-sm font-black text-slate-600 shadow-sm"
