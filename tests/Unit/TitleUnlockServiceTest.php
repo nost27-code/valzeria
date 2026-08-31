@@ -324,27 +324,31 @@ class TitleUnlockServiceTest extends TestCase
             $markId = $this->createMonsterMark($this->createEnemy(1, $enemyName));
             $this->setMonsterMarkQuantity($character, $markId, 15);
         }
+        foreach (['一括付与フェルディア印A', '一括付与フェルディア印B'] as $enemyName) {
+            $markId = $this->createMonsterMark($this->createEnemy(1001, $enemyName));
+            $this->setMonsterMarkQuantity($character, $markId, 15);
+        }
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"database_driver":"sqlite"', $output);
         $this->assertStringContainsString('"mode":"dry-run"', $output);
-        $this->assertStringContainsString('"grants_missing_or_applied":22', $output);
+        $this->assertStringContainsString('"grants_missing_or_applied":24', $output);
         $this->assertSame(0, $character->titles()->count());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"mode":"apply"', $output);
-        $this->assertStringContainsString('"grants_missing_or_applied":22', $output);
-        $this->assertSame(22, $character->titles()->whereBetween('title_id', [112, 271])->count());
+        $this->assertStringContainsString('"grants_missing_or_applied":24', $output);
+        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 307])->count());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"grants_missing_or_applied":0', $output);
-        $this->assertSame(22, $character->titles()->whereBetween('title_id', [112, 271])->count());
+        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 307])->count());
     }
 
     public function test_character_title_unique_migration_matches_the_real_base_schema(): void
@@ -434,7 +438,7 @@ class TitleUnlockServiceTest extends TestCase
         $progressionMigration->down();
         $this->characterTitleUniqueMigration()->down();
 
-        $this->assertSame(160, Title::query()->whereBetween('id', [112, 271])->count());
+        $this->assertSame(196, Title::query()->whereBetween('id', [112, 307])->count());
         $this->assertDatabaseHas('character_titles', [
             'character_id' => 999,
             'title_id' => 112,
@@ -494,16 +498,18 @@ class TitleUnlockServiceTest extends TestCase
     {
         app(TitleSeeder::class)->run();
 
-        $this->assertSame(271, Title::query()->count());
+        $this->assertSame(307, Title::query()->count());
         $this->assertSame('名相棒', Title::query()->findOrFail(111)->name);
         $this->assertSame('advanced', Title::query()->findOrFail(97)->target_id);
         $this->assertSame('legend', Title::query()->findOrFail(98)->target_id);
         $this->assertSame(20, Title::query()->whereBetween('id', [112, 131])->count());
         $this->assertSame(10, Title::query()->whereBetween('id', [122, 131])->count());
         $this->assertSame('神工の担い手', Title::query()->findOrFail(131)->name);
-        $this->assertSame(140, Title::query()->whereBetween('id', [132, 271])->count());
+        $this->assertSame(176, Title::query()->whereBetween('id', [132, 307])->count());
         $this->assertSame('はじまりの草原の印収集家', Title::query()->findOrFail(132)->name);
         $this->assertSame('終焉の祭壇の印を極めし者', Title::query()->findOrFail(271)->name);
+        $this->assertSame('フェルディア南岸の印収集家', Title::query()->findOrFail(272)->name);
+        $this->assertSame('地下の謎の穴の印を極めし者', Title::query()->findOrFail(307)->name);
 
         $duplicateConditions = Title::query()
             ->selectRaw('unlock_type, target_type, target_id, COUNT(*) AS total')
@@ -549,6 +555,53 @@ class TitleUnlockServiceTest extends TestCase
 
         $this->assertSame([133], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
         $this->assertSame([], app(TitleUnlockService::class)->checkAllUnlocks($character));
+    }
+
+    public function test_ferdia_monster_mark_title_catalog_matches_all_exploration_nodes(): void
+    {
+        $areas = collect(config('ferdia_world_map.nodes', []))
+            ->filter(static fn (array $node): bool => isset($node['area_id']))
+            ->mapWithKeys(static fn (array $node): array => [(int) $node['area_id'] => (string) $node['name']]);
+        $definitions = collect(MonsterMarkTitleCatalog::definitions())
+            ->filter(static fn (array $title): bool => (int) $title['target_id'] >= 1000);
+
+        $this->assertCount(18, $areas);
+        $this->assertCount(36, $definitions);
+        $this->assertSame(range(272, 307), $definitions->keys()->all());
+
+        foreach ($areas as $areaId => $areaName) {
+            $this->assertSame(
+                [$areaName.'の印収集家', $areaName.'の印を極めし者'],
+                $definitions
+                    ->where('target_id', (string) $areaId)
+                    ->pluck('name')
+                    ->values()
+                    ->all(),
+            );
+        }
+    }
+
+    public function test_ferdia_monster_mark_titles_unlock_from_existing_collection(): void
+    {
+        $character = $this->createCharacter(level: 1, wins: 0);
+        $this->createTitle(272, 'フェルディア南岸の印収集家', 'monster_mark_area_complete', 'area', '1001', 'monster_mark');
+        $this->createTitle(273, 'フェルディア南岸の印を極めし者', 'monster_mark_area_full_complete', 'area', '1001', 'monster_mark');
+
+        $firstMarkId = $this->createMonsterMark($this->createEnemy(1001, '南岸スライム'));
+        $secondMarkId = $this->createMonsterMark($this->createEnemy(1001, '潮風ウルフ'));
+        $this->setMonsterMarkQuantity($character, $firstMarkId, 1);
+        $this->setMonsterMarkQuantity($character, $secondMarkId, 1);
+
+        $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
+
+        $this->assertSame([272], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+        $this->setMonsterMarkQuantity($character, $firstMarkId, 15);
+        $this->setMonsterMarkQuantity($character, $secondMarkId, 15);
+
+        $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
+
+        $this->assertSame([273], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
     }
 
     private function createCharacter(int $level, int $wins): Character

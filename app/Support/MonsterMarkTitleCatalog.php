@@ -6,7 +6,7 @@ final class MonsterMarkTitleCatalog
 {
     public const FIRST_TITLE_ID = 132;
 
-    public const LAST_TITLE_ID = 271;
+    public const LAST_TITLE_ID = 307;
 
     /** @var array<int, string> */
     private const AREA_NAMES = [
@@ -80,6 +80,24 @@ final class MonsterMarkTitleCatalog
         68 => '黒き玉座',
         69 => '魔王城中枢',
         70 => '終焉の祭壇',
+        1001 => 'フェルディア南岸',
+        1002 => '潮風の街道',
+        1003 => '見晴らしの丘道',
+        1004 => '清流リミュエール',
+        1005 => '古道の石橋跡',
+        1006 => 'アーデル遺跡',
+        1007 => '王都グランフォード外郭路',
+        1008 => 'メイア河畔道',
+        1009 => '水門街道',
+        1010 => '静深き北森',
+        1011 => '大樹の聖城外縁',
+        1012 => '大樹の聖城',
+        1013 => '北境の霊峰エルヴァン',
+        1025 => '星詠みの廃塔',
+        1026 => '瀑布神殿アクエリス',
+        1027 => '風化列柱都市オルド',
+        1028 => '白潮灯台',
+        1029 => '地下の謎の穴',
     ];
 
     /**
@@ -88,9 +106,10 @@ final class MonsterMarkTitleCatalog
     public static function definitions(): array
     {
         $definitions = [];
+        $areaIndex = 0;
 
         foreach (self::AREA_NAMES as $areaId => $areaName) {
-            $collectionTitleId = self::FIRST_TITLE_ID + (($areaId - 1) * 2);
+            $collectionTitleId = self::FIRST_TITLE_ID + ($areaIndex * 2);
             $fullTitleId = $collectionTitleId + 1;
 
             $definitions[$collectionTitleId] = [
@@ -103,7 +122,7 @@ final class MonsterMarkTitleCatalog
                 'target_type' => 'area',
                 'target_id' => (string) $areaId,
                 'source_master' => '印図鑑/エリア別収集',
-                'display_order' => 2000 + (($areaId - 1) * 2),
+                'display_order' => 2000 + ($areaIndex * 2),
                 'is_hidden' => true,
             ];
             $definitions[$fullTitleId] = [
@@ -116,9 +135,11 @@ final class MonsterMarkTitleCatalog
                 'target_type' => 'area',
                 'target_id' => (string) $areaId,
                 'source_master' => '印図鑑/エリア別収集',
-                'display_order' => 2001 + (($areaId - 1) * 2),
+                'display_order' => 2001 + ($areaIndex * 2),
                 'is_hidden' => true,
             ];
+
+            $areaIndex++;
         }
 
         return $definitions;

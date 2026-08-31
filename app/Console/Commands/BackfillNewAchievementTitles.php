@@ -110,7 +110,9 @@ final class BackfillNewAchievementTitles extends Command
                     ->contains(static fn (Title $title): bool => $title->category !== 'equipment')
                 || $titleDefinitions->whereIn('id', $monsterMarkTitleIds)
                     ->contains(static fn (Title $title): bool => $title->category !== 'monster_mark')) {
-                throw new RuntimeException('New achievement title definitions 112-271 are incomplete or invalid.');
+                throw new RuntimeException(
+                    'New achievement title definitions 112-'.MonsterMarkTitleCatalog::LAST_TITLE_ID.' are incomplete or invalid.'
+                );
             }
 
             $apply = (bool) $this->option('apply');
