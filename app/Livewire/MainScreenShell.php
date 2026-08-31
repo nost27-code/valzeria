@@ -6,6 +6,7 @@ use App\Services\ExplorationStateService;
 use App\Services\HomeActionService;
 use App\Services\MapExplorationItemService;
 use App\Services\Nation\NationChatService;
+use App\Support\TitleUnlockMessage;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -93,13 +94,9 @@ class MainScreenShell extends Component
         app(\App\Services\FerdiaMapService::class)->relocateFromDisabledRegion($this->character);
 
         $unlockedTitles = app(\App\Services\TitleUnlockService::class)->checkAllUnlocks($this->character);
-        if (count($unlockedTitles) > 0) {
-            $titleNames = collect($unlockedTitles)
-                ->pluck('name')
-                ->filter()
-                ->implode('、');
-
-            session()->flash('message', "過去の実績により新たな称号を獲得しました！ {$titleNames}");
+        $titleMessage = TitleUnlockMessage::forPastAchievements($unlockedTitles);
+        if ($titleMessage !== null) {
+            session()->flash('message', $titleMessage);
         }
     }
 

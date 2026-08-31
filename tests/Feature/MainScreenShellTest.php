@@ -131,4 +131,25 @@ class MainScreenShellTest extends TestCase
             ->assertSeeHtml('data-legacy-arena-home-tab')
             ->assertDontSeeHtml('data-six-hero-home-tab');
     }
+
+    public function test_shell_summarizes_multiple_past_achievement_titles_as_one_count_message(): void
+    {
+        $user = User::factory()->create();
+        $character = Character::query()->create([
+            'user_id' => $user->id,
+            'name' => '称号一括獲得確認者',
+            'level' => 255,
+            'wins' => 3000,
+            'icon_path' => '/images/chara/chara_001.webp',
+        ]);
+        session(['current_character_id' => $character->id]);
+        $this->actingAs($user);
+
+        Livewire::test(MainScreenShell::class);
+
+        $message = (string) session('message');
+        $this->assertMatchesRegularExpression('/^過去の実績により、称号を\d+個獲得しました！$/u', $message);
+        $this->assertStringNotContainsString('一人前の冒険者', $message);
+        $this->assertStringNotContainsString('千勝の戦巧者', $message);
+    }
 }

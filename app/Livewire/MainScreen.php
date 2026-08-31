@@ -26,6 +26,7 @@ use App\Services\TownRankingService;
 use App\Services\GameTextService;
 use App\Support\CharacterIconCatalog;
 use App\Support\FacilityConfig;
+use App\Support\TitleUnlockMessage;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -179,13 +180,9 @@ class MainScreen extends Component
             $titleUnlockService = app(\App\Services\TitleUnlockService::class);
             $unlockedTitles = $titleUnlockService->checkAllUnlocks($this->character);
 
-            if (count($unlockedTitles) > 0) {
-                $titleNames = collect($unlockedTitles)
-                    ->pluck('name')
-                    ->filter()
-                    ->implode('、');
-
-                session()->flash('message', "過去の実績により新たな称号を獲得しました！ {$titleNames}");
+            $titleMessage = TitleUnlockMessage::forPastAchievements($unlockedTitles);
+            if ($titleMessage !== null) {
+                session()->flash('message', $titleMessage);
             }
         }
     }
