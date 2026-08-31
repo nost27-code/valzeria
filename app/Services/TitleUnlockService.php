@@ -12,9 +12,14 @@ class TitleUnlockService
 {
     protected TitleService $titleService;
 
-    public function __construct(TitleService $titleService)
-    {
+    protected MonsterMarkService $monsterMarkService;
+
+    public function __construct(
+        TitleService $titleService,
+        MonsterMarkService $monsterMarkService,
+    ) {
         $this->titleService = $titleService;
+        $this->monsterMarkService = $monsterMarkService;
     }
 
     /**
@@ -28,6 +33,7 @@ class TitleUnlockService
         $unlockedTitles = array_merge($unlockedTitles, $this->checkJobTitles($character));
         $unlockedTitles = array_merge($unlockedTitles, $this->checkLevelTitles($character));
         $unlockedTitles = array_merge($unlockedTitles, $this->checkEquipmentTitles($character));
+        $unlockedTitles = array_merge($unlockedTitles, $this->checkMonsterMarkTitles($character));
 
         return $unlockedTitles;
     }
@@ -396,6 +402,61 @@ class TitleUnlockService
                 'armor_species_resist:resist' => $title->target_id === 'any' && $hasArmorResist,
                 'equipment_trait_level:trait_level' => $targetNumber > 0 && $maxTraitLevel >= $targetNumber,
                 'equipment_masterpiece:masterpiece' => $title->target_id === '30:excellent:5' && $hasMasterpiece,
+                default => false,
+            };
+        })->values();
+    }
+
+    /**
+     * エリア内の全印収集・全印15個到達による称号をチェックする。
+     */
+    public function checkMonsterMarkTitles(Character $character): array
+    {
+        $unlockedTitles = [];
+
+        foreach ($this->eligibleMonsterMarkTitles($character) as $title) {
+            $this->titleService->unlockTitle($character, $title->id);
+            $unlockedTitles[] = $title;
+        }
+
+        return $unlockedTitles;
+    }
+
+    /**
+     * 印図鑑の現在値から、未獲得かつ条件達成済みの称号を返す。
+     *
+     * @return Collection<int, Title>
+     */
+    public function eligibleMonsterMarkTitles(Character $character): Collection
+    {
+        $ownedTitleIds = $character->titles()->pluck('title_id')->all();
+        $titles = Title::query()
+            ->whereIn('unlock_type', [
+                'monster_mark_area_complete',
+                'monster_mark_area_full_complete',
+            ])
+            ->where('target_type', 'area')
+            ->whereNotIn('id', $ownedTitleIds)
+            ->get();
+
+        if ($titles->isEmpty()) {
+            return $titles;
+        }
+
+        $progressByArea = $this->monsterMarkService->areaCompletionFor(
+            $character,
+            $titles->pluck('target_id')->map(static fn ($areaId): int => (int) $areaId)->all(),
+        );
+
+        return $titles->filter(static function (Title $title) use ($progressByArea): bool {
+            $progress = $progressByArea->get((int) $title->target_id);
+            if (! is_array($progress)) {
+                return false;
+            }
+
+            return match ($title->unlock_type) {
+                'monster_mark_area_complete' => (bool) $progress['is_complete'],
+                'monster_mark_area_full_complete' => (bool) $progress['is_full_complete'],
                 default => false,
             };
         })->values();

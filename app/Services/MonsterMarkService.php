@@ -236,6 +236,90 @@ class MonsterMarkService
         ];
     }
 
+    /**
+     * 印図鑑と同じ「同一エリア・同名敵は1種類」の単位で、エリア別の収集状況を返す。
+     *
+     * @param  array<int, int>  $areaIds
+     * @return Collection<int, array{
+     *     area_id: int,
+     *     total_count: int,
+     *     discovered_count: int,
+     *     full_count: int,
+     *     is_complete: bool,
+     *     is_full_complete: bool
+     * }>
+     */
+    public function areaCompletionFor(Character $character, array $areaIds): Collection
+    {
+        $areaIds = collect($areaIds)
+            ->map(static fn ($areaId): int => (int) $areaId)
+            ->filter(static fn (int $areaId): bool => $areaId > 0)
+            ->unique()
+            ->values();
+
+        if ($areaIds->isEmpty()) {
+            return collect();
+        }
+
+        $markRows = DB::table('monster_marks')
+            ->join('enemies', 'enemies.id', '=', 'monster_marks.enemy_id')
+            ->where('monster_marks.is_active', true)
+            ->where('enemies.is_boss', false)
+            ->whereIn('enemies.area_id', $areaIds->all())
+            ->where(function ($query): void {
+                $query->whereNull('enemies.role')
+                    ->orWhere('enemies.role', 'not like', '%ダンジョン主%');
+            })
+            ->orderBy('monster_marks.id')
+            ->get([
+                'monster_marks.id AS monster_mark_id',
+                'enemies.area_id',
+                'enemies.name AS enemy_name',
+            ]);
+
+        if ($markRows->isEmpty()) {
+            return collect();
+        }
+
+        $ownedQuantities = CharacterMonsterMark::query()
+            ->where('character_id', $character->id)
+            ->whereIn('monster_mark_id', $markRows->pluck('monster_mark_id')->all())
+            ->pluck('quantity', 'monster_mark_id');
+
+        return $markRows
+            ->groupBy(fn ($row): string => $this->signatureForAreaAndEnemy(
+                (int) $row->area_id,
+                (string) $row->enemy_name,
+            ))
+            ->map(function (Collection $equivalentMarks) use ($ownedQuantities): array {
+                $first = $equivalentMarks->first();
+                $quantity = (int) $equivalentMarks->sum(
+                    fn ($mark): int => (int) ($ownedQuantities[(int) $mark->monster_mark_id] ?? 0)
+                );
+
+                return [
+                    'area_id' => (int) $first->area_id,
+                    'quantity' => $quantity,
+                ];
+            })
+            ->values()
+            ->groupBy('area_id')
+            ->map(function (Collection $marks, $areaId): array {
+                $totalCount = $marks->count();
+                $discoveredCount = $marks->where('quantity', '>', 0)->count();
+                $fullCount = $marks->where('quantity', '>=', self::DROP_RATE_REDUCTION_QUANTITY)->count();
+
+                return [
+                    'area_id' => (int) $areaId,
+                    'total_count' => $totalCount,
+                    'discovered_count' => $discoveredCount,
+                    'full_count' => $fullCount,
+                    'is_complete' => $totalCount > 0 && $discoveredCount === $totalCount,
+                    'is_full_complete' => $totalCount > 0 && $fullCount === $totalCount,
+                ];
+            });
+    }
+
     private function discoveredAreaIds(Character $character): Collection
     {
         return CharacterAreaProgress::query()
@@ -325,7 +409,7 @@ class MonsterMarkService
         $areaId = (int) ($entry['area']?->id ?? 0);
         $enemyName = trim((string) ($entry['enemy']?->name ?? $entry['mark']?->mark_name ?? ''));
 
-        return $areaId.':'.preg_replace('/の印$/u', '', $enemyName);
+        return $this->signatureForAreaAndEnemy($areaId, $enemyName);
     }
 
     private function markSignature(MonsterMark $mark): string
@@ -334,7 +418,12 @@ class MonsterMarkService
         $areaId = (int) ($enemy?->area_id ?? $enemy?->area?->id ?? 0);
         $enemyName = trim((string) ($enemy?->name ?? $mark->mark_name));
 
-        return $areaId.':'.preg_replace('/の印$/u', '', $enemyName);
+        return $this->signatureForAreaAndEnemy($areaId, $enemyName);
+    }
+
+    private function signatureForAreaAndEnemy(int $areaId, string $enemyName): string
+    {
+        return $areaId.':'.preg_replace('/の印$/u', '', trim($enemyName));
     }
 
     private function effectiveDropRate(MonsterMark $mark, int $currentQuantity): float

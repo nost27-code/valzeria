@@ -7,6 +7,7 @@ use App\Models\CharacterJob;
 use App\Models\JobClass;
 use App\Models\Title;
 use App\Services\TitleUnlockService;
+use App\Support\MonsterMarkTitleCatalog;
 use Database\Seeders\TitleSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
@@ -60,6 +61,32 @@ class TitleUnlockServiceTest extends TestCase
             $table->string('resist_species_key')->nullable();
             $table->decimal('species_damage_reduction_rate', 8, 4)->default(0);
             $table->timestamps();
+        });
+
+        Schema::create('enemies', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('area_id');
+            $table->string('name');
+            $table->boolean('is_boss')->default(false);
+            $table->string('role')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('monster_marks', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('enemy_id');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('character_monster_marks', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('character_id');
+            $table->unsignedBigInteger('monster_mark_id');
+            $table->unsignedInteger('quantity')->default(0);
+            $table->unsignedInteger('unlocked_level')->default(0);
+            $table->timestamps();
+            $table->unique(['character_id', 'monster_mark_id']);
         });
 
         Schema::create('titles', function (Blueprint $table): void {
@@ -258,6 +285,7 @@ class TitleUnlockServiceTest extends TestCase
         $character = $this->createCharacter(level: 255, wins: 3000);
         $this->createNewProgressionTitles();
         $this->createEquipmentTitles();
+        $this->createMonsterMarkTitles();
 
         foreach (['middle', 'super', 'crown', 'hero', 'myth'] as $rank) {
             $job = JobClass::query()->create([
@@ -292,26 +320,31 @@ class TitleUnlockServiceTest extends TestCase
             'species_damage_reduction_rate' => 0.05,
         ]);
 
+        foreach (['一括付与印A', '一括付与印B'] as $enemyName) {
+            $markId = $this->createMonsterMark($this->createEnemy(1, $enemyName));
+            $this->setMonsterMarkQuantity($character, $markId, 15);
+        }
+
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"database_driver":"sqlite"', $output);
         $this->assertStringContainsString('"mode":"dry-run"', $output);
-        $this->assertStringContainsString('"grants_missing_or_applied":20', $output);
+        $this->assertStringContainsString('"grants_missing_or_applied":22', $output);
         $this->assertSame(0, $character->titles()->count());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"mode":"apply"', $output);
-        $this->assertStringContainsString('"grants_missing_or_applied":20', $output);
-        $this->assertSame(20, $character->titles()->whereBetween('title_id', [112, 131])->count());
+        $this->assertStringContainsString('"grants_missing_or_applied":22', $output);
+        $this->assertSame(22, $character->titles()->whereBetween('title_id', [112, 271])->count());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"grants_missing_or_applied":0', $output);
-        $this->assertSame(20, $character->titles()->whereBetween('title_id', [112, 131])->count());
+        $this->assertSame(22, $character->titles()->whereBetween('title_id', [112, 271])->count());
     }
 
     public function test_character_title_unique_migration_matches_the_real_base_schema(): void
@@ -384,8 +417,10 @@ class TitleUnlockServiceTest extends TestCase
     {
         $progressionMigration = require database_path('migrations/2026_08_30_120000_add_progression_titles.php');
         $equipmentMigration = require database_path('migrations/2026_08_30_130000_add_equipment_titles.php');
+        $monsterMarkMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
         $progressionMigration->up();
         $equipmentMigration->up();
+        $monsterMarkMigration->up();
 
         DB::table('character_titles')->insert([
             'character_id' => 999,
@@ -394,11 +429,12 @@ class TitleUnlockServiceTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $monsterMarkMigration->down();
         $equipmentMigration->down();
         $progressionMigration->down();
         $this->characterTitleUniqueMigration()->down();
 
-        $this->assertSame(20, Title::query()->whereBetween('id', [112, 131])->count());
+        $this->assertSame(160, Title::query()->whereBetween('id', [112, 271])->count());
         $this->assertDatabaseHas('character_titles', [
             'character_id' => 999,
             'title_id' => 112,
@@ -443,17 +479,31 @@ class TitleUnlockServiceTest extends TestCase
         $migration->up();
     }
 
+    public function test_monster_mark_title_migration_rejects_a_changed_existing_payload(): void
+    {
+        $migration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
+        $migration->up();
+        DB::table('titles')->where('id', 132)->update(['target_id' => '2']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('different target_id value');
+        $migration->up();
+    }
+
     public function test_title_seeder_contains_the_current_progression_catalog(): void
     {
         app(TitleSeeder::class)->run();
 
-        $this->assertSame(131, Title::query()->count());
+        $this->assertSame(271, Title::query()->count());
         $this->assertSame('名相棒', Title::query()->findOrFail(111)->name);
         $this->assertSame('advanced', Title::query()->findOrFail(97)->target_id);
         $this->assertSame('legend', Title::query()->findOrFail(98)->target_id);
         $this->assertSame(20, Title::query()->whereBetween('id', [112, 131])->count());
         $this->assertSame(10, Title::query()->whereBetween('id', [122, 131])->count());
         $this->assertSame('神工の担い手', Title::query()->findOrFail(131)->name);
+        $this->assertSame(140, Title::query()->whereBetween('id', [132, 271])->count());
+        $this->assertSame('はじまりの草原の印収集家', Title::query()->findOrFail(132)->name);
+        $this->assertSame('終焉の祭壇の印を極めし者', Title::query()->findOrFail(271)->name);
 
         $duplicateConditions = Title::query()
             ->selectRaw('unlock_type, target_type, target_id, COUNT(*) AS total')
@@ -462,6 +512,43 @@ class TitleUnlockServiceTest extends TestCase
             ->count();
 
         $this->assertSame(0, $duplicateConditions);
+    }
+
+    public function test_monster_mark_titles_use_area_collection_and_aggregate_duplicate_mark_rows(): void
+    {
+        $character = $this->createCharacter(level: 1, wins: 0);
+        $this->createTitle(132, 'はじまりの草原の印収集家', 'monster_mark_area_complete', 'area', '1', 'monster_mark');
+        $this->createTitle(133, 'はじまりの草原の印を極めし者', 'monster_mark_area_full_complete', 'area', '1', 'monster_mark');
+
+        $firstEnemyId = $this->createEnemy(1, '草原スライム');
+        $duplicateEnemyId = $this->createEnemy(1, '草原スライム');
+        $secondEnemyId = $this->createEnemy(1, '野うさぎ');
+        $bossEnemyId = $this->createEnemy(1, '草原の主', isBoss: true);
+        $dungeonLordEnemyId = $this->createEnemy(1, '草原の影', role: 'ダンジョン主');
+        $inactiveEnemyId = $this->createEnemy(1, '旧草原ゴーレム');
+
+        $firstMarkId = $this->createMonsterMark($firstEnemyId);
+        $duplicateMarkId = $this->createMonsterMark($duplicateEnemyId);
+        $secondMarkId = $this->createMonsterMark($secondEnemyId);
+        $this->createMonsterMark($bossEnemyId);
+        $this->createMonsterMark($dungeonLordEnemyId);
+        $this->createMonsterMark($inactiveEnemyId, isActive: false);
+
+        $this->setMonsterMarkQuantity($character, $firstMarkId, 1);
+        $this->setMonsterMarkQuantity($character, $secondMarkId, 1);
+
+        $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
+
+        $this->assertSame([132], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+        $this->setMonsterMarkQuantity($character, $firstMarkId, 8);
+        $this->setMonsterMarkQuantity($character, $duplicateMarkId, 7);
+        $this->setMonsterMarkQuantity($character, $secondMarkId, 15);
+
+        $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
+
+        $this->assertSame([133], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+        $this->assertSame([], app(TitleUnlockService::class)->checkAllUnlocks($character));
     }
 
     private function createCharacter(int $level, int $wins): Character
@@ -536,6 +623,62 @@ class TitleUnlockServiceTest extends TestCase
         }
     }
 
+    private function createMonsterMarkTitles(): void
+    {
+        foreach (MonsterMarkTitleCatalog::definitions() as $id => $title) {
+            $this->createTitle(
+                $id,
+                (string) $title['name'],
+                (string) $title['unlock_type'],
+                (string) $title['target_type'],
+                (string) $title['target_id'],
+                (string) $title['category'],
+            );
+        }
+    }
+
+    private function createEnemy(
+        int $areaId,
+        string $name,
+        bool $isBoss = false,
+        ?string $role = null,
+    ): int {
+        return (int) DB::table('enemies')->insertGetId([
+            'area_id' => $areaId,
+            'name' => $name,
+            'is_boss' => $isBoss,
+            'role' => $role,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createMonsterMark(int $enemyId, bool $isActive = true): int
+    {
+        return (int) DB::table('monster_marks')->insertGetId([
+            'enemy_id' => $enemyId,
+            'is_active' => $isActive,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function setMonsterMarkQuantity(Character $character, int $monsterMarkId, int $quantity): void
+    {
+        DB::table('character_monster_marks')->updateOrInsert(
+            [
+                'character_id' => $character->id,
+                'monster_mark_id' => $monsterMarkId,
+            ],
+            [
+                'quantity' => $quantity,
+                'unlocked_level' => $quantity >= 15 ? 4 : 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        );
+    }
+
     private function createItem(
         string $name,
         string $type,
@@ -580,6 +723,9 @@ class TitleUnlockServiceTest extends TestCase
             'job_classes',
             'character_area_progresses',
             'character_titles',
+            'character_monster_marks',
+            'monster_marks',
+            'enemies',
             'character_items',
             'items',
             'titles',

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\MonsterMarkTitleCatalog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -147,6 +148,23 @@ class TitleSeeder extends Seeder
             [130, 'equipment', 'mythic', '特性を極めし者', '段階Vの銘・特攻・耐性を持つ装備を所持する', '装備の銘・特攻・耐性のいずれかを最高段階Vまで磨こう。', 'equipment_trait_level', 'trait_level', '5', '所持装備/特性段階', 129, true],
             [131, 'equipment', 'mythic', '神工の担い手', '強化値+30・逸品・段階Vの特性を備えた同一装備を所持する', '一つの装備に最高強化、逸品、最高段階の特性をそろえよう。', 'equipment_masterpiece', 'masterpiece', '30:excellent:5', '所持装備/鍛冶到達点', 130, true],
         ];
+
+        foreach (MonsterMarkTitleCatalog::definitions() as $id => $title) {
+            $titles[] = [
+                $id,
+                $title['category'],
+                $title['rarity'],
+                $title['name'],
+                $title['description'],
+                $title['hint'],
+                $title['unlock_type'],
+                $title['target_type'],
+                $title['target_id'],
+                $title['source_master'],
+                $title['display_order'],
+                $title['is_hidden'],
+            ];
+        }
 
         $insertData = [];
         foreach ($titles as $title) {

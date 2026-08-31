@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-monster-mark-area-titles',
+        'date' => '2026-08-31',
+        'category' => 'added',
+        'title' => '印図鑑のエリア別収集称号を追加',
+        'detail' => '各エリアで対象となる印を全種類1個以上集めた称号と、全種類を15個まで集めたフルコンプリート称号を追加しました。すでに条件を満たしている場合も、保存済みの印所持数から獲得できます。',
+    ],
+    [
         'id' => '2026-08-31-map-institute-development-admin',
         'date' => '2026-08-31',
         'category' => 'internal',

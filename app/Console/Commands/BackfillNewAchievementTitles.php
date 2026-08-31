@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\Title;
 use App\Services\TitleService;
 use App\Services\TitleUnlockService;
+use App\Support\MonsterMarkTitleCatalog;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +17,7 @@ use Throwable;
 final class BackfillNewAchievementTitles extends Command
 {
     /** @var list<int> */
-    private const TITLE_IDS = [
+    private const EXISTING_TITLE_IDS = [
         112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
         122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
     ];
@@ -27,7 +28,7 @@ final class BackfillNewAchievementTitles extends Command
         {--chunk=100 : 1回に走査するキャラクター数}
         {--json : 結果をJSONで出力する}';
 
-    protected $description = '保存済み実績から、新しい進行・装備実績称号を既存キャラクターへ冪等に一括付与する';
+    protected $description = '保存済み実績から、新しい進行・装備・印実績称号を既存キャラクターへ冪等に一括付与する';
 
     public function handle(
         TitleUnlockService $titleUnlockService,
@@ -50,7 +51,18 @@ final class BackfillNewAchievementTitles extends Command
 
         $requiredTables = $auditSchema
             ? ['character_titles']
-            : ['characters', 'titles', 'character_titles', 'character_items', 'items', 'character_jobs', 'job_classes'];
+            : [
+                'characters',
+                'titles',
+                'character_titles',
+                'character_items',
+                'items',
+                'character_jobs',
+                'job_classes',
+                'monster_marks',
+                'character_monster_marks',
+                'enemies',
+            ];
         foreach ($requiredTables as $table) {
             if (! Schema::hasTable($table)) {
                 return $this->failCommand("Required table is missing: {$table}.");
@@ -87,14 +99,18 @@ final class BackfillNewAchievementTitles extends Command
                 throw new RuntimeException('The character_titles character/title UNIQUE constraint is missing.');
             }
 
+            $titleIds = $this->titleIds();
+            $monsterMarkTitleIds = MonsterMarkTitleCatalog::titleIds();
             $titleDefinitions = Title::query()
-                ->whereIn('id', self::TITLE_IDS)
+                ->whereIn('id', $titleIds)
                 ->orderBy('id')
                 ->get(['id', 'name', 'category']);
-            if ($titleDefinitions->pluck('id')->map(static fn ($id): int => (int) $id)->all() !== self::TITLE_IDS
+            if ($titleDefinitions->pluck('id')->map(static fn ($id): int => (int) $id)->all() !== $titleIds
                 || $titleDefinitions->whereBetween('id', [122, 131])
-                    ->contains(static fn (Title $title): bool => $title->category !== 'equipment')) {
-                throw new RuntimeException('New achievement title definitions 112-131 are incomplete or invalid.');
+                    ->contains(static fn (Title $title): bool => $title->category !== 'equipment')
+                || $titleDefinitions->whereIn('id', $monsterMarkTitleIds)
+                    ->contains(static fn (Title $title): bool => $title->category !== 'monster_mark')) {
+                throw new RuntimeException('New achievement title definitions 112-271 are incomplete or invalid.');
             }
 
             $apply = (bool) $this->option('apply');
@@ -120,7 +136,7 @@ final class BackfillNewAchievementTitles extends Command
                 ...$summary,
                 'mode' => $apply ? 'apply' : 'dry-run',
                 'existing_grants_after' => DB::table('character_titles')
-                    ->whereIn('title_id', self::TITLE_IDS)
+                    ->whereIn('title_id', $titleIds)
                     ->count(),
                 'duplicate_pairs_after' => $this->duplicatePairCount(),
                 'unique_index_present' => true,
@@ -159,7 +175,8 @@ final class BackfillNewAchievementTitles extends Command
         $charactersScanned = 0;
         $charactersEligible = 0;
         $grants = 0;
-        $perTitle = array_fill_keys(self::TITLE_IDS, 0);
+        $titleIds = $this->titleIds();
+        $perTitle = array_fill_keys($titleIds, 0);
 
         Character::query()
             ->select('characters.id', 'characters.level', 'characters.wins')
@@ -168,6 +185,7 @@ final class BackfillNewAchievementTitles extends Command
                 $titleUnlockService,
                 $titleService,
                 $apply,
+                $titleIds,
                 &$charactersScanned,
                 &$charactersEligible,
                 &$grants,
@@ -177,7 +195,8 @@ final class BackfillNewAchievementTitles extends Command
                     $charactersScanned++;
                     $titles = $titleUnlockService->eligibleNewProgressionTitles($character)
                         ->concat($titleUnlockService->eligibleEquipmentTitles($character))
-                        ->filter(static fn (Title $title): bool => in_array((int) $title->id, self::TITLE_IDS, true))
+                        ->concat($titleUnlockService->eligibleMonsterMarkTitles($character))
+                        ->filter(static fn (Title $title): bool => in_array((int) $title->id, $titleIds, true))
                         ->unique('id')
                         ->values();
 
@@ -216,6 +235,12 @@ final class BackfillNewAchievementTitles extends Command
                 'duplicate_new_titles',
             )
             ->count();
+    }
+
+    /** @return list<int> */
+    private function titleIds(): array
+    {
+        return array_merge(self::EXISTING_TITLE_IDS, MonsterMarkTitleCatalog::titleIds());
     }
 
     private function characterTitleUniqueIndexPresent(): bool
