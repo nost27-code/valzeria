@@ -256,6 +256,29 @@ class ExplorationMapController extends Controller
         try { $registration = app(MapSurveyService::class)->start($this->character(), $map, City::findOrFail($request->integer('town_id')), $request->boolean('use_bank')); return redirect()->route('exploration-maps.show', $registration)->with('message', '地図院の調査が完了した。公開の準備をしよう。'); }
         catch (\RuntimeException $e) { return back()->with('error', $e->getMessage()); }
     }
+    public function bulkSurvey(Request $request)
+    {
+        $validated = $request->validate([
+            'map_ids' => ['required', 'array', 'min:1'],
+            'map_ids.*' => ['required', 'integer', 'min:1', 'distinct'],
+            'town_id' => ['required', 'integer', 'exists:cities,id'],
+            'use_bank' => ['nullable', 'boolean'],
+        ]);
+
+        try {
+            $registrations = app(MapSurveyService::class)->startMany(
+                $this->character(),
+                $validated['map_ids'],
+                City::findOrFail((int) $validated['town_id']),
+                $request->boolean('use_bank'),
+            );
+
+            return redirect()->route('exploration-maps.index')->with('message', "選択した{$registrations->count()}件の探索地図を一括調査した。");
+        }
+        catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
     public function completeSurvey(TownMapRegistration $registration)
     {
         try { app(MapSurveyService::class)->complete($this->character(), $registration); return redirect()->route('exploration-maps.show', $registration)->with('message', '遠征調査が完了し、地図の全容が判明した。'); }

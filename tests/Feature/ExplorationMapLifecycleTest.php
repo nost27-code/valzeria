@@ -8,6 +8,7 @@ use App\Models\CharacterMaterial;
 use App\Models\City;
 use App\Models\Enemy;
 use App\Models\ExplorationMap;
+use App\Models\GoldTransaction;
 use App\Models\MapExplorationBatch;
 use App\Models\Material;
 use App\Models\PlayerValmon;
@@ -27,6 +28,171 @@ use Tests\TestCase;
 class ExplorationMapLifecycleTest extends TestCase
 {
     use CreatesExplorationMapEnemyFixtures, RefreshDatabase;
+
+    public function test_owner_can_bulk_survey_selected_maps_with_one_payment(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $normal = $this->generateMap($character, $area, $enemy, 53);
+        $rare = $this->generateMap($character, $area, $enemy, 54);
+        $untouched = $this->generateMap($character, $area, $enemy, 55);
+        $normal->update(['map_grade' => 'normal']);
+        $rare->update(['map_grade' => 'rare']);
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->post(route('exploration-maps.bulk-survey'), [
+                'map_ids' => [$rare->id, $normal->id],
+                'town_id' => $city->id,
+            ])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('message', '選択した2件の探索地図を一括調査した。');
+
+        $this->assertSame('surveyed', $normal->fresh()->status);
+        $this->assertSame('surveyed', $rare->fresh()->status);
+        $this->assertSame('uninvestigated', $untouched->fresh()->status);
+        $this->assertDatabaseHas('town_map_registrations', [
+            'map_id' => $normal->id,
+            'town_id' => $city->id,
+            'survey_cost' => 500,
+            'status' => 'surveyed',
+        ]);
+        $this->assertDatabaseHas('town_map_registrations', [
+            'map_id' => $rare->id,
+            'town_id' => $city->id,
+            'survey_cost' => 1500,
+            'status' => 'surveyed',
+        ]);
+        $this->assertSame(98000, (int) $character->fresh()->money);
+
+        $transaction = GoldTransaction::query()
+            ->where('character_id', $character->id)
+            ->where('type', 'map_survey')
+            ->sole();
+        $this->assertSame(-2000, (int) $transaction->amount);
+        $this->assertNull($transaction->source_id);
+        $this->assertSame(2, (int) data_get($transaction->metadata, 'survey_map_count'));
+        $this->assertSame(
+            collect([$normal->id, $rare->id])->sort()->values()->all(),
+            data_get($transaction->metadata, 'survey_map_ids'),
+        );
+    }
+
+    public function test_bulk_survey_uses_bank_only_after_confirmation(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $normal = $this->generateMap($character, $area, $enemy, 56);
+        $rare = $this->generateMap($character, $area, $enemy, 57);
+        $normal->update(['map_grade' => 'normal']);
+        $rare->update(['map_grade' => 'rare']);
+        $character->forceFill(['money' => 100, 'bank_gold' => 1900])->save();
+        $payload = [
+            'map_ids' => [$normal->id, $rare->id],
+            'town_id' => $city->id,
+        ];
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('exploration-maps.index'))
+            ->post(route('exploration-maps.bulk-survey'), $payload)
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('error', '銀行預金を使う確認が必要です。');
+
+        $this->assertSame('uninvestigated', $normal->fresh()->status);
+        $this->assertSame('uninvestigated', $rare->fresh()->status);
+        $this->assertSame(0, TownMapRegistration::query()->count());
+        $this->assertSame(100, (int) $character->fresh()->money);
+        $this->assertSame(1900, (int) $character->fresh()->bank_gold);
+        $this->assertSame(0, GoldTransaction::query()->count());
+
+        $this->post(route('exploration-maps.bulk-survey'), [...$payload, 'use_bank' => 1])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('message', '選択した2件の探索地図を一括調査した。');
+
+        $this->assertSame(0, (int) $character->fresh()->money);
+        $this->assertSame(0, (int) $character->fresh()->bank_gold);
+        $this->assertSame(2, TownMapRegistration::query()->count());
+        $this->assertSame(1, GoldTransaction::query()->where('type', 'map_survey')->count());
+    }
+
+    public function test_bulk_survey_rolls_back_when_selection_contains_a_surveyed_map(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $uninvestigated = $this->generateMap($character, $area, $enemy, 58);
+        $surveyed = $this->generateMap($character, $area, $enemy, 59);
+        $uninvestigated->update(['map_grade' => 'normal']);
+        $surveyed->update(['map_grade' => 'normal']);
+        app(MapSurveyService::class)->start($character, $surveyed->fresh(), $city);
+        $moneyBefore = (int) $character->fresh()->money;
+        $transactionsBefore = GoldTransaction::query()->count();
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('exploration-maps.index'))
+            ->post(route('exploration-maps.bulk-survey'), [
+                'map_ids' => [$uninvestigated->id, $surveyed->id],
+                'town_id' => $city->id,
+            ])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('error', 'この地図は調査に出せません。');
+
+        $this->assertSame('uninvestigated', $uninvestigated->fresh()->status);
+        $this->assertSame('surveyed', $surveyed->fresh()->status);
+        $this->assertSame($moneyBefore, (int) $character->fresh()->money);
+        $this->assertSame($transactionsBefore, GoldTransaction::query()->count());
+        $this->assertSame(1, TownMapRegistration::query()->count());
+    }
+
+    public function test_bulk_survey_cannot_include_another_characters_map(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $owned = $this->generateMap($character, $area, $enemy, 60);
+        $otherCharacter = Character::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '別の地図調査依頼者',
+            'hp_base' => 100,
+            'current_hp' => 100,
+            'money' => 100000,
+        ]);
+        $otherMap = $this->generateMap($otherCharacter, $area, $enemy, 61);
+        $moneyBefore = (int) $character->fresh()->money;
+
+        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class)
+            ->actingAs($character->user)
+            ->withSession(['current_character_id' => $character->id])
+            ->from(route('exploration-maps.index'))
+            ->post(route('exploration-maps.bulk-survey'), [
+                'map_ids' => [$owned->id, $otherMap->id],
+                'town_id' => $city->id,
+            ])
+            ->assertRedirect(route('exploration-maps.index'))
+            ->assertSessionHas('error', 'この地図は調査に出せません。');
+
+        $this->assertSame('uninvestigated', $owned->fresh()->status);
+        $this->assertSame('uninvestigated', $otherMap->fresh()->status);
+        $this->assertSame($moneyBefore, (int) $character->fresh()->money);
+        $this->assertSame(0, TownMapRegistration::query()->count());
+        $this->assertSame(0, GoldTransaction::query()->count());
+    }
+
+    public function test_bulk_survey_service_rejects_a_nonpositive_map_id_without_surveying_valid_maps(): void
+    {
+        [$character, $city, $area, $enemy] = $this->mapContext();
+        $owned = $this->generateMap($character, $area, $enemy, 62);
+
+        try {
+            app(MapSurveyService::class)->startMany($character, [$owned->id, 0], $city);
+            $this->fail('非正数の地図IDを除外して一部だけ調査されました。');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('調査する地図を選んでください。', $e->getMessage());
+        }
+
+        $this->assertSame('uninvestigated', $owned->fresh()->status);
+        $this->assertSame(0, TownMapRegistration::query()->count());
+        $this->assertSame(0, GoldTransaction::query()->count());
+    }
 
     public function test_owner_cannot_publish_more_than_three_open_maps(): void
     {
@@ -199,6 +365,7 @@ class ExplorationMapLifecycleTest extends TestCase
             ->assertSee('報酬傾向：修練の導き')
             ->assertSee('目安戦力：')
             ->assertSee('未調査の探索地図')
+            ->assertSee('探索地図の一括調査')
             ->assertDontSee('経験の導き')
             ->assertSee('name="map_ids[]"', false);
         $this->assertSame('uninvestigated', $uninvestigated->fresh()->status);

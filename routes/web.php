@@ -265,6 +265,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/exploration-maps/published', [\App\Http\Controllers\ExplorationMapController::class, 'published'])->name('exploration-maps.published');
         Route::get('/exploration-maps/leave', [\App\Http\Controllers\ExplorationMapController::class, 'leave'])->name('exploration-maps.leave');
         Route::get('/exploration-maps/registrations/{registration}', [\App\Http\Controllers\ExplorationMapController::class, 'show'])->name('exploration-maps.show');
+        Route::post('/exploration-maps/bulk-survey', [\App\Http\Controllers\ExplorationMapController::class, 'bulkSurvey'])->name('exploration-maps.bulk-survey');
         Route::post('/exploration-maps/{map}/survey', [\App\Http\Controllers\ExplorationMapController::class, 'startSurvey'])->name('exploration-maps.survey.start');
         Route::post('/exploration-maps/bulk-discard', [\App\Http\Controllers\ExplorationMapController::class, 'bulkDiscard'])->name('exploration-maps.bulk-discard');
         Route::post('/exploration-maps/{map}/discard', [\App\Http\Controllers\ExplorationMapController::class, 'discard'])->name('exploration-maps.discard');

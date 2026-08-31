@@ -23,14 +23,45 @@
             class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
             x-data="{
                 selected: [],
+                surveyable: @js($ownedMaps->where('status', 'uninvestigated')->pluck('id')->map(fn ($id) => (string) $id)->values()),
                 discardable: @js($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed'])->pluck('id')->map(fn ($id) => (string) $id)->values()),
+                surveyCostsByMap: @js($ownedMaps->where('status', 'uninvestigated')->mapWithKeys(fn ($map) => [(string) $map->id => (int) ($surveyCosts[$map->map_grade] ?? $surveyCosts['normal'])])),
+                handGold: {{ (int) $bankSummary['hand_gold'] }},
+                bankGold: {{ (int) $bankSummary['bank_gold'] }},
+                confirmBulkSurvey: false,
                 confirmBulkDiscard: false,
+                submittingBulkSurvey: false,
                 submittingBulkDiscard: false,
-                toggleAll() {
+                bulkSurveyTownId: '',
+                surveySelection() {
+                    return this.selected.filter((mapId) => this.surveyable.includes(mapId));
+                },
+                discardSelection() {
+                    return this.selected.filter((mapId) => this.discardable.includes(mapId));
+                },
+                toggleAllSurveyable() {
+                    this.selected = this.surveySelection().length === this.surveyable.length && this.selected.length === this.surveyable.length ? [] : [...this.surveyable];
+                },
+                toggleAllDiscardable() {
                     this.selected = this.selected.length === this.discardable.length ? [] : [...this.discardable];
                 },
+                bulkSurveyTotal() {
+                    return this.surveySelection().reduce((total, mapId) => total + Number(this.surveyCostsByMap[mapId] ?? 0), 0);
+                },
+                bulkSurveyHandUsed() {
+                    return Math.min(this.handGold, this.bulkSurveyTotal());
+                },
+                bulkSurveyBankUsed() {
+                    return Math.max(0, this.bulkSurveyTotal() - this.bulkSurveyHandUsed());
+                },
+                bulkSurveyCanPay() {
+                    return this.bulkSurveyTotal() > 0 && this.bulkSurveyTotal() <= this.handGold + this.bankGold;
+                },
+                formatGold(value) {
+                    return Number(value).toLocaleString('ja-JP');
+                },
             }"
-            @keydown.escape.window="confirmBulkDiscard = false"
+            @keydown.escape.window="if (!submittingBulkSurvey && !submittingBulkDiscard) { confirmBulkSurvey = false; confirmBulkDiscard = false; }"
         >
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 class="font-black text-slate-900">手元の探索地図</h2>
@@ -75,13 +106,28 @@
                 </div>
             </form>
             @if($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed'])->isNotEmpty())
-                <div class="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <button type="button" @click="toggleAll()" class="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100">
-                        <span x-text="selected.length === discardable.length ? '選択を解除' : '破棄可能な地図をすべて選択'">破棄可能な地図をすべて選択</span>
-                    </button>
-                    <button type="button" @click="confirmBulkDiscard = true" :disabled="selected.length === 0" class="rounded bg-rose-600 px-4 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
-                        選択した地図を破棄（<span x-text="selected.length">0</span>件）
-                    </button>
+                <div class="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        @if($ownedMaps->where('status', 'uninvestigated')->isNotEmpty())
+                            <button type="button" @click="toggleAllSurveyable()" class="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black text-amber-900 hover:bg-amber-100">
+                                <span x-text="surveySelection().length === surveyable.length && selected.length === surveyable.length ? '未調査の選択を解除' : '未調査地図をすべて選択'">未調査地図をすべて選択</span>
+                            </button>
+                        @endif
+                        <button type="button" @click="toggleAllDiscardable()" class="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100">
+                            <span x-text="selected.length === discardable.length ? '選択を解除' : '破棄可能な地図をすべて選択'">破棄可能な地図をすべて選択</span>
+                        </button>
+                    </div>
+                    <p class="text-center text-xs font-black text-slate-600">選択中：<span x-text="selected.length">0</span>件</p>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        @if($ownedMaps->where('status', 'uninvestigated')->isNotEmpty())
+                            <button type="button" @click="confirmBulkSurvey = true" :disabled="surveySelection().length === 0" class="rounded bg-amber-600 px-4 py-2.5 text-xs font-black text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40">
+                                選択した未調査地図を調査（<span x-text="surveySelection().length">0</span>件）
+                            </button>
+                        @endif
+                        <button type="button" @click="confirmBulkDiscard = true" :disabled="discardSelection().length === 0" class="rounded bg-rose-600 px-4 py-2.5 text-xs font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+                            選択した地図を破棄（<span x-text="discardSelection().length">0</span>件）
+                        </button>
+                    </div>
                 </div>
             @endif
             <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -117,9 +163,9 @@
                             </div>
                             <div class="flex shrink-0 flex-col items-end gap-2">
                                 @if(in_array($map->status, ['uninvestigated', 'surveyed'], true))
-                                    <label class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700">
-                                        <input type="checkbox" value="{{ $map->id }}" x-model="selected" class="rounded border-rose-300 text-rose-600 focus:ring-rose-500">
-                                        破棄対象
+                                    <label class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-black text-indigo-700">
+                                        <input type="checkbox" value="{{ $map->id }}" x-model="selected" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                        選択
                                     </label>
                                 @endif
                                 @if($map->registration)
@@ -166,27 +212,90 @@
                 @endforelse
             </div>
 
+            <div x-cloak x-show="confirmBulkSurvey" class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog" aria-labelledby="bulk-map-survey-title">
+                <div x-show="confirmBulkSurvey" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="if (!submittingBulkSurvey) confirmBulkSurvey = false"></div>
+                <div x-show="confirmBulkSurvey" x-transition.scale.origin.center class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border-2 border-amber-300 bg-white shadow-2xl" @click.stop>
+                    <div class="bg-amber-600 px-4 py-3">
+                        <h3 id="bulk-map-survey-title" class="text-sm font-black text-white">探索地図の一括調査</h3>
+                    </div>
+                    <form
+                        method="POST"
+                        action="{{ route('exploration-maps.bulk-survey') }}"
+                        class="p-4"
+                        @submit="if (surveySelection().length === 0 || bulkSurveyTownId === '' || !bulkSurveyCanPay()) { $event.preventDefault(); } else { submittingBulkSurvey = true; }"
+                    >
+                        @csrf
+                        <template x-for="mapId in surveySelection()" :key="mapId">
+                            <input type="hidden" name="map_ids[]" :value="mapId">
+                        </template>
+                        <input type="hidden" name="use_bank" :value="bulkSurveyBankUsed() > 0 ? 1 : 0">
+
+                        <p class="text-sm font-bold text-slate-800">選択した未調査地図<span class="font-black text-amber-700" x-text="surveySelection().length"></span>件を、同じ地図院へまとめて調査に出します。</p>
+                        <ul class="mt-3 max-h-44 space-y-1.5 overflow-y-auto rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs font-bold text-slate-700">
+                            @foreach($ownedMaps->where('status', 'uninvestigated') as $surveyableMap)
+                                @php
+                                    $bulkSurveyCost = $surveyCosts[$surveyableMap->map_grade] ?? $surveyCosts['normal'];
+                                    $bulkSurveyGrade = ['normal'=>'通常','rare'=>'希少','hero'=>'英雄','legend'=>'伝説'][$surveyableMap->map_grade] ?? $surveyableMap->map_grade;
+                                    $bulkSurveyDungeonType = $dungeonTypeLabels[$surveyableMap->dungeon_type] ?? $surveyableMap->dungeon_type;
+                                @endphp
+                                <li x-show="surveySelection().includes('{{ $surveyableMap->id }}')" class="rounded bg-white px-2 py-1.5">
+                                    <span class="font-black text-slate-900">未調査の探索地図</span>
+                                    <span class="mt-0.5 block text-[11px] text-slate-600">等級：{{ $bulkSurveyGrade }}／推定地形：{{ $bulkSurveyDungeonType }}／{{ number_format($bulkSurveyCost) }}G</span>
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        <label for="bulk-survey-town" class="mt-3 block text-sm font-black text-slate-900">調査を依頼する地図院</label>
+                        <select id="bulk-survey-town" name="town_id" x-model="bulkSurveyTownId" required class="mt-1 w-full rounded border-slate-300 text-sm font-bold">
+                            <option value="" disabled>地図院を選択してください</option>
+                            @foreach($towns as $town)
+                                <option value="{{ $town->id }}">{{ $town->name }}地図院</option>
+                            @endforeach
+                        </select>
+
+                        <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-slate-700">
+                            <p class="flex items-center justify-between gap-3 text-sm font-black text-amber-950">
+                                <span>合計調査費</span>
+                                <span><span x-text="formatGold(bulkSurveyTotal())">0</span>G</span>
+                            </p>
+                            <p class="mt-2">支払い内訳：手持ち <span x-text="formatGold(bulkSurveyHandUsed())">0</span>G<span x-show="bulkSurveyBankUsed() > 0">／銀行 <span x-text="formatGold(bulkSurveyBankUsed())">0</span>G</span></p>
+                            <p x-show="bulkSurveyBankUsed() > 0" class="mt-1 text-amber-800">銀行預金の利用を含む内容として確定します。</p>
+                            <p x-show="!bulkSurveyCanPay()" class="mt-2 font-black text-rose-700">合計Goldが不足しています。</p>
+                        </div>
+                        <p class="mt-2 text-xs font-bold text-slate-600">調査後は地図の内容が一覧に判明します。遠征調査費は地図を破棄しても戻りません。</p>
+
+                        <div class="mt-4 grid grid-cols-2 gap-2">
+                            <button type="button" @click="confirmBulkSurvey = false" :disabled="submittingBulkSurvey" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60">キャンセル</button>
+                            <button type="submit" :disabled="submittingBulkSurvey || surveySelection().length === 0 || bulkSurveyTownId === '' || !bulkSurveyCanPay()" class="rounded-lg bg-amber-600 px-3 py-2 text-sm font-black text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                <span x-show="!submittingBulkSurvey">まとめて調査する</span>
+                                <span x-cloak x-show="submittingBulkSurvey">調査中...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div x-cloak x-show="confirmBulkDiscard" class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog" aria-labelledby="bulk-map-discard-title">
-                <div x-show="confirmBulkDiscard" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="confirmBulkDiscard = false"></div>
+                <div x-show="confirmBulkDiscard" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="if (!submittingBulkDiscard) confirmBulkDiscard = false"></div>
                 <div x-show="confirmBulkDiscard" x-transition.scale.origin.center class="relative w-full max-w-md overflow-hidden rounded-xl border-2 border-rose-300 bg-white shadow-2xl" @click.stop>
                     <div class="bg-rose-600 px-4 py-3">
                         <h3 id="bulk-map-discard-title" class="text-sm font-black text-white">探索地図の一括破棄</h3>
                     </div>
-                    <form method="POST" action="{{ route('exploration-maps.bulk-discard') }}" class="p-4" @submit="submittingBulkDiscard = true">
+                    <form method="POST" action="{{ route('exploration-maps.bulk-discard') }}" class="p-4" @submit="if (discardSelection().length === 0) { $event.preventDefault(); } else { submittingBulkDiscard = true; }">
                         @csrf
-                        <template x-for="mapId in selected" :key="mapId">
+                        <template x-for="mapId in discardSelection()" :key="mapId">
                             <input type="hidden" name="map_ids[]" :value="mapId">
                         </template>
-                        <p class="text-sm font-bold text-slate-800">選択した<span class="font-black text-rose-700" x-text="selected.length"></span>件の地図を破棄します。</p>
+                        <p class="text-sm font-bold text-slate-800">選択した<span class="font-black text-rose-700" x-text="discardSelection().length"></span>件の地図を破棄します。</p>
                         <ul class="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs font-bold text-slate-700">
                             @foreach($ownedMaps->whereIn('status', ['uninvestigated', 'surveyed']) as $discardableMap)
-                                <li x-show="selected.includes('{{ $discardableMap->id }}')">・{{ $discardableMap->status === 'uninvestigated' ? '未調査の探索地図' : $discardableMap->name }}</li>
+                                <li x-show="discardSelection().includes('{{ $discardableMap->id }}')">・{{ $discardableMap->status === 'uninvestigated' ? '未調査の探索地図' : $discardableMap->name }}</li>
                             @endforeach
                         </ul>
                         <p class="mt-2 text-xs font-bold text-rose-700">破棄した地図は元に戻せません。調査済みの場合、遠征調査費は戻りません。</p>
                         <div class="mt-4 grid grid-cols-2 gap-2">
                             <button type="button" @click="confirmBulkDiscard = false" :disabled="submittingBulkDiscard" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60">キャンセル</button>
-                            <button type="submit" :disabled="submittingBulkDiscard || selected.length === 0" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-black text-white hover:bg-rose-700 disabled:opacity-60">
+                            <button type="submit" :disabled="submittingBulkDiscard || discardSelection().length === 0" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-black text-white hover:bg-rose-700 disabled:opacity-60">
                                 <span x-show="!submittingBulkDiscard">破棄する</span>
                                 <span x-cloak x-show="submittingBulkDiscard">処理中...</span>
                             </button>

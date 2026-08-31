@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-08-31-exploration-map-bulk-survey',
+        'date' => '2026-08-31',
+        'category' => 'added',
+        'title' => '未調査の探索地図をまとめて調査可能に',
+        'detail' => '手元の未調査地図を複数選び、依頼先の地図院・合計調査費・手持ちと銀行の支払い内訳を確認して、まとめて調査できるようにしました。途中で失敗した場合は一部だけ調査済みになりません。',
+    ],
+    [
         'id' => '2026-08-31-six-hero-leader-pose-switching',
         'date' => '2026-08-31',
         'category' => 'changed',
