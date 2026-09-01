@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-01-standard-character-poses-thirteen',
+        'date' => '2026-09-01',
+        'category' => 'changed',
+        'title' => '通常キャラ画像13種を新デザインへ更新',
+        'detail' => '通常キャラ画像13種を新しいデザインへ入れ替え、通常・勝利・戦闘・敗北の4ポーズで表示されるようにしました。',
+    ],
+    [
         'id' => '2026-09-01-exclusive-character-icon-042',
         'date' => '2026-09-01',
         'category' => 'internal',
