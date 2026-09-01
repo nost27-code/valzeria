@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-01-exclusive-character-icon-042',
+        'date' => '2026-09-01',
+        'category' => 'internal',
+        'title' => 'ろろ専用キャラアイコンを追加',
+        'detail' => 'ろろさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-01-exclusive-character-icon-043',
         'date' => '2026-09-01',
         'category' => 'internal',

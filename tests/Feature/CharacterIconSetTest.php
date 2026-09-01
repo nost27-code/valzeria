@@ -132,6 +132,7 @@ class CharacterIconSetTest extends TestCase
             'exclusive_039',
             'exclusive_040',
             'exclusive_041',
+            'exclusive_042',
             'exclusive_043',
         ];
 
