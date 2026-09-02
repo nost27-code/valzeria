@@ -149,6 +149,21 @@
             ],
         ];
 
+        if (\App\Services\Admin\ValzeriaLabAccess::enabled()) {
+            foreach ($navGroups as &$navGroup) {
+                if ($navGroup['key'] === 'tools') {
+                    $navGroup['items'][] = [
+                        'route' => 'admin.valzeria-lab.replay',
+                        'active' => 'admin.valzeria-lab.*',
+                        'label' => 'Valzeria Lab',
+                        'abbr' => 'LAB',
+                    ];
+                    break;
+                }
+            }
+            unset($navGroup);
+        }
+
         $activeGroupKey = collect($navGroups)
             ->first(fn ($group) => collect($group['items'])->contains(
                 fn ($item) => request()->routeIs($item['active'] ?? $item['route'])

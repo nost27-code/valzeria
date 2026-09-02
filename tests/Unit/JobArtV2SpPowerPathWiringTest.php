@@ -75,6 +75,8 @@ class JobArtV2SpPowerPathWiringTest extends TestCase
     {
         $this->assertSame([
             'Http/Controllers/BattleController.php',
+            'Services/Admin/ValzeriaLabReplayService.php',
+            'Services/Admin/ValzeriaLabVirtualAdventurerService.php',
             'Services/ExplorationService.php',
             'Services/HeroTrialBenchmarkService.php',
             'Services/HeroTrialService.php',

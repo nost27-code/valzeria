@@ -23,6 +23,7 @@ use App\Services\Battle\JobArtHitPower;
 use App\Services\Enemy\EnemyStatGenerationService;
 use App\Services\Enemy\EnemyStatPreviewService;
 use App\Support\JobArtEffectCatalog;
+use Random\Randomizer;
 
 class BattleService
 {
@@ -54,6 +55,7 @@ class BattleService
     protected JobArtV2UltimateCounterplayService $jobArtV2UltimateCounterplayService;
     protected JobArtFlavorTextService $jobArtFlavorTextService;
     protected JobArtBattleSupportService $jobArtBattleSupport;
+    protected ?Randomizer $battleRandomizer = null;
 
     public function __construct(
         CharacterStatusService $statusService,
@@ -108,6 +110,22 @@ class BattleService
             ?? app(JobArtV2UltimateCounterplayService::class);
         $this->jobArtFlavorTextService = $jobArtFlavorTextService ?? app(JobArtFlavorTextService::class);
         $this->jobArtBattleSupport = $jobArtBattleSupport ?? app(JobArtBattleSupportService::class);
+    }
+
+    protected function useScopedBattleRandomizer(Randomizer $randomizer): void
+    {
+        $this->battleRandomizer = $randomizer;
+        $this->damageCalculator = $this->damageCalculator->withRandomizer($randomizer);
+    }
+
+    protected function battleRandomInt(int $min, int $max): int
+    {
+        return $this->battleRandomizer?->getInt($min, $max) ?? rand($min, $max);
+    }
+
+    protected function battleSecureRandomInt(int $min, int $max): int
+    {
+        return $this->battleRandomizer?->getInt($min, $max) ?? random_int($min, $max);
     }
 
     protected function applyResolvedDamage(
@@ -180,55 +198,94 @@ class BattleService
         $explorationSupportEnabled = (bool) ($options['exploration_support_enabled'] ?? true);
         $autoUnequipInvalidItems = (bool) ($options['auto_unequip_invalid_items'] ?? true);
         $timeoutDefeatDisplay = (bool) ($options['timeout_defeat_display'] ?? false);
-        $enemy->loadMissing('actions');
-        if ($autoUnequipInvalidItems) {
-            app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
+        $preparedPlayer = $options['prepared_player_actor'] ?? null;
+        if ($preparedPlayer !== null && ! is_array($preparedPlayer)) {
+            throw new \InvalidArgumentException('prepared_player_actor must be an array.');
         }
-        $character->refresh();
+        if ($preparedPlayer !== null && $persistCharacterState) {
+            throw new \LogicException('A prepared battle actor cannot persist character state.');
+        }
+        $enemy->loadMissing('actions');
+        if ($preparedPlayer === null) {
+            if ($autoUnequipInvalidItems) {
+                app(EquipmentAutoUnequipService::class)->unequipInvalidItems($character);
+            }
+            $character->refresh();
+
+            $stats = $this->statusService->getFinalStats($character);
+            $currentJob = $character->relationLoaded('currentJob')
+                ? $character->currentJob
+                : $character->currentJob()->first();
+            $equippedWeapon = $character->characterItems()
+                ->where('is_equipped', true)
+                ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
+                ->with(['item', 'affixPrefix', 'affixSuffix'])
+                ->first();
+            $equippedArmor = $character->characterItems()
+                ->where('is_equipped', true)
+                ->whereHas('item', fn ($query) => $query->where('type', 'armor'))
+                ->with('item')
+                ->first();
+            $permissionService = app(EquipmentPermissionService::class);
+            $playerActorAttributes = [
+                'hp' => max(1, (int) ($options['starting_hp'] ?? $character->current_hp)),
+                'max_hp' => $stats['max_hp'],
+                'mp' => max(0, (int) ($options['starting_mp'] ?? ($character->current_mp ?? 0))),
+                'max_mp' => $stats['max_mp'] ?? 0,
+                'str' => $stats['str'],
+                'def' => $stats['def'],
+                'agi' => $stats['agi'],
+                'mag' => $stats['mag'],
+                'spr' => $stats['spr'],
+                'luk' => $stats['luk'],
+                'normal_attack_type' => $currentJob?->normal_attack_type,
+                'current_job_id' => $character->current_job_id,
+                'weapon_killer_effects' => $equippedWeapon
+                    ? $permissionService->effectiveKillerEffects($character, $equippedWeapon)
+                    : [],
+                'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
+                'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
+                'armor_resist_species_key' => $equippedArmor?->resist_species_key,
+                'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
+            ];
+            $playerName = $character->name;
+            $playerJobKey = $currentJob?->key;
+            $playerActivationPolicy = (string) ($character->job_art_activation_policy ?: 'normal');
+        } else {
+            $stats = (array) ($preparedPlayer['stats'] ?? []);
+            $playerActorAttributes = [
+                'hp' => max(1, (int) ($options['starting_hp'] ?? ($preparedPlayer['starting_hp'] ?? 1))),
+                'max_hp' => max(1, (int) ($stats['max_hp'] ?? 1)),
+                'mp' => max(0, (int) ($options['starting_mp'] ?? ($preparedPlayer['starting_mp'] ?? 0))),
+                'max_mp' => max(0, (int) ($stats['max_mp'] ?? 0)),
+                'str' => max(1, (int) ($stats['str'] ?? 1)),
+                'def' => max(0, (int) ($stats['def'] ?? 0)),
+                'agi' => max(1, (int) ($stats['agi'] ?? 1)),
+                'mag' => max(0, (int) ($stats['mag'] ?? 0)),
+                'spr' => max(0, (int) ($stats['spr'] ?? 0)),
+                'luk' => max(0, (int) ($stats['luk'] ?? 0)),
+                'normal_attack_type' => $preparedPlayer['normal_attack_type'] ?? null,
+                'current_job_id' => $preparedPlayer['current_job_id'] ?? null,
+                'weapon_killer_effects' => (array) ($preparedPlayer['weapon_killer_effects'] ?? []),
+                'weapon_killer_species_key' => $preparedPlayer['weapon_killer_species_key'] ?? null,
+                'weapon_killer_damage_rate' => max(0.0, (float) ($preparedPlayer['weapon_killer_damage_rate'] ?? 0.0)),
+                'armor_resist_species_key' => $preparedPlayer['armor_resist_species_key'] ?? null,
+                'armor_species_damage_reduction_rate' => max(0.0, (float) ($preparedPlayer['armor_species_damage_reduction_rate'] ?? 0.0)),
+            ];
+            $playerName = (string) ($preparedPlayer['name'] ?? '匿名冒険者');
+            $playerJobKey = isset($preparedPlayer['job_key']) ? (string) $preparedPlayer['job_key'] : null;
+            $playerActivationPolicy = (string) ($preparedPlayer['job_art_activation_policy'] ?? 'normal');
+        }
 
         // プレイヤーアクターの生成
-        $stats = $this->statusService->getFinalStats($character);
-        $currentJob = $character->relationLoaded('currentJob')
-            ? $character->currentJob
-            : $character->currentJob()->first();
-        $equippedWeapon = $character->characterItems()
-            ->where('is_equipped', true)
-            ->whereHas('item', fn ($query) => $query->where('type', 'weapon'))
-            ->with(['item', 'affixPrefix', 'affixSuffix'])
-            ->first();
-        $equippedArmor = $character->characterItems()
-            ->where('is_equipped', true)
-            ->whereHas('item', fn ($query) => $query->where('type', 'armor'))
-            ->with('item')
-            ->first();
-        $permissionService = app(EquipmentPermissionService::class);
-        $playerActor = new BattleActor($character->name, true, [
-            'hp' => max(1, (int) ($options['starting_hp'] ?? $character->current_hp)),
-            'max_hp' => $stats['max_hp'],
-            'mp' => max(0, (int) ($options['starting_mp'] ?? ($character->current_mp ?? 0))),
-            'max_mp' => $stats['max_mp'] ?? 0,
-            'str' => $stats['str'],
-            'def' => $stats['def'],
-            'agi' => $stats['agi'],
-            'mag' => $stats['mag'],
-            'spr' => $stats['spr'],
-            'luk' => $stats['luk'],
-            'normal_attack_type' => $currentJob?->normal_attack_type,
-            'current_job_id' => $character->current_job_id,
-            'weapon_killer_effects' => $equippedWeapon
-                ? $permissionService->effectiveKillerEffects($character, $equippedWeapon)
-                : [],
-            'weapon_killer_species_key' => $equippedWeapon?->killer_species_key,
-            'weapon_killer_damage_rate' => $equippedWeapon ? $permissionService->effectiveKillerDamageRate($character, $equippedWeapon) : 0.0,
-            'armor_resist_species_key' => $equippedArmor?->resist_species_key,
-            'armor_species_damage_reduction_rate' => $equippedArmor ? $permissionService->effectiveSpeciesDamageReductionRate($character, $equippedArmor) : 0.0,
-        ], clone $character);
-
-        $playerActor->jobKey = $currentJob?->key;
-        $playerActor->jobArtActivationPolicy = (string) ($character->job_art_activation_policy ?: 'normal');
+        $playerActor = new BattleActor($playerName, true, $playerActorAttributes, clone $character);
+        $playerActor->jobKey = $playerJobKey;
+        $playerActor->jobArtActivationPolicy = $playerActivationPolicy;
 
         // 敵アクターの生成
-        $enemyStats = $this->enemyBattleStats($character, $enemy);
+        $enemyStats = is_array($options['prepared_enemy_stats'] ?? null)
+            ? $options['prepared_enemy_stats']
+            : $this->enemyBattleStats($character, $enemy);
         $enemySpeciesKey = trim((string) ($enemy->species_key ?: $enemy->family_key ?: ''));
         $enemySpeciesKeys = array_values(array_unique(array_filter(array_map(
             static fn ($speciesKey): string => trim((string) $speciesKey),
@@ -260,7 +317,9 @@ class BattleService
         if (! in_array($jobArtBattleContext, ['pve', 'boss'], true)) {
             $jobArtBattleContext = $this->jobArtBattleContext($enemy);
         }
-        $jobArts = $this->jobArtService->battleArtsFor($character, $jobArtBattleContext);
+        $jobArts = $preparedPlayer === null
+            ? $this->jobArtService->battleArtsFor($character, $jobArtBattleContext)
+            : collect($preparedPlayer['job_arts'] ?? [])->filter(fn ($art): bool => $art instanceof Skill)->values();
         $playerActor->jobArts = $jobArts->all();
         foreach ($jobArts as $art) {
             $playerActor->jobArtRates[(int) $art->id] = (float) $art->getAttribute('job_art_rate');
@@ -274,7 +333,11 @@ class BattleService
             $jobArtBattleContext,
             $jobArtBattleContext === 'boss' ? 'boss' : 'normal',
             (bool) ($options['sp_output_budget_enabled'] ?? false),
+            $preparedPlayer === null ? null : (int) ($preparedPlayer['sp_power_reference'] ?? $playerActor->maxMp),
         );
+        if ($preparedPlayer !== null) {
+            $playerActor->jobArtStrategy = (array) ($preparedPlayer['job_art_strategy'] ?? []);
+        }
 
         $result->enemyStatDisplay = [
             'danger_rate' => $enemyStats['danger_rate'],
@@ -306,6 +369,9 @@ class BattleService
         $result->playerMpBefore = $playerActor->mp;
 
         $state = new BattleState($playerActor, $enemyActor, $battleContext);
+        if (! (bool) ($options['valmon_assist_enabled'] ?? true)) {
+            $state->valmonAssistRolled = true;
+        }
         if (isset($options['max_turns'])) {
             $state->maxTurns = max(1, (int) $options['max_turns']);
         }
@@ -321,14 +387,14 @@ class BattleService
             $state->addLog("<br><br>--- ターン {$state->turnCount} ---");
             
             // 先攻後攻判定（AGI比較＋乱数）
-            $playerSpeed = $playerActor->effectiveAgi() + rand(0, 5);
-            $enemySpeed = $enemyActor->effectiveAgi() + rand(0, 5);
+            $playerSpeed = $playerActor->effectiveAgi() + $this->battleRandomInt(0, 5);
+            $enemySpeed = $enemyActor->effectiveAgi() + $this->battleRandomInt(0, 5);
             $playerFirst = (bool) ($options['force_player_first'] ?? false)
                 || $this->jobArtV2ProgressionService->adjustInitiative(
                     $playerActor,
                     $enemyActor,
                     $playerSpeed >= $enemySpeed,
-                    static fn (): bool => ($playerActor->effectiveAgi() + rand(0, 5)) >= ($enemyActor->effectiveAgi() + rand(0, 5)),
+                    fn (): bool => ($playerActor->effectiveAgi() + $this->battleRandomInt(0, 5)) >= ($enemyActor->effectiveAgi() + $this->battleRandomInt(0, 5)),
                 );
             
             if ($playerFirst) {
@@ -388,15 +454,15 @@ class BattleService
                     if ($levelDiff <= -3) {
                         $jobExp = 0;
                     } elseif ($levelDiff <= -1) {
-                        $jobExp = rand(0, 1);
+                        $jobExp = $this->battleRandomInt(0, 1);
                     } elseif ($levelDiff <= 2) {
-                        $jobExp = rand(1, 2);
+                        $jobExp = $this->battleRandomInt(1, 2);
                     } else {
-                        $jobExp = rand(1, 3);
+                        $jobExp = $this->battleRandomInt(1, 3);
                     }
 
                     if ($enemy->is_boss) {
-                        $jobExp += rand(1, 2);
+                        $jobExp += $this->battleRandomInt(1, 2);
                     }
 
                     $result->jobExp = min(LevelService::MAX_JOB_EXP_GAIN, $jobExp);
@@ -444,7 +510,7 @@ class BattleService
         return 'pve';
     }
 
-    private function enemyBattleStats(Character $character, Enemy $enemy): array
+    protected function enemyBattleStats(Character $character, Enemy $enemy): array
     {
         $str = (int) $enemy->str;
         $def = (int) $enemy->def;
@@ -540,12 +606,12 @@ class BattleService
     private function rollGoldReward(Enemy $enemy, int $goldBonusPercent = 0, int $goldDropRateBonusPoints = 0): int
     {
         $rate = min(100, max(0, (float) config($enemy->is_boss ? 'gold.battle.boss_drop_rate' : 'gold.battle.normal_drop_rate', $enemy->is_boss ? 12 : 5) + $goldDropRateBonusPoints));
-        if (random_int(1, 10000) > (int) round($rate * 100)) {
+        if ($this->battleSecureRandomInt(1, 10000) > (int) round($rate * 100)) {
             return 0;
         }
 
         $base = max(5, (int) ($enemy->gold_reward ?? 0));
-        $variance = random_int(80, 120) / 100;
+        $variance = $this->battleSecureRandomInt(80, 120) / 100;
         $amount = (int) floor($base * $variance);
 
         if ($goldBonusPercent > 0) {
@@ -771,7 +837,7 @@ class BattleService
 
         $rate = max(0, (float) ($spec['rate'] ?? 0));
         $state->valmonAssistRolled = true;
-        if ($rate <= 0 || random_int(1, 10000) > (int) round($rate * 100)) {
+        if ($rate <= 0 || $this->battleSecureRandomInt(1, 10000) > (int) round($rate * 100)) {
             return;
         }
 
@@ -834,7 +900,7 @@ class BattleService
         $min = max(0, (int) ($spec['damage_variance_min_percent'] ?? 70));
         $max = max($min, (int) ($spec['damage_variance_max_percent'] ?? 130));
 
-        return max(1, (int) floor($baseDamage * random_int($min, $max) / 100));
+        return max(1, (int) floor($baseDamage * $this->battleSecureRandomInt($min, $max) / 100));
     }
 
     private function formatValmonBondText(
@@ -885,7 +951,7 @@ class BattleService
             if (!$this->canActivateRecoveryArt($attacker, $art)) {
                 continue;
             }
-            if (rand(1, 100) <= $art->effectiveActivationRate()) {
+            if ($this->battleRandomInt(1, 100) <= $art->effectiveActivationRate()) {
                 return $art;
             }
         }
@@ -1070,7 +1136,7 @@ class BattleService
         $typeName = $enemyModel->type_name ?? '標準型';
         $isBoss = $enemyModel->is_boss ?? false;
 
-        $rand = rand(1, 100);
+        $rand = $this->battleRandomInt(1, 100);
 
         // 1. ボスの特別行動 (15%で大技)
         if ($isBoss && $rand <= 15) {
@@ -1086,7 +1152,7 @@ class BattleService
 
         // 2. 型に応じた行動分岐
         // 乱数の再取得（ボス行動判定とは別枠で計算）
-        $rand = rand(1, 100);
+        $rand = $this->battleRandomInt(1, 100);
 
         switch ($typeName) {
             case '魔法型':
@@ -1226,7 +1292,7 @@ class BattleService
         }
 
         $rate = $enemy->is_boss ? 30 : (in_array((string) $enemy->role_key, ['strong', 'rare'], true) ? 25 : 20);
-        if (random_int(1, 100) > $rate) {
+        if ($this->battleSecureRandomInt(1, 100) > $rate) {
             return null;
         }
 
@@ -1257,7 +1323,7 @@ class BattleService
     private function weightedEnemyAction($actions): EnemyAction
     {
         $total = max(1, (int) $actions->sum(fn (EnemyAction $action): int => max(1, (int) $action->selection_weight)));
-        $roll = random_int(1, $total);
+        $roll = $this->battleSecureRandomInt(1, $total);
         foreach ($actions as $action) {
             $roll -= max(1, (int) $action->selection_weight);
             if ($roll <= 0) {
@@ -1529,7 +1595,7 @@ class BattleService
         if ((int) $skill->hit_count === 0 && in_array($skill->damage_type, ['heal', 'support'], true)) {
             $hitCount = 1; 
         }
-        if ((int) $skill->extra_hit_chance_percent > 0 && random_int(1, 100) <= (int) $skill->extra_hit_chance_percent) {
+        if ((int) $skill->extra_hit_chance_percent > 0 && $this->battleSecureRandomInt(1, 100) <= (int) $skill->extra_hit_chance_percent) {
             $hitCount++;
         }
 

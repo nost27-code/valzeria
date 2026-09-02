@@ -3,6 +3,7 @@
 namespace App\Services\Battle;
 
 use Illuminate\Container\Container;
+use Random\Randomizer;
 
 class DamageCalculator
 {
@@ -19,6 +20,20 @@ class DamageCalculator
     private const RANK_BATTLE_CRITICAL_MULTIPLIER = 1.50;
     private const RANK_BATTLE_VARIANCE_MIN = 96;
     private const RANK_BATTLE_VARIANCE_MAX = 104;
+
+    private ?Randomizer $randomizer = null;
+
+    /**
+     * 呼び出し元専用の乱数列を使う複製を返す。
+     * 通常戦闘の共有インスタンスと乱数源は変更しない。
+     */
+    public function withRandomizer(Randomizer $randomizer): self
+    {
+        $clone = clone $this;
+        $clone->randomizer = $randomizer;
+
+        return $clone;
+    }
 
     /**
      * 管理者の検証画面へ、実際のランク戦damage式と同じ係数を公開する。
@@ -72,7 +87,7 @@ class DamageCalculator
         );
         $hitChance = max($minHitRate, min($maxHitRate, $hitChance + $accuracyDelta));
 
-        return rand(1, 100) <= $hitChance;
+        return $this->randomInt(1, 100) <= $hitChance;
     }
 
     /**
@@ -103,7 +118,7 @@ class DamageCalculator
      */
     public function isCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        return rand(1, 100) <= $this->criticalChance($attacker, $defender, $bonusRate);
+        return $this->randomInt(1, 100) <= $this->criticalChance($attacker, $defender, $bonusRate);
     }
 
     /**
@@ -119,7 +134,7 @@ class DamageCalculator
 
     public function isDuelCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        return rand(1, 100) <= $this->duelCriticalChance($attacker, $defender, $bonusRate);
+        return $this->randomInt(1, 100) <= $this->duelCriticalChance($attacker, $defender, $bonusRate);
     }
 
     public function duelCriticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
@@ -131,7 +146,7 @@ class DamageCalculator
 
     public function isRankBattleCritical(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): bool
     {
-        return rand(1, 100) <= $this->rankBattleCriticalChance($attacker, $defender, $bonusRate);
+        return $this->randomInt(1, 100) <= $this->rankBattleCriticalChance($attacker, $defender, $bonusRate);
     }
 
     public function rankBattleCriticalChance(BattleActor $attacker, BattleActor $defender, float $bonusRate = 0.0): float
@@ -181,7 +196,7 @@ class DamageCalculator
             $baseDamage *= (1 - ($defender->damageReductionRate / 100));
         }
 
-        $variance = rand(self::DUEL_VARIANCE_MIN, self::DUEL_VARIANCE_MAX) / 100;
+        $variance = $this->randomInt(self::DUEL_VARIANCE_MIN, self::DUEL_VARIANCE_MAX) / 100;
         $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
 
         return $skillPowerCenti === null
@@ -233,7 +248,7 @@ class DamageCalculator
             $baseDamage *= (1 - ($defender->damageReductionRate / 100));
         }
 
-        $variance = rand(self::RANK_BATTLE_VARIANCE_MIN, self::RANK_BATTLE_VARIANCE_MAX) / 100;
+        $variance = $this->randomInt(self::RANK_BATTLE_VARIANCE_MIN, self::RANK_BATTLE_VARIANCE_MAX) / 100;
         $normalEquivalentDamage = max(1, (int) floor($baseDamage * $variance));
 
         return $skillPowerCenti === null
@@ -425,7 +440,7 @@ class DamageCalculator
             $baseDamage *= 1.5;
         }
 
-        $randomModifier = rand(85, 115) / 100;
+        $randomModifier = $this->randomInt(85, 115) / 100;
         $finalDamage = (int)($baseDamage * $randomModifier);
 
         // 防御状態の軽減
@@ -470,7 +485,7 @@ class DamageCalculator
             $baseDamage *= 1.5;
         }
 
-        $randomModifier = rand(85, 115) / 100;
+        $randomModifier = $this->randomInt(85, 115) / 100;
         $finalDamage = (int)($baseDamage * $randomModifier);
 
         // 防御状態の軽減
@@ -515,7 +530,7 @@ class DamageCalculator
         if ($isCritical) {
             $damage *= 1.5;
         }
-        $damage *= rand(85, 115) / 100;
+        $damage *= $this->randomInt(85, 115) / 100;
 
         if ($defender->isDefending) {
             $damage *= 0.5;
@@ -557,5 +572,10 @@ class DamageCalculator
         }
 
         return $container->make('config')->get('battle.' . $key, $default);
+    }
+
+    private function randomInt(int $min, int $max): int
+    {
+        return $this->randomizer?->getInt($min, $max) ?? rand($min, $max);
     }
 }

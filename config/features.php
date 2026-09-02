@@ -3,6 +3,12 @@
 $defaultsEnabled = in_array(env('APP_ENV', 'production'), ['local', 'testing'], true);
 
 return [
+    // 管理者専用。全環境で既定OFFとし、運用が明示的に有効化した時だけ公開する。
+    'valzeria_lab_enabled' => filter_var(
+        env('VALZERIA_LAB_ENABLED', false),
+        FILTER_VALIDATE_BOOL,
+    ),
+
     /*
     |--------------------------------------------------------------------------
     | 準備中機能

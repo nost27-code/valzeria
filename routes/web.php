@@ -615,6 +615,15 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/battle-simulator', \App\Livewire\Admin\BattleSimulator::class)->name('admin.battle-simulator');
     Route::get('/admin/balance-battle-lab', \App\Livewire\Admin\BalanceBattleLab::class)->name('admin.balance-battle-lab');
     Route::get('/admin/skill-effect-lab', \App\Livewire\Admin\SkillEffectLab::class)->name('admin.skill-effect-lab');
+    Route::prefix('admin/valzeria-lab')
+        ->middleware(\App\Http\Middleware\EnsureValzeriaLabAvailable::class)
+        ->name('admin.valzeria-lab.')
+        ->group(function () {
+            Route::redirect('/', '/admin/valzeria-lab/replay')->name('index');
+            Route::get('/replay', \App\Livewire\Admin\ValzeriaLabReplay::class)->name('replay');
+            Route::get('/world', \App\Livewire\Admin\ValzeriaLabWorld::class)->name('world');
+            Route::get('/adventurer', \App\Livewire\Admin\ValzeriaLabAdventurer::class)->name('adventurer');
+        });
     Route::get('/admin/action-logs', \App\Livewire\Admin\ActionLogManager::class)->name('admin.action-logs');
     Route::get('/admin/public-logs', \App\Livewire\Admin\PublicLogManager::class)->name('admin.public-logs');
     Route::get('/admin/chat', \App\Livewire\Admin\AdminChatManager::class)->name('admin.chat');
