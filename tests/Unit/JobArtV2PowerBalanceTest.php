@@ -4,10 +4,13 @@ namespace Tests\Unit;
 
 use App\Models\Skill;
 use App\Services\Battle\BattleActor;
+use App\Services\Battle\BattleState;
 use App\Services\Battle\DamageCalculator;
+use App\Services\Battle\HitResult;
 use App\Services\JobArtBattleSupportService;
 use App\Services\JobArtV2PenetrationService;
 use App\Services\JobArtV2PowerResolver;
+use App\Services\JobArtV2RoleEffectService;
 use Tests\Support\JobArtV2BalanceFixture;
 use Tests\TestCase;
 
@@ -280,6 +283,49 @@ class JobArtV2PowerBalanceTest extends TestCase
         $actor->jobArtRates[(int) $skill->id] = 0.7;
         $legacyExecution = app(JobArtBattleSupportService::class)->skillForExecution($actor, $skill);
         $this->assertSame(248, (int) $legacyExecution->power);
+    }
+
+    public function test_crown_pierce_ultimate_keeps_470_power_after_rank_five_was_used(): void
+    {
+        $actor = $this->actor(63);
+        $target = $this->actor(null);
+        $rankFive = $this->art(62, 5, 285, 6_205, '竜冠穿槍');
+        $rankNine = $this->art(62, 9, 355, 6_209, '竜冠天穿槍');
+        $actor->jobArts = [$rankFive, $rankNine];
+        foreach ([$rankFive, $rankNine] as $art) {
+            $actor->jobArtOrigins[(int) $art->id] = 'inherited';
+            $actor->jobArtRates[(int) $art->id] = 1.0;
+        }
+        $state = new BattleState($actor, $target, 'pvp');
+        $roles = app(JobArtV2RoleEffectService::class);
+
+        $sourceActionId = $state->beginSourceAction();
+        $roles->beginAction($actor, $state, $sourceActionId);
+        $unboosted = app(JobArtBattleSupportService::class)->skillForExecution(
+            $actor,
+            $rankNine,
+            $state,
+            $target,
+        );
+        $this->assertSame(355, (int) $unboosted->power);
+
+        $sourceActionId = $state->beginSourceAction();
+        $roles->beginAction($actor, $state, $sourceActionId);
+        $roles->completeJobArtCast($actor, $target, $state, $rankFive, HitResult::HIT);
+        $this->assertTrue($actor->jobArtV2ProgressionState()->pierceCrownRankFiveUsed);
+
+        $sourceActionId = $state->beginSourceAction();
+        $roles->beginAction($actor, $state, $sourceActionId);
+        $execution = app(JobArtBattleSupportService::class)->skillForExecution(
+            $actor,
+            $rankNine,
+            $state,
+            $target,
+        );
+
+        $this->assertSame(470, (int) $execution->power);
+        $this->assertSame(4.7, (float) $execution->power_multiplier);
+        $this->assertSame(355, (int) $rankNine->power);
     }
 
     public function test_rank_sixty_two_candidate_has_the_intended_defense_curve(): void

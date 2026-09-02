@@ -396,6 +396,11 @@ final class JobArtV2RoleEffectService
         Skill $sourceSkill,
         Skill $executionSkill,
     ): void {
+        $resolvedCrownPiercePower = $this->resolvedCrownPiercePower(
+            $actor,
+            $sourceSkill,
+            $executionSkill,
+        );
         if ($this->enabledFor($actor)) {
             $this->balances()->applyToExistingExecution($executionSkill);
         }
@@ -403,6 +408,7 @@ final class JobArtV2RoleEffectService
         if (! empty($state->jobArtV2RoleAction()['ultimate_counterplay_lineage_suppressed'])) {
             return;
         }
+        $this->restoreExecutionPower($executionSkill, $resolvedCrownPiercePower);
         $this->progressionService->applyForExecution($actor, $target, $state, $sourceSkill, $executionSkill);
         $metadata = $this->portableMetadata($actor, $sourceSkill);
         if ($metadata === null) {
@@ -427,6 +433,7 @@ final class JobArtV2RoleEffectService
         // power/debuff values. Apply it before adaptive multipliers so those
         // mechanics can still scale the canonical value (for example 王者の秘薬).
         $this->balances()->reapplyCoreExecutionValues($executionSkill);
+        $this->restoreExecutionPower($executionSkill, $resolvedCrownPiercePower);
         $this->applyConditionalTargetMultiplier($target, $executionSkill, $metadata);
         $this->applyRewardPolicy($actor, $state, $sourceSkill, $executionSkill, $metadata);
         $this->applyAdaptiveRoute($actor, $target, $state, $sourceSkill, $executionSkill, $metadata);
@@ -1519,6 +1526,35 @@ final class JobArtV2RoleEffectService
         }
 
         return max(0, (int) round((float) $skill->power_multiplier * 100));
+    }
+
+    private function resolvedCrownPiercePower(
+        BattleActor $actor,
+        Skill $sourceSkill,
+        Skill $executionSkill,
+    ): ?int {
+        if (! $this->enabledFor($actor)
+            || ! $sourceSkill->isJobArt()
+            || (int) $sourceSkill->job_id !== 62
+            || (int) $sourceSkill->learn_rank !== 9
+            || ! $this->progressionService->crownPierceRankFiveUsed($actor)
+        ) {
+            return null;
+        }
+
+        // PowerResolver has already applied the battle-only 470% branch here.
+        // Keep that resolved value when the static L-column base is reapplied.
+        return $this->executionPower($executionSkill);
+    }
+
+    private function restoreExecutionPower(Skill $executionSkill, ?int $power): void
+    {
+        if ($power === null) {
+            return;
+        }
+
+        $executionSkill->power = $power;
+        $executionSkill->power_multiplier = $power / 100;
     }
 
     private function fallbackExecutionPower(BattleActor $actor, Skill $skill): int
