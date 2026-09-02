@@ -237,7 +237,7 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 該当機能に触るタスクではアーカイブの該当項目を検索して読むこと。ここには「隠し/停止中フラグ」と「最近の要点」だけを残す。
 
 Hidden / disabled（承認なしに有効化しない）:
-- 管理者専用 `Valzeria Lab` は `VALZERIA_LAB_ENABLED=false` がコード既定で、`local` / `testing` / `staging` / `production` のうち運用が明示的にONにした環境だけ `/admin/valzeria-lab` 配下を公開する。匿名snapshotとseedによる通常戦/ボス戦再現、根拠付き世界参照と整合性候補、初心者・効率・収集の3方針による最大100行動の非永続仮想プレイを提供する。Character、所持品、HP/SP、EXP、Gold、進行、戦績、ランキング、各種ログは更新せず、仮想プレイ固有の判断はLab簡略モデルとして区別する。
+- 管理者専用 `Valzeria Lab` は `VALZERIA_LAB_ENABLED=false` がコード既定で、`local` / `testing` / `staging` / `production` のうち運用が明示的にONにした環境だけ `/admin/valzeria-lab` 配下を公開する。匿名snapshotとseedによる通常戦/ボス戦再現、根拠付き世界参照と整合性候補、初心者・効率・収集の3方針による最大100行動の非永続仮想プレイを提供する。Character、所持品、HP/SP、EXP、Gold、進行、戦績、ランキング、各種ログは更新せず、仮想プレイ固有の判断はLab簡略モデルとして区別する。2026-09-02にSHA `3e133bdd` をmigrationなしでstaging・productionへ同一SHA公開し、本番は明示flag ONで運用している。
 - エネミー図鑑は `/enemy-book` で常時利用できる。未発見の敵は名前・姿・詳細を伏せ、遭遇済み未討伐は名前と姿だけ、討伐済みは能力・ドロップを表示する。素材ドロップはアイテム図鑑の該当素材へ移動でき、装備ドロップはリンクしない。同じエリア・名前・ボス区分の重複敵IDは1体へまとめて履歴を合算し、過去戦闘ログがない攻略済みボスはエリア攻略記録から討伐済みへ補完する。通常探索・ボス・亜域・探索の地図の実戦を `BattleLogService` から記録し、既存戦闘ログは初期migrationで復元する。元敵を借りる特殊イベントは除外する。
 - 英雄試練は追加コンテンツキー `hero_trials` の既定値をOFFとして先行配置する。OFF中は英雄試練殿を探索一覧へ出さず、試練殿・挑戦・結果の直URLと神殿の対応英雄職も閉じる。管理画面でONかつ期間内にした場合だけ公開する。試練殿には全10試練をネタバレなしのカードで並べ、実装済みの試練だけ挑戦導線を有効にする
 - 高位職ID60〜99は未公開（ID44〜49の新上級職は公開済み。超級職ID50〜59は条件達成者にのみ神殿表示。ID39〜43は職業IDとして欠番）

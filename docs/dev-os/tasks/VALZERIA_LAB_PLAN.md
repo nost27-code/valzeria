@@ -1,6 +1,6 @@
 # 実装指示書: 管理者専用 Valzeria Lab MVP
 
-Status: MVP完了・本番公開承認済み（2026-09-02）
+Status: MVP完了・本番公開済み（2026-09-02）
 
 ## 目的
 
@@ -251,19 +251,25 @@ Status: MVP完了・本番公開承認済み（2026-09-02）
 - 検証: focused 33 tests / 233 assertions、Blade cache、Vite buildが最終差分で成功。最初の標準全体検証も2,408 tests / 51,207 assertionsで成功した。
 - 検証: 最終 `npm run verify` 再実行はPHP構文2,123ファイルを通過後、対象外の未追跡国家レイドテスト1失敗・2エラーで停止（2,405 / 2,408 tests、51,193 assertions）。該当2ファイルだけの再実行は9 tests / 33 assertionsで成功したため、対象外差分の全体順序依存として分離した。
 - 検証: 1280x900 / 390x844で3画面を操作。横溢れなし、主要タップ領域44px、ブラウザerror logなし。
-- 未確認: 自動ブラウザがBlobダウンロードイベントを公開しないため、JSON保存ファイルのOS上の着地のみ未確認。本番はflag強制無効であり、デプロイしていない。
+- 未確認: 自動ブラウザがBlobダウンロードイベントを公開しないため、JSON保存ファイルのOS上の着地のみ未確認。ここまでの記録はCP5完了時点のローカル確認結果。
 
 ### CP6 本番公開
 
 - [x] 本番公開の明示承認、現行本番SHA、共有flag、同一SHAデプロイ経路を確認。
 - [x] コード既定OFFを維持し、staging / productionでも明示ON時だけ管理者へ公開するgateと回帰testを追加。
 - [x] focused QA、独立review、`npm run verify` を最終差分で完了する。
-- [ ] 同一SHAをstaging → productionへ `migration_mode=none` で反映する。
-- [ ] flag、route、HTTP、管理者画面、代表シナリオ、非永続性を本番相当で再確認する。
+- [x] 同一SHAをstaging → productionへ `migration_mode=none` で反映する。
+- [x] flag、route、HTTP、管理者画面、代表シナリオ、非永続性を本番相当で再確認する。
+- 検証: SHA `3e133bdd7a12d4daaea5a86c8662b4cb8caa7bf3` をstaging run `33634929369`、production run `33635943149` の順で反映し、両runの成功とrelease marker一致を確認。migrationは実行していない。
+- 検証: 本番共有flagはバックアップ後に明示ONとし、config readback、4 route、migration status、公開TOP 200、未認証3画面302を確認した。
+- 検証: 本番の管理者セッションで3画面を表示。再現は同一seedのJSONが同じSHA-256となり、匿名禁止key・Character名・HTML角括弧を含まないことを確認。世界グラフは街検索・種別絞り込み・前後参照・根拠・候補表示、仮想冒険者は効率型30行動の成長・Gold・勝敗・装備・転職判断・停止理由を確認した。
+- 検証: 390x844 / 1280x900で3画面に横溢れなし。自動testでは再現・世界グラフ・仮想冒険者がread queryだけを実行し、player-owned tableを保持することを確認済み。本番ログにはLab・SQL例外・fatal参照なし。
+- 未確認: JSON保存ファイルのOS上の着地。本番ログには同時刻帯の対象外エラーとして、確認コマンドの未対応optionと既存探索地図の通常モンスター不足が各1件あり、Lab由来ではないため変更対象外とした。
 - 現在の阻害事項: なし。
 
 ## 進捗ログ
 
+- 2026-09-02 CP6完了: SHA `3e133bdd` をstagingからproductionへ同一SHA・`migration_mode=none`で公開。release marker、明示flag ON、4 route、DB status、HTTP、管理者3画面の代表シナリオ、seed再現性、390px / 1280px表示を読戻した。DB schema・player-owned data・通貨・報酬・ランキングは変更していない。残件はブラウザ自動化で取得できないJSON保存ファイルのOS着地確認のみ。
 - 2026-09-02 CP6公開前QA完了: 本番許可gateを含むfocused 41件283 assertion、独立レビュー（認可・匿名化・非永続化）指摘なし、PHP構文scan、Vite buildが成功。最終 `npm run verify` の全PHPUnitは2,519件54,574 assertionを実行し、今回追加した呼出元固定testを修正後、対象差分由来の失敗は0件。残った7失敗・14エラーは、変更前SHAでも再現するFerdia / 刀 / 塔の15件と、単独再実行では成功する探索item / 訓練所 / 経験値護符の6件に分離した。次は同一SHAのstaging確認とproduction公開。
 - 2026-09-02 CP6着手: 本番公開の明示承認を受領。`origin/main` の現行本番SHAからクリーンな分離作業ツリーを作り、無関係なdirty差分を除外した。コード既定OFF・管理者gate・DB変更なしを維持したまま、staging / productionの明示ONを許可する実装へ更新。focused 36件246 assertionとVite buildが成功。次は全体QAと独立レビュー。
 - 2026-09-02 CP0完了: 正本docsと実装を調査。`TrainingGroundBattleService` の非永続option、`BattleService` / `DamageCalculator` の乱数境界、管理者middleware、主要マスタと発見リンクを確認。DB変更・仕様裁定・本番作業は不要。次はCP1。
