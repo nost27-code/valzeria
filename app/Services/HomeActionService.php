@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterAreaProgress;
 use App\Models\JobClass;
+use App\Models\NationJoinApplication;
 use App\Models\NpcProcurementRequest;
 use App\Models\NpcProcurementRequestMaterial;
 use Illuminate\Support\Collection;
@@ -34,6 +35,7 @@ class HomeActionService
         $this->appendJobArtSetupAction($actions, $character);
         $this->appendNpcRequestAction($actions, $character);
         $this->appendMarketNotificationAction($actions, $character);
+        $this->appendNationJoinAction($actions, $character);
         $this->appendExplorationStartAction($actions, $character);
         $this->appendRecoveryAction($actions, $character, $precomputedStats);
 
@@ -144,6 +146,35 @@ class HomeActionService
             'icon_image' => 'icon/icon_032.webp',
             'priority' => 70,
             'category' => 'market',
+        ]);
+    }
+
+    private function appendNationJoinAction(Collection $actions, Character $character): void
+    {
+        $schema = app(SchemaStateService::class);
+        if (! config('features.nation_community_enabled', false)
+            || ! $schema->hasTable('nation_memberships')
+            || ! $schema->hasTable('nation_join_applications')
+            || $character->nationMembership()->exists()) {
+            return;
+        }
+
+        $hasPendingApplication = $character->nationJoinApplications()
+            ->where('status', NationJoinApplication::STATUS_PENDING)
+            ->exists();
+
+        $actions->push([
+            'key' => $hasPendingApplication ? 'nation_join_application_pending' : 'nation_join_recommended',
+            'title' => $hasPendingApplication ? '国家への加入申請を確認しよう' : '国家に加入してみよう',
+            'body' => $hasPendingApplication
+                ? '加入申請の返事を待っています。国家画面で状況を確認できます。'
+                : '気になる国家を探して、仲間とともに冒険してみましょう。',
+            'action_label' => '国家へ',
+            'tab' => 'nation',
+            'icon' => '♜',
+            'icon_image' => 'icon/icon_305.webp',
+            'priority' => 87,
+            'category' => 'nation',
         ]);
     }
 

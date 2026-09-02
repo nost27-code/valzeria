@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-02-home-nation-join-prompt',
+        'date' => '2026-09-02',
+        'category' => 'added',
+        'title' => '次やることに国家加入の案内を追加',
+        'detail' => '国家に所属していない冒険者へ、冒険者タブの「次やること」から国家を探せる案内を追加しました。加入申請中は、申請状況を確認する案内へ切り替わります。',
+    ],
+    [
         'id' => '2026-09-01-standard-character-poses-thirteen',
         'date' => '2026-09-01',
         'category' => 'changed',

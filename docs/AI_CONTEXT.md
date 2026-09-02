@@ -2,11 +2,12 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 Branch: main
 
 ## Main navigation / nation community
 
+- `NATION_COMMUNITY_ENABLED`がONで国家に未所属の場合、冒険者タブの「次やること」に国家加入の案内を表示し、国家タブへ直接移動できる。加入申請中は同じ導線を申請状況確認の案内へ切り替え、所属後またはflag OFF時は表示しない
 - home下部Navigationは街・探索・冒険者・商店街・国家・闘技場の6項目。`nation`は商店街と闘技場の間に常時表示し、`public/images/icon/icon_305.webp`を使う。`NATION_COMMUNITY_ENABLED=true`ではタブ初回選択時に`NationScreen`をmountし、建国、国家一覧/詳細、募集、加入申請/承認/却下/取消、脱退/追放、役職、統治者譲渡、紹介/募集文/紋章、待機付き論理解散、操作履歴を利用できる。未所属TOPは`icon_306.webp`、国家紋章は`nation-crest_001.webp`〜`080.webp`から選ぶ。所属国家TOPと「国家を探す」から開く国家詳細の横長ヘッダは共通レイアウトで、国家名・紋章・統治者・国民数・国家Lv・募集状態・定員進捗を各国家の背景画像上にまとめる。国家に所属中の冒険者は、所属画面上部の「自国／他国」タブで自国TOPと全国家一覧・公開詳細を切り替えられる。加入申請操作は無所属者にだけ表示する。rulerは自国TOPでのみ`nation-header-bg_001.webp`〜`020.webp`をmodalから選んで国家単位で保存できる。2026-08-26にMariaDB 10.5.13の背景key migrationと既存国家readbackを通過し、本番公開した。未所属TOPの「国家ピックアップ」は公開active国家をID順の循環対象とし、公開active国家集合が変わらない間は同日固定の3国を日替わりで紹介するため、安定した1周期では各国家の表示回数と表示位置が均等になる。建国・解散で公開active国家集合が変わった場合は、同日中でも新しい集合から再選定する。ピックアップの右上と最下部の両方から全国家一覧へ進め、最下部ボタンには現在の公開active国家数を表示する。「国家を探す」専用画面はTOP案内枠を重ねず、募集ON、威信、ID順の公開国家一覧とTOPへ戻る導線だけを表示する。`nations.is_hidden=true`は運営確認用で、公開ピックアップ・一覧・直接詳細・他人の冒険者カード・加入申請・国家戦から除外し、現在国民本人の自国画面だけを表示する。本番は2026-08-25にMariaDB 10.5.13のmigration/readback gateを通過し、community flagをONで公開した
 - 所属国家TOPと他国詳細の国民一覧は、冒険者カードを開けるキャラアイコンを3列×最大3行（先頭9人）で表示する。10人以上の場合は「国民をすべて見る」から全員を同じ3列形式のmodalで確認できる。既定は国王優先・加入順で、加入が新しい順、Lvが高い順、Lvが低い順、名前順へ切り替えられ、先頭9人と全員modalは同じ並びを共有する。
 - 1Characterは1国家、1国家の現在の初期上限は20人。定員は`nation.max_members`を正本とし、一覧・詳細・所属dashboardの表示と申請時・承認時の判定で共通利用する。内部統治者roleは`ruler`、表示名は基礎国家名+国号、統治者名は国号から導出する。加入申請時は統治者へ申請一覧へのURL付き通知、承認時は申請者へ未読通知を作る。既存のURLなし加入申請通知も通知種別から申請一覧へ遷移する。承認ボタンは確認modalを開き、確定時だけ既存のtransaction/row lock付きServiceで加入させる。加入・脱退・追放・再建国の待機時間は`nation.*` GameSettingを正本とする。解散待機中は一般国民の自主脱退を拒否し、解散完了時にcooldownなしで無所属へ戻す
