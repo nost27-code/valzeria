@@ -1781,13 +1781,16 @@ class BattleService
     private function executeJobArtAction(BattleActor $attacker, BattleActor $defender, BattleState $state, Skill $skill): void
     {
         $sourceSkill = $skill;
-        $skill = $this->jobArtV2CrownBalanceCatalog->applyToExecution($skill);
+        // Runtime resolvers may rewrite templates, power, rewards and other
+        // execution-only values. Always isolate them from the master model,
+        // including arts that have no CrownBalance metadata.
+        $skill = clone $sourceSkill;
+        $this->jobArtV2CrownBalanceCatalog->applyToExistingExecution($skill);
         $usesRoleEffects = $this->jobArtV2ResourceService->enabledFor($attacker);
         if ($usesRoleEffects
             || $this->jobArtV2DamageSemanticsResolver->forExecution($attacker, $sourceSkill) !== null
             || $this->jobArtV2EffectSemanticsResolver->suppressesLegacySelfBuff($attacker, $sourceSkill)
         ) {
-            $skill = $this->jobArtV2CrownBalanceCatalog->applyToExecution($sourceSkill);
             $this->jobArtV2DamageSemanticsResolver->applyForExecution($attacker, $sourceSkill, $skill);
             $this->jobArtV2EffectSemanticsResolver->applyForExecution($attacker, $sourceSkill, $skill);
         }

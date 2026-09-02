@@ -94,6 +94,15 @@ final class JobArtV2EffectSemanticsResolver
             return;
         }
 
+        if ((int) $sourceSkill->job_id === JobArtV2DefenseService::GUARD_JOB_ID
+            && in_array((int) $sourceSkill->learn_rank, [1, 5, 9], true)
+        ) {
+            // DefenseService applies the card's structured one-shot Guard.
+            // Leaving the legacy reduction on the execution copy would apply
+            // the same 25/35/45% mitigation a second time in route side effects.
+            $executionSkill->damage_reduction_percent = 0;
+        }
+
         $roleCatalog = $this->roleEffectCatalog ?? app(JobArtV2RoleEffectCatalog::class);
         $techTemplate = $this->techReplacementTemplate($actor, $sourceSkill);
         if ($techTemplate !== null) {

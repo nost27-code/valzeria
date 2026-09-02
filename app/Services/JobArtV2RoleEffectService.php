@@ -401,9 +401,14 @@ final class JobArtV2RoleEffectService
             $sourceSkill,
             $executionSkill,
         );
+        $resolvedCrownGuardReduction = $this->resolvedCrownGuardReduction(
+            $sourceSkill,
+            $executionSkill,
+        );
         if ($this->enabledFor($actor)) {
             $this->balances()->applyToExistingExecution($executionSkill);
         }
+        $this->restoreExecutionDamageReduction($executionSkill, $resolvedCrownGuardReduction);
 
         if (! empty($state->jobArtV2RoleAction()['ultimate_counterplay_lineage_suppressed'])) {
             return;
@@ -1555,6 +1560,30 @@ final class JobArtV2RoleEffectService
 
         $executionSkill->power = $power;
         $executionSkill->power_multiplier = $power / 100;
+    }
+
+    private function resolvedCrownGuardReduction(Skill $sourceSkill, Skill $executionSkill): ?int
+    {
+        if ((int) $sourceSkill->job_id !== JobArtV2DefenseService::GUARD_JOB_ID
+            || ! in_array((int) $sourceSkill->learn_rank, [1, 5, 9], true)
+            || (string) $executionSkill->effect_template !== 'MAGICAL_DAMAGE'
+        ) {
+            return null;
+        }
+
+        // EffectSemanticsResolver has replaced the legacy self-buff with the
+        // structured one-shot Guard. Preserve its explicit zero across the
+        // later static CrownBalance reapplication.
+        return (int) $executionSkill->damage_reduction_percent;
+    }
+
+    private function restoreExecutionDamageReduction(Skill $executionSkill, ?int $reduction): void
+    {
+        if ($reduction === null) {
+            return;
+        }
+
+        $executionSkill->damage_reduction_percent = $reduction;
     }
 
     private function fallbackExecutionPower(BattleActor $actor, Skill $skill): int

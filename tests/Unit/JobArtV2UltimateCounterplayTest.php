@@ -937,6 +937,8 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertSame('DAMAGE_BUFF', $guardExecution->effect_template);
         $this->assertSame('physical', $guardExecution->damage_type);
         $this->assertSame(333, (int) $guardExecution->power);
+        $this->assertSame(0, (int) $guardExecution->damage_reduction_percent);
+        $this->assertSame(0, $guard->damageReductionRate);
         $this->assertNull($guard->jobArtV2GuardState());
 
         // Penetration stance begin/complete and defense override hooks.
