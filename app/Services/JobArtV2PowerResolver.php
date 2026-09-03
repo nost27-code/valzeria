@@ -39,7 +39,7 @@ class JobArtV2PowerResolver
             && (int) $skill->learn_rank === 9
             && $crownPierceTrusted
             && ($state === null
-                || ! ($this->progressionService ?? app(JobArtV2ProgressionService::class))->crownPierceRankFiveUsed($actor))
+                || ! ($this->progressionService ?? app(JobArtV2ProgressionService::class))->crownPierceChainUsed($actor))
         ) {
             $power = $this->canonicalBasePower($skill);
         }

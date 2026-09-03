@@ -1542,7 +1542,7 @@ final class JobArtV2RoleEffectService
             || ! $sourceSkill->isJobArt()
             || (int) $sourceSkill->job_id !== 62
             || (int) $sourceSkill->learn_rank !== 9
-            || ! $this->progressionService->crownPierceRankFiveUsed($actor)
+            || ! $this->progressionService->crownPierceChainUsed($actor)
         ) {
             return null;
         }

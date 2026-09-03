@@ -28,7 +28,7 @@
 - DB更新、migration／Seeder実行禁止
 - デプロイ禁止
 - dirty worktreeの既存変更を復元、整形、stage、削除しない
-- 未裁定のカード条件を拡張しない
+- `docs/DOMAIN_RULES.md`で確定した「任意のRank5連携使用済み」より条件を狭めたり広げたりしない
 
 ---
 
@@ -141,10 +141,10 @@ DB、migration、Seeder、`database/data/job_arts.json`の変更はありませ�
 ### 竜冠天穿槍
 
 - 条件未成立: 355%
-- 同一戦闘中に「竜冠穿槍」を使用済み: 470%
+- 同一戦闘中に任意のRank5連携を1回以上使用済み: 470%
 - RoleEffect内のCrownBalance再適用後も470%
 - source masterは355%のまま
-- 「別の連携」へ条件を広げない
+- Rank5の所属系譜、現在職／継承、進行metadataの有無、HIT／MISS／EVADEを問わない
 
 ### 既存の攻撃意味・防御意味
 

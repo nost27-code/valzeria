@@ -879,7 +879,7 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertGreaterThan($damagePosition, $finishPosition);
     }
 
-    public function test_field_suppression_preserves_exact_master_base_and_skips_role_progression(): void
+    public function test_field_suppression_uses_canonical_card_base_and_skips_role_progression(): void
     {
         [$owner] = $this->actors();
         $field = $this->actor('field', 53, [$this->art(5305, 53, 5, '星詠みの光')]);
@@ -899,6 +899,7 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $ultimate->power_multiplier = 3.21;
         $ultimate->hit_count = 2;
         $ultimate->setAttribute('atk_self_buff_percent', 17);
+        $masterAttributes = $ultimate->getAttributes();
         $owner->replaceJobArtV2PreparedEffect(new JobArtV2PreparedEffectState(
             'command_focus', 1.50, 1, null, 1, 1, 1, 'command', [9], false, 'command_focus', null,
         ));
@@ -911,11 +912,72 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $this->assertTrue($service->lineageEffectsSuppressedForCurrentAction($owner, $state, $ultimate));
         $this->assertSame('DAMAGE_BUFF', $execution->effect_template);
         $this->assertSame('physical', $execution->damage_type);
-        $this->assertSame(321, (int) $execution->power);
+        $this->assertSame(275, (int) $execution->power);
         $this->assertSame(2, (int) $execution->hit_count);
         $this->assertSame(17, $execution->getAttribute('atk_self_buff_percent'));
         $this->assertNotNull($owner->jobArtV2PreparedEffect('command_focus'));
         $this->assertSame(1.0, $state->jobArtV2RoleAction()['role_damage_multiplier']);
+        $this->assertSame($masterAttributes, $ultimate->getAttributes());
+    }
+
+    public function test_field_suppression_uses_canonical_static_values_in_all_competitive_routes(): void
+    {
+        $support = app(JobArtBattleSupportService::class);
+
+        foreach (['pvp', 'champ', 'arena_npc'] as $battleType) {
+            $cases = [
+                [
+                    'actor_job_id' => 66,
+                    'skill' => tap($this->art(6609, 66, 9, '聖冠アイギスロード'), function (Skill $skill): void {
+                        $skill->power = 333;
+                        $skill->power_multiplier = 3.33;
+                        $skill->damage_reduction_percent = 0;
+                    }),
+                    'lineage' => 'guard',
+                    'resource' => 'holy_guard',
+                    'expected' => [
+                        'power' => 355,
+                        'damage_reduction_percent' => 45,
+                    ],
+                ],
+                [
+                    'actor_job_id' => 16,
+                    'skill' => tap($this->art(1609, 16, 9, '傭兵団の総攻撃'), function (Skill $skill): void {
+                        $skill->power = 89;
+                        $skill->power_multiplier = 0.89;
+                        $skill->duration_turns = 1;
+                        $skill->enemy_def_down_percent = 14;
+                        $skill->enemy_spr_down_percent = 7;
+                    }),
+                    'lineage' => 'pierce',
+                    'resource' => 'dragon_force',
+                    'expected' => [
+                        'power' => 255,
+                        'duration_turns' => 4,
+                        'enemy_def_down_percent' => 20,
+                        'enemy_spr_down_percent' => 20,
+                    ],
+                ],
+            ];
+
+            foreach ($cases as $case) {
+                $skill = $case['skill'];
+                $owner = $this->actor('owner', $case['actor_job_id'], [$skill]);
+                $target = $this->actor('target', 48, $this->commandArts());
+                $state = new BattleState($owner, $target, $battleType);
+                $masterAttributes = $skill->getAttributes();
+                $this->armSuppressedReadyUltimate($owner, $state, $case['lineage'], $case['resource']);
+
+                $support->beginAction($owner, $state);
+                $this->assertTrue($support->consumeAndMarkUse($owner, $state, $skill), $battleType);
+                $execution = $support->skillForExecution($owner, $skill, $state, $target);
+
+                foreach ($case['expected'] as $attribute => $expected) {
+                    $this->assertSame($expected, (int) $execution->getAttribute($attribute), "{$battleType}:{$skill->name}:{$attribute}");
+                }
+                $this->assertSame($masterAttributes, $skill->getAttributes(), "{$battleType}:{$skill->name}:master");
+            }
+        }
     }
 
     public function test_field_suppression_central_gate_skips_semantics_defense_penetration_sp_and_break_hooks(): void
@@ -936,8 +998,8 @@ final class JobArtV2UltimateCounterplayTest extends TestCase
         $guardExecution = $support->skillForExecution($guard, $guardUltimate, $guardState, $target);
         $this->assertSame('DAMAGE_BUFF', $guardExecution->effect_template);
         $this->assertSame('physical', $guardExecution->damage_type);
-        $this->assertSame(333, (int) $guardExecution->power);
-        $this->assertSame(0, (int) $guardExecution->damage_reduction_percent);
+        $this->assertSame(355, (int) $guardExecution->power);
+        $this->assertSame(45, (int) $guardExecution->damage_reduction_percent);
         $this->assertSame(0, $guard->damageReductionRate);
         $this->assertNull($guard->jobArtV2GuardState());
 

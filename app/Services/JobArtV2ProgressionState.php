@@ -14,7 +14,8 @@ final class JobArtV2ProgressionState
     /** @var array<string, array{remaining:int,applied_round:int,last_round:int}> */
     public array $roundStates = [];
 
-    public bool $pierceCrownRankFiveUsed = false;
+    /** 竜冠天穿槍の条件に使う、系譜を問わない連携使用済み記録。 */
+    public bool $crownPierceChainUsed = false;
 
     /** @var array<string, int> owner actor key => 0..3 */
     public array $huntingMarks = [];

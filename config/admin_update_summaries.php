@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-03-job-art-canonical-base-and-chain-condition',
+        'date' => '2026-09-03',
+        'category' => 'fixed',
+        'title' => '封式の場と竜冠天穿槍の条件を正本へ統一',
+        'detail' => '封式の場で奥義の基礎効果が古い値になることがある問題を修正しました。また、竜冠天穿槍はカード記載どおり、この戦闘中に系譜を問わず連携を1回以上使用していれば威力470%になります。',
+    ],
+    [
         'id' => '2026-09-03-job-art-v2-runtime-isolation-guard-fix',
         'date' => '2026-09-03',
         'category' => 'fixed',

@@ -20,6 +20,7 @@ final class JobArtV2UltimateCounterplayService
         private readonly JobArtV2ResourceCatalog $resourceCatalog,
         private readonly JobArtV2ProgressionService $progressionService,
         private readonly JobArtV2UltimateCounterplayCatalog $catalog,
+        private readonly JobArtV2CrownBalanceCatalog $crownBalanceCatalog,
     ) {}
 
     public function enabledFor(BattleState $state): bool
@@ -559,9 +560,11 @@ final class JobArtV2UltimateCounterplayService
         }
 
         $executionSkill = clone $skill;
-        // 静寂の場は source master の基礎効果をそのまま実行する。
+        // 静寂の場はカード本文（L列）を正本にした基礎効果を実行する。
+        // DB master の旧値を基礎値として復活させてはいけない。
+        $this->crownBalanceCatalog->applyToExistingExecution($executionSkill);
         // 補助奥義など power=0 の技を、既定値100へ変換してはいけない。
-        $power = max(0, (int) $skill->power);
+        $power = max(0, (int) $executionSkill->power);
         $executionSkill->power = $power;
         $executionSkill->power_multiplier = $power / 100;
 

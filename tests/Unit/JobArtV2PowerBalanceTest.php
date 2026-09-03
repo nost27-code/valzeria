@@ -312,7 +312,7 @@ class JobArtV2PowerBalanceTest extends TestCase
         $sourceActionId = $state->beginSourceAction();
         $roles->beginAction($actor, $state, $sourceActionId);
         $roles->completeJobArtCast($actor, $target, $state, $rankFive, HitResult::HIT);
-        $this->assertTrue($actor->jobArtV2ProgressionState()->pierceCrownRankFiveUsed);
+        $this->assertTrue($actor->jobArtV2ProgressionState()->crownPierceChainUsed);
 
         $sourceActionId = $state->beginSourceAction();
         $roles->beginAction($actor, $state, $sourceActionId);
@@ -326,6 +326,107 @@ class JobArtV2PowerBalanceTest extends TestCase
         $this->assertSame(470, (int) $execution->power);
         $this->assertSame(4.7, (float) $execution->power_multiplier);
         $this->assertSame(355, (int) $rankNine->power);
+    }
+
+    public function test_crown_pierce_ultimate_uses_470_after_any_rank_five_chain_regardless_of_metadata_or_result(): void
+    {
+        foreach ([
+            ['current-rank-five-hit', 62, 62, 285, 6_205, '竜冠穿槍', HitResult::HIT],
+            ['metadata-free-cross-lineage-miss', 62, 1, 145, 105, '受け返し', HitResult::MISS],
+            ['metadata-free-inherited-ultimate-evade', 63, 1, 145, 105, '受け返し', HitResult::EVADE],
+        ] as [$context, $currentJobId, $rankFiveJobId, $rankFivePower, $rankFiveId, $rankFiveName, $hitResult]) {
+            $actor = $this->actor($currentJobId);
+            $target = $this->actor(null);
+            $rankFive = $this->art($rankFiveJobId, 5, $rankFivePower, $rankFiveId, $rankFiveName);
+            $rankNine = $this->art(62, 9, 355, 6_209, '竜冠天穿槍');
+            $actor->jobArts = [$rankFive, $rankNine];
+            foreach ([$rankFive, $rankNine] as $art) {
+                $actor->jobArtOrigins[(int) $art->id] = (int) $art->job_id === $currentJobId
+                    ? 'current'
+                    : 'inherited';
+                $actor->jobArtRates[(int) $art->id] = 1.0;
+            }
+            $rankFiveMasterAttributes = $rankFive->getAttributes();
+            $state = new BattleState($actor, $target, 'pvp');
+            $roles = app(JobArtV2RoleEffectService::class);
+
+            $sourceActionId = $state->beginSourceAction();
+            $roles->beginAction($actor, $state, $sourceActionId);
+            $roles->completeJobArtCast($actor, $target, $state, $rankFive, $hitResult);
+            $this->assertTrue($actor->jobArtV2ProgressionState()->crownPierceChainUsed, $context);
+
+            $sourceActionId = $state->beginSourceAction();
+            $roles->beginAction($actor, $state, $sourceActionId);
+            $execution = app(JobArtBattleSupportService::class)->skillForExecution(
+                $actor,
+                $rankNine,
+                $state,
+                $target,
+            );
+
+            $this->assertSame(470, (int) $execution->power, $context);
+            $this->assertSame(4.7, (float) $execution->power_multiplier, $context);
+            $this->assertSame($rankFiveMasterAttributes, $rankFive->getAttributes(), "{$context}:rank-five-master");
+            $this->assertSame(355, (int) $rankNine->power, "{$context}:ultimate-master");
+        }
+    }
+
+    public function test_every_rank_five_master_counts_as_crown_pierce_chain_without_mutating_sources(): void
+    {
+        $rows = json_decode(
+            (string) file_get_contents(base_path('database/data/job_arts.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $rankFiveRows = array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => (int) ($row['learn_rank'] ?? 0) === 5,
+        ));
+        $hitResults = [HitResult::HIT, HitResult::MISS, HitResult::EVADE];
+
+        $this->assertCount(94, $rankFiveRows);
+        foreach ($rankFiveRows as $index => $row) {
+            $jobId = (int) $row['job_id'];
+            $context = "{$jobId}:5:{$row['name']}";
+            $actor = $this->actor(62);
+            $target = $this->actor(null);
+            $rankFive = $this->art($jobId, 5, 100, 100_000 + $jobId, (string) $row['name']);
+            $rankFive->effect_template = (string) ($row['effect_template'] ?? 'PHYSICAL_DAMAGE');
+            $crownPierce = $this->art(62, 9, 355, 6_209, '竜冠天穿槍');
+            $actor->jobArts = [$rankFive, $crownPierce];
+            foreach ([$rankFive, $crownPierce] as $art) {
+                $actor->jobArtOrigins[(int) $art->id] = (int) $art->job_id === 62
+                    ? 'current'
+                    : 'inherited';
+                $actor->jobArtRates[(int) $art->id] = 1.0;
+            }
+            $masterAttributes = $rankFive->getAttributes();
+            $state = new BattleState($actor, $target, 'pvp');
+            $roles = app(JobArtV2RoleEffectService::class);
+
+            $sourceActionId = $state->beginSourceAction();
+            $roles->beginAction($actor, $state, $sourceActionId);
+            $roles->completeJobArtCast(
+                $actor,
+                $target,
+                $state,
+                $rankFive,
+                $hitResults[$index % count($hitResults)],
+            );
+
+            $this->assertTrue($actor->jobArtV2ProgressionState()->crownPierceChainUsed, $context);
+            $sourceActionId = $state->beginSourceAction();
+            $roles->beginAction($actor, $state, $sourceActionId);
+            $execution = app(JobArtBattleSupportService::class)->skillForExecution(
+                $actor,
+                $crownPierce,
+                $state,
+                $target,
+            );
+            $this->assertSame(470, (int) $execution->power, $context);
+            $this->assertSame($masterAttributes, $rankFive->getAttributes(), "{$context}:master");
+        }
     }
 
     public function test_rank_sixty_two_candidate_has_the_intended_defense_curve(): void

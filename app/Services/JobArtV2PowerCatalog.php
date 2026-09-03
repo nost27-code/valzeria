@@ -13,7 +13,7 @@ class JobArtV2PowerCatalog
      * @var array<int, array<int, array{power: int, requires: string, scope?: string}>>
      */
     private const OVERRIDES = [
-        // L列の355%を基礎値とし、連携を使用済みの場合だけ470%へ変更する。
+        // L列の355%を基礎値とし、系譜を問わず連携を使用済みの場合だけ470%へ変更する。
         62 => [
             9 => ['power' => 470, 'requires' => 'penetration'],
         ],

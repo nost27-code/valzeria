@@ -146,6 +146,69 @@ class JobArtV2RuntimeOverwriteRegressionTest extends TestCase
         $this->assertNull($skill->getAttribute('damage_reduction_percent'));
     }
 
+    public function test_battle_service_records_any_rank_five_chain_for_crown_pierce(): void
+    {
+        $actor = $this->actor(62);
+        $target = $this->actor(null, false);
+        $otherLineageRankFive = $this->jobArt(105, 1, 5, '受け返し', 145);
+        $crownPierce = $this->jobArt(6_209, 62, 9, '竜冠天穿槍', 355);
+        $actor->jobArts = [$otherLineageRankFive, $crownPierce];
+        $actor->jobArtOrigins = [
+            (int) $otherLineageRankFive->id => 'inherited',
+            (int) $crownPierce->id => 'current',
+        ];
+        $actor->jobArtRates = [
+            (int) $otherLineageRankFive->id => 1.0,
+            (int) $crownPierce->id => 1.0,
+        ];
+        $rankFiveMasterAttributes = $otherLineageRankFive->getAttributes();
+        $ultimateMasterAttributes = $crownPierce->getAttributes();
+
+        $this->executePveJobArt($actor, $target, $otherLineageRankFive);
+
+        $this->assertTrue($actor->jobArtV2ProgressionState()->crownPierceChainUsed);
+        $execution = app(JobArtBattleSupportService::class)->skillForExecution(
+            $actor,
+            $crownPierce,
+            new BattleState($actor, $target, 'pve'),
+            $target,
+        );
+        $this->assertSame(470, (int) $execution->power);
+        $this->assertSame(4.7, (float) $execution->power_multiplier);
+        $this->assertSame($rankFiveMasterAttributes, $otherLineageRankFive->getAttributes());
+        $this->assertSame($ultimateMasterAttributes, $crownPierce->getAttributes());
+    }
+
+    public function test_crown_pierce_chain_history_stays_fail_closed_when_resources_are_disabled(): void
+    {
+        $actor = $this->actor(62);
+        $target = $this->actor(null, false);
+        $otherLineageRankFive = $this->jobArt(105, 1, 5, '受け返し', 145);
+        $crownPierce = $this->jobArt(6_209, 62, 9, '竜冠天穿槍', 355);
+        $actor->jobArts = [$otherLineageRankFive, $crownPierce];
+        $actor->jobArtOrigins = [
+            (int) $otherLineageRankFive->id => 'inherited',
+            (int) $crownPierce->id => 'current',
+        ];
+        $actor->jobArtRates = [
+            (int) $otherLineageRankFive->id => 1.0,
+            (int) $crownPierce->id => 1.0,
+        ];
+        config(['battle.job_art_v2.resources' => false]);
+
+        $this->executePveJobArt($actor, $target, $otherLineageRankFive);
+
+        $this->assertFalse($actor->jobArtV2ProgressionState()->crownPierceChainUsed);
+        $execution = app(JobArtBattleSupportService::class)->skillForExecution(
+            $actor,
+            $crownPierce,
+            new BattleState($actor, $target, 'pve'),
+            $target,
+        );
+        $this->assertSame(355, (int) $execution->power);
+        $this->assertSame(3.55, (float) $execution->power_multiplier);
+    }
+
     private function executePveJobArt(BattleActor $actor, BattleActor $target, Skill $skill): void
     {
         $state = new BattleState($actor, $target, 'pve');
@@ -182,6 +245,25 @@ class JobArtV2RuntimeOverwriteRegressionTest extends TestCase
             'max_uses_per_battle' => $rank === 9 ? 1 : null,
         ]);
         $skill->setAttribute('id', 6_600 + $rank);
+
+        return $skill;
+    }
+
+    private function jobArt(int $id, int $jobId, int $rank, string $name, int $power): Skill
+    {
+        $skill = new Skill([
+            'name' => $name,
+            'skill_type' => 'job_art',
+            'job_id' => $jobId,
+            'learn_rank' => $rank,
+            'effect_template' => 'PHYSICAL_DAMAGE',
+            'damage_type' => 'physical',
+            'power' => $power,
+            'power_multiplier' => $power / 100,
+            'hit_count' => 1,
+            'max_uses_per_battle' => $rank === 9 ? 1 : null,
+        ]);
+        $skill->setAttribute('id', $id);
 
         return $skill;
     }

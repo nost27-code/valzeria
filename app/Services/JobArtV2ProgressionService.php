@@ -364,6 +364,12 @@ final class JobArtV2ProgressionService
         $jobId = (int) $skill->job_id;
         $rank = (int) $skill->learn_rank;
 
+        // 竜冠天穿槍の「連携を1回以上使用済み」は、個別の進行効果を
+        // 持たないRank5戦技も含む。進行metadataの有無より先に記録する。
+        if ($skill->isJobArt() && $rank === 5) {
+            $actorState->crownPierceChainUsed = true;
+        }
+
         if ($this->featureGate->usesRank5V6($actor) && $rank === 5) {
             $missAccuracyBonus = ($this->rank5V6Catalog ?? app(JobArtV2Rank5V6Catalog::class))
                 ->missNextAimAccuracyBonusPoints($skill);
@@ -449,10 +455,6 @@ final class JobArtV2ProgressionService
                 $actorState->consumeRoundState(self::SUPER_PIERCE_STANCE);
             }
         }
-        if ($sameLineage && $jobId === 62 && $rank === 5) {
-            $actorState->pierceCrownRankFiveUsed = true;
-        }
-
         if ($sameLineage && $landed && in_array($jobId, [54, 64], true)) {
             if ($rank === 1) {
                 $this->addHuntingMark($target, $actor);
@@ -1362,9 +1364,9 @@ final class JobArtV2ProgressionService
         return $this->superPierceStanceActive($actor) ? $rate : 0.0;
     }
 
-    public function crownPierceRankFiveUsed(BattleActor $actor): bool
+    public function crownPierceChainUsed(BattleActor $actor): bool
     {
-        return $actor->jobArtV2ProgressionState()->pierceCrownRankFiveUsed;
+        return $actor->jobArtV2ProgressionState()->crownPierceChainUsed;
     }
 
     /** @return array{rate:float,once_per_battle:bool}|null */
