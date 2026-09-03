@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-03-exclusive-character-icon-044',
+        'date' => '2026-09-03',
+        'category' => 'internal',
+        'title' => 'ズッパ専用キャラアイコンを追加',
+        'detail' => 'ズッパさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-03-job-art-canonical-base-and-chain-condition',
         'date' => '2026-09-03',
         'category' => 'fixed',
