@@ -220,6 +220,7 @@ class MapExplorationBatchService
             $gradeBonus = app(ExplorationMapGradeRewardService::class)->tryDrop($character, $map, $enemy, $rewardSeed);
             $drops['materials'] = array_merge($drops['materials'] ?? [], $gradeBonus['materials']);
             $drops['equipment'] = array_merge($drops['equipment'] ?? [], $gradeBonus['equipment']);
+            app(PublicLogService::class)->addEquipmentDropLogs($character, $drops['equipment']);
             $this->applyVictoryRecovery($character, $battle, $modifiers);
             $mapDrop = app(ExplorationMapDropService::class)->tryDrop($character, $map->sourceArea, $enemy, false, true);
             $valmonEggFound = app(ValmonService::class)->tryFindEgg(

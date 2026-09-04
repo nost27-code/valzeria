@@ -13,6 +13,26 @@ class PublicLogServiceVisibilityTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_equipment_drop_logs_remain_hidden_for_admin_and_tester_characters(): void
+    {
+        $admin = $this->adminCharacter();
+        $tester = Character::query()->create([
+            'user_id' => User::factory()->create(['email' => 'tester_droplog@valzeria.local'])->id,
+            'name' => '装備ログ検証者',
+        ]);
+        $drops = [
+            ['item_name' => '逸品剣', 'rank' => 'A', 'affix_quality' => 'excellent'],
+            ['item_name' => '希少鎧', 'rank' => 'SSS'],
+            ['item_name' => '希少飾り', 'rank' => 'EPIC'],
+        ];
+
+        foreach ([$admin, $tester] as $character) {
+            app(PublicLogService::class)->addEquipmentDropLogs($character, $drops);
+        }
+
+        $this->assertDatabaseMissing('public_logs', ['type' => 'drop']);
+    }
+
     public function test_region_depth_record_is_published_for_an_admin_character_only_as_an_explicit_exception(): void
     {
         $character = $this->adminCharacter();

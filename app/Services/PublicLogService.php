@@ -11,6 +11,39 @@ use Illuminate\Support\Str;
 
 class PublicLogService
 {
+    /** @param array<int, array<string, mixed>> $equipmentDrops */
+    public function addEquipmentDropLogs(Character $character, array $equipmentDrops): void
+    {
+        foreach ($equipmentDrops as $equipmentDrop) {
+            $rankText = strtoupper((string) ($equipmentDrop['rank'] ?? $equipmentDrop['rarity'] ?? ''));
+            $rarity = strtolower((string) ($equipmentDrop['rarity'] ?? ''));
+
+            if ($rankText === 'LEGEND' || $rarity === 'legend') {
+                $rankText = 'EPIC';
+            }
+
+            if (($equipmentDrop['affix_quality'] ?? null) === 'excellent') {
+                $this->addLog(
+                    'drop',
+                    "【逸品】{$character->name}さんが「{$equipmentDrop['item_name']}」を手に入れました！",
+                    $character,
+                    3
+                );
+                continue;
+            }
+
+            if (!in_array($rankText, ['SSS', 'EPIC'], true)
+                && !in_array($rarity, ['rare', 'epic', 'legend'], true)) {
+                continue;
+            }
+
+            $message = "【獲得】{$character->name}さんが{$rankText}ランク装備「{$equipmentDrop['item_name']}」を手に入れました！";
+            $importance = in_array($rankText, ['SSS', 'EPIC'], true) ? 3 : 2;
+
+            $this->addLog('drop', $message, $character, $importance);
+        }
+    }
+
     public function addMapPublishedLog(\App\Models\ExplorationMap $map, \App\Models\TownMapRegistration $registration): void
     {
         if (!in_array($map->map_grade, config('exploration_maps.public_log_grades', []), true)) {

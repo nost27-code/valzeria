@@ -7,9 +7,13 @@ use App\Models\Character;
 use App\Models\City;
 use App\Models\Enemy;
 use App\Models\MapExplorationResult;
+use App\Models\PublicLog;
 use App\Models\User;
 use App\Services\Battle\BattleResult;
+use App\Services\BattleLogService;
 use App\Services\BattleService;
+use App\Services\DropService;
+use App\Services\ExplorationMapGradeRewardService;
 use App\Services\ExplorationMapGenerator;
 use App\Services\ExplorationStaminaService;
 use App\Services\GameSettingService;
@@ -20,6 +24,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class MapExplorationBatchServiceTest extends TestCase
@@ -31,6 +36,104 @@ class MapExplorationBatchServiceTest extends TestCase
         Mockery::close();
 
         parent::tearDown();
+    }
+
+    #[DataProvider('equipmentDropBatchSizes')]
+    public function test_map_equipment_drops_publish_normal_and_grade_bonus_logs_only_once(int $count): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図逸品試験地', 'map-equipment-log-test');
+        $equipment = [
+            ['item_name' => '逸品の試験剣', 'rank' => 'A', 'rarity' => 'common', 'affix_quality' => 'excellent'],
+            ['item_name' => 'SSSの試験鎧', 'rank' => 'SSS', 'rarity' => 'common'],
+            ['item_name' => 'EPICの試験飾り', 'rank' => 'EPIC', 'rarity' => 'common'],
+            ['item_name' => '通常の試験剣', 'rank' => 'A', 'rarity' => 'common'],
+            ['item_name' => '良品の試験剣', 'rank' => 'A', 'rarity' => 'common', 'affix_quality' => 'good'],
+        ];
+        $gradeEquipment = [
+            ['item_name' => '等級報酬の逸品剣', 'rank' => 'EPIC', 'rarity' => 'epic', 'affix_quality' => 'excellent'],
+        ];
+        $victory = new BattleResult();
+        $victory->result = 'victory';
+        $victory->jobExp = 1;
+        $battleService = Mockery::mock(BattleService::class);
+        $battleService->shouldReceive('executeBattle')->times($count)->andReturn($victory);
+        $this->app->instance(BattleService::class, $battleService);
+
+        $drops = Mockery::mock(DropService::class);
+        $drops->shouldReceive('rollBattleDrops')->times($count)->andReturn(['materials' => [], 'equipment' => $equipment]);
+        $this->app->instance(DropService::class, $drops);
+        $gradeRewards = Mockery::mock(ExplorationMapGradeRewardService::class);
+        $gradeRewards->shouldReceive('tryDrop')->times($count)->andReturn(['materials' => [], 'equipment' => $gradeEquipment]);
+        $this->app->instance(ExplorationMapGradeRewardService::class, $gradeRewards);
+
+        $service = app(MapExplorationBatchService::class);
+        $requestUuid = (string) Str::uuid();
+        $batch = $service->reserve($visitor, $registration, $count, $requestUuid);
+        $execution = $service->execute($visitor, $batch);
+
+        $this->assertSame($count, (int) $execution['batch']->executed_count);
+        $this->assertCount($count * 6, $execution['battle_result']['equipment_drops']);
+        $expectedPerRun = [
+            "【逸品】{$visitor->name}さんが「逸品の試験剣」を手に入れました！",
+            "【獲得】{$visitor->name}さんがSSSランク装備「SSSの試験鎧」を手に入れました！",
+            "【獲得】{$visitor->name}さんがEPICランク装備「EPICの試験飾り」を手に入れました！",
+            "【逸品】{$visitor->name}さんが「等級報酬の逸品剣」を手に入れました！",
+        ];
+        $expected = array_merge(...array_fill(0, $count, $expectedPerRun));
+        $logs = PublicLog::where('type', 'drop')->where('character_id', $visitor->id)->orderBy('id')->get();
+        $this->assertSame($expected, $logs->pluck('message')->all());
+        $this->assertTrue($logs->every(fn (PublicLog $log): bool => (int) $log->importance === 3));
+        $savedDropLogs = $logs->pluck('id')->all();
+
+        $sameBatch = $service->reserve($visitor, $registration, $count, $requestUuid);
+        $service->execute($visitor, $sameBatch);
+
+        $this->assertSame($batch->id, $sameBatch->id);
+        $this->assertSame($savedDropLogs, PublicLog::where('type', 'drop')->where('character_id', $visitor->id)->orderBy('id')->pluck('id')->all());
+    }
+
+    public static function equipmentDropBatchSizes(): array
+    {
+        return ['single' => [1], 'ten' => [10]];
+    }
+
+    public function test_map_equipment_drop_logs_roll_back_when_the_batch_fails(): void
+    {
+        [$visitor, $registration] = $this->createPublishedMapAndVisitor('地図ログ取消試験地', 'map-drop-log-rollback-test');
+        $victory = new BattleResult();
+        $victory->result = 'victory';
+        $battleService = Mockery::mock(BattleService::class);
+        $battleService->shouldReceive('executeBattle')->once()->andReturn($victory);
+        $this->app->instance(BattleService::class, $battleService);
+        $drops = Mockery::mock(DropService::class);
+        $drops->shouldReceive('rollBattleDrops')->once()->andReturn([
+            'materials' => [],
+            'equipment' => [['item_name' => '取消試験の逸品剣', 'rank' => 'A', 'affix_quality' => 'excellent']],
+        ]);
+        $this->app->instance(DropService::class, $drops);
+        $gradeRewards = Mockery::mock(ExplorationMapGradeRewardService::class);
+        $gradeRewards->shouldReceive('tryDrop')->once()->andReturn(['materials' => [], 'equipment' => []]);
+        $this->app->instance(ExplorationMapGradeRewardService::class, $gradeRewards);
+        $battleLogs = Mockery::mock(BattleLogService::class);
+        $battleLogs->shouldReceive('addLog')->once()->andReturnUsing(function () use ($visitor): void {
+            $this->assertDatabaseHas('public_logs', ['type' => 'drop', 'character_id' => $visitor->id]);
+            throw new \RuntimeException('地図ログ保存失敗テスト');
+        });
+        $this->app->instance(BattleLogService::class, $battleLogs);
+
+        $service = app(MapExplorationBatchService::class);
+        $batch = $service->reserve($visitor, $registration, 1, (string) Str::uuid());
+        try {
+            $service->execute($visitor, $batch);
+            $this->fail('The injected battle-log failure must abort the batch.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('地図ログ保存失敗テスト', $e->getMessage());
+        }
+
+        $this->assertDatabaseMissing('public_logs', ['type' => 'drop', 'character_id' => $visitor->id]);
+        $this->assertSame('reserved', $batch->fresh()->status);
+        $this->assertSame(0, (int) $batch->fresh()->executed_count);
+        $this->assertSame(0, $batch->results()->count());
     }
 
     public function test_batch_stops_at_the_defeat_run_and_returns_the_normal_batch_stop_text(): void

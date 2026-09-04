@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-04-map-equipment-drop-logs',
+        'date' => '2026-09-04',
+        'category' => 'fixed',
+        'title' => '地図探索でのレアドロップ掲載漏れを修正',
+        'detail' => '探索地図で手に入れた逸品やSSS・EPIC装備が、レアドロップ欄へ表示されない不具合を修正しました。等級追加報酬も対象となり、通常探索と同じ条件で表示されます。',
+    ],
+    [
         'id' => '2026-09-03-exclusive-character-icon-044',
         'date' => '2026-09-03',
         'category' => 'internal',
