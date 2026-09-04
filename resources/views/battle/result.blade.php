@@ -291,8 +291,11 @@
                                         <div class="srl-name mt-2 text-2xl font-black tracking-[0.2em] text-white drop-shadow-[0_2px_8px_rgba(139,92,246,0.6)]">
                                             {{ $isVictoryResult ? '秘境主を撃破！' : ($isDefeatResult ? '秘境主に敗北...' : '秘境主が現れた！') }}
                                         </div>
-                                        <div class="mt-2 text-xs font-bold text-slate-400" style="animation: srlPulse 2.4s ease-in-out 1.6s infinite;">
-                                            {{ $isVictoryResult ? 'この秘境の番人を打ち倒した' : ($isDefeatResult ? 'この秘境の番人に退けられた' : 'この秘境の番人に遭遇した') }}
+                                        <div class="mt-3 text-xs font-bold leading-relaxed text-slate-300">
+                                            @if(!empty($areaName))
+                                                <span class="block">{{ $areaName }}の奥で見つけた秘境</span>
+                                            @endif
+                                            <span class="mt-1 block text-base text-violet-200">{{ $secretRealmName }}</span>
                                         </div>
                                         <div class="mx-auto mt-4 inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-black shadow-lg {{ $isVictoryResult ? 'border-emerald-300/70 bg-emerald-400/20 text-emerald-100' : ($isDefeatResult ? 'border-rose-300/70 bg-rose-500/20 text-rose-100' : 'border-violet-300/60 bg-white/10 text-violet-100') }}">
                                             {{ $isVictoryResult ? '戦闘結果: 勝利' : ($isDefeatResult ? '戦闘結果: 敗北' : '戦闘結果: 進行中') }}

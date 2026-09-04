@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-05-secret-realm-lord-location',
+        'date' => '2026-09-05',
+        'category' => 'fixed',
+        'title' => '秘境主の戦闘結果で探索地と秘境名を明示',
+        'detail' => '秘境主の戦闘結果に、どの探索地の奥で見つけた秘境なのかを表示するようにしました。探索地と秘境の名前が異なる場合も、出会った場所が分かります。',
+    ],
+    [
         'id' => '2026-09-04-map-equipment-drop-logs',
         'date' => '2026-09-04',
         'category' => 'fixed',
