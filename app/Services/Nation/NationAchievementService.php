@@ -14,6 +14,7 @@ final class NationAchievementService
 {
     /** @var array<string, array{name:string,description:string}> */
     private const CATALOG = [
+        'valgreid_defeat_participation' => ['name' => '黒天竜討滅参加', 'description' => '国家対抗レイドで黒天竜の討滅に参加した。'],
         'first_donation' => ['name' => 'はじめての納品', 'description' => '国家へ初めて都市素材を納品した。'],
         'first_member_joined' => ['name' => '新たな仲間', 'description' => '建国者以外の国民が初めて加入した。'],
         'first_facility_upgrade' => ['name' => '要塞の礎', 'description' => '国家施設を初めて強化した。'],

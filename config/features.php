@@ -3,11 +3,15 @@
 $defaultsEnabled = in_array(env('APP_ENV', 'production'), ['local', 'testing'], true);
 
 return [
-    // Announcement only. This release contains no raid battle/claim routes or event scheduler.
+    // Preview and official raid publication are independent; both default OFF.
     'nation_competitive_raid_preview_enabled' => filter_var(
         env('NATION_COMPETITIVE_RAID_PREVIEW_ENABLED', false),
         FILTER_VALIDATE_BOOL,
     ),
+
+    'nation_competitive_raid_enabled' => filter_var(env('NATION_COMPETITIVE_RAID_ENABLED', false), FILTER_VALIDATE_BOOL),
+    // Compatibility key only; event state is controlled by the lifecycle service.
+    'nation_competitive_raid_active' => false,
 
     // 管理者専用。全環境で既定OFFとし、運用が明示的に有効化した時だけ公開する。
     'valzeria_lab_enabled' => filter_var(

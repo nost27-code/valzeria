@@ -14,7 +14,7 @@
     @enderror
 
     @if($page === 'home' || ! $membership)
-        <x-nation-raid-preview-card />
+        @include('livewire.partials.nation-raid-shortcut')
     @endif
 
     @if($membership)
@@ -1128,7 +1128,7 @@
                     <button type="button" wire:click="closeNationMenuModal" class="min-h-10 min-w-10 rounded-full border border-stone-300 bg-white text-xl font-black text-stone-500" aria-label="国家メニューを閉じる">×</button>
                 </header>
                 <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-4">
-                    <x-nation-raid-preview-card />
+                    @include('livewire.partials.nation-raid-shortcut')
                     @if($membership->isRuler())
                         <section aria-label="統治者メニュー" data-nation-ruler-menu>
                             <div class="mb-2 flex items-center justify-between gap-3"><h3 class="text-base font-black text-slate-950">統治者メニュー</h3><span class="text-xs font-bold text-slate-400">詳細・管理</span></div>

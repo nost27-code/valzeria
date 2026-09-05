@@ -904,7 +904,7 @@ final class JobArtV2RoleEffectService
         // Compare the same pre-application point used by real Job Art damage:
         // route calculation first, current action's field snapshot second.
         $physical = $this->fieldService->modifyDamage($actor, $state, $physical, DamageSourceType::JOB_ART, 'physical');
-        if (in_array($state->battleType, ['pve', 'boss', 'tower'], true)) {
+        if (in_array($state->battleType, ['pve', 'boss', 'tower', 'raid'], true)) {
             $criticalPhysical = $this->damageCalculator->estimateJobArtDamage(
                 $actor,
                 $target,

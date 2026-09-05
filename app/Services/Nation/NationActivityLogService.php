@@ -32,6 +32,7 @@ final class NationActivityLogService
         $role = (string) ($log->metadata['role_label'] ?? '役職');
 
         return match ($log->event_type) {
+            'raid_reward' => '国家対抗レイドで「'.($log->metadata['reward_label'] ?? '戦果').'」を獲得した。',
             'nation_created' => "{$actor}が国家を建国した。",
             'join_application_submitted' => "{$actor}から加入申請が届いた。",
             'join_application_canceled' => "{$actor}の加入申請が取り消された。",

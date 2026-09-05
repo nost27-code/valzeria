@@ -2,22 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\View\View;
+use App\Services\Nation\Raid\NationRaidEntryService;
+use App\Services\Nation\Raid\NationRaidRewardScreenService;
+use App\Services\Nation\Raid\NationRaidRules;
+use App\Services\Nation\Raid\NationRaidTrialService;
+use Illuminate\Contracts\View\View;
 
-/** Authenticated announcement only: no raid model, event, battle or claim dependency. */
+/** 開催レコードを参照・作成しない事前案内。出撃・受取の権限は持たない。 */
 final class NationRaidPreviewController extends Controller
 {
-    public function __invoke(string $page = 'top'): View
+    public function __invoke(NationRaidEntryService $entries, NationRaidRewardScreenService $rewards, NationRaidRules $rules, string $page = 'top'): View
     {
-        abort_unless((bool) config('features.nation_competitive_raid_preview_enabled', false), 404);
-
-        $preview = config('nation_raid_preview');
+        abort_unless($entries->isPreviewPublished(), 404);
 
         return view('nation-raid.preview', [
             'page' => $page,
-            'bossName' => $preview['boss_name'],
-            'bossImage' => $preview['boss_image'],
-            'rewardScreen' => $page === 'rewards' ? $preview : null,
+            'bossName' => NationRaidTrialService::BOSS_NAME,
+            'bossImage' => $rules->formParameters(NationRaidRules::FORM_SEALED_SCALE)['image_path'],
+            'rewardScreen' => $page === 'rewards' ? $rewards->preview() : null,
         ]);
     }
 }

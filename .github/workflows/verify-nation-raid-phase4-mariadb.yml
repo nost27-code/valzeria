@@ -1,0 +1,108 @@
+name: Verify Nation Raid Phase 4 on MariaDB
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-nation-raid-phase4-mariadb.yml'
+      - 'app/Models/NationRaid*.php'
+      - 'app/Models/Character.php'
+      - 'app/Models/CharacterConsumableItem.php'
+      - 'app/Models/CharacterMaterial.php'
+      - 'app/Models/CharacterNotification.php'
+      - 'app/Models/KisekiTransaction.php'
+      - 'app/Models/NationResourceTransaction.php'
+      - 'app/Services/Nation/Raid/**'
+      - 'app/Services/Nation/CompetitionEventCoordinatorService.php'
+      - 'app/Services/ExplorationStaminaService.php'
+      - 'app/Services/BattleService.php'
+      - 'app/Services/CharacterNotificationService.php'
+      - 'app/Services/StorageCapacityService.php'
+      - 'app/Services/TitleService.php'
+      - 'app/Services/Nation/NationAchievementService.php'
+      - 'app/Services/Nation/NationActivityLogService.php'
+      - 'config/nation_raid.php'
+      - 'config/nation_raid_rewards.php'
+      - 'config/battle.php'
+      - 'config/features.php'
+      - 'database/migrations/**'
+      - 'scripts/verify/nation-raid-phase4-mariadb.php'
+      - 'scripts/verify/support/NationRaidPhase4MariaDb*.php'
+      - 'scripts/verify/fixtures/nation_raid_rewards_v1.php'
+      - 'tests/Feature/NationRaidSortieTest.php'
+      - 'tests/Feature/NationRaidRewardTest.php'
+      - 'tests/Feature/NationRaidFixedRewardTest.php'
+      - 'tests/Feature/NationRaidMariaDbRewardFixtureTest.php'
+      - 'tests/Unit/Services/Nation/Raid/NationRaidPhase4MariaDb*.php'
+      - 'composer.json'
+      - 'composer.lock'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nation-raid-phase4-mariadb-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phase4-mariadb:
+    name: Official sorties and rewards (${{ matrix.driver }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        driver: [mysql, mariadb]
+    services:
+      mariadb:
+        image: mariadb:10.5.13
+        env:
+          MARIADB_DATABASE: valzeria_nation_raid_phase4_ci
+          MARIADB_USER: raid_phase4_ci
+          MARIADB_PASSWORD: raid-phase4-ci-only
+          MARIADB_ROOT_PASSWORD: raid-phase4-root-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -praid-phase4-root-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_DEBUG: 'false'
+      LOG_CHANNEL: stderr
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      DB_CONNECTION: ${{ matrix.driver }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: valzeria_nation_raid_phase4_ci
+      DB_USERNAME: raid_phase4_ci
+      DB_PASSWORD: raid-phase4-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Migrate the ephemeral test database
+        run: |
+          php artisan config:clear --no-ansi
+          php artisan migrate --force --no-interaction --no-ansi
+      - name: Verify Phase 4 with independent worker connections
+        shell: bash
+        run: php scripts/verify/nation-raid-phase4-mariadb.php all --confirm-isolated-database | tee nation-raid-phase4-result.json
+      - name: Retain pass or failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nation-raid-phase4-mariadb-result-${{ matrix.driver }}
+          path: nation-raid-phase4-result.json
+          retention-days: 7

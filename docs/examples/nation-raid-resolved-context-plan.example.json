@@ -1,0 +1,13 @@
+{
+    "schema_version": "nation-raid-resolved-context-plan-v1",
+    "context_contract_hash": "ecde00d848eb0b81b97d5c7b1b10961ebe8f53daa92fb10d33a6d334a6f22faa",
+    "coverage_complete": false,
+    "contexts": [
+        {
+            "stage": 1,
+            "starting_form": "sealed_scale",
+            "strategy": "boss_set",
+            "dominant_lineage": null
+        }
+    ]
+}

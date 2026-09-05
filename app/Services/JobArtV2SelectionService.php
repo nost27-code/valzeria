@@ -6,6 +6,7 @@ use App\Models\Skill;
 use App\Services\Battle\BattleActor;
 use App\Services\Battle\BattleState;
 use Closure;
+use LogicException;
 
 class JobArtV2SelectionService
 {
@@ -66,9 +67,27 @@ class JobArtV2SelectionService
         BattleActor $actor,
         BattleState $state,
         ?Closure $stateKeyForSkill = null,
+        ?Closure $candidateOrder = null,
     ): JobArtV2SelectionResult {
         $stateKeyForSkill ??= static fn (Skill $skill): int => (int) $skill->id;
         [$candidates, $rankNinePrioritized] = $this->orderedCandidates($actor, $state, $stateKeyForSkill);
+        if ($candidateOrder !== null) {
+            $isEligible = fn (Skill $skill): bool => $this->isEligible(
+                $actor,
+                $state,
+                $skill,
+                $stateKeyForSkill($skill),
+            );
+            $ordered = $candidateOrder(
+                $candidates,
+                $isEligible,
+                fn (Skill $skill): bool => $isEligible($skill)
+                    && $this->shouldPrioritizeUltimate($actor, $state, $skill),
+                fn (Skill $skill): bool => $isEligible($skill)
+                    && $this->ultimateCounterplayService->isResponseCandidate($actor, $state, $skill),
+            );
+            $candidates = $this->validatedCandidateOrder($candidates, $ordered);
+        }
         $blockedReasons = [];
 
         foreach ($candidates as $skill) {
@@ -146,6 +165,29 @@ class JobArtV2SelectionService
             rankNinePrioritized: $rankNinePrioritized,
             blockedReasons: $blockedReasons,
         );
+    }
+
+    private function validatedCandidateOrder(array $original, mixed $ordered): array
+    {
+        if (! is_array($ordered) || count($ordered) !== count($original)) {
+            throw new LogicException('Candidate order must preserve every equipped Job Art exactly once.');
+        }
+
+        $originalIds = array_map(static fn (Skill $skill): int => spl_object_id($skill), $original);
+        $orderedIds = [];
+        foreach ($ordered as $skill) {
+            if (! $skill instanceof Skill) {
+                throw new LogicException('Candidate order must contain only equipped Job Arts.');
+            }
+            $orderedIds[] = spl_object_id($skill);
+        }
+        sort($originalIds, SORT_NUMERIC);
+        sort($orderedIds, SORT_NUMERIC);
+        if ($orderedIds !== $originalIds) {
+            throw new LogicException('Candidate order must preserve every equipped Job Art exactly once.');
+        }
+
+        return array_values($ordered);
     }
 
     public function isEligible(BattleActor $actor, BattleState $state, Skill $skill, int|string $stateKey): bool

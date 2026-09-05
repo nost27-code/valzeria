@@ -133,6 +133,7 @@ class BattleActor
     private ?JobArtV2UltimateCounterplayState $jobArtV2UltimateCounterplayState = null;
     /** このアクターが受けたダメージの累計（DOT・追撃含む全経路）。戦闘ログ集計に使う。 */
     public int $totalDamageTaken = 0;
+    public int $totalHpHealed = 0;
 
     private const MAG_NORMAL_ATTACK_JOB_KEYS = [
         'mage',
@@ -257,7 +258,9 @@ class BattleActor
             $this->hp = $this->maxHp;
         }
 
-        return $this->hp - $before;
+        $healed = $this->hp - $before;
+        $this->totalHpHealed += $healed;
+        return $healed;
     }
 
     public function consumeMp(int $amount): bool

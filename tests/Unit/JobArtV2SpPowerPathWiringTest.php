@@ -82,6 +82,8 @@ class JobArtV2SpPowerPathWiringTest extends TestCase
             'Services/HeroTrialService.php',
             'Services/MapExplorationBatchService.php',
             'Services/Nation/NationWarBattleEngine.php',
+            'Services/Nation/Raid/Simulation/NationRaidPassiveBossActionProfileProvider.php',
+            'Services/Nation/Raid/Simulation/NationRaidTurnByTurnActionProfileBridge.php',
             'Services/SubAreaExplorationService.php',
             'Services/TrainingGroundBattleService.php',
         ], $this->appFilesMatching('/(?:->|parent::)executeBattle\s*\(/'));

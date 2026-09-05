@@ -57,6 +57,9 @@ Schedule::command('six-heroes:health-check --quiet')
     ->hourly()
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(10);
+Schedule::command('nation-raid:lifecycle')->everyMinute()->withoutOverlapping(10);
+Schedule::command('nation-raid:recover-sorties')->everyMinute()->withoutOverlapping(10);
+Schedule::command('nation-raid:finalize-lineages')->everyMinute()->withoutOverlapping(10);
 Schedule::command('nation-war:lifecycle')
     ->everyMinute()
     ->timezone(config('app.timezone'))

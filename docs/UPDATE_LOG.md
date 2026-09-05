@@ -6,6 +6,10 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ## Unreleased
 
+### Added
+- 国家対抗レイドの正式出撃、共有HP、順位・履歴、終了確定と報酬受取、称号・国家の旗、管理者運用を追加。初回だけ承認済みの予告短縮を実行できる。
+
+
 ### Added: 国家対抗レイドの事前案内（2026-09-05）
 
 - 街のチャンプ欄の下・国家TOP・全メニューから、ヴァルグレイドの紹介と予定報酬へ進めます。公開flagがONの場合のみ表示します。

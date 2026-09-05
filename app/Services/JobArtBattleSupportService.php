@@ -125,8 +125,9 @@ class JobArtBattleSupportService
         string $executionContext,
         bool $budgetEnabled,
         ?int $powerReference = null,
+        ?array $preparedStrategy = null,
     ): void {
-        $actor->jobArtStrategy = $this->jobArtService->battleStrategy($character, $battleContext);
+        $actor->jobArtStrategy = $preparedStrategy ?? $this->jobArtService->battleStrategy($character, $battleContext);
         $reference = max(0, $powerReference ?? $actor->maxMp);
         $actor->configureSpOutput(
             powerReference: $reference,

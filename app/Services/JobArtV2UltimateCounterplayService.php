@@ -54,20 +54,28 @@ final class JobArtV2UltimateCounterplayService
         }
 
         if ($this->pveTelegraphAvailable($actor, $state)) {
+            $raidSelectionOnly = $this->raidSelectionOnly($state);
+
             return match ($this->catalog->effectFor($skill)) {
-                JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT,
+               JobArtV2UltimateCounterplayCatalog::COUNTER_INTERCEPT,
                 JobArtV2UltimateCounterplayCatalog::ULTIMATE_GUARD =>
-                    (bool) ($state->enemyTelegraphContext['can_be_guarded'] ?? false),
+                   (bool) ($state->enemyTelegraphContext['can_be_guarded'] ?? false),
                 JobArtV2UltimateCounterplayCatalog::HUNT_CANCEL =>
                     $this->progressionService->huntingMarkCountFor($state->enemy, $actor) > 0,
                 JobArtV2UltimateCounterplayCatalog::BREAK_PREPARATION =>
                     $this->progressionService->breakMarkCountFor($state->enemy, $actor) > 0
-                    && $this->hasDestroyablePvePreparation($state->enemy),
+                    && ($raidSelectionOnly
+                        ? (bool) ($state->enemyTelegraphContext['raid_preparation_destroyable'] ?? false)
+                        : $this->hasDestroyablePvePreparation($state->enemy)),
                 // 代替効果が未裁定のため、SP/系譜資源を持たない敵には
                 // 反応候補として選ばせず、行動だけを空費させない。
-                JobArtV2UltimateCounterplayCatalog::AIM_SP_PRESSURE => $state->enemy->maxMp > 0,
+                JobArtV2UltimateCounterplayCatalog::AIM_SP_PRESSURE => $raidSelectionOnly
+                    ? (bool) ($state->enemyTelegraphContext['raid_boss_sp_available'] ?? false)
+                    : $state->enemy->maxMp > 0,
                 JobArtV2UltimateCounterplayCatalog::TRANSMUTE_RESOURCE_SLOW =>
-                    $this->resourceCatalog->forActor($state->enemy) !== null,
+                    $raidSelectionOnly
+                        ? (bool) ($state->enemyTelegraphContext['raid_boss_resource_slow_available'] ?? false)
+                        : $this->resourceCatalog->forActor($state->enemy) !== null,
                 default => true,
             };
         }
@@ -594,11 +602,19 @@ final class JobArtV2UltimateCounterplayService
 
     public function pveTelegraphAvailable(BattleActor $actor, BattleState $state): bool
     {
-        return in_array($state->battleType, ['normal', 'pve', 'boss'], true)
+        return (in_array($state->battleType, ['normal', 'pve', 'boss'], true)
+                || $this->raidSelectionOnly($state))
             && $actor === $state->player
             && $state->pendingEnemyActionId !== null
             && is_array($state->enemyTelegraphContext)
             && $this->featureGate->usesCDesignPrototype($actor);
+    }
+
+    private function raidSelectionOnly(BattleState $state): bool
+    {
+        return $state->battleType === 'raid'
+            && is_array($state->enemyTelegraphContext)
+            && ($state->enemyTelegraphContext['raid_selection_only'] ?? false) === true;
     }
 
     public function markPveTelegraphExecuting(BattleState $state, bool $executing): void

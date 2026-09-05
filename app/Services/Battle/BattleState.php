@@ -208,7 +208,7 @@ class BattleState
 
     public function jobArtRewardBonusesEnabled(): bool
     {
-        return ! in_array($this->battleType, ['pvp', 'champ', 'arena_npc'], true);
+        return ! in_array($this->battleType, ['pvp', 'champ', 'arena_npc', 'raid'], true);
     }
 
     public function deferLogAfterDamage(string $message, ?int $sourceActionId = null): void

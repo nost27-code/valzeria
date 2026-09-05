@@ -22,6 +22,7 @@ use App\Services\Battle\HitResult;
 use App\Services\Battle\JobArtHitPower;
 use App\Services\Enemy\EnemyStatGenerationService;
 use App\Services\Enemy\EnemyStatPreviewService;
+use App\Services\Nation\Raid\NationRaidRules;
 use App\Support\JobArtEffectCatalog;
 use Random\Randomizer;
 
@@ -313,6 +314,9 @@ class BattleService
         ], clone $enemy);
 
         $battleContext = $enemy->is_boss ? 'boss' : 'pve';
+        if (($options['battle_type'] ?? null) === NationRaidRules::BATTLE_TYPE) {
+            $battleContext = NationRaidRules::BATTLE_TYPE;
+        }
         $jobArtBattleContext = (string) ($options['job_art_context'] ?? $this->jobArtBattleContext($enemy));
         if (! in_array($jobArtBattleContext, ['pve', 'boss'], true)) {
             $jobArtBattleContext = $this->jobArtBattleContext($enemy);
@@ -334,6 +338,7 @@ class BattleService
             $jobArtBattleContext === 'boss' ? 'boss' : 'normal',
             (bool) ($options['sp_output_budget_enabled'] ?? false),
             $preparedPlayer === null ? null : (int) ($preparedPlayer['sp_power_reference'] ?? $playerActor->maxMp),
+            $preparedPlayer === null ? null : (array) ($preparedPlayer['job_art_strategy'] ?? []),
         );
         if ($preparedPlayer !== null) {
             $playerActor->jobArtStrategy = (array) ($preparedPlayer['job_art_strategy'] ?? []);
@@ -380,6 +385,8 @@ class BattleService
         }
         
         $state->addLog("【戦闘開始】{$playerActor->name} は {$enemyActor->name} と遭遇した！");
+
+        $this->addRaidKillerOpeningLog($playerActor, $enemyActor, $state);
 
         // ターンループ
         while (!$state->isBattleEnded()) {
@@ -764,15 +771,14 @@ class BattleService
             $usedSkill = false;
             $this->tickJobArtCooldowns($state);
             $jobArt = $this->selectJobArtForAction($attacker, $state);
-            if ($jobArt && (!$this->jobArtV2ResourceService->enabledFor($attacker)
-                || $this->jobArtV2SelectionService->isEligible($attacker, $state, $jobArt, (int) $jobArt->id)
-            )) {
+            if ($jobArt && $this->canExecuteSelectedJobArt($attacker, $state, $jobArt)) {
                 $scaling = $this->jobArtV2SpCostCalculator->commitForActor($attacker, $jobArt);
                 if ($scaling === null) {
                     $jobArt = null;
                 } else {
                     $this->jobArtV2SelectionService->commitSuccessfulSelection($attacker, $jobArt);
                     $attacker->mp -= $scaling->totalCost;
+                    $this->observeExecutedPlayerJobArt($attacker, $state, $jobArt, $scaling->totalCost);
                     if ($scaling->powerScalingApplies) {
                         $label = app(JobArtV2StrategyService::class)->outputLabels()[$scaling->outputKey] ?? $scaling->outputKey;
                         $budget = $attacker->spOutputBudgetRemaining();
@@ -813,6 +819,16 @@ class BattleService
             $this->jobArtV2ResourceService->finishAction($attacker, $state);
             $this->jobArtV2UltimateCounterplayService->finishAction($attacker, $state);
         }
+    }
+
+    protected function observeExecutedPlayerJobArt(BattleActor $actor, BattleState $state, Skill $skill, int $spSpent): void
+    {
+    }
+
+    protected function canExecuteSelectedJobArt(BattleActor $attacker, BattleState $state, Skill $skill): bool
+    {
+        return ! $this->jobArtV2ResourceService->enabledFor($attacker)
+            || $this->jobArtV2SelectionService->isEligible($attacker, $state, $skill, (int) $skill->id);
     }
 
     private function tryValmonAssistAttack(BattleActor $attacker, BattleActor $defender, BattleState $state): void
@@ -2497,37 +2513,34 @@ class BattleService
             return $damage;
         }
 
-        if (!in_array($state->battleType, ['pve', 'boss'], true)) {
+        if (! in_array($state->battleType, ['pve', 'boss', NationRaidRules::BATTLE_TYPE], true)) {
             return $damage;
         }
 
-        if ($attacker->isPlayer && !$defender->isPlayer) {
-            $defenderSpeciesKeys = $defender->speciesKeys;
-            $rate = array_sum(array_map(
-                static fn (array $effect): float => in_array($effect['species_key'], $defenderSpeciesKeys, true)
-                    ? (float) $effect['damage_rate']
-                    : 0.0,
-                $attacker->weaponKillerEffects,
-            ));
-            $rate = min(
-                (float) config('equipment_affix.weapon_killer_damage_rate_cap', 0.55),
-                $rate,
-            );
-            if ($defenderSpeciesKeys !== [] && $rate > 0) {
-                $damage = max(1, (int) floor($damage * (1 + $rate)));
+        $killerRate = $this->pveKillerDamageRate($attacker, $defender, $state);
+        if ($killerRate > 0) {
+            $damage = max(1, (int) floor($damage * (1 + $killerRate)));
+        }
+
+        if (! $attacker->isPlayer && $defender->isPlayer) {
+            $rate = $state->battleType === NationRaidRules::BATTLE_TYPE
+                && ! NationRaidRules::ARMOR_SPECIES_RESISTANCE_ENABLED
+                    ? 0.0
+                    : $this->pveArmorResistanceRate(
+                        $attacker,
+                        $defender,
+                        $state->battleType === NationRaidRules::BATTLE_TYPE
+                            ? NationRaidRules::ARMOR_SPECIES_RESISTANCE_RATE_CAP
+                            : null,
+                    );
+            if ($rate > 0) {
+                $damage = max(1, (int) floor($damage * (1 - $rate)));
             }
         }
 
-        if (!$attacker->isPlayer && $defender->isPlayer) {
-            $attackerSpeciesKeys = $attacker->speciesKeys;
-            $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
-            $rate = min(
-                app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
-                (float) ($defender->armorSpeciesDamageReductionRate ?? 0)
-            );
-            if ($resistSpecies !== '' && $rate > 0 && in_array($resistSpecies, $attackerSpeciesKeys, true)) {
-                $damage = max(1, (int) floor($damage * (1 - $rate)));
-            }
+        // レイドは武器特攻と防具耐性だけを装備連携する。探索支援品は対象外。
+        if ($state->battleType === NationRaidRules::BATTLE_TYPE) {
+            return $damage;
         }
 
         if ($defender->isPlayer) {
@@ -2535,6 +2548,88 @@ class BattleService
         }
 
         return $damage;
+    }
+
+    protected function pveArmorResistanceRate(
+        BattleActor $attacker,
+        BattleActor $defender,
+        ?float $cap = null,
+    ): float {
+        if ($attacker->isPlayer || ! $defender->isPlayer) {
+            return 0.0;
+        }
+
+        $resistSpecies = (string) ($defender->armorResistSpeciesKey ?? '');
+        $rate = min(
+            $cap ?? app(EquipmentAffixRulesService::class)->armorResistDamageReductionCap(),
+            (float) ($defender->armorSpeciesDamageReductionRate ?? 0),
+        );
+
+        return $resistSpecies !== '' && $rate > 0 && in_array($resistSpecies, $attacker->speciesKeys, true)
+            ? $rate
+            : 0.0;
+    }
+
+    private function pveKillerDamageRate(BattleActor $attacker, BattleActor $defender, BattleState $state): float
+    {
+        if (! in_array($state->battleType, ['pve', 'boss', NationRaidRules::BATTLE_TYPE], true)
+            || ! $attacker->isPlayer
+            || $defender->isPlayer
+            || $defender->speciesKeys === []
+        ) {
+            return 0.0;
+        }
+
+        $rate = array_sum(array_map(
+            static fn (array $effect): float => in_array($effect['species_key'], $defender->speciesKeys, true)
+                ? (float) $effect['damage_rate']
+                : 0.0,
+            $attacker->weaponKillerEffects,
+        ));
+
+        if ($state->battleType === NationRaidRules::BATTLE_TYPE) {
+            return NationRaidRules::raidKillerDamageRate($rate);
+        }
+
+        return min(
+            (float) config('equipment_affix.weapon_killer_damage_rate_cap', 0.55),
+            $rate,
+        );
+    }
+
+    private function addRaidKillerOpeningLog(BattleActor $player, BattleActor $enemy, BattleState $state): void
+    {
+        if ($state->battleType !== NationRaidRules::BATTLE_TYPE) {
+            return;
+        }
+
+        $speciesLabel = (string) config(
+            'enemy_species.labels.'.NationRaidRules::BOSS_SPECIES_KEY,
+            NationRaidRules::BOSS_SPECIES_KEY,
+        );
+        $killerRate = $this->pveKillerDamageRate($player, $enemy, $state);
+        if ($killerRate > 0) {
+            $percentage = rtrim(rtrim(number_format($killerRate * 100, 3, '.', ''), '0'), '.');
+            $message = "有効打：{$speciesLabel}特攻 +{$percentage}%";
+            if (! in_array($message, $state->logs, true)) {
+                $state->addLog($message);
+            }
+        }
+
+        $resistanceRate = NationRaidRules::ARMOR_SPECIES_RESISTANCE_ENABLED
+            ? $this->pveArmorResistanceRate(
+                $enemy,
+                $player,
+                NationRaidRules::ARMOR_SPECIES_RESISTANCE_RATE_CAP,
+            )
+            : 0.0;
+        if ($resistanceRate > 0) {
+            $percentage = rtrim(rtrim(number_format($resistanceRate * 100, 3, '.', ''), '0'), '.');
+            $message = "有効防御：{$speciesLabel}耐性 -{$percentage}%";
+            if (! in_array($message, $state->logs, true)) {
+                $state->addLog($message);
+            }
+        }
     }
 
     private function tryExplorationSupportHerbal(BattleActor $actor, BattleState $state): void

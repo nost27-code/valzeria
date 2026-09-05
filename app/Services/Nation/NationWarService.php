@@ -21,6 +21,11 @@ final class NationWarService
         app(NationRoleService::class)->authorize($actor, 'declare_war');
 
         return DB::transaction(function () use ($actor, $defender, $settings): NationWar {
+            $coordinatorService = app(CompetitionEventCoordinatorService::class);
+            $coordinator = $coordinatorService->lock();
+            $startsAt = now()->addDays($settings->preparationDays());
+            $endsAt = $startsAt->copy()->addDays($settings->durationDays());
+            $coordinatorService->assertNationWarWindowAvailable($startsAt, $endsAt);
             $ids = [$actor->nation_id, $defender->id]; sort($ids);
             $nations = Nation::whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
             $attacker = $nations[$actor->nation_id] ?? null;
@@ -52,15 +57,15 @@ final class NationWarService
                 $reserve = $reserve || $live->where('status', 'active')->isNotEmpty();
             }
 
-            $startsAt = now()->addDays($settings->preparationDays());
             $war = NationWar::create([
                 'declaring_nation_id' => $attacker->id, 'defending_nation_id' => $lockedDefender->id,
                 'status' => $reserve ? 'reserved' : 'preparing', 'declared_at' => now(), 'preparation_starts_at' => now(),
-                'starts_at' => $startsAt, 'ends_at' => $startsAt->copy()->addDays($settings->durationDays()),
+                'starts_at' => $startsAt, 'ends_at' => $endsAt,
             ]);
             $this->freezeSide($war, $attacker, 'attacker', ! $reserve);
             $this->freezeSide($war, $lockedDefender, 'defender', ! $reserve);
 
+            $coordinatorService->refreshLocked($coordinator);
             return $war->load(['sides.nation', 'participants', 'facilities']);
         }, 3);
     }

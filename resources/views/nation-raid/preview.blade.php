@@ -52,7 +52,7 @@
                             <tbody class="divide-y divide-slate-100" data-raid-reward-group="{{ $groupKey }}">
                                 <tr><th scope="rowgroup" colspan="2" class="border-y border-slate-200 bg-slate-50 px-4 py-3 font-black text-slate-800 sm:px-5">{{ $group['label'] }}</th></tr>
                                 @foreach($group['rows'] as $row)
-                                    @include('nation-raid.partials.preview-reward-row', ['row' => $row])
+                                    @include('nation-raid.partials.reward-row', ['row' => $row])
                                 @endforeach
                             </tbody>
                         @endforeach

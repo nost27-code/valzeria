@@ -243,10 +243,22 @@ Route::middleware('auth')->group(function () {
 
     // キャラクターの選択が必須なルート
     Route::middleware(\App\Http\Middleware\CheckCharacterSelected::class)->group(function () {
-        // Read-only advance announcement. No official raid routes are released here.
-        Route::get('/nation-raid', \App\Http\Controllers\NationRaidPreviewController::class)->name('nation-raid.index');
+        Route::get('/nation-raid', [\App\Http\Controllers\NationRaidController::class, 'index'])->name('nation-raid.index');
         Route::get('/nation-raid/preview/{page?}', \App\Http\Controllers\NationRaidPreviewController::class)
             ->where('page', 'top|rewards|rankings')->name('nation-raid.preview');
+        Route::get('/nation-raid/history', [\App\Http\Controllers\NationRaidController::class, 'history'])->name('nation-raid.history');
+        Route::get('/nation-raid/events/{event}', [\App\Http\Controllers\NationRaidController::class, 'show'])->name('nation-raid.show');
+        Route::get('/nation-raid/events/{event}/top', [\App\Http\Controllers\NationRaidController::class, 'top'])->name('nation-raid.top');
+        Route::get('/nation-raid/events/{event}/rankings', [\App\Http\Controllers\NationRaidController::class, 'rankings'])->name('nation-raid.rankings');
+        Route::get('/nation-raid/events/{event}/rewards', [\App\Http\Controllers\NationRaidController::class, 'rewards'])->name('nation-raid.rewards');
+        Route::post('/nation-raid/events/{event}/rewards/{reward}/claim', [\App\Http\Controllers\NationRaidController::class, 'claim'])
+            ->whereNumber('reward')->middleware('throttle:20,1')->name('nation-raid.rewards.claim');
+        Route::post('/nation-raid/events/{event}/battle', [\App\Http\Controllers\NationRaidController::class, 'battle'])
+            ->middleware('throttle:10,1')->name('nation-raid.battle');
+        Route::get('/nation-raid/trial', [\App\Http\Controllers\NationRaidTrialController::class, 'index'])->name('nation-raid.trial');
+        Route::post('/nation-raid/trial/battle', [\App\Http\Controllers\NationRaidTrialController::class, 'battle'])
+            ->middleware('throttle:10,1')
+            ->name('nation-raid.trial.battle');
 
         Route::get('/bug-reports/create', [\App\Http\Controllers\BugReportController::class, 'create'])->name('bug-reports.create');
         Route::post('/bug-reports', [\App\Http\Controllers\BugReportController::class, 'store'])->name('bug-reports.store');
@@ -661,6 +673,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/tools/weapon-appraisal', \App\Livewire\Admin\WeaponAppraisalTool::class)->name('admin.tools.weapon-appraisal');
     Route::get('/admin/route-health', \App\Livewire\Admin\RouteHealthCheck::class)->name('admin.route-health');
     Route::get('/admin/six-heroes', \App\Livewire\Admin\SixHeroOperationsManager::class)->name('admin.six-heroes');
+    Route::get('/admin/nation-raid', \App\Livewire\Admin\NationRaidOperationsManager::class)->name('admin.nation-raid');
+    Route::get('/admin/nation-raid-analytics', \App\Livewire\Admin\NationRaidAnalyticsManager::class)->name('admin.nation-raid-analytics');
     Route::get('/admin/nation-war', \App\Livewire\Admin\NationWarSettingsManager::class)->name('admin.nation-war');
     Route::get('/admin/security-anomalies', \App\Livewire\Admin\SecurityAnomalyManager::class)->name('admin.security-anomalies');
     Route::get('/admin/tools', \App\Livewire\Admin\ToolCollection::class)->name('admin.tools');

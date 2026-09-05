@@ -5,6 +5,7 @@
     $nationCapacityPercent = $maxMembers > 0
         ? min(100, round(($memberCount / $maxMembers) * 100, 1))
         : 0;
+    $raidHonor = app(\App\Services\Nation\Raid\NationRaidHonorService::class)->forNation($nation);
 @endphp
 
 <img src="{{ asset($nation->header_background['path']) }}" alt="" width="600" height="232" class="absolute inset-0 h-full w-full object-cover" aria-hidden="true">
@@ -40,6 +41,9 @@
                     <h1 class="mt-0.5 break-words text-xl font-black leading-tight tracking-[0.04em] text-amber-50 sm:text-3xl" style="text-shadow: 0 2px 4px rgba(0, 0, 0, .95);" data-nation-nameplate>
                         {{ $nation->display_name }}
                     </h1>
+                    @if($raidHonor)
+                        <p class="mt-1 text-xs font-bold text-amber-100" data-nation-raid-honor>{{ $raidHonor['label'] }}</p>
+                    @endif
                     <p class="mt-0.5 flex min-w-0 items-center gap-1 text-[9px] font-bold text-amber-50/90 sm:text-xs" data-nation-header-ruler>
                         <svg class="h-3 w-3 shrink-0 text-amber-300 sm:h-3.5 sm:w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 16h14l1-9-5 4-3-7-3 7-5-4 1 9Zm0 2h14v2H5v-2Z"/></svg>
                         <span class="shrink-0">{{ $nation->ruler_title }}：</span>

@@ -1815,8 +1815,19 @@
                                     </div>
                                 </template>
                                 <div class="adventurer-card-equipped-title">
+                                    <template x-for="(honor, index) in (playerInfo.raid_honors || []).filter(h => h.badge).slice(0, 2)" :key="`raid-badge-${index}`">
+                                        <span class="mr-1 text-[10px] font-bold text-amber-700" x-text="honor.label" :title="`${honor.event} ${honor.date}`"></span>
+                                    </template>
                                     <span x-text="playerInfo.equipped_title"></span>
                                 </div>
+                                <template x-if="(playerInfo.raid_honors || []).length">
+                                    <details class="text-xs text-slate-600">
+                                        <summary class="cursor-pointer py-2">レイドの年代記</summary>
+                                        <template x-for="(honor, index) in playerInfo.raid_honors" :key="`raid-history-${index}`">
+                                            <p class="py-1" x-text="`${honor.date}　${honor.label}`"></p>
+                                        </template>
+                                    </details>
+                                </template>
                                 <div class="adventurer-card-vital-row">
                                     <span class="text-emerald-600">HP</span>
                                     <div class="adventurer-card-vital-bar">

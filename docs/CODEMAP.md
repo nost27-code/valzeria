@@ -2,12 +2,15 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
-## Nation raid advance announcement
+## Nation competitive raid
 
-- `NationRaidPreviewController`: authenticated character-selected GET `/nation-raid` and `/nation-raid/preview/{page?}` with top/rewards/rankings allowlist. Preview flag only; no raid model/service dependency.
-- `config/nation_raid_preview.php`: display-only planned rewards exported from the approved local candidate; source policy hash retained. No grants or player progress.
-- `nation-raid/preview.blade.php`, `partials/preview-reward-row.blade.php`, `components/nation-raid-preview-card.blade.php`: read-only pages, preparing dialog and gated home/Nation entries.
-- `NationRaidPreviewTest`: no raid tables/engine, no announcement writes, authentication/flag/page/method gates, no official routes, snapshot/assets and Nation entry.
+- `routes/web.php`: authenticated `/nation-raid`, event TOP/rankings/rewards/history, battle/claim POST; `/admin/nation-raid` and analytics are admin-only. Trial is local-only.
+- `NationRaidController`, `NationRaidEntryService`, `NationRaidPortalService`: formal entry and read views; `NationRaidPreviewController` keeps the independent announcement path.
+- `app/Services/Nation/Raid/`: EventService + coordinator locking, frozen participation, sortie admission/combat/settlement/refund, daily lineage, ranking/finalization/reward policy/claims/honors. `Simulation/NationRaidTurnByTurnActionProfileBridge` connects the existing battle engine.
+- `app/Models/NationRaid*`, `CompetitionEventCoordinator`; six raid migrations listed in `NATION_RAID_FORMAL_RELEASE.md`.
+- `StartInitialNationRaid`: explicit initial-only launch with admin/reference/hash guards. Lifecycle/recovery/daily jobs run every minute; `FinalizeNationRaidEvent` requires explicit reward confirmation.
+- `nation-raid/*.blade.php`, home spotlight, nation shortcut and honor UI; `config/nation_raid.php`, `nation_raid_rewards.php` are candidate rules/rewards, frozen per event.
+- `tests/Feature/*NationRaid*`, `tests/Unit/Services/Nation/Raid`, `tests/Frontend/NationRaid*`; Phase 3/4 MariaDB isolated concurrency harnesses and CI.
 
 ## Six Heroes / 六極殿
 

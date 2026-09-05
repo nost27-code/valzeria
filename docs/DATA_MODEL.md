@@ -99,6 +99,13 @@ Job Art Rank5 v6.1: `2026_08_26_120000_redefine_rank5_job_arts_v6.php`は`databa
 | tower_merchant_purchases | Star-lantern merchant purchase log | `tower_run_id`, `character_id`, `floor`, `item_key`, `item_name`, `price`, `effect_type`, `effect_value`, `activated_at`, `used_at` | `TowerMerchantService`, `TowerBattleService` | Audits star-lantern merchant purchases. Gold is spent through `GoldService`; HP/SP items are shown as manually usable tower-only recovery items and mark `used_at` when consumed, while `damage_reduction_next` purchases mark `activated_at` when the player manually prepares them, then mark `used_at` when the next battle consumes the ward without mutating normal HP/SP. |
 | tower_reward_claims | 星樹の塔初回到達報酬の受取状態 | `character_id`, `tower_key`, `floor`, `reward_type`, `status`, `selected_item_id`, `character_item_id`, `asset_type`, `asset_path`, `metadata`, `claimed_at` | `StarTreeTowerRewardService`, `StarTreeTowerController`, `tower.star-tree.*` | 50/70/90階は選択式武器宝箱、100階は冒険者カード装飾枠を初回到達報酬として `pending` 作成し、受取POSTで `claimed` にする。50階背景「エルフィア」は到達時に自動で `claimed` にし、`adventurer_card_bg03.webp` を `character_adventurer_card_assets` に所持登録する。武器は `character_items` に通常品質・植物特効付きで作成し、100階装飾枠「エルフィア」は `adventurer_card_frame03.webp` と `adventurer_avatar_frame03.webp` の2点を所持登録する。 |
 
+## Nation raid
+
+- Six migrations (2026-08-31 to 2026-09-05) add `nation_raid_battle_telemetry`, `competition_event_coordinators`, and nine event-domain tables: events, boss_cycles, participations, daily_usages, battle_results, daily_lineage_snapshots, coordination_participants, personal_rewards, nation_rewards (all with `nation_raid_` prefix).
+- Events preserve ruleset/reward policy/final standings JSON + hashes, approval admin/time/reference and lifecycle timestamps. Participation freezes event/account/Character/nation eligibility at activation. Unique battle tokens protect admission/settlement/refund; unique reward keys protect grants.
+- Finalized personal/nation display projections retain snapshot IDs. Seven sortie counters and refund counts are unsigned integers. Four statless honor titles are inserted without changing existing title IDs; no Seeder or player backfill.
+- Claims atomically persist free Kiseki + total + ledger, materials/items/titles or nation resources/ledger/achievements as applicable. Existing paid balance is not increased. Event history and ledgers must survive rollback; do not run migration down after launch.
+
 ## Rules
 
 - Schema changes require migration.

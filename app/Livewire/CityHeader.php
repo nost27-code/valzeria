@@ -503,6 +503,7 @@ class CityHeader extends Component
             'level' => (int) $character->level,
             'job' => $character->jobClass?->name ?? '冒険者',
             'equipped_title' => $equippedTitle?->name ?? '未装備',
+            'raid_honors' => app(\App\Services\Nation\Raid\NationRaidHonorService::class)->forCharacter($character),
             'power' => app(CharacterPowerService::class)->fromFinalStats($stats),
             'arena_rank' => $arenaRank ? number_format($arenaRank) . '位' : '未参加',
             'arena_rank_number' => $arenaRank,

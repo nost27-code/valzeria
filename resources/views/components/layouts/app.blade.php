@@ -137,11 +137,7 @@
                          class="flex flex-col gap-4"
                          data-shared-competition-panels>
                         <livewire:champ-card />
-                        @if(config('features.nation_competitive_raid_preview_enabled', false))
-                            <div x-show="currentLocation === 'home'" style="{{ $currentLocation === 'home' ? '' : 'display: none;' }}">
-                                <x-nation-raid-preview-card />
-                            </div>
-                        @endif
+                        <x-nation-raid-home-spotlight :initially-home="$currentLocation === 'home'" />
                         <livewire:star-tree-tower-ranking-widget />
                     </div>
 

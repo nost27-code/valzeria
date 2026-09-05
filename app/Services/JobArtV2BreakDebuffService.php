@@ -42,7 +42,7 @@ final class JobArtV2BreakDebuffService
         }
 
         $rate = max(0.0, (float) ($metadata['break_rate'] ?? 0.0));
-        if ($state->battleType === 'boss') {
+        if (in_array($state->battleType, ['boss', 'raid'], true)) {
             $rate *= 0.5;
         }
         $rounds = max(1, (int) ($metadata['break_rounds'] ?? 1));

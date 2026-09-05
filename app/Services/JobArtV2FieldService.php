@@ -636,4 +636,13 @@ final class JobArtV2FieldService
             $state->addLog("<span class=\"text-violet-700 font-bold\">{$message}</span>");
         }
     }
+    public function clearAll(BattleState $state): void
+    {
+        $state->replacePrimaryField(null);
+        $state->replaceFieldOverlay(null);
+        foreach ($state->fieldEchoes() as $echo) {
+            $state->replaceFieldEcho($echo->ownerActorKey, null);
+        }
+    }
+
 }

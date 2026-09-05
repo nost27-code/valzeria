@@ -1,0 +1,89 @@
+name: Verify Nation Raid Phase 3 on MariaDB
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-nation-raid-phase3-mariadb.yml'
+      - 'app/Models/CompetitionEventCoordinator.php'
+      - 'app/Models/NationRaid*.php'
+      - 'app/Services/Nation/CompetitionEventCoordinatorService.php'
+      - 'app/Services/Nation/NationWarService.php'
+      - 'app/Services/Nation/Raid/NationRaidEventService.php'
+      - 'app/Services/Nation/Raid/NationRaidParticipationSnapshotService.php'
+      - 'app/Services/Nation/Raid/NationRaidRules.php'
+      - 'config/battle.php'
+      - 'config/features.php'
+      - 'config/nation_raid.php'
+      - 'database/migrations/2026_08_23_100000_create_nation_war_foundation.php'
+      - 'database/migrations/2026_09_03_120000_create_nation_raid_event_foundation.php'
+      - 'scripts/verify/nation-raid-phase3-mariadb.php'
+      - 'tests/Feature/NationRaidPhase3FoundationTest.php'
+      - 'tests/Unit/Services/Nation/Raid/NationRaidPhase3MariaDbWorkflowTest.php'
+      - 'composer.json'
+      - 'composer.lock'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nation-raid-phase3-mariadb-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phase3-mariadb:
+    name: Phase 3 schema, state, and race gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mariadb:
+        image: mariadb:10.5.13
+        env:
+          MARIADB_DATABASE: valzeria_nation_raid_phase3_ci
+          MARIADB_USER: raid_phase3_ci
+          MARIADB_PASSWORD: raid-phase3-ci-only
+          MARIADB_ROOT_PASSWORD: raid-phase3-root-ci-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -praid-phase3-root-ci-only"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_DEBUG: 'false'
+      LOG_CHANNEL: stderr
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: valzeria_nation_raid_phase3_ci
+      DB_USERNAME: raid_phase3_ci
+      DB_PASSWORD: raid-phase3-ci-only
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+          tools: composer:v2
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Migrate isolated Phase 3 database
+        run: |
+          php artisan config:clear --no-ansi
+          php artisan migrate --force --no-interaction --no-ansi
+
+      - name: Verify Phase 3 MariaDB stop gate
+        run: php scripts/verify/nation-raid-phase3-mariadb.php all --confirm-isolated-database

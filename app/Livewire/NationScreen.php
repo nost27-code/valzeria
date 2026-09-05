@@ -81,6 +81,7 @@ final class NationScreen extends Component
     private const ACTIVITY_LOG_MODAL_LIMIT = 100;
 
     private const COMING_SOON_FEATURES = [
+        'nation-competitive-raid' => '国家対抗レイド',
         'resource-management' => '国家資材管理',
         'fortress-upgrade' => '要塞強化',
         'declare-war' => '宣戦布告',
@@ -1254,6 +1255,15 @@ final class NationScreen extends Component
     public function closeNotImplementedModal(): void
     {
         $this->pendingFeature = null;
+    }
+
+    public function openNationCompetitiveRaid(): void
+    {
+        if (app(\App\Services\Nation\Raid\NationRaidEntryService::class)->isPublished()) {
+            $this->redirectRoute('nation-raid.index', navigate: false);
+            return;
+        }
+        $this->showNotImplemented('nation-competitive-raid');
     }
 
     public function render(): View
