@@ -38,3 +38,5 @@
 ## 停止・切り戻し
 
 まず対象eventの出撃を管理画面で停止し、必要なら正式flagをOFF、config cacheを更新して実効値を読む。開始後にpreviewだけの旧SHAへ即時戻すと回収jobを失うため、未確定/未返却の出撃を確認し、現行正式コードを保持したforward修正を優先する。開始前で履歴がなければ公開済みpreview SHAへ `migration_mode=none` で戻せる。どちらも新規テーブル/称号/戦果/台帳を残し、migration down・データ削除・Seederを実行しない。
+
+国家戦再公開時の別課題: 現行NationWarLifecycleServiceはwarOFFで即returnするため今回の排他には入らない。将来warON前には、延期後の戦争期間をcoordinator lock下で再検証する必要がある。今回warONは行わない。

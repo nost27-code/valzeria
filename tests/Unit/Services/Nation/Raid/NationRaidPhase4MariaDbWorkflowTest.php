@@ -67,7 +67,7 @@ final class NationRaidPhase4MariaDbWorkflowTest extends TestCase
         $script = file_get_contents(base_path('scripts/verify/support/NationRaidPhase4MariaDbHarness.php'));
         foreach (['same_token_admission_and_settlement', 'different_tokens_one_pending',
             'concurrent_carry_and_nation_coordination', 'stage10_stage20_echo_and_replay',
-            'daily_limit_fifth_slot_race', 'settlement_refund_race', 'real_1213_rollback_and_retry',
+            'unlimited_daily_counter_race', 'settlement_refund_race', 'real_1213_rollback_and_retry',
             'real_1205_exhaustion_session_restore_and_recovery', 'persisted_damage_and_usage_conservation',
             'concurrent_reward_finalization', 'same_reward_claim_currency_once', 'same_fixed_reward_bundle_once', 'competing_reward_choices',
             'different_event_rewards_inventory_race', 'reward_real_1205_preserves_right_and_retry',

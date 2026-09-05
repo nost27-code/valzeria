@@ -107,7 +107,7 @@ final readonly class NationRaidPlayerPreparationService
                 'current_job_id' => $character->current_job_id,
                 'job_key' => $character->currentJob?->key,
                 'normal_attack_type' => $character->currentJob?->normal_attack_type,
-                'sp_power_reference' => (int) ($stats['pre_equipment']['mp'] ?? 0),
+                'sp_power_reference' => $stats['max_mp'],
                 'sp_scaling_eligible' => true,
                 'weapon_killer_effects' => $effects,
                 'weapon_killer_species_key' => $weapon?->killer_species_key,

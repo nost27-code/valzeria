@@ -797,6 +797,48 @@ class NationRaidSortieTest extends TestCase
         $this->assertSame('照準', $battle->summary['display']['dominant_lineage_label']);
     }
 
+    public function test_equipped_max_sp_is_frozen_and_used_by_actual_output_scaling(): void
+    {
+        config(['battle.job_art_v2.sp_power_scaling.enabled' => true, 'battle.job_art_v2.rank5_v6' => true]);
+        $character = $this->character();
+        $character->update(['current_job_id' => 1, 'hp_base' => 1_000_000_000]);
+        $armor = \App\Models\Item::create(['name' => 'SP確認鎧', 'type' => 'armor', 'armor_rank' => 'G', 'mp_bonus' => 10_000, 'is_active' => true]);
+        \App\Models\CharacterItem::create(['character_id' => $character->id, 'item_id' => $armor->id,
+            'is_equipped' => true, 'equipped_slot' => 'armor']);
+        CharacterStatusService::clearRequestCache((int) $character->id);
+        $stats = app(CharacterStatusService::class)->getFinalStats($character->fresh());
+        $this->assertGreaterThan($stats['pre_equipment']['mp'], $stats['max_mp']);
+        $art = new \App\Models\Skill(['name' => '斬撃', 'skill_type' => 'job_art', 'job_id' => 1,
+            'learn_rank' => 1, 'art_cost' => 0, 'activation_rate' => 100, 'sp_cost_fixed' => 4,
+            'effect_template' => 'PHYSICAL_DAMAGE', 'power' => 100, 'hit_count' => 1]);
+        foreach (['id' => 1001, 'slot_no' => 1, 'job_art_rate' => 1.0, 'job_art_origin' => 'current',
+            'job_art_activation_policy' => 'aggressive', 'job_art_slot_condition' => 'always'] as $key => $value) {
+            $art->setAttribute($key, $value);
+        }
+        $this->partialMock(\App\Services\JobArtService::class, function ($mock) use ($art): void {
+            $mock->shouldReceive('battleArtsFor')->once()->andReturn(collect([$art]));
+            $mock->shouldReceive('battleStrategy')->once()->andReturn(['mode' => 'auto', 'sp_policy' => 'aggressive', 'sp_output' => 'max', 'settings' => []]);
+        });
+        $calculator = app(NationRaidObservedSpCalculator::class);
+        $this->app->instance(\App\Services\JobArtV2SpCostCalculator::class, $calculator);
+        [$battle] = app(NationRaidSortieService::class)->start($this->event(), $character, 'boss_set', bin2hex(random_bytes(32)));
+        $this->assertSame($stats['max_mp'], $battle->summary['admission']['player']['actor']['sp_power_reference']);
+        $character->characterItems()->update(['is_equipped' => false]);
+        CharacterStatusService::clearRequestCache((int) $character->id);
+        $result = app(NationRaidSortieCombatService::class)->resolve($battle->fresh());
+        $this->assertNotEmpty($calculator->committed);
+        $actual = $calculator->committed[0];
+        $scaling = app(\App\Services\JobArtV2SpPowerScalingService::class);
+        $this->assertSame($stats['max_mp'], $actual->powerReference);
+        $this->assertSame($scaling->variableCostFor($stats['max_mp'], 1, 'max'), $actual->variableCost);
+        $this->assertSame($scaling->bonusPartsFor($stats['max_mp'], 'max')['total'], $actual->bonusBps);
+        $this->assertGreaterThan(0, $actual->variableCost);
+        $this->assertTrue($actual->powerScalingApplies);
+        $turn = collect($result['player_turn_metrics'])->firstWhere('skill_id', 1001);
+        $this->assertNotNull($turn);
+        $this->assertSame($actual->totalCost, $turn['sp_spent']);
+    }
+
     protected function character(): Character
     {
         return Character::query()->create([
@@ -851,5 +893,18 @@ class NationRaidInjectedTransactionRunner extends NationRaidTransactionRunner
     {
         $this->waits[] = $attempt;
         $this->waitLevels[] = \Illuminate\Support\Facades\DB::transactionLevel();
+    }
+}
+
+/** Actual prepared-battle SP commits, without replacing cost or power calculation. */
+class NationRaidObservedSpCalculator extends \App\Services\JobArtV2SpCostCalculator
+{
+    public array $committed = [];
+
+    public function commitForActor(\App\Services\Battle\BattleActor $actor, \App\Models\Skill $skill): ?\App\Services\JobArtV2SpPowerScalingResult
+    {
+        $result = parent::commitForActor($actor, $skill);
+        if ($result !== null) { $this->committed[] = $result; }
+        return $result;
     }
 }

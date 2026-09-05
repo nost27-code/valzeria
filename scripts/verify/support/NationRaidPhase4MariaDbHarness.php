@@ -88,7 +88,7 @@ final class NationRaidPhase4MariaDbHarness
         $this->scenario('player_capture_releases_global_admission_lock', fn () => $this->captureConcurrency());
         $this->scenario('concurrent_carry_and_nation_coordination', fn () => $this->coordination($citizens));
         $this->scenario('stage10_stage20_echo_and_replay', fn () => $this->milestones());
-        $this->scenario('daily_limit_fifth_slot_race', fn () => $this->dailyLimit());
+        $this->scenario('unlimited_daily_counter_race', fn () => $this->dailyLimit());
         $this->scenario('settlement_refund_race', fn () => $this->refundRace());
         $this->scenario('real_1213_rollback_and_retry', fn () => $this->deadlock());
         $this->scenario('real_1205_exhaustion_session_restore_and_recovery', fn () => $this->timeoutRecovery());
@@ -162,18 +162,20 @@ final class NationRaidPhase4MariaDbHarness
         $battles = array_map(fn ($character) => $this->start($character), $citizens);
         $this->check($battles[0]->target_cycle_no === $battles[1]->target_cycle_no, 'Expected the same starting cycle.');
         $before = $this->damage();
-        $this->race(array_map(fn ($battle) => ['op' => 'resolve', 'battle' => $battle->id, 'damage' => 3_000_000], $battles));
+        $personal = intdiv((int) $this->cycle()->max_hp, 2) + 100;
+        $this->race(array_map(fn ($battle) => ['op' => 'resolve', 'battle' => $battle->id, 'damage' => $personal], $battles));
         $bonuses = [];
         foreach ($battles as $battle) {
             $battle->refresh();
             $bonuses[] = $battle->coordination_damage_total;
-            $this->check($battle->status === 'resolved' && $battle->applied_damage_total === 3_000_000, 'Personal damage lost during carry.');
-            $this->check($battle->participation->personal_damage_total === 3_000_000, 'Coordination leaked into personal totals.');
-            $this->check($battle->nation_damage_total === 3_000_000 + $battle->coordination_damage_total, 'Nation total excludes coordination.');
+            $this->check($battle->status === 'resolved' && $battle->applied_damage_total === $personal, 'Personal damage lost during carry.');
+            $this->check($battle->participation->personal_damage_total === $personal, 'Coordination leaked into personal totals.');
+            $this->check($battle->nation_damage_total === $personal + $battle->coordination_damage_total, 'Nation total excludes coordination.');
         }
         sort($bonuses);
-        $this->check($bonuses === [0, 90_000], 'Concurrent unique citizens did not receive 0% then 3%.');
-        $this->check($this->damage() - $before === 6_090_000, 'Concurrent personal/coordination damage was not conserved.');
+        $bonus = intdiv($personal * 3, 100);
+        $this->check($bonuses === [0, $bonus], 'Concurrent unique citizens did not receive 0% then 3%.');
+        $this->check($this->damage() - $before === $personal * 2 + $bonus, 'Concurrent personal/coordination damage was not conserved.');
         $this->check($this->event->refresh()->current_cycle_no === 2, 'Concurrent damage did not cross the cycle boundary.');
         $joined = $this->joinedTimes();
         // A new sortie by an existing citizen must not extend their unique-participant window.
@@ -189,7 +191,8 @@ final class NationRaidPhase4MariaDbHarness
     private function milestones(): array
     {
         $battle = $this->start($this->character());
-        $targetDamage = (int) $this->event->total_target_hp + (int) $this->event->cycle_max_hp + 123;
+        $echoHp = app(NationRaidEventService::class)->cycleParameterSnapshot(NationRaidRules::MAX_STAGES, $this->event)['boss']['max_hp'];
+        $targetDamage = (int) $this->event->total_target_hp + $echoHp + 123;
         $damage = $targetDamage - $this->damage();
         $this->settle($battle, $damage);
         $event = $this->event->refresh();
@@ -221,13 +224,15 @@ final class NationRaidPhase4MariaDbHarness
         $this->settle($last, 0);
         $this->assertUsage($character, 5, 5, 0, 200);
         $rows = $this->race([['op' => 'start', 'character' => $character->id, 'token' => bin2hex(random_bytes(32))]]);
-        $this->outcomes($rows, ['blocked_limit']);
-        $this->assertUsage($character, 5, 5, 0, 200);
+        $this->outcomes($rows, ['created']);
+        $sixth = SavedBattle::query()->where('character_id', $character->id)->where('status', 'started')->sole();
+        $this->settle($sixth, 0);
+        $this->assertUsage($character, 6, 6, 0, 190);
         $ordinals = SavedBattle::query()->where('character_id', $character->id)->orderBy('id')->get()
             ->map(fn ($battle) => $battle->summary['daily_resolution_no'])->all();
-        $this->check($ordinals === [1, 2, 3, 4, 5], 'Daily resolution ordinals are not unique and contiguous.');
+        $this->check($ordinals === [1, 2, 3, 4, 5, 6], 'Daily resolution ordinals are not unique and contiguous.');
 
-        return ['used' => 5, 'stamina_spent' => 50, 'resolution_ordinals' => $ordinals];
+        return ['used' => 6, 'stamina_spent' => 60, 'resolution_ordinals' => $ordinals, 'former_limit_rejected' => false];
     }
 
     private function refundRace(): array
