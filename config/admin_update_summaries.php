@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-05-exclusive-character-icon-045',
+        'date' => '2026-09-05',
+        'category' => 'internal',
+        'title' => '黒柴専用の2つ目のキャラアイコンを追加',
+        'detail' => '黒柴さん専用の2つ目となる通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-05-secret-realm-lord-location',
         'date' => '2026-09-05',
         'category' => 'fixed',
