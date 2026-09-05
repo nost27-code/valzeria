@@ -243,6 +243,11 @@ Route::middleware('auth')->group(function () {
 
     // キャラクターの選択が必須なルート
     Route::middleware(\App\Http\Middleware\CheckCharacterSelected::class)->group(function () {
+        // Read-only advance announcement. No official raid routes are released here.
+        Route::get('/nation-raid', \App\Http\Controllers\NationRaidPreviewController::class)->name('nation-raid.index');
+        Route::get('/nation-raid/preview/{page?}', \App\Http\Controllers\NationRaidPreviewController::class)
+            ->where('page', 'top|rewards|rankings')->name('nation-raid.preview');
+
         Route::get('/bug-reports/create', [\App\Http\Controllers\BugReportController::class, 'create'])->name('bug-reports.create');
         Route::post('/bug-reports', [\App\Http\Controllers\BugReportController::class, 'store'])->name('bug-reports.store');
         Route::get('/character-icon-design', [\App\Http\Controllers\CharacterIconDesignController::class, 'show'])->name('character-icon-design.show');

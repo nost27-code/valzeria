@@ -2,6 +2,13 @@
 
 Purpose: find relevant files quickly. Do not duplicate implementation details.
 
+## Nation raid advance announcement
+
+- `NationRaidPreviewController`: authenticated character-selected GET `/nation-raid` and `/nation-raid/preview/{page?}` with top/rewards/rankings allowlist. Preview flag only; no raid model/service dependency.
+- `config/nation_raid_preview.php`: display-only planned rewards exported from the approved local candidate; source policy hash retained. No grants or player progress.
+- `nation-raid/preview.blade.php`, `partials/preview-reward-row.blade.php`, `components/nation-raid-preview-card.blade.php`: read-only pages, preparing dialog and gated home/Nation entries.
+- `NationRaidPreviewTest`: no raid tables/engine, no announcement writes, authentication/flag/page/method gates, no official routes, snapshot/assets and Nation entry.
+
 ## Six Heroes / 六極殿
 
 - RoomRule/共通PvP/敏捷突破: `app/Services/PvPBattleService.php`, `app/Services/Battle/PvPRoomRuleInterface.php`, `app/Services/Battle/NullPvPRoomRule.php`, `app/Services/Battle/RoomRules/`, `app/Services/Battle/SixHeroRoomRuleResolver.php`, `app/Services/Battle/SixHeroBattleContextFactory.php`, `app/Services/Battle/SpeedBreakthroughService.php`, `app/Services/Battle/BattleState.php`, `app/Services/Battle/DamageCalculator.php`, `config/battle.php`
