@@ -621,7 +621,8 @@ final class NationRaidPhase4MariaDbHarness
         }
         // Only named barrier files created by these workers; never recurse or delete DB fixtures.
         foreach (['go', 'held', 'release', 'ready-0', 'ready-1', 'locked-0', 'locked-1', 'calculation-0.json', 'calculation-1.json',
-            'reward-writes-staged', 'reward-peer-started', 'capture-held', 'capture-peer-completed'] as $name) {
+            'reward-writes-staged', 'reward-peer-started', 'capture-held', 'capture-peer-completed',
+            'reward-inventory-staged', 'reward-owner-read-requested', 'reward-owner-held', 'reward-other-owner-completed'] as $name) {
             $path = $group['directory'].'/'.$name;
             if (is_file($path)) {
                 unlink($path);
