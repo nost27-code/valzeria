@@ -1122,6 +1122,125 @@ function detectSprites(srcCanvas, cfg, separatorStrokes = []) {
   };
 }
 
+const AUTO_DETECT_ALPHA_MIN = 16;
+
+function isAutoDetectForeground(data, offset, cfg) {
+  return data[offset+3] >= AUTO_DETECT_ALPHA_MIN
+    && (data[offset] < cfg.white || data[offset+1] < cfg.white || data[offset+2] < cfg.white);
+}
+
+function spriteMedian(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function clusterSpriteAxis(components, centerKey, sizeKey) {
+  const threshold = Math.max(4, spriteMedian(components.map(component => component[sizeKey])) * 0.45);
+  const sorted = [...components].sort((a, b) => a[centerKey] - b[centerKey]);
+  const groups = [];
+
+  sorted.forEach(component => {
+    const value = component[centerKey];
+    const group = groups.at(-1);
+    if (!group || value - group.center > threshold) {
+      groups.push({ center: value, values: [value] });
+      return;
+    }
+    group.values.push(value);
+    group.center = group.values.reduce((sum, item) => sum + item, 0) / group.values.length;
+  });
+
+  return groups;
+}
+
+function gridPrimaryCandidates(components) {
+  const sorted = [...components].sort((a, b) => b.area - a.area);
+  const candidates = [];
+
+  for (let index = 4; index < sorted.length; index++) {
+    if (sorted[index].area / sorted[index - 1].area < 0.45) {
+      candidates.push(sorted.slice(0, index));
+      break;
+    }
+  }
+  candidates.push(sorted);
+  return candidates;
+}
+
+function nearestSpriteAxisGroup(groups, value) {
+  let selected = 0;
+  let distance = Infinity;
+  groups.forEach((group, index) => {
+    const nextDistance = Math.abs(group.center - value);
+    if (nextDistance < distance) {
+      selected = index;
+      distance = nextDistance;
+    }
+  });
+  return selected;
+}
+
+function inferSpriteGrid(components) {
+  for (const primary of gridPrimaryCandidates(components)) {
+    if (primary.length < 4) continue;
+    const columns = clusterSpriteAxis(primary, 'centerX', 'width');
+    const rows = clusterSpriteAxis(primary, 'centerY', 'height');
+    if (columns.length < 2 || rows.length < 2 || columns.length * rows.length !== primary.length) continue;
+
+    const occupied = new Set(primary.map(component => {
+      const column = nearestSpriteAxisGroup(columns, component.centerX);
+      const row = nearestSpriteAxisGroup(rows, component.centerY);
+      return `${row}:${column}`;
+    }));
+    if (occupied.size === primary.length) return { columns, rows };
+  }
+  return null;
+}
+
+function spriteGridRanges(groups, limit) {
+  const ranges = [];
+  let start = 0;
+  groups.forEach((group, index) => {
+    const end = index === groups.length - 1
+      ? limit - 1
+      : Math.max(start, Math.floor((group.center + groups[index + 1].center) / 2));
+    ranges.push({ start, end });
+    start = end + 1;
+  });
+  return ranges;
+}
+
+function detectGridSprites(foreground, W, H, components, cfg) {
+  const grid = inferSpriteGrid(components);
+  if (!grid) return null;
+
+  const columns = spriteGridRanges(grid.columns, W);
+  const rows = spriteGridRanges(grid.rows, H);
+  const rects = [];
+
+  for (const row of rows) {
+    for (const column of columns) {
+      let minX = W, maxX = -1, minY = H, maxY = -1, area = 0;
+      for (let y = row.start; y <= row.end; y++) {
+        for (let x = column.start; x <= column.end; x++) {
+          if (!foreground[y * W + x]) continue;
+          area++;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+      if (area < cfg.area) return null;
+      rects.push({ x: minX, y: minY, w: maxX-minX+1, h: maxY-minY+1 });
+    }
+  }
+
+  return rects;
+}
+
 function detectAutoSprites(srcCanvas, cfg) {
   const W = srcCanvas.width, H = srcCanvas.height;
   const data = srcCanvas.getContext('2d').getImageData(0, 0, W, H).data;
@@ -1130,8 +1249,7 @@ function detectAutoSprites(srcCanvas, cfg) {
   const fg = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i++) {
     const b = i * 4;
-    if (data[b+3] > 0 && (data[b] < cfg.white || data[b+1] < cfg.white || data[b+2] < cfg.white))
-      fg[i] = 1;
+    if (isAutoDetectForeground(data, b, cfg)) fg[i] = 1;
   }
 
   // BFS 連結成分
@@ -1165,14 +1283,31 @@ function detectAutoSprites(srcCanvas, cfg) {
     }
   }
 
-  // minArea フィルタ
-  let rects = comps
-    .filter(c => c.area >= cfg.area)
-    .map(c => ({x:c.minX,y:c.minY,w:c.maxX-c.minX+1,h:c.maxY-c.minY+1}));
+  const significantComponents = comps
+    .filter(component => component.area >= cfg.area)
+    .map(component => ({
+      ...component,
+      width: component.maxX-component.minX+1,
+      height: component.maxY-component.minY+1,
+      centerX: (component.minX+component.maxX)/2,
+      centerY: (component.minY+component.maxY)/2,
+    }));
 
-  // 近接マージ (2 pass)
-  rects = mergeRects(rects, cfg.merge);
-  rects = mergeRects(rects, cfg.merge);
+  // 密に並んだシートは行・列を推定し、別セルまで近接マージが連鎖するのを防ぐ。
+  const gridRects = detectGridSprites(fg, W, H, significantComponents, cfg);
+  let rects = gridRects || significantComponents
+    .map(component => ({
+      x: component.minX,
+      y: component.minY,
+      w: component.width,
+      h: component.height,
+    }));
+
+  if (!gridRects) {
+    // 不規則配置では従来どおり、離れたパーツを近接マージする。
+    rects = mergeRects(rects, cfg.merge);
+    rects = mergeRects(rects, cfg.merge);
+  }
 
   // padding + clamp
   rects = rects.map(r => {
@@ -1183,7 +1318,7 @@ function detectAutoSprites(srcCanvas, cfg) {
     return {x,y,w:x2-x+1,h:y2-y+1};
   });
 
-  return sortRects(rects, cfg.size);
+  return gridRects ? rects : sortRects(rects, cfg.size);
 }
 
 function separatedSourceCanvas(srcCanvas, separatorStrokes, cfg) {
