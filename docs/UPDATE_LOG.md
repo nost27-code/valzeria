@@ -8,6 +8,7 @@ Do not record tiny refactors, formatting-only changes, or AI docs-only edits.
 
 ### Changed
 
+- 国家対抗レイドの第9再臨以降のHPを、開催初日の進行状況に合わせて段階的に増加。第1〜8再臨のHPと撃破履歴、すでに与えたダメージは維持します。
 - 国家対抗レイドの事前案内、ホーム、国家メニューに、9月6日21時の開始予定を表示。
 
 ### Added

@@ -20,13 +20,19 @@ final class NationRaidRules
     /** 第1再臨の既定HP。個体生成にはstageMaxHp()を使う。 */
     public const BOSS_MAX_HP = 10_000_000;
 
-    public const RULESET_VERSION = 'nation-raid-v5-staged-hp';
+    public const RULESET_VERSION = 'nation-raid-v6-live-staged-hp';
 
     public function stageMaxHp(int $stage): int
     {
         $this->assertRange($stage, 1, self::MAX_STAGES, 'stage');
 
-        return self::BOSS_MAX_HP * (1 + intdiv($stage - 1, 4));
+        return match (true) {
+            $stage <= 4 => 10_000_000,
+            $stage <= 8 => 20_000_000,
+            $stage <= 12 => 200_000_000,
+            $stage <= 16 => 500_000_000,
+            default => 1_000_000_000,
+        };
     }
 
     public function totalTargetHp(): int
@@ -562,7 +568,12 @@ final class NationRaidRules
         if (hash_equals($this->rulesetHash(), $hash)) {
             return true;
         }
-        $legacy = $this->rulesetSnapshot();
+
+        if (hash_equals($this->previousStagedHpRulesetHash(), $hash)) {
+            return true;
+        }
+
+        $legacy = $this->previousStagedHpRulesetSnapshot();
         $legacy['version'] = 'nation-raid-phase1-v4-equipment-resistance';
         $legacy['fixed']['boss_max_hp'] = 5_000_000;
         unset($legacy['fixed']['total_target_hp']);
@@ -572,6 +583,25 @@ final class NationRaidRules
         unset($stage);
 
         return hash_equals(hash('sha256', NationRaidJson::encode($legacy, JSON_UNESCAPED_UNICODE)), $hash);
+    }
+
+    public function previousStagedHpRulesetHash(): string
+    {
+        return hash('sha256', NationRaidJson::encode($this->previousStagedHpRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
+    }
+
+    /** 2026-09-06の開催開始時に固定した、HP以外が同一の旧6億curve。 */
+    private function previousStagedHpRulesetSnapshot(): array
+    {
+        $snapshot = $this->rulesetSnapshot();
+        $snapshot['version'] = 'nation-raid-v5-staged-hp';
+        $snapshot['fixed']['total_target_hp'] = 600_000_000;
+        foreach ($snapshot['stages'] as $index => &$stage) {
+            $stage['max_hp'] = self::BOSS_MAX_HP * (1 + intdiv($index, 4));
+        }
+        unset($stage);
+
+        return $snapshot;
     }
 
     private function assertRange(int $value, int $min, int $max, string $label): void

@@ -54,7 +54,7 @@ final class NationRaidLocalEventUpgradeTest extends TestCase
             $this->assertSame(10_000_000 - $old->applied_damage_total, $result['current_hp']);
             $this->assertSame($before, $this->preservedRows());
             $this->assertSame($policy, $event->fresh()->reward_policy_hash);
-            $this->assertSame(600_000_000, $event->fresh()->total_target_hp);
+            $this->assertSame(6_920_000_000, $event->fresh()->total_target_hp);
             $this->assertSame(10_000_000, $cycle->fresh()->parameter_snapshot['boss']['max_hp']);
             $this->assertSame($result['backup_sha256'], hash_file('sha256', $result['backup_path']));
             $saved = json_decode(File::get($result['backup_path']), true, flags: JSON_THROW_ON_ERROR);

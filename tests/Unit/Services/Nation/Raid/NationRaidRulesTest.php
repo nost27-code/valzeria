@@ -55,10 +55,10 @@ final class NationRaidRulesTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $this->rules->rulesetHash());
     }
 
-    public function test_twenty_stage_hp_curve_totals_six_hundred_million(): void
+    public function test_twenty_stage_hp_curve_uses_the_approved_live_scale(): void
     {
         $expected = [...array_fill(0, 4, 10_000_000), ...array_fill(0, 4, 20_000_000),
-            ...array_fill(0, 4, 30_000_000), ...array_fill(0, 4, 40_000_000), ...array_fill(0, 4, 50_000_000)];
+            ...array_fill(0, 4, 200_000_000), ...array_fill(0, 4, 500_000_000), ...array_fill(0, 4, 1_000_000_000)];
         $snapshot = $this->rules->rulesetSnapshot();
         foreach ($expected as $index => $hp) {
             $stage = $index + 1;
@@ -69,17 +69,21 @@ final class NationRaidRulesTest extends TestCase
                     $this->rules->canonicalCycleCurrentHpForForm($form, $stage), $hp));
             }
         }
-        $this->assertSame(600_000_000, $this->rules->totalTargetHp());
-        $this->assertSame(600_000_000, $snapshot['fixed']['total_target_hp']);
+        $this->assertSame(6_920_000_000, $this->rules->totalTargetHp());
+        $this->assertSame(6_920_000_000, $snapshot['fixed']['total_target_hp']);
     }
 
     public function test_only_the_exact_legacy_hp_only_ruleset_remains_combat_compatible(): void
     {
         $legacyHash = '1d681aa8069dabf7a976070378e27c0136ef497b5ace0317f191492619c03dda';
+        $previousStagedHash = 'd73d68e2b1985a7307a2dd4d4f033d063b1b94d0921ab5f0546a608d6da1c843';
         $this->assertTrue($this->rules->matchesCombatRulesetHash($legacyHash));
+        $this->assertSame($previousStagedHash, $this->rules->previousStagedHpRulesetHash());
+        $this->assertTrue($this->rules->matchesCombatRulesetHash($previousStagedHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($this->rules->rulesetHash()));
         $this->assertFalse($this->rules->matchesCombatRulesetHash(str_repeat('0', 64)));
         $this->assertFalse((new NationRaidRules(0.4))->matchesCombatRulesetHash($legacyHash));
+        $this->assertFalse((new NationRaidRules(0.4))->matchesCombatRulesetHash($previousStagedHash));
     }
 
     public function test_killer_boost_and_nation_coordination_rates_are_exact(): void

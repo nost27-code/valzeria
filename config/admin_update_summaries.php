@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-06-nation-raid-live-hp-balance',
+        'date' => '2026-09-06',
+        'category' => 'balance',
+        'title' => '国家対抗レイド後半のHPを調整',
+        'detail' => '初日の進行状況に合わせ、第9再臨以降の黒天竜ヴァルグレイドのHPを段階的に増加しました。第1〜8再臨のHPと撃破履歴、すでに与えたダメージはそのまま維持されます。',
+    ],
+    [
         'id' => '2026-09-06-nation-raid-launch-notice',
         'date' => '2026-09-06',
         'category' => 'changed',

@@ -294,23 +294,23 @@ class NationRaidSortieTest extends TestCase
         [$a] = app(NationRaidSortieService::class)->start($event, $first, 'assault', bin2hex(random_bytes(32)));
         [$b] = app(NationRaidSortieService::class)->start($event, $second, 'assault', bin2hex(random_bytes(32)));
         $settlement = app(NationRaidSettlementService::class);
-        $a = $settlement->resolve($a, $this->calculation($a, 150_000_100));
+        $a = $settlement->resolve($a, $this->calculation($a, 320_000_100));
         $this->assertSame(10, $event->fresh()->current_cycle_no);
         $this->assertNotNull($event->fresh()->stage10_reached_at);
-        $this->assertSame(29_999_900, $event->fresh()->cycles()->where('cycle_no', 10)->sole()->current_hp);
-        $b = $settlement->resolve($b, $this->calculation($b, 450_000_900));
+        $this->assertSame(199_999_900, $event->fresh()->cycles()->where('cycle_no', 10)->sole()->current_hp);
+        $b = $settlement->resolve($b, $this->calculation($b, 6_600_000_900));
         $this->assertSame(1, $b->target_cycle_no);
         $this->assertSame(10, $b->damage_segments[0]['cycle_no']);
         $this->assertSame(21, $event->fresh()->current_cycle_no);
         $this->assertNotNull($event->fresh()->completed_at);
-        $this->assertSame(49_999_000, $event->fresh()->cycles()->where('cycle_no', 21)->sole()->current_hp);
+        $this->assertSame(999_999_000, $event->fresh()->cycles()->where('cycle_no', 21)->sole()->current_hp);
         $this->assertSame(20, $event->fresh()->cycles()->where('cycle_kind', 'main')->count());
-        $this->assertSame(600_001_000, $a->applied_damage_total + $b->applied_damage_total);
+        $this->assertSame(6_920_001_000, $a->applied_damage_total + $b->applied_damage_total);
         $this->assertSame($b->applied_damage_total, array_sum(array_column($b->damage_segments, 'damage')));
         $this->assertSame(0, $b->summary['display']['boss_remaining_hp']);
         $completed = $event->fresh()->completed_at->toIso8601String();
         [$echo] = app(NationRaidSortieService::class)->start($event, $first, 'assault', bin2hex(random_bytes(32)));
-        $echo = $settlement->resolve($echo, $this->calculation($echo, 50_000_000));
+        $echo = $settlement->resolve($echo, $this->calculation($echo, 1_000_000_000));
         $this->assertNull($echo->target_stage_no);
         $this->assertSame(1, $event->fresh()->echo_defeated_count);
         $this->assertSame(22, $event->fresh()->current_cycle_no);
@@ -323,18 +323,19 @@ class NationRaidSortieTest extends TestCase
     {
         $character = $this->character();
         $event = $this->event();
-        foreach ([40_000_000, 80_000_000, 120_000_000, 160_000_000, 200_000_000] as $index => $damage) {
+        $expectedMaxHp = [20_000_000, 200_000_000, 500_000_000, 1_000_000_000, 1_000_000_000];
+        foreach ([40_000_000, 80_000_000, 800_000_000, 2_000_000_000, 4_000_000_000] as $index => $damage) {
             [$battle] = app(NationRaidSortieService::class)->start($event, $character, 'boss_set', bin2hex(random_bytes(32)));
             $resolved = app(NationRaidSettlementService::class)->resolve($battle, $this->calculation($battle, $damage));
             $current = $event->cycles()->where('cycle_no', $event->fresh()->current_cycle_no)->sole();
             $this->assertSame(5 + 4 * $index, $current->cycle_no);
-            $this->assertSame(min(50_000_000, 20_000_000 + 10_000_000 * $index), $current->max_hp);
+            $this->assertSame($expectedMaxHp[$index], $current->max_hp);
             $this->assertSame($current->max_hp, $current->current_hp);
             $this->assertSame($damage, $resolved->applied_damage_total);
             $this->assertSame($current->max_hp, $current->parameter_snapshot['boss']['max_hp']);
         }
         $this->assertNotNull($event->fresh()->completed_at);
-        $this->assertSame(600_000_000, (int) $event->cycles()->where('cycle_kind', 'main')->sum('max_hp'));
+        $this->assertSame(6_920_000_000, (int) $event->cycles()->where('cycle_kind', 'main')->sum('max_hp'));
     }
 
     public function test_error_refunds_stamina_and_daily_usage_exactly_once_without_damage(): void
