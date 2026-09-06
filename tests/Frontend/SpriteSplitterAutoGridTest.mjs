@@ -30,8 +30,10 @@ const detectorSource = alphaConstant + '\n' + [
     'gridPrimaryCandidates',
     'nearestSpriteAxisGroup',
     'inferSpriteGrid',
-    'spriteGridRanges',
+    'spritePointRectDistanceSquared',
+    'gridSpriteOwner',
     'detectGridSprites',
+    'detectAutoSpriteSelections',
     'detectAutoSprites',
     'mergeRects',
     'rectDist',
@@ -85,6 +87,59 @@ test('one-click detection keeps a dense transparent 5 by 4 sheet as 20 sprites',
 
     assert.equal(rects.length, 20);
     assert.equal(rects[0].x, 1);
+});
+
+test('grid detection keeps a sprite protrusion beyond the midpoint out of its neighbor', () => {
+    const width = 200;
+    const height = 200;
+    const data = new Uint8ClampedArray(width * height * 4);
+
+    paintRect(data, width, 10, 10, 71, 71);
+    paintRect(data, width, 80, 40, 36, 8);
+    paintRect(data, width, 120, 10, 71, 71);
+    paintRect(data, width, 105, 70, 16, 11);
+    paintRect(data, width, 10, 120, 71, 71);
+    paintRect(data, width, 120, 120, 71, 71);
+
+    const canvas = {
+        width,
+        height,
+        getContext: () => ({ getImageData: () => ({ data }) }),
+    };
+    const cfg = { white: 245, area: 50, merge: 12, pad: 0, size: 96 };
+    const result = runInNewContext(`${detectorSource}; detectAutoSpriteSelections(canvas, cfg)`, { canvas, cfg });
+    const rects = result.rects;
+
+    assert.equal(rects.length, 4);
+    assert.equal(rects[0].x + rects[0].w - 1, 115);
+    assert.equal(rects[1].x, 105);
+    assert.equal(result.masks[0][(43 - rects[0].y) * rects[0].w + 110 - rects[0].x], 1);
+    assert.equal(result.masks[1][(43 - rects[1].y) * rects[1].w + 110 - rects[1].x], 0);
+    assert.equal(result.masks[1][(75 - rects[1].y) * rects[1].w + 110 - rects[1].x], 1);
+});
+
+test('dense 10 by 10 sheet remains 100 individually masked sprites', () => {
+    const width = 1000;
+    const height = 1000;
+    const data = new Uint8ClampedArray(width * height * 4);
+
+    for (let row = 0; row < 10; row++) {
+        for (let column = 0; column < 10; column++) {
+            paintRect(data, width, column * 100 + 15, row * 100 + 15, 70, 70);
+        }
+    }
+
+    const canvas = {
+        width,
+        height,
+        getContext: () => ({ getImageData: () => ({ data }) }),
+    };
+    const cfg = { white: 245, area: 50, merge: 12, pad: 4, size: 96 };
+    const result = runInNewContext(`${detectorSource}; detectAutoSpriteSelections(canvas, cfg)`, { canvas, cfg });
+
+    assert.equal(result.rects.length, 100);
+    assert.equal(result.masks.length, 100);
+    assert.ok(result.masks.every((mask, index) => mask.length === result.rects[index].w * result.rects[index].h));
 });
 
 test('irregular nearby parts retain the existing proximity merge fallback', () => {

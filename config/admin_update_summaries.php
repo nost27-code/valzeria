@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-08-sprite-splitter-overflow-mask',
+        'date' => '2026-09-08',
+        'category' => 'fixed',
+        'title' => 'スプライト分割時のはみ出し欠けを修正',
+        'detail' => 'スプライト分割ツールで、武器・尻尾・エフェクトなどが隣の区画へはみ出していても途中で欠けず、元のキャラクターへ含まれるよう修正しました。重なる範囲は個別に分離するため、隣のキャラクターは混ざりません。',
+    ],
+    [
         'id' => '2026-09-08-admin-character-icon-status-colors',
         'date' => '2026-09-08',
         'category' => 'internal',
