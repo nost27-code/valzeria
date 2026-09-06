@@ -13,7 +13,7 @@
         </nav>
 
         <header class="border-b border-slate-200 pb-5">
-            <p class="text-sm font-bold text-sky-800">開催準備中 <span class="ml-2 font-normal text-slate-500">開催日未定</span></p>
+            <p class="text-sm font-bold text-sky-800">開催準備中 <span class="ml-2 font-normal text-slate-500">9/6 21:00開始予定</span></p>
             <h1 class="mt-2 text-xl font-black leading-relaxed text-slate-900">{{ $bossName }}</h1>
             <p class="mt-2 text-sm leading-relaxed text-slate-600">黒天竜との決戦に備えよう。現在は事前案内のみ公開しています。</p>
         </header>

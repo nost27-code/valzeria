@@ -17,6 +17,7 @@
                 @endunless
                 @if($nationRaidPublished && !config('features.nation_competitive_raid_enabled', false))
                     <span class="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-800">事前公開</span>
+                    <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-800">9/6 21:00開始予定</span>
                 @endif
             </span>
             <span class="mt-1 block text-xs font-bold leading-relaxed text-slate-600 sm:text-sm">全国家の冒険者で黒天竜へ挑む。無所属でも参加できます。</span>

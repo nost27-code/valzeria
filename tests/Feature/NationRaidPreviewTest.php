@@ -49,13 +49,14 @@ final class NationRaidPreviewTest extends TestCase
         $this->get(route('nation-raid.index'))->assertRedirect(route('nation-raid.preview'));
         foreach (['top', 'rewards', 'rankings'] as $page) {
             $this->get(route('nation-raid.preview', ['page' => $page]))->assertOk()
-                ->assertSee('開催準備中')->assertSee('開催日未定')
+                ->assertSee('開催準備中')->assertSee('9/6 21:00開始予定')
                 ->assertDontSee('method="POST"', false)->assertDontSee('name="battle_token"', false)
                 ->assertDontSee('data-raid-claim-button', false)->assertDontSee('role="progressbar"', false);
         }
         $html = Blade::render('<x-nation-raid-home-spotlight />');
         $this->assertStringContainsString('data-home-nation-raid-preview', $html);
         $this->assertStringContainsString(route('nation-raid.preview'), $html);
+        $this->assertStringContainsString('9/6 21:00開始予定', $html);
         $this->assertStringNotContainsString('開催中', $html);
         $this->assertNull(app(NationRaidEntryService::class)->activeEvent());
         $this->assertSame([], $unexpected);
@@ -102,7 +103,7 @@ final class NationRaidPreviewTest extends TestCase
     public function test_nation_shortcut_opens_preview_via_index_without_starting_event(): void
     {
         $this->actingAs($this->character()->user);
-        Livewire::test(NationScreen::class)->assertSee('事前公開')
+        Livewire::test(NationScreen::class)->assertSee('事前公開')->assertSee('9/6 21:00開始予定')
             ->call('openNationCompetitiveRaid')->assertRedirect(route('nation-raid.index'));
         $this->assertDatabaseCount('nation_raid_events', 0);
     }

@@ -28,7 +28,7 @@
         <a href="{{ route('nation-raid.preview') }}" class="flex min-h-20 items-center gap-3 px-4 py-3 hover:bg-slate-50" aria-label="国家対抗レイドの事前案内を開く">
             <img src="{{ asset('images/raid/valgreid_form_01.webp') }}" alt="" width="56" height="56" class="h-14 w-14 shrink-0 object-contain">
             <span class="min-w-0 flex-1">
-                <span class="text-xs font-bold text-sky-800">開催準備中</span>
+                <span class="text-xs font-bold text-sky-800">9/6 21:00開始予定</span>
                 <span class="mt-1 block text-base font-black text-slate-900">国家対抗レイド</span>
                 <span class="mt-1 block text-xs text-slate-600">黒天竜と予定報酬を先行公開。開戦を待とう。</span>
             </span>

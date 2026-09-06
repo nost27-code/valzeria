@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-06-nation-raid-launch-notice',
+        'date' => '2026-09-06',
+        'category' => 'changed',
+        'title' => '国家対抗レイドの開始予定時刻を案内',
+        'detail' => '国家対抗レイドは9月6日21時開始予定です。事前案内から黒天竜ヴァルグレイドと予定報酬を確認できます。',
+    ],
+    [
         'id' => '2026-09-05-nation-raid-formal-launch',
         'date' => '2026-09-05',
         'category' => 'added',
