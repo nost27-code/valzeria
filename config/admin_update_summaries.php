@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-06-nation-raid-coordination-balance',
+        'date' => '2026-09-06',
+        'category' => 'balance',
+        'title' => '国家対抗レイドの共闘ボーナスを調整',
+        'detail' => '国家内で共に戦う仲間が増えるほど共闘ボーナスが伸びるよう調整しました。5〜7人は+12%、8〜11人は+15%、12〜15人は+17%、16〜18人は+19%、19〜21人は+21%、22人以上は+22%になります。',
+    ],
+    [
         'id' => '2026-09-06-nation-raid-live-hp-balance',
         'date' => '2026-09-06',
         'category' => 'balance',

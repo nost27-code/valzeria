@@ -9,6 +9,7 @@ use App\Models\NationRaidDailyUsage;
 use App\Models\NationRaidEvent;
 use App\Models\NationRaidDailyLineageSnapshot;
 use App\Models\NationRaidCoordinationParticipant;
+use App\Models\NationRaidParticipation;
 use App\Models\NationMembership;
 use App\Models\NationRaidBattleTelemetryLog;
 use App\Models\User;
@@ -17,6 +18,7 @@ use App\Services\Nation\Raid\NationRaidEventService;
 use App\Services\Nation\Raid\NationRaidSortieService;
 use App\Services\Nation\Raid\NationRaidSortieCombatService;
 use App\Services\Nation\Raid\NationRaidSettlementService;
+use App\Services\Nation\Raid\NationRaidJson;
 use App\Services\Nation\Raid\NationRaidRules;
 use App\Services\Nation\Raid\NationRaidTransactionRunner;
 use App\Services\Nation\NationService;
@@ -83,6 +85,9 @@ class NationRaidSortieTest extends TestCase
         $snapshot = $event->ruleset_snapshot;
         $snapshot['version'] = 'nation-raid-phase1-v4-equipment-resistance';
         $snapshot['fixed']['boss_max_hp'] = 5_000_000;
+        $snapshot['fixed']['coordination_damage_rates'] = [
+            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
+        ];
         unset($snapshot['fixed']['total_target_hp']);
         foreach ($snapshot['stages'] as &$stage) {
             unset($stage['max_hp']);
@@ -423,6 +428,72 @@ class NationRaidSortieTest extends TestCase
         $after = $service->fight($event, $first, 'assault', bin2hex(random_bytes(32)));
         $this->assertSame(0, $after->coordination_damage_total);
         $this->assertSame(1, $after->summary['display']['coordination']['unique_count']);
+    }
+
+    public function test_coordination_settlement_uses_admission_curve_across_a_live_ruleset_upgrade(): void
+    {
+        $character = $this->character();
+        $nation = app(NationService::class)->create($character, '受付時倍率確認');
+        $event = $this->event();
+        $rules = app(NationRaidRules::class);
+        $events = app(NationRaidEventService::class);
+        $snapshot = $event->ruleset_snapshot;
+        $snapshot['version'] = 'nation-raid-v6-live-staged-hp';
+        $snapshot['fixed']['coordination_damage_rates'] = [
+            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
+        ];
+        $oldHash = hash('sha256', NationRaidJson::encode($snapshot, JSON_UNESCAPED_UNICODE));
+        $event->update([
+            'ruleset_version' => $snapshot['version'],
+            'ruleset_snapshot' => $snapshot,
+            'ruleset_hash' => $oldHash,
+        ]);
+        $cycle = $event->cycles()->sole();
+        $cycle->update(['parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh())]);
+
+        foreach (range(1, 20) as $index) {
+            $supporter = NationRaidParticipation::create([
+                'event_id' => $event->id,
+                'account_id' => User::factory()->create()->id,
+                'character_id_snapshot' => 10_000 + $index,
+                'nation_id' => $nation->id,
+                'nation_id_snapshot' => $nation->id,
+                'nation_name_snapshot' => $nation->name,
+                'character_name_snapshot' => '共闘者'.$index,
+                'is_nation_eligible' => true,
+            ]);
+            NationRaidCoordinationParticipant::create([
+                'event_id' => $event->id,
+                'participation_id' => $supporter->id,
+                'nation_id_snapshot' => $nation->id,
+                'character_id_snapshot' => 10_000 + $index,
+                'window_joined_at' => now(),
+                'last_resolved_at' => now(),
+            ]);
+        }
+
+        [$oldBattle] = app(NationRaidSortieService::class)->start(
+            $event->fresh(), $character, 'assault', bin2hex(random_bytes(32)));
+        $this->assertSame($oldHash, $oldBattle->summary['admission']['ruleset_hash']);
+
+        $event->update([
+            'ruleset_version' => NationRaidRules::RULESET_VERSION,
+            'ruleset_snapshot' => $rules->rulesetSnapshot(),
+            'ruleset_hash' => $rules->rulesetHash(),
+        ]);
+        $cycle->update(['parameter_snapshot' => $events->cycleParameterSnapshot(1, $event->fresh())]);
+
+        $oldResolved = app(NationRaidSettlementService::class)->resolve(
+            $oldBattle, $this->calculation($oldBattle, 1_000));
+        $this->assertSame(120, $oldResolved->coordination_damage_total);
+        $this->assertSame(0.12, $oldResolved->summary['display']['coordination']['bonus_rate']);
+
+        [$newBattle] = app(NationRaidSortieService::class)->start(
+            $event->fresh(), $character, 'assault', bin2hex(random_bytes(32)));
+        $newResolved = app(NationRaidSettlementService::class)->resolve(
+            $newBattle, $this->calculation($newBattle, 1_000));
+        $this->assertSame(210, $newResolved->coordination_damage_total);
+        $this->assertSame(0.21, $newResolved->summary['display']['coordination']['bonus_rate']);
     }
 
     public function test_end_boundary_allows_already_started_only_during_grace(): void

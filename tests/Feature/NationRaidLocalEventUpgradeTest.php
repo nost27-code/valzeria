@@ -117,6 +117,9 @@ final class NationRaidLocalEventUpgradeTest extends TestCase
         $snapshot = $event->ruleset_snapshot;
         $snapshot['version'] = 'nation-raid-phase1-v4-equipment-resistance';
         $snapshot['fixed']['boss_max_hp'] = 5_000_000;
+        $snapshot['fixed']['coordination_damage_rates'] = [
+            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
+        ];
         unset($snapshot['fixed']['total_target_hp']);
         foreach ($snapshot['stages'] as &$stage) {
             unset($stage['max_hp']);

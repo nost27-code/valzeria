@@ -48,7 +48,12 @@ class NationRaidSettlementService
                 && $engine->turnsCompleted >= 1 && $engine->turnsCompleted <= 20,
                 \LogicException::class, 'Raid calculation does not match its admission snapshot.');
 
-            $coordination = $this->coordination->snapshot($event, $participation, true);
+            $coordination = $this->coordination->snapshot(
+                $event,
+                $participation,
+                true,
+                (string) $admission['ruleset_hash'],
+            );
             $bonus = (int) floor($engine->calculatedBossDamage * $coordination['bonus_rate']);
             $personal = $this->hp->apply($event, $cycle, $engine->calculatedBossDamage, 'personal');
             $linked = $this->hp->apply($event, $personal['cycle'], $bonus, 'coordination');

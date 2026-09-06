@@ -20,7 +20,7 @@ final class NationRaidRules
     /** 第1再臨の既定HP。個体生成にはstageMaxHp()を使う。 */
     public const BOSS_MAX_HP = 10_000_000;
 
-    public const RULESET_VERSION = 'nation-raid-v6-live-staged-hp';
+    public const RULESET_VERSION = 'nation-raid-v7-coordination-curve';
 
     public function stageMaxHp(int $stage): int
     {
@@ -63,6 +63,19 @@ final class NationRaidRules
 
     /** @var array<int, float> */
     public const COORDINATION_DAMAGE_RATES = [
+        2 => 0.03,
+        3 => 0.06,
+        4 => 0.09,
+        5 => 0.12,
+        8 => 0.15,
+        12 => 0.17,
+        16 => 0.19,
+        19 => 0.21,
+        22 => 0.22,
+    ];
+
+    /** 2026-09-06の初回開催時から共闘調整前まで使った旧rate。 */
+    private const PREVIOUS_COORDINATION_DAMAGE_RATES = [
         2 => 0.03,
         3 => 0.06,
         4 => 0.09,
@@ -508,11 +521,36 @@ final class NationRaidRules
 
     public static function coordinationDamageRate(int $uniqueParticipants): float
     {
+        return self::coordinationDamageRateFrom(self::COORDINATION_DAMAGE_RATES, $uniqueParticipants);
+    }
+
+    public function coordinationDamageRateForRulesetHash(string $hash, int $uniqueParticipants): float
+    {
+        if (hash_equals($this->rulesetHash(), $hash)) {
+            return self::coordinationDamageRate($uniqueParticipants);
+        }
+        if ($this->matchesCombatRulesetHash($hash)) {
+            return self::coordinationDamageRateFrom(self::PREVIOUS_COORDINATION_DAMAGE_RATES, $uniqueParticipants);
+        }
+
+        throw new InvalidArgumentException('Unknown nation raid ruleset hash.');
+    }
+
+    private static function coordinationDamageRateFrom(array $rates, int $uniqueParticipants): float
+    {
         if ($uniqueParticipants < 2) {
             return 0.0;
         }
 
-        return self::COORDINATION_DAMAGE_RATES[min(5, $uniqueParticipants)];
+        $rate = 0.0;
+        foreach ($rates as $minimumParticipants => $candidate) {
+            if ($uniqueParticipants < $minimumParticipants) {
+                break;
+            }
+            $rate = $candidate;
+        }
+
+        return $rate;
     }
 
     /** Phase 2と本番event行が同じ候補値を固定するためのsnapshot。 */
@@ -569,6 +607,10 @@ final class NationRaidRules
             return true;
         }
 
+        if (hash_equals($this->previousLiveHpRulesetHash(), $hash)) {
+            return true;
+        }
+
         if (hash_equals($this->previousStagedHpRulesetHash(), $hash)) {
             return true;
         }
@@ -590,10 +632,25 @@ final class NationRaidRules
         return hash('sha256', NationRaidJson::encode($this->previousStagedHpRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
     }
 
+    public function previousLiveHpRulesetHash(): string
+    {
+        return hash('sha256', NationRaidJson::encode($this->previousLiveHpRulesetSnapshot(), JSON_UNESCAPED_UNICODE));
+    }
+
+    /** HP増加後から共闘調整前まで本番eventへ固定したruleset。 */
+    private function previousLiveHpRulesetSnapshot(): array
+    {
+        $snapshot = $this->rulesetSnapshot();
+        $snapshot['version'] = 'nation-raid-v6-live-staged-hp';
+        $snapshot['fixed']['coordination_damage_rates'] = self::PREVIOUS_COORDINATION_DAMAGE_RATES;
+
+        return $snapshot;
+    }
+
     /** 2026-09-06の開催開始時に固定した、HP以外が同一の旧6億curve。 */
     private function previousStagedHpRulesetSnapshot(): array
     {
-        $snapshot = $this->rulesetSnapshot();
+        $snapshot = $this->previousLiveHpRulesetSnapshot();
         $snapshot['version'] = 'nation-raid-v5-staged-hp';
         $snapshot['fixed']['total_target_hp'] = 600_000_000;
         foreach ($snapshot['stages'] as $index => &$stage) {

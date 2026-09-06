@@ -77,13 +77,17 @@ final class NationRaidRulesTest extends TestCase
     {
         $legacyHash = '1d681aa8069dabf7a976070378e27c0136ef497b5ace0317f191492619c03dda';
         $previousStagedHash = 'd73d68e2b1985a7307a2dd4d4f033d063b1b94d0921ab5f0546a608d6da1c843';
+        $previousLiveHash = '49e40d2a556c6b489b326d36b3c60eb5f75359e7adc2ce73dea0e226762d1973';
         $this->assertTrue($this->rules->matchesCombatRulesetHash($legacyHash));
         $this->assertSame($previousStagedHash, $this->rules->previousStagedHpRulesetHash());
+        $this->assertSame($previousLiveHash, $this->rules->previousLiveHpRulesetHash());
         $this->assertTrue($this->rules->matchesCombatRulesetHash($previousStagedHash));
+        $this->assertTrue($this->rules->matchesCombatRulesetHash($previousLiveHash));
         $this->assertTrue($this->rules->matchesCombatRulesetHash($this->rules->rulesetHash()));
         $this->assertFalse($this->rules->matchesCombatRulesetHash(str_repeat('0', 64)));
         $this->assertFalse((new NationRaidRules(0.4))->matchesCombatRulesetHash($legacyHash));
         $this->assertFalse((new NationRaidRules(0.4))->matchesCombatRulesetHash($previousStagedHash));
+        $this->assertFalse((new NationRaidRules(0.4))->matchesCombatRulesetHash($previousLiveHash));
     }
 
     public function test_killer_boost_and_nation_coordination_rates_are_exact(): void
@@ -95,7 +99,31 @@ final class NationRaidRulesTest extends TestCase
         $this->assertSame(0.06, NationRaidRules::coordinationDamageRate(3));
         $this->assertSame(0.09, NationRaidRules::coordinationDamageRate(4));
         $this->assertSame(0.12, NationRaidRules::coordinationDamageRate(5));
-        $this->assertSame(0.12, NationRaidRules::coordinationDamageRate(40));
+        $this->assertSame(0.12, NationRaidRules::coordinationDamageRate(7));
+        $this->assertSame(0.15, NationRaidRules::coordinationDamageRate(8));
+        $this->assertSame(0.15, NationRaidRules::coordinationDamageRate(11));
+        $this->assertSame(0.17, NationRaidRules::coordinationDamageRate(12));
+        $this->assertSame(0.17, NationRaidRules::coordinationDamageRate(15));
+        $this->assertSame(0.19, NationRaidRules::coordinationDamageRate(16));
+        $this->assertSame(0.19, NationRaidRules::coordinationDamageRate(18));
+        $this->assertSame(0.21, NationRaidRules::coordinationDamageRate(19));
+        $this->assertSame(0.21, NationRaidRules::coordinationDamageRate(21));
+        $this->assertSame(0.22, NationRaidRules::coordinationDamageRate(22));
+        $this->assertSame(0.22, NationRaidRules::coordinationDamageRate(25));
+        $this->assertSame(0.22, NationRaidRules::coordinationDamageRate(40));
+    }
+
+    public function test_coordination_rate_uses_the_battle_admission_ruleset(): void
+    {
+        $this->assertSame(0.21, $this->rules->coordinationDamageRateForRulesetHash(
+            $this->rules->rulesetHash(), 21));
+        $this->assertSame(0.12, $this->rules->coordinationDamageRateForRulesetHash(
+            $this->rules->previousLiveHpRulesetHash(), 21));
+        $this->assertSame(0.12, $this->rules->coordinationDamageRateForRulesetHash(
+            $this->rules->previousStagedHpRulesetHash(), 21));
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->rules->coordinationDamageRateForRulesetHash(str_repeat('0', 64), 21);
     }
 
     #[DataProvider('formBoundaryProvider')]

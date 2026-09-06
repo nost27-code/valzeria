@@ -90,6 +90,9 @@ final class NationRaidApprovedHpCurveUpgradeTest extends TestCase
 
         $snapshot = $event->ruleset_snapshot;
         $snapshot['version'] = 'nation-raid-v5-staged-hp';
+        $snapshot['fixed']['coordination_damage_rates'] = [
+            2 => 0.03, 3 => 0.06, 4 => 0.09, 5 => 0.12,
+        ];
         $snapshot['fixed']['total_target_hp'] = 600_000_000;
         foreach ($snapshot['stages'] as $index => &$stage) {
             $stage['max_hp'] = 10_000_000 * (1 + intdiv($index, 4));

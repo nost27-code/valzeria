@@ -9,6 +9,8 @@ use App\Models\NationRaidParticipation;
 /** 正式出撃の国家帰属は開始時snapshotを正とする。trialのfile cacheとは共有しない。 */
 final class NationRaidCoordinationService
 {
+    public function __construct(private readonly NationRaidRules $rules) {}
+
     /** ランキング用の一括read。登録・時刻延長はせず、表示用の失効予定だけを返す。 */
     public function liveForNations(NationRaidEvent $event, array $nationIds): array
     {
@@ -29,7 +31,7 @@ final class NationRaidCoordinationService
             $steps = [];
             foreach (array_unique([0, ...$expirations]) as $elapsed) {
                 $count = count(array_filter($expirations, fn ($expiration) => $expiration > $elapsed));
-                $percent = (int) round(NationRaidRules::coordinationDamageRate($count) * 100);
+                $percent = (int) round($this->rules->coordinationDamageRateForRulesetHash($event->ruleset_hash, $count) * 100);
                 $steps[] = [
                     'after_ms' => (int) $elapsed, 'count' => $count, 'percent' => $percent,
                     'active' => $percent > 0,
@@ -38,12 +40,17 @@ final class NationRaidCoordinationService
             }
             $states[(int) $nationId] = ['steps' => $steps];
         }
+
         return $states;
     }
 
     /** event lock内、settlement成功transaction内からのみregister=trueで呼ぶ。 */
-    public function snapshot(NationRaidEvent $event, ?NationRaidParticipation $participation, bool $register = false): array
-    {
+    public function snapshot(
+        NationRaidEvent $event,
+        ?NationRaidParticipation $participation,
+        bool $register = false,
+        ?string $rulesetHash = null,
+    ): array {
         $eligible = $participation?->is_nation_eligible && $participation->nation_id !== null;
         $threshold = now()->subMinutes(NationRaidRules::COORDINATION_WINDOW_MINUTES);
         $new = false;
@@ -71,7 +78,10 @@ final class NationRaidCoordinationService
             'nation_name' => $eligible ? $participation->nation_name_snapshot : '無所属',
             'window_minutes' => NationRaidRules::COORDINATION_WINDOW_MINUTES,
             'unique_count' => $members->count(),
-            'bonus_rate' => NationRaidRules::coordinationDamageRate($members->count()),
+            'bonus_rate' => $this->rules->coordinationDamageRateForRulesetHash(
+                $rulesetHash ?? $event->ruleset_hash,
+                $members->count(),
+            ),
             'participant_ids' => $members->pluck('character_id_snapshot')->all(),
             'participated_at' => $members->map(fn ($member) => $member->window_joined_at->getTimestamp())->all(),
             'newly_registered' => $new,
