@@ -118,6 +118,7 @@ class WeaponTraitForgeService
                 );
             }
             $base->forceFill($fill)->save();
+            $beforeQualityDisplayName = $base->displayName();
             $qualityUpgrade = in_array($operation, ['engraving_forge', 'slayer_forge'], true)
                 ? app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($base)
                 : null;
@@ -140,7 +141,7 @@ class WeaponTraitForgeService
             if ($qualityUpgrade === 'excellent') {
                 app(PublicLogService::class)->addLog(
                     'drop',
-                    "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$base->displayName()}」を逸品に仕上げました！",
+                    "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
                     $lockedCharacter,
                     3,
                 );
@@ -148,7 +149,7 @@ class WeaponTraitForgeService
 
             return [
                 'message' => $this->operationLabel($operation, $base) . 'に成功！ '
-                    . $base->displayName() . 'になった。 '
+                    . $beforeQualityDisplayName . 'になった。 '
                     . $materialSnapshot['display_name'] . 'を素材として消費し、'
                     . number_format($result['gold_cost']) . 'Gを支払った。'
                     . ($payment['bank_gold_used'] > 0

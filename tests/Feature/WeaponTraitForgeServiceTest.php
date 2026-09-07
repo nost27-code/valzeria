@@ -129,18 +129,23 @@ class WeaponTraitForgeServiceTest extends TestCase
 
         $character = $this->createCharacter(100_000);
         [$prefix, $suffix] = $this->affixes();
-        $base = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1);
+        $base = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1, quality: 'good');
         $material = $this->weapon($character, 'A', 'sword', $prefix, 1, $suffix, 1);
 
         $result = app(WeaponTraitForgeService::class)->forge($character, 'slayer_forge', $base->id, $material->id);
 
-        $base->refresh();
+        $base->refresh()->load(['item', 'affixPrefix', 'affixSuffix']);
+        $beforeQuality = clone $base;
+        $beforeQuality->affix_quality = 'good';
+        $beforeQualityDisplayName = $beforeQuality->displayName();
         $this->assertSame('excellent', $base->affix_quality);
         $this->assertSame(2, $base->affix_suffix_level);
+        $this->assertStringContainsString("{$beforeQualityDisplayName}になった。", $result['message']);
         $this->assertStringContainsString('逸品に仕上がった！', $result['message']);
+        $this->assertStringNotContainsString('【逸品】になった。', $result['message']);
         $this->assertSame(1, PublicLog::query()->count());
         $this->assertSame(
-            "【逸品】{$character->name}さんが鍛冶で「{$base->displayName()}」を逸品に仕上げました！",
+            "【逸品】{$character->name}さんが鍛冶で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
             PublicLog::query()->value('message'),
         );
     }

@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-07-equipment-quality-log-wording',
+        'date' => '2026-09-07',
+        'category' => 'fixed',
+        'title' => '逸品化ログの重複した品質表示を修正',
+        'detail' => '進化合成や鍛冶で武器が逸品へ仕上がった際、武器名と結果文に「逸品」が重なって見える表示を修正しました。品質抽選率や能力値は変更していません。',
+    ],
+    [
         'id' => '2026-09-06-sprite-splitter-auto-grid',
         'date' => '2026-09-06',
         'category' => 'fixed',

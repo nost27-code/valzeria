@@ -188,7 +188,7 @@ class EquipmentEvolutionServiceTest extends TestCase
         $created = new CharacterItem([
             'affix_prefix_id' => 10,
             'affix_prefix_level' => 1,
-            'affix_quality' => 'excellent',
+            'affix_quality' => 'normal',
         ]);
         $created->setRelation('item', $weapon);
         $created->setRelation('affixPrefix', $prefix);
@@ -197,7 +197,11 @@ class EquipmentEvolutionServiceTest extends TestCase
         $affixService->expects($this->once())
             ->method('upgradeQualityAfterWeaponForge')
             ->with($created)
-            ->willReturn('excellent');
+            ->willReturnCallback(function (CharacterItem $item): string {
+                $item->affix_quality = 'excellent';
+
+                return 'excellent';
+            });
         $this->app->instance(EquipmentAffixService::class, $affixService);
 
         $publicLogService = $this->createMock(PublicLogService::class);
@@ -205,8 +209,7 @@ class EquipmentEvolutionServiceTest extends TestCase
             ->method('addLog')
             ->with(
                 'drop',
-                $this->callback(fn (string $message): bool => str_contains($message, '進化合成')
-                    && str_contains($message, '逸品に仕上げました')),
+                "【逸品】{$character->name}さんが進化合成で「[A] 鋭いI鋼の剣」を逸品に仕上げました！",
                 $character,
                 3,
             );
@@ -215,6 +218,7 @@ class EquipmentEvolutionServiceTest extends TestCase
         $quality = $this->invokePrivate($service, 'upgradeQualityAfterEvolution', [$created, $character]);
 
         $this->assertSame('excellent', $quality);
+        $this->assertSame('excellent', $created->affix_quality);
     }
 
     private function invokePrivate(object $object, string $method, array $arguments = []): mixed

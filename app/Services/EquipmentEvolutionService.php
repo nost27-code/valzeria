@@ -389,11 +389,12 @@ class EquipmentEvolutionService
 
     private function upgradeQualityAfterEvolution(CharacterItem $created, Character $character): ?string
     {
+        $beforeQualityDisplayName = $created->displayName();
         $qualityUpgrade = app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($created);
         if ($qualityUpgrade === 'excellent') {
             app(PublicLogService::class)->addLog(
                 'drop',
-                "【逸品】{$character->name}さんが進化合成で「{$created->displayName()}」を逸品に仕上げました！",
+                "【逸品】{$character->name}さんが進化合成で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
                 $character,
                 3,
             );

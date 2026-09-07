@@ -225,11 +225,12 @@ class EquipmentEnhancementService
                 $locked->enhance_level = $nextLevel;
                 $locked->save();
 
+                $beforeQualityDisplayName = $locked->displayName();
                 $qualityUpgrade = app(EquipmentAffixService::class)->upgradeQualityAfterWeaponForge($locked);
                 if ($qualityUpgrade === 'excellent') {
                     app(PublicLogService::class)->addLog(
                         'drop',
-                        "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$locked->displayName()}」を逸品に仕上げました！",
+                        "【逸品】{$lockedCharacter->name}さんが鍛冶で「{$beforeQualityDisplayName}」を逸品に仕上げました！",
                         $lockedCharacter,
                         3,
                     );
