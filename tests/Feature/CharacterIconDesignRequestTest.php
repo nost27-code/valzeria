@@ -7,6 +7,7 @@ use App\Livewire\MainScreen;
 use App\Models\Character;
 use App\Models\CharacterIconDesignMessageAttachment;
 use App\Models\CharacterIconDesignRequest;
+use App\Models\CharacterNotification;
 use App\Models\PlayerValmon;
 use App\Models\User;
 use App\Models\ValmonMaster;
@@ -383,6 +384,40 @@ class CharacterIconDesignRequestTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_admin_request_list_uses_distinct_status_badge_colors(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        [, $character] = $this->createPlayer('進行状況確認者');
+        $statusBadges = [
+            'submitted' => ['提出済み', 'bg-rose-100 text-rose-700 ring-rose-200'],
+            'in_progress' => ['候補制作中', 'bg-amber-100 text-amber-800 ring-amber-200'],
+            'adjustment' => ['微調整中', 'bg-sky-100 text-sky-700 ring-sky-200'],
+            'completed' => ['制作完了', 'bg-emerald-100 text-emerald-700 ring-emerald-200'],
+        ];
+
+        foreach (array_keys($statusBadges) as $status) {
+            CharacterIconDesignRequest::query()->create([
+                'character_id' => $character->id,
+                'status' => $status,
+                'price_kiseki' => 40,
+                'form_data' => $this->validFormPayload(),
+                'submitted_at' => now(),
+                'completed_at' => $status === 'completed' ? now() : null,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.character-icon-design.index'))
+            ->assertOk();
+
+        foreach ($statusBadges as $status => [$label, $colorClasses]) {
+            $response->assertSee(
+                '<span data-character-icon-status="'.$status.'" class="inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ring-inset '.$colorClasses.'">'.$label.'</span>',
+                false,
+            );
+        }
+    }
+
     public function test_sheet_submission_spends_free_kiseki_first_and_cannot_charge_twice(): void
     {
         [$admin, $adminCharacter] = $this->createPlayer('ヴァル');
@@ -440,7 +475,7 @@ class CharacterIconDesignRequestTest extends TestCase
 
         $this->assertSame(1, CharacterIconDesignRequest::query()->where('character_id', $character->id)->count());
         $this->assertDatabaseCount('kiseki_transactions', 1);
-        $this->assertSame(1, \App\Models\CharacterNotification::query()
+        $this->assertSame(1, CharacterNotification::query()
             ->where('type', AdminWebPushNotificationService::TYPE_CHARACTER_ICON_DESIGN)
             ->count());
         $this->assertSame(10, (int) $character->fresh()->kiseki);

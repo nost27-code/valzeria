@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-08-admin-character-icon-status-colors',
+        'date' => '2026-09-08',
+        'category' => 'internal',
+        'title' => 'キャラアイコン制作状況の色分けを改善',
+        'detail' => '管理者のキャラアイコン制作依頼一覧で、提出済み・候補制作中・微調整中・制作完了を状態別の色で見分けられるようにしました。',
+    ],
+    [
         'id' => '2026-09-08-exclusive-character-icon-048',
         'date' => '2026-09-08',
         'category' => 'internal',

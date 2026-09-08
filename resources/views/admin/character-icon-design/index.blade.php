@@ -28,12 +28,21 @@
 
             <div class="mt-4 space-y-3">
                 @forelse($designRequests as $designRequest)
+                    @php
+                        $statusBadgeClass = match ($designRequest->status) {
+                            'submitted' => 'bg-rose-100 text-rose-700 ring-rose-200',
+                            'in_progress' => 'bg-amber-100 text-amber-800 ring-amber-200',
+                            'adjustment' => 'bg-sky-100 text-sky-700 ring-sky-200',
+                            'completed' => 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+                            default => 'bg-slate-100 text-slate-700 ring-slate-200',
+                        };
+                    @endphp
                     <a href="{{ route('admin.character-icon-design.show', $designRequest) }}" class="block rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-violet-300 hover:bg-violet-50">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="text-base font-black text-slate-950">{{ $designRequest->character?->name ?? '削除済み冒険者' }}</span>
-                                    <span class="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-black text-violet-700">{{ $designRequest->statusLabel() }}</span>
+                                    <span data-character-icon-status="{{ $designRequest->status }}" class="inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ring-inset {{ $statusBadgeClass }}">{{ $designRequest->statusLabel() }}</span>
                                     @if($designRequest->unread_form_updates_count > 0)
                                         <span class="rounded-full bg-amber-500 px-2 py-1 text-[11px] font-black text-white">回答更新あり</span>
                                     @endif
