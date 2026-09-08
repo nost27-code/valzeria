@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-08-exclusive-character-icon-048',
+        'date' => '2026-09-08',
+        'category' => 'internal',
+        'title' => 'ポーシャ専用のキャラアイコンを追加',
+        'detail' => 'ポーシャさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-07-equipment-quality-log-wording',
         'date' => '2026-09-07',
         'category' => 'fixed',
