@@ -2,6 +2,8 @@
 
 Purpose: compressed DB/data contract map.
 
+Hero trial release masters（2026-09-09）: 新しいテーブル・カラムは追加しない。Area 86 `star_heaven_hero_trial` とArea 87 `time_reader_hero_trial`をCity 10の`area_kind=hero_trial`・`is_published=false`として追加し、既存`character_area_progresses.boss_defeated`へ合格記録を保存する。英雄職ID72/77はhiddenのままactiveにし、`job_requirements`へ72→63（星冠導師）と77→67（金冠錬師）の`master_job`条件を追加する。試練主と敵技は`config/hero_trials.php`だけで組み立てる仮想敵であり、`enemies`/`enemy_actions`行は追加しない。公開可否はDBマスタの`is_published`ではなく、既定OFFの追加コンテンツ`hero_trials`で一括制御する。
+
 Job Art v2 targeted balance sync: `2026_08_15_120000_rebalance_crown_alchemist_job_art.php`は既存の`skills` job 67 / Rank9 / `job_art` / 「金冠ミダスフィールド」1行だけを照合し、IDを変えず`power=315`・`power_multiplier=3.15`へ更新する。冠位戦技層自体が未投入のfresh installでは何もしないが、job 60〜69の戦技がある状態で対象が0件または重複している場合は停止する。schema・slot・preset・他の戦技行は変更せず、全282戦技のruntime master同期とは別の限定移行である。
 
 Job Art first replacement wave: `2026_08_17_150000_replace_first_wave_job_arts.php`は`skills`の自然キー1:1・2:5・5:9・9:9・12:9・15:1・29:1だけを一意性確認後に更新する。対象キーが1件もないfresh installではSeederへ委ねてno-opとし、1件以上存在する環境では7件すべてが一意でなければtransaction全体を停止する。既存`skills.id`と戦技枠参照を維持し、schema変更はない。

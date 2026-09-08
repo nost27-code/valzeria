@@ -1268,7 +1268,7 @@ class BattleService
 
         $action = $this->selectEnemyAction($enemy, $state, $attacker);
         if (!$action) {
-            $this->executePhysicalAttack($attacker, $defender, $state);
+            $this->executeConfiguredEnemyNormalAttack($attacker, $defender, $state);
             return;
         }
 
@@ -1380,6 +1380,21 @@ class BattleService
                     }
                 }
                 return;
+            case 'magical':
+                $this->executeMagicalAttack($attacker, $defender, $state, (int) $action->power_percent);
+                return;
+            case 'magical_multi_hit':
+                for ($hit = 0; $hit < max(1, (int) $action->hit_count); $hit++) {
+                    $this->executeMagicalAttack($attacker, $defender, $state, (int) $action->power_percent);
+                    if ($defender->isDead()) {
+                        break;
+                    }
+                }
+                return;
+            case 'magical_spr_down':
+            case 'magical_slow':
+                $this->executeMagicalAttack($attacker, $defender, $state, (int) $action->power_percent);
+                break;
             case 'def_pierce':
                 $ignoreRate = max(0, min(100, (int) $action->effect_percent));
                 $this->executePhysicalAttack($attacker, $defender, $state, (int) $action->power_percent, (int) floor($defender->effectiveDef() * (1 - ($ignoreRate / 100))));
@@ -1397,6 +1412,18 @@ class BattleService
                 $attacker->mag += (int) floor($attacker->baseMag * $rate);
                 $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->name} の攻撃と魔力が高まった！</span>");
                 return;
+            case 'self_speed_buff':
+                if ($suppressSecondary) {
+                    $state->addLog('<span class="text-sky-700 font-bold">封式の場が敵の大技の追加強化を抑えた！</span>');
+                    return;
+                }
+                $rate = max(0, (int) $action->effect_percent) / 100;
+                $attacker->agi = min(
+                    (int) floor($attacker->baseAgi * 1.5),
+                    $attacker->agi + (int) floor($attacker->baseAgi * $rate),
+                );
+                $state->addLog("<span class=\"text-indigo-700 font-bold\">{$attacker->name} の敏捷が高まった！</span>");
+                return;
             default:
                 $this->executePhysicalAttack($attacker, $defender, $state, (int) $action->power_percent);
         }
@@ -1411,9 +1438,21 @@ class BattleService
             'bleed' => $this->applyEnemyCondition($defender, $state, 'bleed', (int) $action->duration_turns, 0.03),
             'def_down' => $this->applyEnemyCondition($defender, $state, 'def_down', (int) $action->duration_turns, (int) $action->effect_percent / 100),
             'slow' => $this->applyEnemyCondition($defender, $state, 'slow', (int) $action->duration_turns, (int) $action->effect_percent / 100),
+            'magical_spr_down' => $this->applyEnemyCondition($defender, $state, 'spr_down', (int) $action->duration_turns, (int) $action->effect_percent / 100),
+            'magical_slow' => $this->applyEnemyCondition($defender, $state, 'slow', (int) $action->duration_turns, (int) $action->effect_percent / 100),
             'recovery_block' => $this->applyEnemyCondition($defender, $state, 'recovery_block', (int) $action->duration_turns, (int) $action->effect_percent / 100),
             default => null,
         };
+    }
+
+    private function executeConfiguredEnemyNormalAttack(BattleActor $attacker, BattleActor $defender, BattleState $state): void
+    {
+        if ($attacker->usesMagForNormalAttack()) {
+            $this->executeMagicalAttack($attacker, $defender, $state);
+            return;
+        }
+
+        $this->executePhysicalAttack($attacker, $defender, $state);
     }
 
     private function executeCurrentHpPercentAttack(BattleActor $attacker, BattleActor $defender, BattleState $state, int $percent): void
@@ -1461,7 +1500,7 @@ class BattleService
     {
         $current = $defender->conditions[$key] ?? [];
         $rate = min(match ($key) {
-            'def_down', 'slow' => 0.40,
+            'def_down', 'spr_down', 'slow' => 0.40,
             'recovery_block' => 0.50,
             default => 1.0,
         }, max((float) ($current['rate'] ?? 0), $rate));
@@ -1469,7 +1508,7 @@ class BattleService
             ? app(ExplorationSupportService::class)->adjustedConditionDuration($turns, $state->explorationSupportSnapshot)
             : max(1, $turns);
         $defender->conditions[$key] = ['turns' => $turns, 'rate' => $rate];
-        $labels = ['burn' => '火傷', 'bleed' => '出血', 'def_down' => '防御低下', 'slow' => '鈍足', 'recovery_block' => '回復阻害'];
+        $labels = ['burn' => '火傷', 'bleed' => '出血', 'def_down' => '防御低下', 'spr_down' => '精神低下', 'slow' => '鈍足', 'recovery_block' => '回復阻害'];
         $state->addLog("<span class=\"battle-log-condition battle-log-condition-{$key}\">{$defender->name} は {$labels[$key]} 状態になった！</span>");
     }
 

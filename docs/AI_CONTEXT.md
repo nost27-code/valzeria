@@ -2,7 +2,7 @@
 
 Purpose: compressed current-state snapshot for ChatGPT and Codex.
 Source of truth: current behavior = code / intended spec = DOMAIN_RULES.md + human rulings (see AGENTS.md "Source of truth"). On conflict, report 要裁定 — do not pick a side.
-Last updated: 2026-09-06
+Last updated: 2026-09-09
 Branch: main
 
 ## Main navigation / nation community
@@ -241,8 +241,8 @@ See docs/FEATURE_STATUS.md (single source for feature status; do not duplicate t
 Hidden / disabled（承認なしに有効化しない）:
 - 管理者専用 `Valzeria Lab` は `VALZERIA_LAB_ENABLED=false` がコード既定で、`local` / `testing` / `staging` / `production` のうち運用が明示的にONにした環境だけ `/admin/valzeria-lab` 配下を公開する。匿名snapshotとseedによる通常戦/ボス戦再現、根拠付き世界参照と整合性候補、初心者・効率・収集の3方針による最大100行動の非永続仮想プレイを提供する。Character、所持品、HP/SP、EXP、Gold、進行、戦績、ランキング、各種ログは更新せず、仮想プレイ固有の判断はLab簡略モデルとして区別する。2026-09-02にSHA `3e133bdd` をmigrationなしでstaging・productionへ同一SHA公開し、本番は明示flag ONで運用している。
 - エネミー図鑑は `/enemy-book` で常時利用できる。未発見の敵は名前・姿・詳細を伏せ、遭遇済み未討伐は名前と姿だけ、討伐済みは能力・ドロップを表示する。素材ドロップはアイテム図鑑の該当素材へ移動でき、装備ドロップはリンクしない。同じエリア・名前・ボス区分の重複敵IDは1体へまとめて履歴を合算し、過去戦闘ログがない攻略済みボスはエリア攻略記録から討伐済みへ補完する。通常探索・ボス・亜域・探索の地図の実戦を `BattleLogService` から記録し、既存戦闘ログは初期migrationで復元する。元敵を借りる特殊イベントは除外する。
-- 英雄試練は追加コンテンツキー `hero_trials` の既定値をOFFとして先行配置する。OFF中は英雄試練殿を探索一覧へ出さず、試練殿・挑戦・結果の直URLと神殿の対応英雄職も閉じる。管理画面でONかつ期間内にした場合だけ公開する。試練殿には全10試練をネタバレなしのカードで並べ、実装済みの試練だけ挑戦導線を有効にする
-- 高位職ID60〜99は未公開（ID44〜49の新上級職は公開済み。超級職ID50〜59は条件達成者にのみ神殿表示。ID39〜43は職業IDとして欠番）
+- 英雄試練は追加コンテンツキー `hero_trials` の既定値をOFFとして本番へ先行配置する。OFF中は英雄試練殿を探索一覧へ出さず、試練殿・挑戦・結果の直URLを閉じるが、達成済みの英雄職は神殿に残る。管理画面でONかつ期間内にした場合だけ公開する。試練殿には全10試練をネタバレなしのカードで並べ、現在は暁・月蝕・星天・時環の4試練だけ挑戦導線を実装済み
+- 高位職ID73〜76・78〜99は未公開（ID44〜49の新上級職は公開済み。超級職ID50〜59は条件達成者にのみ神殿表示。ID70「暁の勇者」、ID71「黒月の執行者」、ID72「星天導師」、ID77「時詠みの旅人」は対応試練の達成者にのみ表示。ID39〜43は職業IDとして欠番）
 - 冒険者支援パス30日は `SUPPORT_PASS_ENABLED=false` で非公開（管理画面からON可）。購入時は即時発動せず30日利用券が所持品に入り、使用時に初めて発動/延長する。公開時は補給商会で、100輝石・1キャラクター1回限りの「冒険者旅立ちセット」も販売し、支援パス30日利用券、探索力の薬3個、素材/装備倉庫拡張、限定カードフレームを一括付与する。未購入かつ鍛冶街グランベルグ到達前（`highest_city_id < 4`）の冒険者には、街ヘッダ直下でセットへの案内を表示する
 - フェルディア地方は `FERDIA_REGION_ENABLED=false` 既定で非公開（管理画面の追加コンテンツ設定からON可）
 - 素材交換所では、薬草の若葉5個とアークレアの粗素材2個から薬草1個、または世界樹の葉片1個と妖精粉3個から薬草2個を調合できる。獣牙3個と魔物の欠片2個から回復薬1個、魔鉱片3個と魔物の欠片2個から魔力水1個も調合できる。毎日10個の無料補給は維持する

@@ -178,7 +178,7 @@ class BlackMoonHeroTrialTest extends TestCase
         $this->assertSame('白銀の試練場', $hallFacilities[9]['name']);
         $this->assertSame('試練に挑む', $hallFacilities[0]['action']);
         $this->assertSame('試練に挑む', $hallFacilities[1]['action']);
-        $this->assertSame('準備中', $hallFacilities[2]['action']);
+        $this->assertSame('道は閉ざされている', $hallFacilities[2]['action']);
 
         $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
         $this->actingAs($character->user)

@@ -92,4 +92,50 @@ class HeroTrialProfileServiceTest extends TestCase
         $this->assertSame(['獣', '悪魔'], $profileService->speciesLabels('black_moon_executor_balanced'));
         $this->assertFileExists(public_path('images/enemy/enemy_724.webp'));
     }
+
+    public function test_star_heaven_trial_creates_a_magical_core_with_spirit_break_and_telegraphed_burst(): void
+    {
+        $profileService = app(HeroTrialProfileService::class);
+        $profile = $profileService->profile('star_heaven_sage_balanced');
+        $enemy = $profileService->enemies('star_heaven_sage_balanced')->sole();
+
+        $this->assertSame(78.2, $profile['benchmark']['pass_rate']);
+        $this->assertSame(['mage', 'machine'], $profile['phases'][0]['species_keys']);
+        $this->assertSame('天象魔導核アステリオン', $enemy->name);
+        $this->assertSame('magical', $enemy->normal_attack_type);
+        $this->assertSame(
+            ['magical_spr_down', 'magical'],
+            $enemy->actions->pluck('action_type')->all(),
+        );
+        $this->assertTrue((bool) $enemy->actions->firstWhere('action_key', 'stellar_collapse')->is_telegraphed);
+        $this->assertSame(['魔法型', '機械'], $profileService->speciesLabels('star_heaven_sage_balanced'));
+        $this->assertFileExists(public_path('images/enemy/enemy_725.webp'));
+    }
+
+    public function test_time_reader_trial_creates_a_magical_speed_enemy_with_slow_multi_hit_and_acceleration(): void
+    {
+        $profileService = app(HeroTrialProfileService::class);
+        $profile = $profileService->profile('time_reader_traveler_balanced');
+        $enemy = $profileService->enemies('time_reader_traveler_balanced')->sole();
+
+        $this->assertSame(54.3, $profile['benchmark']['pass_rate']);
+        $this->assertSame(['mage', 'spirit'], $profile['phases'][0]['species_keys']);
+        $this->assertSame('時環の観測者エオン', $enemy->name);
+        $this->assertSame('magical', $enemy->normal_attack_type);
+        $this->assertSame(80_000, $enemy->max_hp);
+        $this->assertSame(5_800, $enemy->def);
+        $this->assertSame(11_500, $enemy->agi);
+        $this->assertSame(9_600, $enemy->mag);
+        $this->assertSame(6_600, $enemy->spr);
+        $this->assertSame(
+            ['magical_slow', 'magical_multi_hit', 'self_speed_buff'],
+            $enemy->actions->pluck('action_type')->all(),
+        );
+        $this->assertSame(30, $enemy->actions->firstWhere('action_key', 'time_bind')->effect_percent);
+        $this->assertSame(85, $enemy->actions->firstWhere('action_key', 'clockwork_barrage')->power_percent);
+        $this->assertSame(2, $enemy->actions->firstWhere('action_key', 'clockwork_barrage')->hit_count);
+        $this->assertSame(25, $enemy->actions->firstWhere('action_key', 'aeon_acceleration')->effect_percent);
+        $this->assertSame(['魔法型', '精霊'], $profileService->speciesLabels('time_reader_traveler_balanced'));
+        $this->assertFileExists(public_path('images/enemy/enemy_732.webp'));
+    }
 }

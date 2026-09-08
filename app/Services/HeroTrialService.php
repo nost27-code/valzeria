@@ -34,10 +34,6 @@ class HeroTrialService
 
     public function hasClearedForJob(Character $character, JobClass $job): bool
     {
-        if (! $this->isEnabled()) {
-            return false;
-        }
-
         $trial = collect(config('hero_trials.released_trials', []))
             ->first(fn ($candidate): bool => is_array($candidate)
                 && (string) ($candidate['hero_job_key'] ?? '') === (string) $job->key);

@@ -45,7 +45,7 @@ return [
         'hero_trials' => [
             'name' => '英雄試練',
             'category' => '高難度コンテンツ',
-            'description' => '暁の試練場・月蝕の試練場と、対応する英雄職の解放導線を公開します。OFF中は探索一覧・直URL・神殿の英雄職表示を閉じます。',
+            'description' => '暁・月蝕・星天・時環の試練場と、対応する英雄職の解放導線を公開します。OFF中は探索一覧と直URLを閉じますが、達成済みの英雄職は神殿に残ります。',
             'route' => 'home',
             'default_enabled' => env('HERO_TRIALS_ENABLED', false),
             'setting_label' => '英雄試練 公開状態',

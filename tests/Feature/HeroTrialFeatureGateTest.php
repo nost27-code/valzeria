@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Character;
+use App\Models\CharacterAreaProgress;
+use App\Models\JobClass;
 use App\Models\User;
 use App\Services\HeroTrialService;
 use DomainException;
@@ -39,5 +41,24 @@ class HeroTrialFeatureGateTest extends TestCase
         $this->expectExceptionMessage('英雄試練は現在公開されていません。');
 
         $service->challenge(new Character, 'dawn_hero');
+    }
+
+    public function test_a_saved_hero_job_unlock_remains_valid_while_new_challenges_are_off(): void
+    {
+        config(['extra_content.contents.hero_trials.default_enabled' => false]);
+        $character = Character::query()->create([
+            'user_id' => User::factory()->create()->id,
+            'name' => '試練達成済み冒険者',
+        ]);
+        CharacterAreaProgress::query()->create([
+            'character_id' => $character->id,
+            'area_id' => 84,
+            'is_unlocked' => true,
+            'boss_defeated' => true,
+        ]);
+
+        $heroJob = JobClass::query()->where('key', 'dawn_hero')->firstOrFail();
+
+        $this->assertTrue(app(HeroTrialService::class)->hasClearedForJob($character, $heroJob));
     }
 }
