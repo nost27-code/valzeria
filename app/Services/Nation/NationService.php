@@ -40,7 +40,7 @@ final class NationService
             throw_if(NationMembership::where('character_id', $lockedCharacter->id)->exists(), \DomainException::class, 'すでに国家へ所属しています。');
             throw_if(
                 NationJoinApplication::where('character_id', $lockedCharacter->id)
-                    ->where('status', NationJoinApplication::STATUS_PENDING)
+                    ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
                     ->exists(),
                 \DomainException::class,
                 '加入申請中は建国できません。先に申請を取り消してください。',

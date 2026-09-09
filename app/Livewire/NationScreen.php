@@ -116,6 +116,8 @@ final class NationScreen extends Component
 
     public string $profileDescription = '';
 
+    public string $profileJoinPolicy = '';
+
     public bool $profileRecruitmentEnabled = true;
 
     public string $profileRecruitmentMessage = '';
@@ -452,6 +454,7 @@ final class NationScreen extends Component
         }
         $nation = $membership->nation;
         $this->profileDescription = (string) ($nation->description ?? '');
+        $this->profileJoinPolicy = (string) ($nation->join_policy ?? '');
         $this->profileRecruitmentEnabled = (bool) $nation->recruitment_enabled;
         $this->profileRecruitmentMessage = (string) ($nation->recruitment_message ?? '');
         $this->profileEmblemKey = app(NationEmblemCatalog::class)->selectableKey($nation->emblem_key);
@@ -964,6 +967,10 @@ final class NationScreen extends Component
             $nation->display_name.'へ加入申請を送りました。',
         );
         if ($application) {
+            if ($application->status === NationJoinApplication::STATUS_WAITLISTED) {
+                $position = app(NationJoinApplicationService::class)->waitlistPosition($application);
+                $this->actionMessage = $nation->display_name.'の定員待ちに登録しました。'.($position ? "現在{$position}番目です。" : '');
+            }
             $this->joinMessage = '';
         }
     }
@@ -997,7 +1004,7 @@ final class NationScreen extends Component
         $application = NationJoinApplication::query()
             ->whereKey($applicationId)
             ->where('nation_id', $membership->nation_id)
-            ->where('status', NationJoinApplication::STATUS_PENDING)
+            ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
             ->first();
         if (! $application) {
             $this->addError('nationAction', '加入申請が見つかりません。');
@@ -1028,11 +1035,13 @@ final class NationScreen extends Component
     {
         $validated = $this->validate([
             'profileDescription' => ['nullable', 'string', 'max:200'],
+            'profileJoinPolicy' => ['nullable', 'string', 'max:100'],
             'profileRecruitmentEnabled' => ['boolean'],
             'profileRecruitmentMessage' => ['nullable', 'string', 'max:100'],
             'profileEmblemKey' => ['required', Rule::in(array_keys(app(NationEmblemCatalog::class)->all()))],
         ], [
             'profileDescription.max' => '国家紹介は200文字以内で入力してください。',
+            'profileJoinPolicy.max' => '加入方針は100文字以内で入力してください。',
             'profileRecruitmentMessage.max' => '募集文は100文字以内で入力してください。',
         ]);
         $membership = $this->rulerOrError();
@@ -1047,6 +1056,7 @@ final class NationScreen extends Component
                 (bool) $validated['profileRecruitmentEnabled'],
                 $validated['profileRecruitmentMessage'] ?? null,
                 $validated['profileEmblemKey'],
+                $validated['profileJoinPolicy'] ?? null,
             ),
             '国家プロフィールを更新しました。',
         );
@@ -1339,11 +1349,15 @@ final class NationScreen extends Component
         $ownPendingApplication = ! $membership
             ? NationJoinApplication::with('nation')
                 ->where('character_id', $character->id)
-                ->where('status', NationJoinApplication::STATUS_PENDING)
+                ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
                 ->first()
+            : null;
+        $ownWaitlistPosition = $ownPendingApplication
+            ? app(NationJoinApplicationService::class)->waitlistPosition($ownPendingApplication)
             : null;
         $pendingApplications = collect();
         $applicationPowers = [];
+        $applicationWaitlistPositions = [];
         $leaveEligibility = null;
         $activityDescriptions = [];
         $activityLogs = collect();
@@ -1490,15 +1504,20 @@ final class NationScreen extends Component
             if ($membership->isRuler()) {
                 $pendingApplications = NationJoinApplication::with(['character.jobClass'])
                     ->where('nation_id', $membership->nation_id)
-                    ->where('status', NationJoinApplication::STATUS_PENDING)
+                    ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
                     ->orderBy('requested_at')
+                    ->orderBy('id')
                     ->get();
                 $statusService = app(CharacterStatusService::class);
                 $powerService = app(CharacterPowerService::class);
+                $waitlistPosition = 0;
                 foreach ($pendingApplications as $application) {
                     $applicationPowers[$application->id] = $powerService->fromFinalStats(
                         $statusService->getFinalStats($application->character),
                     );
+                    $applicationWaitlistPositions[$application->id] = $application->status === NationJoinApplication::STATUS_WAITLISTED
+                        ? ++$waitlistPosition
+                        : null;
                 }
 
                 $activityLogTotal = $membership->nation->activityLogs()->count();
@@ -1572,8 +1591,10 @@ final class NationScreen extends Component
             'selectedNation' => $selectedNation,
             'joinEligibility' => $joinEligibility,
             'ownPendingApplication' => $ownPendingApplication,
+            'ownWaitlistPosition' => $ownWaitlistPosition,
             'pendingApplications' => $pendingApplications,
             'applicationPowers' => $applicationPowers,
+            'applicationWaitlistPositions' => $applicationWaitlistPositions,
             'leaveEligibility' => $leaveEligibility,
             'activityLogs' => $activityLogs,
             'activityLogModalEntries' => $activityLogModalEntries,

@@ -41,7 +41,7 @@ final class NationDissolutionService
             ]);
 
             $pendingApplications = NationJoinApplication::where('nation_id', $nation->id)
-                ->where('status', NationJoinApplication::STATUS_PENDING)
+                ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
                 ->lockForUpdate()
                 ->get();
             foreach ($pendingApplications as $application) {

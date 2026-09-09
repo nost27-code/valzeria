@@ -142,6 +142,12 @@
                     <h2 class="text-sm font-black text-stone-800">国家紹介</h2>
                     <p class="mt-1 whitespace-pre-line text-sm font-bold leading-relaxed text-stone-600">{{ $selectedNation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
                 </div>
+                @if($selectedNation->join_policy)
+                    <div class="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                        <h2 class="text-sm font-black text-emerald-900">加入方針</h2>
+                        <p class="mt-1 whitespace-pre-line text-sm font-bold text-emerald-800">{{ $selectedNation->join_policy }}</p>
+                    </div>
+                @endif
                 @if($selectedNation->recruitment_message)
                     <div class="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
                         <h2 class="text-sm font-black text-blue-900">募集文</h2>
@@ -157,15 +163,21 @@
                     <div class="mt-4">
                         @if($joinEligibility['pending'] && (int) $joinEligibility['pending']->nation_id === (int) $selectedNation->id)
                             <div class="rounded-xl border border-sky-200 bg-sky-50 p-3">
-                                <p class="text-sm font-black text-sky-900">加入申請中</p>
+                                <p class="text-sm font-black text-sky-900">
+                                    {{ $joinEligibility['pending']->status === \App\Models\NationJoinApplication::STATUS_WAITLISTED ? '定員待ち' : '加入申請中' }}
+                                    @if($joinEligibility['waitlist_position'])（現在{{ $joinEligibility['waitlist_position'] }}番目）@endif
+                                </p>
                                 <button type="button" wire:click="cancelJoinApplication({{ $joinEligibility['pending']->id }})" wire:loading.attr="disabled" class="mt-2 min-h-11 w-full rounded-lg border border-sky-300 bg-white text-sm font-black text-sky-800 disabled:opacity-50">申請を取り消す</button>
                             </div>
                         @elseif($joinEligibility['allowed'])
+                            @if($joinEligibility['will_waitlist'])
+                                <p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">現在は満員です。申請すると定員待ちに登録され、空きができた後に統治者が承認できます。</p>
+                            @endif
                             <label class="block text-sm font-black text-stone-800">申請時の一言（任意）
                                 <textarea wire:model="joinMessage" maxlength="100" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm font-bold" placeholder="始めたばかりですが、よろしくお願いします！"></textarea>
                             </label>
                             @error('joinMessage')<span class="mt-1 block text-xs font-bold text-rose-700">{{ $message }}</span>@enderror
-                            <button type="button" wire:click="submitJoinApplication" wire:loading.attr="disabled" wire:target="submitJoinApplication" class="mt-2 min-h-12 w-full rounded-xl border border-blue-800 bg-blue-600 font-black text-white disabled:opacity-50">加入申請を送る</button>
+                            <button type="button" wire:click="submitJoinApplication" wire:loading.attr="disabled" wire:target="submitJoinApplication" class="mt-2 min-h-12 w-full rounded-xl border border-blue-800 bg-blue-600 font-black text-white disabled:opacity-50">{{ $joinEligibility['will_waitlist'] ? '定員待ちに登録する' : '加入申請を送る' }}</button>
                         @else
                             <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm font-bold text-stone-700">
                                 <p class="font-black">加入申請できません</p>
@@ -236,7 +248,7 @@
                     </div>
                     @if($ownPendingApplication)
                         <div class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
-                            <p class="text-sm font-black text-sky-900">{{ $ownPendingApplication->nation->display_name }}へ加入申請中</p>
+                            <p class="text-sm font-black text-sky-900">{{ $ownPendingApplication->nation->display_name }}へ{{ $ownPendingApplication->status === \App\Models\NationJoinApplication::STATUS_WAITLISTED ? '定員待ち' : '加入申請中' }}@if($ownWaitlistPosition)（現在{{ $ownWaitlistPosition }}番目）@endif</p>
                             <div class="mt-2 grid grid-cols-2 gap-2"><button type="button" wire:click="showNationDetail({{ $ownPendingApplication->nation_id }})" class="min-h-10 rounded-lg border border-sky-300 bg-white text-xs font-black text-sky-800">国家詳細</button><button type="button" wire:click="cancelJoinApplication({{ $ownPendingApplication->id }})" class="min-h-10 rounded-lg border border-rose-300 bg-white text-xs font-black text-rose-700">申請取消</button></div>
                         </div>
                     @endif
@@ -262,7 +274,8 @@
                         <article class="flex gap-3 py-3">
                             <img src="{{ asset($nation->emblem['path']) }}" alt="{{ $nation->emblem['alt'] }}" width="128" height="128" loading="lazy" class="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20">
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="truncate text-base font-black text-stone-950">{{ $nation->display_name }}</h3><p class="mt-0.5 text-xs font-bold text-stone-500">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>@if($developmentEnabled)<p class="mt-0.5 text-xs font-black text-amber-700">国家Lv{{ $nationLevels[$nation->id] ?? 1 }}</p>@endif</div><div class="shrink-0 text-right"><div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/{{ $nationCapacities[$nation->id] ?? $maxMembers }}人</div><div class="text-[11px] font-black {{ $nation->recruitment_enabled ? 'text-emerald-600' : 'text-stone-500' }}">{{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}</div></div></div>
+                                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="truncate text-base font-black text-stone-950">{{ $nation->display_name }}</h3><p class="mt-0.5 text-xs font-bold text-stone-500">{{ $nation->ruler_title }}：{{ $nation->rulerMembership?->character?->name ?? '不明' }}</p>@if($developmentEnabled)<p class="mt-0.5 text-xs font-black text-amber-700">国家Lv{{ $nationLevels[$nation->id] ?? 1 }}</p>@endif</div><div class="shrink-0 text-right"><div class="text-sm font-black text-stone-700">{{ $nation->memberships_count }}/{{ $nationCapacities[$nation->id] ?? $maxMembers }}人</div><div class="text-[11px] font-black {{ $nation->recruitment_enabled ? 'text-emerald-600' : 'text-stone-500' }}">{{ ! $nation->recruitment_enabled ? '募集停止' : ($nation->memberships_count >= ($nationCapacities[$nation->id] ?? $maxMembers) ? '定員待ち受付中' : '国民募集中') }}</div></div></div>
+                                @if($nation->join_policy)<p class="mt-1 line-clamp-2 text-xs font-black leading-relaxed text-emerald-700">加入方針：{{ $nation->join_policy }}</p>@endif
                                 <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-blue-700">{{ $nation->recruitment_message ?: '募集文はまだありません。' }}</p>
                                 <p class="mt-1 line-clamp-2 text-xs font-bold leading-relaxed text-stone-600">{{ $nation->description ?: 'この国の物語は、これから刻まれていく。' }}</p>
                                 <button type="button" wire:click="showNationDetail({{ $nation->id }})" class="mt-2 min-h-9 w-full rounded-lg border border-stone-300 bg-white px-2 text-xs font-black text-stone-700">詳細を見る</button>
@@ -626,11 +639,14 @@
                                         @endif
                                     </h3>
                                     <p class="mt-1 text-xs font-bold text-stone-500">Lv{{ $application->character?->level ?? 1 }} / 戦力 {{ number_format($applicationPowers[$application->id] ?? 0) }} / {{ $application->character?->jobClass?->name ?? '無職' }}</p>
+                                    @if($application->status === \App\Models\NationJoinApplication::STATUS_WAITLISTED)
+                                        <p class="mt-1 text-xs font-black text-amber-700">定員待ち・{{ $applicationWaitlistPositions[$application->id] ?? '-' }}番目</p>
+                                    @endif
                                 </div>
                                 <time class="shrink-0 text-xs font-bold text-stone-500">{{ $application->requested_at?->format('m/d H:i') }}</time>
                             </div>
                             <p class="mt-2 rounded-lg bg-stone-50 px-3 py-2 text-sm font-bold text-stone-700">{{ $application->message ?: '一言はありません。' }}</p>
-                            <div class="mt-3 grid grid-cols-2 gap-2"><button type="button" wire:click="openApplicationApprovalConfirmation({{ $application->id }})" wire:loading.attr="disabled" wire:target="openApplicationApprovalConfirmation({{ $application->id }})" class="min-h-11 rounded-lg bg-emerald-600 text-sm font-black text-white disabled:opacity-50">承認</button><button type="button" wire:click="rejectApplication({{ $application->id }})" wire:loading.attr="disabled" class="min-h-11 rounded-lg border border-rose-300 bg-white text-sm font-black text-rose-700 disabled:opacity-50">却下</button></div>
+                            <div class="mt-3 grid grid-cols-2 gap-2"><button type="button" wire:click="openApplicationApprovalConfirmation({{ $application->id }})" wire:loading.attr="disabled" wire:target="openApplicationApprovalConfirmation({{ $application->id }})" @disabled($nation->memberships->count() >= $maxMembers) class="min-h-11 rounded-lg bg-emerald-600 text-sm font-black text-white disabled:opacity-50">{{ $nation->memberships->count() >= $maxMembers ? '空き待ち' : '承認' }}</button><button type="button" wire:click="rejectApplication({{ $application->id }})" wire:loading.attr="disabled" class="min-h-11 rounded-lg border border-rose-300 bg-white text-sm font-black text-rose-700 disabled:opacity-50">却下</button></div>
                         </article>
                     @empty
                         <p class="py-7 text-center text-sm font-bold text-stone-500">現在、加入申請はありません。</p>
@@ -663,6 +679,7 @@
                 <h2 class="text-xl font-black text-stone-950">国家プロフィール</h2>
                 <form wire:submit="saveProfile" class="mt-4 space-y-4">
                     <label class="block text-sm font-black text-stone-800">国家紹介<textarea wire:model="profileDescription" maxlength="200" rows="4" class="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm font-bold"></textarea></label>
+                    <label class="block text-sm font-black text-stone-800">加入方針<span class="mt-0.5 block text-xs font-bold text-stone-500">活動ペースやノルマの有無など、加入前に知ってほしい方針</span><textarea wire:model="profileJoinPolicy" maxlength="100" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm font-bold" placeholder="例：ノルマなし・マイペース歓迎"></textarea></label>
                     <label class="flex min-h-12 items-center justify-between rounded-xl border border-stone-200 px-3"><span><span class="block text-sm font-black text-stone-800">国民募集</span><span class="block text-xs font-bold text-stone-500">OFF後も既存申請は審査できます</span></span><input type="checkbox" wire:model="profileRecruitmentEnabled" class="h-5 w-5 rounded text-emerald-600"></label>
                     <label class="block text-sm font-black text-stone-800">募集文<textarea wire:model="profileRecruitmentMessage" maxlength="100" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm font-bold"></textarea></label>
                     <fieldset>
@@ -701,7 +718,7 @@
                         'items' => [
                             ['key' => 'applications', 'action' => 'showApplications', 'icon' => '📨', 'title' => '加入申請', 'description' => '届いた加入申請を確認・審査する', 'badge' => $pendingCount > 0 ? "{$pendingCount}件" : null],
                             ['key' => 'members', 'action' => 'showMemberManagement', 'icon' => '👥', 'title' => '国民・役職管理', 'description' => '国民の役職変更や追放を行う'],
-                            ['key' => 'profile', 'action' => 'showProfileSettings', 'icon' => '📝', 'title' => '紹介・募集', 'description' => '国家紹介・募集文・紋章を編集する'],
+                            ['key' => 'profile', 'action' => 'showProfileSettings', 'icon' => '📝', 'title' => '紹介・募集', 'description' => '国家紹介・加入方針・募集文・紋章を編集する'],
                         ],
                     ],
                     [

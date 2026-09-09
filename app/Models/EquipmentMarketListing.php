@@ -13,12 +13,14 @@ class EquipmentMarketListing extends Model
         'appraisal_price' => 'integer', 'minimum_price' => 'integer', 'maximum_price' => 'integer',
         'listing_price' => 'integer', 'appraisal_version' => 'integer', 'fee_rate_bps' => 'integer',
         'fee_amount' => 'integer', 'seller_proceeds' => 'integer', 'enhance_level' => 'integer',
+        'recipient_character_id' => 'integer',
         'engraving_level' => 'integer', 'slayer_level' => 'integer', 'expires_at' => 'datetime',
         'sold_at' => 'datetime', 'cancelled_at' => 'datetime',
     ];
 
     public function seller() { return $this->belongsTo(Character::class, 'seller_character_id'); }
     public function buyer() { return $this->belongsTo(Character::class, 'buyer_character_id'); }
+    public function recipient() { return $this->belongsTo(Character::class, 'recipient_character_id'); }
     public function characterItem() { return $this->belongsTo(CharacterItem::class); }
     public function transaction() { return $this->hasOne(EquipmentMarketTransaction::class, 'listing_id'); }
     public function shop() { return $this->belongsTo(PlayerShop::class, 'shop_id'); }
@@ -32,6 +34,26 @@ class EquipmentMarketListing extends Model
         }
 
         return $query;
+    }
+
+    public function scopeVisibleTo($query, Character|int $character)
+    {
+        $characterId = $character instanceof Character ? $character->id : $character;
+
+        return $query->where(function ($visible) use ($characterId): void {
+            $visible->whereNull('recipient_character_id')
+                ->orWhere('recipient_character_id', $characterId)
+                ->orWhere('seller_character_id', $characterId);
+        });
+    }
+
+    public function isVisibleTo(Character|int $character): bool
+    {
+        $characterId = $character instanceof Character ? $character->id : $character;
+
+        return $this->recipient_character_id === null
+            || (int) $this->recipient_character_id === (int) $characterId
+            || (int) $this->seller_character_id === (int) $characterId;
     }
 
     public function appraisalRatioPercent(): ?float

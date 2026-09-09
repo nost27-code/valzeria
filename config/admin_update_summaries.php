@@ -2,6 +2,20 @@
 
 return [
     [
+        'id' => '2026-09-09-nation-join-policy-waitlist',
+        'date' => '2026-09-09',
+        'category' => 'added',
+        'title' => '国家の加入方針と定員待ちを追加',
+        'detail' => '国家が活動ペースやノルマの有無などの加入方針を公開できるようになりました。満員時も定員待ちへ登録でき、空きができた後に統治者が承認できます。',
+    ],
+    [
+        'id' => '2026-09-09-equipment-market-directed-listing',
+        'date' => '2026-09-09',
+        'category' => 'added',
+        'title' => '装備市場に宛先指定出品を追加',
+        'detail' => '装備市場で特定の冒険者を宛先に指定して出品できるようになりました。指定した出品は相手と出品者だけに表示され、相手へ通知されます。',
+    ],
+    [
         'id' => '2026-09-09-exclusive-character-icon-051',
         'date' => '2026-09-09',
         'category' => 'internal',

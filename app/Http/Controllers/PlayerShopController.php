@@ -53,7 +53,7 @@ class PlayerShopController extends Controller
         abort_unless($shop->status === 'open' || (int) $shop->character_id === (int) $character->id, 404);
         $shop->load('character');
         $materialListings = MarketListing::query()->active()->where('shop_id', $shop->id)->with('material')->orderBy('unit_price')->get();
-        $equipmentListings = EquipmentMarketListing::query()->active()->where('shop_id', $shop->id)->orderBy('listing_price')->get();
+        $equipmentListings = EquipmentMarketListing::query()->active()->visibleTo($character)->with('recipient')->where('shop_id', $shop->id)->orderBy('listing_price')->get();
         $eggListings = ShopEggListing::query()->active()->where('shop_id', $shop->id)->orderBy('listing_price')->get();
         $isFavorite = ShopFavorite::query()->where('shop_id', $shop->id)->where('character_id', $character->id)->exists();
         return view('shops.show', compact('character', 'shop', 'materialListings', 'equipmentListings', 'eggListings', 'isFavorite'));
@@ -64,7 +64,7 @@ class PlayerShopController extends Controller
         $character = $this->character();
         $shop = $this->shopService->ensureForCharacter($character);
         $materialListings = MarketListing::query()->where('shop_id', $shop->id)->with('material')->latest()->limit(100)->get();
-        $equipmentListings = EquipmentMarketListing::query()->where('shop_id', $shop->id)->latest()->limit(100)->get();
+        $equipmentListings = EquipmentMarketListing::query()->with('recipient')->where('shop_id', $shop->id)->latest()->limit(100)->get();
         $eggListings = ShopEggListing::query()->where('shop_id', $shop->id)->latest()->limit(100)->get();
         $eggs = PlayerValmonEgg::query()->with('master')->where('character_id', $character->id)->whereNotNull('stored_at')->where('is_hatched', false)->where('is_lost', false)
             ->whereDoesntHave('shopListings', fn ($q) => $q->where('status', 'active')->where('expires_at', '>', now()))->latest('stored_at')->get();

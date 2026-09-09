@@ -60,6 +60,7 @@
                             <div class="shrink-0 text-left lg:text-right">
                                 <div class="text-xs font-black text-slate-500">出品者</div>
                                 <div class="text-sm font-black text-slate-950">{{ $listing->seller?->name ?? '-' }}</div>
+                                <div class="mt-1 text-xs font-black {{ $listing->recipient_character_id ? 'text-amber-700' : 'text-slate-500' }}">{{ $listing->recipient_character_id ? '宛先：'.($listing->recipient?->name ?? '削除済み').' #'.$listing->recipient_character_id : '公開出品' }}</div>
                                 <div class="mt-2 text-lg font-black text-violet-700">{{ number_format($listing->listing_price) }}G</div>
                                 <div class="text-xs font-bold text-slate-500">期限 {{ $listing->expires_at?->format('Y/m/d H:i') ?? '-' }}</div>
                             </div>

@@ -33,7 +33,7 @@ final class NationJoinApplicationService
             throw_if(NationMembership::where('character_id', $lockedCharacter->id)->exists(), \DomainException::class, 'すでに国家へ所属しています。');
 
             $pending = NationJoinApplication::where('character_id', $lockedCharacter->id)
-                ->where('status', NationJoinApplication::STATUS_PENDING)
+                ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
                 ->lockForUpdate()
                 ->first();
             throw_if($pending, \DomainException::class, 'すでに別の加入申請が進行中です。');
@@ -47,8 +47,11 @@ final class NationJoinApplicationService
                 throw new \DomainException('この国家へは再申請待機期間中です。 残り '.$this->cooldowns->remainingLabel($application->retry_after));
             }
 
+            $isFull = $lockedNation->memberships()->count() >= $this->settings->maxMembersFor($lockedNation);
             $values = [
-                'status' => NationJoinApplication::STATUS_PENDING,
+                'status' => $isFull
+                    ? NationJoinApplication::STATUS_WAITLISTED
+                    : NationJoinApplication::STATUS_PENDING,
                 'message' => $message !== '' ? $message : null,
                 'requested_at' => now(),
                 'reviewed_at' => null,
@@ -78,7 +81,7 @@ final class NationJoinApplicationService
             $lockedCharacter = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
             $lockedApplication = NationJoinApplication::whereKey($application->id)->lockForUpdate()->firstOrFail();
             throw_unless((int) $lockedApplication->character_id === (int) $lockedCharacter->id, \DomainException::class, 'この加入申請を取り消す権限がありません。');
-            throw_unless($lockedApplication->status === NationJoinApplication::STATUS_PENDING, \DomainException::class, 'この加入申請はすでに処理されています。');
+            throw_unless($lockedApplication->isOpen(), \DomainException::class, 'この加入申請はすでに処理されています。');
             $nation = Nation::whereKey($lockedApplication->nation_id)->lockForUpdate()->firstOrFail();
             $retryAfter = now()->addHours($this->settings->applicationRetryHours());
 
@@ -96,7 +99,7 @@ final class NationJoinApplicationService
     {
         return DB::transaction(function () use ($actor, $application): NationMembership {
             $lockedApplication = NationJoinApplication::whereKey($application->id)->lockForUpdate()->firstOrFail();
-            throw_unless($lockedApplication->status === NationJoinApplication::STATUS_PENDING, \DomainException::class, 'この加入申請はすでに処理されています。');
+            throw_unless($lockedApplication->isOpen(), \DomainException::class, 'この加入申請はすでに処理されています。');
             $nation = Nation::whereKey($lockedApplication->nation_id)->lockForUpdate()->firstOrFail();
             $actorMembership = NationMembership::where('character_id', $actor->id)->lockForUpdate()->first();
             throw_unless($actorMembership && (int) $actorMembership->nation_id === (int) $nation->id, \DomainException::class, 'この加入申請を処理する権限がありません。');
@@ -117,7 +120,7 @@ final class NationJoinApplicationService
                 'retry_after' => null,
             ]);
             NationJoinApplication::where('character_id', $applicant->id)
-                ->where('status', NationJoinApplication::STATUS_PENDING)
+                ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
                 ->whereKeyNot($lockedApplication->id)
                 ->update([
                     'status' => NationJoinApplication::STATUS_CANCELED,
@@ -141,7 +144,7 @@ final class NationJoinApplicationService
     {
         DB::transaction(function () use ($actor, $application): void {
             $lockedApplication = NationJoinApplication::whereKey($application->id)->lockForUpdate()->firstOrFail();
-            throw_unless($lockedApplication->status === NationJoinApplication::STATUS_PENDING, \DomainException::class, 'この加入申請はすでに処理されています。');
+            throw_unless($lockedApplication->isOpen(), \DomainException::class, 'この加入申請はすでに処理されています。');
             $nation = Nation::whereKey($lockedApplication->nation_id)->lockForUpdate()->firstOrFail();
             $actorMembership = NationMembership::where('character_id', $actor->id)->lockForUpdate()->first();
             throw_unless($actorMembership && (int) $actorMembership->nation_id === (int) $nation->id, \DomainException::class, 'この加入申請を処理する権限がありません。');
@@ -158,15 +161,15 @@ final class NationJoinApplicationService
         }, 3);
     }
 
-    /** @return array{allowed:bool,reason:?string,blocked_until:?CarbonInterface,pending:?NationJoinApplication} */
+    /** @return array{allowed:bool,reason:?string,blocked_until:?CarbonInterface,pending:?NationJoinApplication,will_waitlist:bool,waitlist_position:?int} */
     public function eligibility(Character $character, Nation $nation): array
     {
         if (NationMembership::where('character_id', $character->id)->exists()) {
-            return ['allowed' => false, 'reason' => 'すでに国家へ所属しています。', 'blocked_until' => null, 'pending' => null];
+            return ['allowed' => false, 'reason' => 'すでに国家へ所属しています。', 'blocked_until' => null, 'pending' => null, 'will_waitlist' => false, 'waitlist_position' => null];
         }
 
         $pending = NationJoinApplication::where('character_id', $character->id)
-            ->where('status', NationJoinApplication::STATUS_PENDING)
+            ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
             ->first();
         if ($pending) {
             return [
@@ -174,29 +177,53 @@ final class NationJoinApplicationService
                 'reason' => (int) $pending->nation_id === (int) $nation->id ? 'この国家へ申請中です。' : '別の国家へ申請中です。',
                 'blocked_until' => null,
                 'pending' => $pending,
+                'will_waitlist' => false,
+                'waitlist_position' => $this->waitlistPosition($pending),
             ];
         }
 
         if ($nation->status !== Nation::STATUS_ACTIVE || $nation->is_hidden) {
-            return ['allowed' => false, 'reason' => 'この国家は現在加入を受け付けていません。', 'blocked_until' => null, 'pending' => null];
+            return ['allowed' => false, 'reason' => 'この国家は現在加入を受け付けていません。', 'blocked_until' => null, 'pending' => null, 'will_waitlist' => false, 'waitlist_position' => null];
         }
         if (! $nation->recruitment_enabled) {
-            return ['allowed' => false, 'reason' => 'この国家は国民募集を停止しています。', 'blocked_until' => null, 'pending' => null];
-        }
-        if ($nation->memberships()->count() >= $this->settings->maxMembersFor($nation)) {
-            return ['allowed' => false, 'reason' => 'この国家は定員に達しています。', 'blocked_until' => null, 'pending' => null];
+            return ['allowed' => false, 'reason' => 'この国家は国民募集を停止しています。', 'blocked_until' => null, 'pending' => null, 'will_waitlist' => false, 'waitlist_position' => null];
         }
 
         $previous = NationJoinApplication::where('nation_id', $nation->id)
             ->where('character_id', $character->id)
             ->first();
         if ($previous?->retry_after?->isFuture()) {
-            return ['allowed' => false, 'reason' => 'この国家へは再申請待機期間中です。', 'blocked_until' => $previous->retry_after, 'pending' => null];
+            return ['allowed' => false, 'reason' => 'この国家へは再申請待機期間中です。', 'blocked_until' => $previous->retry_after, 'pending' => null, 'will_waitlist' => false, 'waitlist_position' => null];
         }
 
         $cooldown = $this->cooldowns->joinEligibility($character, $nation);
 
-        return [...$cooldown, 'pending' => null];
+        return [
+            ...$cooldown,
+            'pending' => null,
+            'will_waitlist' => $cooldown['allowed']
+                && $nation->memberships()->count() >= $this->settings->maxMembersFor($nation),
+            'waitlist_position' => null,
+        ];
+    }
+
+    public function waitlistPosition(NationJoinApplication $application): ?int
+    {
+        if ($application->status !== NationJoinApplication::STATUS_WAITLISTED) {
+            return null;
+        }
+
+        return NationJoinApplication::query()
+            ->where('nation_id', $application->nation_id)
+            ->where('status', NationJoinApplication::STATUS_WAITLISTED)
+            ->where(function ($query) use ($application): void {
+                $query->where('requested_at', '<', $application->requested_at)
+                    ->orWhere(function ($sameTime) use ($application): void {
+                        $sameTime->where('requested_at', $application->requested_at)
+                            ->where('id', '<=', $application->id);
+                    });
+            })
+            ->count();
     }
 
     private function assertAcceptingApplications(Nation $nation): void
@@ -204,7 +231,6 @@ final class NationJoinApplicationService
         throw_unless($nation->status === Nation::STATUS_ACTIVE, \DomainException::class, 'この国家は現在加入を受け付けていません。');
         throw_if($nation->is_hidden, \DomainException::class, 'この国家は現在加入を受け付けていません。');
         throw_unless($nation->recruitment_enabled, \DomainException::class, 'この国家は国民募集を停止しています。');
-        throw_if($nation->memberships()->count() >= $this->settings->maxMembersFor($nation), \DomainException::class, 'この国家は定員に達しています。');
     }
 
     private function notifyRulerOfApplication(
@@ -218,7 +244,10 @@ final class NationJoinApplicationService
                 ->where('nation_id', $nation->id)
                 ->where('role', 'ruler'))
             ->sole();
-        $body = "{$applicant->name}さんから{$nation->display_name}への加入申請が届きました。";
+        $waitlisted = $application->status === NationJoinApplication::STATUS_WAITLISTED;
+        $body = $waitlisted
+            ? "{$applicant->name}さんが{$nation->display_name}の定員待ちに登録しました。"
+            : "{$applicant->name}さんから{$nation->display_name}への加入申請が届きました。";
         if ($message !== '') {
             $body .= "\n一言：{$message}";
         }
@@ -227,7 +256,7 @@ final class NationJoinApplicationService
             character: $ruler,
             category: 'nation',
             type: 'nation_join_application_submitted',
-            title: '【国家】加入申請が届きました',
+            title: $waitlisted ? '【国家】定員待ちが登録されました' : '【国家】加入申請が届きました',
             body: $body,
             actionLabel: '加入申請を見る',
             actionUrl: route('nation.applications'),

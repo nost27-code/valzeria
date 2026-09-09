@@ -44,6 +44,7 @@ final class NationActivityLogService
             'role_assigned' => "{$actor}が{$target}を{$role}に任命した。",
             'role_removed' => "{$actor}が{$target}の役職を解除した。",
             'description_changed' => "{$actor}が国家紹介を変更した。",
+            'join_policy_changed' => "{$actor}が加入方針を変更した。",
             'recruitment_enabled' => "{$actor}が国民募集を開始した。",
             'recruitment_disabled' => "{$actor}が国民募集を停止した。",
             'recruitment_message_changed' => "{$actor}が募集文を変更した。",

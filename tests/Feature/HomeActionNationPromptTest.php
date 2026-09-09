@@ -49,6 +49,27 @@ class HomeActionNationPromptTest extends TestCase
         $this->assertSame('国家への加入申請を確認しよう', $action['title']);
     }
 
+    public function test_it_keeps_the_application_status_prompt_while_waitlisted(): void
+    {
+        config()->set('features.nation_community_enabled', true);
+        $character = $this->createCharacter();
+        $nation = $this->createNation();
+
+        NationJoinApplication::query()->create([
+            'nation_id' => $nation->id,
+            'character_id' => $character->id,
+            'status' => NationJoinApplication::STATUS_WAITLISTED,
+            'requested_at' => now(),
+        ]);
+
+        $action = $this->nationActionFor($character);
+
+        $this->assertNotNull($action);
+        $this->assertSame('nation_join_application_pending', $action['key']);
+        $this->assertSame('国家への加入申請を確認しよう', $action['title']);
+        $this->assertStringContainsString('定員待ち', $action['body']);
+    }
+
     public function test_it_hides_the_prompt_for_members_and_when_the_feature_is_disabled(): void
     {
         config()->set('features.nation_community_enabled', true);

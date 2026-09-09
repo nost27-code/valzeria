@@ -21,14 +21,17 @@ final class NationProfileService
         bool $recruitmentEnabled,
         ?string $recruitmentMessage,
         string $emblemKey,
+        ?string $joinPolicy = null,
     ): Nation {
         $description = trim((string) $description);
         $recruitmentMessage = trim((string) $recruitmentMessage);
+        $joinPolicy = trim((string) $joinPolicy);
         throw_if(mb_strlen($description) > 200, \DomainException::class, '国家紹介は200文字以内で入力してください。');
         throw_if(mb_strlen($recruitmentMessage) > 100, \DomainException::class, '募集文は100文字以内で入力してください。');
+        throw_if(mb_strlen($joinPolicy) > 100, \DomainException::class, '加入方針は100文字以内で入力してください。');
         throw_unless($this->emblems->exists($emblemKey), \DomainException::class, '選択した国家紋章は使用できません。');
 
-        return DB::transaction(function () use ($actor, $description, $recruitmentEnabled, $recruitmentMessage, $emblemKey): Nation {
+        return DB::transaction(function () use ($actor, $description, $recruitmentEnabled, $recruitmentMessage, $emblemKey, $joinPolicy): Nation {
             $nation = Nation::whereKey($actor->nation_id)->lockForUpdate()->firstOrFail();
             throw_unless($nation->status === Nation::STATUS_ACTIVE, \DomainException::class, '解散手続き中の国家設定は変更できません。');
             $lockedActor = NationMembership::whereKey($actor->id)->lockForUpdate()->firstOrFail();
@@ -36,8 +39,10 @@ final class NationProfileService
 
             $nextDescription = $description !== '' ? $description : null;
             $nextRecruitmentMessage = $recruitmentMessage !== '' ? $recruitmentMessage : null;
+            $nextJoinPolicy = $joinPolicy !== '' ? $joinPolicy : null;
             $changes = [
                 'description' => $nextDescription,
+                'join_policy' => $nextJoinPolicy,
                 'recruitment_enabled' => $recruitmentEnabled,
                 'recruitment_message' => $nextRecruitmentMessage,
                 'emblem_key' => $emblemKey,
@@ -48,6 +53,9 @@ final class NationProfileService
 
             if ($previous['description'] !== $nextDescription) {
                 $this->activityLogs->record($nation, 'description_changed', $actorCharacter);
+            }
+            if ($previous['join_policy'] !== $nextJoinPolicy) {
+                $this->activityLogs->record($nation, 'join_policy_changed', $actorCharacter);
             }
             if ((bool) $previous['recruitment_enabled'] !== $recruitmentEnabled) {
                 $this->activityLogs->record($nation, $recruitmentEnabled ? 'recruitment_enabled' : 'recruitment_disabled', $actorCharacter);

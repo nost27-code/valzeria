@@ -159,15 +159,18 @@ class HomeActionService
             return;
         }
 
-        $hasPendingApplication = $character->nationJoinApplications()
-            ->where('status', NationJoinApplication::STATUS_PENDING)
-            ->exists();
+        $openApplication = $character->nationJoinApplications()
+            ->whereIn('status', NationJoinApplication::OPEN_STATUSES)
+            ->first();
+        $hasPendingApplication = $openApplication !== null;
 
         $actions->push([
             'key' => $hasPendingApplication ? 'nation_join_application_pending' : 'nation_join_recommended',
             'title' => $hasPendingApplication ? '国家への加入申請を確認しよう' : '国家に加入してみよう',
             'body' => $hasPendingApplication
-                ? '加入申請の返事を待っています。国家画面で状況を確認できます。'
+                ? ($openApplication->status === NationJoinApplication::STATUS_WAITLISTED
+                    ? '定員待ちに登録されています。国家画面で順番を確認できます。'
+                    : '加入申請の返事を待っています。国家画面で状況を確認できます。')
                 : '気になる国家を探して、仲間とともに冒険してみましょう。',
             'action_label' => '国家へ',
             'tab' => 'nation',

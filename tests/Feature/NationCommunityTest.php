@@ -278,7 +278,7 @@ SQL);
         $this->assertSame(0, NationFacility::count());
     }
 
-    public function test_join_application_requires_recruitment_one_pending_capacity_and_retry_window(): void
+    public function test_join_application_requires_recruitment_one_open_application_and_retry_window(): void
     {
         $first = app(NationService::class)->create($this->character('第一統治者'), '第一');
         $second = app(NationService::class)->create($this->character('第二統治者'), '第二');
@@ -300,7 +300,20 @@ SQL);
         $this->assertDomainFailure(fn () => $service->submit($this->character('募集停止申請者'), $first), '募集を停止');
 
         app(GameSettingService::class)->set('nation.max_members', '1');
-        $this->assertDomainFailure(fn () => $service->submit($this->character('満員申請者'), $second), '定員');
+        $waitlistedApplicant = $this->character('満員申請者');
+        $waitlisted = $service->submit($waitlistedApplicant, $second);
+        $this->assertSame(NationJoinApplication::STATUS_WAITLISTED, $waitlisted->status);
+        $this->assertSame(1, $service->waitlistPosition($waitlisted));
+        $first->update(['recruitment_enabled' => true]);
+        $this->assertDomainFailure(fn () => $service->submit($waitlistedApplicant, $first), '別の加入申請');
+        $this->assertDomainFailure(fn () => $service->approve($second->rulerMembership->character, $waitlisted), '定員');
+
+        app(GameSettingService::class)->set('nation.max_members', '2');
+        $service->approve($second->rulerMembership->character, $waitlisted);
+        $this->assertDatabaseHas('nation_memberships', [
+            'nation_id' => $second->id,
+            'character_id' => $waitlistedApplicant->id,
+        ]);
     }
 
     public function test_join_application_notifies_ruler_and_approval_notifies_applicant(): void
@@ -578,9 +591,10 @@ SQL);
         $application = app(NationJoinApplicationService::class)->submit($applicant, $nation);
         $actor = NationMembership::where('character_id', $ruler->id)->firstOrFail();
 
-        app(NationProfileService::class)->update($actor, '新しい紹介', false, '募集停止中', 'nation_crest_080');
+        app(NationProfileService::class)->update($actor, '新しい紹介', false, '募集停止中', 'nation_crest_080', 'ノルマなし・マイペース歓迎');
         $nation->refresh();
         $this->assertSame('新しい紹介', $nation->description);
+        $this->assertSame('ノルマなし・マイペース歓迎', $nation->join_policy);
         $this->assertFalse($nation->recruitment_enabled);
         $this->assertSame('nation_crest_080', $nation->emblem_key);
         $this->assertDomainFailure(fn () => app(NationJoinApplicationService::class)->submit($this->character('新規申請者'), $nation), '募集を停止');

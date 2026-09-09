@@ -92,7 +92,7 @@
                             $equipmentIcon = $snapshot['icon_path'] ?? \App\Models\Item::weaponIconPathForCategory($listing->weapon_category);
                         @endphp
                         <article class="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-                            <div class="flex items-start justify-between gap-3"><div class="flex min-w-0 items-start gap-2">@if($equipmentIcon)<img src="{{ asset($equipmentIcon) }}" alt="" class="mt-0.5 h-6 w-6 shrink-0 object-contain">@endif<div class="min-w-0"><h3 class="truncate text-sm font-black text-slate-900">{{ $listing->display_name_snapshot }}</h3><div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-500"><span>出品者：{{ $listing->seller?->name ?? '不明' }}</span><span>種類：{{ $categoryLabels[$listing->weapon_category] ?? ($listing->weapon_category ?: '装備') }}</span><span>強化：{{ $listing->enhance_level > 0 ? '+' . $listing->enhance_level : 'なし' }}</span></div></div></div><div class="shrink-0 text-right"><div class="text-base font-black text-violet-700">販売 {{ number_format($listing->listing_price) }}G</div></div></div>
+                            <div class="flex items-start justify-between gap-3"><div class="flex min-w-0 items-start gap-2">@if($equipmentIcon)<img src="{{ asset($equipmentIcon) }}" alt="" class="mt-0.5 h-6 w-6 shrink-0 object-contain">@endif<div class="min-w-0"><div class="flex flex-wrap items-center gap-1"><h3 class="truncate text-sm font-black text-slate-900">{{ $listing->display_name_snapshot }}</h3>@if((int) $listing->recipient_character_id === (int) $character->id)<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">あなた宛て</span>@elseif($listing->recipient_character_id && (int) $listing->seller_character_id === (int) $character->id)<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">宛先：{{ $listing->recipient?->name ?? '指定した冒険者' }}さん</span>@endif</div><div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-500"><span>出品者：{{ $listing->seller?->name ?? '不明' }}</span><span>種類：{{ $categoryLabels[$listing->weapon_category] ?? ($listing->weapon_category ?: '装備') }}</span><span>強化：{{ $listing->enhance_level > 0 ? '+' . $listing->enhance_level : 'なし' }}</span></div></div></div><div class="shrink-0 text-right"><div class="text-base font-black text-violet-700">販売 {{ number_format($listing->listing_price) }}G</div></div></div>
                             @include('equipment-market.partials.effect-badges', ['base' => $snapshot['base_performance_lines'] ?? [], 'engraving' => $snapshot['engraving_effect_lines'] ?? [], 'slayer' => $snapshot['slayer_effect_lines'] ?? []])
                             <a href="{{ route('equipment-market.show', $listing) }}" class="mt-3 inline-flex w-full justify-center rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100">詳細を見る</a>
                         </article>
@@ -102,13 +102,31 @@
 
             <section x-show="tab === 'sell'" @if($tab !== 'sell') style="display:none" @endif class="space-y-3">
                 <div class="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-bold leading-relaxed text-violet-800">販売価格は査定範囲内で変更できます。入力した価格で売れた場合のみ、10%の成立手数料がかかります。出品するだけでは費用はかかりません。</div>
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <h3 class="text-sm font-black text-amber-950">宛先指定（任意）</h3>
+                    <p class="mt-1 text-xs font-bold leading-relaxed text-amber-800">指定すると、その冒険者と自分だけが出品を見られます。価格範囲・手数料・72時間の期限は通常出品と同じです。</p>
+                    @if($selectedRecipient)
+                        <div class="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-white p-3"><span class="min-w-0 text-sm font-black text-stone-900">宛先：{{ $selectedRecipient->name }}さん</span><a href="{{ route('equipment-market.index', ['tab' => 'sell']) }}" class="shrink-0 rounded border border-stone-300 px-3 py-1.5 text-xs font-black text-stone-700">指定を外す</a></div>
+                    @else
+                        <form method="GET" action="{{ route('equipment-market.index') }}" class="mt-3 flex gap-2"><input type="hidden" name="tab" value="sell"><input type="search" name="recipient_search" value="{{ $recipientSearch }}" maxlength="40" placeholder="冒険者名で検索" class="min-w-0 flex-1 rounded-lg border-stone-300 text-sm font-bold"><button class="shrink-0 rounded-lg bg-amber-600 px-4 text-sm font-black text-white">検索</button></form>
+                        @if($recipientSearch !== '')
+                            <div class="mt-2 divide-y divide-amber-100 rounded-lg border border-amber-200 bg-white">
+                                @forelse($recipientCandidates as $candidate)
+                                    <a href="{{ route('equipment-market.index', ['tab' => 'sell', 'recipient_search' => $recipientSearch, 'recipient_character_id' => $candidate->id]) }}" class="flex min-h-11 items-center justify-between gap-2 px-3 py-2 text-sm font-bold text-stone-800 hover:bg-amber-50"><span>{{ $candidate->name }}</span><span class="shrink-0 text-xs text-stone-500">Lv{{ $candidate->level }} / {{ $candidate->jobClass?->name ?? '無職' }}</span></a>
+                                @empty
+                                    <p class="px-3 py-4 text-center text-xs font-bold text-stone-500">該当する冒険者はいません。</p>
+                                @endforelse
+                            </div>
+                        @endif
+                    @endif
+                </div>
                 @forelse($sellable as $item)
                     @php
                         $appraisal = $item->market_appraisal;
                     @endphp
                     @if($appraisal)
                         <form method="POST" action="{{ route('equipment-market.store') }}" class="rounded-lg border border-slate-200 bg-white p-3 shadow-sm" x-data="{ price: {{ $appraisal['appraisal_price'] }}, min: {{ $appraisal['minimum_price'] }}, max: {{ $appraisal['maximum_price'] }}, get fee(){ return Math.floor(this.price * 0.1) }, get proceeds(){ return this.price - this.fee } }" onsubmit="return confirm('この装備を出品します。出品時の費用はかかりません。')">
-                            @csrf <input type="hidden" name="character_item_id" value="{{ $item->id }}">
+                            @csrf <input type="hidden" name="character_item_id" value="{{ $item->id }}">@if($selectedRecipient)<input type="hidden" name="recipient_character_id" value="{{ $selectedRecipient->id }}">@endif
                             <div class="flex items-start gap-2">@if($item->item?->iconImagePath())<img src="{{ asset($item->item->iconImagePath()) }}" alt="" class="mt-0.5 h-6 w-6 shrink-0 object-contain">@endif<div class="text-sm font-black text-slate-900">{{ $item->displayName() }}</div></div>
                             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-500"><span>種類：{{ $categoryLabels[$item->item->weapon_category ?: $item->item->armor_category] ?? ($item->item->weapon_category ?: $item->item->armor_category ?: '装備') }}</span><span>強化：{{ $item->enhance_level > 0 ? '+' . $item->enhance_level : 'なし' }}</span></div>
                             @include('equipment-market.partials.effect-badges', ['base' => $item->basePerformanceLines(), 'engraving' => $item->engravingEffectLines(), 'slayer' => $item->slayerEffectLines()])
@@ -138,7 +156,7 @@
             </section>
 
             <section x-show="tab === 'listings'" @if($tab !== 'listings') style="display:none" @endif class="space-y-2">
-                @forelse($ownListings as $listing)<div class="rounded-lg border border-slate-200 bg-white p-3"><div class="flex items-start justify-between gap-3"><div><div class="text-sm font-black">{{ $listing->display_name_snapshot }}</div><div class="mt-1 text-xs font-bold text-slate-500">{{ number_format($listing->listing_price) }}G ・期限 {{ $listing->expires_at?->format('m/d H:i') }}</div></div><span class="rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">{{ $statusLabels[$listing->status] ?? $listing->status }}</span></div>@if($listing->status === 'active')<form method="POST" action="{{ route('equipment-market.cancel', $listing) }}" class="mt-3">@csrf<button class="rounded border border-red-200 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-50">取消</button></form>@endif</div>@empty <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">出品中の装備はありません。</div>@endforelse
+                @forelse($ownListings as $listing)<div class="rounded-lg border border-slate-200 bg-white p-3"><div class="flex items-start justify-between gap-3"><div><div class="text-sm font-black">{{ $listing->display_name_snapshot }}</div><div class="mt-1 text-xs font-bold text-slate-500">{{ number_format($listing->listing_price) }}G ・期限 {{ $listing->expires_at?->format('m/d H:i') }}</div>@if($listing->recipient_character_id)<div class="mt-1 text-xs font-black text-amber-700">宛先：{{ $listing->recipient?->name ?? '指定した冒険者' }}さん</div>@endif</div><span class="rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-600">{{ $statusLabels[$listing->status] ?? $listing->status }}</span></div>@if($listing->status === 'active')<form method="POST" action="{{ route('equipment-market.cancel', $listing) }}" class="mt-3">@csrf<button class="rounded border border-red-200 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-50">取消</button></form>@endif</div>@empty <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">出品中の装備はありません。</div>@endforelse
             </section>
 
             <section x-show="tab === 'history'" @if($tab !== 'history') style="display:none" @endif class="space-y-2">

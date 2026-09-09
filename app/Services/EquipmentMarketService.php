@@ -21,10 +21,25 @@ class EquipmentMarketService
         private readonly PlayerShopService $shopService,
     ) {}
 
-    public function listEquipment(Character $seller, CharacterItem $characterItem, int $listingPrice): EquipmentMarketListing
+    public function listEquipment(
+        Character $seller,
+        CharacterItem $characterItem,
+        int $listingPrice,
+        ?Character $recipient = null,
+    ): EquipmentMarketListing
     {
-        return DB::transaction(function () use ($seller, $characterItem, $listingPrice) {
+        return DB::transaction(function () use ($seller, $characterItem, $listingPrice, $recipient) {
             $seller = Character::query()->lockForUpdate()->findOrFail($seller->id);
+            $requestedRecipientId = $recipient?->id;
+            $recipient = $requestedRecipientId
+                ? Character::query()->visibleToPublic()->find($requestedRecipientId)
+                : null;
+            if ($requestedRecipientId && ! $recipient) {
+                throw new RuntimeException('指定した宛先が見つかりません。');
+            }
+            if ($recipient && (int) $recipient->id === (int) $seller->id) {
+                throw new RuntimeException('自分自身を宛先には指定できません。');
+            }
             $shop = $this->shopService->isEnabled()
                 ? $this->shopService->assertCanList($seller)
                 : null;
@@ -39,6 +54,7 @@ class EquipmentMarketService
 
             $listing = EquipmentMarketListing::create([
                 'seller_character_id' => $seller->id,
+                'recipient_character_id' => $recipient?->id,
                 'shop_id' => $shop?->id,
                 'character_item_id' => $item->id,
                 'item_id' => $item->item_id,
@@ -67,6 +83,21 @@ class EquipmentMarketService
 
             $item->update(['market_listing_id' => $listing->id]);
             $shop?->update(['last_stocked_at' => now()]);
+            if ($recipient) {
+                $this->notificationService->create(
+                    $recipient,
+                    'market',
+                    'equipment_market_directed_listing',
+                    '【装備市場】あなた宛ての出品が届きました',
+                    "{$seller->name}さんが{$listing->display_name_snapshot}を".number_format($listingPrice).'Gで出品しました。',
+                    '出品を見る',
+                    route('equipment-market.show', $listing),
+                    ['equipment_market_listing_id' => $listing->id],
+                    70,
+                    now()->addDays(7),
+                );
+            }
+
             return $listing;
         });
     }
@@ -86,6 +117,10 @@ class EquipmentMarketService
                 throw new RuntimeException('この出品は期限切れです。');
             }
             if ((int) $listing->seller_character_id === (int) $buyer->id) throw new RuntimeException('自分の出品は購入できません。');
+            if ($listing->recipient_character_id !== null
+                && (int) $listing->recipient_character_id !== (int) $buyer->id) {
+                throw new RuntimeException('この出品は購入できません。');
+            }
 
             $item = CharacterItem::query()->with('item')->lockForUpdate()->findOrFail($listing->character_item_id);
             $characterIds = [(int) $buyer->id, (int) $listing->seller_character_id];

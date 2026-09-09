@@ -76,7 +76,7 @@
                 <div class="min-w-0 flex-1" data-nation-header-capacity>
                     <div class="mb-1 flex justify-end">
                         <span class="inline-flex max-w-full items-center rounded-full px-1.5 py-0.5 text-center text-[7px] font-black sm:px-2 sm:text-[9px] {{ $nation->recruitment_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' }}" data-nation-header-recruitment>
-                            {{ $nation->recruitment_enabled ? '国民募集中' : '募集停止' }}
+                            {{ ! $nation->recruitment_enabled ? '募集停止' : ($memberCount >= $maxMembers ? '定員待ち受付中' : '国民募集中') }}
                         </span>
                     </div>
                     <div class="flex h-4 min-w-0 items-center gap-1 rounded-full border border-amber-100/25 bg-slate-950/75 px-1 shadow-inner sm:h-5 sm:px-1.5" role="img" aria-label="国民数 {{ $memberCount }} / {{ $maxMembers }}人">
