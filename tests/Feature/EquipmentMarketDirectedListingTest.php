@@ -121,6 +121,9 @@ final class EquipmentMarketDirectedListingTest extends TestCase
                 'recipient_search' => '宛先候補',
             ]))
             ->assertOk()
+            ->assertSee('冒険者を検索')
+            ->assertSee('placeholder="冒険者名を入力"', false)
+            ->assertSee('data-equipment-recipient-search', false)
             ->assertSee($recipient->name)
             ->assertSee('宛先にする')
             ->assertSee($recipient->name.'の冒険者カードを見る')

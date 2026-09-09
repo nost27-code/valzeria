@@ -133,7 +133,36 @@
                             <a href="{{ route('equipment-market.index', ['tab' => 'sell']) }}" class="inline-flex min-h-11 shrink-0 items-center rounded border border-stone-300 px-3 py-1.5 text-xs font-black text-stone-700">指定を外す</a>
                         </div>
                     @else
-                        <form method="GET" action="{{ route('equipment-market.index') }}" class="mt-3 flex gap-2"><input type="hidden" name="tab" value="sell"><input type="search" name="recipient_search" value="{{ $recipientSearch }}" maxlength="40" placeholder="冒険者名で検索" class="min-w-0 flex-1 rounded-lg border-stone-300 text-sm font-bold"><button class="shrink-0 rounded-lg bg-amber-600 px-4 text-sm font-black text-white">検索</button></form>
+                        <form method="GET" action="{{ route('equipment-market.index') }}" class="mt-3">
+                            <input type="hidden" name="tab" value="sell">
+                            <label for="equipment-recipient-search" class="flex items-center gap-1 text-xs font-black text-amber-950">
+                                <svg class="h-4 w-4 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="7"></circle>
+                                    <path d="m20 20-4-4"></path>
+                                </svg>
+                                冒険者を検索
+                            </label>
+                            <div class="mt-1 flex gap-2">
+                                <div class="relative min-w-0 flex-1">
+                                    <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="7"></circle>
+                                        <path d="m20 20-4-4"></path>
+                                    </svg>
+                                    <input
+                                        id="equipment-recipient-search"
+                                        type="search"
+                                        name="recipient_search"
+                                        value="{{ $recipientSearch }}"
+                                        maxlength="40"
+                                        placeholder="冒険者名を入力"
+                                        autocomplete="off"
+                                        class="min-h-11 w-full rounded-lg border-2 border-amber-400 bg-white py-2 pl-10 pr-3 text-sm font-bold text-stone-900 shadow-sm placeholder:font-bold placeholder:text-stone-400 focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                                        data-equipment-recipient-search
+                                    >
+                                </div>
+                                <button type="submit" class="min-h-11 shrink-0 rounded-lg bg-amber-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">検索</button>
+                            </div>
+                        </form>
                         <div class="mt-3 flex items-center justify-between gap-2 px-1">
                             <h4 class="text-xs font-black text-amber-950">{{ $recipientSearch !== '' ? '検索結果' : '現在の冒険者' }}</h4>
                             @if($recipientSearch === '')
