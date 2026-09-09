@@ -9,6 +9,7 @@ use App\Models\NationAchievement;
 use App\Models\NationActivityLog;
 use App\Models\NationFacility;
 use App\Models\NationGoal;
+use App\Models\NationJoinApplication;
 use App\Models\NationMaterialConversionRate;
 use App\Models\NationMembership;
 use App\Models\NationResourceTransaction;
@@ -119,7 +120,7 @@ final class NationLevelBenefitsTest extends TestCase
         ]);
     }
 
-    public function test_join_submission_stops_at_level_capacity_even_when_emergency_cap_is_higher(): void
+    public function test_join_submission_waitlists_at_level_capacity_even_when_emergency_cap_is_higher(): void
     {
         app(GameSettingService::class)->set('nation.max_members', '100');
         $ruler = $this->character('満員国王');
@@ -134,9 +135,14 @@ final class NationLevelBenefitsTest extends TestCase
             ]);
         }
 
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('定員');
-        app(NationJoinApplicationService::class)->submit($this->character('申請者'), $nation);
+        $application = app(NationJoinApplicationService::class)
+            ->submit($this->character('申請者'), $nation);
+
+        $this->assertSame(NationJoinApplication::STATUS_WAITLISTED, $application->status);
+        $this->assertSame(
+            1,
+            app(NationJoinApplicationService::class)->waitlistPosition($application),
+        );
     }
 
     public function test_facility_upgrade_rechecks_the_nation_level_cap_inside_the_transaction(): void
