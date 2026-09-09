@@ -17,6 +17,11 @@ use Throwable;
 final class BackfillNewAchievementTitles extends Command
 {
     /** @var list<int> */
+    private const AREA_COMPLETION_TITLE_IDS = [
+        4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    ];
+
+    /** @var list<int> */
     private const EXISTING_TITLE_IDS = [
         112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
         122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
@@ -28,7 +33,7 @@ final class BackfillNewAchievementTitles extends Command
         {--chunk=100 : 1回に走査するキャラクター数}
         {--json : 結果をJSONで出力する}';
 
-    protected $description = '保存済み実績から、新しい進行・装備・印実績称号を既存キャラクターへ冪等に一括付与する';
+    protected $description = '保存済み実績から、地域踏破・進行・装備・印実績称号を既存キャラクターへ冪等に一括付与する';
 
     public function handle(
         TitleUnlockService $titleUnlockService,
@@ -53,8 +58,10 @@ final class BackfillNewAchievementTitles extends Command
             ? ['character_titles']
             : [
                 'characters',
+                'areas',
                 'titles',
                 'character_titles',
+                'character_area_progresses',
                 'character_items',
                 'items',
                 'character_jobs',
@@ -106,12 +113,17 @@ final class BackfillNewAchievementTitles extends Command
                 ->orderBy('id')
                 ->get(['id', 'name', 'category']);
             if ($titleDefinitions->pluck('id')->map(static fn ($id): int => (int) $id)->all() !== $titleIds
+                || $titleDefinitions->whereIn('id', self::AREA_COMPLETION_TITLE_IDS)
+                    ->contains(static fn (Title $title): bool => match (true) {
+                        (int) $title->id === 4 => $title->category !== 'world_clear',
+                        default => $title->category !== 'city_clear',
+                    })
                 || $titleDefinitions->whereBetween('id', [122, 131])
                     ->contains(static fn (Title $title): bool => $title->category !== 'equipment')
                 || $titleDefinitions->whereIn('id', $monsterMarkTitleIds)
                     ->contains(static fn (Title $title): bool => $title->category !== 'monster_mark')) {
                 throw new RuntimeException(
-                    'New achievement title definitions 112-'.MonsterMarkTitleCatalog::LAST_TITLE_ID.' are incomplete or invalid.'
+                    'Achievement title definitions required for backfill are incomplete or invalid.'
                 );
             }
 
@@ -195,7 +207,8 @@ final class BackfillNewAchievementTitles extends Command
             ): void {
                 foreach ($characters as $character) {
                     $charactersScanned++;
-                    $titles = $titleUnlockService->eligibleNewProgressionTitles($character)
+                    $titles = $titleUnlockService->eligibleAreaClearTitles($character)
+                        ->concat($titleUnlockService->eligibleNewProgressionTitles($character))
                         ->concat($titleUnlockService->eligibleEquipmentTitles($character))
                         ->concat($titleUnlockService->eligibleMonsterMarkTitles($character))
                         ->filter(static fn (Title $title): bool => in_array((int) $title->id, $titleIds, true))
@@ -242,7 +255,14 @@ final class BackfillNewAchievementTitles extends Command
     /** @return list<int> */
     private function titleIds(): array
     {
-        return array_merge(self::EXISTING_TITLE_IDS, MonsterMarkTitleCatalog::titleIds());
+        $titleIds = array_merge(
+            self::AREA_COMPLETION_TITLE_IDS,
+            self::EXISTING_TITLE_IDS,
+            MonsterMarkTitleCatalog::titleIds(),
+        );
+        sort($titleIds);
+
+        return $titleIds;
     }
 
     private function characterTitleUniqueIndexPresent(): bool

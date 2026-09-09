@@ -10,9 +10,19 @@ use Illuminate\Database\Eloquent\Collection;
 
 class TitleUnlockService
 {
+    private const NORMAL_DUNGEON_FIRST_AREA_ID = 1;
+
+    private const NORMAL_DUNGEON_LAST_AREA_ID = 70;
+
+    private const NORMAL_DUNGEON_COUNT = 70;
+
+    private const NORMAL_DUNGEONS_PER_CITY = 7;
+
     protected TitleService $titleService;
 
     protected MonsterMarkService $monsterMarkService;
+
+    private ?Collection $normalDungeonAreas = null;
 
     public function __construct(
         TitleService $titleService,
@@ -87,70 +97,81 @@ class TitleUnlockService
     public function checkAreaClearTitles(Character $character): array
     {
         $unlockedTitles = [];
-        $ownedTitleIds = $character->titles()->pluck('title_id')->toArray();
 
-        $titles = Title::whereIn('target_type', ['dungeon', 'city', 'world'])->get();
-
-        // 事前にクリア済みエリアIDの配列を取得
-        $clearedAreaIds = $character->areaProgresses()->where('boss_defeated', true)->pluck('area_id')->toArray();
-
-        foreach ($titles as $title) {
-            if (in_array($title->id, $ownedTitleIds)) {
-                continue;
-            }
-
-            $shouldUnlock = false;
-
-            if ($title->target_type === 'dungeon' && $title->unlock_type === 'dungeon_boss_clear') {
-                // 特定のダンジョンのボス撃破
-                $targetAreaId = (int) $title->target_id;
-                if (in_array($targetAreaId, $clearedAreaIds)) {
-                    $shouldUnlock = true;
-                }
-            } elseif ($title->target_type === 'city' && $title->unlock_type === 'city_all_dungeons_clear') {
-                // 特定の街の全ダンジョン制覇
-                $targetCityId = (int) $title->target_id;
-                // その街に属するエリアのID一覧
-                $cityAreaIds = Area::where('city_id', $targetCityId)->pluck('id')->toArray();
-
-                // cityAreaIds が全て clearedAreaIds に含まれているか
-                if (! empty($cityAreaIds)) {
-                    $isAllCleared = true;
-                    foreach ($cityAreaIds as $areaId) {
-                        if (! in_array($areaId, $clearedAreaIds)) {
-                            $isAllCleared = false;
-                            break;
-                        }
-                    }
-                    if ($isAllCleared) {
-                        $shouldUnlock = true;
-                    }
-                }
-            } elseif ($title->target_type === 'world' && $title->unlock_type === 'all_dungeons_clear') {
-                // 全ダンジョン制覇
-                $allAreaIds = Area::pluck('id')->toArray();
-                if (! empty($allAreaIds)) {
-                    $isAllCleared = true;
-                    foreach ($allAreaIds as $areaId) {
-                        if (! in_array($areaId, $clearedAreaIds)) {
-                            $isAllCleared = false;
-                            break;
-                        }
-                    }
-                    if ($isAllCleared) {
-                        $shouldUnlock = true;
-                    }
-                }
-            }
-
-            if ($shouldUnlock) {
-                $this->titleService->unlockTitle($character, $title->id);
-                $unlockedTitles[] = $title;
-                $ownedTitleIds[] = $title->id;
-            }
+        foreach ($this->eligibleAreaClearTitles($character) as $title) {
+            $this->titleService->unlockTitle($character, $title->id);
+            $unlockedTitles[] = $title;
         }
 
         return $unlockedTitles;
+    }
+
+    /**
+     * 保存済みの通常ダンジョン進行から、未獲得かつ条件達成済みの称号を返す。
+     *
+     * @return Collection<int, Title>
+     */
+    public function eligibleAreaClearTitles(Character $character): Collection
+    {
+        $ownedTitleIds = $character->titles()->pluck('title_id')->all();
+        $titles = Title::query()
+            ->whereIn('target_type', ['dungeon', 'city', 'world'])
+            ->whereNotIn('id', $ownedTitleIds)
+            ->get();
+
+        if ($titles->isEmpty()) {
+            return $titles;
+        }
+
+        $clearedAreaIds = $character->areaProgresses()
+            ->where('boss_defeated', true)
+            ->pluck('area_id')
+            ->map(static fn ($areaId): int => (int) $areaId)
+            ->all();
+        $normalAreaIds = null;
+        $cityAreaIds = [];
+
+        return $titles->filter(function (Title $title) use (
+            $clearedAreaIds,
+            &$normalAreaIds,
+            &$cityAreaIds,
+        ): bool {
+            if ($title->target_type === 'dungeon' && $title->unlock_type === 'dungeon_boss_clear') {
+                return in_array((int) $title->target_id, $clearedAreaIds, true);
+            }
+
+            if ($title->target_type === 'city' && $title->unlock_type === 'city_all_dungeons_clear') {
+                $targetCityId = (int) $title->target_id;
+                $cityAreaIds[$targetCityId] ??= $this->normalDungeonAreaIds($targetCityId);
+
+                return count($cityAreaIds[$targetCityId]) === self::NORMAL_DUNGEONS_PER_CITY
+                    && array_diff($cityAreaIds[$targetCityId], $clearedAreaIds) === [];
+            }
+
+            if ($title->target_type === 'world' && $title->unlock_type === 'all_dungeons_clear') {
+                $normalAreaIds ??= $this->normalDungeonAreaIds();
+
+                return count($normalAreaIds) === self::NORMAL_DUNGEON_COUNT
+                    && array_diff($normalAreaIds, $clearedAreaIds) === [];
+            }
+
+            return false;
+        })->values();
+    }
+
+    /** @return list<int> */
+    private function normalDungeonAreaIds(?int $cityId = null): array
+    {
+        $this->normalDungeonAreas ??= Area::query()
+            ->whereBetween('id', [self::NORMAL_DUNGEON_FIRST_AREA_ID, self::NORMAL_DUNGEON_LAST_AREA_ID])
+            ->orderBy('id')
+            ->get(['id', 'city_id']);
+
+        return $this->normalDungeonAreas
+            ->when($cityId !== null, static fn (Collection $areas) => $areas->where('city_id', $cityId))
+            ->pluck('id')
+            ->map(static fn ($areaId): int => (int) $areaId)
+            ->all();
     }
 
     /**

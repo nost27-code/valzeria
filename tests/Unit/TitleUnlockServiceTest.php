@@ -35,6 +35,15 @@ class TitleUnlockServiceTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('areas', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('city_id')->nullable();
+            $table->string('name');
+            $table->string('area_kind')->default('dungeon');
+            $table->boolean('is_route_area')->default(false);
+            $table->timestamps();
+        });
+
         Schema::create('items', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
@@ -283,9 +292,16 @@ class TitleUnlockServiceTest extends TestCase
     public function test_new_achievement_title_backfill_dry_run_and_apply_are_idempotent(): void
     {
         $character = $this->createCharacter(level: 255, wins: 3000);
+        $this->createAreaCompletionTitles();
         $this->createNewProgressionTitles();
         $this->createEquipmentTitles();
         $this->createMonsterMarkTitles();
+
+        foreach (range(15, 21) as $areaId) {
+            $this->createArea($areaId, 3);
+            $this->setAreaBossDefeated($character, $areaId);
+        }
+        $this->createArea(77, 3, isRoute: true);
 
         foreach (['middle', 'super', 'crown', 'hero', 'myth'] as $rank) {
             $job = JobClass::query()->create([
@@ -334,21 +350,23 @@ class TitleUnlockServiceTest extends TestCase
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"database_driver":"sqlite"', $output);
         $this->assertStringContainsString('"mode":"dry-run"', $output);
-        $this->assertStringContainsString('"grants_missing_or_applied":24', $output);
+        $this->assertStringContainsString('"grants_missing_or_applied":25', $output);
         $this->assertSame(0, $character->titles()->count());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"mode":"apply"', $output);
-        $this->assertStringContainsString('"grants_missing_or_applied":24', $output);
-        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 307])->count());
+        $this->assertStringContainsString('"grants_missing_or_applied":25', $output);
+        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 325])->count());
+        $this->assertTrue($character->titles()->where('title_id', 7)->exists());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"grants_missing_or_applied":0', $output);
-        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 307])->count());
+        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 325])->count());
+        $this->assertTrue($character->titles()->where('title_id', 7)->exists());
     }
 
     public function test_character_title_unique_migration_matches_the_real_base_schema(): void
@@ -422,9 +440,13 @@ class TitleUnlockServiceTest extends TestCase
         $progressionMigration = require database_path('migrations/2026_08_30_120000_add_progression_titles.php');
         $equipmentMigration = require database_path('migrations/2026_08_30_130000_add_equipment_titles.php');
         $monsterMarkMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
+        $routeMonsterMarkMigration = require database_path('migrations/2026_09_02_180000_add_route_monster_mark_titles_and_reorder.php');
         $progressionMigration->up();
         $equipmentMigration->up();
         $monsterMarkMigration->up();
+        $this->assertSame(176, Title::query()->whereBetween('id', [132, 325])->count());
+        $this->assertNull(Title::query()->find(308));
+        $routeMonsterMarkMigration->up();
 
         DB::table('character_titles')->insert([
             'character_id' => 999,
@@ -433,12 +455,22 @@ class TitleUnlockServiceTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $routeMonsterMarkMigration->down();
         $monsterMarkMigration->down();
         $equipmentMigration->down();
         $progressionMigration->down();
         $this->characterTitleUniqueMigration()->down();
 
-        $this->assertSame(196, Title::query()->whereBetween('id', [112, 307])->count());
+        $this->assertSame(214, Title::query()->whereBetween('id', [112, 325])->count());
+        $this->assertSame('木漏れ日の山麓路の印収集家', Title::query()->findOrFail(312)->name);
+        $this->assertLessThan(
+            Title::query()->findOrFail(146)->display_order,
+            Title::query()->findOrFail(308)->display_order,
+        );
+        $this->assertGreaterThan(
+            Title::query()->findOrFail(145)->display_order,
+            Title::query()->findOrFail(308)->display_order,
+        );
         $this->assertDatabaseHas('character_titles', [
             'character_id' => 999,
             'title_id' => 112,
@@ -494,22 +526,36 @@ class TitleUnlockServiceTest extends TestCase
         $migration->up();
     }
 
+    public function test_route_monster_mark_title_migration_rejects_a_changed_existing_payload(): void
+    {
+        $originalMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
+        $routeMigration = require database_path('migrations/2026_09_02_180000_add_route_monster_mark_titles_and_reorder.php');
+        $originalMigration->up();
+        DB::table('titles')->where('id', 132)->update(['target_id' => '2']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('different target_id value');
+        $routeMigration->up();
+    }
+
     public function test_title_seeder_contains_the_current_progression_catalog(): void
     {
         app(TitleSeeder::class)->run();
 
-        $this->assertSame(307, Title::query()->count());
+        $this->assertSame(325, Title::query()->count());
         $this->assertSame('名相棒', Title::query()->findOrFail(111)->name);
         $this->assertSame('advanced', Title::query()->findOrFail(97)->target_id);
         $this->assertSame('legend', Title::query()->findOrFail(98)->target_id);
         $this->assertSame(20, Title::query()->whereBetween('id', [112, 131])->count());
         $this->assertSame(10, Title::query()->whereBetween('id', [122, 131])->count());
         $this->assertSame('神工の担い手', Title::query()->findOrFail(131)->name);
-        $this->assertSame(176, Title::query()->whereBetween('id', [132, 307])->count());
+        $this->assertSame(194, Title::query()->whereBetween('id', [132, 325])->count());
         $this->assertSame('はじまりの草原の印収集家', Title::query()->findOrFail(132)->name);
         $this->assertSame('終焉の祭壇の印を極めし者', Title::query()->findOrFail(271)->name);
         $this->assertSame('フェルディア南岸の印収集家', Title::query()->findOrFail(272)->name);
         $this->assertSame('地下の謎の穴の印を極めし者', Title::query()->findOrFail(307)->name);
+        $this->assertSame('アークレア西街道の印収集家', Title::query()->findOrFail(308)->name);
+        $this->assertSame('黒雲の征路の印を極めし者', Title::query()->findOrFail(325)->name);
 
         $duplicateConditions = Title::query()
             ->selectRaw('unlock_type, target_type, target_id, COUNT(*) AS total')
@@ -579,6 +625,122 @@ class TitleUnlockServiceTest extends TestCase
                     ->all(),
             );
         }
+    }
+
+    public function test_route_monster_mark_titles_keep_existing_ids_and_follow_each_city_block(): void
+    {
+        $routeAreas = [
+            75 => 'アークレア西街道',
+            76 => '海風の森道',
+            77 => '木漏れ日の山麓路',
+            78 => '炉煙の北峠',
+            79 => '雪解けの交易路',
+            80 => '星砂の学術街道',
+            81 => '禁呪の境界路',
+            82 => '白き巡礼階段',
+            83 => '黒雲の征路',
+        ];
+        $definitions = collect(MonsterMarkTitleCatalog::definitions());
+        $routeDefinitions = $definitions
+            ->filter(static fn (array $title): bool => isset($routeAreas[(int) $title['target_id']]));
+
+        $this->assertSame('終焉の祭壇の印を極めし者', $definitions->get(271)['name']);
+        $this->assertSame('フェルディア南岸の印収集家', $definitions->get(272)['name']);
+        $this->assertSame('地下の謎の穴の印を極めし者', $definitions->get(307)['name']);
+        $this->assertSame(range(308, 325), $routeDefinitions->keys()->all());
+
+        foreach ($routeAreas as $areaId => $areaName) {
+            $this->assertSame(
+                [$areaName.'の印収集家', $areaName.'の印を極めし者'],
+                $routeDefinitions
+                    ->where('target_id', (string) $areaId)
+                    ->pluck('name')
+                    ->values()
+                    ->all(),
+            );
+        }
+
+        $expectedAreaOrder = [];
+        $routeAfterArea = array_combine(range(7, 63, 7), array_keys($routeAreas));
+        foreach (range(1, 70) as $areaId) {
+            $expectedAreaOrder[] = $areaId;
+            if (isset($routeAfterArea[$areaId])) {
+                $expectedAreaOrder[] = $routeAfterArea[$areaId];
+            }
+        }
+        $expectedAreaOrder = array_merge(
+            $expectedAreaOrder,
+            [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1025, 1026, 1027, 1028, 1029],
+        );
+
+        $orderedPairs = $definitions->sortBy('display_order')->values()->chunk(2);
+        foreach ($orderedPairs as $pair) {
+            $this->assertCount(1, $pair->pluck('target_id')->unique());
+        }
+        $this->assertSame(
+            $expectedAreaOrder,
+            $orderedPairs->map(static fn ($pair): int => (int) $pair->first()['target_id'])->all(),
+        );
+    }
+
+    public function test_route_monster_mark_titles_unlock_from_existing_collection(): void
+    {
+        $character = $this->createCharacter(level: 1, wins: 0);
+        $this->createTitle(312, '木漏れ日の山麓路の印収集家', 'monster_mark_area_complete', 'area', '77', 'monster_mark');
+        $this->createTitle(313, '木漏れ日の山麓路の印を極めし者', 'monster_mark_area_full_complete', 'area', '77', 'monster_mark');
+
+        $markId = $this->createMonsterMark($this->createEnemy(77, '山麓コボルト'));
+        $this->setMonsterMarkQuantity($character, $markId, 1);
+
+        $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
+        $this->assertSame([312], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+        $this->setMonsterMarkQuantity($character, $markId, 15);
+        $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
+        $this->assertSame([313], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+    }
+
+    public function test_city_completion_requires_all_seven_normal_dungeons_but_not_the_route(): void
+    {
+        $character = $this->createCharacter(level: 1, wins: 0);
+        $this->createTitle(7, 'エルフィアに認められし者', 'city_all_dungeons_clear', 'city', '3', 'city_clear');
+
+        foreach (range(15, 21) as $areaId) {
+            $this->createArea($areaId, 3);
+        }
+        $this->createArea(77, 3, isRoute: true);
+
+        foreach (range(15, 20) as $areaId) {
+            $this->setAreaBossDefeated($character, $areaId);
+        }
+
+        $this->assertSame([], app(TitleUnlockService::class)->checkAreaClearTitles($character));
+
+        $this->setAreaBossDefeated($character, 21);
+        $unlocked = app(TitleUnlockService::class)->checkAreaClearTitles($character);
+
+        $this->assertSame([7], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+    }
+
+    public function test_world_completion_uses_only_the_seventy_normal_dungeons(): void
+    {
+        $character = $this->createCharacter(level: 1, wins: 0);
+        $this->createTitle(4, 'ヴァルゼリアの覇者', 'all_dungeons_clear', 'world', '0', 'world_clear');
+
+        foreach (range(1, 70) as $areaId) {
+            $this->createArea($areaId, (int) ceil($areaId / 7));
+            $this->setAreaBossDefeated($character, $areaId);
+        }
+        foreach (range(75, 83) as $routeAreaId) {
+            $this->createArea($routeAreaId, $routeAreaId - 74, isRoute: true);
+        }
+        $this->createArea(71, 3, areaKind: 'special');
+        $this->createArea(84, 1, areaKind: 'hero_trial');
+        $this->createArea(1001, 101, areaKind: 'outer_world');
+
+        $unlocked = app(TitleUnlockService::class)->checkAreaClearTitles($character);
+
+        $this->assertSame([4], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
     }
 
     public function test_ferdia_monster_mark_titles_unlock_from_existing_collection(): void
@@ -658,6 +820,21 @@ class TitleUnlockServiceTest extends TestCase
         }
     }
 
+    private function createAreaCompletionTitles(): void
+    {
+        $this->createTitle(4, 'ヴァルゼリアの覇者', 'all_dungeons_clear', 'world', '0', 'world_clear');
+        foreach (range(1, 10) as $cityId) {
+            $this->createTitle(
+                4 + $cityId,
+                "地域踏破称号{$cityId}",
+                'city_all_dungeons_clear',
+                'city',
+                (string) $cityId,
+                'city_clear',
+            );
+        }
+    }
+
     private function createNewProgressionTitles(): void
     {
         foreach ([
@@ -704,6 +881,31 @@ class TitleUnlockServiceTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function createArea(
+        int $areaId,
+        int $cityId,
+        bool $isRoute = false,
+        string $areaKind = 'dungeon',
+    ): void {
+        DB::table('areas')->insert([
+            'id' => $areaId,
+            'city_id' => $cityId,
+            'name' => "試験エリア{$areaId}",
+            'area_kind' => $areaKind,
+            'is_route_area' => $isRoute,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function setAreaBossDefeated(Character $character, int $areaId): void
+    {
+        DB::table('character_area_progresses')->updateOrInsert(
+            ['character_id' => $character->id, 'area_id' => $areaId],
+            ['boss_defeated' => true, 'created_at' => now(), 'updated_at' => now()],
+        );
     }
 
     private function createMonsterMark(int $enemyId, bool $isActive = true): int
@@ -782,6 +984,7 @@ class TitleUnlockServiceTest extends TestCase
             'character_items',
             'items',
             'titles',
+            'areas',
             'characters',
         ] as $table) {
             Schema::dropIfExists($table);

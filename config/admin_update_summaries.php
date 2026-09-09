@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-09-route-mark-and-area-completion-titles',
+        'date' => '2026-09-09',
+        'category' => 'fixed',
+        'title' => '街道の印称号と地域踏破判定を改善',
+        'detail' => '各街道の印収集称号を追加し、称号一覧を地域順に整えました。地域踏破・全域踏破称号は通常ダンジョンの制覇で正しく獲得でき、すでに条件を満たしている場合も撃破記録から獲得できます。',
+    ],
+    [
         'id' => '2026-09-09-star-time-hero-trials-off-install',
         'date' => '2026-09-09',
         'category' => 'internal',

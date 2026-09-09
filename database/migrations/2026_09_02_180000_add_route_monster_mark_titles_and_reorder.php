@@ -13,15 +13,7 @@ return new class extends Migration
             return;
         }
 
-        $titles = array_filter(
-            MonsterMarkTitleCatalog::definitions(),
-            static fn (int $id): bool => $id < MonsterMarkTitleCatalog::FIRST_ROUTE_TITLE_ID,
-            ARRAY_FILTER_USE_KEY,
-        );
-        foreach ($titles as $id => &$title) {
-            $title['display_order'] = 2000 + ($id - MonsterMarkTitleCatalog::FIRST_TITLE_ID);
-        }
-        unset($title);
+        $titles = MonsterMarkTitleCatalog::definitions();
         $this->assertTitleIdsAreAvailable($titles);
         $this->assertNaturalKeysAreAvailable($titles);
 
@@ -62,6 +54,8 @@ return new class extends Migration
     }
 
     /**
+     * display_order is intentionally allowed to change; every other title-master value must remain stable.
+     *
      * @param  array<int, array<string, int|string|bool>>  $titles
      */
     private function assertTitleIdsAreAvailable(array $titles): void
@@ -78,6 +72,10 @@ return new class extends Migration
             }
 
             foreach ($title as $column => $expected) {
+                if ($column === 'display_order') {
+                    continue;
+                }
+
                 $actual = $row->{$column};
                 $actual = match (true) {
                     is_bool($expected) => (bool) $actual,

@@ -6,7 +6,9 @@ final class MonsterMarkTitleCatalog
 {
     public const FIRST_TITLE_ID = 132;
 
-    public const LAST_TITLE_ID = 307;
+    public const FIRST_ROUTE_TITLE_ID = 308;
+
+    public const LAST_TITLE_ID = 325;
 
     /** @var array<int, string> */
     private const AREA_NAMES = [
@@ -100,6 +102,32 @@ final class MonsterMarkTitleCatalog
         1029 => '地下の謎の穴',
     ];
 
+    /** @var array<int, string> */
+    private const ROUTE_AREA_NAMES = [
+        75 => 'アークレア西街道',
+        76 => '海風の森道',
+        77 => '木漏れ日の山麓路',
+        78 => '炉煙の北峠',
+        79 => '雪解けの交易路',
+        80 => '星砂の学術街道',
+        81 => '禁呪の境界路',
+        82 => '白き巡礼階段',
+        83 => '黒雲の征路',
+    ];
+
+    /** @var array<int, int> */
+    private const ROUTE_AREA_AFTER_NORMAL_AREA = [
+        7 => 75,
+        14 => 76,
+        21 => 77,
+        28 => 78,
+        35 => 79,
+        42 => 80,
+        49 => 81,
+        56 => 82,
+        63 => 83,
+    ];
+
     /**
      * @return array<int, array<string, int|string|bool>>
      */
@@ -107,10 +135,16 @@ final class MonsterMarkTitleCatalog
     {
         $definitions = [];
         $areaIndex = 0;
+        $routeIndexByAreaId = array_flip(array_keys(self::ROUTE_AREA_NAMES));
+        $displayIndexByAreaId = array_flip(self::displayAreaIds());
 
-        foreach (self::AREA_NAMES as $areaId => $areaName) {
-            $collectionTitleId = self::FIRST_TITLE_ID + ($areaIndex * 2);
+        foreach (self::AREA_NAMES + self::ROUTE_AREA_NAMES as $areaId => $areaName) {
+            $isRouteArea = isset($routeIndexByAreaId[$areaId]);
+            $collectionTitleId = $isRouteArea
+                ? self::FIRST_ROUTE_TITLE_ID + ($routeIndexByAreaId[$areaId] * 2)
+                : self::FIRST_TITLE_ID + ($areaIndex * 2);
             $fullTitleId = $collectionTitleId + 1;
+            $displayIndex = $displayIndexByAreaId[$areaId];
 
             $definitions[$collectionTitleId] = [
                 'category' => 'monster_mark',
@@ -122,7 +156,7 @@ final class MonsterMarkTitleCatalog
                 'target_type' => 'area',
                 'target_id' => (string) $areaId,
                 'source_master' => '印図鑑/エリア別収集',
-                'display_order' => 2000 + ($areaIndex * 2),
+                'display_order' => 2000 + ($displayIndex * 2),
                 'is_hidden' => true,
             ];
             $definitions[$fullTitleId] = [
@@ -135,11 +169,13 @@ final class MonsterMarkTitleCatalog
                 'target_type' => 'area',
                 'target_id' => (string) $areaId,
                 'source_master' => '印図鑑/エリア別収集',
-                'display_order' => 2001 + ($areaIndex * 2),
+                'display_order' => 2001 + ($displayIndex * 2),
                 'is_hidden' => true,
             ];
 
-            $areaIndex++;
+            if (! $isRouteArea) {
+                $areaIndex++;
+            }
         }
 
         return $definitions;
@@ -149,5 +185,25 @@ final class MonsterMarkTitleCatalog
     public static function titleIds(): array
     {
         return array_keys(self::definitions());
+    }
+
+    /** @return list<int> */
+    private static function displayAreaIds(): array
+    {
+        $areaIds = [];
+        foreach (range(1, 70) as $areaId) {
+            $areaIds[] = $areaId;
+            if (isset(self::ROUTE_AREA_AFTER_NORMAL_AREA[$areaId])) {
+                $areaIds[] = self::ROUTE_AREA_AFTER_NORMAL_AREA[$areaId];
+            }
+        }
+
+        foreach (array_keys(self::AREA_NAMES) as $areaId) {
+            if ($areaId >= 1000) {
+                $areaIds[] = $areaId;
+            }
+        }
+
+        return $areaIds;
     }
 }
