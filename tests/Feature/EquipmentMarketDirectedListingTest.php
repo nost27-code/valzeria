@@ -121,7 +121,26 @@ final class EquipmentMarketDirectedListingTest extends TestCase
                 'recipient_search' => '宛先候補',
             ]))
             ->assertOk()
-            ->assertSee($recipient->name);
+            ->assertSee($recipient->name)
+            ->assertSee('宛先にする')
+            ->assertSee($recipient->name.'の冒険者カードを見る')
+            ->assertSee('data-equipment-recipient-candidate="'.$recipient->id.'"', false)
+            ->assertSee('data-equipment-recipient-avatar="'.$recipient->id.'"', false)
+            ->assertSee("Livewire.dispatch('open-adventurer-card'", false);
+
+        $this->actingAs($seller->user)
+            ->withSession(['current_character_id' => $seller->id])
+            ->get(route('equipment-market.index', [
+                'tab' => 'sell',
+                'recipient_character_id' => $recipient->id,
+            ]))
+            ->assertOk()
+            ->assertSee('宛先')
+            ->assertSee($recipient->name.'さん')
+            ->assertSee($recipient->name.'の冒険者カードを見る')
+            ->assertSee('data-equipment-recipient-selected-card="'.$recipient->id.'"', false)
+            ->assertSee('data-equipment-recipient-avatar="'.$recipient->id.'"', false)
+            ->assertSee("Livewire.dispatch('open-adventurer-card'", false);
 
         $this->actingAs($seller->user)
             ->withSession(['current_character_id' => $seller->id])
