@@ -358,14 +358,14 @@ class TitleUnlockServiceTest extends TestCase
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"mode":"apply"', $output);
         $this->assertStringContainsString('"grants_missing_or_applied":25', $output);
-        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 325])->count());
+        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 329])->count());
         $this->assertTrue($character->titles()->where('title_id', 7)->exists());
 
         $exitCode = Artisan::call('titles:backfill-new-achievements', ['--apply' => true, '--json' => true]);
         $output = Artisan::output();
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('"grants_missing_or_applied":0', $output);
-        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 325])->count());
+        $this->assertSame(24, $character->titles()->whereBetween('title_id', [112, 329])->count());
         $this->assertTrue($character->titles()->where('title_id', 7)->exists());
     }
 
@@ -440,12 +440,14 @@ class TitleUnlockServiceTest extends TestCase
         $progressionMigration = require database_path('migrations/2026_08_30_120000_add_progression_titles.php');
         $equipmentMigration = require database_path('migrations/2026_08_30_130000_add_equipment_titles.php');
         $monsterMarkMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
-        $routeMonsterMarkMigration = require database_path('migrations/2026_09_02_180000_add_route_monster_mark_titles_and_reorder.php');
+        $routeMonsterMarkMarker = require database_path('migrations/2026_09_02_180000_add_route_monster_mark_titles_and_reorder.php');
+        $routeMonsterMarkMigration = require database_path('migrations/2026_09_09_190000_add_route_monster_mark_titles_and_reorder.php');
         $progressionMigration->up();
         $equipmentMigration->up();
         $monsterMarkMigration->up();
-        $this->assertSame(176, Title::query()->whereBetween('id', [132, 325])->count());
-        $this->assertNull(Title::query()->find(308));
+        $routeMonsterMarkMarker->up();
+        $this->assertSame(176, Title::query()->whereBetween('id', [132, 329])->count());
+        $this->assertNull(Title::query()->find(312));
         $routeMonsterMarkMigration->up();
 
         DB::table('character_titles')->insert([
@@ -456,20 +458,21 @@ class TitleUnlockServiceTest extends TestCase
         ]);
 
         $routeMonsterMarkMigration->down();
+        $routeMonsterMarkMarker->down();
         $monsterMarkMigration->down();
         $equipmentMigration->down();
         $progressionMigration->down();
         $this->characterTitleUniqueMigration()->down();
 
-        $this->assertSame(214, Title::query()->whereBetween('id', [112, 325])->count());
-        $this->assertSame('木漏れ日の山麓路の印収集家', Title::query()->findOrFail(312)->name);
+        $this->assertSame(214, Title::query()->whereBetween('id', [112, 329])->count());
+        $this->assertSame('木漏れ日の山麓路の印収集家', Title::query()->findOrFail(316)->name);
         $this->assertLessThan(
             Title::query()->findOrFail(146)->display_order,
-            Title::query()->findOrFail(308)->display_order,
+            Title::query()->findOrFail(312)->display_order,
         );
         $this->assertGreaterThan(
             Title::query()->findOrFail(145)->display_order,
-            Title::query()->findOrFail(308)->display_order,
+            Title::query()->findOrFail(312)->display_order,
         );
         $this->assertDatabaseHas('character_titles', [
             'character_id' => 999,
@@ -529,13 +532,60 @@ class TitleUnlockServiceTest extends TestCase
     public function test_route_monster_mark_title_migration_rejects_a_changed_existing_payload(): void
     {
         $originalMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
-        $routeMigration = require database_path('migrations/2026_09_02_180000_add_route_monster_mark_titles_and_reorder.php');
+        $routeMigration = require database_path('migrations/2026_09_09_190000_add_route_monster_mark_titles_and_reorder.php');
         $originalMigration->up();
         DB::table('titles')->where('id', 132)->update(['target_id' => '2']);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('different target_id value');
         $routeMigration->up();
+    }
+
+    public function test_route_monster_mark_title_migration_preserves_existing_nation_raid_titles(): void
+    {
+        foreach ([
+            308 => ['黒天竜を穿つ者', 'damage2m'],
+            309 => ['万軍の先鋒', 'personal_first'],
+            310 => ['黒天竜討滅の功臣', 'personal_top3'],
+            311 => ['天穿の一撃', 'max_first'],
+        ] as $id => [$name, $targetId]) {
+            $this->createTitle(
+                $id,
+                $name,
+                'nation_raid_honor',
+                'raid_reward',
+                $targetId,
+                'battle',
+            );
+        }
+
+        $originalMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
+        $routeMigration = require database_path('migrations/2026_09_09_190000_add_route_monster_mark_titles_and_reorder.php');
+        $originalMigration->up();
+        $routeMigration->up();
+
+        $this->assertSame('黒天竜を穿つ者', Title::query()->findOrFail(308)->name);
+        $this->assertSame('天穿の一撃', Title::query()->findOrFail(311)->name);
+        $this->assertSame('アークレア西街道の印収集家', Title::query()->findOrFail(312)->name);
+        $this->assertSame('黒雲の征路の印を極めし者', Title::query()->findOrFail(329)->name);
+    }
+
+    public function test_fresh_migration_order_keeps_nation_raid_and_route_title_ids_deterministic(): void
+    {
+        $originalMigration = require database_path('migrations/2026_08_31_120000_add_monster_mark_titles.php');
+        $routeMarker = require database_path('migrations/2026_09_02_180000_add_route_monster_mark_titles_and_reorder.php');
+        $nationRaidMigration = require database_path('migrations/2026_09_04_230100_add_nation_raid_honor_titles.php');
+        $routeMigration = require database_path('migrations/2026_09_09_190000_add_route_monster_mark_titles_and_reorder.php');
+
+        $originalMigration->up();
+        $routeMarker->up();
+        $nationRaidMigration->up();
+        $routeMigration->up();
+
+        $this->assertSame('黒天竜を穿つ者', Title::query()->findOrFail(308)->name);
+        $this->assertSame('天穿の一撃', Title::query()->findOrFail(311)->name);
+        $this->assertSame('アークレア西街道の印収集家', Title::query()->findOrFail(312)->name);
+        $this->assertSame('黒雲の征路の印を極めし者', Title::query()->findOrFail(329)->name);
     }
 
     public function test_title_seeder_contains_the_current_progression_catalog(): void
@@ -549,13 +599,13 @@ class TitleUnlockServiceTest extends TestCase
         $this->assertSame(20, Title::query()->whereBetween('id', [112, 131])->count());
         $this->assertSame(10, Title::query()->whereBetween('id', [122, 131])->count());
         $this->assertSame('神工の担い手', Title::query()->findOrFail(131)->name);
-        $this->assertSame(194, Title::query()->whereBetween('id', [132, 325])->count());
+        $this->assertSame(194, Title::query()->whereBetween('id', [132, 329])->count());
         $this->assertSame('はじまりの草原の印収集家', Title::query()->findOrFail(132)->name);
         $this->assertSame('終焉の祭壇の印を極めし者', Title::query()->findOrFail(271)->name);
         $this->assertSame('フェルディア南岸の印収集家', Title::query()->findOrFail(272)->name);
         $this->assertSame('地下の謎の穴の印を極めし者', Title::query()->findOrFail(307)->name);
-        $this->assertSame('アークレア西街道の印収集家', Title::query()->findOrFail(308)->name);
-        $this->assertSame('黒雲の征路の印を極めし者', Title::query()->findOrFail(325)->name);
+        $this->assertSame('アークレア西街道の印収集家', Title::query()->findOrFail(312)->name);
+        $this->assertSame('黒雲の征路の印を極めし者', Title::query()->findOrFail(329)->name);
 
         $duplicateConditions = Title::query()
             ->selectRaw('unlock_type, target_type, target_id, COUNT(*) AS total')
@@ -647,7 +697,7 @@ class TitleUnlockServiceTest extends TestCase
         $this->assertSame('終焉の祭壇の印を極めし者', $definitions->get(271)['name']);
         $this->assertSame('フェルディア南岸の印収集家', $definitions->get(272)['name']);
         $this->assertSame('地下の謎の穴の印を極めし者', $definitions->get(307)['name']);
-        $this->assertSame(range(308, 325), $routeDefinitions->keys()->all());
+        $this->assertSame(range(312, 329), $routeDefinitions->keys()->all());
 
         foreach ($routeAreas as $areaId => $areaName) {
             $this->assertSame(
@@ -686,18 +736,18 @@ class TitleUnlockServiceTest extends TestCase
     public function test_route_monster_mark_titles_unlock_from_existing_collection(): void
     {
         $character = $this->createCharacter(level: 1, wins: 0);
-        $this->createTitle(312, '木漏れ日の山麓路の印収集家', 'monster_mark_area_complete', 'area', '77', 'monster_mark');
-        $this->createTitle(313, '木漏れ日の山麓路の印を極めし者', 'monster_mark_area_full_complete', 'area', '77', 'monster_mark');
+        $this->createTitle(316, '木漏れ日の山麓路の印収集家', 'monster_mark_area_complete', 'area', '77', 'monster_mark');
+        $this->createTitle(317, '木漏れ日の山麓路の印を極めし者', 'monster_mark_area_full_complete', 'area', '77', 'monster_mark');
 
         $markId = $this->createMonsterMark($this->createEnemy(77, '山麓コボルト'));
         $this->setMonsterMarkQuantity($character, $markId, 1);
 
         $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
-        $this->assertSame([312], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+        $this->assertSame([316], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
 
         $this->setMonsterMarkQuantity($character, $markId, 15);
         $unlocked = app(TitleUnlockService::class)->checkAllUnlocks($character);
-        $this->assertSame([313], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+        $this->assertSame([317], collect($unlocked)->pluck('id')->map(fn ($id): int => (int) $id)->all());
     }
 
     public function test_city_completion_requires_all_seven_normal_dungeons_but_not_the_route(): void

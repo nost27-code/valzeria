@@ -6,9 +6,9 @@ final class MonsterMarkTitleCatalog
 {
     public const FIRST_TITLE_ID = 132;
 
-    public const FIRST_ROUTE_TITLE_ID = 308;
+    public const FIRST_ROUTE_TITLE_ID = 312;
 
-    public const LAST_TITLE_ID = 325;
+    public const LAST_TITLE_ID = 329;
 
     /** @var array<int, string> */
     private const AREA_NAMES = [
