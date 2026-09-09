@@ -134,40 +134,44 @@
                         </div>
                     @else
                         <form method="GET" action="{{ route('equipment-market.index') }}" class="mt-3 flex gap-2"><input type="hidden" name="tab" value="sell"><input type="search" name="recipient_search" value="{{ $recipientSearch }}" maxlength="40" placeholder="冒険者名で検索" class="min-w-0 flex-1 rounded-lg border-stone-300 text-sm font-bold"><button class="shrink-0 rounded-lg bg-amber-600 px-4 text-sm font-black text-white">検索</button></form>
-                        @if($recipientSearch !== '')
-                            <div class="mt-2 divide-y divide-amber-100 rounded-lg border border-amber-200 bg-white">
-                                @forelse($recipientCandidates as $candidate)
-                                    <div class="flex min-h-16 items-center gap-2 px-2 py-2" data-equipment-recipient-candidate="{{ $candidate->id }}">
-                                        <button
-                                            type="button"
-                                            x-on:click="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $candidate->id }} })"
-                                            class="group flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                                            aria-label="{{ $candidate->name }}の冒険者カードを見る"
-                                        >
-                                            <span class="flex h-12 w-12 shrink-0 items-end justify-center overflow-hidden rounded-full border border-amber-200 bg-amber-50">
-                                                <img
-                                                    src="{{ \App\Support\CharacterIconCatalog::versionedAsset($candidate->icon_path) }}"
-                                                    alt=""
-                                                    width="48"
-                                                    height="48"
-                                                    loading="lazy"
-                                                    class="h-full w-full object-contain transition group-hover:scale-105"
-                                                    data-equipment-recipient-avatar="{{ $candidate->id }}"
-                                                >
-                                            </span>
-                                            <span class="min-w-0">
-                                                <span class="block truncate text-sm font-black text-stone-900">{{ $candidate->name }}</span>
-                                                <span class="mt-0.5 block truncate text-xs font-bold text-stone-500">Lv{{ $candidate->level }} / {{ $candidate->jobClass?->name ?? '無職' }}</span>
-                                                <span class="mt-0.5 block text-[11px] font-bold text-amber-700">冒険者カードを見る</span>
-                                            </span>
-                                        </button>
-                                        <a href="{{ route('equipment-market.index', ['tab' => 'sell', 'recipient_search' => $recipientSearch, 'recipient_character_id' => $candidate->id]) }}" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-amber-600 px-3 text-xs font-black text-white transition hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">宛先にする</a>
-                                    </div>
-                                @empty
-                                    <p class="px-3 py-4 text-center text-xs font-bold text-stone-500">該当する冒険者はいません。</p>
-                                @endforelse
-                            </div>
-                        @endif
+                        <div class="mt-3 flex items-center justify-between gap-2 px-1">
+                            <h4 class="text-xs font-black text-amber-950">{{ $recipientSearch !== '' ? '検索結果' : '現在の冒険者' }}</h4>
+                            @if($recipientSearch === '')
+                                <span class="text-[11px] font-bold text-amber-700">直近{{ $recentAdventurerWindowMinutes }}分</span>
+                            @endif
+                        </div>
+                        <div class="mt-1 max-h-80 divide-y divide-amber-100 overflow-y-auto overscroll-contain rounded-lg border border-amber-200 bg-white">
+                            @forelse($recipientCandidates as $candidate)
+                                <div class="flex min-h-16 items-center gap-2 px-2 py-2" data-equipment-recipient-candidate="{{ $candidate->id }}">
+                                    <button
+                                        type="button"
+                                        x-on:click="$dispatch('adventurer-card-loading'); Livewire.dispatch('open-adventurer-card', { characterId: {{ (int) $candidate->id }} })"
+                                        class="group flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                        aria-label="{{ $candidate->name }}の冒険者カードを見る"
+                                    >
+                                        <span class="flex h-12 w-12 shrink-0 items-end justify-center overflow-hidden rounded-full border border-amber-200 bg-amber-50">
+                                            <img
+                                                src="{{ \App\Support\CharacterIconCatalog::versionedAsset($candidate->icon_path) }}"
+                                                alt=""
+                                                width="48"
+                                                height="48"
+                                                loading="lazy"
+                                                class="h-full w-full object-contain transition group-hover:scale-105"
+                                                data-equipment-recipient-avatar="{{ $candidate->id }}"
+                                            >
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block truncate text-sm font-black text-stone-900">{{ $candidate->name }}</span>
+                                            <span class="mt-0.5 block truncate text-xs font-bold text-stone-500">Lv{{ $candidate->level }} / {{ $candidate->jobClass?->name ?? '無職' }}</span>
+                                            <span class="mt-0.5 block text-[11px] font-bold text-amber-700">冒険者カードを見る</span>
+                                        </span>
+                                    </button>
+                                    <a href="{{ route('equipment-market.index', ['tab' => 'sell', 'recipient_search' => $recipientSearch, 'recipient_character_id' => $candidate->id]) }}" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-amber-600 px-3 text-xs font-black text-white transition hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">宛先にする</a>
+                                </div>
+                            @empty
+                                <p class="px-3 py-4 text-center text-xs font-bold text-stone-500">{{ $recipientSearch !== '' ? '該当する冒険者はいません。' : '現在活動中の冒険者はいません。' }}</p>
+                            @endforelse
+                        </div>
                     @endif
                 </div>
                 @forelse($sellable as $item)

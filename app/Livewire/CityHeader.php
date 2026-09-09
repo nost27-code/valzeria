@@ -21,6 +21,7 @@ use App\Services\ExplorationStaminaService;
 use App\Services\FerdiaMapService;
 use App\Services\FavoriteWeaponService;
 use App\Services\JobService;
+use App\Services\RecentAdventurerService;
 use App\Services\SchemaStateService;
 use App\Services\SupportPassService;
 use App\Services\TownUpdateService;
@@ -38,11 +39,6 @@ use Livewire\Component;
 class CityHeader extends Component
 {
     private const ADVENTURE_RECORDS_CACHE_MINUTES = 10;
-
-    /** 本番確認用。直近5分の全冒険者一覧だけから除外するテストアカウント */
-    private const HIDDEN_ONLINE_TEST_USER_ID = 1;
-
-    private const HIDDEN_ONLINE_TEST_CHARACTER_ID = 5;
 
     // モーダル用状態
     public $isPlayerModalOpen = false;
@@ -320,14 +316,7 @@ class CityHeader extends Component
         return Cache::remember($cacheKey, now()->addSeconds(20), function (): array {
             $sixHeroCrownsByCharacter = $this->currentSixHeroCrownsByCharacter();
 
-            return Character::visibleToPublic()
-                // visibleToPublic() の全公開面除外とは分け、直近5分の全冒険者だけから運営テスト用を隠す。
-                ->where(function ($query): void {
-                    $query->where('id', '!=', self::HIDDEN_ONLINE_TEST_CHARACTER_ID)
-                        ->orWhere('user_id', '!=', self::HIDDEN_ONLINE_TEST_USER_ID);
-                })
-                ->where('last_seen_at', '>=', now()->subMinutes(5))
-                ->orderBy('last_seen_at', 'desc')
+            return app(RecentAdventurerService::class)->query()
                 ->get(['id', 'name'])
                 ->map(function (Character $char) use ($sixHeroCrownsByCharacter): array {
                     $crowns = $sixHeroCrownsByCharacter[(int) $char->id] ?? [];

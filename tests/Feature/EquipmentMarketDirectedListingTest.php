@@ -159,6 +159,26 @@ final class EquipmentMarketDirectedListingTest extends TestCase
         ]);
     }
 
+    public function test_sell_tab_shows_recent_adventurers_before_recipient_search(): void
+    {
+        $seller = $this->character('現在候補の閲覧者', 100_000);
+        $recent = $this->character('現在活動中の冒険者', 2_000_000);
+        $stale = $this->character('活動終了済みの冒険者', 2_000_000);
+        $recent->forceFill(['last_seen_at' => now()->subMinute()])->saveQuietly();
+        $stale->forceFill(['last_seen_at' => now()->subMinutes(6)])->saveQuietly();
+
+        $this->actingAs($seller->user)
+            ->withSession(['current_character_id' => $seller->id])
+            ->get(route('equipment-market.index', ['tab' => 'sell']))
+            ->assertOk()
+            ->assertSee('現在の冒険者')
+            ->assertSee('直近5分')
+            ->assertSee($recent->name)
+            ->assertSee('data-equipment-recipient-candidate="'.$recent->id.'"', false)
+            ->assertDontSee('data-equipment-recipient-candidate="'.$seller->id.'"', false)
+            ->assertDontSee($stale->name);
+    }
+
     public function test_deleted_recipient_does_not_make_a_directed_listing_public(): void
     {
         $seller = $this->character('削除時出品者', 100_000);

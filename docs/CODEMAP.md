@@ -11,7 +11,7 @@ Purpose: find relevant files quickly. Do not duplicate implementation details.
 ## Directed equipment market listings
 
 - `app/Models/EquipmentMarketListing.php`, `app/Services/EquipmentMarketService.php`: viewer scope, recipient validation, purchase authorization, recipient notification.
-- `app/Http/Controllers/EquipmentMarketController.php`, `PlayerShopController.php`, `Admin/EquipmentMarketAdminController.php`, `resources/views/equipment-market/`, `resources/views/shops/`, `resources/views/admin/equipment-market/index.blade.php`: recipient search, privacy filtering and labels.
+- `app/Services/RecentAdventurerService.php`, `app/Http/Controllers/EquipmentMarketController.php`, `PlayerShopController.php`, `Admin/EquipmentMarketAdminController.php`, `resources/views/equipment-market/`, `resources/views/shops/`, `resources/views/admin/equipment-market/index.blade.php`: recent-recipient suggestions, recipient search, privacy filtering and labels.
 - `database/migrations/2026_09_09_201000_add_recipient_to_equipment_market_listings.php`, `tests/Feature/EquipmentMarketDirectedListingTest.php`.
 
 ## Nation competitive raid

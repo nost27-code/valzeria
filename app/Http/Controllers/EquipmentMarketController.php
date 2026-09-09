@@ -8,6 +8,7 @@ use App\Models\EquipmentMarketListing;
 use App\Models\EquipmentMarketTransaction;
 use App\Services\EquipmentMarketAppraisalService;
 use App\Services\EquipmentMarketService;
+use App\Services\RecentAdventurerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +17,10 @@ use Throwable;
 
 class EquipmentMarketController extends Controller
 {
-    public function __construct(private readonly EquipmentMarketService $service) {}
+    public function __construct(
+        private readonly EquipmentMarketService $service,
+        private readonly RecentAdventurerService $recentAdventurers,
+    ) {}
 
     public function index(Request $request)
     {
@@ -84,6 +88,7 @@ class EquipmentMarketController extends Controller
         $ownListings = EquipmentMarketListing::query()->with('recipient')->where('seller_character_id', $character->id)->orderByRaw("CASE status WHEN 'active' THEN 1 WHEN 'sold' THEN 2 ELSE 3 END")->latest()->limit(100)->get();
         $history = EquipmentMarketTransaction::query()->where(fn ($q) => $q->where('seller_character_id', $character->id)->orWhere('buyer_character_id', $character->id))->latest('sold_at')->limit(100)->get();
         $recipientSearch = mb_substr(trim((string) $request->query('recipient_search', '')), 0, 40);
+        $recentAdventurerWindowMinutes = RecentAdventurerService::ACTIVE_WINDOW_MINUTES;
         $selectedRecipient = null;
         if ($request->filled('recipient_character_id')) {
             $selectedRecipient = Character::query()
@@ -93,23 +98,30 @@ class EquipmentMarketController extends Controller
                 ->first();
         }
         $recipientCandidates = collect();
-        if ($tab === 'sell' && $recipientSearch !== '' && ! $selectedRecipient) {
-            $escapedSearch = addcslashes($recipientSearch, '%_\\');
-            $recipientCandidates = Character::query()
-                ->visibleToPublic()
-                ->with('jobClass')
-                ->whereKeyNot($character->id)
-                ->where('name', 'like', "%{$escapedSearch}%")
-                ->orderBy('name')
-                ->orderBy('id')
-                ->limit(10)
-                ->get();
+        if ($tab === 'sell' && ! $selectedRecipient) {
+            if ($recipientSearch !== '') {
+                $escapedSearch = addcslashes($recipientSearch, '%_\\');
+                $recipientCandidates = Character::query()
+                    ->visibleToPublic()
+                    ->with('jobClass')
+                    ->whereKeyNot($character->id)
+                    ->where('name', 'like', "%{$escapedSearch}%")
+                    ->orderBy('name')
+                    ->orderBy('id')
+                    ->limit(10)
+                    ->get();
+            } else {
+                $recipientCandidates = $this->recentAdventurers->query()
+                    ->with('jobClass')
+                    ->whereKeyNot($character->id)
+                    ->get();
+            }
         }
 
         return view('equipment-market.index', compact(
             'character', 'tab', 'listings', 'listingsCount', 'sellable', 'ownListings', 'history', 'sort',
             'engravingOptions', 'slayerOptions', 'categoryOptions', 'recipientSearch', 'selectedRecipient',
-            'recipientCandidates'
+            'recipientCandidates', 'recentAdventurerWindowMinutes'
         ));
     }
 
