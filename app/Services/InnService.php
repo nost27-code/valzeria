@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Services\CharacterStatusService;
+use Illuminate\Support\Facades\DB;
 
 class InnService
 {
@@ -21,9 +22,28 @@ class InnService
     }
 
     /**
-     * 宿屋でHPを全回復する
+     * 宿屋でHP/SPを全回復する
      */
     public function rest(Character $character): array
+    {
+        $result = DB::transaction(function () use ($character): array {
+            $lockedCharacter = Character::query()
+                ->whereKey($character->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            CharacterStatusService::clearRequestCache((int) $lockedCharacter->id);
+
+            return $this->restLocked($lockedCharacter);
+        }, 3);
+
+        $character->refresh();
+        CharacterStatusService::clearRequestCache((int) $character->id);
+
+        return $result;
+    }
+
+    private function restLocked(Character $character): array
     {
         $statusService = new CharacterStatusService();
         $finalStats = $statusService->getFinalStats($character);

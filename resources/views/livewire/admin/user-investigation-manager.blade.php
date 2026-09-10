@@ -85,6 +85,22 @@
                         </button>
                     @endforeach
                 </div>
+                @if($character && $user->role !== 'admin')
+                    <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <button type="button"
+                                wire:click="playAsSelectedUser"
+                                wire:confirm="{{ $character->name }}としてゲームへログインしますか？ 管理画面へ戻るには、ゲームからログアウトして管理者として再ログインしてください。"
+                                wire:loading.attr="disabled"
+                                wire:target="playAsSelectedUser"
+                                class="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-amber-700 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
+                            <span wire:loading.remove wire:target="playAsSelectedUser">{{ $character->name }}としてログイン</span>
+                            <span wire:loading wire:target="playAsSelectedUser">切り替え中...</span>
+                        </button>
+                        <p class="mt-2 text-[11px] font-bold leading-relaxed text-amber-800">
+                            管理者メールの紐づけは変更せず、この管理者セッションだけを対象ユーザーへ切り替えます。
+                        </p>
+                    </div>
+                @endif
             </div>
 
             <div class="rounded-md bg-white p-5 shadow-sm ring-1 ring-slate-200">

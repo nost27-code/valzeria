@@ -270,6 +270,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/character-icon-design/attachments/{attachment}', [\App\Http\Controllers\CharacterIconDesignController::class, 'attachment'])->name('character-icon-design.attachments.show');
         Route::get('/battle/result', [BattleController::class, 'showResult'])->name('battle.result');
         Route::get('/hero-trials', [\App\Http\Controllers\HeroTrialController::class, 'index'])->name('hero-trials.index');
+        Route::post('/hero-trials/{trialKey}/rest', [\App\Http\Controllers\HeroTrialController::class, 'rest'])
+            ->middleware('throttle:10,1')
+            ->name('hero-trials.rest');
         Route::post('/hero-trials/{trialKey}/challenge', [\App\Http\Controllers\HeroTrialController::class, 'challenge'])->name('hero-trials.challenge');
         Route::get('/hero-trials/{trialKey}/result', [\App\Http\Controllers\HeroTrialController::class, 'result'])->name('hero-trials.result');
         Route::get('/battle/pvp-result', [BattleController::class, 'showPvpResult'])->name('battle.pvp_result');

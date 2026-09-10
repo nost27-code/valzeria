@@ -192,37 +192,65 @@ class HeroTrialResultViewTest extends TestCase
         ], $html);
     }
 
-    public function test_black_moon_trial_uses_single_battle_copy_and_job_badge(): void
+    public function test_black_moon_trial_renders_shadow_and_true_body_as_one_continuous_battle(): void
     {
         $character = new Character(['name' => 'かんりにん', 'level' => 250]);
         $character->setRelation('jobClass', new JobClass(['name' => '雷拳覇']));
         $outcome = [
             'passed' => true,
             'trial' => config('hero_trials.released_trials.black_moon_executor'),
-            'phase_results' => [[
-                'phase' => [
-                    'label' => '月蝕相',
-                    'name' => '月喰影獣ルナグリム',
-                    'species_keys' => ['beast', 'demon'],
-                    'image_path' => 'images/enemy/enemy_724.webp',
-                    'type_name' => '高速妨害型',
-                    'max_hp' => 52_000,
-                    'str' => 7_500,
-                    'def' => 4_000,
-                    'agi' => 8_500,
-                    'mag' => 3_200,
-                    'spr' => 4_200,
-                    'luk' => 6_500,
+            'phase_results' => [
+                [
+                    'phase' => [
+                        'label' => '第一戦・月影身',
+                        'name' => '月喰影獣ルナグリムの影身',
+                        'species_keys' => ['beast', 'demon'],
+                        'image_path' => 'images/enemy/enemy_736.webp',
+                        'type_name' => '月影攪乱型',
+                        'max_hp' => 38_000,
+                        'str' => 8_700,
+                        'def' => 4_800,
+                        'agi' => 11_500,
+                        'mag' => 3_800,
+                        'spr' => 5_000,
+                        'luk' => 8_500,
+                    ],
+                    'result' => [
+                        'result' => 'victory',
+                        'playerHpBefore' => 28_461,
+                        'playerMpBefore' => 10_429,
+                        'playerHpAfter' => 18_000,
+                        'playerMpAfter' => 9_500,
+                    ],
+                    'display_logs' => ['月影身との戦闘ログ'],
                 ],
-                'result' => [
-                    'result' => 'victory',
-                    'playerHpBefore' => 28_461,
-                    'playerMpBefore' => 10_429,
-                    'playerHpAfter' => 8_000,
-                    'playerMpAfter' => 9_000,
+                [
+                    'phase' => [
+                        'label' => '第二戦・月喰本体',
+                        'name' => '月喰影獣ルナグリム',
+                        'species_keys' => ['beast', 'demon'],
+                        'image_path' => 'images/enemy/enemy_724.webp',
+                        'type_name' => '月蝕連撃型',
+                        'max_hp' => 60_000,
+                        'str' => 10_033,
+                        'def' => 5_367,
+                        'agi' => 10_383,
+                        'mag' => 4_317,
+                        'spr' => 5_600,
+                        'luk' => 7_933,
+                        'transition_title' => '月喰影獣ルナグリムの影身を退けた！',
+                        'transition_body' => 'だが、月影の奥から真のルナグリムが牙を剥く……！！',
+                    ],
+                    'result' => [
+                        'result' => 'victory',
+                        'playerHpBefore' => 18_000,
+                        'playerMpBefore' => 9_500,
+                        'playerHpAfter' => 8_000,
+                        'playerMpAfter' => 9_000,
+                    ],
+                    'display_logs' => ['月喰本体との戦闘ログ'],
                 ],
-                'display_logs' => ['月影試練の戦闘ログ'],
-            ]],
+            ],
         ];
 
         $html = view('hero-trials.result', [
@@ -244,12 +272,20 @@ class HeroTrialResultViewTest extends TestCase
             'characterDefeatImagePath' => '/images/chara/chara_001.webp',
         ])->render();
 
-        $this->assertStringContainsString('月蝕高速戦', $html);
+        $this->assertStringContainsString('月影二獣連続戦', $html);
         $this->assertStringContainsString('月喰影獣ルナグリムの月影を捉えた！', $html);
         $this->assertStringContainsString('images/jobbadge/jobbadge_071.webp', $html);
         $this->assertStringContainsString('神殿で黒月の執行者を確認する', $html);
+        $this->assertSame(1, substr_count($html, 'images/enemy/enemy_736.webp'));
+        $this->assertSame(1, substr_count($html, 'images/enemy/enemy_724.webp'));
+        $this->assertTextAppearsInOrder([
+            '月影身との戦闘ログ',
+            '月喰影獣ルナグリムの影身を退けた！',
+            'だが、月影の奥から真のルナグリムが牙を剥く……！！',
+            '第二戦・月喰本体',
+            '月喰本体との戦闘ログ',
+        ], $html);
         $this->assertStringNotContainsString('二形態連続戦闘', $html);
-        $this->assertStringNotContainsString('その姿が変わっていく', $html);
         $this->assertStringNotContainsString('暁の勇者', $html);
     }
 

@@ -32,6 +32,27 @@ class HeroTrialService
         return is_array($trial) ? $trial : null;
     }
 
+    /**
+     * @return array{
+     *     items:list<array{key:string,label:string,met:bool,current?:int,required?:int}>,
+     *     ready:bool,
+     *     only_hp_sp_missing:bool
+     * }
+     */
+    public function challengeRequirementsFor(Character $character, string $trialKey): array
+    {
+        if (! $this->isEnabled()) {
+            throw new DomainException('英雄試練は現在公開されていません。');
+        }
+
+        $trial = $this->trial($trialKey);
+        if (! $trial) {
+            throw new DomainException('指定された英雄試練は存在しません。');
+        }
+
+        return $this->buildChallengeRequirements($character, $trial);
+    }
+
     public function hasClearedForJob(Character $character, JobClass $job): bool
     {
         $trial = collect(config('hero_trials.released_trials', []))
@@ -106,9 +127,10 @@ class HeroTrialService
         $releasedTrials = (array) config('hero_trials.released_trials', []);
 
         return collect((array) config('hero_trials.hall_cards', []))
+            ->filter(fn (array $card, string $trialKey): bool => is_array($releasedTrials[$trialKey] ?? null))
             ->map(function (array $card, string $trialKey) use ($character, $releasedTrials): array {
-                $trial = $releasedTrials[$trialKey] ?? null;
-                if (is_array($trial) && $this->appearanceRequirementsMet($character, $trial)) {
+                $trial = $releasedTrials[$trialKey];
+                if ($this->appearanceRequirementsMet($character, $trial)) {
                     $this->ensureProgress($character, $trial);
 
                     return $this->buildFacility($character, $trialKey, $trial, $card);
@@ -119,9 +141,9 @@ class HeroTrialService
                     'symbol_image' => (string) ($card['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
                     'desc' => (string) ($card['facility_desc'] ?? '扉は固く閉ざされている。'),
                     'bg_image' => 'card_bg/dungeon_10_07.webp',
-                    'status' => is_array($trial) ? 'locked' : 'coming_soon',
-                    'action' => is_array($trial) ? '道は閉ざされている' : '準備中',
-                    'badge' => is_array($trial) ? null : '未実装',
+                    'status' => 'locked',
+                    'action' => '道は閉ざされている',
+                    'badge' => null,
                 ];
             })
             ->values()
@@ -314,7 +336,6 @@ class HeroTrialService
     private function buildFacility(Character $character, string $trialKey, array $trial, array $hallCard = []): array
     {
         $cleared = $this->hasClearedArea($character, (int) $trial['area_id']);
-        $isFull = $this->isHpSpFull($character);
         $isHallCard = $hallCard !== [];
 
         if ($cleared) {
@@ -331,19 +352,91 @@ class HeroTrialService
             ];
         }
 
+        $requirements = $this->buildChallengeRequirements($character, $trial);
+
         return [
             'name' => (string) ($hallCard['label'] ?? $trial['label']),
             'symbol_image' => (string) ($hallCard['symbol_image'] ?? $trial['symbol_image'] ?? 'jobbadge/jobbadge_070.webp'),
             'desc' => (string) ($hallCard['facility_desc'] ?? $trial['facility_desc'] ?? '試練主が挑戦者を待つ。'),
             'bg_image' => (string) ($trial['bg_image'] ?? 'card_bg/dungeon_10_07.webp'),
             'status' => 'active',
-            'action' => $isFull
+            'action' => $requirements['ready']
                 ? ($isHallCard ? '試練に挑む' : (string) ($trial['challenge_action'] ?? '英雄試練に挑む'))
                 : '挑戦条件を確認',
             'route' => 'hero-trials.challenge',
             'params' => ['trialKey' => $trialKey],
             'is_post' => true,
             'badge' => '英雄試練',
+            'challenge_requirements' => $requirements,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $trial
+     * @return array{
+     *     items:list<array{key:string,label:string,met:bool,current?:int,required?:int}>,
+     *     ready:bool,
+     *     only_hp_sp_missing:bool
+     * }
+     */
+    private function buildChallengeRequirements(Character $character, array $trial): array
+    {
+        $areaMet = $this->hasClearedArea($character, (int) ($trial['appearance_required_area_id'] ?? 0));
+        $jobMet = $this->hasMasteredJob($character, (string) ($trial['required_job_key'] ?? ''));
+        $items = [
+            [
+                'key' => 'area',
+                'label' => '終焉の祭壇を踏破',
+                'met' => $areaMet,
+            ],
+            [
+                'key' => 'job',
+                'label' => (string) ($trial['required_job_name'] ?? '指定の冠位職').'をマスター',
+                'met' => $jobMet,
+            ],
+        ];
+
+        if ((bool) ($trial['requires_full_hp_sp'] ?? false)) {
+            CharacterStatusService::clearRequestCache((int) $character->id);
+            $stats = $this->statusService->getFinalStats($character);
+            $maxHp = max(1, (int) ($stats['max_hp'] ?? 1));
+            $maxSp = max(0, (int) ($stats['max_mp'] ?? 0));
+            $currentHp = max(0, (int) $character->current_hp);
+            $currentSp = max(0, (int) ($character->current_mp ?? 0));
+
+            $items[] = [
+                'key' => 'hp',
+                'label' => 'HPを全快にする',
+                'met' => $currentHp >= $maxHp,
+                'current' => $currentHp,
+                'required' => $maxHp,
+            ];
+            $items[] = [
+                'key' => 'sp',
+                'label' => 'SPを全快にする',
+                'met' => $currentSp >= $maxSp,
+                'current' => $currentSp,
+                'required' => $maxSp,
+            ];
+        }
+
+        $unmetKeys = collect($items)
+            ->reject(fn (array $item): bool => $item['met'])
+            ->pluck('key')
+            ->values()
+            ->all();
+        $nonRecoveryConditionsMet = ! (bool) $character->is_frozen
+            && (int) $character->current_city_id === (int) ($trial['city_id'] ?? 0)
+            && ! $this->hasClearedArea($character, (int) ($trial['area_id'] ?? 0));
+        $ready = $nonRecoveryConditionsMet && $unmetKeys === [];
+        $onlyHpSpMissing = $nonRecoveryConditionsMet
+            && $unmetKeys !== []
+            && array_diff($unmetKeys, ['hp', 'sp']) === [];
+
+        return [
+            'items' => $items,
+            'ready' => $ready,
+            'only_hp_sp_missing' => $onlyHpSpMissing,
         ];
     }
 

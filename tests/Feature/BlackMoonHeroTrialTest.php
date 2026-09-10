@@ -84,14 +84,29 @@ class BlackMoonHeroTrialTest extends TestCase
             'boss_defeated' => true,
         ]);
 
-        $battleResult = new BattleResult;
-        $battleResult->result = 'victory';
-        $battleResult->turnCount = 8;
-        $battleResult->logs = ['【戦闘開始】月影試練者 は 月喰影獣ルナグリム と遭遇した！'];
-        $battleResult->playerHpAfter = 35;
-        $battleResult->playerMpAfter = 20;
+        $shadowResult = new BattleResult;
+        $shadowResult->result = 'victory';
+        $shadowResult->turnCount = 4;
+        $shadowResult->logs = ['【戦闘開始】月影試練者 は 月喰影獣ルナグリムの影身 と遭遇した！'];
+        $shadowResult->playerHpAfter = 60;
+        $shadowResult->playerMpAfter = 30;
+        $trueBodyResult = new BattleResult;
+        $trueBodyResult->result = 'victory';
+        $trueBodyResult->turnCount = 5;
+        $trueBodyResult->logs = ['【戦闘開始】月影試練者 は 月喰影獣ルナグリム と遭遇した！'];
+        $trueBodyResult->playerHpAfter = 35;
+        $trueBodyResult->playerMpAfter = 20;
 
         $battleService = Mockery::mock(BattleService::class);
+        $battleService->shouldReceive('executeBattle')
+            ->once()
+            ->withArgs(fn (Character $challenger, Enemy $enemy, int $bonus, array $options): bool =>
+                $challenger->is($character)
+                && $enemy->name === '月喰影獣ルナグリムの影身'
+                && $bonus === 0
+                && $options === ['rewards_enabled' => false])
+            ->ordered()
+            ->andReturn($shadowResult);
         $battleService->shouldReceive('executeBattle')
             ->once()
             ->withArgs(fn (Character $challenger, Enemy $enemy, int $bonus, array $options): bool =>
@@ -99,7 +114,8 @@ class BlackMoonHeroTrialTest extends TestCase
                 && $enemy->name === '月喰影獣ルナグリム'
                 && $bonus === 0
                 && $options === ['rewards_enabled' => false])
-            ->andReturn($battleResult);
+            ->ordered()
+            ->andReturn($trueBodyResult);
 
         $statusService = Mockery::mock(CharacterStatusService::class);
         $statusService->shouldReceive('getFinalStats')
@@ -121,6 +137,7 @@ class BlackMoonHeroTrialTest extends TestCase
         $outcome = $service->challenge($character, 'black_moon_executor');
 
         $this->assertTrue($outcome['passed']);
+        $this->assertCount(2, $outcome['phase_results']);
         $this->assertSame('雷拳覇', $character->currentJob->name);
         $this->assertTrue($service->hasClearedForJob($character, $heroJob));
         $this->assertDatabaseHas('character_area_progresses', [
@@ -174,8 +191,11 @@ class BlackMoonHeroTrialTest extends TestCase
             collect($service->trialFacilitiesFor($character, 10))->pluck('name')->all(),
         );
         $hallFacilities = $service->hallFacilitiesFor($character, 10);
-        $this->assertCount(10, $hallFacilities);
-        $this->assertSame('白銀の試練場', $hallFacilities[9]['name']);
+        $this->assertCount(4, $hallFacilities);
+        $this->assertSame(
+            ['暁の試練場', '月蝕の試練場', '星天の試練場', '時環の試練場'],
+            collect($hallFacilities)->pluck('name')->all(),
+        );
         $this->assertSame('試練に挑む', $hallFacilities[0]['action']);
         $this->assertSame('試練に挑む', $hallFacilities[1]['action']);
         $this->assertSame('道は閉ざされている', $hallFacilities[2]['action']);
@@ -189,17 +209,19 @@ class BlackMoonHeroTrialTest extends TestCase
             ->assertSeeText('英雄試練殿')
             ->assertSeeText('暁の試練場')
             ->assertSeeText('月蝕の試練場')
-            ->assertSeeText('白銀の試練場')
+            ->assertDontSeeText('白銀の試練場')
+            ->assertDontSeeText('準備中')
+            ->assertDontSeeText('未実装')
             ->assertDontSeeText('挑戦職: すべての職業')
             ->assertDontSeeText('試練主の種族')
             ->assertDontSeeText('剣相から術相へHP/SPを引き継いで連戦');
     }
 
-    public function test_deepening_eclipse_is_locked_until_turn_six(): void
+    public function test_deepening_eclipse_starts_the_true_body_phase(): void
     {
         $enemy = app(HeroTrialProfileService::class)
             ->enemies('black_moon_executor_balanced')
-            ->sole();
+            ->last();
         $action = $enemy->actions->firstWhere('action_key', 'deepening_eclipse');
         $enemyActor = new BattleActor($enemy->name, false, [
             'max_hp' => $enemy->max_hp,
@@ -222,9 +244,7 @@ class BlackMoonHeroTrialTest extends TestCase
         $state = new BattleState($playerActor, $enemyActor, 'boss');
         $method = new ReflectionMethod(BattleService::class, 'canUseEnemyAction');
 
-        $state->turnCount = 5;
-        $this->assertFalse($method->invoke(app(BattleService::class), $action, $state, $enemyActor));
-        $state->turnCount = 6;
+        $state->turnCount = 1;
         $this->assertTrue($method->invoke(app(BattleService::class), $action, $state, $enemyActor));
     }
 

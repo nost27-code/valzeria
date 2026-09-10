@@ -18,7 +18,9 @@ use App\Services\LevelService;
 use App\Services\PublicLogService;
 use App\Services\ValmonService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
@@ -94,6 +96,47 @@ class UserInvestigationManager extends Component
         $this->adminMessage = '';
         $this->resetValidation('adminMessage');
         session()->flash('status', $character->name . 'さんへ管理人メッセージを送信しました。');
+    }
+
+    public function playAsSelectedUser()
+    {
+        $admin = Auth::user();
+        abort_unless($admin && $admin->role === 'admin', 403);
+
+        $character = $this->selectedUserId && $this->selectedCharacterId
+            ? Character::query()
+                ->whereKey($this->selectedCharacterId)
+                ->where('user_id', $this->selectedUserId)
+                ->first()
+            : null;
+        $targetUser = $character
+            ? User::query()
+                ->whereKey($this->selectedUserId)
+                ->where(function ($query): void {
+                    $query->whereNull('role')->orWhere('role', '!=', 'admin');
+                })
+                ->first()
+            : null;
+
+        if (! $character || ! $targetUser) {
+            session()->flash('error', 'プレイ対象の一般ユーザーと冒険者を確認できませんでした。');
+
+            return;
+        }
+
+        Log::notice('Admin switched to a player account.', [
+            'admin_user_id' => (int) $admin->id,
+            'target_user_id' => (int) $targetUser->id,
+            'character_id' => (int) $character->id,
+        ]);
+
+        Auth::loginUsingId($targetUser->id);
+        session()->regenerate();
+        session(['current_character_id' => (int) $character->id]);
+
+        return redirect()
+            ->route('home')
+            ->with('message', $character->name . 'としてログインしました。');
     }
 
     public function render()

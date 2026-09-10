@@ -58,6 +58,9 @@ class HeroTrialProfileServiceTest extends TestCase
         );
         $this->assertSame(['standard', 'standard'], $enemies->pluck('family_key')->all());
         $this->assertSame(['physical', 'magical'], $enemies->pluck('normal_attack_type')->all());
+        $this->assertSame([85_750, 85_750], $enemies->pluck('max_hp')->all());
+        $this->assertSame(8_283, $enemies[0]->str);
+        $this->assertSame(8_867, $enemies[1]->mag);
         $this->assertSame(
             ['images/enemy/enemy_723.webp', 'images/enemy/enemy_735.webp'],
             collect($profile['phases'])->pluck('image_path')->all()
@@ -70,26 +73,36 @@ class HeroTrialProfileServiceTest extends TestCase
     {
         $profileService = app(HeroTrialProfileService::class);
         $profile = $profileService->profile('black_moon_executor_balanced');
-        $enemy = $profileService->enemies('black_moon_executor_balanced')->sole();
+        $enemies = $profileService->enemies('black_moon_executor_balanced');
 
-        $this->assertCount(1, $profile['phases']);
-        $this->assertSame(81.4, $profile['benchmark']['pass_rate']);
-        $this->assertSame(['beast', 'demon'], $profile['phases'][0]['species_keys']);
-        $this->assertSame('月喰影獣ルナグリム', $enemy->name);
-        $this->assertSame('高速妨害型', $enemy->type_name);
-        $this->assertSame(7_500, $enemy->str);
-        $this->assertSame(8_500, $enemy->agi);
+        $this->assertCount(2, $profile['phases']);
+        $this->assertTrue($profile['carry_hp_sp_between_phases']);
+        $this->assertSame(68.8, $profile['benchmark']['pass_rate']);
         $this->assertSame(
-            ['月影縛り', '蝕牙連舞', '月蝕深化'],
-            $enemy->actions->pluck('name')->all(),
+            [['beast', 'demon'], ['beast', 'demon']],
+            collect($profile['phases'])->pluck('species_keys')->all(),
         );
         $this->assertSame(
-            ['slow', 'multi_hit', 'self_buff'],
-            $enemy->actions->pluck('action_type')->all(),
+            ['月喰影獣ルナグリムの影身', '月喰影獣ルナグリム'],
+            $enemies->pluck('name')->all(),
         );
-        $this->assertSame(80, $enemy->actions->firstWhere('action_key', 'eclipse_fang_dance')->power_percent);
-        $this->assertSame(15, $enemy->actions->firstWhere('action_key', 'deepening_eclipse')->effect_percent);
+        $this->assertSame(['月影攪乱型', '月蝕連撃型'], $enemies->pluck('type_name')->all());
+        $this->assertSame([38_000, 60_000], $enemies->pluck('max_hp')->all());
+        $this->assertSame(11_500, $enemies[0]->agi);
+        $this->assertSame(10_033, $enemies[1]->str);
+        $this->assertSame(
+            ['月影縛り', '影牙連舞'],
+            $enemies[0]->actions->pluck('name')->all(),
+        );
+        $this->assertSame(
+            ['蝕牙連舞', '月蝕深化'],
+            $enemies[1]->actions->pluck('name')->all(),
+        );
+        $this->assertSame(80, $enemies[1]->actions->firstWhere('action_key', 'eclipse_fang_dance')->power_percent);
+        $this->assertSame(15, $enemies[1]->actions->firstWhere('action_key', 'deepening_eclipse')->effect_percent);
+        $this->assertSame(1, $enemies[1]->actions->firstWhere('action_key', 'deepening_eclipse')->trigger_turn);
         $this->assertSame(['獣', '悪魔'], $profileService->speciesLabels('black_moon_executor_balanced'));
+        $this->assertFileExists(public_path('images/enemy/enemy_736.webp'));
         $this->assertFileExists(public_path('images/enemy/enemy_724.webp'));
     }
 
@@ -97,18 +110,35 @@ class HeroTrialProfileServiceTest extends TestCase
     {
         $profileService = app(HeroTrialProfileService::class);
         $profile = $profileService->profile('star_heaven_sage_balanced');
-        $enemy = $profileService->enemies('star_heaven_sage_balanced')->sole();
+        $enemies = $profileService->enemies('star_heaven_sage_balanced');
 
-        $this->assertSame(78.2, $profile['benchmark']['pass_rate']);
-        $this->assertSame(['mage', 'machine'], $profile['phases'][0]['species_keys']);
-        $this->assertSame('天象魔導核アステリオン', $enemy->name);
-        $this->assertSame('magical', $enemy->normal_attack_type);
+        $this->assertCount(2, $profile['phases']);
+        $this->assertTrue($profile['carry_hp_sp_between_phases']);
+        $this->assertSame(62.4, $profile['benchmark']['pass_rate']);
         $this->assertSame(
-            ['magical_spr_down', 'magical'],
-            $enemy->actions->pluck('action_type')->all(),
+            [['mage', 'machine'], ['mage', 'machine']],
+            collect($profile['phases'])->pluck('species_keys')->all(),
         );
-        $this->assertTrue((bool) $enemy->actions->firstWhere('action_key', 'stellar_collapse')->is_telegraphed);
+        $this->assertSame(
+            ['天象魔導核アステリオン・星殻', '天象魔導核アステリオン'],
+            $enemies->pluck('name')->all(),
+        );
+        $this->assertSame(['magical', 'magical'], $enemies->pluck('normal_attack_type')->all());
+        $this->assertSame([45_000, 80_000], $enemies->pluck('max_hp')->all());
+        $this->assertSame(11_000, $enemies[0]->spr);
+        $this->assertSame(16_500, $enemies[1]->mag);
+        $this->assertSame(
+            ['magical_spr_down'],
+            $enemies[0]->actions->pluck('action_type')->all(),
+        );
+        $this->assertSame(
+            ['magical_multi_hit', 'magical'],
+            $enemies[1]->actions->pluck('action_type')->all(),
+        );
+        $this->assertTrue((bool) $enemies[1]->actions->firstWhere('action_key', 'stellar_collapse')->is_telegraphed);
+        $this->assertSame(2, $enemies[1]->actions->firstWhere('action_key', 'stellar_collapse')->trigger_turn);
         $this->assertSame(['魔法型', '機械'], $profileService->speciesLabels('star_heaven_sage_balanced'));
+        $this->assertFileExists(public_path('images/enemy/enemy_737.webp'));
         $this->assertFileExists(public_path('images/enemy/enemy_725.webp'));
     }
 
@@ -118,15 +148,15 @@ class HeroTrialProfileServiceTest extends TestCase
         $profile = $profileService->profile('time_reader_traveler_balanced');
         $enemy = $profileService->enemies('time_reader_traveler_balanced')->sole();
 
-        $this->assertSame(54.3, $profile['benchmark']['pass_rate']);
+        $this->assertSame(38.2, $profile['benchmark']['pass_rate']);
         $this->assertSame(['mage', 'spirit'], $profile['phases'][0]['species_keys']);
         $this->assertSame('時環の観測者エオン', $enemy->name);
         $this->assertSame('magical', $enemy->normal_attack_type);
-        $this->assertSame(80_000, $enemy->max_hp);
-        $this->assertSame(5_800, $enemy->def);
-        $this->assertSame(11_500, $enemy->agi);
-        $this->assertSame(9_600, $enemy->mag);
-        $this->assertSame(6_600, $enemy->spr);
+        $this->assertSame(149_333, $enemy->max_hp);
+        $this->assertSame(8_167, $enemy->def);
+        $this->assertSame(14_758, $enemy->agi);
+        $this->assertSame(14_583, $enemy->mag);
+        $this->assertSame(9_217, $enemy->spr);
         $this->assertSame(
             ['magical_slow', 'magical_multi_hit', 'self_speed_buff'],
             $enemy->actions->pluck('action_type')->all(),

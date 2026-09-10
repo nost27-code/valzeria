@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Services\CharacterIconSetService;
 use App\Services\CharacterStatusService;
 use App\Services\HeroTrialService;
+use App\Services\InnService;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +18,7 @@ class HeroTrialController extends Controller
 {
     private const REQUEST_DELAY_SECONDS = 3;
 
-    public function index(HeroTrialService $trialService): View|RedirectResponse
+    public function index(HeroTrialService $trialService, InnService $innService): View|RedirectResponse
     {
         if (! $trialService->isEnabled()) {
             return redirect()->route('home')->with('error', '英雄試練は現在公開されていません。');
@@ -34,8 +36,95 @@ class HeroTrialController extends Controller
 
         session(['current_location' => 'dungeon']);
 
-        return view('hero-trials.index', [
-            'trials' => $trialService->hallFacilitiesFor($character, (int) $character->current_city_id),
+        $trials = collect($trialService->hallFacilitiesFor($character, (int) $character->current_city_id))
+            ->map(function (array $trial) use ($character, $innService): array {
+                if ((bool) ($trial['challenge_requirements']['only_hp_sp_missing'] ?? false)) {
+                    $trial['inn_fee'] = $innService->fee($character);
+                }
+
+                return $trial;
+            })
+            ->all();
+
+        return view('hero-trials.index', ['trials' => $trials]);
+    }
+
+    public function rest(
+        string $trialKey,
+        HeroTrialService $trialService,
+        InnService $innService,
+        CharacterStatusService $statusService,
+    ): JsonResponse {
+        $character = Auth::user()?->currentCharacter();
+        if (! $character) {
+            return response()->json([
+                'success' => false,
+                'message' => '冒険者を選択してください。',
+            ], 422);
+        }
+
+        try {
+            $requirements = $trialService->challengeRequirementsFor($character, $trialKey);
+        } catch (DomainException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        if ((bool) $requirements['ready']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'HP/SPはすでに全快です。そのまま試練に挑めます。',
+            ], 422);
+        }
+
+        if (! (bool) $requirements['only_hp_sp_missing']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'HP/SP以外の挑戦条件を満たしてから宿屋を利用してください。',
+            ], 422);
+        }
+
+        if (! Cache::add(
+            "hero_trial_rest_request_delay:{$character->id}",
+            true,
+            now()->addSeconds(self::REQUEST_DELAY_SECONDS)
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => '宿屋の処理中です。少し待ってからもう一度お試しください。',
+            ], 429);
+        }
+
+        $result = $innService->rest($character);
+        if (! (bool) ($result['success'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => (string) ($result['message'] ?? '宿屋を利用できませんでした。'),
+            ], 422);
+        }
+
+        $character->refresh();
+        CharacterStatusService::clearRequestCache((int) $character->id);
+        $stats = $statusService->getFinalStats($character);
+        $paid = (int) ($result['paid'] ?? 0);
+        $rescued = (bool) ($result['rescued'] ?? false);
+        $payText = $paid > 0 ? "{$paid}G支払った" : '支払いは免除された';
+        $message = $rescued
+            ? "宿屋のおばちゃんの厚意でHP/SPが全回復した！（{$payText}）"
+            : "宿屋で休み、HP/SPが全回復した！（{$payText}）";
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'paid' => $paid,
+            'rescued' => $rescued,
+            'hp' => (int) $character->current_hp,
+            'max_hp' => (int) ($stats['max_hp'] ?? 1),
+            'sp' => (int) ($character->current_mp ?? 0),
+            'max_sp' => (int) ($stats['max_mp'] ?? 0),
+            'money' => (int) $character->money,
         ]);
     }
 

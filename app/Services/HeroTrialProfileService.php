@@ -165,12 +165,13 @@ class HeroTrialProfileService
         }
 
         $name = trim((string) ($master['name'] ?? ''));
+        $enemyName = trim((string) ($phase['enemy_name'] ?? $name));
         $speciesLabels = (array) config('enemy_species.labels', []);
         $speciesKeys = array_values(array_unique(array_filter(array_map(
             static fn ($speciesKey): string => trim((string) $speciesKey),
             (array) ($master['species_keys'] ?? [])
         ))));
-        if ($name === '' || count($speciesKeys) !== 2) {
+        if ($name === '' || $enemyName === '' || count($speciesKeys) !== 2) {
             throw new DomainException("英雄試練の試練主 {$masterKey} に有効な名前または種族が設定されていません。");
         }
         foreach ($speciesKeys as $speciesKey) {
@@ -180,7 +181,7 @@ class HeroTrialProfileService
         }
 
         return array_merge($phase, [
-            'name' => $name,
+            'name' => $enemyName,
             'species_key' => $speciesKeys[0],
             'species_keys' => $speciesKeys,
         ]);
