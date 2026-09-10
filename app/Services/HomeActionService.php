@@ -26,10 +26,16 @@ class HomeActionService
     public function getActions(Character $character, int $limit = 4, ?array $precomputedStats = null): array
     {
         $actions = collect();
+        $supplyStatuses = app(SchemaStateService::class)->hasTable('character_item_daily_supplies')
+            ? collect($this->dailySupplyService->statusFor($character))
+            : collect();
 
         $this->appendExplorationBagAction($actions, $character);
         $this->appendBonusPointAction($actions, $character);
-        $this->appendDailySupplyAction($actions, $character);
+        $hasRecoveryGuidance = $this->appendRecoveryAction($actions, $character, $precomputedStats, $supplyStatuses);
+        if (! $hasRecoveryGuidance) {
+            $this->appendDailySupplyAction($actions, $supplyStatuses);
+        }
         $this->appendEquipmentEvolutionAction($actions, $character);
         $this->appendJobChangeAction($actions, $character);
         $this->appendJobArtSetupAction($actions, $character);
@@ -37,7 +43,6 @@ class HomeActionService
         $this->appendMarketNotificationAction($actions, $character);
         $this->appendNationJoinAction($actions, $character);
         $this->appendExplorationStartAction($actions, $character);
-        $this->appendRecoveryAction($actions, $character, $precomputedStats);
 
         return $actions
             ->sortByDesc('priority')
@@ -181,38 +186,141 @@ class HomeActionService
         ]);
     }
 
-    private function appendRecoveryAction(Collection $actions, Character $character, ?array $precomputedStats = null): void
-    {
+    private function appendRecoveryAction(
+        Collection $actions,
+        Character $character,
+        ?array $precomputedStats,
+        Collection $supplyStatuses,
+    ): bool {
         $stats = $precomputedStats ?? $this->statusService->getFinalStats($character);
         $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base ?? 1));
-        $maxSp = max(1, (int) ($stats['max_mp'] ?? $character->mp_base ?? 1));
+        $maxSp = max(0, (int) ($stats['max_mp'] ?? $character->mp_base ?? 0));
         $hpRate = (int) ($character->current_hp ?? 0) / $maxHp;
-        $spRate = (int) ($character->current_mp ?? 0) / $maxSp;
+        $spRate = $maxSp > 0 ? (int) ($character->current_mp ?? 0) / $maxSp : 1.0;
 
         if ($hpRate > 0.35 && $spRate > 0.25) {
-            return;
+            return false;
+        }
+
+        $needsHp = $hpRate <= 0.35;
+        $needsSp = $spRate <= 0.25;
+        $relevantSupplies = $supplyStatuses
+            ->filter(fn (array $entry): bool => ($needsHp && in_array($entry['name'] ?? '', ['薬草', '回復薬'], true))
+                || ($needsSp && ($entry['name'] ?? '') === '魔力水'))
+            ->values();
+        $ownedSupplies = $relevantSupplies
+            ->filter(fn (array $entry): bool => (int) ($entry['owned_count'] ?? 0) > 0)
+            ->values();
+
+        if ($ownedSupplies->isNotEmpty()) {
+            $itemNames = $ownedSupplies
+                ->map(fn (array $entry): string => ($entry['name'] ?? '回復アイテム').' ×'.number_format((int) ($entry['owned_count'] ?? 0)))
+                ->implode(' / ');
+
+            $actions->push([
+                'key' => 'recovery_item_available',
+                'title' => '回復アイテムを持っています',
+                'body' => "{$itemNames}。補給所でそのまま使えます。",
+                'action_label' => '回復する',
+                'action_url' => route('shop.items').'#recovery-items',
+                'icon' => '✚',
+                'icon_image' => 'icon/icon_044.webp',
+                'priority' => 88,
+                'category' => 'town',
+            ]);
+
+            return true;
+        }
+
+        if ($relevantSupplies->contains(fn (array $entry): bool => (int) ($entry['claimable_count'] ?? 0) > 0)) {
+            $actions->push([
+                'key' => 'recovery_supply_available',
+                'title' => '補給所に回復アイテムが届いています',
+                'body' => '無料で受け取って、そのまま回復に使えます。',
+                'action_label' => '補給所へ',
+                'action_url' => route('shop.items'),
+                'icon' => '✚',
+                'icon_image' => 'icon/icon_044.webp',
+                'priority' => 88,
+                'category' => 'town',
+            ]);
+
+            return true;
+        }
+
+        $fee = app(InnService::class)->fee($character);
+        $handGold = max(0, (int) ($character->money ?? 0));
+        $bankGold = max(0, (int) ($character->bank_gold ?? 0));
+
+        if ($handGold < $fee && ($handGold + $bankGold) >= $fee) {
+            $actions->push([
+                'key' => 'recovery_gold_in_bank',
+                'title' => '銀行のGoldで宿に泊まれます',
+                'body' => '銀行から宿代を引き出して、HP/SPを全回復できます。',
+                'action_label' => '銀行へ',
+                'action_url' => route('bank.index'),
+                'icon' => '🏦',
+                'icon_image' => 'icon/icon_029.webp',
+                'priority' => 88,
+                'category' => 'town',
+            ]);
+
+            return true;
+        }
+
+        if (($handGold + $bankGold) < $fee && (int) ($character->inn_rescue_streak ?? 0) < 2) {
+            $actions->push([
+                'key' => 'recovery_inn_rescue_available',
+                'title' => '宿屋のおばちゃんが助けてくれそうです',
+                'body' => 'Goldが足りなくても、今回は宿屋で休ませてもらえます。',
+                'action_label' => '宿屋へ',
+                'tab' => 'town',
+                'icon' => '🛏️',
+                'icon_image' => 'icon/icon_018.webp',
+                'priority' => 88,
+                'category' => 'town',
+            ]);
+
+            return true;
+        }
+
+        if ($handGold < $fee) {
+            $actions->push([
+                'key' => 'recovery_gold_needed',
+                'title' => '宿代を作りましょう',
+                'body' => '不要な素材や装備を売るとGoldにできます。',
+                'action_label' => '素材・装備を売る',
+                'action_url' => route('inventory.index', ['tab' => 'material']),
+                'icon' => '💰',
+                'icon_image' => 'icon/icon_025.webp',
+                'priority' => 88,
+                'category' => 'market',
+            ]);
+
+            return true;
         }
 
         $actions->push([
             'key' => 'recovery_recommended',
             'title' => 'HP/SPが減っています',
-            'body' => '街の宿屋で回復してから探索すると安定します。',
-            'action_label' => '街を見る',
+            'body' => '宿屋でHP/SPを全回復してから探索すると安心です。',
+            'action_label' => '宿屋へ',
             'tab' => 'town',
             'icon' => '🛏️',
             'icon_image' => 'icon/icon_018.webp',
-            'priority' => 50,
+            'priority' => 88,
             'category' => 'town',
         ]);
+
+        return true;
     }
 
-    private function appendDailySupplyAction(Collection $actions, Character $character): void
+    private function appendDailySupplyAction(Collection $actions, Collection $supplyStatuses): void
     {
-        if (! app(SchemaStateService::class)->hasTable('character_item_daily_supplies')) {
+        if ($supplyStatuses->isEmpty()) {
             return;
         }
 
-        $supplyStatuses = collect($this->dailySupplyService->statusFor($character));
         $claimableItems = $supplyStatuses
             ->filter(fn (array $entry) => (int) ($entry['owned_count'] ?? 0) < (int) ($entry['target_count'] ?? 10)
                 && (int) ($entry['claimable_count'] ?? 0) > 0)

@@ -6,7 +6,7 @@
 
 <x-layouts.facility :title="$categoryName" :headerIconImage="$headerIconImage" :bgImage="$bgImage">
     <div class="w-full mx-auto">
-        <div class="bg-white p-5 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50">
+        <div id="recovery-items" class="bg-white p-5 sm:p-6 rounded-lg shadow-sm border border-[#d4af37]/50 scroll-mt-4">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                 <div>
                     <h2 class="text-xl font-bold text-slate-800">回復アイテムの無料配布</h2>
@@ -16,10 +16,13 @@
                     <p class="mt-1 text-xs font-bold text-slate-500">
                         所持数が{{ $targetCount }}個に届かない分だけ受け取り、残りは補給所にストックされます。
                     </p>
+                    <p class="mt-1 text-xs font-bold text-sky-700">
+                        受け取った回復アイテムは、この補給所か探索結果から使えます。
+                    </p>
                     <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
                         <p class="font-extrabold">「持てる分だけ持っていきな。残った分はここで預かっとくよ」</p>
                         <p class="mt-1 text-xs font-bold text-amber-800">
-                            翌日になればまた各{{ $targetCount }}個まで補給できるからね。今日の分は探索で使い切るくらいが一番お得だよ。
+                            翌日になればまた各{{ $targetCount }}個まで補給できるからね。HPやSPが減ったら、ここで使っていきな。
                         </p>
                     </div>
                 </div>
@@ -92,6 +95,10 @@
                                 <span class="text-amber-700">補給所に保管中</span>
                                 <span class="text-slate-800">{{ $entry['depot_count'] }}個</span>
                             </div>
+                            <div class="mt-2 flex items-center justify-between rounded-md bg-sky-50 px-3 py-2 text-xs font-bold">
+                                <span class="text-sky-700">現在の{{ $entry['resource_label'] }}</span>
+                                <span class="text-slate-800">{{ number_format($entry['resource_current']) }} / {{ number_format($entry['resource_max']) }}</span>
+                            </div>
                             @php
                                 $depotBreakdown = [];
                                 if (($entry['carried_stock_count'] ?? 0) > 0) {
@@ -111,21 +118,40 @@
                             @endif
                         </div>
 
-                        <form action="{{ $entry['item'] ? route('shop.items.claim', $entry['item']) : '#' }}" method="POST" class="mt-4">
-                            @csrf
-                            <button type="submit"
-                                    @disabled(!$entry['can_claim'])
-                                    class="w-full min-h-11 rounded-lg px-4 py-2 text-sm font-extrabold shadow transition active:scale-95 {{ $entry['can_claim'] ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed' }}">
-                                {{ $entry['can_claim'] ? '補充を受け取る' : '受け取り不可' }}
-                            </button>
-                        </form>
+                        <div class="mt-4 grid gap-2">
+                            @if($entry['item'] && (int) $entry['owned_count'] > 0)
+                                <form action="{{ route('shop.items.use', $entry['item']) }}"
+                                      method="POST"
+                                      x-data="{ submitting: false }"
+                                      @submit="if (submitting) { $event.preventDefault(); } else { submitting = true; }">
+                                    @csrf
+                                    <button type="submit"
+                                            :disabled="submitting || @js(!$entry['can_use'])"
+                                            @disabled(!$entry['can_use'])
+                                            class="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-extrabold shadow transition active:scale-95 {{ $entry['can_use'] ? 'bg-sky-700 hover:bg-sky-800 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed' }}">
+                                        <x-loading-spinner x-show="submitting" style="display: none;" />
+                                        <span x-show="!submitting">{{ $entry['can_use'] ? $entry['name'] . 'を使う' : $entry['resource_label'] . 'は全快です' }}</span>
+                                        <span x-show="submitting" style="display: none;">使用中...</span>
+                                    </button>
+                                </form>
+                            @endif
+
+                            <form action="{{ $entry['item'] ? route('shop.items.claim', $entry['item']) : '#' }}" method="POST">
+                                @csrf
+                                <button type="submit"
+                                        @disabled(!$entry['can_claim'])
+                                        class="w-full min-h-11 rounded-lg px-4 py-2 text-sm font-extrabold shadow transition active:scale-95 {{ $entry['can_claim'] ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed' }}">
+                                    {{ $entry['can_claim'] ? '補充を受け取る' : '受け取り不可' }}
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 @endforeach
             </div>
 
             <div class="mt-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
                 <p class="font-bold">補給所ストックについて</p>
-                <p class="mt-1">所持数が上限で受け取れなかった分や、今日まだ受け取っていない分は補給所に残ります。探索で消費したあと、また受け取りに来てください。</p>
+                <p class="mt-1">所持数が上限で受け取れなかった分や、今日まだ受け取っていない分は補給所に残ります。ここか探索結果で消費したあと、また受け取りに来てください。</p>
             </div>
         </div>
     </div>

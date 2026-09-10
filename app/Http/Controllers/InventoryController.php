@@ -322,7 +322,7 @@ class InventoryController extends Controller
                 'quantity' => (int) $row->quantity,
                 'can_use' => false,
                 'use_label' => '',
-                'use_note' => '探索中に使用できます。持ち込みは各10個までです。',
+                'use_note' => '街では補給所、探索中は戦闘結果から使用できます。持ち込みは各10個までです。',
             ])
             ->values();
     }

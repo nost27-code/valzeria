@@ -114,6 +114,59 @@ class ExplorationItemService
         ];
     }
 
+    public function useInTown(Character $character, Item $item): array
+    {
+        $config = $this->configFor($item);
+        if (! $config) {
+            return ['success' => false, 'message' => 'このアイテムは回復に使用できません。'];
+        }
+
+        return DB::transaction(function () use ($character, $item, $config): array {
+            $lockedCharacter = Character::query()
+                ->whereKey($character->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $owned = CharacterItem::query()
+                ->where('character_id', $lockedCharacter->id)
+                ->where('item_id', $item->id)
+                ->where('is_equipped', false)
+                ->oldest('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $owned) {
+                return ['success' => false, 'message' => "{$item->name}を所持していません。"];
+            }
+
+            $stats = app(CharacterStatusService::class)->getFinalStats($lockedCharacter);
+            $target = $config['target'];
+            $max = $target === 'hp'
+                ? max(1, (int) ($stats['max_hp'] ?? $lockedCharacter->hp_base))
+                : max(0, (int) ($stats['max_mp'] ?? $lockedCharacter->mp_base));
+            $currentColumn = $target === 'hp' ? 'current_hp' : 'current_mp';
+            $current = (int) ($lockedCharacter->{$currentColumn} ?? 0);
+
+            if ($max <= 0 || $current >= $max) {
+                return ['success' => false, 'message' => $target === 'hp' ? 'HPはすでに全快です。' : 'SPはすでに全快です。'];
+            }
+
+            $recover = max(1, (int) ceil($max * ($config['percent'] / 100)));
+            $after = min($max, $current + $recover);
+
+            $lockedCharacter->{$currentColumn} = $after;
+            $lockedCharacter->save();
+            $owned->delete();
+
+            $label = $target === 'hp' ? 'HP' : 'SP';
+
+            return [
+                'success' => true,
+                'message' => "{$item->name}を使用し、{$label}が{$after}/{$max}まで回復しました。",
+            ];
+        });
+    }
+
     public function addBonusCarry(Character $character, Item $item, int $quantity = 1): void
     {
         if ($quantity <= 0 || !$this->configFor($item)) {

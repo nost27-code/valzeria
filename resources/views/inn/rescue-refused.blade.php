@@ -29,10 +29,10 @@
                 </div>
 
                 <div class="mt-6 grid gap-3 sm:grid-cols-2">
-                    <a href="{{ route('inventory.index') }}"
+                    <a href="{{ route('inventory.index', ['tab' => 'material']) }}"
                        class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 shadow-sm transition hover:bg-amber-100 active:scale-95">
                         <img src="{{ asset('images/icon/icon_025.webp') }}" alt="" class="h-5 w-5 object-contain">
-                        倉庫を見る
+                        素材・装備を売る
                     </a>
                     <a href="{{ route('shop.items') }}"
                        class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-black text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95">

@@ -9,8 +9,12 @@ use App\Services\DailySupplyService;
 use App\Services\CharacterStatusService;
 use App\Services\EquipmentService;
 use App\Services\EquipmentPermissionService;
+use App\Services\ExplorationItemService;
+use App\Services\ExplorationStateService;
 use App\Services\JobCombatGuideService;
+use App\Services\MapExplorationItemService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 
 class ShopController extends Controller
 {
@@ -112,16 +116,41 @@ class ShopController extends Controller
         return redirect()->route('shop.equipment', ['type' => 'weapon']);
     }
 
-    public function items(DailySupplyService $dailySupplyService)
+    public function items(DailySupplyService $dailySupplyService, CharacterStatusService $statusService)
     {
         $character = Auth::user()->currentCharacter();
-        if (!$character) {
+        if (! $character) {
             return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
         }
 
+        $stats = $statusService->getFinalStats($character);
+        $maxHp = max(1, (int) ($stats['max_hp'] ?? $character->hp_base));
+        $maxSp = max(0, (int) ($stats['max_mp'] ?? $character->mp_base));
+        $items = collect($dailySupplyService->statusFor($character))
+            ->map(function (array $entry) use ($character, $maxHp, $maxSp): array {
+                $resource = $entry['name'] === '魔力水' ? 'sp' : 'hp';
+                $current = $resource === 'hp'
+                    ? (int) ($character->current_hp ?? 0)
+                    : (int) ($character->current_mp ?? 0);
+                $max = $resource === 'hp' ? $maxHp : $maxSp;
+
+                return [
+                    ...$entry,
+                    'resource' => $resource,
+                    'resource_label' => strtoupper($resource),
+                    'resource_current' => $current,
+                    'resource_max' => $max,
+                    'can_use' => $entry['item'] !== null
+                        && (int) ($entry['owned_count'] ?? 0) > 0
+                        && $max > 0
+                        && $current < $max,
+                ];
+            })
+            ->all();
+
         return view('shop.supply', [
             'categoryName' => '補給所',
-            'items' => $dailySupplyService->statusFor($character),
+            'items' => $items,
             'targetCount' => $dailySupplyService->targetCount(),
         ]);
     }
@@ -146,6 +175,37 @@ class ShopController extends Controller
 
         $result = $dailySupplyService->claimAll($character);
         return redirect()->back()->with($result['success'] ? 'status' : 'error', $result['message']);
+    }
+
+    public function useRecoveryItem(
+        Item $item,
+        ExplorationItemService $itemService,
+        ExplorationStateService $stateService,
+        MapExplorationItemService $mapItemService,
+    ) {
+        $character = Auth::user()->currentCharacter();
+        if (! $character) {
+            return redirect()->route('home')->with('error', 'キャラクターが見つかりません。');
+        }
+
+        if ($stateService->hasActiveExploration($character) || $mapItemService->activeRegistration($character)) {
+            return redirect()
+                ->route('shop.items')
+                ->with('error', '探索中は戦闘結果から回復アイテムを使ってください。');
+        }
+
+        $rateLimitKey = "town-recovery-item:{$character->id}:{$item->id}";
+        if (! RateLimiter::attempt($rateLimitKey, 1, static fn (): bool => true, 1)) {
+            return redirect()
+                ->route('shop.items')
+                ->with('error', '回復アイテムを使用中です。少し待ってからもう一度お試しください。');
+        }
+
+        $result = $itemService->useInTown($character, $item);
+
+        return redirect()
+            ->route('shop.items')
+            ->with($result['success'] ? 'status' : 'error', $result['message']);
     }
 
     public function buy(Request $request, Item $item, ShopService $shopService, EquipmentPermissionService $permissionService)

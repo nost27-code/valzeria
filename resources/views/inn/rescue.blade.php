@@ -37,9 +37,26 @@
                     @endif
                 </div>
 
-                <div class="mt-6 flex justify-center">
+                <div class="mt-5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-bold leading-relaxed text-sky-900">
+                    補給所では回復アイテムを無料で受け取れます。次の宿代に備えるなら、不要な素材や装備を売ってGoldにできます。
+                </div>
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <a href="{{ route('shop.items') }}"
+                       class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-black text-sky-800 shadow-sm transition hover:bg-sky-100 active:scale-95">
+                        <img src="{{ asset('images/facilities/facility_supply_300.webp') }}" alt="" class="h-5 w-5 object-contain">
+                        補給所へ
+                    </a>
+                    <a href="{{ route('inventory.index', ['tab' => 'material']) }}"
+                       class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 shadow-sm transition hover:bg-amber-100 active:scale-95">
+                        <img src="{{ asset('images/icon/icon_025.webp') }}" alt="" class="h-5 w-5 object-contain">
+                        素材・装備を売る
+                    </a>
+                </div>
+
+                <div class="mt-4 flex justify-center">
                     <a href="{{ route('home') }}"
-                       class="inline-flex min-w-48 items-center justify-center rounded-lg bg-slate-800 px-5 py-3 text-sm font-black text-white shadow transition hover:bg-slate-900 active:scale-95">
+                       class="inline-flex min-w-48 items-center justify-center px-5 py-2 text-sm font-black text-slate-600 transition hover:text-slate-900 hover:underline">
                         街へ戻る
                     </a>
                 </div>

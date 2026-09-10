@@ -359,6 +359,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/shop/items', [ShopController::class, 'items'])->name('shop.items');
         Route::post('/shop/items/claim-all', [ShopController::class, 'claimAllSupplies'])->name('shop.items.claim_all');
         Route::post('/shop/items/{item}/claim', [ShopController::class, 'claimSupply'])->name('shop.items.claim');
+        Route::post('/shop/items/{item}/use', [ShopController::class, 'useRecoveryItem'])->name('shop.items.use');
         Route::post('/shop/items/{item}/buy', [ShopController::class, 'buy'])->name('shop.buy');
 
         // 装備変更
