@@ -161,6 +161,20 @@ class CharacterIconSetTest extends TestCase
         }
     }
 
+    public function test_exclusive_049_uses_the_approved_victory_and_battle_pose_order(): void
+    {
+        $basePath = public_path('images/chara/exclusive/exclusive_049');
+
+        $this->assertSame(
+            '5cc929617c9c7b0bc56fb3f804528f455d7cf1263d2e184b4b3cd3cfb8e60447',
+            hash_file('sha256', "{$basePath}/02_victory.webp")
+        );
+        $this->assertSame(
+            '5c9ae94494fab44b7d546479fb8fb1cbe7ce863dfcbd57aa629701d5e6eb2bc2',
+            hash_file('sha256', "{$basePath}/03_battle.webp")
+        );
+    }
+
     public function test_owner_can_cycle_arena_showcase_and_every_ranking_view_uses_saved_pose(): void
     {
         $character = $this->createCharacter('展示ポーズ確認');

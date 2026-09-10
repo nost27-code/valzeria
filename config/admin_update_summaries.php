@@ -2,6 +2,14 @@
 
 return [
     [
+        'id' => '2026-09-11-exclusive-character-icon-049-pose-order',
+        'date' => '2026-09-11',
+        'category' => 'fixed',
+        'title' => 'ふーか専用アイコンのポーズ順を修正',
+        'detail' => 'ふーかさん専用キャラアイコンの勝利ポーズと戦闘ポーズを、指定された順番へ修正しました。',
+        'internal' => true,
+    ],
+    [
         'id' => '2026-09-10-restore-admin-user-investigation-play-as',
         'date' => '2026-09-10',
         'category' => 'fixed',
