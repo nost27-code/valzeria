@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\CheckCharacterSelected;
 use App\Models\Area;
 use App\Models\Character;
 use App\Models\CharacterAreaProgress;
@@ -9,13 +10,14 @@ use App\Models\CharacterJob;
 use App\Models\Enemy;
 use App\Models\JobClass;
 use App\Models\User;
-use App\Services\Battle\BattleResult;
 use App\Services\Battle\BattleActor;
+use App\Services\Battle\BattleResult;
 use App\Services\Battle\BattleState;
 use App\Services\BattleService;
 use App\Services\CharacterStatusService;
 use App\Services\HeroTrialProfileService;
 use App\Services\HeroTrialService;
+use App\Services\JobService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use ReflectionMethod;
@@ -100,8 +102,7 @@ class BlackMoonHeroTrialTest extends TestCase
         $battleService = Mockery::mock(BattleService::class);
         $battleService->shouldReceive('executeBattle')
             ->once()
-            ->withArgs(fn (Character $challenger, Enemy $enemy, int $bonus, array $options): bool =>
-                $challenger->is($character)
+            ->withArgs(fn (Character $challenger, Enemy $enemy, int $bonus, array $options): bool => $challenger->is($character)
                 && $enemy->name === '月喰影獣ルナグリムの影身'
                 && $bonus === 0
                 && $options === ['rewards_enabled' => false])
@@ -109,8 +110,7 @@ class BlackMoonHeroTrialTest extends TestCase
             ->andReturn($shadowResult);
         $battleService->shouldReceive('executeBattle')
             ->once()
-            ->withArgs(fn (Character $challenger, Enemy $enemy, int $bonus, array $options): bool =>
-                $challenger->is($character)
+            ->withArgs(fn (Character $challenger, Enemy $enemy, int $bonus, array $options): bool => $challenger->is($character)
                 && $enemy->name === '月喰影獣ルナグリム'
                 && $bonus === 0
                 && $options === ['rewards_enabled' => false])
@@ -174,6 +174,7 @@ class BlackMoonHeroTrialTest extends TestCase
             'is_unlocked' => true,
             'boss_defeated' => true,
         ]);
+        $this->grantCrownProof($character);
 
         $statusService = Mockery::mock(CharacterStatusService::class);
         $statusService->shouldReceive('getFinalStats')->andReturn(['max_hp' => 100, 'max_mp' => 50]);
@@ -200,7 +201,7 @@ class BlackMoonHeroTrialTest extends TestCase
         $this->assertSame('試練に挑む', $hallFacilities[1]['action']);
         $this->assertSame('道は閉ざされている', $hallFacilities[2]['action']);
 
-        $this->withoutMiddleware(\App\Http\Middleware\CheckCharacterSelected::class);
+        $this->withoutMiddleware(CheckCharacterSelected::class);
         $this->actingAs($character->user)
             ->withSession(['current_character_id' => $character->id])
             ->get(route('hero-trials.index'))
@@ -260,5 +261,25 @@ class BlackMoonHeroTrialTest extends TestCase
                 'is_published' => true,
             ],
         );
+    }
+
+    private function grantCrownProof(Character $character): void
+    {
+        Area::query()->updateOrCreate(
+            ['id' => JobService::CROWN_PROOF_AREA_ID],
+            [
+                'city_id' => 10,
+                'name' => '北境の霊峰エルヴァン',
+                'slug' => 'northern_peak_elvan',
+                'description' => '冠位職の表示確認用エリア',
+                'is_published' => true,
+            ],
+        );
+        CharacterAreaProgress::query()->create([
+            'character_id' => $character->id,
+            'area_id' => JobService::CROWN_PROOF_AREA_ID,
+            'is_unlocked' => true,
+            'boss_defeated' => true,
+        ]);
     }
 }

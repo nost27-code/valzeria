@@ -10,6 +10,13 @@ return [
         'internal' => true,
     ],
     [
+        'id' => '2026-09-11-hero-trial-hall-crown-proof-visibility',
+        'date' => '2026-09-11',
+        'category' => 'changed',
+        'title' => '英雄試練殿の表示条件を調整',
+        'detail' => '魔王城ヴァルゼリアの探索一覧では、冠位の証を得て神殿に冠位職が表示された冒険者だけに英雄試練殿を表示するようにしました。個別試練の条件を満たす前でも殿内へ入り、公開済みの試練を確認できます。',
+    ],
+    [
         'id' => '2026-09-10-restore-admin-user-investigation-play-as',
         'date' => '2026-09-10',
         'category' => 'fixed',

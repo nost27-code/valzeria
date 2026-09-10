@@ -7,8 +7,8 @@ use App\Services\CharacterStatusService;
 use App\Services\HeroTrialService;
 use App\Services\InnService;
 use DomainException;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -29,14 +29,14 @@ class HeroTrialController extends Controller
             return redirect()->route('home');
         }
 
-        $trials = $trialService->trialFacilitiesFor($character, (int) $character->current_city_id);
-        if ($trials === []) {
+        $cityId = (int) $character->current_city_id;
+        if (! $trialService->canViewHall($character, $cityId)) {
             return redirect()->route('home')->with('error', '現在挑戦できる英雄試練はありません。');
         }
 
         session(['current_location' => 'dungeon']);
 
-        $trials = collect($trialService->hallFacilitiesFor($character, (int) $character->current_city_id))
+        $trials = collect($trialService->hallFacilitiesFor($character, $cityId))
             ->map(function (array $trial) use ($character, $innService): array {
                 if ((bool) ($trial['challenge_requirements']['only_hp_sp_missing'] ?? false)) {
                     $trial['inn_fee'] = $innService->fee($character);
@@ -163,8 +163,7 @@ class HeroTrialController extends Controller
         HeroTrialService $trialService,
         CharacterStatusService $statusService,
         CharacterIconSetService $iconSetService,
-    ): View|RedirectResponse
-    {
+    ): View|RedirectResponse {
         if (! $trialService->isEnabled()) {
             return redirect()->route('home')->with('error', '英雄試練は現在公開されていません。');
         }

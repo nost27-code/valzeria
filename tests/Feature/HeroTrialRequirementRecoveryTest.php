@@ -10,6 +10,7 @@ use App\Models\CharacterJob;
 use App\Models\JobClass;
 use App\Models\User;
 use App\Services\CharacterStatusService;
+use App\Services\JobService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -219,6 +220,10 @@ class HeroTrialRequirementRecoveryTest extends TestCase
             ['id' => 84],
             ['name' => '暁の試練場', 'slug' => 'dawn_hero_trial', 'city_id' => 10]
         );
+        Area::query()->updateOrCreate(
+            ['id' => JobService::CROWN_PROOF_AREA_ID],
+            ['name' => '北境の霊峰エルヴァン', 'slug' => 'northern_peak_elvan', 'city_id' => 10]
+        );
 
         $requiredJob = JobClass::query()->firstOrCreate(
             ['key' => 'crown_sword_knight'],
@@ -248,6 +253,12 @@ class HeroTrialRequirementRecoveryTest extends TestCase
         CharacterAreaProgress::query()->create([
             'character_id' => $character->id,
             'area_id' => 70,
+            'is_unlocked' => true,
+            'boss_defeated' => true,
+        ]);
+        CharacterAreaProgress::query()->create([
+            'character_id' => $character->id,
+            'area_id' => JobService::CROWN_PROOF_AREA_ID,
             'is_unlocked' => true,
             'boss_defeated' => true,
         ]);

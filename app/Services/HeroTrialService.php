@@ -22,6 +22,13 @@ class HeroTrialService
         return app(ExtraContentControlService::class)->isActive('hero_trials');
     }
 
+    public function canViewHall(Character $character, ?int $cityId): bool
+    {
+        return $this->isEnabled()
+            && (int) $cityId === 10
+            && app(JobService::class)->hasCrownProof($character);
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -71,8 +78,7 @@ class HeroTrialService
      */
     public function facilitiesFor(Character $character, ?int $cityId): array
     {
-        $trials = $this->trialFacilitiesFor($character, $cityId);
-        if ($trials === []) {
+        if (! $this->canViewHall($character, $cityId)) {
             return [];
         }
 
@@ -120,7 +126,7 @@ class HeroTrialService
      */
     public function hallFacilitiesFor(Character $character, ?int $cityId): array
     {
-        if (! $this->isEnabled() || (int) $cityId !== 10) {
+        if (! $this->canViewHall($character, $cityId)) {
             return [];
         }
 
