@@ -484,5 +484,14 @@ return [
                 'defeat' => '/images/chara/exclusive/exclusive_053/04_defeat.webp',
             ],
         ],
+        'exclusive_054' => [
+            'label' => '限定キャラアイコン #054',
+            'paths' => [
+                'normal' => '/images/chara/exclusive/exclusive_054/01_normal.webp',
+                'victory' => '/images/chara/exclusive/exclusive_054/02_victory.webp',
+                'battle' => '/images/chara/exclusive/exclusive_054/03_battle.webp',
+                'defeat' => '/images/chara/exclusive/exclusive_054/04_defeat.webp',
+            ],
+        ],
     ],
 ];

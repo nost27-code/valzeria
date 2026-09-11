@@ -2,6 +2,13 @@
 
 return [
     [
+        'id' => '2026-09-11-exclusive-character-icon-054',
+        'date' => '2026-09-11',
+        'category' => 'internal',
+        'title' => 'ねこむ専用のキャラアイコンを追加',
+        'detail' => 'ねこむさん専用の通常・勝利・戦闘・敗北の4ポーズキャラアイコンを追加しました。',
+    ],
+    [
         'id' => '2026-09-11-exclusive-character-icon-052',
         'date' => '2026-09-11',
         'category' => 'internal',
